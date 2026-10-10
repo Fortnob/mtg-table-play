@@ -12754,7 +12754,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Hatchet Bully: "Put a -1/-1 counter on a creature you control" is blight 1
       if (/^Put a -1\/-1 counter on a creature you control$/i.test(p)) { cost.blight = (cost.blight || 0) + 1; continue; }
       // Fain, the Broker: "Remove a counter from a creature you control"
-      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact) you control$/i))) {
+      // (O'aka, Traveling Merchant: "… from a nonland permanent you control" — counterFromNonland)
+      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact|nonland permanent) you control$/i))) {
         cost.removeCounterFrom = { filter: m[2].toLowerCase(), kind: m[1] ? '+1/+1' : null };
         continue;
       }
@@ -18037,6 +18038,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* Rituals that last: "Until end of turn, you don't lose this mana as
        steps and phases end." */
     { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
+    // Avatar Roku, Firebender: "Until end of combat, you don't lose this mana as steps end." (keepManaCombat)
+    // Strongarm Tactics: "Then each player who didn't discard a creature card this way loses 4 life."; Kroxa: "… then each opponent who didn't discard a nonland card this way loses 3 life" (lifeUnlessDiscarded)
+    { re: /^(?:Then )?each (opponent|player) who didn'?t discard an? (nonland|creature|land|noncreature) card this way loses (\d+) life\.?$/i,
+      make: (m) => ({ op: 'loseLifeUnlessDiscarded', who: /opponent/i.test(m[1]) ? 'opponents' : 'each', filter: m[2].toLowerCase(), n: +m[3] }) },
+    // Danitha, Benalia's Hope: "put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to Danitha" (putAttachedToSelf)
+    { re: /^Put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'putAttachedToSelf', from: ['hand', 'graveyard'], words: ['aura', 'equipment'] }) },
+    { re: /^Until end of combat, you don'?t lose (?:this|that) mana as steps end\.?$/i, make: () => ({ op: 'keepManaCombat' }) },
     /* "Target land becomes the basic land type of your choice until end of turn." */
     { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
@@ -18509,6 +18518,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
     // Wight of Precinct Six: "for each creature card in your opponents' graveyards"
     if ((m = p.match(/^([a-z]+) card in your opponents'? graveyards$/i))) return { cardsInOpponentGraveyards: m[1].toLowerCase(), mult: k };
+    // Omnath, Locus of Mana: "for each unspent green mana you have"; Omnath, Locus of the Void: "for each unspent mana you have" (unspentMana)
+    if ((m = p.match(/^unspent (?:(white|blue|black|red|green|colorless) )?mana you have$/i)))
+      return { unspentMana: m[1] ? ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' })[m[1].toLowerCase()] : '*', mult: k };
     // Kalemne, Disciple of Iroas: "for each experience counter you have"
     if (/^experience counter you have$/i.test(p)) return { playerStat: 'experience', mult: k };
     // Commander's Insignia: "for each time you've cast your commander from the command zone this game"
@@ -21925,6 +21937,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
     [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Ozai, the Phoenix King: "you have six or more unspent mana" (unspentMana)
+    [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
+    // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
+    [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
+      (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
@@ -22231,6 +22248,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   }
 
   const TRIGGER_PATTERNS = [
+    // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
+    { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
     { re: /^Whenever one or more ([A-Z][a-z]+)s you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
@@ -22895,6 +22914,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /* "Whenever <who> A, B, or C, <effect>" (and "… A or B, …") as one line
      for each of A, B and C — or null when the line is to stay as it is */
   function orTriggerLines(line) {
+    return orTriggerLinesOneSubject(line) || orTwoSubjects(line);
+  }
+  /* Norin the Wary: "When a player casts a spell or a creature attacks" —
+     each event with its own subject (orTwoSubjects). "When" and "Whenever"
+     are the same here: whichever the event reads with. */
+  function orTwoSubjects(line) {
+    const two = line.match(/^(When(?:ever)? )((?:an opponent|a player|you) [^,"]+?) or ((?:a|another) creature [^,"]+), ([^"]*)$/);
+    if (!two || triggerRest(line) === two[4].trim()) return null;
+    const alt = (x) => [two[1], /^Whenever/.test(two[1]) ? 'When ' : 'Whenever '].map(w => w + x + ', ' + two[4]).find(l => triggerRest(l) === two[4].trim());
+    const out = [alt(two[2]), alt(two[3])];
+    return out.every(Boolean) ? out : null;
+  }
+  function orTriggerLinesOneSubject(line) {
     const SUBJ = '(an opponent|a player|you|this [a-z]+|CARDNAME|enchanted creature|equipped creature)';
     const m = line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ((?:[^,"]+, )+)or ([^,"]+), ([^"]*)$'))
       || line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ([^,"]+?) or ([^,"]+), ([^"]*)$'));
@@ -23751,6 +23783,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             parsed.auto = true;
           }
         }
+        // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
+        if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
@@ -25934,6 +25968,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
       make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
+    // Abomination of Llanowar: "… the number of Elves you control plus the number of Elf cards in your graveyard" (cdaPlusGraveyard)
+    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?) you control plus the number of ([a-z]+) cards in your graveyard\.?$/i,
+      make: (m) => {
+        const a = cdaCount(m[1], 'you'), b = countOf(m[2] + ' card in your graveyard');
+        if (!a || a.unread || !b) return null;
+        const k = { sum: [a, b], mult: 1 };
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } };
+      } },
     // "<name>'s power and toughness are each equal to the number of X you control."
     // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?)(?: you control| on the battlefield)?\.?$/i,
@@ -27280,6 +27322,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
+      // The Necrobloom: "Land cards in your graveyard have dredge 2." (grantDredge)
+      { re: /^Land cards in your graveyard have dredge (\d+)\.?$/i, make: (m) => ({ op: 'grantDredge', filter: 'land', n: +m[1] }), auto: true },
+      // Lavinia, Azorius Renegade: "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls." (mvLandCap)
+      { re: /^Each opponent can'?t cast noncreature spells with mana value greater than the number of lands that player controls\.?$/i,
+        eff: { op: 'opponentsMvLandCap' }, auto: true },
       // Liesa, Shroud of Dusk: the commander tax paid in life (commanderTaxLife)
       { re: /^Rather than pay \{2\} for each previous time you'?ve cast this spell from the command zone this game, pay 2 life that many times\.?$/i,
         make: () => ({ op: 'commanderTaxLife' }), auto: true },
@@ -27757,6 +27804,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     analyze, normalizePunct, faceDownAnalysis,
     abilityLabel, named, describeEffects, condOf,
     parseTypeLine, scopeOf,
+    // (the engine's counts: "the number of Elves you control" — pluralTypes)
+    singularType,
     parseCost,
     parseEffects,
     parseEffectSentence,
@@ -30399,7 +30448,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.queueChoice({ type: 'mode', playerId: ap.id, purpose: 'dredge', count: 1,
             options: [{ i: 0, label: 'Draw a card' }].concat(dr.map((x, k) => ({ i: k + 1, label: `Dredge ${x.n}: mill ${x.n} and return ${x.o.name}` }))),
             values: [null].concat(dr.map(x => x.o.id)), prompt: 'Draw your card, or dredge?' });
-        } else if (dr.length && this.zones[ap.id].library.length > 15) this._dredge(ap, dr[0].o);
+        } else if (dr.length && this.zones[ap.id].library.length > 15 && (dr.some(x => !x.granted) ||
+          // a bot takes a land back by The Necrobloom's dredge only when it has no land in hand to play (grantDredge)
+          !this.zones[ap.id].hand.some(c => (c.analysis() || {}).isLand))) this._dredge(ap, (dr.find(x => !x.granted) || dr[0]).o);
         else this._drawCards(ap, 1);
       }
       this._fire('yourDrawStep', ap.id);
@@ -31836,15 +31887,31 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const lib = this.zones[p.id].library.length;
       const out = [];
       for (const o of this.zones[p.id].graveyard) {
-        const k = ((o.analysis() || {}).keywords || []).find(x => x.keyword === 'Dredge');
-        const n = k ? parseInt(k.arg, 10) : 0;
-        if (n > 0 && lib >= n) out.push({ o, n });
+        const n = this._dredgeN(p, o);
+        // (granted: a land The Necrobloom lends dredge to, not a dredge card of its own — grantDredge)
+        if (n > 0 && lib >= n) out.push({ o, n, granted: !((o.analysis() || {}).keywords || []).some(x => x.keyword === 'Dredge') });
       }
       return out;
     }
-    _dredge(p, o) {
+    /** A card's dredge number: its own, or one a permanent of its owner's gives it (The Necrobloom: grantDredge). */
+    _dredgeN(p, o) {
       const k = ((o.analysis() || {}).keywords || []).find(x => x.keyword === 'Dredge');
-      const n = k ? parseInt(k.arg, 10) : 0;
+      let n = k ? parseInt(k.arg, 10) || 0 : 0;
+      for (const x of this.battlefield) {
+        if (x.controller !== p.id || x.phasedOut) continue;
+        const g = this._staticOp(x, 'grantDredge');
+        if (g && this._cardFitsWords(o, g.filter || 'card')) n = Math.max(n, g.n || 0);
+      }
+      return n;
+    }
+    /** Unspent mana in a player's pool, of one colour or ('*') all of it, set-aside mana included (unspentMana). */
+    _unspentMana(p, c) {
+      if (!p || !p.pool) return 0;
+      const rest = (p.restricted || []).filter(r => c === '*' || r.color === c).length;
+      return (c === '*' ? p.pool.total() : (Number(p.pool[c]) || 0)) + rest;
+    }
+    _dredge(p, o) {
+      const n = this._dredgeN(p, o);
       const lib = this.zones[p.id].library;
       for (let i = 0; i < n && lib.length; i++) this.moveObject(lib[0], 'graveyard');
       this.moveObject(o, 'hand');
@@ -32288,6 +32355,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         return k * mult;
       }
+      // Omnath, Locus of Mana: "for each unspent green mana you have" (unspentMana)
+      if (v.unspentMana) return this._unspentMana(this.player(pid), v.unspentMana) * mult;
+      // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
+      if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || w.includes(v.sacrificedThisTurn)).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
       // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
@@ -32718,6 +32789,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const e0 = this._staticOp(vw, 'opponentsCantCastParity');
         const mv = (o.card && o.card.cmc) || 0;
         if ((mv % 2 === 0) === !!e0.even) return { ok: false, reason: `${vw.name}: you can't cast spells with ${e0.even ? 'even' : 'odd'} mana values.` };
+      }
+      // Lavinia, Azorius Renegade: no noncreature spell with mana value greater than the caster's lands (mvLandCap)
+      if (!(o.analysis() || {}).isCreature) {
+        for (const q of this.opponentsOf(playerId)) {
+          const lv = this._anyStaticOf(q.id, 'opponentsMvLandCap');
+          if (!lv) continue;
+          const lands = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && (x.analysis() || {}).isLand).length;
+          if (((o.card && o.card.cmc) || 0) > lands) return { ok: false, reason: `${lv.name}: you can't cast noncreature spells with mana value greater than the number of lands you control.` };
+        }
       }
       // Steel Golem: "You can't cast creature spells." — its controller only
       for (const s1 of this.battlefield) {
@@ -33677,6 +33757,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      // Kroxa: who discarded what as this resolves (lifeUnlessDiscarded)
+      if (this.resolving) (this.resolving._discBy = this.resolving._discBy || []).push({ pid: playerId, id: o.id });
       // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
       { const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1; }
       /* Obstinate Baloth: "If a spell or ability an opponent controls causes
@@ -39535,6 +39617,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
         }
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
+        case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
+        // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
+        case 'sacrificedThisTurn': {
+          const sb = ((h.sacrificedBy || {})[me && me.id]) || [];
+          return sb.filter(w => cond.what === 'permanent' || w.includes(cond.what)).length >= (cond.n || 1);
+        }
         case 'thatPlayerHand': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -39775,7 +39864,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
       // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours || v.unspentMana)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
@@ -39944,7 +40033,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const a = o.analysis();
       if (!a) return null;
       const lb = o.zone === 'battlefield' && !this._layerBusy ? this._layerBoard(o) : null;
-      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o) && o._chrGen === this._lbGen) return o._chr;
+      // (Serra Ascendant, Omnath, Ozai: life and unspent mana change what a permanent is without anything moving — worldSig)
+      const world = this._worldSig();
+      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o) && o._chrGen === this._lbGen && o._chrWorld === world) return o._chr;
       const s = lb && lb.special ? lb.st.get(o.id) : null;
       const loseTs = s && s.lost ? s.loseTs : -Infinity;
 
@@ -40051,6 +40142,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       o._chrEpoch = this._boardKey;
       o._chrLocal = this._localEpoch(o);
       o._chrGen = this._lbGen;
+      o._chrWorld = world;
       return res;
     }
 
@@ -40059,6 +40151,23 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       let k = (o.effects || []).length * 31;
       for (const key in o.counters) k += (Number(o.counters[key]) || 0) * 7 + key.length;
       return k + (o.attachments || []).length * 3 + (o.face || 0) * 5 + (o.faceDown ? 2 : 0);
+    }
+
+    /**
+     * What a standing rule may ask about that changes without the board
+     * changing: each player's life, poison, energy and experience, and the
+     * unspent mana in their pool (worldSig). A permanent's characteristics
+     * are worked out again when it moves.
+     */
+    _worldSig() {
+      let k = 0;
+      for (const p of this.players) {
+        const q = p.pool || {};
+        const mana = (q.W | 0) + (q.U | 0) * 64 + (q.B | 0) * 4096 + (q.R | 0) * 262144 + (q.G | 0) * 16777216 + (q.C | 0) * 1073741824;
+        k = (k * 131 + (Number(p.life) || 0) * 1009 + (p.poison | 0) * 97 + (p.energy | 0) * 13 + (p.experience | 0) * 7
+          + (mana % 1000000007) * 101 + (p.restricted || []).length * 23) % 1000000007;
+      }
+      return k;
     }
 
     /** Something changed on the battlefield: recompute rather than remember. */
@@ -40429,8 +40538,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o.zone === 'battlefield') {
         const i = this.battlefield.indexOf(o);
         if (i >= 0) this.battlefield.splice(i, 1);
-        // detach
-        for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) at.attachedTo = null; }
+        // detach (an Aura that was on it goes to the graveyard, and looks for no new host: _needsHost)
+        for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) { at.attachedTo = null; at._needsHost = false; } }
         // Stone Haven Outfitter: "whenever an equipped creature you control dies" — what it had on it as it went
         o._lastAttachments = o.attachments.slice();
         o.attachments = [];
@@ -41006,6 +41115,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       data = data || {};
       /* "Whenever a player sacrifices a permanent": once for each one */
       if (event === 'youSacrifice') {
+        // Elanor Gardner: what each player sacrificed this turn, by its types (sacrificedThisTurn)
+        if (controllerId) {
+          const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+          const sb = ((h.sacrificedBy = h.sacrificedBy || {})[controllerId] = h.sacrificedBy[controllerId] || []);
+          const sa = data.object && (Number(data.count) || 1) === 1 && data.object.analysis ? data.object.analysis() : null;
+          for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) sb.push(sa ? (sa.types || []).concat(sa.subtypes || []).map(x => String(x).toLowerCase()) : []);
+        }
         // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
@@ -41236,6 +41352,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (!/\{X\}/.test(mc)) continue;
           }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
+          // Fire Lord Azula: only while it is attacking (selfAttacking)
+          if (ab.selfAttacking && !(o.zone === 'battlefield' && o.attacking)) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
           if (ab.firstXSpell) {
             const hasX = (x) => /\{X\}/.test(((x && x.card) || {}).mana_cost || '');
@@ -42071,7 +42189,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -44759,6 +44877,50 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!card) break;
           const is = this._matchesCategory(card, e.type);
           if (e.not ? !is : is) this._spliceNext(e.then || []);
+          break;
+        }
+        // Avatar Roku, Firebender: the mana stays until combat ends, as firebending's does (keepManaCombat)
+        case 'keepManaCombat':
+          if (this.phase && this.phase.id === 'combat') { me.poolKeepUntil = 'combat'; this.logEvent('mana', `${me.name} keeps their mana until the end of combat.`); }
+          break;
+        /* Kroxa: "each opponent who didn't discard a nonland card this way
+           loses 3 life" — what each player discarded as this resolved (lifeUnlessDiscarded) */
+        case 'loseLifeUnlessDiscarded': {
+          const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : this.opponentsOf(ctx.controller);
+          const disc = ((this.resolving || {})._discBy) || [];
+          for (const p of who) {
+            if (!p || p.hasLost) continue;
+            const hit = disc.some(d => d.pid === p.id && this._cardFitsWords(this.obj(d.id) || { analysis: () => null }, e.filter || 'card'));
+            if (!hit) this.changeLife(p, -(e.n || 0), 'card');
+          }
+          break;
+        }
+        /* Danitha, Benalia's Hope: an Aura or Equipment card from your hand
+           or graveyard onto the battlefield attached to it (putAttachedToSelf) */
+        case 'putAttachedToSelf': {
+          const host = src && src.zone === 'battlefield' ? src : null;
+          const pool = [];
+          for (const zn of (e.from || ['hand'])) for (const c of (this.zones[ctx.controller][zn] || [])) {
+            const ca = c.analysis() || {};
+            if (!(e.words || []).some(w => this._cardFitsWords(c, w))) continue;
+            // an Aura that couldn't enchant it stays where it is (CR 303.4f)
+            if (ca.isAura && !(host && this._attachLegal(c, ca, host))) continue;
+            pool.push(c);
+          }
+          if (!pool.length) break;
+          const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+            prompt: `Choose an Aura or Equipment card to put onto the battlefield${host ? ' attached to ' + host.name : ''}.` }, 'pas');
+          if (got === SUSPEND) return SUSPEND;
+          const c = ((got || []).map(id => this.obj(id)).find(x => x && pool.includes(x))) || pool[0];
+          if (!c || (c.zone !== 'hand' && c.zone !== 'graveyard')) break;
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (c.zone !== 'battlefield') break;
+          if (host && host.zone === 'battlefield') {
+            c.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+            this.logEvent('attach', `${c.name} enters attached to ${host.name}.`);
+          }
+          this.bumpBoard();
           break;
         }
         case 'keepMana':
@@ -51073,7 +51235,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // "artifacts and enchantments" counts anything that is either (Thousand Moons Smithy: "artifacts and/or creatures")
       const wants = String(per || '')
         .split(/\s+and\/or\s+|\s+and\s+|\s*,\s*/)
-        .map(w => w.trim().replace(/(?<!plain)s$/, ''))
+        // (Abomination of Llanowar, Ondu Cleric: "Elves", "Allies" — the type's own singular: pluralTypes)
+        .map(w => (O.singularType ? O.singularType(w) : w.trim().replace(/(?<!plain)s$/, '')))
         .filter(Boolean);
       if (!wants.length) return [];
       const out = [];
@@ -51629,6 +51792,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
              battlefield, or to something it can no longer enchant goes to
              the graveyard (CR 704.5m). Equipment or a Fortification in the
              same state just comes off and stays (704.5n). */
+          /* (Danitha, Benalia's Hope: put onto the battlefield and then attached by what put it there — an
+             Aura that has had something to enchant chooses nothing new when that is gone: _needsHost) */
+          if (o._needsHost && o.attachedTo) o._needsHost = false;
           // a Curse on a player stays as long as that player is in the game
           const hostP = o.attachedTo && this.player(o.attachedTo);
           if (hostP && hostP.hasLost) {
@@ -53065,6 +53231,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           answers: JSON.parse(JSON.stringify(this.resolving.answers)),
           // Rise of the Witch-king: who sacrificed what so far (sacrificedThisWay)
           sacBy: this.resolving._sacBy ? JSON.parse(JSON.stringify(this.resolving._sacBy)) : undefined,
+          discBy: this.resolving._discBy ? JSON.parse(JSON.stringify(this.resolving._discBy)) : undefined,
           manual: JSON.parse(JSON.stringify(this.resolving.manual)),
           afterKind: this.resolving.afterKind,
         } : null,
@@ -53132,7 +53299,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (ctx.objId) ctx.obj = byId(ctx.objId);
         this.resolving = {
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
-          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy,
+          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy, _discBy: rs.discBy,
           // the callback is a closure, so it is rebuilt from what it was for
           after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx) : null,
         };
