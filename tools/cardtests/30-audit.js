@@ -5229,4 +5229,21 @@ module.exports = (test) => {
       }
     }
   });
+
+  test('Audit: "for each time it was kicked": Wolfbriar Elemental multikicked twice makes two Wolves; Archangel of Wrath kicked (both kickers) hits twice', (mk, t) => {
+    t.auto('Wolfbriar Elemental'); t.auto('Archangel of Wrath');
+    let T = mk();
+    T.toMain('A');
+    const we = T.hand('A', 'Wolfbriar Elemental');
+    T.mana('A', 'GGGG2');
+    T.cast('A', we, { kick: 2 }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Wolf/.test(o.name)).length, 2);
+    T = mk();
+    T.toMain('A');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.mana('A', 'WWBR2');
+    T.cast('A', T.hand('A', 'Archangel of Wrath'), { kick: true }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16, 'kicked with both: 2 and 2');
+  });
 };
