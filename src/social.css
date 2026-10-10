@@ -187,6 +187,7 @@ html[data-play="1"] .friends-chip { display: none; }
 .tr-status { padding: 10px 14px; border-radius: 12px; font-size: 13.5px; color: var(--ink-2); background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); }
 .tr-status.st-done { color: var(--good); border-color: var(--good-line); background: var(--good-bg); }
 .tr-status.st-closed { color: var(--ink-3); }
+.tr-status.warn { color: var(--warn); border-color: var(--warn-line); background: var(--warn-bg); }
 .tr-status.finishing, .tr-status.st-asking { color: var(--gold-hi); border-color: rgba(212,175,71,.4); }
 :root[data-theme="light"] .tr-status.finishing, :root[data-theme="light"] .tr-status.st-asking { color: var(--accent); }
 .tr-deal { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

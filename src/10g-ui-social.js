@@ -132,7 +132,21 @@
     }, 40);
   }
   hub.on('change', changed);
-  MTG.trade.on('update', changed);
+  /* A trade carries on with its window put away; when the friend confirms
+     it, a note says so (once for each deal they confirm). */
+  let confirmedSeen = '';
+  MTG.trade.on('update', (s) => {
+    changed();
+    if (s.state !== 'open' || !MTG.trade.theyConfirmed(s) || MTG.trade.iConfirmed(s) || (UI.tradeWindowFor && UI.tradeWindowFor(s))) return;
+    const key = s.id + ':' + s.rev;
+    if (key === confirmedSeen) return;
+    confirmedSeen = key;
+    const f = hub.entry(s.code) || { code: s.code, name: s.name };
+    note({
+      key: 'trade-' + s.id, face: portrait(f, 'sm'), title: `${who(f)} confirmed your trade`, text: 'Look it over and confirm it too, or change it.', life: 45000,
+      buttons: [{ label: 'Open', cls: 'primary', fn: () => { if (UI.openTrade) UI.openTrade(s); } }],
+    });
+  });
 
   /* ---------------- notes: something to answer ---------------- */
   function notesHost() {
@@ -210,9 +224,9 @@
   });
   MTG.trade.on('closed', (s) => {
     changed();
-    // the person who asked hears the answer; a window that is open says so itself
+    // with its window put away, how a trade ended comes as a toast; an open window says so itself
     if (UI.tradeWindowFor && UI.tradeWindowFor(s)) return;
-    if (s.role === 'leader' && s.why && !/^You /.test(s.why)) UI.toast(s.why, '', 4200);
+    if (s.why && !/^You /.test(s.why) && !(s.role === 'follower' && /ran out/.test(s.why))) UI.toast(s.why, '', 4200);
   });
   MTG.trade.on('finished', (entry, s) => {
     changed();

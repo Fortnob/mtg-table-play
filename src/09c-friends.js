@@ -515,6 +515,8 @@
       try { sendOn(link.conn, msg); return true; } catch (e) { return false; }
     }
     function heartbeat() {
+      // the broker lost and not found again by itself: keep asking, gently
+      if (wanted && peer && !peer.destroyed && peer.disconnected && status !== 'taken') { try { peer.reconnect(); } catch (e) { /* next time */ } }
       const t = now();
       for (const link of [...links.values(), ...strangers]) {
         if (t - link.heard > T.quiet) { closeLink(link); continue; }

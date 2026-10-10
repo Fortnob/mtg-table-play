@@ -745,6 +745,17 @@ async function main() {
   uma.button('Trade anyway').click();
   await until(() => uma.MTG.trade.iConfirmed(uma.MTG.trade.current()), 1000, 'Trade anyway does');
   await until(() => uma.button('Change my mind', '.trade-modal'), 1000, 'and the button offers to take it back');
+  uma.button('Change my mind', '.trade-modal').click();
+  await until(() => !uma.MTG.trade.iConfirmed(uma.MTG.trade.current()), 1000, 'Change my mind unconfirms');
+  // the window put away by its cross: the trade carries on, and Vic confirming brings a note
+  uma.doc.querySelectorAll('.trade-modal .modal-x').pop().click();
+  check(!uma.doc.querySelector('.trade-modal') && uma.MTG.trade.current() && uma.MTG.trade.current().state === 'open', 'putting the window away leaves the trade open');
+  await until(() => !vic.MTG.trade.theyConfirmed(vic.MTG.trade.current()) && vic.button('Confirm trade', '.trade-modal') &&
+    !vic.button('Confirm trade', '.trade-modal').disabled, 1000, 'Vic sees Uma took her confirmation back');
+  vic.button('Confirm trade', '.trade-modal').click();
+  await until(() => /Vic confirmed your trade/.test((uma.doc.querySelector('#social-notes') || { textContent: '' }).textContent), 2000, 'Uma gets a note that Vic confirmed');
+  uma.button('Open', '#social-notes').click();
+  await until(() => uma.doc.querySelector('.trade-modal') && /Vic confirmed this deal/.test(uma.doc.querySelector('.tr-status').textContent), 1000, 'and Open brings the trade back');
   vic.button('Cancel trade', '.trade-modal').click();
   await until(() => /Vic closed the trade/.test(uma.doc.querySelector('.tr-status').textContent), 2000, 'Uma sees Vic closed it');
   check(uma.count('Lightning Bolt') === 2 && !uma.MTG.trade.pending().length, 'nothing moved, and nothing is owed');

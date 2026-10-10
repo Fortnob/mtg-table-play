@@ -197,11 +197,12 @@
       m.close();
     }
     const offs = [T.on('update', (x) => { if (x === s) soon(); }), MTG.bus.on('wishlist:changed', () => soon())];
+    /* Putting the window away (its cross, Escape) leaves the trade open, to
+       go and look at your decks, say; it is there again under Trade beside
+       the friend. Only Cancel trade ends it. */
     m._onClose = () => {
       offs.forEach(f => f());
       if (tw === w) tw = null;
-      // a window closed on an open trade ends it; one closed while finishing leaves it to finish
-      if (T.current() === s && (s.state === 'open' || s.state === 'asking')) T.cancel(s);
     };
     let queued = false;
     function soon() { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; draw(); }); }
@@ -219,6 +220,9 @@
                 : mine ? `You confirmed. Waiting for ${s.name}…`
                   : theirs ? `${s.name} confirmed this deal. Confirm it too, or change it.`
                     : 'Pick what you give and what you would like from each other’s cards. Any change unconfirms you both.';
+      // a card in the deal that is no longer there to give: said, since it is why Confirm will not go
+      const bad = st === 'open' && !finishing && (s.L.size || s.F.size) ? T.problems(s) : '';
+      if (bad) { status.textContent = bad + ' Take it out, or put in fewer.'; status.classList.add('warn'); }
       const editable = st === 'open' && !finishing;
       drawDeal(editable);
       if (st === 'open' || st === 'committing') drawBinders(editable);
