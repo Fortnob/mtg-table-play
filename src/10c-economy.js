@@ -34,15 +34,40 @@
   ];
   /** Frames: a ring around your portrait at the table and in the menus. */
   const FRAMES = [
-    { id: 'gilded', name: 'Gilded', price: 1500 },
-    { id: 'thorns', name: 'Thorns', price: 1500 },
-    { id: 'frost', name: 'Frost', price: 1500 },
-    { id: 'ember', name: 'Ember', price: 2500 },
-    { id: 'arcane', name: 'Arcane', price: 2500 },
-    { id: 'void', name: 'Void', price: 4000 },
+    { id: 'gilded', name: 'Gilded', price: 1500, text: 'Worked gold, a gem at each quarter.' },
+    { id: 'thorns', name: 'Thorns', price: 1500, text: 'A twisted vine, its thorns standing out.' },
+    { id: 'frost', name: 'Frost', price: 1500, text: 'Cold metal, shards of ice, a pale glow.' },
+    { id: 'sylvan', name: 'Sylvan', price: 1500, text: 'A ring of wood in a wreath of leaves.' },
+    { id: 'tidal', name: 'Tidal', price: 2000, text: 'The sea, and a turning ring of foam.' },
+    { id: 'bloodmoon', name: 'Blood Moon', price: 2000, text: 'Crimson, with a slow red pulse.' },
+    { id: 'ember', name: 'Ember', price: 2500, text: 'A ring of fire, flames licking off it.' },
+    { id: 'arcane', name: 'Arcane', price: 2500, text: 'Runes turning one way, a dotted circle the other.' },
+    { id: 'sunburst', name: 'Sunburst', price: 2500, text: 'White gold, and rays all round.' },
+    { id: 'void', name: 'Void', price: 4000, text: 'A dark ring in a turning violet nebula.' },
+    { id: 'prismatic', name: 'Prismatic', price: 4000, text: 'Every colour, moving round.' },
+    { id: 'orbit', name: 'Orbit', price: 4000, text: 'A midnight ring, and a star going round it.' },
   ];
   /** Another printing's art for a card you own, by rarity (one you pulled is free). */
   const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
+
+  /* Azure Tide: rows of overlapping waves (seigaiha), lit from the surface
+     and darkening into the deep, round a ringed medallion. Each wave tile
+     is a quarter of the card across and as tall as it is half wide. */
+  const AZURE = (() => {
+    const F = '#0f3f78', L = 'rgba(150,212,255,.62)', at = '0 0 / 25% 8.95%';
+    return [
+      'radial-gradient(ellipse 90% 45% at 50% -8%, rgba(190,235,255,.42), transparent 70%)',
+      'radial-gradient(circle at 50% 50%, transparent 0 15%, rgba(200,236,255,.85) 15.4% 16.2%, rgba(4,20,46,.9) 16.6% 21%, rgba(200,236,255,.6) 21.3% 21.9%, transparent 22.3%)',
+      'radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(1,8,22,.72))',
+      'linear-gradient(180deg, rgba(110,190,255,.22), transparent 38%, rgba(2,10,28,.55))',
+      `radial-gradient(circle at 100% 150%, ${F} 24%, ${L} 24% 28%, ${F} 28% 36%, ${L} 36% 40%, transparent 40%) ${at}`,
+      `radial-gradient(circle at 0 150%, ${F} 24%, ${L} 24% 28%, ${F} 28% 36%, ${L} 36% 40%, transparent 40%) ${at}`,
+      `radial-gradient(circle at 50% 100%, ${L} 10%, ${F} 10% 23%, ${L} 23% 30%, ${F} 30% 43%, ${L} 43% 50%, ${F} 50% 63%, ${L} 63% 71%, transparent 71%) ${at}`,
+      `radial-gradient(circle at 100% 50%, ${L} 5%, ${F} 5% 15%, ${L} 15% 20%, ${F} 20% 29%, ${L} 29% 34%, ${F} 34% 44%, ${L} 44% 49%, transparent 49%) ${at}`,
+      `radial-gradient(circle at 0 50%, ${L} 5%, ${F} 5% 15%, ${L} 15% 20%, ${F} 20% 29%, ${L} 29% 34%, ${F} 34% 44%, ${L} 44% 49%, transparent 49%) ${at}`,
+      F,
+    ].join(', ');
+  })();
 
   /* Sleeves: what goes over the back of your cards. Woven patterns and
      card art at one price, and a sleeve of your own picture at four times
@@ -50,8 +75,7 @@
   const SLEEVES = [
     { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a',
       css: 'radial-gradient(circle at 50% 50%, rgba(201,162,74,.22) 0 9%, transparent 10%) 0 0 / 22% 16%, repeating-linear-gradient(45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), linear-gradient(160deg, #1b1916, #050505)' },
-    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff',
-      css: 'repeating-radial-gradient(circle at 50% 120%, rgba(160,215,255,.16) 0 2px, transparent 2px 14px), linear-gradient(170deg, #1a4f86, #0a1c38 70%, #050c1c)' },
+    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: AZURE },
     { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a',
       css: 'radial-gradient(ellipse at 50% 110%, rgba(255,140,60,.5), transparent 55%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, transparent 2px 7px), linear-gradient(180deg, #5a0d0d, #1c0404)' },
     { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a',
@@ -131,7 +155,8 @@
     if (state) return state;
     state = Object.assign(blank(), MTG.store.get(KEY, null) || {});
     state.wc = Object.assign({ common: 0, uncommon: 0, rare: 0, mythic: 0 }, state.wc || {});
-    state.sleeves = Object.assign({ owned: [], on: null, custom: null, art: {} }, state.sleeves || {});
+    state.sleeves = Object.assign({ owned: [], on: null, custom: null, art: {}, anim: null }, state.sleeves || {});
+    if (state.sleeves.anim) loadAnim();
     if (!Array.isArray(state.arts)) state.arts = [];
     state.styles = Object.assign({ owned: {}, on: {} }, state.styles || {});
     state.frames = Object.assign({ owned: [], on: null }, state.frames || {});
@@ -592,11 +617,69 @@
     save('sleeve');
     return true;
   }
-  /** Your own sleeve's picture (a card-shaped JPEG data URL). */
-  function setCustomSleeve(data) {
+  /* A sleeve that moves: a GIF of your own. The file is too big to keep
+     with the rest of the collection, so it has a small database of its
+     own, and is read back into memory as the page opens. What it shows
+     of the picture is kept as fractions of it ({ x, y, w, h }); the still
+     JPEG beside it is its first frame, for anywhere a picture has to be
+     small (the other players at a table are sent that). */
+  const MEDIA_DB = 'mtgtable-media', ANIM_KEY = 'sleeve-anim';
+  let mediaOpen = null;
+  function mediaDb() {
+    if (!mediaOpen) mediaOpen = new Promise((res) => {
+      if (typeof indexedDB === 'undefined' || !indexedDB) return res(null);
+      let r;
+      try { r = indexedDB.open(MEDIA_DB, 1); } catch (e) { return res(null); }
+      r.onupgradeneeded = () => { r.result.createObjectStore('files'); };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => res(null);
+      r.onblocked = () => res(null);
+    });
+    return mediaOpen;
+  }
+  async function media(mode, key, val) {
+    const db = await mediaDb();
+    if (!db) return mode === 'get' ? null : false;
+    return new Promise((res) => {
+      try {
+        const tx = db.transaction('files', mode === 'get' ? 'readonly' : 'readwrite');
+        const os = tx.objectStore('files');
+        const r = mode === 'get' ? os.get(key) : mode === 'put' ? os.put(val, key) : os.delete(key);
+        if (mode === 'get') r.onsuccess = () => res(r.result || null);
+        else tx.oncomplete = () => res(true);
+        tx.onerror = () => res(mode === 'get' ? null : false);
+      } catch (e) { res(mode === 'get' ? null : false); }
+    });
+  }
+  let animUrl = null;
+  async function loadAnim() {
+    const want = state && state.sleeves.anim;
+    if (!want || animUrl) return;
+    const rec = await media('get', ANIM_KEY);
+    if (!rec || !rec.buf || !state.sleeves.anim || state.sleeves.anim.v !== rec.v) return;
+    animUrl = URL.createObjectURL(new Blob([rec.buf], { type: rec.type || 'image/gif' }));
+    if (MTG.bus) MTG.bus.emit('economy:changed', { shards: state.shards, why: 'sleeve', delta: 0 });
+  }
+  /**
+   * Your own sleeve's picture: a card-shaped JPEG data URL, and with it,
+   * for a GIF, the file itself ({ buf, type, crop }) to keep it moving.
+   * Resolves once the file is safely kept.
+   */
+  async function setCustomSleeve(data, anim) {
     load();
+    if (animUrl) { URL.revokeObjectURL(animUrl); animUrl = null; }
     state.sleeves.custom = data || null;
+    if (anim && anim.buf) {
+      const v = Date.now();
+      const ok = await media('put', ANIM_KEY, { buf: anim.buf, type: anim.type || 'image/gif', v });
+      state.sleeves.anim = ok ? { crop: anim.crop, v } : null;
+      if (ok) animUrl = URL.createObjectURL(new Blob([anim.buf], { type: anim.type || 'image/gif' }));
+    } else {
+      if (state.sleeves.anim) media('del', ANIM_KEY);
+      state.sleeves.anim = null;
+    }
     save('sleeve');
+    return !anim || !!state.sleeves.anim;
   }
   /** The art behind an art sleeve, kept once it is known. */
   function noteSleeveArt(id, url) { load(); if (url && state.sleeves.art[id] !== url) { state.sleeves.art[id] = url; save(); } }
@@ -610,7 +693,11 @@
     if (!sl) return null;
     if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
-    return state.sleeves.custom ? { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim } : null;
+    if (!state.sleeves.custom) return null;
+    const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };
+    // the moving one, here on this device (the others at a table are sent the still)
+    if (animUrl && state.sleeves.anim) { out.anim = animUrl; out.crop = state.sleeves.anim.crop; }
+    return out;
   }
 
   /* ---------------- wildcards for Shards, and art ---------------- */
@@ -746,6 +833,8 @@
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    /** Your moving sleeve, on this device: { anim, crop }, or nothing. */
+    customAnim: () => (animUrl && state && state.sleeves.anim ? { anim: animUrl, crop: state.sleeves.anim.crop } : {}),
     WC_PRICES, ART_PRICES, buyWildcards, craftPlan, craftAll, ownsArt, artPrice, buyArt,
     STYLES, FRAMES, styleById, ownsStyle, buyStyle, styleFor, setStyle, frameById, buyFrame, equipFrame, frameWorn,
     sleeves: () => load().sleeves,

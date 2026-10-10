@@ -1020,7 +1020,14 @@
       const chosen = MTG.app && MTG.app.avatarFor ? MTG.app.avatarFor(p.id) : null;
       // a frame they bought, around the portrait
       const frame = MTG.app && MTG.app.frameFor ? MTG.app.frameFor(p.id) : null;
-      if ((orb.dataset.frame || '') !== (frame || '')) orb.dataset.frame = frame || '';
+      if ((orb.dataset.frame || '') !== (frame || '')) {
+        orb.dataset.frame = frame || '';
+        let fx = orb.querySelector(':scope > .frame-fx');
+        if (frame) {
+          if (!fx) { fx = el('span', { class: 'frame-fx', 'aria-hidden': 'true' }); orb.appendChild(fx); }
+          fx.className = 'frame-fx f-' + frame;
+        } else if (fx) fx.remove();
+      }
       const url = chosen || (card ? (MTG.scry.imageUrl(card, 'art_crop', 0) || '') : '');
       if (art._url !== url) {
         art._url = url;

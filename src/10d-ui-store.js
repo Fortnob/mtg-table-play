@@ -1221,13 +1221,19 @@
     if (!sl) return null;
     if (sl.kind === 'pattern') return sl.css;
     if (sl.kind === 'art' && sl.art) return `url("${String(sl.art).replace(/"/g, '%22')}") 50% 30% / cover no-repeat, #111`;
+    // a GIF of your own: the part of it you chose, moving
+    if (sl.kind === 'custom' && sl.anim && sl.crop) {
+      const c = sl.crop, pct = (n) => (n * 100).toFixed(3) + '%';
+      const px = c.w < 1 ? c.x / (1 - c.w) : 0, py = c.h < 1 ? c.y / (1 - c.h) : 0;
+      return `url("${sl.anim}") ${pct(px)} ${pct(py)} / ${pct(1 / c.w)} ${pct(1 / c.h)} no-repeat, #111`;
+    }
     if (sl.kind === 'custom' && sl.img) return `url("${sl.img}") center / cover no-repeat, #111`;
     return null;
   };
   /** Put a sleeve on a card back (or take it off, with null). */
   UI.applySleeve = function (node, sl) {
     const bg = UI.sleeveBg(sl);
-    const key = bg ? (sl.id + ':' + (sl.art || (sl.img ? sl.img.length : '') || '')) : '';
+    const key = bg ? (sl.id + ':' + (sl.anim || sl.art || (sl.img ? sl.img.length : '') || '')) : '';
     if (node._sleeve === key) return;
     node._sleeve = key;
     node.classList.toggle('sleeved', !!bg);
@@ -1239,7 +1245,7 @@
     const face = el('div', { class: 'sleeve-tile-face card-back' });
     const worn = sl ? (sl.kind === 'pattern' ? { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim }
       : sl.kind === 'art' ? (art ? { id: sl.id, kind: 'art', art, rim: sl.rim } : null)
-      : (E().sleeves().custom ? { id: 'custom', kind: 'custom', img: E().sleeves().custom, rim: sl.rim } : null)) : null;
+      : (E().sleeves().custom ? Object.assign({ id: 'custom', kind: 'custom', img: E().sleeves().custom, rim: sl.rim }, E().customAnim()) : null)) : null;
     if (worn) UI.applySleeve(face, worn);
     else if (sl && sl.kind === 'custom') face.appendChild(el('div', { class: 'sleeve-upload-hint', html: '<b>+</b><span>Your picture</span>' }));
     return face;
@@ -1301,29 +1307,39 @@
       grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') }, [
         face,
         el('div', { class: 'sc-title', text: sl.name }),
-        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own' }) : null,
+        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own; a GIF keeps moving' }) : null,
         el('div', { class: 'pack-buys' }, btns),
       ].filter(Boolean)));
     }
     body.appendChild(grid);
   }
 
-  /** Your own sleeve: a picture from this device, cropped to a card. */
+  /**
+   * Your own sleeve: a picture from this device, cropped to a card. A GIF
+   * stays a GIF and keeps moving: the crop is kept as where to look in it,
+   * and its first frame as the still.
+   */
+  const GIF_MAX = 4 * 1024 * 1024;
   function chooseCustom(after) {
     const file = el('input', { type: 'file', accept: 'image/*', class: 'sr-only' });
     document.body.appendChild(file);
-    file.addEventListener('change', () => {
+    file.addEventListener('change', async () => {
       const f = file.files && file.files[0];
       file.remove();
       if (!f) return;
       if (!/^image\//.test(f.type)) return UI.error('That file is not a picture.');
-      UI.avatarCropper(f, { x: 0.5, y: 0.5, z: 1 }, 'your sleeve', (data) => {
-        E().setCustomSleeve(data);
+      const gif = f.type === 'image/gif';
+      if (gif && f.size > GIF_MAX) return UI.error(`That GIF is ${(f.size / 1048576).toFixed(1)} MB; a sleeve can be up to 4 MB.`);
+      let buf = null;
+      if (gif) { try { buf = await f.arrayBuffer(); } catch (e) { return UI.error('That GIF could not be read.'); } }
+      UI.avatarCropper(f, { x: 0.5, y: 0.5, z: 1 }, gif ? 'your moving sleeve' : 'your sleeve', async (data, crop) => {
+        const ok = await E().setCustomSleeve(data, gif ? { buf, type: f.type, crop } : null);
         E().equipSleeve('custom');
         MTG.sfx('confirm');
-        UI.ok('Your sleeve is on.');
+        if (gif && !ok) UI.error('The GIF could not be kept in this browser; its first frame is your sleeve instead.');
+        else UI.ok(gif ? 'Your sleeve is on, and moving.' : 'Your sleeve is on.');
         if (after) after();
-      }, null, { card: true });
+      }, null, { card: true, moving: gif });
     });
     file.click();
   }
@@ -2007,12 +2023,13 @@
       grid.appendChild(el('div', { class: 'store-card frame-tile' + (worn ? ' worn' : '') }, [
         UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id }),
         el('div', { class: 'sc-title', text: fr.name }),
+        fr.text ? el('div', { class: 'sc-sub dim', text: fr.text }) : null,
         owned
           ? el('button', { type: 'button', class: 'btn' + (worn ? '' : ' primary'), disabled: worn, text: worn ? 'Wearing' : 'Wear', onclick: () => { S.equipFrame(fr.id); MTG.sfx('confirm'); redraw(); } })
           : el('button', { type: 'button', class: 'btn primary buy', html: (UI.shardIcon ? UI.shardIcon() : '') + ' ' + fr.price.toLocaleString(), onclick: () => purchase({
             title: `${fr.name} frame`, cost: fr.price, visual: UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id }),
             buy: () => S.buyFrame(fr.id), after: redraw }) }),
-      ]));
+      ].filter(Boolean)));
     }
     body.appendChild(grid);
   };

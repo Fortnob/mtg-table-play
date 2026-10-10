@@ -1002,6 +1002,8 @@
     } else if (card) UI.setArt(face, card);
     return el('span', { class: 'portrait' + (opts.size ? ' ' + opts.size : '') + (opts.frame ? ' framed frame-' + opts.frame : ''), 'aria-hidden': 'true' }, [
       face, el('span', { class: 'portrait-ring' }),
+      // a frame they bought: its ring and what is round it (src/cosmetics.css)
+      opts.frame ? el('span', { class: 'frame-fx f-' + opts.frame }) : null,
     ]);
   };
 

@@ -32,36 +32,131 @@
 .style-face { position: absolute; inset: 0; border-radius: inherit; background: #111 center / cover no-repeat; }
 .pd-visual .style-face { position: relative; width: 150px; aspect-ratio: 63 / 88; }
 
-/* ---------- portrait frames ---------- */
-.portrait.framed { position: relative; }
-.portrait.framed::after, .life-orb[data-frame]:not([data-frame=""]) .orb-ring::after {
-  content: ""; position: absolute; inset: -5px; border-radius: 50%; pointer-events: none; z-index: 3; }
-.frame-gilded::after, .life-orb[data-frame="gilded"] .orb-ring::after {
-  border: 3px solid transparent; background: conic-gradient(from 210deg, #7d621a, #f3dd96, #b8912f, #7d621a, #f3dd96, #7d621a) border-box;
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  box-shadow: 0 0 10px rgba(243, 221, 150, .35); }
-.frame-thorns::after, .life-orb[data-frame="thorns"] .orb-ring::after {
-  background: repeating-conic-gradient(from 0deg, #2f4a1e 0 6deg, #6b8f3a 6deg 9deg, #1d2e12 9deg 15deg);
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 6px), #000 calc(100% - 4px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 6px), #000 calc(100% - 4px)); }
-.frame-frost::after, .life-orb[data-frame="frost"] .orb-ring::after {
-  background: conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #e8f6ff);
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  box-shadow: 0 0 14px rgba(160, 215, 255, .55); }
-.frame-ember::after, .life-orb[data-frame="ember"] .orb-ring::after {
-  background: conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ff6a1a);
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 4px), #000 calc(100% - 3px));
-  box-shadow: 0 0 16px rgba(255, 120, 40, .6); animation: frameSpin 6s linear infinite; }
-.frame-arcane::after, .life-orb[data-frame="arcane"] .orb-ring::after {
-  background: repeating-conic-gradient(from 0deg, #7fc4ff 0 4deg, transparent 4deg 12deg), conic-gradient(#2a5aa8, #7fc4ff, #2a5aa8);
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 3px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 3px));
-  box-shadow: 0 0 14px rgba(127, 196, 255, .55); animation: frameSpin 14s linear infinite; }
-.frame-void::after, .life-orb[data-frame="void"] .orb-ring::after {
-  background: conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720);
-  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px)); mask: radial-gradient(circle closest-side, transparent calc(100% - 5px), #000 calc(100% - 4px));
-  box-shadow: 0 0 20px rgba(140, 80, 230, .7); animation: frameSpin 9s linear infinite reverse; }
+/* ---------- portrait frames ----------
+   A frame is its own element over the portrait (or the life orb at the
+   table): .frame-fx.f-<id>. Its ::after is the ring, a little over the
+   edge of the picture; its ::before the ornaments around it (gems,
+   thorns, flames, rays), which the ring's own mask cannot reach. --fw is
+   the ring's width, set by the size of what it frames. */
+.portrait { --fw: 3.5px; }
+.portrait.md { --fw: 4px; }
+.portrait.lg { --fw: 5px; }
+.pd-visual .portrait.lg { --fw: 6.5px; }
+.life-orb { --fw: calc(var(--orb, 76px) * .06); }
+.frame-fx { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3; }
+.life-orb > .frame-fx { z-index: 1; }
+.frame-fx::before, .frame-fx::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
+.frame-fx::after {
+  inset: calc(var(--fw) * -.8);
+  -webkit-mask: radial-gradient(circle closest-side, transparent calc(100% - var(--fw)), #000 calc(100% - var(--fw) + .8px));
+  mask: radial-gradient(circle closest-side, transparent calc(100% - var(--fw)), #000 calc(100% - var(--fw) + .8px));
+}
+.frame-fx::before { inset: calc(var(--fw) * -2.7); }
+/* ornaments that stand out from the ring and fade as they go */
+.frame-fx.f-thorns::before, .frame-fx.f-frost::before, .frame-fx.f-ember::before, .frame-fx.f-sunburst::before, .frame-fx.f-sylvan::before {
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%);
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%);
+}
+
+/* Gilded: worked gold, a gem at each quarter */
+.f-gilded::after { background: conic-gradient(from 200deg, #6e5414, #f7e3a1, #b8912f, #6e5414, #fff1bf, #a37a22, #6e5414, #f3dd96, #6e5414); }
+.f-gilded::before {
+  background:
+    radial-gradient(circle at 50% calc(var(--fw) * 1.15), #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
+    radial-gradient(circle at 50% calc(100% - var(--fw) * 1.15), #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
+    radial-gradient(circle at calc(var(--fw) * 1.15) 50%, #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
+    radial-gradient(circle at calc(100% - var(--fw) * 1.15) 50%, #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
+    radial-gradient(closest-side, transparent 68%, rgba(243, 221, 150, .3) 80%, transparent 100%);
+}
+
+/* Thorns: a twisted vine, its thorns standing out */
+.f-thorns::after { background: repeating-conic-gradient(from 0deg, #22341a 0 7deg, #6d9140 7deg 10deg, #182510 10deg 16deg); }
+.f-thorns::before { background: repeating-conic-gradient(from 4deg, #4d6e2c 0 3deg, transparent 3deg 22.5deg), repeating-conic-gradient(from 15deg, #2c4419 0 2deg, transparent 2deg 22.5deg); }
+
+/* Frost: cold metal, shards of ice, a pale glow */
+.f-frost::after { background: conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #d6efff, #8fc8ee, #e8f6ff); }
+.f-frost::before {
+  background: repeating-conic-gradient(from 0deg, rgba(235, 250, 255, .95) 0 1.6deg, transparent 1.6deg 30deg), repeating-conic-gradient(from 15deg, rgba(170, 220, 255, .7) 0 1deg, transparent 1deg 30deg),
+    radial-gradient(closest-side, transparent 60%, rgba(160, 215, 255, .4) 80%, transparent 100%);
+}
+
+/* Ember: a ring of fire, turning, with flames licking off it */
+.f-ember::after { background: conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ffe2a0, #d8360f, #ff6a1a); animation: frameSpin 6s linear infinite; }
+.f-ember::before {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 190, 80, .95) 0 5deg, rgba(255, 90, 20, .7) 8deg, transparent 12deg 20deg),
+    radial-gradient(closest-side, transparent 55%, rgba(255, 110, 30, .55) 78%, transparent 100%);
+  animation: frameFlicker 1.6s ease-in-out infinite alternate;
+}
+
+/* Arcane: a ring of runes, a dotted circle turning the other way */
+.f-arcane::after { background: repeating-conic-gradient(from 0deg, #bfe4ff 0 3deg, #2a5aa8 3deg 5deg, #7fc4ff 5deg 9deg, #1b3f7a 9deg 12deg); animation: frameSpin 14s linear infinite; }
+.f-arcane::before {
+  background: repeating-conic-gradient(from 0deg, rgba(170, 220, 255, .95) 0 2.4deg, transparent 2.4deg 15deg), radial-gradient(closest-side, transparent 58%, rgba(110, 180, 255, .35) 78%, transparent 100%);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.3), #000 calc(100% - var(--fw) * 1.15) calc(100% - var(--fw) * .55), transparent calc(100% - var(--fw) * .4));
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.3), #000 calc(100% - var(--fw) * 1.15) calc(100% - var(--fw) * .55), transparent calc(100% - var(--fw) * .4));
+  animation: frameSpin 22s linear infinite reverse;
+}
+
+/* Void: a dark ring in a turning violet nebula */
+.f-void::after { background: conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720, #5b2aa8, #120720); }
+.f-void::before {
+  background: conic-gradient(from 0deg, transparent, rgba(150, 90, 240, .75), transparent 35%, rgba(205, 160, 255, .6), transparent 70%, rgba(110, 50, 200, .7), transparent);
+  -webkit-mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%); mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%);
+  filter: blur(1.5px); animation: frameSpin 9s linear infinite reverse;
+}
+
+/* Sunburst: white gold, and rays all round, slowly turning */
+.f-sunburst::after { background: conic-gradient(from 0deg, #fff6d0, #f0c860, #fffbe8, #d9a83a, #fff6d0, #f0c860, #fff6d0); }
+.f-sunburst::before {
+  background: repeating-conic-gradient(from 0deg, rgba(255, 222, 130, .95) 0 3.5deg, transparent 3.5deg 15deg), repeating-conic-gradient(from 7.5deg, rgba(255, 245, 210, .6) 0 1.5deg, transparent 1.5deg 15deg),
+    radial-gradient(closest-side, transparent 55%, rgba(255, 210, 110, .45) 78%, transparent 100%);
+  animation: frameSpin 40s linear infinite;
+}
+
+/* Tidal: the sea, and a ring of foam */
+.f-tidal::after { background: conic-gradient(from 0deg, #0f3f78, #7fc4ff, #e8f6ff, #2a6fb8, #0a2a55, #5fb0f0, #0f3f78); }
+.f-tidal::before {
+  background: repeating-conic-gradient(from 0deg, rgba(225, 245, 255, .9) 0 4deg, transparent 4deg 10deg), radial-gradient(closest-side, transparent 58%, rgba(90, 170, 240, .4) 78%, transparent 100%);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.25), #000 calc(100% - var(--fw) * 1.1) calc(100% - var(--fw) * .7), transparent calc(100% - var(--fw) * .5));
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.25), #000 calc(100% - var(--fw) * 1.1) calc(100% - var(--fw) * .7), transparent calc(100% - var(--fw) * .5));
+  animation: frameSpin 30s linear infinite;
+}
+
+/* Sylvan: a ring of wood in a wreath of leaves */
+.f-sylvan::after { background: repeating-conic-gradient(from 0deg, #5a3a1c 0 9deg, #8b5e2f 9deg 14deg, #3e2712 14deg 20deg); }
+.f-sylvan::before { background: repeating-conic-gradient(from 0deg, #7cc152 0 9deg, transparent 9deg 24deg), repeating-conic-gradient(from 12deg, #3f7f2a 0 8deg, transparent 8deg 24deg); }
+
+/* Blood Moon: crimson, and a slow red pulse */
+.f-bloodmoon::after { background: conic-gradient(from 0deg, #3a0505, #c21d1d, #ff6a5a, #7a0b0b, #3a0505, #d8301f, #3a0505); }
+.f-bloodmoon::before {
+  background: radial-gradient(closest-side, transparent 60%, rgba(220, 30, 30, .65) 76%, transparent 100%);
+  animation: framePulse 2.6s ease-in-out infinite;
+}
+
+/* Prismatic: every colour, moving round */
+.f-prismatic::after { background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d); animation: frameSpin 5s linear infinite; }
+.f-prismatic::before {
+  background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d);
+  -webkit-mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%); mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%);
+  filter: blur(2px); opacity: .75; animation: frameSpin 5s linear infinite reverse;
+}
+
+/* Orbit: a midnight ring, and a star going round it */
+.f-orbit::after { background: conic-gradient(from 0deg, #0b1230, #3a4f9a, #0b1230, #c9d6ff, #0b1230, #2a3a7a, #0b1230); }
+.f-orbit::before {
+  background:
+    radial-gradient(circle at 50% calc(var(--fw) * 1.2), #fff 0 calc(var(--fw) * .35), rgba(200, 220, 255, .9) calc(var(--fw) * .55), rgba(150, 180, 255, .3) calc(var(--fw) * 1.1), transparent calc(var(--fw) * 1.6)),
+    radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.32), rgba(170, 195, 255, .45) calc(100% - var(--fw) * 1.22) calc(100% - var(--fw) * 1.12), transparent calc(100% - var(--fw) * 1.02));
+  animation: frameSpin 4.5s linear infinite;
+}
+
 @keyframes frameSpin { to { transform: rotate(360deg); } }
+@keyframes frameFlicker { 0% { transform: scale(.97) rotate(0deg); opacity: .85; } 50% { transform: scale(1.04) rotate(3deg); opacity: 1; } 100% { transform: scale(.99) rotate(-2deg); opacity: .9; } }
+@keyframes framePulse { 50% { opacity: .45; transform: scale(.96); } }
+@media (prefers-reduced-motion: reduce) { .frame-fx::before, .frame-fx::after { animation: none !important; } }
 .store-grid.frames { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
-.frame-tile .portrait.lg { width: 84px; height: 84px; margin: 8px 0; }
+.frame-tile .portrait.lg { width: 84px; height: 84px; margin: 18px 0 12px; }
+.frame-tile .sc-sub { min-height: 2.6em; font-size: 12px; text-align: center; }
 .store-card.frame-tile.worn { border-color: rgba(243, 221, 150, .5); }
 .pd-visual .portrait.lg { width: 110px; height: 110px; }
 
@@ -81,4 +176,4 @@
 .emote-bubble.below::after { bottom: auto; top: -6px; border-top: 0; border-bottom: 6px solid #f6efdc; }
 .emote-bubble.out { transition: opacity .4s, transform .4s; opacity: 0; transform: translateY(-6px); }
 @keyframes bubbleIn { from { opacity: 0; transform: scale(.6); } }
-@media (prefers-reduced-motion: reduce) { .cs-gilded::after, .cs-prismatic::after, .cs-shadow::after, .cs-celestial::after, .frame-ember::after, .frame-arcane::after, .frame-void::after { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .cs-gilded::after, .cs-prismatic::after, .cs-shadow::after, .cs-celestial::after { animation: none !important; } }

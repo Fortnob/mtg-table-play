@@ -230,7 +230,9 @@
     const body = el('div', { class: 'av-crop' }, [
       el('div', { class: 'av-stage' + (card ? ' card' : '') }, [canvas, el('div', { class: 'av-mask', 'aria-hidden': 'true' })]),
       el('label', { class: 'av-zoom-row' }, [el('span', { class: 'tiny dim', text: 'Zoom' }), zoom]),
-      el('div', { class: 'tiny dim', text: card ? 'Drag the picture to move it; this is the back of your cards.' : 'Drag the picture to move it; the circle is what the table shows.' }),
+      el('div', { class: 'tiny dim', text: card
+        ? (shape.moving ? 'Drag the picture to move it; this is the back of your cards. Its first frame is shown here; on your cards it moves.' : 'Drag the picture to move it; this is the back of your cards.')
+        : 'Drag the picture to move it; the circle is what the table shows.' }),
     ]);
     const m = UI.modal({ title: label ? `Crop: ${label}` : 'Crop the picture', content: body, className: 'av-modal' });
     m._onClose = () => release();
@@ -242,7 +244,9 @@
       let data = '';
       for (const q of [0.86, 0.75, 0.6, 0.5]) { data = out.toDataURL('image/jpeg', q); if (data.length <= LIMIT) break; }
       m.close();
-      if (data.length <= LIMIT && /^data:image\/jpeg;base64,/.test(data)) onSave(data);
+      // where in the picture the frame sits, as fractions of it (a GIF is shown from this, moving)
+      const crop = { x: b.sx / img.naturalWidth, y: b.sy / img.naturalHeight, w: b.w / img.naturalWidth, h: b.h / img.naturalHeight };
+      if (data.length <= LIMIT && /^data:image\/jpeg;base64,/.test(data)) onSave(data, crop);
       else UI.error('That picture could not be saved.');
     }, 'primary');
     draw();
