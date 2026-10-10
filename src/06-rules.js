@@ -2189,7 +2189,7 @@
           o.warpedTurn = this.turn;
           this.logEvent('rules', `${item.name} warps in until the end of the turn.`);
         }
-        if (item.hasteOnResolve) o.effects.push({ keywords: ['Haste'], until: 'eot' });
+        if (item.hasteOnResolve) o.effects.push({ keywords: ['Haste'], until: item.hasteOnResolve === 'lasting' ? null : 'eot' });
         /* A suspended card comes off the clock with haste (CR 702.62e). */
         if (o.suspendHaste) { o.suspendHaste = false; o.effects.push({ keywords: ['Haste'], until: null }); }
         /* An Aura arrives attached to the thing it was cast on. Without
@@ -7494,6 +7494,12 @@
       if (rider === 'hasteCreature') {
         const a = item.obj && item.obj.analysis();
         if (a && a.isCreature) item.hasteOnResolve = true;
+        return;
+      }
+      // Carnelian Orb of Dragonkind: a Dragon only; Hall of the Bandit Lord: haste for as long as it stays
+      if (rider === 'hasteDragon' || rider === 'hasteCreatureLasting') {
+        const a = item.obj && item.obj.analysis();
+        if (a && a.isCreature && (rider !== 'hasteDragon' || (a.subtypes || []).includes('Dragon'))) item.hasteOnResolve = rider === 'hasteCreatureLasting' ? 'lasting' : true;
         return;
       }
       if (rider === 'ancestryScry') {

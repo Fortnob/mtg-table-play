@@ -1200,6 +1200,9 @@
     /* Arena of Glory */
     { re: /^If any of that mana is spent on a creature spell, it gains haste until end of turn\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'hasteCreature', open: true }) },
+    // Carnelian Orb of Dragonkind: "…on a Dragon creature spell, it gains haste until end of turn"; Hall of the Bandit Lord: "it gains haste" for good
+    { re: /^If that mana is spent on a (Dragon )?creature spell, it gains haste( until end of turn)?\.?$/i,
+      make: (m) => ({ op: 'spendOnly', rider: m[1] ? 'hasteDragon' : m[2] ? 'hasteCreature' : 'hasteCreatureLasting', open: true }) },
     /* Three Tree City: as much as there are creatures of the chosen type */
     { re: /^Add an amount of mana of that color equal to the number of ([a-z ]+?) of the chosen type\.?$/i,
       make: (m) => { const sc = scopeOf(m[1] + ' of the chosen type'); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },

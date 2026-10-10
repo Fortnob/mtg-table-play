@@ -18078,4 +18078,38 @@ module.exports = (test) => {
     t.eq(T.asked.filter(c => c.type === 'mode').length, 1, 'one choice of mode');
     t.eq(T.zone('A', 'hand').length, h + 1, 'the first mode: a card');
   });
+
+  test('Hall of the Bandit Lord: a creature cast with its mana has haste for good; Carnelian Orb: a Dragon, until end of turn', (mk, t) => {
+    t.auto('Hall of the Bandit Lord');
+    t.auto('Carnelian Orb of Dragonkind');
+    const T = mk();
+    T.toMain('A');
+    const hall = T.bf('A', 'Hall of the Bandit Lord');
+    t.ok(T.g.tapForMana('A', hall.id, 0), 'tapped for {C}');
+    t.eq(T.life('A'), 17, 'three life paid');
+    T.mana('A', 'G');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear);
+    T.settle();
+    t.ok(T.g.hasKw(bear, 'haste'), 'the Bears have haste');
+    T.toMain('B'); T.toMain('A');
+    t.ok(T.g.hasKw(bear, 'haste'), 'and keep it');
+    const U = mk();
+    U.toMain('A');
+    const orb = U.bf('A', 'Carnelian Orb of Dragonkind');
+    U.g.tapForMana('A', orb.id, 0);
+    U.mana('A', 'G1');
+    const b2 = U.hand('A', 'Grizzly Bears');
+    U.cast('A', b2);
+    U.settle();
+    t.no(U.g.hasKw(b2, 'haste'), 'not a Dragon: no haste');
+    U.g.player('A').pool.clear();
+    orb.tapped = false;
+    U.g.tapForMana('A', orb.id, 0);
+    U.mana('A', 'R4');
+    const dr = U.hand('A', 'Shivan Dragon');
+    U.cast('A', dr);
+    U.settle();
+    t.ok(U.g.hasKw(dr, 'haste'), 'a Dragon: haste');
+  });
 };

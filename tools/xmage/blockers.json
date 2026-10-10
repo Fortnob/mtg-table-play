@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11092,
+  "needed": 11090,
   "gainedCards": 1097,
-  "linesNeeded": 11862,
+  "linesNeeded": 11860,
   "linesGained": 1295,
   "gained": {
    "all": 1097,
@@ -794,22 +794,6 @@
     "Jocasta, Automaton Avenger",
     "Mordor Trebuchet",
     "Metropolis Angel"
-   ]
-  },
-  {
-   "what": "mana ability with more",
-   "score": 15,
-   "lines": 9,
-   "cards": [
-    "Primal Amulet // Primal Wellspring",
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Altar of the Pantheon",
-    "Magus Lucea Kane",
-    "Codie, Vociferous Codex",
-    "Rainbow Vale",
-    "Undiscovered Paradise"
    ]
   },
   {
@@ -2591,6 +2575,20 @@
    "lines": 1,
    "cards": [
     "Thousand Moons Smithy // Barracks of the Thousand"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Primal Amulet // Primal Wellspring",
+    "Sunken Palace",
+    "Altar of the Pantheon",
+    "Magus Lucea Kane",
+    "Codie, Vociferous Codex",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
    ]
   },
   {
@@ -7106,19 +7104,6 @@
    ]
   },
   {
-   "what": "mana ability with more",
-   "score": 12,
-   "cards": 6,
-   "names": [
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Rainbow Vale",
-    "Undiscovered Paradise"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 12,
    "cards": 12,
@@ -9876,6 +9861,17 @@
     "Thieving Varmint",
     "Overgrown Zealot",
     "Jeweled Lotus"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Sunken Palace",
+    "Magus Lucea Kane",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
    ]
   },
   {
