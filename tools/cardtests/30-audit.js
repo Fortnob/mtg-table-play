@@ -4827,4 +4827,32 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.zone(wz, 'battlefield'); t.no(T.g.battlefield.some(o => o.isToken), 'the copy exiled');
   });
+
+  test("Audit: tokens sized by their own words count only yours (Wrenn and Seven's Treefolk, Doomed Artisan's Sculptures); Arahbo doubles the attacking Cat's power", (mk, t) => {
+    t.auto('Wrenn and Seven'); t.auto('Doomed Artisan'); t.auto('Arahbo, Roar of the World');
+    let T = mk();
+    T.toMain('A');
+    const ws = T.bf('A', 'Wrenn and Seven', { counters: { loyalty: 5 } });
+    for (let i = 0; i < 4; i++) T.bf('A', 'Forest');
+    T.bf('B', 'Island');
+    T.activate('A', ws, 2); T.settle(); T.resolve(); T.settle();
+    const tf = T.g.battlefield.find(o => o.isToken && /Treefolk/.test(o.name));
+    t.ok(tf, 'a Treefolk'); t.eq(T.g.powerOf(tf), 4, "four lands of A's, not B's Island"); t.ok(T.g.hasKw(tf, 'reach'));
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Doomed Artisan');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    const sc = T.g.battlefield.filter(o => o.isToken && /Sculpture/.test(o.name));
+    t.eq(sc.map(o => T.g.powerOf(o)).join(','), '2,2', 'two Sculptures, each 2/2');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Arahbo, Roar of the World');
+    const cat = T.bf('A', 'Savannah Lions'); cat.summoningSick = false;
+    T.answer('confirm', { yes: true });
+    T.bf('A', 'Forest'); T.bf('A', 'Plains'); T.bf('A', 'Wastes');
+    T.answer('declareAttackers', () => [{ attackerId: cat.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.powerOf(cat), 10, 'eminence +3 at the start of combat, then +5 for its power of 5'); t.ok(T.g.hasKw(cat, 'trample'));
+  });
 };
