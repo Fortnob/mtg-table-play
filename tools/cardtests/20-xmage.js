@@ -18063,4 +18063,19 @@ module.exports = (test) => {
     T.g.moveObject(g3, 'hand'); T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('A', 'hand').length, h2 + 1, "not on an opponent's turn");
   });
+
+  test("Teval's Judgment: one trigger for cards leaving the graveyard together", (mk, t) => {
+    t.auto("Teval's Judgment");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Teval's Judgment");
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const a1 = T.grave('A', 'Grizzly Bears'), a2 = T.grave('A', 'Hill Giant');
+    const h = T.zone('A', 'hand').length;
+    T.g.moveObject(a1, 'exile'); T.g.moveObject(a2, 'exile');
+    t.eq(T.g.pendingTriggers.length, 1, 'two cards at once: one trigger');
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.asked.filter(c => c.type === 'mode').length, 1, 'one choice of mode');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'the first mode: a card');
+  });
 };
