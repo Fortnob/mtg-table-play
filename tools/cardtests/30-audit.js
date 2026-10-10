@@ -4409,4 +4409,27 @@ module.exports = (test) => {
     T.mana('A', '1G');
     t.no(T.g.castSpell('A', gb.id, { auto: true }), 'the turn after: no more');
   });
+
+  test('Audit: Sewer-veillance Cam taps or untaps on entering and on leaving, as its controller picks', (mk, t) => {
+    t.auto('Sewer-veillance Cam');
+    const T = mk();
+    T.toMain('A');
+    const foe = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Hill Giant', { tapped: true });
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: foe.id }] });
+    T.answer('choose', { picks: [0] });
+    T.mana('A', 'U1');
+    const cam = T.hand('A', 'Sewer-veillance Cam');
+    T.cast('A', cam); T.settle(); T.resolve(); T.settle();
+    t.ok(foe.tapped, 'entering: tap their Bears');
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: mine.id }] });
+    T.answer('choose', { picks: [1] });
+    T.mana('A', 'U3');
+    T.activate('A', T.g.battlefield.find(o => o.name === 'Sewer-veillance Cam'), 0);
+    T.settle(); T.resolve(); T.settle();
+    t.no(mine.tapped, 'leaving: untap my Giant');
+  });
 };
