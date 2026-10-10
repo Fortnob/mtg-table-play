@@ -3426,4 +3426,21 @@ module.exports = (test) => {
     T.nextTurn('B'); T.toMain('B');
     t.eq(T.g.player('B').pool.G, 2, "B's own main phase: B adds {G}{G}"); t.eq(T.g.player('A').pool.G, 0);
   });
+
+  test('Audit: Unwanted Remake and Fear of Impostors: the controller of what was destroyed or countered manifests dread', (mk, t) => {
+    let T = mk();
+    t.auto('Unwanted Remake'); t.auto('Fear of Impostors');
+    T.toMain('A');
+    const ob = T.bf('B', 'Hill Giant');
+    T.mana('A', 'W'); T.cast('A', T.hand('A', 'Unwanted Remake'), { targets: [ob] }); T.settle(); T.resolve();
+    t.zone(ob, 'graveyard');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.faceDown).length, 1);
+    T = mk();
+    T.toMain('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'], resolve: false }); T.settle();
+    T.g.priorityIndex = T.g.turnOrder.indexOf('A');
+    T.mana('A', '2UU'); T.cast('A', T.hand('A', 'Fear of Impostors')); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.eq(T.life('A'), 20, 'the Bolt is countered');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.faceDown).length, 1, "the Bolt's controller manifests");
+  });
 };
