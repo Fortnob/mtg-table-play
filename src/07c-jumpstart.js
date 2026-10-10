@@ -167,12 +167,14 @@
   const PLURAL = { Elf: 'Elves', Dwarf: 'Dwarves', Wolf: 'Wolves', Werewolf: 'Werewolves', Fish: 'Fish', Sheep: 'Sheep',
     Ox: 'Oxen', Mouse: 'Mice', Pegasus: 'Pegasi', Cyclops: 'Cyclopes', Phoenix: 'Phoenixes', Sphinx: 'Sphinxes',
     Fox: 'Foxes', Faerie: 'Faeries', Ally: 'Allies', Djinn: 'Djinn', Efreet: 'Efreet', Kor: 'Kor', Moonfolk: 'Moonfolk',
-    Merfolk: 'Merfolk', Kithkin: 'Kithkin', Vedalken: 'Vedalken', Viashino: 'Viashino', Leonin: 'Leonin', Aetherborn: 'Aetherborn' };
+    Merfolk: 'Merfolk', Kithkin: 'Kithkin', Vedalken: 'Vedalken', Viashino: 'Viashino', Leonin: 'Leonin', Aetherborn: 'Aetherborn',
+    Samurai: 'Samurai', Elk: 'Elk', Deer: 'Deer', Aven: 'Aven', Naga: 'Naga', Eldrazi: 'Eldrazi', Kavu: 'Kavu', Kirin: 'Kirin',
+    Fungus: 'Fungi', Homunculus: 'Homunculi', Locus: 'Loci' };
   const plural = (t) => PLURAL[t] || (/(s|x|ch|sh)$/.test(t) ? t + 'es' : /[^aeiou]y$/.test(t) ? t.slice(0, -1) + 'ies' : t + 's');
   const KW_LABEL = { Flying: 'Fliers', Trample: 'Stompers', Equip: 'Armed', Ward: 'Warded', Defender: 'Walls',
     Mill: 'Milling', 'First strike': 'First Strike', 'Double strike': 'Double Strike' };
   // too broad to make a theme of, or not a theme at all
-  const NOT_A_TRIBE = new Set(['Human']);
+  const NOT_A_TRIBE = new Set(['Human', 'Equipment', 'Vehicle', 'Aura']);
   const NOT_A_THEME = new Set(['Enchant', 'Transform', 'Fight', 'Scry', 'Flip', 'Meld']);
   const COLOUR_WORD = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
 
@@ -199,7 +201,7 @@
     const kws = new Map();
     for (const c of mono) for (const k of (c.keywords || [])) if (!NOT_A_THEME.has(k)) kws.set(k, (kws.get(k) || 0) + 1);
     for (const [k] of Array.from(kws).filter(([, n]) => n >= 4).sort((a, b) => b[1] - a[1]).slice(0, 3 - out.length)) {
-      const re = new RegExp('\\b' + k + '\\b', 'i');
+      const re = new RegExp('\\b' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
       out.push({ id: 'kw:' + k, label: KW_LABEL[k] || k, fits: (c) => (c.keywords || []).includes(k) || re.test(c.oracle_text || '') });
     }
     if (out.length < 2) out.push({ id: 'colour', label: COLOUR_WORD[col], fits: () => false });
@@ -249,19 +251,29 @@
       const mono = playable.filter(c => (c.color_identity || []).length === 1 && c.color_identity[0] === col);
       if (mono.length < 14) continue;
       for (const theme of themesOf(mono, col)) {
+        let made = 0;
         for (let v = 1; v <= 2; v++) {
           const spells = pickSpells(mono, grey, theme, rng);
           if (spells.length < 10) continue;
           const ids = spells.map(c => c.id).sort().join();
           if (out.some(h => h._ids === ids)) continue;
+          made++;
           const h = {
-            key: `${code}:${col}:${theme.id}:${v}`, name: `${theme.label} (${v})`, theme: theme.label,
+            key: `${code}:${col}:${theme.id}:${made}`, theme: theme.label, colour: col, n: made,
             product: String(code).toUpperCase(), made: true, _ids: ids,
             cards: spells.map(c => ({ card: c, qty: 1 })).concat([{ card: land, qty: HALF - spells.length }]),
           };
           out.push(finish(h));
         }
       }
+    }
+    /* A theme two colours share ("Fliers") says which colour it is, so
+       every half-deck from a set has a name of its own, as printed ones do. */
+    const colours = new Map();
+    for (const h of out) colours.set(h.theme, (colours.get(h.theme) || new Set()).add(h.colour));
+    for (const h of out) {
+      if (colours.get(h.theme).size > 1) h.theme = COLOUR_WORD[h.colour] + ' ' + h.theme;
+      h.name = `${h.theme} (${h.n})`;
     }
     return out;
   }

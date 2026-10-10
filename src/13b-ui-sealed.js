@@ -593,6 +593,8 @@
           UI.ok('Deck sent to the host.');
         });
       } else if (msg.t === 'jumpstart' && msg.payload) {
+        // a last word about a table that has already sat down to play changes nothing
+        if (msg.payload.finished && app().screen === 'table') return;
         const view = showJumpstart((intent) => net.intent(intent));
         view.update(msg.payload);
       }
@@ -608,7 +610,7 @@
    */
   function sourceSelect(current, onPick) {
     const cur = current && current.product ? 'product:' + current.product : current && current.set ? 'set:' + current.set : '';
-    const sel = el('select', { 'aria-label': 'Where the half-decks come from' }, [el('option', { value: '', text: 'The newest Jumpstart' })]);
+    const sel = el('select', { 'aria-label': 'Where the half-decks come from' }, [el('option', { value: '', text: 'The newest full Jumpstart set' })]);
     const real = el('optgroup', { label: 'Jumpstart half-decks, as printed' });
     const made = el('optgroup', { label: 'Made from a set’s cards' });
     const keep = () => { if (cur && Array.from(sel.options).some(o => o.value === cur)) sel.value = cur; };
