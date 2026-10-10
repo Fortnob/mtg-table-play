@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10662,
+  "needed": 10651,
   "gainedCards": 993,
-  "linesNeeded": 11360,
+  "linesNeeded": 11349,
   "linesGained": 1170,
   "gained": {
    "all": 993,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4066,
-   "lines": 3820,
+   "score": 4065,
+   "lines": 3819,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry",
-    "Mindbender Spores",
-    "Alaborn Zealot",
-    "Angrath's Fury",
-    "Silent Assassin"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -501,6 +482,25 @@
     "The Book of Vile Darkness",
     "Synthesis Pod",
     "Emrakul's Evangel"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 19,
+   "lines": 19,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry",
+    "Mindbender Spores",
+    "Alaborn Zealot",
+    "Angrath's Fury",
+    "Silent Assassin"
    ]
   },
   {
@@ -6519,8 +6519,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3393,
-   "cards": 3228,
+   "score": 3392,
+   "cards": 3227,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6787,19 +6787,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 15,
    "cards": 15,
@@ -6810,6 +6797,19 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry"
    ]
   },
   {

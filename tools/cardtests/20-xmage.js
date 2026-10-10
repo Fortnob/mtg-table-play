@@ -21150,4 +21150,21 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(ms.controller, 'B', 'back after the end of your next turn');
   });
+
+  test("If {G} was spent to cast this spell: Seed Spark, Cankerous Thirst, Rolling Spoil, Ribbons of Night, Dryad's Caress", (mk, t) => {
+    for (const n of ['Seed Spark', 'Cankerous Thirst', 'Rolling Spoil', 'Ribbons of Night', "Dryad's Caress"]) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    const saps = () => T.bfOf('A').filter(o => o.isToken && /Saproling/.test(o.name)).length;
+    T.mana('A', '3W'); T.cast('A', T.hand('A', 'Seed Spark'), { targets: [T.bf('B', 'Mind Stone')] }); T.resolve();
+    t.eq(saps(), 0, 'no {G} spent: no Saprolings');
+    T.mana('A', '2WG'); T.cast('A', T.hand('A', 'Seed Spark'), { targets: [T.bf('B', 'Mind Stone')] }); T.resolve();
+    t.eq(saps(), 2, '{G} spent: two Saprolings');
+    // Cankerous Thirst paid with {B}: the -3/-3, not the +3/+3
+    const g = T.bf('B', 'Hill Giant'), m = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '3B'); T.cast('A', T.hand('A', 'Cankerous Thirst'), { targets: [g, m] }); T.resolve();
+    t.zone(g, 'graveyard', '{B}: -3/-3');
+    t.eq(T.g.powerOf(m), 2, 'no {G}: no +3/+3');
+  });
 };

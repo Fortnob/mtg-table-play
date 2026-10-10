@@ -9232,6 +9232,8 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Seed Spark, Rolling Spoil: "if {G} was spent to cast this spell" — one mana of that colour (manaSymbolSpent)
+    [/^\{([WUBRGC])\} was spent to cast (this spell|it|CARDNAME)$/, (m) => ({ kind: 'manaSpentAtLeast', n: 1, color: m[1], of: spentOf(m[2]) })],
     // Alchemy: "this card's intensity is 3 or more"
     [/^(?:this card'?s|CARDNAME'?s|its|this (?:creature|spell|enchantment)'?s) intensity is (\d+) or (more|greater|less)$/i, (m) => ({ kind: 'intensityAtLeast', n: +m[1], less: /less/i.test(m[2]) })],
     // Progenitor Mimic: "if this creature isn't a token"
