@@ -5313,6 +5313,65 @@ html[data-play="1"] .hoard-chip { display: none; }
 .precon-art { height: 120px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
 .precon-tile .sc-title { font-size: 15px; }
+.precon-tile { cursor: pointer; }
+.precon-tile:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 2px; }
+
+/* ---------- a Commander deck looked through: built, as it sits on a table ---------- */
+.deck-view-modal .modal-body { padding-top: 14px; }
+.deck-view { --dv-w: 132px; --dv-h: calc(var(--dv-w) * 88 / 63); display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 22px; align-items: start; }
+.dv-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.dv-cmds { display: grid; gap: 8px; }
+.dv-cmds.two { grid-template-columns: 1fr 1fr; }
+.dv-facts { display: flex; flex-direction: column; gap: 9px; }
+.dv-ident .pip { width: 18px; height: 18px; }
+/* the curve: a bar for each mana value, its count on it and the value under it */
+.dv-curve { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; height: 76px; }
+.dv-bar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 14px; }
+.dv-bar i { display: block; width: 100%; min-height: 2px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--gold-hi), #8a6a1c); }
+.dv-bar b { position: absolute; left: 0; right: 0; bottom: 16px; font: 700 10px/1 var(--font); text-align: center; color: #241a05; }
+.dv-bar span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; line-height: 12px; text-align: center; color: var(--ink-2); }
+.dv-owned { color: var(--ink-2); }
+.dv-buyrow { display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; }
+.dv-mark { align-self: flex-start; }
+.dv-buy svg { width: 14px; height: 14px; vertical-align: -2px; }
+
+.dv-stacks { display: flex; flex-wrap: wrap; gap: 18px 10px; align-items: flex-start; }
+.dv-col { width: var(--dv-w); }
+.dv-head { height: 18px; margin-bottom: 6px; font: 600 11px/18px var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: visible; }
+.dv-pile { display: flex; flex-direction: column; }
+.dv-card {
+  position: relative; display: block; width: var(--dv-w); height: var(--dv-h); padding: 0; border: 0; border-radius: 4.75% / 3.5%;
+  background: #0d0f14; cursor: pointer; box-shadow: 0 -2px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.04);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast);
+}
+/* each card over the last, its name showing: a pile of them */
+.dv-pile .dv-card + .dv-card { margin-top: calc(var(--dv-h) * -0.855); }
+.dv-card .card-img, .dv-card .card-fallback { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; border-radius: inherit; background-size: cover; }
+.dv-pile .dv-card:hover, .dv-pile .dv-card:focus-visible { z-index: 5; transform: translateY(-6px) scale(1.04); box-shadow: 0 14px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(246,220,140,.45); }
+.dv-card.big { width: 100%; height: auto; aspect-ratio: 63 / 88; box-shadow: 0 12px 30px rgba(0,0,0,.55); }
+.dv-card.big:hover { transform: translateY(-3px); }
+/* new to you: shown when asked for */
+.dv-new { display: none; }
+.deck-view.marking .dv-new { display: block; }
+.deck-view.marking .dv-card:not(:has(.dv-new)) { filter: saturate(.55) brightness(.75); }
+.deck-view.marking .dv-card:not(:has(.dv-new)):hover { filter: none; }
+.dv-qty, .dv-new {
+  position: absolute; top: 5%; z-index: 1; padding: 2px 6px; border-radius: 99px; font: 700 10px/1.2 var(--font);
+  box-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none;
+}
+.dv-qty { right: 6px; color: #fff; background: rgba(10,12,16,.88); border: 1px solid rgba(255,255,255,.25); }
+.dv-new { right: 6px; color: #241a05; background: linear-gradient(180deg, #f3d77e, #c99a2e); text-transform: uppercase; letter-spacing: .05em; font-size: 8.5px; }
+.dv-qty + .dv-new { right: 40px; }
+
+@media (max-width: 760px) {
+  .deck-view { --dv-w: 100px; grid-template-columns: 1fr; gap: 14px; }
+  .dv-side { position: static; }
+  .dv-cmds { grid-template-columns: minmax(0, 200px); justify-content: center; }
+  .dv-cmds.two { grid-template-columns: repeat(2, minmax(0, 160px)); }
+  .dv-stacks { gap: 14px 8px; justify-content: center; }
+  .dv-head { font-size: 10px; }
+}
+
 .precon-owns { font-size: 12px; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .precon-buy { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; }
 .precon-was { font-size: 12px; }
@@ -11764,6 +11823,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // --- mana ---
     { re: /^Add (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]) }) },
+    // Magus of the Vineyard, Eladamri's Vineyard: "that player adds {G}{G}" — into the pool of the player whose main phase it is
+    { re: /^That player adds ((?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'triggerPlayer' }) },
     { re: /^Add (\{[^}]+\}) or (\{[^}]+\})\.?$/i,
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])] }) },
     { re: /^Add (\{[^}]+\}), (\{[^}]+\}), or (\{[^}]+\})\.?$/i,
@@ -13275,6 +13337,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^[Aa]irbend (up to one )?(other )?(target [a-z ]+?)\.?$/,
       make: (m) => { const t = tgt(m[3]); return t ? { op: 'airbend', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
     { re: /^[Mm]anifest dread\.?$/, make: () => ({ op: 'manifestDread' }) },
+    // Unwanted Remake, Fear of Impostors: "Its controller manifests dread." — the controller of what was destroyed or countered
+    { re: /^Its controller manifests dread\.?$/i, make: () => ({ op: 'manifestDread', who: 'targetController' }) },
     { re: /^(?:Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'suspect', targets: [targetSpec(m[1])] } : { op: 'suspect', scope: 'lastTarget' }) },
     { re: /^(?:CARDNAME|This creature|It) endures (one|two|three|four|five|\d+|X)\.?$/i,
@@ -14161,6 +14225,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
+    /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
+       can't loses 3 life."; Aclazotz, Cruel Grimnarch, Skullslither Worm:
+       "For each opponent who can't, you draw a card." — after "each opponent
+       discards a card", those whose hands were empty (couldNot) */
+    { re: /^Each (opponent|player) who can'?t loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[2], who: 'couldNot', couldNotOf: /^opp/i.test(m[1]) ? 'opponents' : 'players' }) },
+    { re: /^For each (opponent|player) who can'?t, (.+?)\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.', 1);
+        if (!inner || !['draw', 'gainLife', 'counters'].includes(inner.op) || typeof inner.n !== 'number' || inner.targets) return null;
+        if (inner.op === 'draw' && inner.who !== 'you') return null;
+        return Object.assign({}, inner, { n: { couldNot: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: inner.n } });
+      } },
     // Wojek Investigator: "investigate once for each opponent who has more cards in hand than you"
     { re: /^Investigate once for each opponent who has more cards in hand than you\.?$/i,
       make: () => ({ op: 'createNamedToken', n: { opponentsMoreHand: true }, token: 'Clue' }) },
@@ -18829,6 +18905,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* Wild Hypothesis, Fractal Anomaly, G'raha Tia: "Create a 0/0 … Fractal
        creature token. Put X +1/+1 counters on it." — the token just made,
        not this card (thatToken) */
+    // (couldNot: "who can't" only right after "each opponent / each player discards")
+    folded.forEach((e, i) => {
+      if (!e || !(e.who === 'couldNot' || (e.n && e.n.couldNot))) return;
+      const prev = folded[i - 1];
+      if (!prev || prev.op !== 'discard' || !['opponents', 'each'].includes(prev.who)) folded[i] = { op: 'manual', text: e.text };
+    });
     folded.forEach((e, i) => {
       if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
       const prev = folded[i - 1];
@@ -23783,8 +23865,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         eff: { op: 'dayOnEnter' }, auto: true },
       // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
+      // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
+      { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
+      // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
+      { re: /^You may pay ((?:\{[WUBRG]\})+) rather than pay the mana cost for spells (?:that )?you cast\.?$/i,
+        make: (m) => ({ op: 'grantAltCost', mana: m[1] }), auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       { re: /^You may cast ([A-Z][a-z]+|creature|artifact|enchantment|instant|sorcery) spells without paying their mana costs\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: m[1].toLowerCase() }), auto: true },
@@ -29709,6 +29796,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           out.push({ kind: 'cast', via: 'alt' + i, cost: alt.mana || '', alt, label: alt.label });
         });
       }
+      /* Fist of Suns, Jodah: "You may pay {W}{U}{B}{R}{G} rather than pay the
+         mana cost for spells you cast" — one more price for any spell from the
+         hand or the command zone (a commander's tax still on top) (grantAltCost) */
+      if ((o.zone === 'hand' || o.zone === 'command') && !a.isLand) {
+        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost'));
+        if (gs) {
+          const mana = this._staticOp(gs, 'grantAltCost').mana;
+          const tax = o.zone === 'command' && o.isCommander ? (((this.player(o.owner) || {}).commanderCasts || {})[o.id] || 0) * 2 : 0;
+          out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
+        }
+      }
       /* Channel: discard it from your hand for its ability. The table
          offers it where it offers cycling, which is the same act. */
       // Forecast: in your upkeep, once each turn, from the hand (it goes through channel's door, and stays)
@@ -33593,6 +33691,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const o = this.obj(d.attackerId);
         const a = o.analysis();
         o.attacking = d.defenderId;
+        // Port Razer: the players it has attacked this turn (noRepeatAttack)
+        if (this.player(d.defenderId)) {
+          if (!o._attackedPlayers || o._attackedPlayers.turn !== this.turn) o._attackedPlayers = { turn: this.turn, ids: [] };
+          o._attackedPlayers.ids.push(d.defenderId);
+        }
         // "attacks for the first time each turn", "creatures that attacked this turn"
         o.attacksThisTurn = (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) + 1;
         o.attackedTurn = this.turn;
@@ -37857,6 +37960,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         // Nev: the X the triggering spell was cast with (firstXSpell)
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
+        // Aclazotz: "for each opponent who can't" discard (couldNot)
+        if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
@@ -37937,13 +38042,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
           break;
         }
-        case 'addMana':
+        case 'addMana': {
+          // Magus of the Vineyard: "that player adds {G}{G}" (who 'triggerPlayer')
+          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
-            if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) me.pool.add('C'); continue; }
+            if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) into.pool.add('C'); continue; }
             const c = MANA.COLORS.concat('C').find(x => s.includes(x));
-            me.pool.add(c || 'C');
+            into.pool.add(c || 'C');
           }
+          if (into !== me) this.logEvent('mana', `${into.name} adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
           break;
+        }
         case 'addManaAny': {
           const amt = n(e.amount);
           /* "any color in your commander's color identity" is only those */
@@ -38114,6 +38223,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               (firstObj() && this.player(firstObj().zone === 'battlefield' ? firstObj().controller : firstObj().owner)) ||
               this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
+          // Liliana, Waker of the Dead: "each opponent who can't" — those with no card to discard, noted once (couldNot)
+          if (!this._doneHere('couldNot')) this._couldNot = who.filter(p => p && !p.hasLost && !this.zones[p.id].hand.length).map(p => p.id);
           for (const p of who) {
             if (!p || p.hasLost) continue;
             // each player discards once, however many times this resumes
@@ -38213,6 +38324,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Liliana, Waker of the Dead: "each opponent who can't" discard (couldNot)
+          else if (e.who === 'couldNot') {
+            for (const id of this._couldNot || []) {
+              const p = this.player(id);
+              if (p && !p.hasLost && (e.couldNotOf !== 'opponents' || this.opponentsOf(ctx.controller).includes(p))) this.changeLife(p, -cnt);
+            }
+          }
           // Priest of Forgotten Gods: each player aimed at
           else if (e.who === 'targets') { for (const p of new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o ? this.player(o.controller) : this._lastAffectedController(); if (p) this.changeLife(p, -cnt); }
@@ -43842,14 +43960,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
         /* Manifest dread: two from the top, one face down as a 2/2, the other to the graveyard */
         case 'manifestDread': {
-          const lib = this.zones[ctx.controller].library;
+          // Unwanted Remake: "Its controller manifests dread" (who 'targetController')
+          const md = e.who === 'targetController' ? (this._lastAffectedController() || (firstObj() && this.player(firstObj().owner)) || me) : me;
+          const lib = this.zones[md.id].library;
           const two = lib.slice(0, 2);
           if (!two.length) break;
           let keep = two[0];
           if (two.length > 1) {
-            if (me.isBot) keep = two.find(c => (c.analysis() || {}).isCreature) || two[0];
+            if (md.isBot) keep = two.find(c => (c.analysis() || {}).isCreature) || two[0];
             else {
-              const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              const picked = this._ask({ type: 'pickCard', playerId: md.id, count: 1,
                 cards: two.map(c => ({ id: c.id, name: c.name, card: c.card })),
                 prompt: 'Manifest dread: choose the card to put onto the battlefield face down. The other goes to your graveyard.' }, 'md');
               if (picked === SUSPEND) return SUSPEND;
@@ -43861,13 +43981,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               lib.splice(lib.indexOf(c), 1);
               c.zone = 'library';
               c.faceDown = true;
-              this.moveObject(c, 'battlefield', { controller: ctx.controller });
+              this.moveObject(c, 'battlefield', { controller: md.id });
               c.faceDown = true;
               // "then put a +1/+1 counter on that creature"
               this._lastPut = c.id;
             } else if (c.zone === 'library') this.moveObject(c, 'graveyard');
           }
-          this.logEvent('rules', `${me.name} manifests dread.`);
+          this.logEvent('rules', `${md.name} manifests dread.`);
           break;
         }
         /* Suspect: menace, and it can't block, for as long as it is suspected */
@@ -46410,6 +46530,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       let def = this.player(defenderId), walker = false;
       if (!def) { const pw = this.obj(defenderId); def = pw && this.player(pw.controller); walker = true; }
       if (!def) return null;
+      // Port Razer: "can't attack a player it has already attacked this turn" (noRepeatAttack)
+      if (!walker && o._attackedPlayers && o._attackedPlayers.turn === this.turn && o._attackedPlayers.ids.includes(def.id) &&
+        this._staticOp(o, 'noRepeatAttack')) return { src: o, who: def.name + ' again this turn' };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();
@@ -64151,7 +64274,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const had = artReg.by['deck:' + p.file];
         if (had) art.style.backgroundImage = 'url("' + had.url + '")';
         else preconInfo(p).then((info) => { if (info.art) art.style.backgroundImage = 'url("' + info.art + '")'; }).catch(() => {});
-        return miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+        // a deck here is looked through where it is, like one in its own tab
+        const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+        tile.onclick = () => inspectPrecon(p);
+        tile.title = 'Look through ' + p.name;
+        return tile;
       }, 170, 16);
       decks.replaceWith(row);
     }).catch(() => decks.replaceWith(el('p', { class: 'dim', text: 'The deck lists could not be loaded.' })));
@@ -64366,14 +64493,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (had) art.style.backgroundImage = 'url("' + had.url + '")';
     const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
     const owns = el('div', { class: 'precon-owns dim' });
-    btn.addEventListener('click', () => buyPrecon(p, btn));
-    const tile = el('div', { class: 'store-card precon-tile' }, [
+    btn.addEventListener('click', (e) => { e.stopPropagation(); buyPrecon(p, btn); });
+    const tile = el('div', { class: 'store-card precon-tile', role: 'button', tabindex: '0',
+      title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
       el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
       owns,
       el('div', { class: 'precon-buy' }, [btn]),
     ]);
+    // the rest of the tile opens the deck, laid out as it would be built
+    tile.addEventListener('click', () => inspectPrecon(p));
+    tile.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
+    });
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
       if (!tile._rows) return;
@@ -64392,13 +64525,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     };
     return tile;
   }
-  async function buyPrecon(p, btn) {
+  async function buyPrecon(p, btn, have) {
     const S = E();
-    const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
-    let deck;
-    try { deck = await preconCards(p); }
-    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
-    busy.close();
+    let deck = have;
+    if (!deck) {
+      const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
+      try { deck = await preconCards(p); }
+      catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+      busy.close();
+    }
     const pr = S.deckPrice(deck.all.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty })));
     // everything in it yours already: nothing to buy, but it can still be saved as a deck
     if (pr.owned >= pr.cards) return preconBought(p, deck, { ok: true, cards: pr.cards, fresh: 0, price: 0 });
@@ -64411,6 +64546,134 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       after: () => preconBought(p, deck, got),
     });
   }
+  /* A card's place in a built deck: the first of these its front face is. */
+  const STACKS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Battle', 'Battles'], ['Instant', 'Instants'],
+    ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
+  const stackOf = (c) => {
+    const t = String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '');
+    const hit = STACKS.find(([k]) => new RegExp('\\b' + k + '\\b').test(t));
+    return hit ? hit[0] : 'Other';
+  };
+  const PER_STACK = 12;
+
+  /**
+   * A Commander deck looked through before it is bought, laid out the way
+   * it sits built on a table: its commander at full size, the rest in
+   * overlapping stacks by type, cheapest at the top, each one read with a
+   * click. Beside it, its bracket, its curve and colours and what of it you
+   * own, with a switch to mark the cards new to you; under it, the button
+   * to buy it.
+   */
+  async function inspectPrecon(p) {
+    const busy = UI.busy('Commander deck', `Laying out ${p.name}…`);
+    let deck, sets;
+    try { [deck, sets] = await Promise.all([preconCards(p), MTG.scry.sets().catch(() => [])]); }
+    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    const S = E();
+    const built = { name: p.name, format: 'commander', commanders: deck.commanders, main: deck.main, sideboard: [] };
+    const setName = (sets.find(s => s.code === p.code) || {}).name || p.code.toUpperCase();
+    const isNew = (c) => !S.isBasic(c.name) && S.owned(c.name) < 1;
+
+    const dvCard = (card, qty, big) => {
+      const b = el('button', { type: 'button', class: 'dv-card' + (big ? ' big' : ''), 'aria-label': `${qty > 1 ? qty + ' ' : ''}${card.name}` }, [
+        UI.cardImage(card, big ? 'large' : 'normal', 0),
+        qty > 1 ? el('span', { class: 'dv-qty', text: '\u00d7' + qty }) : null,
+        isNew(card) ? el('span', { class: 'dv-new', text: 'new', title: 'Not in your collection yet' }) : null,
+      ].filter(Boolean));
+      // each card knows what it is, so a purchase can take its "new" away
+      b._card = card;
+      b.addEventListener('click', () => UI.cardSheet(card));
+      UI.attachPreview(b, card, 0);
+      return b;
+    };
+
+    // the stacks: by type, cheapest first, a long one carried on in the next column
+    const groups = new Map();
+    for (const e of UI.sortCards(deck.main, 'cmc')) {
+      const k = stackOf(e.card);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(e);
+    }
+    const order = STACKS.map(x => x[0]).concat(['Other']);
+    const stacks = el('div', { class: 'dv-stacks' });
+    for (const k of order) {
+      const list = groups.get(k);
+      if (!list || !list.length) continue;
+      const n = U.sum(list.map(e => e.qty));
+      const label = (STACKS.find(x => x[0] === k) || [k, 'Other'])[1];
+      for (let i = 0; i < list.length; i += PER_STACK) {
+        stacks.appendChild(el('div', { class: 'dv-col' }, [
+          el('div', { class: 'dv-head' + (i ? ' more' : ''), text: i ? '' : `${label} \u00b7 ${n}` }),
+          el('div', { class: 'dv-pile' }, list.slice(i, i + PER_STACK).map(e => dvCard(e.card, e.qty))),
+        ]));
+      }
+    }
+
+    // beside it: the commander, and the deck in numbers
+    const curve = [0, 0, 0, 0, 0, 0, 0, 0];
+    let lands = 0;
+    for (const e of deck.main) {
+      if (stackOf(e.card) === 'Land') { lands += e.qty; continue; }
+      curve[Math.min(7, Math.floor(e.card.cmc || 0))] += e.qty;
+    }
+    const top = Math.max(1, ...curve);
+    const ident = [...new Set(deck.commanders.flatMap(c => c.color_identity || []))];
+    const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+    const owned = el('div', { class: 'dv-owned small' });
+    // the deck as built, unmarked; a switch marks the cards you do not have yet
+    const markNew = el('button', { type: 'button', class: 'btn xs dv-mark', 'aria-pressed': 'false', text: 'Mark the cards new to me' });
+    markNew.addEventListener('click', () => {
+      const on = body.classList.toggle('marking');
+      markNew.setAttribute('aria-pressed', on ? 'true' : 'false');
+      markNew.classList.toggle('primary', on);
+    });
+    const buy = el('button', { type: 'button', class: 'btn primary dv-buy' });
+    const was = el('s', { class: 'dim dv-was' });
+    const reprice = () => {
+      const pr = S.deckPrice(deck.all.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty })));
+      const all = pr.owned >= pr.cards;
+      buy.innerHTML = all ? 'Save as a deck' : `Buy the deck \u00b7 ${shardSvg()} ${fmtN(pr.price)}`;
+      was.textContent = !all && pr.price < pr.full ? fmtN(pr.full) : '';
+      const fresh = new Set(deck.all.filter(e => isNew(e.card)).map(e => e.card.name)).size;
+      owned.textContent = all ? 'Every card of it is in your collection.'
+        : `You own ${pr.owned} of its ${pr.cards} cards; ${fresh} ${fresh === 1 ? 'is' : 'are'} new to you.`;
+      markNew.hidden = all;
+      for (const n of body.querySelectorAll('.dv-card')) {
+        const tag = n.querySelector('.dv-new');
+        if (tag && n._card && !isNew(n._card)) tag.remove();
+      }
+    };
+    buy.addEventListener('click', () => buyPrecon(p, buy, deck));
+
+    const side = el('aside', { class: 'dv-side' }, [
+      el('div', { class: 'dv-cmds' + (deck.commanders.length > 1 ? ' two' : '') }, deck.commanders.map(c => dvCard(c, 1, true))),
+      el('div', { class: 'dv-facts' }, [
+        el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
+          UI.bracketPill ? UI.bracketPill(built) : null,
+          ident.length ? el('span', { class: 'dv-ident', html: MTG.mana.html(WUBRG.filter(x => ident.includes(x)).map(x => `{${x}}`).join('')) }) : el('span', { class: 'tiny dim', text: 'Colourless' }),
+        ].filter(Boolean)),
+        el('div', { class: 'tiny dim', text: `${U.sum(deck.all.map(e => e.qty))} cards \u00b7 ${lands} lands \u00b7 ${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
+        el('div', { class: 'dv-curve', title: 'Mana curve: spells by mana value' }, curve.map((v, i) => el('div', { class: 'dv-bar' }, [
+          el('i', { style: { height: Math.round(v / top * 100) + '%' } }),
+          el('b', { text: v ? String(v) : '' }),
+          el('span', { text: i === 7 ? '7+' : String(i) }),
+        ]))),
+        owned,
+        markNew,
+        deck.missing ? el('div', { class: 'tiny dim', text: `${deck.missing} of its cards could not be found.` }) : null,
+      ].filter(Boolean)),
+    ]);
+    const body = el('div', { class: 'deck-view' }, [side, stacks]);
+    reprice();
+    const m = UI.modal({ title: p.name, width: '1100px', className: 'deck-view-modal', art: deck.commanders[0] || null, content: body });
+    // buying it is always in reach, however far down the stacks go
+    m.foot.classList.remove('empty');
+    m.foot.append(el('div', { class: 'dv-buyrow' }, [was, buy]));
+    const off = MTG.bus.on('economy:changed', () => { if (!body.isConnected) { off(); return; } reprice(); });
+    return m;
+  }
+
   /** What the deck brought, and the deck saved if you want it. */
   async function preconBought(p, deck, got) {
     if (!got || !got.ok) return;
