@@ -4227,10 +4227,11 @@
       const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^miracle$/i.test(x.keyword || '') && x.arg);
       if (!ab) return null;
       const src = this.manaSources(playerId);
-      if (!/\{X\}/.test(ab.arg)) return this.couldPay(playerId, ab.arg, src) ? { cost: ab.arg, x: 0 } : null;
+      // (with its taxes and Trinisphere's floor, as _castFree will charge it)
+      if (!/\{X\}/.test(ab.arg)) return this.couldPay(playerId, this._freePrice(playerId, o, ab.arg), src) ? { cost: ab.arg, x: 0 } : null;
       for (let x = 20; x >= 0; x--) {
         const c = ab.arg.replace(/\{X\}/g, x ? '{' + x + '}' : '');
-        if (this.couldPay(playerId, c, src)) return { cost: c, x };
+        if (this.couldPay(playerId, this._freePrice(playerId, o, c), src)) return { cost: c, x };
       }
       return null;
     }
@@ -15971,8 +15972,9 @@
             const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
             dup.isCopy = true;
             this.zones[ctx.controller].exile.push(dup);
-            this._castFree(ctx.controller, dup, { how: `(a copy of ${c.name}) without paying its mana cost` });
-            this.stack[this.stack.length - 1].isCopy = true;
+            // (one whose taxes can't be paid is not cast, and the copy is gone)
+            if (this._castFree(ctx.controller, dup, { how: `(a copy of ${c.name}) without paying its mana cost` })) this.stack[this.stack.length - 1].isCopy = true;
+            else { this._removeFromZone(dup); dup.zone = null; }
           }
           break;
         }
@@ -20713,17 +20715,24 @@
      * Cast a card for nothing, in the middle of something else resolving: no
      * timing check, no mana, no targets chosen up front.
      */
+    /* What a spell cast without paying its mana cost comes to, or one cast
+       for a cost paid as it is cast (miracle: base): its taxes on top, then
+       Trinisphere's floor over the whole (CR 601.2f) */
+    _freePrice(playerId, o, base) {
+      const fp = this._freeCastPrice(o, playerId);
+      const g = fp.match(/^\{(\d+)\}/);
+      const price = (g ? this._addGeneric(String(base || ''), +g[1]) : String(base || '')) + (g ? fp.slice(g[0].length) : fp);
+      return this._floorCost(playerId, o, price, 0, false).cost;
+    }
     _castFree(playerId, o, how) {
       const a = o.analysis();
       const p = this.player(playerId);
       if (!a || !p) return false;
       /* a copy cast without paying its mana cost is still cast: its taxes
-         and Trinisphere's floor are paid now, or it is not cast (CR 601.2f) */
+         and Trinisphere's floor are paid now, or it is not cast (CR 601.2f);
+         a miracle cost (how.cost) is paid with them */
       {
-        let price = this._freeCastPrice(o, playerId);
-        const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
-        const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
-        if (floor && MANA.cmc(price) < floor) price = this._addGeneric(price, floor - MANA.cmc(price));
+        const price = this._freePrice(playerId, o, how && how.cost);
         if (price) {
           if (!this.payMana(playerId, price, { auto: true, forSpell: o })) {
             this.logEvent('rules', `${p.name} can't pay ${price} for ${o.name}, so it isn't cast.`);
@@ -20763,7 +20772,8 @@
       for (const o of ((this.zones[pid] || {}).exile || []).slice()) {
         if (o.reboundBy !== pid || o.reboundTurn >= this.turn) continue;
         o.reboundBy = null;
-        this._castFree(pid, o);
+        // (not cast, its taxes unpaid: it stays in exile)
+        if (!this._castFree(pid, o)) continue;
         this.stack[this.stack.length - 1].reboundCast = true;
         this.logEvent('rules', `${o.name} is cast again from rebound.`);
       }
@@ -21853,8 +21863,8 @@
             const dup = this._register(new GObj(o.card, playerId, 'exile'));
             dup.isCopy = true;
             this.zones[playerId].exile.push(dup);
-            this._castFree(playerId, dup, { how: `(a copy of ${o.name}) without paying its mana cost` });
-            this.stack[this.stack.length - 1].isCopy = true;
+            if (this._castFree(playerId, dup, { how: `(a copy of ${o.name}) without paying its mana cost` })) this.stack[this.stack.length - 1].isCopy = true;
+            else { this._removeFromZone(dup); dup.zone = null; }
             break;
           }
           // Miracle: pay the miracle cost and cast it; its targets are chosen as it resolves
@@ -21862,9 +21872,10 @@
             const o = this.obj(ch.objId);
             if (!o || o.zone !== 'hand' || !(data && data.yes)) break;
             const m = this._miracleCost(playerId, o);
-            if (!m || (m.cost && !this.payMana(playerId, m.cost, { auto: true }))) break;
+            if (!m) break;
             o.chosenX = m.x;
-            this._castFree(playerId, o, { x: m.x, via: 'miracle', how: `for its miracle cost (${m.cost || '{0}'})` });
+            // the miracle cost is paid with its taxes and Trinisphere's floor (_castFree)
+            if (!this._castFree(playerId, o, { x: m.x, via: 'miracle', cost: m.cost, how: `for its miracle cost (${m.cost || '{0}'})` })) delete o.chosenX;
             break;
           }
           if (ch.purpose !== 'payToUntap') break;

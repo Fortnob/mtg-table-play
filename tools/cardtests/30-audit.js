@@ -3950,4 +3950,36 @@ module.exports = (test) => {
     t.eq(gs.length, 2);
     t.eq(gs.map(o => o.counters['+1/+1'] || 0).join(','), '2,2', 'Treasure and Gremlin each time; Sol Ring is no token');
   });
+
+  test('Audit: free casts that cannot pay their tax: rebound stays in exile; a miracle pays Trinisphere once, over the whole', (mk, t) => {
+    let T = mk();
+    T.toMain('A');
+    T.bf('B', 'Thalia, Guardian of Thraben');
+    T.mana('A', '3R');
+    const s = T.hand('A', 'Staggershock');
+    T.cast('A', s, { targets: ['B'] });
+    T.settle();
+    t.zone(s, 'exile');
+    T.nextTurn('B'); T.nextTurn('A'); T.settle();
+    t.zone(s, 'exile', 'no mana for the {1}: not cast, still in exile');
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    T.bf('A', 'Plains'); T.bf('A', 'Plains'); T.bf('A', 'Plains');
+    T.bf('B', 'Grizzly Bears');
+    const tm = T.top('A', 'Terminus');
+    T.answer('confirm', { yes: true });
+    T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
+    t.zone(tm, 'graveyard', 'the {W} miracle raised to three: three Plains pay it');
+    t.eq(T.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 0);
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    T.bf('A', 'Plains'); T.bf('A', 'Plains');
+    const tm2 = T.top('A', 'Terminus');
+    T.answer('confirm', { yes: true });
+    T.nextTurn('B'); T.nextTurn('A'); T.settle();
+    t.zone(tm2, 'hand', 'two Plains are not enough');
+    t.eq(T.g.battlefield.filter(o => o.name === 'Plains' && o.tapped).length, 0, 'and nothing is spent');
+  });
 };
