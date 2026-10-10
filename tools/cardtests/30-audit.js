@@ -3405,4 +3405,25 @@ module.exports = (test) => {
     const b = T.bf('A', 'Grizzly Bears');
     t.no(T.g.activateAbility('A', dc.id, 1, { auto: true, targets: [{ kind: 'object', id: b.id }] }), 'no creatures entered this turn');
   });
+
+  test('Audit: "each opponent who cannot" counts only the empty-handed (Liliana, Waker of the Dead; Cruel Grimnarch); Magus of the Vineyard', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Liliana, Waker of the Dead', 'Cruel Grimnarch', 'Magus of the Vineyard']) t.auto(c);
+    T.toMain('A');
+    for (const p of ['B', 'C']) while (T.g.zones[p].hand.length) T.g.moveObject(T.g.zones[p].hand[0], 'library');
+    T.hand('C', 'Island');
+    const l = T.bf('A', 'Liliana, Waker of the Dead'); T.activate('A', l, 0);
+    t.eq(T.life('B'), 17, 'B had nothing to discard'); t.eq(T.life('C'), 20); t.eq(T.life('A'), 20);
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    for (const p of ['B', 'C']) while (T.g.zones[p].hand.length) T.g.moveObject(T.g.zones[p].hand[0], 'library');
+    T.hand('C', 'Island');
+    T.mana('A', '5B'); T.cast('A', T.hand('A', 'Cruel Grimnarch')); T.settle(); T.resolve();
+    t.eq(T.life('A'), 24, 'one opponent could not: 4 life');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Magus of the Vineyard');
+    T.nextTurn('B'); T.toMain('B');
+    t.eq(T.g.player('B').pool.G, 2, "B's own main phase: B adds {G}{G}"); t.eq(T.g.player('A').pool.G, 0);
+  });
 };
