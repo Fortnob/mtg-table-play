@@ -4108,4 +4108,30 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
     t.ok(T.g.hasKw(gb2, 'haste'), 'still hasty a turn later');
   });
+
+  test("Audit: Settle the Wreckage spares the creature not attacking; Path to Exile's land goes to the exiled creature's controller", (mk, t) => {
+    t.auto('Settle the Wreckage'); t.auto('Path to Exile');
+    let T = mk();
+    T.toMain('B');
+    const a1 = T.bf('B', 'Grizzly Bears'), a2 = T.bf('B', 'Craw Wurm'), home = T.bf('B', 'Hill Giant');
+    a1.summoningSick = a2.summoningSick = home.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: a1.id, defenderId: 'A' }, { attackerId: a2.id, defenderId: 'A' }]);
+    T.toMain('B', 'declareBlockers');
+    if (T.g.priorityPlayer && T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Settle the Wreckage'), { targets: ['B'] });
+    T.settle();
+    t.zone(a1, 'exile'); t.zone(a2, 'exile'); t.zone(home, 'battlefield', 'not attacking: stays');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && (o.analysis() || {}).isLand).length, 2);
+    T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Path to Exile'), { targets: [bear.id] });
+    T.settle();
+    t.zone(bear, 'exile');
+    const bl = T.g.battlefield.filter(o => o.controller === 'B' && (o.analysis() || {}).isLand);
+    t.eq(bl.length, 1, 'B fetched a basic'); t.ok(bl.every(o => o.tapped), 'tapped');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && (o.analysis() || {}).isLand).length, 0, 'A did not');
+  });
 };
