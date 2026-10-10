@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11024,
+  "needed": 11021,
   "gainedCards": 1090,
-  "linesNeeded": 11774,
+  "linesNeeded": 11772,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 698,
-   "lines": 638,
+   "score": 697,
+   "lines": 637,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 660,
-   "lines": 660,
+   "score": 659,
+   "lines": 659,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -6614,8 +6614,8 @@
   },
   {
    "what": "custom ability",
-   "score": 541,
-   "cards": 496,
+   "score": 540,
+   "cards": 495,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

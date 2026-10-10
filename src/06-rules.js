@@ -11515,6 +11515,17 @@
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
+          // Folk Hero: "a spell that shares a creature type with this creature"
+          if (ab.sharesTypeWithSelf) {
+            const sp = data.object;
+            const spA = (sp && sp.analysis()) || {};
+            // only creature and kindred spells have creature types (an instant's Arcane is not one)
+            const spTypes = spA.isCreature || (spA.types || []).some(x => /^(?:Kindred|Tribal)$/.test(x)) ? (spA.subtypes || []).filter(x => this._isCreatureType(x)) : [];
+            const spAll = !!(spA.keywordSet && spA.keywordSet.has('changeling')) && (spA.isCreature || spTypes.length > 0);
+            const mine = ((o.analysis() || {}).subtypes || []).filter(x => this._isCreatureType(x));
+            const myAll = this.hasKw(o, 'changeling');
+            if (!((myAll && (spTypes.length || spAll)) || (spAll && mine.length) || mine.some(x => spTypes.includes(x)))) continue;
+          }
           // Secrets of the Dead: "a spell from your graveyard"
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"

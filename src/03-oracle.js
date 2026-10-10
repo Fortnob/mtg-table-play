@@ -9447,6 +9447,8 @@
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
+    // Folk Hero: "Whenever you cast a spell that shares a creature type with this creature"
+    { re: /^When(?:ever)? you cast a spell that shares a creature type with (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { sharesTypeWithSelf: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
@@ -9852,6 +9854,9 @@
       extraOf: (m) => (m && /first time/i.test(m[0]) ? { oncePerTurn: true } : {}) },
     { re: /^When(?:ever)? (?:one or more \+1\/\+1 counters are put on|you put one or more \+1\/\+1 counters on) (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1' } },
+    // Danny Pink: "Whenever one or more counters are put on this creature for the first time each turn" (of any kind)
+    { re: /^When(?:ever)? one or more counters are put on (?:this (?:creature|artifact|enchantment|permanent)|CARDNAME)( for the first time each turn)?(?:,| )/i,
+      event: 'countersPut', self: true, extraOf: (m) => (m && m[1] ? { oncePerTurn: true } : {}) },
     /* Fathom Mage: "Whenever a +1/+1 counter is put on this creature" —
        once for each counter */
     { re: /^When(?:ever)? an? \+1\/\+1 counter is put on (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,

@@ -18705,4 +18705,49 @@ module.exports = (test) => {
     t.eq(bear.counters['+1/+1'], 8, 'four doubled to eight');
     t.eq(T.zone('A', 'hand').length, hand1 + 1, 'power 10: a card');
   });
+
+  test("Danny Pink: each of your creatures draws you a card the first time counters go on it each turn", (mk, t) => {
+    t.auto('Danny Pink');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.bf('A', 'Danny Pink');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const theirs = T.bf('B', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 1);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'a card');
+    T.g.addCounters(bear, 'shield', 1);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'not twice in a turn');
+    T.g.addCounters(theirs, '+1/+1', 1);
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, "not for the opponent's creature");
+  });
+
+  test('Folk Hero: a spell sharing a creature type with your commander draws a card, once each turn', (mk, t) => {
+    t.auto('Folk Hero');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    T.bf('A', 'Folk Hero');
+    T.g.bumpBoard();
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Llanowar Elves'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 0, 'an Elf shares nothing with a Bear');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 0, 'nor does an instant');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'a Bear: a card');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'only once each turn');
+  });
 };
