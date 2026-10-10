@@ -1,0 +1,31 @@
+/* ============================================================
+   match.css - match play: the game clock at the table
+   (src/06e-clock.js, src/12g-ui-clock.js)
+   ============================================================ */
+
+/* ---------- the clock, by each portrait ---------- */
+.orb-clock { position: absolute; right: calc(var(--orb, 76px) * -.22); top: calc(var(--orb, 76px) * -.04); z-index: 3; pointer-events: none;
+  font: 700 11.5px/19px var(--font); padding: 0 7px; border-radius: 10px; white-space: nowrap; font-variant-numeric: tabular-nums;
+  color: #c9d3e2; background: rgba(14,17,24,.94); border: 1px solid rgba(255,255,255,.16); box-shadow: 0 3px 10px rgba(0,0,0,.6);
+  transition: color .3s, border-color .3s, background .3s; }
+.orb-clock.running { color: #eaf4ff; border-color: rgba(130,200,255,.75); box-shadow: 0 0 0 1px rgba(130,200,255,.25), 0 3px 12px rgba(0,0,0,.6); }
+.orb-clock.urgent { color: #ffd9a8; border-color: rgba(240,170,80,.75); }
+.orb-clock.urgent.running { background: rgba(60,34,10,.96); }
+.orb-clock.critical { color: #fff; background: #a3271b; border-color: #ff8a7d; animation: clockPulse 1s ease-in-out infinite; }
+.orb-clock.out { color: #ffb4ab; background: rgba(60,14,10,.95); border-color: rgba(255,120,100,.6); animation: none; }
+@keyframes clockPulse { 50% { box-shadow: 0 0 0 3px rgba(255,90,70,.45), 0 0 16px rgba(255,60,40,.6); } }
+.life-orb.mini .orb-clock { right: -14px; top: -8px; font-size: 10px; line-height: 15px; padding: 0 5px; }
+:root[data-phone] .orb-clock { font-size: 10.5px; line-height: 17px; padding: 0 5px; }
+@media (prefers-reduced-motion: reduce) { .orb-clock.critical { animation: none; } }
+
+/* a clock run out: a band across the table */
+.fx-clock-out { position: absolute; left: 0; right: 0; top: var(--board-mid, 50%); translate: 0 -50%; z-index: 6; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 22px 16px; text-align: center; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(40,8,6,.9) 22%, rgba(40,8,6,.9) 78%, transparent);
+  animation: clockBand 3.4s cubic-bezier(.3,.7,.3,1) forwards; }
+.fco-line { position: absolute; left: 15%; right: 15%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, #ff8a7d, transparent); }
+.fco-who { font: 600 34px/1.1 var(--serif); color: #ffd2cc; letter-spacing: .02em; text-shadow: 0 0 26px rgba(255,80,60,.55); }
+.fco-sub { font: 600 11px/1 var(--font); letter-spacing: .3em; text-transform: uppercase; color: #c99a94; }
+:root[data-phone] .fco-who { font-size: 24px; }
+@keyframes clockBand { 0% { opacity: 0; scale: 1 .4; } 8% { opacity: 1; scale: 1 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
