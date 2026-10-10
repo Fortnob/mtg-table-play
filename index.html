@@ -21029,7 +21029,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
            whichever branch happens: it stays in front (a noop that holds it), where the sentences
            after it count it, and both branches act on it */
         const onIt = (x) => !(x.targets || []).length && (x.scope === 'lastTarget' ||
-          (x.scope === 'self' && /\bit\b/i.test(x.text || '') && !/\bthis\b|CARDNAME/.test(x.text || '')));
+          (x.scope === 'self' && /\bit\b/i.test(x.text || '') && !/\bthis\b|CARDNAME/.test(x.text || '')) ||
+          // (The Destined White Mage: "… on target creature you control. If …, put three … on that creature instead")
+          (x.scope === 'triggerObject' && /\bthat (?:creature|permanent|artifact|enchantment|land|planeswalker)\b/i.test(x.text || '')));
         if (prev && prev.op !== 'sequence' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player' &&
             e.insteadOf.effects.length && e.insteadOf.effects.every(onIt)) {
           for (const x of e.insteadOf.effects) x.scope = 'lastTarget';
@@ -24354,6 +24356,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
     // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")
     if (out._keywordManual) out.fullyAutomated = false;
+    /* Jilt: "Return target creature to its owner's hand. If this spell was kicked, it deals 2 damage
+       to another target creature." A target inside an "if" when the words before it have one of
+       their own: the targets are asked for before the kick, the gift or the phase is known, so that
+       one never is, and the targets are not shared out between the two — left to the table */
+    for (const ab of out.abilities) {
+      if (!ab.auto || !ab.effects) continue;
+      const flat = [];
+      for (const x of ab.effects) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
+      const aimedIn = (list) => (list || []).some(e => e && ((e.targets || []).length || aimedIn(e.list) || aimedIn(e.then) || aimedIn(e.otherwise)));
+      if (flat.some(x => (x.targets || []).length) && flat.some(x => !(x.targets || []).length && (aimedIn(x.then) || aimedIn(x.otherwise)))) {
+        ab.auto = false; out.fullyAutomated = false;
+      }
+    }
     /* A Room's locked door: its mana cost, paid any time you could cast a
        sorcery, unlocks it (CR 709.5e) — a special action, offered with the
        Room's abilities */
