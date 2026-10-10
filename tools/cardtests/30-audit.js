@@ -4870,4 +4870,21 @@ module.exports = (test) => {
       t.zone(f, yes ? 'battlefield' : 'hand', yes ? 'yes: the Forest' : 'no: nothing put');
     }
   });
+
+  test("Audit: power and toughness from cards in hand: Psychosis Crawler follows its controller's hand; Mordenkainen's Dog Illusion is twice that", (mk, t) => {
+    t.auto('Psychosis Crawler'); t.auto('Mordenkainen');
+    const T = mk();
+    T.toMain('A');
+    const pc = T.bf('A', 'Psychosis Crawler');
+    T.hand('A', 'Island'); T.hand('A', 'Forest');
+    for (let i = 0; i < 5; i++) T.hand('B', 'Island');
+    t.eq(T.g.powerOf(pc), 2, "A's two cards, not B's five");
+    const mo = T.bf('A', 'Mordenkainen', { counters: { loyalty: 5 } });
+    T.activate('A', mo, 1); T.settle(); T.resolve(); T.settle();
+    const dog = T.g.battlefield.find(o => o.isToken && /Dog/.test(o.name));
+    t.ok(dog, 'a Dog Illusion'); t.eq(T.g.powerOf(dog), 4, 'twice two'); t.eq(T.g.toughnessOf(dog), 4);
+    T.hand('A', 'Mountain');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(dog), 6, 'a third card: 6'); t.eq(T.g.powerOf(pc), 3);
+  });
 };
