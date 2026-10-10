@@ -5494,4 +5494,18 @@ module.exports = (test) => {
     T.mana('A', '3'); T.activate('A', icon, 0); T.settle();
     t.eq(JSON.stringify(offered), JSON.stringify(['Changeling Outcast']), 'the changeling only');
   });
+
+  test('Audit: Moseo returns only a creature card no bigger than the life gained this turn', (mk, t) => {
+    t.auto("Moseo, Vein's New Dean");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Moseo, Vein's New Dean");
+    const hg = T.grave('A', 'Hill Giant'), cw = T.grave('A', 'Craw Wurm');
+    T.g.changeLife(T.g.player('A'), 4, 'test');
+    let offered = null;
+    T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [{ kind: 'object', id: hg.id }] }; });
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.ok(offered && offered.includes(hg.id), 'Hill Giant (4) with 4 life gained'); t.no(offered && offered.includes(cw.id), 'not the Craw Wurm (6)');
+    t.zone(hg, 'battlefield');
+  });
 };
