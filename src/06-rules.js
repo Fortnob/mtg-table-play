@@ -13079,7 +13079,8 @@
           const cnt = n(e.n);
           if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'fixed') { const p = this.player(e.pid); if (p && !p.hasLost) this._drawCards(p, cnt); }
-          else if (e.who === 'targetController') { const p = this._lastAffectedController(); if (p) this._drawCards(p, cnt); }
+          // (Red Death, Shipwrecker: "goad target creature. That player draws a card." — the target's controller: drawTargetCtl)
+          else if (e.who === 'targetController') { const fo = firstObj(); const p = this._lastAffectedController() || (fo && this.player(fo.controller)); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Baleful Mastery: "an opponent draws a card" — the caster picks which

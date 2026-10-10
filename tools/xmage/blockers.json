@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10561,
-  "gainedCards": 969,
-  "linesNeeded": 11237,
-  "linesGained": 1137,
+  "needed": 10555,
+  "gainedCards": 968,
+  "linesNeeded": 11230,
+  "linesGained": 1136,
   "gained": {
-   "all": 969,
+   "all": 968,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4048,
-   "lines": 3802,
+   "score": 4046,
+   "lines": 3800,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 672,
-   "lines": 618,
+   "score": 671,
+   "lines": 617,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -811,25 +811,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Meriadoc Brandybuck",
-    "Demonic Covenant",
-    "Attuma, Atlantean Warlord",
-    "Landroval, Horizon Witness",
-    "Crimson Cowl, Master of Evil"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 14,
    "lines": 14,
@@ -1083,6 +1064,25 @@
     "Eye of Ojer Taq // Apex Observatory",
     "Vesuvan Doppelganger",
     "Alhammarret, High Arbiter"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Attuma, Atlantean Warlord",
+    "Landroval, Horizon Witness",
+    "Crimson Cowl, Master of Evil",
+    "Squall, Gunblade Duelist",
+    "Ordruun Mentor"
    ]
   },
   {
@@ -2533,20 +2533,6 @@
    ]
   },
   {
-   "what": "AttacksWhileSaddledTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Calamity, Galloping Inferno",
-    "Fortune, Loyal Steed",
-    "Bounding Felidar",
-    "Lagorin, Soul of Alacria",
-    "Autarch Mammoth",
-    "Giant Beaver",
-    "Rambling Possum"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -3036,6 +3022,19 @@
     "Oracle of Tragedy",
     "Cemetery Desecrator",
     "Maulfist Revolutionary"
+   ]
+  },
+  {
+   "what": "AttacksWhileSaddledTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Calamity, Galloping Inferno",
+    "Fortune, Loyal Steed",
+    "Bounding Felidar",
+    "Lagorin, Soul of Alacria",
+    "Giant Beaver",
+    "Rambling Possum"
    ]
   },
   {
@@ -6496,8 +6495,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3383,
-   "cards": 3218,
+   "score": 3382,
+   "cards": 3217,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6509,8 +6508,8 @@
   },
   {
    "what": "custom ability",
-   "score": 516,
-   "cards": 477,
+   "score": 515,
+   "cards": 476,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7317,19 +7316,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Meriadoc Brandybuck",
-    "Attuma, Atlantean Warlord"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessSourceEffect with two values",
    "score": 9,
    "cards": 9,
@@ -7522,6 +7508,19 @@
     "Born to Drive",
     "Tend the Sprigs",
     "Focus Fire"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Attuma, Atlantean Warlord",
+    "Landroval, Horizon Witness"
    ]
   },
   {
@@ -7858,19 +7857,6 @@
     "Celeborn the Wise",
     "Legolas, Counter of Kills",
     "Elminster"
-   ]
-  },
-  {
-   "what": "AttacksWhileSaddledTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Calamity, Galloping Inferno",
-    "Fortune, Loyal Steed",
-    "Bounding Felidar",
-    "Lagorin, Soul of Alacria",
-    "Autarch Mammoth",
-    "Giant Beaver"
    ]
   },
   {
@@ -8232,6 +8218,19 @@
     "Bard's Company",
     "Scarring Memories",
     "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "AttacksWhileSaddledTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Calamity, Galloping Inferno",
+    "Fortune, Loyal Steed",
+    "Bounding Felidar",
+    "Lagorin, Soul of Alacria",
+    "Giant Beaver",
+    "Rambling Possum"
    ]
   },
   {

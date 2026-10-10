@@ -21700,4 +21700,47 @@ module.exports = (test) => {
     t.zone(l, 'battlefield');
     t.eq(T.life('A'), 18, 'and 2 life instead');
   });
+
+  test('Commanders: Magnus the Red, Red Death, Shipwrecker, Ivora, Insatiable Heir, Meriadoc Brandybuck; Demonic Covenant', (mk, t) => {
+    for (const n of ['Magnus the Red', 'Red Death, Shipwrecker', 'Ivora, Insatiable Heir', 'Meriadoc Brandybuck']) t.auto(n);
+    // Magnus: instants and sorceries {1} less for each creature token you control
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Magnus the Red');
+    const tok = T.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    const tok2 = T.bf('A', 'Grizzly Bears'); tok2.isToken = true;
+    T.bf('A', 'Hill Giant');
+    t.eq(T.g.castCost(T.hand('A', 'Divination')), '{U}', 'two creature tokens: {2} less (not the nontoken Giant)');
+    // Red Death: goad, that player draws, and {R} for you
+    const T2 = mk({ library: Array(10).fill('Island') });
+    T2.toMain('A');
+    const rd = T2.bf('A', 'Red Death, Shipwrecker'), hg = T2.bf('B', 'Hill Giant');
+    const hb = T2.zone('B', 'hand').length;
+    T2.activate('A', rd, 0, { targets: [hg] }); T2.resolve();
+    t.ok(hg.goadedBy === 'A' || (hg.effects || []).some(e => e && e.goadedBy), 'goaded');
+    t.eq(T2.zone('B', 'hand').length, hb + 1, 'its controller draws');
+    t.eq(T2.player('A').pool.R, 1, 'and you add {R}');
+    // Ivora: a Blood token as it enters and whenever it deals combat damage to a player
+    const T3 = mk({ library: Array(10).fill('Island') });
+    T3.toMain('A');
+    const iv = T3.put('A', 'Ivora, Insatiable Heir', 'battlefield', { etb: true }); T3.resolve();
+    const blood = () => T3.bfOf('A').filter(o => o.isToken && /Blood/.test(o.name)).length;
+    t.eq(blood(), 1, 'entering: a Blood');
+    T3.toMain('B'); T3.toMain('A');
+    T3.answer('declareAttackers', () => [{ attackerId: iv.id, defenderId: 'B' }]);
+    T3.toMain('A', 'endCombat');
+    t.eq(blood(), 2, 'combat damage to a player: another');
+    // Meriadoc: a Food when Halflings attack a player, not when a Bear does
+    const T4 = mk({ library: Array(10).fill('Island') });
+    const me = T4.bf('A', 'Meriadoc Brandybuck'), gb = T4.bf('A', 'Grizzly Bears');
+    T4.toMain('A');
+    const food = () => T4.bfOf('A').filter(o => o.isToken && /Food/.test(o.name)).length;
+    T4.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    T4.toMain('A', 'endCombat');
+    t.eq(food(), 0, 'a Bear attacking: no Food');
+    T4.toMain('B'); T4.toMain('A');
+    T4.answer('declareAttackers', () => [{ attackerId: me.id, defenderId: 'B' }]);
+    T4.toMain('A', 'endCombat');
+    t.eq(food(), 1, 'a Halfling attacking: a Food');
+  });
 };

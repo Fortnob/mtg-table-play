@@ -5407,6 +5407,8 @@
     // Apothecary White: "you create a Food token for each player being attacked" (playersBeingAttacked)
     { re: /^You create an? (Food|Treasure|Clue|Blood|Map|Junk) token for each (player|opponent) being attacked\.?$/i,
       make: (m) => ({ op: 'createNamedToken', token: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), n: { playersBeingAttacked: true, mult: 1 } }) },
+    // Red Death, Shipwrecker: "… You add {R}." — mana added as the ability resolves (youAddMana)
+    { re: /^You add ((?:\{[WUBRGC]\})+)\.?$/, make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]) }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -8101,7 +8103,9 @@
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {
-      const per = countOf(each[4]);
+      // (Magnus the Red: "for each creature token you control" — the permanents counted, as "draw a card for each …" counts them: costPerTokens)
+      const tok = !countOf(each[4]) && each[4].match(/^((?:nontoken |)(?:creature |artifact |)tokens?|(?:artifact |)creature tokens?) you control$/i);
+      const per = countOf(each[4]) || (tok ? { per: tok[1].toLowerCase().replace(/s$/, ''), who: 'you', mult: 1 } : null);
       // "Angel spells and Human spells", "instant and sorcery spells": either one
       const words = each[2].trim().toLowerCase().replace(/ spells?\b/g, '').replace(/\band\b/g, 'or').replace(/\s+/g, ' ').trim();
       return per ? { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+each[3]), per, yourTurn: !!each[1] } : null;
@@ -8909,7 +8913,7 @@
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
-      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control )/.test(m[2].trim()) ||
+      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -9819,6 +9823,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
+    { re: /^Whenever one or more ([A-Z][a-z]+)s you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
     { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
@@ -10774,7 +10780,10 @@
     for (let i = 0; i < lines.length; i++) {
       const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and (whenever [^,"]+?), ([^"]+)$/);
       if (!two) continue;
-      lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + two[2].slice(1) + ', ' + two[3]);
+      // (Ivora, Insatiable Heir: "When Ivora enters and whenever it deals combat damage …" — "it" is the card: beanstalkIt)
+      const second = /\bthis creature\b/.test(two[1]) ? two[2].replace(/^whenever it /i, 'whenever this creature ')
+        : /\bCARDNAME\b/.test(two[1]) ? two[2].replace(/^whenever it /i, 'whenever CARDNAME ') : two[2];
+      lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + second.slice(1) + ', ' + two[3]);
       i++;
     }
     /* Trouble in Pairs: "Whenever an opponent attacks you with two or more
