@@ -5123,4 +5123,24 @@ module.exports = (test) => {
     t.zone(mine, 'battlefield'); t.zone(theirs, 'battlefield');
     t.zone(other, 'graveyard'); t.zone(pw, 'graveyard');
   });
+
+  test("Audit: Bilbo's Ring triggers only for the creature it equips attacking alone", (mk, t) => {
+    t.auto("Bilbo's Ring");
+    for (const [who, alone, fires] of [['ring', true, true], ['ring', false, false], ['other', true, false]]) {
+      const T = mk();
+      T.toMain('A');
+      const ring = T.bf('A', "Bilbo's Ring");
+      const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Hill Giant');
+      b1.summoningSick = b2.summoningSick = false;
+      ring.attachedTo = b1.id; b1.attachments = [ring.id];
+      const sw = T.bf('A', 'Bonesplitter'); sw.attachedTo = b2.id; b2.attachments = [sw.id];
+      T.g.bumpBoard();
+      for (let i = 0; i < 3; i++) T.top('A', 'Island');
+      const h = T.zone('A', 'hand').length;
+      const atk = who === 'ring' ? (alone ? [b1] : [b1, b2]) : [b2];
+      T.answer('declareAttackers', () => atk.map(x => ({ attackerId: x.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+      t.eq(T.zone('A', 'hand').length, h + (fires ? 1 : 0), `${who} ${alone ? 'alone' : 'with another'}`);
+    }
+  });
 };
