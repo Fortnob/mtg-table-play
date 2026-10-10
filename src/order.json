@@ -13,6 +13,7 @@
  "06b-events.js",
  "06c-replay.js",
  "06d-sim.js",
+ "06e-clock.js",
  "07-draft.js",
  "08-bots.js",
  "20-starters.js",

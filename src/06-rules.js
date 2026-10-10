@@ -21621,15 +21621,15 @@
     playerLoses(p, reason) {
       if (p.hasLost) return;
       // Platinum Angel: "You can't lose the game and your opponents can't win the game."
-      if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout') return;
+      if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       // Angel's Grace: not this turn
-      if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout') return;
+      if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       p.hasLost = true;
       p.lossReason = reason;
       const words = {
         life: 'has 0 or less life', poison: 'has ten or more poison counters',
         deck: 'tried to draw from an empty library', commander: 'took 21 commander damage',
-        concede: 'concedes', timeout: 'left the game',
+        concede: 'concedes', timeout: 'left the game', time: 'ran out of time on the clock',
       };
       this.logEvent('game', `${p.name} loses the game (${words[reason] || reason}).`);
       /* Leaving the game (CR 800.4a): everything they own leaves with them,
@@ -21682,11 +21682,12 @@
       this.emit('player:lost', p);
     }
 
-    concede(playerId) {
+    /** Out of the game by choice, or with `reason` 'time' when a house-rule clock runs out (src/06e-clock.js). */
+    concede(playerId, reason) {
       const p = this.player(playerId);
       if (!p) return;
-      p.conceded = true;
-      this.playerLoses(p, 'concede');
+      p.conceded = reason !== 'time';
+      this.playerLoses(p, reason === 'time' ? 'time' : 'concede');
       if (this.priorityPlayer && this.priorityPlayer.id === playerId) this.passPriority(playerId, true);
       if (this.activePlayer.id === playerId && !this.over) this._nextTurn();
       this.checkStateBasedActions();

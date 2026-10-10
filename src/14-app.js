@@ -3278,7 +3278,7 @@
      tables change: the rest are folded away until they are wanted. */
   /** @type {Array<[string, string, string[]]>} id, title, the rule keys it gathers */
   const RULE_GROUPS = [
-    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage']],
+    ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage', 'clock']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
     ['draft', 'The draft', ['packs', 'packSize', 'basicsFree']],
   ];
@@ -3387,6 +3387,10 @@
         el('label', { class: 'rule-toggle inline-check' }, [on, el('span', { text: cur ? 'on' : 'off' })]),
         n,
       ]);
+    } else if (f.type === 'choice') {
+      // one of a few set values: the clock is off, or so many minutes a player
+      control = el('select', { id }, f.options.map(([v, label]) => el('option', { value: String(v), text: label, selected: v === cur })));
+      control.addEventListener('change', () => set(f.key, parseInt(control.value, 10) || 0));
     } else if (f.type !== 'bracket') {
       const step = f.type === 'odd' ? 2 : 1;
       const n = el('input', { type: 'number', id, min: String(f.min), max: String(f.max), step: String(step), value: String(cur) });
@@ -3419,6 +3423,7 @@
     if (f.type === 'bool') return v ? 'on' : 'off';
     if (f.type === 'bracket') return v ? MTG.brackets.label(v) : 'any';
     if (f.type === 'intOff') return v ? String(v) : 'off';
+    if (f.type === 'choice') return MTG.formats.choiceLabel(f, v).toLowerCase();
     return String(v);
   }
 
@@ -3754,6 +3759,8 @@
       this.game = null;
       this.draft = null;
       this.botRunner = null;
+      /** @type {any} the game clock, when the table plays with one (src/06e-clock.js) */
+      this.clock = null;
       this.seed = Date.now();
     }
     /**
@@ -4167,6 +4174,7 @@
     pushState() {
       if (!this.game) return;
       const match = this.matchView();
+      const clock = this.clock ? this.clock.view() : null;
       if (App.table) {
         /* Watching is the view of someone with no seat: every board, no
            hand, nothing to click. viewFor with an id nobody has gives
@@ -4174,6 +4182,7 @@
         const v = this.game.viewFor(this.spectating ? '__watching' : 'me');
         v.spectating = this.spectating;
         v.match = match;
+        v.clock = clock;
         this.withEvents(v, 'local');
         App.lastView = v;
         App.table.update(v);
@@ -4208,6 +4217,7 @@
     sendViews() {
       if (!this.game || !net.isHost) return;
       const match = this.matchView();
+      const clock = this.clock ? this.clock.view() : null;
       const encs = (this._enc = this._enc || new Map());
       net.sendPerPeer((peerId) => {
         const r = this.seatByPeer(peerId);
@@ -4217,6 +4227,7 @@
         if (!enc) { enc = new MTG.sync.Encoder(); encs.set(peerId, enc); }
         const v = this.game.viewFor(viewer);
         v.match = match;
+        v.clock = clock;
         if (!r) v.spectating = true;
         this.withEvents(v, 'peer:' + peerId);
         return enc.encode(v);
@@ -4260,6 +4271,7 @@
       sess.botRunner = new MTG.bots.BotRunner(g);
       for (const r of sess.roster) if (r.kind === 'bot') seatBot(g, sess.botRunner, r);
       sess.wireGame(g);
+      if (sess.clock) sess.clock.restore(saved.clock);
       // a resumed game is recorded from where it was picked up
       sess.startRecording(g);
       App.session = sess;
@@ -4272,6 +4284,9 @@
     }
 
     wireGame(g) {
+      // the game clock, if the table plays with one; it stops when this game is no longer the one at the table
+      if (this.clock) this.clock.stop();
+      this.clock = MTG.clock ? MTG.clock.attach(g, this.rules.clock, { alive: () => App.session === this && this.game === g }) : null;
       g.on('state', () => { this.pushState(); this.saveInProgress(); });
       g.on('error', (m) => { if (this._lastActor === 'me') UI.error(m); });
       /* Sound, and the cards that light up when they speak, come from the
@@ -4332,6 +4347,7 @@
             seed: this.seed,
             roster: this.roster.map(r => ({ id: r.id, name: r.name, kind: r.kind, difficulty: r.difficulty })),
             match: this.match || null,
+            clock: this.clock ? this.clock.save() : null,
             snap: this.game.snapshot(),
           });
         } catch (e) { /* storage full: not worth interrupting a game over */ }
