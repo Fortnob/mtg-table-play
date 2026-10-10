@@ -3393,6 +3393,9 @@
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
     { re: /^Put one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, to: 'top', rest: 'bottomRandom' }) },
+    // Sage of Days, Gutless Plunderer: "You may put one of those cards back on top of your library." — the rest wait for the next sentence
+    { re: /^You may put one of (?:those cards|them) back on top of your library\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'keep', prompt: 'You may put one back on top of your library.' }) },
 
     /* ===== whoever the trigger was about ===== */
     { re: /^(?:They|That player) loses? (one|two|three|four|five|\d+) life\.?$/i,

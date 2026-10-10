@@ -17608,4 +17608,18 @@ module.exports = (test) => {
     U.settle();
     t.zone(b2, 'graveyard', 'your own discard: the graveyard');
   });
+
+  test('Sage of Days: look at three, keep one on top, the rest into the graveyard', (mk, t) => {
+    t.auto('Sage of Days');
+    t.auto('Gutless Plunderer');
+    const T = mk();
+    T.toMain('A');
+    const c1 = T.top('A', 'Mountain'), c2 = T.top('A', 'Forest'), c3 = T.top('A', 'Island');
+    T.answer('pickCard', { cardIds: [c2.id] });
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Sage of Days'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.zones.A.library[0], c2, 'the Forest back on top');
+    t.zone(c1, 'graveyard'); t.zone(c3, 'graveyard');
+  });
 };

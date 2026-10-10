@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11179,
+  "needed": 11176,
   "gainedCards": 1129,
-  "linesNeeded": 11957,
+  "linesNeeded": 11954,
   "linesGained": 1331,
   "gained": {
    "all": 1129,
@@ -2134,22 +2134,6 @@
    ]
   },
   {
-   "what": "picked to TOP_ANY",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Rowan's Grim Search",
-    "Planar Atlas",
-    "Gutless Plunderer",
-    "Slimefoot's Survey",
-    "Nael, Avizoa Aeronaut",
-    "Gurmag Nightwatch",
-    "Silhana Wayfinder",
-    "Sage of Days",
-    "Voda Sea Scavenger"
-   ]
-  },
-  {
    "what": "GainLifeEffect amount",
    "score": 9,
    "lines": 9,
@@ -3507,6 +3491,19 @@
     "Jaws of Stone",
     "Meteor Shower",
     "Serra's Hymn"
+   ]
+  },
+  {
+   "what": "picked to TOP_ANY",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Rowan's Grim Search",
+    "Planar Atlas",
+    "Slimefoot's Survey",
+    "Nael, Avizoa Aeronaut",
+    "Silhana Wayfinder",
+    "Voda Sea Scavenger"
    ]
   },
   {
@@ -7653,19 +7650,6 @@
    ]
   },
   {
-   "what": "picked to TOP_ANY",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Rowan's Grim Search",
-    "Planar Atlas",
-    "Gutless Plunderer",
-    "Slimefoot's Survey",
-    "Nael, Avizoa Aeronaut",
-    "Gurmag Nightwatch"
-   ]
-  },
-  {
    "what": "DamageTargetEffect amount",
    "score": 9,
    "cards": 9,
@@ -8669,6 +8653,19 @@
     "Jaws of Stone",
     "Meteor Shower",
     "Serra's Hymn"
+   ]
+  },
+  {
+   "what": "picked to TOP_ANY",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Rowan's Grim Search",
+    "Planar Atlas",
+    "Slimefoot's Survey",
+    "Nael, Avizoa Aeronaut",
+    "Silhana Wayfinder",
+    "Voda Sea Scavenger"
    ]
   },
   {
