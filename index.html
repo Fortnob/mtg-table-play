@@ -14358,6 +14358,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
     { re: /^Put one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, to: 'top', rest: 'bottomRandom' }) },
+    // Sage of Days, Gutless Plunderer: "You may put one of those cards back on top of your library." — the rest wait for the next sentence
+    { re: /^You may put one of (?:those cards|them) back on top of your library\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'keep', prompt: 'You may put one back on top of your library.' }) },
 
     /* ===== whoever the trigger was about ===== */
     { re: /^(?:They|That player) loses? (one|two|three|four|five|\d+) life\.?$/i,
@@ -14533,8 +14536,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: () => ({ op: 'graveyardToLibrary', withSelf: true }) },
     { re: /^Shuffle your graveyard into your library\.?$/i, make: () => ({ op: 'graveyardToLibrary' }) },
     { re: /^This spell can'?t be countered\.?$/i, make: () => ({ op: 'cantBeCountered' }) },
-    { re: /^Put all ([a-z ]+?) cards revealed this way into your hand and the rest into your graveyard\.?$/i,
-      make: (m) => ({ op: 'sortRevealed', filter: m[1].trim().toLowerCase(), keep: 'hand', rest: 'graveyard' }) },
+    /* Goblin Ringleader, Garruk, Caller of Beasts: "… and the rest on the bottom of your library in any order";
+       Lair Delve: "creature and land cards" — either kind */
+    { re: /^Put all ([a-z ]+?) cards revealed this way into your hand and the rest (into your graveyard|on the bottom of your library in any order)\.?$/i,
+      make: (m) => (/chosen/i.test(m[1]) ? null : { op: 'sortRevealed', filter: m[1].trim().toLowerCase().replace(/ and /g, ' or '), keep: 'hand',
+        rest: /graveyard/i.test(m[2]) ? 'graveyard' : 'bottom' }) },
 
 
     { re: /^(Target (?:attacking |blocking |attacking or blocking )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
@@ -18414,6 +18420,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        is drawn without it */
     { re: /^You may discard a card\. If you do, draw a card\.?$/i,
       make: () => [{ op: 'may', then: [{ op: 'rummage' }] }] },
+    // Memory Leak, Never Happened: "You choose a nonland card from that player's graveyard or hand and exile it." (alsoGraveyard)
+    { re: /^Target opponent reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from that player'?s graveyard or hand and exile it\.?$/i,
+      make: (m) => [{ op: 'handAttack', filter: m[1].replace(/,/g, ' ').toLowerCase(), to: 'exile', alsoGraveyard: true, targets: [{ type: 'player', opponent: true }] }] },
     { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
       make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
         to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
@@ -24170,6 +24179,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
+      // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)
+      { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield instead of putting it into your graveyard\.?$/i,
+        eff: { op: 'discardToBattlefield' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
@@ -30391,6 +30403,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      /* Obstinate Baloth: "If a spell or ability an opponent controls causes
+         you to discard this card, put it onto the battlefield instead" — the
+         cause is whatever is resolving (discardToBattlefield) */
+      const cause = this.resolving && this.resolving.ctx && this.resolving.ctx.controller;
+      if (o.zone === 'graveyard' && cause != null && cause !== playerId && this._staticOp(o, 'discardToBattlefield')) {
+        this.moveObject(o, 'battlefield', { controller: o.owner });
+        this.logEvent('rules', `${o.name} is put onto the battlefield instead of into the graveyard.`);
+      }
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });
@@ -42976,12 +42996,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
 
         case 'sortRevealed': {
-          const cnt = n(e.n) || 4;
-          const top = this.zones[ctx.controller].library.slice(0, cnt);
+          /* the cards the sentence before revealed — Beast Hunt's three, not
+             always four — or, alone, the top four */
+          const lib = this.zones[ctx.controller].library;
+          const looked = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library' && o.owner === ctx.controller);
+          const top = looked.length ? looked : lib.slice(0, n(e.n) || 4);
+          const f = String(e.filter || 'card');
+          const under = [];
           for (const o of top) {
-            const keep = this._matchesFilter(o, e.filter);
-            this.moveObject(o, keep ? 'hand' : 'graveyard');
+            const keep = /\s/.test(f) ? this._cardFitsWords(o, f) : this._matchesFilter(o, f);
+            if (keep) this.moveObject(o, 'hand');
+            // Goblin Ringleader: "the rest on the bottom of your library in any order"
+            else if (e.rest === 'bottom') under.push(o);
+            else this.moveObject(o, 'graveyard');
           }
+          for (const o of under) { this._removeFromZone(o); o.zone = 'library'; lib.push(o); }
+          this._looked = [];
           break;
         }
 
@@ -46064,11 +46094,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
           this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
+          // Memory Leak: "from that player's graveyard or hand" (alsoGraveyard)
+          if (e.alsoGraveyard) hand.push(...this.zones[victim.id].graveyard.filter(o => words === 'any' || words === 'card' || this._cardFitsWords(o, words)));
           if (!hand.length) break;
           this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1,
             purpose: e.to === 'exile' ? 'exileFromHand' : 'discardFromHand',
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Choose ${want} card from ${victim.name}'s hand to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
+            prompt: `Choose ${want} card from ${victim.name}'s ${e.alsoGraveyard ? 'graveyard or hand' : 'hand'} to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
           break;
         }
 
@@ -47789,7 +47821,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (ch.purpose === 'blightCost') { if (o.zone === 'battlefield') this._blightOn(o, ch.n || 1, playerId); continue; }
             if (ch.purpose === 'beholdCost') { this._beholdOne(playerId, o, !!ch.exile, this.obj(ch.sourceId)); continue; }
             if (ch.purpose === 'landFromHand') { this.moveObject(o, 'battlefield', { controller: playerId }); this.logEvent('land', `${this.player(playerId).name} puts ${o.name} onto the battlefield.`); }
-            else if (ch.purpose === 'exileFromHand') { this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s hand.`); }
+            else if (ch.purpose === 'exileFromHand') { const fromZ = o.zone === 'graveyard' ? 'graveyard' : 'hand'; this.moveObject(o, 'exile'); this.logEvent('exile', `${o.name} is exiled from ${this.player(o.owner).name}'s ${fromZ}.`); }
             else if (ch.purpose === 'discardFromHand') { this.moveObject(o, 'graveyard'); this.logEvent('discard', `${this.player(o.owner).name} discards ${o.name}.`); this._afterDiscard(o.owner, o); }
           }
           break;
