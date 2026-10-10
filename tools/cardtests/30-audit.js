@@ -3729,4 +3729,26 @@ module.exports = (test) => {
     T.mana('A', '3'); T.activate('A', f, 0, { sacrificeIds: [wall.id] }); T.settle(); T.resolve();
     t.eq(T.g.zones.A.hand.length, h + 8, 'Wall of Stone 0/8: eight drawn, none discarded');
   });
+
+  test('Audit: Elturel Survivors counts the defending player\'s lands, even after another spell; Jaws of Defeat', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Elturel Survivors'); t.auto('Jaws of Defeat');
+    T.toMain('A');
+    const e = T.bf('A', 'Elturel Survivors'); e.summoningSick = false;
+    for (let i = 0; i < 2; i++) T.bf('B', 'Forest');
+    for (let i = 0; i < 5; i++) T.bf('C', 'Forest');
+    const lb = T.g.battlefield.filter(o => o.controller === 'B' && (o.analysis() || {}).isLand).length;
+    T.answer('declareAttackers', () => [{ attackerId: e.id, defenderId: 'B' }]);
+    T.answer('*', () => ({}));
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(e), lb, "B's lands only");
+    const x = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [x] });
+    t.eq(T.g.powerOf(e), lb, 'still after an unrelated spell');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Jaws of Defeat');
+    T.mana('A', '1RR'); T.cast('A', T.hand('A', 'Wall of Stone')); T.settle(); T.resolve();
+    t.eq(T.life('B'), 12, '0/8: eight life');
+  });
 };
