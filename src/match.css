@@ -1,6 +1,8 @@
 /* ============================================================
-   match.css - match play: the game clock at the table
-   (src/06e-clock.js, src/12g-ui-clock.js)
+   match.css - match play: the game clock at the table, and the record
+   of games (Profile > History, a deck's record)
+   (src/06e-clock.js, src/10g-history.js, src/10h-ui-history.js,
+   src/12g-ui-clock.js, src/12h-ui-rematch.js)
    ============================================================ */
 
 /* ---------- the clock, by each portrait ---------- */
@@ -28,4 +30,42 @@
 .fco-sub { font: 600 11px/1 var(--font); letter-spacing: .3em; text-transform: uppercase; color: #c99a94; }
 :root[data-phone] .fco-who { font-size: 24px; }
 @keyframes clockBand { 0% { opacity: 0; scale: 1 .4; } 8% { opacity: 1; scale: 1 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ---------- Profile > History ---------- */
+.history h3 { margin-bottom: 2px; }
+.hist-filters { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 12px 0 8px; }
+.hist-format { width: auto; min-width: 160px; max-width: 100%; }
+.hist-summary { font-size: 13px; color: #c9c3b4; margin-bottom: 8px; }
+.hist-list { display: grid; gap: 6px; }
+.hrow { display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.06); border-left: 3px solid rgba(255,255,255,.2); }
+.hrow.r-win { border-left-color: var(--good, #52c08a); }
+.hrow.r-loss { border-left-color: var(--bad, #e8675e); }
+.hrow.r-draw { border-left-color: var(--ink-3, #6f7a8c); }
+.hrow.match { background: linear-gradient(90deg, rgba(243,221,150,.08), rgba(255,255,255,.03)); }
+.hr-badge { justify-self: start; font: 700 11px/1.5 var(--font); letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 99px;
+  border: 1px solid rgba(255,255,255,.12); color: #c9c3b4; text-align: center; }
+.r-win .hr-badge { color: var(--good, #52c08a); border-color: var(--good-line, #2b5c43); background: var(--good-bg, #10241a); }
+.r-loss .hr-badge { color: var(--bad, #e8675e); border-color: var(--bad-line, #6b332e); background: var(--bad-bg, #2a1614); }
+.hrow.match .hr-badge { font-size: 10px; }
+.hr-main { display: grid; gap: 2px; min-width: 0; }
+.hr-head { font-weight: 600; overflow-wrap: anywhere; }
+.hr-sub, .hr-opp { font-size: 12.5px; color: #a79f8c; overflow-wrap: anywhere; }
+.hr-opp { color: #8f9aab; }
+.hr-meta { display: grid; gap: 2px; justify-items: end; text-align: right; font-size: 12px; color: #a79f8c; white-space: nowrap; }
+.hr-when { color: #c9c3b4; }
+.hist-more { margin-top: 10px; }
+@media (max-width: 640px) {
+  .hrow { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; padding: 10px; }
+  .hr-badge { grid-column: 1; grid-row: 1; }
+  .hr-meta { grid-column: 2; grid-row: 1; display: flex; gap: 8px; }
+  .hr-main { grid-column: 1 / -1; }
+  .hist-filters { gap: 8px; }
+  .hist-format { flex: 1 1 100%; }
+}
+
+/* ---------- a deck's record ---------- */
+.deck-record { font-variant-numeric: tabular-nums; }
+.deck-record.on-art { margin-top: 6px; margin-left: 6px; background: rgba(8,10,14,.72); backdrop-filter: blur(4px); }
+.auto-slot:empty + .deck-record.on-art { margin-left: 0; }
 

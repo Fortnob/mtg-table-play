@@ -1710,6 +1710,8 @@
           el('div', { class: 'deck-card-name', text: d.name }),
           el('div', { class: 'deck-sub', text: (d.commander || (d.source === 'draft' ? 'Drafted' : fmtName(d.format))) + ' · ' + timeAgo(d.updatedAt) }),
           UI.deckAutoPill(d, 'on-art'),
+          // how it has done so far (src/10h-ui-history.js)
+          UI.deckRecordPill ? UI.deckRecordPill(d, 'on-art') : null,
         ]),
       ]),
       el('div', { class: 'deck-foot' }, [
@@ -3645,6 +3647,8 @@
         el('button', { class: 'btn primary hero-btn', html: `${SVG.deck}<span>Choose my deck</span>`, onclick: () => {
           UI.pickDeck(payload.formatId, async (d) => {
             if (!await App.collectionAllows(d)) return;
+            // kept, so the game is written into this deck's record (src/12h-ui-rematch.js)
+            App.clientDeck = d;
             const v = MTG.formats.validate(d, fmt);
             net.intent({ kind: 'setDeck', deck: slimDeckForWire(d), name: App.myName });
             if (!v.ok) UI.toast('Sent, but the host’s rules say: ' + v.errors[0], 'err', 6000);
