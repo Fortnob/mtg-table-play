@@ -5862,6 +5862,8 @@
     if (/^your starting life total$/i.test(p)) return done({ startingLife: true });
     // Last March of the Ents: "the greatest toughness among creatures you control"
     if ((m = p.match(/^the greatest toughness among ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ greatestToughness: sc }); }
+    // Towering Titan: "the total toughness of other creatures you control" (totalStat)
+    if ((m = p.match(/^the total (power|toughness) of ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[2]); if (sc) return done({ totalStat: m[1].toLowerCase(), of: sc }); }
     // Nighthowler: "the number of creature cards in all graveyards"
     if ((m = p.match(/^the number of ([a-z]+) cards in all graveyards$/i))) return done({ cardsInAllGraveyards: m[1].toLowerCase() });
     // Balor: "the number of cards in their hand" — the player the trigger is about

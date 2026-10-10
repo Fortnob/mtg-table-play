@@ -2911,6 +2911,12 @@
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
       if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
+      // Towering Titan: "the total toughness of other creatures you control" (totalStat)
+      if (v.totalStat) {
+        let sum = 0;
+        for (const o of this._scopeList(v.of, pid, src, null, inLayers)) if (o !== src) sum += Math.max(0, v.totalStat === 'power' ? this.powerOf(o) : this.toughnessOf(o));
+        return sum * mult;
+      }
       if (v.greatestToughness) {
         let best = 0;
         for (const o of this._scopeList(v.greatestToughness, pid, src, null, inLayers)) best = Math.max(best, this.toughnessOf(o));
@@ -12176,7 +12182,7 @@
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"

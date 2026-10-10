@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11139,
+  "needed": 11138,
   "gainedCards": 1121,
-  "linesNeeded": 11913,
+  "linesNeeded": 11911,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -89,8 +89,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 195,
-   "lines": 189,
+   "score": 194,
+   "lines": 188,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -165,8 +165,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 105,
-   "lines": 96,
+   "score": 104,
+   "lines": 95,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -6698,8 +6698,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 65,
-   "cards": 65,
+   "score": 64,
+   "cards": 64,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",

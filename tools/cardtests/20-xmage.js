@@ -17798,4 +17798,16 @@ module.exports = (test) => {
     U.settle();
     t.eq(U.life('B'), 17, 'flashed back: 1 damage');
   });
+
+  test('Towering Titan: enters with +1/+1 counters equal to the total toughness of your other creatures', (mk, t) => {
+    t.auto('Towering Titan');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Hill Giant'); T.bf('B', 'Craw Wurm');
+    const tt = T.hand('A', 'Towering Titan');
+    T.mana('A', 'GG4');
+    T.cast('A', tt);
+    T.settle();
+    t.eq(tt.counters['+1/+1'] || 0, 5, '2 + 3, not the opponent\'s Wurm');
+  });
 };
