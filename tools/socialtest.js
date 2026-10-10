@@ -608,6 +608,19 @@ async function main() {
   ann.trade.cancel(t1);
   await until(() => t2.state === 'closed', 2000, 'Ann closes it, and Ben sees that');
 
+  /* ---- the line drops after the follower confirmed, before the leader did: asked after, and let go ---- */
+  [t1, t2] = await openTrade(ann, ben);
+  ann.trade.setCount(t1, 'get', 'Dark Ritual', 1);
+  await until(() => t2.rev === t1.rev && t1.rev === 1, 2000);
+  ben.trade.confirm(t2);
+  await until(() => ann.trade.theyConfirmed(t1), 2000);
+  ben.hub.stop();
+  await until(() => t1.state === 'closed' && t2.state === 'closed', 2000, 'both sides close the trade when the line drops');
+  check(ben.trade.pending().some(p => p.id === t1.id && p.state === 'confirmed') && !ann.trade.pending().length, 'Ben keeps his confirmation; Ann never sent it through');
+  ben.hub.start();
+  await until(() => !ben.trade.pending().length, 4000, 'back online, Ben asks after it, hears Ann has nothing, and lets it go');
+  await until(() => ann.hub.isOnline(ben.code) && ben.hub.isOnline(ann.code), 3000);
+
   /* ---- a confirmation let go while the other side is away: refused when it comes back ---- */
   [t1, t2] = await openTrade(ann, ben);
   ann.trade.setCount(t1, 'get', 'Dark Ritual', 1);

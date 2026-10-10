@@ -540,16 +540,17 @@
       case 'abort': {
         const p = pendingOf(msg.id);
         if (!p || p.code !== code || p.role !== 'leader') return;
-        const why = msg.why === 'gone' ? `${p.name || 'They'} no longer had the cards.` : 'They had not confirmed that deal.';
+        const who = p.name || 'they';
+        const why = msg.why === 'gone' ? `${who} no longer had the cards.` : `${who} had not confirmed that deal.`;
         unjournal(msg.id);
-        logTrade({ id: p.id, code, name: p.name, at: Date.now(), gave: [], got: [], state: 'failed', why });
+        logTrade({ id: p.id, code, name: p.name, at: Date.now(), gave: [], got: [], state: 'failed', why: why[0].toUpperCase() + why.slice(1) });
         if (s && s.state === 'committing') {
           if (s.theyLeft) { close(s, s.theyLeft === 'closed' ? `${s.name} closed the trade before it went through. Nothing changed.` : 'The trade did not go through, and nothing changed.'); return; }
           // back to the table: nothing moved, and they can confirm again
           s.state = 'open';
           s.okL = false; s.okF = false; s.rev++;
           shareDeal(s);
-          trade.emit('note', s, 'The trade did not go through: ' + why[0].toLowerCase() + why.slice(1));
+          trade.emit('note', s, 'The trade did not go through: ' + why);
         }
         return;
       }
@@ -630,11 +631,11 @@
     for (const p of b.pending) {
       if (p.code !== code) continue;
       if (p.role === 'leader' && p.state === 'prepared') hub.sendTrade(code, { op: 'commit', id: p.id, h: p.h });
-      if (p.role === 'follower' && p.state === 'confirmed' && !(live && live.id === p.id)) hub.sendTrade(code, { op: 'status', id: p.id });
+      if (p.role === 'follower' && p.state === 'confirmed' && !(isLive(live) && live.id === p.id)) hub.sendTrade(code, { op: 'status', id: p.id });
     }
     // confirmations nobody ever came back for
     b.pending = b.pending.filter((p) => {
-      const stale = p.role === 'follower' && p.state === 'confirmed' && t - (p.at || 0) > CONFIRMED_DAYS * 864e5 && !(live && live.id === p.id);
+      const stale = p.role === 'follower' && p.state === 'confirmed' && t - (p.at || 0) > CONFIRMED_DAYS * 864e5 && !(isLive(live) && live.id === p.id);
       if (stale) dropped = true;
       return !stale;
     });
