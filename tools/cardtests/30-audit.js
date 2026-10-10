@@ -3443,4 +3443,23 @@ module.exports = (test) => {
     t.eq(T.life('A'), 20, 'the Bolt is countered');
     t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.faceDown).length, 1, "the Bolt's controller manifests");
   });
+
+  test('Audit: Port Razer attacks again but not the same player; Fist of Suns pays WUBRG instead', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Port Razer'); t.auto('Fist of Suns');
+    T.toMain('A');
+    const pr = T.bf('A', 'Port Razer'); pr.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: pr.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    let again = null;
+    T.answer('declareAttackers', (ch, g) => { again = g.declareAttackers('A', [{ attackerId: pr.id, defenderId: 'B' }]); return [{ attackerId: pr.id, defenderId: 'C' }]; });
+    T.toMain('A', 'end');
+    t.no(again, 'not B a second time'); t.eq(T.life('B'), 16); t.eq(T.life('C'), 16, 'C in the extra combat');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Fist of Suns'); T.mana('A', 'WUBRG');
+    const cw = T.hand('A', 'Craw Wurm');
+    t.ok(T.g.castSpell('A', cw.id, { auto: true, via: 'grantAlt' }), T.g.lastError); T.settle(); T.resolve();
+    t.zone(cw, 'battlefield');
+  });
 };
