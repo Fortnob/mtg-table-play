@@ -5143,4 +5143,30 @@ module.exports = (test) => {
       t.eq(T.zone('A', 'hand').length, h + (fires ? 1 : 0), `${who} ${alone ? 'alone' : 'with another'}`);
     }
   });
+
+  test('Audit: "another Elf / Dinosaur / Giant" never counts the card itself: Dwynen\'s Elite, Pugnacious Hammerskull, Blind-Spot Giant', (mk, t) => {
+    t.auto("Dwynen's Elite"); t.auto('Pugnacious Hammerskull'); t.auto('Blind-Spot Giant');
+    for (const other of [false, true]) {
+      let T = mk();
+      T.toMain('A');
+      if (other) T.bf('A', 'Llanowar Elves');
+      T.mana('A', 'G1');
+      T.cast('A', T.hand('A', "Dwynen's Elite")); T.settle(); T.resolve(); T.settle();
+      t.eq(T.g.battlefield.filter(o => o.isToken).length, other ? 1 : 0, `Elite, another Elf: ${other}`);
+      T = mk();
+      T.toMain('A');
+      const ph = T.bf('A', 'Pugnacious Hammerskull'); ph.summoningSick = false;
+      if (other) T.bf('A', 'Ravenous Daggertooth');
+      T.answer('declareAttackers', () => [{ attackerId: ph.id, defenderId: 'B' }]);
+      T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+      t.eq(ph.counters.stun || 0, other ? 0 : 1, `Hammerskull, another Dinosaur: ${other}`);
+      T = mk();
+      T.toMain('A');
+      const bg = T.bf('A', 'Blind-Spot Giant'); bg.summoningSick = false;
+      if (other) T.bf('A', 'Hill Giant');
+      T.answer('declareAttackers', () => [{ attackerId: bg.id, defenderId: 'B' }]);
+      T.toMain('A', 'endCombat');
+      t.eq(T.life('B'), other ? 16 : 20, `Blind-Spot Giant, another Giant: ${other}`);
+    }
+  });
 };
