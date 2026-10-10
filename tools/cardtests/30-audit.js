@@ -6138,4 +6138,25 @@ module.exports = (test) => {
     t.zone(bear, 'exile', 'the card that died is exiled');
     t.ok(T.g.battlefield.some(x => x.controller === 'A' && x.isToken && x.name === 'Zombie' && x.tapped), 'a tapped Zombie');
   });
+
+  test('Audit: a shockland put onto the battlefield tapped (Farseek) stays tapped and asks for no life; put untapped (Three Visits) it asks', (mk, t) => {
+    t.auto('Farseek'); t.auto('Three Visits');
+    let T = mk(); T.toMain('A');
+    T.g.zones.A.library.length = 0; const sv = T.top('A', 'Steam Vents');
+    T.mana('A', 'G1'); T.cast('A', T.hand('A', 'Farseek'));
+    t.zone(sv, 'battlefield'); t.ok(sv.tapped, 'tapped, as Farseek says');
+    t.eq(T.life('A'), 20, 'no life paid for nothing');
+    t.no(T.asked.some(c => c.purpose === 'payToUntap'), 'not asked');
+    T = mk(); T.toMain('A');
+    T.g.zones.A.library.length = 0; const bp = T.top('A', 'Breeding Pool');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'G1'); T.cast('A', T.hand('A', 'Three Visits'));
+    t.zone(bp, 'battlefield'); t.no(bp.tapped, 'paid for: untapped'); t.eq(T.life('A'), 18);
+    // a bot is not charged either
+    T = mk(); T.toMain('A');
+    T.g.player('A').isBot = true;
+    T.g.zones.A.library.length = 0; const sv2 = T.top('A', 'Steam Vents');
+    T.mana('A', 'G1'); T.cast('A', T.hand('A', 'Farseek'));
+    t.ok(sv2.tapped); t.eq(T.life('A'), 20, 'the bot pays nothing');
+  });
 };
