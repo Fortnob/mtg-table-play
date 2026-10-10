@@ -13462,7 +13462,8 @@
             o.effects.push(Object.assign(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
               : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null }, lasting));
             o._chr = null;
-            this.logEvent('keyword', `${o.name} gains "${truncate(e.ability, 80)}"`);
+            // (an ability handed over already written out has no words to quote: Herd Heirloom's)
+            this.logEvent('keyword', e.ability ? `${o.name} gains "${truncate(e.ability, 80)}"` : `${o.name} gains an ability${e.duration === 'eot' ? ' until end of turn' : ''}.`);
           });
           this.bumpBoard();
           break;

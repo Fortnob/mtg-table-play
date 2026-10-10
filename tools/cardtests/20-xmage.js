@@ -18031,4 +18031,15 @@ module.exports = (test) => {
     T.toMain('B');
     t.no(myr.dealtDeathtouch, 'the mark is gone at cleanup with the damage');
   });
+
+  test('Herd Heirloom: the log says the creature gains an ability, not empty quotes', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const hh = T.bf('A', 'Herd Heirloom');
+    const wurm = T.bf('A', 'Craw Wurm');
+    T.activate('A', hh, 1, { targets: [wurm.id] });
+    T.settle();
+    t.no(T.g.log.some(l => /gains ""/.test(l.text || '')), 'no empty quotes');
+    t.ok(T.g.log.some(l => /Craw Wurm gains an ability until end of turn\./.test(l.text || '')), 'says what happened');
+  });
 };
