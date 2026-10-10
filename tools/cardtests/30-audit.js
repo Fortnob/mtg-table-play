@@ -5059,4 +5059,25 @@ module.exports = (test) => {
     T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle();
     t.eq(T.life('A'), 20, 'prevented'); t.eq(T.zone('A', 'graveyard').length, 4, 'two damage: four milled');
   });
+
+  test("Audit: Jolene: a Treasure for whoever attacks one of your opponents, not for an attack on you; Mathemagics draws 2 to the X", (mk, t) => {
+    t.auto('Jolene, the Plunder Queen'); t.auto('Mathemagics');
+    for (const def of ['C', 'A']) {
+      const T = mk({ players: ['A', 'B', 'C'] });
+      T.toMain('A');
+      T.bf('A', 'Jolene, the Plunder Queen');
+      const b = T.bf('B', 'Grizzly Bears'); b.summoningSick = false;
+      T.nextTurn('B'); T.toMain('B');
+      T.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: def }]);
+      T.toMain('B', 'endCombat'); T.settle(); T.resolve(); T.settle();
+      t.eq(T.g.battlefield.filter(o => o.controller === 'B' && /Treasure/.test(o.name)).length, def === 'C' ? 1 : 0, `B attacks ${def}`);
+    }
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 10; i++) T.top('B', 'Island');
+    const m = T.hand('A', 'Mathemagics');
+    T.mana('A', 'UU6');
+    t.ok(T.g.castSpell('A', m.id, { auto: true, x: 3, targets: [{ kind: 'player', id: 'B' }] })); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('B', 'hand').length, 8, 'X is 3: eight cards');
+  });
 };
