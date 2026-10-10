@@ -11984,7 +11984,8 @@
       /* Brightcap Badger: "Each Fungus and Saproling you control", "Fungi and
          Saprolings": a permanent of either creature type */
       const two = words.length === 3 && /^(?:and|or|and\/or)$/i.test(words[1]) && /^[A-Z]/.test(words[0]) && /^[A-Z]/.test(words[2]);
-      const sing = (x) => SAME[x.toLowerCase()] || (/s$/.test(x) ? singularType(x) : x.toLowerCase());
+      // (Thurid: "Pegasi"; Bruse Tarl: "Oxen" — plurals without an s)
+      const sing = (x) => SAME[x.toLowerCase()] || singularType(x);
       // Outlaws: "Outlaws you control" — Assassins, Mercenaries, Pirates, Rogues and Warlocks
       if (/^outlaws$/i.test(w) && words.length <= 2) {
         sc.subtypeAny = ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock']; sc.what = 'permanent'; words.pop();
@@ -14265,7 +14266,7 @@
      and "Faeries" a Faerie. */
   const PLURAL_TYPES = { elves: 'elf', wolves: 'wolf', werewolves: 'werewolf', dwarves: 'dwarf', thieves: 'thief',
     mice: 'mouse', fungi: 'fungus', heroes: 'hero', faeries: 'faerie', zombies: 'zombie', pixies: 'pixie',
-    octopuses: 'octopus', cyclopes: 'cyclops', oxen: 'ox', djinn: 'djinn', efreet: 'efreet' };
+    octopuses: 'octopus', cyclopes: 'cyclops', oxen: 'ox', djinn: 'djinn', efreet: 'efreet', pegasi: 'pegasus' };
   function singularType(w) {
     const lw = String(w).trim().toLowerCase();
     if (PLURAL_TYPES[lw]) return PLURAL_TYPES[lw];

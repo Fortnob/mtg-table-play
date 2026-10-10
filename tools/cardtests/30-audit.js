@@ -4151,4 +4151,20 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A'); T.settle();
     t.eq(vial.counters.charge, 1, 'declined: still 1');
   });
+
+  test('Audit: type lists with irregular plurals: Thurid pumps Pegasi, Valley Questcaller Mice; Death-Priest of Myrkul Zombies', (mk, t) => {
+    t.auto('Thurid, Mare of Destiny'); t.auto('Valley Questcaller'); t.auto('Death-Priest of Myrkul');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Thurid, Mare of Destiny');
+    const pg = T.bf('A', 'Pegasus Charger');
+    t.eq(T.g.powerOf(pg) + '/' + T.g.toughnessOf(pg), '3/2', 'a Pegasus: +1/+1');
+    T.bf('A', 'Valley Questcaller');
+    const hh = T.bf('A', 'Heartfire Hero');
+    t.eq(T.g.toughnessOf(hh), 2, 'a Mouse: +1/+1');
+    T.bf('A', 'Death-Priest of Myrkul');
+    const wc = T.bf('A', 'Walking Corpse');
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.eq(T.g.powerOf(wc), 3, 'a Zombie: +1/+1'); t.eq(T.g.powerOf(bear), 2, 'a Bear: nothing');
+  });
 };
