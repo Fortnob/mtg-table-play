@@ -5003,4 +5003,31 @@ module.exports = (test) => {
     const crows = T.g.battlefield.filter(o => o.isToken && o.name === 'Storm Crow');
     t.eq(crows.length, 3, 'three spells: three Storm Crows'); t.ok(crows.every(o => T.g.hasKw(o, 'flying')));
   });
+
+  test("Audit: Carnage's returned creature must attack and is sacrificed once it hits a player; Evolution Vat's doubling ability", (mk, t) => {
+    t.auto('Carnage, Crimson Chaos'); t.auto('Evolution Vat');
+    let T = mk();
+    T.toMain('A');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'BR2');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.cast('A', T.hand('A', 'Carnage, Crimson Chaos')); T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'battlefield');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    let refused = false;
+    T.answer('declareAttackers', () => []);
+    try { T.toMain('A', 'endCombat'); } catch (e) { refused = /attacks each combat/.test(e.message); }
+    t.ok(refused, 'no attack is refused: it must attack');
+    T.g.declareAttackers('A', [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 18); t.zone(bear, 'graveyard', 'sacrificed after it hit');
+    T = mk();
+    T.toMain('A');
+    const ev = T.bf('A', 'Evolution Vat');
+    const b2 = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    T.mana('A', '3'); T.activate('A', ev, 0, { targets: [b2.id] }); T.settle();
+    t.ok(b2.tapped); t.eq(b2.counters['+1/+1'], 2);
+    T.mana('A', 'GU2'); T.activate('A', b2, 0); T.settle();
+    t.eq(b2.counters['+1/+1'], 4, 'doubled');
+  });
 };
