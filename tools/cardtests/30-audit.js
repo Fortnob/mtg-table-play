@@ -4652,4 +4652,34 @@ module.exports = (test) => {
     for (let i = 1; i <= 3; i++) { T.mana('A', 'R'); T.activate('A', ss, 0, { targets: [ss.id] }); T.settle(); }
     t.eq(T.g.player('A').pool.R, 4, 'the third resolution: {R}{R}{R}{R}');
   });
+
+  test("Audit: Valgavoth only on the opponent's own turn, once; Dollmaker's Shop not for Toys attacking alone", (mk, t) => {
+    t.auto('Valgavoth, Harrower of Souls'); t.auto("Dollmaker's Shop // Porcelain Gallery");
+    let T = mk();
+    T.toMain('A');
+    const v = T.bf('A', 'Valgavoth, Harrower of Souls');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    let h = T.zone('A', 'hand').length;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h, "on A's turn: nothing");
+    T.nextTurn('B'); T.toMain('B');
+    h = T.zone('A', 'hand').length;
+    T.g.changeLife(T.g.player('B'), -1, 'test'); T.settle(); T.resolve(); T.settle();
+    T.g.changeLife(T.g.player('B'), -1, 'test'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h + 1, "on B's turn: the first loss only"); t.eq(v.counters['+1/+1'], 1);
+    T = mk();
+    T.toMain('A');
+    T.bf('A', "Dollmaker's Shop // Porcelain Gallery");
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const toys = () => T.g.battlefield.filter(o => o.isToken && /Toy/.test(o.name));
+    T.g._runEffects([{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], addTypes: ['Artifact'], subtypes: 'Toy', keywords: [] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    const t1 = toys()[0]; t1.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: t1.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(toys().length, 1, 'a Toy alone: no new Toy');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: t1.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(toys().length, 2, 'the Bears with it: one Toy');
+  });
 };
