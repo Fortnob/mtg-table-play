@@ -5532,4 +5532,21 @@ module.exports = (test) => {
       t.eq(lib - T.zone('A', 'library').length, x, `X=${x}`);
     }
   });
+
+  test('Audit: a copy of a Battlemage spell kicked with its {R} kicker is kicked with it too (Lithoform Engine)', (mk, t) => {
+    t.auto('Thornscape Battlemage'); t.auto('Lithoform Engine');
+    const T = mk();
+    T.toMain('A');
+    const le = T.bf('A', 'Lithoform Engine');
+    T.mana('A', 'GR2');
+    T.cast('A', T.hand('A', 'Thornscape Battlemage'), { kickPaid: [0], resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.mana('A', '4');
+    for (let i = 0; i < 2; i++) T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.activate('A', le, 2, { targets: [{ kind: 'stack', id: item.id }] });
+    for (let i = 0; i < 4; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Thornscape Battlemage').length, 2);
+    t.eq(T.life('B'), 16, 'both deal 2');
+  });
 };
