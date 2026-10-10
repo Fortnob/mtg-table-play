@@ -20079,4 +20079,27 @@ module.exports = (test) => {
     T2.toMain('B');
     t.zone(bear, 'graveyard');
   });
+
+  test("Enchanted land tapped for mana: Elvish Guidance's {G} per Elf, Market Festival's two of any colour, Glittering Frost makes it snow", (mk, t) => {
+    for (const n of ['Elvish Guidance', 'Market Festival', "Dawn's Reflection", 'Glittering Frost']) t.auto(n);
+    const T = mk();
+    const on = (aura, land) => { aura.attachedTo = land.id; land.attachments.push(aura.id); };
+    const f1 = T.bf('A', 'Forest');
+    on(T.bf('A', 'Elvish Guidance'), f1);
+    T.bf('A', 'Llanowar Elves'); T.bf('B', 'Elvish Mystic'); T.bf('A', 'Grizzly Bears');
+    T.g.tapForMana('A', f1.id, 0);
+    t.eq(T.player('A').pool.G, 3, 'the Forest, and one more for each of the two Elves (either side)');
+    const T2 = mk();
+    const f2 = T2.bf('A', 'Forest');
+    on(T2.bf('A', 'Market Festival'), f2);
+    T2.g.tapForMana('A', f2.id, 0);
+    const pool = T2.player('A').pool;
+    t.eq(['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (pool[c] || 0), 0), 3, 'Market Festival: two more');
+    const T3 = mk();
+    const f3 = T3.bf('A', 'Forest');
+    t.no(T3.g._cardFitsWords(f3, 'snow'), 'a plain Forest is not snow');
+    on(T3.bf('A', 'Glittering Frost'), f3);
+    T3.g.bumpBoard();
+    t.ok(T3.g._cardFitsWords(f3, 'snow'), 'Glittering Frost: the land is snow');
+  });
 };

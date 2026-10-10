@@ -13657,9 +13657,15 @@
         }, auto: true },
       { re: /^(?:CARDNAME|This creature) is the chosen type in addition to its other types\.?$/i,
         eff: { op: 'continuous', layer: 4, scope: { self: true }, addChosenType: true }, auto: true },
-      { re: /^Whenever enchanted (land|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional (\{[^}]+\}(?:\{[^}]+\})*|one mana of the chosen color|one mana of any type that land produced|one mana of any color)\.?$/i,
+      /* (Market Festival, Dawn's Reflection: "two mana in any combination of colors"; Elvish Guidance:
+         "{G} for each Elf on the battlefield") */
+      { re: /^Whenever enchanted (land|Forest|Island|Swamp|Mountain|Plains) is tapped for mana, its controller adds an additional (\{[^}]+\}(?:\{[^}]+\})*|one mana of the chosen color|one mana of any type that land produced|one mana of any color|two mana in any combination of colors)( for each ([A-Z][a-z]+) on the battlefield)?\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', scope: 'attached' },
-          /chosen/i.test(m[2]) ? { chosen: true } : /any type/i.test(m[2]) ? { sameType: true } : /any color/i.test(m[2]) ? { anyColor: true } : { symbols: MANA.parse(m[2]) }), auto: true },
+          /chosen/i.test(m[2]) ? { chosen: true } : /any type/i.test(m[2]) ? { sameType: true } : /any color/i.test(m[2]) ? { anyColor: true }
+            : /^two mana/i.test(m[2]) ? { anyColor: true, n: 2 } : { symbols: MANA.parse(m[2]) }, m[4] ? { perSubtype: m[4] } : {}), auto: true },
+      // Glittering Frost: "Enchanted land is snow."
+      { re: /^Enchanted land is snow\.?$/i,
+        eff: { op: 'continuous', layer: 4, scope: { attached: true, what: 'land' }, addSupertypes: ['Snow'] }, auto: true },
       { re: /^Whenever you tap an? (land|Forest|Island|Swamp|Mountain|Plains|basic land) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that land produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },

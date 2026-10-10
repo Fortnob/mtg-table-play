@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10809,
+  "needed": 10805,
   "gainedCards": 1022,
-  "linesNeeded": 11519,
+  "linesNeeded": 11515,
   "linesGained": 1206,
   "gained": {
    "all": 1022,
@@ -6176,16 +6176,6 @@
    ]
   },
   {
-   "what": "EnchantedTappedTriggeredManaAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Elvish Guidance",
-    "Dawn's Reflection",
-    "Market Festival"
-   ]
-  },
-  {
    "what": "CommittedCrimeTriggeredAbility",
    "score": 3,
    "lines": 3,
@@ -6541,6 +6531,16 @@
     "Dropkick Bomber",
     "Aisha of Sparks and Smoke",
     "Leyline Phantom"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAttachedEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Meltstrider's Resolve",
+    "Rope",
+    "Wolfrider's Saddle"
    ]
   }
  ],

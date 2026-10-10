@@ -7721,8 +7721,13 @@
           const kinds = Object.keys(made).filter(c => made[c] > 0);
           syms = kinds.length ? [kinds[0]] : [];
         }
-        // Fertile Ground: one mana of any colour, the one the player is shortest of
-        if (e.anyColor) syms = [this._preferredColor(p) || 'G'];
+        // Fertile Ground: one mana of any colour, the one the player is shortest of (Market Festival: two)
+        if (e.anyColor) syms = Array.from({ length: e.n || 1 }, () => this._preferredColor(p) || 'G');
+        // Elvish Guidance: "{G} for each Elf on the battlefield"
+        if (e.perSubtype) {
+          const k = this.battlefield.filter(x => !x.phasedOut && this._hasCreatureType(x, e.perSubtype)).length;
+          syms = [].concat(...Array.from({ length: k }, () => syms));
+        }
         for (const sym of syms) p.pool.add(sym);
         if (syms.length) this.logEvent('mana', `${src.name} adds ${syms.map(x => '{' + x + '}').join('')}.`);
       }
