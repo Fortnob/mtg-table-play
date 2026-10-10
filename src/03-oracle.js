@@ -13190,6 +13190,8 @@
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
+      // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
+      { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)

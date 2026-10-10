@@ -17430,4 +17430,24 @@ module.exports = (test) => {
       t.eq(T.life('A'), countered ? 20 : 17, top + (countered ? ' (mana value 1): countered' : ' (mana value 2): not countered'));
     }
   });
+
+  test('Stun counters: a stunned permanent stays tapped and loses one instead of untapping; Fear of Sleep Paralysis keeps them on', (mk, t) => {
+    t.auto('Fear of Sleep Paralysis');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears', { tapped: true, counters: { stun: 1 } });
+    T.toMain('B');
+    t.ok(bear.tapped, 'still tapped after its untap step');
+    t.eq(bear.counters.stun || 0, 0, 'the stun counter came off');
+    T.g._markTapped(bear);
+    T.toMain('A'); T.toMain('B');
+    t.no(bear.tapped, 'untaps the next time');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Fear of Sleep Paralysis');
+    const b2 = U.bf('B', 'Grizzly Bears', { tapped: true, counters: { stun: 1 } });
+    U.toMain('B');
+    t.ok(b2.tapped, 'stays tapped');
+    t.eq(b2.counters.stun || 0, 1, 'and keeps its stun counter');
+  });
 };

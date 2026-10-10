@@ -1069,7 +1069,7 @@
           o.noUntapNext = false;
           if (o.tapped) this.logEvent('step', `${o.name} does not untap.`);
         } else if (o.tapped) {
-          this._markUntapped(o); n++;
+          if (this._markUntapped(o)) n++;
         }
         if (o.controller === ap.id) o.summoningSick = false;
       }
@@ -20440,6 +20440,20 @@
      */
     _markUntapped(o) {
       if (!o || !o.tapped) return false;
+      /* A stun counter (CR 122.1d): "If a permanent with a stun counter would
+         become untapped, instead remove a stun counter from it." */
+      if (o.zone === 'battlefield' && (Number((o.counters || {}).stun) || 0) > 0) {
+        // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
+        const lock = this.battlefield.find(s0 => !s0.phasedOut && s0.controller !== o.controller && this._staticOp(s0, 'stunLock'));
+        if (lock) this.logEvent('rules', `${o.name} stays tapped: its stun counter can't be removed (${lock.name}).`);
+        else {
+          o.counters.stun = (Number(o.counters.stun) || 0) - 1;
+          if (o.counters.stun <= 0) delete o.counters.stun;
+          o._chr = null; this.bumpBoard();
+          this.logEvent('rules', `${o.name} stays tapped and loses a stun counter.`);
+        }
+        return false;
+      }
       o.tapped = false;
       if (o.zone === 'battlefield') {
         this._fire('becomesUntapped', o.controller, { source: o, object: o });
