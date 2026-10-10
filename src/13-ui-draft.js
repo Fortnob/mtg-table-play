@@ -497,6 +497,8 @@
             },
           });
           slot.setAttribute('aria-pressed', chosen ? 'true' : 'false');
+          // a click chooses it; a right-click reads it at full size (a finger holds it)
+          slot.addEventListener('contextmenu', (e) => { e.preventDefault(); UI.cardSheet(c); });
           slot.style.setProperty('--i', String(i));
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
           slot.appendChild(UI.autoBadge(c, { corner: true }));
@@ -507,15 +509,18 @@
         const packKey = v.round + ':' + v.pick;
         if (this._dealt !== packKey) { this._dealt = packKey; grid.classList.add('dealing'); }
         this.packWrap.appendChild(grid);
+        const touch = MTG.isTouch();
         this.packWrap.appendChild(el('div', { class: 'pick-hint' }, [
           el('span', { text: this.chosen.length
-            ? 'Click it again or click the table to put it back.'
-            : 'Click to choose.' }),
+            ? (touch ? 'Tap it again or tap the table to put it back.' : 'Click it again or click the table to put it back.')
+            : (touch ? 'Tap to choose.' : 'Click to choose.') }),
           el('span', { text: '·' }),
-          el('span', { text: 'Double-click a card, or press ' }),
-          el('span', { class: 'kbd', text: 'Space' }),
-          el('span', { text: ' to confirm.' }),
-        ]));
+          el('span', { text: touch ? 'Hold a card to read it.' : 'Right-click a card to read it.' }),
+          el('span', { text: '·' }),
+          el('span', { text: touch ? 'Then press Confirm.' : 'Double-click a card, or press ' }),
+          touch ? null : el('span', { class: 'kbd', text: 'Space' }),
+          touch ? null : el('span', { text: ' to confirm.' }),
+        ].filter(Boolean)));
       }
 
       this._renderPool(v);
@@ -589,6 +594,7 @@
           UI.setArt(row, card);
           UI.attachPreview(row, card, 0);
           row.addEventListener('click', () => UI.cardSheet(card));
+          row.addEventListener('contextmenu', (e) => { e.preventDefault(); UI.cardSheet(card); });
           row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); UI.cardSheet(card); } });
           col.appendChild(row);
         }
