@@ -14546,14 +14546,16 @@
               // shuffle first, then put it where the card says (CR 701.19)
               this.rng.shuffle(z.library);
               c.zone = 'library';
-              if (where === 'top') z.library.unshift(c); else z.library.push(c);
+              // Long-Term Plans: "third from the top" (depth)
+              if (where === 'top' && e.depth > 1) z.library.splice(Math.min(e.depth - 1, z.library.length), 0, c);
+              else if (where === 'top') z.library.unshift(c); else z.library.push(c);
             } else this.moveObject(c, 'hand', { controller: seeker.id });
           }
           this._lastSearched = taken.map(c => c.id);
           if (taken.length) this._noteLastAffected([{ kind: 'object', id: taken[taken.length - 1].id }]);
           if (!taken.length || !(dest === 'top' || dest === 'bottom')) this.rng.shuffle(z.library);
           const where = dest === 'graveyard' ? ' into their graveyard'
-            : dest === 'top' ? ' onto the top of their library'
+            : dest === 'top' ? (e.depth > 1 ? ` into their library ${e.depth === 2 ? 'second' : 'third'} from the top` : ' onto the top of their library')
             : dest === 'bottom' ? ' onto the bottom of their library'
             : dest === 'battlefield' ? ' onto the battlefield' : dest === 'split' ? ' (one onto the battlefield)' : '';
           this.logEvent('search', `${seeker.name} searches their library and takes ${taken.length} card${taken.length === 1 ? '' : 's'}${where}.`);

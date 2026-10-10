@@ -7484,6 +7484,9 @@
     { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
       make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
         to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
+    // Long-Term Plans: "Search your library for a card, then shuffle and put that card third from the top." (depth)
+    { re: /^Search your library for a card, then shuffle and put that card (second|third) from the top\.?$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: 'any', to: 'top', depth: /second/i.test(m[1]) ? 2 : 3, prompt: 'Search your library for a card.' }] },
     /* a search whose answer goes on top of the library, which is two sentences
        on every card that does it */
     { re: /^(?:You may )?[Ss]earch your library for (?:a|an|up to one) ([-a-z' ]*?)cards?(?: and reveal (?:it|that card))?\. Shuffle(?: your library)?,? (?:and )?(?:then )?put (?:it|that card|the card) on top of it\.?$/i,

@@ -17877,4 +17877,17 @@ module.exports = (test) => {
       t.zone(keep, discard ? 'graveyard' : 'hand');
     }
   });
+
+  test('Long-Term Plans: the card found goes third from the top', (mk, t) => {
+    t.auto('Long-Term Plans');
+    const T = mk();
+    T.toMain('A');
+    const want = T.top('A', 'Craw Wurm');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.answer('pickCard', { cardIds: [want.id] });
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Long-Term Plans'));
+    T.settle();
+    t.eq(T.g.zones.A.library.indexOf(want), 2, 'third from the top');
+  });
 };
