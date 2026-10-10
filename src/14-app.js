@@ -349,7 +349,7 @@
       for (let i = 2; i < 9; i++) if (!used.has(`${n} ${i}`)) return `${n} ${i}`;
       return null;
     };
-    const cmds = (deck.commanders || []);
+    const cmds = (deck.commanders || []).filter(c => !MTG.formats.isSignatureSpell(c));
     if (cmds.length) {
       // "Krenko, Mob Boss" is Krenko at the table; a pair is both of them
       const shortName = (c) => U.frontName(c.name).split(',')[0].trim();
@@ -951,7 +951,8 @@
     'Nicol Bolas, Dragon-God'];
   const FORMAT_ART = {
     standard: 'Sheoldred, the Apocalypse', modern: 'Ragavan, Nimble Pilferer', pauper: 'Lightning Bolt',
-    commander: "Atraxa, Praetors' Voice",
+    pioneer: 'Teferi, Hero of Dominaria', legacy: 'Force of Will', vintage: 'Black Lotus',
+    commander: "Atraxa, Praetors' Voice", brawl: 'Kenrith, the Returned King', oathbreaker: 'Chandra, Torch of Defiance',
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
   };
@@ -1012,7 +1013,8 @@
      one at the table. Each kind remembers the format you last played in it. */
   const QUICK_KINDS = [
     { id: 'constructed', label: 'Constructed', blurb: 'Bring a deck',
-      formats: [['standard', 'Standard'], ['modern', 'Modern'], ['pauper', 'Pauper'], ['commander', 'Commander']] },
+      formats: [['standard', 'Standard'], ['pioneer', 'Pioneer'], ['modern', 'Modern'], ['legacy', 'Legacy'], ['vintage', 'Vintage'],
+        ['pauper', 'Pauper'], ['commander', 'Commander'], ['brawl', 'Brawl'], ['oathbreaker', 'Oathbreaker']] },
     { id: 'limited', label: 'Limited', blurb: 'Draft at the table',
       formats: [['booster', 'Booster'], ['picktwo', 'Pick-Two'], ['chaos', 'Chaos'], ['cube', 'Cube'], ['cmdrdraft', 'Commander']] },
   ];
@@ -1377,7 +1379,7 @@
           // as the chosen house rules have it
           const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
           const f = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
-          return `${f.name} · ${f.startingLife} life · ${q.opponents + 1} players` + (pr ? ` · ${pr.name}` : '');
+          return `${f.name} · ${MTG.formats.lifeFor(f, q.opponents + 1)} life · ${q.opponents + 1} players` + (pr ? ` · ${pr.name}` : '');
         })() }),
       ]));
     };
@@ -2798,7 +2800,7 @@
         el('h1', { class: 'lobby-title', text: fmt.name }),
         el('div', { class: 'lobby-facts' }, [
           el('span', { text: `${fmt.minPlayers}–${fmt.maxPlayers} players` }),
-          el('span', { text: `${fmt.startingLife} life` }),
+          el('span', { text: `${MTG.formats.lifeFor(fmt, sess.roster.length)} life` }),
           el('span', { text: fmt.exactSize ? `${fmt.deckMin} cards` : `${fmt.deckMin || 60}+ cards` }),
           fmt.commanderDamage ? el('span', { text: `${fmt.commanderDamage} commander damage` }) : null,
           fmt.bracket ? el('span', { class: `lobby-bracket b${fmt.bracket}`, text: MTG.brackets.label(fmt.bracket) }) : null,
@@ -2932,7 +2934,7 @@
     let deckLine = null;
     const commander = r.deck && (r.deck.commanders || [])[0];
     // at a Commander table, each deck's bracket, which opens what puts it there
-    const bracketed = fmt.commander && !limited && MTG.brackets;
+    const bracketed = MTG.formats.usesBrackets(fmt) && MTG.brackets;
     const bracketPill = () => (bracketed && r.deck ? UI.bracketPill(r.deck, { short: true, table: sess.rules.bracket || 0 }) : null);
 
     if (r.kind === 'bot') {
@@ -3598,7 +3600,7 @@
       banner.querySelector('.lobby-title').textContent = fmt.name;
       const facts = banner.querySelector('.lobby-facts');
       facts.innerHTML = '';
-      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${fmt.startingLife} life` : null,
+      for (const t of [`${payload.members.length} at the table`, fmt.startingLife ? `${MTG.formats.lifeFor(fmt, payload.members.length)} life` : null,
         fmt.bracket && MTG.brackets ? MTG.brackets.label(fmt.bracket) : null, 'Waiting for the host to start'])
         if (t) facts.appendChild(el('span', { text: t }));
       facts.appendChild(rttPill('host'));
@@ -3940,7 +3942,7 @@
               style: r.kind === 'bot' && seatPersonality(r) ? seatPersonality(r).label : null,
               deckName: r.deck ? r.deck.name : null,
               deckValid: r.deckValid ? r.deckValid.ok : null,
-              bracket: r.deck && this.fmt.commander && this.fmt.kind !== 'limited' && MTG.brackets ? MTG.brackets.estimate(r.deck).bracket : null,
+              bracket: r.deck && MTG.formats.usesBrackets(this.fmt) && MTG.brackets ? MTG.brackets.estimate(r.deck).bracket : null,
               avatar: (r.kind === 'local' ? MTG.settings.avatar : r.avatar) || null,
               sleeve: r.kind === 'local' ? MTG.economy.sleeveWorn() : (r.kind === 'bot' ? null : (r.sleeve || null)),
               frame: r.kind === 'local' ? MTG.economy.frameWorn() : (r.frame || null),
@@ -4128,7 +4130,7 @@
           r.deck.main.map(e => e.card).concat((r.deck.sideboard || []).map(e => e.card), r.deck.commanders || []))));
         const g = new MTG.rules.Game({
           formatId: this.formatId,
-          startingLife: this.rules.startingLife,
+          startingLife: MTG.formats.lifeFor(this.fmt, this.roster.length),
           startingHand: this.rules.startingHand || 7,
           commanderDamage: this.fmt.commander ? (this.rules.commanderDamage || null) : null,
           freeMulligans: this.rules.freeMulligans || 0,

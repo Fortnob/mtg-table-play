@@ -986,7 +986,8 @@
       }).sort((x, y) => y.v - x.v);
       for (const { l } of lands) {
         if (nonbasic >= budget) break;
-        const q = singleton ? 1 : Math.min(4, budget - nonbasic);
+        // a Vintage-restricted land (Strip Mine, Library of Alexandria) comes one at a time
+        const q = singleton ? 1 : Math.min(4, budget - nonbasic, MTG.formats.copyLimit(l, fmt));
         out.push({ card: l, qty: q });
         nonbasic += q;
       }
@@ -1326,7 +1327,8 @@
    */
   async function chooseCommander(fmt, cfg, rng, colors, avoid) {
     const legalKey = fmt.scryKey || 'commander';
-    const q = `is:commander legal:${legalKey} -is:digital lang:en` + (colors ? ' ' + idToken(colors) : '');
+    // Brawl takes a planeswalker as well, Oathbreaker nothing but one
+    const q = `${MTG.formats.commanderQuery(fmt)} legal:${legalKey} -is:digital lang:en` + (colors ? ' ' + idToken(colors) : '');
     const pool = await searchPool(q, 700);
     if (!pool.length) throw new Error('Could not reach Scryfall to build a bot deck.');
     const ok = pool.filter(c => {
@@ -1351,22 +1353,58 @@
     return rng.pick(scored.slice(0, 8)).c;
   }
 
+  /**
+   * Oathbreaker: the Signature Spell, an instant or sorcery in the
+   * planeswalker's colours. It comes back to the command zone every time
+   * it is cast, so the best one is worth casting again and again: an
+   * answer, or cards, more than a one-off. Rated like any other card, then
+   * bent to the level, as the planeswalker was.
+   */
+  async function chooseSignature(fmt, cfg, rng, colors) {
+    const q = `(t:instant or t:sorcery) legal:${fmt.scryKey || 'oathbreaker'} -is:digital lang:en ${idToken(colors)}`;
+    // a Pact ("pay … or you lose the game") cast over and over is a loss waiting to happen
+    const pool = (await searchPool(q, 350)).filter(c => MTG.formats.isSignatureSpell(c) && botCanPlay(c, fmt, colors) &&
+      !/you lose the game/i.test(c.oracle_text || ''));
+    if (!pool.length) return null;
+    const scored = pool.map((c, i) => {
+      const roles = rolesOf(c);
+      const fit = rateCard(c, { prior: 1, commander: true }) + (roles.has('removal') ? 0.8 : 0) + (roles.has('draw') ? 0.5 : 0) - i * 0.004;
+      return { c, s: shapeScore({ fit, r: fit }, cfg, rng) };
+    }).sort((x, y) => y.s - x.s);
+    return rng.pick(scored.slice(0, 6)).c;
+  }
+
   async function buildCommanderDeck(fmt, cfg, rng, opts, progress) {
     const legalKey = fmt.scryKey || 'commander';
-    progress('Choosing a commander');
+    progress(fmt.oathbreaker ? 'Choosing an Oathbreaker' : 'Choosing a commander');
     const cmd = await chooseCommander(fmt, cfg, rng, opts.colors || null, opts._avoid);
     const commanders = [cmd];
-    const mate = await findPartner(cmd, legalKey, cfg, rng);
+    // an Oathbreaker leads alone: the second card in its command zone is its Signature Spell
+    const mate = fmt.oathbreaker ? null : await findPartner(cmd, legalKey, cfg, rng);
     if (mate) { commanders.push(mate); progress('Finding a partner'); }
     const id = new Set();
     for (const c of commanders) for (const col of (c.color_identity || [])) id.add(col);
     const colors = MTG.mana.COLORS.filter(c => id.has(c));
-    const deckSize = (fmt.deckMin || 100) - commanders.length;
+    /* the deck's leaders, for what it is about; the Signature Spell is
+       only one more card, though one cast over and over */
+    const leaders = commanders.slice();
+    if (fmt.oathbreaker) {
+      progress('Choosing a Signature Spell');
+      const sig = await chooseSignature(fmt, cfg, rng, colors);
+      if (!sig) {
+        const avoid = (opts._avoid || []).concat(cmd.name);
+        if (avoid.length <= 6) return buildCommanderDeck(fmt, cfg, rng, Object.assign({}, opts, { _avoid: avoid }), progress);
+        throw new Error('Could not reach Scryfall to build a bot deck.');
+      }
+      commanders.push(sig);
+    }
+    const size = fmt.deckMin || 100;
+    const deckSize = size - commanders.length;
 
     /* What the commander wants: a tribe it names, or a theme its text
        rewards. Its own creature type counts when its text talks about
        creature types at all. */
-    const ca = commanders.map(c => analyse(c)).filter(Boolean);
+    const ca = leaders.map(c => analyse(c)).filter(Boolean);
     const text = ca.map(a => a.oracleText || '').join('\n');
     let plan = null;
     // a planeswalker's subtype is its own name, not a tribe
@@ -1377,7 +1415,7 @@
     const NOT_TYPES = /^(?:creatures?|artifacts?|enchantments?|instants?|sorcery|sorceries|lands?|legendary|tokens?|spells?|cards?|permanents?|players?|opponents?|other|each|whenever|target|nonland|noncreature|nontoken|attacking|blocking|tapped|untapped|colorless|white|blue|black|red|green|multicolored|equipped|enchanted|historic|outlaws?|party|equipment|auras?|vehicles?|sagas?|treasures?|clues?|foods?)$/i;
     const named = [];
     for (const m of text.matchAll(/\b([A-Z][a-z]+?)(?:s|es)?\b(?= (?:you control|spells?|creatures?|cards?))/g)) named.push(m[1]);
-    const ownNames = commanders.map(c => c.name).join(' ');
+    const ownNames = leaders.map(c => c.name).join(' ');
     const tribal = U.uniq(subtypes.concat(named)).find(t => !NOT_A_TRIBE.has(t) && !NOT_TYPES.test(t) &&
       !ownNames.includes(t) && tribeRe(t).test(text));
     if (tribal) plan = { kind: 'tribe', id: tribal, name: tribal };
@@ -1398,7 +1436,8 @@
       searchPool(`${base} t:land -t:basic`, 175),
       plan ? searchPool(`${base} ${planQuery(plan)} -t:land`, 175) : Promise.resolve([]),
     ]);
-    const ctx = { prior: 0.9, multiplayer: true, commander: true };
+    // Brawl is mostly played between two, where a big symmetrical spell is worth less
+    const ctx = { prior: 0.9, multiplayer: (fmt.defaultPlayers || 4) > 2, commander: true };
     let cands = candidatesFrom([planPool, creatures, spellsPool], fmt, colors, ctx, commanders.map(c => U.normName(c.name)));
     // a table with a bracket: nothing that goes past it on its own account
     if (fmt.bracket && MTG.brackets) cands = cands.filter(c => MTG.brackets.allowedCard(c.card, fmt.bracket));
@@ -1416,11 +1455,17 @@
       c.s = shapeScore(c, cfg, rng);
     }
     progress('Assembling the deck');
-    const landCount = cfg.deckPower < 0.3 ? 38 : cfg.deckPower < 0.8 ? 37 : 36;
+    /* The numbers are a hundred-card deck's. A sixty-card one (Brawl,
+       Oathbreaker) plays two lands in five, as any sixty does, and its
+       roles shrink with the spells it has room for. */
+    const landCount = size >= 100 ? (cfg.deckPower < 0.3 ? 38 : cfg.deckPower < 0.8 ? 37 : 36)
+      : Math.round(size * (cfg.deckPower < 0.3 ? 0.42 : 0.4));
+    const k = size >= 100 ? 1 : (deckSize - landCount) / 62;
+    const share = (n) => Math.max(1, Math.round(n * k));
     const rampWant = Math.round(5 + cfg.skill * 6);
     const cplan = {
-      ramp: rampWant, draw: 8, removal: 7 + Math.round(cfg.skill * 2), wipe: cfg.skill > 0.5 ? 2 : 1,
-      creature: 22 + Math.round((1 - cfg.skill) * 6),
+      ramp: share(rampWant), draw: share(8), removal: share(7 + Math.round(cfg.skill * 2)), wipe: share(cfg.skill > 0.5 ? 2 : 1),
+      creature: share(22 + Math.round((1 - cfg.skill) * 6)),
       curve: [0, 6, 12, 15, 12, 8, 5, 5],
     };
     let picks = assembleSingleton(cands, deckSize - landCount, cplan);
@@ -2414,6 +2459,8 @@
         : this.me.life - mv > 5;
       if (!affordable) return false;
       const e = this._resolvingEffect();
+      // a Pact's upkeep (Summoner's Pact and its kin): not paying loses the game, so it is always paid
+      if (e && flatEffects(e.then).some(x => x && x.op === 'loseGame')) return true;
       // what happens if we do not pay
       const otherwise = e ? U.sum(flatEffects(e.then).map(x => this._contextWorth(x, true))) : -1;
       if (otherwise >= 0) return false;
@@ -2909,6 +2956,10 @@
       if ((a.isInstant || a.has('flash')) && when !== 'now' && this.rand() < this.cfg.instantTiming) {
         if (!roles.has('removal') || this.d >= 6) v -= 1.5;
       }
+      /* Oathbreaker: the Oathbreaker is what lets its Signature Spell be
+         cast at all, and the spell costs no card, since it comes back. */
+      if (o.zone === 'command' && o.isCommander && (g.zones[this.pid].command || []).some(x => x.isSignature)) v += 1.5;
+      if (o.isSignature) v += 0.5;
       return v;
     }
 
@@ -3140,7 +3191,8 @@
       const g = this.game;
       const sources = this.manaSources(true);
       const out = [];
-      for (const o of g.zones[this.pid].hand) {
+      // the command zone too: an Oathbreaker's Signature Spell is an instant as often as not
+      for (const o of g.zones[this.pid].hand.concat(g.zones[this.pid].command)) {
         const a = o.analysis();
         if (!a || a.isLand || !(a.isInstant || a.has('flash'))) continue;
         const chk = g.canCast(this.pid, o.id);

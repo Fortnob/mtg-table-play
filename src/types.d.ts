@@ -79,6 +79,8 @@ declare namespace MTG {
     blockOrder?: Id[];
     effects?: Array<{ p?: number; t?: number; until?: string | null; keywords?: string[]; [k: string]: any }>;
     isCommander: boolean;
+    /** Oathbreaker: the deck's Signature Spell, which waits in the command zone */
+    isSignature?: boolean;
     /** prepared: it can cast a copy of its card's spell */
     prepared?: boolean;
     /** a hidden agenda of the viewer's that has not been turned face up */

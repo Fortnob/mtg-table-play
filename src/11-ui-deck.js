@@ -109,8 +109,8 @@
       const fmt = MTG.formats.get(fmtId);
       return decks.index().filter(d => {
         if (d.format === fmtId) return true;
-        // a hundred-card commander list plays in any of the commander formats
-        if (fmt && fmt.commander) return ['commander', 'cmdrdraft'].includes(d.format);
+        // a commander list plays in either Commander or Commander Draft (Brawl and Oathbreaker decks are their own shape)
+        if (fmt && fmt.commander && ['commander', 'cmdrdraft'].includes(fmtId)) return ['commander', 'cmdrdraft'].includes(d.format);
         return false;
       }).sort((a, b) => b.updatedAt - a.updatedAt);
     },
@@ -477,6 +477,8 @@ Sideboard
     function changeQty(entry, delta) {
       // basics are free, except a basic that was drafted, which crosses like any other card
       if (drafted && (!isBasic(entry.card) || deck.sideboard.includes(entry))) return moveDrafted(entry, delta);
+      // the count is a button too: it stops at one where the format allows one (as the + does)
+      if (delta > 0 && limitOf(entry.card) <= 1) { UI.toast(`One ${entry.card.name} is all ${MTG.formats.get(deck.format).name} allows.`); return; }
       entry.qty += delta;
       if (entry.qty <= 0) {
         const i = deck.main.indexOf(entry);
@@ -511,9 +513,12 @@ Sideboard
      * an ordinary card rather than disappearing, because swapping commanders
      * while you tune a list should not quietly cost you the old one.
      */
+    const oathbreaker = () => !!(MTG.formats.get(deck.format) || {}).oathbreaker;
     function setCommander(card) {
-      const had = deck.commanders.slice();
-      deck.commanders = [card];
+      // an Oathbreaker's Signature Spell stays where it is when the planeswalker changes
+      const sigs = oathbreaker() ? MTG.formats.commandParts(deck).signatures : [];
+      const had = deck.commanders.filter(c => !sigs.includes(c));
+      deck.commanders = [card].concat(sigs.filter(c => c.id !== card.id));
       deck.main = deck.main.filter(e => e.card.id !== card.id);
       for (const old of had) {
         if (old.id === card.id) continue;
@@ -524,6 +529,38 @@ Sideboard
       if (had.length) UI.toast(`${card.name} takes over from ${had[0].name}.`);
       onCommanderChosen(card, !had.length);
       render();
+    }
+
+    /* ----- Oathbreaker: the Signature Spell, in its own slot beside the planeswalker ----- */
+    /** Make this card the Signature Spell; one already there goes back into the deck. */
+    function setSignature(card) {
+      const { leaders, signatures } = MTG.formats.commandParts(deck);
+      deck.commanders = leaders.concat([card]);
+      const e = deck.main.find(x => x.card.id === card.id);
+      if (e && --e.qty <= 0) deck.main.splice(deck.main.indexOf(e), 1);
+      for (const old of signatures) {
+        if (old.id === card.id) continue;
+        const already = deck.main.find(x => x.card.id === old.id);
+        if (already) already.qty++;
+        else deck.main.push({ card: old, qty: 1 });
+      }
+      UI.ok(signatures.length && signatures[0].id !== card.id
+        ? `${card.name} is your Signature Spell now; ${signatures[0].name} is back in the deck.`
+        : `${card.name} is your Signature Spell.`);
+      render();
+    }
+    /** Search for one: an instant or sorcery inside the Oathbreaker's colours. */
+    function chooseSignature() {
+      UI.cardSearch({
+        format: deck.format,
+        title: 'Choose a Signature Spell',
+        onlyQuery: '(t:instant or t:sorcery)',
+        onlyNote: 'Instants and sorceries in your Oathbreaker’s colours.',
+        colors: validation.colorIdentity || [],
+        once: true,
+        onAdd: (card) => setSignature(card),
+        inDeck: () => new Map(),
+      });
     }
 
     /* ----- picking out one slice of the deck -----
@@ -624,7 +661,7 @@ Sideboard
     function chooseCommander() {
       UI.cardSearch({
         format: deck.format,
-        title: 'Choose a commander',
+        title: oathbreaker() ? 'Choose an Oathbreaker' : 'Choose a commander',
         onlyCommanders: true,
         once: true,
         onAdd: (card) => setCommander(card),
@@ -636,14 +673,16 @@ Sideboard
      * A new commander arrives with a mana base. Forty basics split as
      * evenly as its colour identity allows is where nearly every list
      * starts, and starting from nothing means typing out twenty Islands.
+     * (A sixty-card Brawl or Oathbreaker deck starts from twenty-four.)
      */
+    const starterBasics = () => ((MTG.formats.get(deck.format) || {}).deckMin || 100) < 100 ? 24 : 40;
     async function onCommanderChosen(card, wasEmpty) {
       const fmt = MTG.formats.get(deck.format);
       if (!fmt.commander || !wasEmpty) return;
       if (deck.main.some(e => MTG.formats.isBasicLand(e.card))) return;
       const busy = UI.busy('Fetching lands', 'Getting the basics\u2026');
       try {
-        const n = await UI.fillBasicsFor(deck, card);
+        const n = await UI.fillBasicsFor(deck, card, starterBasics());
         UI.ok(`Added ${n} basic lands in ${card.name}\u2019s colours.`);
       } catch (e) {
         UI.toast('Could not fetch basic lands: ' + (e.message || e), 'err', 4000);
@@ -671,8 +710,8 @@ Sideboard
         el('div', { class: 'section-title', style: { margin: '0 0 6px' }, text: 'Start here' }),
       ]);
       if (fmt.commander) {
-        box.appendChild(row('Pick a commander',
-          'Everything else follows from it — colours, and 40 basics to start you off.',
+        box.appendChild(row(fmt.oathbreaker ? 'Pick an Oathbreaker' : 'Pick a commander',
+          `Everything else follows from it — colours, and ${starterBasics()} basics to start you off.`,
           'Choose…', chooseCommander, true));
       }
       box.appendChild(row('Add cards by hand',
@@ -723,7 +762,7 @@ Sideboard
       const idColors = (validation.colorIdentity || []).filter(c => COLORS.includes(c));
       const play = idColors.length ? idColors : COLORS.filter(c => pips[c] > 0);
       const nonLand = U.sum(deck.main.filter(e => !(MTG.oracle.analyze(e.card) || {}).isLand).map(e => e.qty));
-      const target = fmt.commander ? 36
+      const target = fmt.commander ? ((fmt.deckMin || 100) < 100 ? 24 : 36)
         : fmt.kind === 'limited' ? MTG.formats.suggestedLands(fmt.deckMin || 40, 3)
           : Math.max(0, Math.round((fmt.deckMin || 60) * 0.4));
 
@@ -799,7 +838,11 @@ Sideboard
       if (!card) return false;
       const fmt = MTG.formats.get(deck.format);
       const e = deck.main.find(x => x.card.id === card.id);
-      if (e && fmt.singleton) { UI.error(card.name + ' is already in this singleton deck.'); return false; }
+      // one of each in a singleton deck (basics aside), and one of a card Vintage restricts
+      if (e && MTG.formats.copyLimit(card, fmt) <= 1) {
+        UI.error(fmt.singleton ? card.name + ' is already in this singleton deck.' : `${card.name} is restricted in ${fmt.name}: one copy.`);
+        return false;
+      }
       if (e) e.qty += (qty || 1);
       else deck.main.push({ card, qty: qty || 1 });
       // beside the list the line lighting up says it; elsewhere, a word
@@ -870,7 +913,7 @@ Sideboard
           nameInput,
           // its record so far, when it has played (src/10h-ui-history.js)
           el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation), UI.deckRecordPill ? UI.deckRecordPill(deck) : null]),
-          fmtObj.commander && fmtObj.kind !== 'limited' ? el('div', { class: 'deck-head-row bracket-row' }, [
+          MTG.formats.usesBrackets(fmtObj) ? el('div', { class: 'deck-head-row bracket-row' }, [
             UI.bracketPill(deck, { onMark: (k) => setHighlight('bracket', k) }),
             el('span', { class: 'tiny dim grow', text: bracketGist() }),
           ]) : null,
@@ -895,18 +938,33 @@ Sideboard
       }
 
       if (fmtObj.commander) {
-        left.appendChild(el('div', { class: 'section-title', text: 'Commander' }));
-        if (!deck.commanders.length) {
+        // Oathbreaker: the planeswalker here, its Signature Spell in a slot of its own below
+        const parts = fmtObj.oathbreaker ? MTG.formats.commandParts(deck) : { leaders: deck.commanders, signatures: [] };
+        left.appendChild(el('div', { class: 'section-title', text: fmtObj.oathbreaker ? 'Oathbreaker' : 'Commander' }));
+        if (!parts.leaders.length) {
           left.appendChild(el('button', {
             class: 'btn primary block add-commander',
-            text: '★  Choose a commander',
+            text: fmtObj.oathbreaker ? '★  Choose an Oathbreaker' : '★  Choose a commander',
             onclick: chooseCommander,
           }));
           left.appendChild(el('p', { class: 'tiny dim', style: { margin: '6px 0 0' },
-            text: 'Choosing one fills the deck with 40 basic lands in its colours to start you off.' }));
+            text: `Choosing one fills the deck with ${starterBasics()} basic lands in its colours to start you off.` }));
         }
-        for (const c of deck.commanders) {
+        for (const c of parts.leaders) {
           left.appendChild(entryRow({ card: c, qty: 1 }, true));
+        }
+        if (fmtObj.oathbreaker) {
+          left.appendChild(el('div', { class: 'section-title', text: 'Signature Spell' }));
+          if (!parts.signatures.length) {
+            left.appendChild(el('button', {
+              class: 'btn block add-commander add-signature', text: '✦  Choose a Signature Spell',
+              disabled: !parts.leaders.length, onclick: chooseSignature,
+            }));
+            left.appendChild(el('p', { class: 'tiny dim', style: { margin: '6px 0 0' }, text: parts.leaders.length
+              ? 'An instant or sorcery in your Oathbreaker’s colours. You can cast it while your Oathbreaker is on the battlefield, and it comes back to the command zone every time.'
+              : 'Choose your Oathbreaker first: the spell has to be in its colours.' }));
+          }
+          for (const c of parts.signatures) left.appendChild(entryRow({ card: c, qty: 1 }, true, true));
         }
       }
 
@@ -1211,15 +1269,19 @@ Sideboard
      * single copies, so those are the two clicks: the number adds one, the
      * rest of the row takes one away. Everything else is on the menu.
      */
-    const fmtIsCommander = () => !!(MTG.formats.get(deck.format) || {}).commander;
-    function entryRow(e, isCmd) {
+    // Game Changers are a Commander bracket's business, so only a Commander deck marks them
+    const marksGameChangers = () => MTG.formats.usesBrackets(MTG.formats.get(deck.format));
+    /** How many of a card this deck may hold, as the format has it (singleton, Vintage's restricted list). */
+    const limitOf = (card) => MTG.formats.copyLimit(card, MTG.formats.get(deck.format));
+    function entryRow(e, isCmd, isSig) {
       const a = MTG.oracle.analyze(e.card);
       const inPool = drafted && deck.sideboard.includes(e);
+      const role = isSig ? 'Your Signature Spell' : oathbreaker() ? 'Your Oathbreaker' : 'Your commander';
       const qty = el('button', {
         type: 'button', class: 'qty' + (isCmd ? '' : ' bump'),
-        text: isCmd ? '\u2605' : e.qty + '\u00d7',
-        title: isCmd ? 'Your commander' : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
-        'aria-label': isCmd ? 'Your commander' : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
+        text: isSig ? '\u2726' : isCmd ? '\u2605' : e.qty + '\u00d7',
+        title: isCmd ? role : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
+        'aria-label': isCmd ? role : inPool ? `Put ${e.card.name} in the deck` : `Add another ${e.card.name}`,
       });
       // each line is a strip of the card's own art, the way a deck list
       // reads in a card game: you find a card by its picture as much as its name
@@ -1232,7 +1294,7 @@ Sideboard
       }, [
         qty,
         el('span', { class: 'nm', text: e.card.name }),
-        fmtIsCommander() ? UI.gcBadge(e.card) : null,
+        marksGameChangers() ? UI.gcBadge(e.card) : null,
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices
@@ -1241,9 +1303,10 @@ Sideboard
         !isCmd && !drafted ? el('span', { class: 'qty-ctl' }, [
           el('button', { type: 'button', class: 'qty-btn', text: '\u2212', title: `One fewer ${e.card.name}`, 'aria-label': `One fewer ${e.card.name}`,
             onclick: (ev) => { ev.stopPropagation(); changeQty(e, -1); MTG.sfx('click'); } }),
-          // one of each in a singleton deck, basics aside
-          MTG.formats.get(deck.format).singleton && !isBasic(e.card)
-            ? el('button', { type: 'button', class: 'qty-btn', text: '+', disabled: true, title: 'One of each in this format' })
+          // one of each in a singleton deck, basics aside, and one of a card Vintage restricts
+          limitOf(e.card) <= 1
+            ? el('button', { type: 'button', class: 'qty-btn', text: '+', disabled: true,
+              title: MTG.formats.get(deck.format).singleton ? 'One of each in this format' : `${e.card.name} is restricted: one copy` })
             : el('button', { type: 'button', class: 'qty-btn', text: '+', title: `One more ${e.card.name}`, 'aria-label': `One more ${e.card.name}`,
               onclick: (ev) => { ev.stopPropagation(); changeQty(e, 1); MTG.sfx('click'); } }),
         ]) : null,
@@ -1265,18 +1328,21 @@ Sideboard
           menu.push(['Put one in the deck', () => changeQty(e, 1)]);
         } else if (!isCmd) {
           // one of a card is taken out, not counted down; a singleton deck has no second to add
-          const one = MTG.formats.get(deck.format).singleton && !isBasic(e.card);
+          const one = limitOf(e.card) <= 1;
           if (!one) menu.push(['+1', () => changeQty(e, 1)]);
           if (e.qty > 1) menu.push(['-1', () => changeQty(e, -1)]);
           else menu.push(['Remove card', () => changeQty(e, -1)]);
           if (MTG.formats.canBeCommander(e.card, MTG.formats.get(deck.format)) && MTG.formats.get(deck.format).commander)
-            menu.push(['Make commander', () => setCommander(e.card)]);
+            menu.push([oathbreaker() ? 'Make Oathbreaker' : 'Make commander', () => setCommander(e.card)]);
+          if (oathbreaker() && MTG.formats.isSignatureSpell(e.card)) menu.push(['Make Signature Spell', () => setSignature(e.card)]);
           menu.push(['Move to sideboard', () => {
             const i = deck.main.indexOf(e);
             if (i >= 0) { deck.main.splice(i, 1); deck.sideboard.push(e); render(); }
           }]);
         } else {
-          menu.push(['Remove as commander', () => { deck.commanders = deck.commanders.filter(c => c.id !== e.card.id); deck.main.push({ card: e.card, qty: 1 }); render(); }]);
+          menu.push([isSig ? 'Remove as Signature Spell' : oathbreaker() ? 'Remove as Oathbreaker' : 'Remove as commander',
+            () => { deck.commanders = deck.commanders.filter(c => c.id !== e.card.id); deck.main.push({ card: e.card, qty: 1 }); render(); }]);
+          if (isSig) menu.push(['Choose another Signature Spell\u2026', chooseSignature]);
         }
         menu.push(['Choose art…', async () => { const p = await UI.pickArt(e.card); if (p) { UI.swapArtEverywhere(deck, e.card, p); render(); } }]);
         menu.push(['Use as the deck’s picture', () => { deck.cover = e.card.oracle_id || e.card.id; render(); UI.ok(e.card.name + ' fronts the deck now.'); }]);
@@ -1388,6 +1454,10 @@ Sideboard
   UI.cardSearch = function (opts) {
     opts = opts || {};
     const fmt = MTG.formats.get(opts.format) || {};
+    /* A search held to one kind of card: who may lead the deck in this
+       format (onlyCommanders), or any query a caller gives (onlyQuery, with
+       onlyNote to say what it is): an Oathbreaker's Signature Spell. */
+    const only = opts.onlyQuery || (opts.onlyCommanders ? MTG.formats.commanderQuery(fmt) : '');
     const input = el('input', {
       type: 'search', placeholder: 'A name, or a query like  t:creature c:r mv<=3',
       autocomplete: 'off', spellcheck: 'false',
@@ -1437,7 +1507,7 @@ Sideboard
         onclick: () => { set(cur === q ? null : q); drawChips(); run(); },
       });
       // choosing a commander, every card is a creature (or says it can be one): no type to pick
-      if (!opts.onlyCommanders) chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })), el('span', { class: 'chip-gap' }));
+      if (!only) chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })), el('span', { class: 'chip-gap' }));
       chipRow.append(
         el('span', { class: 'tiny dim', text: 'Mana value' }),
         ...COSTS.map(([l, q]) => chip(l, q, costOn, (v) => { costOn = v; })),
@@ -1515,7 +1585,10 @@ Sideboard
     }
     if (opts.query) input.value = opts.query;
     if (!opts.noFocus) setTimeout(() => input.focus(), 50);
-    if (opts.onlyCommanders) status.textContent = 'Legendary creatures, and the cards that say they can be your commander.';
+    if (opts.onlyNote) status.textContent = opts.onlyNote;
+    else if (opts.onlyCommanders) status.textContent = fmt.oathbreaker ? 'Planeswalkers: any of them can be your Oathbreaker.'
+      : fmt.walkerCommander ? 'Legendary creatures and planeswalkers: any of them can lead a Brawl deck.'
+      : 'Legendary creatures, and the cards that say they can be your commander.';
 
     /* Results come in by colour (white, blue, black, red, green, several,
        none) and by mana value within each, a page at a time: more are read
@@ -1539,7 +1612,7 @@ Sideboard
       // the end of the list, in it (the list may scroll on its own): reaching it reads in more
       results.appendChild(more);
       // choosing a commander, the legendary creatures are there before anything is typed
-      if (!q && !chips && !opts.onlyCommanders) { status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
+      if (!q && !chips && !only) { status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
       status.textContent = 'Searching…';
       results.classList.add('loading');
       // a bare word is a name search; anything with a colon or comparison is a query
@@ -1547,7 +1620,7 @@ Sideboard
       let query = [q ? (looksLikeQuery ? q : `name:/${q.replace(/[/\\]/g, '')}/`) : '', chips].filter(Boolean).join(' ');
       if (legalOnly.checked && fmt.scryKey) query += ` legal:${fmt.scryKey}`;
       if (inColor.checked && (opts.colors || []).length) query += ` id<=${opts.colors.join('')}`;
-      if (opts.onlyCommanders && !/is:commander/.test(query)) query += ' is:commander';
+      if (only && !query.includes(only)) query += ' ' + only;
       lastQ = q || chips || 'that';
       lastText = !looksLikeQuery && !chips ? q : '';
       pager = MTG.scry.pager(query.trim(), { order: 'colormv', per: PAGE });
@@ -1681,7 +1754,7 @@ Sideboard
       }
     });
     input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); run(); } });
-    if (opts.query || opts.onlyCommanders) run();
+    if (opts.query || only) run();
     return Object.assign(m, { refresh: redrawCounts, focus: () => input.focus(), query: () => input.value });
   };
 

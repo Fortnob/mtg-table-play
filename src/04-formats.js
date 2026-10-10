@@ -28,6 +28,35 @@
       firstPlayerDraws: false,
       blurb: 'Non-rotating constructed: every card from Eighth Edition onwards. 60-card minimum, up to 4 copies, 15-card sideboard.',
     },
+    pioneer: {
+      id: 'pioneer', name: 'Pioneer', scryKey: 'pioneer', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, maxCopies: 4,
+      deckMin: 60, deckMax: null, exactSize: false, sideboardMax: 15,
+      singleton: false, commander: false, commanderDamage: null,
+      firstPlayerDraws: false,
+      blurb: 'Non-rotating constructed: every card from Return to Ravnica onwards. 60-card minimum, up to 4 copies, 15-card sideboard.',
+    },
+    legacy: {
+      id: 'legacy', name: 'Legacy', scryKey: 'legacy', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, maxCopies: 4,
+      deckMin: 60, deckMax: null, exactSize: false, sideboardMax: 15,
+      singleton: false, commander: false, commanderDamage: null,
+      firstPlayerDraws: false,
+      blurb: 'Every card ever printed, bar a banned list. 60-card minimum, up to 4 copies, 15-card sideboard.',
+    },
+    /* Vintage bans next to nothing: its strongest cards are restricted
+       instead, one copy allowed, which Scryfall says as 'restricted'. */
+    vintage: {
+      id: 'vintage', name: 'Vintage', scryKey: 'vintage', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, maxCopies: 4,
+      deckMin: 60, deckMax: null, exactSize: false, sideboardMax: 15,
+      singleton: false, commander: false, commanderDamage: null,
+      firstPlayerDraws: false,
+      blurb: 'Every card ever printed, the Power Nine too: the strongest are restricted to one copy rather than banned. 60-card minimum, 15-card sideboard.',
+    },
     pauper: {
       id: 'pauper', name: 'Pauper', scryKey: 'pauper', kind: 'constructed',
       minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
@@ -45,6 +74,34 @@
       singleton: true, commander: true, commanderCount: 1, commanderDamage: 21,
       colorIdentity: true, firstPlayerDraws: false,
       blurb: 'Multiplayer singleton. Exactly 100 cards including your commander, 40 life, 21 commander damage.',
+      // the Commander brackets (src/15a-brackets.js) are written for this format alone
+      hasBrackets: true,
+    },
+    /* Commander in sixty cards. A planeswalker may lead as well as a
+       legendary creature (walkerCommander), and there is no commander
+       damage. 25 life is the two-player number; a bigger table plays at 30. */
+    brawl: {
+      id: 'brawl', name: 'Brawl', scryKey: 'brawl', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 25, multiplayerLife: 30, startingHand: 7, maxCopies: 1,
+      deckMin: 60, deckMax: 60, exactSize: true, sideboardMax: 0,
+      singleton: true, commander: true, commanderCount: 1, commanderDamage: null,
+      colorIdentity: true, walkerCommander: true, firstPlayerDraws: false,
+      blurb: 'Commander in sixty cards: a legendary creature or a planeswalker leads a singleton deck. 25 life (30 with more than two), no commander damage.',
+    },
+    /* A planeswalker leads (the Oathbreaker), and beside it in the command
+       zone waits its Signature Spell: an instant or sorcery in its colours,
+       cast only while the Oathbreaker is on the battlefield and back to the
+       command zone every time. Both ride in deck.commanders, the spell after
+       the planeswalker; its card type says which is which (isSignatureSpell). */
+    oathbreaker: {
+      id: 'oathbreaker', name: 'Oathbreaker', scryKey: 'oathbreaker', kind: 'constructed',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 4,
+      startingLife: 20, startingHand: 7, maxCopies: 1,
+      deckMin: 60, deckMax: 60, exactSize: true, sideboardMax: 0,
+      singleton: true, commander: true, commanderCount: 1, commanderDamage: null,
+      colorIdentity: true, oathbreaker: true, firstPlayerDraws: false,
+      blurb: 'A planeswalker leads a 60-card singleton deck, with a Signature Spell it can cast again and again. 20 life, no commander damage.',
     },
     booster: {
       id: 'booster', name: 'Booster Draft', scryKey: null, kind: 'limited',
@@ -88,7 +145,9 @@
     },
   };
 
-  const FORMAT_ORDER = ['commander', 'standard', 'modern', 'pauper', 'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube'];
+  // the commander formats together, then the sixty-card ones from newest cards to oldest, then limited
+  const FORMAT_ORDER = ['commander', 'brawl', 'oathbreaker', 'standard', 'pioneer', 'modern', 'legacy', 'vintage', 'pauper',
+    'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube'];
 
   /* -------- helpers -------- */
 
@@ -121,8 +180,12 @@
   function canBeCommander(card, fmt) {
     const a = MTG.oracle.analyze(card);
     if (!a) return false;
+    // an Oathbreaker is a planeswalker, and nothing else will do
+    if (fmt && fmt.oathbreaker) return !!a.isPlaneswalker;
     const text = card.oracle_text || '';
     if (a.isLegendary && a.isCreature) return true;
+    // Brawl: a planeswalker may lead as well
+    if (fmt && fmt.walkerCommander && a.isPlaneswalker) return true;
     if (/can be your commander/i.test(text)) return true;
     // back face of a transforming legend (e.g. a legendary creature // planeswalker)
     if (card.card_faces) {
@@ -145,6 +208,58 @@
       doctor: /Doctor's companion/i.test(t),
     };
   }
+
+  /** What may lead a deck in this format, in words, for a message or a search's note. */
+  function commanderRule(fmt) {
+    if (fmt && fmt.oathbreaker) return 'a planeswalker';
+    if (fmt && fmt.walkerCommander) return 'a legendary creature or a planeswalker';
+    return 'a legendary creature, or a card that says it can be your commander';
+  }
+  /** The same as a search: what the commander search adds to whatever is typed. */
+  function commanderQuery(fmt) {
+    if (fmt && fmt.oathbreaker) return 't:planeswalker';
+    if (fmt && fmt.walkerCommander) return '(is:commander or t:planeswalker)';
+    return 'is:commander';
+  }
+
+  /* ---- Oathbreaker's Signature Spell ----
+     It is kept in deck.commanders beside the Oathbreaker, so everything
+     that walks a deck's cards (saving it, sending it across the table,
+     pricing it, the collection) counts it without being told. What sets it
+     apart is its card type: nothing else that may be in the command zone
+     is an instant or a sorcery. */
+  function isSignatureSpell(card) {
+    if (!card) return false;
+    const tl = String((card.card_faces && card.card_faces[0] && card.card_faces[0].type_line) || card.type_line || '');
+    return /\b(Instant|Sorcery)\b/.test(tl.split(/\s+\/\/\s+/)[0]);
+  }
+  /** A deck's command zone split in two: who leads it, and its Signature Spell(s). */
+  function commandParts(deck) {
+    const all = (deck && deck.commanders) || [];
+    return { leaders: all.filter(c => !isSignatureSpell(c)), signatures: all.filter(isSignatureSpell) };
+  }
+
+  /** How many copies of a card a deck may hold: singleton, restricted, or the format's number. */
+  function copyLimit(card, fmt) {
+    if (!fmt || unlimitedAllowed(card)) return Infinity;
+    if (fmt.singleton) return 1;
+    if (fmt.scryKey && legalityOf(card, fmt) === 'restricted') return 1;
+    return fmt.maxCopies == null ? Infinity : fmt.maxCopies;
+  }
+
+  /**
+   * The life a game starts at with this many players. Brawl is 25 between
+   * two and 30 at a bigger table; a table that set its own number keeps it.
+   */
+  function lifeFor(fmt, players) {
+    if (!fmt) return 20;
+    const base = FORMATS[fmt.id];
+    if (players > 2 && fmt.multiplayerLife && base && fmt.startingLife === base.startingLife) return fmt.multiplayerLife;
+    return fmt.startingLife;
+  }
+
+  /** Whether the Commander brackets mean anything at this table. */
+  function usesBrackets(fmt) { return !!(fmt && fmt.hasBrackets && fmt.kind !== 'limited'); }
 
   /* -------- the validator -------- */
 
@@ -182,7 +297,7 @@
     const drafted = (deck.draftedConspiracies || []).map(n => U.normName(String(n)));
     if (plots.concat(drafted).some(n => n.startsWith('advantageous proclamation'))) min = Math.max(0, min - 5);
     const realm = plots.some(n => n.startsWith("sovereign's realm") || n.startsWith('sovereigns realm'));
-    const noun = fmt.commander ? 'cards including the commander' : 'cards';
+    const noun = fmt.commander ? (fmt.oathbreaker ? 'cards including the Oathbreaker and its Signature Spell' : 'cards including the commander') : 'cards';
 
     if (fmt.exactSize) {
       if (size !== min)
@@ -204,7 +319,16 @@
         : `Sideboard may have at most ${fmt.sideboardMax} cards (you have ${sideCount}).`);
 
     /* --- commanders --- */
-    if (fmt.commander) {
+    // in Oathbreaker the Signature Spell rides with the commander, and is checked on its own
+    const oath = fmt.commander && fmt.oathbreaker ? commandParts(deck) : null;
+    if (oath) {
+      if (!oath.leaders.length) errors.push('Choose an Oathbreaker: a planeswalker.');
+      else if (oath.leaders.length > 1) errors.push('One Oathbreaker only.');
+      for (const c of oath.leaders)
+        if (!canBeCommander(c, fmt)) errors.push(`${c.name} can't be your Oathbreaker (it has to be a planeswalker).`);
+      if (!oath.signatures.length) errors.push('Choose a Signature Spell: an instant or sorcery in your Oathbreaker’s colours.');
+      else if (oath.signatures.length > 1) errors.push('One Signature Spell only.');
+    } else if (fmt.commander) {
       if (!commanders.length) errors.push('Choose a commander.');
       else {
         const info0 = commanders.map(partnerInfo);
@@ -215,7 +339,9 @@
           info0.some(i => i.background) && info0.some(i => i.isBackground);
         commanders.forEach((c, k) => {
           if (bgPaired && info0[k].isBackground) return;
-          if (!canBeCommander(c, fmt)) errors.push(`${c.name} can't be a commander (needs to be a legendary creature or say so).`);
+          if (!canBeCommander(c, fmt)) errors.push(fmt.walkerCommander
+            ? `${c.name} can't be a commander (needs to be ${commanderRule(fmt)}).`
+            : `${c.name} can't be a commander (needs to be a legendary creature or say so).`);
         });
         if (commanders.length > 1) {
           const infos = info0;
@@ -256,13 +382,19 @@
 
     /* --- color identity --- */
     let ci = null;
-    if (fmt.colorIdentity && commanders.length) {
+    // the Oathbreaker alone sets the colours; its Signature Spell has to fit inside them
+    const leaders = oath ? oath.leaders : commanders;
+    if (fmt.colorIdentity && leaders.length) {
       ci = new Set();
-      for (const c of commanders) for (const col of colorIdentity(c)) ci.add(col);
+      for (const c of leaders) for (const col of colorIdentity(c)) ci.add(col);
       for (const e of main) {
         const bad = colorIdentity(e.card).filter(col => !ci.has(col));
         if (bad.length)
           errors.push(`${e.card.name} is outside your commander's color identity (${bad.join('')}).`);
+      }
+      for (const c of (oath ? oath.signatures : [])) {
+        const bad = colorIdentity(c).filter(col => !ci.has(col));
+        if (bad.length) errors.push(`${c.name} is outside your Oathbreaker's colour identity (${bad.join('')}), so it can't be your Signature Spell.`);
       }
     }
 
@@ -292,8 +424,12 @@
     const stats = deckStats(main, commanders);
     if (fmt.kind === 'limited' && mainCount >= 40 && stats.lands < 14)
       warnings.push(`Only ${stats.lands} lands in a ${mainCount}-card limited deck; 17 is the usual number for 40.`);
-    if (fmt.commander && stats.lands < 30)
+    // a sixty-card commander deck (Brawl, Oathbreaker) runs about as many lands as any other sixty
+    const sixty = fmt.commander && (fmt.deckMin || 100) < 100;
+    if (fmt.commander && !sixty && stats.lands < 30)
       warnings.push(`${stats.lands} lands is low for a 100-card deck; most run 34-38.`);
+    else if (sixty && fmt.kind !== 'limited' && stats.lands < 18)
+      warnings.push(`${stats.lands} lands is low for a ${fmt.deckMin}-card deck; most run 22-25.`);
 
     if (realm && main.some(e => isBasicLand(e.card))) errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
     return {
@@ -402,7 +538,7 @@
 
   /** Every knob, with what it means and where it applies. */
   const HOUSE_FIELDS = [
-    { key: 'bracket', label: 'Bracket', type: 'bracket', min: 0, max: 5, when: (f) => !!f.commander && f.kind !== 'limited',
+    { key: 'bracket', label: 'Bracket', type: 'bracket', min: 0, max: 5, when: (f) => usesBrackets(f),
       hint: 'How strong the decks at this table may be. A deck that goes past it is turned away.' },
     { key: 'startingLife', label: 'Starting life', type: 'int', min: 1, max: 200,
       hint: 'How much life everyone begins with.' },
@@ -559,6 +695,7 @@
     validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
     houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel,
     isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion,
+    commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
     isLimited: (id) => FORMATS[id] && FORMATS[id].kind === 'limited',
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),
   };

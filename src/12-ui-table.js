@@ -529,7 +529,8 @@
       n.classList.toggle('attacking', !!o.attacking);
       n.classList.toggle('blocking', !!(o.blocking && o.blocking.length));
       n.classList.toggle('token', !!o.isToken);
-      n.classList.toggle('is-cmd', !!o.isCommander);
+      // an Oathbreaker's Signature Spell is framed in the command zone as its Oathbreaker is
+      n.classList.toggle('is-cmd', !!(o.isCommander || o.isSignature));
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
