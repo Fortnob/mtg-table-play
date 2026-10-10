@@ -20368,4 +20368,23 @@ module.exports = (test) => {
     T3.cast('A', T3.hand('A', "Lich-Knights' Conquest"));
     t.zone(g3, 'graveyard', "Lich-Knights' Conquest with nothing sacrificed: nothing returns");
   });
+
+  test('A copy of a kicked creature spell is kicked: Gatekeeper of Malakir copied by Lithoform Engine makes two sacrifices', (mk, t) => {
+    t.auto('Gatekeeper of Malakir'); t.auto('Lithoform Engine');
+    const T = mk();
+    T.toMain('A');
+    const le = T.bf('A', 'Lithoform Engine');
+    const b1 = T.bf('B', 'Grizzly Bears');
+    const b2 = T.bf('B', 'Hill Giant');
+    T.mana('A', 'BBB');
+    T.cast('A', T.hand('A', 'Gatekeeper of Malakir'), { kick: true, resolve: false });
+    const item = T.g.stack[T.g.stack.length - 1];
+    T.mana('A', '4');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.activate('A', le, 2, { targets: [{ kind: 'stack', id: item.id }] });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Gatekeeper of Malakir').length, 2, 'the Gatekeeper and its copy');
+    t.zone(b1, 'graveyard'); t.zone(b2, 'graveyard');
+  });
 };

@@ -2371,6 +2371,8 @@
       if (item.kind === 'spell' && item.obj) {
         const dup = this._register(new GObj(item.obj.card, controller, 'stack'));
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
+        // (a copy of a kicked spell is kicked too — Gatekeeper of Malakir copied by Double Major, CR 707.10)
+        dup.kickedTimes = item.obj.kickedTimes || 0; dup.wasKicked = !!item.obj.wasKicked;
         const a = item.obj.analysis();
         if (a && a.isPermanent) dup.isToken = true;
         copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
