@@ -21495,4 +21495,20 @@ module.exports = (test) => {
     T6.activate('A', so, 0); T6.resolve();
     t.eq(T6.life('B'), 14, '6 life');
   });
+
+  test("Yuriko, the Tiger's Shadow: commander ninjutsu from the command zone", (mk, t) => {
+    t.auto("Yuriko, the Tiger's Shadow");
+    const T = mk({ library: Array(10).fill('Island') });
+    const y = T.put('A', "Yuriko, the Tiger's Shadow", 'command'); y.isCommander = true;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'UB');
+    t.ok(T.g.playableNow('A').some(p => p.objId === y.id && p.via === 'ninjutsu'), 'offered from the command zone');
+    t.ok(T.g.castSpell('A', y.id, { via: 'ninjutsu', auto: true }), T.g.lastError);
+    T.resolve();
+    t.zone(bear, 'hand', 'the attacker goes home');
+    t.zone(y, 'battlefield');
+    t.ok(y.tapped && y.attacking === 'B', 'tapped and attacking');
+  });
 };

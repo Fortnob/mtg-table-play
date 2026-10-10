@@ -2562,7 +2562,8 @@
     /** Ninjutsu: the attacker home, and an ability to bring the Ninja in, on the stack. */
     _ninjutsuSwap(pid, ninjaId, back) {
       const ninja = this.obj(ninjaId);
-      if (!ninja || ninja.zone !== 'hand' || !back || back.zone !== 'battlefield') return;
+      // (commanderNinjutsu: a commander from the command zone)
+      if (!ninja || !(ninja.zone === 'hand' || (ninja.zone === 'command' && ninja.isCommander)) || !back || back.zone !== 'battlefield') return;
       const defender = back.attacking;
       this.moveObject(back, 'hand');
       this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
@@ -3992,6 +3993,10 @@
       }
       if (o.zone === 'hand' && arg && k === 'ninjutsu') {
         out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Ninjutsu ' + arg });
+      }
+      // Yuriko, the Tiger's Shadow: "Commander ninjutsu" — from your hand, or from the command zone (commanderNinjutsu)
+      if ((o.zone === 'hand' || (o.zone === 'command' && o.isCommander && o.owner === playerId)) && arg && k === 'commander ninjutsu') {
+        out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Commander ninjutsu ' + arg });
       }
       /* Cheaper ways in from your hand, each with a string attached:
            evoke sacrifices it as it lands, dash sends it home at the end
@@ -20724,7 +20729,8 @@
         }
         /* Ninjutsu resolving: in, tapped and attacking the same defender */
         case 'ninjaIn': {
-          if (!src || src.zone !== 'hand') break;
+          // (commanderNinjutsu: or from the command zone)
+          if (!src || !(src.zone === 'hand' || (src.zone === 'command' && src.isCommander))) break;
           this.moveObject(src, 'battlefield', { controller: ctx.controller });
           src.tapped = true;
           if (this.phase && this.phase.id === 'combat' && e.defender) {

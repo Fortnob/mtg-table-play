@@ -138,8 +138,8 @@
     'Mayhem', 'Harmonize',
     // something given up as it is cast, for a better spell
     'Bargain',
-    // an unblocked attacker swapped for a Ninja
-    'Ninjutsu',
+    // an unblocked attacker swapped for a Ninja (Yuriko: from the command zone too — commanderNinjutsu)
+    'Ninjutsu', 'Commander ninjutsu',
     // modes, each with a price of its own
     'Spree',
     // cast onto another creature, and the two become one
@@ -167,7 +167,7 @@
     'Cycling', 'Transmute', 'Morph', 'Megamorph', 'Disguise', 'Prototype', 'Impending',
     'Offering', 'Splice', 'Spree', 'Gift', 'Plot', 'Freerunning', 'Warp',
     'Retrace', 'Offspring', 'Squad', 'Encore', 'Mutate', 'Escape', 'Mayhem', 'Harmonize', 'Bargain', 'Ninjutsu',
-    'Replicate', 'Conspire', 'Assist', 'Sneak']);
+    'Replicate', 'Conspire', 'Assist', 'Sneak', 'Commander ninjutsu']);
 
   /* Keyword names are title-cased before they are looked up, which turns
      "Split second" into "Split Second". Compare in lower case so a keyword
@@ -183,7 +183,7 @@
     // parameterised keywords with a number
     /^(Annihilator|Bushido|Modular|Rampage|Vanishing|Fading|Graft|Soulshift|Poisonous|Devour|Ripple|Bloodthirst|Amass|Afflict|Toxic|Squad|Casualty|Backup|Reinforce|Renown|Tribute|Frenzy|Absorb|Crew|Ward|Shield|Flanking|Dredge|Suspend|Storm|Cascade|Exhaust|Saddle|Station|Fabricate|Afterlife|Mobilize|Firebending|Repair|Teamwork|Hideaway|Amplify)\s+\d+$/i,
     // parameterised keywords with a cost
-    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
+    /^(Kicker|Multikicker|Echo|Cycling|Flashback|Buyback|Madness|Morph|Megamorph|Disguise|Unearth|Embalm|Eternalize|Evoke|Bestow|Dash|Blitz|Emerge|Entwine|Escape|Foretell|Miracle|Overload|Prowl|Recover|Replicate|Retrace|Scavenge|Spectacle|Surge|Transmute|Splice|Awaken|Aftermath|Jump-start|Level up|Outlast|Monstrosity|Adapt|Channel|Transfigure|Commander ninjutsu|Ninjutsu|Prototype|Freerunning|Warp|Impending|Plot|Disturb|Cleave|Bargain|Craft|Forecast|Offering|Provoke|Offspring|Encore|Squad|Meditate|Mutate|Mayhem|Harmonize|Sneak)(?:\s+|\s*\u2014\s*)\S.*$/i,
   ];
 
   function splitKeywordLine(line) {
