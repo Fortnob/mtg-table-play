@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10845,
+  "needed": 10840,
   "gainedCards": 1033,
-  "linesNeeded": 11565,
+  "linesNeeded": 11557,
   "linesGained": 1217,
   "gained": {
    "all": 1033,
@@ -146,8 +146,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 156,
-   "lines": 150,
+   "score": 153,
+   "lines": 147,
    "cards": [
     "Likeness Looter",
     "Chthonian Nightmare",
@@ -4237,18 +4237,6 @@
    ]
   },
   {
-   "what": "MultikickerCount.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Wolfbriar Elemental",
-    "Bloodhusk Ritualist",
-    "Stronghold Arena",
-    "Lightkeeper of Emeria",
-    "Spell Contortion"
-   ]
-  },
-  {
    "what": "PermanentsTargetOpponentControlsCount",
    "score": 5,
    "lines": 5,
@@ -6557,13 +6545,23 @@
     "Emissary of Grudges",
     "Guardian Archon"
    ]
+  },
+  {
+   "what": "ColorsAmongControlledPermanentsCount.ALL_PERMANENTS",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Shimmercreep",
+    "Elemental Spectacle",
+    "Explosive Prodigy"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3426,
-   "cards": 3261,
+   "score": 3427,
+   "cards": 3262,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6601,8 +6599,8 @@
   },
   {
    "what": "Ability.setTargetAdjuster",
-   "score": 135,
-   "cards": 129,
+   "score": 133,
+   "cards": 127,
    "names": [
     "Likeness Looter",
     "Chthonian Nightmare",
@@ -9176,18 +9174,6 @@
    ]
   },
   {
-   "what": "MultikickerCount.instance",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Wolfbriar Elemental",
-    "Bloodhusk Ritualist",
-    "Stronghold Arena",
-    "Lightkeeper of Emeria",
-    "Spell Contortion"
-   ]
-  },
-  {
    "what": "RemoveCounterSourceEffect",
    "score": 5,
    "cards": 5,
@@ -10229,6 +10215,17 @@
     "Mentor's Guidance",
     "Social Snub",
     "Lumaret's Favor"
+   ]
+  },
+  {
+   "what": "MustBeBlockedByTargetSourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Turntimber Basilisk",
+    "Impetuous Devils",
+    "Avalanche Tusker",
+    "Giant Ambush Beetle"
    ]
   }
  ]

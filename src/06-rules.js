@@ -4996,7 +4996,8 @@
       const optAdd = a && a.additionalCost && a.additionalCost.optional && !a.additionalCost.choice;
       if (optAdd && opts.payAdditional && !opts.skipAdditional) chose.kicked = Math.max(chose.kicked, 1);
       for (const ex of extras) {
-        if (ex.kind === 'kicker' && opts.kick) { cost += ex.cost; chose.kicked = 1; }
+        // (Stronghold Arena: "Kicker {G} and/or {W}" — kicked, both are paid, and that is kicked twice)
+        if (ex.kind === 'kicker' && opts.kick) { cost += ex.cost; chose.kicked = / and\/or /.test(ex.cost) ? 2 : 1; }
         else if (ex.kind === 'multikicker' && opts.kick) {
           const times = Math.max(1, Math.min(20, parseInt(opts.kick, 10) || 1));
           cost += ex.cost.repeat(times); chose.kicked = times;
@@ -12454,6 +12455,11 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Wolfbriar Elemental: "for each time it was kicked" — the kicks are the spell's, or the permanent's if it came from the stack
+        if (v && typeof v === 'object' && v.timesKicked) {
+          const ks = ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+          return ((ctx.kicked || (ks && ks.kickedTimes) || 0) * (v.mult || 1)) + (v.plus || 0);
+        }
         // Mathemagics: 2 to the power of X (a library runs out long before 2^30)
         if (v && typeof v === 'object' && v.twoToX) return 2 ** Math.max(0, Math.min(30, Number(ctx.x) || (src && src.chosenX) || 0));
         // Dread Summons, Tribune of Rot: "for each creature card milled (put into a graveyard) this way"

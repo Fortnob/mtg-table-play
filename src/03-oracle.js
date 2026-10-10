@@ -5927,6 +5927,8 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Murmuration: "for each spell you've cast this turn"
     if (/^spells? you'?ve cast this turn$/i.test(p)) return { spellsCastThisTurn: true, mult: k };
+    // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
+    if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
@@ -6070,6 +6072,8 @@
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
+    // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
+    if (/^the number of times (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return done({ timesKicked: true, mult: 1 });
     // Rionya: "the number of instant and sorcery spells you've cast this turn"
     if ((m = p.match(/^the number of (instant and sorcery|instant and\/or sorcery|noncreature|creature|artifact|enchantment|multicolou?red) spells you'?ve cast this turn$/i)))
       return done({ spellsCastWords: m[1].toLowerCase().replace(/ and(?:\/or)? /, ' or '), mult: 1 });

@@ -19874,4 +19874,38 @@ module.exports = (test) => {
     T3.cast('A', sm, { kick: true });
     t.zone(land, 'exile');
   });
+
+  test('"For each time it was kicked": Wolfbriar Elemental, Lightkeeper of Emeria, Spell Contortion; Stronghold Arena\'s two kickers', (mk, t) => {
+    t.auto('Wolfbriar Elemental'); t.auto('Lightkeeper of Emeria'); t.auto('Spell Contortion'); t.auto('Stronghold Arena'); t.auto('Bloodhusk Ritualist');
+    const T = mk();
+    T.toMain('A');
+    const wb = T.hand('A', 'Wolfbriar Elemental');
+    T.mana('A', 'GGGGGG');
+    T.cast('A', wb, { kick: 2 });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Wolf').length, 2, 'kicked twice: two Wolves');
+    T.g.moveObject(wb, 'graveyard');
+    T.g.moveObject(wb, 'battlefield', { controller: 'A' });
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Wolf').length, 2, 'back from the graveyard: no more');
+    const lk = T.hand('A', 'Lightkeeper of Emeria');
+    T.mana('A', '3WWWW');
+    T.cast('A', lk, { kick: 3 });
+    t.eq(T.life('A'), 26, 'kicked three times: 6 life');
+    const sa = T.hand('A', 'Stronghold Arena');
+    T.mana('A', '1BGW');
+    T.cast('A', sa, { kick: true });
+    t.eq(T.life('A'), 32, 'both kickers paid: kicked twice, 6 life');
+    const T2 = mk({ library: ['Island', 'Island', 'Island', 'Island'] });
+    T2.toMain('B');
+    const bolt = T2.hand('B', 'Lightning Bolt');
+    T2.mana('B', 'R');
+    T2.cast('B', bolt, { targets: ['A'], resolve: false });
+    const item = T2.g.stack[T2.g.stack.length - 1];
+    const sc = T2.hand('A', 'Spell Contortion');
+    T2.mana('A', '2UUUUU');
+    T2.g.passPriority('B', true);
+    const before = T2.zone('A', 'hand').length;
+    T2.cast('A', sc, { targets: [{ kind: 'stack', id: item.id }], kick: 2 });
+    t.eq(T2.zone('A', 'hand').length, before - 1 + 2, 'kicked twice: two cards');
+  });
 };
