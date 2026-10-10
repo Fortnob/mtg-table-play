@@ -15128,6 +15128,20 @@
             else this._spliceNext(e.then);
             break;
           }
+          /* Perplex: "…unless its controller discards their hand" — the whole
+             hand, or it happens (a hand of no cards is discarded as easily) */
+          if (e.cost && e.cost.discardHand) {
+            const hand = this.zones[payer.id].hand.slice();
+            const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessDiscardHand', yesLabel: 'Discard your hand', noLabel: "Don't",
+              prompt: e.prompt || `Discard your hand (${hand.length} card${hand.length === 1 ? '' : 's'})? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'udh');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) {
+              const now = this.zones[payer.id].hand.slice();
+              if (now.length) this._discardNow(payer.id, now);
+              else this.logEvent('discard', `${payer.name} discards their hand of no cards.`);
+            } else this._spliceNext(e.then);
+            break;
+          }
           /* Painful Quandary: "…unless they discard a card" — a card picked
              is the price paid; none picked, and it happens */
           if (e.cost && e.cost.discard) {

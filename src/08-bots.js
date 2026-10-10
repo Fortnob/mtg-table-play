@@ -2374,6 +2374,8 @@
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
+      // Perplex: give up the hand only when there is little in it
+      if (ch.purpose === 'unlessDiscardHand') return (g.zones[this.pid].hand || []).length <= 1;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       // Jace, the Mind Sculptor: an opponent's good card goes to the bottom, our own bad one does

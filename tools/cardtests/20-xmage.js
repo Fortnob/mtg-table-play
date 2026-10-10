@@ -17855,4 +17855,26 @@ module.exports = (test) => {
     t.ok(T.g.player('B').monarch, 'B is the monarch');
     t.no(T.g.player('A').monarch, 'not A');
   });
+
+  test("Perplex: counter the spell unless its controller discards their hand", (mk, t) => {
+    t.auto('Perplex');
+    for (const discard of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      const bolt = T.hand('A', 'Lightning Bolt');
+      const keep = T.hand('A', 'Island');
+      T.mana('A', 'R');
+      T.cast('A', bolt, { targets: ['B'], resolve: false });
+      T.g.passPriority('A', true);
+      let asked = null;
+      T.answer('confirm', (ch) => { asked = ch; return { yes: discard }; });
+      T.mana('B', 'UB1');
+      T.cast('B', T.hand('B', 'Perplex'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+      T.settle(); T.resolve(); T.settle();
+      t.eq(asked && asked.playerId, 'A', "the bolt's controller decides");
+      t.eq(asked && asked.yesLabel, 'Discard your hand');
+      t.eq(T.life('B'), discard ? 17 : 20, discard ? 'hand discarded: the bolt resolves' : 'kept the hand: countered');
+      t.zone(keep, discard ? 'graveyard' : 'hand');
+    }
+  });
 };
