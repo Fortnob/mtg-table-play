@@ -5742,4 +5742,16 @@ module.exports = (test) => {
       t.zone(cw, pick ? 'graveyard' : 'hand');
     }
   });
+
+  test('Audit: Within Range: each opponent loses life for the creatures attacking them, each their own count', (mk, t) => {
+    t.auto('Within Range');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Within Range');
+    const a1 = T.bf('A', 'Grizzly Bears'), a2 = T.bf('A', 'Grizzly Bears'), a3 = T.bf('A', 'Grizzly Bears');
+    for (const x of [a1, a2, a3]) x.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: a1.id, defenderId: 'B' }, { attackerId: a2.id, defenderId: 'B' }, { attackerId: a3.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 18, 'two at B'); t.eq(T.life('C'), 19, 'one at C');
+  });
 };
