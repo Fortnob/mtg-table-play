@@ -17890,4 +17890,22 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.g.zones.A.library.indexOf(want), 2, 'third from the top');
   });
+
+  test('Trinisphere: a spell that would cost less than three costs three, while it is untapped', (mk, t) => {
+    t.auto('Trinisphere');
+    const T = mk();
+    T.toMain('A');
+    const tri = T.bf('B', 'Trinisphere');
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', T.hand('A', 'Lightning Bolt').id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), '{R} alone is not enough');
+    T.g.player('A').pool.clear();
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'paid three');
+    t.ok(T.g.player('A').pool.isEmpty(), 'all three spent');
+    tri.tapped = true;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 14, 'tapped: {R} again');
+  });
 };

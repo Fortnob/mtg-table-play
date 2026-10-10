@@ -13262,6 +13262,9 @@
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
       // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
+      // Trinisphere: "As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast." (costFloor)
+      { re: /^As long as this artifact is untapped, each spell that would cost less than three mana to cast costs three mana to cast\.?$/i,
+        eff: { op: 'costFloor', n: 3, whileUntapped: true }, auto: true },
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
       // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)

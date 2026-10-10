@@ -5026,6 +5026,18 @@
         }
         if (d) cost = this._addGeneric(cost || '', d);
       }
+      /* Trinisphere: "each spell that would cost less than three mana to cast
+         costs three mana to cast" — the last word on the price, once
+         everything else has had its say (costFloor) */
+      if (!opts.free) {
+        const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
+        const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
+        const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}'));
+        if (floor && total < floor) {
+          cost = this._addGeneric(cost || '', floor - total);
+          this.logEvent('rules', `${fl.name}: ${o.name} costs ${floor} mana.`);
+        }
+      }
       // The Defilers: paid in life, one less mana of that colour
       const dfl = !opts.free && ((((opts.choices || {}).defiler || {}).picks || [])[0] === 0) ? this._defilerFor(playerId, o) : null;
       if (dfl) {
