@@ -4432,4 +4432,35 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.no(mine.tapped, 'leaving: untap my Giant');
   });
+
+  test('Audit: counter-pile state triggers: Force Bubble soaks all of a hit and empties at end step; an opponent can push Deadly Designs over', (mk, t) => {
+    t.auto('Force Bubble'); t.auto('Deadly Designs'); t.auto('Nine Lives');
+    let T = mk();
+    T.toMain('B');
+    const fb = T.bf('A', 'Force Bubble');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle();
+    t.eq(fb.counters.depletion, 2); t.eq(T.life('A'), 20);
+    T.toMain('B', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(fb.counters.depletion || 0, 0, 'emptied at the end step');
+    T.nextTurn('A'); T.nextTurn('B'); T.toMain('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle();
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] }); T.settle(); T.resolve(); T.settle();
+    t.zone(fb, 'graveyard', 'five: sacrificed'); t.eq(T.life('A'), 20, 'the whole Bolt went into counters');
+    T = mk();
+    T.toMain('B');
+    const dd = T.bf('A', 'Deadly Designs'); dd.counters.plot = 4;
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant'), b3 = T.bf('B', 'Craw Wurm');
+    let who = null;
+    T.answer('pickTarget', (ch) => { who = ch.playerId; return { targets: [{ kind: 'object', id: b2.id }, { kind: 'object', id: b3.id }] }; });
+    T.mana('B', '2');
+    t.ok(T.g.activateAbility('B', dd.id, 0, { auto: true }), 'any player may add a counter');
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.zone(dd, 'graveyard'); t.eq(who, 'A', "its controller's trigger");
+    t.zone(b1, 'battlefield'); t.zone(b2, 'graveyard'); t.zone(b3, 'graveyard');
+    T = mk();
+    T.toMain('B');
+    const nl = T.bf('A', 'Nine Lives'); nl.counters.incarnation = 8;
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 20, 'prevented'); t.zone(nl, 'exile', 'the ninth counter'); t.ok(T.g.player('A').hasLost, 'and it leaving loses the game');
+  });
 };
