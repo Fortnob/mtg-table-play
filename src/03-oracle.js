@@ -8901,6 +8901,9 @@
     [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
+    // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
+    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
+    [/^this Vehicle has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
     [/^enchanted (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
@@ -12308,6 +12311,11 @@
   }
 
   const CONTINUOUS_RULES = [
+    /* Arixmethes: "As long as it has a slumber counter on it, it's a land"
+       (and no longer a creature); War Balloon, Grond: "it's an artifact
+       creature" — what it is, under the condition the wrapper adds */
+    { re: /^CARDNAME(?:'s| is) a land\.?$/i, make: () => ({ op: 'continuous', layer: 4, scope: { self: true, what: 'permanent' }, setTypes: ['Land'] }) },
+    { re: /^CARDNAME(?:'s| is) an artifact creature\.?$/i, make: () => ({ op: 'continuous', layer: 4, scope: { self: true, what: 'permanent' }, setTypes: ['Artifact', 'Creature'] }) },
     /* Backgrounds: "Commander creatures you own have '…' / get +1/+1 and
        have …" — the group's rule, for your commanders */
     { re: /^Commander creatures you own (have|get) (.+)$/i,

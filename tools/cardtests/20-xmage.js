@@ -18783,4 +18783,36 @@ module.exports = (test) => {
     T.g.moveObject(bear, 'graveyard');
     t.eq(T.g.castCostFor('A', mr.id), '{1}{B}', '{2} less now');
   });
+
+  test('Arixmethes, Slumbering Isle: a land while it has a slumber counter, a 12/12 once they are gone', (mk, t) => {
+    t.auto('Arixmethes, Slumbering Isle');
+    const T = mk();
+    T.toMain('A');
+    const ax = T.put('A', 'Arixmethes, Slumbering Isle', 'battlefield', { etb: true });
+    t.ok(ax.tapped, 'enters tapped');
+    t.eq(ax.counters.slumber, 5, 'with five slumber counters');
+    t.no(T.g.characteristics(ax).isCreature, 'not a creature');
+    t.ok(ax.analysis().isLand, 'a land');
+    ax.counters.slumber = 1;
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.no(ax.counters.slumber, 'the last slumber counter removed');
+    t.ok(T.g.characteristics(ax).isCreature, 'a creature now');
+    t.eq(T.g.powerOf(ax), 12, '12/12');
+  });
+
+  test('War Balloon: an artifact creature with three or more fire counters', (mk, t) => {
+    t.auto('War Balloon');
+    const T = mk();
+    T.toMain('A');
+    const wb = T.bf('A', 'War Balloon', { counters: { fire: 2 } });
+    t.no(T.g.characteristics(wb).isCreature, 'two: not a creature');
+    T.mana('A', '1');
+    T.activate('A', wb, 0);
+    T.resolve();
+    t.eq(wb.counters.fire, 3, 'a third fire counter');
+    t.ok(T.g.characteristics(wb).isCreature, 'three: an artifact creature');
+  });
 };

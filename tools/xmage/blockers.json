@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11018,
+  "needed": 11013,
   "gainedCards": 1090,
-  "linesNeeded": 11769,
+  "linesNeeded": 11763,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4123,
-   "lines": 3874,
+   "score": 4122,
+   "lines": 3873,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -506,25 +506,6 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 20,
-   "lines": 20,
-   "cards": [
-    "The Blue Spirit",
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Serpent of the Pass",
-    "Captain Mar-Vell, Space-Born",
-    "Demon Wall",
-    "Quicksilver, Speedster",
-    "Elvish Refueler",
-    "Scuttlegator",
-    "Novice Knight",
-    "Dragon Grip"
-   ]
-  },
-  {
    "what": "TargetCardInExile",
    "score": 19,
    "lines": 10,
@@ -625,6 +606,25 @@
     "Poisoner's Apprentice",
     "Paragon of Modernity",
     "Savage Offensive"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "The Blue Spirit",
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Serpent of the Pass",
+    "Captain Mar-Vell, Space-Born",
+    "Demon Wall",
+    "Quicksilver, Speedster",
+    "Elvish Refueler",
+    "Novice Knight",
+    "Dragon Grip",
+    "Expedition Lookout"
    ]
   },
   {
@@ -1010,25 +1010,6 @@
    ]
   },
   {
-   "what": "AddCardTypeSourceEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Invasion of Zendikar // Awakened Skyclave",
-    "Phoenix Fleet Airship",
-    "Phantom Train",
-    "Fleetwheel Cruiser",
-    "Voyager Glidecar",
-    "Spring-Loaded Sawblades // Bladewheel Chariot",
-    "Gastal Thrillroller",
-    "Grond, the Gatebreaker",
-    "Midnight Mangler",
-    "The Fantasticar",
-    "Mizzium Tank",
-    "War Balloon"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessSourceEffect with two values",
    "score": 13,
    "lines": 13,
@@ -1152,6 +1133,25 @@
     "Diplomatic Escort",
     "Teferi's Response",
     "Silver Wyvern"
+   ]
+  },
+  {
+   "what": "AddCardTypeSourceEffect",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Invasion of Zendikar // Awakened Skyclave",
+    "Phoenix Fleet Airship",
+    "Phantom Train",
+    "Fleetwheel Cruiser",
+    "Voyager Glidecar",
+    "Spring-Loaded Sawblades // Bladewheel Chariot",
+    "Gastal Thrillroller",
+    "Grond, the Gatebreaker",
+    "Midnight Mangler",
+    "The Fantasticar",
+    "Mizzium Tank",
+    "Meldweb Strider"
    ]
   },
   {
@@ -6600,8 +6600,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3439,
-   "cards": 3271,
+   "score": 3438,
+   "cards": 3270,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6872,19 +6872,6 @@
    ]
   },
   {
-   "what": "ConditionalAsThoughEffect",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Final-Word Phantom",
-    "The Lunar Whale",
-    "Kianne, Corrupted Memory",
-    "Captain Mar-Vell, Space-Born",
-    "Demon Wall",
-    "Quicksilver, Speedster"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 17,
    "cards": 17,
@@ -6934,6 +6921,19 @@
     "Quag Feast",
     "Abuelo's Awakening",
     "Cloudspire Skycycle"
+   ]
+  },
+  {
+   "what": "ConditionalAsThoughEffect",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Final-Word Phantom",
+    "The Lunar Whale",
+    "Kianne, Corrupted Memory",
+    "Captain Mar-Vell, Space-Born",
+    "Demon Wall",
+    "Quicksilver, Speedster"
    ]
   },
   {
@@ -7191,19 +7191,6 @@
    ]
   },
   {
-   "what": "AddCardTypeSourceEffect",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Invasion of Zendikar // Awakened Skyclave",
-    "Phantom Train",
-    "Fleetwheel Cruiser",
-    "Voyager Glidecar",
-    "Spring-Loaded Sawblades // Bladewheel Chariot",
-    "Gastal Thrillroller"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 11,
    "cards": 11,
@@ -7326,6 +7313,19 @@
     "Deny the Witch",
     "Radiant Performer",
     "Sister of Silence"
+   ]
+  },
+  {
+   "what": "AddCardTypeSourceEffect",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Invasion of Zendikar // Awakened Skyclave",
+    "Phantom Train",
+    "Fleetwheel Cruiser",
+    "Voyager Glidecar",
+    "Spring-Loaded Sawblades // Bladewheel Chariot",
+    "Gastal Thrillroller"
    ]
   },
   {
