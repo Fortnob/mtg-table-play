@@ -17841,4 +17841,18 @@ module.exports = (test) => {
       t.eq(T.zone('A', 'hand').length, h + draws, name + ': ' + draws);
     }
   });
+
+  test('Éomer, King of Rohan: the target player becomes the monarch', (mk, t) => {
+    t.auto('Éomer, King of Rohan');
+    t.auto('Denethor, Stone Seer');
+    const T = mk();
+    T.toMain('A');
+    const e = T.hand('A', 'Éomer, King of Rohan');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }, { kind: 'player', id: 'B' }] });
+    T.mana('A', 'RW3');
+    T.cast('A', e);
+    T.settle(); T.resolve(); T.settle();
+    t.ok(T.g.player('B').monarch, 'B is the monarch');
+    t.no(T.g.player('A').monarch, 'not A');
+  });
 };

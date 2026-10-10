@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11135,
+  "needed": 11133,
   "gainedCards": 1121,
-  "linesNeeded": 11908,
+  "linesNeeded": 11905,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4151,
-   "lines": 3902,
+   "score": 4149,
+   "lines": 3900,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6517,16 +6517,6 @@
    ]
   },
   {
-   "what": "BecomesMonarchTargetEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Starscream, Power Hungry // Starscream, Seeker Leader",
-    "Garland, Royal Kidnapper",
-    "Jared Carthalion, True Heir"
-   ]
-  },
-  {
    "what": "AttackingCreatureCount",
    "score": 3,
    "lines": 3,
@@ -6615,13 +6605,23 @@
     "Konda's Banner",
     "Gate Smasher"
    ]
+  },
+  {
+   "what": "rest to TOP_ANY",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Diabolic Vision",
+    "Jace, the Living Guildpact",
+    "Soulcipher Board // Cipherbound Spirit"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3459,
-   "cards": 3291,
+   "score": 3457,
+   "cards": 3289,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

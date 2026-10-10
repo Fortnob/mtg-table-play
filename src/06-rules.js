@@ -13047,8 +13047,9 @@
           this.bumpBoard();
           break;
         }
+        // (Éomer, King of Rohan: "target player becomes the monarch")
         case 'becomeMonarch': this.setMonarch(e.who === 'opponent'
-          ? (this.opponentsOf(ctx.controller)[0] || me).id : ctx.controller, 'a card'); break;
+          ? (this.opponentsOf(ctx.controller)[0] || me).id : e.who === 'target' ? ((firstPlayer() || me).id) : ctx.controller, 'a card'); break;
         case 'takeInitiative': this.takeInitiative(ctx.controller, 'a card'); break;
         /* Venture into the dungeon (CR 701.46): into the first room of a
            dungeon of your choice, or on to the next room of the one you are

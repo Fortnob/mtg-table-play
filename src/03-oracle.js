@@ -4024,6 +4024,8 @@
 
     /* ===== crowns, counters and looking at your own library ===== */
     { re: /^(?:You|you) becomes? the monarch\.?$/i, make: () => ({ op: 'becomeMonarch' }) },
+    // Éomer, King of Rohan: "Target player becomes the monarch."
+    { re: /^Target (player|opponent) becomes the monarch\.?$/i, make: (m) => ({ op: 'becomeMonarch', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
     { re: /^(?:You|you) takes? the initiative\.?$/i, make: () => ({ op: 'takeInitiative' }) },
     { re: /^(?:You|you) gets? ((?:\{E\})+)\.?$/i,
       make: (m) => ({ op: 'energy', n: (m[1].match(/\{E\}/g) || []).length }) },
