@@ -2271,7 +2271,7 @@
     ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['rules', 'House rules'], ['pace', 'Pace'], ['stops', 'Stops'],
     ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['suggest', 'Suggestions'], ['data', 'Card data'],
   ];
-  const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
+  const BOT_PACE = MTG.BOT_PACES;
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
 
   function renderOptions() {
@@ -2412,8 +2412,8 @@
     const botNow = S.botSpeed == null ? 600 : S.botSpeed;
     const botOut = el('span', { class: 'opt-value', text: botNow + ' ms' });
     const botRange = el('input', {
-      type: 'range', min: '0', max: '2000', step: '50', value: String(botNow), id: 'opt-botSpeed',
-      'aria-label': 'Bot thinking time, in milliseconds', 'aria-valuetext': botNow + ' milliseconds',
+      type: 'range', min: '0', max: '4000', step: '50', value: String(botNow), id: 'opt-botSpeed',
+      'aria-label': 'Bot speed: the pause before each thing a bot does, in milliseconds', 'aria-valuetext': botNow + ' milliseconds',
     });
     botRange.addEventListener('input', () => {
       const v = parseInt(botRange.value, 10);
@@ -2426,7 +2426,7 @@
         b.setAttribute('aria-checked', on ? 'true' : 'false');
       }
     });
-    const botSeg = segmented(BOT_PACE, botNow, (v) => { MTG.setSetting('botSpeed', v); renderOptions(); }, 'Bot thinking time');
+    const botSeg = segmented(BOT_PACE, botNow, (v) => { MTG.setSetting('botSpeed', v); renderOptions(); }, 'Bot speed');
     botSeg.classList.add('bot-seg');
     botSeg.querySelectorAll('.seg-btn').forEach((b, i) => { b.dataset.v = String(BOT_PACE[i][0]); });
     sections.push(group('rules', 'House rules', 'Sets of house rules with a name, kept for a format. Pick one in the quick game, or in a table\u2019s House rules when you host.',
@@ -2436,8 +2436,8 @@
         'How long cards take to fly, flip and land. Fast keeps games brisk; relaxed lets you follow every move.', 1),
       el('div', { class: 'opt-row stacked' }, [
         el('div', { class: 'grow' }, [
-          el('div', { class: 'opt-label' }, [el('span', { text: 'Bot thinking time' }), botOut]),
-          el('div', { class: 'opt-help', text: 'How long a bot pauses before each thing it does, so you can see it happen.' }),
+          el('div', { class: 'opt-label' }, [el('span', { text: 'Bot speed' }), botOut]),
+          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Very fast is the usual pace; slower lets you follow each play.' }),
           botSeg,
           el('div', { class: 'fine-tune' }, [el('span', { class: 'tiny dim', text: 'Fine tune' }), botRange]),
         ]),

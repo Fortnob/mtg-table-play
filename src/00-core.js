@@ -259,7 +259,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  botSpeed: 600,
+  botSpeed: 600,                 // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES)
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
   splitOpponents: false,         // two or three opponents side by side instead of one at a time
@@ -635,5 +635,10 @@ MTG.ManaPool = ManaPool;
 /* ---------- logging ---------- */
 MTG.log = function (...a) { if (MTG.DEBUG) console.log('[mtg]', ...a); };
 MTG.DEBUG = /[?&]debug/.test(location.search);
+/* How fast the bots play: how long each one pauses before each thing it
+   does, so a person can follow it. One setting for the whole table
+   (settings.botSpeed), named here for Options and the game menu. Very
+   fast is the pace the bots have always kept, and the default. */
+MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
 
 
