@@ -16835,12 +16835,22 @@
           break;
 
         case 'sortRevealed': {
-          const cnt = n(e.n) || 4;
-          const top = this.zones[ctx.controller].library.slice(0, cnt);
+          /* the cards the sentence before revealed — Beast Hunt's three, not
+             always four — or, alone, the top four */
+          const lib = this.zones[ctx.controller].library;
+          const looked = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library' && o.owner === ctx.controller);
+          const top = looked.length ? looked : lib.slice(0, n(e.n) || 4);
+          const f = String(e.filter || 'card');
+          const under = [];
           for (const o of top) {
-            const keep = this._matchesFilter(o, e.filter);
-            this.moveObject(o, keep ? 'hand' : 'graveyard');
+            const keep = /\s/.test(f) ? this._cardFitsWords(o, f) : this._matchesFilter(o, f);
+            if (keep) this.moveObject(o, 'hand');
+            // Goblin Ringleader: "the rest on the bottom of your library in any order"
+            else if (e.rest === 'bottom') under.push(o);
+            else this.moveObject(o, 'graveyard');
           }
+          for (const o of under) { this._removeFromZone(o); o.zone = 'library'; lib.push(o); }
+          this._looked = [];
           break;
         }
 

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11174,
-  "gainedCards": 1129,
-  "linesNeeded": 11952,
+  "needed": 11163,
+  "gainedCards": 1130,
+  "linesNeeded": 11940,
   "linesGained": 1331,
   "gained": {
-   "all": 1129,
+   "all": 1130,
    "top2000": 46,
    "stdTop": 8
   },
@@ -1089,25 +1089,6 @@
     "Monstrous War-Leech",
     "Mwonvuli Ooze",
     "Umbra Stalker"
-   ]
-  },
-  {
-   "what": "RevealLibraryPutIntoHandEffect",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Goblin Ringleader",
-    "Marina Vendrell",
-    "Garruk, Caller of Beasts",
-    "Ajani Unyielding",
-    "Sylvan Messenger",
-    "Elder Pine of Jukai",
-    "Enshrined Memories",
-    "Merfolk Wayfinder",
-    "Tidal Courier",
-    "Grave Defiler",
-    "Enlistment Officer",
-    "Lair Delve"
    ]
   },
   {
@@ -6630,6 +6611,16 @@
     "Spider-Man 2099",
     "Serra Avenger"
    ]
+  },
+  {
+   "what": "AttachableToRestrictedAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "O-Naginata",
+    "Konda's Banner",
+    "Gate Smasher"
+   ]
   }
  ],
  "sole": [
@@ -7162,19 +7153,6 @@
     "Hraesvelgr of the First Brood",
     "Staff of the Death Magus",
     "Staff of the Sun Magus"
-   ]
-  },
-  {
-   "what": "RevealLibraryPutIntoHandEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Goblin Ringleader",
-    "Garruk, Caller of Beasts",
-    "Ajani Unyielding",
-    "Sylvan Messenger",
-    "Elder Pine of Jukai",
-    "Enshrined Memories"
    ]
   },
   {
@@ -10319,6 +10297,17 @@
     "Bloodvial Purveyor",
     "Killmonger, Ruthless Usurper",
     "Renewing Dawn"
+   ]
+  },
+  {
+   "what": "becomes a creature and loses something",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Lizard, Connors's Curse",
+    "Awakening of Vitu-Ghazi",
+    "Sparkshaper Visionary",
+    "Dance of the Skywise"
    ]
   }
  ]

@@ -17641,4 +17641,31 @@ module.exports = (test) => {
     t.zone(inYard, 'exile', 'the Shock from the graveyard');
     t.zone(inHand, 'hand');
   });
+
+  test('Goblin Ringleader: the Goblins revealed to the hand, the rest to the bottom; Beast Hunt reveals three, not four', (mk, t) => {
+    t.auto('Goblin Ringleader');
+    t.auto('Garruk, Caller of Beasts');
+    t.auto('Lair Delve');
+    const T = mk();
+    T.toMain('A');
+    const fifth = T.top('A', 'Swamp');
+    const f = T.top('A', 'Forest'), g2 = T.top('A', 'Raging Goblin'), i = T.top('A', 'Island'), g1 = T.top('A', 'Goblin Guide');
+    T.mana('A', 'R3');
+    T.cast('A', T.hand('A', 'Goblin Ringleader'));
+    T.settle(); T.resolve(); T.settle();
+    t.zone(g1, 'hand'); t.zone(g2, 'hand');
+    const lib = T.g.zones.A.library;
+    t.eq(lib[0], fifth, 'the fifth card is now on top');
+    t.ok(lib.indexOf(i) > 0 && lib.indexOf(f) > 0 && lib.indexOf(i) >= lib.length - 2 && lib.indexOf(f) >= lib.length - 2, 'Island and Forest at the bottom');
+    const U = mk();
+    U.toMain('A');
+    const c4 = U.top('A', 'Grizzly Bears');
+    const c3 = U.top('A', 'Island'), c2 = U.top('A', 'Hill Giant'), c1 = U.top('A', 'Forest');
+    U.mana('A', 'G3');
+    U.cast('A', U.hand('A', 'Beast Hunt'));
+    U.settle();
+    t.zone(c2, 'hand', 'the creature among three');
+    t.zone(c1, 'graveyard'); t.zone(c3, 'graveyard');
+    t.zone(c4, 'library', 'the fourth card was never revealed');
+  });
 };

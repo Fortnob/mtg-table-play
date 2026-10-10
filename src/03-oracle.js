@@ -3571,8 +3571,11 @@
       make: () => ({ op: 'graveyardToLibrary', withSelf: true }) },
     { re: /^Shuffle your graveyard into your library\.?$/i, make: () => ({ op: 'graveyardToLibrary' }) },
     { re: /^This spell can'?t be countered\.?$/i, make: () => ({ op: 'cantBeCountered' }) },
-    { re: /^Put all ([a-z ]+?) cards revealed this way into your hand and the rest into your graveyard\.?$/i,
-      make: (m) => ({ op: 'sortRevealed', filter: m[1].trim().toLowerCase(), keep: 'hand', rest: 'graveyard' }) },
+    /* Goblin Ringleader, Garruk, Caller of Beasts: "… and the rest on the bottom of your library in any order";
+       Lair Delve: "creature and land cards" — either kind */
+    { re: /^Put all ([a-z ]+?) cards revealed this way into your hand and the rest (into your graveyard|on the bottom of your library in any order)\.?$/i,
+      make: (m) => (/chosen/i.test(m[1]) ? null : { op: 'sortRevealed', filter: m[1].trim().toLowerCase().replace(/ and /g, ' or '), keep: 'hand',
+        rest: /graveyard/i.test(m[2]) ? 'graveyard' : 'bottom' }) },
 
 
     { re: /^(Target (?:attacking |blocking |attacking or blocking )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
