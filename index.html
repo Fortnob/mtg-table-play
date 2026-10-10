@@ -7059,7 +7059,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  botSpeed: 600,                 // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES)
+  botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
   splitOpponents: false,         // two or three opponents side by side instead of one at a time
@@ -7084,6 +7084,16 @@ function loadSettings() {
   } catch (e) { return Object.assign({}, defaultSettings); }
 }
 MTG.settings = loadSettings();
+/* Bot speed: Normal became the default once the speeds had names. The
+   600 ms that settings saved before then was the old default written out
+   with everything else, not a choice, so it becomes Normal, once.
+   (botPaceV marks it done; it is not among the defaults, or a save from
+   before would look done already.) */
+if (MTG.settings.botPaceV !== 2) {
+  if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
+  MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
 MTG.saveSettings = function () {
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* quota */ }
   MTG.bus.emit('settings:changed', MTG.settings);
@@ -7438,7 +7448,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 /* How fast the bots play: how long each one pauses before each thing it
    does, so a person can follow it. One setting for the whole table
    (settings.botSpeed), named here for Options and the game menu. Very
-   fast is the pace the bots have always kept, and the default. */
+   fast is the pace the bots used to keep; Normal is the default. */
 MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
 
 
@@ -84176,8 +84186,8 @@ Sideboard
   const nextPace = (v) => { const i = PACES.findIndex(p => p[0] === (v == null ? 1 : v)); return PACES[(i + 1) % PACES.length][0]; };
   // the bots' speed: the same named steps as Options (MTG.BOT_PACES), one setting for every bot
   const BOT_PACES = MTG.BOT_PACES;
-  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 600 : v)) || [0, 'custom'])[1].toLowerCase();
-  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 600 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
+  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 1500 : v)) || [0, 'custom'])[1].toLowerCase();
+  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 1500 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
 
   function toggleIn(list, id, max) {
     const i = list.indexOf(id);
@@ -93450,7 +93460,7 @@ Sideboard
     ]));
 
     /* -- pace: how fast the table moves -- */
-    const botNow = S.botSpeed == null ? 600 : S.botSpeed;
+    const botNow = S.botSpeed == null ? 1500 : S.botSpeed;
     const botOut = el('span', { class: 'opt-value', text: botNow + ' ms' });
     const botRange = el('input', {
       type: 'range', min: '0', max: '4000', step: '50', value: String(botNow), id: 'opt-botSpeed',
@@ -93478,7 +93488,7 @@ Sideboard
       el('div', { class: 'opt-row stacked' }, [
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label' }, [el('span', { text: 'Bot speed' }), botOut]),
-          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Very fast is the usual pace; slower lets you follow each play.' }),
+          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Normal is the usual pace; faster keeps games brisk, slower lets you follow each play.' }),
           botSeg,
           el('div', { class: 'fine-tune' }, [el('span', { class: 'tiny dim', text: 'Fine tune' }), botRange]),
         ]),
