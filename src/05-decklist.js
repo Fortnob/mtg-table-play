@@ -12,6 +12,8 @@
     [/^(deck|main ?deck|mainboard|main)\b[: ]*$/i, 'main'],
     [/^(side ?board|sb)\b[: ]*$/i, 'sideboard'],
     [/^(commander|commanders|general)\b[: ]*$/i, 'commander'],
+    // Oathbreaker lists: both go to the command zone, and the card type tells them apart later
+    [/^(oathbreakers?|signature ?spells?)\b[: ]*$/i, 'commander'],
     [/^(companion)\b[: ]*$/i, 'companion'],
     [/^(maybe ?board|considering|acquire)\b[: ]*$/i, 'maybeboard'],
     [/^(tokens?)\b[: ]*$/i, 'tokens'],
@@ -110,9 +112,10 @@
 
     // Heuristic: an EDH list pasted with the commander as the first single card
     // and a 99-card main deck, with no explicit section, is very common.
+    // (A sixty-card commander format says its own size: opts.deckSize.)
     if (!sawExplicitCommander && opts.assumeCommander) {
       const total = U.sum(out.main.map(e => e.qty));
-      if (total === 100 && out.main[0] && out.main[0].qty === 1) {
+      if (total === (opts.deckSize || 100) && out.main[0] && out.main[0].qty === 1) {
         out.commanders.push(out.main.shift());
       }
     }
@@ -206,24 +209,62 @@
     return res;
   }
 
+  /**
+   * Who sits in the command zone, once the cards are known: a commander
+   * guessed from the head of an unmarked list is checked, a missing one is
+   * looked for, and an Oathbreaker list's Signature Spell is found. Works on
+   * `resolved` in place and says what it guessed in its warnings.
+   */
+  function seatCommanders(parsed, resolved, fmt) {
+    if (!fmt || !fmt.commander) return resolved;
+    const F = MTG.formats;
+    const oath = !!fmt.oathbreaker;
+
+    /* A commander guessed from the head of a list with no headers has to
+       be able to lead it; otherwise it was just the first card. */
+    if (!parsed.sawExplicitCommander && resolved.commanders.length &&
+        !resolved.commanders.every(e => F.canBeCommander(e.card, fmt))) {
+      resolved.main.unshift(...resolved.commanders.splice(0));
+    }
+
+    // If the format wants a commander and none was tagged, try to infer one.
+    if (!resolved.commanders.some(e => !F.isSignatureSpell(e.card))) {
+      const legends = resolved.main.filter(e => F.canBeCommander(e.card, fmt));
+      const role = oath ? 'Oathbreaker' : 'commander';
+      if (legends.length === 1) {
+        resolved.commanders.unshift(legends[0]);
+        resolved.main.splice(resolved.main.indexOf(legends[0]), 1);
+        resolved.warnings.push(`Using ${legends[0].card.name} as your ${role} (it was the only ${oath ? 'planeswalker'
+          : fmt.walkerCommander ? 'legendary creature or planeswalker' : 'legendary creature'}).`);
+      } else if (legends.length > 1) {
+        resolved.warnings.push(`Several cards could be your ${role} - pick one in the deck builder.`);
+      }
+    }
+
+    /* Oathbreaker: the Signature Spell. A list with its command zone marked
+       has said which it is (the instant or sorcery there); one with no
+       headers almost always runs Oathbreaker, then its spell, then the rest. */
+    if (oath && resolved.commanders.length && !resolved.commanders.some(e => F.isSignatureSpell(e.card))) {
+      const next = parsed.sawExplicitCommander ? null : resolved.main[0];
+      if (next && next.qty === 1 && F.isSignatureSpell(next.card)) {
+        resolved.commanders.push(resolved.main.shift());
+        resolved.warnings.push(`Using ${next.card.name} as your Signature Spell (it came straight after your Oathbreaker).`);
+      } else {
+        resolved.warnings.push('No Signature Spell was marked - choose one in the deck builder.');
+      }
+    }
+    // the leader first, its Signature Spell after it, whatever order the list gave them in
+    if (oath) resolved.commanders.sort((x, y) => (F.isSignatureSpell(x.card) ? 1 : 0) - (F.isSignatureSpell(y.card) ? 1 : 0));
+    return resolved;
+  }
+
   /** One call: text in, validated deck out. */
   async function importDeck(text, formatId, opts) {
     opts = opts || {};
     const fmt = MTG.formats.get(formatId);
-    const parsed = parse(text, { assumeCommander: !!(fmt && fmt.commander), name: opts.name });
+    const parsed = parse(text, { assumeCommander: !!(fmt && fmt.commander), deckSize: fmt && fmt.commander ? fmt.deckMin : null, name: opts.name });
     const resolved = await resolve(parsed, opts);
-
-    // If the format wants a commander and none was tagged, try to infer one.
-    if (fmt && fmt.commander && !resolved.commanders.length) {
-      const legends = resolved.main.filter(e => MTG.formats.canBeCommander(e.card, fmt));
-      if (legends.length === 1) {
-        resolved.commanders.push(legends[0]);
-        resolved.main.splice(resolved.main.indexOf(legends[0]), 1);
-        resolved.warnings.push(`Using ${legends[0].card.name} as your commander (it was the only legendary creature).`);
-      } else if (legends.length > 1) {
-        resolved.warnings.push('Several cards could be your commander - pick one in the deck builder.');
-      }
-    }
+    seatCommanders(parsed, resolved, fmt);
 
     const deck = {
       id: MTG.uid('deck'),
@@ -252,7 +293,13 @@
       return `${e.qty} ${c.name}`;
     };
     const parts = [];
-    if (deck.commanders && deck.commanders.length) {
+    const fmt = MTG.formats.get(deck.format);
+    if (fmt && fmt.oathbreaker && deck.commanders && deck.commanders.length) {
+      // each in its own section, the way Oathbreaker lists are written (and read back in)
+      const { leaders, signatures } = MTG.formats.commandParts(deck);
+      if (leaders.length) parts.push('Oathbreaker', ...leaders.map(c => line({ card: c, qty: 1 })), '');
+      if (signatures.length) parts.push('Signature Spell', ...signatures.map(c => line({ card: c, qty: 1 })), '');
+    } else if (deck.commanders && deck.commanders.length) {
       parts.push('Commander');
       for (const c of deck.commanders) parts.push(line({ card: c, qty: 1 }));
       parts.push('');
@@ -322,7 +369,7 @@
     return rows.filter(r => r.some(x => x.trim()));
   }
 
-  MTG.decklist = { parse, resolve, importDeck, toText, importCube, parseCsv, LINE_RE };
+  MTG.decklist = { parse, resolve, importDeck, seatCommanders, toText, importCube, parseCsv, LINE_RE };
 })(window.MTG);
 
 
