@@ -4452,9 +4452,10 @@
     // Vein Drinker: "That creature deals damage equal to its power to this creature."
     { re: /^That creature deals damage equal to its power to (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toSelf2: true }) },
-    { re: /^You may reveal an? ([-a-z ]*?)card from among them and put it into your hand\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
-        to: 'hand', optional: true, rest: 'keep' }) },
+    // (Icon of Ancestry: "a creature card of the chosen type")
+    { re: /^You may reveal an? ([-a-z ]*?)card( of the chosen type)? from among them and put it into your hand\.?$/i,
+      make: (m) => Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'hand', optional: true, rest: 'keep' }, m[2] ? { ofChosenType: true } : {}) },
     /* Harald: "an Elf, Warrior, or Tyvar card"; Star Charter: "a creature
        card with power 3 or less"; "put that card into your hand" */
     { re: /^You may reveal an? ((?:[A-Za-z-]+,? (?:or |and\/or )?)*?)card( with power (\d+) or less| with mana value (\d+) or less)? from among them and put (?:it|that card) into your hand\.?$/,

@@ -20256,4 +20256,23 @@ module.exports = (test) => {
     T.toMain('B');
     t.zone(wurm, 'hand');
   });
+
+  test('Icon of Ancestry: of the top three, only a creature card of the chosen type can be taken; the rest go to the bottom', (mk, t) => {
+    t.auto('Icon of Ancestry');
+    const T = mk();
+    T.toMain('A');
+    const icon = T.bf('A', 'Icon of Ancestry');
+    icon.chosenType = 'Elf';
+    // (each put goes on top: Grizzly Bears ends up first)
+    const elf = T.put('A', 'Llanowar Elves', 'library');
+    T.put('A', 'Hill Giant', 'library');
+    T.put('A', 'Grizzly Bears', 'library');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: ch.cards.map(c => c.id).slice(0, 1) }; });
+    T.mana('A', '3');
+    T.activate('A', icon, 0);
+    t.eq(JSON.stringify(offered), JSON.stringify(['Llanowar Elves']), 'only the Elf is offered');
+    t.zone(elf, 'hand');
+    t.eq(T.zone('A', 'library')[0] && ['Hill Giant', 'Grizzly Bears'].includes(T.zone('A', 'library').slice(-1)[0].name), true, 'the rest on the bottom');
+  });
 };

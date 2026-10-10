@@ -17228,6 +17228,8 @@
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > (typeof e.maxMv === 'number' ? e.maxMv : n(e.maxMv))) return false;
             // Star Charter: "a creature card with power 3 or less"
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
+            // Icon of Ancestry: "of the chosen type" — the type chosen for this permanent
+            if (e.ofChosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) return false;
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);
