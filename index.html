@@ -22525,6 +22525,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
+    /* The Council of Four: "Whenever a player draws their second card during their turn", "casts their
+       second spell during their turn" — on the turn of the player who does it (duringOwnTurn) */
+    { re: /^When(?:ever)? a player draws their (second|third) card during their turn,? /i, event: 'anyDraw',
+      extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3, duringOwnTurn: true }) },
+    { re: /^When(?:ever)? a player casts their second spell during their turn,? /i, event: 'anySecondSpell', extra: { duringOwnTurn: true } },
     // King T'Challa, Krang: "Whenever a player draws their second card each turn"
     { re: /^When(?:ever)? a player draws their (second|third) card each turn,? /i, event: 'anyDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
@@ -40626,6 +40631,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
+          // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
+          if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // Hapatra: "Whenever you put one or more -1/-1 counters on a creature"
           if (ab.putByYou && (data.putter || data.objController) !== o.controller) continue;
@@ -49957,7 +49964,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const KINDS = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker'];
           if (ctx._braids == null) {
             const pool = this._sacrificePool(ctx.controller, { filter: KINDS.join(' or ') }, null);
-            if (!pool.length) break;
+            // (come back to with the answer, the pool may be empty: the last one was what went)
+            if (!pool.length && ctx._braidsBefore == null) break;
             ctx._braidsBefore = ctx._braidsBefore != null ? ctx._braidsBefore : (this._sacCount || 0);
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true,
               candidates: pool.map(o => o.id), filter: 'permanent',
@@ -49973,7 +49981,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (ctx['_bd' + key]) continue;
             const pool = this._sacrificePool(foe.id, { filter: ctx._braids.join(' or ') }, null);
             let gave = false;
-            if (pool.length) {
+            /* Braids: asked, and come back to with the answer — the pool is empty now if the one
+               they had was the one they gave up, and that is a sacrifice made, not one refused */
+            if (pool.length || ctx['_bb' + key] != null) {
               if (ctx['_bb' + key] == null) ctx['_bb' + key] = this._sacCount || 0;
               const got = this._ask({ type: 'sacrifice', playerId: foe.id, count: 1, optional: true,
                 candidates: pool.map(o => o.id), filter: 'permanent',
