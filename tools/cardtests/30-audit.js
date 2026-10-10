@@ -5479,4 +5479,19 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.zone(cw, 'hand', 'back to hand at the end step');
   });
+
+  test('Audit: Icon of Ancestry pumps your creatures of the chosen type, changelings too, and offers only those from the top', (mk, t) => {
+    t.auto('Icon of Ancestry');
+    const T = mk();
+    T.toMain('A');
+    const icon = T.bf('A', 'Icon of Ancestry'); icon.chosenType = 'Elf';
+    const elf = T.bf('A', 'Llanowar Elves'), ch = T.bf('A', 'Changeling Outcast'), bear = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Elvish Mystic');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(elf), 2); t.eq(T.g.powerOf(ch), 2, 'a changeling is an Elf'); t.eq(T.g.powerOf(bear), 2, 'Bears as printed'); t.eq(T.g.powerOf(foe), 1, "B's Elf: no");
+    T.put('A', 'Changeling Outcast', 'library'); T.put('A', 'Grizzly Bears', 'library'); T.put('A', 'Island', 'library');
+    let offered = null;
+    T.answer('pickCard', (c) => { offered = c.cards.map(x => x.name); return { cardIds: [] }; });
+    T.mana('A', '3'); T.activate('A', icon, 0); T.settle();
+    t.eq(JSON.stringify(offered), JSON.stringify(['Changeling Outcast']), 'the changeling only');
+  });
 };
