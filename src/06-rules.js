@@ -16768,6 +16768,25 @@
           if (it && it.kind === 'spell') { it.grantedRebound = true; this.logEvent('keyword', `${it.name} gains rebound.`); }
           break;
         }
+        /* Necrodominance: pay any amount of life (up to what you have; all of
+           it loses the game), then draw that many cards. A bot keeps 8. */
+        case 'payLifeDraw': {
+          if (this._lifeFrozen && this._lifeFrozen(me)) break;
+          const most = Math.max(0, me.life);
+          if (!most) break;
+          let k;
+          if (me.isBot) k = Math.max(0, Math.min(5, most - 8));
+          else {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'payLifeAmount', kind: 'number', number: { min: 0, max: most },
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}pay how much life? You draw that many cards.` }, 'pld');
+            if (got === SUSPEND) return SUSPEND;
+            k = Math.max(0, Math.min(most, Number(got && got.number) || 0));
+          }
+          if (!k) break;
+          this.changeLife(me, -k, 'cost');
+          this._drawCards(me, k);
+          break;
+        }
         // Archway of Innovation
         case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn

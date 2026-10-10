@@ -19578,4 +19578,18 @@ module.exports = (test) => {
     T2.toMain('A', 'endCombat');
     t.eq(T2.g.battlefield.filter(o => o.isToken && /Zombie Knight/.test(o.name)).length, 2, 'two creature cards: two Zombie Knights');
   });
+
+  test('Necrodominance: pay any amount of life at your end step and draw that many', (mk, t) => {
+    t.auto('Necrodominance');
+    const T = mk();
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    T.bf('A', 'Necrodominance');
+    T.toMain('A');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'payLifeAmount'); t.eq(ch.number.max, 20, 'up to all of it'); return { number: 3 }; });
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.g.player('A').life, 17, '3 life');
+    t.eq(T.zone('A', 'hand').length, 3, '3 cards');
+  });
 };

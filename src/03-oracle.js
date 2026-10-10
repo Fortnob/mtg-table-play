@@ -7082,6 +7082,8 @@
        don't lose this mana as steps and phases end." */
     { re: /^(?:You may )?discard any number of cards\. If you do, draw that many cards and add that much \{([WUBRGC])\}\.( Until end of turn, you don'?t lose this mana as steps and phases end\.)?$/i,
       make: (m) => [{ op: 'discardAnyDraw', plus: 0, addMana: m[1].toUpperCase(), keepMana: !!m[2] }] },
+    // Necrodominance: "you may pay any amount of life. If you do, draw that many cards."
+    { re: /^(?:You may )?pay any amount of life\. If you do, draw that many cards\.$/i, make: () => [{ op: 'payLifeDraw' }] },
     // Brass's Tunnel-Grinder: "discard any number of cards, then draw that many cards plus one."
     { re: /^Discard any number of cards, then draw that many cards(?: plus (one|two))?\.$/i,
       make: (m) => [{ op: 'discardAnyDraw', plus: m[1] ? num(m[1]) : 0 }] },
