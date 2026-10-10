@@ -4025,4 +4025,23 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
     t.eq(T.life('A'), 16, 'cast again from rebound: the first this turn, 1');
   });
+
+  test('Audit: Herd Heirloom needs power 4; the creature tramples and draws on combat damage', (mk, t) => {
+    t.auto('Herd Heirloom');
+    const T = mk();
+    T.toMain('A');
+    const hh = T.bf('A', 'Herd Heirloom');
+    const w = T.bf('A', 'Craw Wurm'); w.summoningSick = false;
+    const bears = T.bf('A', 'Grizzly Bears');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    t.no(T.g.activateAbility('A', hh.id, 1, { targets: [{ kind: 'object', id: bears.id }] }), 'a 2-power creature is no target');
+    T.activate('A', hh, 1, { targets: [w.id] });
+    T.settle();
+    t.ok(T.g.hasKw(w, 'trample'));
+    const h = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.settle();
+    t.eq(T.life('B'), 14);
+    t.eq(T.g.zones.A.hand.length, h + 1, 'drew a card');
+  });
 };
