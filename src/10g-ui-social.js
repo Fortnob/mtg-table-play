@@ -7,7 +7,8 @@
    The hub itself (src/09c-friends.js) is made here, as MTG.friends, with
    this browser's storage, settings and PeerJS, and started once the app
    is up (the 'app:ready' event from src/14-app.js). Trades have their own
-   window (src/10h-ui-trade.js).
+   window (src/10h-ui-trade.js), and tournaments theirs, with a tab here
+   (src/10i-ui-tourney.js).
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -40,6 +41,7 @@
     peerOptions: () => ({ debug: MTG.DEBUG ? 2 : 0, config: { iceServers: net.iceServers ? net.iceServers() : [] } }),
   });
   MTG.trade.attach(hub);
+  if (MTG.tourney) MTG.tourney.attach(hub);
 
   /* ---------------- words ---------------- */
   const PRESENCE = { online: 'Online', lobby: 'In a lobby', game: 'In a game', offline: 'Offline' };
@@ -94,7 +96,8 @@
   function waiting() {
     const c = hub.counts();
     const t = MTG.trade.current();
-    return { online: c.online, ask: c.requests + liveInvites().length + (t && t.state === 'asked' ? 1 : 0), requests: c.requests };
+    const tn = UI.tourneyWaiting ? UI.tourneyWaiting() : 0;
+    return { online: c.online, ask: c.requests + liveInvites().length + (t && t.state === 'asked' ? 1 : 0) + tn, requests: c.requests };
   }
   function paintChip(chip) {
     const w = waiting();
@@ -184,6 +187,8 @@
     return { close: gone };
   }
   UI.socialNote = note;
+  /** Draw the chip and the Friends window again (a tournament changed, say). */
+  UI.socialChanged = () => changed();
 
   hub.on('request', (code, name) => {
     const f = hub.entry(code) || { code, name };
@@ -199,6 +204,8 @@
   hub.on('accepted', (code) => { MTG.sfx('confirm'); UI.ok(`${hub.nameOf(code)} accepted your friend request.`); });
   hub.on('declined', (code, name) => UI.toast(`${name || F.formatCode(code)} declined your friend request.`, '', 4200));
   hub.on('invite', (inv) => {
+    // a tournament match's table: the tournament says so in a note of its own (src/10i-ui-tourney.js)
+    if (inv.tourney) { changed(); return; }
     invites = liveInvites().filter(i => !(i.code === inv.code && i.room === inv.room)).concat([inv]);
     changed();
     const f = hub.entry(inv.code) || { code: inv.code, name: inv.name };
@@ -247,15 +254,19 @@
     hub.profileChanged();
     return true;
   }
-  /** Leave whatever table you are at, after asking; false if you would rather stay. */
-  async function leaveForJoin(name) {
+  /**
+   * Leave whatever table you are at, after asking; false if you would
+   * rather stay. `o` words the question: { question, title, yes }.
+   */
+  async function leaveForJoin(name, o) {
+    o = o || {};
     const app = A();
     if (app.screen === 'table' || app.screen === 'draft') {
       await app.exitToMenu();
       return !(app.screen === 'table' || app.screen === 'draft');
     }
     if (app.session || net.online) {
-      if (!await UI.confirm(`Leave this table to join ${name}?`, 'Join a friend', { yes: 'Leave and join' })) return false;
+      if (!await UI.confirm(o.question || `Leave this table to join ${name}?`, o.title || 'Join a friend', { yes: o.yes || 'Leave and join' })) return false;
       app.leaveGame();
     }
     return true;
@@ -266,6 +277,10 @@
     if (!await haveName()) return;
     A().joinRoom(room);
   }
+  // for a tournament's match (src/10i-ui-tourney.js): the same steps, from its own buttons
+  UI.joinFriendRoom = joinRoomCode;
+  UI.leaveTableFirst = (o) => leaveForJoin('them', o);
+  UI.haveName = haveName;
   async function joinInvite(inv) {
     dropInvite(inv);
     if (Date.now() - inv.at > INVITE_LIFE) return UI.error('That invite has run out. Ask them for another.');
@@ -275,13 +290,13 @@
 
   /* ---------------- the Friends window ---------------- */
   let win = null;
-  /** The Friends window, on one of its tabs: 'friends', 'wishlist' or 'trades'. */
+  /** The Friends window, on one of its tabs: 'friends', 'wishlist', 'trades' or 'tourneys'. */
   UI.openFriends = function (tab) {
     if (win) { win.show(tab || win.tab); return win.m; }
     const tabs = el('div', { class: 'store-tabs fr-tabs', role: 'tablist' });
     const body = el('div', { class: 'fr-body' });
     const m = UI.modal({ title: 'Friends', content: el('div', { class: 'fr-wrap' }, [tabs, body]), className: 'friends-modal', width: 'min(760px, 96vw)' });
-    const TABS = [['friends', 'Friends'], ['wishlist', 'Wishlist'], ['trades', 'Trades']];
+    const TABS = [['friends', 'Friends'], ['wishlist', 'Wishlist'], ['trades', 'Trades']].concat(UI.tourneysTab ? [['tourneys', 'Tournaments']] : []);
     let view = null;
     const w = win = {
       m, tab: tab || 'friends',
@@ -290,7 +305,8 @@
         for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
         body.innerHTML = '';
         view = (id === 'wishlist' && UI.wishlistTab) ? UI.wishlistTab(body)
-          : (id === 'trades' && UI.tradesTab) ? UI.tradesTab(body) : friendsTab(body);
+          : (id === 'trades' && UI.tradesTab) ? UI.tradesTab(body)
+            : (id === 'tourneys' && UI.tourneysTab) ? UI.tourneysTab(body) : friendsTab(body);
       },
       refresh() { if (view && view.refresh) view.refresh(); },
     };
@@ -518,6 +534,8 @@
     if (UI.openTrade) UI.openTrade(s);
   }
   UI.tradeWith = (code) => { const f = hub.entry(code); if (f) tradeWith(f); };
+  /** Put the Friends window away (a tournament's table is opening). */
+  UI.closeFriends = () => { if (win) win.m.close(); };
 
   /* ---------------- inviting from a lobby ----------------
      In the host's lobby (and a guest's): a button to invite friends who

@@ -17,9 +17,10 @@
    the secret, so the removal can be proved to them when they next appear.
 
    Over that line go presence (online, in a lobby, in a game), the
-   name, picture and frame each shows, invites to a room, and trades
-   (src/09d-trade.js). Everything that arrives is checked: a friend's
-   data is no more trusted than a stranger's.
+   name, picture and frame each shows, invites to a room, trades
+   (src/09d-trade.js) and tournaments (src/09f-tourney.js). Everything
+   that arrives is checked: a friend's data is no more trusted than a
+   stranger's.
 
    This file holds no interface: src/10g-ui-social.js draws it. The hub
    is made by a factory, so tools/socialtest.js can run two devices
@@ -567,6 +568,9 @@
         case 'tr':
           if (link.verified) hub.emit('trade', link.code, msg);
           return;
+        case 'tn':
+          if (link.verified) hub.emit('tourney', link.code, msg);
+          return;
         default:
       }
     }
@@ -783,6 +787,14 @@
       if (!link || !link.verified || !msg || typeof msg !== 'object') return false;
       return send(link, Object.assign({}, msg, { t: 'tr' }));
     }
+    /** A tournament message to a friend (src/09f-tourney.js); false when they are not on a proved line. */
+    function sendTourney(code, msg) {
+      const link = links.get(code);
+      if (!link || !link.verified || !msg || typeof msg !== 'object') return false;
+      return send(link, Object.assign({}, msg, { t: 'tn' }));
+    }
+    /** The name this device shows its friends. */
+    const myName = () => cleanName((o.profile ? o.profile() : {}).name) || 'Player';
 
     /** Everyone on the list, as the interface shows them. */
     function entries() {
@@ -811,8 +823,8 @@
     }
 
     Object.assign(hub, {
-      start, stop, wake, sweep, add, accept, decline, remove, block, unblock, setPresence, profileChanged, invite, sendTrade,
-      entries, counts,
+      start, stop, wake, sweep, add, accept, decline, remove, block, unblock, setPresence, profileChanged, invite, sendTrade, sendTourney,
+      entries, counts, myName,
       entry: (code) => entries().find(e => e.code === code) || null,
       blocked: () => load().blocked.map(b => Object.assign({}, b)),
       isOnline: (code) => { const l = links.get(code); return !!(l && l.verified); },

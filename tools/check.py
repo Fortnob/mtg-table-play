@@ -248,6 +248,8 @@ def steps(quick):
         Step('old prints', node(TOOLS / 'oldprintstest.js'), judge_exit, 60),
         # friends, invites, trades and moving a save, two devices against a pretend broker
         Step('social', node(TOOLS / 'socialtest.js'), judge_exit, 180),
+        # friends tournaments: Swiss pairing, the standings, whole tournaments between devices; the draft that waits for decks
+        Step('tournaments', node(TOOLS / 'tournamenttest.js'), judge_exit, 180),
         # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away
         Step('brackets', node(TOOLS / 'brackettest.js'), judge_exit, 300, needs_bulk=True),
         # match play: the game clock on a real game, the record of games, the table writing it

@@ -605,7 +605,9 @@
 
   /* opts (all optional): build, a builder in place of autoBuildLimited (a
      sealed pool's, MTG.sealed.buildDeck); basicsFree, false when the table
-     plays without free basic lands; note, the line over the list. */
+     plays without free basic lands; note, the line over the list. Resolves
+     the builder's window, so a guest's can be put away if the host starts
+     the game without waiting for it (src/14-app.js). */
   UI.buildFromPool = async function (pool, formatId, onDone, opts) {
     opts = opts || {};
     const fmt = MTG.formats.get(formatId);
@@ -647,7 +649,7 @@
     const stamp = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     deck.name = `${fmt.name} \u2014 ${stamp}`;
 
-    UI.deckBuilder(deck, {
+    return UI.deckBuilder(deck, {
       drafted: true, basicsFree: opts.basicsFree, poolNote: opts.note,
       finish: { label: 'Play with this deck', onClick: async (d) => {
         const ready = await UI.draftPregame(d, pool);
