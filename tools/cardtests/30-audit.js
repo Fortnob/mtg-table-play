@@ -4315,4 +4315,20 @@ module.exports = (test) => {
     U.cast('A', U.hand('A', 'Dire Fleet Ravager')); U.settle(); U.resolve(); U.settle();
     t.eq(U.life('A'), 13, '20: loses 7'); t.eq(U.life('B'), 6, '10: loses 4'); t.eq(U.life('C'), 0, '1: loses 1');
   });
+
+  test('Audit: Needle Drop cannot be cast at a player not dealt damage this turn, and draws a card', (mk, t) => {
+    t.auto('Needle Drop');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    const nd = T.hand('A', 'Needle Drop');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'R');
+    t.no(T.g.castSpell('A', nd.id, { auto: true, targets: [{ kind: 'player', id: 'C' }] }), 'C was not dealt damage');
+    t.ok(T.g.castSpell('A', nd.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16); t.eq(T.zone('A', 'hand').length, h, 'Needle Drop gone, a card drawn');
+  });
 };
