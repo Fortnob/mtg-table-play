@@ -5274,7 +5274,11 @@
         item.uncounterable = true; p.nextSpellUncounterable = null;
       }
       // Archway of Innovation: the keyword was for this spell only
-      if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn) p.nextSpellKeyword = null;
+      // (Storm, Force of Nature: "the next instant or sorcery spell" waits for one)
+      if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn && (!p.nextSpellKeyword.words || this._cardFitsWords(o, p.nextSpellKeyword.words))) {
+        if (p.nextSpellKeyword.keyword === 'storm') item.grantedStorm = true;
+        p.nextSpellKeyword = null;
+      }
       for (const rider of (payFlags.riders || [])) this._manaRider(rider, item, playerId);
       // floating mana with a promise attached keeps it for the next spell it pays for
       if (p.manaRiders && p.manaRiders.length && !opts.free) {
@@ -5555,7 +5559,14 @@
     }
     /** Storm: copy the spell once per spell cast before it this turn (CR 702.40). */
     _storm(item, a) {
-      if (!a || !a.keywordSet.has('storm')) return;
+      if (!a) return;
+      // Prismari, Ral's emblem: storm handed out to spells of a kind; Storm, Force of Nature: to the next one
+      const granted = item.grantedStorm || (!a.keywordSet.has('storm') && item.obj && this._withEmblems(this.battlefield).some(src => {
+        if (src.phasedOut || src.controller !== item.controller) return false;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        return !!g && g.keyword === 'storm' && (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter));
+      }));
+      if (!a.keywordSet.has('storm') && !granted) return;
       const copies = Math.max(0, this.stormCount - 1);
       if (!copies) return;
       /* Each copy is its own object (CR 707.10), not the card: the card
@@ -16576,7 +16587,7 @@
           break;
         }
         // Archway of Innovation
-        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword }; break;
+        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
         case 'copyTokensEnteredThisTurn': {
           const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn);

@@ -804,6 +804,8 @@
     const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
+        // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
+        (e.op === 'grantCastKeyword' && (e.keyword === 'storm' || e.keyword === 'cascade')) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
@@ -5220,6 +5222,9 @@
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
+    // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
+    { re: /^The next (instant or sorcery |instant |sorcery )?spell you cast this turn has storm\.?$/i,
+      make: (m) => Object.assign({ op: 'nextSpellKeyword', keyword: 'storm' }, m[1] ? { words: m[1].trim().toLowerCase() } : {}) },
     // Ocelot Pride: "Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it."
     { re: /^Then if you have the city'?s blessing, for each token you control that entered this turn, create a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'cityBlessing' }, then: [{ op: 'copyTokensEnteredThisTurn' }] }) },
@@ -13471,6 +13476,9 @@
       { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase(),
           filter: m[1].trim().toLowerCase().replace(/ and /g, ' or ') || 'spell' }), auto: true },
+      // Prismari, the Inspiration; Ral, Crackling Wit's emblem: "Instant and sorcery spells you cast have storm."
+      { re: /^([A-Za-z ]*?)spells you cast have storm\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'storm', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },

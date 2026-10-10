@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11030,
+  "needed": 11026,
   "gainedCards": 1090,
-  "linesNeeded": 11781,
+  "linesNeeded": 11777,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -278,25 +278,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 29,
-   "lines": 20,
-   "cards": [
-    "Rain of Riches",
-    "Pearl-Ear, Imperial Advisor",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Prismari, the Inspiration",
-    "Shadow the Hedgehog",
-    "Quandrix, the Proof",
-    "Silverquill, the Disputant",
-    "Ezio Auditore da Firenze"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 28,
    "lines": 28,
@@ -446,6 +427,25 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 21,
+   "lines": 18,
+   "cards": [
+    "Rain of Riches",
+    "Pearl-Ear, Imperial Advisor",
+    "Thrumming Stone",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor",
+    "Shadow the Hedgehog",
+    "Quandrix, the Proof",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer"
    ]
   },
   {
@@ -3354,19 +3354,6 @@
    ]
   },
   {
-   "what": "NextSpellCastHasAbilityEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Storm, Force of Nature",
-    "TARDIS",
-    "Crackling Spellslinger",
-    "Dark Apostle",
-    "Sloppity Bilepiper",
-    "Smoldering Stagecoach"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 6,
    "lines": 6,
@@ -5330,6 +5317,17 @@
    ]
   },
   {
+   "what": "NextSpellCastHasAbilityEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "TARDIS",
+    "Dark Apostle",
+    "Sloppity Bilepiper",
+    "Smoldering Stagecoach"
+   ]
+  },
+  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "lines": 4,
@@ -6746,19 +6744,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 25,
-   "cards": 16,
-   "names": [
-    "Rain of Riches",
-    "Ral, Crackling Wit",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .add)",
    "score": 25,
    "cards": 25,
@@ -6860,6 +6845,19 @@
     "Turn Inside Out",
     "Scarblade's Malice",
     "Desperate Measures"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 17,
+   "cards": 14,
+   "names": [
+    "Rain of Riches",
+    "Thrumming Stone",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor",
+    "Quandrix, the Proof"
    ]
   },
   {
@@ -8498,19 +8496,6 @@
    ]
   },
   {
-   "what": "NextSpellCastHasAbilityEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Storm, Force of Nature",
-    "TARDIS",
-    "Crackling Spellslinger",
-    "Dark Apostle",
-    "Sloppity Bilepiper",
-    "Smoldering Stagecoach"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 6,
    "cards": 6,
@@ -10084,6 +10069,17 @@
     "From the Rubble",
     "Mirror of the Forebears",
     "Belbe's Portal"
+   ]
+  },
+  {
+   "what": "NextSpellCastHasAbilityEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "TARDIS",
+    "Dark Apostle",
+    "Sloppity Bilepiper",
+    "Smoldering Stagecoach"
    ]
   },
   {

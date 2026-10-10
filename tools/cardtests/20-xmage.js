@@ -18609,4 +18609,60 @@ module.exports = (test) => {
     T.resolve();
     t.zone(art, 'exile');
   });
+
+  test('Prismari, the Inspiration: your instants and sorceries have storm, your creatures do not', (mk, t) => {
+    t.auto('Prismari, the Inspiration');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Prismari, the Inspiration');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    t.eq(T.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 1, 'no copy of a creature spell');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 14, 'the Bolt and one storm copy');
+  });
+
+  test('Storm, Force of Nature: only the next instant or sorcery spell has storm', (mk, t) => {
+    t.auto('Storm, Force of Nature');
+    const T = mk();
+    T.toMain('A');
+    const sf = T.bf('A', 'Storm, Force of Nature');
+    const tr = sf.analysis().abilities.find(x => x.kind === 'triggered' && /storm/i.test(x.text));
+    T.g._runEffects(tr.effects, { controller: 'A', obj: sf, name: sf.name, kind: 'ability', targets: [] });
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.resolve();
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 14, 'the creature did not use it; the Bolt has one storm copy');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 11, 'the next Bolt has no storm');
+  });
+
+  test("Ral, Crackling Wit: the emblem gives your instants and sorceries storm", (mk, t) => {
+    t.auto('Ral, Crackling Wit');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const ral = T.bf('A', 'Ral, Crackling Wit', { counters: { loyalty: 10 } });
+    const a = ral.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', ral, list.findIndex(x => x.cost && x.cost.loyalty === -10));
+    T.resolve();
+    t.ok(T.zone('A', 'command').some(o => o.card.layout === 'emblem'), 'an emblem');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 17, 'the first spell this turn: no copies');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 11, 'the second: one storm copy');
+  });
 };
