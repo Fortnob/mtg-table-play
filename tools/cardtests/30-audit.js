@@ -5447,4 +5447,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.zone(pp2, 'graveyard'); t.eq(T.life('B'), 20, 'its own controller: nothing');
   });
+
+  test('Audit: Unsettled Mariner taxes an opponent aiming at you or your permanents, not you aiming at yourself', (mk, t) => {
+    t.auto('Unsettled Mariner');
+    for (const [who, tgt, countered] of [['B', 'player', true], ['B', 'creature', true], ['A', 'player', false]]) {
+      const T = mk();
+      T.toMain(who);
+      T.bf('A', 'Unsettled Mariner');
+      const bear = T.bf('A', 'Grizzly Bears');
+      if (who === 'B' && T.g.priorityPlayer && T.g.priorityPlayer.id !== 'B') T.g.passPriority(T.g.priorityPlayer.id, true);
+      T.answer('payOrDont', { pay: false });
+      T.mana(who, 'R');
+      T.cast(who, T.hand(who, 'Shock'), { targets: [tgt === 'player' ? 'A' : bear.id] }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+      const hit = tgt === 'player' ? T.life('A') === 18 : bear.zone === 'graveyard';
+      t.eq(hit, !countered, `${who} Shocks A's ${tgt}: ${countered ? 'countered (did not pay {1})' : 'not taxed'}`);
+    }
+  });
 };
