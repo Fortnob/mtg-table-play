@@ -74,6 +74,8 @@
     'Decayed',
     // exiled as it resolves, and a free copy at the start of each of your first main phases
     'Paradigm',
+    // when it is cast, the top N revealed and any of the same name cast for free
+    'Ripple',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -13567,6 +13569,9 @@
       // Wild-Magic Sorcerer: "The first spell you cast from exile each turn has cascade."
       { re: /^The first spell you cast from exile each turn has cascade\.?$/i,
         make: () => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }), auto: true },
+      // Thrumming Stone: "Spells you cast have ripple 4."
+      { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },

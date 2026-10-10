@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11000,
+  "needed": 10994,
   "gainedCards": 1088,
-  "linesNeeded": 11747,
+  "linesNeeded": 11741,
   "linesGained": 1281,
   "gained": {
    "all": 1088,
@@ -430,25 +430,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 21,
-   "lines": 18,
-   "cards": [
-    "Rain of Riches",
-    "Pearl-Ear, Imperial Advisor",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Shadow the Hedgehog",
-    "Quandrix, the Proof",
-    "Silverquill, the Disputant",
-    "Ezio Auditore da Firenze",
-    "Abaddon the Despoiler",
-    "Silverquill Lecturer"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 21,
    "lines": 21,
@@ -484,6 +465,25 @@
     "Alaborn Zealot",
     "Angrath's Fury",
     "Silent Assassin"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 20,
+   "lines": 17,
+   "cards": [
+    "Rain of Riches",
+    "Pearl-Ear, Imperial Advisor",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor",
+    "Shadow the Hedgehog",
+    "Quandrix, the Proof",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer",
+    "Samut, Tyrant of Naktamun"
    ]
   },
   {
@@ -4696,18 +4696,6 @@
    ]
   },
   {
-   "what": "keyword RippleAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Surging Dementia",
-    "Surging Aether",
-    "Surging Flame",
-    "Surging Sentinels",
-    "Surging Might"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .toString)",
    "score": 4,
    "lines": 1,
@@ -6587,6 +6575,16 @@
     "Lost to Legend",
     "Tegan Jovanka"
    ]
+  },
+  {
+   "what": "ManifestEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Omarthis, Ghostfire Initiate",
+    "Veiled Ascension",
+    "Ethereal Ambush"
+   ]
   }
  ],
  "sole": [
@@ -6838,19 +6836,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 17,
-   "cards": 14,
-   "names": [
-    "Rain of Riches",
-    "Thrumming Stone",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Quandrix, the Proof"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 17,
    "cards": 17,
@@ -6874,6 +6859,19 @@
     "Act of Heroism",
     "Stall for Time",
     "Loyal Sentry"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 16,
+   "cards": 13,
+   "names": [
+    "Rain of Riches",
+    "Zhulodok, Void Gorger",
+    "Wildsear, Scouring Maw",
+    "Hunting Velociraptor",
+    "Quandrix, the Proof",
+    "Silverquill, the Disputant"
    ]
   },
   {
@@ -9507,18 +9505,6 @@
    ]
   },
   {
-   "what": "keyword RippleAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Surging Dementia",
-    "Surging Aether",
-    "Surging Flame",
-    "Surging Sentinels",
-    "Surging Might"
-   ]
-  },
-  {
    "what": "(constructor: call on callResult .toString)",
    "score": 4,
    "cards": 1,
@@ -10266,6 +10252,17 @@
     "Devouring Sugarmaw // Have for Dinner",
     "Civilized Scholar // Homicidal Brute",
     "Ravenous Vampire"
+   ]
+  },
+  {
+   "what": "UntapSourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Hydro-Man, Fluid Felon",
+    "Kitsune Ace",
+    "Forsaken City",
+    "Dwarven Patrol"
    ]
   }
  ]

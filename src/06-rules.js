@@ -2534,7 +2534,8 @@
     /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take. */
     _askSpellTargets(pid, c, key) {
       const ca = c && c.analysis();
-      const specs = ca ? spellTargetSpecs(ca) : [];
+      // an Aura's target is what it will enchant (Surging Might rippled, an Aura discovered), as castSpell reads it
+      const specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
       if (!specs.length) return [];
       const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
       if (specs.some((spec, i) => !options[i].length && !(spec && spec.upTo))) return null;
@@ -5390,6 +5391,7 @@
       });
       if (replicated) copyTrigger(replicated, 'replicate');
       if (conspired.length) copyTrigger(1, 'conspire');
+      this._rippleTriggers(item, o, a, playerId);
 
       // ward on anything this spell targets (CR 702.21)
       this._applyWard(item);
@@ -5564,6 +5566,30 @@
     _extraCopies(pid, item) {
       if (!item || item.kind !== 'spell') return 0;
       return this.battlefield.filter(o => o.controller === pid && !o.phasedOut && this._staticOp(o, 'copyPlusOne')).length;
+    }
+    /**
+     * Ripple N (CR 702.60): "when you cast this spell" — a trigger for each
+     * instance, the card's own and each one handed out (Thrumming Stone's
+     * "Spells you cast have ripple 4").
+     */
+    _rippleTriggers(item, o, a, playerId) {
+      if (!a || !o) return;
+      const ns = (a.keywords || []).filter(k => String(k.keyword).toLowerCase() === 'ripple').map(k => parseInt(k.arg, 10) || 0);
+      for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut || src.controller !== playerId) continue;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        if (!g || g.keyword !== 'ripple') continue;
+        if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
+        ns.push(g.n || 0);
+      }
+      for (const k of ns.filter(x => x > 0)) {
+        this.pendingTriggers.push({
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+          controller: playerId, name: `${o.name} \u2014 ripple ${k}`, auto: true,
+          effects: [{ op: 'ripple', n: k, name: o.name }], abilityText: `Ripple ${k}`,
+          triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
+        });
+      }
     }
     /** Storm: copy the spell once per spell cast before it this turn (CR 702.40). */
     _storm(item, a) {
@@ -16629,6 +16655,58 @@
           this._spliceNext(list);
           break;
         }
+        /* Ripple N (CR 702.60): you may reveal the top N cards; any with the
+           spell's name you may cast without paying their mana costs, in the
+           order you pick them (each with its own ripple), and the rest go
+           to the bottom. A cast for nothing still pays its taxes (castSpell
+           free), and one that can't be paid is not cast. */
+        case 'ripple': {
+          const r = this.resolving;
+          const marks = r ? (r.marks = r.marks || {}) : {};
+          const slot = (r ? r.index : 0) + ':ripple';
+          const z = this.zones[ctx.controller];
+          let st = marks[slot];
+          if (!st) {
+            const k = Math.min(n(e.n) || 0, z.library.length);
+            if (!k) break;
+            const yes = me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'rippleReveal',
+              prompt: `Ripple ${n(e.n)}: reveal the top ${k === 1 ? 'card' : k + ' cards'} of your library?`,
+              yesLabel: 'Reveal them', noLabel: "Don't" }, 'ripR');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes === false) break;
+            st = marks[slot] = { shown: z.library.slice(0, k).map(c => c.id), order: null, at: 0 };
+            this.logEvent('reveal', `${me.name} reveals ${st.shown.map(id => this.obj(id).name).join(', ')} for ripple.`);
+          }
+          if (!st.order) {
+            const hits = st.shown.map(id => this.obj(id)).filter(c => c && c.zone === 'library' && c.name === e.name && !(c.analysis() || {}).isLand);
+            if (!hits.length || me.isBot) st.order = hits.map(c => c.id);
+            else {
+              const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: hits.length, optional: true, purpose: 'rippleCast',
+                cards: hits.map(c => ({ id: c.id, name: c.name, card: c.card })),
+                prompt: `Ripple: cast any of these without paying their mana costs, in the order you pick them.` }, 'ripC');
+              if (got === SUSPEND) return SUSPEND;
+              st.order = got == null ? hits.map(c => c.id) : got.slice();
+            }
+          }
+          for (; st.at < st.order.length; st.at++) {
+            const c = this.obj(st.order[st.at]);
+            if (!c || c.zone !== 'library') continue;
+            const tg = this._askSpellTargets(ctx.controller, c, 'ripT' + st.at);
+            if (tg === SUSPEND) return SUSPEND;
+            if (!tg) continue;
+            if (this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true })) {
+              this.logEvent('keyword', `Ripple: ${me.name} casts ${c.name} without paying its mana cost.`);
+            }
+          }
+          // the rest, revealed and not cast, to the bottom in the order they were revealed
+          for (const id of st.shown) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'library') continue;
+            z.library.splice(z.library.indexOf(c), 1);
+            z.library.push(c);
+          }
+          break;
+        }
         // Archway of Innovation
         case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
@@ -20921,6 +20999,7 @@
       // storm and cascade trigger on casting, paid for or not (a miracle, a rebound, a copy cast)
       this._storm(item, a);
       this._cascade(item, a);
+      this._rippleTriggers(item, o, a, playerId);
       const castData = { spell: item, object: o, stackId: item.id, playerId };
       this._fire('anyCastSpell', null, castData);
       this._fire('youCastSpell', playerId, castData);

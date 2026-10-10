@@ -18953,4 +18953,85 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), 3, 'three creatures: 3/3');
     t.eq(T.g.toughnessOf(toys[0]), 3);
   });
+
+  test('Ripple: Surging Flame reveals another Surging Flame and casts it free; the rest go to the bottom', (mk, t) => {
+    t.auto('Surging Flame');
+    const T = mk({ library: ['Plains'] });
+    T.toMain('A');
+    // the top four, top first: Island, Surging Flame, Swamp, Mountain
+    const m = T.top('A', 'Mountain'), sw = T.top('A', 'Swamp'), f2 = T.top('A', 'Surging Flame'), is = T.top('A', 'Island');
+    T.answer('confirm', (ch) => { t.eq(ch.purpose, 'rippleReveal', 'asked whether to reveal'); return { yes: true }; });
+    T.answer('pickCard', (ch) => { t.eq(ch.purpose, 'rippleCast'); return { cardIds: [f2.id] }; });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Surging Flame'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 16, 'two Flames: 4 damage');
+    t.zone(f2, 'graveyard');
+    const lib = T.zone('A', 'library');
+    t.eq(lib.slice(-3).map(c => c.id).join(), [is.id, sw.id, m.id].join(), 'the other three at the bottom, in the order revealed');
+  });
+
+  test('Ripple: Thrumming Stone gives your spells ripple 4', (mk, t) => {
+    t.auto('Thrumming Stone');
+    const T = mk({ library: ['Plains'] });
+    T.toMain('A');
+    T.bf('A', 'Thrumming Stone');
+    const b2 = T.top('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [b2.id] });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 14, 'the second Bolt cast from the reveal');
+    t.zone(b2, 'graveyard');
+  });
+
+  test("Ripple: under Thalia the rippled spell costs {1}, and is not cast if that can't be paid", (mk, t) => {
+    const T = mk({ library: ['Plains'] });
+    T.toMain('A');
+    T.bf('B', 'Thalia, Guardian of Thraben');
+    const f2 = T.top('A', 'Surging Flame');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [f2.id] });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Surging Flame'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 18, 'no mana left for the tax: only the first Flame');
+    t.zone(f2, 'library');
+    t.eq(T.zone('A', 'library').slice(-4)[0].id, f2.id, 'it went to the bottom with the other three');
+    const f3 = T.top('A', 'Surging Flame');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [f3.id] });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'R3');
+    T.cast('A', T.hand('A', 'Surging Flame'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 14, 'with {1} spare the rippled Flame is cast for it');
+    t.zone(f3, 'graveyard');
+    const pool = T.g.player('A').pool;
+    t.eq(['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (Number(pool[c]) || 0), 0), 0, 'the {1} was paid');
+  });
+
+  test('Ripple: a rippled Surging Might asks what it will enchant', (mk, t) => {
+    t.auto('Surging Might');
+    const T = mk({ library: ['Plains'] });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const m2 = T.top('A', 'Surging Might');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [m2.id] });
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Surging Might'), { targets: [bear.id] });
+    T.resolve();
+    t.eq(m2.attachedTo, bear.id, 'the second Might on the Bears too');
+    t.eq(T.g.powerOf(bear), 6);
+  });
 };
