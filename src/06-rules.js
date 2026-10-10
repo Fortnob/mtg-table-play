@@ -14198,6 +14198,9 @@
               return !e.filter || e.filter === 'permanent' || this._cardFitsWords(x, e.filter);
             });
             if (!pool.length) {
+              /* Plaguecrafter: come back to with the answer, a player whose last creature was the one
+                 sacrificed has nothing left — that is a sacrifice made, not one they could not make */
+              if (this.resolving && Object.prototype.hasOwnProperty.call(this.resolving.answers, this.resolving.index + ':sac' + p.id)) continue;
               if (e.orDiscard && this.zones[p.id].hand.length) {
                 // (waited for, as the sacrifice is)
                 const q = { type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' };
@@ -20566,10 +20569,14 @@
         }
         /* "Discard a card. If you do, draw a card." */
         case 'rummage': {
+          /* Keldon Raider: come back to with the card discarded, the hand is a card smaller — the
+             question is answered, and only the draw is left (not a second discard) */
+          const rr = this.resolving;
+          const asked = !!(rr && Object.prototype.hasOwnProperty.call(rr.answers, rr.index + ':rum'));
           const hand = this.zones[ctx.controller].hand;
-          if (!hand.length) break;
+          if (!hand.length && !asked) break;
           let c = hand[0];
-          if (me.isBot || hand.length === 1) c = this._cheapestFirst(hand)[0];
+          if (!asked && (me.isBot || hand.length === 1)) c = this._cheapestFirst(hand)[0];
           else {
             const picked = this._ask({ type: 'discard', playerId: ctx.controller, count: 1, prompt: 'Discard a card.' }, 'rum');
             if (picked === SUSPEND) return SUSPEND;

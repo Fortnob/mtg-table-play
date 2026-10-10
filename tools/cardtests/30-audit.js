@@ -6248,4 +6248,24 @@ module.exports = (test) => {
     const plain = T.bf('B', 'Island');
     t.eq(T.g.viewFor('B').battlefield.find(x => x.id === plain.id).manaExtra, null, 'a plain Island: nothing more');
   });
+
+  test('Audit: come back to with the answer, a choice already made is not made again: Plaguecrafter\u2019s own last creature, Keldon Raider\u2019s discard', (mk, t) => {
+    t.auto('Plaguecrafter'); t.auto('Keldon Raider');
+    let T = mk(); T.toMain('A');
+    T.g.zones.A.hand.length = 0; T.hand('A', 'Island'); T.hand('A', 'Island');
+    const b = T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    const pc = T.hand('A', 'Plaguecrafter');
+    T.mana('A', 'B2'); T.cast('A', pc);
+    t.zone(pc, 'graveyard', 'Plaguecrafter sacrificed itself, its controller\u2019s only creature');
+    t.eq(T.g.zones.A.hand.length, 2, 'and that is the sacrifice: no discard as well');
+    t.no(T.asked.some(c => c.type === 'discard'), 'not asked to discard');
+    T = mk(); T.toMain('A');
+    T.g.zones.A.hand.length = 0; const isl = T.hand('A', 'Island'), fo = T.hand('A', 'Forest');
+    T.g.zones.A.library.length = 0; T.top('A', 'Swamp'); const pl = T.top('A', 'Plains');
+    T.answer('confirm', { yes: true });
+    T.answer('discard', { cardIds: [isl.id] });
+    T.mana('A', 'RR2'); T.cast('A', T.hand('A', 'Keldon Raider'));
+    t.zone(isl, 'graveyard', 'the card chosen'); t.zone(fo, 'hand', 'and only that one');
+    t.zone(pl, 'hand', 'one card drawn');
+  });
 };
