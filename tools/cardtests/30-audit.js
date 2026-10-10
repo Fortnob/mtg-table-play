@@ -6004,4 +6004,17 @@ module.exports = (test) => {
       t.eq(cub.counters['+1/+1'] || 0, 2, 'one, then doubled on the Cub (not on the land)');
     }
   });
+
+  test('Audit: Wight exiles the card of the creature that died, and makes the Zombie', (mk, t) => {
+    t.auto('Wight');
+    const T = mk();
+    T.toMain('A');
+    const w = T.bf('A', 'Wight'); w.summoningSick = false;
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bear.id, attackerIds: [w.id] }]);
+    T.toMain('A', 'endCombat'); T.resolve();
+    t.zone(bear, 'exile', 'the card that died is exiled');
+    t.ok(T.g.battlefield.some(x => x.controller === 'A' && x.isToken && x.name === 'Zombie' && x.tapped), 'a tapped Zombie');
+  });
 };

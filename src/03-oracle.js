@@ -11000,6 +11000,9 @@
            (you may) exile it" — the card that died, from the graveyard */
         if (trig.event === 'permDies' || trig.event === 'equippedDies' || (trig.self && (trig.event === 'dies' || trig.also === 'dies'))) {
           body = body.replace(/^((?:you may )?)exile it(?=\.(?! If you do)|,? and |, then )/i, '$1exile the card that died');
+          // Wight: "create a tapped 2/2 black Zombie creature token and exile that card" — the one that died
+          if (trig.event === 'permDies' && !/\bcard\b/i.test(body.replace(/\bexile that card\.?$/i, '')))
+            body = body.replace(/\band exile that card(?=\.?$)/i, 'and exile the card that died');
         }
         // Speedway Fanatic: "that Vehicle" is the creature it crewed
         if (trig.event === 'crewsVehicle') body = body.replace(/\bthat Vehicle\b/g, 'that creature');
