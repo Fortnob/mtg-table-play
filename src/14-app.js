@@ -893,7 +893,8 @@
   App.exitToMenu = async function () {
     const sess = App.session;
     const g = sess && sess.game;
-    const keep = !!(g && !g.over && !net.isClient);
+    // (a game that is not kept, a tutorial's, is simply left)
+    const keep = !!(g && !g.over && !net.isClient && !sess.noSave);
     if (sess && sess.drafting && !g) {
       if (!await UI.confirm('Leave this draft? The packs are lost.')) return;
       return App.leaveGame();

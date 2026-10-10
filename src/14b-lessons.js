@@ -384,6 +384,7 @@
     const sess = App.session = new App.Session('standard');
     sess.mode = { lesson: id };
     // a lesson is not a game to come back to: leave it and it is gone
+    sess.noSave = true;
     sess.saveInProgress = () => {};
     sess.addLocalHost(App.myName);
     const bot = { id: MTG.uid('bot'), kind: 'bot', name: BOT_NAME, difficulty: 1, personality: '', deck: null };
