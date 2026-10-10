@@ -8071,7 +8071,14 @@
       return null;
     }
     for (const sep of COMPOUND_SEPS) {
-      const parts = sentence.split(sep);
+      let parts = sentence.split(sep);
+      /* Charitable Levy: "draw a card, then you may search your library for
+         a Plains card, put it onto the battlefield tapped, then shuffle" —
+         the first ", then" divides it; the later one belongs to the search */
+      if (parts.length > 2 && sep === COMPOUND_SEPS[0]) {
+        const at = sentence.search(sep);
+        parts = [sentence.slice(0, at), sentence.slice(at + sentence.slice(at).match(sep)[0].length)];
+      }
       if (parts.length !== 2) continue;
       const left = tidy(parts[0]);
       let rightRaw = parts[1];
@@ -8136,6 +8143,47 @@
         if (!inner.auto) auto = false;
         i++;
         continue;
+      }
+
+      /* Treasure Map, Primal Amulet, Charitable Levy: "Put a landmark
+         counter on this artifact. Then if there are three or more landmark
+         counters on it, remove those counters, transform this artifact, and
+         create three Treasure tokens." — its own pile counted, and what it
+         then does to itself */
+      // ("on it" is left alone: Ordeal of Heliod's "it" is the enchanted creature)
+      const putSelf = s.match(/^Put an? ([a-z+\-0-9/]+) counter on (?:this (?:artifact|creature|enchantment|land|permanent|Vehicle|Aura)|CARDNAME)\.$/i);
+      const thenIf = putSelf && next.match(/^Then if (?:there are|it has) (\w+) or more ([a-z+\-0-9/]+) counters on it, (.+)$/i);
+      const pileN = thenIf && num(thenIf[1].toLowerCase());
+      if (thenIf && thenIf[2].toLowerCase() === putSelf[1].toLowerCase() && typeof pileN === 'number' && pileN > 0) {
+        const kind = putSelf[1].toLowerCase();
+        const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+        let rest = thenIf[3]
+          .replace(/\bremove (?:those counters|them all|all of them|them)\b/gi, 'remove all ' + kind + ' counters from this permanent')
+          .replace(/\b(sacrifice|untap|transform) it\b/gi, '$1 this permanent');
+        const may = /^you may /i.test(rest);
+        if (may) rest = rest.replace(/^you may /i, '');
+        let then = parseEffects(cap(rest));
+        // Charitable Levy: "…, sacrifice it. If you do, draw a card, …" — the sentence after says what follows
+        const ifDo = /^sacrifice this permanent\.?$/i.test(rest.trim()) && (sentences[i + 2] || '').match(/^If you do,\s*(.+)$/i);
+        let used = 1;
+        if (ifDo) {
+          const after = parseSentenceList(splitSentences(cap(ifDo[1])));
+          then = after.auto ? { auto: true, effects: [{ op: 'sacSelfThen', then: after.effects }] } : { auto: false, effects: [] };
+          used = 2;
+        }
+        if (!then.auto && !ifDo) {
+          // one step a clause: "remove those counters, transform this artifact, and create three Treasure tokens"
+          const clauses = rest.replace(/\.$/, '').split(/,\s+(?:and\s+|then\s+)?|\s+and\s+(?=(?:transform|create|draw|sacrifice|untap)\b)/i);
+          const alt = parseSentenceList(clauses.map(c => cap(c.trim()) + '.'));
+          if (alt.auto) then = alt;
+        }
+        if (then.auto) {
+          effects.push({ op: 'counters', kind, n: 1, scope: 'self', text: s });
+          const body = may ? [{ op: 'may', then: then.effects }] : then.effects;
+          effects.push({ op: 'ifCond', cond: { kind: 'selfCounters', n: pileN, counter: kind }, then: body, text: next });
+          i += used;
+          continue;
+        }
       }
 
       /* Promise of Bunrei, Standstill: "sacrifice this enchantment. If you
@@ -8831,7 +8879,8 @@
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Clockwork Beast, Kjeldoran Home Guard: "this creature attacked or blocked this combat"
-    [/^(?:it|this creature|CARDNAME) attacked or blocked this (?:combat|turn)$/i, () => ({ kind: 'any', of: [{ kind: 'selfAttackedThisTurn' }, { kind: 'selfBlockedThisTurn' }] })],
+    // (Daredevil Dragster: "this Vehicle")
+    [/^(?:it|this creature|this Vehicle|CARDNAME) attacked or blocked this (?:combat|turn)$/i, () => ({ kind: 'any', of: [{ kind: 'selfAttackedThisTurn' }, { kind: 'selfBlockedThisTurn' }] })],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Mirrex: "Activate only if this land entered this turn."

@@ -18849,4 +18849,56 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.g.player('B').life, 15, 'the Bolt, Grapeshot and one storm copy');
   });
+
+  test('Treasure Map: the third landmark counter is removed, it transforms, and three Treasures', (mk, t) => {
+    t.auto('Treasure Map // Treasure Cove');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const tm = T.bf('A', 'Treasure Map // Treasure Cove', { counters: { landmark: 1 } });
+    const treasures = () => T.g.battlefield.filter(o => o.controller === 'A' && /Treasure/.test(o.name) && o.isToken).length;
+    T.mana('A', '1');
+    T.activate('A', tm, 0);
+    T.resolve();
+    t.eq(tm.counters.landmark, 2, 'two: nothing yet');
+    t.eq(treasures(), 0);
+    tm.tapped = false;
+    T.mana('A', '1');
+    T.activate('A', tm, 0);
+    T.resolve();
+    t.no(tm.counters.landmark, 'the counters removed');
+    t.eq(tm.face, 1, 'transformed');
+    t.eq(treasures(), 3, 'three Treasures');
+  });
+
+  test('Charitable Levy: the third collection counter sacrifices it, then a card and maybe a Plains', (mk, t) => {
+    t.auto('Charitable Levy');
+    const T = mk({ library: ['Plains'] });
+    T.toMain('A');
+    const cl = T.bf('A', 'Charitable Levy', { counters: { collection: 2 } });
+    const hand0 = T.zone('A', 'hand').length;
+    const lands0 = T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Plains').length;
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.zone(cl, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, hand0 + 1, 'a card');
+    const plains = T.g.battlefield.filter(o => o.controller === 'A' && o.name === 'Plains');
+    t.eq(plains.length, lands0 + 1, 'a Plains');
+    t.ok(plains[plains.length - 1].tapped, 'tapped');
+  });
+
+  test('Restorative Technique: the target player gains the life and searches their own library', (mk, t) => {
+    t.auto('Restorative Technique');
+    const T = mk({ library: ['Forest'] });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G2');
+    T.cast('A', T.hand('A', 'Restorative Technique'), { targets: ['B', bear.id] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 22, 'B gains 2');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.name === 'Forest').length, 1, "a Forest from B's library, under B's control");
+    t.eq(bear.counters['+1/+1'], 1, 'and the counter');
+  });
 };

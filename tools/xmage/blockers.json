@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11012,
-  "gainedCards": 1090,
-  "linesNeeded": 11762,
-  "linesGained": 1283,
+  "needed": 11003,
+  "gainedCards": 1088,
+  "linesNeeded": 11751,
+  "linesGained": 1281,
   "gained": {
-   "all": 1090,
+   "all": 1088,
    "top2000": 43,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4118,
-   "lines": 3872,
+   "score": 4117,
+   "lines": 3871,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1212,25 +1212,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid not optional",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor",
-    "Dreadfeast Demon",
-    "Mystery Key",
-    "Clockwork Hydra",
-    "Exemplar of Strength",
-    "Charnel Troll",
-    "Boneyard Aberration"
-   ]
-  },
-  {
    "what": "activated with 2 effects in its constructor",
    "score": 12,
    "lines": 12,
@@ -1378,6 +1359,24 @@
    ]
   },
   {
+   "what": "DoIfCostPaid not optional",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Stormshriek Feral // Flush Out",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor",
+    "Dreadfeast Demon",
+    "Mystery Key",
+    "Clockwork Hydra",
+    "Exemplar of Strength",
+    "Charnel Troll",
+    "Boneyard Aberration"
+   ]
+  },
+  {
    "what": "ConditionalContinuousRuleModifyingEffect",
    "score": 11,
    "lines": 11,
@@ -1502,22 +1501,6 @@
    ]
   },
   {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Treasure Map // Treasure Cove",
-    "Spirit Water Revival",
-    "Bruce Banner // The Incredible Hulk",
-    "Hostile Hostel // Creeping Inn",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend",
-    "Ludevic's Test Subject // Ludevic's Abomination"
-   ]
-  },
-  {
    "what": "scope:alts",
    "score": 10,
    "lines": 10,
@@ -1566,23 +1549,6 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
-   ]
-  },
-  {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
-    "Daredevil Dragster",
-    "Clockwork Steed",
-    "The Wretched",
-    "Joven's Ferrets",
-    "Clockwork Beast",
-    "Clockwork Avian",
-    "Clockwork Swarm"
    ]
   },
   {
@@ -1891,6 +1857,22 @@
     "Dance of the Tumbleweeds",
     "One Last Job",
     "Caught in the Crossfire"
+   ]
+  },
+  {
+   "what": "EndOfCombatTriggeredAbility",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "Kytheon, Hero of Akros // Gideon, Battle-Forged",
+    "Clockwork Steed",
+    "The Wretched",
+    "Joven's Ferrets",
+    "Clockwork Beast",
+    "Clockwork Avian",
+    "Clockwork Swarm"
    ]
   },
   {
@@ -3006,19 +2988,6 @@
    ]
   },
   {
-   "what": "damage affecting the defending player",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Angel of Destiny",
-    "Strixhaven Stadium",
-    "Cosima, God of the Voyage // The Omenkeel",
-    "Edward Kenway",
-    "Rogue Class",
-    "Etrata, Deadly Fugitive"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 6,
    "lines": 6,
@@ -3055,6 +3024,18 @@
     "Broadcast Takeover",
     "Tibalt, the Fiend-Blooded",
     "Rowan, Fearless Sparkmage"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Spirit Water Revival",
+    "Bruce Banner // The Incredible Hulk",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
@@ -3841,6 +3822,18 @@
     "Plagon, Lord of the Beach",
     "Catapult Fodder // Catapult Captain",
     "Immobilizer Eldrazi"
+   ]
+  },
+  {
+   "what": "damage affecting the defending player",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Angel of Destiny",
+    "Cosima, God of the Voyage // The Omenkeel",
+    "Edward Kenway",
+    "Rogue Class",
+    "Etrata, Deadly Fugitive"
    ]
   },
   {
@@ -6600,8 +6593,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3434,
-   "cards": 3269,
+   "score": 3435,
+   "cards": 3270,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7117,19 +7110,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid not optional",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Stormshriek Feral // Flush Out",
-    "Charitable Levy",
-    "Yuna's Decision",
-    "Mistbreath Elder",
-    "Promise of Aclazotz // Foul Rebirth",
-    "Family's Favor"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 12,
    "cards": 12,
@@ -7214,6 +7194,19 @@
     "Fancy Footwork",
     "Wanderwine Farewell",
     "Become Brutes"
+   ]
+  },
+  {
+   "what": "DoIfCostPaid not optional",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Stormshriek Feral // Flush Out",
+    "Yuna's Decision",
+    "Mistbreath Elder",
+    "Promise of Aclazotz // Foul Rebirth",
+    "Family's Favor",
+    "Dreadfeast Demon"
    ]
   },
   {
@@ -7922,19 +7915,6 @@
     "Cabal Conditioning",
     "Memory Vampire",
     "Reward the Faithful"
-   ]
-  },
-  {
-   "what": "ConditionalOneShotEffect.addEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Treasure Map // Treasure Cove",
-    "Bruce Banner // The Incredible Hulk",
-    "Cursed Recording",
-    "Jet's Brainwashing",
-    "Torch the Tower",
-    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
@@ -8844,6 +8824,18 @@
    ]
   },
   {
+   "what": "mana ability with more",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Primal Amulet // Primal Wellspring",
+    "Sunken Palace",
+    "Magus Lucea Kane",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
+   ]
+  },
+  {
    "what": "not or",
    "score": 5,
    "cards": 5,
@@ -8985,18 +8977,6 @@
     "Demon of Dark Schemes",
     "Consulate Surveillance",
     "Voltstorm Angel"
-   ]
-  },
-  {
-   "what": "EndOfCombatTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Rose, Cutthroat Raider",
-    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
-    "Daredevil Dragster",
-    "The Wretched",
-    "Joven's Ferrets"
    ]
   },
   {
@@ -9828,14 +9808,14 @@
    ]
   },
   {
-   "what": "mana ability with more",
+   "what": "EndOfCombatTriggeredAbility",
    "score": 4,
    "cards": 4,
    "names": [
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Rainbow Vale",
-    "Undiscovered Paradise"
+    "Rose, Cutthroat Raider",
+    "Sidequest: Play Blitzball // World Champion, Celestial Weapon",
+    "The Wretched",
+    "Joven's Ferrets"
    ]
   },
   {
@@ -10177,6 +10157,17 @@
     "Shackles of Treachery",
     "Towering-Wave Mystic",
     "Emberwilde Caliph"
+   ]
+  },
+  {
+   "what": "ConditionalOneShotEffect.addEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Bruce Banner // The Incredible Hulk",
+    "Jet's Brainwashing",
+    "Torch the Tower",
+    "Heirloom Mirror // Inherited Fiend"
    ]
   },
   {
