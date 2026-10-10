@@ -9443,6 +9443,8 @@
     'token', 'tokens', 'nontoken', 'legendary', 'nonland', 'noncreature', 'nonartifact', 'snow', 'basic',
     'nonbasic', 'white', 'blue', 'black', 'red', 'green', 'colorless', 'multicolored', 'or', 'and/or',
     'equipment', 'aura', 'vehicle', 'nonlegendary', 'goaded', 'modified',
+    // Olivia, Opulent Outlaw: "one or more outlaws you control" (an Assassin, Mercenary, Pirate, Rogue or Warlock)
+    'outlaw', 'outlaws',
     // Gorgon Recluse: "a nonblack creature"
     'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
     // Nahiri, Forged in Fury: "an equipped creature you control"

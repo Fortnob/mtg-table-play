@@ -19762,4 +19762,38 @@ module.exports = (test) => {
     t.eq(T2.g.castCostFor('A', plain.id), '{1}{G}', 'not legendary: full price');
     t.eq(T2.g.castCostFor('A', leg.id), '{W}', 'the first legendary creature spell: {2} less, down to its coloured part');
   });
+
+  test('Outlaws you control: Olivia, Opulent Outlaw makes a Treasure, Vial Smasher pings, Rakish Crew drains', (mk, t) => {
+    t.auto('Olivia, Opulent Outlaw'); t.auto('Vial Smasher, Gleeful Grenadier'); t.auto('Rakish Crew');
+    const T = mk();
+    T.bf('A', 'Olivia, Opulent Outlaw');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 0, 'a Bear is not an outlaw: no Treasure');
+    T.toMain('A');
+    const rogue = T.bf('A', 'Changeling Outcast');
+    T.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 1, 'an outlaw connected: a Treasure');
+    const T2 = mk();
+    T2.toMain('A');
+    T2.bf('A', 'Vial Smasher, Gleeful Grenadier');
+    T2.bf('A', 'Grizzly Bears', { etb: true }); T2.resolve();
+    t.eq(T2.g.player('B').life, 20, 'a Bear entering: nothing');
+    T2.bf('A', 'Vampire Nighthawk', { etb: true }); T2.resolve();
+    t.eq(T2.g.player('B').life, 20, 'nor a Vampire');
+    T2.bf('A', 'Changeling Outcast', { etb: true }); T2.resolve();
+    t.eq(T2.g.player('B').life, 19, 'a Changeling (every creature type) entering: 1 damage to the opponent');
+    const T3 = mk();
+    T3.toMain('A');
+    T3.bf('A', 'Rakish Crew');
+    const b3 = T3.bf('A', 'Grizzly Bears');
+    T3.g.moveObject(b3, 'graveyard'); T3.resolve();
+    t.eq(T3.g.player('A').life, 20, 'a Bear dying: nothing');
+    const o3 = T3.bf('A', 'Changeling Outcast');
+    T3.g.moveObject(o3, 'graveyard'); T3.resolve();
+    t.eq(T3.g.player('B').life, 19, 'an outlaw dying: the opponent loses 1');
+    t.eq(T3.g.player('A').life, 21, 'and you gain 1');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10855,
+  "needed": 10852,
   "gainedCards": 1033,
-  "linesNeeded": 11575,
+  "linesNeeded": 11572,
   "linesGained": 1217,
   "gained": {
    "all": 1033,
@@ -316,25 +316,6 @@
    ]
   },
   {
-   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 26,
-   "lines": 23,
-   "cards": [
-    "Quartzwood Crasher",
-    "Rev, Tithe Extractor",
-    "Tidus, Yuna's Guardian",
-    "Tifa, Martial Artist",
-    "Orochi Soul-Reaver",
-    "Lolth, Spider Queen",
-    "Kastral, the Windcrested",
-    "Descendants' Fury",
-    "Olivia, Opulent Outlaw",
-    "Kaito, Dancing Shadow",
-    "Nettling Nuisance",
-    "Primo, the Unbounded"
-   ]
-  },
-  {
    "what": "InfoEffect",
    "score": 26,
    "lines": 26,
@@ -351,6 +332,25 @@
     "Haunt the Network",
     "Beastie Beatdown",
     "Fatal Fissure"
+   ]
+  },
+  {
+   "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
+   "score": 25,
+   "lines": 22,
+   "cards": [
+    "Quartzwood Crasher",
+    "Rev, Tithe Extractor",
+    "Tidus, Yuna's Guardian",
+    "Tifa, Martial Artist",
+    "Orochi Soul-Reaver",
+    "Lolth, Spider Queen",
+    "Kastral, the Windcrested",
+    "Descendants' Fury",
+    "Kaito, Dancing Shadow",
+    "Nettling Nuisance",
+    "Primo, the Unbounded",
+    "Jacob Frye"
    ]
   },
   {
@@ -5059,17 +5059,6 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Double Down",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Mine Raider"
-   ]
-  },
-  {
    "what": "DamageWithPowerFromOneToAnotherTargetEffect",
    "score": 4,
    "lines": 4,
@@ -6565,6 +6554,16 @@
     "Cheeky House-Mouse // Squeak By",
     "Speed, Young Avenger"
    ]
+  },
+  {
+   "what": "RevealSecretOpponentCost",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Stalking Leonin",
+    "Emissary of Grudges",
+    "Guardian Archon"
+   ]
   }
  ],
  "sole": [
@@ -6739,8 +6738,8 @@
   },
   {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
-   "score": 23,
-   "cards": 20,
+   "score": 22,
+   "cards": 19,
    "names": [
     "Quartzwood Crasher",
     "Rev, Tithe Extractor",
@@ -9813,17 +9812,6 @@
    ]
   },
   {
-   "what": "OutlawPredicate.instance",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Double Down",
-    "Vial Smasher, Gleeful Grenadier",
-    "Rakish Crew",
-    "Mine Raider"
-   ]
-  },
-  {
    "what": "DamageWithPowerFromOneToAnotherTargetEffect",
    "score": 4,
    "cards": 4,
@@ -10239,6 +10227,17 @@
     "Underworld Cerberus",
     "Fell Shepherd",
     "Infernal Caretaker"
+   ]
+  },
+  {
+   "what": "IsPhaseCondition",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Djinn of Infinite Deceits",
+    "Jade Statue",
+    "Kjeldoran Elite Guard",
+    "Heart Wolf"
    ]
   }
  ]
