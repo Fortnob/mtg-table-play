@@ -5967,6 +5967,8 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Murmuration: "for each spell you've cast this turn"
     if (/^spells? you'?ve cast this turn$/i.test(p)) return { spellsCastThisTurn: true, mult: k };
+    // Titan of Littjara: "for each other creature you control that shares a creature type with it"
+    if (/^other creatures? you control that shares? a creature type with (?:it|CARDNAME|this creature)$/i.test(p)) return { sharesTypeOthers: true, mineOnly: true, mult: k };
     // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // Mahadi: "for each creature that died this turn"

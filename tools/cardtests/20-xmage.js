@@ -20717,4 +20717,17 @@ module.exports = (test) => {
     T2.toMain('A', 'endCombat');
     t.eq(T2.zone('B', 'hand').length, 0, 'the opponent discards their hand');
   });
+
+  test('Titan of Littjara: a card for each other creature you control that shares a creature type with it (the chosen one too), then discard', (mk, t) => {
+    t.auto('Titan of Littjara');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island', 'Island', 'Island'] });
+    const ti = T.bf('A', 'Titan of Littjara');
+    ti.chosenType = 'Elf';
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Elvish Mystic'); T.bf('A', 'Grizzly Bears'); T.bf('B', 'Fyndhorn Elves');
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ti.id, defenderId: 'B' }]);
+    T.answer('confirm', () => ({ yes: true }));
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.zone('A', 'hand').length, h0 + 2 - 1, "two Elves of yours (not the Bears, not the opponent's): draw two, discard one");
+  });
 };

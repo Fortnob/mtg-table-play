@@ -12583,6 +12583,11 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Titan of Littjara: the other creatures you control that share a creature type with it
+        if (v && typeof v === 'object' && v.sharesTypeOthers && src) {
+          return this.battlefield.filter(x => x !== src && !x.phasedOut && (x.analysis() || {}).isCreature &&
+            (!v.mineOnly || x.controller === ctx.controller) && this._shareCreatureType(src, x)).length * (v.mult || 1);
+        }
         // Wolfbriar Elemental: "for each time it was kicked" — the kicks are the spell's, or the permanent's if it came from the stack
         if (v && typeof v === 'object' && v.timesKicked) {
           const ks = ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
