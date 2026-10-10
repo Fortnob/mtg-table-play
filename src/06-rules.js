@@ -2199,7 +2199,26 @@
         o.webSlung = o._webSlinging ? this.turn : null;
         // Sentinel's Mark: "if you cast it during your main phase" (castInMain)
         o.castInMain = !!item.castInMain;
+        /* An Aura spell enters attached to what it targets (CR 303.4f), a bestowed one too (CR 702.103f):
+           "When this Aura enters, if enchanted creature is red" (Ray of Frost) sees the creature as it enters */
+        if ((a.isAura && !a.auraReanimates) || item.via === 'bestow') {
+          const tp0 = a.isAura && !(item.targets || []).some(x => x.kind === 'object') && (item.targets || []).find(x => x.kind === 'player');
+          const t0 = tp0 ? null : (item.targets || []).find(x => x.kind === 'object');
+          const h0 = t0 && this.obj(t0.id);
+          if (tp0 && this.player(tp0.id) && !this.player(tp0.id).hasLost) o.attachedTo = tp0.id;
+          else if (h0 && h0.zone === 'battlefield') {
+            o.attachedTo = h0.id;
+            h0.attachments = (h0.attachments || []).concat(o.id);
+            if (item.via === 'bestow') o.bestowed = true;
+          }
+        }
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
+        // (sent somewhere else as it would have entered: attached to nothing)
+        if (o.zone !== 'battlefield' && o.attachedTo) {
+          const h1 = this.obj(o.attachedTo);
+          if (h1 && h1.attachments) h1.attachments = h1.attachments.filter(x => x !== o.id);
+          o.attachedTo = null;
+        }
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
           this.moveObject(o, 'graveyard');
@@ -2255,7 +2274,8 @@
           const host = t && this.obj(t.id);
           if (host && host.zone === 'battlefield') {
             o.attachedTo = host.id;
-            host.attachments = (host.attachments || []).concat(o.id);
+            // (attached as it entered, above: not twice)
+            if (!(host.attachments || []).includes(o.id)) host.attachments = (host.attachments || []).concat(o.id);
             if (item.via === 'bestow') o.bestowed = true;
           } else if (item.via === 'bestow') {
             o.bestowed = false;                 // nothing to go on: it is just a creature

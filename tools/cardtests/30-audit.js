@@ -6290,4 +6290,23 @@ module.exports = (test) => {
       t.zone(old, 'hand');
     }
   });
+
+  test('Audit: an Aura spell enters attached, so "when this Aura enters, if enchanted creature is red" sees it (Ray of Frost); a bestowed one too', (mk, t) => {
+    t.auto('Ray of Frost');
+    for (const [n, red] of [['Goblin Piker', true], ['Grizzly Bears', false]]) {
+      const T = mk(); T.toMain('A');
+      const c = T.bf('B', n);
+      const r = T.hand('A', 'Ray of Frost');
+      T.mana('A', 'U2'); T.cast('A', r, { targets: [c.id] });
+      t.eq(r.attachedTo, c.id, 'attached');
+      t.eq((c.attachments || []).filter(x => x === r.id).length, 1, 'once');
+      t.eq(!!c.tapped, red, red ? 'a red creature is tapped' : 'any other is not');
+    }
+    const T = mk(); T.toMain('A');
+    const b = T.bf('A', 'Grizzly Bears');
+    const s = T.hand('A', 'Boon Satyr');
+    T.mana('A', 'GG3'); T.cast('A', s, { targets: [b.id], via: 'bestow' });
+    t.eq(s.attachedTo, b.id); t.ok(s.bestowed, 'bestowed, as it entered');
+    t.eq(T.g.powerOf(b), 6, '+4/+2'); t.eq((b.attachments || []).length, 1);
+  });
 };
