@@ -4699,4 +4699,28 @@ module.exports = (test) => {
     t.eq(T.life('B'), 14, 'three Flames');
     t.eq(T.g.zones.A.library.map(c => c.name).join(','), 'Swamp,Wastes,Island,Forest,Mountain,Plains', 'what was revealed and not cast, bottomed');
   });
+
+  test('Audit: "you may sacrifice two Foods. If you do … Otherwise …": too few Foods is the otherwise (Giant Opportunity); Rent Is Due taps summoning-sick creatures', (mk, t) => {
+    t.auto('Giant Opportunity'); t.auto('Rent Is Due');
+    for (const [foods, yes, giant, left] of [[1, true, 0, 4], [0, false, 0, 3], [2, true, 1, 0]]) {
+      const T = mk();
+      T.toMain('A');
+      if (foods) T.g._runEffects([{ op: 'createNamedToken', n: foods, token: 'Food' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+      T.answer('confirm', { yes });
+      const go = T.hand('A', 'Giant Opportunity');
+      T.mana('A', go.card.mana_cost.replace(/[{}]/g, ''));
+      T.cast('A', go); T.settle();
+      t.eq(T.g.battlefield.filter(o => /Giant/.test(o.name) && o.isToken).length, giant, `${foods} Food, ${yes ? 'yes' : 'no'}: Giant`);
+      t.eq(T.g.battlefield.filter(o => /Food/.test(o.name)).length, left, `${foods} Food, ${yes ? 'yes' : 'no'}: Foods after`);
+    }
+    const T = mk();
+    T.toMain('A');
+    const rid = T.bf('A', 'Rent Is Due');
+    const b1 = T.bf('A', 'Grizzly Bears', { sick: true }), b2 = T.bf('A', 'Grizzly Bears', { sick: true });
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.answer('confirm', { yes: true });
+    const h = T.zone('A', 'hand').length;
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.ok(b1.tapped && b2.tapped, 'two summoning-sick creatures tapped'); t.eq(T.zone('A', 'hand').length, h + 1); t.zone(rid, 'battlefield');
+  });
 };

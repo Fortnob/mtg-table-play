@@ -15335,14 +15335,15 @@
           const need = pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1;
           const zone = pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
             : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter));
-          if (zone.length < need) break;
+          // not enough to give up, or not all picked: it wasn't paid (Giant Opportunity: "Otherwise, create three Food tokens")
+          if (zone.length < need) { this._spliceNext(e.otherwise); break; }
           const picked = (me.isBot && need > 1) ? this._cheapestFirst(zone).slice(0, need).map(o => o.id)
             : this._ask({ type: 'pickCard', playerId: ctx.controller, count: need,
               cards: zone.map(o => ({ id: o.id, name: o.name, card: o.card })),
               prompt: pay.sacrifice ? (need > 1 ? `Sacrifice ${['', 'one', 'two', 'three', 'four', 'five', 'six'][need] || need}.` : 'Sacrifice one.') : 'Discard one.' }, 'pay');
           if (picked === SUSPEND) return SUSPEND;
           const chosen = (picked || []).map(id => this.obj(id)).filter(o => o && zone.includes(o)).slice(0, need);
-          if (chosen.length < need) break;
+          if (chosen.length < need) { this._spliceNext(e.otherwise); break; }
           for (const o of chosen) {
             this.moveObject(o, 'graveyard');
             this.logEvent(pay.sacrifice ? 'sacrifice' : 'discard',
