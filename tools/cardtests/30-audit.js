@@ -5610,4 +5610,24 @@ module.exports = (test) => {
     t.zone(sig, 'command', 'the Signature Spell went home, Rest in Peace or not');
     t.eq(T.zone('A', 'command').length, 1, 'and only it: the copy is gone');
   });
+
+  test('Audit: entering with counters is having them put on it: Walking Ballista with Hardened Scales and Doubling Season; a planeswalker with Doubling Season', (mk, t) => {
+    t.auto('Hardened Scales'); t.auto('Doubling Season'); t.auto('Walking Ballista');
+    for (const [perm, want] of [['Hardened Scales', 3], ['Doubling Season', 4]]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('A', perm);
+      const wb = T.hand('A', 'Walking Ballista');
+      T.mana('A', '4');
+      t.ok(T.g.castSpell('A', wb.id, { auto: true, x: 2 })); T.settle(); T.resolve(); T.settle();
+      t.eq(wb.counters['+1/+1'], want, `${perm}: X=2 becomes ${want}`);
+    }
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Doubling Season'); T.bf('A', 'Hardened Scales');
+    const ch = T.hand('A', 'Chandra, Torch of Defiance');
+    T.mana('A', 'RR2');
+    T.cast('A', ch); T.settle();
+    t.eq(ch.counters.loyalty, 8, 'loyalty 4 doubled (Hardened Scales is for +1/+1 counters only)');
+  });
 };
