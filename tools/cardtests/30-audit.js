@@ -3783,4 +3783,27 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
     t.eq(T.life('B'), 18, 'cast from hand: only the Shock');
   });
+
+  test('Audit: Bitter Work draws only for an attack with a 4-power creature; its exhaust works once; Denethor makes the target the monarch', (mk, t) => {
+    let T = mk();
+    t.auto('Bitter Work'); t.auto('Denethor, Stone Seer');
+    T.toMain('A');
+    T.bf('A', 'Bitter Work');
+    const g = T.bf('A', 'Grizzly Bears'), w = T.bf('A', 'Craw Wurm');
+    g.summoningSick = w.summoningSick = false;
+    const h = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.g.zones.A.hand.length, h, 'a 2-power attacker: nothing');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    const h2 = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.g.zones.A.hand.length, h2 + 1);
+    T = mk();
+    T.toMain('A');
+    const d = T.bf('A', 'Denethor, Stone Seer'); d.summoningSick = false;
+    T.mana('A', '3R'); T.activate('A', d, 0, { targets: ['B', 'B'] });
+    t.ok(T.g.player('B').monarch, 'B becomes the monarch'); t.no(T.g.player('A').monarch); t.eq(T.life('B'), 17);
+  });
 };
