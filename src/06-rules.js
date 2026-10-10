@@ -7497,9 +7497,9 @@
         return;
       }
       // Carnelian Orb of Dragonkind: a Dragon only; Hall of the Bandit Lord: haste for as long as it stays
-      if (rider === 'hasteDragon' || rider === 'hasteCreatureLasting') {
+      if (rider === 'hasteDragon' || rider === 'hasteDragonLasting' || rider === 'hasteCreatureLasting') {
         const a = item.obj && item.obj.analysis();
-        if (a && a.isCreature && (rider !== 'hasteDragon' || (a.subtypes || []).includes('Dragon'))) item.hasteOnResolve = rider === 'hasteCreatureLasting' ? 'lasting' : true;
+        if (a && a.isCreature && (!/^hasteDragon/.test(rider) || (a.subtypes || []).includes('Dragon'))) item.hasteOnResolve = /Lasting$/.test(rider) ? 'lasting' : true;
         return;
       }
       if (rider === 'ancestryScry') {
