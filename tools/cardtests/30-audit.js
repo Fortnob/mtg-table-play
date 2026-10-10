@@ -4251,4 +4251,29 @@ module.exports = (test) => {
     t.eq(c.counters['+1/+1'], 4, 'three times: three more');
     t.eq(opp.counters['+1/+1'], 1, "the opponent's creature is left alone");
   });
+
+  test("Audit: Dire Tactics costs the exiled creature's last toughness unless you control a Human; Butterbur makes a Food only without one", (mk, t) => {
+    t.auto('Dire Tactics'); t.auto('Butterbur, Bree Innkeeper');
+    for (const human of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      if (human) T.bf('A', 'Elite Vanguard');
+      const b = T.bf('B', 'Grizzly Bears');
+      T.mana('A', 'G');
+      T.cast('A', T.hand('A', 'Giant Growth'), { targets: [b.id] });
+      T.mana('A', 'WB');
+      T.cast('A', T.hand('A', 'Dire Tactics'), { targets: [b.id] });
+      T.settle();
+      t.zone(b, 'exile');
+      t.eq(T.life('A'), human ? 20 : 15, human ? 'a Human: no life lost' : 'no Human: 5, the pumped toughness');
+    }
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Butterbur, Bree Innkeeper');
+    const foods = () => T.g.battlefield.filter(o => o.controller === 'A' && /Food/.test(o.name)).length;
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(foods(), 1, 'none: one made');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(foods(), 1, 'already had one: no more');
+  });
 };
