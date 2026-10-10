@@ -4463,4 +4463,20 @@ module.exports = (test) => {
     T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
     t.eq(T.life('A'), 20, 'prevented'); t.zone(nl, 'exile', 'the ninth counter'); t.ok(T.g.player('A').hasLost, 'and it leaving loses the game');
   });
+
+  test('Audit: "if you cast it from your hand" on an enters trigger still reads the permanent: Feasting Troll King cast, or put onto the battlefield', (mk, t) => {
+    t.auto('Feasting Troll King');
+    let T = mk();
+    T.toMain('A');
+    T.mana('A', 'GGGG2');
+    T.cast('A', T.hand('A', 'Feasting Troll King')); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => /Food/.test(o.name)).length, 3, 'cast from hand: three Food');
+    T = mk();
+    T.toMain('A');
+    const ftk = T.grave('A', 'Feasting Troll King');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [ftk.id] }); T.settle(); T.resolve(); T.settle();
+    t.zone(ftk, 'battlefield');
+    t.eq(T.g.battlefield.filter(o => /Food/.test(o.name)).length, 0, 'reanimated: none');
+  });
 };
