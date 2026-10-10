@@ -3462,4 +3462,35 @@ module.exports = (test) => {
     t.ok(T.g.castSpell('A', cw.id, { auto: true, via: 'grantAlt' }), T.g.lastError); T.settle(); T.resolve();
     t.zone(cw, 'battlefield');
   });
+
+  test('Audit: Keleth counts a commander you control, We Ride at Dawn only your own; Thryx makes big spells cheaper and uncounterable', (mk, t) => {
+    let T = mk();
+    for (const c of ['Keleth, Sunmane Familiar', 'We Ride at Dawn', 'Thryx, the Sudden Storm']) t.auto(c);
+    T.toMain('A');
+    T.bf('A', 'Keleth, Sunmane Familiar');
+    const myc = T.bf('A', 'Isamaru, Hound of Konda'); myc.isCommander = true; myc.summoningSick = false;
+    const theirs = T.bf('A', 'Hill Giant'); theirs.owner = 'B'; theirs.isCommander = true; theirs.summoningSick = false;
+    const plain = T.bf('A', 'Grizzly Bears'); plain.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: myc.id, defenderId: 'B' }, { attackerId: theirs.id, defenderId: 'B' }, { attackerId: plain.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(myc.counters['+1/+1'], 1); t.eq(theirs.counters['+1/+1'], 1, "B's commander under my control counts"); t.eq(plain.counters['+1/+1'] || 0, 0);
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'We Ride at Dawn');
+    const m2 = T.bf('A', 'Isamaru, Hound of Konda'); m2.isCommander = true; m2.summoningSick = false;
+    const t2 = T.bf('A', 'Hill Giant'); t2.owner = 'B'; t2.isCommander = true; t2.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: m2.id, defenderId: 'B' }, { attackerId: t2.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.battlefield.filter(o => /Mercenary/.test(o.name)).length, 1, 'only my own commander');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Thryx, the Sudden Storm');
+    const cw = T.hand('A', 'Craw Wurm');
+    T.mana('A', '3GG'); t.ok(T.g.castSpell('A', cw.id, { auto: true }), 'one less'); T.settle();
+    const st = T.g.stack.find(s => s.objId === cw.id);
+    T.g.priorityIndex = T.g.turnOrder.indexOf('B');
+    T.mana('B', 'UU'); T.g.castSpell('B', T.hand('B', 'Counterspell').id, { auto: true, targets: [{ kind: 'stack', id: st.id }] });
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve();
+    t.zone(cw, 'battlefield', "can't be countered");
+  });
 };
