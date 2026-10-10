@@ -1330,8 +1330,9 @@
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
-    { re: /^Attach up to one target Equipment you control to target attacking creature\.?$/i,
-      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'], upTo: true }, Object.assign(targetSpec('target attacking creature') || { type: 'creature' })] }) },
+    // (Barret, Avalanche Leader: "… to target Rebel you control" — attachEquipmentAttacking)
+    { re: /^Attach up to one target Equipment you control to (target attacking creature|target [A-Z][a-z]+ you control)\.?$/,
+      make: (m) => { const host = targetSpec(m[1]); return host && !host.unknown ? { op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'], upTo: true }, host] } : null; } },
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
@@ -2021,8 +2022,10 @@
     // Flare of Malice, Soul Shatter
     // Myrkul's Edict, Professor Onyx, Consumed by Greed, Olórin's Searing Light: the biggest by power
     // (Papalymo Totolymo: "Each opponent who lost life this turn sacrifices …" — lostLifeOnly)
-    { re: /^(Each opponent(?: who lost life this turn)?|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
+    // (Witch-king, Bringer of Ruin: "defending player sacrifices a creature with the least power …" — leastPowerEdict)
+    { re: /^(Each opponent(?: who lost life this turn)?|Target opponent|Defending player) (sacrifices|exiles) a creature with the (greatest|least) power among creatures (?:that player|they) controls?\.?$/i,
       make: (m) => Object.assign({ op: 'sacGreatestMv', what: ['creature'], by: 'power' },
+        /least/i.test(m[3]) ? { least: true } : {}, /^defending/i.test(m[1]) ? { who: 'defending' } : {},
         /who lost life/i.test(m[1]) ? { lostLifeOnly: true } : {},
         /^target/i.test(m[1]) ? { who: 'target', targets: [{ type: 'player', opponent: true }] } : {},
         /exile/i.test(m[2]) ? { exile: true } : {}) },
@@ -6121,6 +6124,8 @@
       if (a && b) return { sum: [a, b], mult: k };
     }
     if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
+    // Strefan, Maurer Progenitor: "for each player who lost life this turn" (playersLostLife)
+    if (/^player who lost life this turn$/i.test(p)) return { playersLostLife: true, mult: k };
     // Rakdos, Lord of Riots, Bloodsoaked Insight: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
     if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
@@ -9649,7 +9654,8 @@
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down
-    [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
+    // (Josu Vess, Lich Knight: "if he was kicked" — kickedPronoun)
+    [/^(?:CARDNAME|this spell|it|he|she|they) (?:was|were) kicked$/i, () => ({ kind: 'kicked', n: 1 })],
     // the Battlemages: "if it was kicked with its {W} kicker" — that one of its "and/or" kicker costs
     [/^(?:CARDNAME|this spell|it) was kicked with its ((?:\{[^}]+\})+) kicker$/i, (m) => ({ kind: 'kickedWith', cost: m[1] })],
     // an optional additional cost, paid, is counted as the spell's kicker
@@ -10337,7 +10343,8 @@
     { re: /^When(?:ever)? you surveil,? /i, event: 'youSurveil' },
     { re: /^When(?:ever)? an opponent discards a card,? /i, event: 'opponentDiscards' },
     /* battalion, by its words: "Whenever this creature and at least two other creatures attack" */
-    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) and at least (one|two|three|four) other creatures attack,? /i,
+    // (Sokka, Lateral Strategist: "and at least one other creature attack" — battalionOne)
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) and at least (one|two|three|four) other creatures? attack,? /i,
       event: 'attacks', self: true, extraOf: (m) => ({ minAttackers: num(m[1]) + 1 }) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is put into your graveyard from the battlefield,? /i, event: 'dies', self: true },
     { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
@@ -13350,6 +13357,17 @@
         return Object.assign({ op: 'continuous', layer: 7, scope: onAttached ? { attached: true } : { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } },
           defending ? { cond: { kind: 'selfAttacking' } } : {});
       } },
+    // Hancock, Ghoulish Mayor: "Each other creature you control that's a Zombie or Mutant gets +X/+X, where X is the number of counters on CARDNAME." (anthemXCounters)
+    { re: /^((?:Each other|Other) creatures? you control(?: that'?s an? [A-Z][a-z]+(?: or [A-Z][a-z]+)?)?) gets? \+X\/\+X, where X is the number of counters on (?:CARDNAME|this creature)\.?$/,
+      make: (m) => { const scope = scopeOf(m[1]); if (!scope || scope.self || scope.attached) return null; const k = { countersOnSelf: '*', mult: 1 }; return { op: 'continuous', layer: 7, scope, pt: { p: k, t: k } }; } },
+    // Verdeloth the Ancient: "Saproling creatures and other Treefolk creatures get +1/+1." (twoKindsAnthem)
+    { re: /^([A-Z][a-z]+) creatures and other ([A-Z][a-z]+) creatures get \+(\d+)\/\+(\d+)\.?$/,
+      make: (m) => {
+        const a = scopeOf(m[1] + ' creatures'), b = scopeOf('other ' + m[2] + ' creatures');
+        if (!a || !b || a.self || b.self) return null;
+        const pt = { p: +m[3], t: +m[4] };
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: a, pt }, { op: 'continuous', layer: 7, scope: b, pt: Object.assign({}, pt) }] };
+      } },
     // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
     { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+X, where X is (.+?)\.?$/,
       make: (m) => {
@@ -13830,8 +13848,12 @@
           tokenWhat: (m[1] || m[2] || '').trim().toLowerCase() || null };
       } },
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
-    { re: /^If an? ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
-      make: (m0) => {
+    // (Tor Wauki the Younger: "If another source you control would deal noncombat damage …" — otherSource)
+    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
+      make: (mm) => {
+        const other = !!mm[1];
+        const m0 = [mm[0], mm[2], mm[3], mm[4], mm[5]];
+        const r = ((m0) => {
         // Artist's Talent: "would deal noncombat damage"
         const noncombat = !!m0[2];
         const m = [m0[0], m0[1], m0[3], m0[4]];
@@ -13840,6 +13862,8 @@
         return Object.assign({ op: 'replace', id: 'dmg' + m[3].slice(0, 6), event: 'damage', who: 'you',
           toOpponent: /opponent/i.test(m[2]), sourceWords: words || null }, noncombat ? { noncombat: true } : {},
           plus ? { how: 'add', n: num(plus[1]) } : { how: m[3].toLowerCase() });
+        })(m0);
+        return other ? Object.assign(r, { otherSource: true }) : r;
       } },
     /* The Sound of Drums, Inquisitor's Flail: "If enchanted (equipped) creature would
        deal combat damage (to a permanent or player), it deals double that damage
@@ -15130,17 +15154,22 @@
       // Arwen: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to CARDNAME's toughness."
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s toughness\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourceToughness: true }, auto: true },
+      // Gorma, the Gullet: "Nontoken creatures you control enter with an additional +1/+1 counter on them for each creature that died under your control this turn." (perCount)
+      { re: /^Nontoken creatures you control enter with an additional \+1\/\+1 counter on them(?: for each ([a-z ]+ this turn))?\.?$/,
+        make: (m) => { const pc = m[1] ? countOf(m[1]) : null; return m[1] && !pc ? null : Object.assign({ op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', nontoken: true }, pc ? { perCount: pc } : {}); }, auto: true },
       /* Metallic Mimic, Giada, Renata, Oath of Gideon: "Each other creature
          you control (of the chosen type) enters with an additional +1/+1
          counter on it (for each Angel you already control)." */
-      { re: /^(Each other|Each|Other) ((?:nontoken |non-[A-Z][a-z]+ )?(?:[A-Z][a-z]+ )?(?:creature|planeswalker|Vehicle|[A-Z][a-z]+)s?) you control( of the chosen type)? enters? with an additional (\+1\/\+1|loyalty) counter on (?:it|them)(?: for each ([A-Za-z]+) you already control)?\.?$/,
+      { re: /^(Each other|Each|Other) ((?:nontoken |non-[A-Z][a-z]+ )?(?:[A-Z][a-z]+ )?(?:creature|planeswalker|Vehicle|[A-Z][a-z]+)s?) you control( of the chosen type)? enters? with an additional (\+1\/\+1|loyalty) counter on (?:it|them)(?: for each ([A-Za-z]+) you already control| for each ([a-z ]+ this turn))?\.?$/,
         make: (m) => {
           let what = m[2].replace(/s$/, '').trim();
           const nontoken = /^nontoken /.test(what);
           what = what.replace(/^nontoken /, '');
           if (/^non-/.test(what)) what = what.replace(/^non-([A-Z][a-z]+) /, 'non$1 ');
           return Object.assign({ op: 'entersExtra', what: what.toLowerCase(), other: /other/i.test(m[1]), counter: m[4].toLowerCase() },
-            nontoken ? { nontoken: true } : {}, m[3] ? { chosenType: true } : {}, m[5] ? { per: m[5].replace(/s$/, '').toLowerCase() } : {});
+            nontoken ? { nontoken: true } : {}, m[3] ? { chosenType: true } : {}, m[5] ? { per: m[5].replace(/s$/, '').toLowerCase() } : {},
+            // (Gev, Scaled Scorch; Gorma, the Gullet: "for each opponent who lost life this turn" — perCount)
+            m[6] ? { perCount: countOf(m[6]) || { unread: true } } : {});
         }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },

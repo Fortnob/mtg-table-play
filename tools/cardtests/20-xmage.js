@@ -22129,4 +22129,86 @@ module.exports = (test) => {
     t.eq(Q.zone('A', 'hand').length, qh + 2, 'Bebop: two counters, two cards');
     t.eq(Q.life('A'), 18, 'Bebop: and 2 life lost');
   });
+
+  test("Commanders: Tor Wauki, Gev, Gorma, Hancock, Strefan, Barret, Verdeloth, Sokka, Josu Vess, Witch-king; Embermaw Hellion, Thor, Jaya, Bioengineered Future", (mk, t) => {
+    for (const n of ['Tor Wauki the Younger', 'Gev, Scaled Scorch', 'Gorma, the Gullet', 'Hancock, Ghoulish Mayor', 'Strefan, Maurer Progenitor', 'Barret, Avalanche Leader',
+      'Verdeloth the Ancient', 'Sokka, Lateral Strategist', 'Josu Vess, Lich Knight', 'Witch-king, Bringer of Ruin', 'Embermaw Hellion', "Thor, Asgard's Avenger", 'Bioengineered Future']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // Tor Wauki: another source's noncombat damage plus 1; Gev: creatures enter with a counter for each opponent who lost life; Strefan: a Blood for each player who lost life
+    const T = mk({ library: Array(10).fill('Mountain') });
+    T.toMain('A');
+    T.bf('A', 'Tor Wauki the Younger'); T.bf('A', 'Gev, Scaled Scorch'); T.bf('A', 'Strefan, Maurer Progenitor');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); T.resolve();
+    t.eq(T.life('B'), 16, 'Tor Wauki: Lightning Bolt deals 4');
+    const gb = T.put('A', 'Grizzly Bears', 'battlefield', { etb: true }); T.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, 'Gev: one opponent lost life, one counter');
+    T.toMain('A', 'end'); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Blood/.test(o.name)).length, 1, 'Strefan: one player lost life, one Blood');
+    // Embermaw Hellion: another red source's damage plus 1, but not its own
+    const E = mk({ library: Array(10).fill('Mountain') });
+    E.toMain('A');
+    const em = E.bf('A', 'Embermaw Hellion');
+    attack(E, [em]);
+    E.toMain('A', 'endCombat');
+    t.eq(E.life('B'), 20 - E.g.powerOf(em), 'Embermaw Hellion: its own damage is not raised');
+    // Gorma: nontoken creatures enter with a counter for each creature that died under your control this turn
+    const G = mk({ library: Array(10).fill('Swamp') });
+    G.toMain('A');
+    G.bf('A', 'Gorma, the Gullet');
+    const dead = G.bf('A', 'Grizzly Bears');
+    G.g.moveObject(dead, 'graveyard');
+    const gb2 = G.put('A', 'Hill Giant', 'battlefield', { etb: true }); G.resolve();
+    t.eq(Number(gb2.counters['+1/+1']) || 0, 1, 'Gorma: one creature died, one counter');
+    // Hancock: other Zombies and Mutants get +X/+X for the counters on Hancock
+    const H = mk({ library: Array(10).fill('Swamp') });
+    const hc = H.bf('A', 'Hancock, Ghoulish Mayor'); hc.counters['+1/+1'] = 2;
+    const zb = H.bf('A', 'Walking Corpse'), bb = H.bf('A', 'Grizzly Bears');
+    H.g.bumpBoard();
+    t.eq(H.g.powerOf(zb), 4, 'Hancock: the Zombie gets +2/+2');
+    t.eq(H.g.powerOf(bb), 2, 'Hancock: the Bears do not');
+    // Verdeloth: Saprolings and other Treefolk get +1/+1
+    const V = mk({ library: Array(10).fill('Forest') });
+    const vd = V.bf('A', 'Verdeloth the Ancient'), th = V.bf('B', 'Treefolk Harbinger');
+    t.eq(V.g.powerOf(th), (parseInt(th.card.power, 10) || 0) + 1, "Verdeloth: another Treefolk, even an opponent's, gets +1/+1");
+    t.eq(V.g.powerOf(vd), parseInt(vd.card.power, 10) || 0, 'Verdeloth: not itself');
+    // Barret: at the beginning of combat, an Equipment onto a Rebel
+    const B = mk({ library: Array(10).fill('Mountain') });
+    B.toMain('A');
+    const br = B.bf('A', 'Barret, Avalanche Leader'), bsp = B.bf('A', 'Bonesplitter');
+    B.answer('pickTarget', { targets: [{ kind: 'object', id: bsp.id }, { kind: 'object', id: br.id }] });
+    B.toMain('A', 'beginCombat'); B.resolve();
+    t.eq(bsp.attachedTo, br.id, 'Barret: Bonesplitter onto the Rebel');
+    // Sokka: with another attacker, a card; alone, none
+    const S = mk({ library: Array(10).fill('Island') });
+    S.toMain('A');
+    const sk = S.bf('A', 'Sokka, Lateral Strategist');
+    const sh = S.zone('A', 'hand').length;
+    attack(S, [sk]);
+    t.eq(S.zone('A', 'hand').length, sh, 'Sokka alone: no card');
+    const S2 = mk({ library: Array(10).fill('Island') });
+    S2.toMain('A');
+    const s2h = S2.zone('A', 'hand').length;
+    attack(S2, [S2.bf('A', 'Sokka, Lateral Strategist'), S2.bf('A', 'Grizzly Bears')]);
+    t.eq(S2.zone('A', 'hand').length, s2h + 1, 'Sokka and another: a card');
+    // Witch-king: the defending player sacrifices their creature with the least power
+    const W = mk({ library: Array(10).fill('Swamp') });
+    W.toMain('A');
+    const small = W.bf('B', 'Grizzly Bears'), big = W.bf('B', 'Craw Wurm');
+    attack(W, [W.bf('A', 'Witch-king, Bringer of Ruin')]);
+    t.zone(small, 'graveyard');
+    t.zone(big, 'battlefield');
+    // with three players, only the one attacked
+    const W3 = mk({ library: Array(10).fill('Swamp'), players: ['A', 'B', 'C'] });
+    W3.toMain('A');
+    const cb = W3.bf('C', 'Grizzly Bears'), bb3 = W3.bf('B', 'Grizzly Bears');
+    const wk = W3.bf('A', 'Witch-king, Bringer of Ruin'); wk.summoningSick = false;
+    W3.answer('declareAttackers', () => [{ attackerId: wk.id, defenderId: 'C' }]);
+    W3.toMain('A', 'declareBlockers');
+    t.ok(cb.zone === 'graveyard' && bb3.zone === 'battlefield', 'Witch-king: the defending player sacrifices, not the other opponent');
+  });
 };

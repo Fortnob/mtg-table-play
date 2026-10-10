@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10501,
-  "gainedCards": 970,
-  "linesNeeded": 11155,
-  "linesGained": 1136,
+  "needed": 10487,
+  "gainedCards": 969,
+  "linesNeeded": 11142,
+  "linesGained": 1135,
   "gained": {
-   "all": 970,
+   "all": 969,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4024,
-   "lines": 3778,
+   "score": 4018,
+   "lines": 3772,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 667,
-   "lines": 613,
+   "score": 666,
+   "lines": 612,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 657,
-   "lines": 657,
+   "score": 656,
+   "lines": 656,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -3876,18 +3876,6 @@
    ]
   },
   {
-   "what": "AttachTargetToTargetEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Barret, Avalanche Leader",
-    "Noctis, Heir Apparent",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "attack with 2 or more",
    "score": 5,
    "lines": 5,
@@ -5186,6 +5174,17 @@
    ]
   },
   {
+   "what": "AttachTargetToTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Noctis, Heir Apparent",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
+   ]
+  },
+  {
    "what": "SetBasePowerSourceEffect with two values",
    "score": 4,
    "lines": 4,
@@ -6477,8 +6476,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3366,
-   "cards": 3201,
+   "score": 3360,
+   "cards": 3195,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6490,8 +6489,8 @@
   },
   {
    "what": "custom ability",
-   "score": 512,
-   "cards": 473,
+   "score": 511,
+   "cards": 472,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -9584,17 +9583,6 @@
    ]
   },
   {
-   "what": "AttachTargetToTargetEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Barret, Avalanche Leader",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "DontUntapInPlayersNextUntapStepAllEffect",
    "score": 4,
    "cards": 4,
@@ -10119,6 +10107,16 @@
     "Ringsight",
     "Frodo, Adventurous Hobbit",
     "The Ring Goes South"
+   ]
+  },
+  {
+   "what": "GreatestAmongPermanentsValue.POWER_CONTROLLED_CREATURES",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Repulsive Mutation",
+    "Bighorner Rancher",
+    "Peema Aether-Seer"
    ]
   }
  ]

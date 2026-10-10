@@ -3076,6 +3076,8 @@
       }
       // Omnath, Locus of Mana: "for each unspent green mana you have" (unspentMana)
       if (v.unspentMana) return this._unspentMana(this.player(pid), v.unspentMana) * mult;
+      // Strefan, Maurer Progenitor: "for each player who lost life this turn" (playersLostLife)
+      if (v.playersLostLife) return this.players.filter(q => !q.hasLost && (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Rakdos, Lord of Riots: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
       if (v.opponentsLifeLost) return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0) * mult;
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
@@ -6227,6 +6229,8 @@
         let k = 1;
         // Arwen: "equal to CARDNAME's toughness"
         if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
+        // Gev, Scaled Scorch, Gorma: "for each opponent who lost life this turn" (perCount)
+        else if (ex.perCount) k = Math.max(0, this._countValue(ex.perCount, s0.controller, s0));
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
@@ -8368,7 +8372,8 @@
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
         this.combat.attackers.push(o.id);
         // "defending player": the one it attacks, or the one whose planeswalker it attacks
-        this._fire('attacks', o.controller, { attacker: o, source: o,
+        // (battalion, Sokka: how many attack, whichever of them is declared first — declaredCount)
+        this._fire('attacks', o.controller, { attacker: o, source: o, declared: declarations.length,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
         this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o, defenderId: d.defenderId,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
@@ -9358,6 +9363,8 @@
         // Fiendish Duo: "to an opponent" — the player, not their permanents
         if (ef.toPlayerOnly && !ev.toPlayer) return false;
         if (ef.noncombat && ev.combat) return false;
+        // Tor Wauki the Younger: "another source you control" — not itself (otherSource)
+        if (ef.otherSource && ev.source && ev.source.id === src.id) return false;
         if (ef.sourceWords && !this._cardFitsWords(ev.source, ef.sourceWords)) return false;
         // The Sound of Drums, Inquisitor's Flail: combat damage from (or to) the creature it's attached to
         if (ef.combatOnly && !ev.combat) return false;
@@ -12137,7 +12144,7 @@
           // "Whenever a creature attacks enchanted player"
           if (ab.attacksEnchanted && (!o.attachedTo || data.player !== o.attachedTo || !this.player(data.defenderId))) continue;
           // battalion: this and at least so many others attacking
-          if (ab.minAttackers && ((this.combat && this.combat.attackers) || []).length < ab.minAttackers) continue;
+          if (ab.minAttackers && Math.max(((this.combat && this.combat.attackers) || []).length, Number(data.declared) || 0) < ab.minAttackers) continue;
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
@@ -12932,7 +12939,7 @@
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -15050,13 +15057,14 @@
         case 'sacGreatestMv': {
           // Myrkul's Edict, Olórin's Searing Light: by power, a target opponent, or exiled
           const val = (x) => (e.by === 'power' ? this.powerOf(x) : ((x.card && x.card.cmc) || 0));
-          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
+          // (Witch-king, Bringer of Ruin: the defending player — leastPowerEdict)
+          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean) : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
             // Papalymo Totolymo: only the opponents who lost life this turn (lostLifeOnly)
             .filter(q => !e.lostLifeOnly || (q.lifeLostThisTurn || 0) > 0);
           for (const q of whom) {
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;
-            const top = Math.max(...pool.map(val));
+            const top = e.least ? Math.min(...pool.map(val)) : Math.max(...pool.map(val));
             const tied = pool.filter(x => val(x) === top);
             let pick = tied[0];
             if (tied.length > 1) {
