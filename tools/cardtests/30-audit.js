@@ -3386,4 +3386,23 @@ module.exports = (test) => {
     T.mana('A', '1BB'); T.cast('A', mu, { targets: [hg] }); T.settle(); T.resolve();
     t.eq(T.life('A'), 17); t.eq(T.g.zones.A.hand.length, h - 1 + 3);
   });
+
+  test('Audit: Mjolnir counts each opponent\'s own tapped creatures; Diamond City needs two creatures entered', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    t.auto('Mjölnir, Storm Hammer'); t.auto('Diamond City');
+    T.toMain('A');
+    const mj = T.bf('A', 'Mjölnir, Storm Hammer'), leg = T.bf('A', 'Isamaru, Hound of Konda');
+    leg.summoningSick = false; mj.attachedTo = leg.id; leg.attachments = [mj.id]; T.g.bumpBoard();
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant'); b2.tapped = true;
+    const c1 = T.bf('C', 'Grizzly Bears'); c1.tapped = true; T.bf('C', 'Craw Wurm');
+    T.answer('pickTarget', (ch) => ({ targets: [ch.options[0].find(o => o.id === b1.id)] }));
+    T.answer('declareAttackers', () => [{ attackerId: leg.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(b1.counters.stun, 1); t.eq(T.life('B'), 18, 'B: two tapped'); t.eq(T.life('C'), 19, 'C: one tapped');
+    T = mk();
+    T.toMain('A');
+    const dc = T.bf('A', 'Diamond City'); dc.counters.shield = 1;
+    const b = T.bf('A', 'Grizzly Bears');
+    t.no(T.g.activateAbility('A', dc.id, 1, { auto: true, targets: [{ kind: 'object', id: b.id }] }), 'no creatures entered this turn');
+  });
 };
