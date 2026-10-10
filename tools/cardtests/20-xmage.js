@@ -21672,4 +21672,18 @@ module.exports = (test) => {
     t.eq(T4.life('B'), 18, 'two damage (one more for the other Assassin)');
     t.eq(asked, 2, 'surveil 2');
   });
+
+  test('Oloro, Ageless Ascetic: "if Oloro is in the command zone" — from there only, and its battlefield twin from the battlefield only', (mk, t) => {
+    t.auto('Oloro, Ageless Ascetic');
+    const T = mk({ library: Array(10).fill('Island') });
+    const o = T.put('A', 'Oloro, Ageless Ascetic', 'command'); o.isCommander = true;
+    T.answer('confirm', { yes: false });
+    T.toMain('B'); T.toMain('A');
+    t.eq(T.life('A'), 22, 'in the command zone: 2 life at your upkeep');
+    const T2 = mk({ library: Array(10).fill('Island') });
+    T2.bf('A', 'Oloro, Ageless Ascetic');
+    T2.answer('confirm', { yes: false });
+    T2.toMain('B'); T2.toMain('A');
+    t.eq(T2.life('A'), 22, 'on the battlefield: 2 life, not 4');
+  });
 };

@@ -10756,6 +10756,18 @@
       lines[i] = t;
       eminent.add(t);
     }
+    /* Oloro, Ageless Ascetic: "At the beginning of your upkeep, if Oloro is in
+       the command zone, you gain 2 life." — a trigger that works from the
+       command zone and nowhere else (commandOnly) */
+    const commandOnly = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      const IN0 = '(?:CARDNAME|[A-Z][A-Za-z\' ]*?) is in the command zone';
+      const cm = String(lines[i]).match(new RegExp('^((?:When(?:ever)?|At) [^,]+), if ' + IN0 + ', ([\\s\\S]+)$'));
+      if (!cm) continue;
+      lines[i] = cm[1] + ', ' + cm[2];
+      // (by its place among the lines: Oloro prints the same words again for the battlefield)
+      commandOnly.add(i);
+    }
     /* Up the Beanstalk: "When this enchantment enters and whenever you cast
        a spell with mana value 5 or greater, draw a card." Two triggers that
        do the same thing: read as two lines. */
@@ -12436,6 +12448,11 @@
     for (const ab of out.abilities) {
       const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.castWindow) out.castWindow = e.castWindow; walk(e.list); } };
       walk(ab.effects);
+    }
+    // (commandOnly: the abilities read from those lines, and no other line's)
+    for (const i of commandOnly) {
+      const li = (out.lineInfo || [])[i];
+      for (const ab of (li ? li.abilities : [])) if (ab.kind === 'triggered') { ab.eminence = true; ab.commandOnly = true; }
     }
     // (eminence: the engine looks for these in the command zone too)
     if (eminent.size) for (const ab of out.abilities) {

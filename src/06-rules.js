@@ -11832,6 +11832,8 @@
         for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
           if (o.zone === 'command' && eminent.includes(o) && !ab.eminence) continue;
+          // Oloro: "if Oloro is in the command zone" — from there only (commandOnly)
+          if (ab.commandOnly && o.zone !== 'command') continue;
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
