@@ -4,17 +4,22 @@
 
    The Friends window's Tournaments tab: invitations, the tournaments
    under way, and the finished ones. Setting one up: a name, a format, the
-   match length, how many rounds, and the friends to invite. A
-   tournament's own window: your match this round (open the table, join
-   it, report the result), the round's pairings, and the standings; the
-   organiser sets results and drops players from there too. Notes say
-   when you are invited, paired, when your table is open and when it is
-   over.
+   match length, how many rounds, the friends to invite and how many bots
+   to fill seats with. A tournament's own window: your match this round
+   (open the table, join it, play a bot, report the result), the round's
+   pairings, and the standings; the organiser invites more friends, adds
+   or takes off bots, sets results and drops players from there too.
+   Notes say when you are invited, paired, when your table is open and
+   when it is over.
 
-   A match is played at an ordinary table: the host's opens with the
-   tournament's format and match length (MTG.app.hostTableFor), and the
-   other player joins it by its room code. The table is watched here, so
-   the match's result goes to the organiser by itself once it is decided.
+   A match between two people is played at an ordinary table: the host's
+   opens with the tournament's format and match length
+   (MTG.app.hostTableFor), and the other joins it by its room code; the
+   host's table tells whoever joins which match it is, so even someone who
+   typed the code has their result go in. A match against a bot is played
+   on the person's own device (MTG.app.botTableFor). The table is watched
+   here, so a match's result goes to the organiser by itself once it is
+   decided. Bots are marked as the lobby marks them: their level, in gold.
    Everything is laid out to work by touch at 375px wide (src/tourney.css).
    ============================================================ */
 'use strict';
@@ -42,6 +47,7 @@
   const orgName = (t) => T.nameOf(t, t.org);
   const isMe = (code) => code === T.me();
   const meIn = (t) => t.players.find(p => isMe(p.code)) || null;
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
   function outcome(r) {
     if (r.w > r.l) return `you won ${score(r.w, r.l, r.d)}`;
     if (r.l > r.w) return `you lost ${score(r.w, r.l, r.d)}`;
@@ -50,12 +56,40 @@
   function stateLine(t) {
     if (t.state === 'inviting') {
       const ins = t.players.filter(p => p.st === 'in').length;
-      return `Waiting for answers · ${ins} of ${t.players.filter(p => p.st !== 'declined').length} in`;
+      return `Waiting for answers · ${ins} of ${T.seatsTaken(t)} in`;
     }
     if (t.state === 'running') return `Round ${t.rnds.length} of ${t.rounds}`;
     if (t.state === 'cancelled') return 'Called off';
     return 'Finished';
   }
+
+  /* ---------------- bots, as the lobby shows them ---------------- */
+  const LEVELS = () => (MTG.bots && MTG.bots.DIFFICULTY) || {};
+  const STYLES = () => (MTG.bots && MTG.bots.PERSONALITIES) || {};
+  const levelLabel = (lvl) => (LEVELS()[lvl] && LEVELS()[lvl].label) || `level ${lvl}`;
+  /** A bot in words, as a lobby seat says it: "Bot · Steady · Aggressive". */
+  const botWords = (b) => ['Bot', levelLabel(b.lvl), (STYLES()[b.style] || {}).label].filter(Boolean).join(' · ');
+  const botOf = (t, code) => (t.players.find(p => p.code === code) || {}).bot || null;
+  /** The lobby's mark for a bot: its level, in gold. */
+  const botBadge = (b) => el('span', { class: 'seat-level tn-lvl', text: String(b.lvl), title: botWords(b), 'aria-label': botWords(b) });
+  /** A player's name, with the lobby's bot mark beside a bot's. */
+  function nameEl(t, code, cls) {
+    const b = botOf(t, code);
+    return el('span', { class: 'tn-who' + (b ? ' is-bot' : '') + (cls ? ' ' + cls : '') }, [
+      el('span', { class: 'tn-nm', text: T.nameOf(t, code) + (isMe(code) ? ' (you)' : '') }),
+      b ? botBadge(b) : null,
+    ].filter(Boolean));
+  }
+  /** The lobby's levels, to pick from: "5 · Steady". */
+  function levelSelect(id, value, onPick) {
+    const levels = Object.keys(LEVELS()).length ? Object.keys(LEVELS()).map(Number) : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const sel = el('select', { id, class: 'tn-level', 'aria-label': 'How strong the bots are' },
+      levels.map(d => el('option', { value: String(d), text: LEVELS()[d] ? `${d} · ${LEVELS()[d].label}` : String(d), selected: d === value })));
+    sel.addEventListener('change', () => onPick(parseInt(sel.value, 10) || 5));
+    return sel;
+  }
+  const defaultLevel = () => MTG.settings.lobbyBotLevel || 5;
+
   /** A friend's picture where we have one; the organiser's friends may be strangers to us. */
   function face(code, name, size) {
     const f = hub() && hub().entry(code);
@@ -71,6 +105,7 @@
     const mm = t.state === 'running' ? T.myMatch(t) : null;
     const me = meIn(t);
     if (!mm || !me || me.st !== 'in' || mm.bye || mm.res) return '';
+    if (mm.oppBot && !mm.mine) return 'play';
     if (mm.room && !mm.host && !mm.mine) return 'join';
     if (mm.theirs && !mm.mine) return 'report';
     return '';
@@ -81,7 +116,7 @@
     const lists = el('div', { class: 'fr-lists tn-lists' });
     body.append(
       el('div', { class: 'tn-tabhead' }, [
-        el('p', { class: 'small muted fr-intro', text: 'Swiss tournaments among your friends. You invite them; the app pairs every round, takes in the results and keeps the standings. Each match is played at a table one of the two opens.' }),
+        el('p', { class: 'small muted fr-intro', text: 'Swiss tournaments among your friends, with bots to fill seats if you like. You invite them; the app pairs every round, takes in the results and keeps the standings.' }),
         el('button', { type: 'button', class: 'btn primary tn-new', html: `${SVG.plus}<span>New tournament</span>`, onclick: () => createWindow() }),
       ]),
       lists,
@@ -96,7 +131,7 @@
       if (!lists.children.length) {
         lists.appendChild(el('div', { class: 'fr-empty' }, [
           el('b', { text: 'No tournaments yet.' }),
-          el('span', { text: 'Start one for three to sixteen players, you included: New tournament, then pick the friends to invite.' }),
+          el('span', { text: 'Start one for three to sixteen players, you included: New tournament, then pick friends to invite, or bots, or both.' }),
         ]));
       }
     };
@@ -111,7 +146,9 @@
     ]);
   }
   function inviteRow(t) {
-    return tnRow(face(t.org, orgName(t)), `${orgName(t)} invites you: ${t.name}`, `${facts(t)} · ${t.players.filter(p => p.st === 'in').length} in so far`, [
+    const late = t.state === 'running';
+    const sub = late ? `${facts(t)} · come in from round ${t.rnds.length + 1}` : `${facts(t)} · ${t.players.filter(p => p.st === 'in').length} in so far`;
+    return tnRow(face(t.org, orgName(t)), `${orgName(t)} invites you: ${t.name}`, sub, [
       el('button', { type: 'button', class: 'btn sm ghost', text: 'No thanks', onclick: () => T.answer(t.id, false) }),
       el('button', { type: 'button', class: 'btn sm primary', text: 'Join', onclick: () => { if (T.answer(t.id, true)) UI.openTourney(t.id); } }),
     ], 'p-in');
@@ -122,10 +159,12 @@
     let sub = stateLine(t);
     if (me && me.st === 'dropped') sub += ' · you dropped out';
     else if (mm && mm.bye) sub += ' · a bye for you';
-    else if (mm && mm.oppName) sub += ` · ${mm.res ? 'done against' : 'you play'} ${mm.oppName}`;
+    else if (mm && mm.oppName) sub += ` · ${mm.res ? 'done against' : 'you play'} ${mm.oppName}${mm.oppBot ? ' (a bot)' : ''}`;
+    else if (t.state === 'running' && me && me.st === 'in') sub += ` · you come in from round ${t.rnds.length + 1}`;
     const want = todo(t);
     return tnRow(cupIcon(), t.name, sub, [
-      el('button', { type: 'button', class: 'btn sm' + (want ? ' primary' : ''), text: want === 'join' ? 'Join table' : want === 'report' ? 'Report' : 'Open',
+      el('button', { type: 'button', class: 'btn sm' + (want ? ' primary' : ''),
+        text: want === 'join' ? 'Join table' : want === 'play' ? 'Play' : want === 'report' ? 'Report' : 'Open',
         onclick: () => UI.openTourney(t.id) }),
     ], want ? 'tn-want' : '');
   }
@@ -162,28 +201,84 @@
     return box;
   }
 
+  /* ---------------- picking friends, and bots ---------------- */
+  /** Your friends who could be invited to `t` (to a new one, with `t` null): not in it, not invited, not blocked. */
+  function invitable(t) {
+    return hub().entries().filter(f => f.state === 'friend' && T.canInvite(f.code))
+      .filter(f => { const p = t && t.players.find(x => x.code === f.code); return !p || p.st === 'declined'; })
+      .sort((a, b) => (b.online - a.online) || (a.name || '').localeCompare(b.name || ''));
+  }
+  /**
+   * A list of friends to tick. `picked` (a Set of codes) follows the ticks;
+   * `limit(full)` stops more being ticked once the seats are taken.
+   */
+  function friendPicker(friends, picked, onChange, t) {
+    const list = el('div', { class: 'fr-rows tn-pick-friends' });
+    if (!friends.length) {
+      list.appendChild(el('div', { class: 'fr-empty' }, [
+        el('b', { text: t ? 'Nobody left to invite.' : 'No friends to invite yet.' }),
+        el('span', { text: t ? 'Every friend of yours is in it or invited already.' : 'Add friends from the Friends tab, or fill the seats with bots below.' }),
+      ]));
+    }
+    for (const f of friends) {
+      const box = el('input', { type: 'checkbox', id: 'tn-f-' + f.code, 'aria-label': `Invite ${f.name || F.formatCode(f.code)}` });
+      box.addEventListener('change', () => { if (box.checked) picked.add(f.code); else picked.delete(f.code); onChange(); });
+      const before = t && t.players.find(x => x.code === f.code);
+      list.appendChild(el('label', { class: 'fr-row tn-friend p-' + f.presence, for: 'tn-f-' + f.code }, [
+        face(f.code, f.name),
+        el('div', { class: 'fr-who' }, [
+          el('div', { class: 'fr-name', text: f.name || F.formatCode(f.code) }),
+          el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }),
+            el('span', { text: (f.online ? 'Online' : 'Offline · invited when they are back') + (before ? ' · said no before' : '') })]),
+        ]),
+        box,
+      ]));
+    }
+    return {
+      el: list,
+      limit(full) { for (const b of list.querySelectorAll('input[type=checkbox]')) b.disabled = !b.checked && full; },
+    };
+  }
+  /** How many bots, and how strong: a stepper and the lobby's levels. */
+  function botsRow(choice, onChange) {
+    const n = el('b', { class: 'tn-step-n tn-bot-n', 'aria-live': 'polite' });
+    const minus = el('button', { type: 'button', class: 'btn xs', text: '−', 'aria-label': 'One bot fewer', onclick: () => { choice.bots--; paint(); onChange(); } });
+    const plus = el('button', { type: 'button', class: 'btn xs', text: '+', 'aria-label': 'One bot more', onclick: () => { choice.bots++; paint(); onChange(); } });
+    const lvl = levelSelect('tn-bot-level', choice.lvl, (v) => { choice.lvl = v; });
+    let full = false;
+    const paint = () => { n.textContent = String(choice.bots); minus.disabled = choice.bots <= 0; plus.disabled = full; };
+    const box = el('div', { class: 'tn-bots' }, [
+      el('div', { class: 'tn-bots-say' }, [
+        el('span', { class: 'tn-label', text: 'Bots' }),
+        el('span', { class: 'tn-hint', text: 'They fill seats and play their matches: against you on your own device, against each other on the organiser’s.' }),
+      ]),
+      el('div', { class: 'tn-bots-pick' }, [
+        el('div', { class: 'tn-step tn-bot-step', role: 'group', 'aria-label': 'How many bots' }, [minus, n, plus]),
+        el('label', { class: 'tn-bot-lvl' }, [el('span', { class: 'tiny dim', text: 'Difficulty' }), lvl]),
+      ]),
+    ]);
+    paint();
+    return { el: box, limit(f) { full = f; paint(); } };
+  }
+
   /* ---------------- setting one up ---------------- */
   function createWindow() {
-    const friends = hub().entries().filter(f => f.state === 'friend')
-      .sort((a, b) => (b.online - a.online) || (a.name || '').localeCompare(b.name || ''));
-    if (friends.length < T.MIN_PLAYERS - 1) {
-      UI.error(`A tournament needs at least ${T.MIN_PLAYERS} players, you included. Add ${T.MIN_PLAYERS - 1 - friends.length === 1 ? 'one more friend' : 'a couple of friends'} first.`);
-      return null;
-    }
+    const friends = invitable(null);
     const formats = MTG.formats.list().filter(f => f.kind !== 'limited');
     const was = MTG.settings.tourneyLast || {};
     const choice = {
       fmt: formats.some(f => f.id === was.fmt) ? was.fmt : (formats.some(f => f.id === A().formatId) ? A().formatId : 'standard'),
-      bo: was.bo === 1 ? 1 : 3, rounds: 0, picked: new Set(),
+      bo: was.bo === 1 ? 1 : 3, rounds: 0, picked: new Set(), bots: 0, lvl: was.lvl || defaultLevel(),
     };
     const name = el('input', { type: 'text', id: 'tn-name', class: 'tn-input', maxlength: '40', value: `${hub().myName()}’s tournament`, autocomplete: 'off', 'aria-label': 'The tournament’s name' });
     const fmtSel = el('select', { id: 'tn-fmt', 'aria-label': 'Format' }, formats.map(f => el('option', { value: f.id, text: f.name, selected: f.id === choice.fmt })));
     fmtSel.addEventListener('change', () => { choice.fmt = fmtSel.value; });
     const roundsHint = el('div', { class: 'tn-hint' });
     const count = el('div', { class: 'tn-count', 'aria-live': 'polite' });
-    const list = el('div', { class: 'fr-rows tn-pick-friends' });
     const field = (label, control, forId) => el('div', { class: 'tn-field' }, [el('label', { class: 'tn-label', for: forId || null, text: label }), control]);
     const roundSeg = seg([[0, 'Auto'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], 0, (v) => { choice.rounds = v; paint(); }, 'Rounds', 'seg-wrap tn-rounds');
+    const picker = friendPicker(friends, choice.picked, () => paint(), null);
+    const bots = botsRow(choice, () => paint());
     const m = UI.modal({
       title: 'New tournament', className: 'friends-modal tn-create', width: 'min(620px, 96vw)',
       content: el('div', { class: 'tn-form' }, [
@@ -191,41 +286,84 @@
         field('Format', fmtSel, 'tn-fmt'),
         field('Matches', seg([[1, 'Best of 1'], [3, 'Best of 3']], choice.bo, (v) => { choice.bo = v; }, 'Match length', 'tn-bo')),
         field('Rounds', el('div', { class: 'tn-roundbox' }, [roundSeg, roundsHint])),
-        el('div', { class: 'tn-field' }, [el('div', { class: 'tn-label', text: 'Invite' }), count, list]),
+        el('div', { class: 'tn-field' }, [el('div', { class: 'tn-label', text: 'Invite' }), count, picker.el]),
+        bots.el,
       ]),
     });
     m.button('Cancel', (mm) => mm.close(), 'ghost');
     const go = m.button('Send invites', () => send(), 'primary');
     function paint() {
-      const n = choice.picked.size + 1;
-      count.textContent = `${n} player${n === 1 ? '' : 's'}, you included · ${T.MIN_PLAYERS} to ${T.MAX_PLAYERS}`;
+      const n = choice.picked.size + choice.bots + 1;
+      const parts = [`${n} player${n === 1 ? '' : 's'}, you included`];
+      if (choice.bots) parts.push(plural(choice.bots, 'bot'));
+      count.textContent = parts.join(' · ') + ` · ${T.MIN_PLAYERS} to ${T.MAX_PLAYERS}`;
       count.classList.toggle('bad', n < T.MIN_PLAYERS);
+      const k = Math.max(T.MIN_PLAYERS, n);
       roundsHint.textContent = choice.rounds ? `${choice.rounds} round${choice.rounds === 1 ? '' : 's'}, whoever comes.`
-        : `As many as suit the players who come: ${T.defaultRounds(Math.max(T.MIN_PLAYERS, n))} for ${Math.max(T.MIN_PLAYERS, n)}.`;
-      go.disabled = n < T.MIN_PLAYERS;
-      for (const b of list.querySelectorAll('input[type=checkbox]')) b.disabled = !b.checked && n >= T.MAX_PLAYERS;
-    }
-    for (const f of friends) {
-      const box = el('input', { type: 'checkbox', id: 'tn-f-' + f.code, 'aria-label': `Invite ${f.name || F.formatCode(f.code)}` });
-      box.addEventListener('change', () => { if (box.checked) choice.picked.add(f.code); else choice.picked.delete(f.code); paint(); });
-      list.appendChild(el('label', { class: 'fr-row tn-friend p-' + f.presence, for: 'tn-f-' + f.code }, [
-        face(f.code, f.name),
-        el('div', { class: 'fr-who' }, [
-          el('div', { class: 'fr-name', text: f.name || F.formatCode(f.code) }),
-          el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }), el('span', { text: f.online ? 'Online' : 'Offline · invited when they are back' })]),
-        ]),
-        box,
-      ]));
+        : `As many as suit the players who come: ${T.defaultRounds(k)} for ${k}.`;
+      go.disabled = n < T.MIN_PLAYERS || n > T.MAX_PLAYERS;
+      go.textContent = choice.picked.size ? 'Send invites' : 'Set it up';
+      picker.limit(n >= T.MAX_PLAYERS);
+      bots.limit(n >= T.MAX_PLAYERS);
     }
     paint();
     function send() {
-      const t = T.create({ name: name.value, fmt: choice.fmt, bo: choice.bo, rounds: choice.rounds, invite: [...choice.picked] });
+      const t = T.create({ name: name.value, fmt: choice.fmt, bo: choice.bo, rounds: choice.rounds, invite: [...choice.picked], bots: choice.bots, botLevel: choice.lvl });
       if (t.why) { MTG.sfx('reject'); UI.error(t.why); return; }
-      MTG.setSetting('tourneyLast', { fmt: choice.fmt, bo: choice.bo });
+      MTG.setSetting('tourneyLast', { fmt: choice.fmt, bo: choice.bo, lvl: choice.lvl });
       MTG.sfx('confirm');
       m.close();
-      UI.ok(`Invites sent. Start ${t.name} once enough of them are in.`);
+      UI.ok(choice.picked.size ? `Invites sent. Start ${t.name} once enough of them are in.` : `${t.name} is set up. Start it when you are ready.`);
       UI.openTourney(t.id);
+    }
+    return m;
+  }
+
+  /* ---------------- inviting more ---------------- */
+  /**
+   * More friends for `t`: before the start into seats left (a bot giving
+   * up its seat, if that is what it takes); once under way, to come in from
+   * the next round.
+   */
+  function inviteMoreWindow(t) {
+    const picked = new Set();
+    const friends = invitable(t);
+    const say = el('div', { class: 'tn-count', 'aria-live': 'polite' });
+    const picker = friendPicker(friends, picked, () => paint(), t);
+    const late = t.state === 'running';
+    const m = UI.modal({
+      title: 'Invite more friends', className: 'friends-modal tn-create tn-more', width: 'min(560px, 96vw)',
+      content: el('div', { class: 'tn-form' }, [
+        el('p', { class: 'small muted', style: { margin: 0 }, text: late
+          ? `They come in from round ${t.rnds.length + 1}. The rounds already played count as lost for them, as a late entry does.`
+          : 'They are asked the usual way, and can say yes until you start.' }),
+        say, picker.el,
+      ]),
+    });
+    m.button('Cancel', (mm) => mm.close(), 'ghost');
+    const go = m.button('Send invites', () => send(), 'primary');
+    let replace = false;
+    function paint() {
+      const cur = T.get(t.id);
+      if (!cur) return;
+      const free = T.MAX_PLAYERS - T.seatsTaken(cur);
+      const bots = cur.state === 'inviting' ? cur.players.filter(p => p.bot).length : 0;
+      const short = picked.size - free;
+      replace = short > 0 && bots >= short;
+      say.textContent = (free > 0 ? `${plural(free, 'seat')} left` : `All ${T.MAX_PLAYERS} seats are taken`) +
+        (replace ? ` · ${plural(short, 'bot')} would give up ${short === 1 ? 'its seat' : 'their seats'}` : bots && free <= 0 ? ' · a bot can give up its seat' : '');
+      say.classList.toggle('bad', short > 0 && !replace);
+      go.disabled = !picked.size || (short > 0 && !replace);
+      go.textContent = replace ? `Invite, replacing ${plural(short, 'bot')}` : 'Send invites';
+      picker.limit(picked.size >= free + bots);
+    }
+    paint();
+    function send() {
+      const why = T.invite(t.id, [...picked], { replaceBots: replace });
+      if (why) { MTG.sfx('reject'); UI.error(why); return; }
+      MTG.sfx('confirm');
+      UI.ok(picked.size === 1 ? 'Invite sent.' : 'Invites sent.');
+      m.close();
     }
     return m;
   }
@@ -241,7 +379,7 @@
     const status = el('div', { class: 'tn-status', 'aria-live': 'polite' });
     const body = el('div', { class: 'tn-body' });
     const m = UI.modal({ title: T.get(id).name, className: 'friends-modal tn-modal', width: 'min(860px, 96vw)', content: el('div', { class: 'tn-wrap' }, [status, body]) });
-    const w = tw = { id, m, round: 0, draw };
+    const w = tw = { id, m, round: 0, draw, lvl: defaultLevel() };
     let queued = false;
     const soon = () => { if (queued) return; queued = true; setTimeout(() => { queued = false; if (tw === w) draw(); }, 30); };
     const offs = [T.on('change', (x) => { if (!x || x.id === id) soon(); })];
@@ -268,8 +406,9 @@
         el('span', { class: 'pill', text: t.rounds ? `${t.rounds} round${t.rounds === 1 ? '' : 's'}` : 'Rounds: to suit the players' }),
         el('span', { class: 'tn-by', text: org ? 'You run it' : `Run by ${orgName(t)}` }),
       ]));
-      if (t.state === 'inviting') body.appendChild(playersPanel(t));
-      if (t.state === 'running' && me) body.appendChild(matchPanel(t));
+      if (t.state === 'inviting') body.appendChild(playersPanel(t, w));
+      if (t.state === 'running' && me && me.st !== 'invited') body.appendChild(matchPanel(t));
+      if (t.state === 'running' && org) { const p = latePanel(t); if (p) body.appendChild(p); }
       if (t.state === 'done') body.appendChild(winnerPanel(t));
       if (t.rnds.length) body.appendChild(roundPanel(t, w));
       if (t.rnds.length) body.appendChild(standingsPanel(t));
@@ -303,11 +442,15 @@
   };
   function statusText(t) {
     const me = meIn(t);
+    if (T.isInvite(t)) {
+      return t.state === 'running'
+        ? `${orgName(t)} invites you to come in from round ${t.rnds.length + 1}. The rounds already played count as lost for you, as a late entry does.`
+        : `${orgName(t)} invites you. Join, and you are paired once ${orgName(t)} starts it.`;
+    }
     if (t.state === 'inviting') {
-      if (T.isInvite(t)) return `${orgName(t)} invites you. Join, and you are paired once ${orgName(t)} starts it.`;
       if (t.role === 'org') {
         const ins = t.players.filter(p => p.st === 'in').length;
-        return ins < T.MIN_PLAYERS ? `Waiting for answers. It can start once ${T.MIN_PLAYERS} of you are in; ${ins} ${ins === 1 ? 'is' : 'are'} so far.`
+        return ins < T.MIN_PLAYERS ? `Waiting for answers. It can start once ${T.MIN_PLAYERS} of you are in, bots included; ${ins} ${ins === 1 ? 'is' : 'are'} so far.`
           : `${ins} players are in. Start whenever you like: whoever has not answered is left out.`;
       }
       return `You are in. Round one is paired when ${orgName(t)} starts it.`;
@@ -333,20 +476,61 @@
     T.leave(t.id);
   }
 
-  /** Before it starts: who is in, who has not answered. */
-  function playersPanel(t) {
+  /** Before it starts: who is in, who has not answered, the bots; the organiser invites more and adds bots here. */
+  function playersPanel(t, w) {
     const org = t.role === 'org';
-    const word = { in: 'In', invited: 'Not answered yet', declined: 'Said no', dropped: 'Left' };
-    const rows = t.players.slice().sort((a, b) => (a.st === 'in' ? 0 : 1) - (b.st === 'in' ? 0 : 1)).map(p => el('div', { class: 'fr-row tn-player p-' + (p.st === 'in' ? 'online' : 'offline') }, [
+    const word = { in: 'In', invited: 'Invited · waiting for an answer', declined: 'Said no', dropped: 'Left' };
+    const order = { in: 0, invited: 1, declined: 2, dropped: 3 };
+    const rows = t.players.slice().sort((a, b) => (order[a.st] - order[b.st]) || ((a.bot ? 1 : 0) - (b.bot ? 1 : 0))).map((p) => {
+      const acts = [];
+      if (org && !isMe(p.code)) {
+        if (p.bot) acts.push(el('button', { type: 'button', class: 'btn sm ghost', text: 'Take off', 'aria-label': `Take ${p.name} off`, onclick: () => T.removeBot(t.id, p.code) }));
+        else if (p.st === 'in') acts.push(el('button', { type: 'button', class: 'btn sm ghost', text: 'Take off', 'aria-label': `Take ${p.name} off`, onclick: () => T.drop(t.id, p.code) }));
+        else if (p.st === 'invited') acts.push(el('button', { type: 'button', class: 'btn sm ghost', text: 'Withdraw', 'aria-label': `Withdraw ${p.name}’s invitation`, onclick: () => T.uninvite(t.id, p.code) }));
+        else if (p.st === 'declined' && T.canInvite(p.code)) {
+          acts.push(el('button', { type: 'button', class: 'btn sm', text: 'Invite again', onclick: () => { const why = T.invite(t.id, [p.code]); if (why) UI.error(why); } }));
+        }
+      }
+      return el('div', { class: 'fr-row tn-player p-' + (p.st === 'in' ? 'online' : 'offline') + (p.bot ? ' is-bot' : '') }, [
+        face(p.code, p.name),
+        el('div', { class: 'fr-who' }, [
+          el('div', { class: 'fr-name' }, [nameEl(t, p.code)]),
+          el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }), el('span', { text: p.bot ? botWords(p.bot) : word[p.st] || '' })]),
+        ]),
+        el('div', { class: 'fr-acts' }, acts),
+      ]);
+    });
+    const panel = el('section', { class: 'tn-panel' }, [
+      el('h3', { class: 'fr-h', text: `Players · ${T.seatsTaken(t)} of ${T.MAX_PLAYERS} seats` }),
+      el('div', { class: 'fr-rows' }, rows),
+    ]);
+    if (org) {
+      const free = T.MAX_PLAYERS - T.seatsTaken(t);
+      const add = el('button', { type: 'button', class: 'btn sm', text: 'Add a bot', disabled: free <= 0, onclick: () => { const why = T.addBots(t.id, 1, w.lvl); if (why) UI.error(why); } });
+      panel.appendChild(el('div', { class: 'tn-more-row' }, [
+        el('button', { type: 'button', class: 'btn sm primary', html: `${SVG.plus}<span>Invite more</span>`, onclick: () => inviteMoreWindow(t) }),
+        el('div', { class: 'tn-addbot' }, [levelSelect('tn-add-level', w.lvl, (v) => { w.lvl = v; }), add]),
+      ]));
+    }
+    return panel;
+  }
+  /** Under way: invitations to come in late, and the way to send more. Null when there is nothing to show. */
+  function latePanel(t) {
+    const waiting = t.players.filter(p => p.st === 'invited');
+    const open = T.openToMore(t);
+    if (!waiting.length && !open) return null;
+    const rows = waiting.map(p => el('div', { class: 'fr-row tn-player p-offline' }, [
       face(p.code, p.name),
-      el('div', { class: 'fr-who' }, [
-        el('div', { class: 'fr-name', text: p.name + (isMe(p.code) ? ' (you)' : '') }),
-        el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }), el('span', { text: word[p.st] || '' })]),
-      ]),
-      el('div', { class: 'fr-acts' }, org && !isMe(p.code) && (p.st === 'in' || p.st === 'invited')
-        ? [el('button', { type: 'button', class: 'btn sm ghost', text: 'Take off', onclick: () => T.drop(t.id, p.code) })] : []),
+      el('div', { class: 'fr-who' }, [el('div', { class: 'fr-name', text: p.name }), el('div', { class: 'fr-pres' }, [el('span', { text: `Invited to come in from round ${t.rnds.length + 1}` })])]),
+      el('div', { class: 'fr-acts' }, [el('button', { type: 'button', class: 'btn sm ghost', text: 'Withdraw', onclick: () => T.uninvite(t.id, p.code) })]),
     ]));
-    return el('section', { class: 'tn-panel' }, [el('h3', { class: 'fr-h', text: 'Players' }), el('div', { class: 'fr-rows' }, rows)]);
+    return el('section', { class: 'tn-panel tn-late' }, [
+      el('div', { class: 'tn-head' }, [
+        el('h3', { class: 'fr-h', text: 'Coming in late' }),
+        open ? el('button', { type: 'button', class: 'btn sm', html: `${SVG.plus}<span>Invite more</span>`, onclick: () => inviteMoreWindow(t) }) : null,
+      ].filter(Boolean)),
+      rows.length ? el('div', { class: 'fr-rows' }, rows) : el('p', { class: 'tiny dim', style: { margin: 0 }, text: 'A friend invited now comes in from the next round; the rounds already played count as lost for them.' }),
+    ]);
   }
 
   /** Your match this round: who, where, and what is left to do. */
@@ -358,16 +542,26 @@
       box.append(el('b', { text: 'You dropped out.' }), el('p', { class: 'small muted', text: 'You are not paired again; the standings carry on without you.' }));
       return box;
     }
-    if (!mm) return box;
+    if (!mm) {
+      box.append(el('b', { text: `You come in from round ${t.rnds.length + 1}.` }),
+        el('p', { class: 'small muted', text: 'You are paired as soon as this round’s results are in.' }));
+      return box;
+    }
     box.appendChild(el('div', { class: 'eyebrow', text: mm.bye ? `Round ${mm.r}` : `Round ${mm.r} · table ${mm.pair.t}` }));
     if (mm.bye) {
       box.append(el('b', { class: 'tn-vs', text: 'A bye' }), el('p', { class: 'small muted', text: 'It counts as a match won 2–0. Sit this one out; the next round is paired once every result is in.' }));
       return box;
     }
-    box.appendChild(el('div', { class: 'tn-vs' }, [face(mm.opp, mm.oppName, 'sm'), el('b', { text: `You play ${mm.oppName}` })]));
+    box.appendChild(el('div', { class: 'tn-vs' }, [face(mm.opp, mm.oppName, 'sm'), el('b', { text: 'You play ' }), nameEl(t, mm.opp)]));
     const lines = [];
     if (mm.res) lines.push(`Settled: ${outcome({ w: mm.res.a, l: mm.res.b, d: mm.res.d })}.`);
-    else {
+    else if (mm.oppBot) {
+      if (mm.mine) lines.push(`You reported ${outcome({ w: mm.mine.a, l: mm.mine.b, d: mm.mine.d })}, to be sent when ${orgName(t)} is online.`);
+      else {
+        lines.push(`${mm.oppName} is a bot (${botWords(mm.oppBot).replace(/^Bot · /, '')}). You play it here, on this device.`);
+        lines.push('When the match is over the result goes in by itself, and against a bot your report alone settles it. If it ended another way, report it.');
+      }
+    } else {
       if (mm.mine && mm.theirs && (mm.mine.a !== mm.theirs.a || mm.mine.b !== mm.theirs.b || mm.mine.d !== mm.theirs.d)) {
         lines.push(`Your reports disagree: you said ${outcome({ w: mm.mine.a, l: mm.mine.b, d: mm.mine.d })}, ${mm.oppName} said ${outcome({ w: mm.theirs.a, l: mm.theirs.b, d: mm.theirs.d })}. ${t.role === 'org' ? 'Set the result below.' : orgName(t) + ' decides.'}`);
       } else if (mm.mine) lines.push(`You reported ${outcome({ w: mm.mine.a, l: mm.mine.b, d: mm.mine.d })}${mm.pending ? ', to be sent when ' + orgName(t) + ' is online' : ''}. Waiting for ${mm.oppName} to report it too.`);
@@ -381,7 +575,8 @@
     for (const l of lines) box.appendChild(el('p', { class: 'small tn-line', text: l }));
     const acts = el('div', { class: 'tn-acts' });
     if (!mm.res) {
-      if (!mm.mine) {
+      if (!mm.mine && mm.oppBot) acts.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Play your match', onclick: () => playBotMatch(t, mm) }));
+      else if (!mm.mine) {
         if (mm.room && !mm.host) acts.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Join the table', onclick: () => joinMatch(t, mm) }));
         if (mm.host) acts.appendChild(el('button', { type: 'button', class: 'btn' + (mm.room ? '' : ' primary'), text: mm.room ? 'Open it again' : 'Open the table', onclick: () => hostMatch(t, mm) }));
         else if (!mm.room) acts.appendChild(el('button', { type: 'button', class: 'btn ghost', text: 'Open it yourself', title: `If ${mm.oppName} cannot, you can host instead`, onclick: () => hostMatch(t, mm) }));
@@ -402,7 +597,7 @@
       el('span', { class: 'tn-cup', html: SVG.cup }),
       el('div', null, [
         el('div', { class: 'eyebrow', text: 'Winner' }),
-        el('b', { text: top.name + (isMe(top.code) ? ' (you)' : '') }),
+        el('b', null, [nameEl(t, top.code)]),
         el('div', { class: 'small muted', text: `${top.mp} points · ${top.w}–${top.l}${top.d ? '–' + top.d : ''} in matches` }),
       ]),
     ]);
@@ -415,24 +610,25 @@
     w.lastRounds = n;
     const org = t.role === 'org' && t.state === 'running';
     const r = w.round;
+    const BY = { org: ' · set by the organiser', drop: ' · a drop', sim: ' · played out by the bots’ levels', bot: ' · reported' };
     const rows = t.rnds[r - 1].pairs.map((p) => {
-      const nameA = T.nameOf(t, p.a), nameB = p.b ? T.nameOf(t, p.b) : '';
       let state = '', cls = '';
       if (!p.b) { state = 'bye'; cls = 'bye'; }
-      else if (p.res) { state = score(p.res.a, p.res.b, p.res.d) + (p.by === 'org' ? ' · set by the organiser' : p.by === 'drop' ? ' · a drop' : ''); cls = 'done'; }
+      else if (p.res) { state = score(p.res.a, p.res.b, p.res.d) + (BY[p.by] || ''); cls = 'done'; }
       else if (T.disputed(p)) { state = 'reports disagree'; cls = 'dispute'; }
       else if (p.rep[p.a] || p.rep[p.b]) { state = 'one report in'; cls = 'half'; }
-      else { state = p.room ? `playing · room ${p.room}` : 'to play'; }
+      else if (T.isBot(p.a) || T.isBot(p.b)) state = 'to play, against a bot';
+      else state = p.room ? `playing · room ${p.room}` : 'to play';
       const mine = isMe(p.a) || isMe(p.b);
       return el('div', { class: 'tn-pair ' + cls + (mine ? ' mine' : '') }, [
         el('span', { class: 'tn-table', text: p.b ? String(p.t) : '–', title: p.b ? `Table ${p.t}` : 'A bye' }),
         el('div', { class: 'tn-names' }, [
-          el('span', { class: 'tn-a', text: nameA }),
+          nameEl(t, p.a, 'tn-a'),
           p.b ? el('span', { class: 'tn-v', text: 'v' }) : null,
-          p.b ? el('span', { class: 'tn-b', text: nameB }) : null,
+          p.b ? nameEl(t, p.b, 'tn-b') : null,
         ].filter(Boolean)),
         el('span', { class: 'tn-state', text: state }),
-        org && p.b && r === n ? el('button', { type: 'button', class: 'btn xs' + (cls === 'dispute' || cls === 'half' ? ' primary' : ' ghost'), text: p.res ? 'Change' : 'Set result',
+        org && p.b && r === n ? el('button', { type: 'button', class: 'btn xs' + (cls === 'dispute' || (cls === 'half' && !T.isBot(p.a) && !T.isBot(p.b)) ? ' primary' : ' ghost'), text: p.res ? 'Change' : 'Set result',
           onclick: () => resultPicker(t, r, p, true) }) : null,
       ].filter(Boolean));
     });
@@ -455,12 +651,14 @@
       el('span', { class: 'c-gw', role: 'columnheader', text: 'GW', title: 'Game-win percentage: the second tiebreaker' }),
       el('span', { class: 'c-ogw', role: 'columnheader', text: 'OGW', title: 'Opponents’ game-win percentage: the third tiebreaker' }),
     ]);
-    const rows = st.map(r => el('div', { class: 'tn-st-row' + (isMe(r.code) ? ' me' : '') + (r.st === 'dropped' ? ' dropped' : ''), role: 'row' }, [
+    const rows = st.map(r => el('div', { class: 'tn-st-row' + (isMe(r.code) ? ' me' : '') + (r.st === 'dropped' ? ' dropped' : '') + (r.bot ? ' is-bot' : ''), role: 'row' }, [
       el('span', { class: 'c-rank', role: 'cell', text: String(r.rank) }),
       el('span', { class: 'c-name', role: 'cell' }, [
         el('span', { class: 'tn-pname', text: r.name + (isMe(r.code) ? ' (you)' : '') }),
+        r.bot ? botBadge(r.bot) : null,
         r.st === 'dropped' ? el('span', { class: 'tn-tag', text: 'dropped' }) : null,
-        org && r.st === 'in' && !isMe(r.code) ? el('button', { type: 'button', class: 'btn xs ghost tn-drop', text: 'Drop', 'aria-label': `Drop ${r.name}`,
+        r.late ? el('span', { class: 'tn-tag', text: `from round ${r.late + 1}`, title: 'Came in late: the rounds before count as lost' }) : null,
+        org && r.st === 'in' && !r.bot && !isMe(r.code) ? el('button', { type: 'button', class: 'btn xs ghost tn-drop', text: 'Drop', 'aria-label': `Drop ${r.name}`,
           onclick: async () => { if (await UI.confirm(`Drop ${r.name}? They are not paired again, and a match of theirs not yet finished goes to their opponent.`, 'Drop a player', { yes: 'Drop' })) T.drop(t.id, r.code); } }) : null,
       ].filter(Boolean)),
       el('span', { class: 'c-pts', role: 'cell', text: String(r.mp) }),
@@ -486,6 +684,7 @@
     const flipIt = !asOrg && pair.b === me;              // a player's side first
     const left = asOrg ? T.nameOf(t, pair.a) : 'You';
     const right = asOrg ? T.nameOf(t, pair.b) : T.nameOf(t, pair.a === me ? pair.b : pair.a);
+    const vsBot = T.isBot(pair.a) || T.isBot(pair.b);
     const n = T.need(t.bo);
     // nothing chosen until something is: a draw of no games is a result too, but not one to send by accident
     const v = { a: 0, b: 0, d: 0, set: false };
@@ -517,11 +716,13 @@
       said.classList.toggle('bad', v.set && !ok);
       if (sendBtn) sendBtn.disabled = !ok;
     };
+    const intro = asOrg ? 'Set the result. It counts as it is, whatever the players reported.'
+      : vsBot ? 'Say how it went. Against a bot, your report settles it.'
+        : `Say how it went. If ${right} says the same, it is settled; if not, ${t.role === 'org' ? 'you decide as the organiser' : orgName(t) + ' decides'}.`;
     const m = UI.modal({
       title: asOrg ? `Table ${pair.t}: ${left} v ${right}` : `Your match against ${right}`, className: 'friends-modal tn-pick', width: 'min(520px, 96vw)',
       content: el('div', { class: 'tn-pickbody' }, [
-        el('p', { class: 'small muted', style: { marginTop: 0 }, text: asOrg ? 'Set the result. It counts as it is, whatever the players reported.'
-          : `Say how it went. If ${right} says the same, it is settled; if not, ${t.role === 'org' ? 'you decide as the organiser' : orgName(t) + ' decides'}.` }),
+        el('p', { class: 'small muted', style: { marginTop: 0 }, text: intro }),
         chips, el('div', { class: 'tn-or tiny dim', text: 'Or game by game:' }), steppers, said,
       ]),
     });
@@ -573,14 +774,27 @@
     if (UI.joinFriendRoom) UI.joinFriendRoom(mm.room, mm.oppName);
     else if (A().joinRoom) A().joinRoom(mm.room);
   }
+  /** A match against a bot: a table here, the bot seated as the tournament has it, your deck to choose. */
+  async function playBotMatch(t, mm) {
+    const app = A();
+    if (!app.botTableFor) return UI.error('A table cannot be opened from here.');
+    if (UI.leaveTableFirst && !await UI.leaveTableFirst({ question: `Leave this table to play your match against ${mm.oppName}?`, title: 'Your tournament match', yes: 'Leave and play' })) return;
+    closeWindows();
+    app.botTableFor({
+      formatId: t.fmt, rules: { bestOf: t.bo },
+      bot: { name: mm.oppName, difficulty: mm.oppBot.lvl, personality: mm.oppBot.style || '' },
+      mode: { tourney: { id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName, bot: true } },
+    });
+  }
 
   /** In the lobby of a tournament's match: which match, and that its result goes in by itself. */
   UI.tourneyLobbyNote = function (info) {
     const t = info && T.get(info.id);
     if (!t) return null;
     const opp = info.opp || 'your opponent';
-    const what = info.guest ? `Choose your deck; ${opp} starts the match once you both have.`
-      : `Choose your deck; once ${opp} has joined and chosen theirs, start.`;
+    const what = info.bot ? `${opp} is a bot, at the tournament’s own level: choose your deck and start.`
+      : info.guest ? `Choose your deck; ${opp} starts the match once you both have.`
+        : `Choose your deck; once ${opp} has joined and chosen theirs, start.`;
     return el('section', { class: 'panel tn-lobby' }, [
       el('div', { class: 'eyebrow', text: 'Tournament match' }),
       el('b', { text: `${t.name} · round ${info.r}` }),
@@ -591,7 +805,7 @@
   UI.tourneyRoomNote = function (room) {
     for (const t of T.active()) {
       const mm = t.state === 'running' ? T.myMatch(t) : null;
-      if (mm && !mm.bye && !mm.res && room && mm.room === room) return UI.tourneyLobbyNote({ id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName, guest: true });
+      if (mm && !mm.bye && !mm.res && !mm.oppBot && room && T.roomsOf(t, mm.r, mm.pair).includes(room)) return UI.tourneyLobbyNote({ id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName, guest: true });
     }
     return null;
   };
@@ -602,7 +816,7 @@
   T.on('invite', (t) => {
     note({
       key: 'tn-' + t.id, face: face(t.org, orgName(t), 'sm'), title: `${orgName(t)} invites you to a tournament`,
-      text: `${t.name} · ${fmtName(t.fmt)}, best of ${t.bo}`, life: 60000,
+      text: `${t.name} · ${fmtName(t.fmt)}, best of ${t.bo}` + (t.state === 'running' ? ` · from round ${t.rnds.length + 1}` : ''), life: 60000,
       buttons: [
         { label: 'Not now', cls: 'ghost', fn: () => {} },
         { label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) },
@@ -613,18 +827,27 @@
     if (windowFor(t.id)) return;
     const mm = T.myMatch(t);
     if (!mm) return;
+    const latest = () => { const now = T.get(t.id); const m2 = now && T.myMatch(now); return m2 && !m2.res ? [now, m2] : null; };
+    let text, buttons;
+    if (mm.bye) { text = 'It counts as a match won 2–0.'; buttons = [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }]; }
+    else if (mm.oppBot) {
+      text = `${mm.oppName} is a bot (${levelLabel(mm.oppBot.lvl)}). You play it on this device.`;
+      buttons = [{ label: 'Later', cls: 'ghost', fn: () => {} }, { label: 'Play your match', cls: 'primary', fn: () => { const x = latest(); if (x) playBotMatch(x[0], x[1]); } }];
+    } else if (mm.host) {
+      text = 'You open the table.';
+      buttons = [{ label: 'Later', cls: 'ghost', fn: () => {} }, { label: 'Open the table', cls: 'primary', fn: () => { const x = latest(); if (x) hostMatch(x[0], x[1]); } }];
+    } else {
+      text = `${mm.oppName} opens the table; you are told when it is open.`;
+      buttons = [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }];
+    }
     note({
       key: 'tn-' + t.id, face: mm.bye ? null : face(mm.opp, mm.oppName, 'sm'),
-      title: mm.bye ? `${t.name}, round ${r}: a bye` : `${t.name}, round ${r}: you play ${mm.oppName}`,
-      text: mm.bye ? 'It counts as a match won 2–0.' : mm.host ? 'You open the table.' : `${mm.oppName} opens the table; you are told when it is open.`, life: 45000,
-      buttons: mm.bye ? [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }]
-        : mm.host ? [{ label: 'Later', cls: 'ghost', fn: () => {} }, { label: 'Open the table', cls: 'primary', fn: () => { const now = T.get(t.id); const m2 = now && T.myMatch(now); if (m2 && !m2.res) hostMatch(now, m2); } }]
-          : [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }],
+      title: mm.bye ? `${t.name}, round ${r}: a bye` : `${t.name}, round ${r}: you play ${mm.oppName}`, text, life: 45000, buttons,
     });
   });
   T.on('room', (t, p, room) => {
     const mm = T.myMatch(t);
-    if (!mm || mm.bye || mm.res || mm.host) return;
+    if (!mm || mm.bye || mm.res || mm.host || mm.oppBot) return;
     // the same key as a friend's own invite to that room, so there is one note, not two
     note({
       key: 'inv-' + mm.opp, face: face(mm.opp, mm.oppName, 'sm'), title: `${mm.oppName}’s table is open`,
@@ -642,7 +865,8 @@
   T.on('reported', (t, p, mine, auto) => {
     if (!auto) return;
     const said = outcome({ w: mine.a, l: mine.b, d: mine.d });
-    UI.toast(`${t.name}: ${said[0].toUpperCase() + said.slice(1)}. ${t.role === 'org' ? 'It is in the standings once your opponent agrees.' : 'The result is sent to ' + orgName(t) + '.'}`, 'ok', 5000);
+    const vsBot = T.isBot(p.a) || T.isBot(p.b);
+    UI.toast(`${t.name}: ${said[0].toUpperCase() + said.slice(1)}. ${t.role === 'org' ? (vsBot ? 'It is in the standings.' : 'It is in the standings once your opponent agrees.') : 'The result is sent to ' + orgName(t) + '.'}`, 'ok', 5000);
   });
   T.on('dispute', (t, p, r) => {
     if (windowFor(t.id)) return;
@@ -668,13 +892,17 @@
   /* ---------------- the table, watched for a match's end ---------------- */
   /** Look at a view as it arrives: a tournament match decided at this table is reported, once. */
   function seeView(table, v) {
-    if (!v || !v.over || !net.online || !net.roomCode) return;
+    if (!v || !v.over) return;
     const key = (v.game || '') + ':' + ((v.match && v.match.gameNumber) || 0);
     if (table._tourneySeen === key) return;
     const res = T.resultFromView(v, table.meId);
     if (!res) return;
     table._tourneySeen = key;
-    T.gameOver(net.roomCode, res);
+    // a match against a bot is played here, and known by the table it was set up as
+    const s = A().session;
+    const info = s && s.mode && s.mode.tourney;
+    if (info && info.bot) { T.botGameOver(info, res); return; }
+    if (net.online && net.roomCode) T.gameOver(net.roomCode, res);
   }
   function watchTables() {
     const Table = UI.Table;
@@ -687,6 +915,24 @@
     Table.prototype._tourneyWatched = true;
   }
   MTG.bus.on('app:ready', watchTables);
+
+  /* ---------------- the table, saying which match it is ----------------
+     The host of a tournament match tells each guest, over the game's own
+     connection, which match the table is for; the guest's app believes it
+     only as far as its own copy of the tournament agrees (T.tableNote). */
+  function tellTable(peerId) {
+    const s = A().session;
+    const info = s && s.mode && s.mode.tourney;
+    if (!net.isHost || !info || info.bot || !T.get(info.id)) return;
+    net.send(peerId, { t: 'tourney:table', id: info.id, r: info.r, tb: info.t, host: T.me() });
+  }
+  if (net && net.on) {
+    net.on('peer:join', (peerId) => { try { tellTable(peerId); } catch (e) { console.warn('[tourney]', e); } });
+    net.on('message', (from, msg) => {
+      if (!msg || msg.t !== 'tourney:table' || !net.isClient || from !== 'host') return;
+      try { T.tableNote(msg, net.roomCode); } catch (e) { console.warn('[tourney]', e); }
+    });
+  }
   // what tools/tournamenttest.js drives directly
   UI.tourneySeeView = seeView;
 })(window.MTG);

@@ -57,10 +57,6 @@
     MTG.bus.emit('app:ready');
   };
 
-  const NAME_A = ['Quiet', 'Brass', 'Amber', 'Storm', 'Ivory', 'Hollow', 'Gilded', 'Mossy', 'Iron', 'Pale',
-    'Ember', 'Silver', 'Thorn', 'Dusk', 'Cinder', 'Marsh', 'Frost', 'Copper', 'Sable', 'Wren'];
-  const NAME_B = ['Scribe', 'Warden', 'Drake', 'Herald', 'Sentry', 'Vizier', 'Pilgrim', 'Raven', 'Smith', 'Fox',
-    'Tinker', 'Reaper', 'Magus', 'Harrier', 'Cantor', 'Miller', 'Corsair', 'Adept', 'Falconer', 'Wright'];
   /**
    * What to call a bot once you can see what it brought. A table of "Brass
    * Vizier" and "Mossy Falconer" tells you nothing; a table of "Krenko",
@@ -400,15 +396,8 @@
     return colours.slice(0, 22) || null;
   }
 
-  function randomName(taken) {
-    const used = new Set(taken || []);
-    for (let i = 0; i < 60; i++) {
-      const n = NAME_A[Math.floor(Math.random() * NAME_A.length)] + ' ' +
-        NAME_B[Math.floor(Math.random() * NAME_B.length)];
-      if (!used.has(n)) return n;
-    }
-    return NAME_A[Math.floor(Math.random() * NAME_A.length)] + ' ' + (used.size + 1);
-  }
+  /** A bot's (or a nameless player's) name, in two words (MTG.botName, src/00-core.js). */
+  const randomName = (taken) => MTG.botName(taken);
 
   /* ================= shell ================= */
   let screens = {};
@@ -2862,6 +2851,23 @@
     return net.roomCode;
   };
 
+  /**
+   * A table on this device for a friends tournament's match against one of
+   * its bots: the format and house rules, the bot seated under its own
+   * name, level and style, and the lobby shown to choose a deck and start.
+   * No room: the bot plays here, and the result is reported from here.
+   */
+  App.botTableFor = function (o) {
+    App.formatId = o.formatId;
+    const sess = App.session = new Session(o.formatId, o.rules || null);
+    sess.mode = o.mode || null;
+    sess.addLocalHost(App.myName);
+    sess.addBot(o.bot.difficulty, o.bot.personality || '', o.bot.name);
+    showScreen('lobby');
+    renderLobby();
+    return sess;
+  };
+
   function renderLobby() {
     const s = screens.lobby;
     const sess = App.session;
@@ -3732,6 +3738,11 @@
         if (t) facts.appendChild(el('span', { text: t }));
       facts.appendChild(rttPill('host'));
       if (!banner._art) { banner._art = true; decorArt(banner.firstChild, FORMAT_ART[payload.formatId] || HERO_ART[0]); }
+      // a tournament match the table has only now said it is (src/10i-ui-tourney.js): its panel under the banner
+      if (UI.tourneyRoomNote && banner.parentNode && !banner.parentNode.querySelector('.tn-lobby')) {
+        const note = UI.tourneyRoomNote(net.roomCode);
+        if (note) banner.after(note);
+      }
     }
     if (fmt.blurb) box.appendChild(el('p', { class: 'small muted', style: { marginTop: 0 }, text: fmt.blurb }));
 
@@ -3925,9 +3936,9 @@
         seat.deck = deck;
         seat.deckValid = MTG.formats.validate(deck, this.fmt);
         seat.building = false;
-        // now that there is a deck, the seat can be called after it
+        // now that there is a deck, the seat can be called after it (unless it came with a name of its own)
         const taken = this.roster.filter(r => r !== seat).map(r => r.name).concat([App.myName]);
-        const named = botNameFor(deck, this.formatId, taken);
+        const named = seat.keepName ? null : botNameFor(deck, this.formatId, taken);
         if (named) {
           seat.name = named;
           deck.name = named + '\u2019s deck';
@@ -4009,11 +4020,11 @@
       });
       this.broadcastLobby();
     }
-    addBot(difficulty, personality) {
+    /** A bot sits down; `name` gives it one it keeps (a friends tournament's bot), else it is named after its deck. */
+    addBot(difficulty, personality, name) {
       // a name of its own, so the table reads as people rather than slots
-      const name = randomName(this.roster.map(r => r.name).concat([App.myName]));
-      const seat = { id: MTG.uid('bot'), kind: 'bot', name, difficulty: difficulty || 5,
-        personality: personality || '', deck: null };
+      const seat = { id: MTG.uid('bot'), kind: 'bot', name: name || randomName(this.roster.map(r => r.name).concat([App.myName])),
+        difficulty: difficulty || 5, personality: personality || '', deck: null, keepName: !!name };
       this.roster.push(seat);
       this.buildBotDeck(seat);
       return seat;

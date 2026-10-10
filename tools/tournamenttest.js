@@ -344,8 +344,8 @@ async function main() {
   check(bad(x => { x.rnds[0].pairs[0].b = x.rnds[0].pairs[0].a; }) && bad(x => { x.rnds[0].pairs[1].a = x.rnds[0].pairs[0].a; }), 'a player against themselves, or twice in a round, is refused');
   check(bad(x => { x.rnds[0].pairs[0].res = { a: 5, b: 0, d: 0 }; }) && bad(x => { x.rnds[0].pairs[0].a = FC.makeCode(8); }), 'a result that cannot be, or a stranger in a pairing, is refused');
   check(bad(x => { x.org = FC.makeCode(8); }), 'an organiser who is not playing is refused');
-  const junky = T.readT(Object.assign(JSON.parse(JSON.stringify(good)), { name: '‮evil\u0000' + 'x'.repeat(200) }));
-  check(junky && junky.name.length <= 40 && !/[\u0000‮]/.test(junky.name), 'a name is made plain and short');
+  const junky = T.readT(Object.assign(JSON.parse(JSON.stringify(good)), { name: '\u202eevil\u0000' + 'x'.repeat(200) }));
+  check(junky && junky.name.length <= 40 && !/[\u0000\u202e]/.test(junky.name), 'a name is made plain and short');
   const proto = JSON.parse(JSON.stringify(good));
   proto.rnds[0].pairs[0].rep = JSON.parse('{"__proto__": {"a": 1, "b": 0, "d": 0}, "constructor": 5}');
   const pr = T.readT(proto);
@@ -355,7 +355,11 @@ async function main() {
   check(T.readT(byeLie).rnds[0].pairs[1].res.a === 2, 'a bye is a 2-0 win whatever is said of it');
 
   await devicesRun();
+  await botsRun();
+  await invitesRun();
+  await tablesRun();
   await windowsRun();
+  await botWindowsRun();
   await draftRun();
   console.log(`tournaments: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
@@ -703,7 +707,7 @@ async function windowsRun() {
   uma.button('New tournament', '.friends-modal').click();
   check(!!uma.doc.querySelector('.tn-create'), 'New tournament opens the window to set one up');
   check(uma.doc.querySelectorAll('.tn-create .tn-friend').length === 2, 'listing both friends to invite');
-  check(uma.button('Send invites', '.tn-create').disabled, 'Send invites waits for two friends to be picked');
+  check(uma.button('Set it up', '.tn-create').disabled, 'it cannot be set up with nobody but Uma');
   uma.doc.querySelector('#tn-name').value = 'Uma’s Pioneer night';
   const fmtSel = uma.doc.querySelector('#tn-fmt');
   check(!fmtSel.querySelectorAll('option').some(o => /Draft|Sealed|Jumpstart/.test(o.textContent)), 'only constructed formats are offered');
@@ -711,7 +715,8 @@ async function windowsRun() {
   fmtSel.dispatchEvent(makeEvent('change'));
   uma.button('Best of 1', '.tn-create').click();
   for (const box of uma.doc.querySelectorAll('.tn-create input[type=checkbox]')) { box.checked = true; box.dispatchEvent(makeEvent('change')); }
-  check(/3 players, you included/.test(uma.text('.tn-count')) && /2 for 3/.test(uma.text('.tn-hint')), 'it counts three players, and two rounds to suit them');
+  check(/3 players, you included/.test(uma.text('.tn-count')) && /2 for 3/.test(uma.text('.tn-roundbox .tn-hint')), 'it counts three players, and two rounds to suit them');
+  check(!uma.button('Send invites', '.tn-create').disabled, 'and can be sent');
   uma.button('Send invites', '.tn-create').click();
   check(!uma.doc.querySelector('.tn-create') && !!uma.doc.querySelector('.tn-modal'), 'sending the invites opens the tournament’s window');
   const tid = uma.T.list()[0].id;
@@ -809,6 +814,135 @@ async function windowsRun() {
 }
 
 /* ============================================================
+   The windows with bots in the seats, and friends invited afterwards
+   ============================================================ */
+async function botWindowsRun() {
+  const { makeEvent } = require('./fakedom');
+  const ub = new Broker();
+  const uma = uiDevice('Uma', ub, 'UMB'), vic = uiDevice('Vic', ub, 'VYB');
+  const both = [uma, vic];
+  for (const d of both) {
+    d.MTG.bus.emit('app:ready');
+    d.app.botTables = [];
+    d.app.botTableFor = (o) => { d.app.botTables.push(o); d.app.session = { mode: o.mode }; return d.app.session; };
+  }
+  await until(() => both.every(d => d.MTG.friends.status === 'online'), 2000, 'both hubs reach the broker');
+  uma.MTG.friends.add(vic.code);
+  await until(() => (vic.MTG.friends.entry(uma.code) || {}).state === 'in', 2000, 'Vic gets the request');
+  vic.MTG.friends.accept(uma.code);
+  await until(() => uma.MTG.friends.isOnline(vic.code) && vic.MTG.friends.isOnline(uma.code), 2000, 'Uma and Vic are friends');
+  for (const n of [...vic.doc.querySelectorAll('.social-note'), ...uma.doc.querySelectorAll('.social-note')]) n.remove();
+
+  // set up with one friend and a bot, from the window
+  uma.MTG.ui.openFriends('tourneys');
+  uma.button('New tournament', '.friends-modal').click();
+  const create = uma.doc.querySelectorAll('.tn-create').pop();
+  check(!!create.querySelector('.tn-bots'), 'the setup window has a row of bots under the friends');
+  check(!!create.querySelector('#tn-bot-level') && create.querySelector('#tn-bot-level').querySelectorAll('option').length === 10, 'with the lobby’s ten levels to choose from');
+  create.querySelector('#tn-f-' + vic.code).checked = true;
+  create.querySelector('#tn-f-' + vic.code).dispatchEvent(makeEvent('change'));
+  check(uma.button('Send invites', create).disabled, 'one friend alone is too few');
+  create.querySelectorAll('button').find(b => b.getAttribute('aria-label') === 'One bot more').click();
+  const lvl = create.querySelector('#tn-bot-level');
+  lvl.value = '7';
+  lvl.dispatchEvent(makeEvent('change'));
+  check(/3 players, you included · 1 bot/.test(create.querySelector('.tn-count').textContent), 'a friend and a bot make three, counted');
+  check(!uma.button('Send invites', create).disabled, 'which is enough');
+  uma.button('Send invites', create).click();
+  const tid = uma.T.list()[0].id;
+  const bot1 = uma.T.get(tid).players.find(p => p.bot);
+  check(bot1 && bot1.bot.lvl === 7, 'the tournament has a level 7 bot');
+  await until(() => uma.doc.querySelector('.tn-modal .tn-player.is-bot'), 1000, 'the players list shows the bot');
+  check(uma.doc.querySelector('.tn-modal .tn-player.is-bot .seat-level').textContent === '7', 'marked with its level, as a lobby seat is');
+  // invite more, withdraw, invite again
+  await until(() => vic.T.invites().length === 1, 2000, 'Vic is invited');
+  uma.button('Withdraw', '.tn-modal').click();
+  await until(() => !vic.T.get(tid), 2000, 'withdrawn: the invitation leaves Vic’s list');
+  for (const n of vic.doc.querySelectorAll('.social-note')) n.remove();
+  await until(() => uma.button('Invite more', '.tn-modal'), 1000, 'Uma has Invite more');
+  uma.button('Invite more', '.tn-modal').click();
+  const more = uma.doc.querySelectorAll('.tn-more').pop();
+  check(!!more && more.querySelectorAll('.tn-friend').length === 1, 'Invite more lists the friend not invited now');
+  more.querySelector('#tn-f-' + vic.code).checked = true;
+  more.querySelector('#tn-f-' + vic.code).dispatchEvent(makeEvent('change'));
+  check(/seats left/.test(more.querySelector('.tn-count').textContent), 'and how many seats are left');
+  uma.button('Send invites', more).click();
+  await until(() => vic.T.invites().length === 1 && vic.note(/invites you to a tournament/), 2000, 'Vic is invited again, with a note');
+  vic.button('Open', vic.note(/invites you to a tournament/)).click();
+  vic.button('Join', '.tn-modal').click();
+  await until(() => uma.T.get(tid).players.filter(p => p.st === 'in').length === 3, 2000, 'Vic is in');
+  uma.MTG.ui.openTourney(tid);
+  await until(() => uma.button('Add a bot', '.tn-modal'), 1000, 'Uma can add a bot');
+  uma.button('Add a bot', '.tn-modal').click();
+  await until(() => uma.T.get(tid).players.filter(p => p.bot).length === 2, 1000, 'a second bot sits down');
+  await until(() => uma.button('Start with 4', '.tn-modal'), 1000, 'four to start');
+  uma.button('Start with 4', '.tn-modal').click();
+  await until(() => both.every(d => d.T.get(tid).state === 'running' && d.T.get(tid).rev === uma.T.get(tid).rev), 2000, 'round one reaches Vic');
+
+  // each round: a person against a bot plays it from the window, and the table reports it
+  let botMatches = 0;
+  for (let round = 1; round <= 2; round++) {
+    await until(() => both.every(d => d.T.get(tid).rev === uma.T.get(tid).rev && d.T.get(tid).rnds.length === round), 2000, `round ${round} everywhere`);
+    await sleep(60);
+    for (const d of both) {
+      const mm = d.T.myMatch(d.T.get(tid));
+      if (!mm || mm.bye || mm.res) continue;
+      if (mm.oppBot) {
+        botMatches++;
+        d.MTG.ui.openTourney(tid);
+        await until(() => d.button('Play your match', '.tn-modal'), 1000, `${d.name} has Play your match`);
+        check(/is a bot/.test(d.text('.tn-modal .tn-match')) && !!d.doc.querySelector('.tn-modal .tn-match .seat-level'), 'the match says it is against a bot, marked');
+        const tables = d.app.botTables.length;
+        d.button('Play your match', '.tn-modal').click();
+        await until(() => d.app.botTables.length > tables, 1000, `${d.name}’s table against the bot opens`);
+        const bt = d.app.botTables[d.app.botTables.length - 1];
+        check(bt && bt.bot.name === mm.oppName && bt.bot.difficulty === mm.oppBot.lvl && bt.rules.bestOf === uma.T.get(tid).bo && bt.mode.tourney.bot, 'a table here, with the bot as the tournament has it');
+        d.MTG.ui.tourneySeeView({ meId: 'me' }, { over: true, game: 'b' + round, players: [{ id: 'me' }, { id: 'bot' }], winners: ['me'] });
+      } else if (mm.host) {
+        // two people: done by the core, as the other windows test shows the buttons
+        const opp = both.find(x => x.code === mm.opp);
+        d.T.roomOpened(tid, mm.r, mm.pair.t, 'PPLA' + 'XYZ'[round]);
+        await until(() => (opp.T.myMatch(opp.T.get(tid)) || {}).room === 'PPLA' + 'XYZ'[round], 2000, 'the room reaches the guest');
+        d.T.gameOver('PPLA' + 'XYZ'[round], { w: 1, l: 0, d: 0 });
+        opp.T.gameOver('PPLA' + 'XYZ'[round], { w: 0, l: 1, d: 0 });
+      }
+    }
+  }
+  check(botMatches >= 1, 'somebody played a bot');
+  await until(() => both.every(d => d.T.get(tid).state === 'done' && d.T.get(tid).rev === uma.T.get(tid).rev), 3000, 'the tournament with bots ends for both');
+  check(uma.T.get(tid).rnds.flatMap(r => r.pairs).filter(p => p.b && (uma.T.isBot(p.a) || uma.T.isBot(p.b)) && !(uma.T.isBot(p.a) && uma.T.isBot(p.b))).every(p => p.by === 'bot'), 'each match against a bot settled by its one report');
+  uma.MTG.ui.openTourney(tid);
+  await until(() => /Final standings/.test(uma.text('.tn-modal')), 1000, 'the final standings');
+  check(uma.doc.querySelectorAll('.tn-modal .tn-st-row.is-bot').length === 2 && uma.doc.querySelectorAll('.tn-modal .tn-st-row.is-bot .seat-level').length === 2, 'with both bots marked in the standings');
+  check(uma.doc.querySelectorAll('.tn-modal .tn-pair .is-bot .seat-level').length >= 1, 'and in the pairings');
+  check(!/\bnull\b|\bundefined\b|NaN|\[object/.test(uma.doc.body.textContent + vic.doc.body.textContent), 'no "null", "undefined" or "NaN" anywhere on screen');
+
+  // the host's table says which match it is; the guest's app hears it over the game's own line
+  const sent = [];
+  uma.MTG.net.mode = 'host';
+  uma.MTG.net.send = (peer, msg) => sent.push([peer, msg]);
+  uma.app.session = { mode: { tourney: { id: tid, r: 2, t: 1, opp: 'Vic' } } };
+  uma.MTG.net.emit('peer:join', 'guest-peer');
+  check(sent.length === 1 && sent[0][0] === 'guest-peer' && sent[0][1].t === 'tourney:table' && sent[0][1].id === tid && sent[0][1].host === uma.code, 'a guest joining a tournament match’s table is told which match it is');
+  uma.app.session = { mode: { tourney: { id: tid, r: 2, t: 1, bot: true } } };
+  uma.MTG.net.emit('peer:join', 'watcher');
+  check(sent.length === 1, 'and nothing is said from a table against a bot');
+  uma.MTG.net.mode = 'offline';
+  const heard = [];
+  const was = vic.T.tableNote;
+  vic.T.tableNote = (msg, room) => { heard.push([msg, room]); return false; };
+  vic.MTG.net.mode = 'client';
+  vic.MTG.net.roomCode = 'ROOMQ';
+  vic.MTG.net.emit('message', 'host', sent[0][1]);
+  vic.MTG.net.emit('message', 'someone', sent[0][1]);
+  check(heard.length === 1 && heard[0][1] === 'ROOMQ', 'the guest’s app takes the note from its host only, with the room it is in');
+  vic.T.tableNote = was;
+  vic.MTG.net.mode = 'offline';
+  vic.MTG.net.roomCode = null;
+  for (const d of both) { d.MTG.friends.stop(); d.timers.forEach(clearInterval); }
+}
+
+/* ============================================================
    After an online draft: the game waits for every person's deck
    ============================================================ */
 async function draftRun() {
@@ -841,6 +975,397 @@ async function draftRun() {
   const t2 = Date.now();
   const now = await D.awaitDecks(() => slow, { timeout: 5000, every: 10, stop: () => go });
   check(now.length === 1 && Date.now() - t2 < 1000, 'and the host can say start now');
+}
+
+/* ============================================================
+   Bots in the seats
+   ============================================================ */
+/**
+ * Play out the current round of `id` across devices: a person against a
+ * bot reports from their own device, as the table set up for it would;
+ * two people open a room and both report. `decide(pair)` gives the result
+ * as games for the pair's a, { a, b, d }.
+ */
+async function playMixed(org, devs, id, decide) {
+  const all = [org].concat(devs);
+  const dev = (code) => all.find(d => d.code === code) || null;
+  await until(() => inStep(org, devs, id), 2000, 'everyone has the round before it is played');
+  const t = org.T.get(id);
+  const r = t.rnds.length;
+  for (const p of t.rnds[r - 1].pairs) {
+    if (!p.b || p.res) continue;
+    const res = decide(p);
+    const A = dev(p.a), B = dev(p.b);
+    if (!A || !B) {
+      const human = A || B;
+      const mine = A ? res : { a: res.b, b: res.a, d: res.d };
+      check(!!human.T.botGameOver({ id, r, t: p.t }, { w: mine.a, l: mine.b, d: mine.d }), `${human.name} reports round ${r} against a bot from the table`);
+      continue;
+    }
+    const room = 'B' + 'ABCDEFGHJK'[r] + 'ABCDEFGHJK'[p.t] + 'M';
+    A.T.roomOpened(id, r, p.t, room);
+    await until(() => (B.T.myMatch(B.T.get(id)) || {}).room === room, 2000, `round ${r}: the room reaches ${B.name}`);
+    A.T.gameOver(room, { w: res.a, l: res.b, d: res.d });
+    B.T.gameOver(room, { w: res.b, l: res.a, d: res.d });
+  }
+}
+const isBotCode = (c) => /^bot-[0-9a-f]{8}$/.test(c || '');
+
+async function botsRun() {
+  const broker = new Broker();
+  /* ---- the pieces ---- */
+  const solo = device('Solo', broker);
+  const T = solo.T, FC = solo.MTG.friendsCore;
+  const fake = madeUp(FC, ['Org', 'B1', 'B2'], 3);
+  fake.players[1] = { code: 'bot-0000000a', name: 'Brass Vizier', st: 'in', seed: 1, bot: { lvl: 7, style: '' } };
+  fake.players[2] = { code: 'bot-0000000b', name: 'Mossy Fox', st: 'in', seed: 2, bot: { lvl: 4, style: '' } };
+  const pair = { t: 1, a: 'bot-0000000a', b: 'bot-0000000b' };
+  check(sameJSON(T.botMatch(fake, 1, pair), T.botMatch(fake, 1, pair)), 'two bots’ match comes out the same way every time it is worked out');
+  let strongWins = 0;
+  const seen = new Set();
+  for (let i = 0; i < 300; i++) {
+    const f = Object.assign({}, fake, { id: (i + 1).toString(16).padStart(24, '0') });
+    const res = T.botMatch(f, 1, pair);
+    seen.add(`${res.a}-${res.b}`);
+    if (res.a > res.b) strongWins++;
+    if (!T.cleanResult(res, 3) || res.d || Math.max(res.a, res.b) !== 2) { check(false, 'a bots’ match ends 2-0 or 2-1: ' + JSON.stringify(res)); break; }
+  }
+  check(strongWins > 255 && strongWins < 298, `a level 7 bot beats a level 4 bot most of the time, not always (${strongWins} of 300)`);
+  check(['2-0', '2-1', '1-2'].every(k => seen.has(k)), 'with 2-0, 2-1 and the odd upset among the results');
+  const even = Object.assign({}, fake, { players: fake.players.map(p => (p.bot ? Object.assign({}, p, { bot: { lvl: 5, style: '' } }) : p)) });
+  let aWins = 0;
+  for (let i = 0; i < 400; i++) { const res = T.botMatch(Object.assign({}, even, { id: (i + 7).toString(16).padStart(24, 'a') }), 2, pair); if (res.a > res.b) aWins++; }
+  check(aWins > 150 && aWins < 250, `two bots of a level are even (${aWins} of 400)`);
+  const bo1 = Object.assign({}, fake, { bo: 1 });
+  const r1 = T.botMatch(bo1, 1, pair);
+  check(r1.a + r1.b === 1 && !r1.d, 'best of one: a single game');
+
+  // what arrives with bots in it, checked
+  const withBots = madeUp(FC, ['Org', 'Pal'], 1);
+  withBots.players.push({ code: 'bot-0123abcd', name: 'Iron Smith', st: 'in', seed: 2, bot: { lvl: 4, style: 'aggressive' } });
+  withBots.rnds.push({ pairs: [{ t: 1, a: withBots.players[1].code, b: 'bot-0123abcd', res: null, by: null, rep: {}, room: null }, { t: 2, a: withBots.org, b: null, res: { a: 2, b: 0, d: 0 }, by: 'bye', rep: {}, room: null }] });
+  const goodBots = JSON.parse(JSON.stringify(T.pub(withBots)));
+  check(!!T.readT(goodBots) && T.readT(goodBots).players[2].bot.lvl === 4, 'a tournament with a bot in it reads');
+  const badB = (f) => { const x = JSON.parse(JSON.stringify(goodBots)); f(x); return T.readT(x) === null; };
+  check(badB(x => { x.players[2].code = 'bot-XYZ'; }) && badB(x => { x.players[2].code = 'robot-0123abcd'; }), 'a bot id that is not one is refused');
+  check(badB(x => { x.players[2].bot.lvl = 11; }) && badB(x => { x.players[2].bot.lvl = '5'; }) && badB(x => { x.players[2].bot.style = '<b>'; }), 'a level or style a bot cannot have is refused');
+  check(badB(x => { delete x.players[2].bot; }) && badB(x => { x.players[1].bot = { lvl: 3, style: '' }; }), 'a bot without its level, or a friend dressed as a bot, is refused');
+  check(badB(x => { x.players[2].st = 'dropped'; }) && badB(x => { x.players[2].st = 'invited'; }), 'a bot that dropped, or was invited, is refused: bots are always in');
+  check(badB(x => { x.org = 'bot-0123abcd'; x.players[2].code = 'bot-0123abcd'; }) || badB(x => { x.org = 'bot-0123abcd'; }), 'a bot cannot be the organiser');
+  const repd = JSON.parse(JSON.stringify(goodBots));
+  repd.rnds[0].pairs[0].rep = { 'bot-0123abcd': { a: 1, b: 0, d: 0 } };
+  check(Object.keys(T.readT(repd).rnds[0].pairs[0].rep).length === 0, 'a report said to be a bot’s is dropped: bots do not report');
+  repd.rnds[0].pairs[0].room = 'ROOMZ';
+  check(T.readT(repd).rnds[0].pairs[0].room === null, 'and a match with a bot in it has no room');
+
+  // a late entrant's standing: the missed round is a match lost 0-2
+  const lateT = madeUp(FC, ['Ann', 'Ben', 'Cat', 'Dan'], 3);
+  handRound(lateT, [['Ann', 'Ben', 2, 0], ['Cat', null]]);
+  lateT.players[3].late = 1;
+  handRound(lateT, [['Dan', 'Ann', 2, 1], ['Ben', 'Cat', 2, 0]]);
+  const lst = T.standings(lateT);
+  const dan = lst.find(r => r.name === 'Dan'), annL = lst.find(r => r.name === 'Ann');
+  check(dan.mp === 3 && dan.w === 1 && dan.l === 1 && dan.rounds === 2 && dan.gl === 3 && dan.gw === 2, 'a late entrant’s missed round counts as a match lost 0-2');
+  check(near(dan.mwp, 3 / 6) && near(dan.gwp, 6 / 15) && dan.opps.length === 1, 'in their own percentages, with no opponent for it');
+  check(near(annL.omw, (lst.find(r => r.name === 'Ben').mwp + dan.mwp) / 2), 'and their opponents count them as they stand');
+
+  /* ---- the organiser and bots only, nobody else online ---- */
+  const org = device('Org', broker);           // never started: no friends, no line, nobody online
+  const t1 = org.T.create({ name: 'Me and the bots', fmt: 'standard', bo: 3, bots: 3, botLevel: 6 });
+  check(t1 && t1.id && t1.players.filter(p => p.bot).length === 3, 'the organiser sets up a tournament with three bots and no friends');
+  check(t1.players.filter(p => p.bot).every(p => isBotCode(p.code) && p.bot.lvl === 6 && p.st === 'in' && /^[A-Z][a-z]+ [A-Z][a-z]+$/.test(p.name)), 'each bot has an id of its own, the level asked for, and a name as the lobby gives one');
+  check(new Set(t1.players.map(p => p.name)).size === 4, 'no two with the same name');
+  check(org.T.start(t1.id) === '', 'and starts it straight away');
+  const id1 = t1.id;
+  let guard = 0;
+  while (org.T.get(id1).state === 'running' && guard++ < 6) {
+    const t = org.T.get(id1);
+    const r = t.rnds.length;
+    for (const p of t.rnds[r - 1].pairs) {
+      if (!p.b) continue;
+      if (isBotCode(p.a) && isBotCode(p.b)) check(p.res && p.by === 'sim', `round ${r}: two bots are settled as the round is paired`);
+    }
+    const mine = org.T.myMatch(t);
+    check(mine && mine.oppBot && mine.oppBot.lvl === 6 && !mine.room, `round ${r}: the organiser plays a bot, here, with no room`);
+    check(!!org.T.botGameOver({ id: id1, r, t: mine.pair.t }, { w: 2, l: 1, d: 0 }), `round ${r}: the organiser’s game against the bot is reported from the table`);
+    check(!org.T.botGameOver({ id: id1, r, t: mine.pair.t }, { w: 0, l: 2, d: 0 }), 'and a game after it at the same table is not');
+  }
+  const done1 = org.T.get(id1);
+  check(done1.state === 'done' && done1.rnds.length === 2, 'the tournament runs to its end with nobody else online');
+  check(done1.rnds.every(r => r.pairs.every(p => p.res)), 'every match settled');
+  check(org.T.standings(done1)[0].code === org.code, 'and the organiser, unbeaten, wins it');
+  check(done1.rnds.flatMap(r => r.pairs).filter(p => p.b && (isBotCode(p.a) !== isBotCode(p.b))).every(p => p.by === 'bot'), 'a match against a bot is settled by the one report');
+  // three players: the organiser and two bots, with byes
+  const t2 = org.T.create({ name: 'Three', fmt: 'modern', bo: 1, rounds: 3, bots: 2, botLevel: 3 });
+  check(!t2.why, 'the organiser and two bots is a tournament');
+  org.T.start(t2.id);
+  for (let i = 0; i < 6 && org.T.get(t2.id).state === 'running'; i++) {
+    const t = org.T.get(t2.id);
+    const mine = org.T.myMatch(t);
+    if (mine && !mine.bye && !mine.res) org.T.botGameOver({ id: t2.id, r: mine.r, t: mine.pair.t }, { w: 1, l: 0, d: 0 });
+    else break;
+  }
+  const done2 = org.T.get(t2.id);
+  check(done2.state === 'done' && done2.rnds.every(r => r.pairs.filter(p => !p.b).length === 1), 'three rounds, a bye in each, to the end');
+  check(new Set(done2.rnds.map(r => r.pairs.find(p => !p.b).a)).size === 3, 'and each player has one bye');
+  check(!org.T.drop(t2.id, done2.players.find(p => p.bot).code), 'a bot is never dropped');
+
+  /* ---- friends, bots, byes and a drop ---- */
+  const ann = device('Ann', broker), ben = device('Ben', broker), cat = device('Cat', broker);
+  await online([ann, ben, cat]);
+  for (const d of [ben, cat]) await befriend(ann, d);
+  check(!!ann.T.create({ name: 'x', fmt: 'modern', bo: 1, invite: [ben.code], bots: 0 }).why, 'one friend and no bots is too few');
+  const small = ann.T.create({ name: 'Just three', fmt: 'modern', bo: 1, invite: [ben.code], bots: 1, botLevel: 4 });
+  check(!small.why, 'the organiser, one friend and one bot is a tournament');
+  check(!!ann.T.create({ name: 'x', fmt: 'modern', bo: 1, invite: [ben.code], bots: 15 }).why, 'more than sixteen seats with the bots is refused');
+  ann.T.cancel(small.id);
+  const mx = ann.T.create({ name: 'Mixed', fmt: 'pioneer', bo: 1, rounds: 3, invite: [ben.code, cat.code], bots: 2, botLevel: 5 });
+  const idm = mx.id;
+  await until(() => ben.T.get(idm) && cat.T.get(idm), 2000, 'Ben and Cat are invited to the mixed one');
+  check(ben.T.get(idm).players.filter(p => p.bot).length === 2, 'their copies have the bots in them');
+  ben.T.answer(idm, true); cat.T.answer(idm, true);
+  await until(() => ann.T.get(idm).players.filter(p => p.st === 'in').length === 5, 2000, 'five in: three people and two bots');
+  check(ann.T.start(idm) === '', 'it starts');
+  const trio = [ben, cat];
+  await until(() => inStep(ann, trio, idm), 2000, 'round one reaches both');
+  check(ann.T.get(idm).rnds[0].pairs.filter(p => !p.b).length === 1, 'five players: a bye');
+  const strength = { Ann: 9, Ben: 7, Cat: 5 };
+  const lv = (t, c) => (t.players.find(p => p.code === c).bot ? t.players.find(p => p.code === c).bot.lvl : strength[t.players.find(p => p.code === c).name]);
+  const stronger = (p) => { const t = ann.T.get(idm); return lv(t, p.a) >= lv(t, p.b) ? { a: 1, b: 0, d: 0 } : { a: 0, b: 1, d: 0 }; };
+  await playMixed(ann, trio, idm, stronger);
+  await until(() => ann.T.get(idm).rnds.length === 2, 2000, 'round one settled, with reports against bots from one side, and round two paired');
+  // Cat drops part way through round two
+  await until(() => inStep(ann, trio, idm), 2000);
+  check(cat.T.leave(idm), 'Cat drops out');
+  await until(() => ann.T.get(idm).players.find(p => p.code === cat.code).st === 'dropped', 2000, 'Ann hears it');
+  await playMixed(ann, [ben, cat], idm, stronger);
+  await until(() => ann.T.get(idm).rnds.length === 3 || ann.T.get(idm).state === 'done', 2000, 'round two settled');
+  check(!ann.T.get(idm).rnds[2].pairs.some(p => p.a === cat.code || p.b === cat.code), 'Cat is not paired after dropping');
+  check(ann.T.get(idm).players.filter(p => p.bot).every(p => p.st === 'in'), 'the bots are all still in');
+  await playMixed(ann, [ben, cat], idm, stronger);
+  await until(() => ann.T.get(idm).state === 'done' && inStep(ann, [ben, cat], idm), 2000, 'the mixed tournament ends');
+  const finalM = ann.T.standings(ann.T.get(idm));
+  const sig = (d) => JSON.stringify(d.T.standings(d.T.get(idm)).map(r => [r.code, r.mp, r.w, r.l, r.d, r.omw.toFixed(6), r.gwp.toFixed(6), r.ogw.toFixed(6)]));
+  check(sig(ben) === sig(ann) && sig(cat) === sig(ann), 'the standings are the same on every device, bots and all');
+  check(finalM.filter(r => r.bot).length === 2 && finalM.some(r => r.st === 'dropped'), 'with the bots in them, and Cat marked as dropped');
+  check(ann.T.get(idm).rnds.every(r => r.pairs.filter(p => !p.b).length === (r.pairs.flatMap(p => [p.a, p.b]).filter(Boolean).length % 2 ? 1 : 0)), 'a bye only when the count is odd');
+
+  /* ---- forged bot entries and reports, from friends ---- */
+  const hx = ann.T.create({ name: 'Forgery', fmt: 'legacy', bo: 1, rounds: 2, invite: [ben.code, cat.code], bots: 3, botLevel: 5 });
+  const idh = hx.id;
+  await until(() => ben.T.get(idh) && cat.T.get(idh), 2000, 'invited to the forgery test');
+  ben.T.answer(idh, true); cat.T.answer(idh, true);
+  await until(() => ann.T.get(idh).players.filter(p => p.st === 'in').length === 6, 2000, 'six in');
+  ann.T.start(idh);
+  await until(() => inStep(ann, trio, idh), 2000, 'round one');
+  const th = ann.T.get(idh);
+  const before = JSON.stringify(th);
+  const botPair = th.rnds[0].pairs.find(p => p.b && isBotCode(p.a) && isBotCode(p.b));
+  const notBens = th.rnds[0].pairs.find(p => p.b && p.a !== ben.code && p.b !== ben.code && !(botPair && p === botPair));
+  // Ben reports a match between two bots, and one that is not his, and tries to drop a bot
+  if (botPair) ben.hub.sendTourney(ann.code, { op: 'report', id: idh, r: 1, tb: botPair.t, w: 1, l: 0, d: 0 });
+  if (notBens) ben.hub.sendTourney(ann.code, { op: 'report', id: idh, r: 1, tb: notBens.t, w: 1, l: 0, d: 0 });
+  const aBot = th.players.find(p => p.bot).code;
+  ben.hub.sendTourney(ann.code, { op: 'drop', id: idh, code: aBot });
+  ben.hub.sendTourney(ann.code, { op: 'room', id: idh, r: 1, tb: (th.rnds[0].pairs.find(p => (p.a === ben.code || p.b === ben.code) && p.b && (isBotCode(p.a) || isBotCode(p.b))) || { t: 1 }).t, room: 'FAKER' });
+  await sleep(80);
+  const after = ann.T.get(idh);
+  check(JSON.stringify(after.rnds) === JSON.stringify(th.rnds) || before === JSON.stringify(after), 'reports for bots’ matches or someone else’s change nothing, and a bot match takes no room');
+  check(after.players.find(p => p.code === aBot).st === 'in' && after.players.find(p => p.code === ben.code).st === 'dropped', 'a drop naming a bot drops nobody but the one who sent it: bots are never dropped');
+  // Ben, not the organiser, sends Cat a copy with a forged bot, and one claiming a bot is Ben's to report for
+  const forgedT = JSON.parse(JSON.stringify(ann.T.pub(after)));
+  forgedT.rev += 10;
+  forgedT.players.push({ code: 'bot-deadbeef', name: 'Evil Bot', st: 'in', seed: 9, bot: { lvl: 10, style: '' } });
+  const catBefore = JSON.stringify(cat.T.get(idh));
+  await befriend(ben, cat);
+  ben.hub.sendTourney(cat.code, { op: 'state', id: idh, s: forgedT });
+  await sleep(80);
+  check(JSON.stringify(cat.T.get(idh)) === catBefore, 'a copy with bots added, from someone who is not the organiser, is turned down');
+  // and from the organiser, a bot that is not one is refused whole
+  const broken = JSON.parse(JSON.stringify(ann.T.pub(after)));
+  broken.rev += 20;
+  broken.players.find(p => p.bot).bot.lvl = 99;
+  ann.hub.sendTourney(cat.code, { op: 'state', id: idh, s: broken });
+  await sleep(80);
+  check(JSON.stringify(cat.T.get(idh)) === catBefore, 'and even from the organiser, a copy with an impossible bot changes nothing');
+  ann.T.cancel(idh);
+
+  for (const d of [ann, ben, cat]) d.hub.stop();
+}
+
+/* ============================================================
+   Inviting more: before the start, and late
+   ============================================================ */
+async function invitesRun() {
+  const broker = new Broker();
+  const ann = device('Ann', broker), ben = device('Ben', broker), cat = device('Cat', broker), dan = device('Dan', broker), eve = device('Eve', broker);
+  const all = [ben, cat, dan, eve];
+  await online([ann].concat(all));
+  for (const d of all) await befriend(ann, d);
+  // set up with Ben and a bot; Cat and Dan invited afterwards
+  const t = ann.T.create({ name: 'Growing', fmt: 'modern', bo: 1, rounds: 3, invite: [ben.code], bots: 1, botLevel: 5 });
+  const id = t.id;
+  await until(() => ben.T.get(id), 2000, 'Ben is invited');
+  check(ann.T.invite(id, [cat.code, dan.code]) === '', 'Ann invites Cat and Dan after setting it up');
+  await until(() => cat.T.invites().some(x => x.id === id) && dan.T.invites().some(x => x.id === id), 2000, 'both get the invitation the usual way');
+  check(!!ann.T.invite(id, [cat.code]), 'someone already invited is not invited twice');
+  check(ann.T.get(id).players.find(p => p.code === cat.code).st === 'invited', 'and shows as waiting');
+  // withdrawn
+  check(ann.T.uninvite(id, dan.code), 'Ann withdraws Dan’s invitation');
+  await until(() => !dan.T.get(id), 2000, 'and it is gone from Dan’s list');
+  check(dan.events.some(e => e[0] === 'removed'), 'with a word saying so');
+  check(!ann.T.get(id).players.some(p => p.code === dan.code), 'and from Ann’s');
+  // declined, then asked again
+  cat.T.answer(id, false);
+  await until(() => ann.T.get(id).players.find(p => p.code === cat.code).st === 'declined', 2000, 'Cat says no');
+  check(ann.T.invite(id, [cat.code]) === '', 'Ann asks Cat again');
+  await until(() => cat.T.invites().some(x => x.id === id), 2000, 'and Cat has the invitation once more');
+  cat.T.answer(id, true); ben.T.answer(id, true);
+  await until(() => ann.T.get(id).players.filter(p => p.st === 'in').length === 4, 2000, 'Ben and Cat are in');
+  // the cap: fill every seat with bots, and invite one more
+  check(ann.T.addBots(id, 16 - ann.T.seatsTaken(ann.T.get(id)), 7) === '', 'Ann fills the seats left with bots');
+  check(ann.T.seatsTaken(ann.T.get(id)) === 16, 'all sixteen taken');
+  check(!!ann.T.addBots(id, 1, 5), 'no seat for another bot');
+  check(/seats are taken/.test(ann.T.invite(id, [dan.code])), 'nor for another friend, as things stand');
+  check(ann.T.invite(id, [dan.code], { replaceBots: true }) === '', 'but a bot can give up its seat for him');
+  check(ann.T.seatsTaken(ann.T.get(id)) === 16 && ann.T.get(id).players.filter(p => p.bot).length === 12, 'still sixteen: a bot fewer, Dan invited');
+  await until(() => dan.T.invites().some(x => x.id === id), 2000, 'Dan is invited after all');
+  check(ann.T.removeBot(id, ann.T.get(id).players.find(p => p.bot).code), 'a bot can be taken off before the start');
+  // blocked friends cannot be invited
+  ann.hub.block(eve.code);
+  check(!!ann.T.invite(id, [eve.code]), 'a blocked friend cannot be invited');
+  // hostile: a player, not the organiser, trying to invite; an invitation to a full tournament
+  check(!!ben.T.invite(id, [eve.code]), 'a player cannot invite anyone to someone else’s tournament');
+  await befriend(ben, eve);
+  const evBefore = eve.T.list().length;
+  ben.hub.sendTourney(ann.code, { op: 'invite', id, code: eve.code });
+  const full = JSON.parse(JSON.stringify(ben.T.pub(ben.T.get(id))));
+  ben.hub.sendTourney(eve.code, { op: 'state', id, s: Object.assign(full, { players: full.players.concat([{ code: eve.code, name: 'Eve', st: 'invited', seed: 40 }]) }) });
+  await sleep(80);
+  check(eve.T.list().length === evBefore, 'an invitation sent by someone who is not the organiser lands nowhere');
+  check(!ann.T.get(id).players.some(p => p.code === eve.code), 'and nobody gets in by asking the organiser');
+  const over = JSON.parse(JSON.stringify(ann.T.pub(ann.T.get(id))));
+  const xs = over.players.filter(p => p.st !== 'declined').length;
+  over.players.push({ code: FC_make(ann), name: 'Seventeen', st: 'invited', seed: 60 });
+  for (let i = xs + 1; i < 17; i++) over.players.push({ code: 'bot-' + (0x100 + i).toString(16).padStart(8, '0'), name: 'B' + i, st: 'in', seed: 70 + i, bot: { lvl: 1, style: '' } });
+  check(ann.T.readT(over) === null, 'a tournament of seventeen, invitation and all, is refused');
+  ann.T.cancel(id);
+
+  /* ---- late entry ---- */
+  ann.hub.unblock(eve.code);
+  ann.hub.add(eve.code);            // Eve never knew she was blocked: asking again is friends again at once
+  await until(() => ann.hub.isOnline(eve.code) && eve.hub.isOnline(ann.code), 3000, 'Ann and Eve are friends again');
+  const lt = ann.T.create({ name: 'Latecomers', fmt: 'standard', bo: 1, rounds: 3, invite: [ben.code, cat.code], bots: 1, botLevel: 4 });
+  const lid = lt.id;
+  await until(() => ben.T.get(lid) && cat.T.get(lid), 2000, 'invited');
+  ben.T.answer(lid, true); cat.T.answer(lid, true);
+  await until(() => ann.T.get(lid).players.filter(p => p.st === 'in').length === 4, 2000, 'four in');
+  ann.T.start(lid);
+  const four = [ben, cat];
+  await until(() => inStep(ann, four, lid), 2000, 'round one');
+  check(ann.T.invite(lid, [dan.code]) === '', 'Ann invites Dan once it is under way');
+  await until(() => dan.T.invites().some(x => x.id === lid), 2000, 'Dan is asked to come in late');
+  check(dan.T.get(lid).state === 'running', 'to a tournament already running');
+  dan.T.answer(lid, true);
+  await until(() => (ann.T.get(lid).players.find(p => p.code === dan.code) || {}).st === 'in', 2000, 'Dan comes in');
+  check(ann.T.get(lid).players.find(p => p.code === dan.code).late === 1, 'having missed one round');
+  check(!ann.T.get(lid).rnds[0].pairs.some(p => p.a === dan.code || p.b === dan.code), 'and not in the round under way');
+  const five = [ben, cat, dan];
+  const win = (p) => ({ a: 1, b: 0, d: 0 });
+  await playMixed(ann, five, lid, win);
+  await until(() => ann.T.get(lid).rnds.length === 2, 2000, 'round two is paired');
+  check(ann.T.get(lid).rnds[1].pairs.some(p => p.a === dan.code || p.b === dan.code), 'with Dan in it');
+  check(ann.T.get(lid).rnds[1].pairs.filter(p => !p.b).length === 1, 'five now: a bye');
+  const dRow = ann.T.standings(ann.T.get(lid)).find(r => r.code === dan.code);
+  // placed last, with a round lost and no bye yet, he is the one to have round two's bye
+  const danBye = ann.T.get(lid).rnds[1].pairs.some(p => !p.b && p.a === dan.code);
+  check(danBye && dRow.l === 1 && dRow.w === 1 && dRow.rounds === 2 && dRow.mp === 3, 'Dan starts with a round lost, and as the lowest placed has round two’s bye');
+  await playMixed(ann, five, lid, win);
+  await until(() => ann.T.get(lid).rnds.length === 3, 2000, 'round three is paired');
+  // too late: the last round is paired
+  check(!!ann.T.invite(lid, [eve.code]), 'no more can be invited once the last round is paired');
+  await playMixed(ann, five, lid, win);
+  await until(() => ann.T.get(lid).state === 'done' && inStep(ann, five, lid), 2000, 'the tournament with a late entrant ends');
+  const lsig = (d) => JSON.stringify(d.T.standings(d.T.get(lid)).map(r => [r.code, r.mp, r.l, r.late, r.omw.toFixed(6)]));
+  check(five.every(d => lsig(d) === lsig(ann)), 'the same standings everywhere, the late entrant’s lost round included');
+  // a yes that comes too late is turned away
+  const lt2 = ann.T.create({ name: 'Too late', fmt: 'standard', bo: 1, rounds: 1, invite: [ben.code], bots: 1, botLevel: 4 });
+  await until(() => ben.T.get(lt2.id), 2000);
+  ben.T.answer(lt2.id, true);
+  await until(() => ann.T.get(lt2.id).players.filter(p => p.st === 'in').length === 3, 2000);
+  ann.hub.stop();
+  await until(() => !eve.hub.isOnline(ann.code), 2000);
+  ann.T.start(lt2.id);
+  ann.hub.start();
+  await until(() => ann.hub.isOnline(ben.code), 3000);
+  check(!!ann.T.invite(lt2.id, [eve.code]), 'a one-round tournament under way has no round left to come in for');
+  for (const d of [ann].concat(all)) d.hub.stop();
+}
+
+/* ============================================================
+   A table that says which match it is: a guest who typed the code
+   ============================================================ */
+async function tablesRun() {
+  const broker = new Broker();
+  const ann = device('Ann', broker), ben = device('Ben', broker), cat = device('Cat', broker), dan = device('Dan', broker);
+  const players = [ben, cat, dan];
+  await online([ann].concat(players));
+  for (const d of players) await befriend(ann, d);        // Ben, Cat and Dan are not friends of one another
+  const t = ann.T.create({ name: 'Codes typed', fmt: 'modern', bo: 3, rounds: 3, invite: players.map(d => d.code) });
+  const id = t.id;
+  await until(() => players.every(d => d.T.get(id)), 2000, 'invited');
+  for (const d of players) d.T.answer(id, true);
+  await until(() => ann.T.get(id).players.filter(p => p.st === 'in').length === 4, 2000, 'all in');
+  ann.T.start(id);
+  await until(() => inStep(ann, players, id), 2000, 'round one');
+  const dev = (code) => [ann].concat(players).find(d => d.code === code);
+  const p1 = ann.T.get(id).rnds[0].pairs.find(p => p.a !== ann.code && p.b !== ann.code);
+  const host = dev(p1.a), guest = dev(p1.b);
+  const other = players.find(d => d !== host && d !== guest);
+  // the organiser is away: the host's room cannot be passed on, and the guest types the code
+  ann.hub.stop();
+  await until(() => players.every(d => !d.hub.isOnline(ann.code)), 2000, 'Ann goes away');
+  host.T.roomOpened(id, 1, p1.t, 'TYPED');
+  check(!guest.T.myMatch(guest.T.get(id)).room, 'the guest has not heard of the room');
+  // a note from someone who is not the guest's opponent, or for another table, or another tournament: nothing
+  check(!guest.T.tableNote({ id, r: 1, tb: p1.t, host: other.code }, 'TYPED'), 'a note naming someone else as the host is ignored');
+  check(!guest.T.tableNote({ id, r: 1, tb: p1.t === 1 ? 2 : 1, host: host.code }, 'TYPED'), 'a note for another table is ignored');
+  check(!guest.T.tableNote({ id: 'e'.repeat(24), r: 1, tb: p1.t, host: host.code }, 'TYPED'), 'a note for a tournament the guest is not in is ignored');
+  check(!guest.T.tableNote({ id, r: 1, tb: p1.t, host: guest.code }, 'TYPED') && !guest.T.tableNote({ id, r: 1, tb: p1.t, host: 'nonsense' }, 'TYPED') && !guest.T.tableNote(null, 'TYPED'), 'or one that names the guest, or junk');
+  check(!guest.T.gameOver('TYPED', { w: 2, l: 0, d: 0 }), 'so a game there is no match of theirs yet');
+  check(!(guest.T.get(id).rnds[0].pairs.find(p => p.t === p1.t).rep[guest.code]), 'and nothing is reported');
+  // the real note: the guest's own match, the host its opponent
+  check(guest.T.tableNote({ id, r: 1, tb: p1.t, host: host.code }, 'TYPED'), 'the host’s own note links the table to the guest’s match');
+  check(guest.T.myMatch(guest.T.get(id)).room === 'TYPED', 'as if the room had come from the organiser');
+  host.T.gameOver('TYPED', { w: 2, l: 1, d: 0 });
+  const auto = guest.T.gameOver('TYPED', { w: 1, l: 2, d: 0 });
+  check(!!auto, 'when the match ends, the guest’s result goes in by itself');
+  check(guest.T.get(id).pend.rep && host.T.get(id).pend.rep, 'held, with the organiser away');
+  check(!guest.T.gameOver('TYPED', { w: 2, l: 0, d: 0 }), 'a friendly rematch at the same table afterwards is not reported');
+  ann.hub.start();
+  await until(() => (ann.T.get(id).rnds[0].pairs.find(p => p.t === p1.t) || {}).by === 'agreed', 4000, 'once the organiser is back, both reports arrive and settle it');
+  check(sameJSON(ann.T.get(id).rnds[0].pairs.find(p => p.t === p1.t).res, { a: 2, b: 1, d: 0 }), 'as the match went, not as the rematch did');
+  // the guest's copy a round behind: the note is kept, and linked once the copy catches up
+  const p0 = ann.T.get(id).rnds[0].pairs.find(p => p.t !== p1.t);
+  await until(() => players.every(d => d.hub.isOnline(ann.code)), 3000);
+  const g2 = guest;
+  broker.drop = (m, conn) => m.t === 'tn' && m.op === 'state' && conn.other && conn.other.owner.id.endsWith(g2.code);
+  ann.T.setResult(id, 1, p0.t, { a: 2, b: 0, d: 0 });
+  await until(() => ann.T.get(id).rnds.length === 2, 2000, 'round two is paired at the organiser');
+  check(g2.T.get(id).rnds.length === 1, 'but the guest’s copy is still at round one');
+  const p2 = ann.T.get(id).rnds[1].pairs.find(p => p.a === g2.code || p.b === g2.code);
+  const opp2 = p2.a === g2.code ? p2.b : p2.a;
+  check(!g2.T.tableNote({ id, r: 2, tb: p2.t, host: opp2 }, 'LATER'), 'a note for round two is not linked yet');
+  g2.T.gameOver('LATER', { w: 0, l: 2, d: 0 });
+  check(!ann.T.get(id).rnds[1].pairs.find(p => p.t === p2.t).rep[g2.code], 'nor reported yet');
+  broker.drop = null;
+  // anything that makes the organiser send the tournament again brings the guest up to date
+  g2.hub.sendTourney(ann.code, { op: 'sync', id, rev: 0 });
+  await until(() => g2.T.get(id).rnds.length === 2, 2000, 'the guest’s copy catches up');
+  await until(() => !!ann.T.get(id).rnds[1].pairs.find(p => p.t === p2.t).rep[g2.code], 2000, 'and the kept note links the table, and the result it saw goes in');
+  const got = ann.T.get(id).rnds[1].pairs.find(p => p.t === p2.t).rep[g2.code];
+  check(sameJSON(p2.a === g2.code ? got : { a: got.b, b: got.a, d: got.d }, { a: 0, b: 2, d: 0 }), 'the result as the guest’s table saw it');
+  for (const d of [ann].concat(players)) d.hub.stop();
 }
 
 const sameJSON = (a, b) => JSON.stringify(a) === JSON.stringify(b);

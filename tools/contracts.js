@@ -325,6 +325,8 @@ const NET_TO_GUEST = {
   error: env({ payload: str }),
   kick: env({ payload: S.any }),
   ping: env({}),
+  /* a friends tournament's match: which one this table is (src/10i-ui-tourney.js) */
+  'tourney:table': env({ id: str, r: int, tb: int, host: str }),
   '~': env({ id: int, i: nat, n: int, d: str }),
 };
 const NetToHost = union('t', NET_TO_HOST, 'message to the host');

@@ -126,6 +126,32 @@
 .tn-lobby b { font: 600 16px/1.25 var(--serif); }
 .tn-lobby p { margin: 0; }
 
+/* ---------------- bots: marked as the lobby marks them ---------------- */
+.tn-who { display: inline-flex; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.tn-who .tn-nm { overflow-wrap: anywhere; min-width: 0; }
+.tn-lvl { flex: none; min-width: 18px; height: 18px; font-size: 10.5px; }
+.is-bot .tn-nm, .tn-st-row.is-bot .tn-pname, .fr-row.is-bot .fr-pres span { color: #c9d1de; }
+:root[data-theme="light"] .is-bot .tn-nm, :root[data-theme="light"] .tn-st-row.is-bot .tn-pname,
+:root[data-theme="light"] .fr-row.is-bot .fr-pres span { color: var(--ink-2); }
+.tn-st-row .c-name .tn-lvl { margin-left: -2px; }
+
+/* the bots row, under the friends to invite */
+.tn-bots { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 12px;
+  border: 1px dashed var(--hair-hi); background: rgba(212,175,71,.05); min-width: 0; }
+.tn-bots-say { display: grid; gap: 2px; flex: 1 1 220px; min-width: 0; }
+.tn-bots-pick { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.tn-bot-step { grid-template-columns: auto 28px auto; }
+.tn-bot-lvl { display: inline-flex; align-items: center; gap: 8px; }
+.tn-bot-lvl select, .tn-addbot select { margin: 0; width: auto; max-width: 100%; }
+
+/* the organiser's controls under the players: invite more, add a bot */
+.tn-more-row { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; justify-content: space-between; margin-top: 4px; }
+.tn-more-row .btn { display: inline-flex; align-items: center; gap: 6px; }
+.tn-more-row .btn svg { width: 15px; height: 15px; }
+.tn-addbot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tn-late .tn-head .btn { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+.tn-late .tn-head .btn svg { width: 15px; height: 15px; }
+
 /* ---------------- a phone, or a narrow window ---------------- */
 @media (max-width: 560px) {
   .tn-st-row { grid-template-columns: 22px minmax(0, 1fr) 34px 54px 52px; gap: 6px; padding: 7px 6px; }
@@ -144,3 +170,9 @@
 :root[data-phone] .tn-tabhead .tn-new { flex: 1 1 100%; justify-content: center; min-height: 40px; }
 /* four tabs in the Friends window: narrower, so they all fit across a phone */
 :root[data-phone] .fr-tabs .store-tab { padding: 10px 9px; font-size: 13.5px; }
+:root[data-phone] .tn-bots-pick { width: 100%; justify-content: space-between; }
+:root[data-phone] .tn-bot-step .btn { min-width: 42px; min-height: 36px; }
+:root[data-phone] .tn-more-row > .btn, :root[data-phone] .tn-addbot { flex: 1 1 100%; }
+:root[data-phone] .tn-more-row > .btn { justify-content: center; min-height: 40px; }
+:root[data-phone] .tn-addbot select { flex: 1 1 auto; min-width: 0; }
+:root[data-phone] .tn-addbot .btn { min-height: 38px; }
