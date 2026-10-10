@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11232,
+  "needed": 11231,
   "gainedCards": 1133,
-  "linesNeeded": 12013,
+  "linesNeeded": 12012,
   "linesGained": 1337,
   "gained": {
    "all": 1133,
@@ -1600,23 +1600,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Thryx, the Sudden Storm",
-    "Helga, Skittish Seer",
-    "Delivery Moogle",
-    "Runadi, Behemoth Caller",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Superior Foes of Spider-Man",
-    "Storm the Festival",
-    "Exile into Darkness"
-   ]
-  },
-  {
    "what": "keyword EquipAbility",
    "score": 10,
    "lines": 10,
@@ -1944,6 +1927,22 @@
     "You Meet in a Tavern",
     "Nissa, Genesis Mage",
     "Ayesha Tanaka, Armorer"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Helga, Skittish Seer",
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Superior Foes of Spider-Man",
+    "Storm the Festival",
+    "Exile into Darkness"
    ]
   },
   {
@@ -8466,19 +8465,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Thryx, the Sudden Storm",
-    "Delivery Moogle",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Superior Foes of Spider-Man",
-    "Storm the Festival"
-   ]
-  },
-  {
    "what": "(verify) optional where the card is not",
    "score": 6,
    "cards": 6,
@@ -9317,6 +9303,18 @@
     "Baron Strucker, HYDRA Overlord",
     "Iron Man, Bleeding Edge",
     "Lucy MacLean, Positively Armed"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Delivery Moogle",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Superior Foes of Spider-Man",
+    "Storm the Festival"
    ]
   },
   {

@@ -12892,6 +12892,11 @@
       const rs = parts.map(p => parseStatic(p, ctx));
       if (rs.every(x => x && x.auto)) return Object.assign({}, rs[0], { text: line, effects: [].concat(...rs.map(x => x.effects || [])) });
     }
+    // Thryx, the Sudden Storm: "Spells you cast with mana value 5 or greater cost {1} less to cast and can't be countered."
+    if ((mm2 = String(line).match(/^(Spells you cast with mana value \d+ or greater) (cost \{\d+\} less to cast) and can'?t be countered\.?$/i))) {
+      const r = both(mm2[1] + ' ' + mm2[2] + '.', mm2[1] + " can't be countered.");
+      if (r) return r;
+    }
     if ((mm2 = String(line).match(/^((?:Enchanted|Equipped) creature) has ([a-z ,]+?) and can'?t be blocked\.?$/i))) {
       const r = both(mm2[1] + ' has ' + mm2[2] + '.', mm2[1] + " can't be blocked.");
       if (r) return r;
@@ -13659,6 +13664,9 @@
         make: (m) => ({ op: 'uncounterable', who: 'all', words: m[1].toLowerCase() + ' spells' }), auto: true },
       // Spider-Punk: "Spells and abilities can't be countered."
       { re: /^Spells and abilities can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all', abilities: true }, auto: true },
+      // Thryx, the Sudden Storm: "Spells you cast with mana value 5 or greater can't be countered" (minMv)
+      { re: /^Spells you cast with mana value (\d+) or greater can'?t be countered\.?$/i,
+        make: (m) => ({ op: 'uncounterable', who: 'you', minMv: +m[1] }), auto: true },
       // Storied: three or more artifacts, legendaries and/or Sagas, and the story is yours for the game
       { re: /^Storied$/i, eff: { op: 'storied' }, auto: true },
       { re: /^When you control no ([A-Za-z]+)s?, sacrifice (?:CARDNAME|this creature|this permanent)\.?$/i,

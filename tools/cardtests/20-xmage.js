@@ -17290,4 +17290,28 @@ module.exports = (test) => {
     U.settle();
     t.ok(U.g.player('A').monarch, 'your commander entered: you are the monarch');
   });
+
+  test('Thryx, the Sudden Storm: spells of mana value 5 or more cost {1} less and cannot be countered', (mk, t) => {
+    t.auto('Thryx, the Sudden Storm');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Thryx, the Sudden Storm');
+    const wurm = T.hand('A', 'Craw Wurm');
+    T.mana('A', 'GG3');
+    T.cast('A', wurm, { resolve: false });
+    t.ok(T.g.player('A').pool.isEmpty(), 'five mana for a six-mana spell');
+    T.g.passPriority('A', true);
+    T.mana('B', 'UU');
+    T.cast('B', T.hand('B', 'Counterspell'), { targets: [{ kind: 'stack', id: T.stackItem(wurm).id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(wurm, 'battlefield', 'not countered');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', 'UU');
+    T.cast('B', T.hand('B', 'Counterspell'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+    t.zone(bolt, 'graveyard');
+    t.eq(T.life('B'), 20, 'a small spell can be countered');
+  });
 };

@@ -20464,6 +20464,8 @@
         if (e.words && item.obj && !this._cardFitsWords(item.obj, e.words)) continue;
         // Spellbreaker Behemoth: only those with power 5 or greater
         if (e.minPower != null && !(item.obj && parseInt((item.obj.card && item.obj.card.power) || '0', 10) >= e.minPower)) continue;
+        // Thryx, the Sudden Storm: only those with mana value 5 or greater
+        if (e.minMv != null && !(item.kind === 'spell' && item.obj && ((item.obj.card && item.obj.card.cmc) || 0) >= e.minMv)) continue;
         return true;
       }
       return false;
