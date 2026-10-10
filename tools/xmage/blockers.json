@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11241,
+  "needed": 11236,
   "gainedCards": 1133,
-  "linesNeeded": 12022,
+  "linesNeeded": 12017,
   "linesGained": 1337,
   "gained": {
    "all": 1133,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4175,
-   "lines": 3923,
+   "score": 4170,
+   "lines": 3921,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6350,16 +6350,6 @@
    ]
   },
   {
-   "what": "WUBRGInsteadEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Fist of Suns",
-    "Jodah, Archmage Eternal",
-    "Leyline of Mutation"
-   ]
-  },
-  {
    "what": "that player",
    "score": 3,
    "lines": 3,
@@ -6648,13 +6638,23 @@
     "Veteran's Armaments",
     "Rubblebelt Raiders"
    ]
+  },
+  {
+   "what": "PreventDamageToControllerEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Morningtide's Light",
+    "Festival of the Guildpact",
+    "Decorated Griffin"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3482,
-   "cards": 3311,
+   "score": 3477,
+   "cards": 3309,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

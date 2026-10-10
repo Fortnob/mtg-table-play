@@ -3959,6 +3959,17 @@
           out.push({ kind: 'cast', via: 'alt' + i, cost: alt.mana || '', alt, label: alt.label });
         });
       }
+      /* Fist of Suns, Jodah: "You may pay {W}{U}{B}{R}{G} rather than pay the
+         mana cost for spells you cast" — one more price for any spell from the
+         hand or the command zone (a commander's tax still on top) (grantAltCost) */
+      if ((o.zone === 'hand' || o.zone === 'command') && !a.isLand) {
+        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost'));
+        if (gs) {
+          const mana = this._staticOp(gs, 'grantAltCost').mana;
+          const tax = o.zone === 'command' && o.isCommander ? (((this.player(o.owner) || {}).commanderCasts || {})[o.id] || 0) * 2 : 0;
+          out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
+        }
+      }
       /* Channel: discard it from your hand for its ability. The table
          offers it where it offers cycling, which is the same act. */
       // Forecast: in your upkeep, once each turn, from the hand (it goes through channel's door, and stays)

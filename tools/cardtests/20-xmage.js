@@ -17225,4 +17225,23 @@ module.exports = (test) => {
     t.ok(c1.faceDown && c1.controller === 'B', "under B's control");
     t.zone(c2, 'graveyard', 'the other to the graveyard');
   });
+
+  test('Fist of Suns: any spell may be cast for {W}{U}{B}{R}{G} instead', (mk, t) => {
+    t.auto('Fist of Suns');
+    t.auto('Jodah, Archmage Eternal');
+    t.auto('Leyline of Mutation');
+    const T = mk();
+    T.toMain('A');
+    const wurm = T.hand('A', 'Craw Wurm');
+    t.no(T.g.altUsesFor('A', wurm.id).some(u => u.via === 'grantAlt'), 'not without it');
+    T.bf('A', 'Fist of Suns');
+    const use = T.g.altUsesFor('A', wurm.id).find(u => u.via === 'grantAlt');
+    t.ok(use, 'offered: ' + (use && use.label));
+    t.eq(use && use.cost, '{W}{U}{B}{R}{G}', 'five colours');
+    T.mana('A', 'WUBRG');
+    T.cast('A', wurm, { via: 'grantAlt' });
+    T.settle();
+    t.zone(wurm, 'battlefield');
+    t.ok(T.g.player('A').pool.isEmpty(), 'all five spent');
+  });
 };

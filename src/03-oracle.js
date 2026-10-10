@@ -13158,8 +13158,13 @@
         eff: { op: 'dayOnEnter' }, auto: true },
       // Teferi, Time Raveler: "Each opponent can cast spells only any time they could cast a sorcery."
       { re: /^Each opponent can cast spells only any time they could cast a sorcery\.?$/i, eff: { op: 'opponentsSorcerySpeed' }, auto: true },
+      // Port Razer, Bloodthirster: one attack on each player a turn, however many combats (noRepeatAttack)
+      { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
+      // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
+      { re: /^You may pay ((?:\{[WUBRG]\})+) rather than pay the mana cost for spells (?:that )?you cast\.?$/i,
+        make: (m) => ({ op: 'grantAltCost', mana: m[1] }), auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       { re: /^You may cast ([A-Z][a-z]+|creature|artifact|enchantment|instant|sorcery) spells without paying their mana costs\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: m[1].toLowerCase() }), auto: true },
