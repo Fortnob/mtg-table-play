@@ -608,6 +608,9 @@
     for (let i = 0; i < faces; i++) {
       if (!gotImage || MTG.settings.alwaysCardText || MTG.isPhone()) body.appendChild(UI.cardTextBlock(card, i));
     }
+    // its rulings, folded away under it (src/10g-rulings.js)
+    const rulings = UI.rulingsBox ? UI.rulingsBox(card) : null;
+    if (rulings) body.appendChild(rulings);
     const close = () => { sheet.remove(); document.removeEventListener('keydown', onEsc, true); };
     // caught on the way down, so Escape closes the card and not the window under it
     const onEsc = (e) => { if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); close(); } };

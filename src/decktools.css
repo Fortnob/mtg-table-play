@@ -1,0 +1,31 @@
+/* ============================================================
+   decktools.css - a card's rulings, folded under the enlarged card
+   ============================================================ */
+
+/* ---- a card's rulings, folded away under it (10g-rulings.js) ----
+   Dark wherever it is, like the enlarged card it sits under. */
+.rulings {
+  border-radius: 10px; border: 1px solid rgba(212,175,71,.22); color: #dfe5ef; text-align: left;
+  background: linear-gradient(180deg, rgba(30,34,45,.97), rgba(16,19,26,.97));
+}
+.card-sheet-body > .rulings { margin-top: 10px; }
+.cardview-side .rulings { flex: none; background: rgba(0,0,0,.22); }
+.rulings > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 12px; user-select: none; -webkit-user-select: none;
+}
+.rulings > summary::-webkit-details-marker { display: none; }
+.rulings > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 10px; }
+.rul-title { font: 600 13.5px/1.2 var(--serif); color: var(--gold-1); }
+.rul-count {
+  min-width: 22px; padding: 3px 7px; border-radius: 99px; text-align: center;
+  font: 700 11px/1 var(--font); color: #f3dd96; background: rgba(212,175,71,.16);
+}
+.rulings > summary .rules-chev { margin-left: auto; border-color: #8d97a8; }
+.rul-body { padding: 0 12px 10px; }
+.rul-list { list-style: none; margin: 0; padding: 0; }
+.rul { padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); }
+.rul-head { display: flex; align-items: baseline; gap: 8px; font-size: 11px; letter-spacing: .02em; color: #8d97a8; }
+.rul-src { font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #9cc7ff; }
+.rul-text { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: #c4ccd9; overflow-wrap: anywhere; }
+.rul-wait { margin: 0 0 4px; font-size: 12px; color: #8d97a8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
