@@ -253,7 +253,8 @@
         kind: 'activated', auto: true, cost: { mana: '{G}', tap: false, other: [] },
         text: '{G}: Exile target card from a graveyard. If it was a creature card, put a +1/+1 counter on this creature and you gain 1 life.',
         effects: [
-          { op: 'exileFromGraveyard', n: 1, who: 'any' },
+          // the one card it targets, from any graveyard (exileFromGraveyard took one from every graveyard)
+          { op: 'exile', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard' }] },
           { op: 'ifLastWas', filter: 'creature',
             then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }, { op: 'gainLife', n: 1, who: 'you' }] },
         ],

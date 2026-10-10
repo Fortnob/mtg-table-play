@@ -19539,4 +19539,24 @@ module.exports = (test) => {
     T.resolve();
     for (const pid of ['A', 'B', 'C']) t.eq(T.zone(pid, 'graveyard').length, 3, pid + ' milled three');
   });
+
+  test('Scavenging Ooze: exiles the one card it targets; a creature card grows it and gains 1 life', (mk, t) => {
+    t.auto('Scavenging Ooze');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const oz = T.bf('A', 'Scavenging Ooze');
+    const land = T.grave('B', 'Island'), bear = T.grave('B', 'Grizzly Bears'), other = T.grave('C', 'Hill Giant'), mine = T.grave('A', 'Forest');
+    T.mana('A', 'G');
+    T.activate('A', oz, 0, { targets: [land.id] });
+    T.resolve();
+    t.zone(land, 'exile');
+    t.zone(bear, 'graveyard', 'only the target'); t.zone(other, 'graveyard'); t.zone(mine, 'graveyard');
+    t.no(oz.counters['+1/+1'], 'a land: nothing more');
+    T.mana('A', 'G');
+    T.activate('A', oz, 0, { targets: [bear.id] });
+    T.resolve();
+    t.zone(bear, 'exile');
+    t.eq(oz.counters['+1/+1'], 1, 'a creature card: a counter');
+    t.eq(T.g.player('A').life, 21, 'and 1 life');
+  });
 };
