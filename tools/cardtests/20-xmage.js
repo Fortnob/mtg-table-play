@@ -21743,4 +21743,99 @@ module.exports = (test) => {
     T4.toMain('A', 'endCombat');
     t.eq(food(), 1, 'a Halfling attacking: a Food');
   });
+
+  test("Commanders: O'aka, Omnath, Locus of Mana, Ozai, Elanor Gardner, Fire Lord Azula, The Necrobloom, Lavinia; Omnath, Locus of the Void, Sawblade Skinripper, Goblin Blast-Runner", (mk, t) => {
+    for (const n of ["O'aka, Traveling Merchant", 'Omnath, Locus of Mana', 'Omnath, Locus of the Void', 'Ozai, the Phoenix King', 'Elanor Gardner',
+      'Fire Lord Azula', 'The Necrobloom', 'Lavinia, Azorius Renegade', 'Sawblade Skinripper', 'Goblin Blast-Runner']) t.auto(n);
+    // O'aka: {T}, remove a counter from a nonland permanent you control: draw a card
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const oa = T.bf('A', "O'aka, Traveling Merchant"); oa.summoningSick = false;
+    const gb = T.bf('A', 'Grizzly Bears'); gb.counters['+1/+1'] = 1;
+    const h0 = T.zone('A', 'hand').length;
+    T.activate('A', oa, 0, { counterFromId: gb.id }); T.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 0, "O'aka: the counter came off the Bears");
+    t.eq(T.zone('A', 'hand').length, h0 + 1, "O'aka: a card drawn");
+    // Omnath, Locus of Mana: +1/+1 for each unspent green mana; of the Void: for each unspent mana; Ozai: flying and indestructible with six
+    const om = T.bf('A', 'Omnath, Locus of Mana'), ov = T.bf('A', 'Omnath, Locus of the Void'), oz = T.bf('A', 'Ozai, the Phoenix King');
+    T.mana('A', 'GGGR');
+    t.eq(T.g.powerOf(om), 4, 'Omnath: three green unspent, a 4/4 (the red does not count)');
+    t.eq(T.g.toughnessOf(ov), (parseInt(ov.card.toughness, 10) || 0) + 4, 'Omnath of the Void: four unspent, +4/+4');
+    t.ok(!T.g.hasKw(oz, 'flying'), 'Ozai: four unspent, no flying');
+    T.mana('A', '2');
+    t.ok(T.g.hasKw(oz, 'flying') && T.g.hasKw(oz, 'indestructible'), 'Ozai: six unspent, flying and indestructible');
+    // Elanor Gardner: a basic land at the end step if you sacrificed a Food this turn; Goblin Blast-Runner and Sawblade Skinripper see it too
+    const T2 = mk({ library: Array(10).fill('Forest') });
+    T2.toMain('A');
+    T2.put('A', 'Elanor Gardner', 'battlefield', { etb: true }); T2.resolve();
+    const gbr = T2.bf('A', 'Goblin Blast-Runner'), sk = T2.bf('A', 'Sawblade Skinripper');
+    const food = T2.bfOf('A').find(o => o.isToken && /Food/.test(o.name));
+    t.eq(T2.g.powerOf(gbr), 1, 'Blast-Runner: nothing sacrificed yet');
+    T2.mana('A', '2');
+    T2.activate('A', food, 0); T2.resolve();
+    t.eq(T2.g.powerOf(gbr), 3, 'Blast-Runner: +2/+0 once a permanent was sacrificed');
+    t.ok(T2.g.hasKw(gbr, 'menace'), 'and menace');
+    const gb2 = T2.bf('A', 'Grizzly Bears');
+    T2.mana('A', '2');
+    T2.activate('A', sk, 0, { sacrificeIds: [gb2.id] }); T2.resolve();
+    const lands = () => T2.bfOf('A').filter(o => (o.analysis() || {}).isLand).length;
+    const l0 = lands();
+    T2.answer('confirm', { yes: true });
+    T2.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T2.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T2.toMain('A', 'end'); T2.resolve();
+    t.eq(lands(), l0 + 1, 'Elanor: a Forest onto the battlefield');
+    t.eq(T2.life('B'), 18, 'Skinripper: two permanents sacrificed, 2 damage');
+    // Havengul Laboratory: "three or more Clues" counts Clues
+    const hv = T2.put('A', 'Havengul Laboratory', 'battlefield');
+    t.eq(((hv.analysis().abilities.find(ab => ab.condition) || {}).condition || {}).what, 'clue', 'Havengul Laboratory: Clues, one at a time');
+    // without a Food sacrificed, nothing
+    const T3 = mk({ library: Array(10).fill('Forest') });
+    T3.toMain('A');
+    T3.bf('A', 'Elanor Gardner');
+    const m0 = T3.bfOf('A').filter(o => (o.analysis() || {}).isLand).length;
+    T3.answer('confirm', { yes: true });
+    T3.toMain('A', 'end'); T3.resolve();
+    t.eq(T3.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, m0, 'Elanor: no Food sacrificed, no land');
+    // Fire Lord Azula: a spell cast while it attacks is copied; not one cast before
+    const T4 = mk({ library: Array(10).fill('Island') });
+    T4.toMain('A');
+    const az = T4.bf('A', 'Fire Lord Azula'); az.summoningSick = false;
+    T4.mana('A', 'R');
+    T4.cast('A', T4.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); T4.resolve();
+    t.eq(T4.life('B'), 17, 'Azula not attacking: no copy');
+    T4.answer('declareAttackers', () => [{ attackerId: az.id, defenderId: 'B' }]);
+    T4.toMain('A', 'declareBlockers');
+    T4.mana('A', 'R');
+    T4.cast('A', T4.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); T4.resolve();
+    t.eq(T4.life('B'), 11, 'Azula attacking: the Bolt and its copy');
+    // The Necrobloom: land cards in your graveyard have dredge 2
+    const T5 = mk({ library: Array(20).fill('Island') });
+    T5.bf('A', 'The Necrobloom');
+    const fo = T5.grave('A', 'Forest');
+    const lib = T5.zone('A', 'library').length;
+    T5.answer('mode', (ch) => ({ modes: [ch.options.find(o => /Dredge/.test(o.label)).i] }));
+    T5.nextTurn('B'); T5.nextTurn('A');
+    t.zone(fo, 'hand');
+    t.eq(T5.zone('A', 'library').length, lib - 2, 'Necrobloom: milled two instead of drawing');
+    // a bot dredges a land back only with no land in hand
+    const T6 = mk({ library: Array(30).fill('Island') });
+    T6.player('A').isBot = true;
+    T6.bf('A', 'The Necrobloom');
+    const fo6 = T6.grave('A', 'Forest');
+    T6.hand('A', 'Plains');
+    T6.nextTurn('B'); T6.nextTurn('A');
+    t.zone(fo6, 'graveyard', 'a bot with a land in hand draws');
+    // Lavinia: opponents can't cast noncreature spells with mana value greater than their lands
+    const T7 = mk({ library: Array(10).fill('Island') });
+    T7.toMain('A');
+    T7.bf('B', 'Lavinia, Azorius Renegade');
+    T7.bf('A', 'Island'); T7.bf('A', 'Island');
+    T7.mana('A', 'UUUUG');
+    t.ok(!T7.g.castSpell('A', T7.hand('A', 'Divination').id, { auto: true, targets: [] }), 'Lavinia: Divination (3) with two lands refused');
+    t.ok(/Lavinia/.test(T7.g.lastError || ''), 'and says why');
+    T7.cast('A', T7.hand('A', 'Opt'));
+    T7.cast('A', T7.hand('A', 'Grizzly Bears'));
+    t.zone(T7.bfOf('A').find(o => o.name === 'Grizzly Bears'), 'battlefield', 'a creature spell is fine');
+  });
 };

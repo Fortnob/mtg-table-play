@@ -346,7 +346,8 @@
       // Hatchet Bully: "Put a -1/-1 counter on a creature you control" is blight 1
       if (/^Put a -1\/-1 counter on a creature you control$/i.test(p)) { cost.blight = (cost.blight || 0) + 1; continue; }
       // Fain, the Broker: "Remove a counter from a creature you control"
-      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact) you control$/i))) {
+      // (O'aka, Traveling Merchant: "… from a nonland permanent you control" — counterFromNonland)
+      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact|nonland permanent) you control$/i))) {
         cost.removeCounterFrom = { filter: m[2].toLowerCase(), kind: m[1] ? '+1/+1' : null };
         continue;
       }
@@ -6101,6 +6102,9 @@
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
     // Wight of Precinct Six: "for each creature card in your opponents' graveyards"
     if ((m = p.match(/^([a-z]+) card in your opponents'? graveyards$/i))) return { cardsInOpponentGraveyards: m[1].toLowerCase(), mult: k };
+    // Omnath, Locus of Mana: "for each unspent green mana you have"; Omnath, Locus of the Void: "for each unspent mana you have" (unspentMana)
+    if ((m = p.match(/^unspent (?:(white|blue|black|red|green|colorless) )?mana you have$/i)))
+      return { unspentMana: m[1] ? ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' })[m[1].toLowerCase()] : '*', mult: k };
     // Kalemne, Disciple of Iroas: "for each experience counter you have"
     if (/^experience counter you have$/i.test(p)) return { playerStat: 'experience', mult: k };
     // Commander's Insignia: "for each time you've cast your commander from the command zone this game"
@@ -9517,6 +9521,11 @@
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
     [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Ozai, the Phoenix King: "you have six or more unspent mana" (unspentMana)
+    [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
+    // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
+    [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
+      (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
@@ -9823,6 +9832,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
+    { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
     { re: /^Whenever one or more ([A-Z][a-z]+)s you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
@@ -11343,6 +11354,8 @@
             parsed.auto = true;
           }
         }
+        // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
+        if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
@@ -14872,6 +14885,11 @@
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
+      // The Necrobloom: "Land cards in your graveyard have dredge 2." (grantDredge)
+      { re: /^Land cards in your graveyard have dredge (\d+)\.?$/i, make: (m) => ({ op: 'grantDredge', filter: 'land', n: +m[1] }), auto: true },
+      // Lavinia, Azorius Renegade: "Each opponent can't cast noncreature spells with mana value greater than the number of lands that player controls." (mvLandCap)
+      { re: /^Each opponent can'?t cast noncreature spells with mana value greater than the number of lands that player controls\.?$/i,
+        eff: { op: 'opponentsMvLandCap' }, auto: true },
       // Liesa, Shroud of Dusk: the commander tax paid in life (commanderTaxLife)
       { re: /^Rather than pay \{2\} for each previous time you'?ve cast this spell from the command zone this game, pay 2 life that many times\.?$/i,
         make: () => ({ op: 'commanderTaxLife' }), auto: true },

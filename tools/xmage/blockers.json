@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10555,
+  "needed": 10545,
   "gainedCards": 968,
-  "linesNeeded": 11230,
+  "linesNeeded": 11219,
   "linesGained": 1136,
   "gained": {
    "all": 968,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4046,
-   "lines": 3800,
+   "score": 4043,
+   "lines": 3797,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,21 +127,21 @@
   },
   {
    "what": "custom condition",
-   "score": 163,
-   "lines": 151,
+   "score": 159,
+   "lines": 147,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
     "The Chain Veil",
     "Blitzball",
-    "Elanor Gardner",
     "Lux Artillery",
     "Rith, Liberated Primeval",
     "Wakka, Devoted Guardian",
     "Tinybones, Trinket Thief",
     "March of the Canonized",
     "Gavel of the Righteous",
-    "Eshki, Temur's Roar"
+    "Eshki, Temur's Roar",
+    "Sab-Sunen, Luxa Embodied"
    ]
   },
   {
@@ -1124,25 +1124,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Rampant Frogantua",
-    "Coram, the Undertaker",
-    "Umbris, Fear Manifest",
-    "Carrion Grub",
-    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
-    "Anya, Merciless Angel",
-    "Skanos Dragonheart",
-    "Omnath, Locus of the Void",
-    "Greven, Predator Captain",
-    "Lumbering Battlement",
-    "Dark Matter Manipulator",
-    "Enemy of Enlightenment"
-   ]
-  },
-  {
    "what": "target count 1-2",
    "score": 12,
    "lines": 12,
@@ -1305,6 +1286,24 @@
     "Sphinx's Approach",
     "Urborg Panther",
     "Kyscu Drake"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Rampant Frogantua",
+    "Coram, the Undertaker",
+    "Umbris, Fear Manifest",
+    "Carrion Grub",
+    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
+    "Anya, Merciless Angel",
+    "Skanos Dragonheart",
+    "Greven, Predator Captain",
+    "Lumbering Battlement",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {
@@ -1976,21 +1975,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Scholar of New Horizons",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Hexavus",
-    "Soul Diviner",
-    "Xavier Sal, Infested Captain",
-    "Overseer of Vault 76",
-    "Chisei, Heart of Oceans"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 8,
    "lines": 8,
@@ -2432,6 +2416,20 @@
     "Astelli Reclaimer",
     "Pull Through the Weft",
     "United Battlefront"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Scholar of New Horizons",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain",
+    "Overseer of Vault 76",
+    "Chisei, Heart of Oceans"
    ]
   },
   {
@@ -6495,8 +6493,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3382,
-   "cards": 3217,
+   "score": 3379,
+   "cards": 3214,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6547,15 +6545,15 @@
   },
   {
    "what": "custom condition",
-   "score": 127,
-   "cards": 124,
+   "score": 125,
+   "cards": 122,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
-    "Elanor Gardner",
     "Lux Artillery",
     "Rith, Liberated Primeval",
-    "Wakka, Devoted Guardian"
+    "Wakka, Devoted Guardian",
+    "March of the Canonized"
    ]
   },
   {
@@ -7485,19 +7483,6 @@
    ]
   },
   {
-   "what": "RemoveCounterCost",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Scholar of New Horizons",
-    "O'aka, Traveling Merchant",
-    "Sanctuary Warden",
-    "Hexavus",
-    "Soul Diviner",
-    "Xavier Sal, Infested Captain"
-   ]
-  },
-  {
    "what": "scope:alts",
    "score": 8,
    "cards": 8,
@@ -7740,6 +7725,19 @@
     "Golden-Tail Trainer",
     "Edgewalker",
     "Ragemonger"
+   ]
+  },
+  {
+   "what": "RemoveCounterCost",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Scholar of New Horizons",
+    "Sanctuary Warden",
+    "Hexavus",
+    "Soul Diviner",
+    "Xavier Sal, Infested Captain",
+    "Overseer of Vault 76"
    ]
   },
   {
@@ -8390,19 +8388,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Carrion Grub",
-    "Skanos Dragonheart",
-    "Omnath, Locus of the Void",
-    "Greven, Predator Captain",
-    "Dark Matter Manipulator",
-    "Enemy of Enlightenment"
-   ]
-  },
-  {
    "what": "filter:snow",
    "score": 6,
    "cards": 6,
@@ -8987,6 +8972,18 @@
     "Tower Worker",
     "Petalmane Baku",
     "Loot, the Nexus"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Carrion Grub",
+    "Skanos Dragonheart",
+    "Greven, Predator Captain",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {

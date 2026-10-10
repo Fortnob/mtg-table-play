@@ -1167,7 +1167,9 @@
           this.queueChoice({ type: 'mode', playerId: ap.id, purpose: 'dredge', count: 1,
             options: [{ i: 0, label: 'Draw a card' }].concat(dr.map((x, k) => ({ i: k + 1, label: `Dredge ${x.n}: mill ${x.n} and return ${x.o.name}` }))),
             values: [null].concat(dr.map(x => x.o.id)), prompt: 'Draw your card, or dredge?' });
-        } else if (dr.length && this.zones[ap.id].library.length > 15) this._dredge(ap, dr[0].o);
+        } else if (dr.length && this.zones[ap.id].library.length > 15 && (dr.some(x => !x.granted) ||
+          // a bot takes a land back by The Necrobloom's dredge only when it has no land in hand to play (grantDredge)
+          !this.zones[ap.id].hand.some(c => (c.analysis() || {}).isLand))) this._dredge(ap, (dr.find(x => !x.granted) || dr[0]).o);
         else this._drawCards(ap, 1);
       }
       this._fire('yourDrawStep', ap.id);
@@ -2604,15 +2606,31 @@
       const lib = this.zones[p.id].library.length;
       const out = [];
       for (const o of this.zones[p.id].graveyard) {
-        const k = ((o.analysis() || {}).keywords || []).find(x => x.keyword === 'Dredge');
-        const n = k ? parseInt(k.arg, 10) : 0;
-        if (n > 0 && lib >= n) out.push({ o, n });
+        const n = this._dredgeN(p, o);
+        // (granted: a land The Necrobloom lends dredge to, not a dredge card of its own — grantDredge)
+        if (n > 0 && lib >= n) out.push({ o, n, granted: !((o.analysis() || {}).keywords || []).some(x => x.keyword === 'Dredge') });
       }
       return out;
     }
-    _dredge(p, o) {
+    /** A card's dredge number: its own, or one a permanent of its owner's gives it (The Necrobloom: grantDredge). */
+    _dredgeN(p, o) {
       const k = ((o.analysis() || {}).keywords || []).find(x => x.keyword === 'Dredge');
-      const n = k ? parseInt(k.arg, 10) : 0;
+      let n = k ? parseInt(k.arg, 10) || 0 : 0;
+      for (const x of this.battlefield) {
+        if (x.controller !== p.id || x.phasedOut) continue;
+        const g = this._staticOp(x, 'grantDredge');
+        if (g && this._cardFitsWords(o, g.filter || 'card')) n = Math.max(n, g.n || 0);
+      }
+      return n;
+    }
+    /** Unspent mana in a player's pool, of one colour or ('*') all of it, set-aside mana included (unspentMana). */
+    _unspentMana(p, c) {
+      if (!p || !p.pool) return 0;
+      const rest = (p.restricted || []).filter(r => c === '*' || r.color === c).length;
+      return (c === '*' ? p.pool.total() : (Number(p.pool[c]) || 0)) + rest;
+    }
+    _dredge(p, o) {
+      const n = this._dredgeN(p, o);
       const lib = this.zones[p.id].library;
       for (let i = 0; i < n && lib.length; i++) this.moveObject(lib[0], 'graveyard');
       this.moveObject(o, 'hand');
@@ -3056,6 +3074,10 @@
         }
         return k * mult;
       }
+      // Omnath, Locus of Mana: "for each unspent green mana you have" (unspentMana)
+      if (v.unspentMana) return this._unspentMana(this.player(pid), v.unspentMana) * mult;
+      // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
+      if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || w.includes(v.sacrificedThisTurn)).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
       // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
@@ -3486,6 +3508,15 @@
         const e0 = this._staticOp(vw, 'opponentsCantCastParity');
         const mv = (o.card && o.card.cmc) || 0;
         if ((mv % 2 === 0) === !!e0.even) return { ok: false, reason: `${vw.name}: you can't cast spells with ${e0.even ? 'even' : 'odd'} mana values.` };
+      }
+      // Lavinia, Azorius Renegade: no noncreature spell with mana value greater than the caster's lands (mvLandCap)
+      if (!(o.analysis() || {}).isCreature) {
+        for (const q of this.opponentsOf(playerId)) {
+          const lv = this._anyStaticOf(q.id, 'opponentsMvLandCap');
+          if (!lv) continue;
+          const lands = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && (x.analysis() || {}).isLand).length;
+          if (((o.card && o.card.cmc) || 0) > lands) return { ok: false, reason: `${lv.name}: you can't cast noncreature spells with mana value greater than the number of lands you control.` };
+        }
       }
       // Steel Golem: "You can't cast creature spells." — its controller only
       for (const s1 of this.battlefield) {
@@ -10303,6 +10334,13 @@
           return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
         }
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
+        case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
+        // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
+        case 'sacrificedThisTurn': {
+          const sb = ((h.sacrificedBy || {})[me && me.id]) || [];
+          return sb.filter(w => cond.what === 'permanent' || w.includes(cond.what)).length >= (cond.n || 1);
+        }
         case 'thatPlayerHand': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -10543,7 +10581,7 @@
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
       // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours || v.unspentMana)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
@@ -10712,7 +10750,9 @@
       const a = o.analysis();
       if (!a) return null;
       const lb = o.zone === 'battlefield' && !this._layerBusy ? this._layerBoard(o) : null;
-      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o) && o._chrGen === this._lbGen) return o._chr;
+      // (Serra Ascendant, Omnath, Ozai: life and unspent mana change what a permanent is without anything moving — worldSig)
+      const world = this._worldSig();
+      if (o._chr && o._chrEpoch === this._boardKey && o._chrLocal === this._localEpoch(o) && o._chrGen === this._lbGen && o._chrWorld === world) return o._chr;
       const s = lb && lb.special ? lb.st.get(o.id) : null;
       const loseTs = s && s.lost ? s.loseTs : -Infinity;
 
@@ -10819,6 +10859,7 @@
       o._chrEpoch = this._boardKey;
       o._chrLocal = this._localEpoch(o);
       o._chrGen = this._lbGen;
+      o._chrWorld = world;
       return res;
     }
 
@@ -10827,6 +10868,23 @@
       let k = (o.effects || []).length * 31;
       for (const key in o.counters) k += (Number(o.counters[key]) || 0) * 7 + key.length;
       return k + (o.attachments || []).length * 3 + (o.face || 0) * 5 + (o.faceDown ? 2 : 0);
+    }
+
+    /**
+     * What a standing rule may ask about that changes without the board
+     * changing: each player's life, poison, energy and experience, and the
+     * unspent mana in their pool (worldSig). A permanent's characteristics
+     * are worked out again when it moves.
+     */
+    _worldSig() {
+      let k = 0;
+      for (const p of this.players) {
+        const q = p.pool || {};
+        const mana = (q.W | 0) + (q.U | 0) * 64 + (q.B | 0) * 4096 + (q.R | 0) * 262144 + (q.G | 0) * 16777216 + (q.C | 0) * 1073741824;
+        k = (k * 131 + (Number(p.life) || 0) * 1009 + (p.poison | 0) * 97 + (p.energy | 0) * 13 + (p.experience | 0) * 7
+          + (mana % 1000000007) * 101 + (p.restricted || []).length * 23) % 1000000007;
+      }
+      return k;
     }
 
     /** Something changed on the battlefield: recompute rather than remember. */
@@ -11774,6 +11832,13 @@
       data = data || {};
       /* "Whenever a player sacrifices a permanent": once for each one */
       if (event === 'youSacrifice') {
+        // Elanor Gardner: what each player sacrificed this turn, by its types (sacrificedThisTurn)
+        if (controllerId) {
+          const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+          const sb = ((h.sacrificedBy = h.sacrificedBy || {})[controllerId] = h.sacrificedBy[controllerId] || []);
+          const sa = data.object && (Number(data.count) || 1) === 1 && data.object.analysis ? data.object.analysis() : null;
+          for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) sb.push(sa ? (sa.types || []).concat(sa.subtypes || []).map(x => String(x).toLowerCase()) : []);
+        }
         // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
@@ -12004,6 +12069,8 @@
             if (!/\{X\}/.test(mc)) continue;
           }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
+          // Fire Lord Azula: only while it is attacking (selfAttacking)
+          if (ab.selfAttacking && !(o.zone === 'battlefield' && o.attacking)) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
           if (ab.firstXSpell) {
             const hasX = (x) => /\{X\}/.test(((x && x.card) || {}).mana_cost || '');
@@ -12839,7 +12906,7 @@
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
