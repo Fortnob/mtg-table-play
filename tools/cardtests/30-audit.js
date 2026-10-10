@@ -5431,4 +5431,20 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && /Horror/.test(o.name)).length, 1, 'two creature cards in one mill: one Horror');
   });
+
+  test("Audit: Psychic Purge punishes the opponent who made you discard it, not your own discard", (mk, t) => {
+    t.auto('Psychic Purge');
+    let T = mk();
+    T.toMain('B');
+    const pp = T.hand('A', 'Psychic Purge'); T.hand('A', 'Island');
+    T.answer('discard', (ch) => ({ cardIds: T.g.zones.A.hand.map(c => c.id).slice(0, ch.count || 2) }));
+    T.mana('B', 'B2'); T.cast('B', T.hand('B', 'Mind Rot'), { targets: ['A'] }); T.settle(); T.resolve(); T.settle();
+    t.zone(pp, 'graveyard'); t.eq(T.life('B'), 15, 'B made A discard it: B loses 5');
+    T = mk();
+    T.toMain('A');
+    const pp2 = T.hand('A', 'Psychic Purge');
+    T.g._runEffects([{ op: 'discard', n: 1, who: 'you' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(pp2, 'graveyard'); t.eq(T.life('B'), 20, 'its own controller: nothing');
+  });
 };
