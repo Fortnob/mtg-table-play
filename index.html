@@ -12169,9 +12169,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
+    /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
+       you gain 2 life." — a rider on the mana: what it pays for, and what happens then (nothing said of the spell itself) */
+    { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?(?:creature |instant or sorcery |noncreature )?)spell( with mana value (\d+) or greater)?, (.+?)\.?$/,
+      make: (m) => {
+        if (/\b(?:it|that spell|its)\b/i.test(m[4])) return null;
+        const then = parseSentenceList(splitSentences(m[4].charAt(0).toUpperCase() + m[4].slice(1) + '.'));
+        if (!then.auto || !then.effects.length) return null;
+        return { op: 'spendOnly', open: true, rider: Object.assign({ words: (m[1] || 'spell').trim().toLowerCase() || 'spell', effects: then.effects, text: m[0] },
+          m[3] ? { minMv: +m[3] } : {}) };
+      } },
     /* Arena of Glory */
     { re: /^If any of that mana is spent on a creature spell, it gains haste until end of turn\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'hasteCreature', open: true }) },
+    // Carnelian Orb of Dragonkind: "…on a Dragon creature spell, it gains haste until end of turn"; Hall of the Bandit Lord: "it gains haste" for good
+    { re: /^If that mana is spent on a (Dragon )?creature spell, it gains haste( until end of turn)?\.?$/i,
+      make: (m) => ({ op: 'spendOnly', rider: (m[1] ? 'hasteDragon' : 'hasteCreature') + (m[2] ? '' : 'Lasting'), open: true }) },
     /* Three Tree City: as much as there are creatures of the chosen type */
     { re: /^Add an amount of mana of that color equal to the number of ([a-z ]+?) of the chosen type\.?$/i,
       make: (m) => { const sc = scopeOf(m[1] + ' of the chosen type'); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
@@ -14246,6 +14259,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^(?:Its controller|That spell'?s controller|That player) may draw up to (one|two|three) cards? at the beginning of the next turn'?s upkeep\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw up to ' + num(m[1]),
         effects: [{ op: 'drawUpTo', n: num(m[1]), who: 'targetController' }] }) },
+    // Settle the Wreckage: "That player may search their library for that many basic land cards, …" — as many as were exiled
+    { re: /^That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle\.?$/i,
+      make: () => ({ op: 'fetchBasic', n: 'lastSweep', tapped: true, who: 'target', optional: true }) },
     { re: /^Its controller (?:may )?searches? their library for a basic land card, puts? (?:that card|it) onto the battlefield tapped, then shuffles?\.?$/i,
       make: () => ({ op: 'fetchBasic', n: 1, tapped: true, who: 'targetController', optional: true }) },
 
@@ -28433,7 +28449,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           o.warpedTurn = this.turn;
           this.logEvent('rules', `${item.name} warps in until the end of the turn.`);
         }
-        if (item.hasteOnResolve) o.effects.push({ keywords: ['Haste'], until: 'eot' });
+        if (item.hasteOnResolve) o.effects.push({ keywords: ['Haste'], until: item.hasteOnResolve === 'lasting' ? null : 'eot' });
         /* A suspended card comes off the clock with haste (CR 702.62e). */
         if (o.suspendHaste) { o.suspendHaste = false; o.effects.push({ keywords: ['Haste'], until: null }); }
         /* An Aura arrives attached to the thing it was cast on. Without
@@ -31465,6 +31481,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       o.adventureBy = null;
       o.controller = playerId;
       o.chosenX = opts.x || 0;
+      // cast from the graveyard (flashback, escape): it has left the graveyard (Kishla Skimmer)
+      if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
       // Summon: Fenrir: this creature spell carries the counter it was promised
       if (a && a.isCreature && p.nextCreatureCounter && p.nextCreatureCounter.turn === this.turn) {
         o._enterPlusCounters = p.nextCreatureCounter.n; p.nextCreatureCounter = null;
@@ -33734,10 +33752,25 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* What a spent mana promised beyond itself: Path of Ancestry scries
        when its mana casts a creature that shares a type with your commander. */
     _manaRider(rider, item, playerId) {
+      // Scaled Nurturer: "When you spend this mana to cast a Dragon creature spell, you gain 2 life" — a trigger of its own
+      if (rider && typeof rider === 'object' && Array.isArray(rider.effects)) {
+        const so = item.obj;
+        if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
+        if (rider.minMv != null && ((so.card && so.card.cmc) || 0) < rider.minMv) return;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+          name: truncate(rider.text || 'Mana rider', 60), effects: rider.effects, auto: true, abilityText: truncate(rider.text || '', 80) });
+        return;
+      }
       // Arena of Glory: a creature spell paid with it arrives with haste
       if (rider === 'hasteCreature') {
         const a = item.obj && item.obj.analysis();
         if (a && a.isCreature) item.hasteOnResolve = true;
+        return;
+      }
+      // Carnelian Orb of Dragonkind: a Dragon only; Hall of the Bandit Lord: haste for as long as it stays
+      if (rider === 'hasteDragon' || rider === 'hasteDragonLasting' || rider === 'hasteCreatureLasting') {
+        const a = item.obj && item.obj.analysis();
+        if (a && a.isCreature && (!/^hasteDragon/.test(rider) || (a.subtypes || []).includes('Dragon'))) item.hasteOnResolve = /Lasting$/.test(rider) ? 'lasting' : true;
         return;
       }
       if (rider === 'ancestryScry') {
@@ -37606,6 +37639,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
           // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
           if (ab.objFilter && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          /* a card leaving a graveyard is seen from before it left (CR 603.10a):
+             the card itself, come back from there, was not around to see it */
+          if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
@@ -40706,8 +40742,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
         /* --- library and graveyard --- */
         case 'fetchBasic': {
-          const z = this.zones[ctx.controller];
-          if (e.who !== 'targetController' && !this._doneHere('searched')) this._searched(ctx.controller);
+          /* Assassin's Trophy: "Its controller may search their library" — the
+             controller of what was destroyed searches their own library and
+             gets the land (it went to the caster) */
+          const fb = e.who === 'targetController'
+            ? (this._lastAffectedController() || (firstObj() && this.player(firstObj().controller)) || me)
+            // Settle the Wreckage: "That player" — the one it targets
+            : e.who === 'target' ? (firstPlayer() || me) : me;
+          const z = this.zones[fb.id];
+          if (!this._doneHere('searched')) this._searched(fb.id);
           let found = 0;
           /* "Mountaincycling" wants a Mountain, not any basic: the filter
              names the land type when the card names one. */
@@ -40717,17 +40760,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (!want || want === 'basic') return !!ca.isBasicLand;
             return (ca.subtypes || []).some(t => t.toLowerCase() === want);
           };
-          const reach = this._searchReach(ctx.controller);
+          const reach = this._searchReach(fb.id);
           for (let i = 0; i < n(e.n); i++) {
             const idx = z.library.slice(0, reach).findIndex(c => wanted(c.analysis()));
             if (idx < 0) break;
             const [c] = z.library.splice(idx, 1);
-            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            this.moveObject(c, 'battlefield', { controller: fb.id });
             if (e.tapped) c.tapped = true;
             found++;
           }
           this.rng.shuffle(z.library);
-          this.logEvent('search', `${me.name} fetches ${found} basic land${found === 1 ? '' : 's'}.`);
+          this.logEvent('search', `${fb.name} fetches ${found} basic land${found === 1 ? '' : 's'}.`);
           this.emit('sfx', 'shuffle');
           break;
         }
@@ -46990,6 +47033,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this._removeFromZone(o);
       o.zone = 'stack';
       o.controller = playerId;
+      if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
       const item = {
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
         targets: [], x: (how && how.x) || 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),
