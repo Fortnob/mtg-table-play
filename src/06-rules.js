@@ -11449,7 +11449,10 @@
       const a = o.analysis();
       if (!a || !a.isSaga) return;
       const before = o.counters.lore || 0;
-      const after = before + (n || 1);
+      // Doubling Season: lore counters are put on like any others — two at a time, two chapters
+      const evL = this._replace({ kind: 'counters', object: o, n: n || 1, counter: 'lore', controller: o.controller, putter: o.controller });
+      if (evL.cancelled || !(Number(evL.n) > 0)) return;
+      const after = before + Number(evL.n);
       o.counters.lore = after;
       this.bumpBoard();
       for (const ab of a.abilities) {

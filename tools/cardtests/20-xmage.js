@@ -20501,4 +20501,20 @@ module.exports = (test) => {
     const inc = T2.bfOf('A').find(o => o.name === 'Incubator');
     t.eq(inc && inc.counters['+1/+1'], 6, 'incubate 3, doubled');
   });
+
+  test('Doubling Season and a Saga: two lore counters at a time, two chapters at once', (mk, t) => {
+    t.auto('Doubling Season'); t.auto('The Eldest Reborn');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Doubling Season');
+    const er = T.hand('A', 'The Eldest Reborn');
+    T.bf('B', 'Grizzly Bears');
+    T.hand('B', 'Island');
+    T.mana('A', '4B');
+    T.cast('A', er);
+    T.resolve();
+    t.eq(er.counters.lore, 2, 'it enters with two lore counters');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Grizzly Bears').length, 0, 'chapter I: the opponent sacrificed a creature');
+    t.eq(T.zone('B', 'hand').length, 0, 'chapter II: and discarded a card');
+  });
 };
