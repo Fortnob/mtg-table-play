@@ -2956,6 +2956,10 @@
       if ((a.isInstant || a.has('flash')) && when !== 'now' && this.rand() < this.cfg.instantTiming) {
         if (!roles.has('removal') || this.d >= 6) v -= 1.5;
       }
+      /* Oathbreaker: the Oathbreaker is what lets its Signature Spell be
+         cast at all, and the spell costs no card, since it comes back. */
+      if (o.zone === 'command' && o.isCommander && (g.zones[this.pid].command || []).some(x => x.isSignature)) v += 1.5;
+      if (o.isSignature) v += 0.5;
       return v;
     }
 
