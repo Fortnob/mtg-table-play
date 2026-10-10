@@ -3441,7 +3441,7 @@
    */
   function ruleCell(rules, f, set) {
     const cur = rules[f.key];
-    const isDefault = cur === f.value;
+    const isDefault = cur === f.value || (f.byRules && cur == null && f.value == null);
     const cell = el('div', { class: 'rule-cell' + (isDefault ? '' : ' changed') });
     const id = 'rule-' + f.key;
 
@@ -3450,6 +3450,21 @@
     /* A checkbox on its own is a 17px target. Putting it inside its label
        makes the whole row the target, which is the difference between
        usable and not on a phone. */
+    /* Free mulligans, first player draws: "by the rules" (worked out from the format and the
+       seats as the game starts), or a value the table holds to */
+    if (f.byRules) {
+      const opts = [['rules', 'By the rules']].concat(f.type === 'bool' ? [['on', 'On'], ['off', 'Off']]
+        : Array.from({ length: f.max - f.min + 1 }, (_, i) => [String(f.min + i), String(f.min + i)]));
+      const now = cur == null ? 'rules' : f.type === 'bool' ? (cur ? 'on' : 'off') : String(cur);
+      const sel = el('select', { id }, opts.map(([v, label]) => el('option', { value: v, text: label, selected: v === now })));
+      sel.addEventListener('change', () => set(f.key, sel.value === 'rules' ? null : f.type === 'bool' ? sel.value === 'on' : parseInt(sel.value, 10) || 0));
+      cell.append(
+        el('label', { class: 'rule-label', for: id }, [el('span', { text: f.label }), was]),
+        sel,
+        el('div', { class: 'rule-hint', text: f.hint }),
+      );
+      return cell;
+    }
     if (f.type === 'bool') {
       const box = el('input', { type: 'checkbox', id });
       box.checked = !!cur;
@@ -3506,6 +3521,7 @@
   }
 
   function fmtRuleValue(f, v) {
+    if (f.byRules && v == null) return 'by the rules';
     if (f.type === 'bool') return v ? 'on' : 'off';
     if (f.type === 'bracket') return v ? MTG.brackets.label(v) : 'any';
     if (f.type === 'intOff') return v ? String(v) : 'off';
@@ -4220,11 +4236,12 @@
           startingLife: MTG.formats.lifeFor(this.fmt, this.roster.length),
           startingHand: this.rules.startingHand || 7,
           commanderDamage: this.fmt.commander ? (this.rules.commanderDamage || null) : null,
-          freeMulligans: this.rules.freeMulligans || 0,
+          // by the rules for this many seats, unless the table set them (CR 103.5c, 103.8)
+          freeMulligans: MTG.formats.freeMulligansFor(this.fmt, this.rules, this.roster.length),
           maxPlayers: this.fmt.maxPlayers,
           seed: this.seed,
           rulesEnforcement: this.enforcement,
-          firstPlayerDraws: this.rules.firstPlayerDraws || this.roster.length > 2,
+          firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(this.fmt, this.rules, this.roster.length),
         });
         for (const r of this.roster) {
           const p = g.addPlayer({ id: r.id, name: r.name, isBot: r.kind === 'bot', botDifficulty: r.difficulty });
@@ -4358,7 +4375,8 @@
         formatId: saved.formatId, startingLife: sess.rules.startingLife,
         startingHand: sess.rules.startingHand || 7,
         commanderDamage: sess.fmt.commander ? (sess.rules.commanderDamage || null) : null,
-        freeMulligans: sess.rules.freeMulligans || 0,
+        freeMulligans: MTG.formats.freeMulligansFor(sess.fmt, sess.rules, sess.roster.length),
+        firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(sess.fmt, sess.rules, sess.roster.length),
         seed: saved.seed, rulesEnforcement: saved.enforcement,
       });
       if (!g.restore(saved.snap)) throw new Error('That saved game could not be read.');

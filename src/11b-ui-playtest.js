@@ -37,7 +37,8 @@
 
     const signature = () => (deck().main || []).map(e => (e.card && e.card.id) + '×' + e.qty).join('|');
     const freeMulligans = () => {
-      try { return MTG.formats.houseDefaults(deck().format).freeMulligans || 0; } catch (e) { return 0; }
+      // by the rules for the format's usual table: a Brawl or a Commander game has a free first mulligan
+      try { const F = MTG.formats, f = F.FORMATS[deck().format]; return F.freeMulligansFor(f, F.houseDefaults(deck().format), (f && f.defaultPlayers) || 2); } catch (e) { return 0; }
     };
     function ensureHand(fresh) {
       const s = signature();

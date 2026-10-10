@@ -567,10 +567,12 @@
       hint: 'How much life everyone begins with.' },
     { key: 'startingHand', label: 'Opening hand', type: 'int', min: 1, max: 12,
       hint: 'Cards drawn before the first turn.' },
-    { key: 'freeMulligans', label: 'Free mulligans', type: 'int', min: 0, max: 7,
-      hint: 'Mulligans taken before you start putting cards back.' },
-    { key: 'firstPlayerDraws', label: 'First player draws', type: 'bool',
-      hint: 'Off is the tournament rule for two players; on is the usual multiplayer courtesy.' },
+    /* byRules: left alone (null), the game works it out from the format and the seats as it
+       starts (freeMulligansFor, firstPlayerDrawsFor); a number or on/off here holds regardless */
+    { key: 'freeMulligans', label: 'Free mulligans', type: 'int', min: 0, max: 7, byRules: true,
+      hint: 'Mulligans taken before you start putting cards back. By the rules the first one is free in Brawl and at a table of three or more.' },
+    { key: 'firstPlayerDraws', label: 'First player draws', type: 'bool', byRules: true,
+      hint: 'By the rules the player who goes first skips that draw only in a two-player game.' },
     { key: 'deckMin', label: 'Deck size', type: 'int', min: 1, max: 400, when: builds,
       hint: 'The smallest legal deck, counting the commander.' },
     { key: 'exactSize', label: 'Exactly that many', type: 'bool', when: builds,
@@ -607,9 +609,10 @@
 
   /** The value a field starts at for a given format. */
   function houseDefault(fmt, key) {
-    if (key === 'freeMulligans') return fmt.freeMulligans != null ? fmt.freeMulligans : 0;
+    // (by the rules unless the format names a number: worked out as the game starts)
+    if (key === 'freeMulligans') return fmt.freeMulligans != null ? fmt.freeMulligans : null;
     if (key === 'bestOf') return fmt.bestOf != null ? fmt.bestOf : 1;
-    if (key === 'firstPlayerDraws') return !!fmt.firstPlayerDraws;
+    if (key === 'firstPlayerDraws') return null;
     if (key === 'exactSize') return !!fmt.exactSize;
     if (key === 'singleton') return !!fmt.singleton;
     if (key === 'colorIdentity') return !!fmt.colorIdentity;
@@ -683,13 +686,33 @@
     for (const f of houseFields(formatId)) {
       const v = rules[f.key];
       if (v == null || v === f.value) continue;
-      if (f.type === 'bool') out.push(`${f.label}: ${v ? 'on' : 'off'} (normally ${f.value ? 'on' : 'off'})`);
+      if (f.type === 'bool') out.push(`${f.label}: ${v ? 'on' : 'off'} (normally ${f.value == null ? 'by the rules' : f.value ? 'on' : 'off'})`);
+      else if (f.byRules && f.value == null) out.push(`${f.label}: ${v} (normally by the rules)`);
       else if (f.type === 'bracket') out.push(MTG.brackets ? MTG.brackets.label(v) : `${f.label} ${v}`);
       else if (f.type === 'intOff') out.push(v ? `${f.label}: ${v}` : `${f.label}: off`);
       else if (f.type === 'choice') out.push(`${f.label}: ${choiceLabel(f, v)}`);
       else out.push(`${f.label}: ${v}`);
     }
     return out;
+  }
+
+  /**
+   * Free mulligans for a game of this many players: what the table set, or by the rules
+   * (CR 103.5c) the first one free in any Brawl game and in any game of three or more.
+   */
+  function freeMulligansFor(fmt, rules, players) {
+    const v = rules ? rules.freeMulligans : null;
+    if (v != null) return Math.max(0, Number(v) || 0);
+    return (players > 2 || (fmt && fmt.id === 'brawl')) ? 1 : 0;
+  }
+  /**
+   * Whether the starting player draws on the first turn: what the table set, or by the
+   * rules (CR 103.8) skipped only in a two-player game.
+   */
+  function firstPlayerDrawsFor(fmt, rules, players) {
+    const v = rules ? rules.firstPlayerDraws : null;
+    if (v != null) return !!v;
+    return players > 2;
   }
 
   /** Saved presets live beside the settings, keyed by format. */
@@ -717,7 +740,7 @@
     get: (id) => FORMATS[id],
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
     validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
-    houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel,
+    houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel, freeMulligansFor, firstPlayerDrawsFor,
     isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion,
     commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
     isLimited: (id) => FORMATS[id] && FORMATS[id].kind === 'limited',

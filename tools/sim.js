@@ -45,8 +45,9 @@ async function playOne(MTG, o) {
   const g = new MTG.rules.Game({
     formatId, startingLife: rules.startingLife, startingHand: rules.startingHand || 7,
     commanderDamage: fmt.commander ? (rules.commanderDamage || null) : null,
-    freeMulligans: rules.freeMulligans || 0, maxPlayers: fmt.maxPlayers, seed,
-    firstPlayerDraws: false,
+    // (by the rules for this many seats: CR 103.5c, 103.8)
+    freeMulligans: MTG.formats.freeMulligansFor(fmt, rules, seats.length), maxPlayers: fmt.maxPlayers, seed,
+    firstPlayerDraws: MTG.formats.firstPlayerDrawsFor(fmt, rules, seats.length),
   });
   seats.forEach((id, i) => {
     g.addPlayer({ id, name: `${id}(d${diffOf(id)})`, isBot: true, botDifficulty: diffOf(id) });

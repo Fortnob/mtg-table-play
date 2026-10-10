@@ -5630,4 +5630,26 @@ module.exports = (test) => {
     T.cast('A', ch); T.settle();
     t.eq(ch.counters.loyalty, 8, 'loyalty 4 doubled (Hardened Scales is for +1/+1 counters only)');
   });
+
+  test('Audit: by the rules (CR 103.5c, 103.8): Commander 1v1 skips the first draw and has no free mulligan; 4-player Commander draws and has one; Brawl 1v1 skips the draw but has one; a table setting holds', (mk, t) => {
+    const M = mk().MTG, F = M.formats;
+    const cmd = F.effective('commander', F.houseDefaults('commander')), brawl = F.effective('brawl', F.houseDefaults('brawl'));
+    t.eq(F.houseDefaults('commander').freeMulligans, null, 'left to the rules'); t.eq(F.houseDefaults('commander').firstPlayerDraws, null);
+    t.eq(F.freeMulligansFor(cmd, F.houseDefaults('commander'), 2), 0); t.eq(F.firstPlayerDrawsFor(cmd, F.houseDefaults('commander'), 2), false);
+    t.eq(F.freeMulligansFor(cmd, F.houseDefaults('commander'), 4), 1); t.eq(F.firstPlayerDrawsFor(cmd, F.houseDefaults('commander'), 4), true);
+    t.eq(F.freeMulligansFor(brawl, F.houseDefaults('brawl'), 2), 1, 'Brawl 1v1: free'); t.eq(F.firstPlayerDrawsFor(brawl, F.houseDefaults('brawl'), 2), false);
+    t.eq(F.freeMulligansFor(cmd, { freeMulligans: 0 }, 4), 0, 'a table that says 0 means 0'); t.eq(F.firstPlayerDrawsFor(cmd, { firstPlayerDraws: false }, 4), false);
+    t.eq(F.houseSummary('commander', Object.assign(F.houseDefaults('commander'), { freeMulligans: 2 })).join(' '), 'Free mulligans: 2 (normally by the rules)');
+    // the engine, set up as the table sets it up for four players and for two
+    for (const [seats, draws, free] of [[['A', 'B', 'C', 'D'], true, 1], [['A', 'B'], false, 0]]) {
+      const g = new M.rules.Game({ formatId: 'commander', startingLife: 40, startingHand: 7, maxPlayers: 4, seed: 5,
+        freeMulligans: F.freeMulligansFor(cmd, F.houseDefaults('commander'), seats.length),
+        firstPlayerDraws: F.firstPlayerDrawsFor(cmd, F.houseDefaults('commander'), seats.length) });
+      for (const id of seats) { g.addPlayer({ id, name: id }); g.loadDeck(id, { main: [{ card: require('../harness').card('Island'), qty: 40 }], commanders: [] }); }
+      const p = g.players[0];
+      p.mulligansTaken = 1;
+      t.eq(g.bottomCountFor(p), 1 - free, `${seats.length} players: ${free ? 'the first mulligan is free' : 'one card back'}`);
+      t.eq(!!g.config.firstPlayerDraws, draws, `${seats.length} players: the first player ${draws ? 'draws' : 'skips the draw'}`);
+    }
+  });
 };
