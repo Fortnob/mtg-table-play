@@ -69,7 +69,7 @@
       if (!prev || !next) return;
       const motion = !t._motionOff();
       const info = { casts: [], resolves: [], counters: [], enters: [], deaths: [], hits: [], life: new Map(),
-        marks: [], pulses: [], myDamage: 0, turnMine: false };
+        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [] };
       const cues = beat.fromEvents ? this._fromEvents(t, prev, next, info, motion) : this._fromDiff(t, prev, next, beat, info);
       this._lastWord(t, prev, next, cues, info);
       const pace = t._pace();
@@ -155,7 +155,7 @@
             const card = cardOf(e);
             if (e.objId) info.pulses.push(e.objId);
             if (e.kind !== 'spell') { add('resolve', { pan: pan(e.controller), ability: true, colors: colorsOf(card) }, 2, 'resolve', 40); break; }
-            info.resolves.push({ objId: e.objId, colors: colorsOf(card), entered: fromStack.has(e.objId) });
+            info.resolves.push({ objId: e.objId, colors: colorsOf(card), entered: fromStack.has(e.objId), mv: manaValue(card) });
             // a permanent spell is heard arriving instead
             if (fromStack.has(e.objId)) break;
             add('resolve', { pan: pan(e.controller), colors: colorsOf(card) }, 6, 'resolve', 90);
@@ -201,8 +201,8 @@
                 if (c.opt.count >= 3) { c.name = 'wipe'; c.pri = 8; c.opt.pan = null; }
               });
               info.deaths.push(e.objId);
-            } else if (e.to === 'exile') gather('exile', () => add('exile', { pan: p }, 6, 'leave', 90), () => {});
-            else if (e.to === 'hand' || e.to === 'library') gather('bounce', () => add('bounce', { pan: p }, 5, 'leave', 80), () => {});
+            } else if (e.to === 'exile') { gather('exile', () => add('exile', { pan: p }, 6, 'leave', 90), () => {}); info.exiles.push(e.objId); }
+            else if (e.to === 'hand' || e.to === 'library') { gather('bounce', () => add('bounce', { pan: p }, 5, 'leave', 80), () => {}); info.bounces.push(e.objId); }
             else if (e.to === 'graveyard' && !e.isToken) gather('destroy', () => add('destroy', { pan: p }, 5, 'leave', 90), () => {});
             break;
           }
@@ -270,9 +270,11 @@
             break;
           case 'attack':
             add('attack', { pan: pan(e.player), intensity: clamp(e.attackers.length / 5, 0, 1) }, 8, 'attack', 200);
+            for (const a of e.attackers) info.attacks.push({ objId: a.objId, defender: a.defender });
             break;
           case 'block':
             add('block', { pan: pan(e.player) }, 7, 'block', 140);
+            for (const b of (e.blocks || [])) info.blocks.push({ objId: b.objId, attackers: b.attackers || [] });
             break;
           case 'draw': {
             const p = e.player === me ? null : pan(e.player);
@@ -287,6 +289,7 @@
           case 'lose':
             // somebody out while the game goes on; the last one out is said by the end of the game
             if (e.player !== me && !evs.some(x => x.type === 'gameOver')) add('eliminated', { pan: pan(e.player) }, 8, 'lose', 200);
+            info.out.push(e.player);
             break;
           case 'gameOver': {
             const won = (e.winners || []).includes(me);
@@ -485,6 +488,78 @@
       // whatever spoke lights up for a moment, so you can see which card it was
       for (const id of new Set(info.pulses)) writes.push(() => t.pulse(id));
 
+      /* What something attacking is aimed at: a player's life orb, or a
+         planeswalker or battle on the table. */
+      const targetOf = (id) => {
+        if (id == null) return null;
+        if ((next.players || []).some(p => p.id === id)) return t.orbFor(id);
+        return card(id);
+      };
+      // the whole table, for the heaviest moments
+      const quake = (amp) => { if (motion && amp > 0) mark(t.arena, 'feel-quake', 520, { '--feel-q': clamp(amp, 1, 9).toFixed(1) + 'px' }); };
+
+      /* Under attack: whatever an attacker is aimed at keeps a red ring and
+         the number coming at it, for as long as they are attacking. */
+      const aimed = new Map();
+      for (const o of (next.battlefield || [])) if (o.attacking) aimed.set(o.attacking, (aimed.get(o.attacking) || 0) + 1);
+      writes.push(() => {
+        const was = t._feelAimed || new Set();
+        const now = new Set();
+        for (const [id, n] of aimed) {
+          const nodes = (next.players || []).some(p => p.id === id)
+            ? [...t.arena.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(id))}"]`)] : [card(id)].filter(Boolean);
+          for (const node of nodes) { node.classList.add('under-attack'); node.dataset.attackers = '\u2694 ' + n; now.add(node); }
+        }
+        for (const node of was) if (!now.has(node)) { node.classList.remove('under-attack'); delete node.dataset.attackers; }
+        t._feelAimed = now;
+      });
+
+      /* The charge: each attacker lunges at what it is attacking, and what
+         it is attacking flinches. */
+      for (const a of info.attacks.slice(0, 12)) {
+        const n = card(a.objId);
+        const tg = targetOf(a.defender);
+        if (!n) continue;
+        if (motion && tg) {
+          const s = this._at(t, MTG.util.rect(n)), d = this._at(t, MTG.util.rect(tg));
+          const dx = d.x - s.x, dy = d.y - s.y, len = Math.hypot(dx, dy) || 1, reach = Math.min(46, len * 0.22);
+          mark(n, 'feel-lunge', 620, { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px' });
+        }
+        if (tg) mark(tg, motion ? 'feel-threat' : 'feel-threat-still', 900);
+      }
+
+      /* A block: the blocker steps out to meet its attacker, the two meet
+         with a clang, and the attacker is checked in its stride. */
+      const toward = (fromNode, toNode, most, share) => {
+        const s = this._at(t, MTG.util.rect(fromNode)), d = this._at(t, MTG.util.rect(toNode));
+        const dx = d.x - s.x, dy = d.y - s.y, len = Math.hypot(dx, dy) || 1, reach = Math.min(most, len * share);
+        return { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px', mid: { x: s.x + dx / 2, y: s.y + dy / 2 } };
+      };
+      for (const b of info.blocks.slice(0, 10)) {
+        const n = card(b.objId), foe = card(b.attackers[0]);
+        if (!n || !foe || !motion) continue;
+        const v = toward(n, foe, 40, 0.3);
+        mark(n, 'feel-lunge', 620, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'] });
+        const back = toward(foe, n, 14, 0.12);
+        mark(foe, 'feel-recoil', 520, { '--feel-lx': back['--feel-lx'], '--feel-ly': back['--feel-ly'] });
+        spawn(t, 'feel-clang', { left: v.mid.x + 'px', top: v.mid.y + 'px', animationDelay: '260ms' }, 800);
+      }
+
+      /* Combat damage: each creature that deals it strikes at what it hits,
+         so an attacker and its blocker go at each other at once. */
+      if (motion) {
+        const struck = new Set();
+        for (const h of info.hits) {
+          if (!h.combat || !h.source || struck.has(h.source)) continue;
+          const n = card(h.source);
+          const tg = h.target.kind === 'player' ? t.orbFor(h.target.id) : card(h.target.id);
+          if (!n || !tg) continue;
+          struck.add(h.source);
+          const v = toward(n, tg, 52, 0.35);
+          mark(n, 'feel-strike', 460, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'] });
+        }
+      }
+
       // a spell on its way to the stack, glowing in its own colours
       for (const c of info.casts) {
         const n = card(c.objId) || t.arena.querySelector(`.ability-chip[data-stack="${CSS.escape(String(c.stackId))}"]`);
@@ -496,7 +571,8 @@
         const box = n ? MTG.util.rect(n) : MTG.util.rect((t.stackCol.firstElementChild || t.stackCol));
         if (!box.width) continue;
         const p = this._at(t, box);
-        spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * 1.6) + 'px',
+        // the bigger the spell, the bigger the light it lands with
+        spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * (1.6 + clamp(r.mv || 0, 0, 10) * 0.12)) + 'px',
           '--feel-c1': LIGHT[r.colors[0] || 'C'], '--feel-c2': LIGHT[r.colors[1] || r.colors[0] || 'C'] }, 700);
       }
       // a countered spell goes grey, shrinks, and smokes
@@ -521,25 +597,55 @@
         mark(n, cls, 1100 + (e.delay || 0), { '--feel-delay': (e.delay || 0) + 'ms', '--feel-w': String(e.weight || 0) });
       }
 
-      // deaths come apart: a few shards off the card as it falls
+      /* Deaths come apart: a crack of light, the card breaking into shards
+         that fly further the bigger it was, and dust where it stood. A big
+         creature falling, or a board being wiped, jolts the table. */
       if (motion) {
-        const shards = phone ? 5 : 11;
-        for (const id of info.deaths.slice(0, phone ? 1 : 3)) {
+        let biggest = 0;
+        for (const id of info.deaths.slice(0, phone ? 2 : 4)) {
           const g = ghost(id, true);
           if (!g) continue;
           const p = this._at(t, MTG.util.rect(g));
           const o = t.objIn(id, prev);
           const cs = colorsOf(o && o.card);
+          const w = clamp(((o && o.power) || 0) / 8, 0, 1);
+          biggest = Math.max(biggest, (o && o.power) || 0);
+          spawn(t, 'feel-crack', { left: p.x + 'px', top: p.y + 'px', width: p.w + 'px', height: p.h + 'px' }, 700);
+          spawn(t, 'feel-dust', { left: p.x + 'px', top: (p.y + p.h * 0.35) + 'px', '--feel-s': Math.round(p.w * (1.4 + w)) + 'px', animationDelay: '180ms' }, 1100);
+          const shards = phone ? 7 : 16;
           for (let i = 0; i < shards; i++) {
-            const a = rnd(0, Math.PI * 2), d = rnd(30, 90);
+            const a = rnd(0, Math.PI * 2), d = rnd(40, 110) * (1 + w * 0.7);
             spawn(t, 'feel-shard', {
               left: (p.x + rnd(-0.4, 0.4) * p.w) + 'px', top: (p.y + rnd(-0.4, 0.4) * p.h) + 'px',
-              '--feel-dx': Math.round(Math.cos(a) * d) + 'px', '--feel-dy': Math.round(Math.sin(a) * d * 0.6 + 50) + 'px',
-              '--feel-r': Math.round(rnd(-200, 200)) + 'deg', '--feel-c1': LIGHT[cs[i % Math.max(1, cs.length)] || 'R'],
-              animationDelay: Math.round(160 + rnd(0, 140)) + 'ms',
-            }, 1300);
+              '--feel-dx': Math.round(Math.cos(a) * d) + 'px', '--feel-dy': Math.round(Math.sin(a) * d * 0.6 + 60) + 'px',
+              '--feel-r': Math.round(rnd(-260, 260)) + 'deg', '--feel-c1': LIGHT[cs[i % Math.max(1, cs.length)] || 'R'],
+              '--feel-z': rnd(0.9, 1.9).toFixed(2), animationDelay: Math.round(140 + rnd(0, 140)) + 'ms',
+            }, 1400);
           }
         }
+        if (info.deaths.length >= 3) quake(7);
+        else if (biggest >= 5) quake(2 + biggest * 0.5);
+      }
+
+      /* Exile: the card is taken up in a column of light, motes rising off
+         it. Back to a hand or library: a swirl where it was. */
+      for (const id of info.exiles.slice(0, phone ? 2 : 4)) {
+        const g = ghost(id);
+        const n = g || card(id);
+        if (!n || !motion) continue;
+        const p = this._at(t, MTG.util.rect(n));
+        if (!p.w) continue;
+        spawn(t, 'feel-pillar', { left: p.x + 'px', top: p.y + 'px', width: Math.round(p.w * 1.15) + 'px', height: Math.round(p.h * 2.4) + 'px' }, 900);
+        for (let i = 0; i < (phone ? 6 : 12); i++) {
+          spawn(t, 'feel-mote', { left: (p.x + rnd(-0.45, 0.45) * p.w) + 'px', top: (p.y + rnd(-0.3, 0.4) * p.h) + 'px',
+            '--feel-dy': Math.round(-rnd(60, 140)) + 'px', '--feel-dx': Math.round(rnd(-14, 14)) + 'px', animationDelay: Math.round(rnd(0, 260)) + 'ms' }, 1300);
+        }
+      }
+      for (const id of info.bounces.slice(0, 3)) {
+        const g = ghost(id);
+        if (!g || !motion) continue;
+        const p = this._at(t, MTG.util.rect(g));
+        if (p.w) spawn(t, 'feel-swirl', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(p.w * 1.5) + 'px' }, 700);
       }
 
       // blows: the card that took one shakes as hard as it was hit, and sparks where it landed
@@ -548,7 +654,17 @@
         const tg = h.target.kind === 'player' ? t.orbFor(h.target.id) : card(h.target.id);
         if (!tg) continue;
         const amp = clamp(1.5 + h.amount * 1.1, 2, 10);
-        if (h.target.kind !== 'player') mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
+        if (h.target.kind !== 'player') {
+          mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
+          if (motion) mark(tg, 'feel-hurt', 520);
+        } else {
+          // a player hit: the life orb jolts and goes red, and a shockwave rings out from it
+          mark(tg, motion ? 'feel-orb-hit' : 'feel-orb-hit-still', 650, { '--feel-amp': clamp(2 + h.amount * 0.9, 3, 12).toFixed(1) + 'px' });
+          if (motion) {
+            const ob = this._at(t, MTG.util.rect(tg));
+            spawn(t, 'feel-shock', { left: ob.x + 'px', top: ob.y + 'px', '--feel-s': Math.round(clamp(80 + h.amount * 16, 90, 260)) + 'px' }, 750);
+          }
+        }
         if (!motion || sparks >= (phone ? 2 : 5)) continue;
         sparks++;
         const tb = MTG.util.rect(tg);
@@ -564,7 +680,8 @@
         spawn(t, 'feel-spark' + (h.combat ? '' : ' burn'), { left: x + 'px', top: y + 'px',
           '--feel-s': Math.round(clamp(26 + h.amount * 9, 30, 110)) + 'px', '--feel-r': Math.round(rnd(0, 90)) + 'deg' }, 600);
       }
-      // and when it is you being hurt, the edges of the table go red for a moment
+      // and when it is you being hurt, the edges of the table go red for a moment, and a big hit shakes it
+      if (info.myDamage >= 3) quake(1 + info.myDamage * 0.7);
       if (info.myDamage > 0) {
         const a = clamp(0.28 + info.myDamage * 0.07, 0.28, 0.85);
         spawn(t, 'feel-vignette' + (motion ? '' : ' still'), { '--feel-a': a.toFixed(2) }, motion ? 900 : 500);
@@ -580,6 +697,22 @@
       for (const [pid, l] of info.life) {
         if (!l.delta) continue;
         writes.push(() => this._countLife(t, pid, l.life - l.delta, l.life, motion));
+        // life gained glows green, sparkles rising off the orb
+        if (l.delta > 0 && motion) {
+          const orb = t.orbFor(pid);
+          if (!orb) continue;
+          mark(orb, 'feel-heal', 900);
+          const ob = this._at(t, MTG.util.rect(orb));
+          for (let i = 0; i < Math.min(phone ? 4 : 9, 3 + l.delta); i++) {
+            spawn(t, 'feel-mote heal', { left: (ob.x + rnd(-0.4, 0.4) * ob.w) + 'px', top: (ob.y + rnd(-0.1, 0.3) * ob.h) + 'px',
+              '--feel-dy': Math.round(-rnd(40, 90)) + 'px', '--feel-dx': Math.round(rnd(-10, 10)) + 'px', animationDelay: Math.round(rnd(0, 300)) + 'ms' }, 1200);
+          }
+        }
+      }
+      // a player out: their orb cracks and goes dark
+      for (const pid of info.out) {
+        const orb = t.orbFor(pid);
+        if (orb) mark(orb, 'feel-ko', 1600);
       }
 
       // your turn: a warm light comes up on your side of the table

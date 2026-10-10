@@ -843,7 +843,8 @@
         if (d.target.kind === 'object') {
           const n = this.els.get(d.target.id);
           if (n && n.isConnected) {
-            this.float(n, '-' + d.amount, 'dmg');
+            // the number is as big as the blow
+            this.float(n, '-' + d.amount, 'dmg', Math.min(1, d.amount / 8));
             n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
             setTimeout(() => n.classList.remove('hit'), 520);
           }

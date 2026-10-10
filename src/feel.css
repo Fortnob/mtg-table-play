@@ -114,6 +114,118 @@
 .feel-vignette.still { animation: none; opacity: calc(var(--feel-a, .4) * .7); }
 @keyframes feelVignette { 0% { opacity: 0; } 12% { opacity: var(--feel-a, .4); } 100% { opacity: 0; } }
 
+/* ---------- the charge ---------- */
+/* an attacker lunges at what it is attacking and comes back */
+.cv.feel-lunge { animation: feelLunge .58s cubic-bezier(.3,.1,.3,1); }
+@keyframes feelLunge {
+  0% { translate: 0 0; }
+  22% { translate: calc(var(--feel-lx) * -.25) calc(var(--feel-ly) * -.25); }
+  55% { translate: var(--feel-lx) var(--feel-ly); scale: 1.06; }
+  100% { translate: 0 0; scale: 1; }
+}
+/* what it is aimed at flinches, and stays ringed in red while the attack lasts */
+.feel-threat { animation: feelThreat .85s ease-out; }
+@keyframes feelThreat { 0% { filter: none; } 20% { filter: brightness(1.35) drop-shadow(0 0 12px rgba(255,60,40,.9)); scale: 1.06; } 100% { filter: none; scale: 1; } }
+.feel-threat-still { filter: drop-shadow(0 0 8px rgba(255,60,40,.8)); }
+.life-orb.under-attack, .cv.under-attack { position: relative; }
+.life-orb.under-attack::before, .cv.under-attack::before {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; z-index: 5;
+  box-shadow: 0 0 0 2px rgba(255,80,60,.95), 0 0 18px 4px rgba(255,50,30,.55);
+  animation: underAttack 1.3s ease-in-out infinite; }
+.cv.under-attack::before { border-radius: 8%; inset: -4px; }
+@keyframes underAttack { 50% { box-shadow: 0 0 0 3px rgba(255,110,90,1), 0 0 30px 8px rgba(255,50,30,.75); } }
+.life-orb.under-attack::after, .cv.under-attack::after {
+  content: attr(data-attackers); position: absolute; left: 50%; top: -14px; translate: -50% 0; z-index: 6; pointer-events: none;
+  font: 800 11px/1 var(--font); color: #fff; white-space: nowrap; padding: 3px 7px; border-radius: 99px;
+  background: linear-gradient(180deg, #d4402e, #8a1c12); box-shadow: 0 2px 6px rgba(0,0,0,.6); opacity: 1; }
+.cv.under-attack::after { inset: auto; top: -12%; }
+:root[data-reduce-motion] .life-orb.under-attack::before, :root[data-reduce-motion] .cv.under-attack::before { animation: none; }
+
+/* ---------- blocks and blows in combat ---------- */
+/* an attacker checked by its blocker, and a creature striking what it damages */
+.cv.feel-recoil { animation: feelRecoil .5s ease-out .2s; }
+@keyframes feelRecoil { 0% { translate: 0 0; } 35% { translate: var(--feel-lx) var(--feel-ly); } 100% { translate: 0 0; } }
+.cv.feel-strike { animation: feelStrike .44s cubic-bezier(.5,0,.3,1); }
+@keyframes feelStrike { 0% { translate: 0 0; } 40% { translate: var(--feel-lx) var(--feel-ly); scale: 1.08; } 100% { translate: 0 0; scale: 1; } }
+.feel-clang { position: absolute; width: 74px; height: 74px; translate: -50% -50%; pointer-events: none; mix-blend-mode: screen; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 10%, rgba(220,230,255,.9) 18%, rgba(140,170,255,.4) 36%, transparent 62%),
+              repeating-conic-gradient(rgba(230,236,255,.8) 0 5deg, transparent 5deg 60deg);
+  -webkit-mask: radial-gradient(circle, #000 32%, transparent 70%); mask: radial-gradient(circle, #000 32%, transparent 70%);
+  animation: feelSpark .55s cubic-bezier(.15,.8,.3,1) both; }
+:root[data-reduce-motion] .cv.feel-recoil, :root[data-reduce-motion] .cv.feel-strike { animation: none; }
+
+/* ---------- blows, heavier ---------- */
+/* a creature hit flashes red under its shake */
+.cv.feel-hurt .cv-body { animation: feelHurt .5s ease-out; }
+@keyframes feelHurt { 0% { filter: none; } 18% { filter: brightness(1.7) sepia(1) hue-rotate(-40deg) saturate(3.5); } 100% { filter: none; } }
+/* a player hit: the orb jolts, goes red and swells a little */
+.life-orb.feel-orb-hit { animation: feelOrbHit .62s ease-out; }
+@keyframes feelOrbHit {
+  0% { translate: 0 0; filter: none; }
+  12% { translate: calc(var(--feel-amp) * -1) 0; filter: brightness(1.6) sepia(1) hue-rotate(-40deg) saturate(4); scale: 1.12; }
+  30% { translate: var(--feel-amp) 0; }
+  50% { translate: calc(var(--feel-amp) * -.5) 0; scale: 1.04; }
+  75% { translate: calc(var(--feel-amp) * .25) 0; }
+  100% { translate: 0 0; filter: none; scale: 1; }
+}
+.life-orb.feel-orb-hit-still { filter: drop-shadow(0 0 8px rgba(255,60,40,.9)); }
+.feel-shock { position: absolute; width: var(--feel-s, 140px); height: var(--feel-s, 140px); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(255,90,70,.9), inset 0 0 22px rgba(255,60,40,.6), 0 0 24px rgba(255,60,40,.5);
+  animation: feelShock .7s cubic-bezier(.15,.7,.3,1) forwards; }
+@keyframes feelShock { 0% { opacity: 1; scale: .25; } 100% { opacity: 0; scale: 1.15; } }
+/* the whole table jolts with the biggest moments */
+.arena.feel-quake { animation: feelQuake .5s cubic-bezier(.36,.07,.19,.97); }
+@keyframes feelQuake {
+  10% { translate: calc(var(--feel-q) * -1) calc(var(--feel-q) * .4); }
+  25% { translate: var(--feel-q) calc(var(--feel-q) * -.5); }
+  40% { translate: calc(var(--feel-q) * -.7) calc(var(--feel-q) * .3); }
+  60% { translate: calc(var(--feel-q) * .4) 0; }
+  80% { translate: calc(var(--feel-q) * -.2) 0; }
+  100% { translate: 0 0; }
+}
+
+/* ---------- destroyed ---------- */
+/* a crack of white light across the card as it breaks */
+.feel-crack { position: absolute; translate: -50% -50%; pointer-events: none; border-radius: 6%; mix-blend-mode: screen;
+  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.95) 48%, rgba(255,230,190,.9) 50%, transparent 56%),
+              linear-gradient(60deg, transparent 58%, rgba(255,255,255,.8) 62%, transparent 66%),
+              radial-gradient(ellipse at 50% 50%, rgba(255,240,220,.55), transparent 70%);
+  animation: feelCrack .6s ease-out forwards; }
+@keyframes feelCrack { 0% { opacity: 0; scale: .9; } 18% { opacity: 1; scale: 1.04; } 100% { opacity: 0; scale: 1.12; } }
+.feel-shard { scale: var(--feel-z, 1); }
+.feel-dust { position: absolute; width: var(--feel-s, 140px); height: calc(var(--feel-s, 140px) * .4); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse, rgba(170,160,150,.55), rgba(120,110,100,.25) 45%, transparent 70%);
+  animation: feelDust 1s ease-out both; }
+@keyframes feelDust { 0% { opacity: 0; scale: .4; } 25% { opacity: 1; } 100% { opacity: 0; scale: 1.5 1.2; } }
+
+/* ---------- exiled ---------- */
+.feel-pillar { position: absolute; translate: -50% -60%; pointer-events: none; mix-blend-mode: screen; border-radius: 40%;
+  background: linear-gradient(0deg, transparent, rgba(220,236,255,.85) 35%, rgba(255,255,255,.95) 50%, rgba(220,236,255,.6) 70%, transparent);
+  filter: blur(4px); animation: feelPillar .85s ease-out forwards; }
+@keyframes feelPillar { 0% { opacity: 0; scale: .3 1; } 25% { opacity: 1; scale: 1 1; } 100% { opacity: 0; scale: .2 1.15; } }
+.feel-mote { position: absolute; width: 6px; height: 6px; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: #fff; box-shadow: 0 0 8px 2px rgba(190,220,255,.9); animation: feelMote 1.15s ease-out both; }
+.feel-mote.heal { background: #d8ffe6; box-shadow: 0 0 8px 2px rgba(111,227,160,.9); }
+@keyframes feelMote { 0% { opacity: 0; scale: .4; } 20% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .3; translate: calc(-50% + var(--feel-dx, 0px)) calc(-50% + var(--feel-dy, -80px)); } }
+
+/* ---------- returned to a hand or library ---------- */
+.feel-swirl { position: absolute; width: var(--feel-s, 120px); height: var(--feel-s, 120px); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, transparent, rgba(150,200,255,.55), transparent 40%, rgba(150,200,255,.45), transparent 80%);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 62%); mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 62%);
+  animation: feelSwirl .65s ease-out forwards; }
+@keyframes feelSwirl { 0% { opacity: 0; scale: .5; rotate: 0deg; } 30% { opacity: 1; } 100% { opacity: 0; scale: 1.2; rotate: 220deg; } }
+
+/* ---------- life gained ---------- */
+.life-orb.feel-heal { animation: feelHeal .85s ease-out; }
+@keyframes feelHeal { 25% { filter: drop-shadow(0 0 14px rgba(111,227,160,.95)) brightness(1.2); scale: 1.06; } 100% { filter: none; scale: 1; } }
+
+/* ---------- a player out ---------- */
+.life-orb.feel-ko { animation: feelKo 1.5s ease-out forwards; }
+@keyframes feelKo { 0% { filter: none; } 15% { filter: brightness(2) saturate(0); scale: 1.12; } 100% { filter: grayscale(1) brightness(.45); scale: .94; } }
+
+/* less motion: none of the movement, the still marks only */
+:root[data-reduce-motion] .arena.feel-quake, :root[data-reduce-motion] .cv.feel-lunge { animation: none; }
+
 /* ---------- counters ---------- */
 .cv.feel-plus::after { box-shadow: 0 0 0 2px rgba(111,227,160,.9), 0 0 22px 5px rgba(111,227,160,.5); animation: feelShadow .65s ease-out both; }
 .cv.feel-minus::after { box-shadow: 0 0 0 2px rgba(255,107,92,.9), 0 0 22px 5px rgba(255,107,92,.45); animation: feelShadow .65s ease-out both; }

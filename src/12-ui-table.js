@@ -1340,10 +1340,14 @@
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
+        // a second choice as big as the first, above it ("All attack" over "No attacks")
+        d._above = el('button', { type: 'button', class: 'big-btn above', hidden: true, onclick: () => { if (d._above._fn) d._above._fn(); } }, [
+          el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
+        ]);
         d._row = el('div', { class: 'dock-row' });
         // for anyone still learning: what is going on, in a sentence
         d._hint = el('div', { class: 'dock-hint', 'aria-live': 'polite' });
-        d.append(d._turn, d._strip, d._main, d._hint, d._row);
+        d.append(d._turn, d._strip, d._above, d._main, d._hint, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -1363,6 +1367,13 @@
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
+      d._above.hidden = !act.above;
+      if (act.above) {
+        d._above.className = 'big-btn above ' + (act.above.cls || '');
+        d._above.querySelector('.bb-label').textContent = act.above.label;
+        d._above.querySelector('.bb-sub').textContent = act.above.sub || '';
+        d._above._fn = act.above.fn;
+      }
       const hint = MTG.settings.beginnerHints === false ? '' : this.beginnerHint(act);
       if (d._hint.textContent !== hint) d._hint.textContent = hint;
       d._hint.classList.toggle('on', !!hint);
@@ -1457,8 +1468,9 @@
           return {
             label: n ? `Attack` : 'No attacks', sub: n ? `${n} attacker${n === 1 ? '' : 's'}` : 'skip combat',
             cls: n ? 'go attack' : 'pass',
-            secondary: n < all ? { label: 'All attack', fn: () => this.attackAll(ch) }
-              : { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } },
+            // everything in at once, as big a choice as attacking with none
+            above: n < all ? { label: 'All attack', sub: `${all} creature${all === 1 ? '' : 's'}`, cls: 'go attack', fn: () => this.attackAll(ch) } : null,
+            secondary: n ? { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } } : null,
           };
         }
         if (ch.type === 'declareBlockers') {

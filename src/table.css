@@ -492,6 +492,8 @@
 .big-btn .bb-sub { font: 500 11px/1.2 var(--font); letter-spacing: .01em; text-transform: none; opacity: .85; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .big-btn .bb-sub:empty { display: none; }
+.big-btn.above { margin-bottom: 8px; }
+.big-btn[hidden] { display: none; }
 .big-btn.go { color: #2a1702; background: linear-gradient(180deg, #ffe08a, #f0a83a 55%, #d9822a);
   box-shadow: 0 0 0 2px rgba(255,214,120,.55), 0 0 26px 4px rgba(255,170,60,.45), 0 10px 26px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);
   animation: goPulse 2.2s ease-in-out infinite; }
@@ -763,8 +765,11 @@
 }
 .cv-ghost.exiling .cv-body { animation: exiling .52s ease forwards; }
 @keyframes exiling { 40% { filter: brightness(2.2) saturate(0) ; box-shadow: 0 0 30px 12px rgba(200,230,255,.7); } 100% { filter: brightness(3) saturate(0); } }
-.fx-float { position: absolute; translate: -50% -50%; z-index: 92; font: 900 24px/1 var(--font); letter-spacing: -.02em; white-space: nowrap;
+.fx-float { position: absolute; translate: -50% -50%; z-index: 92; font: 900 26px/1 var(--font); letter-spacing: -.02em; white-space: nowrap;
   text-shadow: 0 2px 0 rgba(0,0,0,.6), 0 0 18px rgba(0,0,0,.8); animation: floatUp 1.45s cubic-bezier(.2,.8,.2,1) forwards; }
+/* damage reads as a blow: heavier, outlined, a red glow behind it */
+.fx-float.dmg, .fx-float.life-down { font-size: 30px; -webkit-text-stroke: 1px rgba(40,0,0,.55);
+  text-shadow: 0 3px 0 rgba(0,0,0,.65), 0 0 14px rgba(255,60,40,.75), 0 0 28px rgba(0,0,0,.8); }
 .fx-float.life-down, .fx-float.dmg { color: #ff6b5c; }
 .fx-float.life-up, .fx-float.buff { color: var(--up); }
 @keyframes floatUp { 0% { opacity: 0; scale: .5; } 15% { opacity: 1; scale: 1.25; } 30% { scale: 1; } 100% { opacity: 0; translate: -50% -170%; } }
