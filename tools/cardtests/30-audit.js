@@ -4556,4 +4556,25 @@ module.exports = (test) => {
       t.eq(T.g.battlefield.filter(o => o.isToken && /Squirrel/.test(o.name)).length, how === 'opp' ? 0 : 2, how);
     }
   });
+
+  test('Audit: Arixmethes is a land while it slumbers and a creature once the last counter goes; War Balloon is a creature at three fire counters', (mk, t) => {
+    t.auto('Arixmethes, Slumbering Isle'); t.auto('War Balloon');
+    let T = mk();
+    T.toMain('A');
+    const ar = T.bf('A', 'Arixmethes, Slumbering Isle', { counters: { slumber: 1 } });
+    T.g.bumpBoard();
+    t.no(T.g.characteristics(ar).isCreature, 'a slumber counter: not a creature');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(ar.counters.slumber || 0, 0, 'a spell cast: the counter removed');
+    T.g.bumpBoard();
+    t.ok(T.g.characteristics(ar).isCreature, 'no counters: a creature'); t.eq(T.g.powerOf(ar), 12);
+    T = mk();
+    T.toMain('A');
+    const wb = T.bf('A', 'War Balloon');
+    t.no(T.g.characteristics(wb).isCreature);
+    for (let i = 0; i < 3; i++) { T.mana('A', '1'); T.activate('A', wb, 0); T.settle(); }
+    T.g.bumpBoard();
+    t.eq(wb.counters.fire, 3); t.ok(T.g.characteristics(wb).isCreature, 'three fire counters: a creature');
+  });
 };
