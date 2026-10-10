@@ -352,10 +352,12 @@
       const onStack = new Map((v.stack || []).filter(s => s.objId).map(s => [s.objId, s]));
       const top = (v.stack || [])[(v.stack || []).length - 1];
       const pending = this.blockPlan && this.blockPlan.pendingBlocker;
-      const relabel = (n, extra) => {
+      // whose: "Mira’s Grizzly Bears", and "Mira’s face-down card"
+      const relabel = (n, extra, whose) => {
         const now = n.getAttribute('aria-label') || '';
         if (now !== n._ariaFull) n._ariaBase = now;     // painted again since: a fresh description
-        const full = extra.length ? n._ariaBase + '. ' + extra.join(', ') : n._ariaBase;
+        const base = whose ? `${whose} ${n._ariaBase.replace(/^A /, '')}` : n._ariaBase;
+        const full = extra.length ? base + '. ' + extra.join(', ') : base;
         if (full !== now) n.setAttribute('aria-label', full);
         n._ariaFull = full;
       };
@@ -363,7 +365,7 @@
         if (!n.isConnected) continue;
         const bits = [];
         const c = ctrl.get(id);
-        if (c && c !== this.meId) bits.push(names.get(c) ? `${names.get(c)}’s` : 'theirs');
+        const whose = c && c !== this.meId ? (names.get(c) ? possessive(names.get(c)) : 'Their') : null;
         const s = onStack.get(id);
         if (s) {
           const tg = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
@@ -382,7 +384,7 @@
           bits.push(ch && ch.type === 'declareAttackers' ? 'attacking, press Enter to hold it back'
             : ch && ch.type === 'declareBlockers' ? (pending === id ? 'blocking: now choose the attacker' : 'blocking') : 'chosen');
         } else if (n.classList.contains('declared-blk')) bits.push('blocking');
-        relabel(n, bits);
+        relabel(n, bits, whose);
       }
       // the players: who can be chosen
       for (const orb of this.arena.querySelectorAll('.life-orb')) {
