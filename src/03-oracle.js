@@ -8108,8 +8108,14 @@
       /* Well Rested: "put two +1/+1 counters on it, then you gain 2 life
          and draw a card" — the second half is itself two steps */
       if (/^,/.test(sentence.match(sep)[0])) {
-        const bs = parseCompound(tidy(rightRaw));
-        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) return [a, ...bs];
+        /* (Urza's Guilt: "Each player draws two cards, then discards three
+           cards, then loses 4 life" — the rest is still each player's) */
+        const lend = !!subj && bareVerb && !/^you$/i.test(subj);
+        const bs = parseCompound(tidy(lend ? subj + ' ' + rightRaw.trim() : rightRaw));
+        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) {
+          if (lend && /^target/i.test(subj)) for (const x of bs) if (x.targets) delete x.targets;
+          return [a, ...bs];
+        }
       }
     }
     return null;

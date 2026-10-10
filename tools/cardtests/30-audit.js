@@ -4597,4 +4597,34 @@ module.exports = (test) => {
     T.mana('A', 'R3'); T.cast('A', g2); T.resolve();
     t.zone(top2, 'battlefield', 'a new turn: the first again');
   });
+
+  test("Audit: an activated ability is never stopped by a trigger's \"if\" at the same place in the list (Davriel's -1, Daredevil Dragster's crew); Urza's Guilt is each player's", (mk, t) => {
+    t.auto('Davriel, Rogue Shadowmage'); t.auto('Daredevil Dragster'); t.auto("Urza's Guilt");
+    let T = mk();
+    T.toMain('A');
+    const d = T.bf('A', 'Davriel, Rogue Shadowmage', { counters: { loyalty: 3 } });
+    T.hand('B', 'Island'); T.hand('B', 'Forest'); T.hand('B', 'Mountain');
+    T.answer('discard', (ch) => ({ cardIds: [T.g.zones.B.hand[0].id] }));
+    T.activate('A', d, 0, { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.zones.B.hand.length, 2, 'B holds three cards, and still discards one');
+    T = mk();
+    T.toMain('A');
+    const dd = T.bf('A', 'Daredevil Dragster', { counters: { velocity: 1 } });
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.bf('A', 'Grizzly Bears');
+    T.activate('A', dd, 0);
+    t.ok(T.g.characteristics(dd).isCreature, 'crewed');
+    const h = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: dd.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16); t.zone(dd, 'graveyard', 'the second velocity counter: sacrificed');
+    t.eq(T.zone('A', 'hand').length, h + 2, 'and two cards');
+    T = mk();
+    T.toMain('A');
+    for (const p of ['A', 'B']) for (let i = 0; i < 4; i++) T.top(p, 'Island');
+    T.mana('A', 'UB2');
+    T.cast('A', T.hand('A', "Urza's Guilt")); T.settle();
+    t.eq(T.life('A'), 16); t.eq(T.life('B'), 16, 'B loses 4 too');
+    t.eq(T.zone('B', 'graveyard').length, 2, 'B drew two and discarded what it had: two');
+  });
 };

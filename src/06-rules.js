@@ -6337,7 +6337,8 @@
       }
 
       const item = {
-        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
+        // (activated: its abilityIndex counts activated abilities only, not every ability)
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex, activated: true,
         controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 60)}`,
         targets: (opts.targets || []).map(normTarget),
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
@@ -11687,6 +11688,10 @@
     /** Does a trigger's "if" clause still hold as it resolves? (CR 603.4) */
     _triggerStillHolds(item) {
       if (!item || item.kind !== 'ability' || item.abilityIndex == null) return true;
+      /* an activated ability has no "if" clause to check, and its index is
+         not one into every ability (Daredevil Dragster's crew is not its
+         end-of-combat trigger) */
+      if (item.activated) return true;
       const o = this.obj(item.objId);
       if (!o) return true;
       const a = o.analysis();
