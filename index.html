@@ -28894,6 +28894,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         o.castFromZone = item.fromZone || null;
         // Spiders-Man: "if they were cast using web-slinging"
         o.webSlung = o._webSlinging ? this.turn : null;
+        // Sentinel's Mark: "if you cast it during your main phase" (castInMain)
+        o.castInMain = !!item.castInMain;
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
@@ -36653,7 +36655,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         /* Starting Town: "your first, second, or third turn of the game" */
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
         /* Unbreakable Formation's addendum: cast in your main phase */
-        case 'castInMain': return !!(ctx && ctx.castInMain);
+        case 'castInMain': return !!(ctx && ctx.castInMain) || !!(src && src.zone === 'battlefield' && src.wasCast != null && src.castInMain);
         /* Massacre Girl, Known Killer: "if its toughness was less than 1",
            the creature that died, as it last was */
         case 'triggerToughnessBelow': {
@@ -37805,6 +37807,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
       if (toZone === 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
+        /* Stonecoil Serpent, Hangarback Walker, Gatekeeper of Malakir: put onto the battlefield
+           other than as a spell resolving, X is 0 and it wasn't kicked (CR 107.3m, 702.33d) */
+        if (!opts.fromStack) { o.chosenX = 0; o.kickedTimes = 0; o.wasKicked = false; }
         o._lkiAnalysis = null;
         if (o._impendingN) { o.counters.time = o._impendingN; o._impendingN = 0; }
         /* A daybound permanent makes it day if it is neither, and arrives
