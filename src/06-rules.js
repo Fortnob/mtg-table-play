@@ -10347,6 +10347,8 @@
           return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
         }
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        // Lord Jyscal Guado: "if you put a counter on a creature this turn" (counterPutter)
+        case 'youPutCounterOnCreature': return !!me && !!((h.counterPutters || {})[me.id]);
         // Samut, Vizier of Naktamun: "if that creature entered this turn" (triggerObjEntered)
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -11248,6 +11250,8 @@
       if (n > 0 && o.zone === 'battlefield') {
         const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         (h.countersPutOn = h.countersPutOn || {})[o.id] = true;
+        // Lord Jyscal Guado: who put a counter on a creature this turn (counterPutter)
+        if (putter && (this.characteristics(o) || {}).isCreature) (h.counterPutters = h.counterPutters || {})[putter] = true;
       }
       if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n, putter });
       this.emit('sfx', n > 0 ? 'counter_add' : 'counter_remove', { player: o.controller, size: Math.abs(n) });
@@ -23493,6 +23497,8 @@
          — what it was as it left (CR 603.10), a Food only while Ygra said so */
       const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x;
       if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
+      // Ares, God of War: "an attacking creature … dies" — attacking as it left (wasAttacking)
+      if (f.wasAttacking && !(x.zone === 'battlefield' ? x.attacking : x._wasAttacking)) return false;
       if (f.chosenType && !(src && this._hasCreatureType(x, src.chosenType))) return false;
       if (f.chosenName && !this._chosenNameOf(src, x)) return false;
       // Circle of Affliction: "a source of the chosen color"

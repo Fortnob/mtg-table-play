@@ -9603,6 +9603,8 @@
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
     [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
+    // Lord Jyscal Guado: "you put a counter on a creature this turn" (counterPutter)
+    [/^you put (?:a|one or more) counters? on a creature this turn$/i, () => ({ kind: 'youPutCounterOnCreature' })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -9914,6 +9916,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
+    { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
     { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
@@ -11481,6 +11485,12 @@
             if ((m2 = t.match(/^add that much mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i))) {
               changed = true;
               return [{ op: 'addManaChoice', choices: [[m2[1].toUpperCase()], [m2[2].toUpperCase()]], n: 'triggerAmount', text: e.text }];
+            }
+            // (Lonis, Genetics Expert: "investigate that many times" — investigateThatMany)
+            if (/^investigate that many times\.?$/i.test(t)) { changed = true; return [{ op: 'createNamedToken', n: 'triggerAmount', token: 'Clue', text: e.text }]; }
+            // (Ares, God of War: "return that card to its owner's hand" — the creature that died: deadToHand)
+            if (/^return that card to its owner'?s hand\.?$/i.test(t) && (trig.event === 'permDies' || trig.event === 'dies')) {
+              changed = true; return [{ op: 'returnItToHand', ownerHand: true, text: e.text }];
             }
             if (/^(?:you may )?search your library for up to that many /i.test(t)) {
               const s2 = parseSearch(t.charAt(0).toUpperCase() + t.slice(1).replace(/up to that many/i, 'up to two'));

@@ -22361,4 +22361,38 @@ module.exports = (test) => {
     K.bf('A', 'Ornithopter'); K.g.bumpBoard();
     t.ok(K.g.hasKw(sk, 'shroud'), 'Drill-Skimmer: another artifact creature, shroud');
   });
+
+  test("Commanders: Ares, God of War, Lonis, Genetics Expert, Lord Jyscal Guado; Lasting Tarfire", (mk, t) => {
+    for (const n of ['Ares, God of War', 'Lonis, Genetics Expert', 'Lord Jyscal Guado', 'Lasting Tarfire']) t.auto(n);
+    // Ares: an attacking creature of yours that dies goes back to its owner's hand; one that wasn't attacking doesn't
+    const A = mk({ library: Array(10).fill('Mountain') });
+    A.toMain('A');
+    const ares = A.bf('A', 'Ares, God of War');
+    const att = A.bf('A', 'Grizzly Bears'), home = A.bf('A', 'Hill Giant');
+    att.summoningSick = false; ares.summoningSick = false;
+    A.answer('declareAttackers', () => [{ attackerId: att.id, defenderId: 'B' }, { attackerId: ares.id, defenderId: 'B' }]);
+    A.toMain('A', 'declareBlockers');
+    A.g.moveObject(att, 'graveyard'); A.resolve();
+    t.zone(att, 'hand');
+    A.g.moveObject(home, 'graveyard'); A.resolve();
+    t.zone(home, 'graveyard');
+    // Lonis: a Clue for each +1/+1 counter put on it
+    const L = mk({ library: Array(10).fill('Island') });
+    L.toMain('A');
+    const lo = L.bf('A', 'Lonis, Genetics Expert');
+    L.g.addCounters(lo, '+1/+1', 2); L.resolve();
+    t.eq(L.bfOf('A').filter(o => o.isToken && /Clue/.test(o.name)).length, 2, 'Lonis: two counters, two Clues');
+    // Lord Jyscal Guado: investigate at the end step if you put a counter on a creature this turn
+    const J = mk({ library: Array(10).fill('Island') });
+    J.toMain('A');
+    J.bf('A', 'Lord Jyscal Guado');
+    J.toMain('A', 'end'); J.resolve();
+    t.eq(J.bfOf('A').filter(o => o.isToken && /Clue/.test(o.name)).length, 0, 'Lord Jyscal: no counter put, no Clue');
+    const J2 = mk({ library: Array(10).fill('Island') });
+    J2.toMain('A');
+    J2.bf('A', 'Lord Jyscal Guado');
+    J2.g.addCounters(J2.bf('A', 'Grizzly Bears'), '+1/+1', 1, { by: 'A' });
+    J2.toMain('A', 'end'); J2.resolve();
+    t.eq(J2.bfOf('A').filter(o => o.isToken && /Clue/.test(o.name)).length, 1, 'Lord Jyscal: a counter put on a creature, a Clue');
+  });
 };

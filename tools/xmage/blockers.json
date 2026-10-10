@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10462,
-  "gainedCards": 964,
-  "linesNeeded": 11116,
-  "linesGained": 1130,
+  "needed": 10457,
+  "gainedCards": 963,
+  "linesNeeded": 11109,
+  "linesGained": 1127,
   "gained": {
-   "all": 964,
+   "all": 963,
    "top2000": 40,
    "stdTop": 6
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 664,
-   "lines": 610,
+   "score": 663,
+   "lines": 609,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 157,
-   "lines": 145,
+   "score": 155,
+   "lines": 143,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -6480,8 +6480,8 @@
   },
   {
    "what": "custom ability",
-   "score": 509,
-   "cards": 470,
+   "score": 508,
+   "cards": 469,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6519,8 +6519,8 @@
   },
   {
    "what": "custom condition",
-   "score": 124,
-   "cards": 121,
+   "score": 122,
+   "cards": 119,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
