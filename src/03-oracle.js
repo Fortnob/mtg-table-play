@@ -4086,8 +4086,9 @@
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
-    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }) },
+    // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,

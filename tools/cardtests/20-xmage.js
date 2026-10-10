@@ -20241,4 +20241,19 @@ module.exports = (test) => {
     t.eq(T.life('B'), 18, 'the player: 2');
     t.eq(wurm.damage, 2, 'the Wurm: 2, not 3');
   });
+
+  test('Ilharg, the Raze-Boar: a creature from your hand comes in tapped and attacking, and goes back to your hand at the end step', (mk, t) => {
+    t.auto('Ilharg, the Raze-Boar');
+    const T = mk();
+    const il = T.bf('A', 'Ilharg, the Raze-Boar');
+    const wurm = T.hand('A', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: il.id, defenderId: 'B' }]);
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickCard', () => ({ cardIds: [wurm.id] }));
+    T.toMain('A', 'endCombat');
+    t.ok(wurm.tapped, 'the Wurm came in tapped');
+    t.eq(T.life('B'), 8, 'and attacking: 6 from Ilharg and 6 from the Wurm');
+    T.toMain('B');
+    t.zone(wurm, 'hand');
+  });
 };

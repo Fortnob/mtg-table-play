@@ -17591,6 +17591,12 @@
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
               if (e.tapped) o.tapped = true;
+              /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
+                 (or the first opponent), during combat */
+              if (e.attacking && o.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+                const def = (src && src.attacking) || (this.opponentsOf(p.id)[0] || {}).id;
+                if (def) { o.attacking = def; this.combat.attackers.push(o.id); }
+              }
               this._lastPut = o.id;
             }
           }
