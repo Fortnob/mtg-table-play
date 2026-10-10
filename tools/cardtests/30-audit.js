@@ -3540,4 +3540,33 @@ module.exports = (test) => {
     T.toMain('A', 'end');
     t.eq(T.g.zones.A.hand.length, h2 + 1, '6 damage: a card');
   });
+
+  test('Audit: Bane of Bala Ged exiles (not sacrifices) from the defending player; Thresher Beast; God-Eternal Bontu', (mk, t) => {
+    let T = mk({ players: ['A', 'B', 'C'] });
+    for (const c of ['Bane of Bala Ged', 'Thresher Beast', 'God-Eternal Bontu']) t.auto(c);
+    T.toMain('A');
+    T.bf('A', 'Mayhem Devil');
+    const bb = T.bf('A', 'Bane of Bala Ged'); bb.summoningSick = false;
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Forest'), b3 = T.bf('B', 'Mind Stone'), c1 = T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq([b1, b2, b3].filter(o => o.zone === 'exile').length, 2, 'B exiles two'); t.zone(c1, 'battlefield');
+    t.eq(T.g.log.filter(l => /Triggered: Mayhem Devil/.test(l.text)).length, 0, 'exiling is not sacrificing');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const tb = T.bf('A', 'Thresher Beast'); tb.summoningSick = false;
+    const bl = T.bf('B', 'Forest'), cl = T.bf('C', 'Forest'), blk = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: tb.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: blk.id, attackerIds: [tb.id] }]);
+    T.toMain('A', 'combatDamage'); T.settle(); T.resolve();
+    t.zone(bl, 'graveyard'); t.zone(cl, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    const bo = T.bf('A', 'Mind Stone'), bl2 = T.bf('A', 'Forest');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const bontu = T.hand('A', 'God-Eternal Bontu'), h = T.g.zones.A.hand.length;
+    T.answer('choose', () => ({ picks: [bo.id, bl2.id], ids: [bo.id, bl2.id], cardIds: [bo.id, bl2.id] }));
+    T.mana('A', '2BB'); T.cast('A', bontu); T.settle(); T.resolve();
+    t.zone(bo, 'graveyard'); t.zone(bl2, 'graveyard'); t.eq(T.g.zones.A.hand.length, h - 1 + 2, 'two sacrificed, two drawn');
+  });
 };
