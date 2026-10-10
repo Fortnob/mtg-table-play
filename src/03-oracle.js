@@ -8424,7 +8424,8 @@
   function stripAbilityWord(line) {
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' ]{2,30}?!?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?!?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -11978,6 +11979,10 @@
         sc.commander = sc.who === 'you' ? 'control' : true; sc.what = 'permanent'; words.pop();
       } else if (two) {
         sc.subtypeAny = [sing(words[0]), sing(words[2])]; sc.what = 'permanent'; words.length = 0;
+      } else if (words.length >= 4 && /^(?:and|or|and\/or)$/i.test(words[words.length - 2]) &&
+        words.every((x, i) => i === words.length - 2 || /^[A-Z][a-z'-]+$/.test(x))) {
+        // Spider-Ham: "Other Spiders, Boars, Bats, … and Wolves" — a permanent of any of those creature types
+        sc.subtypeAny = words.filter((x, i) => i !== words.length - 2).map(sing); sc.what = 'permanent'; words.length = 0;
       } else if (SAME[w.toLowerCase()] && words.length <= 2 && /^[A-Z]/.test(w)) {
         sc.subtype = SAME[w.toLowerCase()]; sc.what = 'permanent'; words.pop();
       } else {

@@ -18174,4 +18174,24 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield');
     t.zone(giant, 'hand');
   });
+
+  test('A label with a hyphen ("Rapid-fire Battle Cannon —") is cut like any other: Knight Paladin, Screamer-Killer; Spider-Ham: a long list of creature types', (mk, t) => {
+    t.auto('Knight Paladin');
+    t.auto('Screamer-Killer');
+    t.auto('Spider-Ham, Peter Porker');
+    t.auto('Tiefling Outcasts');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.mana('A', 'WW4');
+    T.cast('A', T.hand('A', 'Knight Paladin'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16, 'B takes 4'); t.eq(T.life('C'), 16, 'C takes 4');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Spider-Ham, Peter Porker');
+    const cat = U.bf('A', 'Savannah Lions'), bear = U.bf('A', 'Grizzly Bears'), giant = U.bf('A', 'Hill Giant');
+    t.eq(U.g.powerOf(cat), 3, 'a Cat gets +1/+1');
+    t.eq(U.g.powerOf(bear), 3, 'a Bear too');
+    t.eq(U.g.powerOf(giant), 3, 'not a Giant');
+  });
 };

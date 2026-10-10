@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11085,
-  "gainedCards": 1097,
-  "linesNeeded": 11855,
-  "linesGained": 1295,
+  "needed": 11072,
+  "gainedCards": 1093,
+  "linesNeeded": 11841,
+  "linesGained": 1289,
   "gained": {
-   "all": 1097,
-   "top2000": 44,
-   "stdTop": 7
+   "all": 1093,
+   "top2000": 43,
+   "stdTop": 6
   },
   "compare": {
    "same": 0,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4143,
-   "lines": 3894,
+   "score": 4144,
+   "lines": 3895,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 661,
-   "lines": 661,
+   "score": 660,
+   "lines": 660,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 188,
-   "lines": 173,
+   "score": 179,
+   "lines": 164,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -5106,6 +5106,17 @@
    ]
   },
   {
+   "what": "ExploreSourceEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Amalia Benavides Aguirre",
+    "Astrid Peth",
+    "Jadelight Spelunker",
+    "Deepfathom Echo"
+   ]
+  },
+  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 4,
    "lines": 4,
@@ -6199,16 +6210,6 @@
    ]
   },
   {
-   "what": "ExploreSourceEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Amalia Benavides Aguirre",
-    "Jadelight Spelunker",
-    "Deepfathom Echo"
-   ]
-  },
-  {
    "what": "ControlTargetPlayerNextTurnEffect",
    "score": 3,
    "lines": 3,
@@ -6676,8 +6677,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 116,
-   "cards": 113,
+   "score": 108,
+   "cards": 105,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",
@@ -9850,6 +9851,17 @@
    ]
   },
   {
+   "what": "ExploreSourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Amalia Benavides Aguirre",
+    "Astrid Peth",
+    "Jadelight Spelunker",
+    "Deepfathom Echo"
+   ]
+  },
+  {
    "what": "mana ability with more",
    "score": 4,
    "cards": 4,
@@ -10276,17 +10288,6 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
-   ]
-  },
-  {
-   "what": "TurnFaceUpTargetEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Ixidor, Reality Sculptor",
-    "Expose the Culprit",
-    "Skirk Alarmist",
-    "Break Open"
    ]
   }
  ]
