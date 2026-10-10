@@ -25,7 +25,8 @@
 .ability-chip:focus-visible { box-shadow: 0 0 0 3px var(--focus, #7cc4ff), 0 0 18px rgba(124,196,255,.5); }
 .pop-item:focus-visible { outline: 2px solid var(--focus, #7cc4ff); outline-offset: -2px; }
 .life-orb:focus-visible .orb-ring { box-shadow: 0 0 0 3px var(--focus, #7cc4ff), 0 0 16px rgba(124,196,255,.55); }
-.ctx-menu .ctx-item:focus { outline: none; background: rgba(212,175,71,.14); color: #fff; }
-:root[data-theme="light"] .ctx-menu .ctx-item:focus { color: var(--ink); }
-.ctx-menu .ctx-item:focus-visible { box-shadow: inset 0 0 0 2px var(--focus, #7cc4ff); }
+/* a menu takes the focus as it opens; only a keyboard's focus is marked, so a tap shows nothing new */
+.ctx-menu .ctx-item:focus { outline: none; }
+.ctx-menu .ctx-item:focus-visible { background: rgba(212,175,71,.14); color: #fff; box-shadow: inset 0 0 0 2px var(--focus, #7cc4ff); }
+:root[data-theme="light"] .ctx-menu .ctx-item:focus-visible { color: var(--ink); }
 .cardview[role="dialog"]:focus { outline: none; }
