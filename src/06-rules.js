@@ -12583,6 +12583,13 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
+        if (v && typeof v === 'object' && v.countersOnTrigger) {
+          const tdC = ctx.triggerData || {};
+          const it = tdC.objectId && this.obj(tdC.objectId);
+          const pile = it ? (it.zone === 'battlefield' ? it.counters : (it._diedCounters || {})) : {};
+          return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
+        }
         // Titan of Littjara: the other creatures you control that share a creature type with it
         if (v && typeof v === 'object' && v.sharesTypeOthers && src) {
           return this.battlefield.filter(x => x !== src && !x.phasedOut && (x.analysis() || {}).isCreature &&

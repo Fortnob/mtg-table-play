@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10719,
+  "needed": 10718,
   "gainedCards": 994,
-  "linesNeeded": 11412,
+  "linesNeeded": 11411,
   "linesGained": 1171,
   "gained": {
    "all": 994,
@@ -2907,19 +2907,6 @@
    ]
   },
   {
-   "what": "subject:anyCounter",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Yuna, Grand Summoner",
-    "Felisa, Fang of Silverquill",
-    "Puca's Covenant",
-    "Cleopatra, Exiled Pharaoh",
-    "Shadow Urchin",
-    "Buzzard-Wasp Colony"
-   ]
-  },
-  {
    "what": "keyword DemonstrateAbility",
    "score": 6,
    "lines": 6,
@@ -3709,6 +3696,18 @@
     "Navigation Orb",
     "Viewpoint Synchronization",
     "Flourishing Bloom-Kin"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Yuna, Grand Summoner",
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   },
   {
@@ -8800,18 +8799,6 @@
    ]
   },
   {
-   "what": "subject:anyCounter",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Felisa, Fang of Silverquill",
-    "Puca's Covenant",
-    "Cleopatra, Exiled Pharaoh",
-    "Shadow Urchin",
-    "Buzzard-Wasp Colony"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashAllEffect",
    "score": 5,
    "cards": 5,
@@ -9865,6 +9852,17 @@
     "Mortuary",
     "Sigil of the New Dawn",
     "Kithkin Mourncaller"
+   ]
+  },
+  {
+   "what": "subject:anyCounter",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Puca's Covenant",
+    "Cleopatra, Exiled Pharaoh",
+    "Shadow Urchin",
+    "Buzzard-Wasp Colony"
    ]
   },
   {

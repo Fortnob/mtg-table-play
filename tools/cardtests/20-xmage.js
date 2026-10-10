@@ -20730,4 +20730,22 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers');
     t.eq(T.zone('A', 'hand').length, h0 + 2 - 1, "two Elves of yours (not the Bears, not the opponent's): draw two, discard one");
   });
+
+  test('Felisa, Fang of Silverquill: a creature dying with counters makes that many tapped Inklings; none for one without', (mk, t) => {
+    t.auto('Felisa, Fang of Silverquill');
+    const T = mk();
+    T.bf('A', 'Felisa, Fang of Silverquill');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(bear, '+1/+1', 2);
+    T.g.addCounters(bear, 'shield', 1);
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    const inks = T.bfOf('A').filter(o => o.name.includes('Inkling'));
+    t.eq(inks.length, 3, 'three counters: three Inklings');
+    t.ok(inks.every(o => o.tapped), 'tapped');
+    const b2 = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(b2, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name.includes('Inkling')).length, 3, 'no counters: no more');
+  });
 };

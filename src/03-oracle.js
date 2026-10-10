@@ -6116,6 +6116,8 @@
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
     if (/^the number of tokens you(?:'ve)? created this turn$/i.test(p)) return done({ tokensCreatedThisTurn: true, mult: 1 });
+    // Felisa, Fang of Silverquill: "the number of counters it had on it" — the creature the trigger is about
+    if (/^the number of counters (?:it|that creature) had on it$/i.test(p)) return done({ countersOnTrigger: true, mult: 1 });
     // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
     if (/^the number of times (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return done({ timesKicked: true, mult: 1 });
     // Rionya: "the number of instant and sorcery spells you've cast this turn"
