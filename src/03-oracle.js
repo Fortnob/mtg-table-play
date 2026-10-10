@@ -2412,6 +2412,11 @@
     // (Sliver Overlord: "Gain control of target Sliver.")
     { re: /^Gain control of target (creature|permanent|artifact|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
+    /* Treasure Nabber: "gain control of that artifact until the end of your next turn" — what the trigger
+       is about; Power of Persuasion: "Gain control of it …" — the target (endNextTurn) */
+    { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
+      make: (m) => Object.assign({ op: 'gainControl', until: 'endNextTurn' },
+        /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : /^that/i.test(m[1]) ? { scope: 'triggerObject' } : {}) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },

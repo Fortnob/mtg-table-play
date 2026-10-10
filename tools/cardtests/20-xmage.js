@@ -21134,4 +21134,20 @@ module.exports = (test) => {
     t.zone(cw, 'hand');
     t.zone(hg, 'graveyard', "Lie in Wait: the Craw Wurm's 6 damage");
   });
+
+  test('Treasure Nabber: an artifact an opponent taps for mana is yours until the end of your next turn', (mk, t) => {
+    t.auto('Treasure Nabber');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.bf('A', 'Treasure Nabber');
+    T.toMain('B');
+    const ms = T.bf('B', 'Mind Stone'), mine = T.bf('A', 'Mind Stone');
+    T.g.tapForMana('B', ms.id, 0); T.resolve();
+    t.eq(ms.controller, 'A', 'tapped for mana: taken');
+    T.toMain('A');
+    t.eq(ms.controller, 'A', 'still yours on your turn');
+    T.g.tapForMana('A', mine.id, 0); T.resolve();
+    t.eq(mine.controller, 'A', 'your own artifact: no trigger');
+    T.toMain('B');
+    t.eq(ms.controller, 'B', 'back after the end of your next turn');
+  });
 };

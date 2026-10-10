@@ -1270,6 +1270,11 @@
           this.bumpBoard();
         }
         o.effects = o.effects.filter(e => e.until !== 'eot');
+        // "until the end of your next turn": over at the cleanup of that turn (endNextTurn)
+        if (o.effects.some(e => e && e.untilEndTurn != null && e.untilEndTurn <= this.turn)) {
+          o.effects = o.effects.filter(e => !(e && e.untilEndTurn != null && e.untilEndTurn <= this.turn));
+          o._chr = null; this._refreshControl();
+        }
         /* A copy that lasts until end of turn is what it was again: itself,
            or a Clone that was already a copy before Mirrorweave (CR 707). */
         if (o.copyUntilTurn != null && o.printedCard) {
@@ -14490,8 +14495,10 @@
             const x = this.obj(t.id);
             if (!x || x.zone !== 'battlefield') continue;
             /* A control effect in layer 2, as new as anything on the table:
-               Threaten's ends with the turn, Dominate's lasts. */
+               Threaten's ends with the turn, Dominate's lasts, Treasure Nabber's
+               with the end of its controller's next turn (endNextTurn) */
             x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
+              e.until === 'endNextTurn' ? { untilEndTurn: this._endOfNextTurnOf(ctx.controller) } : {},
               // Kellogg: "for as long as you control this creature"
               e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {}));
             if (e.untap) this._markUntapped(x);

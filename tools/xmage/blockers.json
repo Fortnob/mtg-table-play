@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10663,
+  "needed": 10662,
   "gainedCards": 993,
-  "linesNeeded": 11361,
+  "linesNeeded": 11360,
   "linesGained": 1170,
   "gained": {
    "all": 993,
@@ -51,13 +51,12 @@
   },
   {
    "what": "custom ability",
-   "score": 682,
-   "lines": 625,
+   "score": 678,
+   "lines": 624,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
-    "Treasure Nabber",
     "Tergrid, God of Fright // Tergrid's Lantern",
     "The Skullspore Nexus",
     "Extraplanar Lens",
@@ -65,7 +64,8 @@
     "Wedding Ring",
     "Colossal Grave-Reaver",
     "Breena, the Demagogue",
-    "Gix, Yawgmoth Praetor"
+    "Gix, Yawgmoth Praetor",
+    "Volatile Stormdrake"
    ]
   },
   {
@@ -6532,15 +6532,15 @@
   },
   {
    "what": "custom ability",
-   "score": 526,
-   "cards": 484,
+   "score": 522,
+   "cards": 483,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
-    "Treasure Nabber",
     "Tergrid, God of Fright // Tergrid's Lantern",
-    "The Skullspore Nexus"
+    "The Skullspore Nexus",
+    "Extraplanar Lens"
    ]
   },
   {
