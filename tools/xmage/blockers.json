@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10473,
-  "gainedCards": 967,
-  "linesNeeded": 11127,
-  "linesGained": 1133,
+  "needed": 10462,
+  "gainedCards": 964,
+  "linesNeeded": 11116,
+  "linesGained": 1130,
   "gained": {
-   "all": 967,
-   "top2000": 41,
+   "all": 964,
+   "top2000": 40,
    "stdTop": 6
   },
   "compare": {
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4016,
-   "lines": 3770,
+   "score": 4014,
+   "lines": 3768,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 665,
-   "lines": 611,
+   "score": 664,
+   "lines": 610,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -879,25 +879,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Ainok Strike Leader",
-    "Choco, Seeker of Paradise",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge",
-    "Jocasta, Automaton Avenger",
-    "Mordor Trebuchet",
-    "Metropolis Angel",
-    "Teo, Spirited Glider",
-    "Chong and Lily, Nomads"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility from ALL",
    "score": 13,
    "lines": 13,
@@ -1045,6 +1026,25 @@
     "Eye of Ojer Taq // Apex Observatory",
     "Vesuvan Doppelganger",
     "Alhammarret, High Arbiter"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Ainok Strike Leader",
+    "Choco, Seeker of Paradise",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger",
+    "Mordor Trebuchet",
+    "Metropolis Angel",
+    "Teo, Spirited Glider",
+    "Chong and Lily, Nomads",
+    "Clandestine Meddler"
    ]
   },
   {
@@ -1985,21 +1985,6 @@
    ]
   },
   {
-   "what": "scope:alts",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Eidolon of Countless Battles",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Born to Drive",
-    "Tend the Sprigs",
-    "Focus Fire",
-    "Collision Course",
-    "Battle of Frost and Fire"
-   ]
-  },
-  {
    "what": "GainClassAbilitySourceEffect",
    "score": 8,
    "lines": 8,
@@ -2393,6 +2378,20 @@
     "Bubble Smuggler",
     "Crowd-Control Warden",
     "Aquamorph Entity"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Eidolon of Countless Battles",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs",
+    "Focus Fire",
+    "Collision Course",
+    "Battle of Frost and Fire"
    ]
   },
   {
@@ -2983,19 +2982,6 @@
     "Ugin's Conjurant",
     "Polukranos, Unchained",
     "Oathsworn Knight"
-   ]
-  },
-  {
-   "what": "EntersWithCountersControlledEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Thunderous Velocipede",
-    "Curator Beastie",
-    "Tayam, Luminous Enigma",
-    "Zameck Guildmage",
-    "Veiled Ascension",
-    "Combine Guildmage"
    ]
   },
   {
@@ -3760,6 +3746,18 @@
     "Pursued Whale",
     "Rasputin, the Oneiromancer",
     "Elephant Resurgence"
+   ]
+  },
+  {
+   "what": "EntersWithCountersControlledEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Thunderous Velocipede",
+    "Curator Beastie",
+    "Zameck Guildmage",
+    "Veiled Ascension",
+    "Combine Guildmage"
    ]
   },
   {
@@ -6469,8 +6467,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3359,
-   "cards": 3194,
+   "score": 3357,
+   "cards": 3192,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6482,8 +6480,8 @@
   },
   {
    "what": "custom ability",
-   "score": 510,
-   "cards": 471,
+   "score": 509,
+   "cards": 470,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6965,19 +6963,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Ainok Strike Leader",
-    "Choco, Seeker of Paradise",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility from ALL",
    "score": 11,
    "cards": 11,
@@ -7144,6 +7129,19 @@
     "Omni-Changeling",
     "Mocking Doppelganger",
     "Wall of Stolen Identity"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Ainok Strike Leader",
+    "Choco, Seeker of Paradise",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge"
    ]
   },
   {
@@ -7430,19 +7428,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "scope:alts",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Eidolon of Countless Battles",
-    "Doctor Doom",
-    "Beyond the Quiet",
-    "Born to Drive",
-    "Tend the Sprigs",
-    "Focus Fire"
    ]
   },
   {
@@ -7740,6 +7725,19 @@
     "Jeering Instigator",
     "Bubble Smuggler",
     "Crowd-Control Warden"
+   ]
+  },
+  {
+   "what": "scope:alts",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Eidolon of Countless Battles",
+    "Beyond the Quiet",
+    "Born to Drive",
+    "Tend the Sprigs",
+    "Focus Fire",
+    "Collision Course"
    ]
   },
   {
@@ -9463,17 +9461,6 @@
    ]
   },
   {
-   "what": "EntersWithCountersControlledEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Thunderous Velocipede",
-    "Curator Beastie",
-    "Tayam, Luminous Enigma",
-    "Zameck Guildmage"
-   ]
-  },
-  {
    "what": "BlocksIfAbleAllEffect",
    "score": 4,
    "cards": 4,
@@ -10105,6 +10092,16 @@
     "Weathered Sentinels",
     "Thran Portal",
     "Phabine, Boss's Confidant"
+   ]
+  },
+  {
+   "what": "search with TargetCardWithDifferentNameInLibrary",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Tiamat",
+    "Reach the Horizon",
+    "Alpine Houndmaster"
    ]
   }
  ]

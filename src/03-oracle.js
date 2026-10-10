@@ -9443,8 +9443,14 @@
     /* Grixis Grimblade, the Runemarks: "you control another multicolored
        permanent", "you control a black or green permanent" — any group the
        scope words can describe */
+    // Doctor Doom: "you control an artifact creature or a Plan" — either one (controlEither)
+    [/^you control an? ([A-Za-z]+ [A-Za-z]+) or an? ([A-Za-z]+)$/i, (m) => {
+      const a = condOf('you control a ' + m[1]), b = condOf('you control a ' + m[2]);
+      return a && b ? { kind: 'any', of: [a, b] } : null;
+    }],
     [/^you control (another|an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
-      const words = m[2].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)/g, '$1s');
+      // ("an artifact creature" is one permanent that is both: only the last of the words is the noun — controlEither)
+      const words = m[2].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)(?!\s+(?:permanent|creature|artifact|enchantment|land|planeswalker)\b)/g, '$1s');
       const sc = scopeOf((/^another$/i.test(m[1]) ? 'other ' : '') + words + ' you control');
       return sc ? { kind: 'control', scope: sc, n: 1 } : null;
     }],
@@ -10326,8 +10332,9 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' is dealt damage,? ', 'i'), event: 'anyDealtDamage', filt: (m) => subjectFilter(m[1]) },
     // Phyrexian Obliterator: "Whenever a source deals damage to this creature" — that source's controller is "that player"
     { re: /^Whenever a source deals damage to (?:this creature|~|CARDNAME),? /i, event: 'isDealtDamage', self: true },
-    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat )?damage,? /i, event: 'isDealtDamage', self: true,
-      extraOf: (m) => (/combat/i.test(m[0]) ? { combatOnly: true } : {}) },
+    // (Smaug the Impenetrable: "is dealt noncombat damage" — noncombatOnly)
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat |noncombat )?damage,? /i, event: 'isDealtDamage', self: true,
+      extraOf: (m) => (/noncombat/i.test(m[0]) ? { noncombatOnly: true } : /combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
     /* an Aura or Equipment watching the creature it is on */
     { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked),? /i,
@@ -10516,7 +10523,8 @@
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
-    { re: /^Whenever you attack a player with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
+    // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
+    { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
     // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
     { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
@@ -10723,8 +10731,9 @@
        just as much as its full name is. */
     if (tl.supertypes.includes('Legendary')) {
       const full = normalizePunct(U.frontName(name));
+      // (Jedit Ojanen of Efrava: "Jedit Ojanen" — every word before "of": shortBeforeOf)
       const short = full.includes(',') ? full.split(',')[0].trim()
-        : (/^([A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
+        : (/^((?:[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+ )*?[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
       if (short && short.length >= 3 && short !== full && !/^(?:The|A|An)$/.test(short)) {
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
         // (Óin, Fíli: a letter with an accent is still part of the word)
@@ -13848,7 +13857,8 @@
       make: (m) => ({ op: 'replace', id: 'tokMany', event: 'createToken', who: m[2] ? 'you' : 'all',
         how: /three/i.test(m[3]) ? 'triple' : 'double', tokenWhat: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* Peregrin Took, Xorn, Chatterfang: those tokens, and one more of another kind */
-    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (Treasure|Food|Clue) tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
+    // (Tippy-Toe, Terrific Partner: "If you would create one or more tokens, …" — any kind: tokensPlusAny)
+    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
         const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
         let extra = null;
@@ -13864,6 +13874,10 @@
         return { op: 'replace', id: 'tokPlus', event: 'createToken', who: 'you', how: 'plus', extra,
           tokenWhat: (m[1] || m[2] || '').trim().toLowerCase() || null };
       } },
+    // Bilbo, Fellow Conspirator: "If you would create a Food token, instead create a Food token and a Treasure token." (tokenAndAnother)
+    { re: /^If you would create an? (Treasure|Food|Clue|Blood|Map) token, instead create an? (Treasure|Food|Clue|Blood|Map) token and an? (Treasure|Food|Clue|Blood|Map) token\.?$/i,
+      make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'replace', id: 'tokPlus', event: 'createToken', who: 'you', how: 'plus',
+        extra: { named: U.titleCase(m[3]), thatMany: true, n: 1 }, tokenWhat: m[1].toLowerCase() } : null) },
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
     // (Tor Wauki the Younger: "If another source you control would deal noncombat damage …" — otherSource)
     { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
@@ -13966,6 +13980,9 @@
       make: () => ({ op: 'replace', id: 'dmgExile', event: 'zoneChange', who: 'all', what: 'creature', how: 'toZone', zone: 'exile' }) },
     { re: /^(Permanents|Creatures|Artifacts|Lands) you control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTap', event: 'enters', who: 'you', how: 'tapped', whatAny: [m[1].toLowerCase().replace(/s$/, '')] }) },
+    // Taigam, Ojutai Master: "Instant, sorcery, and Dragon spells you control can't be countered." (uncounterableList)
+    { re: /^([A-Z][a-z]+(?:, [A-Za-z]+)+,? and [A-Za-z]+) spells you control can'?t be countered\.?$/,
+      make: (m) => ({ op: 'uncounterable', who: 'you', words: m[1].toLowerCase().replace(/,? and /g, ', ').split(/, /).join(' or ') + ' spell' }) },
     /* "Creature spells you control can't be countered." */
     { re: /^((?:[A-Z][a-z]+ )?(?:creature |noncreature |instant and sorcery |green |blue |red |white |black |[a-z]+ and [a-z]+ )?spells?) you control can'?t be countered\.?$/i,
       make: (m) => ({ op: 'uncounterable', who: 'you', words: m[1].toLowerCase().replace(/ and /g, ' or ') }) },
@@ -15177,7 +15194,7 @@
       /* Metallic Mimic, Giada, Renata, Oath of Gideon: "Each other creature
          you control (of the chosen type) enters with an additional +1/+1
          counter on it (for each Angel you already control)." */
-      { re: /^(Each other|Each|Other) ((?:nontoken |non-[A-Z][a-z]+ )?(?:[A-Z][a-z]+ )?(?:creature|planeswalker|Vehicle|[A-Z][a-z]+)s?) you control( of the chosen type)? enters? with an additional (\+1\/\+1|loyalty) counter on (?:it|them)(?: for each ([A-Za-z]+) you already control| for each ([a-z ]+ this turn))?\.?$/,
+      { re: /^(Each other|Each|Other) ((?:nontoken |non-[A-Z][a-z]+ )?(?:[A-Z][a-z]+ )?(?:creature|planeswalker|Vehicle|[A-Z][a-z]+)s?) you control( of the chosen type)? enters? with an additional (\+1\/\+1|loyalty|vigilance|flying|first strike|deathtouch|lifelink|menace|reach|trample|hexproof|indestructible|haste) counter on (?:it|them)(?: for each ([A-Za-z]+) you already control| for each ([a-z ]+ this turn))?\.?$/,
         make: (m) => {
           let what = m[2].replace(/s$/, '').trim();
           const nontoken = /^nontoken /.test(what);

@@ -22281,4 +22281,84 @@ module.exports = (test) => {
     H.toMain('A', 'combatDamage');
     t.eq(H.life('B'), 19, "Tormentor's Helm: blocked, 1 damage to the defending player");
   });
+
+  test("Commanders: Jedit Ojanen, Jolene, Bilbo, Fellow Conspirator, Tippy-Toe, Taigam, Ojutai Master, Tayam, Smaug the Impenetrable, Doctor Doom; Drill-Skimmer", (mk, t) => {
+    for (const n of ['Jedit Ojanen of Efrava', 'Jolene, Plundering Pugilist', 'Bilbo, Fellow Conspirator', 'Tippy-Toe, Terrific Partner', 'Taigam, Ojutai Master',
+      'Tayam, Luminous Enigma', 'Smaug the Impenetrable', 'Doctor Doom']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    const tokens = (T, re) => T.bfOf('A').filter(o => o.isToken && re.test(o.name)).length;
+    // Jedit Ojanen: "Whenever Jedit Ojanen attacks or blocks" — its own short name
+    const J = mk({ library: Array(10).fill('Forest') });
+    J.toMain('A');
+    attack(J, [J.bf('A', 'Jedit Ojanen of Efrava')]);
+    t.eq(tokens(J, /Cat Warrior/), 1, 'Jedit Ojanen: a Cat Warrior as it attacks');
+    // Jolene: a Treasure when you attack with a creature with power 4 or greater, not with a smaller one
+    const L = mk({ library: Array(10).fill('Mountain') });
+    L.toMain('A');
+    L.bf('A', 'Jolene, Plundering Pugilist');
+    attack(L, [L.bf('A', 'Grizzly Bears')]);
+    t.eq(tokens(L, /Treasure/), 0, 'Jolene: a 2/2 attacking, no Treasure');
+    const L2 = mk({ library: Array(10).fill('Mountain') });
+    L2.toMain('A');
+    L2.bf('A', 'Jolene, Plundering Pugilist');
+    attack(L2, [L2.bf('A', 'Craw Wurm')]);
+    t.eq(tokens(L2, /Treasure/), 1, 'Jolene: a 6/4 attacking, a Treasure');
+    // Bilbo: a Food comes with a Treasure
+    const B = mk({ library: Array(10).fill('Forest') });
+    B.toMain('A');
+    B.bf('A', 'Bilbo, Fellow Conspirator');
+    B.put('A', 'Gilded Goose', 'battlefield', { etb: true }); B.resolve();
+    t.ok(tokens(B, /Food/) === 1 && tokens(B, /Treasure/) === 1, 'Bilbo: a Food and a Treasure');
+    // Tippy-Toe: tokens come with a Food
+    const P = mk({ library: Array(10).fill('Plains') });
+    P.toMain('A');
+    P.bf('A', 'Tippy-Toe, Terrific Partner');
+    P.mana('A', '1W');
+    P.cast('A', P.hand('A', 'Raise the Alarm')); P.resolve();
+    t.ok(tokens(P, /Soldier/) === 2 && tokens(P, /Food/) === 1, 'Tippy-Toe: two Soldiers and a Food');
+    // Taigam, Ojutai Master: your instants can't be countered
+    const G = mk({ library: Array(10).fill('Island') });
+    G.toMain('A');
+    G.bf('A', 'Taigam, Ojutai Master');
+    const bolt = G.hand('A', 'Lightning Bolt');
+    G.mana('A', 'R');
+    G.cast('A', bolt, { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    G.g.priorityIndex = G.g.turnOrder.indexOf('B');
+    G.mana('B', 'UU');
+    G.cast('B', G.hand('B', 'Counterspell'), { targets: [G.stackTarget(bolt)] });
+    G.resolve();
+    t.eq(G.life('B'), 17, 'Taigam: the Bolt could not be countered');
+    // Tayam: other creatures enter with a vigilance counter
+    const Y = mk({ library: Array(10).fill('Plains') });
+    Y.toMain('A');
+    Y.bf('A', 'Tayam, Luminous Enigma');
+    const yb = Y.put('A', 'Grizzly Bears', 'battlefield', { etb: true }); Y.resolve();
+    t.ok(Number(yb.counters.vigilance) === 1 && Y.g.hasKw(yb, 'vigilance'), 'Tayam: a vigilance counter, and vigilance');
+    // Smaug the Impenetrable: Treasures for noncombat damage only
+    const S = mk({ library: Array(10).fill('Mountain') });
+    S.toMain('A');
+    const sm = S.bf('A', 'Smaug the Impenetrable');
+    S.g.dealDamageToObject(sm, 2, sm, false); S.resolve();
+    t.eq(tokens(S, /Treasure/), 2, 'Smaug: 2 noncombat damage, two Treasures');
+    S.g.dealDamageToObject(sm, 1, sm, true); S.resolve();
+    t.eq(tokens(S, /Treasure/), 2, 'Smaug: combat damage, none');
+    // Doctor Doom: indestructible with an artifact creature (or a Plan)
+    const D = mk({ library: Array(10).fill('Swamp') });
+    const dd = D.bf('A', 'Doctor Doom');
+    D.bf('A', 'Sol Ring'); D.g.bumpBoard();
+    t.ok(!D.g.hasKw(dd, 'indestructible'), 'Doctor Doom: an artifact that is not a creature is not enough');
+    D.bf('A', 'Ornithopter'); D.g.bumpBoard();
+    t.ok(D.g.hasKw(dd, 'indestructible'), 'Doctor Doom: an artifact creature, indestructible');
+    // Drill-Skimmer: "as long as you control another artifact creature" — not just another artifact
+    const K = mk({ library: Array(10).fill('Swamp') });
+    const sk = K.bf('A', 'Drill-Skimmer');
+    K.bf('A', 'Sol Ring'); K.g.bumpBoard();
+    t.ok(!K.g.hasKw(sk, 'shroud'), 'Drill-Skimmer: Sol Ring is not an artifact creature');
+    K.bf('A', 'Ornithopter'); K.g.bumpBoard();
+    t.ok(K.g.hasKw(sk, 'shroud'), 'Drill-Skimmer: another artifact creature, shroud');
+  });
 };
