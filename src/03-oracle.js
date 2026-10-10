@@ -3664,6 +3664,11 @@
         if (!tk || tk.op !== 'createToken' || tk.count || tk.n !== 1) return null;
         return Object.assign(tk, { count: { milledMatching: m[1].toLowerCase(), mult: 1 } });
       } },
+    // Jolene: "that attacking player creates a Treasure token" — the player the trigger is about
+    { re: /^That attacking player creates (a|an|one|two|three) (Treasure|Clue|Food|Blood|Map) tokens?\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'triggerPlayer' }) },
+    // Mathemagics: "Target player draws 2ˣ cards." — two to the power of X
+    { re: /^Target player draws 2ˣ cards\.?$/i, make: () => ({ op: 'draw', n: { twoToX: true }, who: 'target', targets: [{ type: 'player' }] }) },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -9887,6 +9892,8 @@
       event: 'blocks', self: true, also: 'becomesBlocked' },
 
     /* --- what the other side of the table is doing --- */
+    // Xyris, the Writhing Storm (and Orcish Bowmasters' words): "except the first one they draw in each of their draw steps"
+    { re: /^When(?:ever)? an opponent draws a card except the first one they draw in each of their draw steps,? /i, event: 'opponentDraw', extra: { skipFirstDrawStep: true } },
     { re: /^When(?:ever)? an opponent draws a card(?:,| )/i, event: 'opponentDraw' },
     { re: /^When(?:ever)? a(?:nother)? creature an opponent controls dies(?:,| )/i, event: 'opponentCreatureDies' },
     { re: /^When(?:ever)? a(?:nother)? creature you control enters(?: the battlefield)?(?:,| )/i, event: 'yourCreatureEtb' },
@@ -10114,6 +10121,8 @@
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    // Jolene, the Plunder Queen: "Whenever a player attacks one or more of your opponents" — anyone, at someone you're against
+    { re: /^Whenever a player attacks one or more of your opponents,? /i, event: 'anyPlayerAttacks', extra: { attacksYourOpponents: true } },
     /* Norn's Decree, Suppressor Skyguard, Trouble in Pairs: "Whenever a player
        attacks", "Whenever a player attacks you", "Whenever an opponent attacks
        you with two or more creatures" */

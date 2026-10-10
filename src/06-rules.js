@@ -11665,6 +11665,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
+          if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
           // Hermes: "with one or more Birds"
@@ -12445,6 +12447,8 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Mathemagics: 2 to the power of X (a library runs out long before 2^30)
+        if (v && typeof v === 'object' && v.twoToX) return 2 ** Math.max(0, Math.min(30, Number(ctx.x) || (src && src.chosenX) || 0));
         // Dread Summons, Tribune of Rot: "for each creature card milled (put into a graveyard) this way"
         if (v && typeof v === 'object' && v.milledMatching) return (this._lastMilled || []).filter(id => { const o = this.obj(id); return !!o && this._cardFitsWords(o, v.milledMatching); }).length * (v.mult || 1);
         // Balor: "the number of cards in their hand"

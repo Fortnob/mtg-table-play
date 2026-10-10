@@ -19627,4 +19627,46 @@ module.exports = (test) => {
     t.eq(T.g.player('A').life, 20, 'no damage');
     t.eq(lib - T.zone('A', 'library').length, 6, 'six cards milled');
   });
+
+  test("Xyris, the Writhing Storm: a Snake for an opponent's draws, not the first in their draw step", (mk, t) => {
+    t.auto('Xyris, the Writhing Storm');
+    const T = mk();
+    T.bf('A', 'Xyris, the Writhing Storm');
+    for (let i = 0; i < 4; i++) T.top('B', 'Island');
+    const snakes = () => T.g.battlefield.filter(o => o.isToken && /Snake/.test(o.name)).length;
+    T.toMain('B');
+    T.resolve();
+    t.eq(snakes(), 0, 'the draw-step draw makes none');
+    T.g.drawCards('B', 2);
+    T.resolve();
+    t.eq(snakes(), 2, 'two more draws: two Snakes');
+  });
+
+  test('Jolene, the Plunder Queen: a player attacking one of your opponents gets a Treasure; attacking you does not', (mk, t) => {
+    t.auto('Jolene, the Plunder Queen');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Jolene, the Plunder Queen');
+    const treasures = (pid) => T.g.battlefield.filter(o => o.controller === pid && /Treasure/.test(o.name)).length;
+    T.toMain('B');
+    const bb = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'C' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(treasures('B'), 1, 'B attacked C, an opponent of yours: a Treasure for B');
+    T.toMain('C');
+    const cb = T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: cb.id, defenderId: 'A' }]);
+    T.toMain('C', 'endCombat');
+    t.eq(treasures('C'), 0, 'C attacked you: nothing');
+  });
+
+  test('Mathemagics: target player draws two to the X cards', (mk, t) => {
+    t.auto('Mathemagics');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 10; i++) T.top('B', 'Island');
+    T.mana('A', 'UU6');
+    T.cast('A', T.hand('A', 'Mathemagics'), { x: 3, targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, 8, 'X = 3: eight cards');
+  });
 };
