@@ -69,25 +69,148 @@
     ].join(', ');
   })();
 
+  /* The woven sleeves, each a picture in layers of gradient (the first on
+     top): a pattern, light and shade across it, and something at its
+     heart. Sizes are shares of the card, so they hold from a library pile
+     to the Store. */
+  // a diamond (or, drawn twice, its outline) at the middle: four triangles,
+  // each in a quarter-box; w and h are its width and height as shares
+  const diamond = (col, w, h) => {
+    const qw = w / 2, qh = h / 2, at = (lo, box) => (lo / (100 - box) * 100).toFixed(3) + '%';
+    const x0 = at(50 - qw, qw), x1 = at(50, qw), y0 = at(50 - qh, qh), y1 = at(50, qh), sz = `${qw}% ${qh}%`;
+    return [
+      `linear-gradient(to top left, ${col} 50%, transparent 50%) ${x0} ${y0} / ${sz} no-repeat`,
+      `linear-gradient(to top right, ${col} 50%, transparent 50%) ${x1} ${y0} / ${sz} no-repeat`,
+      `linear-gradient(to bottom left, ${col} 50%, transparent 50%) ${x0} ${y1} / ${sz} no-repeat`,
+      `linear-gradient(to bottom right, ${col} 50%, transparent 50%) ${x1} ${y1} / ${sz} no-repeat`,
+    ];
+  };
+  // a ruled border inside the edge: lines at `inset` (a share of the shorter side)
+  const border = (col, inset, px) => {
+    const iy = (inset * 63 / 88).toFixed(2);
+    return [
+      `linear-gradient(${col}, ${col}) 50% ${iy}% / ${100 - inset * 2}% ${px}px no-repeat`,
+      `linear-gradient(${col}, ${col}) 50% ${100 - iy}% / ${100 - inset * 2}% ${px}px no-repeat`,
+      `linear-gradient(${col}, ${col}) ${inset}% 50% / ${px}px ${100 - iy * 2}% no-repeat`,
+      `linear-gradient(${col}, ${col}) ${100 - inset}% 50% / ${px}px ${100 - iy * 2}% no-repeat`,
+    ];
+  };
+  // a medallion: rings about the middle, `rings` as [colour, from, to] in % of the card's half-diagonal
+  const medallion = (rings) => `radial-gradient(circle at 50% 50%, ${rings.map(([c, a, b]) => `transparent ${a - .4}%, ${c} ${a}% ${b}%, transparent ${b + .4}%`).join(', ')})`;
+
+  const SLEEVE_CSS = {
+    // black lacquer under a fine gold lattice, a ruled double border, a gold diamond at its heart
+    obsidian: [
+      'radial-gradient(ellipse 85% 40% at 50% -6%, rgba(255,232,170,.16), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.75))',
+      ...diamond('#f3dd96', 5, 3.6),
+      ...diamond('rgba(8,7,6,.96)', 14, 10),
+      ...diamond('#e2c063', 20, 14.3),
+      ...diamond('rgba(8,7,6,.95)', 26, 18.6),
+      ...diamond('rgba(201,162,74,.6)', 29, 20.8),
+      ...border('rgba(214,178,92,.75)', 6, 1), ...border('rgba(214,178,92,.4)', 8, 1),
+      'radial-gradient(circle at 50% 50%, rgba(201,162,74,.28) 0 9%, transparent 10%) 0 0 / 11% 8%',
+      'repeating-linear-gradient(45deg, rgba(201,162,74,.13) 0 1px, transparent 1px 8px)',
+      'repeating-linear-gradient(-45deg, rgba(201,162,74,.13) 0 1px, transparent 1px 8px)',
+      'linear-gradient(160deg, #1d1a15, #0b0a08 55%, #030303)',
+    ].join(', '),
+    // a forge: coals glowing at the foot, sparks rising, a ring of fire at the heart
+    crimson: [
+      'radial-gradient(circle at 22% 30%, rgba(255,214,140,.95) 0 .6%, transparent 1%)',
+      'radial-gradient(circle at 74% 22%, rgba(255,190,110,.9) 0 .5%, transparent .9%)',
+      'radial-gradient(circle at 63% 64%, rgba(255,226,160,.9) 0 .55%, transparent .95%)',
+      'radial-gradient(circle at 31% 72%, rgba(255,170,90,.85) 0 .5%, transparent .9%)',
+      'radial-gradient(circle at 84% 48%, rgba(255,200,120,.8) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 12% 54%, rgba(255,180,100,.8) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 46% 14%, rgba(255,220,150,.75) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 38% 40%, rgba(255,200,120,.75) 0 .35%, transparent .7%)',
+      'radial-gradient(circle at 57% 33%, rgba(255,170,90,.7) 0 .3%, transparent .65%)',
+      'radial-gradient(circle at 18% 86%, rgba(255,210,130,.8) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 90% 82%, rgba(255,180,100,.75) 0 .35%, transparent .7%)',
+      'radial-gradient(circle at 66% 88%, rgba(255,226,160,.85) 0 .45%, transparent .85%)',
+      'radial-gradient(circle at 42% 92%, rgba(255,190,110,.8) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 8% 26%, rgba(255,170,90,.6) 0 .3%, transparent .65%)',
+      'radial-gradient(circle at 93% 32%, rgba(255,190,110,.6) 0 .3%, transparent .65%)',
+      medallion([['rgba(255,196,110,.9)', 15.2, 16], ['rgba(140,20,10,.85)', 16, 20.4], ['rgba(255,140,60,.75)', 20.4, 21.2]]),
+      'radial-gradient(circle at 50% 50%, rgba(255,120,40,.35), transparent 15%)',
+      'radial-gradient(ellipse 120% 45% at 50% 112%, rgba(255,150,50,.75), rgba(200,50,15,.45) 45%, transparent 75%)',
+      'radial-gradient(ellipse at 50% 45%, transparent 50%, rgba(10,0,0,.7))',
+      'repeating-linear-gradient(90deg, rgba(255,120,60,.05) 0 2px, transparent 2px 9px)',
+      'linear-gradient(180deg, #2a0606, #5a0d0d 55%, #7a1a0c)',
+    ].join(', '),
+    // green strands woven over and under, lit from the top left, a leafy ring at the heart
+    verdant: [
+      'radial-gradient(ellipse 90% 55% at 20% 0%, rgba(210,255,170,.22), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,14,4,.7))',
+      medallion([['rgba(220,255,190,.85)', 15, 15.8], ['rgba(28,72,30,.9)', 15.8, 20.6], ['rgba(150,215,110,.8)', 20.6, 21.4]]),
+      'radial-gradient(circle at 50% 50%, rgba(170,230,120,.25), transparent 15%)',
+      // the weave: strands both ways, and which lies over which, cell by cell
+      'conic-gradient(from 90deg at 50% 50%, rgba(0,20,4,.38) 0 25%, rgba(200,255,160,.1) 0 50%, rgba(0,20,4,.38) 0 75%, rgba(200,255,160,.1) 0) 0 0 / 16% 11.45%',
+      'repeating-linear-gradient(0deg, rgba(0,30,8,.5) 0 1px, transparent 1px 2.86%)',
+      'repeating-linear-gradient(90deg, rgba(0,30,8,.5) 0 1px, transparent 1px 4%)',
+      'linear-gradient(90deg, transparent 0 6%, rgba(130,195,95,.32) 6% 44%, transparent 44% 56%, rgba(130,195,95,.32) 56% 94%, transparent 94%) 0 0 / 16% 11.45%',
+      'linear-gradient(0deg, transparent 0 6%, rgba(110,175,80,.3) 6% 44%, transparent 44% 56%, rgba(110,175,80,.3) 56% 94%, transparent 94%) 0 0 / 16% 11.45%',
+      'linear-gradient(160deg, #24572a, #12351a 55%, #081d0d)',
+    ].join(', '),
+    // ivory under golden rays, a sun at the heart, a ruled gold border
+    ivory: [
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120,92,40,.45))',
+      ...border('rgba(184,140,58,.85)', 6, 1), ...border('rgba(184,140,58,.45)', 8, 1),
+      medallion([['#fffaf0', 0, 7], ['rgba(232,190,90,.95)', 7, 8.4], ['#fff6dc', 8.4, 10], ['rgba(184,140,58,.9)', 10, 10.8]]),
+      'radial-gradient(circle at 50% 50%, rgba(255,226,140,.7), transparent 30%)',
+      'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.34) 0 4deg, transparent 4deg 9deg, rgba(201,162,74,.16) 9deg 10.5deg, transparent 10.5deg 15deg)',
+      'radial-gradient(circle at 50% 50%, #fffbef, #ece0c2 60%, #cbb88e)',
+    ].join(', '),
+    // violet silk drawn across, faceted light, a gem at the heart, a few glints
+    amethyst: [
+      'radial-gradient(circle at 26% 24%, rgba(255,255,255,.9) 0 .4%, transparent .8%)',
+      'radial-gradient(circle at 72% 70%, rgba(240,220,255,.85) 0 .35%, transparent .75%)',
+      'radial-gradient(circle at 78% 18%, rgba(240,220,255,.7) 0 .3%, transparent .7%)',
+      medallion([['rgba(230,205,255,.85)', 13.6, 14.4], ['rgba(40,14,80,.9)', 14.4, 18.8], ['rgba(199,155,255,.8)', 18.8, 19.6]]),
+      'conic-gradient(from 0deg at 50% 50%, rgba(220,190,255,.0), rgba(220,190,255,.35) 12.5%, rgba(120,70,210,.0) 25%, rgba(220,190,255,.35) 37.5%, rgba(120,70,210,0) 50%, rgba(220,190,255,.35) 62.5%, rgba(120,70,210,0) 75%, rgba(220,190,255,.35) 87.5%, rgba(220,190,255,0)) 50% 50% / 26% 18.6% no-repeat',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(8,2,20,.7))',
+      'repeating-linear-gradient(120deg, rgba(220,190,255,.05) 0 2px, transparent 2px 22px)',
+      'radial-gradient(ellipse 70% 30% at 30% 25%, rgba(220,180,255,.35), transparent 70%)',
+      'radial-gradient(ellipse 80% 35% at 72% 78%, rgba(140,90,230,.45), transparent 70%)',
+      'linear-gradient(160deg, #331a60, #1a0b36 55%, #0b0418)',
+    ].join(', '),
+    // beaten gold, a raised lattice with a rivet at each crossing, a dark cameo at the heart
+    gilded: [
+      'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,250,220,.5), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(80,50,8,.55))',
+      medallion([['rgba(60,38,6,.95)', 0, 12], ['#fff1bf', 12, 12.8], ['#9a6d1c', 12.8, 14], ['#f5d27a', 14, 15]]),
+      'radial-gradient(circle at 50% 50%, #fff5cc 0 7%, #a87a24 8% 12%, transparent 14%) 0 0 / 12.5% 8.95%',
+      'repeating-linear-gradient(0deg, rgba(255,245,200,.35) 0 1px, rgba(70,44,8,.45) 1px 2px, transparent 2px 8.95%)',
+      'repeating-linear-gradient(90deg, rgba(255,245,200,.35) 0 1px, rgba(70,44,8,.45) 1px 2px, transparent 2px 12.5%)',
+      'linear-gradient(135deg, #f7d985, #b8862b 45%, #f0c860 70%, #a87a24)',
+    ].join(', '),
+    // the dark between the stars: a ring of light about nothing at all, a haze at the edges
+    void: [
+      'radial-gradient(circle at 18% 22%, rgba(255,255,255,.8) 0 .25%, transparent .6%)',
+      'radial-gradient(circle at 81% 71%, rgba(207,216,255,.7) 0 .25%, transparent .6%)',
+      'radial-gradient(circle at 70% 14%, rgba(255,255,255,.5) 0 .2%, transparent .5%)',
+      'radial-gradient(circle at 27% 83%, rgba(207,216,255,.5) 0 .2%, transparent .5%)',
+      'radial-gradient(circle at 50% 50%, #000 0 11.5%, rgba(255,236,200,.95) 12.2%, rgba(170,190,255,.55) 13.2%, rgba(110,120,220,.2) 16%, transparent 22%)',
+      'radial-gradient(ellipse 60% 6% at 50% 50%, rgba(255,226,180,.55), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(60,70,140,.22) 70%, rgba(2,3,10,.85))',
+      'radial-gradient(ellipse 90% 60% at 0% 100%, rgba(90,60,160,.25), transparent 70%)',
+      'radial-gradient(ellipse 80% 50% at 100% 0%, rgba(40,80,160,.22), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, #10142a, #03040a 75%)',
+    ].join(', '),
+  };
+
   /* Sleeves: what goes over the back of your cards. Woven patterns and
      card art at one price, and a sleeve of your own picture at four times
      that. A sleeve is drawn from what is here (src/10d-ui-store.js). */
   const SLEEVES = [
-    { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a',
-      css: 'radial-gradient(circle at 50% 50%, rgba(201,162,74,.22) 0 9%, transparent 10%) 0 0 / 22% 16%, repeating-linear-gradient(45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(201,162,74,.12) 0 1px, transparent 1px 9px), linear-gradient(160deg, #1b1916, #050505)' },
+    { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a', css: SLEEVE_CSS.obsidian },
     { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: AZURE },
-    { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a',
-      css: 'radial-gradient(ellipse at 50% 110%, rgba(255,140,60,.5), transparent 55%), repeating-linear-gradient(90deg, rgba(255,255,255,.04) 0 2px, transparent 2px 7px), linear-gradient(180deg, #5a0d0d, #1c0404)' },
-    { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a',
-      css: 'repeating-linear-gradient(60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), repeating-linear-gradient(-60deg, rgba(160,220,120,.12) 0 2px, transparent 2px 10px), linear-gradient(160deg, #1f4d22, #0a1f0c)' },
-    { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a',
-      css: 'repeating-conic-gradient(from 0deg at 50% 50%, rgba(201,162,74,.22) 0 6deg, transparent 6deg 18deg), radial-gradient(circle at 50% 50%, #fff8e6, #d9cbaa 70%, #9c8a63)' },
-    { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff',
-      css: 'radial-gradient(circle at 30% 20%, rgba(220,180,255,.35), transparent 40%), radial-gradient(circle at 75% 80%, rgba(140,90,230,.4), transparent 45%), linear-gradient(160deg, #2a1450, #0d0620)' },
-    { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a',
-      css: 'repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), repeating-linear-gradient(90deg, rgba(0,0,0,.25) 0 1px, transparent 1px 12px), linear-gradient(135deg, #f5d27a, #b8862b 50%, #f0c860)' },
-    { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8',
-      css: 'radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 80%, #cfd8ff, transparent), radial-gradient(1px 1px at 85% 15%, #fff, transparent), radial-gradient(ellipse at 50% 50%, #1a1f3a, #03040a 75%)' },
+    { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a', css: SLEEVE_CSS.crimson },
+    { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a', css: SLEEVE_CSS.verdant },
+    { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a', css: SLEEVE_CSS.ivory },
+    { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff', css: SLEEVE_CSS.amethyst },
+    { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a', css: SLEEVE_CSS.gilded },
+    { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8', css: SLEEVE_CSS.void },
     // the art of the game's best-known faces and moments
     { id: 'art-bolas', name: 'Nicol Bolas', kind: 'art', card: 'Nicol Bolas, Dragon-God', rim: '#e05a3a' },
     { id: 'art-ugin', name: 'Ugin', kind: 'art', card: 'Ugin, the Spirit Dragon', rim: '#9fd8e6' },
