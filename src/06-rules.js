@@ -11057,7 +11057,11 @@
           });
         });
       }
-      if (from === 'graveyard' && toZone !== 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
+      if (from === 'graveyard' && toZone !== 'graveyard') {
+        // the moment it left, for a card that left beside it (null: not in the middle of an effect)
+        o._leftGraveEpoch = this._moveEpoch != null ? this._moveEpoch : null;
+        this._fire('leftGraveyard', null, { object: o, objController: o.owner });
+      }
       if (o._shuffleIn) {
         o._shuffleIn = false;
         this.rng.shuffle(this.zones[o.owner].library);
@@ -11387,6 +11391,10 @@
           /* a card leaving a graveyard is seen from before it left (CR 603.10a):
              the card itself, come back from there, was not around to see it */
           if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;
+          /* nor was a card that left the graveyard at the same moment as it
+             (a Tormod brought back with the rest): it was in the graveyard
+             too, not on the battlefield watching it */
+          if (event === 'leftGraveyard' && this._moveEpoch != null && o._leftGraveEpoch === this._moveEpoch) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
@@ -11705,6 +11713,13 @@
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
         // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
         this._curAs = e._as || null;
+        /* One effect is one moment: everything it moves, it moves together
+           (Rise of the Dark Realms puts every creature card onto the
+           battlefield at once), which a trigger looking back needs to know
+           (_moveEpoch, CR 603.10a). An effect run inside another is part of
+           the same moment. */
+        const outerMoment = this._moveEpoch == null;
+        if (outerMoment) this._moveEpoch = (this._epochSeq = (this._epochSeq || 0) + 1);
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
@@ -11712,7 +11727,7 @@
           r.index++;
           continue;
         }
-        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; }
+        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
