@@ -3701,4 +3701,32 @@ module.exports = (test) => {
     t.ok(shown.includes('Lightning Bolt') && shown.includes('Shock') && !shown.includes('Forest'), 'hand and graveyard, nonland');
     t.ok(T.g.zones.B.exile.some(c => c.name === 'Shock'), 'a graveyard card can be the one');
   });
+
+  test('Audit: Thirst for Discovery: one basic land, or two cards; Felothar draws toughness and discards power', (mk, t) => {
+    let T = mk();
+    t.auto('Thirst for Discovery'); t.auto('Felothar the Steadfast');
+    T.toMain('A');
+    while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+    for (let i = 0; i < 3; i++) T.top('A', 'Opt');
+    T.hand('A', 'Island'); T.hand('A', 'Shock');
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Island').id] }));
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Thirst for Discovery')); T.settle(); T.resolve();
+    t.eq(T.g.zones.A.graveyard.filter(c => c.name !== 'Thirst for Discovery').length, 1, 'a basic land: one card');
+    T = mk();
+    T.toMain('A');
+    while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+    for (let i = 0; i < 3; i++) T.top('A', 'Opt');
+    T.hand('A', 'Island'); T.hand('A', 'Shock');
+    T.answer('pickCard', () => ({ cardIds: [] }));
+    T.mana('A', '2U'); T.cast('A', T.hand('A', 'Thirst for Discovery')); T.settle(); T.resolve();
+    t.eq(T.g.zones.A.graveyard.filter(c => c.name !== 'Thirst for Discovery').length, 2, 'no basic land chosen: two cards');
+    T = mk();
+    T.toMain('A');
+    const f = T.bf('A', 'Felothar the Steadfast'); f.summoningSick = false;
+    const wall = T.bf('A', 'Wall of Stone');
+    for (let i = 0; i < 8; i++) T.top('A', 'Opt');
+    const h = T.g.zones.A.hand.length;
+    T.mana('A', '3'); T.activate('A', f, 0, { sacrificeIds: [wall.id] }); T.settle(); T.resolve();
+    t.eq(T.g.zones.A.hand.length, h + 8, 'Wall of Stone 0/8: eight drawn, none discarded');
+  });
 };
