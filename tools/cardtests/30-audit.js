@@ -3682,4 +3682,23 @@ module.exports = (test) => {
     T.mana('A', '4U'); T.cast('A', T.hand('A', 'Sage of Days')); T.settle(); T.resolve();
     t.eq(T.g.zones.A.graveyard.length, 3, 'none kept: all three to the graveyard');
   });
+
+  test('Audit: Goblin Ringleader takes all Goblins revealed; Never Happened offers hand and graveyard nonland cards', (mk, t) => {
+    let T = mk();
+    t.auto('Goblin Ringleader'); t.auto('Never Happened');
+    T.toMain('A');
+    T.top('A', 'Island'); const g1 = T.top('A', 'Goblin Guide'), g2 = T.top('A', 'Raging Goblin'); const opt = T.top('A', 'Opt');
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Goblin Ringleader')); T.settle(); T.resolve();
+    t.zone(g1, 'hand'); t.zone(g2, 'hand'); t.zone(opt, 'library');
+    t.ok(T.g.zones.A.library.slice(-2).includes(opt), 'the rest on the bottom');
+    T = mk();
+    T.toMain('A');
+    for (const n of ['Opt', 'Shock', 'Forest']) T.grave('B', n);
+    T.hand('B', 'Lightning Bolt');
+    let shown = null;
+    T.answer('pickCard', (ch) => { shown = ch.cards.map(c => c.name); return { cardIds: [ch.cards.find(c => c.name === 'Shock').id] }; });
+    T.mana('A', '2B'); T.cast('A', T.hand('A', 'Never Happened'), { targets: ['B'] }); T.settle(); T.resolve();
+    t.ok(shown.includes('Lightning Bolt') && shown.includes('Shock') && !shown.includes('Forest'), 'hand and graveyard, nonland');
+    t.ok(T.g.zones.B.exile.some(c => c.name === 'Shock'), 'a graveyard card can be the one');
+  });
 };
