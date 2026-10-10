@@ -4276,4 +4276,18 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A'); T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
     t.eq(foods(), 1, 'already had one: no more');
   });
+
+  test("Audit: Well of Ideas: its controller's own draw step brings two more, not three", (mk, t) => {
+    t.auto('Well of Ideas');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Well of Ideas');
+    for (const p of ['A', 'B', 'C']) for (let i = 0; i < 8; i++) T.top(p, 'Island');
+    const hc = T.zone('C', 'hand').length;
+    T.nextTurn('B'); T.nextTurn('C'); T.toMain('C');
+    t.eq(T.zone('C', 'hand').length, hc + 2, 'C, another player: the draw and one more');
+    const ha = T.zone('A', 'hand').length;
+    T.nextTurn('A'); T.toMain('A');
+    t.eq(T.zone('A', 'hand').length, ha + 3, 'A: the draw and two more');
+  });
 };
