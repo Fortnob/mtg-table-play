@@ -4779,4 +4779,22 @@ module.exports = (test) => {
       else { t.zone(dv, 'graveyard', 'no mana: not cast'); t.eq(T.zone('A', 'hand').length, h); }
     }
   });
+
+  test("Audit: eminence belongs to its owner: B's Edgar Markov in the command zone does nothing for A's Vampire spell; Sidar Jabari loots from the command zone", (mk, t) => {
+    t.auto('Edgar Markov'); t.auto('Sidar Jabari of Zhalfir');
+    let T = mk();
+    T.toMain('A');
+    const ed = T.put('B', 'Edgar Markov', 'command'); ed.isCommander = true;
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Vampire Nighthawk')); T.resolve();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Vampire/.test(o.name)).length, 0, "not B's Edgar for A's spell");
+    T = mk();
+    T.toMain('A');
+    const sj = T.put('A', 'Sidar Jabari of Zhalfir', 'command'); sj.isCommander = true;
+    const k = T.bf('A', 'White Knight'); k.summoningSick = false;
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle();
+    t.eq(T.zone('A', 'graveyard').length, 1, 'a Knight attacked: draw, then discard');
+  });
 };
