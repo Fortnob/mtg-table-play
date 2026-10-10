@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11183,
+  "needed": 11179,
   "gainedCards": 1129,
-  "linesNeeded": 11961,
+  "linesNeeded": 11957,
   "linesGained": 1331,
   "gained": {
    "all": 1129,
@@ -3653,19 +3653,6 @@
    ]
   },
   {
-   "what": "static ability in HAND",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Wilt-Leaf Liege",
-    "Serum Powder",
-    "Obstinate Baloth",
-    "Loxodon Smiter",
-    "Nullhide Ferox",
-    "Dodecapod"
-   ]
-  },
-  {
    "what": "LockedInCondition",
    "score": 6,
    "lines": 6,
@@ -6636,6 +6623,16 @@
     "Ransom Note",
     "Pyramids"
    ]
+  },
+  {
+   "what": "CantCastDuringFirstThreeTurnsEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Jace Reawakened",
+    "Spider-Man 2099",
+    "Serra Avenger"
+   ]
   }
  ],
  "sole": [
@@ -8805,19 +8802,6 @@
    ]
   },
   {
-   "what": "static ability in HAND",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Wilt-Leaf Liege",
-    "Serum Powder",
-    "Obstinate Baloth",
-    "Loxodon Smiter",
-    "Nullhide Ferox",
-    "Dodecapod"
-   ]
-  },
-  {
    "what": "LockedInCondition",
    "score": 6,
    "cards": 6,
@@ -10327,6 +10311,17 @@
     "Broodspinner",
     "Peer Past the Veil",
     "Lucid Dreams"
+   ]
+  },
+  {
+   "what": "PermanentsTargetOpponentControlsCount",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Sting, Bilbo's Sword",
+    "Bloodvial Purveyor",
+    "Killmonger, Ruthless Usurper",
+    "Renewing Dawn"
    ]
   }
  ]

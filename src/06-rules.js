@@ -4242,6 +4242,14 @@
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      /* Obstinate Baloth: "If a spell or ability an opponent controls causes
+         you to discard this card, put it onto the battlefield instead" — the
+         cause is whatever is resolving (discardToBattlefield) */
+      const cause = this.resolving && this.resolving.ctx && this.resolving.ctx.controller;
+      if (o.zone === 'graveyard' && cause != null && cause !== playerId && this._staticOp(o, 'discardToBattlefield')) {
+        this.moveObject(o, 'battlefield', { controller: o.owner });
+        this.logEvent('rules', `${o.name} is put onto the battlefield instead of into the graveyard.`);
+      }
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });

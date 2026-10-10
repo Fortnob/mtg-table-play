@@ -13205,6 +13205,9 @@
       { re: /^(?:This creature|CARDNAME) can'?t attack a player it has already attacked this turn\.?$/i, eff: { op: 'noRepeatAttack' }, auto: true },
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
+      // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)
+      { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield instead of putting it into your graveyard\.?$/i,
+        eff: { op: 'discardToBattlefield' }, auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)

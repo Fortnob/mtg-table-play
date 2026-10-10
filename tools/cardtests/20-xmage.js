@@ -17584,4 +17584,28 @@ module.exports = (test) => {
     U.toMain('A', 'end'); U.settle(); U.resolve(); U.settle();
     t.zone(ps, 'graveyard', 'the Salamander goes at the end step');
   });
+
+  test('Obstinate Baloth: discarded by an opponent\'s spell, it enters instead; by your own, it stays in the graveyard', (mk, t) => {
+    t.auto('Obstinate Baloth');
+    t.auto('Wilt-Leaf Liege');
+    const T = mk();
+    T.toMain('A');
+    const bal = T.hand('B', 'Obstinate Baloth');
+    T.hand('B', 'Island');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Mind Rot'), { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bal, 'battlefield', 'onto the battlefield');
+    t.eq(bal.controller, 'B', "under its owner's control");
+    t.eq(T.life('B'), 24, 'its enters trigger: 4 life');
+    const U = mk();
+    U.toMain('A');
+    const b2 = U.hand('A', 'Obstinate Baloth');
+    U.top('A', 'Island'); U.top('A', 'Island');
+    U.answer('discard', { cardIds: [b2.id] });
+    U.mana('A', 'R');
+    U.cast('A', U.hand('A', 'Faithless Looting'));
+    U.settle();
+    t.zone(b2, 'graveyard', 'your own discard: the graveyard');
+  });
 };
