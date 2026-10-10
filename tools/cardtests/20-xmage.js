@@ -20453,4 +20453,32 @@ module.exports = (test) => {
     t.zone(eq, 'hand');
     t.zone(ax, 'graveyard');
   });
+
+  test('Entering with counters is having them put on: Hardened Scales adds one to Walking Ballista (once, with Metallic Mimic too); Doubling Season doubles them and a planeswalker\'s loyalty', (mk, t) => {
+    t.auto('Hardened Scales'); t.auto('Doubling Season'); t.auto('Walking Ballista'); t.auto('Metallic Mimic');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Hardened Scales');
+    const w1 = T.hand('A', 'Walking Ballista');
+    T.mana('A', '11');
+    T.cast('A', w1, { x: 1 });
+    t.eq(w1.counters['+1/+1'], 2, 'X=1 and one more');
+    const mm = T.bf('A', 'Metallic Mimic');
+    mm.chosenType = 'Construct';
+    const w2 = T.hand('A', 'Walking Ballista');
+    T.mana('A', '11');
+    T.cast('A', w2, { x: 1 });
+    t.eq(w2.counters['+1/+1'], 3, 'X=1, the Mimic\'s one, and one more for the lot: 3');
+    const T2 = mk();
+    T2.toMain('A');
+    T2.bf('A', 'Doubling Season');
+    const w3 = T2.hand('A', 'Walking Ballista');
+    T2.mana('A', '1111');
+    T2.cast('A', w3, { x: 2 });
+    t.eq(w3.counters['+1/+1'], 4, 'Doubling Season: twice X');
+    const jb = T2.hand('A', 'Jace Beleren');
+    T2.mana('A', '1UU');
+    T2.cast('A', jb);
+    t.eq(jb.counters.loyalty, 6, 'and a planeswalker enters with twice its loyalty');
+  });
 };

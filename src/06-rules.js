@@ -5989,6 +5989,10 @@
       }
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
       if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; this.addCounters(o, '+1/+1', k); }
+      /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
+         Season change how many, once for the counters it enters with and any extra ones of the kind
+         (Metallic Mimic) — put on together below (enterCounters) */
+      let enterCounters = null;
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -6016,9 +6020,7 @@
               kinds: pick.slice(), n, options: pick.map((k, i) => ({ i, label: U.titleCase(k) + ' counter' })),
               prompt: `${o.name}: choose the counter it enters with.` });
           }
-          o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
-          // entering with counters is having them put on it (CR 122.6)
-          this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
+          enterCounters = { kind, n };
         }
       }
       // what the draft noted: Lurking Automaton's counters, Cogwork Tracker's player
@@ -6041,8 +6043,11 @@
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
-        if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
+        if (k > 0 && enterCounters && enterCounters.kind === (ex.counter || '+1/+1')) enterCounters.n += k;
+        else if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
       }
+      // (Walking Ballista with Hardened Scales: X, and one more; with Doubling Season, twice X)
+      if (enterCounters) this.addCounters(o, enterCounters.kind, enterCounters.n);
       /* Amplify N (CR 702.38): N +1/+1 counters for each card revealed from
          hand that shares a creature type with it. Revealing is free and only
          helps, so every such card is shown. */
@@ -11178,7 +11183,14 @@
           o._keepUntapped = !!entEv.untapped && !o._forcedTapped;
           if (o._keepUntapped) o.tapped = false;
           if (o._forcedTapped) o.tapped = true;
-          if (a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+          if (a.isPlaneswalker) {
+            o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+            // Doubling Season: a planeswalker's loyalty counters are put on it as it enters (CR 306.5b)
+            if (o.counters.loyalty > 0) {
+              const evL = this._replace({ kind: 'counters', object: o, n: o.counters.loyalty, counter: 'loyalty', controller: o.controller, putter: o.controller });
+              o.counters.loyalty = evL.cancelled ? 0 : Math.max(0, Number(evL.n) || 0);
+            }
+          }
           /* Compleated (CR 702.150): two fewer loyalty counters for each
              Phyrexian symbol paid with life, which is the life paid */
           if (a.isPlaneswalker && o._phyLife > 0 && o.wasCast === this.turn && (a.keywords || []).some(k => k.keyword === 'Compleated')) {
