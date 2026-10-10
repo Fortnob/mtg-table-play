@@ -5169,4 +5169,25 @@ module.exports = (test) => {
       t.eq(T.life('B'), other ? 16 : 20, `Blind-Spot Giant, another Giant: ${other}`);
     }
   });
+
+  test('Audit: Olivia, Opulent Outlaw: one Treasure for outlaws hitting together, none for a non-outlaw; Rakish Crew: an outlaw dying drains 1', (mk, t) => {
+    t.auto('Olivia, Opulent Outlaw'); t.auto('Rakish Crew');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Olivia, Opulent Outlaw');
+    const rogue = T.bf('A', 'Changeling Outcast'), rogue2 = T.bf('A', 'Changeling Outcast'), bear = T.bf('A', 'Grizzly Bears');
+    for (const x of [rogue, rogue2, bear]) x.summoningSick = false;
+    const tre = () => T.g.battlefield.filter(o => /Treasure/.test(o.name)).length;
+    T.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }, { attackerId: rogue2.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(tre(), 1, 'two outlaws together: one Treasure');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(tre(), 1, 'the Bears: none');
+    T.bf('A', 'Rakish Crew');
+    const l = T.life('B');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [rogue.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), l - 1, 'an outlaw died: B loses 1');
+  });
 };
