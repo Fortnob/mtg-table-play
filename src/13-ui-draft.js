@@ -603,7 +603,11 @@
 
   /* ---------------- limited deck-build step ---------------- */
 
-  UI.buildFromPool = async function (pool, formatId, onDone) {
+  /* opts (all optional): build, a builder in place of autoBuildLimited (a
+     sealed pool's, MTG.sealed.buildDeck); basicsFree, false when the table
+     plays without free basic lands; note, the line over the list. */
+  UI.buildFromPool = async function (pool, formatId, onDone, opts) {
+    opts = opts || {};
     const fmt = MTG.formats.get(formatId);
     const busy = UI.busy('Preparing', 'Fetching basic lands…');
     let basics = {};
@@ -611,8 +615,8 @@
     busy.close();
 
     // conspiracies and the cards exiled before the game are settled once the deck is
-    let deck = MTG.draft.autoBuildLimited(pool, {
-      deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: 'Limited deck', pregame: false,
+    let deck = (opts.build || MTG.draft.autoBuildLimited)(pool, {
+      deckSize: fmt.deckMin || 40, basicCards: basics, formatId, name: 'Limited deck', pregame: false, basicsFree: opts.basicsFree,
     });
     // the conspiracies drafted, so the deck's size can allow for one kept before the game (Advantageous Proclamation)
     deck.draftedConspiracies = (pool || []).filter(MTG.draft.isConspiracy).map(c => c.name);
@@ -644,7 +648,7 @@
     deck.name = `${fmt.name} \u2014 ${stamp}`;
 
     UI.deckBuilder(deck, {
-      drafted: true,
+      drafted: true, basicsFree: opts.basicsFree, poolNote: opts.note,
       finish: { label: 'Play with this deck', onClick: async (d) => {
         const ready = await UI.draftPregame(d, pool);
         if (onDone) onDone(ready);
