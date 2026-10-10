@@ -4627,4 +4627,29 @@ module.exports = (test) => {
     t.eq(T.life('A'), 16); t.eq(T.life('B'), 16, 'B loses 4 too');
     t.eq(T.zone('B', 'graveyard').length, 2, 'B drew two and discarded what it had: two');
   });
+
+  test('Audit: "the second time this ability has resolved" counts that ability only: Tannuk pinging with Viridian Longbow, then landfall twice; Soulbright Seeker the third time', (mk, t) => {
+    t.auto('Tannuk, Memorial Ensign'); t.auto('Viridian Longbow'); t.auto('Soulbright Seeker');
+    let T = mk();
+    T.toMain('A');
+    const tn = T.bf('A', 'Tannuk, Memorial Ensign'); tn.summoningSick = false;
+    const lb = T.bf('A', 'Viridian Longbow');
+    lb.attachedTo = tn.id; tn.attachments = [lb.id]; T.g.bumpBoard();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    T.activate('A', tn, 0, { targets: ['B'] }); T.settle();
+    t.eq(T.life('B'), 19, 'the granted ping, an activated ability at the same place in the list as the landfall trigger');
+    const h = T.zone('A', 'hand').length;
+    const m1 = T.hand('A', 'Mountain');
+    T.g.playLand('A', m1.id); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h, "the first landfall: no card (the ping isn't counted)");
+    // (a second land entering: put there, as a land play is spent)
+    T.g.moveObject(T.put('A', 'Forest', 'hand'), 'battlefield'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 17); t.eq(T.zone('A', 'hand').length, h + 1, 'the second landfall: a card');
+    T = mk();
+    T.toMain('A');
+    const ss = T.bf('A', 'Soulbright Seeker');
+    T.answer('confirm', { yes: true });
+    for (let i = 1; i <= 3; i++) { T.mana('A', 'R'); T.activate('A', ss, 0, { targets: [ss.id] }); T.settle(); }
+    t.eq(T.g.player('A').pool.R, 4, 'the third resolution: {R}{R}{R}{R}');
+  });
 };
