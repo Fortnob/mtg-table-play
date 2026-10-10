@@ -7380,6 +7380,15 @@
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'counterSpell', counterTo: 'suspend', timeCounters: num(m[1]), targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] },
+    /* Doom's Time Platform: "exile target nonland card from your graveyard with two time counters on it.
+       If it doesn't have suspend, it gains suspend." */
+    { re: /^Exile target (nonland )?card from your graveyard with (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'suspendCard', from: 'graveyard', timeCounters: num(m[2]),
+        targets: [{ type: 'permanent', filter: m[1] ? 'nonland card' : 'card', zone: 'graveyard', controller: 'you', ...(m[1] ? { nonland: true } : {}) }] }] },
+    /* The Eleventh Doctor: "you may exile a card from your hand with a number of time counters on it
+       equal to its mana value. If it doesn't have suspend, it gains suspend." */
+    { re: /^(You may )?exile an? (nonland )?card from your hand with a number of time counters on it equal to its mana value\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'suspendCard', from: 'hand', mvCounters: true, filter: m[2] ? 'nonland card' : 'card', optional: !!m[1] }] },
     /* Suspend (the card): "Exile target creature and put two time counters on it. If it doesn't have suspend, it gains suspend." */
     { re: /^Exile (target (?:nontoken )?creature) and put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'exileSuspend', timeCounters: num(m[2]), targets: [targetSpec(m[1])] }] },
@@ -8740,7 +8749,8 @@
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules

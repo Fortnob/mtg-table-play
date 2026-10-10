@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10772,
+  "needed": 10770,
   "gainedCards": 1024,
-  "linesNeeded": 11471,
+  "linesNeeded": 11470,
   "linesGained": 1206,
   "gained": {
    "all": 1024,
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 658,
-   "lines": 658,
+   "score": 657,
+   "lines": 657,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 172,
-   "lines": 157,
+   "score": 171,
+   "lines": 156,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -6595,8 +6595,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 102,
-   "cards": 99,
+   "score": 101,
+   "cards": 98,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",

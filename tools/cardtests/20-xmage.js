@@ -20517,4 +20517,32 @@ module.exports = (test) => {
     t.eq(T.bfOf('B').filter(o => o.name === 'Grizzly Bears').length, 0, 'chapter I: the opponent sacrificed a creature');
     t.eq(T.zone('B', 'hand').length, 0, 'chapter II: and discarded a card');
   });
+
+  test("Suspended from the graveyard or the hand: Doom's Time Platform, The Eleventh Doctor (time counters equal to mana value)", (mk, t) => {
+    t.auto("Doom's Time Platform"); t.auto('The Eleventh Doctor');
+    const T = mk();
+    T.bf('A', "Doom's Time Platform");
+    const bear = T.bf('A', 'Grizzly Bears');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.grave('A', 'Forest');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bolt.id }] });
+    T.toMain('A', 'endCombat');
+    t.zone(bolt, 'exile');
+    t.eq(bolt.counters.time, 2, 'two time counters');
+    t.eq(bolt.suspendedBy, 'A', 'and suspended');
+    T.toMain('B');
+    T.toMain('A');
+    t.eq(bolt.counters.time, 1, 'one comes off at the upkeep');
+    const T2 = mk();
+    const doc = T2.bf('A', 'The Eleventh Doctor');
+    const giant = T2.hand('A', 'Hill Giant');
+    T2.answer('declareAttackers', () => [{ attackerId: doc.id, defenderId: 'B' }]);
+    T2.answer('confirm', () => ({ yes: true }));
+    T2.answer('pickCard', () => ({ cardIds: [giant.id] }));
+    T2.toMain('A', 'endCombat');
+    t.zone(giant, 'exile');
+    t.eq(giant.counters.time, 4, 'The Eleventh Doctor: as many time counters as its mana value');
+    t.eq(giant.suspendedBy, 'A', 'suspended');
+  });
 };

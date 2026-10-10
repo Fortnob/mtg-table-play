@@ -20009,6 +20009,29 @@
           break;
         }
         // Suspend (the card): exiled with time counters, and suspended — its owner casts it when they run out
+        /* Doom's Time Platform, The Eleventh Doctor: a card from the graveyard (targeted) or the hand
+           (chosen) is exiled with time counters, and suspended whether or not it had suspend */
+        case 'suspendCard': {
+          let cards = [];
+          if (e.from === 'hand') {
+            const pool = this.zones[ctx.controller].hand.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
+            if (!pool.length) break;
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: !!e.optional,
+              cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile a card from your hand with time counters on it equal to its mana value (it is suspended).` }, 'susp');
+            if (picked === SUSPEND) return SUSPEND;
+            cards = (picked || []).map(id => this.obj(id)).filter(c => c && pool.includes(c)).slice(0, 1);
+          } else {
+            cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(c => c && c.zone === 'graveyard');
+          }
+          for (const x of cards) {
+            this.moveObject(x, 'exile');
+            x.counters.time = e.mvCounters ? ((x.card && x.card.cmc) || 0) : n(e.timeCounters);
+            x.suspendedBy = x.owner;
+            this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}, suspended.`);
+          }
+          break;
+        }
         case 'exileSuspend': {
           for (const t of targets) {
             const x = t.kind === 'object' && this.obj(t.id);
