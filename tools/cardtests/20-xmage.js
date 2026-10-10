@@ -21633,4 +21633,43 @@ module.exports = (test) => {
     T4.mana('A', '2'); T4.activate('A', food, 0); T4.resolve();
     t.ok(T4.zone('A', 'library').length < lib0 || (as.counters['+1/+1'] || 0) > 0, 'a Food: it explores');
   });
+
+  test('Commanders: Gyome, Master Chef, Apothecary White, Aang, Airbending Master, Desmond Miles; Amber Gristle O\'Maul', (mk, t) => {
+    for (const n of ['Gyome, Master Chef', 'Apothecary White', 'Aang, Airbending Master', 'Desmond Miles', "Amber Gristle O'Maul"]) t.auto(n);
+    const foods = (T) => T.bfOf('A').filter(o => o.isToken && /Food/.test(o.name)).length;
+    // Gyome: a Food for each nontoken creature that entered under your control this turn
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Gyome, Master Chef');
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.put('A', 'Hill Giant', 'battlefield', { etb: true });
+    T.mana('A', '1W'); T.cast('A', T.hand('A', 'Raise the Alarm')); T.resolve();
+    T.toMain('B');
+    t.eq(foods(T), 2, 'two nontoken creatures entered: two Foods (the Soldier tokens do not count)');
+    // Apothecary White: a Food for each player being attacked
+    const T2 = mk({ library: Array(10).fill('Island'), players: ['A', 'B', 'C'] });
+    const ap = T2.bf('A', 'Apothecary White'), gb = T2.bf('A', 'Grizzly Bears');
+    T2.toMain('A');
+    T2.answer('declareAttackers', () => [{ attackerId: ap.id, defenderId: 'B' }, { attackerId: gb.id, defenderId: 'C' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(foods(T2), 2, 'two players attacked: two Foods');
+    // Aang: airbend another target creature
+    const T3 = mk();
+    T3.toMain('A');
+    const hg = T3.bf('B', 'Hill Giant');
+    T3.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: hg.id }] }));
+    T3.put('A', 'Aang, Airbending Master', 'battlefield', { etb: true }); T3.resolve();
+    t.zone(hg, 'exile', 'airbent');
+    // Desmond Miles: surveil as much as the damage dealt
+    const T4 = mk({ library: Array(10).fill('Island') });
+    const dm = T4.bf('A', 'Desmond Miles');
+    T4.bf('A', 'Royal Assassin');
+    T4.toMain('A');
+    let asked = null;
+    T4.answer('surveil', (q) => { asked = (q.cards || []).length; return null; });
+    T4.answer('declareAttackers', () => [{ attackerId: dm.id, defenderId: 'B' }]);
+    T4.toMain('A', 'endCombat');
+    t.eq(T4.life('B'), 18, 'two damage (one more for the other Assassin)');
+    t.eq(asked, 2, 'surveil 2');
+  });
 };

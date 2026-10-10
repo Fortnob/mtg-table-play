@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10572,
-  "gainedCards": 971,
-  "linesNeeded": 11250,
-  "linesGained": 1139,
+  "needed": 10563,
+  "gainedCards": 969,
+  "linesNeeded": 11239,
+  "linesGained": 1137,
   "gained": {
-   "all": 971,
+   "all": 969,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4052,
-   "lines": 3806,
+   "score": 4048,
+   "lines": 3802,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -533,25 +533,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Change of Fortune",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Misty Knight, Hero for Hire",
-    "Amber Gristle O'Maul",
-    "April O'Neil, Hacktivist",
-    "Moonveil Regent"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 18,
    "lines": 18,
@@ -587,6 +568,25 @@
     "Novice Knight",
     "Dragon Grip",
     "Expedition Lookout"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Change of Fortune",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Misty Knight, Hero for Hire",
+    "April O'Neil, Hacktivist",
+    "Moonveil Regent",
+    "Astonishing Spider-Man"
    ]
   },
   {
@@ -4513,17 +4513,6 @@
    ]
   },
   {
-   "what": "AirbendTargetEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Appa, Steadfast Guardian",
-    "Aang, Airbending Master",
-    "Appa, Loyal Sky Bison",
-    "Whirlwind Technique"
-   ]
-  },
-  {
    "what": "(verify) condition lost",
    "score": 4,
    "lines": 4,
@@ -6492,13 +6481,23 @@
     "Sproutback Trudge",
     "Spellpyre Phoenix"
    ]
+  },
+  {
+   "what": "FaceDownSpellsCostReductionControllerEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Obscuring Aether",
+    "Kadena, Slinking Sorcerer",
+    "Dream Chisel"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3385,
-   "cards": 3220,
+   "score": 3383,
+   "cards": 3218,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6549,8 +6548,8 @@
   },
   {
    "what": "custom condition",
-   "score": 126,
-   "cards": 123,
+   "score": 127,
+   "cards": 124,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -6791,19 +6790,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Change of Fortune",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Misty Knight, Hero for Hire"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 14,
    "cards": 14,
@@ -6853,6 +6839,19 @@
     "Act of Heroism",
     "Stall for Time",
     "Loyal Sentry"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Misty Knight, Hero for Hire"
    ]
   },
   {
@@ -6932,6 +6931,19 @@
    ]
   },
   {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Lydia Frye",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Prehistoric Pet",
+    "Ant-Man, Elusive Avenger"
+   ]
+  },
+  {
    "what": "Ability.setCostAdjuster",
    "score": 13,
    "cards": 13,
@@ -7007,19 +7019,6 @@
     "Discontinuity",
     "Brush Off",
     "Take for a Ride"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist"
    ]
   },
   {
@@ -9265,17 +9264,6 @@
    ]
   },
   {
-   "what": "AirbendTargetEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Appa, Steadfast Guardian",
-    "Aang, Airbending Master",
-    "Appa, Loyal Sky Bison",
-    "Whirlwind Technique"
-   ]
-  },
-  {
    "what": "MultipliedValue of \"X\"",
    "score": 4,
    "cards": 4,
@@ -10142,6 +10130,16 @@
     "Descendant of Kiyomaro",
     "Secretkeeper",
     "Okina Nightwatch"
+   ]
+  },
+  {
+   "what": "TheRingTemptsYouEffect",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Ringsight",
+    "Frodo, Adventurous Hobbit",
+    "The Ring Goes South"
    ]
   }
  ]

@@ -2172,6 +2172,8 @@
     { re: /^Exile (up to )?X target cards from graveyards\.?$/i,
       make: (m) => ({ op: 'exile', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard', multi: { count: 'X', exact: !m[1] } }] }) },
     { re: /^Surveil (\d+)\.?$/i, make: (m) => ({ op: 'surveil', n: +m[1] }) },
+    // (Desmond Miles: "surveil X, where X is …" — the where-X fills it in: surveilX)
+    { re: /^Surveil X\.?$/i, make: () => ({ op: 'surveil', n: 'X' }) },
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
     { re: /^(?:Then )?[Ll]earn\.?$/, make: () => ({ op: 'learn' }) },
     /* "Tap two target creatures." */
@@ -2763,7 +2765,8 @@
     { re: /^Discover X, where X is (?:that creature'?s|its) (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
-    { re: /^[Aa]irbend (up to one )?(other )?(target [a-z ]+?)\.?$/,
+    // (Aang, Airbending Master: "airbend another target creature" — airbendAnother)
+    { re: /^[Aa]irbend (up to one )?(other |another )?(target [a-z ]+?)\.?$/,
       make: (m) => { const t = tgt(m[3]); return t ? { op: 'airbend', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
     { re: /^[Mm]anifest dread\.?$/, make: () => ({ op: 'manifestDread' }) },
     // They Came from the Pipes: "manifest dread twice" — once, then again
@@ -5401,6 +5404,9 @@
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
     // Derevi, Empyrial Tactician: "Put Derevi onto the battlefield from the command zone." — an ability that works from there (fromCommandZone)
     { re: /^Put CARDNAME onto the battlefield from the command zone\.?$/, make: () => ({ op: 'selfFromCommandZone' }) },
+    // Apothecary White: "you create a Food token for each player being attacked" (playersBeingAttacked)
+    { re: /^You create an? (Food|Treasure|Clue|Blood|Map|Junk) token for each (player|opponent) being attacked\.?$/i,
+      make: (m) => ({ op: 'createNamedToken', token: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), n: { playersBeingAttacked: true, mult: 1 } }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -6055,6 +6061,12 @@
     if ((m = p.match(/^(creatures?|nonland permanents?|permanents?|artifacts?|lands?) that entered (?:the battlefield )?under your control this turn$/i))) {
       return { enteredYours: m[1].toLowerCase().replace(/s$/, ''), mult: k };
     }
+    // Gyome, Master Chef: "the number of nontoken creatures you had enter the battlefield under your control this turn" (enteredNontoken)
+    if ((m = p.match(/^(nontoken creatures?|creatures?) (?:you had enter|that entered) (?:the battlefield )?under your control this turn$/i))) {
+      return { enteredYours: m[1].toLowerCase().replace(/s$/, ''), mult: k };
+    }
+    // Apothecary White: "for each player being attacked" (playersBeingAttacked)
+    if (/^(?:players?|opponents?) being attacked$/i.test(p)) return { playersBeingAttacked: true, mult: k };
     // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
     if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
       const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
@@ -6119,6 +6131,8 @@
    */
   function amountOf(phrase) {
     let p = String(phrase || '').trim().replace(/\.$/, '');
+    // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
+    if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }

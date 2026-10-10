@@ -3108,6 +3108,11 @@
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
+      // Apothecary White: the players being attacked in this combat (playersBeingAttacked)
+      if (v.playersBeingAttacked) {
+        const ids = new Set(((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(x => x && this.player(x.attacking)).map(x => x.attacking));
+        return ids.size * mult;
+      }
       // Rose, Cutthroat Raider: "for each opponent you attacked" this turn (opponentsAttacked)
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
@@ -11553,6 +11558,8 @@
         by.permanent = (by.permanent || 0) + 1;
         if (!a.isLand) by['nonland permanent'] = (by['nonland permanent'] || 0) + 1;
         for (const t of ['creature', 'artifact', 'land']) if (a['is' + t[0].toUpperCase() + t.slice(1)]) by[t] = (by[t] || 0) + 1;
+        // Gyome, Master Chef: the nontoken creatures among them (enteredNontoken)
+        if (a.isCreature && !o.isToken) by['nontoken creature'] = (by['nontoken creature'] || 0) + 1;
         // Hobgoblin Bandit Lord, Lilypad Village: which creature types entered (a changeling is every one) (enteredTypes)
         if (a.isCreature) {
           for (const t of a.subtypes || []) by['sub:' + t.toLowerCase()] = (by['sub:' + t.toLowerCase()] || 0) + 1;
@@ -12808,7 +12815,7 @@
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
