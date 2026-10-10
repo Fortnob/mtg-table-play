@@ -7929,7 +7929,8 @@
   function parseCostMod(line) {
     let s = String(line).trim().replace(/\.$/, '');
     // Conduit of Ruin, Monk Class: "The first creature spell you cast each turn", "The second spell you cast each turn"
-    const nth = s.match(/^The (first|second) ((?:[a-z]+ (?:or [a-z]+ )?)?)spell you cast each turn costs \{(\d+)\} less to cast$/i);
+    // (Serah Farron: "The first legendary creature spell" — two words)
+    const nth = s.match(/^The (first|second) ((?:[a-z]+ (?:or [a-z]+ )?){0,2})spell you cast each turn costs \{(\d+)\} less to cast$/i);
     if (nth) {
       const words = nth[2].trim().toLowerCase();
       if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
@@ -9198,7 +9199,9 @@
     // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
     [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
     // Dire Tactics, Ego Drain, Butterbur: "you don't control a Human" — what "you control a Human" says, the other way
-    [/^you (?:don'?t|do not) control (an? [^,]+)$/i, (m) => { const c = condOf('you control ' + m[1]); return c ? { kind: 'not', cond: c } : null; }],
+    [/^you (?:don'?t|do not) control ((?:an?|another) [^,]+)$/i, (m) => { const c = condOf('you control ' + m[1]); return c ? { kind: 'not', cond: c } : null; }],
+    // Pugnacious Hammerskull: "you (don't) control another Dinosaur" — a creature type, not this permanent
+    [/^you control another ([A-Z][a-z]+)$/, (m) => ({ kind: 'control', scope: { who: 'you', what: 'permanent', subtype: m[1].toLowerCase(), other: true }, n: 1 })],
     // Archive Trap: "an opponent searched their library this turn"
     [/^an opponent searched their library this turn$/i, () => ({ kind: 'opponentSearchedThisTurn' })],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)

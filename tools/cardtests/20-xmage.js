@@ -19741,4 +19741,25 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, 2, 'the equipped one alone: a card (plus the draw step)');
     t.eq(T.g.player('A').life, 19, 'and 1 life');
   });
+
+  test("You don't control another Dinosaur: Pugnacious Hammerskull; Blind-Spot Giant needs another Giant; Serah Farron's first legendary creature spell", (mk, t) => {
+    t.auto('Pugnacious Hammerskull'); t.auto('Blind-Spot Giant'); t.auto('Serah Farron // Crystallized Serah');
+    const T = mk();
+    const ph = T.bf('A', 'Pugnacious Hammerskull');
+    T.answer('declareAttackers', () => [{ attackerId: ph.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(ph.counters.stun, 1, 'alone among Dinosaurs: a stun counter');
+    const gi = T.bf('A', 'Blind-Spot Giant');
+    const cond = gi.analysis().abilities.find(a => (a.effects || []).some(e => e.op === 'restrictUnless')).effects[0].cond;
+    t.no(T.g._condMet(cond, { controller: 'A', obj: gi }), 'alone: no other Giant');
+    T.bf('A', 'Hill Giant');
+    t.ok(T.g._condMet(cond, { controller: 'A', obj: gi }), 'with a Hill Giant: yes');
+    const T2 = mk();
+    T2.toMain('A');
+    T2.bf('A', 'Serah Farron // Crystallized Serah');
+    const leg = T2.hand('A', 'Isamaru, Hound of Konda');
+    const plain = T2.hand('A', 'Grizzly Bears');
+    t.eq(T2.g.castCostFor('A', plain.id), '{1}{G}', 'not legendary: full price');
+    t.eq(T2.g.castCostFor('A', leg.id), '{W}', 'the first legendary creature spell: {2} less, down to its coloured part');
+  });
 };
