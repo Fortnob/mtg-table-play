@@ -1243,6 +1243,8 @@
       }
       for (const o of this.battlefield) {
         o.damage = 0;
+        // damage from a deathtouch source is removed with the rest of the damage (CR 514.2)
+        o.dealtDeathtouch = false;
         o.damagedThisTurn = false;
         o.shields = 0;
         o.preventShield = 0;
@@ -10885,7 +10887,8 @@
         o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
-        o.tapped = false; o.damage = 0; o.counters = {};
+        // (a deathtouch mark goes with the damage: a new object remembers neither)
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {};
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;

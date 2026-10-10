@@ -18011,4 +18011,24 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), 17, 'the second: 2');
   });
+
+  test('Deathtouch: the mark goes with the damage — a creature back on the battlefield (a recast commander) is not killed by 1 damage later', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const rats = T.bf('B', 'Typhoid Rats');
+    const giant = T.bf('A', 'Hill Giant');
+    T.g.dealDamageToObject(giant, 1, rats, false);
+    T.g.checkStateBasedActions();
+    t.zone(giant, 'graveyard', 'deathtouch kills it');
+    T.g.moveObject(giant, 'battlefield', { controller: 'A' });
+    T.g.dealDamageToObject(giant, 1, T.bf('B', 'Grizzly Bears'), false);
+    T.g.checkStateBasedActions();
+    t.zone(giant, 'battlefield', 'back again, 1 damage from a Bear does not kill a 3/3');
+    const myr = T.bf('A', 'Darksteel Myr');
+    T.g.dealDamageToObject(myr, 1, rats, false);
+    T.g.checkStateBasedActions();
+    t.zone(myr, 'battlefield', 'indestructible');
+    T.toMain('B');
+    t.no(myr.dealtDeathtouch, 'the mark is gone at cleanup with the damage');
+  });
 };
