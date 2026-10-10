@@ -17780,6 +17780,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Golbez, Crystal Collector: "each opponent loses life equal to that card's power" (lifeEqualTo)
     { re: /^Each opponent loses life equal to (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
+    // Derevi, Empyrial Tactician: "Put Derevi onto the battlefield from the command zone." — an ability that works from there (fromCommandZone)
+    { re: /^Put CARDNAME onto the battlefield from the command zone\.?$/, make: () => ({ op: 'selfFromCommandZone' }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -23194,6 +23196,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (gateGranted(out, rest, cond, typeLine, card)) autoLines++;
         continue;
       }
+      /* Companion (CR 702.139): the deck's rule is checked as the deck is built
+         (src/04-formats.js), and the {3} that brings it to hand is the game's
+         own action (companionToHand) — nothing more for the card to do */
+      if (/^Companion\s*(?:\u2014|--|-)\s*\S/.test(line)) { out.companionRule = line.replace(/^Companion\s*(?:\u2014|--|-)\s*/, ''); autoLines++; continue; }
       // Loyalty abilities:  "+1: Draw a card."
       let m = line.match(/^([+-]?[\dX]+|0):\s*([\s\S]+)$/);
       if (m && out.isPlaneswalker) {
@@ -24911,6 +24917,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
       }
     }
+    // (fromCommandZone: Derevi's ability works from the command zone, and only there)
+    for (const ab of out.abilities) if (ab.kind === 'activated' && (ab.effects || []).some(e => e && e.op === 'selfFromCommandZone')) ab.fromCommandZone = true;
     /* Kitnap, Ray of Frost: an Aura's or Equipment's "tap it", "put three stun counters on it" once the
        ability has named "enchanted creature" — the creature it is on, not the Aura (attachedIt). Not after
        the creature has died or left: then "it" is no longer anything this is attached to. */
@@ -28120,10 +28128,22 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
     }
 
-    /* --- companion --- */
+    /* --- companion ---
+       Outside the game, so it is not one of the deck's cards (a Commander deck
+       still has its 100), but it has to be a card the format allows and, with
+       a commander, inside the commander's colour identity (CR 702.139, 903.4) */
     if (deck.companion) {
       const r = checkCompanion(deck.companion, deck, fmt);
       if (!r.ok) errors.push(`${deck.companion.name} can't be your companion: ${r.reason}`);
+      if (fmt.scryKey) {
+        const l = legalityOf(deck.companion, fmt);
+        if (l === 'banned') errors.push(`${deck.companion.name} is banned in ${fmt.name}, as a companion too.`);
+        else if (l === 'not_legal') errors.push(`${deck.companion.name} is not legal in ${fmt.name}, as a companion too.`);
+      }
+      if (ci) {
+        const bad = colorIdentity(deck.companion).filter(col => !ci.has(col));
+        if (bad.length) errors.push(`${deck.companion.name} is outside your commander's color identity (${bad.join('')}), so it can't be your companion.`);
+      }
     }
 
     /* --- the table's bracket: a deck that goes past it is turned away --- */
@@ -28158,14 +28178,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     'Kaheera, the Orphanguard': (d) => ({ ok: everyCard(d, c => !isCreatureCard(c) || matchesTypes(c, ['Cat', 'Elemental', 'Nightmare', 'Dinosaur', 'Beast'])), reason: 'creatures must be Cat, Elemental, Nightmare, Dinosaur or Beast' }),
     'Keruga, the Macrosage': (d) => ({ ok: everyCard(d, c => isLandCard(c) || (c.cmc || 0) >= 3), reason: 'every nonland card must cost 3 or more' }),
     'Lurrus of the Dream-Den': (d) => ({ ok: everyCard(d, c => isLandCard(c) || !isPermanentCard(c) || (c.cmc || 0) <= 2), reason: 'permanents must have mana value 2 or less' }),
-    'Lutri, the Spellchaser': (d) => ({ ok: true, reason: '' }),   // singleton, checked by format
+    // (a singleton format checks this for every card already)
+    'Lutri, the Spellchaser': (d) => ({ ok: (d.main || []).every(e => isLandCard(e.card) || e.qty <= 1), reason: 'no nonland card may appear more than once' }),
     'Obosh, the Preypiercer': (d) => ({ ok: everyCard(d, c => isLandCard(c) || (c.cmc || 0) % 2 === 1), reason: 'every nonland card must have an odd mana value' }),
     'Umori, the Collector': (d) => ({ ok: sharesOnePermanentType(d), reason: 'all nonland cards must share a card type' }),
     'Yorion, Sky Nomad': (d, f) => ({ ok: true, reason: '' }),     // deck-size check below
     'Zirda, the Dawnwaker': (d) => ({ ok: everyCard(d, c => isLandCard(c) || hasActivatedAbility(c)), reason: 'every nonland card must have an activated ability' }),
     'Kannah, Child of Daybreak': (d) => ({ ok: true, reason: '' }),
   };
-  function everyCard(deck, fn) { return (deck.main || []).every(e => fn(e.card)); }
+  // the starting deck: in Commander, the commanders are part of it (CR 702.139a)
+  function everyCard(deck, fn) { return (deck.main || []).every(e => fn(e.card)) && (deck.commanders || []).every(c => fn(c)); }
   function isLandCard(c) { return /\bLand\b/.test((c.type_line || '').split('//')[0]); }
   function isCreatureCard(c) { return /\bCreature\b/.test(c.type_line || ''); }
   function isPermanentCard(c) { return /\b(Creature|Artifact|Enchantment|Planeswalker|Land|Battle)\b/.test(c.type_line || ''); }
@@ -28178,7 +28200,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   }
   function hasActivatedAbility(c) { return /:/.test(c.oracle_text || ''); }
   function sharesOnePermanentType(deck) {
-    const nonland = (deck.main || []).filter(e => !isLandCard(e.card));
+    const nonland = (deck.main || []).concat((deck.commanders || []).map(c => ({ card: c, qty: 1 }))).filter(e => !isLandCard(e.card));
     if (!nonland.length) return true;
     const types = ['Creature', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Planeswalker', 'Battle'];
     return types.some(t => nonland.every(e => new RegExp('\\b' + t + '\\b').test(e.card.type_line || '')));
@@ -29481,6 +29503,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         z.command.push(o);
         p.commanderCasts[o.id] = 0;
       }
+      /* Companion (CR 702.139): revealed outside the game from the start, kept
+         beside the command zone, and put into its owner's hand for {3} once a
+         game, any time they could cast a sorcery (companionToHand). It is not
+         a commander, and nothing is cast from where it waits. */
+      if (deck.companion) {
+        const o = this._register(new GObj(deck.companion, playerId, 'command'));
+        o.companion = true;
+        z.command.push(o);
+      }
+      p.companionUsed = false;
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
       p.deck = deck;
       this._loadDraftExtras(p, deck);
@@ -30586,6 +30618,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.activePlayer && this.activePlayer.id !== playerId &&
             this.stackEmpty && this.step !== 'end') continue;
         if (acts.some(usable)) out.push({ kind: 'activate', objId: o.id });
+      }
+      /* The command zone: a companion that could come to hand now, and an
+         ability that works from there (Derevi: "put Derevi onto the
+         battlefield from the command zone") with the mana for it. */
+      for (const o of (z.command || [])) {
+        if (o.owner !== playerId) continue;
+        if (o.companion) {
+          if (!p.companionUsed && !this._sorcerySpeedBlock(playerId) && this.canPayNow(playerId, '{3}')) out.push({ kind: 'companion', objId: o.id });
+          continue;
+        }
+        const a = o.analysis();
+        const acts = a ? a.abilities.filter(x => x.kind === 'activated' && x.fromCommandZone) : [];
+        if (acts.some(x => !this._activationBlocked(o, x, playerId) && this.couldPay(playerId, this._abilityMana(o, x), purse))) out.push({ kind: 'activate', objId: o.id });
       }
       return out;
     }
@@ -32544,6 +32589,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (a.castWindow) { const why = this._castWindowShut(a.castWindow, playerId); if (why) return { ok: false, reason: why }; }
       if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
       if (o.conspiracy) return { ok: false, reason: 'A conspiracy is not cast.' };
+      if (o.companion && o.zone === 'command') return { ok: false, reason: 'Your companion waits outside the game: pay {3} to put it into your hand first.' };
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
@@ -33563,6 +33609,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      * no stack, no priority passed, any time you have priority — which is
      * the whole point of morph.
      */
+    /**
+     * Companion (CR 702.139a): once a game, any time you could cast a sorcery,
+     * pay {3} to put your companion into your hand. A special action: it does
+     * not use the stack, and nobody can respond to it.
+     */
+    companionToHand(playerId, objId, opts) {
+      opts = opts || {};
+      const p = this.player(playerId);
+      const o = this.obj(objId);
+      if (!p || !o || !o.companion || o.owner !== playerId || o.zone !== 'command') return this.fail('That is not your companion.');
+      if (p.companionUsed) return this.fail('You have already put your companion into your hand this game.');
+      const when = this._sorcerySpeedBlock(playerId);
+      if (when) return this.fail(when === 'You do not have priority.' ? when : `A companion comes to hand only when you could cast a sorcery: ${when.toLowerCase()}`);
+      if (!this.payMana(playerId, '{3}', Object.assign({ auto: true }, opts))) return this.fail(`Not enough mana to put ${o.name} into your hand ({3}).`);
+      p.companionUsed = true;
+      this.moveObject(o, 'hand');
+      o.companion = false;
+      this.logEvent('rules', `${p.name} pays {3} and puts ${o.name}, their companion, into their hand.`);
+      this.touch();
+      return true;
+    }
+
     turnFaceUp(playerId, objId, opts) {
       opts = opts || {};
       const o = this.obj(objId);
@@ -35552,6 +35620,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (ab.fromGraveyard) {
         if (o.zone !== 'graveyard' || o.owner !== playerId) return this.fail('That ability only works from your graveyard.');
       } else if (o.zone === 'graveyard') return this.fail('That ability does not work from the graveyard.');
+      // Derevi: an ability that works from the command zone works from there, and only there
+      if (ab.fromCommandZone) {
+        if (o.zone !== 'command' || o.owner !== playerId) return this.fail('That ability only works from your command zone.');
+      } else if (o.zone === 'command') return this.fail('That ability does not work from the command zone.');
       // "Any player may activate this ability" means exactly that
       if (o.controller !== playerId && !ab.anyPlayer) return this.fail('You do not control that.');
       const why = this._activationBlocked(o, ab, playerId);
@@ -49860,6 +49932,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           break;
         }
         /* Ninjutsu resolving: in, tapped and attacking the same defender */
+        // Derevi, Empyrial Tactician: "Put Derevi onto the battlefield from the command zone."
+        case 'selfFromCommandZone':
+          if (src && src.zone === 'command') {
+            this.moveObject(src, 'battlefield', { controller: src.owner });
+            this.logEvent('rules', `${src.name} comes onto the battlefield from the command zone.`);
+          }
+          break;
         case 'ninjaIn': {
           // (commanderNinjutsu: or from the command zone)
           if (!src || !(src.zone === 'hand' || (src.zone === 'command' && src.isCommander))) break;
@@ -52795,6 +52874,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat, blockedNoBlocker: o.blockedNoBlocker || null,
           chosenX: o.chosenX, targets: JSON.parse(JSON.stringify(o.targets || [])),
           manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander, isSignature: !!o.isSignature,
+          companion: !!o.companion,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
           shields: o.shields || 0, preventShield: o.preventShield || 0,
           noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || null,
@@ -52842,6 +52922,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
+          companionUsed: !!p.companionUsed,
         })),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
@@ -53195,6 +53276,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         prepared: !!o.prepared,
         // Oathbreaker: the Signature Spell waiting in the command zone (said only of that one card)
         isSignature: o.isSignature ? true : undefined,
+        // a companion, revealed outside the game beside the command zone (said only of that one card)
+        companion: o.companion ? true : undefined,
         // what it chose as it entered: a creature type, a colour, a card name, a player, a number
         chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
           const c = {};
@@ -53275,7 +53358,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const z = this.zones[playerId];
           if (!z) return out;
           const prepared = this.battlefield.filter(o => o.controller === playerId && o.prepared);
-          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared)) {
+          // (the command zone too: Yuriko's commander ninjutsu)
+          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared, z.command || [])) {
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
@@ -53332,6 +53416,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           mulligansTaken: p.mulligansTaken, keptHand: p.keptHand,
           mulliganBottom: this.bottomCountFor(p),
           commanderDamage: p.commanderDamage, commanderCasts: p.commanderCasts,
+          // the companion's {3} into hand, once a game: used yet?
+          companionUsed: p.companionUsed ? true : undefined,
           librarySize: this.zones[p.id].library.length,
           // which dungeon room they are in ({ name, room }), for the table to show
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,
@@ -54309,7 +54395,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /** Everything that changes a game from outside it. */
   const MUTATORS = [
     'start', 'mulligan', 'keepHand', 'setAutoPass', 'setFullControl', 'setYield', 'setHoldPriority',
-    'passPriority', 'playLand', 'encoreCard', 'plotCard', 'suspendCard', 'transmuteCard', 'turnFaceUp',
+    'passPriority', 'playLand', 'encoreCard', 'plotCard', 'suspendCard', 'transmuteCard', 'turnFaceUp', 'companionToHand',
     'cycleCard', 'castSpell', 'activateAbility', 'tapForMana', 'payMana', 'declareAttackers',
     'declareBlockers', 'changeLife', 'addPoison', 'addCounters', 'moveObject', 'drawCards',
     'checkStateBasedActions', 'playerLoses', 'concede', 'resolveChoice', 'manual', 'setConnected',
@@ -60514,6 +60600,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
+        if (!(move && move.hold) && this.useCompanion(main1)) return true;
         return false;
       }
       // combat on either side of the table
@@ -60537,6 +60624,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
       }
       return false;
+    }
+
+    /**
+     * The companion (CR 702.139): {3} into hand, once a game, at sorcery speed.
+     * Done when the turn has nothing better for the mana — after the spells it
+     * meant to cast — and in the first main phase only when there is enough
+     * left over to cast the companion as well, or nothing else to do with it.
+     */
+    useCompanion(main1) {
+      const g = this.game;
+      const p = g.player(this.pid);
+      if (!p || p.companionUsed) return false;
+      const comp = ((g.zones[this.pid] || {}).command || []).find(o => o.companion && o.owner === this.pid);
+      if (!comp) return false;
+      const mana = this.availableMana(true);
+      if (mana < 3) return false;
+      const mv = (comp.card && comp.card.cmc) || 0;
+      // the first main phase: only with mana for both, or with an empty hand to fill
+      if (main1 && mana < 3 + mv && this.game.zones[this.pid].hand.length > 1) return false;
+      if (!g.companionToHand(this.pid, comp.id, { auto: true })) return false;
+      this._did('companion', comp, 'puts its companion into its hand');
+      return true;
     }
 
     /* ---- lands ---- */
@@ -83623,7 +83732,13 @@ Sideboard
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
       }
       if (loc.zone === 'command' && loc.player === this.meId) {
-        if ((live.playable || []).includes(id)) return this.playFromHand(loc.o);
+        // a companion: {3} to put it into your hand, when that can be done now (CR 702.139)
+        if (loc.o.companion) return (live.playable || []).includes(id) ? this.useCompanion(loc.o) : this.showCard(id);
+        /* More than the ordinary cast to offer from here (Derevi's ability from
+           the command zone, Yuriko's commander ninjutsu): the card's own menu
+           offers each, the cast first */
+        const more = this._commandZoneAbilities(loc.o).length || ((live.uses || {})[id] || []).some(u => u.kind === 'cast');
+        if ((live.playable || []).includes(id)) return more ? this.cardMenu(id, e) : this.playFromHand(loc.o);
         return this.showCard(id);
       }
       if (loc.zone === 'battlefield' && loc.o.controller === this.meId) return this.onMyPermanent(loc.o, node, e);
@@ -84585,6 +84700,15 @@ Sideboard
           if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);
         }
+      } else if (loc.zone === 'command' && mine && o.companion) {
+        // the companion, revealed outside the game: {3} into your hand, once a game, when you could cast a sorcery
+        items.push(['Put it into your hand ({3})', () => this.useCompanion(o)]);
+      } else if (loc.zone === 'command' && mine && !o.agenda && (o.isCommander || o.isSignature)) {
+        items.push(['Cast it', () => this.playFromHand(o)]);
+        // Yuriko's commander ninjutsu, from here as from a hand
+        for (const use of ((live.uses || {})[o.id] || [])) if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
+        // Derevi: "{1}{G}{W}{U}: Put Derevi onto the battlefield from the command zone."
+        for (const [ab, idx] of this._commandZoneAbilities(o)) items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);
       } else if (loc.zone === 'command' && mine && o.agenda) {
         items.push(['Turn this hidden agenda face up', () => this.send({ kind: 'manual', action: 'revealAgenda', objId: o.id })]);
       } else if (loc.zone === 'battlefield' && mine && a) {
@@ -84605,6 +84729,20 @@ Sideboard
         if (manual.length) items.push('-', ['By hand ▸', (ev) => UI.contextMenu(ev || e, manual, { title: 'Move or mark by hand' })]);
       }
       UI.contextMenu(e || { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }, items, { title: o.card ? o.card.name : 'Card' });
+    }
+
+    /** A card's abilities that work from the command zone, each with the index activateAbility takes. */
+    _commandZoneAbilities(o) {
+      const a = this.analysis(o);
+      if (!a) return [];
+      const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+      return acts.filter(x => x.fromCommandZone).map(x => [x, (a.manaAbilities || []).length + acts.indexOf(x)]);
+    }
+
+    /** The companion into your hand: the game pays the {3} (CR 702.139). */
+    useCompanion(o) {
+      MTG.sfx('ui_play');
+      this.send({ kind: 'companion', objId: o.id });
     }
 
     manualItems(o, zone) {
@@ -96836,7 +96974,7 @@ Sideboard
         playLand: 'playing a land', cast: 'casting', activate: 'an ability',
         mana: 'tapping for mana', declareAttackers: 'the attack',
         declareBlockers: 'the blocks', choice: 'that choice', manual: 'that',
-        mulligan: 'the mulligan', keep: 'keeping', pass: 'passing',
+        mulligan: 'the mulligan', keep: 'keeping', pass: 'passing', companion: 'putting your companion into your hand',
       };
       const before = g.stateVersion;
       const undoEntry = (UNDOABLE[intent.kind] && !g.over)
@@ -96881,6 +97019,8 @@ Sideboard
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
+        // the companion: {3} to put it into your hand, once a game (CR 702.139)
+        case 'companion': g.companionToHand(actorId, intent.objId, { auto: true }); break;
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
