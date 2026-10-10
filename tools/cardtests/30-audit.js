@@ -5209,4 +5209,24 @@ module.exports = (test) => {
     for (let i = 0; i < 5; i++) { T.settle(); T.resolve(); }
     t.eq(T.life('B'), 17, 'the Rod twice, the Sorcerer once');
   });
+
+  test('Audit: "when this enters, if it was kicked" (Gatekeeper of Malakir): kicked, unkicked, and flickered after a kicked cast', (mk, t) => {
+    t.auto('Gatekeeper of Malakir');
+    for (const kick of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+      const gk = T.hand('A', 'Gatekeeper of Malakir');
+      T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+      T.mana('A', kick ? 'BBB' : 'BB');
+      T.cast('A', gk, { kick }); T.settle(); T.resolve(); T.settle();
+      const bs = () => T.g.battlefield.filter(o => o.controller === 'B').length;
+      t.eq(bs(), kick ? 1 : 2, kick ? 'kicked: B sacrifices one' : 'not kicked: nothing');
+      if (kick) {
+        T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+        T.g.moveObject(gk, 'exile'); T.g.moveObject(gk, 'battlefield'); T.settle(); T.resolve(); T.settle();
+        t.eq(bs(), 1, 'back from exile it was not kicked');
+      }
+    }
+  });
 };
