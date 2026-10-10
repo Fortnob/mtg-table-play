@@ -18107,14 +18107,16 @@
           break;
         /* Manifest dread: two from the top, one face down as a 2/2, the other to the graveyard */
         case 'manifestDread': {
-          const lib = this.zones[ctx.controller].library;
+          // Unwanted Remake: "Its controller manifests dread" (who 'targetController')
+          const md = e.who === 'targetController' ? (this._lastAffectedController() || (firstObj() && this.player(firstObj().owner)) || me) : me;
+          const lib = this.zones[md.id].library;
           const two = lib.slice(0, 2);
           if (!two.length) break;
           let keep = two[0];
           if (two.length > 1) {
-            if (me.isBot) keep = two.find(c => (c.analysis() || {}).isCreature) || two[0];
+            if (md.isBot) keep = two.find(c => (c.analysis() || {}).isCreature) || two[0];
             else {
-              const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              const picked = this._ask({ type: 'pickCard', playerId: md.id, count: 1,
                 cards: two.map(c => ({ id: c.id, name: c.name, card: c.card })),
                 prompt: 'Manifest dread: choose the card to put onto the battlefield face down. The other goes to your graveyard.' }, 'md');
               if (picked === SUSPEND) return SUSPEND;
@@ -18126,13 +18128,13 @@
               lib.splice(lib.indexOf(c), 1);
               c.zone = 'library';
               c.faceDown = true;
-              this.moveObject(c, 'battlefield', { controller: ctx.controller });
+              this.moveObject(c, 'battlefield', { controller: md.id });
               c.faceDown = true;
               // "then put a +1/+1 counter on that creature"
               this._lastPut = c.id;
             } else if (c.zone === 'library') this.moveObject(c, 'graveyard');
           }
-          this.logEvent('rules', `${me.name} manifests dread.`);
+          this.logEvent('rules', `${md.name} manifests dread.`);
           break;
         }
         /* Suspect: menace, and it can't block, for as long as it is suspected */

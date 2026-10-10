@@ -17206,4 +17206,23 @@ module.exports = (test) => {
     T.settle();
     t.eq(T.zone('A', 'hand').length, hand + 1, 'one opponent could not: one card');
   });
+
+  test('Unwanted Remake: the destroyed creature\'s controller manifests dread', (mk, t) => {
+    t.auto('Unwanted Remake');
+    t.auto('Fear of Impostors');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    const c1 = T.top('B', 'Hill Giant'), c2 = T.top('B', 'Mountain');
+    let who = null;
+    T.answer('pickCard', (ch) => { who = ch.playerId; return { cardIds: [c1.id] }; });
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Unwanted Remake'), { targets: [bear.id] });
+    T.settle();
+    t.zone(bear, 'graveyard');
+    t.eq(who, 'B', 'B chooses');
+    t.eq(c1.zone, 'battlefield', 'one card face down');
+    t.ok(c1.faceDown && c1.controller === 'B', "under B's control");
+    t.zone(c2, 'graveyard', 'the other to the graveyard');
+  });
 };
