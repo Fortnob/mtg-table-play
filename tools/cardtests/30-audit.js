@@ -3632,4 +3632,31 @@ module.exports = (test) => {
       t.eq(T.g.battlefield.filter(o => /Soldier/.test(o.name) && o.isToken).length, want, 'discarded ' + pick);
     }
   });
+
+  test('Audit: Dragon Whelp is sacrificed only after a fourth activation; Shrine of Burning Rage counts upkeeps and red spells', (mk, t) => {
+    let T = mk();
+    t.auto('Dragon Whelp'); t.auto('Shrine of Burning Rage');
+    T.toMain('A');
+    const w3 = T.bf('A', 'Dragon Whelp');
+    for (let i = 0; i < 3; i++) { T.mana('A', 'R'); T.activate('A', w3, 0); }
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(w3, 'battlefield', 'three times: kept');
+    T = mk();
+    T.toMain('A');
+    const dw = T.bf('A', 'Dragon Whelp');
+    for (let i = 0; i < 4; i++) { T.mana('A', 'R'); T.activate('A', dw, 0); }
+    t.eq(T.g.powerOf(dw), 6);
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(dw, 'graveyard', 'four times: sacrificed at the end step');
+    T = mk();
+    T.toMain('A');
+    const sh = T.bf('A', 'Shrine of Burning Rage');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    T.mana('A', 'U'); T.cast('A', T.hand('A', 'Opt'));
+    t.eq(sh.counters.charge, 1, 'a red spell, not a blue one');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(sh.counters.charge, 2, 'and my upkeep');
+    T.toMain('A'); T.mana('A', '3'); T.activate('A', sh, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 16);
+  });
 };
