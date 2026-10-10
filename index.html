@@ -11336,6 +11336,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         // the storage lands: "Remove X storage counters", "Remove any number of storage counters"
         cost.removeCounters = { n: m[1] === 'X' ? 'X' : /^any number of$/i.test(m[1]) ? 'any' : /^(?:six|seven|eight|nine|ten)$/i.test(m[1]) ? num(m[1]) : WORDN(m[1]), kind: m[2] }; continue;
       }
+      // Halo Fountain: "Untap a tapped creature you control", "Untap fifteen tapped creatures you control" (untapCreatures)
+      if ((m = p.match(/^Untap (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|\d+) tapped ([A-Za-z ]+?) you control$/i))) {
+        // (WORDN stops at ten and calls anything past it 1: "fifteen" is num's)
+        const k = /^an?$/i.test(m[1]) ? 1 : num(m[1].toLowerCase());
+        if (typeof k === 'number' && k > 0) {
+          cost.untapCreatures = { n: k, filter: m[2].trim().toLowerCase().replace(/ies$/, 'y').replace(/([^s])s$/, '$1') };
+          continue;
+        }
+      }
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
          price, the way convoke taps them for a spell. */
@@ -12258,6 +12267,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
     // Beacon of Immortality: "Double target player's life total."
     { re: /^Double target player'?s life total\.?$/i, make: () => ({ op: 'doubleLife', targets: [{ type: 'player' }] }) },
+    // Revival // Revenge: "Double your life total."; Celestial Mantle: "double its controller's life total" (the enchanted creature's)
+    { re: /^Double (your|its controller'?s) life total\.?$/i, make: (m) => ({ op: 'doubleLife', who: /^your$/i.test(m[1]) ? 'you' : 'attachedController' }) },
     // Geode Rager: "goad each creature target player controls"
     { re: /^Goad each creature (target player|target opponent|that player) controls\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'goad', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
@@ -12522,6 +12533,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const t = tgt(m[2]);
         return t ? { op: 'destroySameName', act: /^exile/i.test(m[1]) ? 'exile' : 'bounce', what: m[3].toLowerCase(), targets: [t] } : null;
       } },
+    // Legions to Ashes: "Exile target nonland permanent an opponent controls and all tokens that player controls with the same name as that permanent."
+    { re: /^Exile (target [a-z ]+?) and all tokens that player controls with the same name as that permanent\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', act: 'exile', tokensOfController: true, targets: [t] } : null; } },
     // Maelstrom Pulse, Echoing Calm: "…and all other permanents with the same name as that permanent"
     { re: /^Destroy (target [a-z ]+?) and all other ([a-z]+)s with the same name as that \2\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', targets: [t] } : null; } },
@@ -13424,6 +13438,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Untap target creature\. It gains haste until end of turn\.?$/i,
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
+    // Hex Magic: "Exile all the cards from your hand, then draw that many cards."
+    { re: /^Exile (?:all the cards from |all cards from )?your hand, then draw that many cards\.?$/i, make: () => ({ op: 'exileHandDraw' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
     { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
     // Well of Ideas: "that player draws an additional card" — the player whose step it is
@@ -13576,6 +13592,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: () => ({ op: 'sequence', list: [{ op: 'counters', kind: '-1/-1', n: 1, targets: [{ type: 'creature', upTo: true, filter: 'creature' }] },
         { op: 'draw', n: 1, who: 'you' }] }) },
     /* Dragon Tempest */
+    // Needle Drop: "deals 1 damage to any target that was dealt damage this turn" — a creature, planeswalker or player hurt already
+    { re: /^(?:It|CARDNAME|This creature) deals (\d+) damage to any target that was dealt damage this turn\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', damagedThisTurn: true }] }) },
     { re: /^(?:It|CARDNAME) deals X damage to (any target|target [a-z ]+?), where X is the number of ([A-Za-z ]+?) you control\.?$/,
       make: (m) => { const t = tgt(m[1]); const c = countOf(m[2] + ' you control'); return t && c ? { op: 'damage', n: c, targets: [t] } : null; } },
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },
@@ -20161,6 +20180,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
     // Nahiri, Forged in Fury: "an equipped creature you control"
     'equipped',
+    // Ellivere of the Wild Court: "an enchanted creature you control"
+    'enchanted',
     // Arbaaz Mir: "another nontoken historic permanent you control" — legendary, an artifact or a Saga
     'historic',
     // Trail of Mystery: "a face-down creature you control"
@@ -27728,6 +27749,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const c = x.cost || {};
           if ((c.other || []).length) return false;                 // not something we can price
           if (c.tapCreatures && this._tapCostPool(playerId, c.tapCreatures, o).length < this._costCount(c.tapCreatures.n, null)) return false;
+          if (c.untapCreatures && this._untapCostPool(playerId, c.untapCreatures, o).length < c.untapCreatures.n) return false;
           if (c.tap && o.tapped) return false;
           if (c.untap && !o.tapped) return false;
           if (c.life && p.life <= c.life) return false;
@@ -33107,6 +33129,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (this._tapCostPool(pid, cost.tapCreatures, self, cost.tap).length < need)
           return `Not enough untapped ${cost.tapCreatures.filter}s to tap.`;
       }
+      // Halo Fountain: "Untap a tapped creature you control" (untapCreatures)
+      if (cost.untapCreatures && this._untapCostPool(pid, cost.untapCreatures, self).length < cost.untapCreatures.n)
+        return `Not enough tapped ${cost.untapCreatures.filter}s to untap.`;
       if (cost.life != null && cost.spellLife) {
         const k = cost.life === 'X' ? ((opts && opts.x) || 0) : cost.life;
         if (p && p.life < k) return 'Not enough life.';
@@ -33311,7 +33336,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         if (pick) this._tapForCost(pid, pick, item);
       }
+      /* Halo Fountain: tapped permanents untapped as the price — the ones
+         worth most first (untapCreatures) */
+      if (cost.untapCreatures) {
+        const pool = this._untapCostOrder(this._untapCostPool(pid, cost.untapCreatures, self));
+        for (const x of pool.slice(0, cost.untapCreatures.n)) this._markUntapped(x);
+      }
     }
+    /** What may be untapped to pay "Untap a tapped creature you control". */
+    _untapCostPool(pid, spec, self) {
+      const f = String((spec && spec.filter) || 'creature');
+      return this.battlefield.filter(x => x.controller === pid && x.tapped && !x.phasedOut && x !== self &&
+        (/^creatures?$/i.test(f) ? this.characteristics(x).isCreature : this._cardFitsWords(x, f)));
+    }
+    _untapCostOrder(pool) { return pool.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x)); }
 
     /** Which permanents to tap for a cost first: the ones that would do least today. */
     _tapCostOrder(pool) {
@@ -36911,6 +36949,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this._speedUp(p);
       p.life -= lost;
       p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + amount;
+      // Needle Drop: "any target that was dealt damage this turn" — a player too
+      p.damagedTurn = this.turn;
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       // Spear of Heliod: who this source has dealt damage to this turn
       if (source) {
@@ -40795,6 +40835,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               this.emit('sfx', 'counter');
             }
           }
+          break;
+        }
+        // Hex Magic: the hand exiled (remembered for "cards exiled this way"), then as many drawn
+        case 'exileHandDraw': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          for (const c of hand) this.moveObject(c, 'exile');
+          this._lastExiledList = hand.map(c => c.id);
+          this.logEvent('exile', `${me.name} exiles their hand (${hand.length}).`);
+          if (hand.length) this._drawCards(me, hand.length);
           break;
         }
         // Expansion Algorithm: "Proliferate X times" — that many, one after another
@@ -45479,12 +45528,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (o.phasedOut || o.name !== name) continue;
             // Echoing Truth, Sever the Bloodline: returned to hand or exiled instead (act), of the kind the words name
             if (e.what && e.what !== 'permanent' && o !== x && !this._matchesCategory(o, e.what)) continue;
+            // Legions to Ashes: besides the target, only that player's tokens
+            if (e.tokensOfController && o !== x && !(o.isToken && o.controller === x.controller)) continue;
             if (e.act === 'exile') { this.moveObject(o, 'exile'); continue; }
             if (e.act === 'bounce') { this.moveObject(o, 'hand'); continue; }
             if (this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
             this.moveObject(o, 'graveyard');
           }
-          this.logEvent(e.act === 'exile' ? 'exile' : e.act === 'bounce' ? 'bounce' : 'destroy',
+          if (e.tokensOfController) this.logEvent('exile', `${name} and every token named ${name} its controller had are exiled.`);
+          else this.logEvent(e.act === 'exile' ? 'exile' : e.act === 'bounce' ? 'bounce' : 'destroy',
             `Every ${e.what && e.what !== 'permanent' ? e.what : 'permanent'} named ${name} is ${e.act === 'exile' ? 'exiled' : e.act === 'bounce' ? "returned to its owner's hand" : 'destroyed'}.`);
           break;
         }
@@ -45542,7 +45594,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         // Beacon of Immortality
         case 'doubleLife': {
-          const p = firstPlayer();
+          // Revival: "your life total"; Celestial Mantle: the enchanted creature's controller's
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          const p = e.who === 'you' ? me : e.who === 'attachedController' ? (host ? this.player(host.controller) : null) : firstPlayer();
           if (p && !p.hasLost && p.life > 0) this.changeLife(p, p.life);
           break;
         }
@@ -46983,12 +47037,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
       if (sc.equipped || sc.enchanted || sc.modified) {
         const on = (o.attachments || []).map(id => this.obj(id)).filter(Boolean);
-        const eq = on.some(at => (at.analysis() || {}).isEquipment), au = on.some(at => (at.analysis() || {}).isAura);
+        const eq = on.some(at => (at.analysis() || {}).isEquipment), au = on.some(at => this._auraNow(at));
         if (sc.equipped && !eq) return false;
         if (sc.enchanted && !au) return false;
         // Guardians of Oboro: counters on it, or an Equipment or Aura of its controller's on it
         if (sc.modified && !Object.values(o.counters || {}).some(v => Number(v) > 0) &&
-          !on.some(at => at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura))) return false;
+          !on.some(at => at.controller === o.controller && ((at.analysis() || {}).isEquipment || this._auraNow(at)))) return false;
       }
       if (sc.colorAny && !sc.colorAny.some(c => (oa.colors || []).includes(c))) return false;
       const mv = (o.card && o.card.cmc) || 0;
@@ -48629,6 +48683,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (w === 'blocking') return !!(o.blocking || []).length;
         // Jor Kadeen: "equipped creatures you control"
         if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
+        // Ellivere of the Wild Court: "an enchanted creature you control" — an Aura on it
+        if (w === 'enchanted') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => this._auraNow(this.obj(id)));
         // Trail of Mystery: "a face-down creature"
         if (w === 'face-down') return !!o.faceDown;
         if (w === 'tapped') return !!o.tapped;
@@ -48636,7 +48692,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
         // (one that has just left is judged as it last was: Costume Closet)
         if (w === 'modified') return Object.values((o.zone === 'battlefield' ? o.counters : o._diedCounters) || {}).some(v => Number(v) > 0) ||
-          (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura); });
+          (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || this._auraNow(at)); });
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
@@ -48846,7 +48902,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
-      if (spec.type === 'any') out.push(...players());
+      if (spec.type === 'any') out.push(...players().filter(t => !spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn));
       return out;
     }
 
@@ -48889,6 +48945,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const o = item && item.kind !== 'ability' && item.obj;
       const xs = String((o && o.card && o.card.mana_cost) || '').match(/\{X\}/g);
       return xs && item.x > 0 ? xs.length * item.x : 0;
+    }
+    /* An Aura on something: an Aura card, or a bestowed creature or a licid
+       while it is attached (Kestia, the Cultivator on a creature) */
+    _auraNow(x) {
+      if (!x) return false;
+      const a = x.analysis() || {};
+      return !!a.isAura || ((a.subtypes || []).includes('Aura')) || (!!(x.bestowed || x.licid) && !!x.attachedTo);
     }
     /** Does a spell on the stack answer to "noncreature", "instant or sorcery"…? */
     _spellMatches(item, spec, controllerId) {
