@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11001,
+  "needed": 11000,
   "gainedCards": 1088,
-  "linesNeeded": 11749,
+  "linesNeeded": 11747,
   "linesGained": 1281,
   "gained": {
    "all": 1088,
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 21,
-   "lines": 15,
-   "cards": [
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Meriadoc Brandybuck",
-    "Demonic Covenant",
-    "Attuma, Atlantean Warlord",
-    "Landroval, Horizon Witness"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 21,
    "lines": 21,
@@ -663,23 +644,6 @@
     "Ant-Man, Elusive Avenger",
     "Exit Specialist",
     "Skyscythe Engulfer"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessAllEffect",
-   "score": 16,
-   "lines": 10,
-   "cards": [
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Raised by Giants",
-    "Kudo, King Among Bears",
-    "Graaz, Unstoppable Juggernaut",
-    "Tanazir Quandrix",
-    "Candlekeep Inspiration",
-    "Archon of the Wild Rose",
-    "Oko, the Trickster",
-    "Inkfathom Witch",
-    "Oko's Hospitality"
    ]
   },
   {
@@ -939,6 +903,25 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Meriadoc Brandybuck",
+    "Demonic Covenant",
+    "Attuma, Atlantean Warlord",
+    "Landroval, Horizon Witness",
+    "Crimson Cowl, Master of Evil"
    ]
   },
   {
@@ -1953,6 +1936,22 @@
     "Mindleecher",
     "Everquill Phoenix",
     "Huntmaster Liger"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessAllEffect",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Raised by Giants",
+    "Kudo, King Among Bears",
+    "Graaz, Unstoppable Juggernaut",
+    "Tanazir Quandrix",
+    "Candlekeep Inspiration",
+    "Archon of the Wild Rose",
+    "Oko, the Trickster",
+    "Inkfathom Witch",
+    "Oko's Hospitality"
    ]
   },
   {

@@ -9607,6 +9607,8 @@
       event: 'permLeaves', extra: { toZoneOnly: 'exile' }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' leaves? the battlefield(?:,| )', 'i'),
       event: 'permLeaves', filt: (m) => subjectFilter(m[1]) },
+    // Dollmaker's Shop: "Whenever one or more non-Toy creatures you control attack a player" (read as Anim Pakal's)
+    { re: /^Whenever one or more non-([A-Z][a-z]+) creatures you control attack(?: a player)?,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // "attacks alone": the only attacker this combat (before plain "attacks")
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks alone,? /i, event: 'attacksAlone', self: true },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
@@ -14173,6 +14175,12 @@
         make: (m) => ({ op: 'sequence', list: [
           { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' }, setPt: { p: +m[1], t: +m[2] } },
           { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, addSubtypes: [m[3]] }] }), auto: true },
+      // Porcelain Gallery: "Creatures you control have base power and toughness each equal to the number of creatures you control."
+      { re: /^Creatures you control have base power and toughness each equal to the number of ([-a-z' ]+?) (you control|on the battlefield)\.?$/i,
+        make: (m) => {
+          const k = cdaCount(m[1], /you control/i.test(m[2]) ? 'you' : 'any');
+          return k ? { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' }, setPt: { p: k, t: k } } : null;
+        }, auto: true },
       // On Wings of Gold: "Creatures you control that are Zombies and/or tokens get +1/+1 and have flying."
       { re: /^Creatures you control that are ([A-Z][a-z]+?)s and\/or tokens get \+(\d+)\/\+(\d+) and have ([a-z ,]+)\.?$/,
         make: (m) => {

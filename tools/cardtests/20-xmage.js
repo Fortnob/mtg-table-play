@@ -18935,4 +18935,22 @@ module.exports = (test) => {
     T.resolve();
     t.eq(v.counters['+1/+1'], 1, 'not the second time');
   });
+
+  test("Dollmaker's Shop // Porcelain Gallery: a Toy when non-Toys attack; creatures as big as your creature count", (mk, t) => {
+    t.auto("Dollmaker's Shop // Porcelain Gallery");
+    const T = mk();
+    const r = T.bf('A', "Dollmaker's Shop // Porcelain Gallery"); r.face = 0;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    const toys = T.g.battlefield.filter(o => o.controller === 'A' && /Toy/.test(o.name));
+    t.eq(toys.length, 1, 'a Toy');
+    r.face = 2; T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 2, 'two creatures: 2/2');
+    T.bf('A', 'Llanowar Elves');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(bear), 3, 'three creatures: 3/3');
+    t.eq(T.g.toughnessOf(toys[0]), 3);
+  });
 };
