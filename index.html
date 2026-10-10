@@ -6340,7 +6340,7 @@ html[data-play="1"] .friends-chip { display: none; }
    deck link makes when it is opened
    ============================================================ */
 
-/* ---- a card's rulings, folded away under it (10g-rulings.js) ----
+/* ---- a card's rulings under it, and the window that goes through them (10g-rulings.js) ----
    Dark wherever it is, like the enlarged card it sits under. */
 .rulings {
   border-radius: 10px; border: 1px solid rgba(212,175,71,.22); color: #dfe5ef; text-align: left;
@@ -6348,18 +6348,12 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 .card-sheet-body > .rulings { margin-top: 10px; }
 .cardview-side .rulings { flex: none; background: rgba(0,0,0,.22); }
-.rulings > summary {
-  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
-  min-height: 44px; padding: 0 12px; user-select: none; -webkit-user-select: none;
-}
-.rulings > summary::-webkit-details-marker { display: none; }
-.rulings > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 10px; }
+.rul-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px 2px; }
 .rul-title { font: 600 13.5px/1.2 var(--serif); color: var(--gold-1); }
 .rul-count {
   min-width: 22px; padding: 3px 7px; border-radius: 99px; text-align: center;
   font: 700 11px/1 var(--font); color: #f3dd96; background: rgba(212,175,71,.16);
 }
-.rulings > summary .rules-chev { margin-left: auto; border-color: #8d97a8; }
 .rul-body { padding: 0 12px 10px; }
 .rul-list { list-style: none; margin: 0; padding: 0; }
 .rul { padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); }
@@ -6367,6 +6361,20 @@ html[data-play="1"] .friends-chip { display: none; }
 .rul-src { font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #9cc7ff; }
 .rul-text { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: #c4ccd9; overflow-wrap: anywhere; }
 .rul-wait { margin: 0 0 4px; font-size: 12px; color: #8d97a8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rul-first { border-top: 0; padding: 6px 0 0; }
+/* the first ruling cut to three lines when there is more to read */
+.rul-first.clipped .rul-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rul-more {
+  margin-top: 6px; padding: 6px 0; min-height: 32px; border: 0; background: none; cursor: pointer;
+  font: 600 12.5px/1.2 var(--font); color: var(--gold-1); text-decoration: underline; text-underline-offset: 3px;
+}
+.rul-more:hover { color: #f3dd96; }
+.rul-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.rul-window { display: flex; flex-direction: column; gap: 14px; }
+.rul-window .rul-text { font-size: 14px; line-height: 1.6; color: #dfe5ef; }
+.rul-window .rul-head { font-size: 12px; }
+.rul-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rul-where { font-size: 12.5px; color: #8d97a8; font-variant-numeric: tabular-nums; }
 
 /* ---- the deck builder's Playtest tab (11b-ui-playtest.js) ---- */
 .pt-status { margin: -4px 0 12px; }
@@ -34149,6 +34157,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
       if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; this.addCounters(o, '+1/+1', k); }
+      /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
+         Season change how many, once for the counters it enters with and any extra ones of the kind
+         (Metallic Mimic) — put on together below (enterCounters) */
+      let enterCounters = null;
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
@@ -34176,9 +34188,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               kinds: pick.slice(), n, options: pick.map((k, i) => ({ i, label: U.titleCase(k) + ' counter' })),
               prompt: `${o.name}: choose the counter it enters with.` });
           }
-          o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
-          // entering with counters is having them put on it (CR 122.6)
-          this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n });
+          enterCounters = { kind, n };
         }
       }
       // what the draft noted: Lurking Automaton's counters, Cogwork Tracker's player
@@ -34201,8 +34211,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
-        if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
+        if (k > 0 && enterCounters && enterCounters.kind === (ex.counter || '+1/+1')) enterCounters.n += k;
+        else if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
       }
+      // (Walking Ballista with Hardened Scales: X, and one more; with Doubling Season, twice X)
+      if (enterCounters) this.addCounters(o, enterCounters.kind, enterCounters.n);
       /* Amplify N (CR 702.38): N +1/+1 counters for each card revealed from
          hand that shares a creature type with it. Revealing is free and only
          helps, so every such card is shown. */
@@ -39338,7 +39351,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           o._keepUntapped = !!entEv.untapped && !o._forcedTapped;
           if (o._keepUntapped) o.tapped = false;
           if (o._forcedTapped) o.tapped = true;
-          if (a.isPlaneswalker) o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+          if (a.isPlaneswalker) {
+            o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
+            // Doubling Season: a planeswalker's loyalty counters are put on it as it enters (CR 306.5b)
+            if (o.counters.loyalty > 0) {
+              const evL = this._replace({ kind: 'counters', object: o, n: o.counters.loyalty, counter: 'loyalty', controller: o.controller, putter: o.controller });
+              o.counters.loyalty = evL.cancelled ? 0 : Math.max(0, Number(evL.n) || 0);
+            }
+          }
           /* Compleated (CR 702.150): two fewer loyalty counters for each
              Phyrexian symbol paid with life, which is the life paid */
           if (a.isPlaneswalker && o._phyLife > 0 && o.wasCast === this.turn && (a.keywords || []).some(k => k.keyword === 'Compleated')) {
@@ -66600,7 +66620,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     for (let i = 0; i < faces; i++) {
       if (!gotImage || MTG.settings.alwaysCardText || MTG.isPhone()) body.appendChild(UI.cardTextBlock(card, i));
     }
-    // its rulings, folded away under it (src/10g-rulings.js)
+    // its rulings under it (src/10g-rulings.js)
     const rulings = UI.rulingsBox ? UI.rulingsBox(card) : null;
     if (rulings) body.appendChild(rulings);
     const close = () => { sheet.remove(); document.removeEventListener('keydown', onEsc, true); };
@@ -73825,9 +73845,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 /* ============================================================
    10g-rulings.js - a card's official rulings, from Scryfall
    The notes Wizards publishes on how a card plays (and the few
-   Scryfall adds), each with its date. They sit folded away under
-   the enlarged card, one line until opened, so a phone still shows
-   the card first.
+   Scryfall adds), each with its date. The first sits under the
+   enlarged card, cut to a few lines; when there are more, or it runs
+   long, "Show more" opens them in a window of their own, one at a
+   time.
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -73895,19 +73916,75 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   MTG.rulings = { get: rulings, tidy, dateText, scryfallId };
 
+  /** One ruling: its date, whose it is, and its words. */
+  const rulingBody = (r) => [
+    el('div', { class: 'rul-head' }, [
+      el('time', { datetime: r.date, text: dateText(r.date) }),
+      r.source === 'scryfall' ? el('span', { class: 'rul-src', text: 'Scryfall note', title: 'Added by Scryfall, not an official ruling' }) : null,
+    ].filter(Boolean)),
+    el('div', { class: 'rul-text', html: MTG.mana.textHtml(r.text) }),
+  ];
+
+  // past this many letters a ruling no longer fits the few lines under the card
+  const LONG = 180;
+
   /**
-   * The rulings, folded up under a card: one line saying how many there
-   * are, opened with a tap. Null for a card that cannot have any. It asks
-   * Scryfall as soon as it is made, so the count is there by the time
-   * anyone looks; a card with no rulings takes the line away again rather
-   * than leave an empty fold.
+   * Every ruling in a window of its own, one at a time, with Previous and
+   * Next (and the arrow keys) to go through them. It sits above the
+   * enlarged card, and Escape closes it before the card.
+   */
+  function rulingsWindow(card, list, start) {
+    let at = Math.max(0, Math.min(list.length - 1, start || 0));
+    const where = el('span', { class: 'rul-where', 'aria-live': 'polite' });
+    const page = el('div', { class: 'rul-page' });
+    const prev = el('button', { type: 'button', class: 'btn sm', text: 'Previous', onclick: () => go(-1) });
+    const next = el('button', { type: 'button', class: 'btn sm primary', text: 'Next', onclick: () => go(1) });
+    const pager = list.length > 1 ? el('div', { class: 'rul-pager' }, [prev, where, next]) : null;
+    const draw = () => {
+      page.replaceChildren(...rulingBody(list[at]));
+      where.textContent = `${at + 1} of ${list.length}`;
+      prev.disabled = at === 0;
+      next.disabled = at === list.length - 1;
+    };
+    const go = (d) => {
+      const to = Math.max(0, Math.min(list.length - 1, at + d));
+      if (to !== at) { at = to; draw(); }
+    };
+    const m = UI.modal({
+      title: `Rulings — ${card.name}`, className: 'rul-modal', width: '560px',
+      content: el('div', { class: 'rul-window' }, [page, pager].filter(Boolean)),
+      buttons: [{ label: 'Close' }],
+    });
+    // above the enlarged card it was opened from
+    if (m.el.parentNode) m.el.parentNode.style.zIndex = '900';
+    /* Caught before anything else hears it: Escape closes this window and
+       not the card under it, and the arrows turn the page. */
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); m.close(); }
+      else if (e.key === 'ArrowLeft' && list.length > 1) { e.preventDefault(); go(-1); }
+      else if (e.key === 'ArrowRight' && list.length > 1) { e.preventDefault(); go(1); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    m._onClose = () => window.removeEventListener('keydown', onKey, true);
+    draw();
+    (pager ? next : m.foot.querySelector('button')).focus({ preventScroll: true });
+    return m;
+  }
+  UI.rulingsWindow = rulingsWindow;
+
+  /**
+   * The rulings under a card: the first one, cut to a few lines, and
+   * "Show more" when there are others or it runs on. Null for a card
+   * that cannot have any. It asks Scryfall as soon as it is made, so the
+   * ruling is there by the time anyone looks; a card with no rulings takes
+   * the box away again rather than leave an empty one.
    */
   UI.rulingsBox = function (card) {
     if (!scryfallId(card)) return null;
     const count = el('span', { class: 'rul-count', text: '…' });
     const body = el('div', { class: 'rul-body' }, el('p', { class: 'rul-wait', text: 'Asking Scryfall…' }));
-    const box = el('details', { class: 'rulings' }, [
-      el('summary', null, [el('span', { class: 'rul-title', text: 'Rulings' }), count, el('span', { class: 'rules-chev', 'aria-hidden': 'true' })]),
+    const box = el('section', { class: 'rulings', 'aria-label': 'Rulings' }, [
+      el('div', { class: 'rul-top' }, [el('span', { class: 'rul-title', text: 'Rulings' }), count]),
       body,
     ]);
     // the enlarged card closes on a click anywhere; a click in here is for the rulings
@@ -73916,13 +73993,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const show = (list) => {
       if (!list || !list.length) { box.remove(); return; }
       count.textContent = String(list.length);
-      body.replaceChildren(el('ol', { class: 'rul-list' }, list.map(r => el('li', { class: 'rul' }, [
-        el('div', { class: 'rul-head' }, [
-          el('time', { datetime: r.date, text: dateText(r.date) }),
-          r.source === 'scryfall' ? el('span', { class: 'rul-src', text: 'Scryfall note', title: 'Added by Scryfall, not an official ruling' }) : null,
-        ].filter(Boolean)),
-        el('div', { class: 'rul-text', html: MTG.mana.textHtml(r.text) }),
-      ]))));
+      const more = list.length > 1 || list[0].text.length > LONG;
+      body.replaceChildren(...[
+        el('div', { class: 'rul rul-first' + (more ? ' clipped' : '') }, rulingBody(list[0])),
+        more ? el('button', { type: 'button', class: 'rul-more', text: 'Show more', onclick: () => rulingsWindow(card, list, 0) }) : null,
+      ].filter(Boolean));
     };
     const fail = () => {
       count.textContent = '!';
@@ -80538,7 +80613,7 @@ Sideboard
             sides.tokens,
             roomy ? null : sides.keywords,
             el('div', { class: 'cv-meta', text: `${card.set_name || ''}${card.artist ? ' · ' + card.artist : ''}` }),
-            // its rulings, folded away (src/10g-rulings.js)
+            // its rulings (src/10g-rulings.js)
             UI.rulingsBox ? UI.rulingsBox(card) : null,
             el('div', { class: 'row', style: { marginTop: 'auto' } }, [
               el('button', { class: 'btn sm', text: 'Choose art…', onclick: () => { close(); UI.pickArt(card); } }),
