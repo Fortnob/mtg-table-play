@@ -8901,6 +8901,8 @@
     [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Angrath: "it has mana value 3 or less"
     [/^it has mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Serum Snare: "that permanent had mana value 3 or less" — what the sentence before acted on
+    [/^(?:it|that (?:creature|permanent|spell|card)) had mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Deathbringer Liege: "it's tapped"
     [/^it'?s (tapped|untapped)$/i, (m) => ({ kind: 'itTapped', tapped: /^tapped$/i.test(m[1]) })],
     // Star Charter: "you gained or lost life this turn"

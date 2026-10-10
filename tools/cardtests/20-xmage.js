@@ -17810,4 +17810,20 @@ module.exports = (test) => {
     T.settle();
     t.eq(tt.counters['+1/+1'] || 0, 5, '2 + 3, not the opponent\'s Wurm');
   });
+
+  test('Serum Snare: proliferate if the returned permanent had mana value 3 or less', (mk, t) => {
+    t.auto('Serum Snare');
+    t.auto('Consuming Ashes');
+    for (const [name, mv3] of [['Grizzly Bears', true], ['Craw Wurm', false]]) {
+      const T = mk();
+      T.toMain('A');
+      const mine = T.bf('A', 'Hill Giant', { counters: { '+1/+1': 1 } });
+      const it = T.bf('B', name);
+      T.mana('A', 'UU2');
+      T.cast('A', T.hand('A', 'Serum Snare'), { targets: [it.id] });
+      T.settle();
+      t.zone(it, 'hand', name + ' returned');
+      t.eq(mine.counters['+1/+1'] || 0, mv3 ? 2 : 1, mv3 ? 'mana value 2: proliferated' : 'mana value 6: not');
+    }
+  });
 };
