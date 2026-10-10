@@ -759,6 +759,24 @@
   }
 
   function itIsTheTrigger(effects, scope) {
+    /* Blistercoil Weird, Pristine Skywise: "this creature gets +1/+1 … Untap it", "untap this creature. It
+       gains …"; Captain Ripley Vance, Aria of Flame: "put a counter on CARDNAME, then it deals damage
+       equal to its power" — right after a sentence about this permanent, "it" is still this permanent,
+       not the spell or creature the trigger is about */
+    if (scope !== 'self') {
+      let afterSelf = false;
+      const walk0 = (list, fn) => { for (const e of list || []) { if (!e) continue; fn(e); walk0(e.list, fn); walk0(e.then, fn); walk0(e.otherwise, fn); } };
+      walk0(effects, (e) => {
+        const it = /^(?:then )?(?:untap )?it\b/i.test(String(e.text || '').trim()) || (e.op === 'damage' && /\bthen it deals\b/i.test(e.text || ''));
+        if (afterSelf && it && e.scope === 'lastTarget' && !(e.targets || []).length) e.scope = 'self';
+        if (afterSelf && it && e.op === 'damage' && e.fromTrigger) {
+          delete e.fromTrigger;
+          if (e.n && typeof e.n === 'object' && e.n.ofTrigger) e.n = { ofSelf: e.n.ofTrigger };
+        }
+        afterSelf = (e.scope === 'self' && (/\bthis\b|CARDNAME/i.test(e.text || '') || (afterSelf && it))) ||
+          (afterSelf && it && e.op === 'damage' && !e.fromTrigger);
+      });
+    }
     if (!scope) return;
     /* "Whenever this creature attacks, it gains double strike until end of
        turn": with nothing before it, "it" is what the trigger is about */
@@ -802,7 +820,8 @@
     let prevSelf = false;
     if (scope === 'triggerObject') walk(effects, (e) => {
       if (e.scope === 'self' && ops.includes(e.op) && !prevSelf && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = scope;
-      prevSelf = e.scope === 'self' && /\bthis\b|CARDNAME/.test(e.text || '');
+      // (Blistercoil Weird: "This creature gets +1/+1 … Untap it." — "This" with a capital too)
+      prevSelf = e.scope === 'self' && /\bthis\b|CARDNAME/i.test(e.text || '');
     });
   }
 

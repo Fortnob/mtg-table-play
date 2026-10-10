@@ -20883,4 +20883,22 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'exiled at the end step');
   });
+
+  test('Right after a sentence about this creature, "it" is still this creature: Blistercoil Weird untaps itself; Captain Ripley Vance deals its own power', (mk, t) => {
+    t.auto('Blistercoil Weird'); t.auto('Captain Ripley Vance');
+    const T = mk({ library: ['Island', 'Island', 'Island', 'Island'] });
+    T.toMain('A');
+    const bw = T.bf('A', 'Blistercoil Weird', { tapped: true });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.no(bw.tapped, 'Blistercoil Weird untaps itself');
+    t.eq(T.g.powerOf(bw), 2, 'and gets +1/+1');
+    const T2 = mk({ library: ['Island', 'Island', 'Island', 'Island'] });
+    T2.toMain('A');
+    const cr = T2.bf('A', 'Captain Ripley Vance');
+    T2.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    for (let i = 0; i < 3; i++) { T2.mana('A', 'U'); T2.cast('A', T2.hand('A', 'Opt')); }
+    t.eq(cr.counters['+1/+1'], 1, 'the third spell: a counter on the Captain');
+    t.eq(T2.life('B'), 20 - T2.g.powerOf(cr), 'and damage equal to its own power');
+  });
 };
