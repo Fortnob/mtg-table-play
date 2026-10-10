@@ -1319,7 +1319,8 @@ Sideboard
     opts = opts || {};
     document.querySelectorAll('.ctx-menu, .ctx-scrim').forEach(n => n.remove());
     const phone = MTG.isPhone();
-    const menu = el('div', { class: 'ctx-menu panel' + (phone ? ' as-sheet' : '') });
+    const menu = el('div', { class: 'ctx-menu panel' + (phone ? ' as-sheet' : ''), role: 'menu', 'aria-label': opts.title || 'Menu' });
+    const returnTo = document.activeElement;
     if (!phone) {
       Object.assign(menu.style, {
         position: 'fixed', zIndex: 700, padding: '4px', minWidth: '170px',
@@ -1332,31 +1333,50 @@ Sideboard
     }
     let scrim = null;
     const dismiss = () => {
+      const had = menu.contains(document.activeElement);
       menu.remove();
       if (scrim) scrim.remove();
       document.removeEventListener('mousedown', close);
       document.removeEventListener('keydown', onEsc);
+      // the keyboard goes back where it came from, unless what was chosen moved it on
+      if (had && returnTo && returnTo.isConnected && returnTo.focus) { try { returnTo.focus({ preventScroll: true }); } catch (e) {} }
     };
     for (const it of items) {
-      if (it === '-') { menu.appendChild(el('hr', { class: 'sep', style: { margin: '4px 0' } })); continue; }
+      if (it === '-') { menu.appendChild(el('hr', { class: 'sep', style: { margin: '4px 0' }, role: 'separator' })); continue; }
       const [label, fn, disabled] = it;
       menu.appendChild(el('div', {
         class: 'ctx-item deck-entry' + (disabled ? ' dim' : ''),
-        text: label,
+        text: label, role: 'menuitem', tabindex: '-1', 'aria-disabled': disabled ? 'true' : null,
         style: phone ? null : { padding: '5px 8px', cursor: disabled ? 'default' : 'pointer' },
         onclick: () => { if (!disabled) { dismiss(); MTG.sfx('click'); fn(); } },
       }));
     }
     if (phone) {
-      menu.appendChild(el('div', { class: 'ctx-item ctx-cancel', text: 'Cancel', onclick: dismiss }));
+      menu.appendChild(el('div', { class: 'ctx-item ctx-cancel', text: 'Cancel', role: 'menuitem', tabindex: '-1', onclick: dismiss }));
       scrim = el('div', { class: 'ctx-scrim', onclick: dismiss });
       document.body.appendChild(scrim);
     }
     const onEsc = (e) => { if (e.key === 'Escape') dismiss(); };
     const close = (e) => { if (!menu.contains(e.target)) dismiss(); };
+    /* By keyboard: up and down the items, Enter or Space to choose one,
+       Tab or Escape to leave. */
+    menu.addEventListener('keydown', (e) => {
+      const list = Array.from(menu.querySelectorAll('.ctx-item:not([aria-disabled="true"])'));
+      const i = list.indexOf(document.activeElement);
+      const go = (j) => { e.preventDefault(); e.stopPropagation(); if (list.length) list[(j + list.length) % list.length].focus(); };
+      if (e.key === 'ArrowDown') go(i + 1);
+      else if (e.key === 'ArrowUp') go(i < 0 ? list.length - 1 : i - 1);
+      else if (e.key === 'Home') go(0);
+      else if (e.key === 'End') go(list.length - 1);
+      else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) { e.preventDefault(); e.stopPropagation(); list[i].click(); }
+      else if (e.key === 'Tab') { e.preventDefault(); dismiss(); }
+    });
     document.body.appendChild(menu);
     document.addEventListener('keydown', onEsc);
     if (!phone) setTimeout(() => document.addEventListener('mousedown', close), 0);
+    // the first item takes the focus, so the keyboard is in the menu from the start
+    const first = menu.querySelector('.ctx-item:not([aria-disabled="true"])');
+    if (first) { try { first.focus({ preventScroll: true }); } catch (e) {} }
     return menu;
   };
 

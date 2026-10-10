@@ -2436,7 +2436,7 @@
       toggle('orderMyTriggers', 'Let me order my own triggers', 'When several of your triggers go on the stack at once, choose the order instead of having it chosen for you.', pushAutoPass),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Always stop at' }),
-        el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, H holds priority.' }),
+        el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, Ctrl keeps priority for this step. ? at the table lists every key.' }),
         stopGrid(),
         el('div', { class: 'row wrap', style: { marginTop: '12px' } }, [
           el('button', { class: 'btn sm', text: 'Reset to defaults', onclick: () => { MTG.setSetting('stops', null); pushAutoPass(); renderOptions(); } }),
@@ -2495,6 +2495,13 @@
       toggle('reduceMotion', 'Reduce motion', 'Turns off transitions and animations across the app.'),
       toggle('dyslexiaFont', 'Easier-to-read font', 'Switches to a wider, more distinct typeface with looser spacing.'),
       toggle('focusRings', 'Strong keyboard focus outlines', 'Makes the focused control obvious when tabbing.'),
+      el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'Playing by keyboard' }),
+          el('div', { class: 'opt-help', text: 'The whole game plays from the keyboard, and a screen reader hears what happens. Press ? at the table for every key.' }),
+        ]),
+        el('button', { class: 'btn sm', text: 'Show the keys', onclick: () => UI.keyboardHelp() }),
+      ]),
       toggle('bigHitTargets', 'Larger click targets', 'Adds padding to buttons and rows.'),
     ]));
 

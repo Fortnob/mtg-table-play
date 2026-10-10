@@ -40,6 +40,7 @@
  "12d-ui-replay.js",
  "12e-ui-coach.js",
  "12f-ui-feel.js",
+ "12g-ui-table-access.js",
  "13-ui-draft.js",
  "17-ui-advisor.js",
  "14-app.js"

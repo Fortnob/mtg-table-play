@@ -2912,6 +2912,7 @@
       const live = this.live || this.view || {};
       UI.contextMenu(e, [
         ['Game log  (L)', () => this.toggleDrawer(true, 'log')],
+        UI.keyboardHelp ? ['Keys  (?)', () => UI.keyboardHelp()] : null,
         MTG.net && MTG.net.online ? ['Chat', () => this.toggleDrawer(true, 'chat')] : null,
         [`Sort hand by ${nextSort[1]}`, () => { MTG.setSetting('handSort', nextSort[0]); this.render(); }],
         [`Pace: ${paceName(MTG.settings.animSpeed)}  → ${paceName(nextPace(MTG.settings.animSpeed))}`,
