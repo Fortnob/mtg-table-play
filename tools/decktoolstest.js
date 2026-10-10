@@ -8,6 +8,9 @@
    - sample hands and their odds (src/16a-playtest.js): the land chances
      add up and match the known figures, mulligans put the right number
      of cards on the bottom, and no card goes missing or doubles;
+   - the practice game: a real game against the Goldfish, which keeps
+     its hand, never casts, attacks or blocks, runs out of cards without
+     losing, and is killed on a turn the tally can name;
    - rulings (src/10g-rulings.js): asked for once and kept, oldest first,
      dated the British way, and nothing asked for a card that has none.
 
@@ -195,6 +198,52 @@ const P = MTG.playtest;
   check(h.hand.length === 7 && h.mulligans === 0 && h.draws === 0, 'a new hand starts over');
 }
 
+/* ================= the practice game ================= */
+const F = MTG.practice;
+async function practice(onDraw, seed) {
+  const deck = deckOf('standard', 'Red', [[20, 'Mountain'], [16, 'Raging Goblin'], [12, 'Lightning Bolt'], [12, 'Goblin Piker']]);
+  const g = new MTG.rules.Game({ formatId: 'standard', startingLife: 20, startingHand: 7, commanderDamage: null, maxPlayers: 8, seed, firstPlayerDraws: false });
+  g.addPlayer({ id: 'me', name: 'Me', isBot: true, botDifficulty: 6 });
+  g.addPlayer({ id: F.SEAT, name: 'Goldfish', isBot: true, botDifficulty: 1 });
+  g.loadDeck('me', deck);
+  g.loadDeck(F.SEAT, F.emptyDeck('standard'));
+  const runner = new MTG.bots.BotRunner(g);
+  runner.add('me', 6);
+  F.seat(g, runner, { id: F.SEAT });
+  const t = F.tally(g);
+  const acts = [];
+  g.on('bot:action', (a) => { if (a.playerId === F.SEAT) acts.push(a); });
+  g.start();
+  F.setup(g, { onDraw });
+  const first = g.turnOrder[0];
+  runner.kick();
+  const t0 = Date.now();
+  let last = -1, still = 0;
+  while (!g.over && (me => (me.turnsTaken || 0) <= 14)(g.player('me')) && Date.now() - t0 < 60000) {
+    await new Promise(r => setTimeout(r, 25));
+    if (g.stateVersion === last) { if (++still > 200) break; } else { still = 0; last = g.stateVersion; }
+  }
+  runner.stop();
+  return { g, t, first, acts };
+}
+async function practiceChecks() {
+  for (const [onDraw, seed] of [[false, 11], [true, 12]]) {
+    const { g, t, first, acts } = await practice(onDraw, seed);
+    const fish = g.player(F.SEAT);
+    const label = onDraw ? 'on the draw' : 'on the play';
+    check(first === (onDraw ? F.SEAT : 'me'), `${label}: the right player goes first`);
+    check(!g.over && !fish.hasLost, `${label}: the Goldfish never loses (life ${fish.life}, turn ${g.turn})`);
+    check(g.log.some(l => /Goldfish tried to draw from an empty library/.test(l.text || '')), `${label}: it ran out of cards and played on`);
+    check(!!t.kill && t.kill.how === 'damage', `${label}: twenty damage was dealt (${t.dealt} by your turn ${t.turn})`);
+    check(!!t.kill && t.kill.turn >= 2 && t.kill.turn <= 9, `${label}: on a believable turn (${t.kill && t.kill.turn})`);
+    console.log(`  practice ${label}: ${t.dealt} damage by your turn ${t.turn}, twenty on turn ${t.kill && t.kill.turn}; by turn ${t.byTurn.map((v, i) => v == null ? null : `${i}:${v}`).filter(Boolean).join(' ')}`);
+    check(t.byTurn.filter(x => x != null).every((v, i, a) => i === 0 || v >= a[i - 1]), `${label}: the damage only adds up`);
+    const busy = g.log.filter(l => /^Goldfish (casts|attacks|blocks|plays)/.test(l.text || ''));
+    check(!busy.length && !acts.length && !g.battlefield.some(o => o.controller === F.SEAT), `${label}: the Goldfish never did a thing (${busy.map(l => l.text).join('; ')})`);
+    check(g.zones[F.SEAT].command.some(o => o.card && o.card.layout === 'emblem'), `${label}: its emblem is in its command zone`);
+  }
+}
+
 /* ================= rulings ================= */
 async function rulingsChecks() {
   const R = MTG.rulings;
@@ -225,6 +274,7 @@ async function rulingsChecks() {
 }
 
 (async () => {
+  await practiceChecks();
   await rulingsChecks();
   console.log(`${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);

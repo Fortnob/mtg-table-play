@@ -71,6 +71,8 @@
    * so every screen at the table can say how it plays.
    */
   function seatBot(g, runner, r) {
+    // a practice game's opponent, which only ever passes (src/16a-playtest.js)
+    if (MTG.practice && MTG.practice.isSeat(r)) return MTG.practice.seat(g, runner, r);
     const bot = runner.add(r.id, { difficulty: r.difficulty, personality: r.personality || undefined });
     const p = g.player(r.id);
     if (p && bot) p.botPersonality = bot.personality || null;
@@ -1721,6 +1723,8 @@
           onclick: async () => {
             if (await UI.confirm(`Delete "${d.name}"?`, 'Delete deck')) { MTG.decks.remove(d.id); renderDecks(); }
           } }),
+        // a solo game against an opponent that does nothing (src/11b-ui-playtest.js)
+        UI.practiceButton ? UI.practiceButton(d) : null,
         el('button', { class: 'btn xs primary', text: 'Play', title: 'Start a game with this deck',
           onclick: () => { App.formatId = d.format; startLobby('host'); setTimeout(() => usePreselectedDeck(d.id), 20); } }),
       ]),
