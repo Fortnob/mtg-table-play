@@ -359,6 +359,33 @@
     for (const e of (deck.sideboard || [])) owned.add(U.normName(U.frontName(e.card.name)));
     for (const c of (deck.commanders || [])) owned.add(U.normName(U.frontName(c.name)));
 
+    /* --- 0. Recommander: the cards that suit this commander deck as built ---
+       Learned from a great many real decks, it ranks what this list in
+       particular is missing (src/16b-recommander.js). When it answers, its
+       order is the order of the suggestions, and the engine only says what
+       each card would do here; when it cannot be asked, the engine's own
+       reading and EDHREC stand in, as before. */
+    const commander = (deck.commanders || [])[0];
+    const recPicks = [];
+    if (commander && fmt.commander && opts.recommander !== false && MTG.recommander && MTG.recommander.ready()) {
+      const list = await MTG.recommander.top(deck).catch(() => null);
+      if (list && list.length) {
+        const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, Math.max(limit * 3, 60));
+        try {
+          const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
+          wanted.forEach((rec, i) => {
+            const card = cards[i];
+            if (!card || MTG.formats.isBasicLand(card)) return;
+            if (owned.has(U.normName(U.frontName(card.name)))) return;
+            if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
+            if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
+            recPicks.push({ card, rank: recPicks.length });
+          });
+        } catch (e) { /* the engine's own suggestions stand in */ }
+      }
+    }
+    const recommanderUsed = recPicks.length > 0;
+
     /* --- 1. what to search for: the gaps, then the themes --- */
     const queries = [];
     const needyRoles = prof.gaps.filter(g => g.diff > 0).sort((a, b) => b.diff - a.diff);
@@ -378,9 +405,12 @@
       queries.push({ q: `${base} o:"${prof.tribe}" -t:${prof.tribe}`, theme: 'tribal', why: `pays off your ${prof.tribe}s`, weight: 1.7 });
     }
     if (!queries.length) queries.push({ q: base, why: 'a strong card in your colours', weight: 1 });
+    // with Recommander's answer in hand, its picks are the pool and nothing else is searched for
+    if (recommanderUsed) queries.length = 0;
 
     /* --- 2. run them --- */
     const pool = new Map();   // id -> {card, hits:[{why,weight,role,theme}], rank}
+    for (const p of recPicks) pool.set(p.card.id, { card: p.card, hits: [], bestRank: 999, rec: p.rank });
     for (const spec of queries) {
       let res = [];
       try { res = await MTG.scry.search(spec.q, { order: 'edhrec', unique: 'cards', max: opts.perQuery || 60 }); }
@@ -406,8 +436,7 @@
        them together. If EDHREC cannot be reached this simply adds
        nothing. */
     let edhrecUsed = false;
-    const commander = (deck.commanders || [])[0];
-    if (commander && fmt.commander && opts.edhrec !== false) {
+    if (commander && fmt.commander && opts.edhrec !== false && !recommanderUsed) {
       const list = await edhrecFor(commander).catch(() => null);
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, 90);
@@ -438,6 +467,12 @@
       if (!a) continue;
       const reasons = [];
       let score = 0;
+
+      // Recommander's order stands: what follows only explains the card
+      if (entry.rec != null) {
+        score += (1000 - entry.rec) * 100;     // far past anything the notes below add
+        reasons.push(entry.rec < 10 ? `Recommander's #${entry.rec + 1} pick for this deck` : 'recommended for this deck by Recommander');
+      }
 
       // popularity: Scryfall's edhrec ordering is the play-rate signal
       const pop = 1 - U.clamp(entry.bestRank / 60, 0, 1);
@@ -510,7 +545,7 @@
       queriesRun: queries.length,
       /* where the advice came from, so the panel can say so rather than
          quietly looking thinner when EDHREC is unreachable */
-      sources: { engine: true, edhrec: edhrecUsed },
+      sources: { engine: true, edhrec: edhrecUsed, recommander: recommanderUsed },
     };
   }
 

@@ -2269,7 +2269,7 @@
      which, and the page remembers the last one you looked at. */
   const OPT_SECTIONS = [
     ['you', 'You'], ['display', 'Display'], ['gameplay', 'Gameplay'], ['rules', 'House rules'], ['pace', 'Pace'], ['stops', 'Stops'],
-    ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['data', 'Card data'],
+    ['access', 'Accessibility'], ['sound', 'Sound'], ['online', 'Online'], ['suggest', 'Suggestions'], ['data', 'Card data'],
   ];
   const BOT_PACE = [[0, 'Instant'], [250, 'Quick'], [600, 'Normal'], [1200, 'Unhurried']];
   const ANIM_PACE = [[0.5, 'Fast'], [1, 'Normal'], [1.6, 'Relaxed']];
@@ -2560,6 +2560,7 @@
 
     /* -- online -- */
     sections.push(onlineGroup(group));
+    sections.push(suggestionsGroup(group));
 
     /* -- data -- */
     const cacheInfo = el('div', { class: 'opt-help', text: 'Reading cache…' });
@@ -4741,6 +4742,45 @@
    * Options > Online: TURN relays for networks that block a direct
    * connection, and a test of what this browser can reach.
    */
+  /* Commander suggestions come from Recommander, asked through a relay
+     (tools/recommander-relay): the address, and a test that it answers. */
+  function suggestionsGroup(group) {
+    const R = MTG.recommander;
+    const input = el('input', { type: 'text', id: 'opt-rec-relay', value: MTG.settings.recommanderRelay || '',
+      placeholder: R && R.relay && !MTG.settings.recommanderRelay ? R.relay : 'https://recommander-relay.yourname.workers.dev', autocomplete: 'off', spellcheck: 'false' });
+    const result = el('div', { class: 'opt-help net-test', 'aria-live': 'polite' });
+    const save = () => {
+      const v = input.value.trim().replace(/\/+$/, '');
+      if (v && !/^https:\/\//i.test(v)) return UI.error('A relay address starts with https://');
+      MTG.setSetting('recommanderRelay', v);
+      UI.ok(v ? 'Relay saved. Commander suggestions are asked through it.' : (R.ready() ? 'Back to the relay built in.' : 'Relay removed.'));
+    };
+    const test = async (btn) => {
+      const v = input.value.trim() || R.relay;
+      if (!v) { result.className = 'opt-help net-test bad'; result.textContent = 'There is no relay to test: paste its address first.'; return; }
+      btn.disabled = true;
+      result.className = 'opt-help net-test';
+      result.textContent = 'Asking the relay…';
+      const r = await R.test(v);
+      btn.disabled = false;
+      result.className = 'opt-help net-test ' + (r === true ? 'good' : 'bad');
+      result.textContent = r === true ? 'The relay answered with suggestions: Commander decks are suggested from Recommander.' : r;
+    };
+    const testBtn = el('button', { class: 'btn sm', text: 'Test', onclick: () => testBtn && test(testBtn) });
+    return group('suggest', 'Suggestions', 'The deck builder suggests cards for a Commander deck from Recommander (recommander.cards), which ranks what your list in particular is missing. Other formats, or no relay, use the deck builder\u2019s own reading and EDHREC.', [
+      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+        el('div', { class: 'opt-label', text: 'Recommander relay' }),
+        el('div', { class: 'opt-help', text: 'Recommander answers only its own website from a browser, so the app asks through a small relay of your own: a free Cloudflare Worker (the steps are in tools/recommander-relay/README.md). Paste its address here.' }),
+        el('label', { class: 'field' }, [el('span', { text: 'Address' }), input]),
+        el('div', { class: 'row wrap', style: { marginTop: '10px' } }, [
+          el('button', { class: 'btn sm primary', text: 'Save relay', onclick: save }),
+          testBtn,
+        ]),
+        result,
+      ])),
+    ]);
+  }
+
   function onlineGroup(group) {
     const S = MTG.settings;
     const have = (S.iceServers || [])[0] || {};

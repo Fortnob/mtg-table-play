@@ -255,6 +255,7 @@ const defaultSettings = {
   chaosPool: null,               // {preset, sets:[code]} for chaos draft
   compactZones: false,
   showOracleOnHover: true,
+  recommanderRelay: '',          // the relay Commander suggestions are asked through (src/16b-recommander.js); empty: the one built in
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   botSpeed: 600,

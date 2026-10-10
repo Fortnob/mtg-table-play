@@ -292,7 +292,11 @@
             + (MTG.isTouch() ? 'Tap a card\'s picture to read it.' : 'Hover a row to read the card.') }));
         // say what the advice was built from, so a thin list is explained
         const src = recs.sources || {};
-        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, [
+        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, src.recommander ? [
+          // Recommander's picks, credited as its terms ask, with a way to its site
+          el('span', { class: 'pill good', text: 'Recommander' }),
+          el('a', { class: 'tiny src-link', href: MTG.recommander.SITE, target: '_blank', rel: 'noopener', text: 'Suggestions from recommander.cards' }),
+        ] : [
           el('span', { class: 'pill good', title: 'Read from the cards in your list', text: 'this deck' }),
           src.edhrec
             ? el('span', { class: 'pill good', title: 'What other people play in this commander', text: 'EDHREC' })

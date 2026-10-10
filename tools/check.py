@@ -246,6 +246,8 @@ def steps(quick):
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
         # printings whose words play differently from the card's today, and the printing shown instead
         Step('old prints', node(TOOLS / 'oldprintstest.js'), judge_exit, 60),
+        # Commander suggestions from Recommander, against a pretend relay
+        Step('recommander', node(TOOLS / 'recommandertest.js'), judge_exit, 60),
         # friends, invites, trades and moving a save, two devices against a pretend broker
         Step('social', node(TOOLS / 'socialtest.js'), judge_exit, 180),
         # friends tournaments: Swiss pairing, the standings, whole tournaments between devices; the draft that waits for decks
