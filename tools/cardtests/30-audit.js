@@ -5110,4 +5110,17 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(sq.counters['+1/+1'], 3); t.ok(T.g.hasKw(sq, 'flying'), 'three: flying'); t.ok(T.g._hasSubtype(sq, 'Knight'));
   });
+
+  test("Audit: Slash the Ranks spares every commander, either player's, and takes the rest, planeswalkers too", (mk, t) => {
+    t.auto('Slash the Ranks');
+    const T = mk();
+    T.toMain('A');
+    const mine = T.bf('A', 'Grizzly Bears'); mine.isCommander = true;
+    const theirs = T.bf('B', 'Hill Giant'); theirs.isCommander = true;
+    const other = T.bf('B', 'Craw Wurm'), pw = T.bf('B', 'Jace Beleren', { counters: { loyalty: 3 } });
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Slash the Ranks')); T.settle();
+    t.zone(mine, 'battlefield'); t.zone(theirs, 'battlefield');
+    t.zone(other, 'graveyard'); t.zone(pw, 'graveyard');
+  });
 };
