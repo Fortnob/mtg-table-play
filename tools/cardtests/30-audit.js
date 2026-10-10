@@ -3493,4 +3493,29 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle(); T.resolve();
     t.zone(cw, 'battlefield', "can't be countered");
   });
+
+  test('Audit: "X unless" (Instill Furor); Killian takes off generic mana only', (mk, t) => {
+    let T = mk();
+    t.auto('Instill Furor'); t.auto('Killian, Ink Duelist');
+    T.toMain('A');
+    const inf = T.bf('A', 'Instill Furor'), b = T.bf('A', 'Grizzly Bears');
+    inf.attachedTo = b.id; b.attachments = [inf.id]; T.g.bumpBoard();
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(b, 'graveyard', 'did not attack: sacrificed');
+    T = mk();
+    T.toMain('A');
+    const inf2 = T.bf('A', 'Instill Furor'), b2 = T.bf('A', 'Grizzly Bears');
+    b2.summoningSick = false; inf2.attachedTo = b2.id; b2.attachments = [inf2.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.zone(b2, 'battlefield', 'attacked: kept');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Killian, Ink Duelist');
+    const tg = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'B');
+    t.no(T.g.castSpell('A', T.hand('A', 'Murder').id, { auto: true, targets: [{ kind: 'object', id: tg.id }] }), '{1}{B}{B} becomes {B}{B}, not less');
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Murder'), { targets: [tg] });
+    t.zone(tg, 'graveyard');
+  });
 };
