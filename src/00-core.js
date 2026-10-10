@@ -233,6 +233,7 @@ const defaultSettings = {
   muted: false,
   cardBack: 'classic',
   autoTapLands: true,
+  showTutorials: true,           // the Tutorials tile on the Play screen, and the home screen's offers of them
   autoPassEmptyPriority: true,   // skip priority when you have nothing castable
   autoPassUntilStackChange: true,
   alwaysFullControl: false,      // nothing is ever passed for you

@@ -186,6 +186,19 @@ const PLAYS = {
         (w ? ` [turn ${w.ctx.g.turn}, ${w.ctx.g.activePlayer.id} ${w.ctx.g.step}, stack ${w.ctx.g.stack.length}]` : ''));
     }
   }
+  /* What each lesson's result offers: on to the next tutorial (never a
+     rematch), another go when it went wrong, and nothing next after the last. */
+  if (!only) {
+    L.LESSONS.forEach((def, i) => {
+      const last = i === L.LESSONS.length - 1;
+      for (const won of [true, false]) {
+        const labels = L.resultButtons(def, won).map(b => b.label);
+        const fine = labels.includes('Next tutorial') === !last && !labels.includes('Rematch') && (won || labels.includes('Try again'));
+        if (fine) ok++; else bad++;
+        console.log(`${fine ? 'ok  ' : 'FAIL'} ${def.id}: ${won ? 'got right' : 'got wrong'} -> ${labels.join(', ')}`);
+      }
+    });
+  }
   console.log(`lessons: ${ok} passed, ${bad} failed`);
   process.exit(bad ? 1 : 0);
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -24,12 +24,6 @@
 
   /* ================= boot ================= */
   App.boot = function () {
-    /* Somebody new — no decks, no name, no game played — gets the beginner
-       hints; anyone who has been here before keeps the table as it was. */
-    if (MTG.settings.beginnerHints == null) {
-      const fresh = !MTG.decks.index().length && !MTG.settings.playerName && !MTG.store.get('gamesPlayed', 0);
-      MTG.setSetting('beginnerHints', fresh);
-    }
     App.myName = MTG.settings.playerName || randomName();
     App.myId = 'me';
     MTG.applyDisplaySettings();
@@ -341,6 +335,11 @@
     if (typeof intent.counterKind === 'string') out.counterKind = intent.counterKind.slice(0, 40);
     return out;
   };
+  /* Paid only from the mana already in the player's pool, with no lands
+     tapped for them: the table asks for that when its player taps lands by
+     hand (src/12c-ui-table-ask.js). A free spell's taxes are the game's to
+     find, as ever. */
+  const payByHand = (intent) => intent.fromPool === true && !intent.free;
 
   function botNameFor(deck, formatId, taken) {
     const used = new Set(taken || []);
@@ -885,7 +884,12 @@
   async function navTo(name) {
     if (name !== App.screen) MTG.sfx('nav');
     if (name === 'home') return goHome();
-    if (App.screen === 'table' || App.screen === 'draft') return App.exitToMenu();
+    if (App.screen === 'table' || App.screen === 'draft') {
+      // the gear at the table, say: once the game is saved and left, on to where it was going
+      await App.exitToMenu();
+      if (App.screen === 'home') showScreen(name);
+      return;
+    }
     if (App.screen === 'lobby' && (App.session || net.online)) {
       if (!await UI.confirm('Leave this table?')) return;
       App.leaveGame();
@@ -1152,22 +1156,10 @@
       resumeHost.appendChild(card);
     }).catch(() => {});
 
-    /* -- somebody new is offered a guided first game, until they take it or say no -- */
-    if (!MTG.settings.tutorialDone && !MTG.settings.tutorialDismissed) {
-      const offer = el('div', { class: 'resume-card guide-card' }, [
-        el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
-        el('div', { class: 'guide-mark', 'aria-hidden': 'true', html: SVG.play }),
-        el('div', { class: 'grow', style: { minWidth: 0 } }, [
-          el('div', { class: 'resume-title', text: 'New to Magic, or to this table?' }),
-          el('div', { class: 'resume-sub', text: 'Play a guided first game against a gentle bot. A few notes on the table show you the land, the creature, the big button, attacking and blocking as they come up.' }),
-        ]),
-        el('button', { class: 'btn sm ghost', text: 'No thanks', onclick: () => { MTG.setSetting('tutorialDismissed', true); renderHome(); } }),
-        el('button', { class: 'btn primary', text: 'Show me', onclick: () => App.startTutorial() }),
-      ]);
-      decorArt(offer.firstChild, 'Lightning Helix');
-      notes.appendChild(offer);
-    }
-    /* -- and once the first game is done, the lessons after it -- */
+    /* -- somebody new is offered a guided first game, until they take it or say no;
+          and once it is done, the lessons after it (src/14b-lessons.js) -- */
+    const offer = MTG.lessons ? MTG.lessons.firstGameCard({ art: decorArt, rerender: renderHome, icon: SVG.play }) : null;
+    if (offer) notes.appendChild(offer);
     const lesson = MTG.lessons ? MTG.lessons.homeCard({ art: decorArt, rerender: renderHome }) : null;
     if (lesson) notes.appendChild(lesson);
 
@@ -1524,10 +1516,9 @@
         `<span>Entry ${shardHtml(App.EVENTS.gauntlet.entry)}</span><span>Up to 3 packs and 12,500 Shards</span>`, () => App.startGauntlet('standard')),
       evCard('ev-challenge', 'Challenges', 'A board set up for you: find the way to win this turn.',
         `<span>${solved} of ${App.CHALLENGES.length} solved</span>`, () => App.openChallenges()),
-      // the first game and the short lessons after it (src/14b-lessons.js)
-      MTG.lessons ? evCard('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
-        `<span>${MTG.lessons.progress().done} of ${MTG.lessons.progress().total} done</span>`, () => MTG.lessons.open()) : null,
-    ]));
+      // the first game and the short lessons after it (src/14b-lessons.js); right-click or hold it to hide it
+      MTG.lessons ? MTG.lessons.playTile(evCard, { rerender: renderFormats }) : null,
+    ].filter(Boolean)));
 
     for (const cat of CATEGORIES) {
       const list = MTG.formats.list().filter(f => f.kind === cat.id);
@@ -2389,14 +2380,11 @@
     /* -- gameplay -- */
     sections.push(group('gameplay', 'Gameplay', null, [
       toggle('useCollection', 'Build from my collection', 'Decks you play use the cards you own; a wildcard crafts one you are missing. Starter decks and decks the bots build for you are always allowed. Off: any card, as before.'),
-      toggle('beginnerHints', 'Beginner hints', 'A line under the big button that says what is going on and what you could do, in plain English.',
-        () => { if (App.table) App.table.render(); }),
       el('div', { class: 'opt-row' }, [
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'First-game walkthrough' }),
-          el('div', { class: 'opt-help', text: S.tutorialDone
-            ? 'Seen. Play the guided first game again: a gentle bot, a starter deck, and notes on the table as things come up.'
-            : 'A guided first game: a gentle bot, a starter deck, and notes on the table as things come up.' }),
+          el('div', { class: 'opt-help', text: (S.tutorialDone ? 'Seen. Play the guided first game again: ' : 'A guided first game: ') +
+            'a gentle bot, a starter deck, and notes on the table as things come up, from playing a land and tapping it for mana to attacking and blocking.' }),
         ]),
         el('button', { class: 'btn sm', text: S.tutorialDone ? 'Play it again' : 'Play it', onclick: () => App.startTutorial() }),
       ]),
@@ -2407,7 +2395,12 @@
         ]),
         el('button', { class: 'btn sm', text: 'Open', onclick: () => MTG.lessons.open() }),
       ]) : null,
-      toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
+      // (the Play screen's Tutorials tile, hidden from its own right-click menu, comes back here)
+      MTG.lessons ? toggle('showTutorials', 'Show the Tutorials on the Play screen',
+        'Also the home screen’s offers of the guided first game and the lessons. Off, they are hidden; the two rows above still open them.',
+        null) : null,
+      toggle('autoTapLands', 'Tap lands for me', 'On: when you cast a spell or use an ability, the game taps the lands that pay for it. ' +
+        'Off: you tap lands for mana yourself first, and it is paid from the mana they made.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
     ]));
@@ -2805,9 +2798,8 @@
     try { deck = await MTG.starters.build('w-cats'); }
     catch (e) { busy.close(); return UI.error(e.message || String(e)); }
     busy.close();
-    // the walkthrough talks to whoever is reading it, so the hints come on with it
-    if (MTG.settings.beginnerHints === false) MTG.setSetting('beginnerHints', true);
-    await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck });
+    // a tutorial: the result screen offers the next one rather than a rematch (src/14b-lessons.js)
+    await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck, mode: { tutorial: 'first' } });
     if (App.table && App.screen === 'table' && !App.table.coach) new UI.Coach(App.table);
   };
 
@@ -4609,8 +4601,10 @@
         case 'mulligan': g.mulligan(actorId); break;
         case 'keep': g.keepHand(actorId, intent.bottom || []); break;
         case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;
-        case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: true,
-          free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
+        /* Paid with the lands the game taps, or (fromPool) only with the mana
+           the player has tapped for already: tapping lands by hand. */
+        case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: !payByHand(intent),
+          fromPool: payByHand(intent), free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           // which of an "and/or" kicker's costs were paid (Archangel of Wrath)
           kickPaid: Array.isArray(intent.kickPaid) ? intent.kickPaid.filter(i => Number.isInteger(i) && i >= 0 && i < 4) : undefined,
           // said with the extra costs: an additional cost you may pay (a kicker that is not mana), and the gift
@@ -4640,7 +4634,8 @@
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
-        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: true,
+        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: !payByHand(intent),
+          fromPool: payByHand(intent),
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
           // "in any combination of two colours": how much of the second

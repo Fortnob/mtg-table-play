@@ -16,6 +16,8 @@
   const UI = MTG.ui;
   const Table = UI.Table;
   const { truncate, escapeHtml, possessive } = Table.helpers;
+  // what a finger does to a card, and what a mouse does
+  const press = () => (MTG.isTouch() ? 'Tap' : 'Click');
 
   Object.assign(Table.prototype, {
 
@@ -47,9 +49,18 @@
         // "up to one": it can be left out (Return to Dust's second artifact)
         const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
-          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}` +
+          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
           (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
+      }
+      if (this.paying) {
+        const p = this.paying;
+        const pool = this.me && this.me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].map(c => `{${c}}`.repeat(this.me.pool[c] || 0)).join('') : '';
+        const cost = p.intent.x ? p.cost.replace(/\{X\}/g, `{${p.intent.x}}`) : p.cost;
+        // (a phone shows the title alone, so the title says what to do)
+        return set('ask pay', `${escapeHtml(p.name)}: tap lands to pay ${MTG.mana.html(cost)}`,
+          `${press()} a glowing land to tap it for mana. Once your mana pool covers the cost, it ${p.intent.kind === 'cast' ? 'is cast' : 'happens'}.` +
+          (pool ? ` In your pool: ${MTG.mana.html(pool)}.` : ''));
       }
       const ch = live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
@@ -67,21 +78,21 @@
           // banding: the chosen attackers can go in together, as one band
           const band = this._bandRow(ch);
           if (band) extra = { node: extra ? el('div', {}, [extra.node, band.node]) : band.node, sig: (extra ? extra.sig : '') + '|' + band.sig };
-          return set('combat', 'Choose attackers', 'Click your creatures to send them in, then press <b>Attack</b>.', extra);
+          return set('combat', 'Choose attackers', `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
         }
         if (ch.type === 'declareBlockers') {
           const atk = (ch.attackers || []).map(id => this.objIn(id)).filter(Boolean);
           const incoming = atk.reduce((s, o) => s + (o.power || 0), 0);
           const pend = this.blockPlan && this.blockPlan.pendingBlocker;
           const me = this.me;
-          return set('combat block', pend ? 'Now click the attacker to block' : 'Choose blockers',
+          return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers',
             `${atk.length} attacker${atk.length === 1 ? '' : 's'} · <b>${incoming}</b> damage coming at you${me ? ` (you have ${me.life})` : ''}.` +
-            (pend ? '' : ' Click your creature, then the attacker it blocks.'));
+            (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize')
-          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : 'Click a card in your hand.');
+          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : `${press()} a card in your hand.`);
         if (ch.type === 'sacrifice')
-          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : 'Click one of your permanents.');
+          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : `${press()} one of your permanents.`);
         // a generic question answered on the board alone: what to click, and how the picks stand
         if (ch.type === 'choose') {
           const s = this.chooseSpec(ch);
@@ -230,7 +241,7 @@
         case 'scry': case 'surveil': return (st) => this.scryPanel(ch, st, card, head);
         case 'arrange': return (st) => this.arrangePanel(ch, st, { card, head });
         case 'orderTriggers': return (st) => this.arrangePanel(ch, st, { card, head,
-          note: 'Click them in the order they go on the stack. The last one you put on resolves first.', done: 'Put them on the stack',
+          note: `${press()} them in the order they go on the stack. The last one you put on resolves first.`, done: 'Put them on the stack',
         });
         case 'pickTarget':
           /* The engine is asking mid-resolution — a mode was chosen and it
@@ -396,7 +407,7 @@
       const sel = this.chooseSel(s);
       const pr = MTG.choice.progress(s, sel.picks, sel.number);
       const title = richText(s.prompt || (s.kind === 'players' ? 'Choose a player' : 'Choose'));
-      const how = s.kind === 'players' ? 'Click a highlighted player.' : 'Click the highlighted permanents.';
+      const how = s.kind === 'players' ? `${press()} a highlighted player.` : `${press()} the highlighted permanents.`;
       let extra = null;
       if (s.kind === 'players') {
         // the players as chips as well, for a seat whose orb is out of sight
@@ -630,7 +641,7 @@
         top: items.filter(x => x.where === 'top').map(x => x.id),
         bottom: items.filter(x => x.where === 'away').map(x => x.id),
       } });
-      const [t, sub] = head(surveil ? 'Surveil' : 'Scry', 'Click a card to move it between the two rows.');
+      const [t, sub] = head(surveil ? 'Surveil' : 'Scry', `${press()} a card to move it between the two rows.`);
       return this.panel(t, sub, body, [
         { label: surveil ? 'All to the graveyard' : 'All to the bottom', fn: () => { for (const it of items) it.where = 'away'; finish(); } },
         { label: 'Done', cls: 'primary', fn: finish },
@@ -667,7 +678,7 @@
         const rest = (ch.cards || []).map(c => c.id).filter(id => !st.order.includes(id));
         this.send({ kind: 'choice', data: { top: st.order.concat(rest) } });
       };
-      const note = opts.note || (lookOnly ? 'They stay where they are, in this order.' : 'Click them in the order they should sit on top of your library, first to draw first.');
+      const note = opts.note || (lookOnly ? 'They stay where they are, in this order.' : `${press()} them in the order they should sit on top of your library, first to draw first.`);
       const [t, sub] = opts.head ? opts.head('Put them in order', note) : [escapeHtml(ch.prompt || 'Put them in order'), note];
       return this.panel(t, sub, grid, [{ label: opts.done || 'Done', cls: 'primary', fn: done }], { wide: true, card: opts.card });
     },
@@ -733,6 +744,12 @@
         const next = { label: evInfo.next.label, cls: 'primary', fn: evInfo.next.fn };
         if (i >= 0) buttons[i] = next; else buttons.push(next);
       }
+      // a tutorial: the next one in place of a rematch, or the way back after the last (src/14b-lessons.js)
+      const tut = !watched && !guest && MTG.lessons && MTG.lessons.afterGame ? MTG.lessons.afterGame(MTG.app && MTG.app.session) : null;
+      if (tut) {
+        const i = buttons.findIndex(b => /Rematch|New match|Play game/.test(b.label));
+        if (i >= 0) buttons.splice(i, 1, ...tut); else buttons.push(...tut);
+      }
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
         el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),
@@ -772,6 +789,8 @@
      */
     beginCast(o, a, via, face, more) {
       const live = this.live || this.view;
+      // another spell chosen while one waited for mana: that one goes back to waiting in your hand
+      this.paying = null;
       const all = (live.extras || {})[o.id] || [];
       // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
       const PAYS = ['convoke', 'improvise', 'delve'];
@@ -1056,7 +1075,12 @@
         if (ex) answered[purpose] = ex.choose.kind === 'number' ? { number: sel.number || 0 } : { picks: sel.picks.slice() };
       }
       if (Object.keys(answered).length) extra.choices = answered;
-      const go = (targets) => { MTG.sfx('ui_play'); this._dropAt = null; this.send(Object.assign({ kind: 'cast', objId: o.id, targets }, extra)); };
+      /* Paid by the game, or from the lands you tap (below). Convoke and
+         the like are worked out by the game alone, so a spell paid partly
+         that way is left to it. */
+      const byGame = steps.altPay || offered.some(x => ['convoke', 'improvise', 'delve'].includes(x.kind));
+      const cost = byGame ? '' : this._castCost(steps, offered);
+      const go = (targets) => { this._dropAt = null; this.payThen(Object.assign({ kind: 'cast', objId: o.id, targets }, extra), cost, o.card); };
       this.render();
       if (!specs.length) return go([]);
       /* The targets are asked for in groups, one after the other. A plain
@@ -1110,6 +1134,120 @@
       run(0, []);
     },
 
+    /** What a cast costs in mana as the table reads it: the cost it is cast for, and the extra costs chosen. */
+    _castCost(steps, offered) {
+      const live = this.live || this.view;
+      const p = steps.picked || {};
+      // flashback, evoke and the other ways in cost what the way says
+      const use = steps.via && steps.via !== 'fuse' ? ((live.uses || {})[steps.o.id] || []).find(u => u.via === steps.via && u.cost) : null;
+      let cost = String((use && use.cost) || steps.cost || '');
+      const ex = (k) => offered.find(x => x.kind === k) || {};
+      const kicker = offered.find(x => (x.kind === 'kicker' || x.kind === 'multikicker') && x.cost);
+      if (p.kick && kicker) cost += String(kicker.cost).repeat(p.kick);
+      for (const i of p.kickPaid || []) cost += (ex('kicker').costs || [])[i] || '';
+      for (const k of ['buyback', 'entwine', 'offspring']) if (p[k]) cost += ex(k).cost || '';
+      if (p.squad) cost += String(ex('squad').cost || '').repeat(p.squad);
+      const spree = ex('spree');
+      for (const m of spree.modes || []) if ((p.spree || []).includes(m.i)) cost += m.cost || '';
+      if (spree.escalate && (p.spree || []).length > 1) cost += String(spree.escalate).repeat(p.spree.length - 1);
+      return cost;
+    },
+
+    /* ---------------- paying by hand ----------------
+       With Tap lands for me off (and in the first game, until the
+       walkthrough turns it on), nothing taps your lands but you. A spell or
+       an ability that the mana in your pool does not cover yet is held: the
+       banner says what it costs, the lands that could pay glow, and the
+       moment the mana you have tapped for covers it, it goes, paid from the
+       pool. The table reads the printed cost; should the game want more (a
+       tax, say), it says so, and the spell goes again once there is more
+       mana. Clicking the spell again, Cancel or Esc puts it back. */
+
+    /** Send a cast or an activation, paid the way you pay: by the game, or from your mana pool. */
+    payThen(intent, cost, card) {
+      const live = this.live || this.view;
+      cost = String(cost || '');
+      if (this.autoTap() || !live || !MTG.mana.parse(cost).length) { MTG.sfx('ui_play'); this.send(intent); return; }
+      const loc = this.locate(intent.objId, live);
+      const p = this.paying = { intent, cost, card: card || null, name: card ? card.name : 'It', objId: intent.objId,
+        zone: loc ? loc.zone : null, at: payMoment(live), stack: (live.stack || []).length, tried: null, queued: false };
+      // the mana is there already: straight on, paid from the pool
+      if (this.poolCovers(cost, intent.x)) return this._payGo(p);
+      MTG.sfx('click');
+      this.render();
+    },
+
+    /** Put a spell waiting for mana back. Nothing is cast; the mana you made stays in your pool. */
+    cancelPay() {
+      if (!this.paying) return;
+      this.paying = null;
+      this.render();
+    },
+
+    /** The big button while a spell waits: the game taps lands for whatever the pool does not cover. */
+    payForMe() {
+      const p = this.paying;
+      if (!p) return;
+      this.paying = null;
+      MTG.sfx('ui_play');
+      this.send(p.intent);
+      this.render();
+    },
+
+    /** Whether the mana in your pool pays this cost, the way the pool itself pays. */
+    poolCovers(cost, x) {
+      const me = this.me;
+      if (!me || !MTG.ManaPool) return false;
+      const pool = new MTG.ManaPool();
+      pool.restore(Object.assign({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, me.pool || {}));
+      return pool.canPay(String(cost || ''), { x: x || 0, lifeLimit: Math.max(0, (me.life || 0) - 1) });
+    },
+
+    _poolSig() {
+      const pool = (this.me && this.me.pool) || {};
+      return ['W', 'U', 'B', 'R', 'G', 'C'].map(c => pool[c] || 0).join(',');
+    },
+
+    /** Your untapped permanents that could tap for mana now: what glows while a spell waits. */
+    manaSources() {
+      const live = this.live || this.view;
+      if (!live) return [];
+      return live.battlefield.filter(o => {
+        if (o.controller !== this.meId || o.tapped || o.faceDown) return false;
+        const a = this.analysis(o);
+        if (!a || !a.manaAbilities || !a.manaAbilities.length) return false;
+        // a creature that arrived this turn cannot use {T} yet, not even for mana
+        return !(a.isCreature && o.summoningSick && !(o.keywords || []).some(k => /^haste$/i.test(String(k))));
+      });
+    },
+
+    /** Before a render: a spell whose moment has passed is put back, and one that has gone through is done with. */
+    _payStale() {
+      const p = this.paying;
+      if (!p) return;
+      const live = this.live;
+      const loc = live ? this.locate(p.objId, live) : null;
+      // (and once the game taps lands for you again, it is yours to choose again, paid that way)
+      if (!live || live.over || this.autoTap() || live.priorityPlayer !== this.meId || live.pendingChoice || payMoment(live) !== p.at ||
+          !loc || loc.zone !== p.zone || (live.stack || []).length !== p.stack) this.paying = null;
+    },
+
+    /** After a render: once the pool covers the cost, the spell goes (again, after a refusal, only once the pool has changed). */
+    _payReady() {
+      const p = this.paying;
+      if (!p || p.queued || !this._ready() || p.tried === this._poolSig() || !this.poolCovers(p.cost, p.intent.x)) return;
+      // not from inside a render: the game answers at once, and the table draws again
+      p.queued = true;
+      setTimeout(() => { p.queued = false; if (this.paying === p && !this._destroyed) this._payGo(p); }, 0);
+    },
+
+    _payGo(p) {
+      p.tried = this._poolSig();
+      MTG.sfx('ui_play');
+      this.send(Object.assign({}, p.intent, { fromPool: true }));
+      if (this.paying === p) this.render();
+    },
+
     /** The cards in graveyards (or exile) a target there could be. */
     _offCandidates(spec) {
       const v = this.live || this.view;
@@ -1155,7 +1293,7 @@
         }
         if (!cands.length) row.appendChild(el('div', { class: 'empty-note', text: 'There is nothing there it could choose.' }));
         const enough = picked.length >= min;
-        return this.panel(escapeHtml(label), min === k ? (k === 1 ? 'Click the card.' : `Choose ${k}.`) : `Choose up to ${k}${min ? `, at least ${min}` : ''}.`, row, [
+        return this.panel(escapeHtml(label), min === k ? (k === 1 ? `${press()} the card.` : `Choose ${k}.`) : `Choose up to ${k}${min ? `, at least ${min}` : ''}.`, row, [
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
           { label: picked.length ? 'Done' : 'None', cls: 'primary', disabled: !enough, fn: () => finish() },
         ], { card: o.card, wide: true });
@@ -1299,6 +1437,11 @@
       return n;
     },
   });
+
+  /** The moment a payment belongs to: mana empties as each step ends, so a new step is a new moment. */
+  function payMoment(v) {
+    return [v.turn, v.activePlayer, v.phase, v.step].join('|');
+  }
 
   /** A question's words with mana symbols drawn, and {P} as a paw print. */
   function richText(s) {

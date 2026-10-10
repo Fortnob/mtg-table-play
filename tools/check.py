@@ -242,6 +242,8 @@ def steps(quick):
         Step('access', node(TOOLS / 'accesstest.js'), judge_exit, 120),
         # the tutorials, each played through the right way and the wrong ways
         Step('lessons', node(TOOLS / 'lessontest.js'), judge_exit, 600, needs_bulk=True),
+        # the first-game walkthrough on a real table: lands tapped by hand, then for you; hiding the Tutorials; what follows a tutorial
+        Step('tutorials', node(TOOLS / 'tutorialtest.js'), judge_exit, 300, needs_bulk=True),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
         # printings whose words play differently from the card's today, and the printing shown instead

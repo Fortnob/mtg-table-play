@@ -1,11 +1,14 @@
 /* ============================================================
    14b-lessons.js - the tutorials: short lessons after the first game
 
-   The guided first game (src/12e-ui-coach.js) shows a turn: a land, a
-   creature, the big button, attacking and blocking. These go a step
-   further, one idea each, on a small board set up for it: answering a
-   spell with an instant, a trick in the middle of a fight, blocking
-   well, and countering a spell.
+   The guided first game (src/12e-ui-coach.js) shows a whole game: a land
+   tapped for mana, a creature, the big button, attacking and blocking.
+   These go a step further, one idea each, on a small board set up for it:
+   answering a spell with an instant, a trick in the middle of a fight,
+   blocking well, and countering a spell. Each ends with the way on to the
+   next one, never a rematch; the result of the last leads back to the
+   list. Lands are tapped the way the player's own Tap lands for me says:
+   the first game has taught both.
 
    Each lesson is a real game, built the way a challenge is (src/14-app.js)
    and played by the real rules, against a bot that is told what to do: it
@@ -288,6 +291,15 @@
   const bigButton = (t) => t.dock && t.dock._main;
   const blockersOn = (t, id) => (t.blockPlan ? t.blockPlan.declarations.filter(d => (d.attackerIds || []).includes(id)).length : 0);
 
+  /* With Tap lands for me off, a spell cast waits for its mana (src/12c-ui-table-ask.js):
+     the same note in every lesson points at a land to tap. */
+  const payNote = () => ({
+    id: 'pay', title: 'Tap lands to pay', times: 9,
+    text: () => `${tap()} a glowing land to tap it for mana. Once your mana pool covers the cost, the spell is cast.`,
+    when: (t) => !!t.paying, done: (t) => !t.paying,
+    at: (t) => { const o = t.manaSources()[0]; return o ? nodeOf(t, o.id) : null; },
+  });
+
   /** The first note: what the lesson is about. It holds the bot back until it has been read. */
   const intro = (def, text, at) => ({
     id: 'intro', title: def.title, text: () => text, times: 9, ok: 'Start', focus: true,
@@ -300,11 +312,11 @@
       intro(def, 'It is their turn, and they are holding a Shock for your Grizzly Bears. A spell does not happen the moment it is cast: it waits on the stack, where you can answer it first.', theirOrb),
       { id: 'wait', title: 'Shock is on the stack', times: 9,
         text: () => 'Aimed at your Bears, and nothing has happened yet. Until both players pass, you can answer it.',
-        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting,
+        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting && !t.paying,
         at: (t) => stackCol(t), done: (t) => !inHand(t, ids.defense) },
       { id: 'respond', title: 'Respond with an instant', times: 9,
         text: () => `${tap()} Blossoming Defense to cast it on your Bears. An instant can be cast now, and it goes on the stack on top of Shock.`,
-        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting,
+        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting && !t.paying,
         at: (t) => nodeOf(t, ids.defense), done: (t) => !inHand(t, ids.defense) },
       { id: 'aim', title: 'Choose your Bears', times: 9, text: () => 'Your Grizzly Bears are the target.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.bears), done: (t) => !t.targeting },
@@ -323,7 +335,7 @@
         at: (t) => bigButton(t), done: (t, v) => v.step !== 'declareAttackers' || !inHand(t, ids.growth) },
       { id: 'trick', title: 'Now the trick', times: 9,
         text: () => `The Giant has blocked, and blockers cannot be taken back. ${tap()} Giant Growth to cast it on your Bears.`,
-        when: (t, v) => myPriority(t, v) && inHand(t, ids.growth) && !t.targeting && v.battlefield.some(o => o.id === ids.giant && (o.blocking || []).includes(ids.bears)),
+        when: (t, v) => myPriority(t, v) && inHand(t, ids.growth) && !t.targeting && !t.paying && v.battlefield.some(o => o.id === ids.giant && (o.blocking || []).includes(ids.bears)),
         at: (t) => nodeOf(t, ids.growth), done: (t) => !inHand(t, ids.growth) },
       { id: 'aim', title: 'Your Bears, not their Giant', times: 9, text: () => 'Choose your Grizzly Bears: +3/+3 makes them 5/5.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.bears), done: (t) => !t.targeting },
@@ -346,11 +358,11 @@
       intro(def, 'They have six Forests and something big in their hand. A counterspell stops a spell while it is still on the stack, before it ever reaches the battlefield.', theirOrb),
       { id: 'wait', title: 'On the stack, not yet on the battlefield', times: 9,
         text: () => 'Colossal Dreadmaw is on the stack. Until it resolves, it can still be countered.',
-        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting,
+        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting && !t.paying,
         at: (t) => stackCol(t), done: (t) => !inHand(t, ids.counter) },
       { id: 'counter', title: 'Counter it', times: 9,
         text: () => `${tap()} Counterspell to cast it. Its target is a spell: the Dreadmaw on the stack.`,
-        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting,
+        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting && !t.paying,
         at: (t) => nodeOf(t, ids.counter), done: (t) => !inHand(t, ids.counter) },
       { id: 'aim', title: 'Choose the Dreadmaw', times: 9, text: () => 'Choose Colossal Dreadmaw on the stack.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.maw) || stackCol(t), done: (t) => !t.targeting },
@@ -412,7 +424,7 @@
       mine.stopWatch = watch(g, def, mine.ids, (r) => settle(mine, r));
       if (App.table) {
         mine.coach = new UI.Coach(App.table, {
-          marks: NOTES[def.id](def, mine.ids), name: def.title, skipLabel: 'Hide the notes',
+          marks: NOTES[def.id](def, mine.ids).concat([payNote()]), name: def.title, skipLabel: 'Hide the notes',
           onClose: (m) => { if (m.id === 'intro') go(); },
           onSkip: () => go(),
           onFinish: () => {},
@@ -446,8 +458,6 @@
       if (t && waited < 8000 && (!t._ready() || t.arena.querySelector('.moving'))) { waited += 200; setTimeout(show, 200); return; }
       if (mine.coach) mine.coach.stop();
       const def = mine.def;
-      const i = LESSONS.indexOf(def);
-      const next = LESSONS[i + 1];
       const why = won ? 'won' : result.slice(5);
       MTG.sfx(won ? 'win' : 'lose');
       const body = el('div', { class: 'lesson-result' + (won ? ' won' : '') }, [
@@ -459,12 +469,47 @@
         el('p', { class: 'lr-progress', text: `${count()} of ${LESSONS.length} lessons done.` }),
       ].filter(Boolean));
       const m = UI.modal({ title: won ? `Lesson learned: ${def.title}` : 'Not quite', content: body, className: 'lesson-modal' });
-      m.button('All tutorials', () => { m.close(); leave(); setTimeout(() => open(), 300); }, 'ghost');
-      if (!won) m.button('Try again', () => { m.close(); start(def.id); }, 'primary');
-      else if (next) m.button(`Next: ${next.title}`, () => { m.close(); start(next.id); }, 'primary');
-      else m.button('Done', () => { m.close(); leave(); }, 'primary');
+      for (const b of resultButtons(def, won)) {
+        const btn = m.button(b.label, () => { m.close(); b.fn(); }, b.cls);
+        if (b.title) btn.title = b.title;
+      }
     };
     setTimeout(show, 600);
+  }
+
+  /**
+   * What a lesson's result offers: on to the next tutorial (not after the
+   * last), another go when it went wrong, and the list. Primary last.
+   */
+  function resultButtons(def, won) {
+    const next = LESSONS[LESSONS.indexOf(def) + 1] || null;
+    const out = [{ label: 'All tutorials', cls: 'ghost', fn: () => { leave(); setTimeout(() => open(), 300); } }];
+    if (won) {
+      if (next) out.push({ label: 'Next tutorial', cls: 'primary', title: next.title, fn: () => start(next.id) });
+      else out.push({ label: 'Done', cls: 'primary', fn: () => leave() });
+    } else {
+      if (next) out.push({ label: 'Next tutorial', cls: '', title: next.title, fn: () => start(next.id) });
+      out.push({ label: 'Try again', cls: 'primary', fn: () => start(def.id) });
+    }
+    return out;
+  }
+
+  /**
+   * The result screen of a tutorial game (src/12c-ui-table-ask.js): what
+   * it offers in place of a rematch. The first game leads on to the first
+   * lesson; a lesson to the one after it, with another go at itself; the
+   * last lesson back to the list. Null for any other game.
+   */
+  function afterGame(sess) {
+    const m = sess && sess.mode;
+    if (!m || !(m.lesson || m.tutorial)) return null;
+    const i = m.lesson ? LESSONS.findIndex(l => l.id === m.lesson) : -1;
+    const next = LESSONS[i + 1] || null;
+    const out = [];
+    if (m.lesson) out.push({ label: 'Try again', fn: () => start(m.lesson) });
+    if (next) out.push({ label: 'Next tutorial', cls: 'primary', title: next.title, fn: () => start(next.id) });
+    else out.push({ label: 'All tutorials', cls: 'primary', fn: () => { leave(); setTimeout(() => open(), 300); } });
+    return out;
   }
 
   /** Off the table, back to the menus. */
@@ -475,11 +520,43 @@
 
   /* ---------------- the list ---------------- */
 
+  /** Whether the tutorials are offered where you play: the Play screen's tile and the home screen's cards. */
+  const shown = () => MTG.settings.showTutorials !== false;
+
+  /**
+   * The Tutorials tile among the Play screen's events, made with the
+   * screen's own `card` maker, or null while it is hidden. Right-click it,
+   * or hold it on a touch screen, for the menu that hides it; Options has
+   * it back.
+   */
+  function playTile(card, opts) {
+    opts = opts || {};
+    if (!shown()) return null;
+    const pr = progress();
+    const tile = card('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
+      `<span>${pr.done} of ${pr.total} done</span>`, () => open());
+    tile.addEventListener('contextmenu', (e) => { e.preventDefault(); tileMenu(e, opts.rerender); });
+    if (UI.longPress) UI.longPress(tile, (e) => tileMenu(e, opts.rerender));
+    return tile;
+  }
+
+  /** The tile's own menu: hide it. */
+  function tileMenu(e, rerender) {
+    UI.contextMenu(e, [['Hide', () => hide(rerender)]], { title: 'Tutorials' });
+  }
+
+  /** Hide the tutorials from the Play and home screens, saying where they come back from. */
+  function hide(rerender) {
+    MTG.setSetting('showTutorials', false);
+    UI.toast('Tutorials hidden. Options, under Gameplay, shows them again; the lessons are there too.');
+    if (rerender) rerender();
+  }
+
   /** The tutorials: the first game, then the lessons, each marked once done. */
   function open() {
     const S = MTG.settings;
     const rows = [{
-      id: 'first', title: 'Your first game', blurb: 'A whole game against a gentle bot, with notes on the land, the creature, the big button, attacking and blocking.',
+      id: 'first', title: 'Your first game', blurb: 'A whole game against a gentle bot, with notes as things come up: playing a land, tapping it for mana, casting a creature, attacking and blocking.',
       done: !!S.tutorialDone, reward: null, play: () => MTG.app.startTutorial(),
     }].concat(LESSONS.map(l => ({ id: l.id, title: l.title, blurb: l.blurb, done: !!done()[l.id], reward: REWARD, play: () => start(l.id) })));
     const list = el('ol', { class: 'lesson-list' }, rows.map((r, i) => el('li', { class: 'lesson' + (r.done ? ' done' : '') }, [
@@ -512,7 +589,7 @@
   function homeCard(opts) {
     opts = opts || {};
     const S = MTG.settings;
-    if (!S.tutorialDone || S.lessonsDismissed || count() >= LESSONS.length) return null;
+    if (!shown() || !S.tutorialDone || S.lessonsDismissed || count() >= LESSONS.length) return null;
     const next = LESSONS.find(l => !done()[l.id]);
     const card = el('div', { class: 'resume-card guide-card lesson-card' }, [
       el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
@@ -530,9 +607,32 @@
     return card;
   }
 
+  /**
+   * For the home screen: somebody new is offered a guided first game,
+   * until they take it, say no, or hide the tutorials. Null otherwise.
+   */
+  function firstGameCard(opts) {
+    opts = opts || {};
+    const S = MTG.settings;
+    if (!shown() || S.tutorialDone || S.tutorialDismissed) return null;
+    const card = el('div', { class: 'resume-card guide-card' }, [
+      el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
+      el('div', { class: 'guide-mark', 'aria-hidden': 'true', html: opts.icon || '' }),
+      el('div', { class: 'grow', style: { minWidth: 0 } }, [
+        el('div', { class: 'resume-title', text: 'New to Magic, or to this table?' }),
+        el('div', { class: 'resume-sub', text: 'Play a guided first game against a gentle bot. Notes on the table show you each thing as it comes up: playing a land, tapping it for mana, casting a creature, attacking and blocking.' }),
+      ]),
+      el('button', { class: 'btn sm ghost', text: 'No thanks', onclick: () => { MTG.setSetting('tutorialDismissed', true); if (opts.rerender) opts.rerender(); } }),
+      el('button', { class: 'btn primary', text: 'Show me', onclick: () => MTG.app.startTutorial() }),
+    ]);
+    if (opts.art) opts.art(card.firstChild, 'Lightning Helix');
+    return card;
+  }
+
   MTG.lessons = {
     LESSONS, NOTES, REWARD,
-    open, start, homeCard,
+    open, start, homeCard, firstGameCard, playTile, tileMenu, hide, shown,
+    afterGame, resultButtons,
     count, progress, isDone: (id) => !!done()[id],
     // for tools/lessontest.js: the parts that only read the engine
     cardNames, build, script, watch, stopsFor, filler,
