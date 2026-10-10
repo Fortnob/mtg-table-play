@@ -129,6 +129,22 @@ module.exports = (test) => {
     t.eq(deck.commanders.map(c => c.name).join(' | '), 'Chandra, Torch of Defiance | Lightning Bolt');
   });
 
+  /* ---------------- the bots ---------------- */
+
+  test('Bots: a Pact is paid for at the next upkeep', (mk, t) => {
+    t.auto("Summoner's Pact");
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.bf('A', 'Forest');
+    T.top('A', 'Grizzly Bears');
+    T.cast('A', T.hand('A', "Summoner's Pact"));
+    const bot = new T.MTG.bots.BotPlayer(T.g, 'A', 5);
+    let asked = 0;
+    T.answer('payOrDont', (ch) => { asked++; return { pay: bot.payChoice(ch) }; });
+    T.nextTurn('A');
+    t.eq(asked, 1, 'asked at the upkeep');
+    t.no(T.player('A').hasLost, 'paid, rather than losing the game');
+  });
+
   /* ---------------- playing Oathbreaker ---------------- */
 
   /** A table where A's command zone holds Chandra and her Signature Spell. */

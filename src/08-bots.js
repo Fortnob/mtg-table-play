@@ -1362,7 +1362,9 @@
    */
   async function chooseSignature(fmt, cfg, rng, colors) {
     const q = `(t:instant or t:sorcery) legal:${fmt.scryKey || 'oathbreaker'} -is:digital lang:en ${idToken(colors)}`;
-    const pool = (await searchPool(q, 350)).filter(c => MTG.formats.isSignatureSpell(c) && botCanPlay(c, fmt, colors));
+    // a Pact ("pay … or you lose the game") cast over and over is a loss waiting to happen
+    const pool = (await searchPool(q, 350)).filter(c => MTG.formats.isSignatureSpell(c) && botCanPlay(c, fmt, colors) &&
+      !/you lose the game/i.test(c.oracle_text || ''));
     if (!pool.length) return null;
     const scored = pool.map((c, i) => {
       const roles = rolesOf(c);
@@ -2457,6 +2459,8 @@
         : this.me.life - mv > 5;
       if (!affordable) return false;
       const e = this._resolvingEffect();
+      // a Pact's upkeep (Summoner's Pact and its kin): not paying loses the game, so it is always paid
+      if (e && flatEffects(e.then).some(x => x && x.op === 'loseGame')) return true;
       // what happens if we do not pay
       const otherwise = e ? U.sum(flatEffects(e.then).map(x => this._contextWorth(x, true))) : -1;
       if (otherwise >= 0) return false;
