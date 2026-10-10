@@ -21686,4 +21686,18 @@ module.exports = (test) => {
     T2.toMain('B'); T2.toMain('A');
     t.eq(T2.life('A'), 22, 'on the battlefield: 2 life, not 4');
   });
+
+  test('Liesa, Shroud of Dusk: the commander tax paid in life, not mana', (mk, t) => {
+    t.auto('Liesa, Shroud of Dusk');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const l = T.put('A', 'Liesa, Shroud of Dusk', 'command'); l.isCommander = true;
+    T.mana('A', '2WWB'); T.cast('A', l); T.resolve();
+    t.eq(T.life('A'), 20, 'the first cast: no tax');
+    T.g.moveObject(l, 'command');
+    t.eq(T.g.castCost(l), '{2}{W}{W}{B}', 'the second: no extra mana');
+    T.mana('A', '2WWB'); T.cast('A', l); T.resolve();
+    t.zone(l, 'battlefield');
+    t.eq(T.life('A'), 18, 'and 2 life instead');
+  });
 };

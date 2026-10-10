@@ -2870,17 +2870,26 @@
       return true;
     }
 
+    /**
+     * Commander tax (CR 903.8): {2} for each earlier cast from the command
+     * zone — or, for Liesa, Shroud of Dusk, 2 life for each instead
+     * (commanderTaxLife). { mana, life }.
+     */
+    _commanderTax(o) {
+      if (!o || o.zone !== 'command' || !(o.isCommander || o.isSignature)) return { mana: 0, life: 0 };
+      const p = this.player(o.owner);
+      const n = ((p && p.commanderCasts[o.id]) || 0) * 2;
+      return this._staticOp(o, 'commanderTaxLife') ? { mana: 0, life: n } : { mana: n, life: 0 };
+    }
+
     /** What it costs to cast this, after commander tax and cost reduction. */
     castCost(o, opts) {
       opts = opts || {};
       const a = o.analysis();
       let mana = (a && a.manaCost) || '';
       // commander tax; an Oathbreaker's Signature Spell pays its own
-      if (o.zone === 'command' && (o.isCommander || o.isSignature)) {
-        const p = this.player(o.owner);
-        const tax = (p.commanderCasts[o.id] || 0) * 2;
-        if (tax) mana = this._addGeneric(mana, tax);
-      }
+      const tax = this._commanderTax(o).mana;
+      if (tax) mana = this._addGeneric(mana, tax);
       /* standing taxes and discounts first (Thalia, Herald's Horn, the
          spell's own "costs {1} less for each…"), then convoke and its kin */
       const delta = this._costDelta(o, o.controller || o.owner);
@@ -2907,10 +2916,7 @@
      */
     _freeCastPrice(o, pid) {
       let gen = 0;
-      if (o.zone === 'command' && (o.isCommander || o.isSignature)) {
-        const p = this.player(o.owner);
-        gen += ((p && p.commanderCasts[o.id]) || 0) * 2;
-      }
+      gen += this._commanderTax(o).mana;
       gen += this._costDelta(o, pid);
       gen += (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
       return (gen > 0 ? '{' + gen + '}' : '') + this._costExtraSymbols(o, pid);
@@ -4154,7 +4160,7 @@
         const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost'));
         if (gs) {
           const mana = this._staticOp(gs, 'grantAltCost').mana;
-          const tax = o.zone === 'command' && (o.isCommander || o.isSignature) ? (((this.player(o.owner) || {}).commanderCasts || {})[o.id] || 0) * 2 : 0;
+          const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
         }
       }
@@ -5426,7 +5432,12 @@
         this._afterDiscard(playerId, toDiscard);
       }
 
-      if (o.zone === 'command') { o.castFromCommandZone = true; p.commanderCasts[o.id] = (p.commanderCasts[o.id] || 0) + 1; }
+      if (o.zone === 'command') {
+        // Liesa, Shroud of Dusk: the tax in life, paid as the spell is cast (commanderTaxLife)
+        const lifeTax = this._commanderTax(o).life;
+        if (lifeTax) { this.changeLife(p, -lifeTax, 'cost'); this.logEvent('life', `${p.name} pays ${lifeTax} life rather than {${lifeTax}} for ${o.name}.`); }
+        o.castFromCommandZone = true; p.commanderCasts[o.id] = (p.commanderCasts[o.id] || 0) + 1;
+      }
       /* Lurrus, Kess: the once-a-turn leave this cast used up, and where the
          spell goes afterwards */
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {

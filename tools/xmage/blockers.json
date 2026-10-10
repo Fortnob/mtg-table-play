@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10562,
+  "needed": 10561,
   "gainedCards": 969,
-  "linesNeeded": 11238,
+  "linesNeeded": 11237,
   "linesGained": 1137,
   "gained": {
    "all": 969,
@@ -316,25 +316,6 @@
    ]
   },
   {
-   "what": "InfoEffect",
-   "score": 26,
-   "lines": 26,
-   "cards": [
-    "Invert Polarity",
-    "Liesa, Shroud of Dusk",
-    "Jolted Awake",
-    "Fallaji Wayfarer",
-    "Aether Spike",
-    "Intellect Devourer",
-    "Swallowed by Leviathan",
-    "Myr Superion",
-    "Hogaak, Arisen Necropolis",
-    "Haunt the Network",
-    "Beastie Beatdown",
-    "Fatal Fissure"
-   ]
-  },
-  {
    "what": "OneOrMoreCombatDamagePlayerTriggeredAbility",
    "score": 25,
    "lines": 22,
@@ -351,6 +332,25 @@
     "Nettling Nuisance",
     "Primo, the Unbounded",
     "Jacob Frye"
+   ]
+  },
+  {
+   "what": "InfoEffect",
+   "score": 25,
+   "lines": 25,
+   "cards": [
+    "Invert Polarity",
+    "Jolted Awake",
+    "Fallaji Wayfarer",
+    "Aether Spike",
+    "Intellect Devourer",
+    "Swallowed by Leviathan",
+    "Myr Superion",
+    "Hogaak, Arisen Necropolis",
+    "Haunt the Network",
+    "Beastie Beatdown",
+    "Fatal Fissure",
+    "Necromantic Summons"
    ]
   },
   {
@@ -6678,15 +6678,15 @@
   },
   {
    "what": "InfoEffect",
-   "score": 22,
-   "cards": 22,
+   "score": 21,
+   "cards": 21,
    "names": [
     "Invert Polarity",
-    "Liesa, Shroud of Dusk",
     "Jolted Awake",
     "Fallaji Wayfarer",
     "Aether Spike",
-    "Swallowed by Leviathan"
+    "Swallowed by Leviathan",
+    "Myr Superion"
    ]
   },
   {

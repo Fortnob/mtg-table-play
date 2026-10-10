@@ -14863,6 +14863,9 @@
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
+      // Liesa, Shroud of Dusk: the commander tax paid in life (commanderTaxLife)
+      { re: /^Rather than pay \{2\} for each previous time you'?ve cast this spell from the command zone this game, pay 2 life that many times\.?$/i,
+        make: () => ({ op: 'commanderTaxLife' }), auto: true },
       { re: /^No more than (one|two|three) creatures? can block each combat\.?$/i,
         make: (m) => ({ op: 'blockLimit', n: num(m[1]) }), auto: true },
       // Mirri, Weatherlight Duelist: "As long as Mirri is tapped, no more than one creature can attack you each combat." (limitWhileTapped)
