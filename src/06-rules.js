@@ -9755,7 +9755,12 @@
           return cond.cmp === 'atMost' ? total <= (cond.n || 0) : total >= (cond.n || 1);
         }
         case 'kicked': {
-          const times = (ctx && ctx.kicked) || 0;
+          /* Goblin Bushwhacker, Gatekeeper of Malakir: "When this creature enters, if it was
+             kicked" asks the permanent, which was kicked only if it came from the stack as a
+             spell (not when it is put onto the battlefield some other way); Sowing Mycospawn's
+             "When you cast this spell, if it was kicked" asks it on the stack */
+          const kickedSrc = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+          const times = (ctx && ctx.kicked) || (kickedSrc && kickedSrc.kickedTimes) || 0;
           return cond.cmp === 'atMost' ? times <= (cond.n || 0) : times >= (cond.n == null ? 1 : cond.n);
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
