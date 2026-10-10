@@ -15060,7 +15060,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
     // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
-    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking)?\.?$/i,
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking(?: that (?:opponent|player))?)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
@@ -20664,7 +20664,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Nalfeshnee: "Whenever you cast a spell from exile"
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
-    { re: /^Whenever (?:this creature|CARDNAME) attacks a player,? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
+    // (Kaalia of the Vast: "Whenever Kaalia attacks an opponent" — a player, who is always an opponent)
+    { re: /^Whenever (?:this creature|CARDNAME) attacks (?:a player|an opponent),? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
     { re: /^When (?:this (?:creature|artifact|enchantment|permanent|land)|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
     // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
     { re: /^Whenever an? ([+\-0-9/a-z]+) counter is put on a creature,? /i, event: 'countersPut',
@@ -29149,6 +29150,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (item.kind === 'spell' && item.obj) {
         const dup = this._register(new GObj(item.obj.card, controller, 'stack'));
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
+        // (a copy of a kicked spell is kicked too — Gatekeeper of Malakir copied by Double Major, CR 707.10)
+        dup.kickedTimes = item.obj.kickedTimes || 0; dup.wasKicked = !!item.obj.wasKicked;
         const a = item.obj.analysis();
         if (a && a.isPermanent) dup.isToken = true;
         copy = Object.assign({}, item, { id: this._uid('st'), isCopy: true, obj: dup, objId: dup.id, controller,
@@ -39374,6 +39377,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
         return v || 0;
       };
+      /* Commune with Lava, Barad-dur, Aetherwind Basker: a count worked out now ("X", "for each …")
+         may be 0, and then nothing happens; only a missing number means one */
+      const nVar = (v) => (v == null ? 1 : typeof v === 'number' ? (v || 1) : Math.max(0, Number(n(v)) || 0));
 
       switch (e.op) {
         /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
@@ -40006,7 +40012,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
           const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
-          const want = Math.min(n(e.n) || 1, pool.length);
+          const want = Math.min(nVar(e.n), pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
           if (pool.length > want || e.upTo) {
@@ -40239,7 +40245,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           break;
         case 'energy': {
-          let k = n(e.n) || 1;
+          let k = nVar(e.n);
+          if (!k) break;
           const evE = this._replace({ kind: 'counters', player: me, n: k, counter: 'energy', controller: me.id, putter: ctx.controller });
           if (evE.cancelled) break;
           k = evE.n;
@@ -40836,7 +40843,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         /* Connive N (CR 702.153): draw that many, throw that many away, and
            grow for each nonland thrown. */
         case 'connive': {
-          const count = n(e.n) || 1;
+          // (Spymaster's Vault: "connives X" with X 0 still connives: nothing drawn or discarded)
+          const count = nVar(e.n);
           const who = this.player(ctx.controller);
           // (Lethal Scheme: a creature named by id, conniving for its controller)
           const x = e.objId ? this.obj(e.objId) : e.scope === 'self' ? src
@@ -40849,8 +40857,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const slot = 'conn' + (r ? r.index : 0);
           if (!(r && r.marks[slot])) { this._drawCards(who, count); if (r) r.marks[slot] = true; }
           const hand = (this.zones[who.id] || {}).hand || [];
-          let toss = hand.slice(-count);
-          if (hand.length > count) {
+          let toss = count > 0 ? hand.slice(-count) : [];
+          if (count > 0 && hand.length > count) {
             const got = this._choose({ playerId: who.id, purpose: 'connive', kind: 'objects', zone: 'hand',
               items: this._chooseItems(hand), min: Math.min(count, hand.length), max: Math.min(count, hand.length), prefer: 'worst',
               prompt: `${x ? x.name : 'Connive'}: discard ${count === 1 ? 'a card' : count + ' cards'}. Each nonland card discarded is a +1/+1 counter.` }, slot + 'd');
@@ -42552,7 +42560,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             source = td.objectId ? this.obj(td.objectId) : null;
           }
           if (!source) break;
-          const cnt = n(e.n) || 1;
+          const cnt = nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
           let card = source.card;
           if (e.nonLegendary && /\bLegendary\b/.test(String(card.type_line || ''))) {
@@ -43736,7 +43744,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'randomFromGraveyard': {
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
           // Reap the Past: as many as it says, each at random
-          for (let k = Math.max(1, n(e.n) || 1); k > 0 && pool.length; k--) {
+          for (let k = nVar(e.n); k > 0 && pool.length; k--) {
             const c = pool.splice(Math.floor(this.rng.next() * pool.length), 1)[0];
             this.moveObject(c, 'hand');
             this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
@@ -44247,7 +44255,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             this._createToken(ctx.controller, { n: 1, pt: '0/0', subtypes: (e.kind || 'Zombie') + ' Army', colorWords: ['black'], keywords: [] });
             army = this.battlefield[this.battlefield.length - 1];
           }
-          if (army) this.addCounters(army, '+1/+1', n(e.n) || 1);
+          if (army) this.addCounters(army, '+1/+1', nVar(e.n));
           break;
         }
 
@@ -45370,7 +45378,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         }
 
         case 'impulse': {
-          const cnt = n(e.n) || 1;
+          const cnt = nVar(e.n);
+          if (!cnt) break;
           // "You may play them": for as long as they stay exiled
           const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(ctx.controller);
           const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : me;
@@ -66688,10 +66697,6 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     MTG.sfx('reject');
     UI.error(`That costs ${fmtN(cost)} Shards; you have ${fmtN(E().shards())}. Play some games to earn more.`);
   }
-  function bought(what) {
-    MTG.sfx('purchase');
-    UI.ok(`Bought: ${what}.`);
-  }
   /* Shift held: every pack button buys five times as many, and says so
      while it is held (the whole page knows, through a class on the root). */
   const SHIFT_X = 5;
@@ -67338,7 +67343,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const app = document.getElementById('app') || document.body;
     app.classList.remove('jolt'); void app.offsetWidth; app.classList.add('jolt');
     setTimeout(() => app.classList.remove('jolt'), 400);
-    UI.ok(`Bought: ${o.title}${o.sub ? ' (' + o.sub + ')' : ''}.`);
+    // the stamp, the sparks and the flight say it was bought; no note on top
     flyFrom(from, o.visual, o.fly || 1, o.to);
     if (o.after) setTimeout(() => o.after(), 60);
   };
@@ -68404,7 +68409,6 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const res = S.craft(c);
           if (!res.ok) { MTG.sfx('reject'); return UI.error(res.why); }
           MTG.sfx('wildcard');
-          UI.ok(`Crafted ${c.name}.`);
           mm.close();
           if (after) after();
         } },
@@ -68470,7 +68474,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (buyShort && plan.shortCost) setTimeout(() => MTG.sfx('purchase'), 120);
         m._onClose = null;
         m.close();
-        if (res.ok) { UI.ok(`Crafted ${plan.copies} card${plan.copies === 1 ? '' : 's'}. The deck is complete.`); resolve(true); }
+        if (res.ok) resolve(true);
         else { UI.error(`Still missing ${res.left.length} card${res.left.length === 1 ? '' : 's'}: not enough wildcards.`); resolve(false); }
       }, 'primary');
       const setLabel = () => {
