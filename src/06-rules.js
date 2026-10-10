@@ -19155,10 +19155,15 @@
           const name = x.name;
           for (const o of this.battlefield.slice()) {
             if (o.phasedOut || o.name !== name) continue;
+            // Echoing Truth, Sever the Bloodline: returned to hand or exiled instead (act), of the kind the words name
+            if (e.what && e.what !== 'permanent' && o !== x && !this._matchesCategory(o, e.what)) continue;
+            if (e.act === 'exile') { this.moveObject(o, 'exile'); continue; }
+            if (e.act === 'bounce') { this.moveObject(o, 'hand'); continue; }
             if (this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
             this.moveObject(o, 'graveyard');
           }
-          this.logEvent('destroy', `Every permanent named ${name} is destroyed.`);
+          this.logEvent(e.act === 'exile' ? 'exile' : e.act === 'bounce' ? 'bounce' : 'destroy',
+            `Every ${e.what && e.what !== 'permanent' ? e.what : 'permanent'} named ${name} is ${e.act === 'exile' ? 'exiled' : e.act === 'bounce' ? "returned to its owner's hand" : 'destroyed'}.`);
           break;
         }
         // Final Act: poison, energy, experience and the rest gone

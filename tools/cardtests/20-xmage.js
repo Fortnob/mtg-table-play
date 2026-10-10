@@ -18277,4 +18277,23 @@ module.exports = (test) => {
     T.settle();
     t.eq(g.counters['+1/+1'] || 0, 4, 'three more counters');
   });
+
+  test('Echoing Truth, Sever the Bloodline: the target and every other one with its name, returned or exiled', (mk, t) => {
+    t.auto('Echoing Truth');
+    t.auto('Sever the Bloodline');
+    const T = mk();
+    T.toMain('A');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears'), b3 = T.bf('A', 'Grizzly Bears'), g = T.bf('B', 'Hill Giant');
+    T.mana('A', 'U1');
+    T.cast('A', T.hand('A', 'Echoing Truth'), { targets: [b1.id] });
+    t.zone(b1, 'hand'); t.zone(b2, 'hand'); t.zone(b3, 'hand', 'yours too');
+    t.zone(g, 'battlefield', 'another name stays');
+    const U = mk();
+    U.toMain('A');
+    const c1 = U.bf('B', 'Grizzly Bears'), c2 = U.bf('B', 'Grizzly Bears'), c3 = U.bf('B', 'Hill Giant');
+    U.mana('A', 'BB3');
+    U.cast('A', U.hand('A', 'Sever the Bloodline'), { targets: [c1.id] });
+    U.settle();
+    t.zone(c1, 'exile'); t.zone(c2, 'exile'); t.zone(c3, 'battlefield');
+  });
 };

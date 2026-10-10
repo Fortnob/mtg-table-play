@@ -1543,6 +1543,13 @@
     // Aether Gale: "Return six target nonland permanents to their owners' hands."
     { re: /^Return (two|three|four|five|six) target ([a-z ]+?)s to their owners'? hands\.?$/i,
       make: (m) => { const t = tgt('target ' + m[2]); return t ? { op: 'bounce', targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, t, { distinct: true })) } : null; } },
+    // Echoing Truth: "Return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands."; Sever the Bloodline: exile
+    { re: /^(Exile|Return) (target [a-z ]+?) and all other ([a-z]+)s with the same name as that \3( to their owners'? hands)?\.?$/i,
+      make: (m) => {
+        if (/^return/i.test(m[1]) !== !!m[4]) return null;
+        const t = tgt(m[2]);
+        return t ? { op: 'destroySameName', act: /^exile/i.test(m[1]) ? 'exile' : 'bounce', what: m[3].toLowerCase(), targets: [t] } : null;
+      } },
     // Maelstrom Pulse, Echoing Calm: "…and all other permanents with the same name as that permanent"
     { re: /^Destroy (target [a-z ]+?) and all other ([a-z]+)s with the same name as that \2\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', targets: [t] } : null; } },
