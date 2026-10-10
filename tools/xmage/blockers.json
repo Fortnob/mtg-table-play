@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11252,
+  "needed": 11251,
   "gainedCards": 1132,
-  "linesNeeded": 12035,
+  "linesNeeded": 12033,
   "linesGained": 1337,
   "gained": {
    "all": 1132,
@@ -127,13 +127,12 @@
   },
   {
    "what": "custom condition",
-   "score": 168,
-   "lines": 156,
+   "score": 167,
+   "lines": 155,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
     "The Chain Veil",
-    "Diamond City",
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
@@ -141,7 +140,8 @@
     "Rith, Liberated Primeval",
     "Wakka, Devoted Guardian",
     "Tinybones, Trinket Thief",
-    "March of the Canonized"
+    "March of the Canonized",
+    "Gavel of the Righteous"
    ]
   },
   {
@@ -6667,8 +6667,8 @@
   },
   {
    "what": "custom ability",
-   "score": 552,
-   "cards": 507,
+   "score": 553,
+   "cards": 508,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6706,15 +6706,15 @@
   },
   {
    "what": "custom condition",
-   "score": 131,
-   "cards": 128,
+   "score": 130,
+   "cards": 127,
    "names": [
     "Sting, the Glinting Dagger",
-    "Diamond City",
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Éowyn, Shieldmaiden"
+    "Éowyn, Shieldmaiden",
+    "Rith, Liberated Primeval"
    ]
   },
   {

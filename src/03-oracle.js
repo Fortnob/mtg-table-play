@@ -2957,8 +2957,8 @@
     // Alley Grifters, Silent Skimmer: "defending player discards a card", "defending player loses 2 life"
     { re: /^(?:the )?defending player discards (a|one|two|\d+) cards?\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'defending' }) },
     { re: /^(?:the )?defending player loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[1], who: 'defending' }) },
-    // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature."
-    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent)) onto (target [a-z ]+?)\.?$/i,
+    // Weapon Rack, Simic Fluxmage: "Move a +1/+1 counter from this onto target creature." (Diamond City: "from this land")
+    { re: /^Move (a|an|one|two|\d+) ([+\-0-9/a-z]+) counters? from (?:CARDNAME|this (?:creature|artifact|permanent|land|enchantment)) onto (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'moveCounterFromSelf', n: num(m[1]), kind: m[2].toLowerCase(), targets: [targetSpec(m[3])] }) },
     // Spinal Parasite: "Remove a counter from target permanent."
     { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,

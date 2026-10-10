@@ -17155,4 +17155,18 @@ module.exports = (test) => {
     t.eq(T.life('B'), 18, 'two tapped creatures');
     t.eq(T.life('C'), 20, 'none tapped');
   });
+
+  test('Diamond City: move its shield counter onto a creature once two creatures have entered', (mk, t) => {
+    t.auto('Diamond City');
+    const T = mk();
+    T.toMain('A');
+    const dc = T.bf('A', 'Diamond City', { counters: { shield: 1 } });
+    const bear = T.bf('A', 'Grizzly Bears', { etb: true });
+    t.no(T.g.activateAbility('A', dc.id, 1, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'one creature entered: not yet');
+    T.bf('A', 'Llanowar Elves', { etb: true });
+    T.activate('A', dc, 1, { targets: [bear.id] });
+    T.settle();
+    t.eq(dc.counters.shield || 0, 0, 'off the land');
+    t.eq(bear.counters.shield || 0, 1, 'onto the Bears');
+  });
 };
