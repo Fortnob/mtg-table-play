@@ -4934,4 +4934,24 @@ module.exports = (test) => {
     T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [g.id] }); T.settle(); T.resolve(); T.settle();
     t.eq(vv.counters['+1/+1'], 6, 'the Giant died a 6/6');
   });
+
+  test('Audit: Hour of Revelation counts nonland permanents on both sides; Wildwood Scourge ignores counters on a Hydra', (mk, t) => {
+    t.auto('Hour of Revelation'); t.auto('Wildwood Scourge');
+    for (const n of [9, 10]) {
+      const T = mk();
+      T.toMain('A');
+      for (let i = 0; i < n; i++) T.bf(i % 2 ? 'A' : 'B', 'Grizzly Bears');
+      const hr = T.hand('A', 'Hour of Revelation');
+      T.mana('A', 'WWW');
+      if (n === 10) t.ok(T.g.castSpell('A', hr.id, { auto: true }), 'ten, five of them B\'s: {W}{W}{W}');
+      else t.no(T.g.castSpell('A', hr.id, { auto: true }), 'nine: full price');
+    }
+    const T = mk();
+    T.toMain('A');
+    const ws = T.bf('A', 'Wildwood Scourge');
+    const hy = T.bf('A', 'Hydra Broodmaster'), bear = T.bf('A', 'Grizzly Bears');
+    const put = (x) => { T.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: x.id }] }); T.settle(); T.resolve(); T.settle(); };
+    put(hy); t.eq(ws.counters['+1/+1'] || 0, 0, 'a Hydra: no');
+    put(bear); t.eq(ws.counters['+1/+1'] || 0, 1, 'the Bears: yes');
+  });
 };
