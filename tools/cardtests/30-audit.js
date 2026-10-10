@@ -4499,4 +4499,29 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
     t.eq(l0 - T.life('B'), 12, 'the Bolt: three spells before it, four Bolts');
   });
+
+  test('Audit: Level Up draws only once the doubled creature reaches power 10; Well Rested once a turn on untapping', (mk, t) => {
+    t.auto('Level Up'); t.auto('Well Rested');
+    for (const [start, draws] of [[1, false], [3, true]]) {
+      const T = mk();
+      T.toMain('A');
+      const w = T.bf('A', 'Craw Wurm', { counters: { '+1/+1': start } }); w.summoningSick = false;
+      const lu = T.bf('A', 'Level Up');
+      lu.attachedTo = w.id; w.attachments = [lu.id]; T.g.bumpBoard();
+      for (let i = 0; i < 3; i++) T.top('A', 'Island');
+      const h = T.zone('A', 'hand').length;
+      T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+      T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+      t.eq(w.counters['+1/+1'], start * 2, 'doubled');
+      t.eq(T.zone('A', 'hand').length, h + (draws ? 1 : 0), draws ? '6 + 6 = 12 power: a card' : '6 + 2 = 8: none');
+    }
+    const T = mk();
+    T.toMain('A');
+    const b = T.bf('A', 'Grizzly Bears', { tapped: true });
+    const wr = T.bf('A', 'Well Rested');
+    wr.attachedTo = b.id; b.attachments = [wr.id]; T.g.bumpBoard();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
+    t.no(b.tapped); t.eq(b.counters['+1/+1'], 2); t.eq(T.life('A'), 22);
+  });
 };
