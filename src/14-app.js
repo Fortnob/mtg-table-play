@@ -3788,6 +3788,9 @@
     };
   }
 
+  /* After an online draft, the longest the game waits for someone still building their deck. */
+  const DRAFT_BUILD_WAIT = 5 * 60 * 1000;
+
   /* Rule changes that mean a bot's deck is the wrong shape now. */
   const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage', 'bracket'];
 
@@ -4157,20 +4160,12 @@
         const seat = this.draft.seats.find(s => s.id === r.id);
         if (!seat) continue;
         r.pool = seat.pool;
-        if (r.kind === 'bot') {
-          r.deck = MTG.draft.autoBuildLimited(seat.pool, {
-            deckSize: this.fmt.deckMin || 40, basicCards: basics, formatId: this.formatId, name: r.name + "'s deck",
-          });
-          if (this.fmt.commander) {
-            const legends = seat.pool.filter(c => MTG.formats.canBeCommander(c, this.fmt));
-            if (legends.length) {
-              r.deck.commanders = [legends[0]];
-              r.deck.main = r.deck.main.filter(e => e.card.id !== legends[0].id);
-            }
-          }
-        }
+        // a deck a guest sent before the draft (the table was another format then) is not the one they will play
+        if (r.kind === 'remote') { r.deck = null; r.deckValid = null; }
+        if (r.kind === 'bot') r.deck = this.deckFromPool(r, basics);
       }
       const me = this.seat('me');
+      if (!me) { this.startAfterBuilds(); return; }
       App.keepDrafted(me.pool);
       UI.buildFromPool(me.pool, this.formatId, (deck) => {
         me.deck = deck;
@@ -4180,12 +4175,66 @@
           this.mode.idx = 0;
           this.roster = [me, this.mode.pod[0]];
         }
-        this.startGame();
+        this.startAfterBuilds();
       });
       if (net.isHost) net.sendPerPeer((peerId) => {
         const r = this.seatByPeer(peerId);
         return r ? { t: 'draft', payload: Object.assign(this.draft.viewFor(r.id), { buildNow: true }) } : null;
       });
+    }
+
+    /** The deck the bots' builder makes from a seat's picks (with a commander, in a commander draft). */
+    deckFromPool(r, basics) {
+      const pool = r.pool || [];
+      const deck = MTG.draft.autoBuildLimited(pool, {
+        deckSize: this.fmt.deckMin || 40, basicCards: basics, formatId: this.formatId, name: r.name + "'s deck",
+      });
+      if (this.fmt.commander) {
+        const legends = pool.filter(c => MTG.formats.canBeCommander(c, this.fmt));
+        if (legends.length) {
+          deck.commanders = [legends[0]];
+          deck.main = deck.main.filter(e => e.card.id !== legends[0].id);
+        }
+      }
+      return deck;
+    }
+
+    /**
+     * After a draft each person builds on their own screen, and the game
+     * waits for every guest's deck to arrive: until all are in, or
+     * DRAFT_BUILD_WAIT has passed, or the host says to start now. Anyone
+     * still building then plays the deck the bots' builder makes from their
+     * picks, and both they and the host are told so.
+     */
+    async startAfterBuilds() {
+      if (this._awaitingDecks || this.game) return;
+      this._awaitingDecks = true;
+      let go = false;
+      let busy = null;
+      const missing = await MTG.draft.awaitDecks(() => this.roster.filter(r => r.kind === 'remote'), {
+        timeout: DRAFT_BUILD_WAIT,
+        stop: () => go || App.session !== this,
+        onWait: (list, left) => {
+          const secs = Math.ceil(left / 1000);
+          const text = `Waiting for ${list.map(r => r.name).join(', ')} to finish building. ` +
+            `The game starts in ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} either way.`;
+          if (busy) busy.text(text);
+          else busy = UI.busy('Waiting for decks', text, { cancelLabel: 'Start now', onCancel: () => { go = true; } });
+        },
+      });
+      if (busy && !busy.cancelled) busy.close();
+      this._awaitingDecks = false;
+      if (App.session !== this || this.game) return;
+      if (missing.length) {
+        const basics = await MTG.draft.getBasics().catch(() => ({}));
+        for (const r of missing) {
+          r.deck = this.deckFromPool(r, basics);
+          r.deckValid = MTG.formats.validate(r.deck, this.fmt);
+        }
+        const names = missing.map(r => r.name).join(', ');
+        UI.toast(`${names} had not finished building, so ${missing.length === 1 ? 'they play' : 'each plays'} a deck built from their picks.`, '', 7000);
+      }
+      this.startGame();
     }
 
     /* ---- game ---- */
@@ -4739,6 +4788,13 @@
     });
     net.on('lobby', (payload) => { askSeatGifs(payload && payload.members); renderClientLobbyData(payload); });
     const showView = (view) => {
+      // a game while this guest was still building after a draft: the host stopped waiting, and dealt a deck built from the picks
+      if (App._buildingPool) {
+        App._buildingPool = false;
+        if (App._poolBuilder && App._poolBuilder.close) App._poolBuilder.close();
+        App._poolBuilder = null;
+        UI.toast('The game started before your deck was finished, so you play one built from your picks.', '', 7000);
+      }
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
       // a new game in the match is a new table: nothing on the old one carries over
@@ -4786,10 +4842,12 @@
       if (view.buildNow && !App._buildingPool) {
         App._buildingPool = true;
         App.keepDrafted(view.pool);
-        UI.buildFromPool(view.pool, view.formatId || App.formatId, (deck) => {
+        // the builder is kept hold of, to be put away if the host starts without waiting any longer
+        Promise.resolve(UI.buildFromPool(view.pool, view.formatId || App.formatId, (deck) => {
           App._buildingPool = false;
+          App._poolBuilder = null;
           net.intent({ kind: 'setDeck', deck: slimDeckForWire(deck) });
-        });
+        })).then((m) => { App._poolBuilder = App._buildingPool ? m || null : null; });
       }
     });
     net.on('chat', (msg) => {
@@ -4849,6 +4907,10 @@
     gifs.clear();
     if (App.draftUI && App.draftUI.destroy) App.draftUI.destroy();
     App.draftUI = null;
+    // a deck being built after a draft was for that table
+    if (App._poolBuilder && App._poolBuilder.close) App._poolBuilder.close();
+    App._buildingPool = false;
+    App._poolBuilder = null;
     if (!opts.keepSave) MTG.savedGame.clear();
     net.destroy();
     setNetBadge();

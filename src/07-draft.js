@@ -2208,7 +2208,35 @@
     return out;
   }
 
+  /**
+   * After an online draft each person builds their deck on their own
+   * screen, and the game waits for them. Resolves with the seats still
+   * without a deck once every seat `seats()` gives has one, `opts.timeout`
+   * ms have gone by, or `opts.stop()` says to go on regardless. `seats` is
+   * asked again each time, so someone who leaves is not waited for;
+   * `opts.onWait(missing, msLeft)` hears who is still building, and the
+   * time left, each time either changes (to the second).
+   */
+  function awaitDecks(seats, opts) {
+    opts = opts || {};
+    const every = opts.every || 250;
+    const end = Date.now() + (opts.timeout || 0);
+    return new Promise((resolve) => {
+      let said = '';
+      const look = () => {
+        const missing = (seats() || []).filter(r => r && !r.deck);
+        const left = Math.max(0, end - Date.now());
+        if (!missing.length || left <= 0 || (opts.stop && opts.stop())) { resolve(missing); return; }
+        const key = missing.map(r => r.id).join(',') + ':' + Math.ceil(left / 1000);
+        if (opts.onWait && key !== said) { said = key; opts.onWait(missing, left); }
+        setTimeout(look, every);
+      };
+      look();
+    });
+  }
+
   MTG.draft = {
+    awaitDecks,
     recipes: CUBE_RECIPES, buildRecipe,
     DRAFT_ABILITIES, draftAbilityOf, LAND_SLOT_MIX, DRAFT_SCRIPTS,
     isConspiracy, agendaOf, agendaNames, PREGAME_EXILE, pregameDefaults, applyPregame, wholePoolUsed,
