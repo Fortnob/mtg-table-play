@@ -20860,6 +20860,8 @@
           top.faceDown = true;
           this.moveObject(top, 'battlefield', { controller: who.id });
           top.faceDown = true;
+          // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
+          this._lastPut = top.id;
           this.logEvent('rules', `${who.name} manifests the top card of their library.`);
           break;
         }

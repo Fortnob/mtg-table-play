@@ -20788,4 +20788,27 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Stinging Shot'), { targets: [bird] });
     t.eq(bird.counters['-1/-1'], 3, 'Stinging Shot: three -1/-1 counters on the flyer');
   });
+
+  test('In a spell, "Untap it" and "put a counter on it" mean the target (or the card manifested): Shore Up, Big Play, Formless Nurturing, Charge the Sanctum', (mk, t) => {
+    t.auto('Shore Up'); t.auto('Big Play'); t.auto('Formless Nurturing'); t.auto('Charge the Sanctum');
+    const T = mk({ library: ['Island', 'Island', 'Island'] });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Shore Up'), { targets: [bear] });
+    t.no(bear.tapped, 'Shore Up untaps the target');
+    const b2 = T.bf('A', 'Hill Giant');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Big Play'), { targets: [b2] });
+    t.eq(b2.counters['+1/+1'], 1, 'Big Play: a counter on the target');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Formless Nurturing'));
+    const fd = T.bfOf('A').find(o => o.faceDown);
+    t.ok(fd && fd.counters['+1/+1'] === 1, 'Formless Nurturing: a counter on the manifested card');
+    const b3 = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '2R');
+    T.answer('mode', () => ({ modes: [1] }));
+    T.cast('A', T.hand('A', 'Charge the Sanctum'), { targets: [b3] });
+    t.eq(b3.counters['+1/+1'], 1, 'Charge the Sanctum: the counter on the target');
+  });
 };

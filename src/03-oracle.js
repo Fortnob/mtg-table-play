@@ -12224,6 +12224,26 @@
       const sp = analyze(card, 1);
       if (!sp || !sp.fullyAutomated) out.fullyAutomated = false;
     }
+    /* Shore Up, Big Play: in a spell, "Untap it." and "Put a +1/+1 counter on it." after a target — "it"
+       is what the spell targets; a spell is no permanent to untap or grow */
+    if (!out.isPermanent) {
+      // (Formless Nurturing: "Manifest the top card of your library, then put a +1/+1 counter on it" — the card manifested)
+      const itToTarget = (list, seen) => {
+        for (const e of list || []) {
+          if (!e || typeof e !== 'object') continue;
+          if ((e.targets || []).length) seen = 'target';
+          if (e.op === 'manifest') seen = 'put';
+          if (seen && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = seen === 'put' ? 'thatObject' : 'lastTarget';
+          seen = itToTarget(e.list, seen);
+          // (Throw from the Saddle: "… on it instead if …" — the target is in what it replaces)
+          itToTarget(e.then, itToTarget(e.otherwise, seen) || seen);
+          // (Charge the Sanctum: each mode on its own)
+          for (const md of e.modes || []) itToTarget(md.effects, false);
+        }
+        return seen;
+      };
+      for (const ab of out.abilities) if (ab.kind === 'spell') itToTarget(ab.effects, false);
+    }
     if (!out.isPermanent) {
       const spellEffects = [];
       let allAuto = true;
