@@ -480,9 +480,11 @@
     // Ghalta and Mavren: "a tapped and attacking X/X … token"
     if ((m = s.match(/^tapped and attacking /i))) { e.tapped = true; e.attacking = true; s = s.slice(m[0].length); }
     if ((m = s.match(/^tapped /i))) { e.tapped = true; s = s.slice(m[0].length); }
-    if (!(m = s.match(/^([\dX*]+\/[\dX*]+) /))) return null;
-    e.pt = m[1];
-    s = s.slice(m[0].length);
+    /* Hallowed Haunting, Wrenn and Seven: a token with no size printed, its
+       power and toughness defined by the words it is given (checked below) */
+    let noPt = false;
+    if ((m = s.match(/^([\dX*]+\/[\dX*]+) /))) { e.pt = m[1]; s = s.slice(m[0].length); }
+    else { noPt = true; e.pt = '0/0'; }
     // the words up to "creature token(s)": colours, then types
     if (!(m = s.match(/^(.+?) creature tokens?/i))) return null;
     const words = m[1].replace(/,/g, ' ').split(/\s+/).filter(w => w && !/^and$/i.test(w));
@@ -546,6 +548,8 @@
       s = s.slice(m[0].length);
     }
     if (s.trim()) return null;
+    // (no size printed: only one its words give it, and not one that counts on the card making it)
+    if (noPt && !(e.grantedText && /^This (?:token|creature)'s power and toughness are each equal to /i.test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
     if (e.grantedText) {
@@ -2699,8 +2703,9 @@
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
     /* Ghalta, Stampede Tyrant */
-    { re: /^Put any number of (creature|artifact|permanent|land) cards from your hand onto the battlefield\.?$/i,
-      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', any: true }) },
+    // (Wrenn and Seven: "… onto the battlefield tapped")
+    { re: /^Put any number of (creature|artifact|permanent|land) cards from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', any: true }, m[2] ? { tapped: true } : {}) },
     /* Buster Sword */
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value less than or equal to (?:that damage|the damage dealt) without paying its mana cost\.?$/,
       make: () => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount' }) },
@@ -12919,9 +12924,11 @@
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
     // "<name>'s power and toughness are each equal to the number of X you control."
-    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
+    // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
+    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
       make: (m) => {
-        const k = cdaCount(m[1], /on the battlefield/i.test(m[0]) ? 'any' : 'you');
+        // ("you control" counts yours; without it, or "on the battlefield", every one)
+        const k = cdaCount(m[1], / you control\.?$/i.test(m[0]) ? 'you' : 'any');
         return k ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } } : null;
       } },
     { re: /^(?:CARDNAME|This creature)'?s? power is equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)? and its toughness is equal to that number plus (\d+)\.?$/i,

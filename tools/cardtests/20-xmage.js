@@ -19336,4 +19336,31 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(cat), 10, 'paid: +X/+X where X is its power, 5');
     t.ok(T.g.hasKw(cat, 'trample'), 'and trample');
   });
+
+  test('Hallowed Haunting, Wrenn and Seven: tokens whose size their own words define', (mk, t) => {
+    t.auto('Hallowed Haunting'); t.auto('Wrenn and Seven');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Hallowed Haunting');
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Pacifism'), { targets: [T.bf('B', 'Grizzly Bears').id] });
+    T.resolve();
+    const sc = T.g.battlefield.filter(o => o.isToken && /Spirit/.test(o.name));
+    t.eq(sc.length, 1, 'a Spirit Cleric');
+    t.eq(T.g.powerOf(sc[0]), 1, 'as big as the Spirits you control: 1');
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Pacifism'), { targets: [T.bf('B', 'Grizzly Bears').id] });
+    T.resolve();
+    t.eq(T.g.powerOf(sc[0]), 2, 'two Spirits: 2/2 each');
+    const w7 = T.bf('A', 'Wrenn and Seven', { counters: { loyalty: 5 } });
+    for (const l of ['Forest', 'Forest', 'Island']) T.hand('A', l);
+    const a = w7.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.map(c => c.id) }));
+    T.activate('A', w7, list.findIndex(x => x.cost && x.cost.loyalty === 0));
+    T.resolve();
+    const lands = T.g.battlefield.filter(o => o.controller === 'A' && (o.analysis() || {}).isLand);
+    t.eq(lands.length, 3, 'all three lands from hand');
+    t.ok(lands.every(o => o.tapped), 'tapped');
+  });
 };
