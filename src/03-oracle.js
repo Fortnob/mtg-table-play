@@ -5491,6 +5491,12 @@
     { re: /^Search your library for an? (creature|artifact creature|[a-z]+ creature) card with (flying|defender|haste|trample|deathtouch|lifelink|vigilance|reach|first strike|flash), reveal it, put it into your hand, then shuffle\.?$/i,
       make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), withKeyword: m[2].toLowerCase(), to: 'hand',
         prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with ${m[2].toLowerCase()}.` }) },
+    /* Elspeth, Undaunted Hero, Vraska's Scorn, Grand Master of Flowers: "(You may) search your library
+       and/or graveyard for a card named Sunlit Hoplite (, reveal it,) and put it onto the battlefield (into
+       your hand)" — the shuffle after it is a sentence of its own (searchNamedBoth) */
+    { re: /^(You may )?search your library and\/or graveyard for (?:a card named ([^.]+?)|an? ([-a-zA-Z ]+?) card)(?:, reveal it,)? and (?:then )?put it (into your hand|onto the battlefield)\.?$/i,
+      make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[2] ? 'card' : m[3].toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', alsoGraveyard: true },
+        m[2] ? { named: m[2] } : {}, /reveal it/i.test(m[0]) ? { reveal: true } : {}) },
     /* Waterlogged Teachings: "an instant card or a card with flash" */
     { re: /^Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle\.?$/i,
       make: () => ({ op: 'tutor', n: 1, filter: 'any', instantOrFlash: true, to: 'hand' }) },

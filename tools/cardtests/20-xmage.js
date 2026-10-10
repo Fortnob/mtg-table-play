@@ -21255,4 +21255,21 @@ module.exports = (test) => {
     t.eq(w.counters.stun, 3, 'three stun counters on the creature');
     t.no(k.counters.stun, 'none on the Aura');
   });
+
+  test("Elspeth, Undaunted Hero, Vraska's Scorn: \"search your library and/or graveyard for a card named …\"", (mk, t) => {
+    t.auto('Elspeth, Undaunted Hero'); t.auto("Vraska's Scorn");
+    const T = mk({ library: Array(6).fill('Island') });
+    T.toMain('A');
+    const el = T.bf('A', 'Elspeth, Undaunted Hero'); el.counters.loyalty = 5;
+    const sh = T.put('A', 'Sunlit Hoplite', 'graveyard');
+    T.answer('pickCard', () => ({ cardIds: [sh.id] }));
+    T.activate('A', el, 1); T.resolve();
+    t.zone(sh, 'battlefield', 'Sunlit Hoplite from the graveyard onto the battlefield');
+    const vr = T.put('A', 'Vraska, Scheming Gorgon', 'library');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', () => ({ cardIds: [vr.id] }));
+    T.mana('A', '2BB'); T.cast('A', T.hand('A', "Vraska's Scorn"), { targets: ['B'] }); T.resolve();
+    t.eq(T.life('B'), 16, '4 life');
+    t.zone(vr, 'hand', 'Vraska from the library');
+  });
 };
