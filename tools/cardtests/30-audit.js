@@ -5971,13 +5971,134 @@ module.exports = (test) => {
     t.auto('Thieving Skydiver');
   });
 
-  test('Audit: a target that only a kick, a gift or the phase asks for, beside a target of its own, is left to a person (Jilt, Goblin Barrage, Return to Dust, Mind Spiral)', (mk, t) => {
-    const { card } = require('../harness');
-    const T = mk();
-    for (const n of ['Jilt', 'Goblin Barrage', 'Return to Dust', 'Mind Spiral', "Orim's Thunder", 'Rushing River', "Sazacap's Brew", 'Consumed by Greed', 'Urborg Repossession', 'Clear the Stage'])
-      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
-    // one target, held in front of the "if", is not that (Throw from the Saddle, Might of Old Krosa)
-    t.auto('Throw from the Saddle'); t.auto('Might of Old Krosa'); t.auto('Vicious Offering');
+  test('Audit: a target inside "if this spell was kicked" is a target only when it was (Jilt, Orim’s Thunder, Urborg Repossession, Goblin Barrage, Rushing River, Hulk’s Thunderclap)', (mk, t) => {
+    for (const n of ['Jilt', "Orim's Thunder", 'Urborg Repossession', 'Goblin Barrage', 'Rushing River', "Hulk's Thunderclap"]) t.auto(n);
+    for (const kick of [1, 0]) {
+      let T = mk(); T.toMain('A');
+      const bear = T.bf('B', 'Grizzly Bears'), maw = T.bf('B', 'Colossal Dreadmaw');
+      T.mana('A', kick ? 'U1R1' : 'U1'); T.cast('A', T.hand('A', 'Jilt'), { targets: [bear.id, maw.id], kick });
+      t.zone(bear, 'hand', 'Jilt: the first target bounced');
+      t.eq(maw.damage, kick ? 2 : 0, kick ? 'Jilt kicked: 2 to the other' : 'Jilt unkicked: the second target is not one');
+      t.zone(maw, 'battlefield', 'and it is not bounced');
+
+      T = mk(); T.toMain('A');
+      const jug = T.bf('B', 'Juggernaut'), maw2 = T.bf('B', 'Colossal Dreadmaw');
+      T.mana('A', kick ? 'W2R' : 'W2'); T.cast('A', T.hand('A', "Orim's Thunder"), { targets: [jug.id, maw2.id], kick });
+      t.zone(jug, 'graveyard', "Orim's Thunder destroys the artifact");
+      t.eq(maw2.damage, kick ? 4 : 0, 'kicked: its mana value to the creature');
+
+      T = mk(); T.toMain('A');
+      T.g.zones.A.graveyard.length = 0;
+      const c1 = T.grave('A', 'Grizzly Bears'), c2 = T.grave('A', 'Forest');
+      T.mana('A', kick ? 'BG1' : 'B'); T.cast('A', T.hand('A', 'Urborg Repossession'), { targets: [c1.id, c2.id], kick });
+      t.zone(c1, 'hand'); t.zone(c2, kick ? 'hand' : 'graveyard', 'Urborg Repossession: the other card when kicked');
+      t.eq(T.life('A'), 22);
+
+      T = mk(); T.toMain('A');
+      const gob = T.bf('A', 'Goblin Piker'), maw3 = T.bf('B', 'Colossal Dreadmaw');
+      T.mana('A', 'R3'); T.cast('A', T.hand('A', 'Goblin Barrage'), { targets: [maw3.id, 'B'], payAdditional: !!kick });
+      t.eq(maw3.damage, 4, 'Goblin Barrage: 4 to the creature, once');
+      t.eq(T.life('B'), kick ? 16 : 20, 'and 4 to the player when kicked');
+      t.zone(gob, kick ? 'graveyard' : 'battlefield', 'the Goblin is the kicker');
+
+      T = mk(); T.toMain('A');
+      const isl = T.bf('A', 'Island'), b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant');
+      T.mana('A', 'U2'); T.cast('A', T.hand('A', 'Rushing River'), { targets: [b1.id, b2.id], payAdditional: !!kick });
+      t.zone(b1, 'hand'); t.zone(b2, kick ? 'hand' : 'battlefield', 'Rushing River: another one when kicked');
+      t.zone(isl, kick ? 'graveyard' : 'battlefield');
+
+      T = mk(); T.toMain('A');
+      const hulk = T.bf('A', 'Hulk, Strongest There Is'), foe = T.bf('B', 'Colossal Dreadmaw'), ring = T.bf('B', 'Sol Ring');
+      T.mana('A', 'G1'); T.cast('A', T.hand('A', "Hulk's Thunderclap"), { targets: [hulk.id, foe.id, ring.id], payAdditional: !!kick });
+      t.eq(foe.damage, T.g.powerOf(hulk), "Hulk's Thunderclap: the bite");
+      t.zone(ring, kick ? 'graveyard' : 'battlefield', 'the artifact, when the Gamma was beheld');
+    }
+  });
+
+  test('Audit: a target inside "if the gift was promised", "if you cast it in your main phase" or another "if" (Mind Spiral, Sazacap’s Brew, Consumed by Greed, Return to Dust, Clear the Stage)', (mk, t) => {
+    for (const n of ['Mind Spiral', "Sazacap's Brew", 'Consumed by Greed', 'Return to Dust', 'Clear the Stage']) t.auto(n);
+    for (const yes of [true, false]) {
+      let T = mk(); T.toMain('A');
+      const g = T.bf('B', 'Hill Giant');
+      T.mana('A', 'U4'); T.cast('A', T.hand('A', 'Mind Spiral'), { targets: ['A', g.id], gift: yes ? 'B' : null });
+      t.eq(!!g.tapped, yes, 'Mind Spiral: tapped with the gift'); t.eq(g.counters.stun || 0, yes ? 1 : 0, 'and stunned');
+
+      T = mk(); T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears'); T.hand('A', 'Mountain');
+      T.mana('A', 'R1'); T.cast('A', T.hand('A', "Sazacap's Brew"), { targets: ['A', bear.id], gift: yes ? 'B' : null });
+      t.eq(T.g.powerOf(bear), yes ? 4 : 2, "Sazacap's Brew: +2/+0 with the gift");
+
+      T = mk(); T.toMain('A');
+      const big = T.bf('B', 'Craw Wurm'), small = T.bf('B', 'Grizzly Bears');
+      T.g.zones.A.graveyard.length = 0; const dead = T.grave('A', 'Hill Giant');
+      T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Consumed by Greed'), { targets: ['B', dead.id], gift: yes ? 'B' : null });
+      t.zone(big, 'graveyard'); t.zone(small, 'battlefield');
+      t.zone(dead, yes ? 'hand' : 'graveyard', 'Consumed by Greed: the creature card back with the gift');
+
+      T = mk(); T.toMain('A');
+      const a1 = T.bf('B', 'Juggernaut'), a2 = T.bf('B', 'Ornithopter');
+      if (!yes) T.toMain('A', 'beginCombat');
+      T.answer('confirm', { yes: true });
+      T.mana('A', 'WW2'); T.cast('A', T.hand('A', 'Return to Dust'), { targets: [a1.id, a2.id] });
+      t.zone(a1, 'exile'); t.zone(a2, yes ? 'exile' : 'battlefield', 'Return to Dust: the other one in a main phase only');
+
+      T = mk(); T.toMain('A');
+      if (yes) T.bf('A', 'Colossal Dreadmaw');
+      const w = T.bf('B', 'Craw Wurm');
+      T.g.zones.A.graveyard.length = 0; const gone = T.grave('A', 'Hill Giant');
+      T.answer('confirm', { yes: true });
+      T.mana('A', 'B4'); T.cast('A', T.hand('A', 'Clear the Stage'), { targets: [w.id, gone.id] });
+      t.eq(T.g.powerOf(w), 3);
+      t.zone(gone, yes ? 'hand' : 'graveyard', 'Clear the Stage: the card back with a big creature (chosen as it was cast either way)');
+    }
+  });
+
+  test('Audit: those targets on the stack: one gone leaves the other, a copy keeps them, the table and a bot ask for them', (mk, t) => {
+    // the second target gone before it resolves: the first still bounced
+    let T = mk(); T.toMain('A');
+    let bear = T.bf('B', 'Grizzly Bears'), maw = T.bf('B', 'Colossal Dreadmaw');
+    T.mana('A', 'U1R1'); T.cast('A', T.hand('A', 'Jilt'), { targets: [bear.id, maw.id], kick: 1, resolve: false });
+    T.g.moveObject(maw, 'hand'); T.resolve();
+    t.zone(bear, 'hand', 'the first target still bounced');
+    // the first gone: the second still dealt 2
+    T = mk(); T.toMain('A');
+    bear = T.bf('B', 'Grizzly Bears'); maw = T.bf('B', 'Colossal Dreadmaw');
+    T.mana('A', 'U1R1'); T.cast('A', T.hand('A', 'Jilt'), { targets: [bear.id, maw.id], kick: 1, resolve: false });
+    T.g.moveObject(bear, 'hand'); T.resolve();
+    t.eq(maw.damage, 2, 'the second target still dealt 2'); t.zone(maw, 'battlefield', 'and not bounced');
+    // a copy of a kicked Jilt is kicked, with the same targets
+    T = mk(); T.toMain('A');
+    bear = T.bf('B', 'Grizzly Bears'); maw = T.bf('B', 'Colossal Dreadmaw');
+    T.mana('A', 'U1R1RR'); T.cast('A', T.hand('A', 'Jilt'), { targets: [bear.id, maw.id], kick: 1, resolve: false });
+    const jilt = T.g.stack[T.g.stack.length - 1];
+    T.cast('A', T.hand('A', 'Reverberate'), { targets: [{ kind: 'stack', id: jilt.id }] });
+    t.zone(bear, 'hand'); t.eq(maw.damage, 4, 'the copy and the spell each dealt 2 to the second target');
+    // what the table is offered and asked: the kicker, the gift; the specs as cast
+    T = mk(); T.toMain('A');
+    T.bf('A', 'Goblin Piker');
+    const gb = T.hand('A', 'Goblin Barrage'), ms = T.hand('A', 'Mind Spiral'), rd = T.hand('A', 'Return to Dust');
+    const ex = T.g.viewFor('A').extras || {};
+    t.ok((ex[gb.id] || []).some(x => x.kind === 'optional' && /^Kicker/.test(x.label) && !x.blocked), 'Goblin Barrage: the kicker among the extra costs');
+    t.ok((ex[ms.id] || []).some(x => x.kind === 'gift'), 'Mind Spiral: the gift among the extra costs');
+    const R = T.MTG.rules;
+    t.eq(R.spellTargetSpecs(gb.analysis(), { kicked: 0 }).length, 1); t.eq(R.spellTargetSpecs(gb.analysis(), { kicked: 1 }).length, 2);
+    const k2 = R.spellTargetSpecs(gb.analysis(), { kicked: 1 })[1];
+    t.eq(k2.castWhy, 'kicked', 'the second asked for as the kick'); t.ok(/target player or planeswalker/.test(k2.castText));
+    t.eq(R.spellTargetSpecs(ms.analysis(), { gift: true }).length, 2); t.eq(R.spellTargetSpecs(ms.analysis(), {}).length, 1);
+    t.eq(R.spellTargetSpecs(rd.analysis(), { inMain: true }).length, 2); t.eq(R.spellTargetSpecs(rd.analysis(), { inMain: false }).length, 1);
+    // a bot kicks Jilt and picks the second target itself
+    T = mk(); T.toMain('A');
+    for (const l of ['Island', 'Island', 'Mountain', 'Mountain']) T.bf('A', l);
+    bear = T.bf('B', 'Grizzly Bears'); maw = T.bf('B', 'Hill Giant');
+    const jc = T.hand('A', 'Jilt');
+    const bot = new T.MTG.bots.BotPlayer(T.g, 'A', 5);
+    let got = null;
+    const orig = T.g.castSpell.bind(T.g);
+    T.g.castSpell = (pid, id, opts) => { got = opts; return orig(pid, id, opts); };
+    bot.castChoice({ o: jc, a: jc.analysis(), v: 5, cost: 2, costStr: '{1}{U}', via: null }, 4);
+    t.eq(got && got.kick, 1, 'the bot kicks');
+    t.eq(got && got.targets.length, 2, 'and gives the kick its target');
+    t.ok(got && got.targets[0].id !== got.targets[1].id, 'another creature');
   });
 
   test('Audit: "… on that creature instead" after a target in a trigger is that target (The Destined White Mage, Scythecat Cub)', (mk, t) => {

@@ -3120,11 +3120,52 @@
           opts.targets = all.slice(0, mt.fixed + opts.x);
         }
       }
+      /* Jilt, Mind Spiral, Return to Dust: the targets the kick, the gift or the phase bring in,
+         picked now that those are settled */
+      if (!choice.fuse && choice.face == null && !choice.a.isPermanent && MTG.rules.hasBranchSlots(g._cardSpellEffects(choice.a))) this._branchTargets(choice, opts);
       // a Treasure is only cracked once the spell is really going to be cast
       if (!g.couldPay(this.pid, String(choice.costStr || '').replace(/\{X\}/g, ''), this.manaSources()) && !this._crackFor(choice.costStr)) return false;
       if (!g.castSpell(this.pid, choice.o.id, opts)) { this._refused(choice.o); return false; }
       this._did('cast', choice.o);
       return true;
+    }
+
+    /**
+     * A spell with a target inside "if this spell was kicked / if the gift was promised / if you
+     * cast it during your main phase": the additional cost and the gift decided here (as the
+     * engine would), then every target in the order the engine reads them (targetSlots). One
+     * the kick or the gift asks for that is not there takes back the kick and the gift.
+     */
+    _branchTargets(choice, opts) {
+      const g = this.game, a = choice.a, o = choice.o;
+      const effs = g._cardSpellEffects(a);
+      const add = a.additionalCost;
+      if (add && add.optional && !add.choice && opts.payAdditional == null)
+        opts.payAdditional = !g._thingCostBlocked(this.pid, Object.assign({ spellLife: true }, add), o, null);
+      if (a.gift && opts.gift === undefined) {
+        const opps = g.opponentsOf(this.pid).filter(x => !x.hasLost);
+        opts.gift = opps.length ? (g._botGift(this.pid, a.gift, opps) || null) : null;
+      }
+      const build = () => {
+        const base = (opts.targets || []).slice();
+        const out = [];
+        for (const s of MTG.rules.targetSlots(effs, g._castSel(this.pid, o, a, opts))) {
+          if (!s.why) { if (!base.length) return out; out.push(base.shift()); continue; }
+          const t = this.pickTarget(s.spec, s.eff, o, { taken: out });
+          if (t && !out.some(x => x.kind === t.kind && x.id === t.id)) { out.push(t); continue; }
+          // "up to one": fewer will do; otherwise the choice that asked for it is taken back
+          return s.spec.upTo ? out : null;
+        }
+        return out;
+      };
+      let got = build();
+      if (got === null) {
+        opts.kick = 0; delete opts.kickPaid;
+        if (opts.payAdditional) opts.payAdditional = false;
+        if (opts.gift) opts.gift = null;
+        got = build();
+      }
+      if (got) opts.targets = got;
     }
 
     /* ---- the other player's turn ---- */

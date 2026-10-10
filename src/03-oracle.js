@@ -12299,16 +12299,24 @@
     if (out._keywordManual) out.fullyAutomated = false;
     /* Jilt: "Return target creature to its owner's hand. If this spell was kicked, it deals 2 damage
        to another target creature." A target inside an "if" when the words before it have one of
-       their own: the targets are asked for before the kick, the gift or the phase is known, so that
-       one never is, and the targets are not shared out between the two — left to the table */
+       their own. In a spell, inside "if" or "you may" (any number deep), the table asks for it as
+       the spell is cast, once the kick, the gift or the phase that decides it is settled
+       (targetSlots); one inside anything else (Withdraw's "unless … pays"), in an "if" that hangs
+       on some other choice made as the spell is cast, or beside "X targets", is left to the table */
+    const castOnly = /^(?:kickedWith|boughtBack|castFrom\w*|surgePaid|altPaid|bargained|manaSpent\w*|entwined|spree\w*)$/;
+    const condOk = (c) => !!c && (c.kind === 'not' ? condOk(c.cond) : !castOnly.test(c.kind || ''));
     for (const ab of out.abilities) {
       if (!ab.auto || !ab.effects) continue;
       const flat = [];
       for (const x of ab.effects) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
       const aimedIn = (list) => (list || []).some(e => e && ((e.targets || []).length || aimedIn(e.list) || aimedIn(e.then) || aimedIn(e.otherwise)));
-      if (flat.some(x => (x.targets || []).length) && flat.some(x => !(x.targets || []).length && (aimedIn(x.then) || aimedIn(x.otherwise)))) {
-        ab.auto = false; out.fullyAutomated = false;
-      }
+      if (!(flat.some(x => (x.targets || []).length) && flat.some(x => !(x.targets || []).length && (aimedIn(x.then) || aimedIn(x.otherwise))))) continue;
+      const reach = (list) => (list || []).every(e => !e || (e.op === 'sequence' ? reach(e.list)
+        : (e.targets || []).length ? !e.targets.some(sp => sp && sp.multi)
+        : (e.op === 'ifCond' && condOk(e.cond)) || e.op === 'may' ? reach(e.then) && reach(e.otherwise)
+        : !(aimedIn(e.then) || aimedIn(e.otherwise) || aimedIn(e.list))));
+      if (ab.kind === 'spell' && reach(ab.effects)) continue;
+      ab.auto = false; out.fullyAutomated = false;
     }
     /* A Room's locked door: its mana cost, paid any time you could cast a
        sorcery, unlocks it (CR 709.5e) — a special action, offered with the
@@ -12355,6 +12363,22 @@
         return seen;
       };
       for (const ab of out.abilities) if (ab.kind === 'spell' || ab.kind === 'activated' || ab.kind === 'triggered' || ab.kind === 'loyalty') itToTarget(ab.effects, false);
+      /* Orim's Thunder: "Destroy target artifact … it deals damage equal to that permanent's mana value
+         to target creature" — in a spell there is no trigger: "it" is the spell, and "that permanent"
+         the one it destroyed, as it last was */
+      const lastOf = (list, seen) => {
+        for (const e of list || []) {
+          if (!e || typeof e !== 'object') continue;
+          if (seen && e.op === 'damage' && e.fromTrigger && e.n && typeof e.n === 'object' && e.n.ofTrigger && !e.n.plus &&
+              /^It deals damage equal to that (?:permanent|creature|artifact|enchantment|land)'?s (?:mana value|power|toughness) to\b/i.test(e.text || '')) {
+            delete e.fromTrigger; e.n = { ofLast: e.n.ofTrigger };
+          }
+          if ((e.targets || []).length && /^(?:destroy|exile|bounce|sacrifice)$/.test(e.op)) seen = true;
+          seen = lastOf(e.list, seen); lastOf(e.then, seen); lastOf(e.otherwise, seen);
+        }
+        return seen;
+      };
+      for (const ab of out.abilities) if (ab.kind === 'spell') lastOf(ab.effects, false);
       /* Apes of Rath, Barbed Servitor, Experiment One: with nothing targeted and nothing made before it,
          "it" in a permanent's own ability ("Whenever this creature attacks, it doesn't untap …", "When
          this creature enters, suspect it", "Remove two counters: Regenerate it") is the permanent */

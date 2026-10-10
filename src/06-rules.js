@@ -2690,7 +2690,23 @@
 
     /** The target specs of a spell or ability, in the order its targets were chosen. */
     _specsOf(item, n) {
-      return fitSpecs(effectSpecs(item && item.effects), n == null ? (item && item.targets ? item.targets.length : null) : n);
+      return fitSpecs(effectSpecs(item && item.effects, this._selOf(item)), n == null ? (item && item.targets ? item.targets.length : null) : n);
+    }
+    /* What a cast settled that decides which of a spell's targets it has (targetSlots): the kick, the
+       gift and the phase — from a spell on the stack (or a copy of it), or from the cast's choices */
+    _selOf(item) { return item ? { kicked: item.kicked || 0, gift: !!item.gift, inMain: !!item.castInMain } : {}; }
+    _castSel(playerId, o, a, opts) {
+      opts = opts || {};
+      let kicked = 0;
+      for (const ex of (o ? this.extraCostsFor(o.id) : [])) {
+        if (ex.kind === 'kicker' && ex.costs && Array.isArray(opts.kickPaid)) {
+          kicked = Math.max(kicked, new Set(opts.kickPaid.map(Number).filter(i => Number.isInteger(i) && i >= 0 && i < ex.costs.length)).size);
+        } else if (ex.kind === 'kicker' && opts.kick) kicked = Math.max(kicked, ex.costs ? ex.costs.length : 1);
+        else if (ex.kind === 'multikicker' && opts.kick) kicked = Math.max(kicked, Math.max(1, Math.min(20, parseInt(opts.kick, 10) || 1)));
+      }
+      const add = a && a.additionalCost;
+      if (add && add.optional && !add.choice && opts.payAdditional && !opts.skipAdditional) kicked = Math.max(kicked, 1);
+      return { kicked, gift: !!(a && a.gift && opts.gift), inMain: !!this.isMain && !!this.activePlayer && this.activePlayer.id === playerId };
     }
     _fitSpecs(specs, n) { return fitSpecs(specs, n); }
     /** The variable-count target of a spell, if it has one: the spec, and how many fixed targets come before it. */
@@ -4558,6 +4574,23 @@
               constraints: [{ kind: 'mana', key: 'cost', label: 'mana' }], prompt: 'Splice onto Arcane' } });
         }
       }
+      /* Asked with the extra costs, before the targets, since they decide whether the spell has
+         more of them (CR 601.2b-c): a kicker that is not mana (Goblin Barrage), an additional cost
+         you may pay that a target hangs on (Hulk's Thunderclap), and a gift a target hangs on
+         (Mind Spiral) */
+      const add = a.additionalCost;
+      const hangs = !a.isPermanent && hasBranchSlots(this._cardSpellEffects(a));
+      if (add && add.optional && !add.choice && (add.kicker || hangs)) {
+        const ab = (a.abilities || []).find(x => x.kind === 'castModifier' && /^As an additional cost/i.test(x.text || ''));
+        const words = add.kicker ? add.label : ((ab && (String(ab.text).match(/you may (.+?)\.?$/i) || [])[1]) || 'pay the additional cost');
+        const up = String(words || '').replace(/^./, (c) => c.toUpperCase());
+        out.push({ kind: 'optional', cost: '', label: add.kicker ? 'Kicker\u2014' + up : up + ' (an additional cost)',
+          blocked: !!this._thingCostBlocked(o.controller || o.owner, Object.assign({ spellLife: true }, add), o, null) });
+      }
+      if (a.gift && hangs) {
+        const what = a.gift === 'card' ? 'a card' : a.gift === 'extra turn' ? 'an extra turn' : 'a ' + a.gift;
+        out.push({ kind: 'gift', cost: '', label: `Promise a gift (${what})` });
+      }
       return out;
     }
 
@@ -4590,6 +4623,9 @@
       }
       /* "As an additional cost to cast this spell, you may blight 1": paid or
          not, decided before anything is paid */
+      // (the table's toggle said pay it: it has to be payable)
+      if (add && add.optional && !add.choice && !opts.skipAdditional && opts.payAdditional === true &&
+          this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) return "You can't pay that additional cost.";
       if (add && add.optional && !add.choice && !opts.skipAdditional && opts.payAdditional == null) {
         if (this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) opts.payAdditional = false;
         else if (decides) opts.payAdditional = true;
@@ -4614,11 +4650,13 @@
       }
       if (a && a.gift && (opts.gift === undefined || opts.gift === true)) {
         const opps = this.opponentsOf(playerId).filter(x => !x.hasLost);
+        const what = a.gift === 'card' ? 'a card' : a.gift === 'extra turn' ? 'an extra turn' : 'a ' + a.gift;
         if (!opps.length) opts.gift = null;
-        else if (opts.gift === true) opts.gift = opps[0].id;
+        else if (opts.gift === true && (opps.length === 1 || decides)) opts.gift = opps[0].id;
+        // promised with the extra costs, among several opponents: to whom
+        else if (opts.gift === true) return ask('gift', `${o.name}: promise ${what} to whom?`, opps.map(x => `Promise ${what} to ${x.name}`), opps.map(x => x.id));
         else if (decides) opts.gift = this._botGift(playerId, a.gift, opps);
         else {
-          const what = a.gift === 'card' ? 'a card' : a.gift === 'extra turn' ? 'an extra turn' : 'a ' + a.gift;
           return ask('gift', `${o.name}: promise a gift (${what})?`,
             ["Don't promise a gift"].concat(opps.map(x => `Promise ${what} to ${x.name}`)), [null].concat(opps.map(x => x.id)));
         }
@@ -4954,6 +4992,14 @@
          with the answer; a bot decides on the spot. */
       const asked = this._castChoices(playerId, o, a, opts, chk);
       if (asked) return asked === 'asked' ? true : this.fail(asked);
+      /* Jilt, Mind Spiral, Return to Dust: with the kick, the gift and the phase settled, the targets
+         inside those "if"s are checked as well, and any beyond what the spell now asks for dropped */
+      if (a && !a.isPermanent && !opts.fuse && !/overload|cleave/.test(String(opts.via || '')) && hasBranchSlots(this._cardSpellEffects(a))) {
+        const specs = spellTargetSpecs(a, this._castSel(playerId, o, a, opts));
+        if ((opts.targets || []).length > specs.length) opts.targets = opts.targets.slice(0, specs.length);
+        const bad = this._illegalTargets(specs, opts.targets, playerId, o);
+        if (bad) return this.fail(bad);
+      }
       const addPick = a && a.additionalCost && a.additionalCost.choice
         ? a.additionalCost.choice[opts.additionalChoice || 0] : null;
       // (the price before Trinisphere's floor, which is settled below with the rest of it)
@@ -12175,10 +12221,23 @@
       }
       let targets = (ctx.resolvedTargets || ctx.targets || []);
       let sliced = false;
+      /* Jilt: "Return target creature … If this spell was kicked, it deals 2 damage to another target
+         creature" — each sentence has its own place among the targets, the one inside the "if" too
+         (targetSlots, as the targets were chosen) */
+      let slotted = false;
+      if (e.targets && e.targets.length && (ctx.targets || []).length && hasBranchSlots(ctx.effects)) {
+        const slots = targetSlots(ctx.effects, this._selOf(ctx));
+        const at = slots.findIndex(s => s.eff === e);
+        if (at >= 0) {
+          const mine = ctx.targets.slice(at, at + slots.filter(s => s.eff === e).length);
+          targets = mine.filter(t => targets.some(r => r.kind === t.kind && r.id === t.id));
+          sliced = slotted = true;
+        }
+      }
       /* "Destroy target artifact. Target player draws a card." Two
          sentences, two targets, chosen in order as the spell was cast: each
          sentence acts on its own, not on everything the spell pointed at. */
-      if (e.targets && e.targets.length && (ctx.targets || []).length) {
+      if (!slotted && e.targets && e.targets.length && (ctx.targets || []).length) {
         const flat = [];
         for (const x of (ctx.effects || [])) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
         const aimed = flat.filter(x => x.targets && x.targets.length && !x.askTargets);
@@ -24034,7 +24093,65 @@
     'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Xindi', 'Yeti', 'Zombie', 'Zubera',
   ];
 
-  function effectSpecs(effects) {
+  /* Jilt, Mind Spiral, Return to Dust: a target inside "if this spell was kicked", "if the gift was
+     promised" or "if you cast this spell during your main phase" is one of the spell's targets only
+     when that was so as it was cast (CR 601.2c); a target inside any other "if" (Clear the Stage) is
+     chosen as it is cast either way. `sel` is what the cast settled: { kicked, gift, inMain }.
+     Returns true or false for a choice made as the spell is cast, null for anything else. */
+  function castCond(cond, sel) {
+    if (!cond) return null;
+    if (cond.kind === 'not') { const k = castCond(cond.cond, sel); return k == null ? null : !k; }
+    if (cond.kind === 'kicked') {
+      const t = (sel && sel.kicked) || 0;
+      return cond.cmp === 'atMost' ? t <= (cond.n || 0) : t >= (cond.n == null ? 1 : cond.n);
+    }
+    if (cond.kind === 'gift') return cond.none ? !(sel && sel.gift) : !!(sel && sel.gift);
+    if (cond.kind === 'castInMain') return !!(sel && sel.inMain);
+    return null;
+  }
+  const CAST_WHY = { kicked: 'kicked', gift: 'gift', castInMain: 'main' };
+  function aimedIn(list) {
+    return (list || []).some(e => e && ((e.targets || []).length || aimedIn(e.list) || aimedIn(e.then) || aimedIn(e.otherwise)));
+  }
+  /** A spell whose words aim at something, and aim again inside an "if" (Jilt). */
+  function hasBranchSlots(effects) {
+    let top = false, branch = false;
+    const walk = (list) => {
+      for (const e of (list || [])) {
+        if (!e) continue;
+        if (e.op === 'sequence') { walk(e.list); continue; }
+        if ((e.targets || []).length) { top = true; if (e.targets.some(sp => sp && sp.multi)) branch = null; continue; }
+        if ((e.op === 'ifCond' || e.op === 'may') && branch !== null && (aimedIn(e.then) || aimedIn(e.otherwise))) branch = true;
+      }
+    };
+    walk(effects);
+    return top && branch === true;
+  }
+  /**
+   * Each target of such a spell in the order it is chosen, with the sentence it belongs to: the
+   * targets inside an "if" the cast settled come where that "if" stands, those of the branch it
+   * did not take are not there at all. `why` says which choice brought one in ('kicked', 'gift',
+   * 'main', or 'if' for an "if" decided as the spell resolves).
+   */
+  function targetSlots(effects, sel) {
+    const out = [];
+    const walk = (list, why) => {
+      for (const e of (list || [])) {
+        if (!e) continue;
+        if (e.op === 'sequence') { walk(e.list, why); continue; }
+        if ((e.targets || []).length) { for (const sp of e.targets) out.push({ spec: sp, eff: e, why }); continue; }
+        if (!(e.op === 'ifCond' || e.op === 'may') || !(aimedIn(e.then) || aimedIn(e.otherwise))) continue;
+        // (Return to Dust, Clear the Stage: "you may exile up to one other target …" — chosen as it is cast, done or not as it resolves)
+        const k = e.op === 'may' ? null : castCond(e.cond, sel);
+        if (k === true) walk(e.then, why || CAST_WHY[e.cond.kind] || 'if');
+        else if (k === false) walk(e.otherwise, why || 'if');
+        else { walk(e.then, why || 'if'); walk(e.otherwise, why || 'if'); }
+      }
+    };
+    walk(effects, null);
+    return out;
+  }
+  function effectSpecs(effects, sel) {
     const specs = [];
     const walk = (list) => {
       for (const e of (list || [])) {
@@ -24044,6 +24161,13 @@
       }
     };
     walk(effects);
+    /* Jilt: the target inside "if this spell was kicked" too, when it was (the table shows why it
+       is asked for, and what for) */
+    if (specs.length && hasBranchSlots(effects)) {
+      // ("another target", "one other target": not the one chosen before it)
+      return targetSlots(effects, sel).map(s => s.why ? Object.assign({}, s.spec, { castWhy: s.why, castText: s.eff.text || '' },
+        s.spec.another ? { distinct: true } : {}) : s.spec);
+    }
     if (specs.length) return specs;
     /* Nothing aimed at the top: the targets sit inside a branch ("Counter
        target spell unless its controller pays {3}", "If …, it deals 4
@@ -24075,7 +24199,7 @@
     return specs.slice(0, i).concat(Array.from({ length: k }, () => specs[i]), specs.slice(i + 1));
   }
   /** What a spell card asks to target as it is cast: the one list the engine and the table both read. */
-  function spellTargetSpecs(a) { return effectSpecs(cardSpellEffects(a)); }
+  function spellTargetSpecs(a, sel) { return effectSpecs(cardSpellEffects(a), sel); }
 
   function normTarget(t) {
     if (typeof t === 'string') return { kind: 'object', id: t };
@@ -24083,7 +24207,8 @@
   }
   function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-  MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs };
+  MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs,
+    targetSlots, hasBranchSlots };
 })(window.MTG);
 
 

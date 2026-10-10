@@ -141,6 +141,8 @@ const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str))
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
   /* an "and/or" kicker: each of its costs, any or all of them paid (the cast's kickPaid) */
   costs: opt(arr(str)),
+  /* an additional cost you may pay that cannot be paid now (nothing to sacrifice) */
+  blocked: opt(bool),
   choose: opt((v, p, out) => ChooseSpec(v, p, out)),
   /* convoke, improvise, delve: what could pay, and how much of the cost at most */
   candidates: opt(arr(id)), max: opt(nat),
@@ -265,6 +267,8 @@ const INTENTS = {
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     /* which of an "and/or" kicker's costs are paid: 0 the first, 1 the second */
     kickPaid: opt(arr(nat)),
+    /* said with the extra costs: an additional cost you may pay (a kicker that is not mana), and the gift */
+    payAdditional: opt(bool), gift: opt(maybe(bool)),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), returnId: opt(id), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
@@ -922,6 +926,8 @@ function selfTest() {
   expect('choose answer', run(ANSWERS.choose, { picks: [1] }, 'a'), false);
   expect('choose answer, old shape', run(ANSWERS.choose, { cardIds: ['o1'] }, 'a'), true);
   expect('cast with generic answers', checkIntent({ kind: 'cast', objId: 'o1', choices: { replicate: { number: 2 }, splice: { picks: ['o4'] } } }), false);
+  expect('cast with the additional cost and the gift said', checkIntent({ kind: 'cast', objId: 'o1', payAdditional: true, gift: null, targets: [] }), false);
+  expect('cast with a gift that is not yes or no', checkIntent({ kind: 'cast', objId: 'o1', gift: 'B' }), true);
   const o = []; jsonProblems({ a: [undefined], b: NaN, c: new Set() }, 'x', o);
   if (o.length !== 3) fails.push(`jsonProblems found ${o.length} of 3 problems`);
   return fails;

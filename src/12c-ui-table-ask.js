@@ -774,7 +774,7 @@
       const picks = all.filter(x => x.key && (x.candidates || x.foods));
       const extras = all.filter(x => !PAYS.includes(x.kind) && !picks.includes(x));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
-      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, kickPaid: [], buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
+      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, kickPaid: [], buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {}, payAdditional: false, gift: false }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
       const faces = o.card.card_faces;
       steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
@@ -783,8 +783,12 @@
       const hasX = /\{X\}/.test(steps.cost);
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
       const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
-      const afterPay = () => (picks.length
-        ? this.askCostPicks(picks, steps.x || 0, o.card, (chosen) => { steps.costPicks = chosen; this.castTargets(steps); })
+      // an additional cost left unpaid in the extras (Hulk's Thunderclap): nothing of it to pick
+      const PICKS_OF = { evidence: 'evidence', forage: 'forage', reveal: 'revealHand', exileOwn: 'exileOwn', counterFrom: 'removeCounterFrom', blight: 'blight', behold: 'behold' };
+      const picksNow = () => (extras.some(x => x.kind === 'optional') && !steps.picked.payAdditional
+        ? picks.filter(r => !(a && a.additionalCost && a.additionalCost[PICKS_OF[r.kind]])) : picks);
+      const afterPay = () => (picksNow().length
+        ? this.askCostPicks(picksNow(), steps.x || 0, o.card, (chosen) => { steps.costPicks = chosen; this.castTargets(steps); })
         : this.castTargets(steps));
       if (extras.length) this.askExtras(steps, extras, afterExtras);
       else afterExtras();
@@ -939,16 +943,17 @@
               stepper(st[prop], 0, 20, (n) => { st[prop] = n; }),
             ]));
           } else {
-            const prop = { kicker: 'kick', buyback: 'buyback', entwine: 'entwine', offspring: 'offspring', casualty: 'casualty' }[ex.kind];
+            // (optional: a kicker that is not mana, or an additional cost a target hangs on; gift: promised or not)
+            const prop = { kicker: 'kick', buyback: 'buyback', entwine: 'entwine', offspring: 'offspring', casualty: 'casualty', optional: 'payAdditional', gift: 'gift' }[ex.kind];
             if (!prop) continue;
             const on = !!st[prop];
             // an extra cost you could not pay on top of the spell is shown, but not offered
-            const broke = !on && MTG.mana.cmc(ex.cost || '') > spare;
+            const broke = !on && (!!ex.blocked || MTG.mana.cmc(ex.cost || '') > spare);
             rows.appendChild(el('button', { type: 'button', class: 'mode-opt' + (on ? ' on' : '') + (broke ? ' off' : ''), disabled: broke,
-              title: broke ? 'You do not have the mana for this as well' : '',
+              title: broke ? (ex.blocked ? 'You cannot pay this' : 'You do not have the mana for this as well') : '',
               onclick: () => { st[prop] = prop === 'kick' ? (st.kick ? 0 : 1) : !st[prop]; this.render(); } }, [
               el('span', { class: 'mode-dot', text: on ? '✓' : '' }),
-              el('span', { class: 'mode-text', html: MTG.mana.textHtml(ex.label) + (broke ? ' <i class="cant">not enough mana</i>' : '') }),
+              el('span', { class: 'mode-text', html: MTG.mana.textHtml(ex.label) + (broke ? ` <i class="cant">${ex.blocked ? 'cannot pay' : 'not enough mana'}</i>` : '') }),
             ]));
           }
         }
@@ -999,6 +1004,12 @@
     castTargets(steps) {
       const { o, a, via, picked } = steps;
       const specs = [];
+      const live = this.live || this.view;
+      const offered = (live.extras || {})[o.id] || [];
+      /* Jilt, Mind Spiral, Return to Dust: the kick, the gift and the phase decide whether the spell
+         has a target more (the engine reads the same) */
+      const sel = { kicked: Math.max((picked.kickPaid || []).length, picked.kick || 0, picked.payAdditional ? 1 : 0),
+        gift: !!picked.gift, inMain: live.activePlayer === this.meId && live.step === 'main' };
       // fused, both halves' targets are asked for, the left half's first
       const parts = via === 'fuse' ? [MTG.oracle.analyze(o.card, 0), MTG.oracle.analyze(o.card, 1)].filter(Boolean) : [a];
       for (const part of parts) {
@@ -1009,7 +1020,7 @@
         const xNow = steps.x || 0;
         // cleave: the words in brackets taken out, so the targets are the wider ones the engine checks
         const read = via === 'cleave' && part.cleaveEffects && MTG.rules.effectSpecs
-          ? MTG.rules.effectSpecs(part.cleaveEffects) : MTG.rules.spellTargetSpecs(part);
+          ? MTG.rules.effectSpecs(part.cleaveEffects) : MTG.rules.spellTargetSpecs(part, sel);
         specs.push(...read.map(s => {
           if (!s || !['mv', 'maxMv', 'minMv'].some(k => s[k] === 'X')) return s;
           const c = Object.assign({}, s);
@@ -1024,6 +1035,9 @@
         kickPaid: picked.kickPaid && picked.kickPaid.length ? picked.kickPaid.slice() : undefined,
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
+      // (asked with the extra costs: always said one way or the other, so the engine does not ask again)
+      if (offered.some(x => x.kind === 'optional')) extra.payAdditional = !!picked.payAdditional;
+      if (offered.some(x => x.kind === 'gift')) extra.gift = picked.gift ? true : null;
       if (via === 'fuse') extra.fuse = true;
       else if (via) extra.via = via;
       if (steps.face != null) extra.face = steps.face;
@@ -1051,7 +1065,9 @@
         const off = offBoard(s);
         if (!m) {
           const last = groups[groups.length - 1];
-          if (last && !last.multi && !!last.off === off) last.specs.push(s); else groups.push({ specs: [s], off });
+          // a target the kick, the gift or an "if" brings in is asked for on its own, saying what for
+          if (last && !last.multi && !!last.off === off && (last.why || null) === (s.castWhy || null) && (last.text || '') === (s.castText || '')) last.specs.push(s);
+          else groups.push({ specs: [s], off, why: s.castWhy || null, text: s.castText || '' });
           continue;
         }
         const plain = Object.assign({}, s, { multi: null });
@@ -1073,10 +1089,15 @@
             : g.multi.exact ? `${k} target${k === 1 ? '' : 's'}` : `up to ${k} target${k === 1 ? '' : 's'}`)
           : (k === 1 ? 'a target' : k + ' targets');
         const next = (chosen) => run(i + 1, acc.concat(chosen));
-        if (g.off) return this._pickOffBoard(g, o, `${o.card.name}: choose ${what}`, next);
+        // "Jilt (kicked): it deals 2 damage to another target creature"
+        const whyWords = { kicked: 'kicked', gift: 'gift promised', main: 'main phase' }[g.why];
+        const label = g.why && g.text
+          ? `${o.card.name}${whyWords ? ` (${whyWords})` : ''}: ${g.text.replace(/CARDNAME/g, o.card.name).replace(/\.$/, '').replace(/^./, (c) => c.toLowerCase())}`
+          : `${o.card.name}: choose ${what}`;
+        if (g.off) return this._pickOffBoard(g, o, label, next);
         this.startTargeting({
           need: k, specs: g.specs, minChosen: g.min || 0, source: o.id, cardName: o.card.name,
-          label: `${o.card.name}: choose ${what}`,
+          label,
           onDone: next,
         });
       };
