@@ -20026,4 +20026,22 @@ module.exports = (test) => {
     T.resolve();
     t.eq(ss.counters['+1/+1'] || 0, 0, 'returned: X is 0, no counters');
   });
+
+  test("Sentinel's Mark: the addendum, cast in your main phase, gives lifelink; flashed in on another turn, it doesn't", (mk, t) => {
+    t.auto("Sentinel's Mark");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', "Sentinel's Mark"), { targets: [bear] });
+    t.ok(T.g.hasKw(bear, 'lifelink'), 'cast in the main phase: lifelink');
+    const T2 = mk();
+    T2.toMain('B');
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.g.passPriority('B', true);
+    T2.mana('A', '1W');
+    T2.cast('A', T2.hand('A', "Sentinel's Mark"), { targets: [b2] });
+    t.eq(T2.g.powerOf(b2), 3, 'the Aura is on');
+    t.no(T2.g.hasKw(b2, 'lifelink'), "on the opponent's turn: no lifelink");
+  });
 };

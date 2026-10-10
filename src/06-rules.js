@@ -2162,6 +2162,8 @@
         o.castFromZone = item.fromZone || null;
         // Spiders-Man: "if they were cast using web-slinging"
         o.webSlung = o._webSlinging ? this.turn : null;
+        // Sentinel's Mark: "if you cast it during your main phase" (castInMain)
+        o.castInMain = !!item.castInMain;
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
@@ -9921,7 +9923,7 @@
         /* Starting Town: "your first, second, or third turn of the game" */
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
         /* Unbreakable Formation's addendum: cast in your main phase */
-        case 'castInMain': return !!(ctx && ctx.castInMain);
+        case 'castInMain': return !!(ctx && ctx.castInMain) || !!(src && src.zone === 'battlefield' && src.wasCast != null && src.castInMain);
         /* Massacre Girl, Known Killer: "if its toughness was less than 1",
            the creature that died, as it last was */
         case 'triggerToughnessBelow': {
