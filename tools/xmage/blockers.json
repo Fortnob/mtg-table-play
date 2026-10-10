@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11026,
+  "needed": 11024,
   "gainedCards": 1090,
-  "linesNeeded": 11777,
+  "linesNeeded": 11774,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -5393,17 +5393,6 @@
    ]
   },
   {
-   "what": "MillCardsEachPlayerEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Invasion of Amonkhet // Lazotep Convert",
-    "Flotsam // Jetsam",
-    "Path of the Schemer",
-    "Halo-Charged Skaab"
-   ]
-  },
-  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 4,
    "lines": 4,
@@ -6150,16 +6139,6 @@
    ]
   },
   {
-   "what": "DoubleCountersSourceEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Level Up",
-    "Lily Bowen, Raging Grandma",
-    "Paradox Zone"
-   ]
-  },
-  {
    "what": "ControlTargetPlayerNextTurnEffect",
    "score": 3,
    "lines": 3,
@@ -6597,6 +6576,26 @@
     "Blind Seer",
     "Illusion // Reality"
    ]
+  },
+  {
+   "what": "SourceHasntDealtDamageThisGameCondition.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Ratonhnhaké꞉ton",
+    "Karakyk Guardian",
+    "Palladia-Mors, the Ruiner"
+   ]
+  },
+  {
+   "what": "CrewedSourceThisTurnPredicate.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Subterranean Schooner",
+    "Turtle Van",
+    "Getaway Car"
+   ]
   }
  ],
  "sole": [
@@ -6680,8 +6679,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 64,
-   "cards": 64,
+   "score": 65,
+   "cards": 65,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",

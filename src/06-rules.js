@@ -9914,7 +9914,9 @@
         case 'itPower': case 'itTapped': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const td = (ctx && ctx.triggerData) || {};
-          const it = (tg && this.obj(tg.id)) || (td.objectId && this.obj(td.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id));
+          const it = (tg && this.obj(tg.id)) || (td.objectId && this.obj(td.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id))
+            // Level Up: "Whenever this creature attacks, … if it has power 10 or greater" — the creature itself
+            || (src && src.zone === 'battlefield' ? src : null);
           if (!it) return false;
           if (cond.kind === 'itTapped') return !!it.tapped === !!cond.tapped;
           const pw = it.zone === 'battlefield' ? this.powerOf(it) : (it._lkiPower != null ? it._lkiPower : parseInt((it.card && it.card.power) || '0', 10) || 0);

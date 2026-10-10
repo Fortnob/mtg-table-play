@@ -18665,4 +18665,44 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.g.player('B').life, 11, 'the second: one storm copy');
   });
+
+  test('Well Rested: the enchanted creature untapping gives two counters, 2 life and a card, once each turn', (mk, t) => {
+    t.auto('Well Rested');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true });
+    const wr = T.bf('A', 'Well Rested'); wr.attachedTo = bear.id; bear.attachments = [wr.id];
+    T.g.bumpBoard();
+    const life = T.g.player('A').life;
+    T.g._markUntapped(bear);
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 2, 'two counters');
+    t.eq(T.g.player('A').life, life + 2, '2 life');
+    t.eq(T.zone('A', 'hand').length, 1, 'a card');
+    T.g._markTapped(bear); T.g._markUntapped(bear);
+    T.resolve();
+    t.eq(bear.counters['+1/+1'], 2, 'not again this turn');
+  });
+
+  test('Level Up: attacking doubles the counters, then a card if the creature has power 10 or greater', (mk, t) => {
+    t.auto('Level Up');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const lu = T.bf('A', 'Level Up'); lu.attachedTo = bear.id; bear.attachments = [lu.id];
+    T.g.bumpBoard();
+    const hand0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(bear.counters['+1/+1'], 4, 'two doubled to four');
+    t.eq(T.zone('A', 'hand').length, hand0, 'power 6: no card');
+    bear.counters['+1/+1'] = 4;
+    T.toMain('A');
+    const hand1 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(bear.counters['+1/+1'], 8, 'four doubled to eight');
+    t.eq(T.zone('A', 'hand').length, hand1 + 1, 'power 10: a card');
+  });
 };

@@ -8095,6 +8095,12 @@
          one to choose. */
       if (b && lent && /^target/i.test(subj) && b.targets) delete b.targets;
       if (b) return [a, b];
+      /* Well Rested: "put two +1/+1 counters on it, then you gain 2 life
+         and draw a card" — the second half is itself two steps */
+      if (/^,/.test(sentence.match(sep)[0])) {
+        const bs = parseCompound(tidy(rightRaw));
+        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) return [a, ...bs];
+      }
     }
     return null;
   }
@@ -9019,7 +9025,8 @@
     [/^it(?:'?s not| isn'?t) an? (creature|land|artifact|enchantment|planeswalker)(?: card)?$/i, (m) => ({ kind: 'not', cond: { kind: 'itIs', filter: m[1].toLowerCase() } })],
     // Lily Bowen, Eagle of Deliverance: "its power is 2 or less", "that creature's power is 2 or less", "that creature has power 4 or greater"
     [/^(?:its|that (?:creature|permanent)'?s) power (?:is|was) (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
-    [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // (Level Up: "Then if it has power 10 or greater" — what the trigger is about)
+    [/^(?:that (?:creature|permanent)|it) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Angrath: "it has mana value 3 or less"
     [/^it has mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Serum Snare: "that permanent had mana value 3 or less" — what the sentence before acted on
