@@ -208,6 +208,8 @@ def steps(quick):
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
         # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away
         Step('brackets', node(TOOLS / 'brackettest.js'), judge_exit, 300, needs_bulk=True),
+        # match play: the game clock on a real game, the record of games, the table writing it
+        Step('match', node(TOOLS / 'matchtest.js'), judge_exit, 300, needs_bulk=True),
         Step('cardtest', node(TOOLS / 'cardtest.js'), judge_cardtest, 600, needs_bulk=True),
         Step('smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', smoke_to), judge_smoke, 3600, needs_bulk=True),
         # the ready-made decks must stay legal and run in full as coverage moves
