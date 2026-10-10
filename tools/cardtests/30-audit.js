@@ -4290,4 +4290,29 @@ module.exports = (test) => {
     T.nextTurn('A'); T.toMain('A');
     t.eq(T.zone('A', 'hand').length, ha + 3, 'A: the draw and two more');
   });
+
+  test("Audit: Teysa, Opulent Oligarch: a Clue cracked makes a Spirit once a turn; a Clue for each opponent who lost life", (mk, t) => {
+    t.auto('Teysa, Opulent Oligarch'); t.auto('Dire Fleet Ravager');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Teysa, Opulent Oligarch');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    T.g._runEffects([{ op: 'createNamedToken', n: 2, token: 'Clue' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    const clues = T.g.battlefield.filter(o => /Clue/.test(o.name));
+    t.eq(clues.length, 2);
+    const spirits = () => T.g.battlefield.filter(o => o.isToken && /Spirit/.test(o.name)).length;
+    T.mana('A', '2'); T.activate('A', clues[0], 0); T.settle(); T.resolve(); T.settle();
+    t.eq(spirits(), 1, 'a Clue sacrificed: a Spirit');
+    T.mana('A', '2'); T.activate('A', clues[1], 0); T.settle(); T.resolve(); T.settle();
+    t.eq(spirits(), 1, 'only once each turn');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => /Clue/.test(o.name)).length, 1, 'B lost life, C did not: one Clue');
+    const U = mk({ players: ['A', 'B', 'C'] });
+    U.toMain('A');
+    U.g.player('B').life = 10; U.g.player('C').life = 1;
+    U.mana('A', 'BB4');
+    U.cast('A', U.hand('A', 'Dire Fleet Ravager')); U.settle(); U.resolve(); U.settle();
+    t.eq(U.life('A'), 13, '20: loses 7'); t.eq(U.life('B'), 6, '10: loses 4'); t.eq(U.life('C'), 0, '1: loses 1');
+  });
 };
