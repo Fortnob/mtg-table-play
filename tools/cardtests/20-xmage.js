@@ -18548,4 +18548,65 @@ module.exports = (test) => {
     T.resolve();
     t.zone(dd, 'graveyard'); t.zone(b1, 'graveyard'); t.zone(b2, 'graveyard'); t.zone(mine, 'battlefield');
   });
+
+  test('Apex of Power: cast from hand, it adds ten mana of one colour', (mk, t) => {
+    t.auto('Apex of Power');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 9; i++) T.top('A', 'Island');
+    T.mana('A', 'RRR7');
+    T.cast('A', T.hand('A', 'Apex of Power'));
+    T.resolve();
+    const pool = T.g.player('A').pool;
+    t.eq(['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (Number(pool[c]) || 0), 0), 10, 'ten mana');
+  });
+
+  test('Antiquities on the Loose: counters on the Spirits only when it was not cast from hand', (mk, t) => {
+    t.auto('Antiquities on the Loose');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'WW1');
+    T.cast('A', T.hand('A', 'Antiquities on the Loose'));
+    T.resolve();
+    const spirits = () => T.g.battlefield.filter(o => o.controller === 'A' && /Spirit/.test(o.name));
+    t.eq(spirits().length, 2, 'two Spirits');
+    t.no(spirits().some(o => o.counters['+1/+1']), 'from hand: no counters');
+    const ag = T.zone('A', 'graveyard').find(o => o.name === 'Antiquities on the Loose');
+    T.mana('A', 'WW4');
+    T.cast('A', ag, { via: 'flashback' });
+    T.resolve();
+    t.eq(spirits().length, 4, 'two more');
+    t.ok(spirits().every(o => o.counters['+1/+1'] === 1), 'flashed back: a counter on each Spirit');
+  });
+
+  test("Veil of Summer: your spells this turn can't be countered", (mk, t) => {
+    t.auto('Veil of Summer');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Veil of Summer'));
+    T.resolve();
+    T.mana('A', 'G1');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.cast('A', bear, { resolve: false });
+    T.g.passPriority('A', true);
+    T.mana('B', 'UU');
+    T.cast('B', T.hand('B', 'Counterspell'), { targets: [T.stackTarget(bear)] });
+    T.resolve();
+    t.zone(bear, 'battlefield');
+  });
+
+  test('Furnace Dragon: exiles all artifacts only when cast from hand', (mk, t) => {
+    t.auto('Furnace Dragon');
+    const T = mk();
+    T.toMain('A');
+    const art = T.bf('B', 'Sol Ring');
+    T.put('A', 'Furnace Dragon', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(art, 'battlefield');
+    T.mana('A', 'RRR6');
+    T.cast('A', T.hand('A', 'Furnace Dragon'));
+    T.resolve();
+    t.zone(art, 'exile');
+  });
 };

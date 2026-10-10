@@ -9583,7 +9583,7 @@
           return !!x && (x.manaSpent || 0) === 0;
         }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
-        case 'xAtLeast': return ((ctx && ctx.x) || (src && src.chosenX) || 0) >= (cond.n || 0);
+        case 'xAtLeast': return ((ctx && (ctx.x || (ctx.obj && ctx.obj.chosenX))) || (src && src.chosenX) || 0) >= (cond.n || 0);
         // Essence Channeler: "if you've lost life this turn"
         case 'lostLife': {
           if (!me) return false;
@@ -9696,7 +9696,11 @@
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
-        case 'castFromHand': return !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
+        // (Apex of Power, Antiquities on the Loose: the spell itself, where it was cast from; "not": anywhere else)
+        case 'castFromHand': {
+          const fromHand = ctx && ctx.fromZone ? ctx.fromZone === 'hand' : !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
+          return fromHand !== !!cond.not;
+        }
         case 'lastWasYours': return !!me && !!this._lastAffected && this._lastAffected.controller === me.id;
         case 'mostCommonColor': {
           const k = { W: 0, U: 0, B: 0, R: 0, G: 0 };
@@ -9920,7 +9924,6 @@
           const pile = it.zone === 'battlefield' ? it.counters : (it._diedCounters || {});
           return Object.values(pile || {}).some(v => Number(v) > 0);
         }
-        case 'castFromHand': return !!ctx && ((ctx.fromZone === 'hand') !== !!cond.not);
         case 'thatPlayerMoreCards': {
           const td = (ctx && ctx.triggerData) || {};
           // Sandstone Oracle: "choose an opponent. If that player has more cards…" — the one chosen
@@ -10059,7 +10062,6 @@
           return !!me && this.battlefield.some(o => o.controller === me.id &&
             (cond.what || []).some(w => this._matchesCategory(o, w)));
         case 'createdToken': return !!me && me.tokensMadeTurn === this.turn;
-        case 'xAtLeast': return ((ctx && (ctx.x || (ctx.obj && ctx.obj.chosenX))) || 0) >= (cond.n || 0);
         case 'totalPower':
           return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature)
             .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0) >= (cond.n || 0);
@@ -13052,6 +13054,7 @@
           break;
         }
         // Domri: spells of this kind its controller casts this turn can't be countered
+        // (Veil of Summer: with no words, every spell)
         case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push({ turn: this.turn, words: e.words || null }); break;
         // Aetherspouts: each attacker's owner picks top or bottom of their library for it
         case 'attackersTopOrBottom': {
@@ -16444,9 +16447,10 @@
           break;
         }
         // Nightmare Shepherd: the card the trigger is about, exiled from the graveyard
+        // (Patron of the Vein: the card that died; with no card named, this one)
         case 'exileTriggerCard': {
           const td = ctx.triggerData || {};
-          const x = td.objectId && this.obj(td.objectId);
+          const x = (td.objectId && this.obj(td.objectId)) || src;
           if (!x || x.zone !== 'graveyard') break;
           this.moveObject(x, 'exile');
           this._lastExiled = x.id;
@@ -17538,16 +17542,6 @@
         }
         /* "Return it to the battlefield under its owner's control": the card
            the trigger is about (Luminous Broodmoth), or what was just exiled */
-        // Patron of the Vein: "Whenever a creature … dies, exile it" — the card, if it's still in the graveyard
-        case 'exileTriggerCard': {
-          const td = ctx.triggerData || {};
-          const x = (td.objectId && this.obj(td.objectId)) || src;
-          if (!x || x.zone !== 'graveyard') break;
-          this.moveObject(x, 'exile');
-          this._lastExiled = x.id;
-          this.logEvent('zone', `${x.name} is exiled from the graveyard.`);
-          break;
-        }
         /* Shallow Grave: "the top creature card of your graveyard" — the last one
            put there; "that creature" in the next sentences is this one (reanimateTop) */
         case 'reanimateTop': {
@@ -18702,8 +18696,6 @@
         // The Celestus: night becomes day, and anything else becomes night
         case 'flipDayNight': this.setDayNight(this.isDay === false, src ? src.name : null); break;
         case 'setDayNight': this.setDayNight(!!e.day, src ? src.name : null); break;
-        // Veil of Summer
-        case 'uncounterableTurn': me.uncounterableTurn = this.turn; break;
         case 'hexproofFromTurn': {
           const kws = (e.q || []).map(q => 'Hexproof From ' + U.titleCase(q));
           for (const o of this.battlefield) if (o.controller === ctx.controller && !o.phasedOut) { o.effects.push({ keywords: kws.slice(), until: 'eot' }); o._chr = null; }

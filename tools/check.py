@@ -5,8 +5,9 @@
     python tools/check.py --only cardtest,types
     python tools/check.py --online   let the sims fetch what the cache lacks
 
-Runs, in order: the build, a syntax check of the script it bundles,
-the card behaviour tests, a smoke run over automated cards, bot-vs-bot
+Runs, in order: the build, a syntax check of the script it bundles, a
+check that no switch in src/ has the same case label twice, the card
+behaviour tests, a smoke run over automated cards, bot-vs-bot
 sims (standard, pauper, four-player commander), a short bot game at
 browser pacing, the runtime contract checks (tools/contracts.js) and the
 type check (tsc). Prints a pass/fail line for each and exits non-zero if
@@ -52,6 +53,34 @@ catch (e) {
   process.exit(1);
 }
 console.log('bundled script parses (' + code.length.toLocaleString() + ' characters)');
+"""
+
+# the same case label twice in one switch: only the first ever runs, and the
+# second (often the newer, better one) is silently dead. Read by layout: a
+# switch line ends "{", its cases sit two spaces in, its "}" at its own indent.
+DUPCASE_JS = r"""
+const fs = require('fs'), path = require('path');
+const dir = process.argv[1];
+const found = [];
+let switches = 0;
+for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js')).sort()) {
+  const lines = fs.readFileSync(path.join(dir, f), 'utf8').split('\n');
+  const open = [];
+  lines.forEach((l, i) => {
+    const ind = l.length - l.trimStart().length;
+    if (/^\s*\}/.test(l)) while (open.length && open[open.length - 1].ind >= ind) open.pop();
+    if (/\bswitch\s*\(.*\)\s*\{\s*(\/\/.*)?$/.test(l)) { open.push({ ind, seen: new Map() }); switches++; return; }
+    const top = open[open.length - 1];
+    if (!top || ind !== top.ind + 2 || !/^\s*case\b/.test(l)) return;
+    for (const m of l.matchAll(/\bcase\s+('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*"|-?\d+)\s*:/g)) {
+      const key = m[1].replace(/^"(.*)"$/, "'$1'");
+      if (top.seen.has(key)) found.push(`src/${f}: case ${key} at lines ${top.seen.get(key)} and ${i + 1}`);
+      else top.seen.set(key, i + 1);
+    }
+  });
+}
+if (found.length) { console.log(found.length + ' duplicate case labels, only the first of each runs: ' + found.join('; ')); process.exit(1); }
+console.log(switches + ' switch statements, no case label twice');
 """
 
 
@@ -202,6 +231,7 @@ def steps(quick):
     out = [
         Step('build', [sys.executable, TOOLS / 'build.py'], judge_exit, 120),
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
+        Step('switch cases', node('-e', DUPCASE_JS, ROOT / 'src'), judge_exit, 60),
         # the card-picture worker: what it keeps and what it never touches
         Step('sw', node(TOOLS / 'swtest.js'), judge_exit, 60),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
