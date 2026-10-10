@@ -3364,4 +3364,26 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.zone(bolt, 'library'); t.eq(T.g.zones.B.library.indexOf(bolt), 1, 'second from the top'); t.eq(T.life('A'), 20);
   });
+
+  test('Audit: Luminarch Ascension only on opponents\' end steps when you lost no life; Mask of Griselbrand pays and draws its power', (mk, t) => {
+    let T = mk();
+    t.auto('Luminarch Ascension'); t.auto('Mask of Griselbrand');
+    T.toMain('A');
+    const la = T.bf('A', 'Luminarch Ascension');
+    T.toMain('A', 'end'); T.settle(); T.resolve();
+    t.eq(la.counters.quest || 0, 0, 'not my own end step');
+    T.nextTurn('B'); T.toMain('B', 'end'); T.settle(); T.resolve();
+    t.eq(la.counters.quest, 1);
+    T.nextTurn('A'); T.nextTurn('B'); T.toMain('B');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    T.toMain('B', 'end'); T.settle(); T.resolve();
+    t.eq(la.counters.quest, 1, 'I lost life this turn: none');
+    T = mk();
+    T.toMain('A');
+    const mg = T.bf('A', 'Mask of Griselbrand'), hg = T.bf('A', 'Hill Giant');
+    mg.attachedTo = hg.id; hg.attachments = [mg.id]; T.g.bumpBoard();
+    const mu = T.hand('A', 'Murder'), h = T.g.zones.A.hand.length;
+    T.mana('A', '1BB'); T.cast('A', mu, { targets: [hg] }); T.settle(); T.resolve();
+    t.eq(T.life('A'), 17); t.eq(T.g.zones.A.hand.length, h - 1 + 3);
+  });
 };
