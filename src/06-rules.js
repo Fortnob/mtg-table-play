@@ -2954,6 +2954,8 @@
       }
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
+      // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
+      if ((v.ofSelf === 'power' || v.ofSelf === 'toughness') && src) return (v.ofSelf === 'power' ? this.powerOf(src) : this.toughnessOf(src)) * mult;
       if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
       // Towering Titan: "the total toughness of other creatures you control" (totalStat)
       if (v.totalStat) {

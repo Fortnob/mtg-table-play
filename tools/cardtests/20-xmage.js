@@ -20275,4 +20275,34 @@ module.exports = (test) => {
     t.zone(elf, 'hand');
     t.eq(T.zone('A', 'library')[0] && ['Hill Giant', 'Grizzly Bears'].includes(T.zone('A', 'library').slice(-1)[0].name), true, 'the rest on the bottom');
   });
+
+  test('A target with "mana value X or less, where X is …" counted as it is chosen: Celestine (life gained this turn), Guardian Scalelord (its power)', (mk, t) => {
+    t.auto('Celestine, the Living Saint'); t.auto('Guardian Scalelord');
+    const T = mk();
+    T.toMain('A');
+    const ce = T.bf('A', 'Celestine, the Living Saint');
+    const bear = T.grave('A', 'Grizzly Bears');
+    const giant = T.grave('A', 'Hill Giant');
+    const spec = ce.analysis().abilities.find(a => a.kind === 'triggered').effects[0].targets[0];
+    t.eq(T.g._legalTargetsFor(spec, 'A', ce.id).length, 0, 'no life gained: nothing (not even mana value 0 here)');
+    T.g.changeLife(T.g.player('A'), 2);
+    const ids = T.g._legalTargetsFor(spec, 'A', ce.id).map(x => x.id);
+    t.ok(ids.includes(bear.id), '2 life gained: the Bears (mana value 2)');
+    t.no(ids.includes(giant.id), 'not the Hill Giant (4)');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.toMain('B');
+    t.zone(bear, 'battlefield');
+    const T2 = mk();
+    const gs = T2.bf('A', 'Guardian Scalelord');
+    const b2 = T2.grave('A', 'Grizzly Bears');
+    const g2 = T2.grave('A', 'Hill Giant');
+    const s2 = gs.analysis().abilities.find(a => a.kind === 'triggered' && a.event === 'attacks').effects[0].targets[0];
+    t.eq(T2.g.powerOf(gs), 3, 'a 3/3');
+    let ids2 = T2.g._legalTargetsFor(s2, 'A', gs.id).map(x => x.id);
+    t.ok(ids2.includes(b2.id), 'power 3: the Bears (2)');
+    t.no(ids2.includes(g2.id), 'not the Hill Giant (4)');
+    T2.g.addCounters(gs, '+1/+1', 1);
+    ids2 = T2.g._legalTargetsFor(s2, 'A', gs.id).map(x => x.id);
+    t.ok(ids2.includes(g2.id), 'with a counter, power 4: the Hill Giant too');
+  });
 };

@@ -8184,7 +8184,10 @@
       if (!o || typeof o !== 'object') return;
       for (const key of Object.keys(o)) {
         if (key === 'text') continue;
-        // a target's "mana value X" is the cast X; a count put there could not be checked (Spellstutter Sprite)
+        /* Celestine: a target's "mana value X or less, where X is the amount of life you gained this
+           turn" — a count, worked out as the target is chosen (maxMvCount, as Spellstutter Sprite's) */
+      if (o[key] === 'X' && key === 'maxMv' && o.type && k && typeof k === 'object') { o.maxMvCount = k; delete o.maxMv; used++; continue; }
+        // a target's "mana value X" is otherwise the cast X
       if (o[key] === 'X' && /^(?:mv|maxMv|minMv)$/.test(key)) { used = -1e9; continue; }
       if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
         // "+X/+0", "-X/-0": the sign kept, the number from the rider
