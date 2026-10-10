@@ -1,11 +1,14 @@
 /* ============================================================
    14b-lessons.js - the tutorials: short lessons after the first game
 
-   The guided first game (src/12e-ui-coach.js) shows a turn: a land, a
-   creature, the big button, attacking and blocking. These go a step
-   further, one idea each, on a small board set up for it: answering a
-   spell with an instant, a trick in the middle of a fight, blocking
-   well, and countering a spell.
+   The guided first game (src/12e-ui-coach.js) shows a whole game: a land
+   tapped for mana, a creature, the big button, attacking and blocking.
+   These go a step further, one idea each, on a small board set up for it:
+   answering a spell with an instant, a trick in the middle of a fight,
+   blocking well, and countering a spell. Each ends with the way on to the
+   next one, never a rematch; the result of the last leads back to the
+   list. Lands are tapped the way the player's own Tap lands for me says:
+   the first game has taught both.
 
    Each lesson is a real game, built the way a challenge is (src/14-app.js)
    and played by the real rules, against a bot that is told what to do: it
@@ -446,8 +449,6 @@
       if (t && waited < 8000 && (!t._ready() || t.arena.querySelector('.moving'))) { waited += 200; setTimeout(show, 200); return; }
       if (mine.coach) mine.coach.stop();
       const def = mine.def;
-      const i = LESSONS.indexOf(def);
-      const next = LESSONS[i + 1];
       const why = won ? 'won' : result.slice(5);
       MTG.sfx(won ? 'win' : 'lose');
       const body = el('div', { class: 'lesson-result' + (won ? ' won' : '') }, [
@@ -459,12 +460,47 @@
         el('p', { class: 'lr-progress', text: `${count()} of ${LESSONS.length} lessons done.` }),
       ].filter(Boolean));
       const m = UI.modal({ title: won ? `Lesson learned: ${def.title}` : 'Not quite', content: body, className: 'lesson-modal' });
-      m.button('All tutorials', () => { m.close(); leave(); setTimeout(() => open(), 300); }, 'ghost');
-      if (!won) m.button('Try again', () => { m.close(); start(def.id); }, 'primary');
-      else if (next) m.button(`Next: ${next.title}`, () => { m.close(); start(next.id); }, 'primary');
-      else m.button('Done', () => { m.close(); leave(); }, 'primary');
+      for (const b of resultButtons(def, won)) {
+        const btn = m.button(b.label, () => { m.close(); b.fn(); }, b.cls);
+        if (b.title) btn.title = b.title;
+      }
     };
     setTimeout(show, 600);
+  }
+
+  /**
+   * What a lesson's result offers: on to the next tutorial (not after the
+   * last), another go when it went wrong, and the list. Primary last.
+   */
+  function resultButtons(def, won) {
+    const next = LESSONS[LESSONS.indexOf(def) + 1] || null;
+    const out = [{ label: 'All tutorials', cls: 'ghost', fn: () => { leave(); setTimeout(() => open(), 300); } }];
+    if (won) {
+      if (next) out.push({ label: 'Next tutorial', cls: 'primary', title: next.title, fn: () => start(next.id) });
+      else out.push({ label: 'Done', cls: 'primary', fn: () => leave() });
+    } else {
+      if (next) out.push({ label: 'Next tutorial', cls: '', title: next.title, fn: () => start(next.id) });
+      out.push({ label: 'Try again', cls: 'primary', fn: () => start(def.id) });
+    }
+    return out;
+  }
+
+  /**
+   * The result screen of a tutorial game (src/12c-ui-table-ask.js): what
+   * it offers in place of a rematch. The first game leads on to the first
+   * lesson; a lesson to the one after it, with another go at itself; the
+   * last lesson back to the list. Null for any other game.
+   */
+  function afterGame(sess) {
+    const m = sess && sess.mode;
+    if (!m || !(m.lesson || m.tutorial)) return null;
+    const i = m.lesson ? LESSONS.findIndex(l => l.id === m.lesson) : -1;
+    const next = LESSONS[i + 1] || null;
+    const out = [];
+    if (m.lesson) out.push({ label: 'Try again', fn: () => start(m.lesson) });
+    if (next) out.push({ label: 'Next tutorial', cls: 'primary', title: next.title, fn: () => start(next.id) });
+    else out.push({ label: 'All tutorials', cls: 'primary', fn: () => { leave(); setTimeout(() => open(), 300); } });
+    return out;
   }
 
   /** Off the table, back to the menus. */
@@ -587,6 +623,7 @@
   MTG.lessons = {
     LESSONS, NOTES, REWARD,
     open, start, homeCard, firstGameCard, playTile, tileMenu, hide, shown,
+    afterGame, resultButtons,
     count, progress, isDone: (id) => !!done()[id],
     // for tools/lessontest.js: the parts that only read the engine
     cardNames, build, script, watch, stopsFor, filler,

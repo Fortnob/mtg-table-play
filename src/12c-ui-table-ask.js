@@ -744,6 +744,12 @@
         const next = { label: evInfo.next.label, cls: 'primary', fn: evInfo.next.fn };
         if (i >= 0) buttons[i] = next; else buttons.push(next);
       }
+      // a tutorial: the next one in place of a rematch, or the way back after the last (src/14b-lessons.js)
+      const tut = !watched && !guest && MTG.lessons && MTG.lessons.afterGame ? MTG.lessons.afterGame(MTG.app && MTG.app.session) : null;
+      if (tut) {
+        const i = buttons.findIndex(b => /Rematch|New match|Play game/.test(b.label));
+        if (i >= 0) buttons.splice(i, 1, ...tut); else buttons.push(...tut);
+      }
       buttons.unshift({ label: 'Look at the board', fn: () => { this.decision.classList.add('peek'); setTimeout(() => this.decision.classList.remove('peek'), 4000); } });
       const body = el('div', { class: 'over-body' }, [
         el('div', { class: 'over-word ' + (watched ? 'draw' : won ? 'win' : draw ? 'draw' : 'loss'), text: watched ? (draw ? 'Draw' : 'Result') : won ? 'Victory' : draw ? 'Draw' : 'Defeat' }),

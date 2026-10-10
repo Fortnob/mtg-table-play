@@ -2789,7 +2789,8 @@
     try { deck = await MTG.starters.build('w-cats'); }
     catch (e) { busy.close(); return UI.error(e.message || String(e)); }
     busy.close();
-    await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck });
+    // a tutorial: the result screen offers the next one rather than a rematch (src/14b-lessons.js)
+    await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck, mode: { tutorial: 'first' } });
     if (App.table && App.screen === 'table' && !App.table.coach) new UI.Coach(App.table);
   };
 
