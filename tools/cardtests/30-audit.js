@@ -4723,4 +4723,23 @@ module.exports = (test) => {
     T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
     t.ok(b1.tapped && b2.tapped, 'two summoning-sick creatures tapped'); t.eq(T.zone('A', 'hand').length, h + 1); t.zone(rid, 'battlefield');
   });
+
+  test('Audit: discards at random ask nobody (Hymn to Tourach); Stupor: one at random, then one the opponent picks', (mk, t) => {
+    t.auto('Hymn to Tourach'); t.auto('Stupor');
+    let T = mk();
+    T.toMain('A');
+    for (const n of ['Island', 'Forest', 'Mountain', 'Plains', 'Swamp']) T.hand('B', n);
+    T.mana('A', 'BB');
+    T.cast('A', T.hand('A', 'Hymn to Tourach'), { targets: ['B'] }); T.settle();
+    t.eq(T.zone('B', 'hand').length, 3); t.eq(T.zone('B', 'graveyard').length, 2);
+    t.no(T.asked.some(ch => ch.type === 'discard' && ch.playerId === 'B'), 'B chose nothing');
+    T = mk();
+    T.toMain('A');
+    for (const n of ['Island', 'Forest', 'Mountain']) T.hand('B', n);
+    let asked = 0;
+    T.answer('discard', (ch) => { asked++; t.eq(ch.playerId, 'B'); return { cardIds: [T.g.zones.B.hand[0].id] }; });
+    T.mana('A', '2B');
+    T.cast('A', T.hand('A', 'Stupor'), { targets: ['B'] }); T.settle();
+    t.eq(T.zone('B', 'hand').length, 1); t.eq(asked, 1, 'B picked the second one only');
+  });
 };
