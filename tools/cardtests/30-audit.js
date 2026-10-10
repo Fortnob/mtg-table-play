@@ -5350,4 +5350,18 @@ module.exports = (test) => {
     T.g.moveObject(ss, 'exile'); T.g.moveObject(ss, 'battlefield'); T.g.checkStateBasedActions(); T.settle();
     t.zone(ss, 'graveyard', 'X is 0 the second time: a 0/0');
   });
+
+  test("Audit: Sentinel's Mark flashed in during your own combat is not cast in a main phase: no lifelink", (mk, t) => {
+    t.auto("Sentinel's Mark");
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    if (T.g.priorityPlayer && T.g.priorityPlayer.id !== 'A') T.g.passPriority(T.g.priorityPlayer.id, true);
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', "Sentinel's Mark"), { targets: [bear] });
+    t.eq(T.g.powerOf(bear), 3, 'on');
+    t.no(T.g.hasKw(bear, 'lifelink'), 'in combat: no lifelink');
+  });
 };
