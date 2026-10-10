@@ -18361,4 +18361,21 @@ module.exports = (test) => {
     T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && /Clue/.test(o.name)).length, 1, 'B lost life, C did not: one Clue');
   });
+
+  test('Needle Drop: only a player, creature or planeswalker that was dealt damage this turn', (mk, t) => {
+    t.auto('Needle Drop');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const g = T.bf('C', 'Hill Giant'), g2 = T.bf('C', 'Hill Giant');
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.cast('A', T.hand('A', 'Shock'), { targets: [g.id] });
+    const nd = T.hand('A', 'Needle Drop');
+    const spec = nd.analysis().abilities.find(a => a.kind === 'spell').effects[0].targets[0];
+    const ids = T.g._legalTargetsFor(spec, 'A', nd.id).map(x => x.id);
+    t.ok(ids.includes('B'), 'B was dealt damage');
+    t.no(ids.includes('C'), 'C was not');
+    t.ok(ids.includes(g.id), 'the Shocked Giant');
+    t.no(ids.includes(g2.id), 'not the other Giant');
+  });
 };

@@ -2604,6 +2604,9 @@
       make: () => ({ op: 'sequence', list: [{ op: 'counters', kind: '-1/-1', n: 1, targets: [{ type: 'creature', upTo: true, filter: 'creature' }] },
         { op: 'draw', n: 1, who: 'you' }] }) },
     /* Dragon Tempest */
+    // Needle Drop: "deals 1 damage to any target that was dealt damage this turn" — a creature, planeswalker or player hurt already
+    { re: /^(?:It|CARDNAME|This creature) deals (\d+) damage to any target that was dealt damage this turn\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], targets: [{ type: 'any', filter: 'any target', zone: 'battlefield', damagedThisTurn: true }] }) },
     { re: /^(?:It|CARDNAME) deals X damage to (any target|target [a-z ]+?), where X is the number of ([A-Za-z ]+?) you control\.?$/,
       make: (m) => { const t = tgt(m[1]); const c = countOf(m[2] + ' you control'); return t && c ? { op: 'damage', n: c, targets: [t] } : null; } },
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },

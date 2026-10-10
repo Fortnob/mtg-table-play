@@ -10593,6 +10593,8 @@
       this._speedUp(p);
       p.life -= lost;
       p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + amount;
+      // Needle Drop: "any target that was dealt damage this turn" — a player too
+      p.damagedTurn = this.turn;
       this._lastDamageDealt = (this._lastDamageDealt || 0) + amount;
       // Spear of Heliod: who this source has dealt damage to this turn
       if (source) {
@@ -22528,7 +22530,7 @@
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
-      if (spec.type === 'any') out.push(...players());
+      if (spec.type === 'any') out.push(...players().filter(t => !spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn));
       return out;
     }
 

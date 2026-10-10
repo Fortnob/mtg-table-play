@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11045,
+  "needed": 11044,
   "gainedCards": 1090,
-  "linesNeeded": 11805,
+  "linesNeeded": 11804,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -298,8 +298,8 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 29,
-   "lines": 29,
+   "score": 28,
+   "lines": 28,
    "cards": [
     "Take the Bait",
     "Screaming Nemesis",
@@ -307,12 +307,12 @@
     "Press the Enemy",
     "Nicol Bolas, God-Pharaoh",
     "Dune Chanter",
-    "Needle Drop",
     "Self-Destruct",
     "You Look Upon the Tarrasque",
     "Jhoira's Timebug",
     "Nature's Revolt",
-    "Timecrafting"
+    "Timecrafting",
+    "Invasion of Regatha // Disciples of the Inferno"
    ]
   },
   {
@@ -6748,19 +6748,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 26,
-   "cards": 26,
-   "names": [
-    "Take the Bait",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter"
-   ]
-  },
-  {
    "what": "GainAbilityControlledSpellsEffect",
    "score": 25,
    "cards": 16,
@@ -6771,6 +6758,19 @@
     "Zhulodok, Void Gorger",
     "Wildsear, Scouring Maw",
     "Hunting Velociraptor"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 25,
+   "cards": 25,
+   "names": [
+    "Take the Bait",
+    "Screaming Nemesis",
+    "Lozhan, Dragons' Legacy",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter"
    ]
   },
   {
