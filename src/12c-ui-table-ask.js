@@ -1445,7 +1445,7 @@
 
   /** A question's words with mana symbols drawn, and {P} as a paw print. */
   function richText(s) {
-    return MTG.mana.textHtml(String(s || '')).replace(/<i class="pip [^"]*" title="P">P<\/i>/g, '<i class="pip pip-paw" title="paw print"></i>');
+    return MTG.mana.textHtml(String(s || '')).replace(/<i class="pip [^"]*" title="P"[^>]*>P<\/i>/g, '<i class="pip pip-paw" title="paw print"></i>');
   }
 
   /** What a target has to be, in words: "a creature you don't control". */

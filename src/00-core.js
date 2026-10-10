@@ -507,7 +507,7 @@ const MANA = MTG.mana = {
     if (!cost) return '';
     return MANA.parse(cost).map(s => {
       const cls = MANA.pipClasses(s);
-      return `<i class="pip ${cls}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`;
+      return `<i class="pip ${cls}" title="${U.esc(s)}" data-sym="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`;
     }).join('');
   },
   pipText(s) {
@@ -545,6 +545,16 @@ const MANA = MTG.mana = {
     if (s.includes('/') && s.includes('P')) cs.push('pip-hybrid');     // {W/P}
     return cs.join(' ');
   },
+  /**
+   * So much of one kind of mana, written as its symbols for the page to
+   * draw: ("G", 3) -> "{G}{G}{G}". A great deal of it is the symbol and a
+   * count, so a line of the log stays a line.
+   */
+  times(sym, n) {
+    n = Math.max(0, Math.floor(+n || 0));
+    const one = '{' + String(sym).replace(/^\{|\}$/g, '') + '}';
+    return n > 10 ? one + ' ×' + n : one.repeat(n);
+  },
   /** A mana cost as words, for a screen reader: "{2}{G}{G}" -> "2 generic, 2 green". */
   speak(cost) {
     if (!cost) return '';
@@ -568,7 +578,7 @@ const MANA = MTG.mana = {
   textHtml(text) {
     if (!text) return '';
     let out = U.esc(text);
-    out = out.replace(/\{([^}]+)\}/g, (m, s) => `<i class="pip in-text ${MANA.pipClasses(s)}" title="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`);
+    out = out.replace(/\{([^}]+)\}/g, (m, s) => `<i class="pip in-text ${MANA.pipClasses(s)}" title="${U.esc(s)}" data-sym="${U.esc(s)}">${U.esc(MANA.pipText(s))}</i>`);
     out = out.replace(/\(([^)]+)\)/g, '<em class="reminder">($1)</em>');
     return out.replace(/\n/g, '<br>');
   },
@@ -588,6 +598,10 @@ class ManaPool {
     const parts = [];
     for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) if (this[c]) parts.push(`${this[c]}${c}`);
     return parts.join(' ') || '—';
+  }
+  /** What is in it as symbols, for the log to draw: "{R}{R}{G}". */
+  symbols() {
+    return ['W', 'U', 'B', 'R', 'G', 'C'].map(c => MANA.times(c, this[c])).join('') || '—';
   }
   /* Greedy but color-aware payment. Returns {ok, spent} without mutating unless commit. */
   canPay(cost, opts) {

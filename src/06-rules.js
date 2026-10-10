@@ -904,7 +904,7 @@
         const becomes = this._withEmblems(this.battlefield).map(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'manaBecomes')).find(Boolean);
         let carry = 0;
         if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
-        if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool}).`); }
+        if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool.symbols()}).`); }
         p.pool.clear();
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
@@ -7602,7 +7602,7 @@
         this._markTapped(o);
         for (const sym of c.setMana) this.player(playerId).pool.add(sym);
         this.emit('sfx', 'tap');
-        this.logEvent('mana', `${this.player(playerId).name} taps ${o.name} for ${c.setMana.join('')}.`);
+        this.logEvent('mana', `${this.player(playerId).name} taps ${o.name} for ${c.setMana.map(x => MANA.times(x, 1)).join('')}.`);
         this.touch();
         return true;
       }
@@ -12995,7 +12995,7 @@
         case 'addManaDouble': {
           const had = me.pool.snapshot();
           for (const c of Object.keys(had)) if (had[c] > 0) me.pool.add(c, had[c]);
-          this.logEvent('mana', `${me.name} doubles their mana (${me.pool.toString()}).`);
+          this.logEvent('mana', `${me.name} doubles their mana (${me.pool.symbols()}).`);
           break;
         }
         case 'addManaEachColor':
@@ -13885,7 +13885,7 @@
           if (e.orSymbol && (!col || ctx.manaChoice === e.orSymbol)) col = e.orSymbol;
           if (!col) break;
           for (let i = 0; i < Math.max(1, n(e.n) || 1); i++) me.pool.add(col);
-          this.logEvent('mana', `${me.name} adds ${n(e.n) || 1} ${col}.`);
+          this.logEvent('mana', `${me.name} adds ${MANA.times(col, n(e.n) || 1)}.`);
           break;
         }
         /* A coin flip, with what happens either way (CR 705). */
@@ -16568,7 +16568,7 @@
           // Neheb, Dreadhorde Champion: "and add that much {R}", kept until end of turn
           if (e.addMana && picks.length) {
             me.pool.add(e.addMana, picks.length);
-            this.logEvent('mana', `${me.name} adds ${picks.length} {${e.addMana}}.`);
+            this.logEvent('mana', `${me.name} adds ${MANA.times(e.addMana, picks.length)}.`);
             if (e.keepMana) this._runEffect({ op: 'keepMana' }, ctx);
           }
           break;
@@ -19450,7 +19450,7 @@
           const t = targets.filter(x => x.kind === 'object')[e.targetIndex || 0];
           const k = t ? ((this._excessOn || {})[t.id] || 0) : 0;
           for (let i = 0; i < k; i++) me.pool.add(e.symbol || 'R');
-          if (k) this.logEvent('mana', `${me.name} adds ${k} {${e.symbol || 'R'}}.`);
+          if (k) this.logEvent('mana', `${me.name} adds ${MANA.times(e.symbol || 'R', k)}.`);
           break;
         }
         // Promise of Bunrei: "sacrifice this enchantment. If you do, …"

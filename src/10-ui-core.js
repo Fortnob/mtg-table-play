@@ -74,6 +74,55 @@
     }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] });
   }
 
+  /* Mana written in words is drawn as its symbols, wherever it turns up:
+     "{1}{G}{W}{U}: Put Derevi onto the battlefield" in a menu, "Put it into
+     your hand ({3})", a button, a toast, a prompt. What draws its own
+     symbols has done so already; this catches the rest as the words reach
+     the page. Never inside something you type in, a list of options (which
+     holds words only), or a symbol itself. */
+  const SYM = /\{(?:\d{1,2}|[WUBRGCSXYZTQE]|[WUBRGC2]\/[WUBRGP]|[WUBRG]\/[WUBRG]\/P)\}/g;
+  const KEEP_WORDS = 'textarea, input, select, option, script, style, code, pre, svg, .pip, [contenteditable=""], [contenteditable="true"], .keep-braces';
+  function symbolize(t) {
+    const s = t.nodeValue;
+    if (!s || s.indexOf('{') < 0) return;
+    SYM.lastIndex = 0;
+    if (!SYM.test(s)) return;
+    const p = t.parentNode;
+    if (!p || p.nodeType !== 1 || p.closest(KEEP_WORDS)) return;
+    const frag = document.createDocumentFragment();
+    let at = 0;
+    SYM.lastIndex = 0;
+    for (let m; (m = SYM.exec(s));) {
+      if (m.index > at) frag.appendChild(document.createTextNode(s.slice(at, m.index)));
+      const sym = m[0].slice(1, -1);
+      const pip = document.createElement('i');
+      pip.className = 'pip in-text ' + MTG.mana.pipClasses(sym);
+      pip.dataset.sym = sym;
+      pip.textContent = MTG.mana.pipText(sym);
+      frag.appendChild(pip);
+      at = m.index + m[0].length;
+    }
+    if (at < s.length) frag.appendChild(document.createTextNode(s.slice(at)));
+    p.replaceChild(frag, t);
+  }
+  function symbolizeAll(n) {
+    if (n.nodeType === 3) return symbolize(n);
+    if (n.nodeType !== 1 || (n.textContent || '').indexOf('{') < 0) return;
+    const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+    const found = [];
+    for (let t; (t = walk.nextNode());) if (t.nodeValue.indexOf('{') >= 0) found.push(t);
+    found.forEach(symbolize);
+  }
+  if (typeof MutationObserver !== 'undefined' && document.documentElement && document.createTreeWalker) {
+    symbolizeAll(document.documentElement);
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === 'characterData') symbolize(m.target);
+        else for (const n of m.addedNodes) if (n.isConnected) symbolizeAll(n);
+      }
+    }).observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+  }
+
   UI.modal = function (opts) {
     const id = 'modal-title-' + (++modalSeq);
     const back = el('div', { class: 'modal-back' });
