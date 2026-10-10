@@ -936,7 +936,9 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 :root[data-phone] .home-hero-fade { background: linear-gradient(0deg, rgba(7,9,13,.97) 35%, rgba(7,9,13,.55) 70%, rgba(7,9,13,.2)); }
 :root[data-phone] .home-title { font-size: 44px; }
 :root[data-phone] .home-tag { font-size: 14px; }
-:root[data-phone] .home-credit { top: 10px; bottom: auto; right: 12px; max-width: 70%; }
+/* one line across the top of the painting, with the name and title kept clear below it */
+:root[data-phone] .home-credit { top: 10px; bottom: auto; left: 12px; right: 12px; max-width: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+:root[data-phone] .home-brand { padding-top: 24px; }
 :root[data-phone] .quick { padding: 16px 14px; gap: 12px; }
 :root[data-phone] .quick { grid-template-columns: 1fr; }
 :root[data-phone] .quick > .quick-blurb, :root[data-phone] .quick > .quick-go { grid-column: 1 / -1; grid-row: auto; }
