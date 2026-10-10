@@ -4982,4 +4982,25 @@ module.exports = (test) => {
     T.mana('A', 'G'); T.activate('A', oz, 0, { targets: [bear.id] }); T.settle();
     t.zone(bear, 'exile'); t.eq(oz.counters['+1/+1'], 1); t.eq(T.life('A'), 21);
   });
+
+  test("Audit: a token's name stops before \"at the beginning of …\": Giant Caterpillar's later Butterfly is a person's; Wall of Kelp, Murmuration and Fire Navy Trebuchet's named tokens", (mk, t) => {
+    const { card } = require('../harness');
+    t.auto('Wall of Kelp'); t.auto('Murmuration'); t.auto('Fire Navy Trebuchet');
+    let T = mk();
+    t.no(T.MTG.oracle.analyze(card('Giant Caterpillar')).fullyAutomated, 'the Butterfly comes at the next end step, not now');
+    T.toMain('A');
+    const wk = T.bf('A', 'Wall of Kelp'); wk.summoningSick = false;
+    T.mana('A', 'UU'); T.activate('A', wk, 0); T.settle();
+    const kelp = T.g.battlefield.find(o => o.isToken);
+    t.eq(kelp && kelp.name, 'Kelp'); t.ok(kelp && T.g.hasKw(kelp, 'defender'));
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Murmuration');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    const crows = T.g.battlefield.filter(o => o.isToken && o.name === 'Storm Crow');
+    t.eq(crows.length, 3, 'three spells: three Storm Crows'); t.ok(crows.every(o => T.g.hasKw(o, 'flying')));
+  });
 };

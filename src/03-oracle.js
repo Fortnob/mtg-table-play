@@ -501,7 +501,8 @@
       else return null;
     }
     e.subtypes = subs.join(' ') || 'Creature';
-    if ((m = s.match(/^ named ([A-Z][^,.]*?)(?= with|,|$| that)/))) { e.name = m[1].trim(); s = s.slice(m[0].length); }
+    // (a name stops before "at the beginning of …": Giant Caterpillar's Butterfly comes later, which is not this)
+    if ((m = s.match(/^ named ([A-Z][^,.]*?)(?= with|,|$| that| at the beginning)/))) { e.name = m[1].trim(); s = s.slice(m[0].length); }
     // keywords and a granted ability in quotes, in either order
     const kwText = (t) => {
       const kws = keywordList(t);
@@ -521,7 +522,7 @@
       e.keywords = k; s = s.slice(m[0].length);
     }
     // Murmuration: "a 1/2 blue Bird creature token with flying named Storm Crow" — the name after the keywords
-    if (!e.name && (m = s.match(/^ named ([A-Z][^,.]*?)(?=$|,| that)/))) { e.name = m[1].trim(); s = s.slice(m[0].length); }
+    if (!e.name && (m = s.match(/^ named ([A-Z][^,.]*?)(?=$|,| that| at the beginning)/))) { e.name = m[1].trim(); s = s.slice(m[0].length); }
     if ((m = s.match(/^,? that(?:'s| is| are)(?: tapped and)? attacking/i))) {
       e.attacking = true;
       if (/tapped/i.test(m[0])) e.tapped = true;
