@@ -17562,4 +17562,26 @@ module.exports = (test) => {
     T.toMain('A', 'upkeep'); T.toMain('A');
     t.eq(sh.counters.charge || 0, 2, 'and one at the upkeep');
   });
+
+  test('Dragon Whelp: activated four times, sacrificed at the next end step; Pyric Salamander sacrifices itself', (mk, t) => {
+    t.auto('Dragon Whelp');
+    t.auto('Initiates of the Ebon Hand');
+    t.auto('Pyric Salamander');
+    for (const times of [3, 4]) {
+      const T = mk();
+      T.toMain('A');
+      const w = T.bf('A', 'Dragon Whelp');
+      for (let i = 0; i < times; i++) { T.mana('A', 'R'); T.activate('A', w, 0); T.settle(); }
+      t.eq(T.g.powerOf(w), 2 + times, '+' + times + '/+0');
+      T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+      t.zone(w, times >= 4 ? 'graveyard' : 'battlefield', times + ' times');
+    }
+    const U = mk();
+    U.toMain('A');
+    const ps = U.bf('A', 'Pyric Salamander');
+    U.mana('A', 'R');
+    U.activate('A', ps, 0);
+    U.toMain('A', 'end'); U.settle(); U.resolve(); U.settle();
+    t.zone(ps, 'graveyard', 'the Salamander goes at the end step');
+  });
 };

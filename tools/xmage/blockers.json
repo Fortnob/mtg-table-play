@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11187,
+  "needed": 11183,
   "gainedCards": 1129,
-  "linesNeeded": 11965,
+  "linesNeeded": 11961,
   "linesGained": 1331,
   "gained": {
    "all": 1129,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4163,
-   "lines": 3914,
+   "score": 4161,
+   "lines": 3912,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -628,24 +628,6 @@
    ]
   },
   {
-   "what": "mana ability with more",
-   "score": 17,
-   "lines": 11,
-   "cards": [
-    "Primal Amulet // Primal Wellspring",
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Altar of the Pantheon",
-    "Magus Lucea Kane",
-    "Codie, Vociferous Codex",
-    "Rainbow Vale",
-    "Undiscovered Paradise",
-    "Initiates of the Ebon Hand",
-    "Farrelite Priest"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 17,
    "lines": 17,
@@ -831,6 +813,22 @@
     "Jocasta, Automaton Avenger",
     "Mordor Trebuchet",
     "Metropolis Angel"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 15,
+   "lines": 9,
+   "cards": [
+    "Primal Amulet // Primal Wellspring",
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Sunken Palace",
+    "Altar of the Pantheon",
+    "Magus Lucea Kane",
+    "Codie, Vociferous Codex",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
    ]
   },
   {
@@ -6643,8 +6641,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3471,
-   "cards": 3303,
+   "score": 3469,
+   "cards": 3301,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7006,19 +7004,6 @@
    ]
   },
   {
-   "what": "mana ability with more",
-   "score": 14,
-   "cards": 8,
-   "names": [
-    "Carnelian Orb of Dragonkind",
-    "Hall of the Bandit Lord",
-    "Sunken Palace",
-    "Magus Lucea Kane",
-    "Rainbow Vale",
-    "Undiscovered Paradise"
-   ]
-  },
-  {
    "what": "two types at once",
    "score": 14,
    "cards": 14,
@@ -7144,6 +7129,19 @@
     "Apathy",
     "Slow Motion",
     "Unnatural Hunger"
+   ]
+  },
+  {
+   "what": "mana ability with more",
+   "score": 12,
+   "cards": 6,
+   "names": [
+    "Carnelian Orb of Dragonkind",
+    "Hall of the Bandit Lord",
+    "Sunken Palace",
+    "Magus Lucea Kane",
+    "Rainbow Vale",
+    "Undiscovered Paradise"
    ]
   },
   {

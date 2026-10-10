@@ -6180,11 +6180,9 @@
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
       if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
       if (ab.only && ab.only.once) { o._usedOnce = o._usedOnce || {}; o._usedOnce[ab.text] = o.entered; }
-      // "only once each turn", "no more than twice each turn"
-      if (ab.only && ab.only.perTurn) {
-        if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
-        o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
-      }
+      // "only once each turn", "no more than twice each turn" — and Dragon Whelp's "activated four or more times this turn": every ability counted
+      if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
+      o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
 
       if (ab.kind === 'loyalty') {
         o.activatedLoyaltyThisTurn = true;
@@ -9816,6 +9814,11 @@
         case 'playedLandThisTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id && (me.landsPlayed || 0) > 0;
         // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
         case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
+        // Dragon Whelp: how often its ability has been activated this turn (the most-used one, for a card with several)
+        case 'abilityUsesThisTurn': {
+          const u = src && src._turnUses && src._turnUses.turn === this.turn ? Math.max(0, ...Object.values(src._turnUses.n || {})) : 0;
+          return u >= (cond.n || 1);
+        }
         // Slick Sequence, Focus the Mind: a spell cast this turn other than this one, whether it's being cast or resolving (castAnotherSpell)
         case 'castAnotherSpell': return !!me && (me.spellObjsThisTurn || []).some(x => x !== src);
         // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)

@@ -4661,8 +4661,9 @@
         grant: m[3] ? m[3].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
 
     /* ===== notes left for later (CR 603.7) ===== */
-    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature) at the beginning of the next end step\.?$/i,
-      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
+    // (Pyric Salamander, Dragon Whelp: "this creature" is itself — subject 'self' — not the last thing aimed at)
+    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
         name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
@@ -8829,6 +8830,8 @@
     // Wilhelt, the Rotcleaver: "it didn't have decayed" — the creature that died, as it last was (triggerObjKeyword)
     [/^it (didn'?t have|had) (decayed|flying|deathtouch|lifelink|trample|haste|vigilance|undying|persist)$/i,
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
+    // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
+    [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)
     [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
