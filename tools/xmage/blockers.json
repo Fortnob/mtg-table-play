@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10750,
-  "gainedCards": 1015,
-  "linesNeeded": 11445,
-  "linesGained": 1193,
+  "needed": 10720,
+  "gainedCards": 994,
+  "linesNeeded": 11413,
+  "linesGained": 1171,
   "gained": {
-   "all": 1015,
-   "top2000": 42,
+   "all": 994,
+   "top2000": 41,
    "stdTop": 6
   },
   "compare": {
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 689,
-   "lines": 629,
+   "score": 688,
+   "lines": 628,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -4883,16 +4883,6 @@
    ]
   },
   {
-   "what": "EnchantedCreatureColorCondition",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Helm of the Ghastlord",
-    "Gift of the Deity",
-    "Favorable Destiny"
-   ]
-  },
-  {
    "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
    "score": 4,
    "lines": 4,
@@ -5625,16 +5615,6 @@
     "Descendant of Kiyomaro",
     "Secretkeeper",
     "Okina Nightwatch"
-   ]
-  },
-  {
-   "what": "GainAbilityPairedEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Tandem Lookout",
-    "Mirage Phalanx",
-    "Breathkeeper Seraph"
    ]
   },
   {
@@ -6523,6 +6503,26 @@
     "Nin, the Pain Artist",
     "Triad of Fates"
    ]
+  },
+  {
+   "what": "InstantSorceryExileGraveyardCount.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Crackling Drake",
+    "Beacon Bolt",
+    "Ral, Izzet Viceroy"
+   ]
+  },
+  {
+   "what": "keyword GravestormAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Ominous Harvest",
+    "Follow the Bodies",
+    "Bitter Ordeal"
+   ]
   }
  ],
  "sole": [
@@ -6541,8 +6541,8 @@
   },
   {
    "what": "custom ability",
-   "score": 535,
-   "cards": 490,
+   "score": 534,
+   "cards": 489,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

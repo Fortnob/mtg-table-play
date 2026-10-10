@@ -10239,6 +10239,9 @@
     { re: /^When(?:ever)? (?:a|one or more) creatures? you control attacks?(?:,| )/i, event: 'yourCreatureAttacks' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes blocked(?:,| )/i, event: 'becomesBlocked', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes the target of a spell or ability(?:,| )/i, event: 'becomesTarget', self: true },
+    // Goblin Lackey, Hypnotic Specter: "Whenever this creature deals damage to a player (an opponent)" — any damage, combat or not
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage to (a player|an opponent),? /i, event: 'dealsDamage', self: true,
+      extraOf: (m) => Object.assign({ toPlayer: true }, /opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
     // Niv-Mizzet, Visionary: "Whenever a source you control deals noncombat damage to an opponent"

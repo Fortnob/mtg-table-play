@@ -454,7 +454,8 @@ module.exports = (test) => {
   });
 
   test('XMage: Thieving Magpie draws when it deals damage to an opponent', (mk, t) => {
-    generated(t, 'Thieving Magpie');
+    // (read natively now: "Whenever this creature deals damage to an opponent")
+    t.auto('Thieving Magpie');
     const T = mk();
     const m = T.bf('A', 'Thieving Magpie');
     const h0 = T.zone('A', 'hand').length;
@@ -20697,5 +20698,23 @@ module.exports = (test) => {
     T2.activate('A', pd, 0);
     t.ok(T2.g.hasKw(orn, 'indestructible'), 'an artifact creature: indestructible');
     t.no(T2.g.hasKw(b2, 'indestructible'), 'the Bears: no');
+  });
+
+  test('"Whenever this creature deals damage to a player": Goblin Lackey puts a Goblin from your hand onto the battlefield; Nicol Bolas makes an opponent discard their hand', (mk, t) => {
+    t.auto('Goblin Lackey'); t.auto('Nicol Bolas');
+    const T = mk();
+    const gl = T.bf('A', 'Goblin Lackey');
+    const gob = T.hand('A', 'Goblin Piledriver');
+    T.answer('declareAttackers', () => [{ attackerId: gl.id, defenderId: 'B' }]);
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickCard', () => ({ cardIds: [gob.id] }));
+    T.toMain('A', 'endCombat');
+    t.zone(gob, 'battlefield', 'the Goblin came in');
+    const T2 = mk();
+    const nb = T2.bf('A', 'Nicol Bolas');
+    T2.hand('B', 'Island'); T2.hand('B', 'Island');
+    T2.answer('declareAttackers', () => [{ attackerId: nb.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.zone('B', 'hand').length, 0, 'the opponent discards their hand');
   });
 };
