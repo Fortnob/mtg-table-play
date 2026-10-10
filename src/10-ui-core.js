@@ -303,6 +303,7 @@
     for (const [k, n] of Object.entries(state.counters || {})) if (n) bits.push(`${n} ${k} counter${n === 1 ? '' : 's'}`);
     if (state.damage) bits.push(`${state.damage} damage marked`);
     if (state.isCommander) bits.push('your commander');
+    if (state.isSignature) bits.push('your Signature Spell');
     return bits.join(', ');
   };
 
