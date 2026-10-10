@@ -8808,7 +8808,8 @@
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
     // Dark Petition, spell mastery: "there are two or more instant and/or sorcery cards in your graveyard"
-    [/^there are (\w+) or more ([a-z]+) and\/or ([a-z]+) cards in your graveyard$/i,
+    // (the sentence reader has already made "and/or" between card types plain "or")
+    [/^there are (\w+) or more ([a-z]+) (?:and\/or|or) ([a-z]+) cards in your graveyard$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', anyOf: [m[2].toLowerCase(), m[3].toLowerCase()], n: num(m[1]) } : null)],
     // H.E.R.B.I.E., Council of Reeds: "you've cast a noncreature spell this turn"
     [/^you'?ve cast an? (noncreature|creature|instant or sorcery|instant|sorcery|artifact|enchantment|multicolored) spell this turn$/i,

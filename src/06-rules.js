@@ -12890,7 +12890,9 @@
             }
             // an ability on the stack is countered whatever its source says about spells (Stifle)
             const proof = (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
-              (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item))) ||
+              (ab.effects || []).some(ef => ef.op === 'cantBeCountered' ||
+                // Exquisite Firecraft: "Spell mastery — If …, this spell can't be countered" — judged as it would be countered
+                (ef.op === 'ifCond' && (ef.then || []).some(x => x && x.op === 'cantBeCountered') && this._condMet(ef.cond, { controller: item.controller, obj: item.obj }))))) || this._uncounterable(item))) ||
               // Spider-Punk: "Spells and abilities can't be countered."
               (item.kind !== 'spell' && this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'uncounterable') || {}).abilities));
             if (proof) { this.logEvent('counter', `${item.name} can't be countered.`); continue; }

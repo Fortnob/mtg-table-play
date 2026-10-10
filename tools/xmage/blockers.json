@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11211,
+  "needed": 11202,
   "gainedCards": 1128,
-  "linesNeeded": 11991,
+  "linesNeeded": 11983,
   "linesGained": 1331,
   "gained": {
    "all": 1128,
@@ -468,25 +468,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Mirri, Weatherlight Duelist",
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "Tragic Trajectory",
-    "Hazardroot Herbalist",
-    "Gideon's Phalanx",
-    "Send to Sleep",
-    "Joust",
-    "Poisoner's Apprentice"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility halves differ",
    "score": 21,
    "lines": 21,
@@ -644,6 +625,25 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Mirri, Weatherlight Duelist",
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory",
+    "Hazardroot Herbalist",
+    "Joust",
+    "Poisoner's Apprentice",
+    "Paragon of Modernity",
+    "Savage Offensive"
    ]
   },
   {
@@ -3813,19 +3813,6 @@
    ]
   },
   {
-   "what": "static ability in STACK",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Demonfire",
-    "Exquisite Firecraft",
-    "Dragonlord's Prerogative",
-    "Bloodbraid Marauder",
-    "Kaervek's Torch",
-    "Torrent of Lava"
-   ]
-  },
-  {
    "what": "BecomesCreatureAttachedWithActivatedAbilityOrSpellEffect",
    "score": 6,
    "lines": 6,
@@ -4672,18 +4659,6 @@
    ]
   },
   {
-   "what": "DamageTargetControllerEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ravaging Blaze",
-    "Repulsor Blast",
-    "Agonizing Demise",
-    "Illuminate",
-    "Word of Blasting"
-   ]
-  },
-  {
    "what": "EpicEffect",
    "score": 5,
    "lines": 5,
@@ -4705,6 +4680,18 @@
     "Treetop Bracers",
     "Saddle of the Cavalier",
     "Blazing Torch"
+   ]
+  },
+  {
+   "what": "static ability in STACK",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Demonfire",
+    "Dragonlord's Prerogative",
+    "Bloodbraid Marauder",
+    "Kaervek's Torch",
+    "Torrent of Lava"
    ]
   },
   {
@@ -5861,17 +5848,6 @@
    ]
   },
   {
-   "what": "SpellMasteryCondition.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Calculated Dismissal",
-    "Fiery Impulse",
-    "Gather the Pack",
-    "Unholy Hunger"
-   ]
-  },
-  {
    "what": "AttacksIfAbleTargetEffect",
    "score": 4,
    "lines": 4,
@@ -5957,6 +5933,17 @@
     "Shield of the Avatar",
     "Shield of the Realm",
     "Fylgja"
+   ]
+  },
+  {
+   "what": "DamageTargetControllerEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Repulsor Blast",
+    "Agonizing Demise",
+    "Illuminate",
+    "Word of Blasting"
    ]
   },
   {
@@ -6646,6 +6633,16 @@
     "Gideon Blackblade",
     "Sanwell, Avenger Ace"
    ]
+  },
+  {
+   "what": "keyword BoastAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Sigurd, Jarl of Ravensthorpe",
+    "Baron Helmut Zemo",
+    "Arni Brokenbrow"
+   ]
   }
  ],
  "sole": [
@@ -6897,19 +6894,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 18,
-   "cards": 18,
-   "names": [
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "Tragic Trajectory"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 18,
    "cards": 18,
@@ -6998,6 +6982,19 @@
     "Warkite Marauder",
     "Sensational Spider-Man",
     "Coastline Marauders"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory"
    ]
   },
   {
@@ -8919,19 +8916,6 @@
    ]
   },
   {
-   "what": "static ability in STACK",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Demonfire",
-    "Exquisite Firecraft",
-    "Dragonlord's Prerogative",
-    "Bloodbraid Marauder",
-    "Kaervek's Torch",
-    "Torrent of Lava"
-   ]
-  },
-  {
    "what": "BecomesBlockedByCreatureTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -9590,6 +9574,18 @@
     "Darksteel Garrison",
     "Kudzu",
     "Steam Vines"
+   ]
+  },
+  {
+   "what": "static ability in STACK",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Demonfire",
+    "Dragonlord's Prerogative",
+    "Bloodbraid Marauder",
+    "Kaervek's Torch",
+    "Torrent of Lava"
    ]
   },
   {

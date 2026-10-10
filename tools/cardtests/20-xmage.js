@@ -17471,4 +17471,38 @@ module.exports = (test) => {
     t.zone(b2, 'battlefield', 'Wrath of God ("can\'t be regenerated") still meets the shield');
     t.eq(b2.counters.shield || 0, 1, 'one shield counter spent');
   });
+
+  test('Spell mastery: Dark Petition adds {B}{B}{B}, Fiery Impulse deals 3, Exquisite Firecraft can\'t be countered', (mk, t) => {
+    t.auto('Dark Petition');
+    t.auto('Fiery Impulse');
+    t.auto('Exquisite Firecraft');
+    for (const mastery of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      if (mastery) { T.grave('A', 'Shock'); T.grave('A', 'Divination'); }
+      T.top('A', 'Island');
+      T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+      T.mana('A', 'BB3');
+      T.cast('A', T.hand('A', 'Dark Petition'));
+      T.settle();
+      t.eq(T.g.player('A').pool.isEmpty() ? '' : String(T.g.player('A').pool), mastery ? '3B' : '', mastery ? 'two instants/sorceries: {B}{B}{B}' : 'no spell mastery: no mana');
+      T.g.player('A').pool.clear();
+      const ogre = T.bf('B', 'Hill Giant');
+      T.mana('A', 'R');
+      T.cast('A', T.hand('A', 'Fiery Impulse'), { targets: [ogre.id] });
+      T.settle();
+      t.zone(ogre, mastery ? 'graveyard' : 'battlefield', mastery ? '3 damage kills the 3/3' : '2 damage does not');
+      const U = mk();
+      U.toMain('A');
+      if (mastery) { U.grave('A', 'Shock'); U.grave('A', 'Divination'); }
+      const fc = U.hand('A', 'Exquisite Firecraft');
+      U.mana('A', 'RR1');
+      U.cast('A', fc, { targets: ['B'], resolve: false });
+      U.g.passPriority('A', true);
+      U.mana('B', 'UU');
+      U.cast('B', U.hand('B', 'Counterspell'), { targets: [{ kind: 'stack', id: U.stackItem(fc).id }] });
+      U.settle(); U.resolve(); U.settle();
+      t.eq(U.life('B'), mastery ? 16 : 20, mastery ? "can't be countered" : 'countered');
+    }
+  });
 };
