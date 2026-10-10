@@ -2353,12 +2353,41 @@
     drawGrid();
   };
 
+  /**
+   * A card's picture that does not give up: the printing you own, and if
+   * that has no picture or it will not load (a printing whose picture was
+   * not out yet when the card data was saved, a request that failed), the
+   * card's usual printing from Scryfall; only failing both, the card
+   * written out. Loaded lazily, so a long collection asks for what is on
+   * screen.
+   */
+  function cardPic(c, cls) {
+    const box = el('div', { class: cls });
+    const img = el('img', { alt: '', loading: 'lazy', decoding: 'async', draggable: 'false' });
+    let tried = false;
+    const words = () => { img.remove(); if (!box.querySelector('.card-fallback')) box.appendChild(UI.cardFallback(c, 0)); };
+    const usual = async () => {
+      if (tried) return words();
+      tried = true;
+      try {
+        const other = await MTG.scry.byName(c.name);
+        const u = other && MTG.scry.imageUrl(other, 'normal', 0);
+        if (u && u !== img.getAttribute('src')) { img.src = u; return; }
+      } catch (e) { /* no other picture to be had */ }
+      words();
+    };
+    img.addEventListener('error', usual);
+    const url = MTG.scry.imageUrl(c, 'normal', 0);
+    box.appendChild(img);
+    if (url) img.src = url; else usual();
+    return box;
+  }
+
   function colTile(c, host) {
     const S = E();
     const n = Math.min(4, S.owned(c.name));
-    const url = MTG.scry.imageUrl(c, 'normal', 0);
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
-      el('div', { class: 'col-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }, url ? [] : [UI.cardFallback(c, 0)]),
+      cardPic(c, 'col-img'),
       el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' }))),
       UI.wishMark ? UI.wishMark(c.name) : null,
     ]);
@@ -2375,11 +2404,10 @@
     const r = S.rarityOf(c);
     const have = S.owned(c.name);
     const wc = S.wildcards()[r];
-    const url = MTG.scry.imageUrl(c, 'normal', 0);
     const m = mm = UI.modal({
       title: c.name,
       content: el('div', { class: 'col-detail' }, [
-        el('div', { class: 'col-detail-img', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
+        cardPic(c, 'col-detail-img'),
         el('div', {}, [
           el('p', { text: `${RAR_NAME[r]} · you own ${Math.min(4, have)} of 4.` }),
           el('p', { class: 'dim' }, [document.createTextNode('Crafting takes one '), wcIcon(r, null), document.createTextNode(` ${r} wildcard. You have ${wc}.`)]),
