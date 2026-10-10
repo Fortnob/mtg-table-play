@@ -37148,7 +37148,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const o = this._register(new GObj(card, pid, 'outside'));
       o.owner = pid; o.controller = pid; o.conjured = true;
       if (to === 'battlefield') {
-        this.moveObject(o, 'battlefield', { controller: pid });
+        this.moveObject(o, 'battlefield', { controller: pid, tapped: !!(e && e.tapped) });
         if (e && e.tapped) o.tapped = true;
       } else if (to === 'library' || to === 'top' || to === 'topRandom') {
         const lib = this.zones[pid].library;
@@ -39981,6 +39981,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           // Thalia, Blind Obedience: tapped, whatever the land itself offers
           const entEv = this._replace({ kind: 'enters', object: o, controller: o.controller });
           o._forcedTapped = !!entEv.tapped;
+          // Farseek, Cultivate: put onto the battlefield tapped by what put it there (no paying to untap it)
+          o._effectTapped = !!(opts && opts.tapped);
           // Spelunking: "Lands you control enter untapped"
           o._keepUntapped = !!entEv.untapped && !o._forcedTapped;
           if (o._keepUntapped) o.tapped = false;
@@ -43296,7 +43298,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               else if (e.dest === 'graveyard') this.moveObject(c, 'graveyard');
               else {
                 // Polymorph: its controller's card, onto the battlefield under that player's control
-                this.moveObject(c, 'battlefield', { controller: e.toOwner ? p.id : ctx.controller });
+                this.moveObject(c, 'battlefield', { controller: e.toOwner ? p.id : ctx.controller, tapped: !!(e.tapped) });
                 if (e.tapped && c.zone === 'battlefield') c.tapped = true;
                 this._lastPut = c.id;
               }
@@ -43703,7 +43705,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             const idx = z.library.slice(0, reach).findIndex(c => wanted(c.analysis()));
             if (idx < 0) break;
             const [c] = z.library.splice(idx, 1);
-            this.moveObject(c, 'battlefield', { controller: fb.id });
+            this.moveObject(c, 'battlefield', { controller: fb.id, tapped: !!(e.tapped) });
             if (e.tapped) c.tapped = true;
             found++;
           }
@@ -43848,7 +43850,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') {
-              this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id;
+              this.moveObject(c, 'battlefield', { controller: seeker.id, tapped: !!(tapped) }); if (tapped) c.tapped = true; this._lastPut = c.id;
               // Savage Order: "That creature gains haste" — the card the search put there
               if (c.zone === 'battlefield' && taken.length === 1 && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
             }
@@ -43943,7 +43945,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             const x = this.obj(t.id);
             if (x) {
               // Kenrith: "under its owner's control"
-              this.moveObject(x, 'battlefield', { controller: e.ownerControl ? x.owner : ctx.controller });
+              this.moveObject(x, 'battlefield', { controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) });
               if (e.tapped) x.tapped = true;
               // Persist: "with a -1/-1 counter on it"
               if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
@@ -45075,7 +45077,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const top = this.zones[ctx.controller].library[0];
           if (!top) break;
           this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
-          if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller }); if (e.tapped) top.tapped = true; }
+          if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) top.tapped = true; }
           else this._drawCards(me, 1);
           break;
         }
@@ -45651,7 +45653,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           for (const id of ids) {
             const x = this.obj(id);
             if (!x || x.zone !== 'graveyard' || (e.filter && !this._cardFitsWords(x, e.filter))) continue;
-            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+            this.moveObject(x, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
             if (e.tapped) x.tapped = true;
           }
           break;
@@ -45684,7 +45686,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (got === SUSPEND) return SUSPEND;
           const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
           if (!x || x.zone !== 'hand') break;
-          this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          this.moveObject(x, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
           if (e.tapped) x.tapped = true;
           this._drawCards(me, 1);
           this._spliceNext([Object.assign({}, e)]);
@@ -46191,7 +46193,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const z = this.zones[ctx.controller];
           for (const o of taken) {
             this._removeFromZone(o);
-            if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller }); if (e.tapped) o.tapped = true; }
+            if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true; }
             else if (e.to === 'top') { o.zone = 'library'; z.library.unshift(o); }
             else if (e.to === 'exile' || e.to === 'graveyard') {
               o.zone = 'library';
@@ -46536,7 +46538,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             for (const id of ids) {
               const o = this.obj(id);
               if (!o) continue;
-              this.moveObject(o, 'battlefield', { controller: p.id });
+              this.moveObject(o, 'battlefield', { controller: p.id, tapped: !!(e.tapped) });
               if (e.tapped) o.tapped = true;
               // Incandescent Soulstoke: "That creature gains haste" — the one just put, as reanimateTop does
               if (o.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: o.id }];
@@ -46737,7 +46739,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           }
           if (top.zone !== 'library') break;
           if (put) {
-            this.moveObject(top, 'battlefield', { controller: ctx.controller });
+            this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
             if (e.tapped && top.zone === 'battlefield') top.tapped = true;
             this.logEvent('zone', `${me.name} puts ${top.name} onto the battlefield from the top of their library.`);
           } else if (e.elseHand) {
@@ -47068,7 +47070,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const p2 = this.player(ctx.controller);
           const life = n(e.life) || 2;
           src.tapped = true;
-          if (!p2 || p2.life <= life || src._forcedTapped) break;
+          if (!p2 || p2.life <= life || src._forcedTapped || src._effectTapped) break;
           if (p2.isBot) {
             if (p2.life > life * 4) { this.changeLife(p2, -life, 'cost'); this._markUntapped(src); }
             break;
@@ -47302,7 +47304,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (!x || x.zone !== 'graveyard') break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
-          this.moveObject(x, 'battlefield', { controller: e.owner ? x.owner : ctx.controller });
+          this.moveObject(x, 'battlefield', { controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) });
           if (e.tapped) x.tapped = true;
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
           if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
@@ -49747,7 +49749,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             }
           }
           for (const c of cards) {
-            this.moveObject(c, 'battlefield', { controller: e.mine || e.yours ? ctx.controller : c.owner });
+            this.moveObject(c, 'battlefield', { controller: e.mine || e.yours ? ctx.controller : c.owner, tapped: !!(e.tapped) });
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
           }
           this.logEvent('reanimate', `${cards.length} card${cards.length === 1 ? '' : 's'} return${cards.length === 1 ? 's' : ''} to the battlefield.`);
