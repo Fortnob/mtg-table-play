@@ -256,6 +256,7 @@ const defaultSettings = {
   compactZones: false,
   showOracleOnHover: true,
   recommanderRelay: '',          // the relay Commander suggestions are asked through (src/16b-recommander.js); empty: the one built in
+  suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   botSpeed: 600,

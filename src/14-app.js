@@ -2560,7 +2560,7 @@
 
     /* -- online -- */
     sections.push(onlineGroup(group));
-    sections.push(suggestionsGroup(group));
+    sections.push(suggestionsGroup(group, pick));
 
     /* -- data -- */
     const cacheInfo = el('div', { class: 'opt-help', text: 'Reading cache…' });
@@ -4744,8 +4744,9 @@
    */
   /* Commander suggestions come from Recommander, asked through a relay
      (tools/recommander-relay): the address, and a test that it answers. */
-  function suggestionsGroup(group) {
+  function suggestionsGroup(group, pick) {
     const R = MTG.recommander;
+    const edhrec = MTG.settings.suggestFrom === 'edhrec';
     const input = el('input', { type: 'text', id: 'opt-rec-relay', value: MTG.settings.recommanderRelay || '',
       placeholder: R && R.relay && !MTG.settings.recommanderRelay ? R.relay : 'https://recommander-relay.yourname.workers.dev', autocomplete: 'off', spellcheck: 'false' });
     const result = el('div', { class: 'opt-help net-test', 'aria-live': 'polite' });
@@ -4767,8 +4768,13 @@
       result.textContent = r === true ? 'The relay answered with suggestions: Commander decks are suggested from Recommander.' : r;
     };
     const testBtn = el('button', { class: 'btn sm', text: 'Test', onclick: () => testBtn && test(testBtn) });
-    return group('suggest', 'Suggestions', 'The deck builder suggests cards for a Commander deck from Recommander (recommander.cards), which ranks what your list in particular is missing. Other formats, or no relay, use the deck builder\u2019s own reading and EDHREC.', [
-      el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
+    return group('suggest', 'Suggestions', 'Card suggestions for a Commander deck in the deck builder. Other formats use the deck builder\u2019s own reading of your list.', [
+      pick('suggestFrom', 'Suggest cards from', [['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
+        edhrec
+          ? 'EDHREC: what other people most often play with your commander, weighed with the deck builder\u2019s own reading of your list.'
+          : 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.',
+        'recommander'),
+      edhrec ? null : el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Recommander relay' }),
         el('div', { class: 'opt-help', text: 'Recommander answers only its own website from a browser, so the app asks through a small relay of your own: a free Cloudflare Worker (the steps are in tools/recommander-relay/README.md). Paste its address here.' }),
         el('label', { class: 'field' }, [el('span', { text: 'Address' }), input]),
@@ -4778,7 +4784,7 @@
         ]),
         result,
       ])),
-    ]);
+    ].filter(Boolean));
   }
 
   function onlineGroup(group) {

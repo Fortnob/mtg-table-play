@@ -367,7 +367,9 @@
        reading and EDHREC stand in, as before. */
     const commander = (deck.commanders || [])[0];
     const recPicks = [];
-    if (commander && fmt.commander && opts.recommander !== false && MTG.recommander && MTG.recommander.ready()) {
+    // (Options, Suggestions: EDHREC chosen instead, and Recommander is not asked)
+    const fromRec = opts.recommander !== false && (MTG.settings || {}).suggestFrom !== 'edhrec';
+    if (commander && fmt.commander && fromRec && MTG.recommander && MTG.recommander.ready()) {
       const list = await MTG.recommander.top(deck).catch(() => null);
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, Math.max(limit * 3, 60));
