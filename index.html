@@ -6156,6 +6156,152 @@ html[data-play="1"] .friends-chip { display: none; }
 :root[data-phone] .ph-actions { grid-column: 1 / -1; justify-content: stretch; }
 :root[data-phone] .ph-actions .btn { flex: 1 1 0; justify-content: center; }
 /* ============================================================
+   tourney.css - friends tournaments (src/10i-ui-tourney.js)
+
+   The same parts as the Friends window (social.css): its rows, its
+   section heads, the gold accent for what wants an answer. The standings
+   are a grid rather than a table, so that on a phone the two least
+   needed columns (GW and OGW) can go and nothing is wider than the
+   screen. Everything works by touch at 375px wide.
+   ============================================================ */
+
+.tn-modal [hidden], .tn-create [hidden], .tn-pick [hidden] { display: none !important; }
+
+/* ---------------- the Friends window's tab ---------------- */
+.tn-tabhead { display: flex; gap: 10px 16px; align-items: center; flex-wrap: wrap; }
+.tn-tabhead .fr-intro { flex: 1 1 280px; min-width: 0; }
+.tn-new { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.tn-new svg { width: 16px; height: 16px; }
+.tn-ico { flex: none; width: 44px; height: 44px; }
+.tn-row.tn-want { border-color: rgba(212,175,71,.45); }
+.fr-section.tn-done .tn-row { opacity: .9; }
+
+/* ---------------- setting one up ---------------- */
+.tn-form { display: grid; gap: 14px; min-width: 0; }
+.tn-field { display: grid; gap: 6px; min-width: 0; }
+.tn-label { font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.tn-input, .tn-form select { width: 100%; margin: 0; }
+.tn-roundbox { display: grid; gap: 6px; min-width: 0; }
+.tn-rounds .seg-btn { min-width: 40px; }
+.tn-bo { justify-self: start; }
+.tn-hint { font-size: 12.5px; color: var(--ink-3); }
+.tn-count { font-size: 12.5px; color: var(--ink-3); }
+.tn-count.bad { color: var(--warn); }
+.tn-pick-friends { max-height: calc(36 * var(--vh)); overflow-y: auto; padding-right: 2px; }
+.tn-friend { cursor: pointer; }
+.tn-friend input[type=checkbox] { width: 20px; height: 20px; margin: 0 4px; accent-color: var(--gold-mid); cursor: pointer; }
+.tn-friend:has(input:checked) { border-color: rgba(212,175,71,.55); background: rgba(212,175,71,.08); }
+
+/* ---------------- a tournament's window ---------------- */
+.tn-wrap { display: grid; gap: 14px; min-width: 0; }
+.tn-body { display: grid; gap: 18px; min-width: 0; }
+.tn-status { padding: 10px 14px; border-radius: 12px; font-size: 13.5px; line-height: 1.45; color: var(--ink-2);
+  background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); }
+.tn-status.want, .tn-status.st-inviting { color: var(--gold-hi); border-color: rgba(212,175,71,.4); }
+.tn-status.st-done { color: var(--good); border-color: var(--good-line); background: var(--good-bg); }
+.tn-status.st-cancelled { color: var(--ink-3); }
+:root[data-theme="light"] .tn-status.want, :root[data-theme="light"] .tn-status.st-inviting { color: var(--accent); }
+.tn-facts { display: flex; gap: 6px 8px; flex-wrap: wrap; align-items: center; font-size: 12.5px; }
+.tn-facts .pill { font-size: 12px; padding: 3px 10px; }
+.tn-by { color: var(--ink-3); }
+.tn-panel { display: grid; gap: 8px; min-width: 0; }
+.tn-head { display: flex; gap: 8px 12px; align-items: center; flex-wrap: wrap; }
+.tn-roundtabs .seg-btn { padding: 6px 11px; font-size: 12.5px; }
+
+/* your match */
+.tn-match { display: grid; gap: 8px; padding: 14px 16px; border-radius: 14px; min-width: 0;
+  border: 1px solid rgba(212,175,71,.45); background: linear-gradient(160deg, rgba(212,175,71,.1), rgba(0,0,0,.18)); }
+:root[data-theme="light"] .tn-match { background: var(--bg-3); }
+.tn-vs { display: flex; align-items: center; gap: 10px; font: 600 18px/1.25 var(--serif); min-width: 0; }
+.tn-vs b { overflow-wrap: anywhere; }
+.tn-vs .portrait { width: 36px; height: 36px; flex: none; }
+.tn-line { margin: 0; color: var(--ink-2); line-height: 1.45; overflow-wrap: anywhere; }
+.tn-acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.tn-acts .btn { flex: 0 1 auto; }
+
+/* the winner */
+.tn-winner { display: flex; gap: 14px; align-items: center; padding: 14px 16px; border-radius: 14px;
+  border: 1px solid rgba(246,220,140,.5); background: linear-gradient(160deg, rgba(246,220,140,.16), rgba(0,0,0,.2)); }
+.tn-winner b { font: 600 20px/1.2 var(--serif); overflow-wrap: anywhere; }
+.tn-cup { flex: none; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 50%; color: var(--gold-hi); background: rgba(212,175,71,.16); }
+.tn-cup svg { width: 26px; height: 26px; }
+:root[data-theme="light"] .tn-winner { background: var(--bg-3); }
+:root[data-theme="light"] .tn-cup { color: var(--accent); }
+
+/* the pairings */
+.tn-pairs { display: grid; gap: 6px; }
+.tn-pair { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; gap: 4px 10px; align-items: center; padding: 8px 10px; border-radius: 10px;
+  border: 1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.025); min-width: 0; }
+:root[data-theme="light"] .tn-pair { border-color: var(--line); background: var(--bg-3); }
+.tn-pair.mine { border-color: rgba(212,175,71,.45); }
+.tn-pair.dispute { border-color: var(--warn-line); background: var(--warn-bg); }
+.tn-table { font: 700 12px/1 var(--font); color: var(--ink-3); text-align: center; }
+.tn-names { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; min-width: 0; font-size: 14px; }
+.tn-names span { overflow-wrap: anywhere; }
+.tn-v { color: var(--ink-3); font-size: 12px; }
+.tn-state { font-size: 12.5px; color: var(--ink-3); text-align: right; }
+.tn-pair.done .tn-state { color: var(--ink); font-weight: 600; }
+.tn-pair.dispute .tn-state { color: var(--warn); font-weight: 600; }
+.tn-pair.half .tn-state { color: var(--gold-hi); }
+.tn-pair.bye .tn-names { color: var(--ink-2); }
+
+/* the standings */
+.tn-stand { display: grid; gap: 2px; min-width: 0; }
+.tn-st-row { display: grid; grid-template-columns: 26px minmax(0, 1fr) 40px 62px 58px 58px 58px; gap: 8px; align-items: center;
+  padding: 7px 10px; border-radius: 8px; font-size: 13.5px; font-variant-numeric: tabular-nums; min-width: 0; }
+.tn-st-row:not(.tn-st-head):nth-child(even) { background: rgba(255,255,255,.025); }
+:root[data-theme="light"] .tn-st-row:not(.tn-st-head):nth-child(even) { background: var(--bg-3); }
+.tn-st-head { font: 700 11px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); padding-top: 4px; padding-bottom: 6px; }
+.tn-st-row > span:not(.c-name) { text-align: right; }
+.tn-st-row .c-rank { text-align: center; color: var(--ink-3); }
+.tn-st-row .c-pts { font-weight: 700; }
+.tn-st-row .c-name { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tn-pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.tn-st-row.me { background: rgba(212,175,71,.1) !important; box-shadow: inset 0 0 0 1px rgba(212,175,71,.35); }
+.tn-st-row.me .tn-pname { color: var(--gold-hi); font-weight: 600; }
+:root[data-theme="light"] .tn-st-row.me .tn-pname { color: var(--accent); }
+.tn-st-row.dropped { opacity: .62; }
+.tn-tag { flex: none; font-size: 10.5px; padding: 1px 6px; border-radius: 99px; border: 1px solid var(--line-2); color: var(--ink-3); }
+.tn-drop { flex: none; margin-left: auto; }
+.tn-why { margin: 2px 0 0; }
+
+/* ---------------- a result, by hand ---------------- */
+.tn-pickbody { display: grid; gap: 10px; min-width: 0; }
+.tn-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.tn-quick .chip { flex: 1 1 auto; text-align: center; }
+.tn-or { margin-top: 2px; }
+.tn-steps { display: grid; gap: 6px; }
+.tn-step { display: grid; grid-template-columns: minmax(0, 1fr) auto 28px auto; gap: 8px; align-items: center; }
+.tn-step-l { font-size: 13px; color: var(--ink-2); overflow-wrap: anywhere; }
+.tn-step-n { text-align: center; font: 700 16px/1 var(--font); }
+.tn-step .btn { min-width: 34px; justify-content: center; font-weight: 700; }
+.tn-said { margin: 0; color: var(--ink-2); }
+.tn-said.bad { color: var(--warn); }
+
+/* ---------------- the lobby of a tournament's match ---------------- */
+.tn-lobby { display: grid; gap: 6px; padding: 14px 16px; border-color: rgba(212,175,71,.5); }
+.tn-lobby b { font: 600 16px/1.25 var(--serif); }
+.tn-lobby p { margin: 0; }
+
+/* ---------------- a phone, or a narrow window ---------------- */
+@media (max-width: 560px) {
+  .tn-st-row { grid-template-columns: 22px minmax(0, 1fr) 34px 54px 52px; gap: 6px; padding: 7px 6px; }
+  .tn-st-row .c-gw, .tn-st-row .c-ogw { display: none; }
+}
+:root[data-phone] .tn-st-row { grid-template-columns: 22px minmax(0, 1fr) 34px 54px 52px; gap: 6px; padding: 7px 6px; font-size: 13px; }
+:root[data-phone] .tn-st-row .c-gw, :root[data-phone] .tn-st-row .c-ogw { display: none; }
+:root[data-phone] .tn-pair { grid-template-columns: 22px minmax(0, 1fr) auto; }
+:root[data-phone] .tn-pair .tn-state { grid-column: 2 / 3; text-align: left; }
+:root[data-phone] .tn-pair .btn { grid-column: 3; grid-row: 1 / 3; min-height: 34px; }
+:root[data-phone] .fr-row.tn-friend { grid-template-columns: auto minmax(0, 1fr) auto; }
+:root[data-phone] .tn-acts .btn { flex: 1 1 auto; justify-content: center; min-height: 40px; }
+:root[data-phone] .tn-quick .chip { flex: 1 1 calc(50% - 6px); padding: 10px 8px; }
+:root[data-phone] .tn-step .btn { min-width: 42px; min-height: 36px; }
+:root[data-phone] .tn-vs { font-size: 17px; }
+:root[data-phone] .tn-tabhead .tn-new { flex: 1 1 100%; justify-content: center; min-height: 40px; }
+/* four tabs in the Friends window: narrower, so they all fit across a phone */
+:root[data-phone] .fr-tabs .store-tab { padding: 10px 9px; font-size: 13.5px; }
+/* ============================================================
    cosmetics.css - card styles, portrait frames and emotes
    ============================================================ */
 
@@ -55921,7 +56067,35 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return out;
   }
 
+  /**
+   * After an online draft each person builds their deck on their own
+   * screen, and the game waits for them. Resolves with the seats still
+   * without a deck once every seat `seats()` gives has one, `opts.timeout`
+   * ms have gone by, or `opts.stop()` says to go on regardless. `seats` is
+   * asked again each time, so someone who leaves is not waited for;
+   * `opts.onWait(missing, msLeft)` hears who is still building, and the
+   * time left, each time either changes (to the second).
+   */
+  function awaitDecks(seats, opts) {
+    opts = opts || {};
+    const every = opts.every || 250;
+    const end = Date.now() + (opts.timeout || 0);
+    return new Promise((resolve) => {
+      let said = '';
+      const look = () => {
+        const missing = (seats() || []).filter(r => r && !r.deck);
+        const left = Math.max(0, end - Date.now());
+        if (!missing.length || left <= 0 || (opts.stop && opts.stop())) { resolve(missing); return; }
+        const key = missing.map(r => r.id).join(',') + ':' + Math.ceil(left / 1000);
+        if (opts.onWait && key !== said) { said = key; opts.onWait(missing, left); }
+        setTimeout(look, every);
+      };
+      look();
+    });
+  }
+
   MTG.draft = {
+    awaitDecks,
     recipes: CUBE_RECIPES, buildRecipe,
     DRAFT_ABILITIES, draftAbilityOf, LAND_SLOT_MIX, DRAFT_SCRIPTS,
     isConspiracy, agendaOf, agendaNames, PREGAME_EXILE, pregameDefaults, applyPregame, wholePoolUsed,
@@ -62458,9 +62632,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    the secret, so the removal can be proved to them when they next appear.
 
    Over that line go presence (online, in a lobby, in a game), the
-   name, picture and frame each shows, invites to a room, and trades
-   (src/09d-trade.js). Everything that arrives is checked: a friend's
-   data is no more trusted than a stranger's.
+   name, picture and frame each shows, invites to a room, trades
+   (src/09d-trade.js) and tournaments (src/09f-tourney.js). Everything
+   that arrives is checked: a friend's data is no more trusted than a
+   stranger's.
 
    This file holds no interface: src/10g-ui-social.js draws it. The hub
    is made by a factory, so tools/socialtest.js can run two devices
@@ -63008,6 +63183,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'tr':
           if (link.verified) hub.emit('trade', link.code, msg);
           return;
+        case 'tn':
+          if (link.verified) hub.emit('tourney', link.code, msg);
+          return;
         default:
       }
     }
@@ -63224,6 +63402,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!link || !link.verified || !msg || typeof msg !== 'object') return false;
       return send(link, Object.assign({}, msg, { t: 'tr' }));
     }
+    /** A tournament message to a friend (src/09f-tourney.js); false when they are not on a proved line. */
+    function sendTourney(code, msg) {
+      const link = links.get(code);
+      if (!link || !link.verified || !msg || typeof msg !== 'object') return false;
+      return send(link, Object.assign({}, msg, { t: 'tn' }));
+    }
+    /** The name this device shows its friends. */
+    const myName = () => cleanName((o.profile ? o.profile() : {}).name) || 'Player';
 
     /** Everyone on the list, as the interface shows them. */
     function entries() {
@@ -63252,8 +63438,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
 
     Object.assign(hub, {
-      start, stop, wake, sweep, add, accept, decline, remove, block, unblock, setPresence, profileChanged, invite, sendTrade,
-      entries, counts,
+      start, stop, wake, sweep, add, accept, decline, remove, block, unblock, setPresence, profileChanged, invite, sendTrade, sendTourney,
+      entries, counts, myName,
       entry: (code) => entries().find(e => e.code === code) || null,
       blocked: () => load().blocked.map(b => Object.assign({}, b)),
       isOnline: (code) => { const l = links.get(code); return !!(l && l.verified); },
@@ -64176,6 +64362,939 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   }
 
   MTG.move = { PREFIX, LEN, send, receive, checkDoc };
+})(window.MTG);
+/* ===== 09f-tourney.js ===== */
+/* ============================================================
+   09f-tourney.js - friends tournaments: Swiss rounds among friends
+
+   A tournament is run by one player, the organiser, for friends of
+   theirs, over the proved lines of src/09c-friends.js. The organiser's
+   copy is the one that counts: it invites, pairs each round, settles the
+   results, and sends everyone the whole tournament after every change,
+   numbered (rev). Each player keeps a mirror of the last copy it was
+   sent. Both are kept in the store, so the app can be closed and opened
+   again mid-tournament on either side.
+
+   The players need only be friends of the organiser, not of each other,
+   so everything goes by way of the organiser:
+
+     organiser -> player   state  the tournament as it stands (to someone
+                                  marked invited, it is the invitation)
+                           gone   you are not in it (any more)
+     player -> organiser   yes / no   the answer to an invitation
+                           report     a match's result, as this player saw it
+                           room       the table for this round's match is open
+                           drop       out of the tournament from here on
+                           sync       send me the tournament again
+
+   What a player sends while the organiser is away is kept (pend) and
+   sent again when the organiser is back.
+
+   Pairing is Swiss. Round one is at random; later rounds go by match
+   points, a points group in no particular order, avoiding rematches
+   wherever the pairings allow. With an odd number left, the lowest
+   placed player without a bye has one, which counts as a match won 2-0.
+   Standings are match points (3 a win, 1 a draw), then OMW%, GW% and
+   OGW%, each with the floor of a third (the Magic Tournament Rules,
+   appendix C), then the order seats were drawn in.
+
+   Each match is played at an ordinary table: one of the two hosts a room
+   (the higher placed, normally) and the other joins. When the match ends
+   both apps report the result to the organiser by themselves (the table
+   is watched by src/10i-ui-tourney.js); two reports that agree settle it,
+   and anything else waits for the organiser, who can always set a result
+   by hand. A round with every result in is followed straight away by the
+   next round's pairings, or after the last, by the final standings.
+
+   The store ('tourneys'): { v, list: [tournament] }. A tournament is
+     { id, org, name, fmt, bo, rounds, state, at, done, rev,
+       players: [{ code, name, st, seed }],
+       rnds: [{ pairs: [{ t, a, b, res, by, rep, room }] }] }
+   with, kept here only: role ('org', ours; 'player', a mirror), pend
+   (what we still have to tell the organiser) and hint (rooms heard of
+   from a friend's own invite). state: 'inviting', 'running', 'done',
+   'cancelled'; st: 'invited', 'in', 'declined', 'dropped'. A pair's a
+   and b are friend codes (b null for a bye), res is its result as games
+   { a, b, d } (a's wins, b's wins, drawn games), by says how it was
+   settled, rep holds each player's report.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const FC = () => MTG.friendsCore;
+  const MIN_PLAYERS = 3, MAX_PLAYERS = 16;
+  const MAX_ROUNDS = 8;
+  const MAX_ORGANISED = 2;      // tournaments of ours not yet over
+  const MAX_ACTIVE = 8;         // tournaments not yet over, ours and others'
+  const MAX_INVITES = 8;        // invitations waiting for an answer
+  const MAX_FROM_ONE = 2;       // of those, from any one friend
+  const MAX_DONE = 12;          // finished ones kept, to look back at
+  const INVITE_DAYS = 7;        // an invitation nobody answered is let go after this long
+  const FLOOR = 1 / 3;
+  const REMATCH = 1e6;          // what a rematch costs a pairing (a point of difference squared costs 1)
+  const SEARCH_STEPS = 60000;   // how hard a pairing is looked for before the best so far is taken
+  const FLOOD_MAX = 120, FLOOD_MS = 10000;  // messages from one friend in that long, at most (a busy round sends a few dozen)
+  const STATES = new Set(['inviting', 'running', 'done', 'cancelled']);
+  const PSTATES = new Set(['invited', 'in', 'declined', 'dropped']);
+  const BY = new Set(['agreed', 'org', 'drop']);
+
+  const tourney = MTG.tourney = new MTG.Emitter();
+  let hub = null;
+  let frozen = false;           // a save is being loaded underneath: write nothing more
+  const now = () => Date.now();
+
+  /* ---------------- checking ---------------- */
+  const isId = (v) => typeof v === 'string' && /^[0-9a-f]{24}$/.test(v);
+  const isCode = (v) => FC().isCode(v);
+  const int = (v, lo, hi) => (Number.isInteger(v) && v >= lo && v <= hi ? v : null);
+  const stamp = (v) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+  /** A tournament's name: one line of plain text, not too long. */
+  function cleanTitle(v) {
+    if (typeof v !== 'string') return '';
+    // eslint-disable-next-line no-control-regex
+    return v.replace(/[\u0000-\u001f\u007f​-‏‪-‮⁦-⁩]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  }
+  /** A format a tournament can be played in: a constructed one this app knows. */
+  function cleanFmt(v) {
+    if (typeof v !== 'string' || !/^[a-z0-9]{2,20}$/.test(v)) return null;
+    const F = MTG.formats;
+    const f = F && F.get ? F.get(v) : null;
+    return f && f.kind !== 'limited' ? v : null;
+  }
+  /** Games a player has to win to take a match of best-of-`bo`. */
+  const need = (bo) => Math.ceil(bo / 2);
+  /** A match's result in games, { a, b, d }, if a best-of-`bo` match could end that way; else null. */
+  function cleanResult(r, bo) {
+    if (!r || typeof r !== 'object') return null;
+    const a = int(r.a, 0, 9), b = int(r.b, 0, 9), d = int(r.d, 0, 9);
+    if (a == null || b == null || d == null) return null;
+    const n = need(bo);
+    if (a > n || b > n || (a === n && b === n) || a + b + d > bo) return null;
+    return { a, b, d };
+  }
+  const BYE_RESULT = () => ({ a: 2, b: 0, d: 0 });
+  const sameResult = (x, y) => !!x && !!y && x.a === y.a && x.b === y.b && x.d === y.d;
+  /** A result turned round, for the other player. */
+  const flip = (r) => ({ a: r.b, b: r.a, d: r.d });
+
+  /**
+   * A tournament as it arrives, from the organiser or from the store:
+   * checked through, or null. Nothing in it is trusted: every code must
+   * be one of its players, every result one a match could have.
+   */
+  function readT(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+    const id = isId(raw.id) ? raw.id : null;
+    const org = isCode(raw.org) ? raw.org : null;
+    const fmt = cleanFmt(raw.fmt);
+    const bo = raw.bo === 1 || raw.bo === 3 ? raw.bo : null;
+    const rounds = int(raw.rounds, 0, MAX_ROUNDS);
+    const state = STATES.has(raw.state) ? raw.state : null;
+    if (!id || !org || !fmt || !bo || rounds == null || !state) return null;
+    if (!Array.isArray(raw.players) || !raw.players.length || raw.players.length > MAX_PLAYERS) return null;
+    const players = [];
+    const codes = new Set();
+    for (const p of raw.players) {
+      if (!p || typeof p !== 'object' || !isCode(p.code) || codes.has(p.code) || !PSTATES.has(p.st)) return null;
+      codes.add(p.code);
+      const seed = int(p.seed, 0, 99);
+      players.push({ code: p.code, name: FC().cleanName(p.name) || FC().formatCode(p.code), st: p.st, seed: seed == null ? players.length : seed });
+    }
+    if (!codes.has(org)) return null;
+    const list = Array.isArray(raw.rnds) ? raw.rnds : [];
+    if (list.length > MAX_ROUNDS || (state === 'inviting' && list.length)) return null;
+    const rnds = [];
+    for (const r of list) {
+      if (!r || !Array.isArray(r.pairs) || !r.pairs.length || r.pairs.length > MAX_PLAYERS / 2) return null;
+      const seated = new Set();
+      const pairs = [];
+      for (const p of r.pairs) {
+        if (!p || typeof p !== 'object') return null;
+        const a = codes.has(p.a) ? p.a : null;
+        const b = p.b == null ? null : codes.has(p.b) ? p.b : undefined;
+        const t = int(p.t, 1, MAX_PLAYERS);
+        if (!a || b === undefined || a === b || seated.has(a) || (b && seated.has(b)) || t == null || pairs.some(x => x.t === t)) return null;
+        seated.add(a);
+        if (b) seated.add(b);
+        let res = null, by = null;
+        if (!b) { res = BYE_RESULT(); by = 'bye'; }
+        else if (p.res != null) {
+          res = cleanResult(p.res, bo);
+          if (!res) return null;
+          by = BY.has(p.by) ? p.by : 'org';
+        }
+        const rep = {};
+        if (b && p.rep && typeof p.rep === 'object') {
+          for (const c of [a, b]) {
+            if (!Object.prototype.hasOwnProperty.call(p.rep, c)) continue;
+            const x = cleanResult(p.rep[c], bo);
+            if (x) rep[c] = x;
+          }
+        }
+        pairs.push({ t, a, b, res, by, rep, room: b ? FC().cleanRoom(p.room) : null });
+      }
+      rnds.push({ pairs });
+    }
+    return {
+      v: 1, id, org, name: cleanTitle(raw.name) || 'Tournament', fmt, bo, rounds, state,
+      at: stamp(raw.at), done: stamp(raw.done), rev: int(raw.rev, 0, 1e9) || 0, players, rnds,
+    };
+  }
+  /** What goes over the line: the tournament, without what is kept here only. */
+  function pub(t) {
+    return {
+      v: 1, id: t.id, org: t.org, name: t.name, fmt: t.fmt, bo: t.bo, rounds: t.rounds, state: t.state,
+      at: t.at, done: t.done, rev: t.rev, players: t.players, rnds: t.rnds,
+    };
+  }
+  function readPend(v) {
+    const out = {};
+    if (!v || typeof v !== 'object') return out;
+    if (v.yes === true) out.yes = true;
+    if (v.drop === true) out.drop = true;
+    if (v.rep && typeof v.rep === 'object') {
+      const r = v.rep;
+      if (int(r.r, 1, MAX_ROUNDS) && int(r.tb, 1, MAX_PLAYERS) && [r.w, r.l, r.d].every(x => int(x, 0, 9) != null)) out.rep = { r: r.r, tb: r.tb, w: r.w, l: r.l, d: r.d };
+    }
+    if (v.room && typeof v.room === 'object' && int(v.room.r, 1, MAX_ROUNDS) && int(v.room.tb, 1, MAX_PLAYERS) && FC().cleanRoom(v.room.room)) {
+      out.room = { r: v.room.r, tb: v.room.tb, room: FC().cleanRoom(v.room.room) };
+    }
+    return out;
+  }
+  function readHint(v) {
+    const out = {};
+    if (!v || typeof v !== 'object') return out;
+    for (const k of Object.keys(v).slice(0, 20)) if (/^\d{1,2}:\d{1,2}$/.test(k) && FC().cleanRoom(v[k])) out[k] = FC().cleanRoom(v[k]);
+    return out;
+  }
+
+  /* ---------------- the store ---------------- */
+  let list = null;
+  function load() {
+    if (list) return list;
+    list = [];
+    const raw = MTG.store.get('tourneys', null);
+    for (const x of (raw && Array.isArray(raw.list) ? raw.list : [])) {
+      const t = readT(x);
+      if (!t || list.some(y => y.id === t.id)) continue;
+      t.role = x.role === 'org' ? 'org' : 'player';
+      t.pend = readPend(x.pend);
+      t.hint = readHint(x.hint);
+      list.push(t);
+    }
+    prune();
+    return list;
+  }
+  /** Old invitations go, and the history keeps its last few. */
+  function prune() {
+    const t0 = now();
+    list = list.filter(t => !(isInvite(t) && t0 - (t.at || 0) > INVITE_DAYS * 864e5));
+    const over = list.filter(t => t.state === 'done' || t.state === 'cancelled').sort((x, y) => (y.done || y.at) - (x.done || x.at));
+    const drop = new Set(over.slice(MAX_DONE).map(t => t.id));
+    if (drop.size) list = list.filter(t => !drop.has(t.id));
+  }
+  function save() {
+    prune();
+    if (!frozen) MTG.store.set('tourneys', { v: 1, list });
+  }
+  const byId = (id) => load().find(t => t.id === id) || null;
+  const myCode = () => (hub ? hub.code : '');
+  const meOf = (t) => t.players.find(p => p.code === myCode()) || null;
+  const isOver = (t) => t.state === 'done' || t.state === 'cancelled';
+  const isInvite = (t) => t.role === 'player' && t.state === 'inviting' && (t.players.find(p => p.code === myCode()) || {}).st === 'invited';
+  const nameOf = (t, code) => (t.players.find(p => p.code === code) || {}).name || FC().formatCode(code);
+  /** The pair `code` is in, in round `r` (1-based), or null. */
+  const pairOf = (t, r, code) => ((t.rnds[r - 1] || { pairs: [] }).pairs.find(p => p.a === code || p.b === code) || null);
+  /** The room a pair plays in: as the organiser has it, or as heard straight from the friend. */
+  const roomOf = (t, r, p) => (p && (p.room || (t.hint || {})[r + ':' + p.t])) || null;
+  const disputed = (p) => !p.res && !!p.b && !!p.rep[p.a] && !!p.rep[p.b] && !sameResult(p.rep[p.a], p.rep[p.b]);
+  function changed(t) { tourney.emit('change', t); }
+
+  /* ---------------- Swiss: standings ---------------- */
+  /**
+   * The standings, best first: [{ code, name, st, seed, rank, mp, w, l, d,
+   * gw, gl, gd, rounds, byes, opps, mwp, gwp, omw, ogw }]. Only settled
+   * matches count. A bye is a match won 2-0 for the player's own record,
+   * and is left out of everybody's opponents.
+   */
+  function standings(t) {
+    const rec = new Map();
+    for (const p of t.players) {
+      rec.set(p.code, { code: p.code, name: p.name, st: p.st, seed: p.seed, mp: 0, w: 0, l: 0, d: 0, gw: 0, gl: 0, gd: 0, rounds: 0, byes: 0, opps: [] });
+    }
+    for (const r of t.rnds) {
+      for (const p of r.pairs) {
+        const A = rec.get(p.a);
+        if (!p.res || !A) continue;
+        A.rounds++;
+        if (!p.b) { A.byes++; A.w++; A.mp += 3; A.gw += 2; continue; }
+        const B = rec.get(p.b);
+        if (!B) continue;
+        B.rounds++;
+        const { a, b, d } = p.res;
+        A.gw += a; A.gl += b; A.gd += d;
+        B.gw += b; B.gl += a; B.gd += d;
+        A.opps.push(p.b); B.opps.push(p.a);
+        if (a > b) { A.w++; A.mp += 3; B.l++; } else if (b > a) { B.w++; B.mp += 3; A.l++; } else { A.d++; B.d++; A.mp++; B.mp++; }
+      }
+    }
+    // each with the floor of a third, as an opponent's figures are counted
+    const mwp = (x) => (x.rounds ? Math.max(FLOOR, x.mp / (3 * x.rounds)) : FLOOR);
+    const gwp = (x) => { const g = x.gw + x.gl + x.gd; return g ? Math.max(FLOOR, (3 * x.gw + x.gd) / (3 * g)) : FLOOR; };
+    const avg = (xs) => (xs.length ? xs.reduce((s, v) => s + v, 0) / xs.length : 0);
+    const rows = [...rec.values()];
+    for (const x of rows) {
+      const opp = x.opps.map(c => rec.get(c));
+      x.mwp = mwp(x);
+      x.gwp = gwp(x);
+      x.omw = avg(opp.map(mwp));
+      x.ogw = avg(opp.map(gwp));
+    }
+    // the same figure reached by adding in another order can differ in its last bit
+    const cmp = (a, b) => (Math.abs(a - b) < 1e-9 ? 0 : b - a);
+    rows.sort((a, b) => (b.mp - a.mp) || cmp(a.omw, b.omw) || cmp(a.gwp, b.gwp) || cmp(a.ogw, b.ogw) || (a.seed - b.seed));
+    rows.forEach((x, i) => { x.rank = i + 1; });
+    return rows;
+  }
+
+  /* ---------------- Swiss: pairing ---------------- */
+  /** How many rounds suit `n` players: enough for one to be left unbeaten. */
+  const defaultRounds = (n) => Math.max(1, Math.min(MAX_ROUNDS, Math.ceil(Math.log2(Math.max(2, n)))));
+  const pairKey = (x, y) => (x < y ? x + '|' + y : y + '|' + x);
+  function random() {
+    const c = typeof crypto !== 'undefined' && crypto && crypto.getRandomValues ? crypto : null;
+    if (!c) return Math.random();
+    const a = new Uint32Array(1);
+    c.getRandomValues(a);
+    return a[0] / 4294967296;
+  }
+  function shuffle(arr, rand) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+  /**
+   * The best way to pair `order` (best placed first): no rematches if it
+   * can be done, then players as near each other on points as can be.
+   * Depth first, nearest first, so the first pairing tried is usually the
+   * one wanted, and anything that already costs more is let go.
+   */
+  function search(order, pts, played) {
+    let best = null, bestCost = Infinity, steps = 0;
+    const used = new Array(order.length).fill(false);
+    const cur = [];
+    function go(cost) {
+      if (cost >= bestCost || steps > SEARCH_STEPS) return;
+      steps++;
+      const i = used.indexOf(false);
+      if (i < 0) { bestCost = cost; best = cur.slice(); return; }
+      used[i] = true;
+      for (let j = i + 1; j < order.length && bestCost > 0; j++) {
+        if (used[j]) continue;
+        const a = order[i], b = order[j];
+        const diff = (pts.get(a) || 0) - (pts.get(b) || 0);
+        used[j] = true;
+        cur.push([a, b]);
+        go(cost + (played.has(pairKey(a, b)) ? REMATCH : 0) + diff * diff);
+        cur.pop();
+        used[j] = false;
+      }
+      used[i] = false;
+    }
+    go(0);
+    return { pairs: best || [], cost: bestCost };
+  }
+  /**
+   * The next round's pairs for `t`: [{ t, a, b }], the bye (b null) last,
+   * the higher placed of each pair as a. Null with fewer than two left in.
+   */
+  function nextPairs(t, rand) {
+    rand = rand || random;
+    const active = t.players.filter(p => p.st === 'in');
+    if (active.length < 2) return null;
+    const played = new Set(), byes = new Set();
+    for (const r of t.rnds) for (const p of r.pairs) { if (p.b) played.add(pairKey(p.a, p.b)); else byes.add(p.a); }
+    const table = standings(t);
+    const rank = new Map(table.map(s => [s.code, s.rank]));
+    const pts = new Map(table.map(s => [s.code, s.mp]));
+    const codes = active.map(p => p.code);
+    // round one in the order seats were drawn; after that by points, each points group shuffled
+    const order = t.rnds.length ? shuffle(codes.slice(), rand).sort((x, y) => pts.get(y) - pts.get(x))
+      : codes.slice().sort((x, y) => rank.get(x) - rank.get(y));
+    let best = null, bye = null;
+    if (order.length % 2) {
+      const low = codes.slice().sort((x, y) => rank.get(y) - rank.get(x));
+      const cands = low.filter(c => !byes.has(c)).concat(low.filter(c => byes.has(c)));
+      for (const c of cands) {
+        const got = search(order.filter(x => x !== c), pts, played);
+        const cost = got.cost + (byes.has(c) ? REMATCH : 0);       // a second bye is as bad as a rematch
+        if (!best || cost < best.cost) { best = { pairs: got.pairs, cost }; bye = c; }
+        if (cost < REMATCH) break;          // the lowest placed who can have it without forcing a rematch
+      }
+    } else best = search(order, pts, played);
+    const top = (p) => Math.min(rank.get(p[0]), rank.get(p[1]));
+    const pairs = best.pairs.map(([x, y]) => (rank.get(x) <= rank.get(y) ? [x, y] : [y, x])).sort((p, q) => top(p) - top(q));
+    const out = pairs.map(([a, b], i) => ({ t: i + 1, a, b }));
+    if (bye) out.push({ t: out.length + 1, a: bye, b: null });
+    return out;
+  }
+  /** Pair the next round into `t` (the organiser's copy). */
+  function pairRound(t, rand) {
+    const got = nextPairs(t, rand);
+    if (!got) return false;
+    t.rnds.push({ pairs: got.map(p => ({ t: p.t, a: p.a, b: p.b, res: p.b ? null : BYE_RESULT(), by: p.b ? null : 'bye', rep: {}, room: null })) });
+    return true;
+  }
+
+  /* ---------------- a finished game, as a result ---------------- */
+  /**
+   * What a view at the end of a game says about the match, from the side
+   * of `meId`: { w, l, d } in games, or null while there is more to play
+   * (a match not yet decided) or when this is no match of two.
+   */
+  function resultFromView(v, meId) {
+    if (!v || !v.over || v.replay || v.spectating || !Array.isArray(v.players) || v.players.length !== 2) return null;
+    if (!v.players.some(p => p.id === meId)) return null;
+    const m = v.match;
+    if (m && m.best > 1) {
+      if (!m.decided || !Array.isArray(m.scores)) return null;
+      const mine = (m.scores.find(s => s.id === meId) || { wins: 0 }).wins | 0;
+      const theirs = m.scores.filter(s => s.id !== meId).reduce((n, s) => n + (s.wins | 0), 0);
+      return { w: mine, l: theirs, d: Math.max(0, (m.gameNumber | 0) - mine - theirs) };
+    }
+    const won = v.winners || [];
+    return won.includes(meId) ? { w: 1, l: 0, d: 0 } : won.length ? { w: 0, l: 1, d: 0 } : { w: 0, l: 0, d: 1 };
+  }
+
+  /* ============================================================
+     The organiser
+     ============================================================ */
+  const sendTo = (t, code, msg) => !!hub && code !== myCode() && hub.sendTourney(code, Object.assign({ id: t.id }, msg));
+  const sendState = (t, code) => sendTo(t, code, { op: 'state', s: pub(t) });
+  /** Everyone still following the tournament, sent it as it is now (whoever is away gets it when they are back). */
+  function broadcast(t) {
+    for (const p of t.players) if (p.st !== 'declined') sendState(t, p.code);
+  }
+  /**
+   * After any change to a tournament of ours: a round with every result
+   * in is followed by the next (or by the end), and the change goes out,
+   * numbered.
+   */
+  function commit(t, before) {
+    advance(t);
+    t.rev++;
+    save();
+    broadcast(t);
+    noteChanges(t, before);
+    changed(t);
+  }
+  function advance(t) {
+    if (t.state !== 'running') return;
+    const last = t.rnds[t.rnds.length - 1];
+    if (last && last.pairs.some(p => !p.res)) return;
+    const left = t.players.filter(p => p.st === 'in').length;
+    if (t.rnds.length >= t.rounds || left < 2) { t.state = 'done'; t.done = now(); return; }
+    pairRound(t);
+  }
+
+  /**
+   * Set up a tournament and invite friends to it: { name, fmt, bo, rounds
+   * (0 for as many as suit the players who come), invite: [codes] }.
+   * Returns the tournament, or { why }.
+   */
+  function create(o) {
+    o = o || {};
+    if (!hub) return { why: 'Friends are not available on this device.' };
+    load();
+    if (list.filter(t => t.role === 'org' && !isOver(t)).length >= MAX_ORGANISED) return { why: 'Finish a tournament you are running before you start another.' };
+    if (list.filter(t => !isOver(t)).length >= MAX_ACTIVE) return { why: 'You are in too many tournaments at once already.' };
+    const fmt = cleanFmt(o.fmt);
+    if (!fmt) return { why: 'Choose a constructed format.' };
+    const codes = [...new Set((Array.isArray(o.invite) ? o.invite : []).filter(c => isCode(c) && c !== myCode()))];
+    if (codes.length < MIN_PLAYERS - 1) return { why: `Invite at least ${MIN_PLAYERS - 1} friends: a tournament is ${MIN_PLAYERS} to ${MAX_PLAYERS} players, you included.` };
+    if (codes.length > MAX_PLAYERS - 1) return { why: `Invite at most ${MAX_PLAYERS - 1} friends: a tournament is ${MAX_PLAYERS} players at most, you included.` };
+    for (const c of codes) { const f = hub.entry(c); if (!f || f.state !== 'friend') return { why: 'Only your friends can be invited.' }; }
+    const me = hub.myName();
+    const t = {
+      v: 1, id: FC().randomHex(24), org: myCode(), name: cleanTitle(o.name) || `${me}’s tournament`, fmt, bo: o.bo === 3 ? 3 : 1,
+      rounds: int(o.rounds, 0, MAX_ROUNDS) || 0, state: 'inviting', at: now(), done: 0, rev: 0,
+      players: [{ code: myCode(), name: me, st: 'in', seed: 0 }].concat(codes.map((c, i) => ({ code: c, name: FC().cleanName(hub.nameOf(c)) || FC().formatCode(c), st: 'invited', seed: i + 1 }))),
+      rnds: [], role: 'org', pend: {}, hint: {},
+    };
+    list.push(t);
+    commit(t);
+    return t;
+  }
+  /** Start with whoever is in: at least three, the organiser included. Returns '' or what stops it. */
+  function start(id, rand) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || t.state !== 'inviting') return 'That tournament cannot be started.';
+    const ins = t.players.filter(p => p.st === 'in');
+    if (ins.length < MIN_PLAYERS) return `It needs ${MIN_PLAYERS} players, you included; ${ins.length === 1 ? 'only you are' : ins.length + ' are'} in so far.`;
+    const before = snap(t);
+    // whoever has not answered is not waited for
+    for (const p of t.players) if (p.st === 'invited') sendTo(t, p.code, { op: 'gone', why: 'started' });
+    t.players = ins;
+    // seats drawn at random: round one's pairings, and the last word between equals in the standings
+    shuffle(t.players, rand || random).forEach((p, i) => { p.seed = i; });
+    t.players.sort((x, y) => x.seed - y.seed);
+    if (!t.rounds) t.rounds = defaultRounds(ins.length);
+    t.state = 'running';
+    pairRound(t, rand);
+    commit(t, before);
+    return '';
+  }
+  /** The organiser sets a match's result by hand: `res` is { a, b, d } for the pair's a and b. */
+  function setResult(id, r, tb, res) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || t.state !== 'running') return 'Results can only be set in a tournament you are running.';
+    const p = (t.rnds[r - 1] || { pairs: [] }).pairs.find(x => x.t === tb);
+    if (!p || !p.b) return 'There is no match there.';
+    const clean = cleanResult(res, t.bo);
+    if (!clean) return `That is not a result a best-of-${t.bo} match can have.`;
+    const before = snap(t);
+    p.res = clean;
+    p.by = 'org';
+    commit(t, before);
+    return '';
+  }
+  /**
+   * `code` is out from here on. A match of theirs still being played this
+   * round goes to the other player, as a concession would.
+   */
+  function dropPlayer(t, code) {
+    const p = t.players.find(x => x.code === code);
+    if (!p || p.st !== 'in') return false;
+    if (t.state === 'inviting') {
+      p.st = 'declined';
+      sendTo(t, code, { op: 'gone', why: 'removed' });
+      return true;
+    }
+    p.st = 'dropped';
+    const r = t.rnds.length;
+    const pair = pairOf(t, r, code);
+    if (pair && !pair.res && pair.b) {
+      const other = pair.a === code ? pair.b : pair.a;
+      const otherIn = (t.players.find(x => x.code === other) || {}).st === 'in';
+      const won = { a: need(t.bo), b: 0, d: 0 };
+      pair.res = !otherIn ? { a: 0, b: 0, d: 0 } : pair.a === other ? won : flip(won);
+      pair.by = 'drop';
+    }
+    return true;
+  }
+  /** The organiser drops a player (themselves too, if they stop playing but carry on organising). */
+  function drop(id, code) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || isOver(t)) return false;
+    // the organiser plays in every tournament they set up; once it is under way they may stop playing
+    if (t.state === 'inviting' && code === t.org) return false;
+    const before = snap(t);
+    if (!dropPlayer(t, code)) return false;
+    commit(t, before);
+    return true;
+  }
+  /** The organiser calls it off. Everyone is told. */
+  function cancel(id) {
+    const t = byId(id);
+    if (!t || t.role !== 'org' || isOver(t)) return false;
+    const before = snap(t);
+    t.state = 'cancelled';
+    t.done = now();
+    commit(t, before);
+    return true;
+  }
+
+  /** A player's word, to the organiser. */
+  function fromPlayer(t, from, msg) {
+    const p = t.players.find(x => x.code === from);
+    if (!p) {
+      if (msg.op === 'sync' || msg.op === 'yes') sendTo(t, from, { op: 'gone', why: t.state === 'inviting' ? 'unknown' : 'started' });
+      return;
+    }
+    const before = snap(t);
+    switch (msg.op) {
+      case 'yes':
+        if (t.state === 'inviting' && (p.st === 'invited' || p.st === 'declined')) { p.st = 'in'; commit(t, before); }
+        else if (t.state === 'inviting' || p.st === 'in' || p.st === 'dropped') sendState(t, from);
+        else sendTo(t, from, { op: 'gone', why: 'started' });
+        return;
+      case 'no':
+        if (t.state === 'inviting' && (p.st === 'invited' || p.st === 'in') && from !== t.org) { p.st = 'declined'; commit(t, before); }
+        return;
+      case 'drop':
+        if (p.st === 'in' && from !== t.org && !isOver(t) && dropPlayer(t, from)) commit(t, before);
+        else sendState(t, from);
+        return;
+      case 'sync':
+        if (p.st !== 'declined') sendState(t, from);
+        return;
+      case 'report': {
+        const r = int(msg.r, 1, t.rnds.length);
+        const pair = r && t.state === 'running' ? (t.rnds[r - 1].pairs.find(x => x.t === msg.tb) || null) : null;
+        const mine = cleanResult({ a: msg.w, b: msg.l, d: msg.d }, t.bo);
+        if (!pair || !pair.b || (pair.a !== from && pair.b !== from) || !mine) return;
+        if (pair.res || (pair.rep[from] && sameResult(pair.rep[from], pair.a === from ? mine : flip(mine)))) { sendState(t, from); return; }
+        takeReport(t, pair, from, pair.a === from ? mine : flip(mine));
+        commit(t, before);
+        return;
+      }
+      case 'room': {
+        const r = int(msg.r, 1, t.rnds.length);
+        const pair = r === t.rnds.length && t.state === 'running' ? (t.rnds[r - 1].pairs.find(x => x.t === msg.tb) || null) : null;
+        const room = FC().cleanRoom(msg.room);
+        if (!pair || !pair.b || pair.res || (pair.a !== from && pair.b !== from) || !room) return;
+        if (pair.room === room) { sendState(t, from); return; }
+        pair.room = room;
+        commit(t, before);
+        return;
+      }
+      default:
+    }
+  }
+  /** A report into a pair (in the pair's own order): two that agree settle it. */
+  function takeReport(t, pair, code, res) {
+    pair.rep[code] = res;
+    const ra = pair.rep[pair.a], rb = pair.rep[pair.b];
+    if (ra && rb && sameResult(ra, rb)) { pair.res = { a: ra.a, b: ra.b, d: ra.d }; pair.by = 'agreed'; }
+  }
+
+  /* ============================================================
+     A player
+     ============================================================ */
+  /** Say yes or no to an invitation. */
+  function answer(id, yes) {
+    const t = byId(id);
+    const me = t && meOf(t);
+    if (!t || t.role !== 'player' || t.state !== 'inviting' || !me || me.st !== 'invited') return false;
+    if (yes) {
+      me.st = 'in';
+      t.pend.yes = true;
+      save();
+      hub.sendTourney(t.org, { op: 'yes', id });
+      changed(t);
+    } else {
+      hub.sendTourney(t.org, { op: 'no', id });
+      forgetNow(t);
+    }
+    return true;
+  }
+  /**
+   * Out of a tournament: before it starts, a no; once it is under way, a
+   * drop (the organiser hears it now, or when next online). The organiser
+   * leaves by dropping themselves.
+   */
+  function leave(id) {
+    const t = byId(id);
+    if (!t || isOver(t)) return false;
+    if (t.role === 'org') return drop(id, myCode());
+    const me = meOf(t);
+    if (!me) return false;
+    if (t.state === 'inviting') {
+      hub.sendTourney(t.org, { op: 'no', id });
+      forgetNow(t);
+      return true;
+    }
+    if (me.st !== 'in') return false;
+    me.st = 'dropped';
+    t.pend.drop = true;
+    delete t.pend.rep;
+    save();
+    hub.sendTourney(t.org, { op: 'drop', id });
+    changed(t);
+    return true;
+  }
+  /**
+   * Report your match: `w` your wins, `l` theirs, `d` drawn games. `auto`
+   * when the table saw it end. Returns { ok, sent } or { why }.
+   */
+  function report(id, r, tb, w, l, d, auto) {
+    const t = byId(id);
+    if (!t || t.state !== 'running') return { why: 'That tournament is not under way.' };
+    const me = myCode();
+    const pair = (t.rnds[r - 1] || { pairs: [] }).pairs.find(x => x.t === tb) || null;
+    if (!pair || !pair.b || (pair.a !== me && pair.b !== me)) return { why: 'That is not your match.' };
+    if (pair.res) return { why: 'That match is settled already.' };
+    const mine = cleanResult({ a: w, b: l, d }, t.bo);
+    if (!mine) return { why: `That is not a result a best-of-${t.bo} match can have.` };
+    const res = pair.a === me ? mine : flip(mine);
+    if (t.role === 'org') {
+      const before = snap(t);
+      takeReport(t, pair, me, res);
+      commit(t, before);
+      tourney.emit('reported', t, pair, mine, !!auto);
+      return { ok: true, sent: true };
+    }
+    pair.rep[me] = res;
+    t.pend.rep = { r, tb, w, l, d };
+    save();
+    const sent = hub.sendTourney(t.org, { op: 'report', id, r, tb, w, l, d });
+    tourney.emit('reported', t, pair, mine, !!auto);
+    changed(t);
+    return { ok: true, sent };
+  }
+  /**
+   * The table for your match is open, in room `room`: the organiser is
+   * told (and tells your opponent), and your opponent, if they are a
+   * friend of yours who is online, gets the usual invite too.
+   */
+  function roomOpened(id, r, tb, room) {
+    const t = byId(id);
+    room = FC().cleanRoom(room);
+    if (!t || t.state !== 'running' || !room || r !== t.rnds.length) return false;
+    const me = myCode();
+    const pair = t.rnds[r - 1].pairs.find(x => x.t === tb);
+    if (!pair || !pair.b || pair.res || (pair.a !== me && pair.b !== me)) return false;
+    const opp = pair.a === me ? pair.b : pair.a;
+    if (t.role === 'org') {
+      // measured against nothing: a room of our own opening is no news to us
+      pair.room = room;
+      commit(t);
+    } else {
+      t.hint[r + ':' + tb] = room;
+      t.pend.room = { r, tb, room };
+      save();
+      hub.sendTourney(t.org, { op: 'room', id, r, tb, room });
+      changed(t);
+    }
+    if (hub.isOnline(opp)) hub.invite(opp, room, fmtName(t));
+    return true;
+  }
+  /**
+   * A game ended at the table in room `room`, with `res` ({ w, l, d } for
+   * you) as the match's result: if that was your match in a tournament,
+   * it is reported. Returns { t, pair, res } when it was, else null.
+   */
+  function gameOver(room, res) {
+    room = FC().cleanRoom(room);
+    if (!room || !res) return null;
+    const me = myCode();
+    for (const t of load()) {
+      if (t.state !== 'running') continue;
+      const r = t.rnds.length;
+      const pair = pairOf(t, r, me);
+      if (!pair || !pair.b || pair.res || roomOf(t, r, pair) !== room) continue;
+      // reported already: a friendly rematch at the same table afterwards is not the match
+      if (pair.rep[me]) return null;
+      const got = report(t.id, r, pair.t, res.w, res.l, res.d, true);
+      return got.ok ? { t, pair, res } : null;
+    }
+    return null;
+  }
+  /** Take a finished tournament (or one you are out of) off the list. */
+  function forget(id) {
+    const t = byId(id);
+    if (!t || (!isOver(t) && !(t.role === 'player' && (meOf(t) || {}).st === 'dropped'))) return false;
+    forgetNow(t);
+    return true;
+  }
+  function forgetNow(t) {
+    list = load().filter(x => x !== t);
+    save();
+    changed(t);
+  }
+
+  /** The organiser's word, to a player. */
+  function fromOrganiser(from, msg) {
+    if (msg.op === 'gone') {
+      const t = byId(msg.id);
+      if (!t || t.role !== 'player' || t.org !== from) return;
+      const why = msg.why === 'started' ? `${nameOf(t, from)} started ${t.name} without you.`
+        : msg.why === 'removed' ? `${nameOf(t, from)} took you off ${t.name}.` : `${t.name} is no longer running.`;
+      if (isOver(t)) return;
+      forgetNow(t);
+      tourney.emit('removed', t, why);
+      return;
+    }
+    if (msg.op !== 'state') return;
+    const s = readT(msg.s);
+    if (!s || s.id !== msg.id || s.org !== from || from === myCode()) return;
+    const meP = s.players.find(p => p.code === myCode());
+    let t = byId(s.id);
+    if (t && (t.role === 'org' || t.org !== from)) return;
+    if (!t) {
+      // something we have not heard of is an invitation, or nothing
+      if (!meP || meP.st !== 'invited' || s.state !== 'inviting') return;
+      const invites = load().filter(isInvite);
+      if (invites.length >= MAX_INVITES || invites.filter(i => i.org === from).length >= MAX_FROM_ONE) return;
+      if (list.filter(x => !isOver(x)).length >= MAX_ACTIVE) return;
+      t = Object.assign(s, { role: 'player', pend: {}, hint: {} });
+      t.at = now();               // their clock is theirs: an invitation runs out by ours
+      list.push(t);
+      save();
+      tourney.emit('invite', t);
+      changed(t);
+      return;
+    }
+    if (s.rev < t.rev) return;      // overtaken by a newer one
+    if (!meP) { forgetNow(t); tourney.emit('removed', t, `You are no longer in ${t.name}.`); return; }
+    const before = snap(t);
+    const at = t.at;
+    Object.assign(t, s);
+    if (t.state === 'inviting') t.at = at;
+    // what we said and the organiser has not taken in yet stays as we said it
+    const pd = t.pend;
+    const me = myCode();
+    if (pd.yes && meP.st !== 'invited') delete pd.yes;
+    if (pd.drop && meP.st !== 'in') delete pd.drop;
+    if (pd.drop && meP.st === 'in') meP.st = 'dropped';
+    if (pd.yes && meP.st === 'invited') meP.st = 'in';
+    if (pd.rep) {
+      const p = (t.rnds[pd.rep.r - 1] || { pairs: [] }).pairs.find(x => x.t === pd.rep.tb);
+      const mine = p && cleanResult({ a: pd.rep.w, b: pd.rep.l, d: pd.rep.d }, t.bo);
+      if (!p || !mine || p.res || (p.a !== me && p.b !== me)) delete pd.rep;
+      else {
+        const res = p.a === me ? mine : flip(mine);
+        if (sameResult(p.rep[me], res)) delete pd.rep;
+        else p.rep[me] = res;
+      }
+    }
+    if (pd.room) {
+      const p = (t.rnds[pd.room.r - 1] || { pairs: [] }).pairs.find(x => x.t === pd.room.tb);
+      if (!p || p.res || p.room === pd.room.room || pd.room.r !== t.rnds.length) delete pd.room;
+    }
+    save();
+    noteChanges(t, before);
+    changed(t);
+  }
+
+  /* ---------------- what changed, for the person ---------------- */
+  /** What a change is measured against: the round, your match, the disputes. */
+  function snap(t) {
+    const me = myCode();
+    const r = t.rnds.length;
+    const p = pairOf(t, r, me);
+    return {
+      state: t.state, round: r, room: roomOf(t, r, p), res: p ? p.res : null,
+      disputes: t.role === 'org' && r ? t.rnds[r - 1].pairs.filter(disputed).map(x => x.t).join(',') : '',
+    };
+  }
+  function noteChanges(t, before) {
+    if (!before) return;
+    const after = snap(t);
+    const me = myCode();
+    const r = t.rnds.length;
+    const p = pairOf(t, r, me);
+    if (after.round > before.round && p && (meOf(t) || {}).st === 'in') tourney.emit('paired', t, p, r);
+    else if (p && p.b && after.room && after.room !== before.room && !(t.pend.room && t.pend.room.room === after.room)) {
+      // a room for your match that you did not open: your opponent's
+      tourney.emit('room', t, p, after.room);
+    }
+    if (p && p.res && !before.res && after.round === before.round && p.b) tourney.emit('settled', t, p);
+    if (t.role === 'org' && after.disputes && after.disputes !== before.disputes) {
+      for (const x of t.rnds[r - 1].pairs) if (disputed(x) && !before.disputes.split(',').includes(String(x.t))) tourney.emit('dispute', t, x, r);
+    }
+    if (after.state !== before.state && after.state === 'done') tourney.emit('finished', t);
+    if (after.state !== before.state && after.state === 'cancelled' && t.role !== 'org') tourney.emit('cancelled', t);
+  }
+
+  /* ---------------- the line ---------------- */
+  /* A friend sends a few messages a round; one sending hundreds is not
+     playing, and is not let write to the store that often. */
+  const heard = new Map();      // code -> { n, since }
+  function flooding(code) {
+    const t0 = now();
+    const h = heard.get(code);
+    if (!h || t0 - h.since > FLOOD_MS) { heard.set(code, { n: 1, since: t0 }); return false; }
+    return ++h.n > FLOOD_MAX;
+  }
+  function onMessage(from, msg) {
+    if (flooding(from)) return;
+    if (!msg || typeof msg.op !== 'string' || !isId(msg.id)) return;
+    if (msg.op === 'state' || msg.op === 'gone') return fromOrganiser(from, msg);
+    const t = byId(msg.id);
+    if (!t || t.role !== 'org') {
+      // a player asking after something we do not run (any more): say so, so it can let it go
+      if (!t && (msg.op === 'sync' || msg.op === 'yes')) hub.sendTourney(from, { op: 'gone', id: msg.id, why: 'unknown' });
+      return;
+    }
+    fromPlayer(t, from, msg);
+  }
+  /** A friend back online: whatever is owed between us goes again. */
+  function online(code) {
+    for (const t of load()) {
+      if (t.role === 'org') {
+        const p = t.players.find(x => x.code === code);
+        if (p && p.st !== 'declined' && !isOver(t)) sendState(t, code);
+        continue;
+      }
+      if (t.org !== code || isOver(t)) continue;
+      const pd = t.pend;
+      if (pd.yes) hub.sendTourney(code, { op: 'yes', id: t.id });
+      if (pd.drop) hub.sendTourney(code, { op: 'drop', id: t.id });
+      if (pd.rep) hub.sendTourney(code, Object.assign({ op: 'report', id: t.id }, pd.rep));
+      if (pd.room) hub.sendTourney(code, Object.assign({ op: 'room', id: t.id }, pd.room));
+      hub.sendTourney(code, { op: 'sync', id: t.id, rev: t.rev });
+    }
+  }
+  /**
+   * Your opponent invited you to their table the usual way: that is your
+   * match's room. The invite is marked as the tournament's (inv.tourney),
+   * so the note about it is the tournament's own rather than a friend's
+   * plain invite (src/10g-ui-social.js).
+   */
+  function friendInvite(inv) {
+    if (!inv || !inv.code || !inv.room) return;
+    const me = myCode();
+    for (const t of load()) {
+      if (t.state !== 'running') continue;
+      const r = t.rnds.length;
+      const p = pairOf(t, r, me);
+      if (!p || !p.b || p.res || (p.a !== inv.code && p.b !== inv.code)) continue;
+      inv.tourney = t.id;
+      if (roomOf(t, r, p) === inv.room) return;
+      t.hint[r + ':' + p.t] = inv.room;
+      save();
+      tourney.emit('room', t, p, inv.room);
+      changed(t);
+      return;
+    }
+  }
+  function fmtName(t) {
+    const f = MTG.formats && MTG.formats.get ? MTG.formats.get(t.fmt) : null;
+    return `${(f && f.name) || t.fmt} tournament`;
+  }
+
+  /** Hook tournaments up to a friends hub (MTG.friends, or a test's). */
+  function attach(h) {
+    hub = h;
+    h.on('tourney', (code, msg) => { try { onMessage(code, msg); } catch (e) { console.warn('[tourney] a message could not be read', e); } });
+    h.on('online', (code) => { try { online(code); } catch (e) { console.warn('[tourney]', e); } });
+    h.on('invite', (inv) => { try { friendInvite(inv); } catch (e) { console.warn('[tourney]', e); } });
+  }
+  if (MTG.bus) MTG.bus.on('profile:replacing', () => { frozen = true; });
+
+  /* ---------------- reading ---------------- */
+  /** Your match this round in `t`: { r, pair, opp, host, room, bye, mine, theirs } or null. */
+  function myMatch(t) {
+    const me = myCode();
+    const r = t.rnds.length;
+    const p = pairOf(t, r, me);
+    if (!p) return null;
+    const opp = p.a === me ? p.b : p.a;
+    const asMine = (x) => (x ? (p.a === me ? x : flip(x)) : null);
+    return {
+      r, pair: p, opp, oppName: opp ? nameOf(t, opp) : '', host: p.a === me, bye: !p.b, room: roomOf(t, r, p),
+      res: asMine(p.res), mine: asMine(p.rep[me]), theirs: opp ? asMine(p.rep[opp]) : null,
+      pending: !!(t.pend.rep && t.pend.rep.r === r && t.pend.rep.tb === p.t),
+    };
+  }
+
+  Object.assign(tourney, {
+    attach, create, start, setResult, drop, cancel, answer, leave, report, roomOpened, gameOver, forget,
+    list: () => load().slice().sort((x, y) => (isOver(x) - isOver(y)) || ((y.done || y.at) - (x.done || x.at))),
+    get: byId,
+    invites: () => load().filter(isInvite),
+    active: () => load().filter(t => !isOver(t) && !isInvite(t)),
+    finished: () => load().filter(isOver).sort((x, y) => (y.done || y.at) - (x.done || x.at)),
+    myMatch, standings, isInvite, isOver, disputed, nameOf, need,
+    me: () => myCode(),
+    // the pieces tools/tournamenttest.js checks on their own
+    readT, pub, cleanResult, nextPairs, pairRound, defaultRounds, resultFromView, search,
+    MIN_PLAYERS, MAX_PLAYERS, MAX_ROUNDS,
+    /** Forget what was read from the store, so the next look reads it again (a test's restart). */
+    _reload() { list = null; },
+  });
 })(window.MTG);
 /* ===== 15-combos.js ===== */
 /* ============================================================
@@ -74187,7 +75306,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    The hub itself (src/09c-friends.js) is made here, as MTG.friends, with
    this browser's storage, settings and PeerJS, and started once the app
    is up (the 'app:ready' event from src/14-app.js). Trades have their own
-   window (src/10h-ui-trade.js).
+   window (src/10h-ui-trade.js), and tournaments theirs, with a tab here
+   (src/10i-ui-tourney.js).
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -74220,6 +75340,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     peerOptions: () => ({ debug: MTG.DEBUG ? 2 : 0, config: { iceServers: net.iceServers ? net.iceServers() : [] } }),
   });
   MTG.trade.attach(hub);
+  if (MTG.tourney) MTG.tourney.attach(hub);
 
   /* ---------------- words ---------------- */
   const PRESENCE = { online: 'Online', lobby: 'In a lobby', game: 'In a game', offline: 'Offline' };
@@ -74274,7 +75395,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   function waiting() {
     const c = hub.counts();
     const t = MTG.trade.current();
-    return { online: c.online, ask: c.requests + liveInvites().length + (t && t.state === 'asked' ? 1 : 0), requests: c.requests };
+    const tn = UI.tourneyWaiting ? UI.tourneyWaiting() : 0;
+    return { online: c.online, ask: c.requests + liveInvites().length + (t && t.state === 'asked' ? 1 : 0) + tn, requests: c.requests };
   }
   function paintChip(chip) {
     const w = waiting();
@@ -74364,6 +75486,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     return { close: gone };
   }
   UI.socialNote = note;
+  /** Draw the chip and the Friends window again (a tournament changed, say). */
+  UI.socialChanged = () => changed();
 
   hub.on('request', (code, name) => {
     const f = hub.entry(code) || { code, name };
@@ -74379,6 +75503,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   hub.on('accepted', (code) => { MTG.sfx('confirm'); UI.ok(`${hub.nameOf(code)} accepted your friend request.`); });
   hub.on('declined', (code, name) => UI.toast(`${name || F.formatCode(code)} declined your friend request.`, '', 4200));
   hub.on('invite', (inv) => {
+    // a tournament match's table: the tournament says so in a note of its own (src/10i-ui-tourney.js)
+    if (inv.tourney) { changed(); return; }
     invites = liveInvites().filter(i => !(i.code === inv.code && i.room === inv.room)).concat([inv]);
     changed();
     const f = hub.entry(inv.code) || { code: inv.code, name: inv.name };
@@ -74427,15 +75553,19 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     hub.profileChanged();
     return true;
   }
-  /** Leave whatever table you are at, after asking; false if you would rather stay. */
-  async function leaveForJoin(name) {
+  /**
+   * Leave whatever table you are at, after asking; false if you would
+   * rather stay. `o` words the question: { question, title, yes }.
+   */
+  async function leaveForJoin(name, o) {
+    o = o || {};
     const app = A();
     if (app.screen === 'table' || app.screen === 'draft') {
       await app.exitToMenu();
       return !(app.screen === 'table' || app.screen === 'draft');
     }
     if (app.session || net.online) {
-      if (!await UI.confirm(`Leave this table to join ${name}?`, 'Join a friend', { yes: 'Leave and join' })) return false;
+      if (!await UI.confirm(o.question || `Leave this table to join ${name}?`, o.title || 'Join a friend', { yes: o.yes || 'Leave and join' })) return false;
       app.leaveGame();
     }
     return true;
@@ -74446,6 +75576,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (!await haveName()) return;
     A().joinRoom(room);
   }
+  // for a tournament's match (src/10i-ui-tourney.js): the same steps, from its own buttons
+  UI.joinFriendRoom = joinRoomCode;
+  UI.leaveTableFirst = (o) => leaveForJoin('them', o);
+  UI.haveName = haveName;
   async function joinInvite(inv) {
     dropInvite(inv);
     if (Date.now() - inv.at > INVITE_LIFE) return UI.error('That invite has run out. Ask them for another.');
@@ -74455,13 +75589,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
   /* ---------------- the Friends window ---------------- */
   let win = null;
-  /** The Friends window, on one of its tabs: 'friends', 'wishlist' or 'trades'. */
+  /** The Friends window, on one of its tabs: 'friends', 'wishlist', 'trades' or 'tourneys'. */
   UI.openFriends = function (tab) {
     if (win) { win.show(tab || win.tab); return win.m; }
     const tabs = el('div', { class: 'store-tabs fr-tabs', role: 'tablist' });
     const body = el('div', { class: 'fr-body' });
     const m = UI.modal({ title: 'Friends', content: el('div', { class: 'fr-wrap' }, [tabs, body]), className: 'friends-modal', width: 'min(760px, 96vw)' });
-    const TABS = [['friends', 'Friends'], ['wishlist', 'Wishlist'], ['trades', 'Trades']];
+    const TABS = [['friends', 'Friends'], ['wishlist', 'Wishlist'], ['trades', 'Trades']].concat(UI.tourneysTab ? [['tourneys', 'Tournaments']] : []);
     let view = null;
     const w = win = {
       m, tab: tab || 'friends',
@@ -74470,7 +75604,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
         body.innerHTML = '';
         view = (id === 'wishlist' && UI.wishlistTab) ? UI.wishlistTab(body)
-          : (id === 'trades' && UI.tradesTab) ? UI.tradesTab(body) : friendsTab(body);
+          : (id === 'trades' && UI.tradesTab) ? UI.tradesTab(body)
+            : (id === 'tourneys' && UI.tourneysTab) ? UI.tourneysTab(body) : friendsTab(body);
       },
       refresh() { if (view && view.refresh) view.refresh(); },
     };
@@ -74698,6 +75833,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (UI.openTrade) UI.openTrade(s);
   }
   UI.tradeWith = (code) => { const f = hub.entry(code); if (f) tradeWith(f); };
+  /** Put the Friends window away (a tournament's table is opening). */
+  UI.closeFriends = () => { if (win) win.m.close(); };
 
   /* ---------------- inviting from a lobby ----------------
      In the host's lobby (and a guest's): a button to invite friends who
@@ -75478,6 +76615,699 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       m._onClose = () => settle(false);
     });
   }
+})(window.MTG);
+/* ===== 10i-ui-tourney.js ===== */
+/* ============================================================
+   10i-ui-tourney.js - friends tournaments on screen (src/09f-tourney.js
+   holds the logic)
+
+   The Friends window's Tournaments tab: invitations, the tournaments
+   under way, and the finished ones. Setting one up: a name, a format, the
+   match length, how many rounds, and the friends to invite. A
+   tournament's own window: your match this round (open the table, join
+   it, report the result), the round's pairings, and the standings; the
+   organiser sets results and drops players from there too. Notes say
+   when you are invited, paired, when your table is open and when it is
+   over.
+
+   A match is played at an ordinary table: the host's opens with the
+   tournament's format and match length (MTG.app.hostTableFor), and the
+   other player joins it by its room code. The table is watched here, so
+   the match's result goes to the organiser by itself once it is decided.
+   Everything is laid out to work by touch at 375px wide (src/tourney.css).
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const { el } = MTG;
+  const UI = MTG.ui;
+  const T = MTG.tourney;
+  const F = MTG.friendsCore;
+  const net = MTG.net;
+  const A = () => MTG.app || {};
+  const hub = () => MTG.friends;
+
+  const SVG = {
+    cup: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4.5a5 5 0 0 1-10 0z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"/><path d="M7 6H4.2c0 3 1.4 4.6 3.3 4.9M17 6h2.8c0 3-1.4 4.6-3.3 4.9M12 13.5V17M8.5 20h7M9.5 17h5" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    plus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+  };
+
+  /* ---------------- words ---------------- */
+  const fmtName = (id) => { const f = MTG.formats.get(id); return (f && f.name) || id; };
+  const facts = (t) => `${fmtName(t.fmt)} · best of ${t.bo}` + (t.rounds ? ` · ${t.rounds} round${t.rounds === 1 ? '' : 's'}` : '');
+  const ordinal = (n) => { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); };
+  /** A result in games, "2–1", with drawn games after it when there are any: "1–1–1". */
+  const score = (w, l, d) => `${w}–${l}` + (d ? `–${d}` : '');
+  const pct = (x) => (Math.round(x * 1000) / 10).toFixed(1) + '%';
+  const orgName = (t) => T.nameOf(t, t.org);
+  const isMe = (code) => code === T.me();
+  const meIn = (t) => t.players.find(p => isMe(p.code)) || null;
+  function outcome(r) {
+    if (r.w > r.l) return `you won ${score(r.w, r.l, r.d)}`;
+    if (r.l > r.w) return `you lost ${score(r.w, r.l, r.d)}`;
+    return `a draw, ${score(r.w, r.l, r.d)}`;
+  }
+  function stateLine(t) {
+    if (t.state === 'inviting') {
+      const ins = t.players.filter(p => p.st === 'in').length;
+      return `Waiting for answers · ${ins} of ${t.players.filter(p => p.st !== 'declined').length} in`;
+    }
+    if (t.state === 'running') return `Round ${t.rnds.length} of ${t.rounds}`;
+    if (t.state === 'cancelled') return 'Called off';
+    return 'Finished';
+  }
+  /** A friend's picture where we have one; the organiser's friends may be strangers to us. */
+  function face(code, name, size) {
+    const f = hub() && hub().entry(code);
+    return UI.portrait(name || (f && f.name) || F.formatCode(code), null, {
+      size: size || 'md', avatar: f ? f.avatar : null,
+      frame: f && f.frame && MTG.economy && MTG.economy.frameById(f.frame) ? f.frame : null,
+    });
+  }
+  const cupIcon = () => el('span', { class: 'sn-ico tn-ico', html: SVG.cup });
+  /** What there is for you to do in a tournament, if anything: a word for its button. */
+  function todo(t) {
+    if (T.isInvite(t)) return 'answer';
+    const mm = t.state === 'running' ? T.myMatch(t) : null;
+    const me = meIn(t);
+    if (!mm || !me || me.st !== 'in' || mm.bye || mm.res) return '';
+    if (mm.room && !mm.host && !mm.mine) return 'join';
+    if (mm.theirs && !mm.mine) return 'report';
+    return '';
+  }
+
+  /* ---------------- the Friends window's tab ---------------- */
+  UI.tourneysTab = function (body) {
+    const lists = el('div', { class: 'fr-lists tn-lists' });
+    body.append(
+      el('div', { class: 'tn-tabhead' }, [
+        el('p', { class: 'small muted fr-intro', text: 'Swiss tournaments among your friends. You invite them; the app pairs every round, takes in the results and keeps the standings. Each match is played at a table one of the two opens.' }),
+        el('button', { type: 'button', class: 'btn primary tn-new', html: `${SVG.plus}<span>New tournament</span>`, onclick: () => createWindow() }),
+      ]),
+      lists,
+    );
+    const section = (title, rows, cls) => el('section', { class: 'fr-section ' + (cls || '') }, [el('h3', { class: 'fr-h', text: title }), el('div', { class: 'fr-rows' }, rows)]);
+    const refresh = () => {
+      lists.innerHTML = '';
+      const inv = T.invites(), act = T.active(), fin = T.finished();
+      if (inv.length) lists.appendChild(section('Invitations', inv.map(inviteRow), 'invites'));
+      if (act.length) lists.appendChild(section('Under way', act.map(activeRow), 'tn-active'));
+      if (fin.length) lists.appendChild(section('Finished', fin.map(doneRow), 'tn-done'));
+      if (!lists.children.length) {
+        lists.appendChild(el('div', { class: 'fr-empty' }, [
+          el('b', { text: 'No tournaments yet.' }),
+          el('span', { text: 'Start one for three to sixteen players, you included: New tournament, then pick the friends to invite.' }),
+        ]));
+      }
+    };
+    refresh();
+    return { refresh };
+  };
+  function tnRow(lead, title, sub, acts, cls) {
+    return el('div', { class: 'fr-row tn-row ' + (cls || '') }, [
+      lead,
+      el('div', { class: 'fr-who' }, [el('div', { class: 'fr-name', text: title }), el('div', { class: 'fr-pres' }, [el('span', { text: sub })])]),
+      el('div', { class: 'fr-acts' }, acts),
+    ]);
+  }
+  function inviteRow(t) {
+    return tnRow(face(t.org, orgName(t)), `${orgName(t)} invites you: ${t.name}`, `${facts(t)} · ${t.players.filter(p => p.st === 'in').length} in so far`, [
+      el('button', { type: 'button', class: 'btn sm ghost', text: 'No thanks', onclick: () => T.answer(t.id, false) }),
+      el('button', { type: 'button', class: 'btn sm primary', text: 'Join', onclick: () => { if (T.answer(t.id, true)) UI.openTourney(t.id); } }),
+    ], 'p-in');
+  }
+  function activeRow(t) {
+    const mm = t.state === 'running' ? T.myMatch(t) : null;
+    const me = meIn(t);
+    let sub = stateLine(t);
+    if (me && me.st === 'dropped') sub += ' · you dropped out';
+    else if (mm && mm.bye) sub += ' · a bye for you';
+    else if (mm && mm.oppName) sub += ` · ${mm.res ? 'done against' : 'you play'} ${mm.oppName}`;
+    const want = todo(t);
+    return tnRow(cupIcon(), t.name, sub, [
+      el('button', { type: 'button', class: 'btn sm' + (want ? ' primary' : ''), text: want === 'join' ? 'Join table' : want === 'report' ? 'Report' : 'Open',
+        onclick: () => UI.openTourney(t.id) }),
+    ], want ? 'tn-want' : '');
+  }
+  function doneRow(t) {
+    let sub = t.state === 'cancelled' ? 'Called off' : 'Finished';
+    if (t.state === 'done') {
+      const st = T.standings(t);
+      const mine = st.find(r => isMe(r.code));
+      if (mine) sub += ` · you came ${ordinal(mine.rank)} of ${st.length}`;
+      else if (st[0]) sub += ` · won by ${st[0].name}`;
+    }
+    sub += ' · ' + new Date(t.done || t.at || Date.now()).toLocaleDateString();
+    return tnRow(cupIcon(), t.name, sub, [
+      el('button', { type: 'button', class: 'btn sm ghost', text: 'Remove', onclick: async () => {
+        if (await UI.confirm(`Take ${t.name} off your list? Its standings go with it.`, 'Remove a tournament', { yes: 'Remove' })) T.forget(t.id);
+      } }),
+      el('button', { type: 'button', class: 'btn sm', text: 'View', onclick: () => UI.openTourney(t.id) }),
+    ]);
+  }
+  /** Invitations and tables to join: counted on the Friends chip. */
+  UI.tourneyWaiting = () => T.invites().length + T.active().filter(t => todo(t) === 'join').length;
+
+  /* ---------------- a segmented control ---------------- */
+  function seg(options, current, onPick, label, cls) {
+    const box = el('div', { class: 'seg ' + (cls || ''), role: 'radiogroup', 'aria-label': label });
+    const draw = (cur) => {
+      box.innerHTML = '';
+      for (const [value, text] of options) {
+        box.appendChild(el('button', { type: 'button', role: 'radio', class: 'seg-btn' + (value === cur ? ' on' : ''), 'aria-checked': value === cur ? 'true' : 'false', text,
+          onclick: () => { draw(value); onPick(value); } }));
+      }
+    };
+    draw(current);
+    return box;
+  }
+
+  /* ---------------- setting one up ---------------- */
+  function createWindow() {
+    const friends = hub().entries().filter(f => f.state === 'friend')
+      .sort((a, b) => (b.online - a.online) || (a.name || '').localeCompare(b.name || ''));
+    if (friends.length < T.MIN_PLAYERS - 1) {
+      UI.error(`A tournament needs at least ${T.MIN_PLAYERS} players, you included. Add ${T.MIN_PLAYERS - 1 - friends.length === 1 ? 'one more friend' : 'a couple of friends'} first.`);
+      return null;
+    }
+    const formats = MTG.formats.list().filter(f => f.kind !== 'limited');
+    const was = MTG.settings.tourneyLast || {};
+    const choice = {
+      fmt: formats.some(f => f.id === was.fmt) ? was.fmt : (formats.some(f => f.id === A().formatId) ? A().formatId : 'standard'),
+      bo: was.bo === 1 ? 1 : 3, rounds: 0, picked: new Set(),
+    };
+    const name = el('input', { type: 'text', id: 'tn-name', class: 'tn-input', maxlength: '40', value: `${hub().myName()}’s tournament`, autocomplete: 'off', 'aria-label': 'The tournament’s name' });
+    const fmtSel = el('select', { id: 'tn-fmt', 'aria-label': 'Format' }, formats.map(f => el('option', { value: f.id, text: f.name, selected: f.id === choice.fmt })));
+    fmtSel.addEventListener('change', () => { choice.fmt = fmtSel.value; });
+    const roundsHint = el('div', { class: 'tn-hint' });
+    const count = el('div', { class: 'tn-count', 'aria-live': 'polite' });
+    const list = el('div', { class: 'fr-rows tn-pick-friends' });
+    const field = (label, control, forId) => el('div', { class: 'tn-field' }, [el('label', { class: 'tn-label', for: forId || null, text: label }), control]);
+    const roundSeg = seg([[0, 'Auto'], [1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], 0, (v) => { choice.rounds = v; paint(); }, 'Rounds', 'seg-wrap tn-rounds');
+    const m = UI.modal({
+      title: 'New tournament', className: 'friends-modal tn-create', width: 'min(620px, 96vw)',
+      content: el('div', { class: 'tn-form' }, [
+        field('Name', name, 'tn-name'),
+        field('Format', fmtSel, 'tn-fmt'),
+        field('Matches', seg([[1, 'Best of 1'], [3, 'Best of 3']], choice.bo, (v) => { choice.bo = v; }, 'Match length', 'tn-bo')),
+        field('Rounds', el('div', { class: 'tn-roundbox' }, [roundSeg, roundsHint])),
+        el('div', { class: 'tn-field' }, [el('div', { class: 'tn-label', text: 'Invite' }), count, list]),
+      ]),
+    });
+    m.button('Cancel', (mm) => mm.close(), 'ghost');
+    const go = m.button('Send invites', () => send(), 'primary');
+    function paint() {
+      const n = choice.picked.size + 1;
+      count.textContent = `${n} player${n === 1 ? '' : 's'}, you included · ${T.MIN_PLAYERS} to ${T.MAX_PLAYERS}`;
+      count.classList.toggle('bad', n < T.MIN_PLAYERS);
+      roundsHint.textContent = choice.rounds ? `${choice.rounds} round${choice.rounds === 1 ? '' : 's'}, whoever comes.`
+        : `As many as suit the players who come: ${T.defaultRounds(Math.max(T.MIN_PLAYERS, n))} for ${Math.max(T.MIN_PLAYERS, n)}.`;
+      go.disabled = n < T.MIN_PLAYERS;
+      for (const b of list.querySelectorAll('input[type=checkbox]')) b.disabled = !b.checked && n >= T.MAX_PLAYERS;
+    }
+    for (const f of friends) {
+      const box = el('input', { type: 'checkbox', id: 'tn-f-' + f.code, 'aria-label': `Invite ${f.name || F.formatCode(f.code)}` });
+      box.addEventListener('change', () => { if (box.checked) choice.picked.add(f.code); else choice.picked.delete(f.code); paint(); });
+      list.appendChild(el('label', { class: 'fr-row tn-friend p-' + f.presence, for: 'tn-f-' + f.code }, [
+        face(f.code, f.name),
+        el('div', { class: 'fr-who' }, [
+          el('div', { class: 'fr-name', text: f.name || F.formatCode(f.code) }),
+          el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }), el('span', { text: f.online ? 'Online' : 'Offline · invited when they are back' })]),
+        ]),
+        box,
+      ]));
+    }
+    paint();
+    function send() {
+      const t = T.create({ name: name.value, fmt: choice.fmt, bo: choice.bo, rounds: choice.rounds, invite: [...choice.picked] });
+      if (t.why) { MTG.sfx('reject'); UI.error(t.why); return; }
+      MTG.setSetting('tourneyLast', { fmt: choice.fmt, bo: choice.bo });
+      MTG.sfx('confirm');
+      m.close();
+      UI.ok(`Invites sent. Start ${t.name} once enough of them are in.`);
+      UI.openTourney(t.id);
+    }
+    return m;
+  }
+
+  /* ---------------- a tournament's window ---------------- */
+  let tw = null;
+  /** The tournament window open on `id`, if it is. */
+  const windowFor = (id) => (tw && tw.id === id ? tw : null);
+  UI.openTourney = function (id) {
+    if (!T.get(id)) { UI.error('That tournament is no longer on your list.'); return null; }
+    if (tw && tw.id === id) { tw.draw(); return tw.m; }
+    if (tw) tw.m.close();
+    const status = el('div', { class: 'tn-status', 'aria-live': 'polite' });
+    const body = el('div', { class: 'tn-body' });
+    const m = UI.modal({ title: T.get(id).name, className: 'friends-modal tn-modal', width: 'min(860px, 96vw)', content: el('div', { class: 'tn-wrap' }, [status, body]) });
+    const w = tw = { id, m, round: 0, draw };
+    let queued = false;
+    const soon = () => { if (queued) return; queued = true; setTimeout(() => { queued = false; if (tw === w) draw(); }, 30); };
+    const offs = [T.on('change', (x) => { if (!x || x.id === id) soon(); })];
+    m._onClose = () => { offs.forEach(f => f()); if (tw === w) tw = null; };
+
+    function draw() {
+      const t = T.get(id);
+      m.foot.innerHTML = '';
+      if (!t) {
+        status.textContent = 'This tournament is no longer on your list.';
+        body.innerHTML = '';
+        m.button('Close', (mm) => mm.close(), 'primary');
+        return;
+      }
+      m.setTitle(t.name);
+      const me = meIn(t);
+      const org = t.role === 'org';
+      status.className = 'tn-status st-' + t.state + (todo(t) ? ' want' : '');
+      status.textContent = statusText(t);
+      body.innerHTML = '';
+      body.appendChild(el('div', { class: 'tn-facts' }, [
+        el('span', { class: 'pill', text: fmtName(t.fmt) }),
+        el('span', { class: 'pill', text: `Best of ${t.bo}` }),
+        el('span', { class: 'pill', text: t.rounds ? `${t.rounds} round${t.rounds === 1 ? '' : 's'}` : 'Rounds: to suit the players' }),
+        el('span', { class: 'tn-by', text: org ? 'You run it' : `Run by ${orgName(t)}` }),
+      ]));
+      if (t.state === 'inviting') body.appendChild(playersPanel(t));
+      if (t.state === 'running' && me) body.appendChild(matchPanel(t));
+      if (t.state === 'done') body.appendChild(winnerPanel(t));
+      if (t.rnds.length) body.appendChild(roundPanel(t, w));
+      if (t.rnds.length) body.appendChild(standingsPanel(t));
+      // the buttons along the foot
+      const over = T.isOver(t);
+      if (org && t.state === 'inviting') {
+        m.button('Call it off', () => callOff(t), 'ghost danger-ghost');
+        const ins = t.players.filter(p => p.st === 'in').length;
+        const go = m.button(`Start with ${ins}`, () => {
+          const why = T.start(t.id);
+          if (why) { MTG.sfx('reject'); UI.error(why); } else MTG.sfx('confirm');
+        }, 'primary');
+        go.disabled = ins < T.MIN_PLAYERS;
+        if (go.disabled) go.title = `It needs ${T.MIN_PLAYERS} players, you included.`;
+      } else if (T.isInvite(t)) {
+        m.button('No thanks', (mm) => { T.answer(t.id, false); mm.close(); }, 'ghost');
+        m.button('Join', () => T.answer(t.id, true), 'primary');
+      } else if (!over) {
+        if (org) m.button('Call it off', () => callOff(t), 'ghost danger-ghost');
+        if (me && me.st === 'in') m.button(t.state === 'inviting' ? 'Leave' : 'Drop out', () => dropOut(t), 'ghost');
+        m.button('Close', (mm) => mm.close(), 'primary');
+      } else {
+        m.button('Remove from list', async (mm) => {
+          if (await UI.confirm(`Take ${t.name} off your list? Its standings go with it.`, 'Remove a tournament', { yes: 'Remove' })) { T.forget(t.id); mm.close(); }
+        }, 'ghost');
+        m.button('Close', (mm) => mm.close(), 'primary');
+      }
+    }
+    draw();
+    return m;
+  };
+  function statusText(t) {
+    const me = meIn(t);
+    if (t.state === 'inviting') {
+      if (T.isInvite(t)) return `${orgName(t)} invites you. Join, and you are paired once ${orgName(t)} starts it.`;
+      if (t.role === 'org') {
+        const ins = t.players.filter(p => p.st === 'in').length;
+        return ins < T.MIN_PLAYERS ? `Waiting for answers. It can start once ${T.MIN_PLAYERS} of you are in; ${ins} ${ins === 1 ? 'is' : 'are'} so far.`
+          : `${ins} players are in. Start whenever you like: whoever has not answered is left out.`;
+      }
+      return `You are in. Round one is paired when ${orgName(t)} starts it.`;
+    }
+    if (t.state === 'cancelled') return `${t.role === 'org' ? 'You' : orgName(t)} called it off.`;
+    if (t.state === 'done') {
+      const st = T.standings(t);
+      const mine = me && st.find(r => isMe(r.code));
+      return mine ? `It is over. You came ${ordinal(mine.rank)} of ${st.length}.` : 'It is over.';
+    }
+    const left = t.rnds.length ? t.rnds[t.rnds.length - 1].pairs.filter(p => !p.res).length : 0;
+    return `Round ${t.rnds.length} of ${t.rounds}. ` + (left ? `${left} match${left === 1 ? '' : 'es'} still to finish.` : 'All results are in.');
+  }
+  async function callOff(t) {
+    if (!await UI.confirm(`Call off ${t.name}? Everyone is told, and the standings stop where they are.`, 'Call it off', { yes: 'Call it off' })) return;
+    T.cancel(t.id);
+  }
+  async function dropOut(t) {
+    const q = t.state === 'inviting' ? `Leave ${t.name}? ${orgName(t)} is told.`
+      : t.role === 'org' ? `Stop playing in ${t.name}? You go on running it; a match of yours not yet finished goes to your opponent.`
+        : `Drop out of ${t.name}? You are not paired again, and a match of yours not yet finished goes to your opponent.`;
+    if (!await UI.confirm(q, 'Drop out', { yes: t.state === 'inviting' ? 'Leave' : 'Drop out' })) return;
+    T.leave(t.id);
+  }
+
+  /** Before it starts: who is in, who has not answered. */
+  function playersPanel(t) {
+    const org = t.role === 'org';
+    const word = { in: 'In', invited: 'Not answered yet', declined: 'Said no', dropped: 'Left' };
+    const rows = t.players.slice().sort((a, b) => (a.st === 'in' ? 0 : 1) - (b.st === 'in' ? 0 : 1)).map(p => el('div', { class: 'fr-row tn-player p-' + (p.st === 'in' ? 'online' : 'offline') }, [
+      face(p.code, p.name),
+      el('div', { class: 'fr-who' }, [
+        el('div', { class: 'fr-name', text: p.name + (isMe(p.code) ? ' (you)' : '') }),
+        el('div', { class: 'fr-pres' }, [el('i', { class: 'fr-dot', 'aria-hidden': 'true' }), el('span', { text: word[p.st] || '' })]),
+      ]),
+      el('div', { class: 'fr-acts' }, org && !isMe(p.code) && (p.st === 'in' || p.st === 'invited')
+        ? [el('button', { type: 'button', class: 'btn sm ghost', text: 'Take off', onclick: () => T.drop(t.id, p.code) })] : []),
+    ]));
+    return el('section', { class: 'tn-panel' }, [el('h3', { class: 'fr-h', text: 'Players' }), el('div', { class: 'fr-rows' }, rows)]);
+  }
+
+  /** Your match this round: who, where, and what is left to do. */
+  function matchPanel(t) {
+    const me = meIn(t);
+    const mm = T.myMatch(t);
+    const box = el('section', { class: 'tn-match' });
+    if (me.st === 'dropped') {
+      box.append(el('b', { text: 'You dropped out.' }), el('p', { class: 'small muted', text: 'You are not paired again; the standings carry on without you.' }));
+      return box;
+    }
+    if (!mm) return box;
+    box.appendChild(el('div', { class: 'eyebrow', text: mm.bye ? `Round ${mm.r}` : `Round ${mm.r} · table ${mm.pair.t}` }));
+    if (mm.bye) {
+      box.append(el('b', { class: 'tn-vs', text: 'A bye' }), el('p', { class: 'small muted', text: 'It counts as a match won 2–0. Sit this one out; the next round is paired once every result is in.' }));
+      return box;
+    }
+    box.appendChild(el('div', { class: 'tn-vs' }, [face(mm.opp, mm.oppName, 'sm'), el('b', { text: `You play ${mm.oppName}` })]));
+    const lines = [];
+    if (mm.res) lines.push(`Settled: ${outcome({ w: mm.res.a, l: mm.res.b, d: mm.res.d })}.`);
+    else {
+      if (mm.mine && mm.theirs && (mm.mine.a !== mm.theirs.a || mm.mine.b !== mm.theirs.b || mm.mine.d !== mm.theirs.d)) {
+        lines.push(`Your reports disagree: you said ${outcome({ w: mm.mine.a, l: mm.mine.b, d: mm.mine.d })}, ${mm.oppName} said ${outcome({ w: mm.theirs.a, l: mm.theirs.b, d: mm.theirs.d })}. ${t.role === 'org' ? 'Set the result below.' : orgName(t) + ' decides.'}`);
+      } else if (mm.mine) lines.push(`You reported ${outcome({ w: mm.mine.a, l: mm.mine.b, d: mm.mine.d })}${mm.pending ? ', to be sent when ' + orgName(t) + ' is online' : ''}. Waiting for ${mm.oppName} to report it too.`);
+      else if (mm.theirs) lines.push(`${mm.oppName} reported ${outcome({ w: mm.theirs.a, l: mm.theirs.b, d: mm.theirs.d })}. Report it too, and the two settle it.`);
+      if (!mm.mine) {
+        lines.push(mm.room ? (mm.host ? `Your table is room ${mm.room}. ${mm.oppName} joins it from their note or this window.` : `${mm.oppName}’s table is open: room ${mm.room}.`)
+          : mm.host ? `You open the table, and ${mm.oppName} is told its room.` : `${mm.oppName} opens the table; you are told when it is open.`);
+        lines.push('When the match is over, the result goes in by itself. If it ended another way (a concession, a lost connection), report it.');
+      }
+    }
+    for (const l of lines) box.appendChild(el('p', { class: 'small tn-line', text: l }));
+    const acts = el('div', { class: 'tn-acts' });
+    if (!mm.res) {
+      if (!mm.mine) {
+        if (mm.room && !mm.host) acts.appendChild(el('button', { type: 'button', class: 'btn primary', text: 'Join the table', onclick: () => joinMatch(t, mm) }));
+        if (mm.host) acts.appendChild(el('button', { type: 'button', class: 'btn' + (mm.room ? '' : ' primary'), text: mm.room ? 'Open it again' : 'Open the table', onclick: () => hostMatch(t, mm) }));
+        else if (!mm.room) acts.appendChild(el('button', { type: 'button', class: 'btn ghost', text: 'Open it yourself', title: `If ${mm.oppName} cannot, you can host instead`, onclick: () => hostMatch(t, mm) }));
+      }
+      acts.appendChild(el('button', { type: 'button', class: 'btn' + (mm.theirs && !mm.mine ? ' primary' : ' ghost'), text: mm.mine ? 'Change my report' : 'Report the result',
+        onclick: () => resultPicker(t, mm.r, mm.pair, false) }));
+    }
+    if (acts.children.length) box.appendChild(acts);
+    return box;
+  }
+
+  /** The winner, at the end. */
+  function winnerPanel(t) {
+    const st = T.standings(t);
+    const top = st[0];
+    if (!top) return el('div');
+    return el('section', { class: 'tn-winner' }, [
+      el('span', { class: 'tn-cup', html: SVG.cup }),
+      el('div', null, [
+        el('div', { class: 'eyebrow', text: 'Winner' }),
+        el('b', { text: top.name + (isMe(top.code) ? ' (you)' : '') }),
+        el('div', { class: 'small muted', text: `${top.mp} points · ${top.w}–${top.l}${top.d ? '–' + top.d : ''} in matches` }),
+      ]),
+    ]);
+  }
+
+  /** A round's pairings, any round looked back at; the organiser sets results from here. */
+  function roundPanel(t, w) {
+    const n = t.rnds.length;
+    if (!w.round || w.round > n || (w.lastRounds && w.lastRounds !== n)) w.round = n;
+    w.lastRounds = n;
+    const org = t.role === 'org' && t.state === 'running';
+    const r = w.round;
+    const rows = t.rnds[r - 1].pairs.map((p) => {
+      const nameA = T.nameOf(t, p.a), nameB = p.b ? T.nameOf(t, p.b) : '';
+      let state = '', cls = '';
+      if (!p.b) { state = 'bye'; cls = 'bye'; }
+      else if (p.res) { state = score(p.res.a, p.res.b, p.res.d) + (p.by === 'org' ? ' · set by the organiser' : p.by === 'drop' ? ' · a drop' : ''); cls = 'done'; }
+      else if (T.disputed(p)) { state = 'reports disagree'; cls = 'dispute'; }
+      else if (p.rep[p.a] || p.rep[p.b]) { state = 'one report in'; cls = 'half'; }
+      else { state = p.room ? `playing · room ${p.room}` : 'to play'; }
+      const mine = isMe(p.a) || isMe(p.b);
+      return el('div', { class: 'tn-pair ' + cls + (mine ? ' mine' : '') }, [
+        el('span', { class: 'tn-table', text: p.b ? String(p.t) : '–', title: p.b ? `Table ${p.t}` : 'A bye' }),
+        el('div', { class: 'tn-names' }, [
+          el('span', { class: 'tn-a', text: nameA }),
+          p.b ? el('span', { class: 'tn-v', text: 'v' }) : null,
+          p.b ? el('span', { class: 'tn-b', text: nameB }) : null,
+        ].filter(Boolean)),
+        el('span', { class: 'tn-state', text: state }),
+        org && p.b && r === n ? el('button', { type: 'button', class: 'btn xs' + (cls === 'dispute' || cls === 'half' ? ' primary' : ' ghost'), text: p.res ? 'Change' : 'Set result',
+          onclick: () => resultPicker(t, r, p, true) }) : null,
+      ].filter(Boolean));
+    });
+    const head = el('div', { class: 'tn-head' }, [el('h3', { class: 'fr-h', text: 'Pairings' })]);
+    if (n > 1) head.appendChild(seg(t.rnds.map((x, i) => [i + 1, `Round ${i + 1}`]), r, (v) => { w.round = v; w.draw(); }, 'Round', 'tn-roundtabs'));
+    return el('section', { class: 'tn-panel' }, [head, el('div', { class: 'tn-pairs' }, rows)]);
+  }
+
+  /** The standings: points, then the tiebreakers. */
+  function standingsPanel(t) {
+    const st = T.standings(t);
+    const org = t.role === 'org' && t.state === 'running';
+    const anyPlayed = st.some(r => r.rounds);
+    const head = el('div', { class: 'tn-st-row tn-st-head', role: 'row' }, [
+      el('span', { class: 'c-rank', role: 'columnheader', text: '#' }),
+      el('span', { class: 'c-name', role: 'columnheader', text: 'Player' }),
+      el('span', { class: 'c-pts', role: 'columnheader', text: 'Pts', title: 'Match points: 3 a win, 1 a draw' }),
+      el('span', { class: 'c-rec', role: 'columnheader', text: 'W–L–D', title: 'Matches won, lost and drawn' }),
+      el('span', { class: 'c-omw', role: 'columnheader', text: 'OMW', title: 'Opponents’ match-win percentage: the first tiebreaker' }),
+      el('span', { class: 'c-gw', role: 'columnheader', text: 'GW', title: 'Game-win percentage: the second tiebreaker' }),
+      el('span', { class: 'c-ogw', role: 'columnheader', text: 'OGW', title: 'Opponents’ game-win percentage: the third tiebreaker' }),
+    ]);
+    const rows = st.map(r => el('div', { class: 'tn-st-row' + (isMe(r.code) ? ' me' : '') + (r.st === 'dropped' ? ' dropped' : ''), role: 'row' }, [
+      el('span', { class: 'c-rank', role: 'cell', text: String(r.rank) }),
+      el('span', { class: 'c-name', role: 'cell' }, [
+        el('span', { class: 'tn-pname', text: r.name + (isMe(r.code) ? ' (you)' : '') }),
+        r.st === 'dropped' ? el('span', { class: 'tn-tag', text: 'dropped' }) : null,
+        org && r.st === 'in' && !isMe(r.code) ? el('button', { type: 'button', class: 'btn xs ghost tn-drop', text: 'Drop', 'aria-label': `Drop ${r.name}`,
+          onclick: async () => { if (await UI.confirm(`Drop ${r.name}? They are not paired again, and a match of theirs not yet finished goes to their opponent.`, 'Drop a player', { yes: 'Drop' })) T.drop(t.id, r.code); } }) : null,
+      ].filter(Boolean)),
+      el('span', { class: 'c-pts', role: 'cell', text: String(r.mp) }),
+      el('span', { class: 'c-rec', role: 'cell', text: `${r.w}–${r.l}–${r.d}` }),
+      el('span', { class: 'c-omw', role: 'cell', text: r.opps.length ? pct(r.omw) : '—' }),
+      el('span', { class: 'c-gw', role: 'cell', text: r.rounds ? pct(r.gwp) : '—' }),
+      el('span', { class: 'c-ogw', role: 'cell', text: r.opps.length ? pct(r.ogw) : '—' }),
+    ]));
+    return el('section', { class: 'tn-panel' }, [
+      el('h3', { class: 'fr-h', text: t.state === 'done' ? 'Final standings' : 'Standings' }),
+      el('div', { class: 'tn-stand', role: 'table', 'aria-label': 'Standings' }, [head].concat(rows)),
+      anyPlayed ? el('p', { class: 'tiny dim tn-why', text: 'Level on points, the higher OMW% (how well your opponents did) goes first, then GW%, then OGW%; none counts below 33%.' }) : null,
+    ].filter(Boolean));
+  }
+
+  /* ---------------- a result, by hand ---------------- */
+  /**
+   * Pick a match's result: a player says how their own match went (from
+   * their side); the organiser sets any match (by name).
+   */
+  function resultPicker(t, r, pair, asOrg) {
+    const me = T.me();
+    const flipIt = !asOrg && pair.b === me;              // a player's side first
+    const left = asOrg ? T.nameOf(t, pair.a) : 'You';
+    const right = asOrg ? T.nameOf(t, pair.b) : T.nameOf(t, pair.a === me ? pair.b : pair.a);
+    const n = T.need(t.bo);
+    // nothing chosen until something is: a draw of no games is a result too, but not one to send by accident
+    const v = { a: 0, b: 0, d: 0, set: false };
+    const quick = t.bo === 1 ? [[1, 0, 0], [0, 1, 0], [0, 0, 1]] : [[2, 0, 0], [2, 1, 0], [1, 2, 0], [0, 2, 0], [1, 1, 1]];
+    const label = (q) => (q[0] > q[1] ? `${asOrg ? left + ' wins' : 'I won'} ${score(q[0], q[1], q[2])}`
+      : q[1] > q[0] ? `${asOrg ? right + ' wins' : 'I lost'} ${score(q[0], q[1], q[2])}` : `Drawn ${score(q[0], q[1], q[2])}`);
+    const chips = el('div', { class: 'tn-quick' });
+    const said = el('p', { class: 'small tn-said', 'aria-live': 'polite' });
+    const steppers = el('div', { class: 'tn-steps' });
+    const draw = () => {
+      chips.innerHTML = '';
+      for (const q of quick) {
+        const on = v.set && v.a === q[0] && v.b === q[1] && v.d === q[2];
+        chips.appendChild(el('button', { type: 'button', class: 'chip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false', text: label(q),
+          onclick: () => { v.a = q[0]; v.b = q[1]; v.d = q[2]; v.set = true; draw(); } }));
+      }
+      steppers.innerHTML = '';
+      for (const [k, who, max] of [['a', asOrg ? `${left}’s games` : 'Your games', n], ['b', `${right}’s games`, n], ['d', 'Drawn games', t.bo]]) {
+        steppers.appendChild(el('div', { class: 'tn-step' }, [
+          el('span', { class: 'tn-step-l', text: who }),
+          el('button', { type: 'button', class: 'btn xs', text: '−', 'aria-label': `One fewer: ${who}`, disabled: v[k] <= 0, onclick: () => { v[k]--; v.set = true; draw(); } }),
+          el('b', { class: 'tn-step-n', text: String(v[k]) }),
+          el('button', { type: 'button', class: 'btn xs', text: '+', 'aria-label': `One more: ${who}`, disabled: v[k] >= max, onclick: () => { v[k]++; v.set = true; draw(); } }),
+        ]));
+      }
+      const ok = v.set && !!T.cleanResult(v, t.bo);
+      said.textContent = !v.set ? 'Pick how it ended.' : ok ? (v.a > v.b ? `${asOrg ? left + ' wins' : 'You won'} ${score(v.a, v.b, v.d)}.` : v.b > v.a ? `${asOrg ? right + ' wins' : 'You lost'} ${score(v.a, v.b, v.d)}.` : `A draw, ${score(v.a, v.b, v.d)}.`)
+        : `A best-of-${t.bo} match cannot end ${score(v.a, v.b, v.d)}.`;
+      said.classList.toggle('bad', v.set && !ok);
+      if (sendBtn) sendBtn.disabled = !ok;
+    };
+    const m = UI.modal({
+      title: asOrg ? `Table ${pair.t}: ${left} v ${right}` : `Your match against ${right}`, className: 'friends-modal tn-pick', width: 'min(520px, 96vw)',
+      content: el('div', { class: 'tn-pickbody' }, [
+        el('p', { class: 'small muted', style: { marginTop: 0 }, text: asOrg ? 'Set the result. It counts as it is, whatever the players reported.'
+          : `Say how it went. If ${right} says the same, it is settled; if not, ${t.role === 'org' ? 'you decide as the organiser' : orgName(t) + ' decides'}.` }),
+        chips, el('div', { class: 'tn-or tiny dim', text: 'Or game by game:' }), steppers, said,
+      ]),
+    });
+    m.button('Cancel', (mm) => mm.close(), 'ghost');
+    const sendBtn = m.button(asOrg ? 'Set result' : 'Send', () => {
+      if (!v.set || !T.cleanResult(v, t.bo)) return;
+      if (asOrg) {
+        const why = T.setResult(t.id, r, pair.t, { a: v.a, b: v.b, d: v.d });
+        if (why) { UI.error(why); return; }
+      } else {
+        const got = T.report(t.id, r, pair.t, v.a, v.b, v.d, false);
+        if (got.why) { UI.error(got.why); return; }
+        UI.ok(got.sent ? 'Result sent.' : `Result kept: it goes to ${orgName(t)} when they are online.`);
+      }
+      MTG.sfx('confirm');
+      m.close();
+    }, 'primary');
+    // what was reported already, to start from
+    const had = asOrg ? (pair.res || (T.disputed(pair) ? null : pair.rep[pair.a] || pair.rep[pair.b])) : (pair.rep[me] ? (flipIt ? { a: pair.rep[me].b, b: pair.rep[me].a, d: pair.rep[me].d } : pair.rep[me]) : null);
+    if (had) Object.assign(v, { a: had.a, b: had.b, d: had.d, set: true });
+    draw();
+    return m;
+  }
+
+  /* ---------------- to the table ---------------- */
+  function closeWindows() {
+    if (tw) tw.m.close();
+    if (UI.closeFriends) UI.closeFriends();
+  }
+  async function hostMatch(t, mm) {
+    const app = A();
+    if (!app.hostTableFor) return UI.error('A table cannot be opened from here.');
+    if (net.peerAvailable && !net.peerAvailable()) return UI.error('The connection library did not load, so no table can be opened.');
+    if (UI.leaveTableFirst && !await UI.leaveTableFirst({ question: `Leave this table to open your match against ${mm.oppName}?`, title: 'Your tournament match', yes: 'Leave and open it' })) return;
+    if (UI.haveName && !await UI.haveName()) return;
+    closeWindows();
+    const room = await app.hostTableFor({
+      formatId: t.fmt, rules: { bestOf: t.bo },
+      mode: { tourney: { id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName } },
+    });
+    if (!room) return;
+    // the round may have moved on while the room was opening (the organiser set the result)
+    if (T.roomOpened(t.id, mm.r, mm.pair.t, room)) UI.ok(`Room ${room} is open. ${mm.oppName} is told.`);
+    else UI.toast(`Room ${room} is open, but that match is no longer waiting to be played.`, '', 5000);
+  }
+  function joinMatch(t, mm) {
+    if (!mm.room) return;
+    closeWindows();
+    if (UI.joinFriendRoom) UI.joinFriendRoom(mm.room, mm.oppName);
+    else if (A().joinRoom) A().joinRoom(mm.room);
+  }
+
+  /** In the lobby of a tournament's match: which match, and that its result goes in by itself. */
+  UI.tourneyLobbyNote = function (info) {
+    const t = info && T.get(info.id);
+    if (!t) return null;
+    const opp = info.opp || 'your opponent';
+    const what = info.guest ? `Choose your deck; ${opp} starts the match once you both have.`
+      : `Choose your deck; once ${opp} has joined and chosen theirs, start.`;
+    return el('section', { class: 'panel tn-lobby' }, [
+      el('div', { class: 'eyebrow', text: 'Tournament match' }),
+      el('b', { text: `${t.name} · round ${info.r}` }),
+      el('p', { class: 'small muted', text: `Against ${opp}, best of ${t.bo}. ${what} The result goes to ${t.role === 'org' ? 'the standings' : orgName(t)} by itself when the match is over.` }),
+    ]);
+  };
+  /** The same, in a guest's lobby: found by the room joined, if it is a tournament match's. */
+  UI.tourneyRoomNote = function (room) {
+    for (const t of T.active()) {
+      const mm = t.state === 'running' ? T.myMatch(t) : null;
+      if (mm && !mm.bye && !mm.res && room && mm.room === room) return UI.tourneyLobbyNote({ id: t.id, r: mm.r, t: mm.pair.t, opp: mm.oppName, guest: true });
+    }
+    return null;
+  };
+
+  /* ---------------- notes ---------------- */
+  const note = (o) => (UI.socialNote ? UI.socialNote(o) : null);
+  T.on('change', () => { if (UI.socialChanged) UI.socialChanged(); });
+  T.on('invite', (t) => {
+    note({
+      key: 'tn-' + t.id, face: face(t.org, orgName(t), 'sm'), title: `${orgName(t)} invites you to a tournament`,
+      text: `${t.name} · ${fmtName(t.fmt)}, best of ${t.bo}`, life: 60000,
+      buttons: [
+        { label: 'Not now', cls: 'ghost', fn: () => {} },
+        { label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) },
+      ],
+    });
+  });
+  T.on('paired', (t, p, r) => {
+    if (windowFor(t.id)) return;
+    const mm = T.myMatch(t);
+    if (!mm) return;
+    note({
+      key: 'tn-' + t.id, face: mm.bye ? null : face(mm.opp, mm.oppName, 'sm'),
+      title: mm.bye ? `${t.name}, round ${r}: a bye` : `${t.name}, round ${r}: you play ${mm.oppName}`,
+      text: mm.bye ? 'It counts as a match won 2–0.' : mm.host ? 'You open the table.' : `${mm.oppName} opens the table; you are told when it is open.`, life: 45000,
+      buttons: mm.bye ? [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }]
+        : mm.host ? [{ label: 'Later', cls: 'ghost', fn: () => {} }, { label: 'Open the table', cls: 'primary', fn: () => { const now = T.get(t.id); const m2 = now && T.myMatch(now); if (m2 && !m2.res) hostMatch(now, m2); } }]
+          : [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }],
+    });
+  });
+  T.on('room', (t, p, room) => {
+    const mm = T.myMatch(t);
+    if (!mm || mm.bye || mm.res || mm.host) return;
+    // the same key as a friend's own invite to that room, so there is one note, not two
+    note({
+      key: 'inv-' + mm.opp, face: face(mm.opp, mm.oppName, 'sm'), title: `${mm.oppName}’s table is open`,
+      text: `${t.name}, round ${mm.r} · room ${room}`, life: 60000,
+      buttons: [
+        { label: 'Not now', cls: 'ghost', fn: () => {} },
+        { label: 'Join', cls: 'primary', fn: () => joinMatch(t, Object.assign({}, mm, { room })) },
+      ],
+    });
+  });
+  T.on('settled', (t, p) => {
+    const mm = T.myMatch(t);
+    if (mm && mm.res) UI.toast(`${t.name}: your match is settled, ${outcome({ w: mm.res.a, l: mm.res.b, d: mm.res.d })}.`, 'ok', 4200);
+  });
+  T.on('reported', (t, p, mine, auto) => {
+    if (!auto) return;
+    const said = outcome({ w: mine.a, l: mine.b, d: mine.d });
+    UI.toast(`${t.name}: ${said[0].toUpperCase() + said.slice(1)}. ${t.role === 'org' ? 'It is in the standings once your opponent agrees.' : 'The result is sent to ' + orgName(t) + '.'}`, 'ok', 5000);
+  });
+  T.on('dispute', (t, p, r) => {
+    if (windowFor(t.id)) return;
+    note({
+      key: 'tn-d-' + t.id, face: null, title: `${t.name}: results disagree at table ${p.t}`,
+      text: `${T.nameOf(t, p.a)} and ${T.nameOf(t, p.b)} reported different results. Set the one that counts.`, life: 60000,
+      buttons: [{ label: 'Open', cls: 'primary', fn: () => UI.openTourney(t.id) }],
+    });
+  });
+  T.on('finished', (t) => {
+    const st = T.standings(t);
+    const mine = st.find(r => isMe(r.code));
+    note({
+      key: 'tn-' + t.id, face: null, title: `${t.name} is over`,
+      text: mine ? `You came ${ordinal(mine.rank)} of ${st.length}.` + (mine.rank === 1 ? ' Well played!' : '') : `Won by ${st[0] ? st[0].name : 'nobody'}.`, life: 45000,
+      buttons: [{ label: 'Standings', cls: 'primary', fn: () => UI.openTourney(t.id) }],
+    });
+    if (mine && mine.rank === 1) MTG.sfx('confirm');
+  });
+  T.on('cancelled', (t) => UI.toast(`${orgName(t)} called off ${t.name}.`, '', 4200));
+  T.on('removed', (t, why) => UI.toast(why, '', 4200));
+
+  /* ---------------- the table, watched for a match's end ---------------- */
+  /** Look at a view as it arrives: a tournament match decided at this table is reported, once. */
+  function seeView(table, v) {
+    if (!v || !v.over || !net.online || !net.roomCode) return;
+    const key = (v.game || '') + ':' + ((v.match && v.match.gameNumber) || 0);
+    if (table._tourneySeen === key) return;
+    const res = T.resultFromView(v, table.meId);
+    if (!res) return;
+    table._tourneySeen = key;
+    T.gameOver(net.roomCode, res);
+  }
+  function watchTables() {
+    const Table = UI.Table;
+    if (!Table || Table.prototype._tourneyWatched) return;
+    const base = Table.prototype.update;
+    Table.prototype.update = function (view) {
+      try { seeView(this, view); } catch (e) { console.warn('[tourney]', e); }
+      return base.apply(this, arguments);
+    };
+    Table.prototype._tourneyWatched = true;
+  }
+  MTG.bus.on('app:ready', watchTables);
+  // what tools/tournamenttest.js drives directly
+  UI.tourneySeeView = seeView;
 })(window.MTG);
 /* ===== 11-ui-deck.js ===== */
 /* ============================================================
@@ -86432,7 +88262,9 @@ Sideboard
 
   /* opts (all optional): build, a builder in place of autoBuildLimited (a
      sealed pool's, MTG.sealed.buildDeck); basicsFree, false when the table
-     plays without free basic lands; note, the line over the list. */
+     plays without free basic lands; note, the line over the list. Resolves
+     the builder's window, so a guest's can be put away if the host starts
+     the game without waiting for it (src/14-app.js). */
   UI.buildFromPool = async function (pool, formatId, onDone, opts) {
     opts = opts || {};
     const fmt = MTG.formats.get(formatId);
@@ -86474,7 +88306,7 @@ Sideboard
     const stamp = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     deck.name = `${fmt.name} \u2014 ${stamp}`;
 
-    UI.deckBuilder(deck, {
+    return UI.deckBuilder(deck, {
       drafted: true, basicsFree: opts.basicsFree, poolNote: opts.note,
       finish: { label: 'Play with this deck', onClick: async (d) => {
         const ready = await UI.draftPregame(d, pool);
@@ -90780,6 +92612,29 @@ Sideboard
   }
   App.joinRoom = joinRoom;
 
+  /**
+   * A table set up for a friends tournament's match (src/10i-ui-tourney.js):
+   * the format and house rules it plays by, `mode` to say which match it
+   * is, and a room opened at once for the other player to join. Resolves
+   * the room's code, or null if no room could be opened (the lobby stays,
+   * to open one by hand).
+   */
+  App.hostTableFor = async function (o) {
+    App.formatId = o.formatId;
+    const sess = App.session = new Session(o.formatId, o.rules || null);
+    sess.mode = o.mode || null;
+    sess.addLocalHost(App.myName);
+    showScreen('lobby');
+    renderLobby();
+    const busy = UI.busy('Opening a room');
+    try { await net.host(); }
+    catch (e) { busy.close(); UI.error(e.message || String(e)); return null; }
+    busy.close();
+    setNetBadge();
+    if (App.session === sess && App.screen === 'lobby') renderLobby();
+    return net.roomCode;
+  };
+
   function renderLobby() {
     const s = screens.lobby;
     const sess = App.session;
@@ -90840,6 +92695,10 @@ Sideboard
     if (sess.roster.length < fmt.maxPlayers) grid.appendChild(addBotCard(sess, fmt));
     seats.appendChild(grid);
     main.appendChild(seats);
+
+    // a friends tournament's match: which one, and that its result is sent by itself
+    const tourneyNote = sess.mode && sess.mode.tourney && UI.tourneyLobbyNote ? UI.tourneyLobbyNote(sess.mode.tourney) : null;
+    if (tourneyNote) side.appendChild(tourneyNote);
 
     /* -- start: the biggest button on the screen -- */
     const ready = sess.readyToStart();
@@ -91615,7 +93474,11 @@ Sideboard
       ]),
     ]);
     App.clientLobbyBox = el('div', { class: 'panel seats-panel' }, el('div', { class: 'empty-note', text: 'Connected. Waiting for the host…' }));
-    inner.append(App.clientBanner, App.clientLobbyBox);
+    inner.append(App.clientBanner);
+    // a friends tournament's match: which one (src/10i-ui-tourney.js)
+    const tourneyNote = UI.tourneyRoomNote ? UI.tourneyRoomNote(net.roomCode) : null;
+    if (tourneyNote) inner.appendChild(tourneyNote);
+    inner.appendChild(App.clientLobbyBox);
     if (UI.lobbyInvites) inner.appendChild(UI.lobbyInvites({ guest: true }));
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
   }
@@ -91744,6 +93607,9 @@ Sideboard
       draftExiled: (w.dex || []).map(x => ({ card: byId.get(x.id), with: x.with })).filter(x => x.card),
     };
   }
+
+  /* After an online draft, the longest the game waits for someone still building their deck. */
+  const DRAFT_BUILD_WAIT = 5 * 60 * 1000;
 
   /* Rule changes that mean a bot's deck is the wrong shape now. */
   const DECK_SHAPING = ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'colorIdentity', 'commanderDamage', 'bracket'];
@@ -92114,20 +93980,12 @@ Sideboard
         const seat = this.draft.seats.find(s => s.id === r.id);
         if (!seat) continue;
         r.pool = seat.pool;
-        if (r.kind === 'bot') {
-          r.deck = MTG.draft.autoBuildLimited(seat.pool, {
-            deckSize: this.fmt.deckMin || 40, basicCards: basics, formatId: this.formatId, name: r.name + "'s deck",
-          });
-          if (this.fmt.commander) {
-            const legends = seat.pool.filter(c => MTG.formats.canBeCommander(c, this.fmt));
-            if (legends.length) {
-              r.deck.commanders = [legends[0]];
-              r.deck.main = r.deck.main.filter(e => e.card.id !== legends[0].id);
-            }
-          }
-        }
+        // a deck a guest sent before the draft (the table was another format then) is not the one they will play
+        if (r.kind === 'remote') { r.deck = null; r.deckValid = null; }
+        if (r.kind === 'bot') r.deck = this.deckFromPool(r, basics);
       }
       const me = this.seat('me');
+      if (!me) { this.startAfterBuilds(); return; }
       App.keepDrafted(me.pool);
       UI.buildFromPool(me.pool, this.formatId, (deck) => {
         me.deck = deck;
@@ -92137,12 +93995,66 @@ Sideboard
           this.mode.idx = 0;
           this.roster = [me, this.mode.pod[0]];
         }
-        this.startGame();
+        this.startAfterBuilds();
       });
       if (net.isHost) net.sendPerPeer((peerId) => {
         const r = this.seatByPeer(peerId);
         return r ? { t: 'draft', payload: Object.assign(this.draft.viewFor(r.id), { buildNow: true }) } : null;
       });
+    }
+
+    /** The deck the bots' builder makes from a seat's picks (with a commander, in a commander draft). */
+    deckFromPool(r, basics) {
+      const pool = r.pool || [];
+      const deck = MTG.draft.autoBuildLimited(pool, {
+        deckSize: this.fmt.deckMin || 40, basicCards: basics, formatId: this.formatId, name: r.name + "'s deck",
+      });
+      if (this.fmt.commander) {
+        const legends = pool.filter(c => MTG.formats.canBeCommander(c, this.fmt));
+        if (legends.length) {
+          deck.commanders = [legends[0]];
+          deck.main = deck.main.filter(e => e.card.id !== legends[0].id);
+        }
+      }
+      return deck;
+    }
+
+    /**
+     * After a draft each person builds on their own screen, and the game
+     * waits for every guest's deck to arrive: until all are in, or
+     * DRAFT_BUILD_WAIT has passed, or the host says to start now. Anyone
+     * still building then plays the deck the bots' builder makes from their
+     * picks, and both they and the host are told so.
+     */
+    async startAfterBuilds() {
+      if (this._awaitingDecks || this.game) return;
+      this._awaitingDecks = true;
+      let go = false;
+      let busy = null;
+      const missing = await MTG.draft.awaitDecks(() => this.roster.filter(r => r.kind === 'remote'), {
+        timeout: DRAFT_BUILD_WAIT,
+        stop: () => go || App.session !== this,
+        onWait: (list, left) => {
+          const secs = Math.ceil(left / 1000);
+          const text = `Waiting for ${list.map(r => r.name).join(', ')} to finish building. ` +
+            `The game starts in ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} either way.`;
+          if (busy) busy.text(text);
+          else busy = UI.busy('Waiting for decks', text, { cancelLabel: 'Start now', onCancel: () => { go = true; } });
+        },
+      });
+      if (busy && !busy.cancelled) busy.close();
+      this._awaitingDecks = false;
+      if (App.session !== this || this.game) return;
+      if (missing.length) {
+        const basics = await MTG.draft.getBasics().catch(() => ({}));
+        for (const r of missing) {
+          r.deck = this.deckFromPool(r, basics);
+          r.deckValid = MTG.formats.validate(r.deck, this.fmt);
+        }
+        const names = missing.map(r => r.name).join(', ');
+        UI.toast(`${names} had not finished building, so ${missing.length === 1 ? 'they play' : 'each plays'} a deck built from their picks.`, '', 7000);
+      }
+      this.startGame();
     }
 
     /* ---- game ---- */
@@ -92698,6 +94610,13 @@ Sideboard
     });
     net.on('lobby', (payload) => { askSeatGifs(payload && payload.members); renderClientLobbyData(payload); });
     const showView = (view) => {
+      // a game while this guest was still building after a draft: the host stopped waiting, and dealt a deck built from the picks
+      if (App._buildingPool) {
+        App._buildingPool = false;
+        if (App._poolBuilder && App._poolBuilder.close) App._poolBuilder.close();
+        App._poolBuilder = null;
+        UI.toast('The game started before your deck was finished, so you play one built from your picks.', '', 7000);
+      }
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
       // a new game in the match is a new table: nothing on the old one carries over
@@ -92745,10 +94664,12 @@ Sideboard
       if (view.buildNow && !App._buildingPool) {
         App._buildingPool = true;
         App.keepDrafted(view.pool);
-        UI.buildFromPool(view.pool, view.formatId || App.formatId, (deck) => {
+        // the builder is kept hold of, to be put away if the host starts without waiting any longer
+        Promise.resolve(UI.buildFromPool(view.pool, view.formatId || App.formatId, (deck) => {
           App._buildingPool = false;
+          App._poolBuilder = null;
           net.intent({ kind: 'setDeck', deck: slimDeckForWire(deck) });
-        });
+        })).then((m) => { App._poolBuilder = App._buildingPool ? m || null : null; });
       }
     });
     net.on('chat', (msg) => {
@@ -92808,6 +94729,10 @@ Sideboard
     gifs.clear();
     if (App.draftUI && App.draftUI.destroy) App.draftUI.destroy();
     App.draftUI = null;
+    // a deck being built after a draft was for that table
+    if (App._poolBuilder && App._poolBuilder.close) App._poolBuilder.close();
+    App._buildingPool = false;
+    App._poolBuilder = null;
     if (!opts.keepSave) MTG.savedGame.clear();
     net.destroy();
     setNetBadge();
