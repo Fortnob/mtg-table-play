@@ -14,6 +14,7 @@ with `OFFLINE=1` to stay off the network.
 | `sim.js`, `botsim.js` | bot games |
 | `dumpauto.js`, `opaudit.js`, `misses.js` | what the parser made of cards, and what it could not |
 | `xmage/` | the XMage translator, below |
+| `socialtest.js` | friends, invites, trades and moving a save: devices against a pretend PeerJS broker, and their windows clicked through on a pretend DOM (`fakedom.js`) |
 
 ## xmage/: card scripts translated from XMage
 
