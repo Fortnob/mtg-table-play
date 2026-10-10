@@ -374,6 +374,9 @@
         }
         if (n.closest('.hslot.from-exile')) bits.push('in exile, playable');
         if (n.classList.contains('playable')) bits.push('can be played');
+        // tapping lands by hand: the spell held for its mana, and what could pay for it
+        if (n.classList.contains('paying')) bits.push('waiting for its mana');
+        if (n.classList.contains('pay-source')) bits.push('can be tapped for mana');
         if (n.classList.contains('targetable')) bits.push('can be chosen as the target');
         if (n.classList.contains('candidate')) {
           bits.push(!ch ? 'can be chosen' : ch.type === 'declareAttackers' ? 'can attack'

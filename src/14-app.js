@@ -337,6 +337,11 @@
     if (typeof intent.counterKind === 'string') out.counterKind = intent.counterKind.slice(0, 40);
     return out;
   };
+  /* Paid only from the mana already in the player's pool, with no lands
+     tapped for them: the table asks for that when its player taps lands by
+     hand (src/12c-ui-table-ask.js). A free spell's taxes are the game's to
+     find, as ever. */
+  const payByHand = (intent) => intent.fromPool === true && !intent.free;
 
   function botNameFor(deck, formatId, taken) {
     const used = new Set(taken || []);
@@ -2403,7 +2408,8 @@
         ]),
         el('button', { class: 'btn sm', text: 'Open', onclick: () => MTG.lessons.open() }),
       ]) : null,
-      toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
+      toggle('autoTapLands', 'Tap lands for me', 'On: when you cast a spell or use an ability, the game taps the lands that pay for it. ' +
+        'Off: you tap lands for mana yourself first, and it is paid from the mana they made.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
     ]));
@@ -4607,8 +4613,10 @@
         case 'mulligan': g.mulligan(actorId); break;
         case 'keep': g.keepHand(actorId, intent.bottom || []); break;
         case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;
-        case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: true,
-          free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
+        /* Paid with the lands the game taps, or (fromPool) only with the mana
+           the player has tapped for already: tapping lands by hand. */
+        case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: !payByHand(intent),
+          fromPool: payByHand(intent), free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
           // which of an "and/or" kicker's costs were paid (Archangel of Wrath)
           kickPaid: Array.isArray(intent.kickPaid) ? intent.kickPaid.filter(i => Number.isInteger(i) && i >= 0 && i < 4) : undefined,
           // said with the extra costs: an additional cost you may pay (a kicker that is not mana), and the gift
@@ -4638,7 +4646,8 @@
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */
-        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: true,
+        case 'activate': g.activateAbility(actorId, intent.objId, intent.index, { targets: intent.targets || [], auto: !payByHand(intent),
+          fromPool: payByHand(intent),
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
           // "in any combination of two colours": how much of the second

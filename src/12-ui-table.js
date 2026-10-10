@@ -172,6 +172,8 @@
       this.wraps = new Map();        // id -> the slot a card sits in (a unit on the field, a slot in hand)
       this.seats = new Map();        // player id -> that seat's elements
       this.targeting = null;         // {need, specs, chosen:[], onDone, label, source}
+      this.paying = null;            // a spell or ability held until you have tapped lands for it (12c)
+      this.tapOverride = null;       // the first-game walkthrough's say on tapping lands, for that game only
       this.attackPlan = null;        // {declarations:[], defenderId}
       this.blockPlan = null;         // {declarations:[], pendingBlocker}
       this.discardSel = [];
@@ -260,6 +262,7 @@
       this._keys();
     }
 
+    /** @this {MTG.TableInstance} */
     _keys() {
       this._onKey = (e) => {
         if (/input|textarea|select/i.test((e.target.tagName || ''))) return;
@@ -284,6 +287,7 @@
           if (this._ready()) this.send({ kind: 'yield', mode: e.shiftKey ? 'turn' : 'response' });
         } else if (e.key === 'Escape') {
           if (this.preview.classList.contains('on')) this.hidePreview();
+          if (this.paying) { this.cancelPay(); return; }
           if (this.targeting && !this.targeting.legal) { this.cancelTargeting(); this.render(); return; }
           if (this._popover) { this.closePopover(); return; }
           if (this.drawerOpen) { this.toggleDrawer(false); return; }
@@ -402,11 +406,24 @@
 
     analysis(o) { return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null; }
 
+    /**
+     * Whether the game taps your lands for you when you cast something:
+     * your own setting (Options, Tap lands for me), unless the first-game
+     * walkthrough has its own say for this one game. It never writes the
+     * setting, so nothing it does can outlast the game.
+     */
+    autoTap() {
+      if (this.tapOverride != null) return !!this.tapOverride;
+      return MTG.settings.autoTapLands !== false;
+    }
+
     /* ---------------- render ---------------- */
     /** @this {MTG.TableInstance} */
     render() {
       const v = this.view;
       if (!v || this._destroyed) return;
+      // a spell waiting for mana whose moment has gone, or that has gone through, is put down
+      this._payStale();
       /* Which opponent is in view is worked out before anything is measured,
          so a change of view is a cut rather than every card flying off. */
       if (this.view && this._opponents().length > 1) this._chooseFocus(this._opponents());
@@ -448,6 +465,8 @@
       for (const [id, w] of this.wraps) if (!this._usedWraps || !this._usedWraps.has(id)) { w.remove(); this.wraps.delete(id); }
       this._usedWraps = null;
       this.chaseArrows();
+      // a spell waiting for mana goes once the lands you tapped have paid for it
+      this._payReady();
       // the walkthrough, if one is running, follows what is on the table
       if (this.coach) this.coach.onRender();
     }
@@ -1443,6 +1462,10 @@
         return { label: 'Choose a target', disabled: true, cls: 'idle', sub: t.label,
           secondary: t.legal ? null : { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
       }
+      // a spell waiting for you to tap lands: or the game taps the rest
+      if (this.paying) return { label: 'Pay for me', cls: 'go', sub: 'tap the lands it needs',
+        title: 'Let the game tap lands for the rest of the cost (Space)',
+        secondary: { label: 'Cancel', title: 'Leave it for now (Esc)', fn: () => this.cancelPay() } };
       const ch = live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareAttackers') {
@@ -1565,6 +1588,7 @@
         if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
         return;
       }
+      if (this.paying) { this.payForMe(); return; }
       const ch = live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareAttackers') {
@@ -1611,10 +1635,14 @@
       const ch = ready && live.pendingChoice && live.pendingChoice.playerId === this.meId && !live.pendingChoice.waiting ? live.pendingChoice : null;
       const atk = this.attackPlan ? new Set(this.attackPlan.declarations.map(d => d.attackerId)) : null;
       const blk = this.blockPlan ? new Set(this.blockPlan.declarations.map(d => d.blockerId)) : null;
+      // a spell waiting for mana: it is marked, and what could tap to pay for it glows
+      const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id)) : null;
       for (const [id, n] of this.els) {
         const loc = n.parentElement;
         const inHand = !!(loc && loc.classList.contains('hslot'));
-        n.classList.toggle('playable', playable.has(id) && !this.targeting && !ch);
+        n.classList.toggle('playable', playable.has(id) && !this.targeting && !ch && !this.paying);
+        n.classList.toggle('pay-source', !!(paySrc && paySrc.has(id)));
+        n.classList.toggle('paying', !!(this.paying && this.paying.objId === id));
         let target = false, cand = false, chosen = false;
         if (this.targeting) {
           const o = this.objIn(id);
@@ -1870,6 +1898,8 @@
         }
         return;
       }
+      // the spell waiting for mana, clicked again: it goes back to waiting in your hand
+      if (this.paying && this.paying.objId === id && loc.zone !== 'battlefield') return this.cancelPay();
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
       if (loc.zone === 'exile' && loc.player === this.meId && (live.playable || []).includes(id)) {
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
@@ -2333,12 +2363,20 @@
         const n = s.multi.count === 'X' ? Math.min(x || 0, legal) : legal;
         for (let i = 0; i < n; i++) specs.push(s.multi.exact === false || s.multi.count === 'any' ? Object.assign({}, plain, { upTo: true }) : plain);
       }
-      if (!specs.length) return this.send({ kind: 'activate', objId: o.id, index, targets: [], ...more });
+      // its mana is paid the way you pay: by the game, or from the lands you tap (12c)
+      const cost = this._abilityManaCost(ab);
+      if (!specs.length) return this.payThen({ kind: 'activate', objId: o.id, index, targets: [], ...more }, cost, o.card);
       this.startTargeting({
         need: specs.length, specs, label: `${o.card.name}: choose ${specs.length === 1 ? 'a target' : specs.length + ' targets'}`,
         source: o.id, cardName: o.card.name,
-        onDone: (targets) => this.send({ kind: 'activate', objId: o.id, index, targets, ...more }),
+        onDone: (targets) => this.payThen({ kind: 'activate', objId: o.id, index, targets, ...more }, cost, o.card),
       });
+    }
+
+    /** The mana part of an ability's cost, without the tap symbols ("{2}, {T}" is {2}). */
+    _abilityManaCost(ab) {
+      const c = (ab && ab.cost) || {};
+      return String(typeof c === 'string' ? c : (c.mana || '')).replace(/\{[TQ]\}/g, '');
     }
 
     /** The target specs in a list of effects, sequences walked into, in order. */

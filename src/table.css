@@ -150,6 +150,11 @@
 @keyframes aimGlow { 50% { box-shadow: 0 0 0 3px var(--aim), 0 0 30px 9px rgba(255,201,77,.35), 0 6px 14px rgba(0,0,0,.5); } }
 .cv.candidate .cv-body { box-shadow: 0 0 0 2px rgba(255,255,255,.6), 0 0 14px rgba(255,255,255,.22), 0 6px 14px rgba(0,0,0,.5); }
 .cv.chosen .cv-body { box-shadow: 0 0 0 3px var(--aim), 0 0 26px 6px rgba(255,201,77,.6), 0 6px 14px rgba(0,0,0,.5); }
+/* tapping lands by hand: the spell waiting for its mana, and the lands that could pay for it */
+.cv.paying .cv-body { box-shadow: 0 0 0 3px var(--gold-hi), 0 0 24px 6px rgba(246,220,140,.5), 0 6px 14px rgba(0,0,0,.5); }
+.cv.pay-source { cursor: pointer; }
+.cv.pay-source .cv-body { box-shadow: 0 0 0 2px var(--play), 0 0 16px 3px rgba(99,211,255,.5), 0 6px 14px rgba(0,0,0,.5);
+  animation: playGlow 1.4s ease-in-out infinite; }
 .cv.attacking .cv-body, .cv.declared-atk .cv-body {
   box-shadow: 0 0 0 2px var(--atk), 0 0 22px 5px rgba(255,91,69,.55), 0 10px 20px rgba(0,0,0,.6); }
 .cv.blocking .cv-body, .cv.declared-blk .cv-body {
@@ -520,6 +525,8 @@
 .arena-banner.combat.block { border-color: rgba(94,169,255,.7); }
 .arena-banner.respond { border-color: rgba(156,199,255,.6); }
 .arena-banner.wait { border-color: rgba(255,255,255,.18); }
+.arena-banner.pay { border-color: rgba(246,220,140,.6); }
+.arena-banner .ab-title .pip { width: 18px; height: 18px; font-size: 11px; vertical-align: -3px; }
 .arena-banner.wait .ab-title { color: #c4ccd8; font-size: 14px; }
 .ab-chips { display: flex; gap: 6px; justify-content: center; align-items: center; flex-wrap: wrap; margin-top: 7px; }
 .ab-chip { font: 600 12px var(--font); padding: 5px 12px; border-radius: 99px; cursor: pointer; color: #e8ecf3;
@@ -1009,6 +1016,7 @@
 :root[data-phone] .cv.playable .cv-body,
 :root[data-phone] .hslot > .cv.playable .cv-body { animation: none; box-shadow: 0 0 0 2px var(--play), 0 0 8px 2px rgba(99,211,255,.55); }
 :root[data-phone] .cv.targetable .cv-body { animation: none; box-shadow: 0 0 0 2px var(--aim), 0 0 8px 2px rgba(255,201,77,.6); }
+:root[data-phone] .cv.pay-source .cv-body { animation: none; box-shadow: 0 0 0 2px var(--play), 0 0 8px 2px rgba(99,211,255,.55); }
 :root[data-phone] .life-orb.targetable .orb-ring { animation: none; }
 :root[data-phone] .big-btn.go { animation: none; }
 :root[data-phone] .cv-shine, :root[data-phone] .arena-sigil { display: none; }

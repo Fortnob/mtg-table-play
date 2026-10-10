@@ -439,8 +439,10 @@ declare namespace MTG {
       choices?: Record<string, ChooseAnswer>;
       /** what pays a cost the table would otherwise pick */
       evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string;
+      /** paid only from the mana in the pool, no lands tapped for it (tapping lands by hand) */
+      fromPool?: boolean;
     }
-    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
+    | { kind: 'activate'; objId: Id; index: number; targets?: Target[]; fromPool?: boolean; sacrificeIds?: Id[]; discardIds?: Id[]; x?: number; manaSplit?: number | string[]; evidenceIds?: Id[]; forageExileIds?: Id[]; revealIds?: Id[]; beholdIds?: Id[]; exileIds?: Id[]; forageFoodId?: Id; counterFromId?: Id; blightId?: Id; counterKind?: string }
     | { kind: 'mana'; objId: Id; index?: number; choice?: string | null; split?: string[] }
     | { kind: 'declareAttackers'; declarations: AttackDeclaration[] }
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }
