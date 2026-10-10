@@ -2473,6 +2473,9 @@
 
     /** Somebody searched their library: whoever watches for that hears of it. */
     _searched(pid) {
+      // Archive Trap: "If an opponent searched their library this turn" (opponentSearchedThisTurn)
+      const sp = this.player(pid);
+      if (sp) sp.searchedTurn = this.turn;
       this._fire('opponentSearches', null, { except: pid, player: pid, playerId: pid });
     }
 
@@ -9920,6 +9923,8 @@
         case 'playedLandThisTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id && (me.landsPlayed || 0) > 0;
         // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
         case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
+        // Archive Trap: an opponent searched their library this turn
+        case 'opponentSearchedThisTurn': return !!me && this.opponentsOf(me.id).some(q => q.searchedTurn === this.turn);
         // Dragon Whelp: how often its ability has been activated this turn (the most-used one, for a card with several)
         case 'abilityUsesThisTurn': {
           const u = src && src._turnUses && src._turnUses.turn === this.turn ? Math.max(0, ...Object.values(src._turnUses.n || {})) : 0;

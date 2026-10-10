@@ -8909,6 +8909,8 @@
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
     // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
     [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
+    // Archive Trap: "an opponent searched their library this turn"
+    [/^an opponent searched their library this turn$/i, () => ({ kind: 'opponentSearchedThisTurn' })],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)
     [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)

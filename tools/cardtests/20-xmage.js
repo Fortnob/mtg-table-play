@@ -18194,4 +18194,18 @@ module.exports = (test) => {
     t.eq(U.g.powerOf(bear), 3, 'a Bear too');
     t.eq(U.g.powerOf(giant), 3, 'not a Giant');
   });
+
+  test('Archive Trap: free once an opponent has searched their library this turn', (mk, t) => {
+    t.auto('Archive Trap');
+    const T = mk();
+    T.toMain('A');
+    const at = T.hand('A', 'Archive Trap');
+    t.no(T.g.altUsesFor('A', at.id).some(u => /^alt/.test(u.via)), 'nobody searched: no free cast');
+    T.g._runEffects([{ op: 'fetchBasic', n: 1, tapped: true }], { controller: 'B', name: 'Test', kind: 'spell', targets: [] });
+    const use = T.g.altUsesFor('A', at.id).find(u => /^alt/.test(u.via));
+    t.ok(use, 'B searched: offered for {0}');
+    for (let i = 0; i < 14; i++) T.top('B', 'Island');
+    T.cast('A', at, { via: use.via, targets: ['B'] });
+    t.eq(T.zone('B', 'graveyard').length, 13, 'thirteen milled');
+  });
 };

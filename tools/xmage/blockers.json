@@ -5,11 +5,11 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 11072,
-  "gainedCards": 1093,
-  "linesNeeded": 11841,
+  "gainedCards": 1094,
+  "linesNeeded": 11840,
   "linesGained": 1289,
   "gained": {
-   "all": 1093,
+   "all": 1094,
    "top2000": 43,
    "stdTop": 6
   },
@@ -260,13 +260,12 @@
   },
   {
    "what": "AlternativeCostSourceAbility",
-   "score": 42,
-   "lines": 42,
+   "score": 41,
+   "lines": 41,
    "cards": [
     "Invigorate",
     "Foil",
     "Submerge",
-    "Archive Trap",
     "Mogg Salvage",
     "Ricochet Trap",
     "Once Upon a Time",
@@ -274,7 +273,8 @@
     "Asmoranomardicadaistinaculdacar",
     "Hand of Emrakul",
     "Land Grant",
-    "Thwart"
+    "Thwart",
+    "Cobra Trap"
    ]
   },
   {
@@ -6728,19 +6728,6 @@
    ]
   },
   {
-   "what": "AlternativeCostSourceAbility",
-   "score": 40,
-   "cards": 40,
-   "names": [
-    "Invigorate",
-    "Foil",
-    "Submerge",
-    "Archive Trap",
-    "Mogg Salvage",
-    "Ricochet Trap"
-   ]
-  },
-  {
    "what": "custom target",
    "score": 39,
    "cards": 39,
@@ -6751,6 +6738,19 @@
     "Reunion of the House",
     "Behold the Sinister Six!",
     "Kairi, the Swirling Sky"
+   ]
+  },
+  {
+   "what": "AlternativeCostSourceAbility",
+   "score": 39,
+   "cards": 39,
+   "names": [
+    "Invigorate",
+    "Foil",
+    "Submerge",
+    "Mogg Salvage",
+    "Ricochet Trap",
+    "Once Upon a Time"
    ]
   },
   {
