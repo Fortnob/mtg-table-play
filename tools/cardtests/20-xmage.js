@@ -19516,4 +19516,27 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(ll.face, 1, 'transformed');
   });
+
+  test('Dread Summons: a tapped Zombie for each creature card milled', (mk, t) => {
+    t.auto('Dread Summons');
+    const T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.top('A', 'Grizzly Bears'); T.top('A', 'Forest');
+    T.top('B', 'Hill Giant'); T.top('B', 'Llanowar Elves');
+    T.mana('A', 'BB2');
+    T.cast('A', T.hand('A', 'Dread Summons'), { x: 2 });
+    T.resolve();
+    const z = T.g.battlefield.filter(o => o.isToken && /Zombie/.test(o.name));
+    t.eq(z.length, 3, 'three creature cards among the four milled');
+    t.ok(z.every(o => o.tapped), 'tapped');
+  });
+
+  test('Each player mills: every player, not only you (Sibsig Host)', (mk, t) => {
+    t.auto('Sibsig Host');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.put('A', 'Sibsig Host', 'battlefield', { etb: true });
+    T.resolve();
+    for (const pid of ['A', 'B', 'C']) t.eq(T.zone(pid, 'graveyard').length, 3, pid + ' milled three');
+  });
 };

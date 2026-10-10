@@ -3642,6 +3642,13 @@
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'toughDamageTurn', targets: [t] } : null; } },
     // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
     { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
+    // Dread Summons, Tribune of Rot: "For each creature card milled (put into a graveyard) this way, (you) create a … token."
+    { re: /^For each ([a-z ]+?) cards? (?:put into a graveyard|milled) this way, (?:you )?create (.+)$/i,
+      make: (m) => {
+        const tk = parseTokenSentence('Create ' + m[2]);
+        if (!tk || tk.op !== 'createToken' || tk.count || tk.n !== 1) return null;
+        return Object.assign(tk, { count: { milledMatching: m[1].toLowerCase(), mult: 1 } });
+      } },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who

@@ -12433,6 +12433,8 @@
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Dread Summons, Tribune of Rot: "for each creature card milled (put into a graveyard) this way"
+        if (v && typeof v === 'object' && v.milledMatching) return (this._lastMilled || []).filter(id => { const o = this.obj(id); return !!o && this._cardFitsWords(o, v.milledMatching); }).length * (v.mult || 1);
         // Balor: "the number of cards in their hand"
         // (Search Warrant: in a spell, "that player" is the one it targets)
         if (v && typeof v === 'object' && v.triggerPlayerHand) { const p = triggerPlayer() || firstPlayer(); return (p ? this.zones[p.id].hand.length : 0) * (v.mult || 1) + (v.plus || 0); }
@@ -13681,7 +13683,9 @@
         }
         case 'mill': {
           const cnt = n(e.n);
+          // (Syr Konrad, Dread Summons: "Each player mills …" — every player, not only you)
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
+            : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
             // "Counter target spell. Its controller mills two cards."
             // Riddlekeeper: in a trigger about a creature, that creature's controller
@@ -13739,6 +13743,8 @@
             : e.who === 'target' ? (firstPlayer() || me) : me;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
+          // "a token for each …" with none of them is no token (not one: _createToken reads 0 as 1)
+          if (e.count && !(many > 0)) break;
           // "an X/X token, where X is that spell's mana value": the size, worked out now
           const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
             // Arboreal Alliance: "an X/X … token", X as it was cast
