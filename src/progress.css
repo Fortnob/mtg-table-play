@@ -166,6 +166,19 @@ html[data-play="1"] .inbox-chip { display: none; }
 .event-card { position: relative; overflow: hidden; display: grid; text-align: left; padding: 0; border-radius: 14px; cursor: pointer; color: inherit; min-height: 150px;
   border: 1px solid rgba(255,255,255,.1); background: linear-gradient(160deg, var(--ev-a, #2a2f3d), var(--ev-b, #12151c)); transition: transform .18s, border-color .18s, box-shadow .18s; }
 .event-card:hover { transform: translateY(-3px); border-color: rgba(243, 221, 150, .45); box-shadow: 0 14px 30px rgba(0,0,0,.45); }
+/* the event's art behind it, under a wash of its own colour from the left
+   so the words stay easy to read; it fades in once loaded, the colours
+   standing alone until then (and offline) */
+.ev-art { position: absolute; inset: 0; background-size: cover; background-position: 50% 28%; opacity: 0;
+  transition: opacity .5s var(--ease, ease), transform .6s var(--ease, ease), filter .4s; pointer-events: none; }
+.ev-art.art-on { opacity: 1; }
+.ev-art::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(100deg, color-mix(in srgb, var(--ev-b, #12151c) 78%, transparent) 0%, color-mix(in srgb, var(--ev-a, #2a2f3d) 46%, transparent) 50%, color-mix(in srgb, var(--ev-b, #12151c) 12%, transparent) 100%),
+    linear-gradient(0deg, color-mix(in srgb, var(--ev-b, #12151c) 55%, transparent) 0%, transparent 50%); }
+.event-card:hover .ev-art { transform: scale(1.04); filter: brightness(1.12) saturate(1.1); }
+.ev-body h3, .ev-body p { text-shadow: 0 1px 3px rgba(0,0,0,.9), 0 0 12px rgba(0,0,0,.6); }
+.event-card .ev-body p { color: #e2dccd; }
+@media (prefers-reduced-motion: reduce) { .ev-art { transition: none; } .event-card:hover .ev-art { transform: none; } }
 .ev-glow { position: absolute; inset: 0; background: radial-gradient(circle at 85% 15%, var(--ev-glow, rgba(243, 221, 150, .25)), transparent 55%); pointer-events: none; }
 .ev-body { position: relative; display: grid; gap: 6px; align-content: start; padding: 16px 18px; }
 .ev-body h3 { margin: 0; font: 600 20px/1.2 var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }

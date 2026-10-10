@@ -987,7 +987,14 @@
   };
   const TILE_ART = { home: 'Command Tower', formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe',
     profile: 'Jace, the Mind Sculptor' };
-  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART));
+  /* the events on the Play screen: a champion for the ladder, a seeker at
+     the shelves for the draft, the arena for the run of fights, a sphinx's
+     riddle for the puzzles, a mentor and pupil for the tutorials */
+  const EVENT_ART = {
+    'ev-ranked': "Elspeth, Sun's Champion", 'ev-draft': 'Lore Seeker', 'ev-gauntlet': 'Arena of Glory',
+    'ev-challenge': 'Enigma Sphinx', 'ev-tutorials': 'Mentor of the Meek',
+  };
+  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART), Object.values(EVENT_ART));
 
   /** The decoration cards by name, once they are here. */
   function decor() {
@@ -1488,6 +1495,7 @@
     /* Events: what you can play for prizes, before the formats */
     const P = MTG.progress;
     const evCard = (cls, title, text, meta, fn) => el('button', { type: 'button', class: 'event-card ' + cls, onclick: fn }, [
+      EVENT_ART[cls] ? decorArt(el('div', { class: 'ev-art', 'aria-hidden': 'true' }), EVENT_ART[cls]) : null,
       el('div', { class: 'ev-glow', 'aria-hidden': 'true' }),
       el('div', { class: 'ev-body' }, [el('h3', { text: title }), el('p', { text }), el('div', { class: 'ev-meta', html: meta })]),
     ]);
