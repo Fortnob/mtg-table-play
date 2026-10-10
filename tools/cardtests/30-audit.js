@@ -3806,4 +3806,61 @@ module.exports = (test) => {
     T.mana('A', '3R'); T.activate('A', d, 0, { targets: ['B', 'B'] });
     t.ok(T.g.player('B').monarch, 'B becomes the monarch'); t.no(T.g.player('A').monarch); t.eq(T.life('B'), 17);
   });
+
+  test('Audit: Perplex takes the whole hand, works on an empty hand, and counters a creature spell; Long-Term Plans in a short library', (mk, t) => {
+    t.auto('Perplex'); t.auto('Long-Term Plans');
+    let T = mk();
+    T.toMain('A');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    const k1 = T.hand('A', 'Island'), k2 = T.hand('A', 'Forest'), k3 = T.hand('A', 'Mountain');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    T.answer('confirm', { yes: true });
+    T.mana('B', 'UB1');
+    T.cast('B', T.hand('B', 'Perplex'), { targets: [{ kind: 'stack', id: T.stackItem(bolt).id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(k1, 'graveyard'); t.zone(k2, 'graveyard'); t.zone(k3, 'graveyard');
+    t.eq(T.life('B'), 17, 'the whole hand paid: the bolt resolves');
+    // an empty hand can still be discarded
+    T = mk();
+    T.toMain('A');
+    const bolt2 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt2, { targets: ['B'], resolve: false });
+    T.g.passPriority('A', true);
+    let asked = null;
+    T.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    T.mana('B', 'UB1');
+    T.cast('B', T.hand('B', 'Perplex'), { targets: [{ kind: 'stack', id: T.stackItem(bolt2).id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.ok(asked, 'asked with no cards in hand');
+    t.eq(T.life('B'), 17, 'a hand of no cards discarded: the bolt resolves');
+    // a creature spell, hand kept: countered
+    T = mk();
+    T.toMain('A');
+    const bear = T.hand('A', 'Grizzly Bears');
+    const keep = T.hand('A', 'Island');
+    T.mana('A', '1G');
+    T.cast('A', bear, { resolve: false });
+    T.g.passPriority('A', true);
+    T.answer('confirm', { yes: false });
+    T.mana('B', 'UB1');
+    T.cast('B', T.hand('B', 'Perplex'), { targets: [{ kind: 'stack', id: T.stackItem(bear).id }] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(bear, 'graveyard'); t.zone(keep, 'hand');
+    // Long-Term Plans with one other card in the library: as deep as it goes
+    T = mk();
+    T.toMain('A');
+    T.g.zones.A.library.length = 0;
+    const other = T.top('A', 'Island');
+    const want = T.top('A', 'Craw Wurm');
+    T.answer('pickCard', { cardIds: [want.id] });
+    T.mana('A', 'U2');
+    T.cast('A', T.hand('A', 'Long-Term Plans'));
+    T.settle();
+    t.eq(T.g.zones.A.library.length, 2);
+    t.eq(T.g.zones.A.library.indexOf(want), 1, 'below the only other card');
+    t.eq(T.g.zones.A.library.indexOf(other), 0);
+  });
 };
