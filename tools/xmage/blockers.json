@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11218,
-  "gainedCards": 1130,
-  "linesNeeded": 11999,
-  "linesGained": 1334,
+  "needed": 11214,
+  "gainedCards": 1128,
+  "linesNeeded": 11994,
+  "linesGained": 1331,
   "gained": {
-   "all": 1130,
+   "all": 1128,
    "top2000": 46,
    "stdTop": 8
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4168,
-   "lines": 3919,
+   "score": 4167,
+   "lines": 3918,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6048,17 +6048,6 @@
    ]
   },
   {
-   "what": "blocked trigger pointing at the blocker",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Thresher Beast",
-    "Robber Fly",
-    "Corrupt Official",
-    "Port Inspector"
-   ]
-  },
-  {
    "what": "MoreCardsInHandThanOpponentsCondition.instance",
    "score": 4,
    "lines": 4,
@@ -6647,13 +6636,23 @@
     "Axis of Mortality",
     "Soul Conduit"
    ]
+  },
+  {
+   "what": "ConditionalPreventionEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Multiclass Baldric",
+    "Gideon Blackblade",
+    "Sanwell, Avenger Ace"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3475,
-   "cards": 3307,
+   "score": 3474,
+   "cards": 3306,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

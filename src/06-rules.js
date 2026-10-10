@@ -13556,6 +13556,8 @@
             // (To the Slaughter's delirium: in a spell, "that player" is the one it targets)
             : e.who === 'triggerPlayer' ? [triggerPlayer() || (!ctx.triggerData ? firstPlayer() : null)].filter(Boolean)
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
+            // Bane of Bala Ged: "defending player exiles two permanents they control"
+            : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean)
             : [firstPlayer()].filter(Boolean);
           for (const p of who) {
             const pool = this.battlefield.filter(x => {

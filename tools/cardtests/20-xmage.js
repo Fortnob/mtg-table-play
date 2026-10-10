@@ -17381,4 +17381,18 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, hand + 1, 'six combat damage: a card');
     t.eq(nd.counters.theft || 0, 9, 'six more');
   });
+
+  test('Bane of Bala Ged: the defending player exiles two permanents they control', (mk, t) => {
+    t.auto('Bane of Bala Ged');
+    t.auto('Thresher Beast');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const bane = T.bf('A', 'Bane of Bala Ged');
+    const bs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Forest'), T.bf('B', 'Island')];
+    const cs = [T.bf('C', 'Grizzly Bears')];
+    T.answer('declareAttackers', () => [{ attackerId: bane.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(bs.filter(o => o.zone === 'exile').length, 2, 'two of B\'s permanents exiled');
+    t.eq(cs[0].zone, 'battlefield', 'not C\'s');
+  });
 };

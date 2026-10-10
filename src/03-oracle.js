@@ -5389,7 +5389,8 @@
     { re: /^(Exile|Destroy|Tap|Untap) (?:that|the) (?:creature|permanent|artifact|land)\.?$/i,
       make: (m) => ({ op: m[1].toLowerCase(), scope: 'lastTarget' }) },
     /* the edicts, with whatever kind of permanent they name */
-    { re: /^(Each player|Each opponent|Each other player|Target player|Target opponent) (sacrifices?|exiles?) (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|\d+) ([a-z ,/-]+?)(?: of their choice)?(?: they control)?\.?$/i,
+    // (Bane of Bala Ged, Thresher Beast: "Defending player exiles two permanents they control" — who 'defending')
+    { re: /^(Each player|Each opponent|Each other player|Target player|Target opponent|Defending player) (sacrifices?|exiles?) (a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|\d+) ([a-z ,/-]+?)(?: of their choice)?(?: they control)?\.?$/i,
       make: (m0) => {
         // Doomfall, Early Winter: "Target opponent exiles a creature they control" — an edict that exiles
         const exile = /^exile/i.test(m0[2]);
@@ -5399,7 +5400,7 @@
         for (const w of filter.split(/[\s,]+/)) {
           if (!/^(?:creature|artifact|enchantment|land|planeswalker|permanent|nontoken|token|nonland|noncreature|or|attacking|battle|legendary|nonlegendary)$/.test(w)) return null;
         }
-        const who = /^each player/i.test(m[1]) ? 'each' : /^target/i.test(m[1]) ? 'target' : 'opponents';
+        const who = /^each player/i.test(m[1]) ? 'each' : /^target/i.test(m[1]) ? 'target' : /^defending/i.test(m[1]) ? 'defending' : 'opponents';
         return Object.assign({ op: 'sacrificeChoice', n: num(m[2]), who, filter,
           targets: who === 'target' ? [{ type: 'player', opponent: /opponent/i.test(m[1]) }] : undefined }, exile ? { exile: true } : {});
       } },
