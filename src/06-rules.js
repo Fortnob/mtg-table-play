@@ -20754,12 +20754,19 @@
       this.stack.push(item);
       this.stormCount++;
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
+      // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
+      (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
+      if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
       this.logEvent('cast', `${p.name} casts ${o.name} ${(how && how.how) || 'without paying its mana cost'}.`);
       this.emit('stack:add', item);
       const castData = { spell: item, object: o, stackId: item.id, playerId };
       this._fire('anyCastSpell', null, castData);
       this._fire('youCastSpell', playerId, castData);
+      if (p.spellsCastThisTurn === 1) this._fire('firstSpellEachTurn', playerId, castData);
+      if (p.spellsCastThisTurn === 2) this._fire('anySecondSpell', null, castData);
+      if (p.spellsCastThisTurn === 2) this._fire('opponentSecondSpell', null, Object.assign({ except: playerId }, castData));
+      this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       this._fire('opponentCastSpell', null, Object.assign({ except: playerId }, castData));
       return true;
     }

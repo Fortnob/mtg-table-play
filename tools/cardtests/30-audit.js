@@ -4002,4 +4002,27 @@ module.exports = (test) => {
     T.g.checkStateBasedActions(); T.settle();
     t.zone(b2, 'graveyard', 'deathtouch still kills');
   });
+
+  test('Audit: Magebane Lizard counts noncreature spells only, and a spell cast from rebound is counted', (mk, t) => {
+    t.auto('Magebane Lizard');
+    const T = mk();
+    T.toMain('A');
+    T.bf('B', 'Magebane Lizard');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.settle();
+    t.eq(T.life('A'), 20, 'a creature spell: nothing');
+    T.mana('A', '2R');
+    const s = T.hand('A', 'Staggershock');
+    T.cast('A', s, { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 19, 'the first noncreature spell: 1');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 17, 'the second: 2');
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 16, 'cast again from rebound: the first this turn, 1');
+  });
 };
