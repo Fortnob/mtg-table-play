@@ -18208,4 +18208,33 @@ module.exports = (test) => {
     T.cast('A', at, { via: use.via, targets: ['B'] });
     t.eq(T.zone('B', 'graveyard').length, 13, 'thirteen milled');
   });
+
+  test('Wheel and Deal: any number of target opponents each discard their hands, then draw seven', (mk, t) => {
+    t.auto('Wheel and Deal');
+    t.auto('Riverchurn Monument');
+    t.auto('Jace, Memory Adept');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    for (const p of ['A', 'B', 'C']) for (let i = 0; i < 9; i++) T.top(p, 'Island');
+    const b1 = T.hand('B', 'Lightning Bolt'), c1 = T.hand('C', 'Lightning Bolt');
+    T.hand('C', 'Shock');
+    const ha = T.zone('A', 'hand').length;
+    T.mana('A', 'U3');
+    T.cast('A', T.hand('A', 'Wheel and Deal'), { targets: ['B'] });
+    T.settle();
+    t.zone(b1, 'graveyard', "B's hand discarded");
+    t.eq(T.zone('B', 'hand').length, 7, 'B drew seven');
+    t.zone(c1, 'hand', 'C, not targeted, keeps theirs');
+    t.eq(T.zone('A', 'hand').length, ha + 1, 'and you draw a card');
+    const U = mk();
+    U.toMain('A');
+    const rm = U.bf('A', 'Riverchurn Monument');
+    for (let i = 0; i < 10; i++) U.top('B', 'Island');
+    for (let i = 0; i < 3; i++) U.grave('B', 'Forest');
+    U.grave('A', 'Forest');
+    U.mana('A', 'UU2');
+    U.activate('A', rm, 1, { targets: ['B'] });
+    U.settle();
+    t.eq(U.zone('B', 'graveyard').length, 6, "B mills as many as B's graveyard held (3)");
+  });
 };

@@ -2276,6 +2276,19 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
+    /* Jace, Memory Adept, Riverchurn Monument, Wheel and Deal: "Any number of target players each draw twenty cards" —
+       the words read as each player's own ("their" is "your"), and done as each of them in turn (forEachTargetPlayer).
+       Words that speak of you, the caster, are left to a person. */
+    { re: /^Any number of target (players|opponents) each (.+?)\.?$/i,
+      make: (m) => {
+        if (/\b(?:you|your|that player)\b/i.test(m[2])) return null;
+        const own = 'You ' + m[2].replace(/\btheir hands\b/gi, 'your hand').replace(/\btheir\b/gi, 'your').replace(/\bthey\b/gi, 'you') + '.';
+        const inner = parseSentenceList(splitSentences(own));
+        if (!inner.auto || !inner.effects.length || JSON.stringify(inner.effects).includes('"targets":[{')) return null;
+        const opp = /^opponents$/i.test(m[1]);
+        return { op: 'forEachTargetPlayer', then: inner.effects,
+          targets: [1, 2, 3, 4].map(() => Object.assign({ type: 'player', upTo: true, distinct: true }, opp ? { opponent: true } : {})) };
+      } },
     // Priest of Forgotten Gods: "Any number of target players each lose 2 life and sacrifice a creature of their choice."
     { re: /^Any number of target players each lose (\d+) life and sacrifice (a|one) (creature|permanent) of their choice\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
