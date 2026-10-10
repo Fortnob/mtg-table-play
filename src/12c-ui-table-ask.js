@@ -41,9 +41,14 @@
         const who = (v.players || []).filter(p => this.isTargetablePlayer(p));
         const spec = t.specs[t.chosen.length] || t.specs[0];
         const what = spec && !t.legal ? specText(spec) : 'a target';
-        const title = t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}` : escapeHtml(t.label || 'Choose a target');
+        // a target the kick, the gift or an "if" brought in: what it is for, as the button says (Jilt (kicked): …)
+        const title = spec && spec.castWhy && t.label ? escapeHtml(t.label)
+          : t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}` : escapeHtml(t.label || 'Choose a target');
+        // "up to one": it can be left out (Return to Dust's second artifact)
+        const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
-          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}.` +
+          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}` +
+          (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
       }
       const ch = live.pendingChoice;
