@@ -17450,4 +17450,25 @@ module.exports = (test) => {
     t.ok(b2.tapped, 'stays tapped');
     t.eq(b2.counters.stun || 0, 1, 'and keeps its stun counter');
   });
+
+  test('Shield counters: damage or destruction takes a shield counter off instead (even "can\'t be regenerated")', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears', { counters: { shield: 1 } });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [bear.id] });
+    T.settle();
+    t.zone(bear, 'battlefield');
+    t.eq(bear.damage || 0, 0, 'no damage marked');
+    t.eq(bear.counters.shield || 0, 0, 'the shield counter came off');
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear.id] });
+    t.zone(bear, 'graveyard', 'no shield left: destroyed');
+    const b2 = T.bf('B', 'Grizzly Bears', { counters: { shield: 2 } });
+    T.mana('A', 'WW2');
+    T.cast('A', T.hand('A', 'Wrath of God'));
+    T.settle();
+    t.zone(b2, 'battlefield', 'Wrath of God ("can\'t be regenerated") still meets the shield');
+    t.eq(b2.counters.shield || 0, 1, 'one shield counter spent');
+  });
 };

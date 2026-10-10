@@ -10345,6 +10345,16 @@
       const a = o.analysis();
       // protection prevents damage too (CR 702.16e), unless damage can't be prevented
       if (a && source && this._protectedFrom(o, source) && !this._noPrevention(isCombat)) return;
+      /* A shield counter (CR 122.1c): "If it would be dealt damage, instead
+         remove a shield counter from it" — a replacement, so it works even
+         where damage can't be prevented */
+      if (o.zone === 'battlefield' && (Number((o.counters || {}).shield) || 0) > 0) {
+        o.counters.shield -= 1;
+        if (o.counters.shield <= 0) delete o.counters.shield;
+        o._chr = null; this.bumpBoard();
+        this.logEvent('damage', `${o.name} loses a shield counter instead of being dealt ${amount} damage.`);
+        return 0;
+      }
       // excess damage (CR 120.4a): whatever was more than it took to be lethal
       const excess = Math.max(0, amount - this._lethalLeft(o, source));
       if (excess > 0) {
@@ -20682,7 +20692,19 @@
      * Aura takes the hit instead, and the creature under it walks away with
      * its damage wiped off.
      */
+    /* A shield counter (CR 122.1c): "If it would be destroyed, instead remove
+       a shield counter from it." Asked first wherever destruction is
+       replaced (umbra armor, regeneration); "can't be regenerated" does not stop it. */
+    _shieldCounter(o) {
+      if (!o || o.zone !== 'battlefield' || !((Number((o.counters || {}).shield) || 0) > 0)) return false;
+      o.counters.shield -= 1;
+      if (o.counters.shield <= 0) delete o.counters.shield;
+      o._chr = null; this.bumpBoard();
+      this.logEvent('rules', `${o.name} loses a shield counter instead of being destroyed.`);
+      return true;
+    }
     _totemArmor(o) {
+      if (this._shieldCounter(o)) return true;
       if (!o || !(o.attachments || []).length) return false;
       for (const id of o.attachments.slice()) {
         const aura = this.obj(id);
@@ -20698,6 +20720,7 @@
     }
 
     _regenerated(o) {
+      if (this._shieldCounter(o)) return true;
       if (!o || !o.shields) return false;
       if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); return false; }
       o.shields--;
