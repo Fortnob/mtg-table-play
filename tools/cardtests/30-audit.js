@@ -5823,4 +5823,23 @@ module.exports = (test) => {
     T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [b1.id] }); T.settle(); T.resolve(); T.settle();
     t.eq(ink().length, 3, 'three counters: three'); t.ok(ink().every(o => o.tapped && T.g.hasKw(o, 'flying')));
   });
+
+  test('Audit: Archangel Elspeth -6 returns nonland permanent cards of mana value 3 or less only; Tend the Pests makes X Pests for the sacrificed power', (mk, t) => {
+    t.auto('Archangel Elspeth'); t.auto('Tend the Pests');
+    let T = mk();
+    T.toMain('A');
+    const ae = T.bf('A', 'Archangel Elspeth', { counters: { loyalty: 6 } });
+    const gb = T.grave('A', 'Grizzly Bears'), sr = T.grave('A', 'Sol Ring'), isl = T.grave('A', 'Island'), cw = T.grave('A', 'Craw Wurm'), lb = T.grave('A', 'Lightning Bolt');
+    T.activate('A', ae, 2); T.settle(); T.resolve(); T.settle();
+    t.zone(gb, 'battlefield'); t.zone(sr, 'battlefield'); t.zone(isl, 'graveyard', 'a land stays'); t.zone(cw, 'graveyard', 'mana value 6 stays'); t.zone(lb, 'graveyard', 'an instant stays');
+    T = mk();
+    T.toMain('A');
+    const hg = T.bf('A', 'Hill Giant');
+    T.answer('sacrifice', { cardIds: [hg.id] });
+    T.answer('pickCard', { cardIds: [hg.id] });
+    T.mana('A', 'BG1');
+    T.cast('A', T.hand('A', 'Tend the Pests')); T.settle();
+    t.zone(hg, 'graveyard');
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Pest/.test(o.name)).length, 3, 'power 3: three Pests');
+  });
 };
