@@ -5573,4 +5573,21 @@ module.exports = (test) => {
     t.eq(JSON.stringify(offered2), JSON.stringify(['Craw Wurm', 'Grizzly Bears', 'Hill Giant']), 'the creatures among the five');
     t.eq(T.zone('A', 'hand').filter(c => ['Craw Wurm', 'Grizzly Bears', 'Hill Giant'].includes(c.name)).length, 3);
   });
+
+  test('Audit: Corpse Harvester finds a Zombie card and a Swamp card, each from its own kind', (mk, t) => {
+    t.auto('Corpse Harvester');
+    const T = mk();
+    T.toMain('A');
+    const ch = T.bf('A', 'Corpse Harvester'); ch.summoningSick = false;
+    T.bf('A', 'Grizzly Bears');
+    T.g.zones.A.library.length = 0;
+    const z = T.top('A', 'Walking Corpse'), sw = T.top('A', 'Swamp'); T.top('A', 'Island');
+    const offers = [];
+    T.answer('pickCard', (c) => { offers.push(c.cards.map(x => x.name).sort().join(',')); return { cardIds: c.cards.slice(0, 1).map(x => x.id) }; });
+    T.answer('pickCard', (c) => { offers.push(c.cards.map(x => x.name).sort().join(',')); return { cardIds: c.cards.slice(0, 1).map(x => x.id) }; });
+    T.answer('sacrifice', (c) => ({ cardIds: [T.g.battlefield.find(o => o.name === 'Grizzly Bears').id] }));
+    T.mana('A', 'B1'); T.activate('A', ch, 0); T.settle();
+    t.zone(z, 'hand'); t.zone(sw, 'hand');
+    t.eq(offers.join(' / '), 'Walking Corpse / Swamp', 'each search offers its own kind only');
+  });
 };
