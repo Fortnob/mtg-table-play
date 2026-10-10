@@ -3941,6 +3941,9 @@
 
 
     /* ===== putting a card from hand straight onto the battlefield ===== */
+    // Aether Vial: "You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield."
+    { re: /^You may put an? (creature|artifact|enchantment|permanent) card with mana value equal to the number of ([a-z]+) counters on (?:this artifact|this enchantment|CARDNAME) from your hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
     { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."

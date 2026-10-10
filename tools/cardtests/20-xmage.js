@@ -18159,4 +18159,19 @@ module.exports = (test) => {
     t.eq(bl.length, 2, 'two creatures exiled: two basic lands for B');
     t.ok(bl.every(o => o.tapped), 'tapped');
   });
+
+  test('Aether Vial: a creature card with mana value equal to its charge counters, from hand onto the battlefield', (mk, t) => {
+    t.auto('Aether Vial');
+    const T = mk();
+    T.toMain('A');
+    const vial = T.bf('A', 'Aether Vial', { counters: { charge: 2 } });
+    const bear = T.hand('A', 'Grizzly Bears'), giant = T.hand('A', 'Hill Giant');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [bear.id] }; });
+    T.activate('A', vial, 0);
+    T.settle();
+    t.eq((offered || []).join(','), 'Grizzly Bears', 'only the mana value 2 card');
+    t.zone(bear, 'battlefield');
+    t.zone(giant, 'hand');
+  });
 };

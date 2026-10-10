@@ -17155,8 +17155,10 @@
           for (const p of who) {
             // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
+            // Aether Vial: "with mana value equal to the number of charge counters on this artifact"
+            const mvIs = e.exactMv != null ? n(e.exactMv) : null;
             const pool = this.zones[p.id].hand.filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
-              (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap));
+              (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
             const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: true,
