@@ -1870,7 +1870,13 @@
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
       }
       if (loc.zone === 'command' && loc.player === this.meId) {
-        if ((live.playable || []).includes(id)) return this.playFromHand(loc.o);
+        // a companion: {3} to put it into your hand, when that can be done now (CR 702.139)
+        if (loc.o.companion) return (live.playable || []).includes(id) ? this.useCompanion(loc.o) : this.showCard(id);
+        /* More than the ordinary cast to offer from here (Derevi's ability from
+           the command zone, Yuriko's commander ninjutsu): the card's own menu
+           offers each, the cast first */
+        const more = this._commandZoneAbilities(loc.o).length || ((live.uses || {})[id] || []).some(u => u.kind === 'cast');
+        if ((live.playable || []).includes(id)) return more ? this.cardMenu(id, e) : this.playFromHand(loc.o);
         return this.showCard(id);
       }
       if (loc.zone === 'battlefield' && loc.o.controller === this.meId) return this.onMyPermanent(loc.o, node, e);
@@ -2832,6 +2838,15 @@
           if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);
         }
+      } else if (loc.zone === 'command' && mine && o.companion) {
+        // the companion, revealed outside the game: {3} into your hand, once a game, when you could cast a sorcery
+        items.push(['Put it into your hand ({3})', () => this.useCompanion(o)]);
+      } else if (loc.zone === 'command' && mine && !o.agenda && (o.isCommander || o.isSignature)) {
+        items.push(['Cast it', () => this.playFromHand(o)]);
+        // Yuriko's commander ninjutsu, from here as from a hand
+        for (const use of ((live.uses || {})[o.id] || [])) if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
+        // Derevi: "{1}{G}{W}{U}: Put Derevi onto the battlefield from the command zone."
+        for (const [ab, idx] of this._commandZoneAbilities(o)) items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);
       } else if (loc.zone === 'command' && mine && o.agenda) {
         items.push(['Turn this hidden agenda face up', () => this.send({ kind: 'manual', action: 'revealAgenda', objId: o.id })]);
       } else if (loc.zone === 'battlefield' && mine && a) {
@@ -2852,6 +2867,20 @@
         if (manual.length) items.push('-', ['By hand ▸', (ev) => UI.contextMenu(ev || e, manual, { title: 'Move or mark by hand' })]);
       }
       UI.contextMenu(e || { clientX: window.innerWidth / 2, clientY: window.innerHeight / 2 }, items, { title: o.card ? o.card.name : 'Card' });
+    }
+
+    /** A card's abilities that work from the command zone, each with the index activateAbility takes. */
+    _commandZoneAbilities(o) {
+      const a = this.analysis(o);
+      if (!a) return [];
+      const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+      return acts.filter(x => x.fromCommandZone).map(x => [x, (a.manaAbilities || []).length + acts.indexOf(x)]);
+    }
+
+    /** The companion into your hand: the game pays the {3} (CR 702.139). */
+    useCompanion(o) {
+      MTG.sfx('ui_play');
+      this.send({ kind: 'companion', objId: o.id });
     }
 
     manualItems(o, zone) {

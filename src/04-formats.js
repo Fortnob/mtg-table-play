@@ -425,10 +425,22 @@
       }
     }
 
-    /* --- companion --- */
+    /* --- companion ---
+       Outside the game, so it is not one of the deck's cards (a Commander deck
+       still has its 100), but it has to be a card the format allows and, with
+       a commander, inside the commander's colour identity (CR 702.139, 903.4) */
     if (deck.companion) {
       const r = checkCompanion(deck.companion, deck, fmt);
       if (!r.ok) errors.push(`${deck.companion.name} can't be your companion: ${r.reason}`);
+      if (fmt.scryKey) {
+        const l = legalityOf(deck.companion, fmt);
+        if (l === 'banned') errors.push(`${deck.companion.name} is banned in ${fmt.name}, as a companion too.`);
+        else if (l === 'not_legal') errors.push(`${deck.companion.name} is not legal in ${fmt.name}, as a companion too.`);
+      }
+      if (ci) {
+        const bad = colorIdentity(deck.companion).filter(col => !ci.has(col));
+        if (bad.length) errors.push(`${deck.companion.name} is outside your commander's color identity (${bad.join('')}), so it can't be your companion.`);
+      }
     }
 
     /* --- the table's bracket: a deck that goes past it is turned away --- */
@@ -463,14 +475,16 @@
     'Kaheera, the Orphanguard': (d) => ({ ok: everyCard(d, c => !isCreatureCard(c) || matchesTypes(c, ['Cat', 'Elemental', 'Nightmare', 'Dinosaur', 'Beast'])), reason: 'creatures must be Cat, Elemental, Nightmare, Dinosaur or Beast' }),
     'Keruga, the Macrosage': (d) => ({ ok: everyCard(d, c => isLandCard(c) || (c.cmc || 0) >= 3), reason: 'every nonland card must cost 3 or more' }),
     'Lurrus of the Dream-Den': (d) => ({ ok: everyCard(d, c => isLandCard(c) || !isPermanentCard(c) || (c.cmc || 0) <= 2), reason: 'permanents must have mana value 2 or less' }),
-    'Lutri, the Spellchaser': (d) => ({ ok: true, reason: '' }),   // singleton, checked by format
+    // (a singleton format checks this for every card already)
+    'Lutri, the Spellchaser': (d) => ({ ok: (d.main || []).every(e => isLandCard(e.card) || e.qty <= 1), reason: 'no nonland card may appear more than once' }),
     'Obosh, the Preypiercer': (d) => ({ ok: everyCard(d, c => isLandCard(c) || (c.cmc || 0) % 2 === 1), reason: 'every nonland card must have an odd mana value' }),
     'Umori, the Collector': (d) => ({ ok: sharesOnePermanentType(d), reason: 'all nonland cards must share a card type' }),
     'Yorion, Sky Nomad': (d, f) => ({ ok: true, reason: '' }),     // deck-size check below
     'Zirda, the Dawnwaker': (d) => ({ ok: everyCard(d, c => isLandCard(c) || hasActivatedAbility(c)), reason: 'every nonland card must have an activated ability' }),
     'Kannah, Child of Daybreak': (d) => ({ ok: true, reason: '' }),
   };
-  function everyCard(deck, fn) { return (deck.main || []).every(e => fn(e.card)); }
+  // the starting deck: in Commander, the commanders are part of it (CR 702.139a)
+  function everyCard(deck, fn) { return (deck.main || []).every(e => fn(e.card)) && (deck.commanders || []).every(c => fn(c)); }
   function isLandCard(c) { return /\bLand\b/.test((c.type_line || '').split('//')[0]); }
   function isCreatureCard(c) { return /\bCreature\b/.test(c.type_line || ''); }
   function isPermanentCard(c) { return /\b(Creature|Artifact|Enchantment|Planeswalker|Land|Battle)\b/.test(c.type_line || ''); }
@@ -483,7 +497,7 @@
   }
   function hasActivatedAbility(c) { return /:/.test(c.oracle_text || ''); }
   function sharesOnePermanentType(deck) {
-    const nonland = (deck.main || []).filter(e => !isLandCard(e.card));
+    const nonland = (deck.main || []).concat((deck.commanders || []).map(c => ({ card: c, qty: 1 }))).filter(e => !isLandCard(e.card));
     if (!nonland.length) return true;
     const types = ['Creature', 'Artifact', 'Enchantment', 'Instant', 'Sorcery', 'Planeswalker', 'Battle'];
     return types.some(t => nonland.every(e => new RegExp('\\b' + t + '\\b').test(e.card.type_line || '')));

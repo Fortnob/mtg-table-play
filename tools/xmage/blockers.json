@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10585,
-  "gainedCards": 971,
-  "linesNeeded": 11269,
+  "needed": 10579,
+  "gainedCards": 972,
+  "linesNeeded": 11258,
   "linesGained": 1140,
   "gained": {
-   "all": 971,
+   "all": 972,
    "top2000": 41,
    "stdTop": 6
   },
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 674,
-   "lines": 620,
+   "score": 673,
+   "lines": 619,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -1430,23 +1430,6 @@
     "Essence Sliver",
     "Noble Purpose",
     "Five-Alarm Fire"
-   ]
-  },
-  {
-   "what": "keyword CompanionAbility",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Lurrus of the Dream-Den",
-    "Zirda, the Dawnwaker",
-    "Jegantha, the Wellspring",
-    "Gyruda, Doom of Depths",
-    "Yorion, Sky Nomad",
-    "Kaheera, the Orphanguard",
-    "Keruga, the Macrosage",
-    "Obosh, the Preypiercer",
-    "Umori, the Collector",
-    "Lutri, the Spellchaser"
    ]
   },
   {
@@ -6503,13 +6486,23 @@
     "Render Inert",
     "Mabel, Bitter Recluse"
    ]
+  },
+  {
+   "what": "DealtDamageAttachedTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Druid's Call",
+    "Spiteful Shadows",
+    "Binding Agony"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3382,
-   "cards": 3217,
+   "score": 3384,
+   "cards": 3219,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6521,8 +6514,8 @@
   },
   {
    "what": "custom ability",
-   "score": 518,
-   "cards": 479,
+   "score": 517,
+   "cards": 478,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7795,6 +7788,19 @@
    ]
   },
   {
+   "what": "OneShotNonTargetEffect",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Yorion, Sky Nomad",
+    "Boltbender",
+    "Amy Pond",
+    "Wormfang Newt",
+    "Wormfang Turtle",
+    "Temporal Firestorm"
+   ]
+  },
+  {
    "what": "Ability.withFirstModeCost",
    "score": 7,
    "cards": 7,
@@ -8143,19 +8149,6 @@
    ]
   },
   {
-   "what": "keyword CompanionAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Lurrus of the Dream-Den",
-    "Zirda, the Dawnwaker",
-    "Kaheera, the Orphanguard",
-    "Keruga, the Macrosage",
-    "Umori, the Collector",
-    "Lutri, the Spellchaser"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 6,
    "cards": 6,
@@ -8400,19 +8393,6 @@
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord",
     "Kefnet's Last Word"
-   ]
-  },
-  {
-   "what": "OneShotNonTargetEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Boltbender",
-    "Amy Pond",
-    "Wormfang Newt",
-    "Wormfang Turtle",
-    "Temporal Firestorm",
-    "Muse Vessel"
    ]
   },
   {
@@ -10155,6 +10135,17 @@
     "Charge Across the Araba",
     "Sink into Takenuma",
     "Plow Through Reito"
+   ]
+  },
+  {
+   "what": "RevealHandTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Baleful Stare",
+    "Withering Gaze",
+    "Rag Man",
+    "Thoughtcutter Agent"
    ]
   }
  ]

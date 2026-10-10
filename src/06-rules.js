@@ -349,6 +349,16 @@
         z.command.push(o);
         p.commanderCasts[o.id] = 0;
       }
+      /* Companion (CR 702.139): revealed outside the game from the start, kept
+         beside the command zone, and put into its owner's hand for {3} once a
+         game, any time they could cast a sorcery (companionToHand). It is not
+         a commander, and nothing is cast from where it waits. */
+      if (deck.companion) {
+        const o = this._register(new GObj(deck.companion, playerId, 'command'));
+        o.companion = true;
+        z.command.push(o);
+      }
+      p.companionUsed = false;
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
       p.deck = deck;
       this._loadDraftExtras(p, deck);
@@ -1454,6 +1464,19 @@
             this.activePlayer && this.activePlayer.id !== playerId &&
             this.stackEmpty && this.step !== 'end') continue;
         if (acts.some(usable)) out.push({ kind: 'activate', objId: o.id });
+      }
+      /* The command zone: a companion that could come to hand now, and an
+         ability that works from there (Derevi: "put Derevi onto the
+         battlefield from the command zone") with the mana for it. */
+      for (const o of (z.command || [])) {
+        if (o.owner !== playerId) continue;
+        if (o.companion) {
+          if (!p.companionUsed && !this._sorcerySpeedBlock(playerId) && this.canPayNow(playerId, '{3}')) out.push({ kind: 'companion', objId: o.id });
+          continue;
+        }
+        const a = o.analysis();
+        const acts = a ? a.abilities.filter(x => x.kind === 'activated' && x.fromCommandZone) : [];
+        if (acts.some(x => !this._activationBlocked(o, x, playerId) && this.couldPay(playerId, this._abilityMana(o, x), purse))) out.push({ kind: 'activate', objId: o.id });
       }
       return out;
     }
@@ -3412,6 +3435,7 @@
       if (a.castWindow) { const why = this._castWindowShut(a.castWindow, playerId); if (why) return { ok: false, reason: why }; }
       if (o.card && o.card.layout === 'emblem') return { ok: false, reason: 'An emblem is not a card.' };
       if (o.conspiracy) return { ok: false, reason: 'A conspiracy is not cast.' };
+      if (o.companion && o.zone === 'command') return { ok: false, reason: 'Your companion waits outside the game: pay {3} to put it into your hand first.' };
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
@@ -4431,6 +4455,28 @@
      * no stack, no priority passed, any time you have priority — which is
      * the whole point of morph.
      */
+    /**
+     * Companion (CR 702.139a): once a game, any time you could cast a sorcery,
+     * pay {3} to put your companion into your hand. A special action: it does
+     * not use the stack, and nobody can respond to it.
+     */
+    companionToHand(playerId, objId, opts) {
+      opts = opts || {};
+      const p = this.player(playerId);
+      const o = this.obj(objId);
+      if (!p || !o || !o.companion || o.owner !== playerId || o.zone !== 'command') return this.fail('That is not your companion.');
+      if (p.companionUsed) return this.fail('You have already put your companion into your hand this game.');
+      const when = this._sorcerySpeedBlock(playerId);
+      if (when) return this.fail(when === 'You do not have priority.' ? when : `A companion comes to hand only when you could cast a sorcery: ${when.toLowerCase()}`);
+      if (!this.payMana(playerId, '{3}', Object.assign({ auto: true }, opts))) return this.fail(`Not enough mana to put ${o.name} into your hand ({3}).`);
+      p.companionUsed = true;
+      this.moveObject(o, 'hand');
+      o.companion = false;
+      this.logEvent('rules', `${p.name} pays {3} and puts ${o.name}, their companion, into their hand.`);
+      this.touch();
+      return true;
+    }
+
     turnFaceUp(playerId, objId, opts) {
       opts = opts || {};
       const o = this.obj(objId);
@@ -6420,6 +6466,10 @@
       if (ab.fromGraveyard) {
         if (o.zone !== 'graveyard' || o.owner !== playerId) return this.fail('That ability only works from your graveyard.');
       } else if (o.zone === 'graveyard') return this.fail('That ability does not work from the graveyard.');
+      // Derevi: an ability that works from the command zone works from there, and only there
+      if (ab.fromCommandZone) {
+        if (o.zone !== 'command' || o.owner !== playerId) return this.fail('That ability only works from your command zone.');
+      } else if (o.zone === 'command') return this.fail('That ability does not work from the command zone.');
       // "Any player may activate this ability" means exactly that
       if (o.controller !== playerId && !ab.anyPlayer) return this.fail('You do not control that.');
       const why = this._activationBlocked(o, ab, playerId);
@@ -20728,6 +20778,13 @@
           break;
         }
         /* Ninjutsu resolving: in, tapped and attacking the same defender */
+        // Derevi, Empyrial Tactician: "Put Derevi onto the battlefield from the command zone."
+        case 'selfFromCommandZone':
+          if (src && src.zone === 'command') {
+            this.moveObject(src, 'battlefield', { controller: src.owner });
+            this.logEvent('rules', `${src.name} comes onto the battlefield from the command zone.`);
+          }
+          break;
         case 'ninjaIn': {
           // (commanderNinjutsu: or from the command zone)
           if (!src || !(src.zone === 'hand' || (src.zone === 'command' && src.isCommander))) break;
@@ -23663,6 +23720,7 @@
           blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat, blockedNoBlocker: o.blockedNoBlocker || null,
           chosenX: o.chosenX, targets: JSON.parse(JSON.stringify(o.targets || [])),
           manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander, isSignature: !!o.isSignature,
+          companion: !!o.companion,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
           shields: o.shields || 0, preventShield: o.preventShield || 0,
           noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || null,
@@ -23710,6 +23768,7 @@
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
+          companionUsed: !!p.companionUsed,
         })),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
@@ -24063,6 +24122,8 @@
         prepared: !!o.prepared,
         // Oathbreaker: the Signature Spell waiting in the command zone (said only of that one card)
         isSignature: o.isSignature ? true : undefined,
+        // a companion, revealed outside the game beside the command zone (said only of that one card)
+        companion: o.companion ? true : undefined,
         // what it chose as it entered: a creature type, a colour, a card name, a player, a number
         chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
           const c = {};
@@ -24143,7 +24204,8 @@
           const z = this.zones[playerId];
           if (!z) return out;
           const prepared = this.battlefield.filter(o => o.controller === playerId && o.prepared);
-          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared)) {
+          // (the command zone too: Yuriko's commander ninjutsu)
+          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared, z.command || [])) {
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
@@ -24200,6 +24262,8 @@
           mulligansTaken: p.mulligansTaken, keptHand: p.keptHand,
           mulliganBottom: this.bottomCountFor(p),
           commanderDamage: p.commanderDamage, commanderCasts: p.commanderCasts,
+          // the companion's {3} into hand, once a game: used yet?
+          companionUsed: p.companionUsed ? true : undefined,
           librarySize: this.zones[p.id].library.length,
           // which dungeon room they are in ({ name, room }), for the table to show
           dungeon: p.dungeon ? Object.assign({}, p.dungeon) : null, dungeonsCompleted: (p.dungeonsCompleted || []).length,

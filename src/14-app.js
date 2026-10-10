@@ -4576,7 +4576,7 @@
         playLand: 'playing a land', cast: 'casting', activate: 'an ability',
         mana: 'tapping for mana', declareAttackers: 'the attack',
         declareBlockers: 'the blocks', choice: 'that choice', manual: 'that',
-        mulligan: 'the mulligan', keep: 'keeping', pass: 'passing',
+        mulligan: 'the mulligan', keep: 'keeping', pass: 'passing', companion: 'putting your companion into your hand',
       };
       const before = g.stateVersion;
       const undoEntry = (UNDOABLE[intent.kind] && !g.over)
@@ -4621,6 +4621,8 @@
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
+        // the companion: {3} to put it into your hand, once a game (CR 702.139)
+        case 'companion': g.companionToHand(actorId, intent.objId, { auto: true }); break;
         /* A cost paid with cards (sacrifice this, discard that) can be chosen up
            front, the way a bot does it; the engine still checks each pick
            against what the cost allows, and asks for anything left over. */

@@ -2643,6 +2643,7 @@
         }
         if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
+        if (!(move && move.hold) && this.useCompanion(main1)) return true;
         return false;
       }
       // combat on either side of the table
@@ -2666,6 +2667,28 @@
         }
       }
       return false;
+    }
+
+    /**
+     * The companion (CR 702.139): {3} into hand, once a game, at sorcery speed.
+     * Done when the turn has nothing better for the mana — after the spells it
+     * meant to cast — and in the first main phase only when there is enough
+     * left over to cast the companion as well, or nothing else to do with it.
+     */
+    useCompanion(main1) {
+      const g = this.game;
+      const p = g.player(this.pid);
+      if (!p || p.companionUsed) return false;
+      const comp = ((g.zones[this.pid] || {}).command || []).find(o => o.companion && o.owner === this.pid);
+      if (!comp) return false;
+      const mana = this.availableMana(true);
+      if (mana < 3) return false;
+      const mv = (comp.card && comp.card.cmc) || 0;
+      // the first main phase: only with mana for both, or with an empty hand to fill
+      if (main1 && mana < 3 + mv && this.game.zones[this.pid].hand.length > 1) return false;
+      if (!g.companionToHand(this.pid, comp.id, { auto: true })) return false;
+      this._did('companion', comp, 'puts its companion into its hand');
+      return true;
     }
 
     /* ---- lands ---- */

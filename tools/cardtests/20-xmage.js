@@ -21511,4 +21511,76 @@ module.exports = (test) => {
     t.zone(y, 'battlefield');
     t.ok(y.tapped && y.attacking === 'B', 'tapped and attacking');
   });
+
+  test('Companions: the deck checked against the restriction, {3} into hand once a game at sorcery speed, and a bot doing it', (mk, t) => {
+    const M = engine();
+    const deckOf = (main, cmd, comp) => ({ main: main.map(([n, q]) => ({ card: card(n), qty: q })), commanders: cmd.map(n => card(n)), companion: comp ? card(comp) : null });
+    // Lurrus: every permanent card, the commander too, with mana value 2 or less
+    const bad = M.formats.validate(deckOf([['Plains', 50], ['Swamp', 47], ['Savannah Lions', 1], ['Hill Giant', 1]], ['Ayli, Eternal Pilgrim'], 'Lurrus of the Dream-Den'), 'commander');
+    t.ok(bad.errors.some(e => /Lurrus of the Dream-Den can't be your companion: permanents must have mana value 2 or less/.test(e)), 'a three-drop permanent: refused', JSON.stringify(bad.errors));
+    const good = M.formats.validate(deckOf([['Plains', 50], ['Swamp', 47], ['Savannah Lions', 1], ['Wall of Omens', 1]], ['Ayli, Eternal Pilgrim'], 'Lurrus of the Dream-Den'), 'commander');
+    t.ok(!good.errors.some(e => /companion/.test(e)), 'nothing over two: fine', JSON.stringify(good.errors));
+    t.eq(good.size, 100, 'the companion is not one of the 100');
+    const cmd = M.formats.validate(deckOf([['Plains', 50], ['Swamp', 47], ['Savannah Lions', 1], ['Wall of Omens', 1]], ['Liesa, Shroud of Dusk'], 'Lurrus of the Dream-Den'), 'commander');
+    t.ok(cmd.errors.some(e => /Lurrus of the Dream-Den can't be your companion/.test(e)), 'the commander is part of the starting deck: a five-drop commander is refused', JSON.stringify(cmd.errors));
+    const ci = M.formats.validate(deckOf([['Plains', 50], ['Swamp', 47], ['Savannah Lions', 1], ['Wall of Omens', 1]], ['Isamaru, Hound of Konda'], 'Lurrus of the Dream-Den'), 'commander');
+    t.ok(ci.errors.some(e => /outside your commander's color identity .*companion/.test(e)), "outside the commander's colours: refused", JSON.stringify(ci.errors));
+    // in the game: beside the command zone, {3} into hand at sorcery speed, once
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const lur = T.put('A', 'Lurrus of the Dream-Den', 'command'); lur.companion = true;
+    T.mana('A', '1WB');
+    t.no(T.g.castSpell('A', lur.id, { auto: true }), 'not cast from where it waits, with the mana for it');
+    T.player('A').pool.clear();
+    T.mana('A', '3');
+    t.ok(T.g.playableNow('A').some(x => x.kind === 'companion' && x.objId === lur.id), 'offered in the main phase with three mana');
+    t.ok(T.g.companionToHand('A', lur.id, { auto: true }), T.g.lastError);
+    t.zone(lur, 'hand');
+    T.mana('A', '1WB');
+    T.cast('A', lur); T.resolve();
+    t.zone(lur, 'battlefield', 'then cast from hand');
+    // a second companion action: refused, once a game
+    const again = T.put('A', 'Lurrus of the Dream-Den', 'command'); again.companion = true;
+    T.mana('A', '3');
+    t.no(T.g.companionToHand('A', again.id, { auto: true }), 'the second time: refused');
+    t.ok(/already/.test(T.g.lastError || ''), T.g.lastError);
+    // not at instant speed
+    const T2 = mk({ library: Array(10).fill('Island') });
+    const lur2 = T2.put('A', 'Lurrus of the Dream-Den', 'command'); lur2.companion = true;
+    T2.toMain('B');
+    T2.mana('A', '3');
+    t.no(T2.g.companionToHand('A', lur2.id, { auto: true }), "on an opponent's turn: refused");
+    // a bot: with the mana and nothing better to do, it brings its companion to hand
+    const T3 = mk({ library: Array(10).fill('Island') });
+    T3.toMain('A');
+    const lur3 = T3.put('A', 'Lurrus of the Dream-Den', 'command'); lur3.companion = true;
+    for (let i = 0; i < 3; i++) T3.bf('A', 'Plains');
+    T3.player('A').isBot = true;
+    const bot = new M.bots.BotPlayer(T3.g, 'A', 8);
+    t.ok(bot.useCompanion(false), 'the bot uses it');
+    t.zone(lur3, 'hand', 'Lurrus in the bot\'s hand');
+    t.ok(T3.player('A').companionUsed, 'once a game, used');
+  });
+
+  test('Derevi, Empyrial Tactician: put onto the battlefield from the command zone, and only from there', (mk, t) => {
+    t.auto('Derevi, Empyrial Tactician');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const d = T.put('A', 'Derevi, Empyrial Tactician', 'command'); d.isCommander = true;
+    const a = d.analysis();
+    const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const idx = all.findIndex(x => x.fromCommandZone);
+    t.ok(idx >= 0, 'an ability that works from the command zone');
+    T.mana('A', '1GWU');
+    t.ok(T.g.playableNow('A').some(x => x.kind === 'activate' && x.objId === d.id), 'offered from the command zone');
+    T.activate('A', d, idx); T.resolve();
+    t.zone(d, 'battlefield', 'onto the battlefield');
+    t.no(T.player('A').commanderCasts[d.id], 'not cast: no commander tax');
+    T.mana('A', '1GWU');
+    t.no(T.g.activateAbility('A', d.id, idx, { auto: true }), 'not from the battlefield');
+    // a commander's battlefield abilities do not work from the command zone
+    const y = T.put('A', 'Shivan Dragon', 'command'); y.isCommander = true;
+    T.mana('A', 'R');
+    t.no(T.g.activateAbility('A', y.id, 0, { auto: true }), 'a battlefield ability, from the command zone: refused');
+  });
 };

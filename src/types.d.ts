@@ -81,6 +81,8 @@ declare namespace MTG {
     isCommander: boolean;
     /** Oathbreaker: the deck's Signature Spell, which waits in the command zone */
     isSignature?: boolean;
+    /** a companion, revealed outside the game beside the command zone ({3} into hand, once a game) */
+    companion?: boolean;
     /** prepared: it can cast a copy of its card's spell */
     prepared?: boolean;
     /** a hidden agenda of the viewer's that has not been turned face up */
@@ -157,6 +159,8 @@ declare namespace MTG {
     mulliganBottom: number;
     commanderDamage?: Record<string, number>;
     commanderCasts?: Record<string, number>;
+    /** the companion's {3} into hand has been used this game */
+    companionUsed?: boolean;
     librarySize: number;
     /** the top of your own library, when something lets you see it */
     topCard: ObjectView | null;
@@ -425,7 +429,7 @@ declare namespace MTG {
     | { kind: 'playLand'; objId: Id; face?: number }
     | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[] }
     | { kind: 'suspend'; objId: Id; x?: number }
-    | { kind: 'plot' | 'transmute' | 'encore' | 'turnFaceUp'; objId: Id }
+    | { kind: 'plot' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;

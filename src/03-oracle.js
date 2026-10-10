@@ -5399,6 +5399,8 @@
     // Golbez, Crystal Collector: "each opponent loses life equal to that card's power" (lifeEqualTo)
     { re: /^Each opponent loses life equal to (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
+    // Derevi, Empyrial Tactician: "Put Derevi onto the battlefield from the command zone." — an ability that works from there (fromCommandZone)
+    { re: /^Put CARDNAME onto the battlefield from the command zone\.?$/, make: () => ({ op: 'selfFromCommandZone' }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -10813,6 +10815,10 @@
         if (gateGranted(out, rest, cond, typeLine, card)) autoLines++;
         continue;
       }
+      /* Companion (CR 702.139): the deck's rule is checked as the deck is built
+         (src/04-formats.js), and the {3} that brings it to hand is the game's
+         own action (companionToHand) — nothing more for the card to do */
+      if (/^Companion\s*(?:\u2014|--|-)\s*\S/.test(line)) { out.companionRule = line.replace(/^Companion\s*(?:\u2014|--|-)\s*/, ''); autoLines++; continue; }
       // Loyalty abilities:  "+1: Draw a card."
       let m = line.match(/^([+-]?[\dX]+|0):\s*([\s\S]+)$/);
       if (m && out.isPlaneswalker) {
@@ -12530,6 +12536,8 @@
         }
       }
     }
+    // (fromCommandZone: Derevi's ability works from the command zone, and only there)
+    for (const ab of out.abilities) if (ab.kind === 'activated' && (ab.effects || []).some(e => e && e.op === 'selfFromCommandZone')) ab.fromCommandZone = true;
     /* Kitnap, Ray of Frost: an Aura's or Equipment's "tap it", "put three stun counters on it" once the
        ability has named "enchanted creature" — the creature it is on, not the Aura (attachedIt). Not after
        the creature has died or left: then "it" is no longer anything this is attached to. */

@@ -265,6 +265,8 @@ const INTENTS = {
   yield: closed({ mode: maybe(lit('turn', 'response')) }),
   keep: closed({ bottom: opt(ids) }),
   playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
+  // the companion's {3} into hand (CR 702.139)
+  companion: onObj,
   cast: closed({
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
     /* which of an "and/or" kicker's costs are paid: 0 the first, 1 the second */
@@ -668,6 +670,7 @@ const CALLS = {
   transmuteCard: (pid, objId) => ({ kind: 'transmute', objId }),
   encoreCard: (pid, objId) => ({ kind: 'encore', objId }),
   turnFaceUp: (pid, objId) => ({ kind: 'turnFaceUp', objId }),
+  companionToHand: (pid, objId) => ({ kind: 'companion', objId }),
   activateAbility: (pid, objId, index, opts) => Object.assign({ kind: 'activate', objId, index }, strip(opts)),
   tapForMana: (pid, objId, index, choice) => Object.assign({ kind: 'mana', objId, index: index || 0 }, choice != null ? { choice } : {}),
   declareAttackers: (pid, declarations) => ({ kind: 'declareAttackers', declarations: declarations || [] }),
