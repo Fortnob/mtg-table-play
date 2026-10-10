@@ -5754,4 +5754,23 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), 18, 'two at B'); t.eq(T.life('C'), 19, 'one at C');
   });
+
+  test("Audit: \"each other creature you control that's a token or a Rabbit\" (Finneas): tokens and Rabbits only; Sporecrown Thallid's Fungus or Saproling", (mk, t) => {
+    t.auto('Finneas, Ace Archer'); t.auto('Sporecrown Thallid');
+    let T = mk();
+    T.toMain('A');
+    const fin = T.bf('A', 'Finneas, Ace Archer'); fin.summoningSick = false;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g._runEffects([{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Soldier', keywords: [], addTypes: [] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    const tok = T.g.battlefield.find(o => o.isToken);
+    T.answer('declareAttackers', () => [{ attackerId: fin.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+    t.eq(tok.counters['+1/+1'], 1, 'the token'); t.eq(bear.counters['+1/+1'] || 0, 0, 'not the Bears'); t.eq(fin.counters['+1/+1'] || 0, 0, 'not itself');
+    T = mk();
+    T.toMain('A');
+    const st = T.bf('A', 'Sporecrown Thallid');
+    const sap = T.bf('A', 'Thallid'), b2 = T.bf('A', 'Grizzly Bears');
+    T.g.bumpBoard();
+    t.eq(T.g.powerOf(sap), 2, 'a Fungus: +1'); t.eq(T.g.powerOf(b2), 2, 'the Bears: as printed'); t.eq(T.g.powerOf(st), 2, 'not itself');
+  });
 };
