@@ -12052,6 +12052,8 @@
         if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn) return (v.yours ? ((((this.turnHistory || {}).diedBy) || {})[ctx.controller] || 0) : ((this.turnHistory || {}).creaturesDied || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
+        // Prophet of the Scarab: "…, whichever is greater" (maxOf)
+        if (v && typeof v === 'object' && Array.isArray(v.maxOf)) return Math.max(...v.maxOf.map(x => (typeof x === 'number' ? x : n(x)) || 0));
         // Rackling: "3 minus the number of cards in their hand"
         if (v && typeof v === 'object' && v.minusHand != null) { const p = triggerPlayer() || firstPlayer(); return Math.max(0, v.minusHand - (p ? this.zones[p.id].hand.length : 0)); }
         // Kozilek: "draw cards equal to the difference" — up to seven in hand

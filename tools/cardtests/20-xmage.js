@@ -17908,4 +17908,19 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
     t.eq(T.life('B'), 14, 'tapped: {R} again');
   });
+
+  test('Prophet of the Scarab: draw the Zombies you control or the Zombie cards in your graveyard, whichever is greater', (mk, t) => {
+    t.auto('Prophet of the Scarab');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Walking Corpse'); T.bf('A', 'Walking Corpse');
+    for (let i = 0; i < 3; i++) T.grave('A', 'Walking Corpse');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const p = T.hand('A', 'Prophet of the Scarab');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', 'U4');
+    T.cast('A', p);
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h - 1 + 3, 'three from the graveyard beat two on the battlefield');
+  });
 };

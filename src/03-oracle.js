@@ -5819,6 +5819,14 @@
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
+    /* Prophet of the Scarab: "the number of Zombies you control or the number of Zombie cards in your
+       graveyard, whichever is greater"; Triumphant Chomp: "2 or the greatest power among …" (maxOf) */
+    const wg = p.match(/^(.+?) or (.+?), whichever is greater$/i);
+    if (wg) {
+      const side = (x) => (/^\d+$/.test(x.trim()) ? +x.trim() : amountOf(x));
+      const a = side(wg[1]), b = side(wg[2]);
+      return a != null && b != null && a !== false && b !== false ? { maxOf: [a, b] } : null;
+    }
     // Endless Ranks of the Dead: "half the number of Zombies you control, rounded down"
     const hf = p.match(/^half (the number of .+), rounded (up|down)$/i);
     if (hf) { const k = amountOf(hf[1]); return k ? { half: k, up: /up/i.test(hf[2]) } : null; }
