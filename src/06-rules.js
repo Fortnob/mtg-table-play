@@ -11915,7 +11915,8 @@
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
-            triggerData: Object.assign({}, tData),
+            // (a trigger for a lot of them, which "that many" counts: batchCount)
+            triggerData: Object.assign({}, tData, ((ab.objFilter && ab.objFilter.batch) || ab.batch) ? { batch: true } : {}),
           });
         }
         // "When you next cast …": the turn's emblem goes once it has triggered
@@ -12982,7 +12983,12 @@
         // "the excess damage dealt this way"
         if (v === 'lastExcess') return this._lastExcess || 0;
         // "loses that much life": the amount the trigger was about
-        if (v === 'triggerAmount') return Number((ctx.triggerData || {}).amount) || 0;
+        if (v === 'triggerAmount') {
+          const tdA = ctx.triggerData || {};
+          // The Ur-Dragon, Poetic Ingenuity: "one or more Dragons attack, draw that many" — how many were in the lot (batchCount)
+          if (tdA.amount == null && tdA.batch) return (tdA.batchIds || (tdA.objectId ? [tdA.objectId] : [])).length;
+          return Number(tdA.amount) || 0;
+        }
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
         if (v && typeof v === 'object' && v.attackingOther) {
           const want = String(v.attackingOther).toLowerCase();

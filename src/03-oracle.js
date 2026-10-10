@@ -11387,6 +11387,34 @@
             parsed.auto = true;
           }
         }
+        /* The Earth King, Grand Warlord Radha, Fangorn, Raphael: "that many" and "that much" in a
+           trigger — the amount it was about, or how many set it off (batchCount). Only here: in a spell
+           or an activated ability the words point at something else (Settle the Wreckage, Rasputin). */
+        if (parsed.effects.some(e => e && e.op === 'manual')) {
+          let changed = false;
+          parsed.effects = [].concat(...parsed.effects.map(e => {
+            if (!e || e.op !== 'manual') return [e];
+            const t = String(e.text || '').trim();
+            let m2;
+            if ((m2 = t.match(/^add (twice )?that much \{([WUBRGC])\}\.?$/i))) {
+              changed = true;
+              return (m2[1] ? [1, 2] : [1]).map(() => ({ op: 'addManaX', amount: 'triggerAmount', symbol: m2[2].toUpperCase(), text: e.text }));
+            }
+            if ((m2 = t.match(/^add that much mana in any combination of \{([WUBRGC])\} and\/or \{([WUBRGC])\}\.?$/i))) {
+              changed = true;
+              return [{ op: 'addManaChoice', choices: [[m2[1].toUpperCase()], [m2[2].toUpperCase()]], n: 'triggerAmount', text: e.text }];
+            }
+            if (/^(?:you may )?search your library for up to that many /i.test(t)) {
+              const s2 = parseSearch(t.charAt(0).toUpperCase() + t.slice(1).replace(/up to that many/i, 'up to two'));
+              if (s2 && s2.n === 2) {
+                changed = true;
+                return [Object.assign(s2, { n: 'triggerAmount', text: e.text }, s2.prompt ? { prompt: s2.prompt.replace(/up to two/i, 'up to that many') } : {})];
+              }
+            }
+            return [e];
+          }));
+          if (changed && parsed.effects.every(e => e && e.op !== 'manual')) parsed.auto = true;
+        }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;

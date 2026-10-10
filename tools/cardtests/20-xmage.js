@@ -22000,4 +22000,54 @@ module.exports = (test) => {
     t.ok(!L.g.couldBlock(big, lk, 'B'), 'Locke: the Wurm, with greater power, cannot block');
     t.ok(L.g.couldBlock(small, lk, 'B'), 'Locke: the Bears can');
   });
+
+  test("Commanders: The Ur-Dragon draws one for each Dragon; Grand Warlord Radha, Fangorn, The Earth King, Raphael, Sakiko", (mk, t) => {
+    for (const n of ['Grand Warlord Radha', 'Fangorn, Tree Shepherd', 'The Earth King', 'Raphael, Ninja Destroyer', 'Sakiko, Mother of Summer', 'Hexhaven Invigorator']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // The Ur-Dragon: "draw that many cards" — one for each Dragon in the attack
+    const U = mk({ library: Array(20).fill('Island') });
+    U.toMain('A');
+    const lib0 = U.zone('A', 'library').length;
+    U.answer('confirm', { yes: false });
+    attack(U, [U.bf('A', 'The Ur-Dragon'), U.bf('A', 'Shivan Dragon')]);
+    t.eq(lib0 - U.zone('A', 'library').length, 2, 'The Ur-Dragon: two Dragons attacked, two cards drawn');
+    // Grand Warlord Radha: that much mana, red and/or green, kept for the turn
+    const R = mk({ library: Array(20).fill('Island') });
+    R.toMain('A');
+    R.answer('choose', () => ({ picks: [1] }));
+    attack(R, [R.bf('A', 'Grand Warlord Radha'), R.bf('A', 'Grizzly Bears')]);
+    const pr = R.player('A').pool;
+    t.ok(pr.R === 1 && pr.G === 1, 'Radha: two attackers, {R}{G} as chosen');
+    // Fangorn: twice that much {G}
+    const F = mk({ library: Array(20).fill('Island') });
+    F.toMain('A');
+    attack(F, [F.bf('A', 'Fangorn, Tree Shepherd'), F.bf('A', 'Treefolk Harbinger'), F.bf('A', 'Grizzly Bears')]);
+    t.eq(F.player('A').pool.G, 4, 'Fangorn: two Treefolk attacked, {G}{G}{G}{G}');
+    // The Earth King: up to that many basic lands — only creatures with power 4 or greater count
+    const E = mk({ library: Array(10).fill('Forest') });
+    E.toMain('A');
+    let offered = 0;
+    E.answer('pickCard', (ch) => { offered = ch.count; return { cardIds: ch.cards.slice(0, ch.count).map(c => c.id) }; });
+    const lands0 = E.bfOf('A').filter(o => (o.analysis() || {}).isLand).length;
+    attack(E, [E.bf('A', 'The Earth King'), E.bf('A', 'Craw Wurm'), E.bf('A', 'Grizzly Bears')]);
+    t.eq(offered, 1, 'The Earth King: one creature with power 4 or greater attacked, up to one land');
+    t.eq(E.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, lands0 + 1, 'The Earth King: a Forest onto the battlefield');
+    // Raphael: "add that much {R}" for the damage dealt to him
+    const P = mk({ library: Array(10).fill('Island') });
+    P.toMain('A');
+    const ra = P.bf('A', 'Raphael, Ninja Destroyer');
+    P.g.dealDamageToObject(ra, 2, ra, false); P.resolve();
+    t.eq(P.player('A').pool.R, 2, 'Raphael: dealt 2 damage, {R}{R}');
+    // Woodland Champion: "Whenever one or more tokens you control enter, put that many +1/+1 counters on this creature"
+    const W = mk({ library: Array(10).fill('Plains') });
+    W.toMain('A');
+    const wc = W.bf('A', 'Woodland Champion');
+    W.mana('A', '1W');
+    W.cast('A', W.hand('A', 'Raise the Alarm')); W.resolve();
+    t.eq(Number(wc.counters['+1/+1']) || 0, 2, 'Woodland Champion: two tokens at once, two counters');
+  });
 };

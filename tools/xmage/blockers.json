@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10517,
-  "gainedCards": 969,
-  "linesNeeded": 11173,
+  "needed": 10511,
+  "gainedCards": 970,
+  "linesNeeded": 11166,
   "linesGained": 1136,
   "gained": {
-   "all": 969,
+   "all": 970,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4029,
-   "lines": 3783,
+   "score": 4026,
+   "lines": 3780,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 669,
-   "lines": 615,
+   "score": 667,
+   "lines": 613,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -647,25 +647,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Ainok Strike Leader",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger",
-    "Interceptor, Shadow's Hound",
-    "Amazing Alliance",
-    "Witch-king, Sky Scourge",
-    "Jocasta, Automaton Avenger",
-    "Mordor Trebuchet",
-    "Metropolis Angel"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for CONTROLLER_ATTACHED_TO",
    "score": 15,
    "lines": 15,
@@ -895,6 +876,25 @@
     "Mirror Room // Fractured Realm",
     "Central Elevator // Promising Stairs",
     "Experimental Lab // Staff Room"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Ainok Strike Leader",
+    "Choco, Seeker of Paradise",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance",
+    "Witch-king, Sky Scourge",
+    "Jocasta, Automaton Avenger",
+    "Mordor Trebuchet",
+    "Metropolis Angel",
+    "Teo, Spirited Glider",
+    "Chong and Lily, Nomads"
    ]
   },
   {
@@ -6482,8 +6482,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3371,
-   "cards": 3206,
+   "score": 3368,
+   "cards": 3203,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6495,8 +6495,8 @@
   },
   {
    "what": "custom ability",
-   "score": 514,
-   "cards": 475,
+   "score": 512,
+   "cards": 473,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6878,19 +6878,6 @@
    ]
   },
   {
-   "what": "attack with a kind of creature",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Ainok Strike Leader",
-    "The Earth King",
-    "Choco, Seeker of Paradise",
-    "Fangorn, Tree Shepherd",
-    "Jolene, Plundering Pugilist",
-    "Talion's Messenger"
-   ]
-  },
-  {
    "what": "filter:alts",
    "score": 13,
    "cards": 13,
@@ -6988,6 +6975,19 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
+   ]
+  },
+  {
+   "what": "attack with a kind of creature",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Ainok Strike Leader",
+    "Choco, Seeker of Paradise",
+    "Jolene, Plundering Pugilist",
+    "Talion's Messenger",
+    "Interceptor, Shadow's Hound",
+    "Amazing Alliance"
    ]
   },
   {
