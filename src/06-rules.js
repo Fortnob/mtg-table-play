@@ -4994,6 +4994,24 @@
         }
         if (tTax) cost = this._addGeneric(cost || '', tTax);
       }
+      /* Killian, Ink Duelist: "Spells you cast that target a creature cost {2} less"; Esior: "Spells your
+         opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
+      if (!opts.free) {
+        let d = 0;
+        for (const s0 of this.battlefield) {
+          if (s0.phasedOut) continue;
+          const ef = this._staticOp(s0, 'targetCostMod');
+          if (!ef) continue;
+          if (ef.who === 'you' ? s0.controller !== playerId : !this.opponentsOf(s0.controller).some(q => q.id === playerId)) continue;
+          const hit = (opts.targets || []).some(t => {
+            const x = this.obj((t && t.id) || t);
+            if (!x || x.zone !== 'battlefield') return false;
+            return ef.commanderYours ? !!x.isCommander && x.controller === s0.controller : this._matchesCategory(x, ef.filter);
+          });
+          if (hit) d += ef.amount || 0;
+        }
+        if (d) cost = this._addGeneric(cost || '', d);
+      }
       // The Defilers: paid in life, one less mana of that colour
       const dfl = !opts.free && ((((opts.choices || {}).defiler || {}).picks || [])[0] === 0) ? this._defilerFor(playerId, o) : null;
       if (dfl) {

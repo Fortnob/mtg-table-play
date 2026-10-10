@@ -17314,4 +17314,26 @@ module.exports = (test) => {
     t.zone(bolt, 'graveyard');
     t.eq(T.life('B'), 20, 'a small spell can be countered');
   });
+
+  test('Killian: spells that target a creature cost {2} less; Esior: spells aimed at your commander cost {3} more', (mk, t) => {
+    t.auto('Killian, Ink Duelist');
+    t.auto('Esior, Wardwing Familiar');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Killian, Ink Duelist');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'BB');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bear.id] });
+    t.zone(bear, 'graveyard', 'Murder for {B}{B}');
+    const U = mk();
+    U.toMain('A');
+    U.bf('B', 'Esior, Wardwing Familiar');
+    const cmd = U.bf('B', 'Grizzly Bears');
+    cmd.isCommander = true;
+    const other = U.bf('B', 'Grizzly Bears');
+    U.mana('A', 'R');
+    t.no(U.g.castSpell('A', U.hand('A', 'Lightning Bolt').id, { auto: true, targets: [{ kind: 'object', id: cmd.id }] }), 'one red is not enough to aim at the commander');
+    U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: [other.id] });
+    t.zone(other, 'graveyard', 'the other Bears cost the usual {R}');
+  });
 };

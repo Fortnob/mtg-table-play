@@ -13284,6 +13284,12 @@
       // Prime Speaker Zegana: the counters are read where it enters (entersWithCounters)
       { re: /^(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
+      /* Killian, Ink Duelist: "Spells you cast that target a creature cost {2} less to cast."; Esior, Wardwing
+         Familiar: "Spells your opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
+      { re: /^Spells you cast that target an? (creature|permanent|artifact|enchantment|planeswalker|land) cost \{(\d+)\} less to cast\.?$/i,
+        make: (m) => ({ op: 'targetCostMod', who: 'you', filter: m[1].toLowerCase(), amount: -m[2] }), auto: true },
+      { re: /^Spells your opponents cast that target one or more commanders you control cost \{(\d+)\} more to cast\.?$/i,
+        make: (m) => ({ op: 'targetCostMod', who: 'opponents', commanderYours: true, amount: +m[1] }), auto: true },
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
