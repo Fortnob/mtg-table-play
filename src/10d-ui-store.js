@@ -2233,7 +2233,9 @@
   };
 
   /* ---------------- the Collection ---------------- */
-  const colState = { set: '', rarity: '', color: '', show: 'owned', q: '' };
+  // rarities: any number of them at once (none is every rarity); sort: how the cards are laid out
+  const colState = { set: '', rarities: [], color: '', show: 'owned', q: '', sort: 'color' };
+  const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest']];
   /**
    * The Collection into `host`: the cards you own, or a set's cards with
    * what you lack greyed out; four pips under each for the copies held; a
@@ -2255,6 +2257,26 @@
       ? { title: label, 'aria-label': label, html: `<i class="pip pip-${v.toLowerCase()}">${v}</i>` } : { text: label };
     const chips = (list, key) => el('div', { class: 'seg mini' }, list.map(([v, label]) => el('button', Object.assign({ type: 'button', class: 'seg-btn' + (colState[key] === v ? ' on' : '') }, chipFace(key, v, label), {
       onclick: () => { colState[key] = v; UI.renderCollection(host); } }))));
+    /* Rarities: any of them together, each letter in its rarity's colour;
+       "Any rarity" lets them all through again. */
+    const RAR_WORD = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', mythic: 'Mythic' };
+    const rarityChips = el('div', { class: 'seg mini rar-chips', role: 'group', 'aria-label': 'Rarity' }, [
+      el('button', { type: 'button', class: 'seg-btn' + (colState.rarities.length ? '' : ' on'), text: 'Any rarity', 'aria-pressed': String(!colState.rarities.length),
+        onclick: () => { colState.rarities = []; UI.renderCollection(host); } }),
+      ...['common', 'uncommon', 'rare', 'mythic'].map(r => {
+        const on = colState.rarities.includes(r);
+        return el('button', { type: 'button', class: 'seg-btn rar-' + r + (on ? ' on' : ''), text: r[0].toUpperCase(), 'aria-label': RAR_WORD[r], 'aria-pressed': String(on),
+          onclick: () => {
+            colState.rarities = on ? colState.rarities.filter(x => x !== r) : colState.rarities.concat(r);
+            // all four is the same as any
+            if (colState.rarities.length === 4) colState.rarities = [];
+            UI.renderCollection(host);
+          } });
+      }),
+    ]);
+    const sortSel = el('select', { class: 'col-sort', 'aria-label': 'Sort by' },
+      COL_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: colState.sort === v })));
+    sortSel.addEventListener('change', () => { colState.sort = sortSel.value; drawGrid(); });
     const grid = el('div', { class: 'col-grid' });
     const status = el('div', { class: 'col-status dim' });
     host.append(el('div', { class: 'collection' }, [
@@ -2263,8 +2285,8 @@
         el('div', { class: 'store-wallet' }, [shards(S.shards()), el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()])]),
       ]),
       el('div', { class: 'col-filters' }, [
-        setSel, search,
-        chips([['', 'Any rarity'], ['common', 'C'], ['uncommon', 'U'], ['rare', 'R'], ['mythic', 'M']], 'rarity'),
+        setSel, search, sortSel,
+        rarityChips,
         chips([['', 'Any colour'], ['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']], 'color'),
         colState.set ? chips([['owned', 'Owned'], ['all', 'All'], ['missing', 'Missing']], 'show') : null,
       ].filter(Boolean)),
@@ -2293,17 +2315,30 @@
     let shown = 120;
     const drawGrid = () => {
       const q = colState.q.toLowerCase();
-      let list = cards.filter(c => (!colState.rarity || S.rarityOf(c) === colState.rarity) &&
+      let list = cards.filter(c => (!colState.rarities.length || colState.rarities.includes(S.rarityOf(c))) &&
         (!colState.color || colourOf(c) === colState.color) && (!q || c.name.toLowerCase().includes(q)));
       if (colState.set && colState.show === 'owned') list = list.filter(c => S.owned(c.name) > 0);
       if (colState.set && colState.show === 'missing') list = list.filter(c => S.owned(c.name) < 4);
-      // by colour (white, blue, black, red, green, then gold and colourless, lands last), then rarity, rarest first, then name
+      /* Colour (white, blue, black, red, green, then gold and colourless,
+         lands last), then mana value from least to most, then name; or by
+         whatever the Sort says first, with that order behind it. */
       const order = { W: 0, U: 1, B: 2, R: 3, G: 4, M: 5, C: 6 };
       const rank = { mythic: 0, rare: 1, uncommon: 2, common: 3 };
       const rarityRank = (c) => { const r = rank[S.rarityOf(c)]; return r == null ? 4 : r; };
       const isLandCard = (c) => /\bLand\b/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
-      list.sort((a, b) => (isLandCard(a) - isLandCard(b)) || (order[colourOf(a)] - order[colourOf(b)]) ||
-        (rarityRank(a) - rarityRank(b)) || a.name.localeCompare(b.name));
+      const mv = (c) => (c.cmc != null ? c.cmc : ((c.card_faces && c.card_faces[0] && c.card_faces[0].cmc) || 0));
+      const byColour = (a, b) => (isLandCard(a) - isLandCard(b)) || (order[colourOf(a)] - order[colourOf(b)]);
+      const byMv = (a, b) => mv(a) - mv(b);
+      const byName = (a, b) => a.name.localeCompare(b.name);
+      const SORTS = {
+        color: (a, b) => byColour(a, b) || byMv(a, b) || byName(a, b),
+        mv: (a, b) => (isLandCard(a) - isLandCard(b)) || byMv(a, b) || byColour(a, b) || byName(a, b),
+        name: byName,
+        rarity: (a, b) => (rarityRank(a) - rarityRank(b)) || byColour(a, b) || byMv(a, b) || byName(a, b),
+        copies: (a, b) => (S.owned(b.name) - S.owned(a.name)) || byColour(a, b) || byMv(a, b) || byName(a, b),
+        new: (a, b) => String(b.released_at || '').localeCompare(String(a.released_at || '')) || byColour(a, b) || byMv(a, b) || byName(a, b),
+      };
+      list.sort(SORTS[colState.sort] || SORTS.color);
       if (colState.set) {
         const have = cards.filter(c => S.owned(c.name) > 0).length;
         const full = cards.filter(c => S.owned(c.name) >= 4).length;

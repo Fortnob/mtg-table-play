@@ -336,14 +336,46 @@ html[data-play="1"] .shard-chip { display: none; }
 .col-status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 13px; }
 .col-bar { display: inline-block; width: 200px; height: 7px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
 .col-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8a5be8, #d1a9ff); }
-.col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px 12px; }
-.col-card { display: grid; gap: 6px; padding: 0; border: 0; background: none; cursor: pointer; color: inherit; }
-.col-img { aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; background: #111 center / cover no-repeat; box-shadow: 0 4px 12px rgba(0,0,0,.5); transition: transform .15s; }
-.col-card:hover .col-img { transform: translateY(-3px); }
+.col-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 18px 14px; }
+/* each card a little object: rounded, lifted off the page, lit in its rarity's colour */
+.col-card { --rc: 170, 178, 190; display: grid; gap: 7px; padding: 0; border: 0; background: none; cursor: pointer; color: inherit; position: relative; }
+.col-card.r-uncommon { --rc: 186, 204, 224; }
+.col-card.r-rare { --rc: 236, 190, 84; }
+.col-card.r-mythic { --rc: 240, 118, 50; }
+.col-img { aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; background: #111 center / cover no-repeat; position: relative;
+  box-shadow: 0 0 0 1px rgba(var(--rc), .22), 0 6px 16px rgba(0,0,0,.55), 0 0 0 rgba(var(--rc), 0);
+  transition: transform .18s cubic-bezier(.3,.7,.4,1), box-shadow .18s, filter .18s; }
+/* a sheen across the card, there when it is pointed at */
+.col-img::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0;
+  background: linear-gradient(115deg, transparent 35%, rgba(255,255,255,.18) 50%, transparent 65%); transition: opacity .2s; }
+.col-card:hover .col-img, .col-card:focus-visible .col-img { transform: translateY(-5px) scale(1.035);
+  box-shadow: 0 0 0 1px rgba(var(--rc), .55), 0 14px 26px rgba(0,0,0,.6), 0 0 22px rgba(var(--rc), .35); }
+.col-card:hover .col-img::after { opacity: 1; }
+.col-card.r-rare .col-img, .col-card.r-mythic .col-img { box-shadow: 0 0 0 1px rgba(var(--rc), .4), 0 6px 16px rgba(0,0,0,.55), 0 0 14px rgba(var(--rc), .18); }
 .col-card.unowned .col-img { filter: grayscale(.9) brightness(.45); }
-.col-pips { display: flex; justify-content: center; gap: 5px; }
-.col-pips i { width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); background: rgba(255,255,255,.12); }
-.col-pips i.on { background: var(--gold-hi, #f3cf7a); box-shadow: 0 0 5px rgba(255, 210, 120, .7); }
+.col-card.unowned:hover .col-img { filter: grayscale(.5) brightness(.7); }
+/* the copies held: four pips in a small dark bar under the card */
+.col-pips { justify-self: center; display: flex; gap: 5px; padding: 4px 9px; border-radius: 99px;
+  background: rgba(10,12,18,.7); box-shadow: inset 0 0 0 1px rgba(255,255,255,.07); }
+.col-pips i { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: rgba(255,255,255,.13); }
+.col-pips i.on { background: linear-gradient(135deg, #fff1c2, var(--gold-hi, #f3cf7a)); box-shadow: 0 0 6px rgba(255, 210, 120, .75); }
+.col-sort { min-width: 0 !important; }
+/* the rarity chips: each letter in its rarity's colour, lit when chosen (outranking the plain chip's colours) */
+.seg.mini.rar-chips .seg-btn[class*="rar-"] { font-weight: 800; min-width: 30px; }
+.seg.mini.rar-chips .seg-btn.rar-common { color: #e4e7ec; }
+.seg.mini.rar-chips .seg-btn.rar-uncommon { color: #bccbdd; }
+.seg.mini.rar-chips .seg-btn.rar-rare { color: #f0c75a; }
+.seg.mini.rar-chips .seg-btn.rar-mythic { color: #ff8a3d; }
+.seg.mini.rar-chips .seg-btn[class*="rar-"].on { box-shadow: inset 0 -2px 0 currentColor, inset 0 0 12px rgba(255,255,255,.06); }
+.seg.mini.rar-chips .seg-btn.rar-common.on { color: #fff; background: rgba(228,231,236,.18); }
+.seg.mini.rar-chips .seg-btn.rar-uncommon.on { color: #d5e2f2; background: rgba(188,203,221,.2); }
+.seg.mini.rar-chips .seg-btn.rar-rare.on { color: #ffd76e; background: rgba(240,199,90,.2); }
+.seg.mini.rar-chips .seg-btn.rar-mythic.on { color: #ff9a52; background: rgba(255,138,61,.2); }
+@media (prefers-reduced-motion: reduce) { .col-img { transition: none; } .col-card:hover .col-img { transform: none; } }
+:root[data-theme="light"] .seg.mini.rar-chips .seg-btn.rar-common { color: #5b6270; }
+:root[data-theme="light"] .seg.mini.rar-chips .seg-btn.rar-uncommon { color: #5f7895; }
+:root[data-theme="light"] .seg.mini.rar-chips .seg-btn.rar-rare { color: #a8801c; }
+:root[data-theme="light"] .seg.mini.rar-chips .seg-btn.rar-mythic { color: #c95016; }
 .col-more { grid-column: 1 / -1; justify-self: center; }
 .col-detail { display: flex; gap: 18px; align-items: flex-start; }
 .col-detail-img { width: 220px; flex: none; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; background: #111 center / cover no-repeat; }
