@@ -18712,7 +18712,7 @@
           if (!cnt) break;
           // "You may play them": for as long as they stay exiled
           const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(ctx.controller);
-          const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : me;
+          const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : e.whose === 'target' ? (firstPlayer() || me) : me;
           this._lastExiledList = [];
           for (let i = 0; i < cnt; i++) {
             const o = this.zones[whose.id].library.shift();

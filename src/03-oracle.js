@@ -4108,8 +4108,10 @@
     { re: /^Until end of turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse', duration: 'eot' }) },
     { re: /^(?:You may )?[Cc]ast that card(?: without paying its mana cost)?\.?$/i, make: () => ({ op: 'markImpulse', duration: 'eot' }) },
     { re: /^Until the end of your next turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse' }) },
-    { re: /^Exile the top card of (?:that player'?s|target player'?s) library\.?$/i,
-      make: () => ({ op: 'impulse', n: 1, play: false, whose: 'triggerPlayer' }) },
+    // (Scrib Nibblers: "target player's library" — a player the ability targets, not the one a trigger is about)
+    { re: /^Exile the top card of (that player'?s|target player'?s) library\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'impulse', n: 1, play: false, whose: 'target', targets: [{ type: 'player' }] }
+        : { op: 'impulse', n: 1, play: false, whose: 'triggerPlayer' }) },
 
 
 

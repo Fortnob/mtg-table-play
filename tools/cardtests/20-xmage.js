@@ -20901,4 +20901,16 @@ module.exports = (test) => {
     t.eq(cr.counters['+1/+1'], 1, 'the third spell: a counter on the Captain');
     t.eq(T2.life('B'), 20 - T2.g.powerOf(cr), 'and damage equal to its own power');
   });
+
+  test("Scrib Nibblers: \"Exile the top card of target player's library\" is the target's library, not yours", (mk, t) => {
+    t.auto('Scrib Nibblers');
+    const T = mk();
+    T.toMain('A');
+    const sn = T.bf('A', 'Scrib Nibblers');
+    const mine = T.put('A', 'Island', 'library'), theirs = T.put('B', 'Forest', 'library');
+    T.activate('A', sn, 0, { targets: ['B'] });
+    t.zone(theirs, 'exile', "the opponent's top card");
+    t.zone(mine, 'library', 'yours stays');
+    t.eq(T.life('A'), 21, 'a land: 1 life');
+  });
 };
