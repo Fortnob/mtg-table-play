@@ -4682,4 +4682,21 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
     t.eq(toys().length, 2, 'the Bears with it: one Toy');
   });
+
+  test('Audit: Ripple chains: each rippled Surging Flame ripples again, the rest go to the bottom in order', (mk, t) => {
+    t.auto('Surging Flame');
+    const T = mk();
+    T.toMain('A');
+    T.g.zones.A.library.length = 0;
+    const order = ['Island', 'Surging Flame', 'Forest', 'Mountain', 'Surging Flame', 'Plains', 'Swamp', 'Wastes'];
+    for (const n of order.slice().reverse()) T.top('A', n);
+    for (let i = 0; i < 3; i++) T.answer('confirm', { yes: true });
+    for (let i = 0; i < 2; i++) T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.mana('A', 'R1');
+    T.cast('A', T.hand('A', 'Surging Flame'), { targets: ['B'] });
+    for (let i = 0; i < 8; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.life('B'), 14, 'three Flames');
+    t.eq(T.g.zones.A.library.map(c => c.name).join(','), 'Swamp,Wastes,Island,Forest,Mountain,Plains', 'what was revealed and not cast, bottomed');
+  });
 };
