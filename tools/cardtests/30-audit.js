@@ -5299,4 +5299,19 @@ module.exports = (test) => {
       t.zone(ar, 'stack', 'and it was cast');
     }
   });
+
+  test('Audit: Kiki-Jiki with Parallel Lives makes two hasty copies, and both go at the end step', (mk, t) => {
+    t.auto('Kiki-Jiki, Mirror Breaker'); t.auto('Parallel Lives');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Parallel Lives');
+    const kj = T.bf('A', 'Kiki-Jiki, Mirror Breaker'); kj.summoningSick = false;
+    const hg = T.bf('A', 'Hill Giant');
+    T.activate('A', kj, 0, { targets: [hg.id] }); T.settle();
+    const copies = () => T.g.battlefield.filter(o => o.isToken && o.name === 'Hill Giant');
+    t.eq(copies().length, 2, 'two copies'); t.ok(copies().every(o => T.g.hasKw(o, 'haste')));
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B');
+    t.eq(copies().length, 0, 'both sacrificed'); t.zone(hg, 'battlefield');
+  });
 };
