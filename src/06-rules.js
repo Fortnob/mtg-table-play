@@ -6016,6 +6016,7 @@
           this.battlefield.push(copy);
           this.bumpBoard();
           this._fireEnters(copy);
+          this._fire('youCreateToken', o.controller, { object: copy });
         }
         this.logEvent('token', `${o.name} brings ${copies} copy${copies === 1 ? '' : 'ies'} along.`);
       }

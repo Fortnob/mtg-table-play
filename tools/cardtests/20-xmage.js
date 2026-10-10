@@ -19934,9 +19934,11 @@ module.exports = (test) => {
     const T3 = mk();
     T3.toMain('A');
     T3.bf('A', 'Parallel Lives');
+    const staff3 = T3.bf('A', 'Staff of the Storyteller');
     T3.mana('A', 'BBBBB');
     T3.cast('A', T3.hand('A', 'Arco-Flagellant'), { squad: 1 });
     t.eq(T3.bfOf('A').filter(o => o.name === 'Arco-Flagellant').length, 3, 'squad paid once: two copies and the card');
+    t.eq(staff3.counters.story, 1, 'and the Staff sees them made');
     const T4 = mk({ players: ['A', 'B', 'C'] });
     T4.bf('A', 'Parallel Lives');
     const cp = T4.bf('A', 'Caller of the Pack'); cp.summoningSick = false;
