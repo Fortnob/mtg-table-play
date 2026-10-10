@@ -6819,8 +6819,11 @@
        many cards", "… Draw a card for each permanent sacrificed this way",
        "… CARDNAME deals that much damage to any target" — the rest read with
        X standing for how many were sacrificed */
-    { re: /^Sacrifice any number of ((?:[a-z]+(?:, and\/or |, | and\/or | or ))*[a-zA-Z]+?)s?(?: you control)?(?:, then |\. )([\s\S]+)$/i,
-      make: (m) => {
+    // (God-Eternal Bontu: "any number of other permanents" — never itself)
+    { re: /^Sacrifice any number of (other )?((?:[a-z]+(?:, and\/or |, | and\/or | or ))*[a-zA-Z]+?)s?(?: you control)?(?:, then |\. )([\s\S]+)$/i,
+      make: (m0) => {
+        const other = !!m0[1];
+        const m = [m0[0], m0[2], m0[3]];
         const what = m[1].toLowerCase().replace(/s(?=,| and\/or| or|$)/g, '').replace(/,? and\/or |, /g, ' or ').replace(/ or or /g, ' or ');
         let rest = m[2].trim();
         rest = rest.charAt(0).toUpperCase() + rest.slice(1);
@@ -6833,7 +6836,7 @@
         const swap = (v) => (v === 'X' ? { lastSacCount: true, mult: 1 } : v && typeof v === 'object' && v.xTimes ? { lastSacCount: true, mult: v.xTimes } : v);
         const walk = (l) => { for (const e of l || []) { if (!e) continue; if ('n' in e) e.n = swap(e.n); walk(e.list); walk(e.then); } };
         walk(parsed.effects);
-        return [{ op: 'sacrificeAnyNumber', filter: what }, ...parsed.effects];
+        return [Object.assign({ op: 'sacrificeAnyNumber', filter: what }, other ? { other: true } : {}), ...parsed.effects];
       } },
     /* Conflux, Shard Convergence, Gem of Becoming, Yasharn: "Search your
        library for a Plains card, an Island card, … Reveal those cards, put

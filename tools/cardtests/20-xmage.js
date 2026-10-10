@@ -17395,4 +17395,23 @@ module.exports = (test) => {
     t.eq(bs.filter(o => o.zone === 'exile').length, 2, 'two of B\'s permanents exiled');
     t.eq(cs[0].zone, 'battlefield', 'not C\'s');
   });
+
+  test('God-Eternal Bontu: sacrifice any number of other permanents, then draw that many', (mk, t) => {
+    t.auto('God-Eternal Bontu');
+    const T = mk();
+    T.toMain('A');
+    const f1 = T.bf('A', 'Forest'), f2 = T.bf('A', 'Forest'), f3 = T.bf('A', 'Swamp'), f4 = T.bf('A', 'Swamp'), f5 = T.bf('A', 'Swamp');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    let offered = null;
+    T.answer('choose', (ch) => { offered = ch.items.map(x => x.id); return { picks: [f1.id, f2.id] }; });
+    const bontu = T.hand('A', 'God-Eternal Bontu');
+    T.mana('A', 'BBB2');
+    const hand = T.zone('A', 'hand').length;
+    T.cast('A', bontu);
+    T.settle();
+    t.ok(offered && offered.length === 5, 'the five lands offered');
+    t.no((offered || []).includes(bontu.id), 'not itself');
+    t.zone(f1, 'graveyard'); t.zone(f2, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, hand - 1 + 2, 'two cards');
+  });
 };
