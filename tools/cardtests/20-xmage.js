@@ -20642,4 +20642,25 @@ module.exports = (test) => {
     t.eq(T.g.player('B').rad, p, 'its power with the counters');
     t.no(T.g.player('A').rad, 'not you');
   });
+
+  test("Dina's Guidance: the creature card found goes to your hand or your graveyard, your call", (mk, t) => {
+    t.auto("Dina's Guidance");
+    const T = mk();
+    T.toMain('A');
+    const w = T.put('A', 'Craw Wurm', 'library');
+    T.put('A', 'Island', 'library');
+    T.answer('pickCard', () => ({ cardIds: [w.id] }));
+    T.answer('choose', (ch) => ({ picks: [1] }));
+    T.mana('A', '1BG');
+    T.cast('A', T.hand('A', "Dina's Guidance"));
+    t.zone(w, 'graveyard', 'into the graveyard, as chosen');
+    const T2 = mk();
+    T2.toMain('A');
+    const w2 = T2.put('A', 'Craw Wurm', 'library');
+    T2.answer('pickCard', () => ({ cardIds: [w2.id] }));
+    T2.answer('choose', (ch) => ({ picks: [0] }));
+    T2.mana('A', '1BG');
+    T2.cast('A', T2.hand('A', "Dina's Guidance"));
+    t.zone(w2, 'hand', 'or into the hand');
+  });
 };

@@ -14973,6 +14973,15 @@
             const keep = (which || [])[0] || taken[0].id;
             for (const c of taken) toField.add(c.id === keep ? 'hand:' + c.id : 'grave:' + c.id);
           }
+          // Dina's Guidance: "put it into your hand or graveyard" — the searcher's call
+          if (dest === 'handOrGrave' && taken.length) {
+            const got = this._choose({ playerId: seeker.id, purpose: 'handOrGraveyard', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: 'Into your hand' }, { i: 1, label: 'Into your graveyard' }],
+              prompt: `Put ${taken.map(c => c.name).join(', ')} into your hand or your graveyard?` }, 'hog');
+            if (got === SUSPEND) return SUSPEND;
+            const toGrave = !!(got && got.picks && got.picks[0] === 1);
+            for (const c of taken) toField.add((toGrave ? 'grave:' : 'hand:') + c.id);
+          }
           if (dest === 'split' && taken.length) {
             const k = Math.min((e.split && e.split.battlefield) || 1, taken.length);
             if (taken.length > k) {
@@ -14998,7 +15007,7 @@
             const i = z.library.indexOf(c);
             if (i >= 0) z.library.splice(i, 1);
             if (c.zone === 'graveyard' && e.alsoGraveyard) { this.moveObject(c, dest === 'battlefield' ? 'battlefield' : 'hand', { controller: seeker.id }); continue; }
-            const where = dest === 'handGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
+            const where = dest === 'handGrave' || dest === 'handOrGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;

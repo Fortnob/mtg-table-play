@@ -5539,6 +5539,9 @@
     /* Krosan Verge: "a Forest card and a Plains card", one search each way */
     { re: /^Search your library for an? ([A-Z][a-z]+) card and an? ([A-Z][a-z]+) card, put them onto the battlefield( tapped)?, then shuffle\.?$/,
       make: (m) => [m[1], m[2]].map(t => ({ op: 'tutor', n: 1, filter: t.toLowerCase(), to: 'battlefield', tapped: !!m[3] })) },
+    // Dina's Guidance: "Search your library for a creature card, reveal it, put it into your hand or graveyard, then shuffle."
+    { re: /^Search your library for an? ([a-z]+) card, reveal it, put it into your hand or graveyard, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'handOrGrave' }) },
     /* Axgard Armory, Corpse Harvester, Invent: "an Aura card and/or an Equipment card, reveal them, put
        them into your hand" — one search for each */
     { re: /^Search your library for an? ([A-Za-z]+) card and(?:\/or)? an? ([A-Za-z]+) card, reveal them, put them into your hand, then shuffle\.?$/i,
