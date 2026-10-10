@@ -5519,4 +5519,17 @@ module.exports = (test) => {
       t.eq(T.g.battlefield.filter(o => o.isToken).length, x, `X=${x}`);
     }
   });
+
+  test('Audit: Commune with Lava exiles X cards: none for X=0, two for X=2', (mk, t) => {
+    t.auto('Commune with Lava');
+    for (const x of [0, 2]) {
+      const T = mk();
+      T.toMain('A');
+      for (let i = 0; i < 4; i++) T.top('A', 'Island');
+      const lib = T.zone('A', 'library').length;
+      T.mana('A', 'RR' + (x ? String(x) : ''));
+      t.ok(T.g.castSpell('A', T.hand('A', 'Commune with Lava').id, { auto: true, x })); T.settle(); T.resolve(); T.settle();
+      t.eq(lib - T.zone('A', 'library').length, x, `X=${x}`);
+    }
+  });
 };
