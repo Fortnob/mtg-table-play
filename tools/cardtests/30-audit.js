@@ -4524,4 +4524,21 @@ module.exports = (test) => {
     T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
     t.no(b.tapped); t.eq(b.counters['+1/+1'], 2); t.eq(T.life('A'), 22);
   });
+
+  test("Audit: Danny Pink: a card the first time each turn counters go on each of your creatures, and not for an opponent's", (mk, t) => {
+    t.auto('Danny Pink');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Danny Pink');
+    const b = T.bf('A', 'Grizzly Bears'), foe = T.bf('B', 'Hill Giant');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    const put = (x) => { T.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: x.id }] }); T.settle(); T.resolve(); T.settle(); };
+    let h = T.zone('A', 'hand').length;
+    put(b); t.eq(T.zone('A', 'hand').length, h + 1, 'the first time: a card');
+    put(b); t.eq(T.zone('A', 'hand').length, h + 1, 'again this turn: none');
+    put(foe); t.eq(T.zone('A', 'hand').length, h + 1, "B's creature: none");
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    h = T.zone('A', 'hand').length;
+    put(b); t.eq(T.zone('A', 'hand').length, h + 1, 'a new turn: a card');
+  });
 };
