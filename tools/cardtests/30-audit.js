@@ -5728,4 +5728,18 @@ module.exports = (test) => {
     T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [fg.id] }); T.settle(); T.resolve(); T.settle();
     t.eq(T.g.player('B').rad, 4); t.eq(T.g.player('C').rad, 4); t.no(T.g.player('A').rad);
   });
+
+  test("Audit: Dina's Guidance puts the creature found where its caster says, hand or graveyard", (mk, t) => {
+    t.auto("Dina's Guidance");
+    for (const pick of [0, 1]) {
+      const T = mk();
+      T.toMain('A');
+      const cw = T.top('A', 'Craw Wurm');
+      T.answer('pickCard', { cardIds: [cw.id] });
+      T.answer('choose', { picks: [pick] });
+      T.mana('A', 'BG1');
+      T.cast('A', T.hand('A', "Dina's Guidance")); T.settle();
+      t.zone(cw, pick ? 'graveyard' : 'hand');
+    }
+  });
 };
