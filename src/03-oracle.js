@@ -12245,6 +12245,24 @@
         return seen;
       };
       for (const ab of out.abilities) if (ab.kind === 'spell' || ab.kind === 'activated' || ab.kind === 'triggered' || ab.kind === 'loyalty') itToTarget(ab.effects, false);
+      /* Apes of Rath, Barbed Servitor, Experiment One: with nothing targeted and nothing made before it,
+         "it" in a permanent's own ability ("Whenever this creature attacks, it doesn't untap …", "When
+         this creature enters, suspect it", "Remove two counters: Regenerate it") is the permanent */
+      /* (Hungering Puppetbeast, Harsh Deceiver: "put a +1/+1 counter on this creature. It gains …",
+         "untap this creature and it gets +1/+1" — after effects on itself, "it" is still itself) */
+      if (out.isPermanent) for (const ab of out.abilities) {
+        if (!(ab.kind === 'activated' || (ab.kind === 'triggered' && ab.self))) continue;
+        if (JSON.stringify(ab.effects || []).includes('"targets":[{')) continue;
+        const flat = [];
+        const fl = (list) => { for (const x of list || []) { if (!x || typeof x !== 'object') continue; flat.push(x); fl(x.list); fl(x.then); fl(x.otherwise); } };
+        fl(ab.effects);
+        for (const x of flat) {
+          if (x.scope === 'lastTarget' && /\bit\b/i.test(x.text || '') && !/\bthat\b|\bthose\b/i.test(x.text || '')) { x.scope = 'self'; continue; }
+          // only for as long as everything before it was about this permanent (or about nothing in particular)
+          const aboutOther = x.scope && x.scope !== 'self' || /^(?:createToken|createNamedToken|copyPermanent|permanentFromHand|reanimate|reanimateTop|tutor|manifest|returnTriggerCard)$/.test(x.op);
+          if (aboutOther) break;
+        }
+      }
     }
     if (!out.isPermanent) {
       const spellEffects = [];

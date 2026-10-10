@@ -15030,7 +15030,11 @@
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
-            if (where === 'battlefield') { this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id; }
+            if (where === 'battlefield') {
+              this.moveObject(c, 'battlefield', { controller: seeker.id }); if (tapped) c.tapped = true; this._lastPut = c.id;
+              // Savage Order: "That creature gains haste" — the card the search put there
+              if (c.zone === 'battlefield' && taken.length === 1 && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
+            }
             else if (where === 'graveyard') this.moveObject(c, 'graveyard', { controller: seeker.id });
             // Praetor's Grasp: face down in exile, for the searcher to look at and play
             else if (where === 'exilePlayable') {
@@ -17710,6 +17714,8 @@
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
               if (e.tapped) o.tapped = true;
+              // Incandescent Soulstoke: "That creature gains haste" — the one just put, as reanimateTop does
+              if (o.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: o.id }];
               /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
                  (or the first opponent), during combat */
               if (e.attacking && o.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
@@ -22860,6 +22866,20 @@
     _cardFitsWords(o, phrase) {
       const a = o.analysis();
       if (!a) return false;
+      /* Savage Order: "sacrifice a creature with power 4 or greater"; Trap Digger: "a land with a trap
+         counter on it" — what it has, then what it is */
+      let wq;
+      if ((wq = String(phrase || '').match(/^(.+?) with (power|toughness|mana value) (\d+) or (greater|more|less)$/i))) {
+        const onBf = o.zone === 'battlefield';
+        const v = /power/i.test(wq[2]) ? (onBf ? this.powerOf(o) : parseInt((o.card || {}).power, 10) || 0)
+          : /toughness/i.test(wq[2]) ? (onBf ? this.toughnessOf(o) : parseInt((o.card || {}).toughness, 10) || 0)
+          : ((o.card && o.card.cmc) || 0);
+        if (/less/i.test(wq[4]) ? v > +wq[3] : v < +wq[3]) return false;
+        phrase = wq[1];
+      } else if ((wq = String(phrase || '').match(/^(.+?) with an? ([+\-0-9/a-z]+) counter on it$/i))) {
+        if (!((Number((o.counters || {})[wq[2].toLowerCase()]) || 0) > 0)) return false;
+        phrase = wq[1];
+      }
       const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
       const types = (a.types || []).concat(a.subtypes || [], a.supertypes || []).map(x => x.toLowerCase());
       const line = String((o.card && o.card.type_line) || '').toLowerCase();
