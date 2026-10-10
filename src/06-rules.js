@@ -13842,6 +13842,8 @@
             // Fell the Mighty: "with power greater than target creature's power"
             if (e.aboveTargetPower) { const tg = firstObj(); if (!tg || this.powerOf(x) <= this.powerOf(tg)) return false; }
             if (e.exceptMade && (this._madeThisResolution || []).includes(x.id)) return false;
+            // Slash the Ranks: "except for commanders"
+            if (e.exceptCommanders && x.isCommander) return false;
             // Heat Stroke: what blocked, or was blocked, this turn
             if (e.blockedOrWasBlocked && !(x.blockedTurn === this.turn || x.wasBlockedTurn === this.turn)) return false;
             // "creatures that aren't of the chosen type"

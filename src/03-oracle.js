@@ -2799,6 +2799,9 @@
       make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
         { op: 'becomes', duration: null, eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
     // Turn to Slag: "Destroy all Equipment attached to that creature."
+    // Slash the Ranks: "Destroy all creatures and planeswalkers except for commanders."
+    { re: /^Destroy all (creatures|planeswalkers|creatures and planeswalkers) except for commanders\.?$/i,
+      make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase().replace(/s\b/g, '').replace(' and ', ' or '), exceptCommanders: true }) },
     { re: /^Destroy all (Equipment|Auras) attached to (?:that creature|it)\.?$/i,
       make: (m) => ({ op: 'destroyAttachedTo', kind: /aura/i.test(m[1]) ? 'Aura' : 'Equipment' }) },
     // Tetsuko, Ivory Mask: "You have shroud."

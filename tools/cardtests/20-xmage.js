@@ -19708,4 +19708,19 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.ok(T.g.hasKw(ez, 'first strike'), 'two counters of any kinds: first strike');
   });
+
+  test('Slash the Ranks: every creature and planeswalker but the commanders', (mk, t) => {
+    t.auto('Slash the Ranks');
+    const T = mk();
+    T.toMain('A');
+    const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    const bear = T.bf('B', 'Grizzly Bears');
+    const pw = T.bf('B', 'Jace Beleren', { counters: { loyalty: 3 } });
+    const land = T.bf('B', 'Forest');
+    T.mana('A', 'WW3');
+    T.cast('A', T.hand('A', 'Slash the Ranks'));
+    T.resolve();
+    t.zone(cmd, 'battlefield', 'a commander stays');
+    t.zone(bear, 'graveyard'); t.zone(pw, 'graveyard'); t.zone(land, 'battlefield');
+  });
 };
