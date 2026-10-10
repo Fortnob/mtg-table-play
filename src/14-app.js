@@ -953,6 +953,7 @@
     commander: "Atraxa, Praetors' Voice",
     booster: 'Cogwork Librarian', picktwo: 'Fact or Fiction', chaos: 'Possibility Storm',
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
+    sealed: 'Booster Tutor', jumpstart: 'Inspiring Overseer',
   };
   const TILE_ART = { formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe' };
   const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART));
@@ -1012,8 +1013,9 @@
   const QUICK_KINDS = [
     { id: 'constructed', label: 'Constructed', blurb: 'Bring a deck',
       formats: [['standard', 'Standard'], ['modern', 'Modern'], ['pauper', 'Pauper'], ['commander', 'Commander']] },
-    { id: 'limited', label: 'Limited', blurb: 'Draft at the table',
-      formats: [['booster', 'Booster'], ['picktwo', 'Pick-Two'], ['chaos', 'Chaos'], ['cube', 'Cube'], ['cmdrdraft', 'Commander']] },
+    { id: 'limited', label: 'Limited', blurb: 'Draft, open sealed packs, or shuffle up half-decks',
+      formats: [['booster', 'Booster'], ['picktwo', 'Pick-Two'], ['chaos', 'Chaos'], ['cube', 'Cube'], ['cmdrdraft', 'Commander'],
+        ['sealed', 'Sealed'], ['jumpstart', 'Jumpstart']] },
   ];
   const QUICK_FORMATS = [].concat(...QUICK_KINDS.map(k => k.formats));
   const quickKindOf = (formatId) => (QUICK_KINDS.find(k => k.formats.some(f => f[0] === formatId)) || QUICK_KINDS[0]);
@@ -1217,7 +1219,8 @@
       panel.appendChild(el('div', { class: 'quick-head' }, [
         el('h2', { id: 'quickTitle', text: 'Quick game' }),
         el('span', { class: 'quick-sub', text: quickKindOf(q.formatId).id === 'limited'
-          ? 'Straight to the first pack. The other seats are bots.'
+          ? ({ sealed: 'Straight to your packs. The other seats are bots.', jumpstart: 'Straight to your half-decks. The other seats are bots.' }[fmt.draft.style]
+            || 'Straight to the first pack. The other seats are bots.')
           : 'Straight to the table. A deck is built for you.' }),
       ]));
 
@@ -1305,9 +1308,10 @@
         /* A draft needs something to draft from: a set for boosters, a cube
            for a cube, and nothing at all for chaos, which picks its own. */
         const style = fmtNow && fmtNow.draft ? fmtNow.draft.style : '';
+        const oneSet = style === 'booster' || style === 'commander' || style === 'sealed';
         /* Collector boosters only for a set that has them: one set's
            boosters (the newest, unless another is chosen), never chaos */
-        if (style === 'booster' || style === 'commander') {
+        if (oneSet) {
           const kinds = field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
             q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster'));
           kinds.hidden = true;
@@ -1319,16 +1323,24 @@
             kinds.hidden = !ok;
           }).catch(() => {});
         } else if (q.collector) { q.collector = false; saveQuick(q); }
-        // how many boosters each player opens: three, as at any draft, unless you say otherwise
-        const packSel = el('select', { 'aria-label': 'Packs per player' }, [1, 2, 3, 4, 5, 6].map(n =>
-          el('option', { value: String(n), text: n === 3 ? '3 (standard)' : String(n), selected: n === (q.packs || 3) })));
-        packSel.addEventListener('change', () => { q.packs = parseInt(packSel.value, 10) || 3; saveQuick(q); });
-        const packsField = field('Packs each', packSel);
-        const openField = field('Packs open', segmented([['round', 'One at a time'], ['all', 'All at once']],
+        // how many boosters each player opens: three at a draft and six for sealed, unless you say otherwise
+        const sealed = style === 'sealed';
+        const packSel = el('select', { 'aria-label': 'Packs per player' }, (sealed ? [3, 4, 5, 6, 7, 8] : [1, 2, 3, 4, 5, 6]).map(n =>
+          el('option', { value: String(n), text: n === (sealed ? 6 : 3) ? `${n} (standard)` : String(n),
+            selected: n === (sealed ? (q.sealedPacks || 6) : (q.packs || 3)) })));
+        packSel.addEventListener('change', () => {
+          if (sealed) q.sealedPacks = parseInt(packSel.value, 10) || 6; else q.packs = parseInt(packSel.value, 10) || 3;
+          saveQuick(q);
+        });
+        const packsField = style === 'jumpstart' ? null : field('Packs each', packSel);
+        // sealed opens its packs and Jumpstart has none: only a draft passes them
+        const openField = sealed || style === 'jumpstart' ? null : field('Packs open', segmented([['round', 'One at a time'], ['all', 'All at once']],
           q.allAtOnce ? 'all' : 'round', (v) => { q.allAtOnce = v === 'all'; saveQuick(q); draw(); }, 'How the packs open'));
         let source = null;
-        if (style === 'booster' || style === 'commander') {
-          const setSel = el('select', { 'aria-label': 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
+        if (style === 'jumpstart') {
+          source = field('Half-decks', UI.limitedRun.sourceSelect(q.jumpstart || null, (src) => { q.jumpstart = src; saveQuick(q); }));
+        } else if (oneSet) {
+          const setSel = el('select', { 'aria-label': sealed ? 'Set to open' : 'Set to draft' }, [el('option', { value: '', text: 'The newest set' })]);
           MTG.scry.draftableSets().then((sets) => {
             for (const st of sets.slice(0, 60)) setSel.appendChild(el('option', { value: st.code, text: st.name, selected: st.code === q.setCode }));
           }).catch(() => {});
@@ -1343,7 +1355,7 @@
           source = field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); }));
         }
         panel.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
-        panel.appendChild(openField);
+        if (openField) panel.appendChild(openField);
       }
 
       const go = el('button', {
@@ -1365,7 +1377,8 @@
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
             colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
-            collector: !!q.collector, packs: q.packs || 3, allAtOnce: !!q.allAtOnce,
+            collector: !!q.collector, packs: fmt.draft && fmt.draft.style === 'sealed' ? (q.sealedPacks || 6) : (q.packs || 3),
+            allAtOnce: !!q.allAtOnce, jumpstart: q.jumpstart || null,
             rules: q.preset ? ((presets.find(p => p.name === q.preset) || {}).rules || null) : null,
           });
         },
@@ -1457,7 +1470,7 @@
   /* ================= 2. play: choose a format ================= */
   const CATEGORIES = [
     { id: 'constructed', name: 'Constructed', blurb: 'Bring a deck you built. Everyone plays their own list.' },
-    { id: 'limited', name: 'Limited', blurb: 'Open packs at the table and build from what you draft.' },
+    { id: 'limited', name: 'Limited', blurb: 'Make a deck at the table: draft it, build it from sealed packs, or shuffle two Jumpstart half-decks together.' },
   ];
 
   function renderFormats() {
@@ -1518,7 +1531,7 @@
               f.exactSize ? el('span', { class: 'pill', text: f.deckMin + ' cards' })
                 : el('span', { class: 'pill', text: (f.deckMin || 60) + '+ cards' }),
               f.commanderDamage ? el('span', { class: 'pill', text: `${f.commanderDamage} cmd dmg` }) : null,
-              f.draft ? el('span', { class: 'pill', text: `${f.draft.packs} packs` }) : null,
+              f.draft ? el('span', { class: 'pill', text: f.draft.style === 'jumpstart' ? 'two half-decks' : `${f.draft.packs} packs` }) : null,
               f.singleton ? el('span', { class: 'pill', text: 'singleton' }) : null,
             ].filter(Boolean)),
           ]),
@@ -2834,11 +2847,11 @@
     side.appendChild(el('section', { class: 'panel start-panel' + (ready.ok ? ' ready' : '') }, [
       el('div', { class: 'start-state' }, [
         el('span', { class: 'start-dot', 'aria-hidden': 'true' }),
-        el('span', { text: ready.ok ? (fmt.kind === 'limited' ? 'Everything is set — open the packs.' : 'Everything is set.') : ready.reason }),
+        el('span', { text: ready.ok ? (fmt.kind === 'limited' ? limitedWords(fmt).ready : 'Everything is set.') : ready.reason }),
       ]),
       el('button', {
         class: 'btn primary hero-btn', disabled: !ready.ok,
-        html: `${SVG.play}<span>${fmt.kind === 'limited' ? 'Start the draft' : 'Start the game'}</span>`,
+        html: `${SVG.play}<span>${fmt.kind === 'limited' ? limitedWords(fmt).start : 'Start the game'}</span>`,
         onclick: async () => {
           // your own deck's cards that need a hand are said once, before the game
           const me = sess.seat('me');
@@ -3043,7 +3056,7 @@
       el('button', { class: 'add-seat-btn', onclick: add }, [
         el('span', { class: 'add-seat-plus', html: SVG.plus, 'aria-hidden': 'true' }),
         el('span', { class: 'add-seat-label', text: 'Add a bot' }),
-        el('span', { class: 'tiny dim', text: fmt.kind === 'limited' ? 'It drafts alongside you.' : 'It builds its own deck for this format.' }),
+        el('span', { class: 'tiny dim', text: fmt.kind === 'limited' ? limitedWords(fmt).bot : 'It builds its own deck for this format.' }),
       ]),
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Difficulty' }), diffSel]),
       el('label', { class: 'add-seat-diff' }, [el('span', { class: 'tiny dim', text: 'Style' }), persSel]),
@@ -3071,12 +3084,23 @@
     return p;
   }
 
+  /** What a limited table does before it plays, in its own words: a draft, sealed packs, or half-decks. */
+  function limitedWords(fmt) {
+    const style = fmt.draft ? fmt.draft.style : '';
+    if (style === 'sealed') return { start: 'Open the packs', ready: 'Everything is set — open the packs.', bot: 'It opens packs of its own.', setup: 'What you are opening' };
+    if (style === 'jumpstart') return { start: 'Deal the half-decks', ready: 'Everything is set — deal the half-decks.', bot: 'It chooses half-decks of its own.', setup: 'The half-decks' };
+    return { start: 'Start the draft', ready: 'Everything is set — open the packs.', bot: 'It drafts alongside you.', setup: 'What you are drafting' };
+  }
+
   function formatSetupPanel(sess, fmt) {
     const p = el('section', { class: 'panel setup-panel' });
-    p.appendChild(el('h3', { text: fmt.kind === 'limited' ? 'What you are drafting' : 'The format' }));
+    p.appendChild(el('h3', { text: fmt.kind === 'limited' ? limitedWords(fmt).setup : 'The format' }));
     if (fmt.kind === 'limited') {
       const rows = [];
-      if (fmt.draft.style === 'cube') {
+      if (fmt.draft.style === 'jumpstart') {
+        // where the half-decks come from (src/13b-ui-sealed.js)
+        rows.push(...UI.limitedRun.setupRows(sess, () => { sess.broadcastLobby(); renderLobby(); }));
+      } else if (fmt.draft.style === 'cube') {
         rows.push(el('div', { class: 'setup-choice' }, [
           el('div', { class: 'grow' }, [
             el('div', { class: 'tiny dim', text: 'Cube' }),
@@ -3096,7 +3120,7 @@
           if (!sess.setCode && sets.length) { sess.setCode = sets[0].code; setSel.value = sess.setCode; renderLobbySoon(); }
         }).catch(() => { setSel.innerHTML = ''; setSel.appendChild(el('option', { value: '', text: 'Could not load the set list' })); });
         setSel.addEventListener('change', () => { sess.setCode = setSel.value; });
-        rows.push(el('label', { class: 'field' }, [el('span', { text: 'Set to draft' }), setSel]));
+        rows.push(el('label', { class: 'field' }, [el('span', { text: fmt.draft.style === 'sealed' ? 'Set to open' : 'Set to draft' }), setSel]));
       }
       p.append(...rows);
     } else {
@@ -3282,7 +3306,7 @@
   const RULE_GROUPS = [
     ['game', 'The game', ['startingLife', 'startingHand', 'freeMulligans', 'firstPlayerDraws', 'bestOf', 'commanderDamage']],
     ['decks', 'Deck building', ['deckMin', 'exactSize', 'maxCopies', 'singleton', 'sideboardMax', 'colorIdentity']],
-    ['draft', 'The draft', ['packs', 'packSize', 'basicsFree']],
+    ['draft', 'The packs', ['packs', 'packSize', 'basicsFree']],
   ];
   // which folds are open survives the lobby redrawing itself on every change
   const openRules = new Set(['game']);
