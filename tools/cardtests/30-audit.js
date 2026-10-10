@@ -4742,4 +4742,24 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Stupor'), { targets: ['B'] }); T.settle();
     t.eq(T.zone('B', 'hand').length, 1); t.eq(asked, 1, 'B picked the second one only');
   });
+
+  test('Audit: Plagon counts itself among creatures with toughness above power, and its target deals damage by toughness', (mk, t) => {
+    t.auto('Plagon, Lord of the Beach');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Wall of Wood');
+    const tg = T.bf('A', 'Horned Turtle'); tg.summoningSick = false;
+    T.bf('A', 'Grizzly Bears');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const pl = T.hand('A', 'Plagon, Lord of the Beach');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', '2U');
+    T.cast('A', pl); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h - 1 + 3, 'Wall, Turtle and Plagon: three cards (not the Bears)');
+    T.mana('A', 'W');
+    T.activate('A', pl, 0, { targets: [tg.id] }); T.settle();
+    T.answer('declareAttackers', () => [{ attackerId: tg.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16, 'the 1/4 Turtle deals 4');
+  });
 };
