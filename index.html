@@ -17768,6 +17768,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Alandra, Sky Dreamer: "CARDNAME and Drakes you control each get +X/+X …" — the group, and this one as well (orSelf)
     { re: /^CARDNAME and ([A-Z][a-z]+s) you control each get (.+)$/,
       make: (m) => { const e = parseEffectSentence(m[1] + ' you control get ' + m[2]); return e && e.op === 'pump' && e.scope && typeof e.scope === 'object' ? Object.assign(e, { scope: Object.assign({}, e.scope, { orSelf: true }) }) : null; } },
+    // Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this combat" (blockLimitCombat)
+    { re: /^Each opponent can'?t block with more than (one|two|three) creatures? this combat\.?$/i,
+      make: (m) => ({ op: 'blockLimitCombat', n: num(m[1]) }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -20901,6 +20904,25 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           continue;
         }
       }
+      /* Rakdos, Patron of Chaos, Braids's Frightful Return: "Target opponent may sacrifice two nonland,
+         nontoken permanents of their choice. If they don't, you draw two cards." — the punisher, read as
+         "… unless they sacrifice them" (maySacOrElse) */
+      const msac = s.match(/^Target (opponent|player) may sacrifice (an?|two|three) ([a-z ,-]+?) of their choice\.$/i);
+      const mnot = msac && next.match(/^If they don'?t, (.+)$/i);
+      if (msac && mnot) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(mnot[1].charAt(0)) + mnot[1].slice(1)));
+        const k = /^an?$/i.test(msac[2]) ? 1 : num(msac[2]);
+        if (tp.auto && typeof k === 'number' && !/"who":"(?:triggerPlayer|target)"/.test(JSON.stringify(tp.effects))) {
+          effects.push({ op: 'unlessPays', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(msac[1]) }],
+            cost: Object.assign({ sacrifice: msac[3].replace(/permanents\b/i, 'permanent').replace(/creatures\b/i, 'creature').toLowerCase() }, k > 1 ? { sacrificeN: k } : {}),
+            then: tp.effects, text: s + ' ' + next,
+            // (asked of the opponent: "If you don't, your opponent draws two cards")
+            prompt: 'Sacrifice ' + msac[2].toLowerCase() + ' ' + msac[3] + "? If you don't, " +
+              mnot[1].replace(/\.$/, '').replace(/^you (\w+)/i, (w0, v) => 'your opponent ' + (/(?:s|sh|ch|x)$/.test(v) ? v + 'es' : v + 's')) + '.' });
+          i++;
+          continue;
+        }
+      }
       // (not "sacrifice an artifact or discard a card": two prices, not one)
       const sacMay = may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
       if (sacMay) {
@@ -21822,7 +21844,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
         const ok = w.split(/\s+/).every(x => (SUBJ_WORDS.has(x.toLowerCase()) && !(m[2] === 'was' && state.test(x))) ||
           (m[2] === 'is' && state.test(x)) || /^[A-Z][a-z]+$/.test(x));
-        return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? { kind: 'thatObjIs', noun: m[1], words: w } : null;
+        // ("was": as it last was, if it has left — thatObjIs's was)
+        return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? Object.assign({ kind: 'thatObjIs', noun: m[1], words: w }, m[2] === 'was' ? { was: true } : {}) : null;
       }],
     // Star Charter: "you gained or lost life this turn"
     [/^you gained or lost life this turn$/i, () => ({ kind: 'lifeChangedThisTurn' })],
@@ -27155,6 +27178,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
       { re: /^No more than (one|two|three) creatures? can block each combat\.?$/i,
         make: (m) => ({ op: 'blockLimit', n: num(m[1]) }), auto: true },
+      // Mirri, Weatherlight Duelist: "As long as Mirri is tapped, no more than one creature can attack you each combat." (limitWhileTapped)
+      { re: /^As long as (?:CARDNAME|this creature) is tapped, no more than (one|two|three) creatures? can attack you each combat\.?$/i,
+        make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: true, whileTapped: true }), auto: true },
       // Glacial Chasm
       { re: /^Prevent all damage that would be dealt to you\.?$/i, eff: { op: 'preventAllToYou' }, auto: true },
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric
@@ -36335,7 +36361,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
           mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
           // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
-          subtypes: ((x.analysis() || {}).subtypes || []).slice() });
+          subtypes: ((x.analysis() || {}).subtypes || []).slice(),
+          // (a changeling is every creature type, as it was sacrificed: CR 702.73a, 608.2h)
+          everyCreatureType: !!(((x.analysis() || {}).keywordSet || new Set()).has('changeling') || this.hasKw(x, 'changeling')) });
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
@@ -37219,6 +37247,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (s0.phasedOut) continue;
         const lim = this._staticOp(s0, 'attackLimit');
         if (!lim) continue;
+        // Mirri, Weatherlight Duelist: only while it is tapped (limitWhileTapped)
+        if (lim.whileTapped && !s0.tapped) continue;
         const hits = (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller;
         let seen = 0;
         const before = declarations.length;
@@ -37796,6 +37826,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.logEvent('rules', `${lone.name} can't block alone.`);
           declarations = [];
         }
+      }
+      /* Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this
+         combat" — each opponent of the player who set it (blockLimitCombat) */
+      for (const bl of (this._blockLimitsCombat || [])) {
+        if (bl.turn !== this.turn || bl.by === playerId || !this.opponentsOf(bl.by).some(q => q.id === playerId)) continue;
+        if (declarations.length <= bl.n) continue;
+        if (!(this.player(playerId) || {}).isBot)
+          return this.fail(`${bl.name}: you can't block with more than ${bl.n} creature${bl.n === 1 ? '' : 's'} this combat.`);
+        declarations = declarations.slice(0, bl.n);
+        this.logEvent('rules', `${bl.name}: no more than ${bl.n} blocking.`);
       }
       // Silent Arbiter: "No more than one creature can block each combat."
       for (const s0 of this.battlefield) {
@@ -38898,7 +38938,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const noun = cond.noun === 'permanent' ? null : cond.noun;
           // (Toph, Hardheaded Teacher: "if that spell is a Lesson" — the spell the trigger is about, never a target)
           if (noun === 'spell') ids.splice(0, ids.length, ...((ctx && ctx.triggerData && ctx.triggerData.objectId) ? [ctx.triggerData.objectId] : []));
-          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
+          // "that creature was a Horror": one that has left is judged as it last was (CR 608.2h)
+          const asWas = (x) => (cond.was && x && x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x);
+          const it = ids.map(id => asWas(this.obj(id))).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
           return !!it && this._cardFitsWords(it, cond.words);
         }
         case 'triggerObjNotCastFromHand': {
@@ -38977,7 +39019,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
-          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what);
+          if (cond.what === 'legendary') return !!sn.legendary;
+          if ((sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what)) return true;
+          // a changeling sacrificed was a Human, a Goblin, every creature type (CR 702.73a)
+          return !!sn.everyCreatureType && CREATURE_TYPES_LOWER.has(cond.what);
         }
         case 'manaSpentOverPower': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
@@ -42553,6 +42598,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // Domri: spells of this kind its controller casts this turn can't be countered
         // (Veil of Summer: with no words, every spell)
+        // Mirri, Weatherlight Duelist: kept for this turn's combat (blockLimitCombat)
+        case 'blockLimitCombat':
+          (this._blockLimitsCombat = (this._blockLimitsCombat || []).filter(x => x.turn === this.turn)).push({ by: ctx.controller, n: n(e.n) || 1, turn: this.turn, name: (src && src.name) || ctx.name || 'Effect' });
+          this.logEvent('rules', `${me.name}'s opponents can't block with more than ${n(e.n) || 1} creature${(n(e.n) || 1) === 1 ? '' : 's'} this combat.`);
+          break;
         case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push({ turn: this.turn, words: e.words || null }); break;
         // Aetherspouts: each attacker's owner picks top or bottom of their library for it
         case 'attackersTopOrBottom': {
@@ -44887,6 +44937,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice));
             const hand = e.cost.orDiscard ? this.zones[payer.id].hand.slice() : [];
             if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
+            /* Rakdos, Patron of Chaos: "may sacrifice two nonland, nontoken permanents" — all of them, or it
+               happens (sacrificeN) */
+            if ((e.cost.sacrificeN || 1) > 1) {
+              const need = e.cost.sacrificeN;
+              if (perms.length < need) { this._spliceNext(e.then); break; }
+              const gotN = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(perms), min: 0, max: need, prefer: 'worst',
+                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${truncate(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
+              if (gotN === SUSPEND) return SUSPEND;
+              const xs = ((gotN && gotN.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x));
+              if (xs.length === need) this._sacrificeNow(payer.id, xs, null);
+              else this._spliceNext(e.then);
+              break;
+            }
             const got = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
               prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');
@@ -52193,7 +52257,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
         // (Valley Questcaller: "Mice" are Mouse creatures)
         const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
-        return types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line);
+        if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\b' + bare + 's?\b').test(line)) return true;
+        // a changeling is every creature type, wherever it is (CR 702.73a): "a Goblin card", "if it was a Human"
+        return !!(a.keywordSet && a.keywordSet.has('changeling')) && [w, bare, alt].some(x => CREATURE_TYPES_LOWER.has(x));
       };
       // (Fallaji Archaeologist: "a noncreature, nonland card" — with no "or" in it, the commas join words, every one of which must fit)
       const ph0 = String(phrase || '').toLowerCase();
@@ -53299,6 +53365,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     'Varmint', 'Vedalken', 'Villain', 'Volver', 'Vorta', 'Vulcan', 'Wall', 'Walrus', 'Warlock', 'Warrior', 'Weasel', 'Weird',
     'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Xindi', 'Yeti', 'Zombie', 'Zubera',
   ];
+  const CREATURE_TYPES_LOWER = new Set(CREATURE_TYPES.map(t => t.toLowerCase()));
 
   /* Jilt, Mind Spiral, Return to Dust: a target inside "if this spell was kicked", "if the gift was
      promised" or "if you cast this spell during your main phase" is one of the spell's targets only
