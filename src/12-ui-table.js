@@ -1354,9 +1354,7 @@
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
         d._row = el('div', { class: 'dock-row' });
-        // for anyone still learning: what is going on, in a sentence
-        d._hint = el('div', { class: 'dock-hint', 'aria-live': 'polite' });
-        d.append(d._turn, d._strip, d._main, d._hint, d._row);
+        d.append(d._turn, d._strip, d._main, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -1376,9 +1374,6 @@
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
-      const hint = MTG.settings.beginnerHints === false ? '' : this.beginnerHint(act);
-      if (d._hint.textContent !== hint) d._hint.textContent = hint;
-      d._hint.classList.toggle('on', !!hint);
 
       d._row.innerHTML = '';
       const small = (text, title, fn, cls) => el('button', { type: 'button', class: 'dock-btn ' + (cls || ''), text, title, onclick: fn });
@@ -1523,60 +1518,6 @@
       if (!myTurn) return { label: 'Pass', cls: 'pass', sub: STEP_WORDS[k] || '',
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
-    }
-
-    /**
-     * The same moment in plain English, for the line under the big button:
-     * what is happening and what you could do about it. Short, and never a
-     * rule you need to know already. Beginner hints turn it off.
-     */
-    beginnerHint(act) {
-      const v = this.view, live = this.live || v;
-      if (!v || v.over || v.spectating || v.replay || !this.me) return '';
-      if (v.mulliganPhase) return 'Keep a hand with two to five lands. A mulligan shuffles and deals a new hand, one card smaller.';
-      if (this.targeting) return 'Click a glowing card or player to choose it.';
-      const ch = live.pendingChoice;
-      if (ch && ch.playerId === this.meId && !ch.waiting) {
-        if (ch.type === 'declareAttackers') return 'Click your creatures to attack with them. Attackers that aren’t blocked deal their damage to the player.';
-        if (ch.type === 'declareBlockers') return 'Click one of your creatures, then the attacker it should block. Attackers you don’t block hit you.';
-        if (/discard/.test(ch.type)) return 'Click the cards to discard, then confirm.';
-        if (ch.type === 'sacrifice') return 'Click the permanent to sacrifice.';
-        return 'Answer the question on screen to carry on.';
-      }
-      if (ch && ch.waiting) return 'Your opponent is making a choice.';
-      if (live.priorityPlayer !== this.meId) {
-        const pp = v.players.find(p => p.id === live.priorityPlayer);
-        return pp && pp.isBot ? `${pp.name} is deciding what to do.` : 'Waiting for the other player.';
-      }
-      const stack = live.stack || [];
-      if (stack.length) {
-        const top = stack[stack.length - 1];
-        return top.controller === this.meId
-          ? 'Your spell is on the stack. It happens once everyone passes.'
-          : `${top.name} is waiting to happen. Cast an instant to respond, or pass to let it resolve.`;
-      }
-      const k = stepKey(live);
-      const myTurn = live.activePlayer === this.meId;
-      if (myTurn && (k === 'main1' || k === 'main2')) {
-        const me = this.me;
-        const land = me && me.landsPlayed < (me.maxLands || 1) && (live.playable || []).some(id => {
-          const o = me.hand.find(x => x.id === id);
-          const a = o && this.analysis(o);
-          return a && a.isLand;
-        });
-        if (land) return 'Play a land from your hand: you can play one each turn. Glowing cards can be played now.';
-        if ((live.playable || []).length) return k === 'main1'
-          ? 'Glowing cards can be played now. When you are done, go to combat to attack.'
-          : 'Cast anything you held back, then end your turn.';
-        return k === 'main1' && act && /combat/i.test(act.label || '')
-          ? 'Nothing more to play. Go to combat and choose your attackers.'
-          : 'Nothing more to play this turn. End your turn to pass to the next player.';
-      }
-      if (!myTurn) return (live.playable || []).length
-        ? 'It’s their turn. You can cast instants now, or pass.'
-        : 'It’s their turn. Pass to let it carry on.';
-      if (k === 'combatDamage' || k === 'firstStrikeDamage') return 'Combat damage is dealt. Attackers nobody blocked hit the player.';
-      return 'Press the button to move on to the next step.';
     }
 
     /** @this {MTG.TableInstance} */

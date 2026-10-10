@@ -24,12 +24,6 @@
 
   /* ================= boot ================= */
   App.boot = function () {
-    /* Somebody new — no decks, no name, no game played — gets the beginner
-       hints; anyone who has been here before keeps the table as it was. */
-    if (MTG.settings.beginnerHints == null) {
-      const fresh = !MTG.decks.index().length && !MTG.settings.playerName && !MTG.store.get('gamesPlayed', 0);
-      MTG.setSetting('beginnerHints', fresh);
-    }
     App.myName = MTG.settings.playerName || randomName();
     App.myId = 'me';
     MTG.applyDisplaySettings();
@@ -2390,8 +2384,6 @@
     /* -- gameplay -- */
     sections.push(group('gameplay', 'Gameplay', null, [
       toggle('useCollection', 'Build from my collection', 'Decks you play use the cards you own; a wildcard crafts one you are missing. Starter decks and decks the bots build for you are always allowed. Off: any card, as before.'),
-      toggle('beginnerHints', 'Beginner hints', 'A line under the big button that says what is going on and what you could do, in plain English.',
-        () => { if (App.table) App.table.render(); }),
       el('div', { class: 'opt-row' }, [
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'First-game walkthrough' }),
@@ -2807,8 +2799,6 @@
     try { deck = await MTG.starters.build('w-cats'); }
     catch (e) { busy.close(); return UI.error(e.message || String(e)); }
     busy.close();
-    // the walkthrough talks to whoever is reading it, so the hints come on with it
-    if (MTG.settings.beginnerHints === false) MTG.setSetting('beginnerHints', true);
     await App.quickGame({ formatId: 'standard', difficulty: 1, opponents: 1, deck });
     if (App.table && App.screen === 'table' && !App.table.coach) new UI.Coach(App.table);
   };
