@@ -18042,4 +18042,25 @@ module.exports = (test) => {
     t.no(T.g.log.some(l => /gains ""/.test(l.text || '')), 'no empty quotes');
     t.ok(T.g.log.some(l => /Craw Wurm gains an ability until end of turn\./.test(l.text || '')), 'says what happened');
   });
+
+  test('Kishla Skimmer: a card when a card leaves your graveyard during your turn, once a turn; Along the Crooked Way: a creature card', (mk, t) => {
+    t.auto('Kishla Skimmer');
+    t.auto('Along the Crooked Way');
+    t.auto('Skeleton Crew');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Kishla Skimmer');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const g1 = T.grave('A', 'Grizzly Bears'), g2 = T.grave('A', 'Hill Giant');
+    const h = T.zone('A', 'hand').length;
+    T.g.moveObject(g1, 'hand'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h + 2, 'the Bears back, and a card drawn');
+    T.g.moveObject(g2, 'hand'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h + 3, 'only once each turn');
+    T.toMain('B');
+    const g3 = T.grave('A', 'Grizzly Bears');
+    const h2 = T.zone('A', 'hand').length;
+    T.g.moveObject(g3, 'hand'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h2 + 1, "not on an opponent's turn");
+  });
 };

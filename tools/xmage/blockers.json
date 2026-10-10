@@ -4,14 +4,14 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11122,
-  "gainedCards": 1121,
-  "linesNeeded": 11894,
-  "linesGained": 1321,
+  "needed": 11092,
+  "gainedCards": 1097,
+  "linesNeeded": 11862,
+  "linesGained": 1295,
   "gained": {
-   "all": 1121,
-   "top2000": 45,
-   "stdTop": 8
+   "all": 1097,
+   "top2000": 44,
+   "stdTop": 7
   },
   "compare": {
    "same": 0,
@@ -20,12 +20,12 @@
   },
   "verifyFail": 44,
   "overrides": {
-   "drain": 63,
+   "drain": 65,
    "group": 28,
    "x": 3,
    "it": 16,
    "count": 24,
-   "condition": 23
+   "condition": 25
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 707,
-   "lines": 647,
+   "score": 705,
+   "lines": 645,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 662,
-   "lines": 662,
+   "score": 661,
+   "lines": 661,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 189,
-   "lines": 174,
+   "score": 188,
+   "lines": 173,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -2958,16 +2958,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setLimitUsageByOnce",
-   "score": 6,
-   "lines": 3,
-   "cards": [
-    "Teval's Judgment",
-    "Vindictive Lich",
-    "Survivor's Med Kit"
-   ]
-  },
-  {
    "what": "not or",
    "score": 6,
    "lines": 6,
@@ -3262,19 +3252,6 @@
     "Bard's Company",
     "Scarring Memories",
     "Illusion Spinners"
-   ]
-  },
-  {
-   "what": "BecomePreparedSourceEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Emeritus of Ideation // Ancestral Recall",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Kirol, History Buff // Pack a Punch",
-    "Woodwork Prodigy // Soul Tether",
-    "Stingerquill Voxmancer // Vicious Verse",
-    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -4132,6 +4109,18 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
+   ]
+  },
+  {
+   "what": "BecomePreparedSourceEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Emeritus of Ideation // Ancestral Recall",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Woodwork Prodigy // Soul Tether",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -6611,6 +6600,16 @@
     "Jon Irenicus, Shattered One",
     "Brokkos, Apex of Forever"
    ]
+  },
+  {
+   "what": "Ability.setModeTag",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Henrika Domnathi // Henrika, Infernal Seer",
+    "Kargan Intimidator",
+    "Sol'Kanar the Tainted"
+   ]
   }
  ],
  "sole": [
@@ -6629,8 +6628,8 @@
   },
   {
    "what": "custom ability",
-   "score": 547,
-   "cards": 502,
+   "score": 545,
+   "cards": 500,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -8315,16 +8314,6 @@
    ]
   },
   {
-   "what": "Ability.modes.setLimitUsageByOnce",
-   "score": 6,
-   "cards": 3,
-   "names": [
-    "Teval's Judgment",
-    "Vindictive Lich",
-    "Survivor's Med Kit"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 6,
    "cards": 6,
@@ -9130,18 +9119,6 @@
     "Circle of Flame",
     "Palazzo Archers",
     "Lost in the Woods"
-   ]
-  },
-  {
-   "what": "BecomePreparedSourceEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Emeritus of Ideation // Ancestral Recall",
-    "Naktamun Lorespinner // Wheel of Fortune",
-    "Kirol, History Buff // Pack a Punch",
-    "Stingerquill Voxmancer // Vicious Verse",
-    "Paradox Shaper // Omit Variables"
    ]
   },
   {
@@ -9979,6 +9956,17 @@
    ]
   },
   {
+   "what": "BecomePreparedSourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Emeritus of Ideation // Ancestral Recall",
+    "Naktamun Lorespinner // Wheel of Fortune",
+    "Stingerquill Voxmancer // Vicious Verse",
+    "Paradox Shaper // Omit Variables"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 4,
    "cards": 4,
@@ -10295,6 +10283,17 @@
     "Rags // Riches",
     "Failure // Comply",
     "Reduce // Rubble"
+   ]
+  },
+  {
+   "what": "MagecraftAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Zaffai, Thunder Conductor",
+    "Prismari Apprentice",
+    "Elemental Expressionist",
+    "Symmetry Sage"
    ]
   }
  ]

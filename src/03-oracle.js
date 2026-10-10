@@ -9666,6 +9666,10 @@
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     // Laelia, the Blade Reforged: "Whenever one or more cards are put into exile from your library and/or your graveyard"
     { re: /^Whenever one or more cards are put into exile from your library and\/or your graveyard,? /i, event: 'youExileFromLibGy', extra: { batch: true } },
+    // Kishla Skimmer, Along the Crooked Way: "Whenever a (creature) card leaves your graveyard (during your turn)," (leftGraveyard)
+    { re: /^Whenever (one or more|a|an) ((?:artifact|creature|land|instant|sorcery|enchantment|permanent|nonland) )?cards? leaves? your graveyard( during your turn)?,? /i,
+      event: 'leftGraveyard', filt: (m) => Object.assign({ who: 'you', words: (m[2] || 'card').trim().toLowerCase() }, /one or more/i.test(m[1]) ? { batch: true } : {}),
+      extraOf: (m) => (m[3] ? { yourTurnOnly: true } : {}) },
     // Mesmeric Orb: "Whenever a permanent becomes untapped"
     { re: /^Whenever a permanent becomes untapped,? /i, event: 'permUntaps' },
     // Tale of Katara and Toph: "for the first time during each of your turns"
