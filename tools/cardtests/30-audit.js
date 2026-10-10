@@ -4887,4 +4887,26 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(T.g.powerOf(dog), 6, 'a third card: 6'); t.eq(T.g.powerOf(pc), 3);
   });
+
+  test("Audit: Ojer Pakpatiq gives an instant from hand rebound; Alisaie's second spell each turn costs {2} less, the third does not", (mk, t) => {
+    t.auto('Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time'); t.auto('Alisaie Leveilleur');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time');
+    T.mana('A', 'R');
+    const sh = T.hand('A', 'Shock');
+    T.cast('A', sh, { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.zone(sh, 'exile', 'rebound: exiled'); t.eq(T.life('B'), 18);
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.nextTurn('B'); T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16, 'cast again at the upkeep'); t.zone(sh, 'graveyard');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Alisaie Leveilleur');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    T.mana('A', 'RG');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Hill Giant').id, { auto: true }), 'the second: {3}{R} for two'); T.settle(); T.resolve(); T.settle();
+    T.mana('A', 'RG');
+    t.no(T.g.castSpell('A', T.hand('A', 'Hill Giant').id, { auto: true }), 'the third: full price');
+  });
 };
