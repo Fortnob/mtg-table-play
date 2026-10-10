@@ -3,6 +3,7 @@
  "01-audio.js",
  "02-scryfall.js",
  "02a-carddb.js",
+ "02b-cardlang.js",
  "18-scripts.js",
  "19-cardlib.js",
  "03-oracle.js",
@@ -50,9 +51,11 @@
  "12e-ui-coach.js",
  "12f-ui-feel.js",
  "12g-ui-clock.js",
+ "12g-ui-table-access.js",
  "12h-ui-rematch.js",
  "13-ui-draft.js",
  "13b-ui-sealed.js",
  "17-ui-advisor.js",
- "14-app.js"
+ "14-app.js",
+ "14b-lessons.js"
 ]

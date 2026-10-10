@@ -10,5 +10,7 @@
  "match.css",
  "cosmetics.css",
  "decktools.css",
- "perf.css"
+ "perf.css",
+ "access.css",
+ "lessons.css"
 ]

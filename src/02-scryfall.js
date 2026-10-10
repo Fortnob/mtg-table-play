@@ -926,6 +926,8 @@
     /* ================= images ================= */
 
     imageUrl(card, size, faceIndex) {
+      // the picture in the language chosen in Options, once it has been found (src/02b-cardlang.js)
+      if (this.cardLang) { const own = this.cardLang.imageUrl(card, size, faceIndex); if (own) return own; }
       const url = this._imageUrl(card, size, faceIndex);
       // judged by the table-sized picture: when that one cannot load, neither will the others
       const probe = !size || size === 'normal' ? url : this._imageUrl(card, 'normal', faceIndex);

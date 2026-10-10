@@ -894,7 +894,8 @@
   App.exitToMenu = async function () {
     const sess = App.session;
     const g = sess && sess.game;
-    const keep = !!(g && !g.over && !net.isClient);
+    // (a game that is not kept, a tutorial's, is simply left)
+    const keep = !!(g && !g.over && !net.isClient && !sess.noSave);
     if (sess && sess.drafting && !g) {
       if (!await UI.confirm('Leave this draft? The packs are lost.')) return;
       return App.leaveGame();
@@ -1150,6 +1151,9 @@
       decorArt(offer.firstChild, 'Lightning Helix');
       notes.appendChild(offer);
     }
+    /* -- and once the first game is done, the lessons after it -- */
+    const lesson = MTG.lessons ? MTG.lessons.homeCard({ art: decorArt, rerender: renderHome }) : null;
+    if (lesson) notes.appendChild(lesson);
 
     /* -- the three doors -- */
     const tile = (id, icon, title, body, onClick) => {
@@ -1504,6 +1508,9 @@
         `<span>Entry ${shardHtml(App.EVENTS.gauntlet.entry)}</span><span>Up to 3 packs and 12,500 Shards</span>`, () => App.startGauntlet('standard')),
       evCard('ev-challenge', 'Challenges', 'A board set up for you: find the way to win this turn.',
         `<span>${solved} of ${App.CHALLENGES.length} solved</span>`, () => App.openChallenges()),
+      // the first game and the short lessons after it (src/14b-lessons.js)
+      MTG.lessons ? evCard('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
+        `<span>${MTG.lessons.progress().done} of ${MTG.lessons.progress().total} done</span>`, () => MTG.lessons.open()) : null,
     ]));
 
     for (const cat of CATEGORIES) {
@@ -2373,6 +2380,13 @@
         ]),
         el('button', { class: 'btn sm', text: S.tutorialDone ? 'Play it again' : 'Play it', onclick: () => App.startTutorial() }),
       ]),
+      MTG.lessons ? el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'Tutorials' }),
+          el('div', { class: 'opt-help', text: `Short lessons after the first game: the stack, combat tricks, blocking well and counterspells. ${MTG.lessons.count()} of ${MTG.lessons.LESSONS.length} done.` }),
+        ]),
+        el('button', { class: 'btn sm', text: 'Open', onclick: () => MTG.lessons.open() }),
+      ]) : null,
       toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
@@ -2456,7 +2470,7 @@
       toggle('orderMyTriggers', 'Let me order my own triggers', 'When several of your triggers go on the stack at once, choose the order instead of having it chosen for you.', pushAutoPass),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Always stop at' }),
-        el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, H holds priority.' }),
+        el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, Ctrl keeps priority for this step. ? at the table lists every key.' }),
         stopGrid(),
         el('div', { class: 'row wrap', style: { marginTop: '12px' } }, [
           el('button', { class: 'btn sm', text: 'Reset to defaults', onclick: () => { MTG.setSetting('stops', null); pushAutoPass(); renderOptions(); } }),
@@ -2494,6 +2508,8 @@
       ]),
       slider('cardScale', 'Card size', 0.8, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
         'Makes cards in lists, packs and the deck builder bigger or smaller.'),
+      choice('cardLang', 'Card language', MTG.cardLang.options(),
+        'Card pictures in this language wherever Scryfall has a printing in it, and in English where it has none. The rules text the game runs on stays in English.'),
       pick('theme', 'Theme', [['dark', 'Dark'], ['light', 'Light']], 'The menus and deck builder. The game table is always dark.', 'dark'),
       toggle('showOracleOnHover', 'Show a large card preview on hover', 'Hover any card to read it at full size.'),
       toggle('keywordHelp', 'Explain keywords beside enlarged cards',
@@ -2513,6 +2529,13 @@
       toggle('reduceMotion', 'Reduce motion', 'Turns off transitions and animations across the app.'),
       toggle('dyslexiaFont', 'Easier-to-read font', 'Switches to a wider, more distinct typeface with looser spacing.'),
       toggle('focusRings', 'Strong keyboard focus outlines', 'Makes the focused control obvious when tabbing.'),
+      el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'Playing by keyboard' }),
+          el('div', { class: 'opt-help', text: 'The whole game plays from the keyboard, and a screen reader hears what happens. Press ? at the table for every key.' }),
+        ]),
+        el('button', { class: 'btn sm', text: 'Show the keys', onclick: () => UI.keyboardHelp() }),
+      ]),
       toggle('bigHitTargets', 'Larger click targets', 'Adds padding to buttons and rows.'),
     ]));
 
