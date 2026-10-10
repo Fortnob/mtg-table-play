@@ -307,7 +307,7 @@
       const live = this.live || v;
       const bits = [];
       const ap = v.players.find(p => p.id === v.activePlayer);
-      const whose = ap && ap.id === this.meId ? 'your turn' : `${possessive(ap ? ap.name : 'their')} turn`;
+      const whose = !ap ? 'their turn' : ap.id === this.meId ? 'your turn' : `${possessive(ap.name)} turn`;
       bits.push(`Turn ${v.turn || 1}, ${whose}, ${String(STEP_WORDS[stepKey(v)] || 'starting').toLowerCase()}.`);
       const order = (this.me ? [this.me] : []).concat(this._opponents());
       for (const p of order) {
@@ -323,7 +323,7 @@
         bits.push('On the stack, top first: ' + stack.map(s => {
           const who = v.players.find(p => p.id === s.controller);
           const tg = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
-          return `${who && who.id === this.meId ? 'your' : possessive(who ? who.name : 'their')} ${s.name || (s.card ? s.card.name : 'ability')}` +
+          return `${!who ? 'their' : who.id === this.meId ? 'your' : possessive(who.name)} ${s.name || (s.card ? s.card.name : 'ability')}` +
             (tg.length ? ' targeting ' + tg.join(' and ') : '');
         }).join('; ') + '.');
       }
@@ -403,8 +403,10 @@
         if (!s) continue;
         if (!chip.hasAttribute('tabindex')) { chip.tabIndex = 0; chip.setAttribute('role', 'button'); }
         const tg = (s.targets || []).map(t => this.targetName(t)).filter(Boolean);
-        const label = `${s.card ? s.card.name : 'An'} ability, ${s.controller === this.meId ? 'yours' : names.get(s.controller) + '’s'}: ` +
-          spoken(s.abilityText || s.name || '') + (tg.length ? '. Targeting ' + tg.join(' and ') : '') + (s === top ? '. Resolves next' : '') +
+        // "Mira’s Llanowar Elves ability: …"
+        const who = s.controller === this.meId ? 'Your' : names.get(s.controller) ? possessive(names.get(s.controller)) : 'Their';
+        const label = `${who} ${s.card ? s.card.name + ' ' : ''}ability: ` +
+          spoken(s.abilityText || s.name || '').replace(/\.\s*$/, '') + (tg.length ? '. Targeting ' + tg.join(' and ') : '') + (s === top ? '. Resolves next' : '') +
           (w.classList.contains('targetable') ? '. Can be chosen as the target' : '');
         if (chip.getAttribute('aria-label') !== label) chip.setAttribute('aria-label', label);
       }

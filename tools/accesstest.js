@@ -144,6 +144,17 @@ const none = { querySelectorAll: () => [], querySelector: () => null, classList:
   hand.cls.delete('playable');
   T.accessLabels.call(t);
   check('a fresh description, without what no longer holds', hand.getAttribute('aria-label') === 'Lightning Bolt, red, Instant', hand.getAttribute('aria-label'));
+  // an ability on the stack: a chip, named and put in the order
+  const chip = node(null, []);
+  chip.parentElement = { dataset: { stack: 's2' }, classList: { contains: (c) => c === 'targetable' } };
+  v.stack.push({ id: 's2', controller: 'mira', card: { name: 'Prodigal Pyromancer' }, abilityText: '{T}: It deals 1 damage to any target.', targets: [{ kind: 'object', id: 'e1' }] });
+  t.stackCol = Object.assign({}, none, { querySelectorAll: () => [chip] });
+  T.accessLabels.call(t);
+  check('an ability on the stack can be reached', chip.getAttribute('tabindex') === '0' || chip.tabIndex === 0);
+  check('an ability on the stack says whose, what and what it targets',
+    chip.getAttribute('aria-label') === 'Mira’s Prodigal Pyromancer ability: tap: It deals 1 damage to any target. Targeting Llanowar Elves. Resolves next. Can be chosen as the target',
+    chip.getAttribute('aria-label'));
+  v.stack.pop();
   // chosen to attack
   mine.cls.delete('candidate'); mine.cls.add('chosen');
   T.accessLabels.call(t);
