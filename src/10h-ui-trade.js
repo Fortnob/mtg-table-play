@@ -152,13 +152,26 @@
       }
       for (const p of pend) {
         if (live && live.id === p.id && live.state !== 'closed') continue;
+        /* Letting it go is always safe for the side that only confirmed
+           (nothing of theirs has moved, and a commit that comes later is
+           refused). The side that sent it through cannot know whether
+           the friend carried out theirs, so it is offered only once the
+           friend has stayed away a few days. */
+        const canLetGo = p.role === 'follower' || Date.now() - (p.at || 0) > 3 * 864e5;
         list.appendChild(el('div', { class: 'th-row pending' }, [
           el('div', { class: 'th-text' }, [
             el('b', { text: `Waiting to finish with ${p.name || 'a friend'}` }),
             el('span', { text: `You give ${listOf(p.give)}; you get ${listOf(p.get)}.` }),
             el('span', { class: 'dim', text: 'It settles by itself when you are both online: either it goes through on both sides or on neither.' }),
           ]),
-        ]));
+          canLetGo ? el('button', { type: 'button', class: 'btn sm ghost', text: 'Let it go', onclick: async () => {
+            const msg = p.role === 'follower'
+              ? `Let this trade with ${p.name || 'them'} go? Nothing of yours has moved, and the cards it held back are free again. If they send it through later, it is turned down.`
+              : `Let this trade with ${p.name || 'them'} go? You keep your cards, and the ones it held back are free again. If they had already carried out their side before they went, theirs stays done.`;
+            if (!await UI.confirm(msg, 'Let a trade go', { yes: 'Let it go' })) return;
+            T.abandon(p.id);
+          } }) : null,
+        ].filter(Boolean)));
       }
       for (const l of log) {
         list.appendChild(el('div', { class: 'th-row ' + (l.state === 'done' ? 'done' : 'failed') }, [

@@ -471,7 +471,7 @@
     switch (msg.op) {
       case 'ask': return gotAsk(code, msg);
       case 'no': {
-        if (s && s.state === 'committing') s.theyLeft = true;         // the commit is out: its answer decides
+        if (s && s.state === 'committing') s.theyLeft = 'closed';         // the commit is out: its answer decides
         else if (s && s.state !== 'done') {
           const n = s.name;
           close(s, msg.why === 'busy' ? `${n} is in another trade just now.` : msg.why === 'declined' ? `${n} said no thanks.`
@@ -544,7 +544,7 @@
         unjournal(msg.id);
         logTrade({ id: p.id, code, name: p.name, at: Date.now(), gave: [], got: [], state: 'failed', why });
         if (s && s.state === 'committing') {
-          if (s.theyLeft) { close(s, `${s.name} closed the trade before it went through. Nothing changed.`); return; }
+          if (s.theyLeft) { close(s, s.theyLeft === 'closed' ? `${s.name} closed the trade before it went through. Nothing changed.` : 'The trade did not go through, and nothing changed.'); return; }
           // back to the table: nothing moved, and they can confirm again
           s.state = 'open';
           s.okL = false; s.okF = false; s.rev++;
@@ -643,10 +643,29 @@
   function offline(code) {
     const s = live;
     if (!isLive(s) || s.code !== code) return;
-    if (s.state === 'committing') { trade.emit('note', s, `${s.name} went offline. The trade finishes when you are both online again.`); return; }
+    if (s.state === 'committing') {
+      // their window went with them: if the trade is turned down when they are back, there is nothing to go back to
+      s.theyLeft = 'offline';
+      trade.emit('note', s, `${s.name} went offline. The trade finishes when you are both online again.`);
+      return;
+    }
     const confirmedBoth = s.role === 'follower' && s.okF && s.okL;
     close(s, confirmedBoth ? `${s.name} went offline. If they had already sent the trade through, it finishes when you are both online again.`
       : `${s.name} went offline.`, null, true);
+  }
+
+  /**
+   * Give up on a trade the journal still owes, when the friend has not
+   * come back to settle it (they may have stopped playing). Nothing of
+   * yours moves, and the cards it held back are free again; if they had
+   * already carried out their side, that side stays done. Only for a
+   * trade not under way this moment.
+   */
+  function abandon(id) {
+    const p = pendingOf(id);
+    if (!p || (live && live.id === id && isLive(live))) return false;
+    logTrade({ id: p.id, code: p.code, name: p.name, at: Date.now(), gave: [], got: [], state: 'failed', why: 'Let go: it was never settled with them.' });
+    return true;
   }
 
   /** Hook the trade up to a friends hub (MTG.friends, or a test's). */
@@ -667,7 +686,7 @@
   }
 
   Object.assign(trade, {
-    attach, start, answer, cancel, setCount, confirm, unconfirm, problems, deckWarnings,
+    attach, start, answer, cancel, setCount, confirm, unconfirm, problems, deckWarnings, abandon,
     current: () => (isLive(live) ? live : null),
     session: () => live,
     give: (s) => s[giveHalf(s)],

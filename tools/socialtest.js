@@ -608,6 +608,27 @@ async function main() {
   ann.trade.cancel(t1);
   await until(() => t2.state === 'closed', 2000, 'Ann closes it, and Ben sees that');
 
+  /* ---- a confirmation let go while the other side is away: refused when it comes back ---- */
+  [t1, t2] = await openTrade(ann, ben);
+  ann.trade.setCount(t1, 'get', 'Dark Ritual', 1);
+  await until(() => t2.rev === t1.rev && t1.rev === 1, 2000);
+  ben.trade.confirm(t2);
+  await until(() => ann.trade.theyConfirmed(t1), 2000);
+  broker.drop = (m) => m.t === 'tr' && m.op === 'commit';
+  ann.trade.confirm(t1);
+  await until(() => ann.trade.pending().some(p => p.id === t1.id && p.state === 'prepared'), 2000);
+  ben.hub.stop();
+  await until(() => !ann.hub.isOnline(ben.code), 2000);
+  broker.drop = null;
+  check(ben.trade.abandon(t1.id) && !ben.trade.pending().length, 'Ben lets his confirmation go');
+  check(ben.trade.log()[0].id === t1.id && ben.trade.log()[0].state === 'failed', 'and it is in his history as not done');
+  const ritualA = ann.count('Dark Ritual'), ritualB = ben.count('Dark Ritual');
+  ben.hub.start();
+  await until(() => !ann.trade.pending().length, 4000, 'Ann’s commit, sent again, is turned down and she lets it go too');
+  check(ann.count('Dark Ritual') === ritualA && ben.count('Dark Ritual') === ritualB, 'and nothing moved on either side');
+  check(ann.trade.log()[0].id === t1.id && ann.trade.log()[0].state === 'failed', 'Ann’s history says it did not go through');
+  await until(() => ann.hub.isOnline(ben.code) && ben.hub.isOnline(ann.code), 3000);
+
   /* ---- someone else asking while a trade is open is told so ---- */
   const cat2 = cat;
   await befriend(cat2, ann);
