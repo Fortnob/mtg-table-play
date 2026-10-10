@@ -441,7 +441,7 @@
       UI.inboxChip(),
       UI.hoardChip(() => App.openPacks()),
       // a click on the Shards: ten thousand more, like the backquote key, and the Store to spend them in
-      UI.shardChip(() => { MTG.economy.grantTest(); UI.ok('+10,000 Shards'); navTo('store'); }),
+      UI.shardChip(() => { MTG.economy.grantTest(); navTo('store'); }),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.sound, title: 'Sound', 'aria-label': 'Sound', onclick: soundMenu }),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.gear, title: 'Options', 'aria-label': 'Options', onclick: () => navTo('options') }),
@@ -537,7 +537,6 @@
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
     e.preventDefault();
     MTG.economy.grantTest();
-    UI.ok('+10,000 Shards');
   });
 
   /* The menus' sounds, in one place: a tick for any button, a switch
