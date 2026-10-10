@@ -19080,8 +19080,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       /* Well Rested: "put two +1/+1 counters on it, then you gain 2 life
          and draw a card" — the second half is itself two steps */
       if (/^,/.test(sentence.match(sep)[0])) {
-        const bs = parseCompound(tidy(rightRaw));
-        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) return [a, ...bs];
+        /* (Urza's Guilt: "Each player draws two cards, then discards three
+           cards, then loses 4 life" — the rest is still each player's) */
+        const lend = !!subj && bareVerb && !/^you$/i.test(subj);
+        const bs = parseCompound(tidy(lend ? subj + ' ' + rightRaw.trim() : rightRaw));
+        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) {
+          if (lend && /^target/i.test(subj)) for (const x of bs) if (x.targets) delete x.targets;
+          return [a, ...bs];
+        }
       }
     }
     return null;
@@ -32805,7 +32811,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
 
       const item = {
-        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex,
+        // (activated: its abilityIndex counts activated abilities only, not every ability)
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex, activated: true,
         controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 60)}`,
         targets: (opts.targets || []).map(normTarget),
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
@@ -38155,6 +38162,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     /** Does a trigger's "if" clause still hold as it resolves? (CR 603.4) */
     _triggerStillHolds(item) {
       if (!item || item.kind !== 'ability' || item.abilityIndex == null) return true;
+      /* an activated ability has no "if" clause to check, and its index is
+         not one into every ability (Daredevil Dragster's crew is not its
+         end-of-combat trigger) */
+      if (item.activated) return true;
       const o = this.obj(item.objId);
       if (!o) return true;
       const a = o.analysis();
