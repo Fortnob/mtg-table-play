@@ -4479,4 +4479,24 @@ module.exports = (test) => {
     t.zone(ftk, 'battlefield');
     t.eq(T.g.battlefield.filter(o => /Food/.test(o.name)).length, 0, 'reanimated: none');
   });
+
+  test('Audit: storm handed out: Prismari gives it to instants only; Crackling Spellslinger waits past a creature spell for the next instant', (mk, t) => {
+    t.auto('Prismari, the Inspiration'); t.auto('Crackling Spellslinger');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Prismari, the Inspiration');
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears')); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.name === 'Grizzly Bears').length, 1, 'a creature spell: no storm copy');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16, 'Shock after one spell: one copy');
+    T = mk();
+    T.toMain('A');
+    const cs = T.hand('A', 'Crackling Spellslinger');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    T.mana('A', cs.card.mana_cost.replace(/[{}]/g, '')); T.cast('A', cs); T.settle(); T.resolve(); T.settle();
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears')); T.settle(); T.resolve(); T.settle();
+    const l0 = T.life('B');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(l0 - T.life('B'), 12, 'the Bolt: three spells before it, four Bolts');
+  });
 };
