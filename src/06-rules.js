@@ -13370,6 +13370,8 @@
           }
           break;
         case 'regrowth':
+          // (Mirkwood Elk, Healing Technique: "you gain life equal to that card's power" — the card returned: regrowthNotes)
+          this._noteLastAffected(targets);
           for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.moveObject(o, 'hand'); } }
           break;
         /* "return a creature card from your graveyard to your hand" — no
@@ -18802,6 +18804,8 @@
             // "cards exiled with this enchantment" (Valakut Exploration)
             if (src) o.exiledWithId = src.id;
           }
+          // (Daxos of Meletis, Elminster: "you gain life equal to that card's mana value" — the one card exiled: impulseNotes)
+          if (this._lastExiledList.length === 1) this._noteLastAffected([{ kind: 'object', id: this._lastExiledList[0] }]);
           this.logEvent('exile', `${me.name} exiles the top ${cnt} card${cnt === 1 ? '' : 's'}${e.play ? ' and may play ' + (cnt === 1 ? 'it' : 'them') : ''}.`);
           break;
         }

@@ -21104,4 +21104,34 @@ module.exports = (test) => {
     T.put('A', 'Sifter Wurm', 'battlefield', { etb: true }); T.resolve();
     t.eq(T.life('A'), 26, 'Sifter Wurm: life equal to the mana value 2');
   });
+
+  test("Daxos of Meletis, Elminster, Mirkwood Elk, Lie in Wait: \"that card's mana value\" is the card exiled or returned", (mk, t) => {
+    for (const n of ['Daxos of Meletis', 'Mirkwood Elk', 'Lie in Wait']) t.auto(n);
+    const top = (T, pid, name) => { const c = T.put(pid, name, 'library'); const lib = T.zone(pid, 'library'); lib.splice(lib.indexOf(c), 1); lib.unshift(c); return c; };
+    const T = mk({ library: Array(6).fill('Island') });
+    const d = T.bf('A', 'Daxos of Meletis');
+    top(T, 'B', 'Craw Wurm');
+    T.answer('declareAttackers', () => [{ attackerId: d.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('A'), 26, "Daxos: the exiled Craw Wurm's 6");
+    // Elminster −3: as many Faerie Dragons as the exiled card's mana value
+    const T2 = mk({ library: Array(6).fill('Island') });
+    T2.toMain('A');
+    const el = T2.bf('A', 'Elminster'); el.counters.loyalty = 5;
+    top(T2, 'A', 'Hill Giant');
+    T2.activate('A', el, 1); T2.resolve();
+    t.eq(T2.bfOf('A').filter(o => o.isToken && /Faerie Dragon/.test(o.name)).length, 4, 'Elminster: four Faerie Dragons');
+    // Mirkwood Elk, Healing Technique: the card returned
+    const T3 = mk();
+    T3.toMain('A');
+    const elf = T3.put('A', 'Llanowar Elves', 'graveyard');
+    T3.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: elf.id }] }));
+    T3.put('A', 'Mirkwood Elk', 'battlefield', { etb: true }); T3.resolve();
+    t.zone(elf, 'hand');
+    t.eq(T3.life('A'), 21, "Mirkwood Elk: the Elf's power");
+    const cw = T3.put('A', 'Craw Wurm', 'graveyard'), hg = T3.bf('B', 'Hill Giant');
+    T3.mana('A', 'BGU'); T3.cast('A', T3.hand('A', 'Lie in Wait'), { targets: [cw, hg] }); T3.resolve();
+    t.zone(cw, 'hand');
+    t.zone(hg, 'graveyard', "Lie in Wait: the Craw Wurm's 6 damage");
+  });
 };
