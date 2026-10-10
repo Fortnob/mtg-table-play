@@ -5719,4 +5719,13 @@ module.exports = (test) => {
       t.zone(gb, monarch ? 'battlefield' : 'hand', monarch ? 'the monarch: onto the battlefield' : 'not the monarch: to hand');
     }
   });
+
+  test('Audit: Feral Ghoul dying gives each opponent rad counters equal to its last power, counters included', (mk, t) => {
+    t.auto('Feral Ghoul');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const fg = T.bf('A', 'Feral Ghoul', { counters: { '+1/+1': 2 } });
+    T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [fg.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.player('B').rad, 4); t.eq(T.g.player('C').rad, 4); t.no(T.g.player('A').rad);
+  });
 };
