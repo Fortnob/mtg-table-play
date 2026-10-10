@@ -3084,6 +3084,8 @@
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredYours) return ((((((this.turnHistory || {}).enteredBy) || {})[pid]) || {})[v.enteredYours] || 0) * mult;
+      // Rose, Cutthroat Raider: "for each opponent you attacked" this turn (opponentsAttacked)
+      if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
@@ -4398,6 +4400,8 @@
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
+      { const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1; }
       /* Obstinate Baloth: "If a spell or ability an opponent controls causes
          you to discard this card, put it onto the battlefield instead" — the
          cause is whatever is resolving (discardToBattlefield) */
@@ -8261,6 +8265,9 @@
       if (declarations.length) {
         (this.turnHistory || (this.turnHistory = {})).attacked = true;
         this.turnHistory.attackers = (this.turnHistory.attackers || 0) + declarations.length;
+        // Rose, Cutthroat Raider: which players each player attacked this turn (opponentsAttacked)
+        const apb = this.turnHistory.attackedPlayersBy || (this.turnHistory.attackedPlayersBy = {});
+        for (const d of declarations) if (this.player(d.defenderId) && !(apb[playerId] || []).includes(d.defenderId)) (apb[playerId] = apb[playerId] || []).push(d.defenderId);
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
@@ -10187,6 +10194,7 @@
           const mv = it.card.cmc || 0;
           return cond.cmp === 'atLeast' ? mv >= cond.n : mv <= cond.n;
         }
+        case 'discardedThisTurn': return ((this.turnHistory || {}).discards || 0) > 0;
         case 'didThisWay': {
           const ids = cond.how === 'milled' ? (this._lastMilled || []) : cond.how === 'revealed' ? [this._lastRevealed].filter(Boolean)
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
@@ -11788,6 +11796,11 @@
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
           if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
+          // Merry, Esquire of Rohan: this creature and another of that kind among the attackers (withSelfAnd)
+          if (ab.withSelfAnd) {
+            const at = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(Boolean);
+            if (!at.some(x => x.id === o.id) || !at.some(x => x.id !== o.id && this._cardFitsWords(x, ab.withSelfAnd))) continue;
+          }
           // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
           if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
@@ -12732,7 +12745,7 @@
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -14842,7 +14855,9 @@
         case 'sacGreatestMv': {
           // Myrkul's Edict, Olórin's Searing Light: by power, a target opponent, or exiled
           const val = (x) => (e.by === 'power' ? this.powerOf(x) : ((x.card && x.card.cmc) || 0));
-          const whom = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller);
+          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
+            // Papalymo Totolymo: only the opponents who lost life this turn (lostLifeOnly)
+            .filter(q => !e.lostLifeOnly || (q.lifeLostThisTurn || 0) > 0);
           for (const q of whom) {
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;

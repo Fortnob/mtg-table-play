@@ -21384,4 +21384,62 @@ module.exports = (test) => {
     t.eq(attackWith(1, true), 18, 'tapped: one attacker is fine');
     t.eq(attackWith(2, false), 15, 'untapped: both may attack');
   });
+
+  test('Commanders: Merry, Esquire of Rohan, Rose, Cutthroat Raider, The Raven Man, Papalymo Totolymo, Vohar, Vodalian Desecrator', (mk, t) => {
+    for (const n of ['Merry, Esquire of Rohan', 'Rose, Cutthroat Raider', 'The Raven Man', 'Papalymo Totolymo', 'Vohar, Vodalian Desecrator', 'Militant Angel']) t.auto(n);
+    // Merry: a card for attacking with Merry and another legendary creature, none with a Bear
+    const merry = (other) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      const m = T.bf('A', 'Merry, Esquire of Rohan'), x = T.bf('A', other);
+      T.toMain('A');
+      const h = T.zone('A', 'hand').length;
+      T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }, { attackerId: x.id, defenderId: 'B' }]);
+      T.toMain('A', 'endCombat');
+      return T.zone('A', 'hand').length - h;
+    };
+    t.eq(merry('Isamaru, Hound of Konda'), 1, 'with a legend: a card');
+    t.eq(merry('Grizzly Bears'), 0, 'with a Bear: none');
+    // Rose: a Junk for each opponent attacked; Militant Angel: a Knight for each
+    const T2 = mk();
+    T2.bf('A', 'Rose, Cutthroat Raider');
+    const b = T2.bf('A', 'Grizzly Bears');
+    T2.toMain('A');
+    T2.answer('declareAttackers', () => [{ attackerId: b.id, defenderId: 'B' }]);
+    T2.toMain('A', 'end');
+    t.eq(T2.bfOf('A').filter(o => o.isToken && /Junk/.test(o.name)).length, 1, 'one opponent attacked: one Junk');
+    T2.put('A', 'Militant Angel', 'battlefield', { etb: true }); T2.resolve();
+    t.eq(T2.bfOf('A').filter(o => o.isToken && /Knight/.test(o.name)).length, 1, 'Militant Angel: one Knight');
+    // The Raven Man: a Bird at the end step only once someone has discarded this turn
+    const T3 = mk({ library: Array(10).fill('Island') });
+    const rv = T3.bf('A', 'The Raven Man');
+    T3.toMain('A');
+    const birds = () => T3.bfOf('A').filter(o => o.isToken && /Bird/.test(o.name)).length;
+    T3.toMain('B');
+    t.eq(birds(), 0, 'nobody discarded: no Bird');
+    T3.toMain('A');
+    T3.put('B', 'Island', 'hand');
+    T3.mana('A', '3B'); T3.activate('A', rv, 0); T3.resolve();
+    T3.toMain('B');
+    t.eq(birds(), 1, 'a discard this turn: a Bird');
+    // Papalymo: only an opponent who lost life this turn sacrifices
+    const T4 = mk({ library: Array(10).fill('Island') });
+    T4.toMain('A');
+    const pa = T4.bf('A', 'Papalymo Totolymo'), cw = T4.bf('B', 'Craw Wurm');
+    T4.mana('A', '4'); T4.activate('A', pa, 0); T4.resolve();
+    t.zone(cw, 'battlefield', 'no life lost: nothing');
+    const pa2 = T4.bf('A', 'Papalymo Totolymo');
+    T4.mana('A', 'R'); T4.cast('A', T4.hand('A', 'Shock'), { targets: ['B'] }); T4.resolve();
+    T4.mana('A', '4'); T4.activate('A', pa2, 0); T4.resolve();
+    t.zone(cw, 'graveyard', 'life lost: the greatest power goes');
+    // Vohar: an instant discarded drains 1
+    const T5 = mk({ library: Array(10).fill('Island') });
+    T5.toMain('A');
+    const vo = T5.bf('A', 'Vohar, Vodalian Desecrator');
+    const sh = T5.put('A', 'Shock', 'hand');
+    T5.answer('discard', () => ({ cardIds: [sh.id] }));
+    T5.activate('A', vo, 0); T5.resolve();
+    t.zone(sh, 'graveyard');
+    t.eq(T5.life('B'), 19, 'an instant discarded: each opponent loses 1');
+    t.eq(T5.life('A'), 21, 'and you gain 1');
+  });
 };

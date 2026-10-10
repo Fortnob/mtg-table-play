@@ -2007,8 +2007,10 @@
         /^target/i.test(m[1]) ? { targets: [{ type: 'player' }] } : {}) : null) },
     // Flare of Malice, Soul Shatter
     // Myrkul's Edict, Professor Onyx, Consumed by Greed, Olórin's Searing Light: the biggest by power
-    { re: /^(Each opponent|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
+    // (Papalymo Totolymo: "Each opponent who lost life this turn sacrifices …" — lostLifeOnly)
+    { re: /^(Each opponent(?: who lost life this turn)?|Target opponent) (sacrifices|exiles) a creature with the greatest power among creatures (?:that player|they) controls?\.?$/i,
       make: (m) => Object.assign({ op: 'sacGreatestMv', what: ['creature'], by: 'power' },
+        /who lost life/i.test(m[1]) ? { lostLifeOnly: true } : {},
         /^target/i.test(m[1]) ? { who: 'target', targets: [{ type: 'player', opponent: true }] } : {},
         /exile/i.test(m[2]) ? { exile: true } : {}) },
     { re: /^Each opponent sacrifices an? (creature or planeswalker|creature) with the greatest mana value among (?:creatures and planeswalkers|creatures) they control\.?$/i,
@@ -6031,6 +6033,8 @@
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
+    if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
@@ -9483,6 +9487,11 @@
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
     [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
       (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
+    [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
+    // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
+    [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
+      (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
     [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
@@ -10393,6 +10402,8 @@
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
         m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
+    // Merry, Esquire of Rohan: "Whenever you attack with Merry and another legendary creature" (withSelfAnd)
+    { re: /^Whenever you attack with (?:CARDNAME|this creature) and another ([a-z ]+?), /i, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
     // Horizon Explorer: "Whenever you attack a player" (read as any attack you make)
     { re: /^Whenever you attack a player,? /i, event: 'youAttack' },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
