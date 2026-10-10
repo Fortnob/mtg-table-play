@@ -3618,4 +3618,18 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Fiery Impulse'), { targets: [g2] });
     t.zone(g2, 'graveyard', 'spell mastery: 3');
   });
+
+  test('Audit: recruit makes a Soldier only for a nonland card discarded (Patient Instructor)', (mk, t) => {
+    t.auto('Patient Instructor');
+    for (const [pick, want] of [['Opt', 1], ['Island', 0]]) {
+      const T = mk();
+      T.toMain('A');
+      while (T.g.zones.A.hand.length) T.g.moveObject(T.g.zones.A.hand[0], 'library');
+      T.top('A', 'Island');
+      const pi = T.hand('A', 'Patient Instructor'); T.hand('A', 'Opt');
+      T.answer('choose', (ch) => { const items = ch.items || ch.cards || ch.options || []; const c = items.find(x => (x.name || x.label || '').includes(pick)); return c ? { picks: [c.id], cardIds: [c.id], ids: [c.id] } : {}; });
+      T.mana('A', '3W'); T.cast('A', pi); T.settle(); T.resolve();
+      t.eq(T.g.battlefield.filter(o => /Soldier/.test(o.name) && o.isToken).length, want, 'discarded ' + pick);
+    }
+  });
 };
