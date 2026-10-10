@@ -57,10 +57,6 @@
     MTG.bus.emit('app:ready');
   };
 
-  const NAME_A = ['Quiet', 'Brass', 'Amber', 'Storm', 'Ivory', 'Hollow', 'Gilded', 'Mossy', 'Iron', 'Pale',
-    'Ember', 'Silver', 'Thorn', 'Dusk', 'Cinder', 'Marsh', 'Frost', 'Copper', 'Sable', 'Wren'];
-  const NAME_B = ['Scribe', 'Warden', 'Drake', 'Herald', 'Sentry', 'Vizier', 'Pilgrim', 'Raven', 'Smith', 'Fox',
-    'Tinker', 'Reaper', 'Magus', 'Harrier', 'Cantor', 'Miller', 'Corsair', 'Adept', 'Falconer', 'Wright'];
   /**
    * What to call a bot once you can see what it brought. A table of "Brass
    * Vizier" and "Mossy Falconer" tells you nothing; a table of "Krenko",
@@ -400,15 +396,8 @@
     return colours.slice(0, 22) || null;
   }
 
-  function randomName(taken) {
-    const used = new Set(taken || []);
-    for (let i = 0; i < 60; i++) {
-      const n = NAME_A[Math.floor(Math.random() * NAME_A.length)] + ' ' +
-        NAME_B[Math.floor(Math.random() * NAME_B.length)];
-      if (!used.has(n)) return n;
-    }
-    return NAME_A[Math.floor(Math.random() * NAME_A.length)] + ' ' + (used.size + 1);
-  }
+  /** A bot's (or a nameless player's) name, in two words (MTG.botName, src/00-core.js). */
+  const randomName = (taken) => MTG.botName(taken);
 
   /* ================= shell ================= */
   let screens = {};

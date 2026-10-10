@@ -183,6 +183,26 @@ MTG.RNG = RNG;
 let _idc = 0;
 MTG.uid = (prefix) => `${prefix || 'x'}_${(++_idc).toString(36)}_${Math.random().toString(36).slice(2, 7)}`;
 
+/* ---------- bots' names ----------
+   "Brass Vizier", "Mossy Falconer": what a bot is called until its deck
+   gives it a better name. Shared by the lobby (src/14-app.js) and the
+   bots of a friends tournament (src/09f-tourney.js). */
+const BOT_NAME_A = ['Quiet', 'Brass', 'Amber', 'Storm', 'Ivory', 'Hollow', 'Gilded', 'Mossy', 'Iron', 'Pale',
+  'Ember', 'Silver', 'Thorn', 'Dusk', 'Cinder', 'Marsh', 'Frost', 'Copper', 'Sable', 'Wren'];
+const BOT_NAME_B = ['Scribe', 'Warden', 'Drake', 'Herald', 'Sentry', 'Vizier', 'Pilgrim', 'Raven', 'Smith', 'Fox',
+  'Tinker', 'Reaper', 'Magus', 'Harrier', 'Cantor', 'Miller', 'Corsair', 'Adept', 'Falconer', 'Wright'];
+/** A name of two words not among `taken`; `rand` is a random number source (Math.random when left out). */
+MTG.botName = function (taken, rand) {
+  rand = rand || Math.random;
+  const used = new Set(taken || []);
+  const pick = (list) => list[Math.floor(rand() * list.length)];
+  for (let i = 0; i < 60; i++) {
+    const n = pick(BOT_NAME_A) + ' ' + pick(BOT_NAME_B);
+    if (!used.has(n)) return n;
+  }
+  return pick(BOT_NAME_A) + ' ' + (used.size + 1);
+};
+
 /* ---------- event bus ---------- */
 class Emitter {
   constructor() { this._h = new Map(); }
