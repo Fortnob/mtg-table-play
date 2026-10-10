@@ -1,14 +1,26 @@
 'use strict';
 /* ============================================================
-   12h-ui-rematch.js - the end of a game, written down
+   12h-ui-rematch.js - the end of a game: written down, and played again
 
-   As a game ends it is written into your record (src/10g-history.js):
-   the host and every guest each keep their own, so this runs at every
-   table, from the views it is shown. A seat that is knocked out of a
-   game of several is written down there and then, in case it leaves
-   before the end.
+   Two things happen as a game ends. It is written into your record
+   (src/10g-history.js): the host and every guest each keep their own,
+   so this runs at every table, from the views it is shown. A seat that
+   is knocked out of a game of several is written down there and then,
+   in case it leaves before the end.
+
+   And the table can go again. Rematch (on the result screen) starts the
+   same table over: the same seats, the same decks (the bots keep theirs),
+   the same house rules. Alone, that is all there is to it. With other
+   people at the table the host offers it and each guest says yes or no;
+   anyone who says no, or has gone, is left out, and the host chooses
+   whether a bot takes the empty seat or it stays empty. The messages:
+
+     host -> guest   { t: 'rematch:offer', id, from }
+     guest -> host   { t: 'rematch:answer', id, yes }
+     host -> guest   { t: 'rematch:off', id, left }   called off, or under way without you
    ============================================================ */
 (function (MTG) {
+  const { el } = MTG;
   const UI = MTG.ui;
   const Table = UI.Table;
   const net = MTG.net;
@@ -107,8 +119,188 @@
   const base = { update: Table.prototype.update };
   Table.prototype.update = function (view) {
     try { noteView(this, view); } catch (e) { console.warn('[history]', e); }
+    // a new game arriving puts away an offer still open from the last one
+    if (offerBox && view && !view.over) dropOffer();
     return base.update.apply(this, arguments);
   };
 
-  MTG.rematch = { modeOf };
+  /* ---------------- the rematch: the host ---------------- */
+  let asking = null;      // the offer out, while the host waits on answers
+
+  /**
+   * Get the table ready to go again: a deck for every seat that needs
+   * one, and the people at it asked. Resolves true to start the game, or
+   * false if it is called off.
+   */
+  async function gather(sess) {
+    // a game picked up from a save does not have your deck with it
+    const me = sess.seat('me');
+    if (me && !me.deck && sess.fmt.kind !== 'limited') {
+      UI.toast('Choose a deck for the rematch.');
+      const deck = await new Promise((res) => {
+        const m = UI.pickDeck(sess.formatId, res);
+        // closed without a choice is no rematch (a choice closes the window first, then answers)
+        m._onClose = () => setTimeout(() => res(null), 0);
+      });
+      if (!deck) return false;
+      me.deck = deck;
+      me.deckValid = MTG.formats.validate(deck, sess.fmt);
+    }
+    const guests = sess.roster.filter(r => r.kind === 'remote');
+    if (!guests.length || !net.isHost) return true;
+    return offer(sess, guests);
+  }
+
+  /** Ask every guest; wait for their answers, or for the host to go on without them. */
+  function offer(sess, guests) {
+    if (asking) asking.cancel();
+    const id = MTG.uid('rm');
+    const A = app();
+    /** @type {Map<string, { seat: any, answer: string, fill: boolean }>} answer: waiting, yes, no, gone */
+    const state = new Map();
+    for (const r of guests) {
+      const here = !!(r.peerId && net.conns.has(r.peerId));
+      state.set(r.id, { seat: r, answer: here ? 'waiting' : 'gone', fill: true });
+      if (here) net.send(r.peerId, { t: 'rematch:offer', id, from: A.myName || 'The host' });
+    }
+    return new Promise((resolve) => {
+      let done = false;
+      const list = el('div', { class: 'rematch-list' });
+      const note = el('p', { class: 'small muted rematch-note' });
+      const m = UI.modal({
+        title: 'Rematch', width: '520px', className: 'rematch-modal',
+        content: el('div', null, [
+          el('p', { class: 'small muted', style: { marginTop: 0 }, text: 'The same table again: the same seats, the same decks and the same house rules. The others are being asked.' }),
+          list, note,
+        ]),
+        buttons: [
+          { label: 'Call it off', onClick: () => finish(false) },
+          { label: 'Start', class: 'primary', onClick: () => finish(true) },
+        ],
+      });
+      m._onClose = () => finish(false);
+      const startBtn = m.foot.querySelector('.btn.primary');
+      const minPlayers = sess.fmt.minPlayers || 2;
+
+      const draw = () => {
+        list.innerHTML = '';
+        const out = [...state.values()].filter(s => s.answer === 'no' || s.answer === 'gone');
+        const staying = sess.roster.length - out.length;
+        for (const s of state.values()) {
+          const words = { waiting: 'Waiting for an answer…', yes: 'In', no: 'Not this time', gone: 'No longer here' }[s.answer];
+          const row = el('div', { class: 'rematch-row a-' + s.answer }, [
+            UI.portrait(s.seat.name, null, { avatar: s.seat.avatar || null }),
+            el('div', { class: 'rr-who' }, [el('b', { text: s.seat.name }), el('span', { class: 'rr-answer', text: words })]),
+          ]);
+          if (s.answer === 'no' || s.answer === 'gone') {
+            // with too few left, the empty seat has to be a bot
+            const must = staying + out.filter(x => x.fill && x !== s).length < minPlayers;
+            if (must) s.fill = true;
+            row.appendChild(el('div', { class: 'rr-seat', role: 'group', 'aria-label': `${s.seat.name}’s seat` }, [
+              el('button', { type: 'button', class: 'chip' + (s.fill ? ' on' : ''), text: 'A bot takes it', 'aria-pressed': s.fill ? 'true' : 'false',
+                onclick: () => { s.fill = true; draw(); } }),
+              el('button', { type: 'button', class: 'chip' + (!s.fill ? ' on' : ''), text: 'Leave it empty', disabled: must, 'aria-pressed': !s.fill ? 'true' : 'false',
+                title: must ? `This format needs at least ${minPlayers} players` : '', onclick: () => { s.fill = false; draw(); } }),
+            ]));
+          }
+          list.appendChild(row);
+        }
+        const waiting = [...state.values()].filter(s => s.answer === 'waiting').length;
+        note.textContent = waiting
+          ? 'Start now and anyone who has not answered is left out.'
+          : out.length ? 'Everyone has answered.' : '';
+        if (startBtn) startBtn.textContent = waiting ? 'Start without waiting' : 'Start';
+        // everyone in: no reason to wait for a click
+        if (!waiting && !out.length) setTimeout(() => finish(true), 400);
+      };
+
+      const finish = (go) => {
+        if (done) return;
+        done = true;
+        asking = null;
+        offOff();
+        if (!m._closed) { m._onClose = null; m.close(); }
+        if (!go) {
+          // anyone still deciding, or waiting to play, is told; whoever said no needs no telling
+          for (const s of state.values()) if ((s.answer === 'waiting' || s.answer === 'yes') && s.seat.peerId) net.send(s.seat.peerId, { t: 'rematch:off', id });
+          resolve(false);
+          return;
+        }
+        // whoever is not in is left out; a bot takes the seat, or it goes
+        for (const s of state.values()) {
+          if (s.answer === 'yes') continue;
+          if (s.seat.peerId && net.conns.has(s.seat.peerId)) net.send(s.seat.peerId, { t: 'rematch:off', id, left: true });
+          const at = sess.roster.indexOf(s.seat);
+          if (at < 0) continue;
+          if (s.fill) {
+            const bot = sess.addBot(MTG.settings.lobbyBotLevel || 5, MTG.settings.lobbyBotStyle || '');
+            // after a draft there is nothing to build from, so the bot plays the deck the seat drafted
+            if (sess.fmt.kind === 'limited' && s.seat.deck) bot.deck = s.seat.deck;
+            sess.roster.splice(sess.roster.indexOf(bot), 1);
+            sess.roster.splice(at, 1, bot);
+          } else sess.roster.splice(at, 1);
+        }
+        sess.broadcastLobby();
+        resolve(true);
+      };
+
+      // the answers, and anyone who goes while they are being waited for
+      const onMsg = (from, msg) => {
+        if (!msg || msg.t !== 'rematch:answer' || msg.id !== id) return;
+        const s = [...state.values()].find(x => x.seat.peerId === from);
+        if (!s || s.answer === 'gone') return;
+        s.answer = msg.yes ? 'yes' : 'no';
+        draw();
+      };
+      const onLeave = (peerId) => {
+        const s = [...state.values()].find(x => x.seat.peerId === peerId);
+        if (s) { s.answer = 'gone'; draw(); }
+      };
+      const offs = [net.on('message', onMsg), net.on('peer:leave', onLeave)];
+      const offOff = () => offs.forEach(f => f());
+      asking = { cancel: () => finish(false) };
+      draw();
+    });
+  }
+
+  /* ---------------- the rematch: a guest ---------------- */
+  let offerBox = null;
+  /** Put the question away without answering it: the host has moved on. */
+  function dropOffer() {
+    if (!offerBox) return;
+    offerBox._onClose = null;
+    offerBox.close();
+    offerBox = null;
+  }
+  net.on('message', (from, msg) => {
+    if (!msg || !net.isClient || from !== 'host') return;
+    if (msg.t === 'rematch:offer') {
+      dropOffer();
+      let answered = false;
+      const answer = (yes) => {
+        if (answered) return;
+        answered = true;
+        net.send(null, { t: 'rematch:answer', id: msg.id, yes: !!yes });
+        if (yes) UI.toast('You are in. The game starts when the host is ready.', 'ok', 4000);
+      };
+      const box = offerBox = UI.modal({
+        title: 'Rematch?', width: '420px', className: 'rematch-modal',
+        content: el('p', { style: { margin: 0 }, text: `${msg.from || 'The host'} wants to play again: the same table, the same decks and the same house rules.` }),
+        buttons: [
+          { label: 'Not this time', onClick: () => box.close() },
+          { label: 'Play again', class: 'primary', onClick: () => { answer(true); box.close(); } },
+        ],
+      });
+      // closed any other way is a no, so the host is not left waiting
+      box._onClose = () => { if (offerBox === box) offerBox = null; answer(false); };
+      MTG.sfx('notify');
+      return;
+    }
+    if (msg.t === 'rematch:off') {
+      dropOffer();
+      UI.toast(msg.left ? 'The rematch has started without you.' : 'The host called off the rematch.', '', 4000);
+    }
+  });
+
+  MTG.rematch = { gather, modeOf };
 })(window.MTG);

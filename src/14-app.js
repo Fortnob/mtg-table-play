@@ -4773,6 +4773,8 @@
     if (!sess) return;
     sess.match = null;
     if (!await UI.sideboardStep(sess)) return;
+    // the guests are asked first, and whoever says no is left out (src/12h-ui-rematch.js)
+    if (MTG.rematch && !await MTG.rematch.gather(sess)) return;
     sess.startGame();
   };
 

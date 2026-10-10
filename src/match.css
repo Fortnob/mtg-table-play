@@ -1,6 +1,6 @@
 /* ============================================================
-   match.css - match play: the game clock at the table, and the record
-   of games (Profile > History, a deck's record)
+   match.css - match play: the game clock at the table, the record of
+   games (Profile > History, a deck's record) and the rematch
    (src/06e-clock.js, src/10g-history.js, src/10h-ui-history.js,
    src/12g-ui-clock.js, src/12h-ui-rematch.js)
    ============================================================ */
@@ -69,3 +69,18 @@
 .deck-record.on-art { margin-top: 6px; margin-left: 6px; background: rgba(8,10,14,.72); backdrop-filter: blur(4px); }
 .auto-slot:empty + .deck-record.on-art { margin-left: 0; }
 
+/* ---------- the rematch ---------- */
+.rematch-list { display: grid; gap: 8px; margin: 10px 0 4px; }
+.rematch-row { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 12px; align-items: center; padding: 8px 10px; border-radius: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
+.rr-who { display: grid; gap: 1px; min-width: 0; }
+.rr-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rr-answer { font-size: 12.5px; color: #a7b1c2; }
+.rematch-row.a-yes .rr-answer { color: var(--good, #52c08a); }
+.rematch-row.a-no .rr-answer, .rematch-row.a-gone .rr-answer { color: var(--bad, #e8675e); }
+.rematch-row.a-waiting .rr-answer::after { content: ''; display: inline-block; width: 6px; height: 6px; margin-left: 6px; border-radius: 50%;
+  background: #8fc6ff; vertical-align: middle; animation: clockPulse 1.2s ease-in-out infinite; }
+.rr-seat { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.rr-seat .chip { padding: 9px 13px; }
+.rr-seat .chip[disabled] { opacity: .45; cursor: not-allowed; }
+.rematch-note { margin: 6px 0 0; }
