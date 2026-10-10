@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10885,
+  "needed": 10882,
   "gainedCards": 1052,
-  "linesNeeded": 11609,
+  "linesNeeded": 11606,
   "linesGained": 1239,
   "gained": {
    "all": 1052,
@@ -4940,17 +4940,6 @@
    ]
   },
   {
-   "what": "AttacksAloneAttachedTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Bilbo's Ring",
-    "Sigil of Valor",
-    "Reaper's Talisman",
-    "S.H.I.E.L.D. Spy Kit"
-   ]
-  },
-  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 4,
    "lines": 4,
@@ -6567,6 +6556,15 @@
     "Curie, Emergent Intelligence",
     "The War Games",
     "Wormfang Drake"
+   ]
+  },
+  {
+   "what": "AbilityPredicate MutateAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Pollywog Symbiote",
+    "Otrimi, the Ever-Playful"
    ]
   }
  ],
@@ -9717,17 +9715,6 @@
    ]
   },
   {
-   "what": "AttacksAloneAttachedTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Bilbo's Ring",
-    "Sigil of Valor",
-    "Reaper's Talisman",
-    "S.H.I.E.L.D. Spy Kit"
-   ]
-  },
-  {
    "what": "becomes a creature in a static ability",
    "score": 4,
    "cards": 4,
@@ -10242,6 +10229,17 @@
     "Devour Intellect",
     "Jaded Sell-Sword",
     "Hired Hexblade"
+   ]
+  },
+  {
+   "what": "ReturnToHandFromGraveyardAllEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Twilight Shepherd",
+    "Underworld Cerberus",
+    "Fell Shepherd",
+    "Infernal Caretaker"
    ]
   }
  ]

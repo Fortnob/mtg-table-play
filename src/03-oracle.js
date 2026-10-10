@@ -9780,6 +9780,8 @@
     { re: /^Whenever one or more non-([A-Z][a-z]+) creatures you control attack(?: a player)?,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // "attacks alone": the only attacker this combat (before plain "attacks")
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks alone,? /i, event: 'attacksAlone', self: true },
+    // Bilbo's Ring: "Whenever equipped creature attacks alone" — the creature it is attached to
+    { re: /^Whenever (?:equipped|enchanted) creature attacks alone,? /i, event: 'attacksAlone', filt: () => ({ words: 'creature', equipped: true }) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),

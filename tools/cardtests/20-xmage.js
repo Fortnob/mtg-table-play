@@ -19723,4 +19723,22 @@ module.exports = (test) => {
     t.zone(cmd, 'battlefield', 'a commander stays');
     t.zone(bear, 'graveyard'); t.zone(pw, 'graveyard'); t.zone(land, 'battlefield');
   });
+
+  test("Bilbo's Ring: the equipped creature attacking alone draws a card for 1 life; another attacking alone does not", (mk, t) => {
+    t.auto("Bilbo's Ring");
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const ring = T.bf('A', "Bilbo's Ring");
+    const hob = T.bf('A', 'Grizzly Bears'); ring.attachedTo = hob.id; hob.attachments = [ring.id];
+    const other = T.bf('A', 'Hill Giant');
+    T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: other.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, 0, 'an unequipped creature alone: nothing');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: hob.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, 2, 'the equipped one alone: a card (plus the draw step)');
+    t.eq(T.g.player('A').life, 19, 'and 1 life');
+  });
 };
