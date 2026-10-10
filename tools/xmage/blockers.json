@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10799,
+  "needed": 10793,
   "gainedCards": 1023,
-  "linesNeeded": 11503,
+  "linesNeeded": 11496,
   "linesGained": 1206,
   "gained": {
    "all": 1023,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 691,
-   "lines": 631,
+   "score": 690,
+   "lines": 630,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -2553,20 +2553,6 @@
     "Grim Giganotosaurus",
     "Vitality Hunter",
     "Sealock Monster"
-   ]
-  },
-  {
-   "what": "DiscardedByOpponentTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Orvar, the All-Form",
-    "Ajani's Last Stand",
-    "Guerrilla Tactics",
-    "Metrognome",
-    "Quagnoth",
-    "Mangara's Blessing",
-    "Sand Golem"
    ]
   },
   {
@@ -6537,13 +6523,23 @@
     "Stasis Field",
     "Coerced to Kill"
    ]
+  },
+  {
+   "what": "ExileTargetIfDiesEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Smite the Deathless",
+    "Blitz of the Thunder-Raptor",
+    "Unnatural Aggression"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3426,
-   "cards": 3261,
+   "score": 3427,
+   "cards": 3262,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6555,8 +6551,8 @@
   },
   {
    "what": "custom ability",
-   "score": 536,
-   "cards": 491,
+   "score": 535,
+   "cards": 490,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -8671,19 +8667,6 @@
    ]
   },
   {
-   "what": "DiscardedByOpponentTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Ajani's Last Stand",
-    "Guerrilla Tactics",
-    "Metrognome",
-    "Quagnoth",
-    "Mangara's Blessing",
-    "Sand Golem"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -10203,6 +10186,17 @@
     "Sentinel",
     "Steadfast Armasaur",
     "Sworn Defender"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect.withCantBePrevented",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Urza's Rage",
+    "Arrow Storm",
+    "Flames of the Blood Hand",
+    "Lightning Surge"
    ]
   }
  ]

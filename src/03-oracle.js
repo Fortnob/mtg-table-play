@@ -9660,6 +9660,10 @@
       event: 'cardMilled', extraOf: (m) => Object.assign({ batch: true }, (m[1] || m[2]) ? { spellFilter: (m[1] || m[2]).trim().toLowerCase() } : {}) },
     { re: /^Whenever a player mills an? (nonland |creature |land |artifact )?card,? /i,
       event: 'cardMilled', extraOf: (m) => (m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
+    /* Orvar, Psychic Purge, Metrognome, Guerrilla Tactics: "When a spell or ability an opponent controls
+       causes you to discard this card" — from the graveyard it went to (discardedByOpponent) */
+    { re: /^When a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME),? /i,
+      event: 'discardedByOpponent', self: true, extra: { fromGraveyard: true } },
     // Voracious Tome-Skimmer, Dream Spoilers: "Whenever you cast a spell during an opponent's turn"
     // (Gandalf of the Secret Fire: "an instant or sorcery spell from your hand during an opponent's turn")
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during an opponent'?s turn,? /i, event: 'youCastSpell',
@@ -12163,6 +12167,8 @@
        works while the card is in its owner's graveyard, and only there */
     for (const ab of out.abilities) {
       if (ab.kind !== 'triggered' || !ab.text) continue;
+      // (Orvar: discarded by an opponent's effect — the trigger says so itself)
+      if (ab.fromGraveyard) { out.graveTriggers = true; continue; }
       if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
       if (/\b(?:return|exile) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
         ab.fromGraveyard = true;
@@ -13764,8 +13770,9 @@
       // Fear of Sleep Paralysis: "Stun counters can't be removed from permanents your opponents control." (stunLock)
       { re: /^Stun counters can'?t be removed from permanents your opponents control\.?$/i, eff: { op: 'stunLock' }, auto: true },
       // Obstinate Baloth, Wilt-Leaf Liege, Loxodon Smiter, Nullhide Ferox: discarded by an opponent's effect, it enters instead (discardToBattlefield)
-      { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield instead of putting it into your graveyard\.?$/i,
-        eff: { op: 'discardToBattlefield' }, auto: true },
+      // (Dodecapod: "… onto the battlefield with two +1/+1 counters on it instead")
+      { re: /^If a spell or ability an opponent controls causes you to discard (?:this card|CARDNAME), put it onto the battlefield( with (one|two|three|a) \+1\/\+1 counters? on it)? instead of putting it into your graveyard\.?$/i,
+        make: (m) => Object.assign({ op: 'discardToBattlefield' }, m[1] ? { counters: num(m[2]) } : {}), auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)

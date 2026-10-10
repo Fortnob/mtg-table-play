@@ -4323,10 +4323,15 @@
          you to discard this card, put it onto the battlefield instead" — the
          cause is whatever is resolving (discardToBattlefield) */
       const cause = this.resolving && this.resolving.ctx && this.resolving.ctx.controller;
-      if (o.zone === 'graveyard' && cause != null && cause !== playerId && this._staticOp(o, 'discardToBattlefield')) {
+      const toBf = o.zone === 'graveyard' && cause != null && cause !== playerId && this._staticOp(o, 'discardToBattlefield');
+      if (toBf) {
         this.moveObject(o, 'battlefield', { controller: o.owner });
+        // Dodecapod: "with two +1/+1 counters on it"
+        if (toBf.counters) this.addCounters(o, '+1/+1', toBf.counters);
         this.logEvent('rules', `${o.name} is put onto the battlefield instead of into the graveyard.`);
       }
+      // Orvar, Psychic Purge: "When a spell or ability an opponent controls causes you to discard this card" ("that player": the cause)
+      if (o.zone === 'graveyard' && cause != null && cause !== playerId) this._fire('discardedByOpponent', playerId, { source: o, object: o, playerId, player: cause });
       this._offerMadness(playerId, o);
       this._fire('youDiscard', playerId, { object: o, playerId });
       this._fire('opponentDiscards', null, { object: o, playerId, except: playerId });

@@ -20154,4 +20154,38 @@ module.exports = (test) => {
     t.eq(T5.g.player('B').rad, 2, 'Acquired Mutation: the defending player gets two');
     t.no(T5.g.player('C').rad, "not the Aura's controller");
   });
+
+  test('"When a spell or ability an opponent controls causes you to discard this card": Psychic Purge, Metrognome, Guerrilla Tactics; Dodecapod enters with two counters; your own discard does nothing', (mk, t) => {
+    for (const n of ['Psychic Purge', 'Metrognome', 'Guerrilla Tactics', 'Dodecapod']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    T.hand('B', 'Psychic Purge');
+    T.hand('B', 'Metrognome');
+    T.mana('A', 'B2');
+    T.cast('A', T.hand('A', 'Mind Rot'), { targets: ['B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 15, 'Psychic Purge: the player who made them discard it loses 5');
+    t.eq(T.bfOf('B').filter(o => o.name === 'Gnome').length, 4, 'Metrognome: four Gnomes');
+    const T2 = mk();
+    T2.toMain('A');
+    T2.hand('B', 'Guerrilla Tactics');
+    const dp = T2.hand('B', 'Dodecapod');
+    const bear = T2.bf('A', 'Grizzly Bears');
+    T2.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T2.mana('A', 'B2');
+    T2.cast('A', T2.hand('A', 'Mind Rot'), { targets: ['B'] });
+    T2.settle(); T2.resolve(); T2.settle();
+    t.zone(bear, 'graveyard');
+    t.zone(dp, 'battlefield');
+    t.eq(dp.counters['+1/+1'], 2, 'Dodecapod: two +1/+1 counters');
+    const T3 = mk();
+    T3.toMain('B');
+    T3.hand('B', 'Psychic Purge');
+    T3.hand('B', 'Metrognome');
+    T3.mana('B', 'B2');
+    T3.cast('B', T3.hand('B', 'Mind Rot'), { targets: ['B'] });
+    T3.settle(); T3.resolve(); T3.settle();
+    t.eq(T3.life('B'), 20, 'discarding to your own spell: nothing');
+    t.eq(T3.bfOf('B').filter(o => o.name === 'Gnome').length, 0, 'no Gnomes');
+  });
 };
