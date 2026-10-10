@@ -4762,4 +4762,21 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.life('B'), 16, 'the 1/4 Turtle deals 4');
   });
+
+  test('Audit: Chandra, Acolyte of Flame -2 casts a sorcery from the graveyard, paying for it, and exiles it after; not without the mana', (mk, t) => {
+    t.auto('Chandra, Acolyte of Flame');
+    for (const paid of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      const ch = T.bf('A', 'Chandra, Acolyte of Flame', { counters: { loyalty: 4 } });
+      const dv = T.grave('A', 'Divination');
+      for (let i = 0; i < 4; i++) T.top('A', 'Island');
+      T.answer('confirm', { yes: true });
+      if (paid) T.mana('A', 'U2');
+      const h = T.zone('A', 'hand').length;
+      T.activate('A', ch, 2, { targets: [dv.id] }); T.settle(); T.resolve(); T.settle();
+      if (paid) { t.zone(dv, 'exile', 'cast and exiled after'); t.eq(T.zone('A', 'hand').length, h + 2); }
+      else { t.zone(dv, 'graveyard', 'no mana: not cast'); t.eq(T.zone('A', 'hand').length, h); }
+    }
+  });
 };
