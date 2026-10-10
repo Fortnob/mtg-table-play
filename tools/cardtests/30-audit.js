@@ -5314,4 +5314,28 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(copies().length, 0, 'both sacrificed'); t.zone(hg, 'battlefield');
   });
+
+  test('Audit: Sneak Attack sacrifices the creature it put in, and nothing (not itself) when there was none', (mk, t) => {
+    t.auto('Sneak Attack');
+    let T = mk();
+    T.toMain('A');
+    const sa = T.bf('A', 'Sneak Attack');
+    const cw = T.hand('A', 'Craw Wurm');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [cw.id] });
+    T.mana('A', 'R'); T.activate('A', sa, 0); T.settle();
+    t.zone(cw, 'battlefield'); t.ok(T.g.hasKw(cw, 'haste'));
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B');
+    t.zone(cw, 'graveyard', 'sacrificed at the end step'); t.zone(sa, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    const sa2 = T.bf('A', 'Sneak Attack');
+    const other = T.bf('A', 'Grizzly Bears');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R'); T.activate('A', sa2, 0); T.settle();
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B');
+    t.zone(sa2, 'battlefield', 'no creature put: Sneak Attack stays'); t.zone(other, 'battlefield');
+  });
 };
