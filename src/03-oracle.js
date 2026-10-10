@@ -9552,7 +9552,8 @@
     // Mistform Wall: "as long as it's a Wall"
     [/^(?:this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],
     // Defy Death: "if it's an Angel" — what was targeted, or what the trigger is about
-    [/^it'?s an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'itSubtype', type: m[1] })],
+    // (Cemetery Recruitment, Zephyr Sentinel, Slayer's Plate: "if it's a Zombie card", "if it was a Soldier" — itSubtypeWas)
+    [/^it(?:'?s| was) an? ([A-Z][a-z]+)(?: card)?$/, (m) => ({ kind: 'itSubtype', type: m[1] })],
     [/^an opponent has (\w+) or more poison counters$/i, (m) => ({ kind: 'opponentPoison', n: num(m[1]) })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],

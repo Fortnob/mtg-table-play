@@ -9953,6 +9953,10 @@
            Blessed: the creature that entered; with neither, itself */
         case 'itSubtype': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          /* Zephyr Sentinel: "return up to one other target creature … If it was a Soldier" — with no
+             target chosen there is no "it", not the trigger's own creature (itSubtypeWas) */
+          const aimedObj = !tg && ((ctx && ctx.effects) || []).some(x => x && (x.targets || []).some(sp => sp && sp.type !== 'player' && sp.zone !== 'stack'));
+          if (aimedObj) return false;
           const td = ctx && ctx.triggerData && ctx.triggerData.objectId;
           const it = (tg && this.obj(tg.id)) || (td && this.obj(td)) || src;
           return !!it && this._hasSubtype(it, cond.type);

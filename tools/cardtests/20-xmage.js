@@ -21167,4 +21167,32 @@ module.exports = (test) => {
     t.zone(g, 'graveyard', '{B}: -3/-3');
     t.eq(T.g.powerOf(m), 2, 'no {G}: no +3/+3');
   });
+
+  test("Cemetery Recruitment, Zephyr Sentinel, Slayer's Plate: \"if it's a Zombie card\", \"if it was a Soldier\"", (mk, t) => {
+    for (const n of ['Cemetery Recruitment', 'Zephyr Sentinel', "Slayer's Plate"]) t.auto(n);
+    const T = mk({ library: Array(6).fill('Island') });
+    T.toMain('A');
+    const z = T.put('A', 'Gravedigger', 'graveyard'), b = T.put('A', 'Grizzly Bears', 'graveyard');
+    let h = T.zone('A', 'hand').length;
+    T.mana('A', '1B'); T.cast('A', T.hand('A', 'Cemetery Recruitment'), { targets: [z] }); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 2, 'a Zombie: back to hand, and a card drawn');
+    h = T.zone('A', 'hand').length;
+    T.mana('A', '1B'); T.cast('A', T.hand('A', 'Cemetery Recruitment'), { targets: [b] }); T.resolve();
+    t.eq(T.zone('A', 'hand').length - h, 1, 'a Bear: just the Bear');
+    // Zephyr Sentinel: a Soldier returned is a counter; nothing returned is none, though the Sentinel is a Soldier too
+    const ev = T.bf('A', 'Elite Vanguard');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ev.id }] }));
+    const z1 = T.put('A', 'Zephyr Sentinel', 'battlefield', { etb: true }); T.resolve();
+    t.zone(ev, 'hand');
+    t.eq(z1.counters['+1/+1'], 1, 'a Soldier returned: a counter');
+    T.answer('pickTarget', () => ({ targets: [] }));
+    const z2 = T.put('A', 'Zephyr Sentinel', 'battlefield', { etb: true }); T.resolve();
+    t.no(z2.counters['+1/+1'], 'nothing returned: no counter');
+    // Slayer's Plate: a Spirit only when the creature that died was a Human
+    const spirits = () => T.bfOf('A').filter(o => o.isToken && /Spirit/.test(o.name)).length;
+    const pl = T.bf('A', "Slayer's Plate"), hu = T.bf('A', 'Elite Vanguard');
+    pl.attachedTo = hu.id; hu.attachments = [pl.id];
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [hu] }); T.resolve();
+    t.eq(spirits(), 1, 'a Human died: a Spirit');
+  });
 };
