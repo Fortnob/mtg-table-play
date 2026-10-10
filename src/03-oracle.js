@@ -9339,6 +9339,8 @@
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],
     // paid for on the way down
     [/^(?:CARDNAME|this spell|it) was kicked$/i, () => ({ kind: 'kicked', n: 1 })],
+    // the Battlemages: "if it was kicked with its {W} kicker" — that one of its "and/or" kicker costs
+    [/^(?:CARDNAME|this spell|it) was kicked with its ((?:\{[^}]+\})+) kicker$/i, (m) => ({ kind: 'kickedWith', cost: m[1] })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost

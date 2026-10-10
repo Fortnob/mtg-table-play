@@ -774,7 +774,7 @@
       const picks = all.filter(x => x.key && (x.candidates || x.foods));
       const extras = all.filter(x => !PAYS.includes(x.kind) && !picks.includes(x));
       const pays = via ? [] : all.filter(x => PAYS.includes(x.kind) && (x.candidates || []).length && x.max > 0);
-      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
+      const steps = { o, a, via, face, more: more || {}, picked: { kick: 0, kickPaid: [], buyback: false, entwine: false, offspring: false, squad: 0, casualty: false, spree: [], choices: {} }, x: 0 };
       // the cost being paid: one half of a split card, or the face that is up
       const faces = o.card.card_faces;
       steps.cost = (via === 'fuse' && faces && faces[1] ? (faces[0].mana_cost || '') + (faces[1].mana_cost || '')
@@ -861,6 +861,8 @@
         return (ex.choose.items || []).filter(it => sel.picks.includes(it.id)).reduce((n, it) => n + MTG.mana.cmc(it.cost || ''), 0);
       };
       const spent = () => (st.kick ? MTG.mana.cmc((extras.find(x => x.kind === 'kicker' || x.kind === 'multikicker') || {}).cost || '') * st.kick : 0) +
+        // ("Kicker {B} and/or {R}": each cost that is on)
+        extras.filter(x => x.kind === 'kicker' && x.costs).reduce((n, x) => n + st.kickPaid.reduce((m, i) => m + MTG.mana.cmc(x.costs[i] || ''), 0), 0) +
         extras.filter(x => ['buyback', 'entwine', 'offspring'].includes(x.kind) && st[x.kind]).reduce((n, x) => n + MTG.mana.cmc(x.cost || ''), 0) +
         (st.squad ? MTG.mana.cmc((extras.find(x => x.kind === 'squad') || {}).cost || '') * st.squad : 0) +
         extras.filter(x => x.choose).reduce((n, x) => n + chosenCost(x), 0);
@@ -918,6 +920,18 @@
                 html: `Escalate ${MTG.mana.html(ex.escalate)} for each mode after the first` +
                   (extra ? ` — paying it ${extra === 1 ? 'once' : extra + ' times'}.` : '.') }));
             }
+          } else if (ex.kind === 'kicker' && ex.costs) {
+            // "Kicker {B} and/or {R}": a toggle for each cost, any or all of them
+            ex.costs.forEach((c, i) => {
+              const on = st.kickPaid.includes(i);
+              const broke = !on && MTG.mana.cmc(c) > spare;
+              rows.appendChild(el('button', { type: 'button', class: 'mode-opt' + (on ? ' on' : '') + (broke ? ' off' : ''), disabled: broke,
+                title: broke ? 'You do not have the mana for this as well' : '',
+                onclick: () => { st.kickPaid = on ? st.kickPaid.filter(k => k !== i) : st.kickPaid.concat(i).sort((x, y) => x - y); this.render(); } }, [
+                el('span', { class: 'mode-dot', text: on ? '✓' : '' }),
+                el('span', { class: 'mode-text', html: MTG.mana.textHtml('Kicker ' + c) + (broke ? ' <i class="cant">not enough mana</i>' : '') }),
+              ]));
+            });
           } else if (ex.kind === 'multikicker' || ex.kind === 'squad') {
             const prop = ex.kind === 'squad' ? 'squad' : 'kick';
             rows.appendChild(el('div', { class: 'stepper-row' }, [
@@ -1007,6 +1021,7 @@
       if (via === 'bestow') specs.push({ type: 'creature', zone: 'battlefield' });
       if (via === 'mutate') specs.push({ type: 'creature', zone: 'battlefield', controller: 'you', notSubtype: 'human' });
       const extra = { kick: picked.kick || 0, buyback: !!picked.buyback, entwine: !!picked.entwine,
+        kickPaid: picked.kickPaid && picked.kickPaid.length ? picked.kickPaid.slice() : undefined,
         offspring: !!picked.offspring, squad: picked.squad || 0, casualty: !!picked.casualty,
         spree: picked.spree && picked.spree.length ? picked.spree : undefined, x: steps.x || 0 };
       if (via === 'fuse') extra.fuse = true;

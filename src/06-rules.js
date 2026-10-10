@@ -4467,7 +4467,12 @@
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword || !ab.arg) continue;
         const k = ab.keyword.toLowerCase();
-        if (k === 'kicker') out.push({ kind: 'kicker', cost: ab.arg, label: 'Kicker ' + ab.arg });
+        /* Archangel of Wrath: "Kicker {B} and/or {R}" — either cost, or both (costs: each one
+           on its own, paid by the cast's kickPaid) */
+        if (k === 'kicker') {
+          const parts = String(ab.arg).split(/\s+and\/or\s+/i);
+          out.push(Object.assign({ kind: 'kicker', cost: ab.arg, label: 'Kicker ' + ab.arg }, parts.length > 1 ? { costs: parts } : {}));
+        }
         else if (k === 'multikicker') out.push({ kind: 'multikicker', cost: ab.arg, label: 'Multikicker ' + ab.arg });
         else if (k === 'buyback') out.push({ kind: 'buyback', cost: ab.arg, label: 'Buyback ' + ab.arg });
         else if (k === 'entwine') out.push({ kind: 'entwine', cost: ab.arg, label: 'Entwine ' + ab.arg });
@@ -4993,14 +4998,23 @@
          says how many times to kick, or whether to buy it back, and the
          cost it pays grows to match. */
       const extras = this.extraCostsFor(objId);
-      const chose = { kicked: 0, boughtBack: false, entwined: false,
+      const chose = { kicked: 0, kickPaid: null, boughtBack: false, entwined: false,
         offspring: false, squad: 0, casualty: null, spree: null };
       // an optional additional cost, paid: "if this spell's additional cost was paid" reads it as kicked
       const optAdd = a && a.additionalCost && a.additionalCost.optional && !a.additionalCost.choice;
       if (optAdd && opts.payAdditional && !opts.skipAdditional) chose.kicked = Math.max(chose.kicked, 1);
       for (const ex of extras) {
-        // (Stronghold Arena: "Kicker {G} and/or {W}" — kicked, both are paid, and that is kicked twice)
-        if (ex.kind === 'kicker' && opts.kick) { cost += ex.cost; chose.kicked = / and\/or /.test(ex.cost) ? 2 : 1; }
+        /* Archangel of Wrath, Stronghold Arena: "Kicker {B} and/or {R}" — kickPaid says which
+           were paid ([0], [1] or [0, 1]), each a kick; without it, kicking pays them all */
+        if (ex.kind === 'kicker' && ex.costs && Array.isArray(opts.kickPaid)) {
+          const paid = [...new Set(opts.kickPaid.map(Number))].filter(i => Number.isInteger(i) && i >= 0 && i < ex.costs.length).sort((x, y) => x - y);
+          for (const i of paid) cost += ex.costs[i];
+          chose.kicked = paid.length; chose.kickPaid = paid.length ? paid : null;
+        } else if (ex.kind === 'kicker' && opts.kick) {
+          cost += ex.costs ? ex.costs.join('') : ex.cost;
+          chose.kicked = ex.costs ? ex.costs.length : 1;
+          if (ex.costs) chose.kickPaid = ex.costs.map((c, i) => i);
+        }
         else if (ex.kind === 'multikicker' && opts.kick) {
           const times = Math.max(1, Math.min(20, parseInt(opts.kick, 10) || 1));
           cost += ex.cost.repeat(times); chose.kicked = times;
@@ -5203,6 +5217,8 @@
       o.wasKicked = chose.kicked > 0;
       o.airbent = false;
       o.kickedTimes = chose.kicked || 0;
+      // (the Battlemages: which of an "and/or" kicker's costs were paid)
+      o.kickPaid = chose.kickPaid || null;
       // who was promised the gift, if anybody: the permanent remembers it as it enters
       o.giftTo = (a && a.gift && opts.gift) || null;
       // Emerge: the creature goes as the spell is cast
@@ -5265,7 +5281,7 @@
             targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,
         auto: a ? a.autoCoverage >= 0.999 : false,
         fromZone,
-        kicked: chose.kicked, boughtBack: chose.boughtBack, entwined: chose.entwined,
+        kicked: chose.kicked, kickPaid: chose.kickPaid || null, boughtBack: chose.boughtBack, entwined: chose.entwined,
         spreeModes: chose.spree, gift: o.giftTo, bargained, castInMain: !!this.isMain && this.activePlayer && this.activePlayer.id === playerId,
         via: via ? via.via : null, viaAfter: via ? via.after : null,
       };
@@ -9768,6 +9784,17 @@
           const kickedSrc = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           const times = (ctx && ctx.kicked) || (kickedSrc && kickedSrc.kickedTimes) || 0;
           return cond.cmp === 'atMost' ? times <= (cond.n || 0) : times >= (cond.n == null ? 1 : cond.n);
+        }
+        /* the Battlemages: "if it was kicked with its {W} kicker" — that cost among the ones
+           paid, asked of the spell or of the permanent it became (as "kicked" is) */
+        case 'kickedWith': {
+          const ks = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+          const paid = (ctx && ctx.kicked != null ? ctx.kickPaid : ks && ks.kickPaid) || [];
+          const holder = ks || (ctx && ctx.obj) || src;
+          const kab = holder && ((holder.analysis() || {}).abilities || []).find(x => x.kind === 'castModifier' && /^kicker$/i.test(x.keyword || ''));
+          const parts = kab ? String(kab.arg).split(/\s+and\/or\s+/i) : [];
+          const at = parts.findIndex(c => c.replace(/\s+/g, '') === String(cond.cost).replace(/\s+/g, ''));
+          return at >= 0 && paid.includes(at);
         }
         case 'boughtBack': return !!(ctx && ctx.boughtBack);
         case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));

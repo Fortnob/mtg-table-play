@@ -4386,6 +4386,8 @@
         case 'playLand': g.playLand(actorId, intent.objId, intent.face === 1 ? 1 : 0); break;
         case 'cast': g.castSpell(actorId, intent.objId, { targets: intent.targets || [], auto: true,
           free: !!intent.free, kick: intent.kick || 0, buyback: !!intent.buyback, entwine: !!intent.entwine,
+          // which of an "and/or" kicker's costs were paid (Archangel of Wrath)
+          kickPaid: Array.isArray(intent.kickPaid) ? intent.kickPaid.filter(i => Number.isInteger(i) && i >= 0 && i < 4) : undefined,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
           face: intent.face === 1 ? 1 : 0,       // which half of a split card

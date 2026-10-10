@@ -5246,4 +5246,57 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Archangel of Wrath'), { kick: true }); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), 16, 'kicked with both: 2 and 2');
   });
+
+  test('Audit: "Kicker {B} and/or {R}" — either cost or both (kickPaid): Archangel of Wrath kicked once with only {B}, twice with both; the Battlemages by which kicker was paid', (mk, t) => {
+    t.auto('Archangel of Wrath'); t.auto('Thornscape Battlemage'); t.auto('Stormscape Battlemage');
+    const ex = (T, o) => T.g.extraCostsFor(o.id).find(x => x.kind === 'kicker');
+    for (const [mana, paid, dmg] of [['WWB2', [0], 2], ['WWBR2', [0, 1], 4], ['WW2', null, 0]]) {
+      const T = mk();
+      T.toMain('A');
+      for (let i = 0; i < 2; i++) T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+      const ar = T.hand('A', 'Archangel of Wrath');
+      t.eq((ex(T, ar).costs || []).join(' '), '{B} {R}', 'two kicker costs offered apart');
+      T.mana('A', mana);
+      t.ok(T.g.castSpell('A', ar.id, Object.assign({ auto: true }, paid ? { kickPaid: paid } : {})), mana);
+      for (let i = 0; i < 3; i++) { T.settle(); T.resolve(); }
+      T.settle();
+      t.eq(T.life('B'), 20 - dmg, paid ? `kicked ${paid.length} time(s)` : 'not kicked');
+      t.ok(T.g.player('A').pool.isEmpty(), 'all of it paid');
+    }
+    // the {W} alone can't be had for the {R}
+    let T = mk();
+    T.toMain('A');
+    T.mana('A', 'WWB2');
+    t.no(T.g.castSpell('A', T.hand('A', 'Archangel of Wrath').id, { auto: true, kickPaid: [1] }), 'no {R}: not that kicker');
+    // Thornscape Battlemage: {R} kicker deals 2, {W} kicker destroys an artifact
+    for (const [paid, dmg, art] of [[[0], 2, 'battlefield'], [[1], 0, 'graveyard'], [[0, 1], 2, 'graveyard']]) {
+      T = mk();
+      T.toMain('A');
+      const sr = T.bf('B', 'Sol Ring');
+      T.answer('pickTarget', (ch) => ({ targets: [ch.options && ch.options[0] && ch.options[0].some(o => o.id === sr.id) ? { kind: 'object', id: sr.id } : { kind: 'player', id: 'B' }] }));
+      T.answer('pickTarget', (ch) => ({ targets: [ch.options && ch.options[0] && ch.options[0].some(o => o.id === sr.id) ? { kind: 'object', id: sr.id } : { kind: 'player', id: 'B' }] }));
+      T.mana('A', 'GRW2');
+      t.ok(T.g.castSpell('A', T.hand('A', 'Thornscape Battlemage').id, { auto: true, kickPaid: paid }));
+      for (let i = 0; i < 3; i++) { T.settle(); T.resolve(); }
+      T.settle();
+      t.eq(T.life('B'), 20 - dmg, `paid ${paid.join('+')}: damage`); t.zone(sr, art, `paid ${paid.join('+')}: the artifact`);
+    }
+  });
+
+  test('Audit: a bot kicks an "and/or" kicker with what it has: both, or the one it can pay', (mk, t) => {
+    for (const [lands, want] of [[['Plains', 'Plains', 'Swamp', 'Wastes', 'Wastes'], '[0]'],
+      [['Plains', 'Plains', 'Swamp', 'Mountain', 'Wastes', 'Wastes'], '[0,1]'], [['Plains', 'Plains', 'Mountain', 'Wastes', 'Wastes'], '[1]']]) {
+      const T = mk();
+      T.toMain('A');
+      for (const l of lands) T.bf('A', l);
+      const ar = T.hand('A', 'Archangel of Wrath');
+      const bot = new T.MTG.bots.BotPlayer(T.g, 'A', 5);
+      let got = null;
+      const orig = T.g.castSpell.bind(T.g);
+      T.g.castSpell = (pid, id, opts) => { got = opts; return orig(pid, id, opts); };
+      bot.castChoice({ o: ar, a: ar.analysis(), v: 5, cost: 4, costStr: '{2}{W}{W}', via: null, targets: [] }, lands.length);
+      t.eq(JSON.stringify(got && got.kickPaid), want, lands.join(','));
+      t.zone(ar, 'stack', 'and it was cast');
+    }
+  });
 };

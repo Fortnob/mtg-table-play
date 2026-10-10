@@ -3031,6 +3031,16 @@
             spare = left;
             continue;
           }
+          /* Archangel of Wrath: "Kicker {B} and/or {R}" — both when the mana is there,
+             otherwise the cheaper one that can be paid */
+          if (ex.kind === 'kicker' && ex.costs) {
+            const base = String(choice.costStr || choice.o.card.mana_cost || '');
+            const can = (c) => g.couldPay(this.pid, base + c, this.manaSources());
+            if (price <= spare && can(ex.costs.join(''))) { opts.kickPaid = ex.costs.map((c, i) => i); spare -= price; continue; }
+            const one = ex.costs.map((c, i) => ({ i, c, n: MTG.mana.cmc(c) })).filter(k => k.n <= spare && can(k.c)).sort((x, y) => x.n - y.n)[0];
+            if (one) { opts.kickPaid = [one.i]; spare -= one.n; }
+            continue;
+          }
           if (price > spare) continue;
           if (ex.kind === 'kicker') { opts.kick = 1; spare -= price; }
           else if (ex.kind === 'multikicker') {

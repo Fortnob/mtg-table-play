@@ -139,6 +139,8 @@ const LogEntry = obj({ t: opt(num), turn: num, type: opt(maybe(str)), text: str 
 const AltUse = obj({ kind: str, label: str, via: opt(str), cost: opt(maybe(str)) });
 /* An extra cost that is itself a question (replicate, splice) carries it as `choose`. */
 const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt(arr(obj({ i: int }))),
+  /* an "and/or" kicker: each of its costs, any or all of them paid (the cast's kickPaid) */
+  costs: opt(arr(str)),
   choose: opt((v, p, out) => ChooseSpec(v, p, out)),
   /* convoke, improvise, delve: what could pay, and how much of the cost at most */
   candidates: opt(arr(id)), max: opt(nat),
@@ -261,6 +263,8 @@ const INTENTS = {
   playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   cast: closed({
     objId: id, targets: opt(arr(Target)), free: opt(bool), kick: opt(nat), buyback: opt(bool), entwine: opt(bool),
+    /* which of an "and/or" kicker's costs are paid: 0 the first, 1 the second */
+    kickPaid: opt(arr(nat)),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), returnId: opt(id), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
