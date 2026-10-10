@@ -145,7 +145,7 @@
       id: 'read', title: 'Reading a card',
       text: () => touch()
         ? 'Tap one of their cards, or press and hold any card, to see it full size with its rulings.'
-        : 'Point at any card to see it larger, with what is true of it right now. Click one of theirs to open it in full, rulings and all; right-click any card for everything you can do with it.',
+        : 'Point at any card to see it larger, with what is true of it right now. Click one of theirs, or right-click one in your hand, to open it in full, rulings and all; right-click one of yours on the table for everything you can do with it.',
       when: (t, v) => v.battlefield.some(o => o.controller !== t.meId && o.card),
       at: (t, v) => {
         const o = v.battlefield.find(x => x.controller !== t.meId && x.power != null) || v.battlefield.find(x => x.controller !== t.meId);
