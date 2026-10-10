@@ -4390,4 +4390,23 @@ module.exports = (test) => {
     T.settle();
     t.ok(T.g.player('B').hasLost, 'fifteen: A wins');
   });
+
+  test('Audit: Hex Magic: the exiled cards can be played until the end of your next turn, lands too, and not after', (mk, t) => {
+    t.auto('Hex Magic');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 6; i++) T.top('A', 'Plains');
+    const isl = T.hand('A', 'Island'), sh = T.hand('A', 'Shock'), gb = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Hex Magic')); T.settle();
+    t.zone(isl, 'exile'); t.eq(T.zone('A', 'hand').length, 3, 'three drawn');
+    t.ok(T.g.playLand('A', isl.id), 'a land from exile');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.mana('A', 'R');
+    t.ok(T.g.castSpell('A', sh.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'next turn: still');
+    T.settle();
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.mana('A', '1G');
+    t.no(T.g.castSpell('A', gb.id, { auto: true }), 'the turn after: no more');
+  });
 };
