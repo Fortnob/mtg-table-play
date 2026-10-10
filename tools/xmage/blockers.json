@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10718,
+  "needed": 10716,
   "gainedCards": 994,
-  "linesNeeded": 11411,
+  "linesNeeded": 11409,
   "linesGained": 1171,
   "gained": {
    "all": 994,
@@ -4882,17 +4882,6 @@
    ]
   },
   {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Archangel Elspeth",
-    "Fix What's Broken",
-    "Triumphant Reckoning",
-    "Return of the Nightstalkers"
-   ]
-  },
-  {
    "what": "UntapAllEffect",
    "score": 4,
    "lines": 4,
@@ -5936,16 +5925,6 @@
    ]
   },
   {
-   "what": "token ability PestBlackGreenDiesToken",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Tend the Pests",
-    "Pest Rescuer",
-    "Eccentric Pestfinder // Turn Stones"
-   ]
-  },
-  {
    "what": "blocks or blocked by a kind of creature",
    "score": 3,
    "lines": 3,
@@ -6494,6 +6473,16 @@
    ]
   },
   {
+   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Fix What's Broken",
+    "Triumphant Reckoning",
+    "Return of the Nightstalkers"
+   ]
+  },
+  {
    "what": "DrawCardTargetControllerEffect",
    "score": 3,
    "lines": 3,
@@ -6521,6 +6510,16 @@
     "Ominous Harvest",
     "Follow the Bodies",
     "Bitter Ordeal"
+   ]
+  },
+  {
+   "what": "scope:snow",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Dead of Winter",
+    "Jorn, God of Winter // Kaldring, the Rimestaff",
+    "Gangrenous Zombies"
    ]
   }
  ],
@@ -9613,17 +9612,6 @@
    ]
   },
   {
-   "what": "ReturnFromYourGraveyardToBattlefieldAllEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Archangel Elspeth",
-    "Fix What's Broken",
-    "Triumphant Reckoning",
-    "Return of the Nightstalkers"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 4,
    "cards": 4,
@@ -10182,6 +10170,17 @@
     "Basking Capybara",
     "Frilled Cave-Wurm",
     "Didact Echo"
+   ]
+  },
+  {
+   "what": "ZuberasDiedDynamicValue.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Floating-Dream Zubera",
+    "Ashen-Skin Zubera",
+    "Dripping-Tongue Zubera",
+    "Ember-Fist Zubera"
    ]
   }
  ]

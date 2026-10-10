@@ -2975,8 +2975,9 @@
     { re: /^(Target creature(?: with defender)?) can attack this turn as though it didn'?t have defender\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', targets: [t] } : null; } },
     // Ascend from Avernus: "Return all creature and planeswalker cards with mana value X or less from your graveyard to the battlefield."
-    { re: /^Return all (creature|artifact|enchantment|permanent)(?: and (creature|planeswalker|artifact|enchantment))? cards with (?:mana value|converted mana cost) X or less from your graveyard to the battlefield\.?$/i,
-      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase() + (m[2] ? ' or ' + m[2].toLowerCase() : ''), yours: true, maxMv: 'X' }) },
+    // (Archangel Elspeth: "all nonland permanent cards with mana value 3 or less")
+    { re: /^Return all (nonland permanent|creature|artifact|enchantment|permanent)(?: and (creature|planeswalker|artifact|enchantment))? cards with (?:mana value|converted mana cost) (X|\d+) or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase() + (m[2] ? ' or ' + m[2].toLowerCase() : ''), yours: true, maxMv: m[3] === 'X' ? 'X' : +m[3] }) },
     // Winds of Change: "Each player shuffles the cards from their hand into their library, then draws that many cards."
     { re: /^Each player shuffles the cards from their hand into their library, then draws that many cards\.?$/i,
       make: () => ({ op: 'shuffleHandDraw' }) },
@@ -8248,7 +8249,12 @@
   function parseCompound(sentence) {
     /* "You gain X life and draw X cards, where X is …": both halves read
        with X in them, and the rider fills in both. */
-    const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
+    /* (Tend the Pests: "… tokens with "When this token dies, you gain 1 life," where X is …" — the
+       comma before "where" sits inside the quoted ability) */
+    const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/) || (() => {
+      const q = sentence.match(/^(.+?),(") where X is ([^,]+?)\.?$/);
+      return q ? [q[0], q[1] + q[2], q[3]] : null;
+    })();
     if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = amountOf(wx[2]);
       /* Arahbo, Perrie: "… gains trample and gets +X/+X until end of turn,

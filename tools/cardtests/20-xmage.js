@@ -20748,4 +20748,28 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.bfOf('A').filter(o => o.name.includes('Inkling')).length, 3, 'no counters: no more');
   });
+
+  test('Tend the Pests: X Pests for the sacrificed creature\'s power, each with its quoted death trigger; Archangel Elspeth\'s -6 returns cheap permanents', (mk, t) => {
+    t.auto('Tend the Pests'); t.auto('Archangel Elspeth');
+    const T = mk();
+    T.toMain('A');
+    const giant = T.bf('A', 'Hill Giant');
+    T.answer('sacrifice', () => ({ cardIds: [giant.id] }));
+    T.mana('A', 'BG');
+    T.cast('A', T.hand('A', 'Tend the Pests'));
+    const pests = T.bfOf('A').filter(o => o.name.includes('Pest'));
+    t.eq(pests.length, 3, 'three Pests for the Giant\'s power 3');
+    T.g.moveObject(pests[0], 'graveyard');
+    T.resolve();
+    t.eq(T.life('A'), 21, 'a Pest dying: 1 life');
+    const T2 = mk();
+    T2.toMain('A');
+    const el = T2.bf('A', 'Archangel Elspeth');
+    el.counters.loyalty = 6;
+    const b = T2.grave('A', 'Grizzly Bears'), r = T2.grave('A', 'Mind Stone'), g = T2.grave('A', 'Hill Giant'), f = T2.grave('A', 'Forest');
+    T2.activate('A', el, 2);
+    t.zone(b, 'battlefield'); t.zone(r, 'battlefield');
+    t.zone(g, 'graveyard', 'mana value 4 stays');
+    t.zone(f, 'graveyard', 'a land stays');
+  });
 };
