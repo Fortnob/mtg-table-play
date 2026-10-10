@@ -18350,4 +18350,15 @@ module.exports = (test) => {
     t.eq(T.life('A'), 13, '20: 7 lost');
     t.eq(T.life('B'), 6, '10: 4 lost');
   });
+
+  test('Teysa, Opulent Oligarch: a Clue at your end step for each opponent who lost life this turn', (mk, t) => {
+    t.auto('Teysa, Opulent Oligarch');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Teysa, Opulent Oligarch');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Clue/.test(o.name)).length, 1, 'B lost life, C did not: one Clue');
+  });
 };

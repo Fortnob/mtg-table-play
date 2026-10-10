@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11047,
-  "gainedCards": 1091,
-  "linesNeeded": 11808,
-  "linesGained": 1284,
+  "needed": 11045,
+  "gainedCards": 1090,
+  "linesNeeded": 11805,
+  "linesGained": 1283,
   "gained": {
-   "all": 1091,
+   "all": 1090,
    "top2000": 43,
    "stdTop": 6
   },
@@ -542,25 +542,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 19,
-   "lines": 16,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Kaito, Bane of Nightmares",
-    "Change of Fortune",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Misty Knight, Hero for Hire",
-    "Amber Gristle O'Maul",
-    "April O'Neil, Hacktivist"
-   ]
-  },
-  {
    "what": "custom cost",
    "score": 19,
    "lines": 19,
@@ -606,6 +587,25 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Jenova, Ancient Calamity",
+    "Change of Fortune",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Misty Knight, Hero for Hire",
+    "Amber Gristle O'Maul",
+    "April O'Neil, Hacktivist",
+    "Moonveil Regent"
    ]
   },
   {
@@ -9878,6 +9878,17 @@
    ]
   },
   {
+   "what": "becomes a creature in a static ability",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Kaito, Bane of Nightmares",
+    "Goddric, Cloaked Reveler",
+    "Warden of the Wall",
+    "Rusted Relic"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromBattlefieldThisTurnPredicate.instance",
    "score": 4,
    "cards": 4,
@@ -10271,17 +10282,6 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
-   ]
-  },
-  {
-   "what": "TurnFaceUpTargetEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Ixidor, Reality Sculptor",
-    "Expose the Culprit",
-    "Skirk Alarmist",
-    "Break Open"
    ]
   }
  ]

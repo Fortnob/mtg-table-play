@@ -3585,6 +3585,8 @@
     { re: /^Its controller investigates\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue', who: 'targetController' }) },
     { re: /^Investigate (two|three|\d+) times\.?$/i, make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: 'Clue' }) },
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
+    // Teysa, Opulent Oligarch: "investigate for each opponent who lost life this turn"
+    { re: /^Investigate (?:once )?for each (.+?)\.?$/i, make: (m) => { const c = countOf(m[1]); return c && !c.unread ? { op: 'createNamedToken', n: c, token: 'Clue' } : null; } },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -5810,6 +5812,8 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
+    if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
     if ((m = p.match(/^(opponents?|players?) (?:that|who) (?:was|were) dealt combat damage this turn$/i)))
       return { combatHitPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
