@@ -880,7 +880,12 @@
   async function navTo(name) {
     if (name !== App.screen) MTG.sfx('nav');
     if (name === 'home') return goHome();
-    if (App.screen === 'table' || App.screen === 'draft') return App.exitToMenu();
+    if (App.screen === 'table' || App.screen === 'draft') {
+      // the gear at the table, say: once the game is saved and left, on to where it was going
+      await App.exitToMenu();
+      if (App.screen === 'home') showScreen(name);
+      return;
+    }
     if (App.screen === 'lobby' && (App.session || net.online)) {
       if (!await UI.confirm('Leave this table?')) return;
       App.leaveGame();
