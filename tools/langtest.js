@@ -64,7 +64,8 @@ const settle = () => new Promise(r => setTimeout(r, 60));
 async function found(c) {
   scry.imageUrl(c, 'normal', 0);
   for (let i = 0; i < 50 && scry.cardLang && scry.cardLang.waiting.size; i++) await settle();
-  await settle();
+  // and the page gone over (a moment after the last picture loads)
+  await new Promise(r => setTimeout(r, 220));
 }
 
 (async () => {
@@ -135,15 +136,29 @@ async function found(c) {
   const own = Object.assign({}, BOLT, { id: 'own', lang: 'ja', image_uris: img('ja-own') });
   check('a Japanese printing shows itself', scry.imageUrl(own, 'normal', 0) === img('ja-own').normal);
 
-  // a picture found waits for whatever drew the English one
+  /* Pictures already drawn in English, by any screen, change where they
+     stand once the French ones are in: a card's face as a background,
+     a thumbnail as an <img>, each at its own size. */
   MTG.setSetting('cardLang', 'fr');
-  let swapped = false;
   routes.set('/cards/neo/1/fr', Object.assign({}, BOLT, { lang: 'fr', image_uris: img('fr-bolt') }));
-  scry.imageUrl(BOLT, 'normal', 0);
-  scry.cardLang.whenFound(BOLT, () => { swapped = true; });
+  const face = { style: { backgroundImage: `url("${BOLT.image_uris.normal}?1562")` } };
+  const thumb = { src: BOLT.image_uris.small + '?1562' };
+  const other = { style: { backgroundImage: `url("${NEVER.image_uris.normal}")` } };
+  const page = global.document.querySelectorAll;
+  global.document.querySelectorAll = (sel) => {
+    const m = /^(img)?\[(style|src)[*^]="(.+)"\]$/.exec(sel);
+    if (!m) return [];
+    if (m[1]) return thumb.src.startsWith(m[3]) ? [thumb] : [];
+    return [face, other].filter(n => n.style.backgroundImage.includes(m[3]));
+  };
   await found(BOLT);
-  check('a picture drawn in English is told when the French arrives', swapped);
+  global.document.querySelectorAll = page;
   check('each language is kept apart', scry.imageUrl(BOLT, 'normal', 0) === img('fr-bolt').normal);
+  check('a face drawn in English turns French where it stands', face.style.backgroundImage === `url("${img('fr-bolt').normal}")`, face.style.backgroundImage);
+  check('so does a thumbnail, at its own size', thumb.src === img('fr-bolt').small, thumb.src);
+  check('and nothing else on the page', other.style.backgroundImage === `url("${NEVER.image_uris.normal}")`);
+  check('the address is changed whole, query and all',
+    MTG.cardLang._swapUrl('url("https://x/normal/a.jpg?99") , url(y)', 'https://x/normal/a.jpg', 'https://x/normal/b.jpg') === 'url("https://x/normal/b.jpg") , url(y)');
 
   // and back to English
   MTG.setSetting('cardLang', 'en');

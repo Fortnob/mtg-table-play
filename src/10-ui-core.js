@@ -267,11 +267,6 @@
       };
       probe.src = url;
     }
-    // the picture in another language, still on its way, takes this one's place when it comes (src/02b-cardlang.js)
-    if (MTG.scry.cardLang) MTG.scry.cardLang.whenFound(card, () => {
-      const own = MTG.scry.imageUrl(card, size || 'normal', faceIndex || 0);
-      if (own && own !== url && node.isConnected) node.style.backgroundImage = 'url("' + own.replace(/"/g, '%22') + '")';
-    });
     return node;
   };
   UI.cardFallback = function (card, faceIndex) {

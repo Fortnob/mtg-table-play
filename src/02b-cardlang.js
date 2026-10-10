@@ -7,9 +7,13 @@
    looked up once in that language: the same set and collector number
    first, and failing that any printing of the card in it, preferring one
    with the same painting. The answer is kept in IndexedDB beside the
-   rest of the card data, so the next game asks nothing, and the picture
-   is swapped in when it arrives. Where there is no printing in that
-   language the English picture simply stays.
+   rest of the card data, so the next game asks nothing. Where there is
+   no printing in that language the English picture simply stays.
+
+   A picture found is loaded before it is shown, so a card never goes
+   blank while it changes language. Then every picture of that card on
+   the page is swapped where it stands, whichever screen drew it, and
+   'scryfall:images' tells the table to look again.
 
    Only the pictures change. The card the game runs on, with the rules
    text the engine reads, is always the English one.
@@ -69,14 +73,26 @@
     return urls[size] || urls.normal || urls.large || '';
   }
 
+  /** `text` with the address that starts `base` (whatever query follows it) changed to `to`. */
+  function swapUrl(text, base, to) {
+    const at = text.indexOf(base);
+    if (at < 0) return text;
+    let end = at + base.length;
+    while (end < text.length && !/["')\s]/.test(text[end])) end++;
+    return text.slice(0, at) + to + text.slice(end);
+  }
+
   class CardLang {
     constructor(scry) {
       this.scry = scry;
-      this.known = new Map();       // 'ja|neo|123' -> {img} or {none} (null while a lookup failed)
+      this.known = new Map();       // 'ja|neo|123' -> {img} or {none}
       this.waiting = new Map();     // the same key -> the lookup under way
       this.failedAt = new Map();    // the same key -> when it last failed
       this.oracle = new Map();      // 'ja|o|<oracle id>' -> the lookup of the card's other printings
-      this._tell = U.debounce(() => MTG.bus.emit('scryfall:images'), 150);
+      this.loaded = new Set();      // pictures found and loaded, ready to be shown
+      this.broken = new Set();      // pictures found that would not load
+      this.toSwap = [];             // [card, pictures] loaded since the page was last gone over
+      this._tell = U.debounce(() => { this._swapAll(); MTG.bus.emit('scryfall:images'); }, 150);
     }
 
     get lang() { return chosen(); }
@@ -91,9 +107,8 @@
 
     /**
      * A card's picture in the chosen language, or '' to show the English
-     * one: because there is none, it has not been found yet (the lookup
-     * starts here, and 'scryfall:images' says when it is in), or it will
-     * not load just now.
+     * one: because there is none, because it has not been found and
+     * loaded yet (the lookup starts here), or because it would not load.
      */
     imageUrl(card, size, face) {
       const lang = chosen();
@@ -103,20 +118,8 @@
       if (!key) return '';
       const e = this.known.get(key);
       if (e === undefined) { this.lookup(card, lang, key); return ''; }
-      if (!e || !e.img) return '';
-      const url = pick(e.img, size || 'normal', face);
-      if (!url) return '';
-      // judged by the table-sized picture, as the English ones are; one that fails leaves the English
-      const probe = pick(e.img, 'normal', face);
-      return this.scry.imageUsable(probe || url, probe ? 'normal' : null) ? url : '';
-    }
-
-    /** Run `fn` once a lookup of this card under way has its answer (and only then). */
-    whenFound(card, fn) {
-      const lang = chosen();
-      const key = lang && card ? this.keyOf(card, lang) : null;
-      const p = key && this.waiting.get(key);
-      if (p) p.then((e) => { if (e && e.img) fn(); }, () => {});
+      if (!e.img || !this.loaded.has(pick(e.img, 'normal', 0))) return '';
+      return pick(e.img, size || 'normal', face);
     }
 
     /** Look a printing up: the cache on this device first, then Scryfall. One lookup per printing at a time. */
@@ -133,7 +136,7 @@
         }
         this.known.set(key, e);
         this.failedAt.delete(key);
-        if (e.img) this._tell();
+        if (e.img) this._load(card, e.img);
         return e;
       })().catch(() => {
         // the English picture until the next try, a few minutes on
@@ -183,6 +186,46 @@
       p.catch(() => this.oracle.delete(key));
       return p;
     }
+
+    /** Load a picture found before showing it; one that will not load is never shown. */
+    _load(card, img) {
+      const url = pick(img, 'normal', 0);
+      if (!url || this.broken.has(url)) return;
+      const ready = () => { this.loaded.add(url); this.toSwap.push([card, img]); this._tell(); };
+      if (this.loaded.has(url) || typeof Image === 'undefined') { ready(); return; }
+      const probe = new Image();
+      probe.decoding = 'async';
+      probe.onload = ready;
+      probe.onerror = () => { this.broken.add(url); };
+      probe.src = url;
+    }
+
+    /**
+     * Every picture of the cards just loaded, wherever it is on the page
+     * (a card's face drawn as a background, or an <img>), changed to the
+     * same size in the new language.
+     */
+    _swapAll() {
+      const list = this.toSwap.splice(0);
+      if (!list.length || typeof document === 'undefined' || !chosen()) return;
+      const quote = (s) => s.replace(/["\\]/g, '\\$&');
+      for (const [card, img] of list) {
+        const faces = img.f ? img.f.length : 1;
+        for (let f = 0; f < faces; f++) {
+          for (const size of SIZES) {
+            const en = this.scry._imageUrl(card, size, f);
+            const to = pick(img, size, f);
+            if (!en || !to || en === to) continue;
+            const base = en.split('?')[0];
+            for (const n of document.querySelectorAll(`[style*="${quote(base)}"]`)) {
+              const bg = n.style && n.style.backgroundImage;
+              if (bg && bg.includes(base)) n.style.backgroundImage = swapUrl(bg, base, to.replace(/"/g, '%22'));
+            }
+            for (const n of document.querySelectorAll(`img[src^="${quote(base)}"]`)) n.src = to;
+          }
+        }
+      }
+    }
   }
 
   const cl = new CardLang(MTG.scry);
@@ -206,5 +249,6 @@
     get current() { return chosen() || 'en'; },
     client: cl,
     _picturesOf: picturesOf,
+    _swapUrl: swapUrl,
   };
 })(window.MTG);
