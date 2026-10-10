@@ -17945,6 +17945,30 @@ module.exports = (test) => {
     }
   });
 
+  test('Trinisphere: the table is shown the raised price — Lightning Bolt costs {2}{R} and is not castable with only {R}; a kicker is not added on top', (mk, t) => {
+    t.auto('Trinisphere');
+    const T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.bf('A', 'Mountain');
+    t.eq(T.g.castCostFor('A', bolt.id), '{2}{R}', 'castCostFor');
+    t.eq(T.g.canCast('A', bolt.id).cost, '{2}{R}', 'canCast');
+    const why = T.g.whyNotPlayable('A', bolt.id);
+    t.eq(why && why.code, 'mana', 'one Mountain: not enough mana');
+    t.no(T.g.playableNow('A').some(x => x.objId === bolt.id), 'not offered as playable');
+    T.bf('A', 'Mountain'); T.bf('A', 'Mountain');
+    t.eq(T.g.whyNotPlayable('A', bolt.id), null, 'three Mountains: castable');
+    // Burst Lightning kicked: {R} and {4} is five already, so nothing is added
+    const burst = T.hand('A', 'Burst Lightning');
+    T.mana('A', 'R4');
+    T.cast('A', burst, { targets: ['B'], kick: true });
+    T.settle();
+    t.eq(T.life('B'), 16, 'kicked for {4}{R}');
+    t.ok(T.g.player('A').pool.isEmpty(), 'the five in the pool spent');
+    t.no(T.g.battlefield.some(o => o.controller === 'A' && o.name === 'Mountain' && o.tapped), 'and no Mountain tapped for more');
+  });
+
   test('All-Fates Scroll: draw X, X the differently named lands you control; Gimbal: differently named artifact tokens', (mk, t) => {
     t.auto('All-Fates Scroll');
     t.auto('Gimbal, Gremlin Prodigy');
