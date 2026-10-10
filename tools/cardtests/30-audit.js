@@ -5695,4 +5695,28 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Curious Herd'), { targets: ['B'] }); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && /Beast/.test(o.name)).length, 2, "B's two artifacts, not C's");
   });
+
+  test('Audit: Famished Worldsire devours lands only; Court of Ardenvale returns its one target to hand, or to the battlefield for the monarch', (mk, t) => {
+    t.auto('Famished Worldsire'); t.auto('Court of Ardenvale');
+    let T = mk();
+    T.toMain('A');
+    const l1 = T.bf('A', 'Forest'), l2 = T.bf('A', 'Forest'), bear = T.bf('A', 'Grizzly Bears');
+    let items = null;
+    T.answer('choose', (ch) => { items = (ch.items || []).map(i => i.id); return { picks: [l1.id, l2.id] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [] }));
+    const fw = T.hand('A', 'Famished Worldsire');
+    T.mana('A', 'GGG5');
+    T.cast('A', fw); T.settle(); T.resolve(); T.settle();
+    t.no(items && items.includes(bear.id), 'the Bears are no land'); t.eq(fw.counters['+1/+1'], 6, 'two lands, three each');
+    for (const monarch of [false, true]) {
+      T = mk();
+      T.toMain('B');
+      T.bf('A', 'Court of Ardenvale');
+      T.g.player('A').monarch = monarch; T.g.player('B').monarch = !monarch;
+      const gb = T.grave('A', 'Grizzly Bears');
+      T.answer('pickTarget', { targets: [{ kind: 'object', id: gb.id }] });
+      T.nextTurn('A'); T.settle(); T.resolve(); T.settle();
+      t.zone(gb, monarch ? 'battlefield' : 'hand', monarch ? 'the monarch: onto the battlefield' : 'not the monarch: to hand');
+    }
+  });
 };
