@@ -1569,6 +1569,8 @@
         el('div', { class: 'row wrap' }, [
           codeInput,
           el('button', { class: 'btn primary', text: 'Join', onclick: () => joinRoom(codeInput.value) }),
+          // invites from friends wait there too (src/10g-ui-social.js)
+          UI.openFriends ? el('button', { class: 'btn ghost', text: 'Friends…', onclick: () => UI.openFriends() }) : null,
         ]),
       ]),
     ]));
