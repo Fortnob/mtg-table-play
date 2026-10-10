@@ -20944,4 +20944,45 @@ module.exports = (test) => {
     t.eq(hg.counters['+1/+1'], 1, 'a counter on the Giant');
     t.ok(T2.g._hasFlag(hg, 'unblockable'), "and it can't be blocked this turn");
   });
+
+  test('Trouble in Pairs, Alpha Deathclaw, Cryoshatter, Tectonic Giant: "Whenever A, B, or C" triggers on each of them', (mk, t) => {
+    for (const n of ['Trouble in Pairs', 'Alpha Deathclaw', 'Cryoshatter', 'Tectonic Giant']) t.auto(n);
+    const T = mk();
+    for (let i = 0; i < 6; i++) { T.top('A', 'Island'); T.top('B', 'Island'); }
+    T.toMain('A');
+    T.bf('A', 'Trouble in Pairs');
+    const h0 = T.zone('A', 'hand').length;
+    T.g.drawCards('B', 1); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0, "an opponent's first card: nothing");
+    T.g.drawCards('B', 1); T.resolve();
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'their second card: you draw one');
+    // Alpha Deathclaw: "enters or becomes monstrous"
+    const ad = T.bf('A', 'Alpha Deathclaw');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.mana('A', '5BG');
+    T.activate('A', ad, 0);
+    T.resolve();
+    t.ok(ad.monstrous, 'monstrous');
+    t.zone(bear, 'graveyard', 'becoming monstrous destroys a permanent');
+    // Cryoshatter: "becomes tapped or is dealt damage" — the enchanted creature, nothing else
+    const T2 = mk();
+    T2.toMain('A');
+    const ox = T2.bf('B', 'Hill Giant'), other = T2.bf('B', 'Grizzly Bears');
+    const cs = T2.bf('A', 'Cryoshatter');
+    cs.attachedTo = ox.id; ox.attachments = [cs.id];
+    T2.g._markTapped(other); T2.resolve();
+    t.zone(ox, 'battlefield', 'another creature tapping: nothing');
+    T2.g._markTapped(ox); T2.resolve();
+    t.zone(ox, 'graveyard', 'the enchanted creature tapped: destroyed');
+    // Tectonic Giant: "attacks or becomes the target of a spell an opponent controls"
+    const T3 = mk();
+    const tg = T3.bf('A', 'Tectonic Giant');
+    T3.toMain('B');
+    T3.answer('mode', () => 0);
+    T3.mana('B', 'R');
+    T3.cast('B', T3.hand('B', 'Shock'), { targets: [tg] });
+    T3.resolve();
+    t.eq(T3.life('B'), 17, "targeted by an opponent's spell: 3 damage to each opponent");
+  });
 };

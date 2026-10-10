@@ -10316,6 +10316,35 @@
     // Sephiroth, One-Winged Angel: "As this creature transforms into CARDNAME, you get an emblem …" — read as it transforms
     { re: /^As (?:this creature|CARDNAME) transforms into (?:CARDNAME|this creature),? /i, event: 'transforms', self: true },
   ];
+  // what is left of a line once the trigger that reads it is taken off (null: no trigger reads it)
+  function triggerRest(line) {
+    for (const t of TRIGGER_PATTERNS) {
+      const hit = line.match(t.re);
+      if (!hit || (t.filt && !t.filt(hit))) continue;
+      return line.replace(t.re, '').replace(/^,\s*/, '').trim();
+    }
+    return null;
+  }
+  /* "Whenever <who> A, B, or C, <effect>" (and "… A or B, …") as one line
+     for each of A, B and C — or null when the line is to stay as it is */
+  function orTriggerLines(line) {
+    const SUBJ = '(an opponent|a player|you|this [a-z]+|CARDNAME|enchanted creature|equipped creature)';
+    const m = line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ((?:[^,"]+, )+)or ([^,"]+), ([^"]*)$'))
+      || line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ([^,"]+?) or ([^,"]+), ([^"]*)$'));
+    if (!m) return null;
+    const body = m[5];
+    // the same ability, once each turn, is not one for each event
+    if (/\bonly once each turn\b|\bDo this only once\b/i.test(body)) return null;
+    const pieces = (/, $/.test(m[3]) ? m[3].split(/, /) : [m[3]]).map(x => x.trim()).filter(Boolean).concat([m[4].trim()]);
+    if (pieces.length < 2) return null;
+    // "one or more", "4 or greater", "another …": an "or" inside one event, or a second subject
+    if (pieces.some((x, k) => /^(?:or|and|another|more|greater|less|fewer)\b/i.test(x)
+      || (k < pieces.length - 1 && /\b(?:one|two|three|four|five|six|\d+)$/i.test(x)))) return null;
+    if (triggerRest(line) === body.trim()) return null;
+    const out = pieces.map(x => m[1] + m[2] + ' ' + x + ', ' + body);
+    return out.every(l => triggerRest(l) === body.trim()) ? out : null;
+  }
+
 
   /* ---------------- the main analyser ---------------- */
 
@@ -10582,6 +10611,18 @@
       if (!two) continue;
       lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + two[2].slice(1) + ', ' + two[3]);
       i++;
+    }
+    /* Trouble in Pairs: "Whenever an opponent attacks you with two or more
+       creatures, draws their second card each turn, or casts their second
+       spell each turn, you draw a card"; Alpha Deathclaw: "When this creature
+       enters or becomes monstrous, …". One trigger for each event, read as a
+       line of its own: only when the whole line is not read as one trigger and
+       every one of them is. */
+    for (let i = 0; i < lines.length; i++) {
+      const parts = orTriggerLines(lines[i]);
+      if (!parts) continue;
+      lines.splice(i, 1, ...parts);
+      i += parts.length - 1;
     }
     /* The Shards: "{3}, {T} or {U}, {T}: Draw a card." Two costs for one
        ability: read as two abilities. */

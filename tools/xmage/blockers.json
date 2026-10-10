@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10727,
+  "needed": 10711,
   "gainedCards": 994,
-  "linesNeeded": 11410,
+  "linesNeeded": 11400,
   "linesGained": 1171,
   "gained": {
    "all": 994,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4094,
-   "lines": 3848,
+   "score": 4095,
+   "lines": 3849,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,10 +51,9 @@
   },
   {
    "what": "custom ability",
-   "score": 688,
+   "score": 685,
    "lines": 628,
    "cards": [
-    "Trouble in Pairs",
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
@@ -65,7 +64,8 @@
     "Firemane Commando",
     "Wedding Ring",
     "Colossal Grave-Reaver",
-    "Breena, the Demagogue"
+    "Breena, the Demagogue",
+    "Gix, Yawgmoth Praetor"
    ]
   },
   {
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "lines": 156,
+   "score": 172,
+   "lines": 157,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -241,8 +241,8 @@
   },
   {
    "what": "custom target",
-   "score": 43,
-   "lines": 43,
+   "score": 44,
+   "lines": 44,
    "cards": [
     "Rampaging Yao Guai",
     "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire",
@@ -742,25 +742,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker",
-    "Shield Mare",
-    "Bartered Cow",
-    "Brine Comber // Brinebound Gift",
-    "Esper Sojourners",
-    "Bant Sojourners",
-    "Jund Sojourners"
-   ]
-  },
-  {
    "what": "OrTriggeredAbility halves differ",
    "score": 15,
    "lines": 15,
@@ -952,6 +933,25 @@
     "Mirror Room // Fractured Realm",
     "Central Elevator // Promising Stairs",
     "Experimental Lab // Staff Room"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Drownyard Lurker",
+    "Warped Tusker",
+    "Bartered Cow",
+    "Brine Comber // Brinebound Gift",
+    "Esper Sojourners",
+    "Bant Sojourners",
+    "Jund Sojourners",
+    "Grixis Sojourners",
+    "Naya Sojourners"
    ]
   },
   {
@@ -2525,20 +2525,6 @@
    ]
   },
   {
-   "what": "BecomesMonstrousSourceTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Death Kiss",
-    "Alpha Deathclaw",
-    "Shipbreaker Kraken",
-    "Polukranos, World Eater",
-    "Grim Giganotosaurus",
-    "Vitality Hunter",
-    "Sealock Monster"
-   ]
-  },
-  {
    "what": "delayed CopyNextSpellDelayedTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -2996,6 +2982,19 @@
    ]
   },
   {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Death Kiss",
+    "Shipbreaker Kraken",
+    "Polukranos, World Eater",
+    "Grim Giganotosaurus",
+    "Vitality Hunter",
+    "Sealock Monster"
+   ]
+  },
+  {
    "what": "words: non-subtype",
    "score": 6,
    "lines": 6,
@@ -3424,19 +3423,6 @@
    ]
   },
   {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Darksteel Garrison",
-    "Kudzu",
-    "Steam Vines",
-    "Orcish Mine"
-   ]
-  },
-  {
    "what": "CantAttackBlockAttachedEffect",
    "score": 6,
    "lines": 6,
@@ -3499,19 +3485,6 @@
     "Eye Spy",
     "Visions",
     "Saheeli's Silverwing"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Culvert Ambusher",
-    "Rakish Scoundrel",
-    "Ponyback Brigade",
-    "Gadget Technician",
-    "Offender at Large",
-    "Efreet Weaponmaster"
    ]
   },
   {
@@ -4334,6 +4307,18 @@
    ]
   },
   {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines",
+    "Orcish Mine"
+   ]
+  },
+  {
    "what": "CastOnlyIfConditionIsTrueAbility",
    "score": 5,
    "lines": 5,
@@ -4594,17 +4579,6 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
-   ]
-  },
-  {
-   "what": "targeted by FilterSpell",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Tectonic Giant",
-    "Stormchaser Drake",
-    "Illuminator Virtuoso",
-    "Fugitive Druid"
    ]
   },
   {
@@ -6324,6 +6298,16 @@
    ]
   },
   {
+   "what": "targeted by FilterSpell",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Stormchaser Drake",
+    "Illuminator Virtuoso",
+    "Fugitive Druid"
+   ]
+  },
+  {
    "what": "GainAbilityAllEffect.withForceQuotes",
    "score": 3,
    "lines": 3,
@@ -6521,6 +6505,16 @@
     "Jorn, God of Winter // Kaldring, the Rimestaff",
     "Gangrenous Zombies"
    ]
+  },
+  {
+   "what": "SpellsCostModificationThatTargetSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Accursed Witch // Infectious Curse",
+    "Spellwild Ouphe",
+    "Elderwood Scion"
+   ]
   }
  ],
  "sole": [
@@ -6539,15 +6533,15 @@
   },
   {
    "what": "custom ability",
-   "score": 534,
-   "cards": 489,
+   "score": 528,
+   "cards": 486,
    "names": [
-    "Trouble in Pairs",
     "Coveted Jewel",
     "Carpet of Flowers",
     "All Will Be One",
     "Treasure Nabber",
-    "Tergrid, God of Fright // Tergrid's Lantern"
+    "Tergrid, God of Fright // Tergrid's Lantern",
+    "The Skullspore Nexus"
    ]
   },
   {
@@ -6948,19 +6942,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility from ALL",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Heaped Harvest",
-    "Carrot Cake",
-    "Eldrazi Repurposer",
-    "Park Heights Maverick",
-    "Drownyard Lurker",
-    "Warped Tusker"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 13,
    "cards": 13,
@@ -7071,6 +7052,19 @@
    "names": [
     "Walk-In Closet // Forgotten Cellar",
     "Mirror Room // Fractured Realm"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility from ALL",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Heaped Harvest",
+    "Carrot Cake",
+    "Eldrazi Repurposer",
+    "Drownyard Lurker",
+    "Warped Tusker",
+    "Bartered Cow"
    ]
   },
   {
@@ -8278,19 +8272,6 @@
    ]
   },
   {
-   "what": "BecomesMonstrousSourceTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Alpha Deathclaw",
-    "Shipbreaker Kraken",
-    "Polukranos, World Eater",
-    "Grim Giganotosaurus",
-    "Vitality Hunter",
-    "Sealock Monster"
-   ]
-  },
-  {
    "what": "FilterCreatureAttackingYou",
    "score": 6,
    "cards": 6,
@@ -8626,19 +8607,6 @@
     "Eye Spy",
     "Visions",
     "Saheeli's Silverwing"
-   ]
-  },
-  {
-   "what": "EntersBattlefieldOrTurnedFaceUpTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Culvert Ambusher",
-    "Rakish Scoundrel",
-    "Ponyback Brigade",
-    "Gadget Technician",
-    "Offender at Large",
-    "Efreet Weaponmaster"
    ]
   },
   {
@@ -9014,6 +8982,18 @@
    ]
   },
   {
+   "what": "BecomesMonstrousSourceTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Shipbreaker Kraken",
+    "Polukranos, World Eater",
+    "Grim Giganotosaurus",
+    "Vitality Hunter",
+    "Sealock Monster"
+   ]
+  },
+  {
    "what": "TargetCardInExile",
    "score": 5,
    "cards": 5,
@@ -9167,18 +9147,6 @@
     "Treetop Bracers",
     "Saddle of the Cavalier",
     "Blazing Torch"
-   ]
-  },
-  {
-   "what": "BecomesTappedAttachedTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Cryoshatter",
-    "Relic Putrescence",
-    "Darksteel Garrison",
-    "Kudzu",
-    "Steam Vines"
    ]
   },
   {
@@ -9378,17 +9346,6 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
-   ]
-  },
-  {
-   "what": "targeted by FilterSpell",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Tectonic Giant",
-    "Stormchaser Drake",
-    "Illuminator Virtuoso",
-    "Fugitive Druid"
    ]
   },
   {
@@ -10162,6 +10119,17 @@
    ]
   },
   {
+   "what": "BecomesTappedAttachedTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Relic Putrescence",
+    "Darksteel Garrison",
+    "Kudzu",
+    "Steam Vines"
+   ]
+  },
+  {
    "what": "DescendCondition.FOUR",
    "score": 4,
    "cards": 4,
@@ -10181,6 +10149,28 @@
     "Ashen-Skin Zubera",
     "Dripping-Tongue Zubera",
     "Ember-Fist Zubera"
+   ]
+  },
+  {
+   "what": "becomes a creature and nothing else",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Mimic",
+    "Veiled Serpent",
+    "Opal Guardian",
+    "Veiled Apparition"
+   ]
+  },
+  {
+   "what": "ControllerDiscardedThisTurnCondition.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Mysterio's Mirage",
+    "Recalibrate",
+    "Ragged Recluse // Odious Witch",
+    "Gilt-Blade Prowler"
    ]
   }
  ]
