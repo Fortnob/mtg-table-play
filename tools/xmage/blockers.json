@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11052,
+  "needed": 11048,
   "gainedCards": 1090,
-  "linesNeeded": 11815,
+  "linesNeeded": 11811,
   "linesGained": 1284,
   "gained": {
    "all": 1090,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 44,
+  "verifyFail": 43,
   "overrides": {
    "drain": 65,
    "group": 28,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4134,
-   "lines": 3885,
+   "score": 4132,
+   "lines": 3883,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -721,25 +721,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg",
-    "Painwracker Oni",
-    "Fires of Victory",
-    "Gutwrencher Oni",
-    "Burning Sun Cavalry"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 16,
    "lines": 16,
@@ -870,6 +851,25 @@
     "Thunder Salvo",
     "Death's Approach",
     "Master's Councillors"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "The Chief Warg",
+    "Painwracker Oni",
+    "Fires of Victory",
+    "Gutwrencher Oni",
+    "Burning Sun Cavalry",
+    "See Red"
    ]
   },
   {
@@ -5123,17 +5123,6 @@
    ]
   },
   {
-   "what": "SurvivalAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Reluctant Role Model",
-    "Rip, Spawn Hunter",
-    "Glimmer Seeker",
-    "Rootwise Survivor"
-   ]
-  },
-  {
    "what": "AttacksAloneAttachedTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -6235,6 +6224,16 @@
    ]
   },
   {
+   "what": "SurvivalAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Reluctant Role Model",
+    "Rip, Spawn Hunter",
+    "Rootwise Survivor"
+   ]
+  },
+  {
    "what": "chapter with no effect",
    "score": 3,
    "lines": 3,
@@ -6607,8 +6606,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3443,
-   "cards": 3275,
+   "score": 3441,
+   "cards": 3273,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6905,19 +6904,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Pugnacious Hammerskull",
-    "Curious Obsession",
-    "Butterbur, Bree Innkeeper",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 15,
    "cards": 15,
@@ -6928,6 +6914,19 @@
     "Regal Sliver",
     "Join the Dead",
     "Tragic Trajectory"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Pugnacious Hammerskull",
+    "Curious Obsession",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling"
    ]
   },
   {
@@ -9868,17 +9867,6 @@
    ]
   },
   {
-   "what": "SurvivalAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Reluctant Role Model",
-    "Rip, Spawn Hunter",
-    "Glimmer Seeker",
-    "Rootwise Survivor"
-   ]
-  },
-  {
    "what": "AttacksAloneAttachedTriggeredAbility",
    "score": 4,
    "cards": 4,
@@ -10283,6 +10271,17 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "TurnFaceUpTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ixidor, Reality Sculptor",
+    "Expose the Culprit",
+    "Skirk Alarmist",
+    "Break Open"
    ]
   }
  ]

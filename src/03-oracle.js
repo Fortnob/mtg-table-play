@@ -8943,6 +8943,8 @@
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
     // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
     [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
+    // Dire Tactics, Ego Drain, Butterbur: "you don't control a Human" — what "you control a Human" says, the other way
+    [/^you (?:don'?t|do not) control (an? [^,]+)$/i, (m) => { const c = condOf('you control ' + m[1]); return c ? { kind: 'not', cond: c } : null; }],
     // Archive Trap: "an opponent searched their library this turn"
     [/^an opponent searched their library this turn$/i, () => ({ kind: 'opponentSearchedThisTurn' })],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)

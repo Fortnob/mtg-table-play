@@ -18311,4 +18311,20 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, h + 2, 'the normal draw and one more');
     t.eq(T.life('A'), 19, '1 life');
   });
+
+  test("Dire Tactics: without a Human you lose life equal to the exiled creature's toughness; \"you don't control a …\"", (mk, t) => {
+    t.auto('Dire Tactics');
+    t.auto('Butterbur, Bree Innkeeper');
+    t.auto('Errand-Rider of Gondor');
+    for (const human of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      if (human) T.bf('A', 'Elite Vanguard');
+      const g = T.bf('B', 'Craw Wurm');
+      T.mana('A', 'WB');
+      T.cast('A', T.hand('A', 'Dire Tactics'), { targets: [g.id] });
+      t.zone(g, 'exile');
+      t.eq(T.life('A'), human ? 20 : 16, human ? 'a Human: no life lost' : 'no Human: 4 life, the Wurm\'s toughness');
+    }
+  });
 };
