@@ -5364,4 +5364,32 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(bear), 3, 'on');
     t.no(T.g.hasKw(bear, 'lifelink'), 'in combat: no lifelink');
   });
+
+  test("Audit: Hazoret's Favor sacrifices only the creature it pumped, and only when you said yes; Fire Nation Occupation's Soldier on an opponent's turn only", (mk, t) => {
+    t.auto("Hazoret's Favor"); t.auto('Fire Nation Occupation');
+    for (const yes of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('A', "Hazoret's Favor");
+      const bear = T.bf('A', 'Grizzly Bears');
+      T.answer('confirm', { yes });
+      T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+      T.answer('declareAttackers', () => []);
+      T.toMain('A', 'endCombat');
+      if (yes) { t.eq(T.g.powerOf(bear), 4); t.ok(T.g.hasKw(bear, 'haste')); }
+      T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+      T.nextTurn('B');
+      t.zone(bear, yes ? 'graveyard' : 'battlefield', yes ? 'pumped: sacrificed' : 'declined: kept');
+    }
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Fire Nation Occupation');
+    const soldiers = () => T.g.battlefield.filter(o => o.isToken && /Soldier/.test(o.name)).length;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    t.eq(soldiers(), 0, 'on your own turn: none');
+    T.nextTurn('B'); T.toMain('B');
+    if (T.g.priorityPlayer && T.g.priorityPlayer.id === 'B') T.g.passPriority('B', true);
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.settle();
+    t.eq(soldiers(), 1, "on B's turn: a Soldier");
+  });
 };
