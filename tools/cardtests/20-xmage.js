@@ -18237,4 +18237,13 @@ module.exports = (test) => {
     U.settle();
     t.eq(U.zone('B', 'graveyard').length, 6, "B mills as many as B's graveyard held (3)");
   });
+
+  test('A label ending in "?" is cut too: The Unbeatable Squirrel Girl', (mk, t) => {
+    t.auto('The Unbeatable Squirrel Girl');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'The Unbeatable Squirrel Girl', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Squirrel/.test(o.name)).length, 1, 'a Squirrel as she enters');
+  });
 };

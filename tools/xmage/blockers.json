@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11067,
+  "needed": 11066,
   "gainedCards": 1094,
-  "linesNeeded": 11832,
+  "linesNeeded": 11831,
   "linesGained": 1289,
   "gained": {
    "all": 1094,
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 179,
-   "lines": 164,
+   "score": 178,
+   "lines": 163,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -6673,8 +6673,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 108,
-   "cards": 105,
+   "score": 107,
+   "cards": 104,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",

@@ -8437,8 +8437,8 @@
   function stripAbilityWord(line) {
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
-    // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?!?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
