@@ -20403,4 +20403,36 @@ module.exports = (test) => {
     t.ok(dragon.tapped, 'tapped');
     t.eq(T.life('B'), 13, 'and attacking: 2 from Kaalia and 5 from the Dragon');
   });
+
+  test('"You may reveal any number of creature cards from among them": Lead the Stampede takes both creatures; Karumonix only Rats; For the Ancestors the chosen type', (mk, t) => {
+    t.auto('Lead the Stampede'); t.auto('Karumonix, the Rat King'); t.auto('For the Ancestors');
+    const T = mk();
+    T.toMain('A');
+    // (each put goes on top: the last one put is the top card)
+    for (const n of ['Shock', 'Island', 'Hill Giant', 'Forest', 'Grizzly Bears']) T.put('A', n, 'library');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort(); return { cardIds: ch.cards.map(c => c.id) }; });
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Lead the Stampede'));
+    t.eq(JSON.stringify(offered), JSON.stringify(['Grizzly Bears', 'Hill Giant']), 'the two creatures are offered');
+    t.ok(['Grizzly Bears', 'Hill Giant'].every(n => T.zone('A', 'hand').some(o => o.name === n)), 'and both taken');
+    const T2 = mk();
+    T2.toMain('A');
+    for (const n of ['Island', 'Grizzly Bears', 'Pack Rat', 'Forest', 'Rat Colony']) T2.put('A', n, 'library');
+    let off2 = null;
+    T2.answer('pickCard', (ch) => { off2 = ch.cards.map(c => c.name).sort(); return { cardIds: ch.cards.map(c => c.id) }; });
+    T2.put('A', 'Karumonix, the Rat King', 'battlefield', { etb: true });
+    T2.resolve();
+    t.eq(JSON.stringify(off2), JSON.stringify(['Pack Rat', 'Rat Colony']), 'Karumonix: only the Rats');
+    const T3 = mk();
+    T3.toMain('A');
+    T3.bf('A', 'Llanowar Elves');
+    for (const n of ['Island', 'Grizzly Bears', 'Elvish Mystic', 'Forest', 'Fyndhorn Elves', 'Shock']) T3.put('A', n, 'library');
+    let off3 = null;
+    T3.answer('choose', (ch) => ({ picks: [Math.max(0, (ch.options || []).findIndex(o => o.label === 'Elf'))] }));
+    T3.answer('pickCard', (ch) => { off3 = ch.cards.map(c => c.name).sort(); return { cardIds: ch.cards.map(c => c.id) }; });
+    T3.mana('A', '2G');
+    T3.cast('A', T3.hand('A', 'For the Ancestors'));
+    t.eq(JSON.stringify(off3), JSON.stringify(['Elvish Mystic', 'Fyndhorn Elves']), 'For the Ancestors, Elf: the two Elves');
+  });
 };

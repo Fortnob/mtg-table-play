@@ -4452,6 +4452,11 @@
     // Vein Drinker: "That creature deals damage equal to its power to this creature."
     { re: /^That creature deals damage equal to its power to (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toSelf2: true }) },
+    /* Lead the Stampede, Karumonix: "You may reveal any number of creature (Rat) cards from among them
+       and put the revealed cards into your hand"; For the Ancestors: "… cards of the chosen type …" */
+    { re: /^You may reveal any number of ([A-Za-z]+ )?cards( of the chosen type)? from among them and put (?:the revealed cards|them) into your hand\.?$/i,
+      make: (m) => Object.assign({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'hand', optional: true, rest: 'keep', prompt: 'Choose any number to put into your hand.' }, m[2] ? { ofChosenType: true } : {}) },
     // (Icon of Ancestry: "a creature card of the chosen type")
     { re: /^You may reveal an? ([-a-z ]*?)card( of the chosen type)? from among them and put it into your hand\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10779,
+  "needed": 10774,
   "gainedCards": 1024,
-  "linesNeeded": 11479,
+  "linesNeeded": 11474,
   "linesGained": 1206,
   "gained": {
    "all": 1024,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4099,
-   "lines": 3853,
+   "score": 4098,
+   "lines": 3852,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1710,22 +1710,6 @@
     "Focus Fire",
     "Collision Course",
     "Battle of Frost and Fire"
-   ]
-  },
-  {
-   "what": "LookLibraryAndPickControllerEffect shape",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Karumonix, the Rat King",
-    "Genesis Ultimatum",
-    "Torsten, Founder of Benalia",
-    "Glacial Revelation",
-    "Lead the Stampede",
-    "Forging the Anchor",
-    "You Meet in a Tavern",
-    "Nissa, Genesis Mage",
-    "Ayesha Tanaka, Armorer"
    ]
   },
   {
@@ -3750,6 +3734,18 @@
     "Errant and Giada",
     "Nalia de'Arnise",
     "Galea, Kindler of Hope"
+   ]
+  },
+  {
+   "what": "LookLibraryAndPickControllerEffect shape",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Genesis Ultimatum",
+    "Torsten, Founder of Benalia",
+    "Glacial Revelation",
+    "Nissa, Genesis Mage",
+    "Ayesha Tanaka, Armorer"
    ]
   },
   {
@@ -6534,8 +6530,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3424,
-   "cards": 3259,
+   "score": 3423,
+   "cards": 3258,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7831,19 +7827,6 @@
     "Jeering Instigator",
     "Bubble Smuggler",
     "Crowd-Control Warden"
-   ]
-  },
-  {
-   "what": "LookLibraryAndPickControllerEffect shape",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Karumonix, the Rat King",
-    "Genesis Ultimatum",
-    "Torsten, Founder of Benalia",
-    "Glacial Revelation",
-    "Lead the Stampede",
-    "Forging the Anchor"
    ]
   },
   {
@@ -10192,6 +10175,17 @@
     "Primalcrux",
     "Outrage Shaman",
     "Heartlash Cinder"
+   ]
+  },
+  {
+   "what": "DescendCondition.FOUR",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Echo of Dusk",
+    "Basking Capybara",
+    "Frilled Cave-Wurm",
+    "Didact Echo"
    ]
   }
  ]
