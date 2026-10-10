@@ -510,7 +510,8 @@
 
       // curve fit
       const mv = Math.min(8, Math.floor(card.cmc || 0));
-      if (curveNeed[mv] > 0) { score += 0.6; reasons.push(`fills out your ${mv}-drop slot`); }
+      // (a land is no drop on the curve)
+      if (curveNeed[mv] > 0 && !/\bLand\b/.test(card.type_line || '')) { score += 0.6; reasons.push(`fills out your ${mv}-drop slot`); }
       if (mv >= 7 && prof.strategy === 'aggro') score -= 1.2;
 
       // the engine can run it, which matters at this table

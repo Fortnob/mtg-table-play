@@ -15,8 +15,8 @@
    ============================================================ */
 'use strict';
 (function (MTG) {
-  // the relay this app was set up with (tools/recommander-relay/README.md); empty until there is one
-  const DEFAULT_RELAY = '';
+  // the relay this app was set up with (tools/recommander-relay/README.md); Options can name another
+  const DEFAULT_RELAY = 'https://recommander-relay.zach-s-carver.workers.dev';
   const TIMEOUT = 15000;
   const KEEP = 10 * 60 * 1000;
   const remembered = new Map();      // the deck's key -> { at, list }

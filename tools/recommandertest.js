@@ -21,8 +21,9 @@ const fetch = async (url, init) => {
   return { ok: r.status === 200, status: r.status, headers: { get: (k) => (r.headers || {})[k.toLowerCase()] || null }, json: async () => r.body };
 };
 const window = { MTG: { settings: { recommanderRelay: '' } } };
-vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'src', '16b-recommander.js'), 'utf8'),
-  { window, fetch, AbortController, setTimeout, clearTimeout, JSON, Date, Math, Map, Set });
+// the relay built in is taken out here, so the test can say what happens with none
+const bare = fs.readFileSync(path.join(__dirname, '..', 'src', '16b-recommander.js'), 'utf8').replace(/const DEFAULT_RELAY = '[^']*';/, "const DEFAULT_RELAY = '';");
+vm.runInNewContext(bare, { window, fetch, AbortController, setTimeout, clearTimeout, JSON, Date, Math, Map, Set });
 const R = window.MTG.recommander;
 
 const card = (id, name) => ({ oracle_id: id, name });
