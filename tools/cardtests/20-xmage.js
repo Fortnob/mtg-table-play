@@ -19316,4 +19316,24 @@ module.exports = (test) => {
     T.resolve();
     t.eq(copies().length, 0, 'exiled at the end step');
   });
+
+  test('Eminence: Arahbo pumps a Cat at the beginning of combat from the command zone; an attacking Cat doubles for {1}{G}{W}', (mk, t) => {
+    t.auto('Arahbo, Roar of the World');
+    const T = mk();
+    const ar = T.put('A', 'Arahbo, Roar of the World', 'command'); ar.isCommander = true;
+    const cat = T.bf('A', 'Savannah Lions');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: cat.id }] }));
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    t.eq(T.g.powerOf(cat), 5, 'a 2/1 Cat gets +3/+3 from the command zone');
+    T.bf('A', 'Arahbo, Roar of the World');
+    T.g._removeFromZone(ar); ar.zone = null;
+    T.g.bumpBoard();
+    T.answer('confirm', { yes: true });
+    for (const l of ['Forest', 'Plains', 'Plains']) T.bf('A', l);
+    T.answer('declareAttackers', () => [{ attackerId: cat.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(cat), 10, 'paid: +X/+X where X is its power, 5');
+    t.ok(T.g.hasKw(cat, 'trample'), 'and trample');
+  });
 };

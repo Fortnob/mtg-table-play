@@ -3702,14 +3702,16 @@
           duration: 'eot',
           targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
           scope: /^target/i.test(m[1]) ? null : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self') }] }) },
-    { re: /^(Target creature(?: you control)?|CARDNAME|This creature) gains ([a-z, ']+?) and gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
-      make: (m) => ({ op: 'sequence', list: [
-        { op: 'grantKeyword', keywords: m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean),
-          duration: 'eot', targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-          scope: /^target/i.test(m[1]) ? null : 'self' },
-        { op: 'pump', p: pmNum(m[3]), t: pmNum(m[4]), duration: 'eot',
-          targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-          scope: /^target/i.test(m[1]) ? null : 'self' }] }) },
+    // (Arahbo, Roar of the World: "it gains trample and gets +X/+X" — what the sentence before, or the trigger, is about)
+    { re: /^(Target creature(?: you control)?|CARDNAME|This creature|It|That creature) gains ([a-z, ']+?) and gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
+      make: (m) => {
+        const sc = /^target/i.test(m[1]) ? null : /^(?:it|that creature)$/i.test(m[1]) ? 'lastTarget' : 'self';
+        return { op: 'sequence', list: [
+          { op: 'grantKeyword', keywords: m[2].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean),
+            duration: 'eot', targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null, scope: sc },
+          { op: 'pump', p: pmNum(m[3]), t: pmNum(m[4]), duration: 'eot',
+            targets: /^target/i.test(m[1]) ? [targetSpec(m[1])] : null, scope: sc }] };
+      } },
 
     /* ===== a pump and a grant in the same breath ===== */
     { re: /^(Creatures you control|Creatures your opponents control|All creatures|Each creature you control) (?:get|gets) ([+-][\dX]+)\/([+-][\dX]+) and (?:gain|gains|have|has) ([a-z, ']+?) until end of turn\.?$/i,
@@ -8119,6 +8121,10 @@
     const wx = sentence.match(/^(.+?), where X is ([^,]+?)\.?$/);
     if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = amountOf(wx[2]);
+      /* Arahbo, Perrie: "… gains trample and gets +X/+X until end of turn,
+         where X is …" — one sentence the vocabulary reads whole */
+      const whole = k && parseEffectSentence(tidy(wx[1]));
+      if (whole && !Array.isArray(whole) && whole.op !== 'manual' && !hasManualStep(whole) && fillX(whole, k)) return [whole];
       const both = k && parseCompound(wx[1] + '.');
       if (both && both.every(x => x.op !== 'manual' && !hasManualStep(x))) {
         const used = both.map(x => fillX(x, k));
