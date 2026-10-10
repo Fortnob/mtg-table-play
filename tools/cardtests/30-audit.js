@@ -5673,4 +5673,26 @@ module.exports = (test) => {
       t.eq(P.forFormat('commander').find(p => p.name === 'fresh').rules.freeMulligans, 0, 'a 0 saved now is a choice');
     } finally { M.settings.rulePresets = keep; }
   });
+
+  test('Audit: proliferate puts counters on like any effect: Hardened Scales adds one more, Doubling Season doubles loyalty; Curious Herd counts the chosen opponent\'s artifacts', (mk, t) => {
+    t.auto('Curious Herd');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Hardened Scales');
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    T.g._runEffects([{ op: 'proliferate' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); T.settle();
+    t.eq(bear.counters['+1/+1'], 3, 'one, and one more');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Doubling Season');
+    const pw = T.bf('A', 'Chandra, Torch of Defiance', { counters: { loyalty: 4 } });
+    T.g._runEffects([{ op: 'proliferate' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); T.settle();
+    t.eq(pw.counters.loyalty, 6, 'one, doubled');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('B', 'Sol Ring'); T.bf('B', 'Ornithopter'); T.bf('C', 'Sol Ring');
+    T.mana('A', 'G3');
+    T.cast('A', T.hand('A', 'Curious Herd'), { targets: ['B'] }); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Beast/.test(o.name)).length, 2, "B's two artifacts, not C's");
+  });
 };
