@@ -4167,4 +4167,37 @@ module.exports = (test) => {
     const bear = T.bf('A', 'Grizzly Bears');
     t.eq(T.g.powerOf(wc), 3, 'a Zombie: +1/+1'); t.eq(T.g.powerOf(bear), 2, 'a Bear: nothing');
   });
+
+  test('Audit: Archive Trap is free only after an opponent searched this turn; Riverchurn Monument mills each by their own graveyard; Tinybones Joins Up lets the target choose', (mk, t) => {
+    t.auto('Archive Trap'); t.auto('Riverchurn Monument'); t.auto('Tinybones Joins Up');
+    let T = mk();
+    T.toMain('A');
+    const at = T.hand('A', 'Archive Trap');
+    T.g._runEffects([{ op: 'fetchBasic', n: 1, tapped: true }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    t.no(T.g.altUsesFor('A', at.id).some(u => /^alt/.test(u.via)), 'my own search: not free');
+    T.g._runEffects([{ op: 'fetchBasic', n: 1, tapped: true }], { controller: 'B', name: 'Test', kind: 'spell', targets: [] });
+    t.ok(T.g.altUsesFor('A', at.id).some(u => /^alt/.test(u.via)), "the opponent's: free");
+    T.nextTurn('B');
+    t.no(T.g.altUsesFor('A', at.id).some(u => /^alt/.test(u.via)), 'a turn later: not free');
+    T = mk();
+    T.toMain('A');
+    const rm = T.bf('A', 'Riverchurn Monument');
+    for (let i = 0; i < 3; i++) T.grave('A', 'Island');
+    T.grave('B', 'Island');
+    for (let i = 0; i < 10; i++) { T.top('A', 'Forest'); T.top('B', 'Forest'); }
+    T.mana('A', 'UU2');
+    T.activate('A', rm, 1, { targets: ['A', 'B'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'graveyard').length, 6, 'A had 3: mills 3');
+    t.eq(T.zone('B', 'graveyard').length, 2, 'B had 1: mills 1');
+    T = mk();
+    T.toMain('A');
+    T.hand('B', 'Island'); const cw = T.hand('B', 'Craw Wurm');
+    let who = null;
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.answer('discard', (ch) => { who = ch.playerId; return { cardIds: [cw.id] }; });
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Tinybones Joins Up')); T.settle(); T.resolve(); T.settle();
+    t.eq(who, 'B', 'B picks the discard'); t.zone(cw, 'graveyard');
+  });
 };
