@@ -4797,4 +4797,34 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat'); T.settle();
     t.eq(T.zone('A', 'graveyard').length, 1, 'a Knight attacked: draw, then discard');
   });
+
+  test("Audit: Cadric, Soul Kindler: decline to pay and nothing is sacrificed at end step; Inalla's token copy is exiled, its Wizard stays", (mk, t) => {
+    t.auto('Cadric, Soul Kindler'); t.auto('Inalla, Archmage Ritualist');
+    for (const pay of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('A', 'Cadric, Soul Kindler');
+      T.answer('confirm', { yes: pay });
+      const lg = T.hand('A', 'Isamaru, Hound of Konda');
+      T.mana('A', pay ? 'W1' : 'W');
+      T.cast('A', lg); T.settle(); T.resolve(); T.settle();
+      t.eq(T.g.battlefield.filter(o => o.isToken).length, pay ? 1 : 0, pay ? 'paid: a copy' : 'declined: no copy');
+      T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+      T.nextTurn('B');
+      t.zone(lg, 'battlefield', pay ? 'the copy goes, Isamaru stays' : 'declined: Isamaru stays');
+      t.eq(T.g.battlefield.filter(o => o.isToken).length, 0);
+    }
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Inalla, Archmage Ritualist');
+    T.answer('confirm', { yes: true });
+    const wz = T.hand('A', 'Prodigal Sorcerer');
+    T.mana('A', 'U3');
+    T.cast('A', wz); T.settle(); T.resolve(); T.settle();
+    const tok = T.g.battlefield.find(o => o.isToken && o.name === 'Prodigal Sorcerer');
+    t.ok(tok && T.g.hasKw(tok, 'haste'), 'a hasty copy');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B');
+    t.zone(wz, 'battlefield'); t.no(T.g.battlefield.some(o => o.isToken), 'the copy exiled');
+  });
 };

@@ -8371,7 +8371,8 @@
              The token gains haste. Exile it at the beginning of the next end
              step." — what is said of the token only happens if it was made */
           while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
-            /^Exile (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+            // (Cadric, Soul Kindler: "Sacrifice it …" — declined, nothing of yours is sacrificed)
+            /^(?:Exile|Sacrifice) (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         }
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
