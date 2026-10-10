@@ -5221,6 +5221,8 @@
       o.adventureBy = null;
       o.controller = playerId;
       o.chosenX = opts.x || 0;
+      // cast from the graveyard (flashback, escape): it has left the graveyard (Kishla Skimmer)
+      if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
       // Summon: Fenrir: this creature spell carries the counter it was promised
       if (a && a.isCreature && p.nextCreatureCounter && p.nextCreatureCounter.turn === this.turn) {
         o._enterPlusCounters = p.nextCreatureCounter.n; p.nextCreatureCounter = null;
@@ -11377,6 +11379,9 @@
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
           // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
           if (ab.objFilter && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          /* a card leaving a graveyard is seen from before it left (CR 603.10a):
+             the card itself, come back from there, was not around to see it */
+          if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
@@ -20761,6 +20766,7 @@
       this._removeFromZone(o);
       o.zone = 'stack';
       o.controller = playerId;
+      if (fromZone === 'graveyard') this._fire('leftGraveyard', null, { object: o, objController: o.owner });
       const item = {
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id, controller: playerId, name: o.name, cost: '',
         targets: [], x: (how && how.x) || 0, effects: a.isPermanent ? null : this._cardSpellEffects(a),

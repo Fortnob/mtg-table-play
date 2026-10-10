@@ -4044,4 +4044,37 @@ module.exports = (test) => {
     t.eq(T.life('B'), 14);
     t.eq(T.g.zones.A.hand.length, h + 1, 'drew a card');
   });
+
+  test('Audit: leaves-your-graveyard triggers: a flashback cast counts, the card itself coming back does not, one for a lot', (mk, t) => {
+    t.auto('Kishla Skimmer'); t.auto('Tormod, the Desecrator'); t.auto('Skeleton Crew');
+    let T = mk();
+    T.toMain('A');
+    T.bf('A', 'Kishla Skimmer');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const tt = T.grave('A', 'Think Twice');
+    T.mana('A', '2U');
+    const h = T.zone('A', 'hand').length;
+    t.ok(T.g.castSpell('A', tt.id, { via: 'flashback', auto: true }));
+    T.settle(); T.resolve(); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length, h + 2, 'Think Twice draws one, Kishla one more');
+    T = mk();
+    T.toMain('A');
+    const tor = T.grave('A', 'Tormod, the Desecrator');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [tor.id] }); T.settle(); T.resolve(); T.settle();
+    t.zone(tor, 'battlefield');
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Zombie/.test(o.name)).length, 0, 'Tormod was not there to see itself leave');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Reanimate'), { targets: [bear.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Zombie/.test(o.name)).length, 1, 'another card leaving: a Zombie');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Skeleton Crew');
+    T.grave('A', 'Grizzly Bears'); T.grave('A', 'Craw Wurm'); T.grave('A', 'Island');
+    const tc = T.bf('A', "Tormod's Crypt");
+    T.activate('A', tc, 0, { targets: ['A'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Skeleton/.test(o.name)).length, 1, 'two creature cards at once: one token');
+  });
 };
