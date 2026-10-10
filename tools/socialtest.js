@@ -16,7 +16,12 @@
      collections after, a deck's cards warned about, and the line dropped
      before and after each side has carried it out (each side changes
      exactly once); a commit or an applied that arrives twice;
-   - the wishlist, and the save sent from one device to another.
+   - a line dead at one end only, a confirmation let go, a trade the
+     leader never sent through asked after and dropped;
+   - the wishlist, and the save sent from one device to another;
+   - the windows themselves (src/10g-ui-social.js, src/10h-ui-trade.js) on
+     a pretend DOM (tools/fakedom.js), clicked through from both devices:
+     a request, two trades, an invite, the move, and the two links.
 
    node tools/socialtest.js         A failure exits non-zero. Run by tools/check.py ('social'). */
 'use strict';
