@@ -569,14 +569,18 @@
      one file, and back again. Caches of card data and art are left out:
      they are fetched again as needed. */
   const BACKUP_SKIP = /^mtgtable\.(?:packart|cardDb\.|clientToken|autoWarned|savedGame|artCache\.|storage\.)/;
-  App.exportProfile = function () {
+  /** Everything this browser keeps for you, as the backup file holds it (and as another device is sent it). */
+  App.profileDoc = function () {
     const data = {};
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
       if (!k || !k.startsWith('mtgtable.') || BACKUP_SKIP.test(k)) continue;
       data[k] = localStorage.getItem(k);
     }
-    const blob = new Blob([JSON.stringify({ app: 'mtg-table', kind: 'profile', v: 1, at: new Date().toISOString(), data }, null, 0)], { type: 'application/json' });
+    return { app: 'mtg-table', kind: 'profile', v: 1, at: new Date().toISOString(), data };
+  };
+  App.exportProfile = function () {
+    const blob = new Blob([JSON.stringify(App.profileDoc(), null, 0)], { type: 'application/json' });
     const a = el('a', { href: URL.createObjectURL(blob), download: `mtg-table-profile-${new Date().toISOString().slice(0, 10)}.json` });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -592,20 +596,35 @@
       if (!f) return;
       let doc = null;
       try { doc = JSON.parse(await f.text()); } catch (e) { return UI.error('That file is not a profile backup.'); }
-      if (!doc || doc.app !== 'mtg-table' || doc.kind !== 'profile' || !doc.data || typeof doc.data !== 'object') return UI.error('That file is not an MTG Table profile backup.');
-      const keys = Object.keys(doc.data).filter(k => k.startsWith('mtgtable.') && typeof doc.data[k] === 'string');
-      const eco = (() => { try { return JSON.parse(doc.data['mtgtable.economy'] || 'null'); } catch (e) { return null; } })();
-      const what = eco ? `${(eco.shards || 0).toLocaleString()} Shards, ${Object.keys(eco.col || {}).length} different cards, ${(eco.packs || []).length} packs` : 'its settings and decks';
-      if (!await UI.confirm(`Load this profile from ${String(doc.at || '').slice(0, 10) || 'a backup'} (${what})? It replaces what this browser has now.`, 'Load a profile')) return;
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k)) localStorage.removeItem(k);
-      }
-      for (const k of keys) { try { localStorage.setItem(k, doc.data[k]); } catch (e) { /* full */ } }
-      UI.ok('Profile loaded. Starting again with it…');
-      setTimeout(() => location.reload(), 700);
+      App.loadProfileDoc(doc);
     });
     file.click();
+  };
+  /**
+   * Replace what this browser keeps with a backup (read from a file, or
+   * sent from another device), once the person has said yes, and start
+   * again with it. `opts.from` says where it came from, for the question;
+   * `opts.before` runs once it is written, before the page reloads.
+   * Resolves whether it was loaded.
+   */
+  App.loadProfileDoc = async function (doc, opts) {
+    opts = opts || {};
+    if (!doc || doc.app !== 'mtg-table' || doc.kind !== 'profile' || !doc.data || typeof doc.data !== 'object') { UI.error('That file is not an MTG Table profile backup.'); return false; }
+    const keys = Object.keys(doc.data).filter(k => k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k) && typeof doc.data[k] === 'string');
+    const eco = (() => { try { return JSON.parse(doc.data['mtgtable.economy'] || 'null'); } catch (e) { return null; } })();
+    const what = eco ? `${(eco.shards || 0).toLocaleString()} Shards, ${Object.keys(eco.col || {}).length} different cards, ${(eco.packs || []).length} packs` : 'its settings and decks';
+    if (!await UI.confirm(`Load this profile ${opts.from || 'from ' + (String(doc.at || '').slice(0, 10) || 'a backup')} (${what})? It replaces what this browser has now.`, 'Load a profile')) return false;
+    // anything still running (the friends line) stops writing first, so nothing old lands on top
+    MTG.bus.emit('profile:replacing');
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith('mtgtable.') && !BACKUP_SKIP.test(k)) localStorage.removeItem(k);
+    }
+    for (const k of keys) { try { localStorage.setItem(k, doc.data[k]); } catch (e) { /* full */ } }
+    if (opts.before) { try { await opts.before(); } catch (e) { /* the save is in; the reload still happens */ } }
+    UI.ok('Profile loaded. Starting again with it…');
+    setTimeout(() => location.reload(), 700);
+    return true;
   };
 
   /* ---------------- events: a draft, the gauntlet, challenges ----------------
