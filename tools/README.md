@@ -12,6 +12,7 @@ with `OFFLINE=1` to stay off the network.
 | `cardtest.js` | behaviour tests in `cardtests/` |
 | `smoke.js` | plays every automated card once (`--generated` for every card using a translated line) |
 | `sim.js`, `botsim.js` | bot games |
+| `limited.js` | a booster draft, sealed or Jumpstart among bots, then games between their decks |
 | `dumpauto.js`, `opaudit.js`, `misses.js` | what the parser made of cards, and what it could not |
 | `xmage/` | the XMage translator, below |
 
