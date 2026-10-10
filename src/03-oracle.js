@@ -2275,6 +2275,9 @@
     { re: /^Sacrifice (a|an|one|two|\d+) (?:other )?(creature|permanent|artifact|enchantment|land|token)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'you', filter: m[2].toLowerCase(),
         other: /other/i.test(m[0]) }) },
+    // The Cabbage Merchant, Gluttonous Guest: "sacrifice a Food token", "sacrifice a Blood token"
+    { re: /^[Ss]acrifice (a|an|one|two|three|\d+) ([A-Z][a-z]+) tokens?\.?$/,
+      make: (m) => ({ op: 'sacrificeChoice', n: /^an?$/.test(m[1]) ? 1 : num(m[1]), who: 'you', filter: m[2].toLowerCase() + ' token' }) },
     { re: /^Sacrifice another creature\.?$/i,
       make: () => ({ op: 'sacrificeChoice', n: 1, who: 'you', filter: 'creature', other: true }) },
     /* Shuffle riders: the engine shuffles when it searches, so the sentence
@@ -9676,6 +9679,9 @@
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
     { re: /^When(?:ever)? an opponent draws their (second|third) card each turn(?:,| )/i, event: 'opponentDraw',
       extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
+    // Valgavoth, Harrower of Souls: "Whenever an opponent loses life for the first time during each of their turns"
+    { re: /^When(?:ever)? an opponent loses life for the first time during each of their turns,? /i, event: 'opponentLosesLife',
+      extra: { firstLossThisTurn: true, theirTurn: true } },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
     // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
     { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },

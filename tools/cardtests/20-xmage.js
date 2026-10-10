@@ -18901,4 +18901,38 @@ module.exports = (test) => {
     t.eq(T.g.battlefield.filter(o => o.controller === 'B' && o.name === 'Forest').length, 1, "a Forest from B's library, under B's control");
     t.eq(bear.counters['+1/+1'], 1, 'and the counter');
   });
+
+  test('The Cabbage Merchant: combat damage to you costs you a Food token', (mk, t) => {
+    t.auto('The Cabbage Merchant');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'The Cabbage Merchant');
+    T.g._runEffects([{ op: 'createNamedToken', n: 2, token: 'Food' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    const foods = () => T.g.battlefield.filter(o => o.controller === 'A' && /Food/.test(o.name)).length;
+    t.eq(foods(), 2);
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.g.dealDamageToPlayer(T.g.player('A'), 2, bear, true);
+    T.resolve();
+    t.eq(foods(), 1, 'one Food sacrificed');
+  });
+
+  test("Valgavoth, Harrower of Souls: an opponent's first life loss on their own turn, and only that", (mk, t) => {
+    t.auto('Valgavoth, Harrower of Souls');
+    const T = mk();
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    const v = T.bf('A', 'Valgavoth, Harrower of Souls');
+    T.toMain('A');
+    T.g.changeLife('B', -1, 'test');
+    T.resolve();
+    t.no(v.counters['+1/+1'], 'not on your own turn');
+    T.toMain('B');
+    const hand = T.zone('A', 'hand').length;
+    T.g.changeLife('B', -2, 'test');
+    T.resolve();
+    t.eq(v.counters['+1/+1'], 1, 'a counter');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'and a card');
+    T.g.dealDamageToPlayer(T.g.player('B'), 2, T.bf('A', 'Grizzly Bears'), false);
+    T.resolve();
+    t.eq(v.counters['+1/+1'], 1, 'not the second time');
+  });
 };

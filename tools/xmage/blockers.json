@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11003,
+  "needed": 11001,
   "gainedCards": 1088,
-  "linesNeeded": 11751,
+  "linesNeeded": 11749,
   "linesGained": 1281,
   "gained": {
    "all": 1088,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 697,
-   "lines": 637,
+   "score": 696,
+   "lines": 636,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -5902,16 +5902,6 @@
    ]
   },
   {
-   "what": "DealsDamageToYouAllTriggeredAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "The Cabbage Merchant",
-    "Contested War Zone",
-    "Hixus, Prison Warden"
-   ]
-  },
-  {
    "what": "ExileCardsFromTopOfLibraryTargetEffect",
    "score": 3,
    "lines": 3,
@@ -6588,6 +6578,16 @@
     "Clever Conjurer",
     "Dutiful Replicator"
    ]
+  },
+  {
+   "what": "filter:historic",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "What Must Be Done",
+    "Lost to Legend",
+    "Tegan Jovanka"
+   ]
   }
  ],
  "sole": [
@@ -6606,8 +6606,8 @@
   },
   {
    "what": "custom ability",
-   "score": 540,
-   "cards": 495,
+   "score": 539,
+   "cards": 494,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

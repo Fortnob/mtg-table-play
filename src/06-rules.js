@@ -11526,6 +11526,14 @@
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
+          /* Valgavoth, Harrower of Souls: the first life that player has lost
+             this turn (what they have lost so far is this loss and no more),
+             and on their own turn */
+          if (ab.firstLossThisTurn) {
+            const lp = this.player(data.player);
+            if (!lp || (lp.lifeLostThisTurn || 0) !== data.amount) continue;
+            if (ab.theirTurn && !(this.activePlayer && this.activePlayer.id === data.player)) continue;
+          }
           // Folk Hero: "a spell that shares a creature type with this creature"
           if (ab.sharesTypeWithSelf) {
             const sp = data.object;
