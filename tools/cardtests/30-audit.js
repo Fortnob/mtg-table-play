@@ -4577,4 +4577,24 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(wb.counters.fire, 3); t.ok(T.g.characteristics(wb).isCreature, 'three fire counters: a creature');
   });
+
+  test('Audit: Wild-Magic Sorcerer: a spell from hand has no cascade; the first from exile on a later turn has it again', (mk, t) => {
+    t.auto('Wild-Magic Sorcerer');
+    const T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.bf('A', 'Wild-Magic Sorcerer');
+    const top1 = T.top('A', 'Grizzly Bears');
+    T.mana('A', 'R3'); T.cast('A', T.hand('A', 'Hill Giant')); T.resolve();
+    t.zone(top1, 'library', 'from hand: no cascade');
+    const g1 = T.put('A', 'Hill Giant', 'exile'); g1.impulseBy = 'A'; g1.impulseUntil = T.g.turn;
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R3'); T.cast('A', g1); T.resolve();
+    t.zone(top1, 'battlefield', 'the first from exile: cascade');
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    const top2 = T.top('A', 'Grizzly Bears');
+    const g2 = T.put('A', 'Hill Giant', 'exile'); g2.impulseBy = 'A'; g2.impulseUntil = T.g.turn;
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R3'); T.cast('A', g2); T.resolve();
+    t.zone(top2, 'battlefield', 'a new turn: the first again');
+  });
 };
