@@ -12452,6 +12452,26 @@
         }
       }
     }
+    /* Kitnap, Ray of Frost: an Aura's or Equipment's "tap it", "put three stun counters on it" once the
+       ability has named "enchanted creature" — the creature it is on, not the Aura (attachedIt). Not after
+       the creature has died or left: then "it" is no longer anything this is attached to. */
+    if ((out.subtypes || []).some(t => t === 'Aura' || t === 'Equipment')) {
+      for (const ab of out.abilities) {
+        if (!(ab.kind === 'triggered' || ab.kind === 'activated')) continue;
+        if (ab.kind === 'triggered' && /dies|ltb|leaves|Graveyard|Exile/i.test(String(ab.event || '') + ' ' + String(ab.also || ''))) continue;
+        if (JSON.stringify(ab.effects || []).includes('"targets":[{')) continue;
+        let seen = /\b(?:enchanted|equipped) creature\b/i.test(String(ab.text || '').split(/[,.]/).slice(0, 2).join(','));
+        const walk = (list) => {
+          for (const x of list || []) {
+            if (!x || typeof x !== 'object') continue;
+            if (x.scope === 'attached') seen = true;
+            if (seen && x.scope === 'self' && /\bit\b/i.test(x.text || '') && !/\bthis (?:Aura|Equipment|enchantment|artifact|card|permanent)\b|CARDNAME/i.test(x.text || '')) x.scope = 'attached';
+            walk(x.list); walk(x.then); walk(x.otherwise);
+          }
+        };
+        walk(ab.effects);
+      }
+    }
     if (!out.isPermanent) {
       const spellEffects = [];
       let allAuto = true;

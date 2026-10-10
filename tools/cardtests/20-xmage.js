@@ -21240,4 +21240,19 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] }); T.resolve();
     t.eq(knights(), 1, 'your second spell on your turn: a Knight');
   });
+
+  test('Kitnap: "put three stun counters on it" — on the enchanted creature, not the Aura', (mk, t) => {
+    t.auto('Kitnap');
+    const T = mk();
+    T.toMain('A');
+    const w = T.bf('B', 'Hill Giant');
+    T.answer('confirm', { yes: false });
+    T.mana('A', '2UU');
+    const k = T.hand('A', 'Kitnap');
+    T.cast('A', k, { targets: [w] }); T.resolve();
+    t.eq(w.controller, 'A', 'yours');
+    t.ok(w.tapped, 'tapped');
+    t.eq(w.counters.stun, 3, 'three stun counters on the creature');
+    t.no(k.counters.stun, 'none on the Aura');
+  });
 };
