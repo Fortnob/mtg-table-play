@@ -9395,10 +9395,15 @@
        "that land is a Plains", "that creature is a Demon", "that creature is a Bird, Frog, Otter, or Rat" —
        the thing the sentence before acted on, or the one the trigger is about (thatObjIs). Only words the
        table knows how to check: "another Hero", "rare", "1/1" stay for a person. */
-    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) is (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
+    /* (Gloomlance, Molten Rain, Endless Evil: "that creature was green or white", "that land was nonbasic",
+       "that creature was a Horror" — what it was as it left: what the card is, or the token was. Not
+       "was attacking", "was tapped": a card that has left is neither) */
+    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
       (m) => {
-        const w = listWords(m[2].replace(/(,|\bor) an? /g, '$1 ')).trim();
-        const ok = w.split(/\s+/).every(x => SUBJ_WORDS.has(x.toLowerCase()) || /^(?:attacking|blocking|tapped|untapped)$/.test(x) || /^[A-Z][a-z]+$/.test(x));
+        const w = listWords(m[3].replace(/(,|\bor) an? /g, '$1 ')).trim();
+        const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
+        const ok = w.split(/\s+/).every(x => (SUBJ_WORDS.has(x.toLowerCase()) && !(m[2] === 'was' && state.test(x))) ||
+          (m[2] === 'is' && state.test(x)) || /^[A-Z][a-z]+$/.test(x));
         return ok && !/^(?:or|and)\b|\b(?:or|and)$/.test(w) ? { kind: 'thatObjIs', noun: m[1], words: w } : null;
       }],
     // Star Charter: "you gained or lost life this turn"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10675,
+  "needed": 10663,
   "gainedCards": 993,
-  "linesNeeded": 11374,
+  "linesNeeded": 11361,
   "linesGained": 1170,
   "gained": {
    "all": 993,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4077,
-   "lines": 3831,
+   "score": 4066,
+   "lines": 3820,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 683,
-   "lines": 626,
+   "score": 682,
+   "lines": 625,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -685,25 +685,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Absorbing Man",
-    "Suit Up",
-    "Okiba Salvage",
-    "Fang Guardian"
-   ]
-  },
-  {
    "what": "attack with a kind of creature",
    "score": 15,
    "lines": 15,
@@ -758,6 +739,25 @@
     "Staff of the Flame Magus",
     "Staff of the Wild Magus",
     "Staff of the Mind Magus"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle",
+    "Hellish Sideswipe",
+    "Absorbing Man",
+    "Suit Up",
+    "Okiba Salvage",
+    "Fang Guardian"
    ]
   },
   {
@@ -6519,8 +6519,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3403,
-   "cards": 3238,
+   "score": 3393,
+   "cards": 3228,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6800,19 +6800,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Cloudspire Skycycle"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 15,
    "cards": 15,
@@ -6875,6 +6862,19 @@
     "Regal Sliver",
     "Join the Dead",
     "Tragic Trajectory"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle"
    ]
   },
   {

@@ -21048,4 +21048,41 @@ module.exports = (test) => {
     T4.toMain('A', 'beginCombat'); T4.resolve();
     t.ok(T4.g.hasKw(eb, 'first strike') && T4.g.hasKw(eb, 'vigilance'), 'equipped: first strike and vigilance');
   });
+
+  test('"If that creature was green or white", "was a Horror": Gloomlance, Uglúk of the White Hand, Endless Evil, Icequake', (mk, t) => {
+    for (const n of ['Gloomlance', 'Uglúk of the White Hand', 'Icequake']) t.auto(n);
+    const T = mk();
+    T.toMain('A');
+    // Gloomlance: a green creature's controller discards; a red one's does not
+    const cw = T.bf('B', 'Craw Wurm'), hg = T.bf('B', 'Hill Giant');
+    T.put('B', 'Island', 'hand'); T.put('B', 'Island', 'hand');
+    const h0 = T.zone('B', 'hand').length;
+    T.mana('A', '3BB'); T.cast('A', T.hand('A', 'Gloomlance'), { targets: [hg] }); T.resolve();
+    t.eq(T.zone('B', 'hand').length, h0, 'red: no discard');
+    T.mana('A', '3BB'); T.cast('A', T.hand('A', 'Gloomlance'), { targets: [cw] }); T.resolve();
+    t.eq(T.zone('B', 'hand').length, h0 - 1, 'green: its controller discards');
+    // Uglúk: an Orc of yours dying is two counters, a Bear one
+    const u = T.bf('A', 'Uglúk of the White Hand'), orc = T.bf('A', 'Orcish Bowmasters'), gb = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Fatal Push'), { targets: [orc] }); T.resolve();
+    t.eq(u.counters['+1/+1'], 2, 'an Orc: two');
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Fatal Push'), { targets: [gb] }); T.resolve();
+    t.eq(u.counters['+1/+1'], 3, 'a Bear: one more');
+    // Icequake: a snow land's controller takes 1
+    const sf = T.bf('B', 'Snow-Covered Forest'), f = T.bf('B', 'Forest');
+    const l0 = T.life('B');
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Icequake'), { targets: [f] }); T.resolve();
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Icequake'), { targets: [sf] }); T.resolve();
+    t.eq(T.life('B'), l0 - 1, 'only the snow land: 1 damage');
+    // Endless Evil: back to hand only when the creature that died was a Horror
+    const T2 = mk();
+    T2.toMain('A');
+    const nh = T2.bf('A', 'Nether Horror'), bear = T2.bf('A', 'Grizzly Bears');
+    const e1 = T2.bf('A', 'Endless Evil'), e2 = T2.bf('A', 'Endless Evil');
+    e1.attachedTo = nh.id; nh.attachments = [e1.id];
+    e2.attachedTo = bear.id; bear.attachments = [e2.id];
+    T2.mana('A', '1BB'); T2.cast('A', T2.hand('A', 'Murder'), { targets: [nh] }); T2.resolve();
+    T2.mana('A', '1BB'); T2.cast('A', T2.hand('A', 'Murder'), { targets: [bear] }); T2.resolve();
+    t.zone(e1, 'hand', 'a Horror died: back to hand');
+    t.zone(e2, 'graveyard', 'a Bear died: it stays in the graveyard');
+  });
 };
