@@ -5773,4 +5773,25 @@ module.exports = (test) => {
     T.g.bumpBoard();
     t.eq(T.g.powerOf(sap), 2, 'a Fungus: +1'); t.eq(T.g.powerOf(b2), 2, 'the Bears: as printed'); t.eq(T.g.powerOf(st), 2, 'not itself');
   });
+
+  test("Audit: \"whenever this creature deals damage to an opponent\": Arm with Aether only offers that player's creatures; Marsh Viper poisons the player it hit", (mk, t) => {
+    t.auto('Arm with Aether'); t.auto('Marsh Viper');
+    let T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const bb = T.bf('B', 'Hill Giant'), cc = T.bf('C', 'Craw Wurm');
+    T.mana('A', 'UU2'); T.cast('A', T.hand('A', 'Arm with Aether')); T.settle();
+    let opts = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', (ch) => { opts = (ch.options[0] || []).map(o => o.id); return { targets: [{ kind: 'object', id: bb.id }] }; });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(JSON.stringify(opts), JSON.stringify([bb.id]), "only B's creature"); t.zone(bb, 'hand'); t.zone(cc, 'battlefield');
+    T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const mv = T.bf('A', 'Marsh Viper'); mv.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: mv.id, defenderId: 'C' }]);
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.player('C').poison, 2); t.no(T.g.player('B').poison);
+  });
 };
