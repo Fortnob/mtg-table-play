@@ -12596,6 +12596,9 @@
         }
         return v || 0;
       };
+      /* Commune with Lava, Barad-dur, Aetherwind Basker: a count worked out now ("X", "for each …")
+         may be 0, and then nothing happens; only a missing number means one */
+      const nVar = (v) => (v == null ? 1 : typeof v === 'number' ? (v || 1) : Math.max(0, Number(n(v)) || 0));
 
       switch (e.op) {
         /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
@@ -13228,7 +13231,7 @@
           const sacIds = e.notSacrificed ? ((this.resolving || {})._sacBy || []).map(s => s.id) : [];
           const pool = yard.filter(c => c !== src && !sacIds.includes(c.id) && this._cardFitsWords(c, e.filter || 'card') &&
             (e.maxMv == null || ((c.card && c.card.cmc) || 0) <= n(e.maxMv)));
-          const want = Math.min(n(e.n) || 1, pool.length);
+          const want = Math.min(nVar(e.n), pool.length);
           if (!want) break;
           let ids = pool.map(c => c.id).slice(0, want);
           if (pool.length > want || e.upTo) {
@@ -13461,7 +13464,8 @@
           }
           break;
         case 'energy': {
-          let k = n(e.n) || 1;
+          let k = nVar(e.n);
+          if (!k) break;
           const evE = this._replace({ kind: 'counters', player: me, n: k, counter: 'energy', controller: me.id, putter: ctx.controller });
           if (evE.cancelled) break;
           k = evE.n;
@@ -14058,7 +14062,8 @@
         /* Connive N (CR 702.153): draw that many, throw that many away, and
            grow for each nonland thrown. */
         case 'connive': {
-          const count = n(e.n) || 1;
+          // (Spymaster's Vault: "connives X" with X 0 still connives: nothing drawn or discarded)
+          const count = nVar(e.n);
           const who = this.player(ctx.controller);
           // (Lethal Scheme: a creature named by id, conniving for its controller)
           const x = e.objId ? this.obj(e.objId) : e.scope === 'self' ? src
@@ -14071,8 +14076,8 @@
           const slot = 'conn' + (r ? r.index : 0);
           if (!(r && r.marks[slot])) { this._drawCards(who, count); if (r) r.marks[slot] = true; }
           const hand = (this.zones[who.id] || {}).hand || [];
-          let toss = hand.slice(-count);
-          if (hand.length > count) {
+          let toss = count > 0 ? hand.slice(-count) : [];
+          if (count > 0 && hand.length > count) {
             const got = this._choose({ playerId: who.id, purpose: 'connive', kind: 'objects', zone: 'hand',
               items: this._chooseItems(hand), min: Math.min(count, hand.length), max: Math.min(count, hand.length), prefer: 'worst',
               prompt: `${x ? x.name : 'Connive'}: discard ${count === 1 ? 'a card' : count + ' cards'}. Each nonland card discarded is a +1/+1 counter.` }, slot + 'd');
@@ -15774,7 +15779,7 @@
             source = td.objectId ? this.obj(td.objectId) : null;
           }
           if (!source) break;
-          const cnt = n(e.n) || 1;
+          const cnt = nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
           let card = source.card;
           if (e.nonLegendary && /\bLegendary\b/.test(String(card.type_line || ''))) {
@@ -16958,7 +16963,7 @@
         case 'randomFromGraveyard': {
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
           // Reap the Past: as many as it says, each at random
-          for (let k = Math.max(1, n(e.n) || 1); k > 0 && pool.length; k--) {
+          for (let k = nVar(e.n); k > 0 && pool.length; k--) {
             const c = pool.splice(Math.floor(this.rng.next() * pool.length), 1)[0];
             this.moveObject(c, 'hand');
             this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
@@ -17469,7 +17474,7 @@
             this._createToken(ctx.controller, { n: 1, pt: '0/0', subtypes: (e.kind || 'Zombie') + ' Army', colorWords: ['black'], keywords: [] });
             army = this.battlefield[this.battlefield.length - 1];
           }
-          if (army) this.addCounters(army, '+1/+1', n(e.n) || 1);
+          if (army) this.addCounters(army, '+1/+1', nVar(e.n));
           break;
         }
 
@@ -18592,7 +18597,8 @@
         }
 
         case 'impulse': {
-          const cnt = n(e.n) || 1;
+          const cnt = nVar(e.n);
+          if (!cnt) break;
           // "You may play them": for as long as they stay exiled
           const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(ctx.controller);
           const whose = e.whose === 'triggerPlayer' ? (triggerPlayer() || me) : me;
