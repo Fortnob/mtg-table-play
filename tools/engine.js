@@ -16,7 +16,7 @@ fs.mkdirSync(CACHE, { recursive: true });
 
 const ENGINE_MODULES = [
   '00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
-  '04-formats.js', '05-decklist.js', '06-rules.js', '06a-choice.js', '06b-events.js', '06c-replay.js', '06d-sim.js', '07-draft.js', '08-bots.js', '15-combos.js', '15a-brackets.js', '16-advisor.js',
+  '04-formats.js', '05-decklist.js', '06-rules.js', '06a-choice.js', '06b-events.js', '06c-replay.js', '06d-sim.js', '07-draft.js', '07b-sealed.js', '07c-jumpstart.js', '08-bots.js', '15-combos.js', '15a-brackets.js', '16-advisor.js',
 ];
 
 function installShims() {

@@ -8,10 +8,10 @@
 Runs, in order: the build, a syntax check of the script it bundles, a
 check that no switch in src/ has the same case label twice, the card
 behaviour tests, a smoke run over automated cards, bot-vs-bot
-sims (standard, pauper, four-player commander), a short bot game at
-browser pacing, the runtime contract checks (tools/contracts.js) and the
-type check (tsc). Prints a pass/fail line for each and exits non-zero if
-anything failed.
+sims (standard, pauper, four-player commander, sealed, Jumpstart), a
+short bot game at browser pacing, the runtime contract checks
+(tools/contracts.js) and the type check (tsc). Prints a pass/fail line
+for each and exits non-zero if anything failed.
 
 Card data comes from tools/oracle-cards.jsonl.gz (python tools/fetch-bulk.py)
 and, for the bots' deck building, Scryfall searches cached in tools/.cache.
@@ -228,6 +228,8 @@ def steps(quick):
     n_std, n_pau, n_cmd = (4, 4, 2) if quick else (20, 20, 8)
     smoke_to = 300 if quick else 100000
     sim = lambda fmt, games, players=2: node(TOOLS / 'sim.js', '--format', fmt, '--games', games, '--players', players, '--seed', 1)
+    limited = lambda fmt, *more: node(TOOLS / 'limited.js', '--format', fmt, *more, '--seats', 2 if quick else 4,
+                                      '--games', 2 if quick else 8, '--seed', 1, '--show', 0)
     out = [
         Step('build', [sys.executable, TOOLS / 'build.py'], judge_exit, 120),
         Step('syntax', node('-e', SYNTAX_JS, ROOT / 'index.html'), judge_exit, 120),
@@ -250,6 +252,9 @@ def steps(quick):
         Step('sim modern', sim('modern', n_pau), judge_sim, 1200),
         Step('sim pauper', sim('pauper', n_pau), judge_sim, 1200),
         Step('sim commander 4p', sim('commander', n_cmd, 4), judge_sim, 1800),
+        # sealed pools and Jumpstart half-decks, built or chosen by bots and played to the end
+        Step('sim sealed', limited('sealed', '--set', 'fdn'), judge_sim, 1200),
+        Step('sim jumpstart', limited('jumpstart', '--source', 'j25'), judge_sim, 1200),
         Step('botsim paced', node(TOOLS / 'botsim.js', '--format', 'standard', '--games', 1 if quick else 4, '--speed', 300, '--contracts'), judge_sim, 1200),
         Step('contracts games', node(TOOLS / 'contracts.js', '--games', 2 if quick else 8) + (['--quick'] if quick else []), judge_contracts, 2400),
         Step('contracts tables', node(TOOLS / 'cardtest.js'), judge_contract_tables, 1200, env={'CONTRACTS': '1'}, needs_bulk=True),

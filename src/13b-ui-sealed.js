@@ -1,0 +1,686 @@
+/* ============================================================
+   13b-ui-sealed.js - sealed and Jumpstart at the table
+   The host opens everybody's boosters (src/07b-sealed.js) or deals the
+   half-decks (src/07c-jumpstart.js). The bots build or choose at once;
+   each person opens their packs and builds, or chooses their halves, on
+   their own screen, and once every deck is in, the game starts. A guest
+   is sent what it needs ('sealed', 'jumpstart') and sends back its deck
+   (setDeck) or its choices (the 'jumpstart' intent).
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  const { el, util: U } = MTG;
+  const UI = MTG.ui;
+  const net = MTG.net;
+  const STOP = '__stopped';
+
+  const app = () => MTG.app || {};
+  const styleOf = (fmt) => (fmt && fmt.draft ? fmt.draft.style : '');
+  const frontType = (c) => String((c && c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || (c && c.type_line) || '');
+  const isLand = (c) => /\bLand\b/.test(frontType(c));
+  const TYPE_WORDS = ['Creatures', 'Planeswalkers', 'Instants', 'Sorceries', 'Enchantments', 'Artifacts', 'Battles', 'Lands', 'Other'];
+  const names = (list) => (list.length > 2 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list.join(' and '));
+
+  /** Put one of our screens on the draft screen, in place of whatever was there. */
+  function mount(make) {
+    const A = app();
+    A.showScreen('draft');
+    if (A.draftUI && A.draftUI.destroy) A.draftUI.destroy();
+    A.draftUI = make(document.getElementById('screen-draft'));
+    return A.draftUI;
+  }
+
+  /** A line of a list: the card's name over a strip of its art; a tap reads it. */
+  function strip(card, qty) {
+    const a = MTG.oracle.analyze(card) || {};
+    const row = el('div', { class: 'pool-card strip', tabindex: '0', role: 'button', 'aria-label': (qty > 1 ? qty + ' ' : '') + UI.describeCard(card) }, [
+      qty > 1 ? el('span', { class: 'js-qty', text: qty + '×' }) : null,
+      el('span', { class: 'nm', text: card.name }),
+      UI.autoInfo(card).auto ? null : UI.autoBadge(card),
+      el('span', { class: 'cost', html: MTG.mana.html(a.manaCost || card.mana_cost || '') }),
+    ].filter(Boolean));
+    UI.setArt(row, card);
+    UI.attachPreview(row, card, 0);
+    row.addEventListener('click', () => UI.cardSheet(card));
+    row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); UI.cardSheet(card); } });
+    return row;
+  }
+
+  /** The cards themselves, at a size you can read, in a window. */
+  function showCards(title, entries) {
+    const grid = el('div', { class: 'card-grid js-cards' });
+    for (const e of entries) {
+      const slot = UI.cardSlot(e.card, {}, { size: 'normal', onClick: () => UI.cardSheet(e.card) });
+      if (e.qty > 1) slot.appendChild(el('span', { class: 'pick-flag js-count', text: e.qty + '×' }));
+      grid.appendChild(slot);
+    }
+    UI.modal({ title, width: '980px', content: grid, buttons: [{ label: 'Close', class: 'primary', onClick: (m) => m.close() }] });
+  }
+
+  /** The head the draft screen uses: art behind, where you are, and what to do next. */
+  function headOf(o) {
+    const art = el('div', { class: 'draft-head-art', 'aria-hidden': 'true' });
+    if (o.art) UI.setArt(art, o.art);
+    const dots = el('div', { class: 'pick-dots', 'aria-hidden': 'true' },
+      Array.from({ length: o.dots || 0 }, (x, i) => el('i', { class: i < o.at ? 'done' : i === o.at ? 'now' : '' })));
+    return [
+      art,
+      el('div', { class: 'draft-where' }, [
+        el('div', { class: 'eyebrow', text: o.eyebrow || '' }),
+        el('div', { class: 'draft-title' }, [el('span', { text: o.title }), o.sub ? el('i', { text: o.sub }) : null].filter(Boolean)),
+        o.dots ? dots : null,
+      ].filter(Boolean)),
+      el('span', { class: 'grow' }),
+      el('div', { class: 'draft-act' }, [o.note ? el('span', { class: 'wait-note', text: o.note }) : null].concat(o.buttons || []).filter(Boolean)),
+    ];
+  }
+
+  /** A spinner and a line saying what is being waited for; `.say(text)` changes the line. */
+  function waitingBox(text) {
+    const line = el('div', { text });
+    const box = el('div', { class: 'draft-waiting sealed-wait' }, [
+      el('div', { class: 'busy-sigil', 'aria-hidden': 'true' }, [el('i'), el('i'), el('b')]),
+      line,
+    ]);
+    box.say = (t) => { line.textContent = t; };
+    return box;
+  }
+
+  /* ================= sealed: opening the packs ================= */
+
+  /**
+   * The opening. Each pack is opened in turn and dealt out, rarest first;
+   * then the whole pool is laid out a colour to a column, creatures first,
+   * and the deck is built from it in the pool builder (UI.buildFromPool).
+   * data: { packs: [[card]], setsUsed, formatId, basicsFree }.
+   */
+  class SealedTable {
+    constructor(root, data, onBuild) {
+      this.root = root;
+      this.data = data;
+      this.onBuild = onBuild;
+      this.pool = [].concat(...data.packs);
+      this.shown = 0;          // the pack on screen
+      this.opened = 1;         // packs opened so far: the first opens straight away
+      this.phase = 'packs';    // packs, then pool, then waiting once the deck is built
+      this.note = '';
+      root.innerHTML = '';
+      root.classList.add('draft-layout', 'sealed-layout');
+      this.head = el('div', { class: 'draft-head' });
+      this.body = el('div', { class: 'sealed-body' });
+      root.append(this.head, this.body);
+      MTG.sfx('pack_open');
+      this.render();
+    }
+    destroy() {
+      this.root.innerHTML = '';
+      this.root.classList.remove('draft-layout', 'sealed-layout');
+    }
+    closeAdvice() {}
+    nextPack() {
+      if (this.opened < this.data.packs.length) {
+        this.shown = this.opened++;
+        MTG.sfx('pack_open');
+      } else this.phase = 'pool';
+      this.render();
+      this.body.scrollTop = 0;
+    }
+    openAll() {
+      if (this.opened < this.data.packs.length) MTG.sfx('pack_open');
+      this.opened = this.data.packs.length;
+      this.phase = 'pool';
+      this.render();
+      this.body.scrollTop = 0;
+    }
+    /** The deck is built: say what the table is waiting for, without laying the pool out again. */
+    waiting(text) {
+      if (this.phase === 'waiting' && this.note === text) return;
+      const again = this.phase === 'waiting' && this.waitBox;
+      this.phase = 'waiting';
+      this.note = text;
+      this.renderHead();
+      if (again) this.waitBox.say(text); else this.renderBody();
+    }
+
+    render() {
+      this.renderHead();
+      this.renderBody();
+    }
+
+    renderHead() {
+      const packs = this.data.packs;
+      const n = packs.length;
+      const inPacks = this.phase === 'packs';
+      const cards = inPacks ? packs[this.shown] : this.pool;
+      const last = this.opened >= n;
+      const buttons = [];
+      if (inPacks) {
+        if (!last) buttons.push(el('button', { class: 'btn ghost', text: 'Open them all', onclick: () => this.openAll() }));
+        buttons.push(el('button', { class: 'btn primary hero-btn draft-go', text: last ? 'Lay out the pool' : 'Open the next pack', onclick: () => this.nextPack() }));
+      } else if (this.phase === 'pool') {
+        buttons.push(el('button', { class: 'btn primary hero-btn draft-go', text: 'Build your deck', onclick: () => this.onBuild(this.pool) }));
+      }
+      this.head.innerHTML = '';
+      this.head.append(...headOf({
+        art: UI.packOrder(cards).find(c => UI.packBand(c) < 9) || cards[0],
+        eyebrow: 'Sealed · ' + ((this.data.setsUsed || []).join(' · ') || 'Play Boosters'),
+        title: inPacks ? `Pack ${this.shown + 1}` : 'Your pool',
+        sub: inPacks ? `of ${n}` : `${this.pool.length} cards`,
+        dots: n, at: inPacks ? this.shown : n,
+        note: this.phase === 'waiting' ? this.note : inPacks ? `${U.sum(packs.slice(0, this.opened).map(p => p.length))} cards opened` : '',
+        buttons,
+      }));
+    }
+
+    renderBody() {
+      const inPacks = this.phase === 'packs';
+      const cards = inPacks ? this.data.packs[this.shown] : this.pool;
+      const top = this.body.scrollTop;
+      this.body.innerHTML = '';
+      this.waitBox = null;
+      if (inPacks) {
+        const grid = el('div', { class: 'sealed-pack dealing' });
+        UI.packOrder(cards).forEach((c, i) => {
+          const slot = UI.cardSlot(c, {}, {
+            class: 'pick-card r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
+            onClick: () => UI.cardSheet(c),
+          });
+          slot.style.setProperty('--i', String(i));
+          slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || ' ')[0].toUpperCase() }));
+          slot.appendChild(UI.autoBadge(c, { corner: true }));
+          grid.appendChild(slot);
+        });
+        this.body.append(grid, el('div', { class: 'pick-hint', text: 'Tap a card to read it. Every card you open is yours to build with.' }));
+        return;
+      }
+      if (this.phase === 'waiting') this.body.appendChild(this.waitBox = waitingBox(this.note));
+      this.body.appendChild(poolSummary(this.pool));
+      this.body.appendChild(poolColumns(this.pool));
+      this.body.scrollTop = top;
+    }
+  }
+
+  /** How the pool splits across the colours, and how it curves, in a line. */
+  function poolSummary(pool) {
+    const cols = MTG.sealed.columns(pool);
+    const curve = [0, 0, 0, 0, 0, 0, 0];
+    for (const c of pool) if (!isLand(c)) curve[Math.min(6, Math.floor(c.cmc || 0))]++;
+    const maxC = Math.max(1, ...curve);
+    return el('div', { class: 'pool-head sealed-summary' }, [
+      el('div', { class: 'pool-split', role: 'img', 'aria-label': 'Colour split of your pool' },
+        cols.filter(c => c.key !== 'L').map(c => el('i', { class: 'seg-' + c.key.toLowerCase(), title: `${c.label}: ${c.items.length}`, style: { flexGrow: String(c.items.length) } }))),
+      el('div', { class: 'pool-curve', role: 'img', 'aria-label': 'Mana curve of your pool', title: 'Mana curve of your spells' },
+        curve.map((k, i) => el('i', { style: { height: Math.max(8, k / maxC * 100) + '%' }, class: k ? '' : 'none', title: `${i === 6 ? '6+' : i}: ${k}` }))),
+      el('span', { class: 'tiny dim', text: `${pool.filter(c => !isLand(c)).length} spells` }),
+    ]);
+  }
+
+  /** The pool laid out for building: a column a colour, creatures first, cheapest first. */
+  function poolColumns(pool) {
+    const wrap = el('div', { class: 'sealed-cols' });
+    for (const col of MTG.sealed.columns(pool)) {
+      const box = el('section', { class: 'sealed-col pool-col col-' + col.key.toLowerCase() }, [
+        el('div', { class: 'pool-col-head' }, [
+          col.key === 'L' ? el('span', { class: 'pool-col-name', text: col.label })
+            : el('span', { class: 'sealed-col-name' }, [el('i', { class: 'pip pip-' + col.key.toLowerCase(), text: col.key, title: col.label }), el('span', { class: 'pool-col-name', text: col.label })]),
+          el('span', { text: String(col.items.length) }),
+        ]),
+      ]);
+      let was = -1;
+      for (const card of col.items) {
+        const t = MTG.sealed.typeRank(card);
+        if (t !== was && col.key !== 'L') box.appendChild(el('div', { class: 'sealed-type', text: TYPE_WORDS[t] || 'Other' }));
+        was = t;
+        box.appendChild(strip(card, 1));
+      }
+      wrap.appendChild(box);
+    }
+    return wrap;
+  }
+
+  /**
+   * Open a pool on this screen and build from it. `onDeck(deck)` gets the
+   * deck once it is built; the screen then waits for the game.
+   */
+  function showSealed(data, onDeck) {
+    let kept = false;
+    const view = mount((root) => new SealedTable(root, data, (pool) => {
+      // the cards are yours to keep, as Arena keeps a sealed pool
+      if (!kept) { kept = true; if (app().keepDrafted) app().keepDrafted(pool, 'opened'); }
+      UI.buildFromPool(pool, data.formatId, (deck) => {
+        view.waiting('Deck built. The game starts once everybody has built theirs.');
+        onDeck(deck);
+      }, {
+        build: MTG.sealed.buildDeck, basicsFree: data.basicsFree !== false,
+        note: data.basicsFree === false
+          ? 'Built from the packs you opened, with only the basic lands in them. Click a card to move it between the deck and your pool.'
+          : 'Built from the packs you opened. Click a card to move it between the deck and your pool.',
+      });
+    }));
+    return view;
+  }
+
+  /* ================= Jumpstart: choosing the halves ================= */
+
+  /** One half-deck: its art, its theme, its spells and its lands. */
+  function halfPanel(h, onTake, mine) {
+    const art = el('button', { type: 'button', class: 'js-art', 'aria-label': `See the cards of ${h.name}`, onclick: () => showCards(h.name, h.cards) });
+    if (h.feature) UI.setArt(art, h.feature);
+    const spells = h.cards.filter(e => !isLand(e.card));
+    const lands = h.cards.filter(e => isLand(e.card));
+    const landWords = lands.map(e => `${e.qty} ${e.card.name}`).join(', ');
+    return el('section', { class: 'js-half' + (mine ? ' mine' : '') }, [
+      art,
+      el('div', { class: 'js-top' }, [
+        el('h3', { class: 'js-name', text: h.name }),
+        UI.pips(h.colors),
+      ]),
+      el('div', { class: 'tiny dim', text: `${h.size} cards · ${spells.reduce((t, e) => t + e.qty, 0)} spells · ${h.lands} lands` + (h.made ? ' · made from the set' : '') }),
+      el('div', { class: 'js-list' }, spells.map(e => strip(e.card, e.qty))),
+      lands.length ? el('div', { class: 'tiny dim js-lands', text: landWords }) : null,
+      el('div', { class: 'row js-acts' }, [
+        el('button', { type: 'button', class: 'btn sm ghost', text: 'See the cards', onclick: () => showCards(h.name, h.cards) }),
+        onTake ? el('button', { type: 'button', class: 'btn sm primary grow js-take', text: `Take ${h.theme}`, onclick: onTake }) : null,
+      ].filter(Boolean)),
+    ].filter(Boolean));
+  }
+
+  /**
+   * The choosing screen: three half-decks, one taken, three more, another
+   * taken, then the deck the two make and a button to play it. Views come
+   * from MTG.jumpstart.Table#viewFor, here or over the network.
+   */
+  class JumpstartTable {
+    constructor(root, send) {
+      this.root = root;
+      this.send = send;
+      this.view = null;
+      this.sent = null;
+      root.innerHTML = '';
+      root.classList.add('draft-layout', 'sealed-layout', 'jumpstart-layout');
+      this.head = el('div', { class: 'draft-head' });
+      this.body = el('div', { class: 'sealed-body' });
+      root.append(this.head, this.body);
+    }
+    destroy() {
+      clearTimeout(this._unsend);
+      this.root.innerHTML = '';
+      this.root.classList.remove('draft-layout', 'sealed-layout', 'jumpstart-layout');
+    }
+    closeAdvice() {}
+    update(view) {
+      const was = this.view;
+      this.view = view;
+      if (!was || was.stage !== view.stage || was.busy !== view.busy) this.sent = null;
+      this.render();
+      if (!was || was.stage !== view.stage) this.body.scrollTop = 0;
+    }
+    /** The deck's cards are yours to keep, as Arena keeps them; the basic lands you have already. */
+    _keep(v) {
+      if (this.kept || !v.deck || !app().keepDrafted) return;
+      this.kept = true;
+      const cards = [];
+      for (const e of v.deck.main) if (!MTG.formats.isBasicLand(e.card)) for (let i = 0; i < e.qty; i++) cards.push(e.card);
+      app().keepDrafted(cards, 'Jumpstart');
+    }
+    /** Send one choice per stage; if nothing comes back, the buttons work again after a while. */
+    _act(intent, key) {
+      if (this.sent === key) return;
+      this.sent = key;
+      MTG.sfx('pick');
+      this.send(intent);
+      this.render();
+      clearTimeout(this._unsend);
+      this._unsend = setTimeout(() => { if (this.sent === key) { this.sent = null; this.render(); } }, 5000);
+    }
+
+    /* Somebody else's choice changes only the line saying who is still
+       choosing; the half-decks in front of you are laid out again only
+       when they change, so the page does not jump while you read it. */
+    render() {
+      const v = this.view;
+      if (!v) return;
+      this.renderHead();
+      const sig = JSON.stringify([v.stage, v.busy, v.ready, v.note, this.sent, v.offers.map(h => h.key), v.picks.map(h => h.key),
+        v.ready ? (v.seats || []).map(s => s.ready) : 0]);
+      if (sig === this.sig) return;
+      this.sig = sig;
+      const top = this.body.scrollTop;
+      this.renderBody();
+      this.body.scrollTop = top;
+    }
+
+    renderHead() {
+      const v = this.view;
+      const behind = (v.seats || []).filter(s => s.id !== v.you && !s.ready).map(s => s.name);
+      const buttons = [];
+      if (v.stage === 3 && !v.ready) {
+        buttons.push(el('button', { class: 'btn primary hero-btn draft-go', text: 'Play with this deck', disabled: this.sent === 'ready',
+          onclick: () => { this._keep(v); this._act({ kind: 'jumpstart', ready: true }, 'ready'); } }));
+      }
+      const deckEntries = v.deck ? v.deck.main : [];
+      const key = v.stage === 3 ? UI.keyCard({ main: deckEntries }) : ((v.offers[0] || v.picks[0] || {}).feature || null);
+      this.head.innerHTML = '';
+      this.head.append(...headOf({
+        art: key,
+        eyebrow: 'Jumpstart · ' + (v.label || 'half-decks'),
+        title: v.stage === 3 ? (v.deck ? v.deck.name : 'Your deck') : v.stage === 2 ? 'Second half' : 'First half',
+        sub: v.stage === 3 ? '40 cards' : 'of 2',
+        dots: 2, at: v.stage === 3 ? 2 : v.stage - 1,
+        note: v.ready || v.stage < 3 ? (behind.length ? 'Waiting on ' + names(behind) : 'Everyone is ready') : '',
+        buttons,
+      }));
+    }
+
+    renderBody() {
+      const v = this.view;
+      const choosing = v.stage === 1 || v.stage === 2;
+      const behind = (v.seats || []).filter(s => s.id !== v.you && !s.ready).map(s => s.name);
+      const deckEntries = v.deck ? v.deck.main : [];
+      this.body.innerHTML = '';
+      if (v.note) this.body.appendChild(el('p', { class: 'small muted js-note', text: v.note }));
+      if (choosing && (v.busy || !v.offers.length || this.sent === 'stage' + v.stage)) {
+        this.body.appendChild(waitingBox(v.stage === 2 ? 'Shuffling three more half-decks…' : 'Shuffling the half-decks…'));
+      } else if (choosing) {
+        this.body.appendChild(el('p', { class: 'js-lead', text: v.stage === 1
+          ? 'Take one of these three. Its twenty cards are half of your deck.'
+          : `You have ${v.picks[0] ? v.picks[0].name : 'your first half'}. Take one of these to make the other half.` }));
+        if (v.picks[0]) {
+          this.body.appendChild(el('div', { class: 'js-have' }, [
+            el('span', { class: 'tiny dim', text: 'First half:' }),
+            el('b', { text: v.picks[0].name }), UI.pips(v.picks[0].colors),
+            el('button', { type: 'button', class: 'btn xs ghost', text: 'See it', onclick: () => showCards(v.picks[0].name, v.picks[0].cards) }),
+          ]));
+        }
+        this.body.appendChild(el('div', { class: 'js-offers' }, v.offers.map((h, i) =>
+          halfPanel(h, () => this._act({ kind: 'jumpstart', pick: i }, 'stage' + v.stage)))));
+      } else if (v.stage === 3) {
+        this.body.appendChild(el('p', { class: 'js-lead', text: v.ready
+          ? (behind.length ? `Ready. Waiting on ${names(behind)}.` : 'Ready. The game is starting…')
+          : 'Your two halves, shuffled together, are your deck. Look them over, then play.' }));
+        this.body.appendChild(el('div', { class: 'js-offers two' }, v.picks.map(h => halfPanel(h, null, true))));
+        this.body.appendChild(el('div', { class: 'row js-deck-acts' }, [
+          el('button', { type: 'button', class: 'btn sm', text: 'See all forty cards', onclick: () => showCards(v.deck ? v.deck.name : 'Your deck', deckEntries) }),
+        ]));
+      } else {
+        this.body.appendChild(waitingBox('Shuffling the half-decks…'));
+      }
+    }
+  }
+
+  function showJumpstart(send) {
+    const A = app();
+    if (A.screen === 'draft' && A.draftUI instanceof JumpstartTable) return A.draftUI;
+    return mount((root) => new JumpstartTable(root, send));
+  }
+
+  /* ================= the host ================= */
+
+  /** Back to this table's setup, after something went wrong or was stopped. */
+  function backToLobby(sess) {
+    const A = app();
+    if (A.session !== sess) return;
+    if (A.draftUI && A.draftUI.destroy) { A.draftUI.destroy(); A.draftUI = null; }
+    A.showScreen('lobby');
+    if (A.renderLobby) A.renderLobby();
+  }
+
+  /**
+   * Keep an eye on the table until the game starts: anybody who leaves is
+   * no longer waited for, and once every seat has its deck, the game starts.
+   */
+  function watch(sess) {
+    clearInterval(sess._limitedWatch);
+    sess._limitedWatch = setInterval(() => {
+      const st = sess.opened;
+      if (app().session !== sess || sess.game || !st || st.started) { clearInterval(sess._limitedWatch); return; }
+      if (st.kind === 'jumpstart') {
+        for (const s of st.table.seats.slice()) if (!sess.roster.some(r => r.id === s.id)) st.table.drop(s.id);
+        return;
+      }
+      const missing = sess.roster.filter(r => !r.deck);
+      if (!missing.length) { go(sess); return; }
+      const me = sess.seat('me');
+      const A = app();
+      if (me && me.deck && A.draftUI && A.draftUI.waiting) A.draftUI.waiting(`Deck built. Waiting for ${names(missing.map(r => r.name))} to build theirs.`);
+    }, 400);
+  }
+
+  /** Every deck is in: to the game. */
+  function go(sess) {
+    const st = sess.opened;
+    if (!st || st.started || sess.game) return;
+    st.started = true;
+    clearInterval(sess._limitedWatch);
+    for (const r of sess.roster) if (r.deck) r.deckValid = MTG.formats.validate(r.deck, sess.fmt);
+    sess.startGame();
+  }
+
+  function sealedPayload(sess, r) {
+    const st = sess.opened;
+    return {
+      formatId: sess.formatId, you: r.id, packs: st.seats[r.id].packs,
+      setsUsed: st.setsUsed, basicsFree: st.basicsFree,
+    };
+  }
+
+  async function startSealed(sess) {
+    let stopped = false;
+    const busy = UI.busy('Opening packs', 'Building boosters…', {
+      cancelLabel: 'Stop and go back',
+      onCancel: () => { stopped = true; backToLobby(sess); },
+    });
+    try {
+      const fmt = sess.fmt;
+      const free = fmt.basicsFree !== false;
+      const opened = await MTG.sealed.open({
+        seats: sess.roster.map(r => r.id), setCode: sess.setCode, packs: fmt.draft.packs,
+        collector: !!sess.rules.collector, basicsFree: free, seed: sess.seed,
+      }, (a, b, code) => {
+        if (stopped) throw new Error(STOP);
+        busy.set(a / b, `Building pack ${a}/${b} · ${code}`);
+      });
+      if (stopped) return;
+      busy.text('The bots are building their decks…');
+      const basics = await MTG.draft.getBasics().catch(() => ({}));
+      sess.opened = { kind: 'sealed', seats: opened.seats, setsUsed: opened.setsUsed, basicsFree: free };
+      for (const r of sess.roster) {
+        // the decks come out of the packs now, whatever was chosen before
+        r.deck = null; r.deckValid = null;
+        r.pool = opened.seats[r.id].pool;
+        if (r.kind === 'bot') {
+          r.deck = MTG.sealed.buildDeck(r.pool, {
+            deckSize: fmt.deckMin || 40, basicCards: basics, formatId: sess.formatId, name: r.name + '’s deck', basicsFree: free,
+          });
+        }
+      }
+      busy.close();
+      // each guest opens their own, on their own screen
+      if (net.isHost) net.sendPerPeer((peerId) => {
+        const r = sess.seatByPeer(peerId);
+        return r && sess.opened.seats[r.id] ? { t: 'sealed', payload: sealedPayload(sess, r) } : null;
+      });
+      const me = sess.seat('me');
+      if (me) showSealed(sealedPayload(sess, me), (deck) => { me.deck = deck; });
+      watch(sess);
+    } catch (e) {
+      busy.close();
+      if (String(e && e.message) === STOP) return;
+      UI.error(e.message || String(e));
+      backToLobby(sess);
+    }
+  }
+
+  /** What each person at the table sees of the half-decks, sent only when it has changed. */
+  function pushJumpstart(sess) {
+    const st = sess.opened;
+    if (!st || st.kind !== 'jumpstart') return;
+    const t = st.table;
+    const A = app();
+    if (A.draftUI instanceof JumpstartTable && t.seats.some(s => s.id === 'me')) A.draftUI.update(t.viewFor('me'));
+    if (!net.isHost) return;
+    st.sent = st.sent || new Map();
+    net.sendPerPeer((peerId) => {
+      const r = sess.seatByPeer(peerId);
+      if (!r) return null;
+      const v = t.viewFor(r.id);
+      const sig = JSON.stringify([v.stage, v.busy, v.offers.map(h => h.key), v.picks.map(h => h.key), v.ready, v.finished,
+        v.seats.map(s => s.picks + (s.ready ? 'r' : ''))]);
+      if (st.sent.get(peerId) === sig) return null;
+      st.sent.set(peerId, sig);
+      return { t: 'jumpstart', payload: v };
+    });
+  }
+
+  async function startJumpstart(sess) {
+    let stopped = false;
+    const busy = UI.busy('Jumpstart', 'Finding the half-decks…', {
+      cancelLabel: 'Stop and go back',
+      onCancel: () => { stopped = true; backToLobby(sess); },
+    });
+    try {
+      let cat = await MTG.jumpstart.catalogue(sess.jumpstart || null, { seed: sess.seed });
+      if (stopped) return;
+      const basics = await MTG.draft.getBasics().catch(() => ({}));
+      for (const r of sess.roster) { r.deck = null; r.deckValid = null; }
+      const deal = async () => {
+        busy.text(`${cat.label}: dealing three half-decks to everybody…`);
+        const t = new MTG.jumpstart.Table({
+          halves: cat.halves, label: cat.label, note: cat.note, seed: sess.seed, basicCards: basics, formatId: sess.formatId,
+          seats: sess.roster.map(r => ({ id: r.id, name: r.name, isBot: r.kind === 'bot', difficulty: r.difficulty })),
+        });
+        sess.opened = { kind: 'jumpstart', table: t };
+        t.on('change', () => { if (sess.opened && sess.opened.table === t) pushJumpstart(sess); });
+        t.on('done', () => {
+          busy.close();
+          if (stopped || app().session !== sess) return;
+          for (const r of sess.roster) r.deck = t.deckFor(r.id) || r.deck;
+          go(sess);
+        });
+        await t.begin();
+        return t;
+      };
+      let table;
+      try { table = await deal(); }
+      catch (e) {
+        // the printed lists were there but their cards would not come: half-decks made from a set instead
+        if (stopped || !cat.source.product) throw e;
+        cat = await MTG.jumpstart.catalogue(null, { seed: sess.seed, made: true });
+        cat.note = 'The printed Jumpstart half-decks would not load, so these are made from the newest set’s cards.';
+        table = await deal();
+      }
+      if (stopped || app().session !== sess) return;
+      busy.close();
+      if (sess.seat('me') && !table.finished) showJumpstart((intent) => sess.handleIntent('me', intent));
+      pushJumpstart(sess);
+      watch(sess);
+    } catch (e) {
+      busy.close();
+      if (stopped) return;
+      UI.error(e.message || String(e));
+      backToLobby(sess);
+    }
+  }
+
+  /* ================= the guest ================= */
+
+  if (net && net.on) {
+    net.on('message', (from, msg) => {
+      if (!net.isClient || !msg || from !== 'host') return;
+      if (msg.t === 'sealed' && msg.payload) {
+        showSealed(msg.payload, (deck) => {
+          net.intent({ kind: 'setDeck', deck: app().slimDeckForWire(deck) });
+          UI.ok('Deck sent to the host.');
+        });
+      } else if (msg.t === 'jumpstart' && msg.payload) {
+        // a last word about a table that has already sat down to play changes nothing
+        if (msg.payload.finished && app().screen === 'table') return;
+        const view = showJumpstart((intent) => net.intent(intent));
+        view.update(msg.payload);
+      }
+    });
+  }
+
+  /* ================= what the lobby and the quick game ask of us ================= */
+
+  /**
+   * Where Jumpstart's half-decks come from, as a dropdown: the newest
+   * product, any Jumpstart product MTGJSON lists, or half-decks made from
+   * a set. `onPick` gets { product } or { set }, or null for the newest.
+   */
+  function sourceSelect(current, onPick) {
+    const cur = current && current.product ? 'product:' + current.product : current && current.set ? 'set:' + current.set : '';
+    const sel = el('select', { 'aria-label': 'Where the half-decks come from' }, [el('option', { value: '', text: 'The newest full Jumpstart set' })]);
+    const real = el('optgroup', { label: 'Jumpstart half-decks, as printed' });
+    const made = el('optgroup', { label: 'Made from a set’s cards' });
+    const keep = () => { if (cur && Array.from(sel.options).some(o => o.value === cur)) sel.value = cur; };
+    MTG.jumpstart.products().then((list) => {
+      for (const p of list) real.appendChild(el('option', { value: 'product:' + p.code, text: `${p.name} · ${p.halves.length}` }));
+      if (list.length) sel.insertBefore(real, made.parentNode === sel ? made : null);
+      keep();
+    }).catch(() => {});
+    MTG.scry.draftableSets().then((sets) => {
+      for (const s of sets.filter(x => x.set_type === 'expansion' || x.set_type === 'core').slice(0, 60)) {
+        made.appendChild(el('option', { value: 'set:' + s.code, text: s.name }));
+      }
+      sel.appendChild(made);
+      keep();
+    }).catch(() => {});
+    sel.addEventListener('change', () => {
+      const v = sel.value;
+      onPick(v.startsWith('product:') ? { product: v.slice(8) } : v.startsWith('set:') ? { set: v.slice(4) } : null);
+    });
+    return sel;
+  }
+
+  /** The lobby's word on where the half-decks come from. */
+  function sourceWords(src) {
+    if (src && src.set) return `half-decks made from ${src.set.toUpperCase()}`;
+    if (src && src.product) return `${src.product} half-decks`;
+    return 'the newest Jumpstart half-decks';
+  }
+
+  UI.limitedRun = {
+    SealedTable, JumpstartTable,
+    /** Whether a format is ours: sealed or Jumpstart. */
+    handles: (fmt) => styleOf(fmt) === 'sealed' || styleOf(fmt) === 'jumpstart',
+    /** Start the table: open the packs, or deal the half-decks. */
+    start(sess) {
+      clearInterval(sess._limitedWatch);
+      sess.opened = null;
+      return styleOf(sess.fmt) === 'jumpstart' ? startJumpstart(sess) : startSealed(sess);
+    },
+    /** A choice from a seat; true when it was one of ours. */
+    intent(sess, actorId, intent) {
+      if (!intent || intent.kind !== 'jumpstart') return false;
+      const st = sess.opened;
+      if (!st || st.kind !== 'jumpstart' || sess.game) return true;
+      const t = st.table;
+      if (intent.ready) { t.ready(actorId); return true; }
+      t.choose(actorId, intent.pick).then((ok) => {
+        if (!ok && actorId === 'me') UI.error('That half-deck cannot be taken now.');
+        if (!ok) pushJumpstart(sess);
+      }).catch((e) => { if (actorId === 'me') UI.error(e.message || String(e)); pushJumpstart(sess); });
+      return true;
+    },
+    /** What still has to be chosen before the table can start, or null. */
+    notReady(sess) {
+      if (styleOf(sess.fmt) === 'sealed' && !sess.setCode) return 'Choose a set to open.';
+      return null;
+    },
+    /** The setup in a few words, for the guests' lobby. */
+    summary(sess) {
+      if (styleOf(sess.fmt) === 'jumpstart') return 'Jumpstart: ' + sourceWords(sess.jumpstart);
+      return sess.setCode ? `Sealed: ${sess.setCode.toUpperCase()}, ${sess.fmt.draft.packs} packs each` : 'Set: not chosen yet';
+    },
+    /** The Jumpstart rows of the lobby's setup panel. */
+    setupRows(sess, changed) {
+      return [
+        el('label', { class: 'field' }, [el('span', { text: 'Half-decks' }), sourceSelect(sess.jumpstart, (src) => { sess.jumpstart = src; changed(); })]),
+        el('p', { class: 'small muted', style: { margin: '8px 0 0' },
+          text: 'The real half-decks of a Jumpstart product, as printed, or half-decks made from any set’s own cards: a colour, a theme and twenty cards.' }),
+      ];
+    },
+    sourceSelect,
+  };
+})(window.MTG);

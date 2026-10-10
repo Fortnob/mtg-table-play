@@ -457,7 +457,9 @@ declare namespace MTG {
     | { kind: 'pick'; cardIds: Id[]; ability?: string | null; mods?: Id[]; guess?: string | null }
     | { kind: 'draftOffer'; cardId: Id; yes: boolean }
     /** the rest of what draft cards do: peek, watch, answer, brokerReveal, brokerOffer, brokerAccept (MTG.draft.Draft#act) */
-    | { kind: 'draftAct'; act: string; cardId?: Id | null; which?: string; targetId?: Id; askId?: number; value?: string; yes?: boolean };
+    | { kind: 'draftAct'; act: string; cardId?: Id | null; which?: string; targetId?: Id; askId?: number; value?: string; yes?: boolean }
+    /** Jumpstart: take one of the three half-decks offered (pick), or play the deck the two make (ready) (src/13b-ui-sealed.js) */
+    | { kind: 'jumpstart'; pick?: number; ready?: boolean };
   type IntentKind = Intent['kind'];
 
   /* ---------------- net messages ---------------- */
@@ -483,6 +485,9 @@ declare namespace MTG {
     | { t: 'state'; payload: View }
     | SyncViewMessage
     | { t: 'draft'; payload: Record<string, any> }
+    /** sealed: the packs a guest opens; Jumpstart: what a guest is offered and has taken (src/13b-ui-sealed.js) */
+    | { t: 'sealed'; payload: Record<string, any> }
+    | { t: 'jumpstart'; payload: Record<string, any> }
     | { t: 'chat'; payload: { from: string; text: string; at: number } }
     | { t: 'log'; payload: LogEntry | Record<string, any> }
     | { t: 'error'; payload: string }

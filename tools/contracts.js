@@ -293,6 +293,7 @@ const INTENTS = {
   draftOffer: closed({ cardId: id, yes: bool }),
   draftExile: closed({ cardId: id, targetId: id }),
   draftPeek: closed({ cardId: id, which: opt(nat) }),
+  jumpstart: closed({ pick: opt(nat), ready: opt(bool) }),
 };
 const Intent = union('kind', INTENTS, 'intent');
 
@@ -317,6 +318,8 @@ const NET_TO_GUEST = {
     e: opt(maybe(arr(S.plainObj))), es: opt(maybe(num)), l: opt(arr(S.plainObj)) }),
   draft: env({ payload: S.plainObj }),
   draftPeek: env({ payload: S.any }),
+  sealed: env({ payload: S.plainObj }),
+  jumpstart: env({ payload: S.plainObj }),
   chat: env({ payload: obj({ from: str, text: str, at: num }) }),
   log: env({ payload: S.plainObj }),
   error: env({ payload: str }),

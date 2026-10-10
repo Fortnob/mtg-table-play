@@ -143,11 +143,28 @@
       draft: { style: 'commander', packs: 3, packSize: 20, picksPerTurn: 1, faceUp: true },
       blurb: 'Draft a pool, choose a legendary creature from it as your commander, build 60 cards. 40 life.',
     },
+    /* Sealed and Jumpstart are limited without a draft: the packs are
+       opened (src/07b-sealed.js) or the half-decks chosen (src/07c-jumpstart.js)
+       rather than passed. `draft.style` is how the rest of the app tells them apart. */
+    sealed: {
+      id: 'sealed', name: 'Sealed', scryKey: null, kind: 'limited',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, deckMin: 40, basicsFree: true,
+      draft: { style: 'sealed', packs: 6, packSize: 14, picksPerTurn: 0 },
+      blurb: 'Open six Play Boosters of one set and build a 40-card deck from what is in them. Basic lands are free.',
+    },
+    jumpstart: {
+      id: 'jumpstart', name: 'Jumpstart', scryKey: null, kind: 'limited',
+      minPlayers: 2, maxPlayers: 8, defaultPlayers: 2,
+      startingLife: 20, startingHand: 7, deckMin: 40,
+      draft: { style: 'jumpstart', packs: 2, packSize: 20, picksPerTurn: 0 },
+      blurb: 'Take a themed half-deck of twenty cards from three offered, then another from three more, and shuffle the two together. No deck building.',
+    },
   };
 
   // the commander formats together, then the sixty-card ones from newest cards to oldest, then limited
   const FORMAT_ORDER = ['commander', 'brawl', 'oathbreaker', 'standard', 'pioneer', 'modern', 'legacy', 'vintage', 'pauper',
-    'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube'];
+    'cmdrdraft', 'booster', 'picktwo', 'chaos', 'cube', 'sealed', 'jumpstart'];
 
   /* -------- helpers -------- */
 
@@ -536,6 +553,12 @@
      nothing downstream has to know house rules exist.
      ============================================================ */
 
+  /* Sealed opens its packs rather than passing them, and Jumpstart has no
+     packs and builds no deck: each knob below is offered only where it means something. */
+  const opens = (f) => !!f.draft && f.draft.style !== 'jumpstart';
+  const passes = (f) => opens(f) && f.draft.style !== 'sealed';
+  const builds = (f) => !(f.draft && f.draft.style === 'jumpstart');
+
   /** Every knob, with what it means and where it applies. */
   const HOUSE_FIELDS = [
     { key: 'bracket', label: 'Bracket', type: 'bracket', min: 0, max: 5, when: (f) => usesBrackets(f),
@@ -548,31 +571,32 @@
       hint: 'Mulligans taken before you start putting cards back.' },
     { key: 'firstPlayerDraws', label: 'First player draws', type: 'bool',
       hint: 'Off is the tournament rule for two players; on is the usual multiplayer courtesy.' },
-    { key: 'deckMin', label: 'Deck size', type: 'int', min: 1, max: 400,
+    { key: 'deckMin', label: 'Deck size', type: 'int', min: 1, max: 400, when: builds,
       hint: 'The smallest legal deck, counting the commander.' },
-    { key: 'exactSize', label: 'Exactly that many', type: 'bool',
+    { key: 'exactSize', label: 'Exactly that many', type: 'bool', when: builds,
       hint: 'On means the deck must hit the number on the nose.' },
-    { key: 'maxCopies', label: 'Copies of a card', type: 'int', min: 1, max: 60, when: (f) => !f.singleton,
+    { key: 'maxCopies', label: 'Copies of a card', type: 'int', min: 1, max: 60, when: (f) => !f.singleton && builds(f),
       hint: 'Basic lands and cards that say otherwise are always unlimited.' },
-    { key: 'singleton', label: 'Singleton', type: 'bool',
+    { key: 'singleton', label: 'Singleton', type: 'bool', when: builds,
       hint: 'One of everything bar basic lands.' },
-    { key: 'sideboardMax', label: 'Sideboard', type: 'int', min: 0, max: 60,
+    // in limited the rest of the pool is the sideboard, however big it is
+    { key: 'sideboardMax', label: 'Sideboard', type: 'int', min: 0, max: 60, when: (f) => f.kind !== 'limited',
       hint: 'Cards you may swap in between games. Zero means none.' },
     { key: 'commanderDamage', label: 'Commander damage', type: 'intOff', min: 1, max: 99,
       when: (f) => f.commander,
       hint: 'Off removes the 21-damage rule entirely.' },
     { key: 'colorIdentity', label: 'Colour identity', type: 'bool', when: (f) => f.commander,
       hint: 'Off lets a deck run cards outside its commander\u2019s colours.' },
-    { key: 'packs', label: 'Packs per player', type: 'int', min: 1, max: 8, when: (f) => !!f.draft,
+    { key: 'packs', label: 'Packs per player', type: 'int', min: 1, max: 8, when: opens,
       hint: 'How many boosters each seat opens.' },
-    { key: 'packSize', label: 'Cards per pack', type: 'int', min: 3, max: 45, when: (f) => !!f.draft,
+    { key: 'packSize', label: 'Cards per pack', type: 'int', min: 3, max: 45, when: passes,
       hint: 'Picks per booster.' },
-    { key: 'collector', label: 'Collector boosters', type: 'bool', when: (f) => !!f.draft && f.draft.style !== 'cube',
+    { key: 'collector', label: 'Collector boosters', type: 'bool', when: (f) => opens(f) && f.draft.style !== 'cube',
       hint: 'Fifteen cards, mostly foil, with extra rares and special printings, in place of the usual packs.' },
-    { key: 'allPacksAtOnce', label: 'Open all packs at once', type: 'bool', when: (f) => !!f.draft,
+    { key: 'allPacksAtOnce', label: 'Open all packs at once', type: 'bool', when: passes,
       hint: 'Every pack is opened at the start and they all pass together, a card at a time, instead of one pack per player per round.' },
-    { key: 'basicsFree', label: 'Free basic lands', type: 'bool', when: (f) => !!f.draft,
-      hint: 'Off means you play only what you drafted.' },
+    { key: 'basicsFree', label: 'Free basic lands', type: 'bool', when: opens,
+      hint: 'Off means you play only what you drafted or opened.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
       hint: 'Best of how many games. One, the default, is a single game.' },
     // one of a few set values (type 'choice'); the clock itself is src/06e-clock.js

@@ -16,6 +16,8 @@
  "06d-sim.js",
  "06e-clock.js",
  "07-draft.js",
+ "07b-sealed.js",
+ "07c-jumpstart.js",
  "08-bots.js",
  "20-starters.js",
  "09-net.js",
@@ -50,6 +52,7 @@
  "12g-ui-clock.js",
  "12h-ui-rematch.js",
  "13-ui-draft.js",
+ "13b-ui-sealed.js",
  "17-ui-advisor.js",
  "14-app.js"
 ]

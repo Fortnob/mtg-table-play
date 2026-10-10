@@ -337,6 +337,8 @@ Sideboard
        and nothing else comes in, so there is no search and no suggestions. */
     const drafted = !!opts.drafted;
     const isBasic = (card) => MTG.formats.isBasicLand(card);
+    // a table that plays without free basic lands has only the ones in the pool
+    const freeBasics = opts.basicsFree !== false;
 
     const left = el('div', { class: 'panel deck-list' });
     const paneAdd = el('div', { class: 'deck-pane pane-add' });
@@ -476,7 +478,7 @@ Sideboard
 
     function changeQty(entry, delta) {
       // basics are free, except a basic that was drafted, which crosses like any other card
-      if (drafted && (!isBasic(entry.card) || deck.sideboard.includes(entry))) return moveDrafted(entry, delta);
+      if (drafted && (!freeBasics || !isBasic(entry.card) || deck.sideboard.includes(entry))) return moveDrafted(entry, delta);
       // the count is a button too: it stops at one where the format allows one (as the + does)
       if (delta > 0 && limitOf(entry.card) <= 1) { UI.toast(`One ${entry.card.name} is all ${MTG.formats.get(deck.format).name} allows.`); return; }
       entry.qty += delta;
@@ -920,8 +922,8 @@ Sideboard
           sizeMeter(validation),
           autoLine(),
           el('div', { class: 'deck-head-row' }, drafted ? [
-            el('span', { class: 'tiny dim grow', text: 'Built from what you drafted. Click a card to move it between the deck and your pool.' }),
-            el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
+            el('span', { class: 'tiny dim grow', text: opts.poolNote || 'Built from what you drafted. Click a card to move it between the deck and your pool.' }),
+            freeBasics ? el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }) : null,
           ] : [
             el('button', { class: 'btn sm primary grow', text: '+ Add cards', onclick: addCard }),
             el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
@@ -985,7 +987,13 @@ Sideboard
       }
       if (deck.sideboard && deck.sideboard.length) {
         left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}` }));
-        for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
+        if (drafted && MTG.sealed) {
+          // the pool laid out as on the table: a colour at a time, creatures first, cheapest first
+          for (const col of MTG.sealed.columns(deck.sideboard, e => e.card)) {
+            left.appendChild(el('div', { class: 'pool-sub', text: `${col.label} · ${U.sum(col.items.map(e => e.qty))}` }));
+            for (const e of col.items) left.appendChild(entryRow(e));
+          }
+        } else for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
       }
       left.scrollTop = listTop;
       if (justAdded) {
