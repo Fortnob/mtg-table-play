@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10959,
-  "gainedCards": 1075,
-  "linesNeeded": 11701,
-  "linesGained": 1266,
+  "needed": 10951,
+  "gainedCards": 1070,
+  "linesNeeded": 11691,
+  "linesGained": 1260,
   "gained": {
-   "all": 1075,
+   "all": 1070,
    "top2000": 43,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4117,
-   "lines": 3871,
+   "score": 4118,
+   "lines": 3872,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 178,
-   "lines": 163,
+   "score": 174,
+   "lines": 159,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -119,10 +119,10 @@
     "Fangs of Kalonia",
     "Spectacular Showdown",
     "Boseiju, Who Shelters All",
-    "Edgar Markov",
     "Archpriest of Shadows",
     "Rise and Shine",
-    "Blacksmith's Talent"
+    "Blacksmith's Talent",
+    "Sorcerer Class"
    ]
   },
   {
@@ -5841,16 +5841,6 @@
    ]
   },
   {
-   "what": "words:another",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "The Ur-Dragon",
-    "Bone Dragon",
-    "Gallia, Tragic Host"
-   ]
-  },
-  {
    "what": "CombatDamageDealtToYouTriggeredAbility",
    "score": 3,
    "lines": 3,
@@ -6577,13 +6567,23 @@
     "Battlefront Krushok",
     "Rocksteady, Crash Courser"
    ]
+  },
+  {
+   "what": "ReturnSourceFromGraveyardToHandEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Unquenchable Fury",
+    "Brood of Cockroaches",
+    "Weatherseed Totem"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3435,
-   "cards": 3270,
+   "score": 3436,
+   "cards": 3271,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6647,8 +6647,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 107,
-   "cards": 104,
+   "score": 104,
+   "cards": 101,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",

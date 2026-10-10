@@ -19251,4 +19251,48 @@ module.exports = (test) => {
     t.ok(T.g._dealsByToughness(wall), 'the wall deals damage by its toughness this turn');
     t.no(T.g._dealsByToughness(T.g.battlefield.find(o => o.name === 'Grizzly Bears')), 'not the Bears');
   });
+
+  test('Eminence: Edgar Markov makes a Vampire for another Vampire spell from the command zone, not for himself', (mk, t) => {
+    t.auto('Edgar Markov');
+    const T = mk();
+    T.toMain('A');
+    const ed = T.put('A', 'Edgar Markov', 'command'); ed.isCommander = true;
+    const vamps = () => T.g.battlefield.filter(o => o.controller === 'A' && o.isToken && /Vampire/.test(o.name)).length;
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Vampire Nighthawk'));
+    T.resolve();
+    t.eq(vamps(), 1, 'a token, Edgar still in the command zone');
+    T.mana('A', 'RWB3');
+    T.cast('A', ed);
+    T.resolve();
+    t.zone(ed, 'battlefield');
+    t.eq(vamps(), 1, 'casting Edgar himself makes none');
+    T.mana('A', 'BB1');
+    T.cast('A', T.hand('A', 'Vampire Nighthawk'));
+    T.resolve();
+    t.eq(vamps(), 2, 'and on the battlefield it works the same, once');
+  });
+
+  test('Eminence: The Ur-Dragon makes other Dragon spells cost {1} less from the command zone', (mk, t) => {
+    t.auto('The Ur-Dragon');
+    const T = mk();
+    T.toMain('A');
+    const ud = T.put('A', 'The Ur-Dragon', 'command'); ud.isCommander = true;
+    const dragon = T.hand('A', 'Shivan Dragon');
+    t.eq(T.g.castCostFor('A', dragon.id), '{3}{R}{R}', 'Shivan Dragon {4}{R}{R} for {1} less');
+    t.eq(T.g.castCostFor('A', T.hand('A', 'Grizzly Bears').id), '{1}{G}', 'not a Dragon: full price');
+    t.eq(T.g.castCostFor('A', ud.id), '{4}{W}{U}{B}{R}{G}', 'not itself');
+  });
+
+  test('Eminence: Sidar Jabari of Zhalfir loots when you attack with Knights, from the command zone', (mk, t) => {
+    t.auto('Sidar Jabari of Zhalfir');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const sj = T.put('A', 'Sidar Jabari of Zhalfir', 'command'); sj.isCommander = true;
+    const knight = T.bf('A', 'Knight of Glory');
+    T.hand('A', 'Forest');
+    T.answer('declareAttackers', () => [{ attackerId: knight.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'graveyard').length, 1, 'drew one and discarded one');
+  });
 };

@@ -2824,13 +2824,15 @@
       let d = 0;
       // Undaunted (CR 702.125): {1} less for each opponent
       if (a.keywordSet && a.keywordSet.has('undaunted')) d -= this.opponentsOf(pid).filter(q => !q.hasLost).length;
-      // an emblem's cost change counts too (Saheeli, Filigree Master)
-      for (const src of this._withEmblems(this.battlefield)) {
+      // an emblem's cost change counts too (Saheeli, Filigree Master), and an eminence from the command zone (The Ur-Dragon)
+      const eminent = this._eminent();
+      for (const src of this._withEmblems(this.battlefield).concat(eminent)) {
         if (src.phasedOut) continue;
         const sa = src.analysis();
         if (!sa) continue;
         for (const ab of sa.abilities) {
           if (ab.kind !== 'static') continue;
+          if (src.zone === 'command' && eminent.includes(src) && !ab.eminence) continue;
           for (const e of (ab.effects || [])) {
             if (e.op !== 'costMod' && e.op !== 'taxSpells') continue;
             const who = e.who || 'all';
@@ -2838,6 +2840,8 @@
             if (who === 'opponents' && src.controller === pid) continue;
             const words = e.op === 'costMod' ? e.words : String(e.filter || '').trim();
             if (words && words !== 'spell' && !this._cardFitsWords(o, words)) continue;
+            // The Ur-Dragon: "other Dragon spells" — not itself
+            if (e.other && o === src) continue;
             if (e.chosenType && !(src.chosenCardType ? this._cardTypesOf(o).includes(src.chosenCardType)
               : src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Brago's Favor: the chosen name; Hymn of the Wilds: the first such spell each turn
@@ -11459,12 +11463,15 @@
       // with the cards whose triggered abilities work from a graveyard (Nether Traitor)
       const graveOnes = [];
       for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) { const ca = c.analysis(); if (ca && ca.graveTriggers) graveOnes.push(c); }
-      for (const o of this._withEmblems(this.battlefield).concat(graveOnes)) {
+      // (and eminence: Edgar Markov's trigger from the command zone)
+      const eminent = this._eminent();
+      for (const o of this._withEmblems(this.battlefield).concat(graveOnes, eminent)) {
         if (o.phasedOut) continue;
         const a = o.analysis();
         if (!a) continue;
         for (let i = 0; i < a.abilities.length; i++) {
           const ab = a.abilities[i];
+          if (o.zone === 'command' && eminent.includes(o) && !ab.eminence) continue;
           // "enters or attacks" is one ability that answers to either event
           if (ab.kind !== 'triggered' || (ab.event !== event && ab.also !== event && ab.also2 !== event)) continue;
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
@@ -21297,6 +21304,15 @@
       return false;
     }
 
+    /** Eminence (The Ur-Dragon, Edgar Markov): cards in a command zone with abilities that work from there. */
+    _eminent() {
+      const out = [];
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).command || [])) {
+        const ca = c && c.analysis && c.analysis();
+        if (ca && (ca.abilities || []).some(ab => ab.eminence)) out.push(c);
+      }
+      return out;
+    }
     _anyStaticOf(playerId, op) {
       // an emblem's standing rule is its owner's as much as a permanent's is
       for (const o of this._withEmblems(this.battlefield)) {

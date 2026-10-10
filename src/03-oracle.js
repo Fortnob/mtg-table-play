@@ -2089,6 +2089,9 @@
       make: (m) => ({ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+    // Arahbo, Roar of the World: "another target Cat you control gets +3/+3 until end of turn"
+    { re: /^((?:[Aa]nother )?[Tt]arget [A-Z][a-z'-]+(?: you control| an opponent controls)?) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/,
+      make: (m) => { const t = targetSpec(m[1].charAt(0).toLowerCase() + m[1].slice(1)); return t && !t.unknown ? { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [t] } : null; } },
     { re: /^Creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gains ([a-z ,]+) until end of turn\.?$/i,
@@ -7901,8 +7904,11 @@
     if (flq) s = s.replace(flq[0], ' spells');
     const fromq = s.match(/(?<=you cast) from (your graveyard|anywhere other than your hand)(?= costs?)/i);
     if (fromq) s = s.replace(fromq[0], '');
+    // The Ur-Dragon: "Other Dragon spells you cast" — not this card itself
+    const otherQ = /^Other /.test(s);
+    if (otherQ) s = s.replace(/^Other (.)/, (x, c) => c.toUpperCase());
     const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
-      fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {});
+      fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
     const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander)$/;
@@ -9707,6 +9713,9 @@
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
     /* --- spells being cast, by whom and of what kind --- */
+    // Edgar Markov: "Whenever you cast another Vampire spell" — not this card
+    { re: /^When(?:ever)? you cast another ([a-zA-Z ,-]*?)spell, /i,
+      event: 'youCastSpell', filt: (m) => { const f = spellFilter(m[1]); return f ? Object.assign(f, { other: true }) : null; } },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power|\d+(?:, \d+)*,? or \d+))?, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
@@ -10288,6 +10297,25 @@
       const extra = [];
       while (j < lines.length && !/^LEVEL\s+\d+/i.test(lines[j])) extra.push(lines[j++]);
       lines.splice(i, j - i, [lines[i], lines[i + 1]].concat(extra.length ? [extra.join(' ')] : []).join(' '));
+    }
+    /* Eminence (The Ur-Dragon, Edgar Markov): the ability works from the
+       command zone as well as from the battlefield. It is read without its
+       "if (as long as) CARDNAME is in the command zone or on the
+       battlefield", and marked, so the table looks for it in both places.
+       Any other eminence (the game's start, a deck's colours) stays as it
+       is, for a person. */
+    const eminent = new Set();
+    for (let i = 0; i < lines.length; i++) {
+      const em = String(lines[i]).match(/^Eminence\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+      if (!em) continue;
+      const IN = "(?:CARDNAME|[A-Z][A-Za-z' ]*?) is in the command zone or on the battlefield";
+      let t = em[1];
+      const st = t.match(new RegExp('^As long as ' + IN + ', ([\\s\\S]+)$'));
+      if (st) t = st[1].charAt(0).toUpperCase() + st[1].slice(1);
+      else if (new RegExp(',? if ' + IN + ',').test(t)) t = t.replace(new RegExp(',? if ' + IN + ','), ',');
+      else continue;
+      lines[i] = t;
+      eminent.add(t);
     }
     /* Up the Beanstalk: "When this enchantment enters and whenever you cast
        a spell with mana value 5 or greater, draw a card." Two triggers that
@@ -11928,6 +11956,13 @@
     for (const ab of out.abilities) {
       const walk = (list) => { for (const e of list || []) { if (!e) continue; if (e.castWindow) out.castWindow = e.castWindow; walk(e.list); } };
       walk(ab.effects);
+    }
+    // (eminence: the engine looks for these in the command zone too)
+    if (eminent.size) for (const ab of out.abilities) {
+      if (!eminent.has(ab.text)) continue;
+      ab.eminence = true;
+      // (from the command zone the engine applies a cost change and a trigger; any other standing rule is a person's)
+      if (ab.kind === 'static' && !(ab.effects || []).every(e => e && e.op === 'costMod')) { ab.auto = false; out._keywordManual = true; }
     }
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
