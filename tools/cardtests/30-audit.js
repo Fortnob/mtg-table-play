@@ -4541,4 +4541,19 @@ module.exports = (test) => {
     h = T.zone('A', 'hand').length;
     put(b); t.eq(T.zone('A', 'hand').length, h + 1, 'a new turn: a card');
   });
+
+  test('Audit: Cloakwood Hermit counts a creature card milled or discarded into your graveyard, not one into an opponent\'s', (mk, t) => {
+    t.auto('Cloakwood Hermit');
+    for (const how of ['opp', 'mill', 'discard']) {
+      const T = mk();
+      T.toMain('A');
+      const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+      T.bf('A', 'Cloakwood Hermit'); T.g.bumpBoard();
+      if (how === 'opp') { const g = T.bf('B', 'Grizzly Bears'); T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [g.id] }); T.settle(); }
+      if (how === 'mill') { T.top('A', 'Craw Wurm'); T.g._runEffects([{ op: 'mill', n: 1, who: 'you' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); T.settle(); }
+      if (how === 'discard') { T.hand('A', 'Craw Wurm'); T.g._runEffects([{ op: 'discard', n: 1, who: 'you' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); T.settle(); }
+      T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+      t.eq(T.g.battlefield.filter(o => o.isToken && /Squirrel/.test(o.name)).length, how === 'opp' ? 0 : 2, how);
+    }
+  });
 };
