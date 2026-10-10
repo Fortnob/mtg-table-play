@@ -17244,4 +17244,24 @@ module.exports = (test) => {
     t.zone(wurm, 'battlefield');
     t.ok(T.g.player('A').pool.isEmpty(), 'all five spent');
   });
+
+  test('Port Razer: in the extra combat it may attack another player, not the one it already attacked', (mk, t) => {
+    t.auto('Port Razer');
+    t.auto('Bloodthirster');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const pr = T.bf('A', 'Port Razer');
+    let n = 0, again = null;
+    T.answer('declareAttackers', () => { n++; return [{ attackerId: pr.id, defenderId: 'B' }]; });
+    T.answer('declareAttackers', (ch, g) => {
+      n++;
+      again = g.declareAttackers('A', [{ attackerId: pr.id, defenderId: 'B' }]);
+      return [{ attackerId: pr.id, defenderId: 'C' }];
+    });
+    T.toMain('A', 'end');
+    t.eq(n, 2, 'two combats');
+    t.no(again, 'not B a second time');
+    t.eq(T.life('B'), 16, 'B was hit once');
+    t.eq(T.life('C'), 16, 'C in the second combat');
+  });
 };

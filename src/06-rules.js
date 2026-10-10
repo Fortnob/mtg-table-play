@@ -7854,6 +7854,11 @@
         const o = this.obj(d.attackerId);
         const a = o.analysis();
         o.attacking = d.defenderId;
+        // Port Razer: the players it has attacked this turn (noRepeatAttack)
+        if (this.player(d.defenderId)) {
+          if (!o._attackedPlayers || o._attackedPlayers.turn !== this.turn) o._attackedPlayers = { turn: this.turn, ids: [] };
+          o._attackedPlayers.ids.push(d.defenderId);
+        }
         // "attacks for the first time each turn", "creatures that attacked this turn"
         o.attacksThisTurn = (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) + 1;
         o.attackedTurn = this.turn;
@@ -20688,6 +20693,9 @@
       let def = this.player(defenderId), walker = false;
       if (!def) { const pw = this.obj(defenderId); def = pw && this.player(pw.controller); walker = true; }
       if (!def) return null;
+      // Port Razer: "can't attack a player it has already attacked this turn" (noRepeatAttack)
+      if (!walker && o._attackedPlayers && o._attackedPlayers.turn === this.turn && o._attackedPlayers.ids.includes(def.id) &&
+        this._staticOp(o, 'noRepeatAttack')) return { src: o, who: def.name + ' again this turn' };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();
