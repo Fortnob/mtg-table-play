@@ -244,6 +244,8 @@ def steps(quick):
         Step('lessons', node(TOOLS / 'lessontest.js'), judge_exit, 600, needs_bulk=True),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
+        # printings whose words play differently from the card's today, and the printing shown instead
+        Step('old prints', node(TOOLS / 'oldprintstest.js'), judge_exit, 60),
         # friends, invites, trades and moving a save, two devices against a pretend broker
         Step('social', node(TOOLS / 'socialtest.js'), judge_exit, 180),
         # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away

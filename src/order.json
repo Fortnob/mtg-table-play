@@ -4,6 +4,7 @@
  "02-scryfall.js",
  "02a-carddb.js",
  "02b-cardlang.js",
+ "02d-oldprints.js",
  "18-scripts.js",
  "19-cardlib.js",
  "03-oracle.js",

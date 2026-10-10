@@ -616,6 +616,12 @@
      */
     async printings(card, opts) {
       opts = opts || {};
+      /* A printing whose words play differently from the card's today is
+         left out, unless the card has no other (src/02d-oldprints.js). */
+      const current = (list) => {
+        const ok = MTG.oldPrints ? list.filter(c => !MTG.oldPrints.isOld(c)) : list;
+        return ok.length ? ok : list;
+      };
       const oracle = card.oracle_id;
       const key = 'prints:' + (oracle || U.normName(card.name));
       // the card database lists them straight off, with nothing to keep
@@ -626,7 +632,7 @@
         if (hit && Date.now() - hit._t < CACHE_TTL) {
           const m = await this.db.getMany(STORES.cards, hit.ids);
           const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
-          if (arr.length) return arr;
+          if (arr.length) return current(arr);
         }
       }
       const q = oracle ? ('oracleid:' + oracle) : ('!"' + U.frontName(card.name).replace(/"/g, '') + '"');
@@ -644,7 +650,7 @@
       }
       if (!cards.length) cards = [card];
       if (!fromDb) await this.db.put(STORES.prints, key, { ids: cards.map(c => c.id), _t: Date.now() });
-      return cards;
+      return current(cards);
     }
 
     /* ================= sets ================= */
@@ -767,7 +773,8 @@
         if (arr.length === hit.ids.length) return arr;
       }
       const found = await this.search(`!"${name}" (frame:1993 or frame:1997) -is:digital lang:en`, { unique: 'prints', max: 40 }).catch(() => []);
-      const list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital);
+      const list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital &&
+        !(MTG.oldPrints && MTG.oldPrints.isOld(c)));
       await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
       return list;
     }
@@ -978,6 +985,14 @@
     _imageUrl(card, size, faceIndex) {
       size = size || 'normal';
       if (!card) return '';
+      /* A printing whose words play differently from the card's today is
+         shown as the card's current printing (src/02d-oldprints.js): the
+         same card, set and number, only the picture newer. */
+      const swap = MTG.oldPrints && MTG.oldPrints.swapId(card);
+      if (swap) {
+        const back = faceIndex > 0 && card.card_faces && card.card_faces[faceIndex] && card.card_faces[faceIndex].image_uris;
+        return `https://cards.scryfall.io/${size}/${back ? 'back' : 'front'}/${swap[0]}/${swap[1]}/${swap}.${size === 'png' ? 'png' : 'jpg'}`;
+      }
       const f = card.card_faces && card.card_faces[faceIndex || 0];
       if (f && f.image_uris && f.image_uris[size]) return f.image_uris[size];
       if (card.image_uris && card.image_uris[size]) return card.image_uris[size];

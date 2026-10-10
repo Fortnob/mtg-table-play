@@ -430,6 +430,8 @@
       const st = (this.setTable[p[P.set]] || [])[1];
       const fe = p[P.frame_effects] || [];
       let s = 0;
+      // words that play as the card does today come first (src/02d-oldprints.js)
+      if (!(MTG.oldPrints && MTG.oldPrints.isOld({ set: p[P.set], collector_number: p[P.collector_number] }))) s += 1 << 13;
       if (!p[P.lang]) s += 1 << 12;
       if (!(f & FLAG.digital)) s += 1 << 11;
       if (p[P.games] & 1) s += 1 << 10;
