@@ -15059,8 +15059,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
-    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }) },
+    // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
@@ -15424,9 +15425,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Vein Drinker: "That creature deals damage equal to its power to this creature."
     { re: /^That creature deals damage equal to its power to (?:this creature|CARDNAME)\.?$/i,
       make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toSelf2: true }) },
-    { re: /^You may reveal an? ([-a-z ]*?)card from among them and put it into your hand\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
-        to: 'hand', optional: true, rest: 'keep' }) },
+    // (Icon of Ancestry: "a creature card of the chosen type")
+    { re: /^You may reveal an? ([-a-z ]*?)card( of the chosen type)? from among them and put it into your hand\.?$/i,
+      make: (m) => Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'hand', optional: true, rest: 'keep' }, m[2] ? { ofChosenType: true } : {}) },
     /* Harald: "an Elf, Warrior, or Tyvar card"; Star Charter: "a creature
        card with power 3 or less"; "put that card into your hand" */
     { re: /^You may reveal an? ((?:[A-Za-z-]+,? (?:or |and\/or )?)*?)card( with power (\d+) or less| with mana value (\d+) or less)? from among them and put (?:it|that card) into your hand\.?$/,
@@ -17052,6 +17054,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
+    // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
+    if (/^the number of tokens you(?:'ve)? created this turn$/i.test(p)) return done({ tokensCreatedThisTurn: true, mult: 1 });
     // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
     if (/^the number of times (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return done({ timesKicked: true, mult: 1 });
     // Rionya: "the number of instant and sorcery spells you've cast this turn"
@@ -19155,7 +19159,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (!o || typeof o !== 'object') return;
       for (const key of Object.keys(o)) {
         if (key === 'text') continue;
-        // a target's "mana value X" is the cast X; a count put there could not be checked (Spellstutter Sprite)
+        /* Celestine: a target's "mana value X or less, where X is the amount of life you gained this
+           turn" — a count, worked out as the target is chosen (maxMvCount, as Spellstutter Sprite's) */
+      if (o[key] === 'X' && key === 'maxMv' && o.type && k && typeof k === 'object') { o.maxMvCount = k; delete o.maxMv; used++; continue; }
+        // a target's "mana value X" is otherwise the cast X
       if (o[key] === 'X' && /^(?:mv|maxMv|minMv)$/.test(key)) { used = -1e9; continue; }
       if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
         // "+X/+0", "-X/-0": the sign kept, the number from the rider
@@ -29725,6 +29732,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       }
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
+      // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
+      if ((v.ofSelf === 'power' || v.ofSelf === 'toughness') && src) return (v.ofSelf === 'power' ? this.powerOf(src) : this.toughnessOf(src)) * mult;
       if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
       // Towering Titan: "the total toughness of other creatures you control" (totalStat)
       if (v.totalStat) {
@@ -38259,6 +38268,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
       }
+      // Thalisse: "the number of tokens you created this turn" — kept as they are made
+      if (event === 'youCreateToken' && controllerId) {
+        const cp = this.player(controllerId);
+        if (cp) { if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 }; cp.tokensCreated.n++; }
+      }
       this._fireDelayed(event, this.activePlayer && this.activePlayer.id);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
       const tData = {
@@ -39292,6 +39306,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (v && typeof v === 'object' && v.timesKicked) {
           const ks = ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           return ((ctx.kicked || (ks && ks.kickedTimes) || 0) * (v.mult || 1)) + (v.plus || 0);
+        }
+        if (v && typeof v === 'object' && v.tokensCreatedThisTurn) {
+          const tc = (this.player(ctx.controller) || {}).tokensCreated;
+          return (tc && tc.turn === this.turn ? tc.n : 0) * (v.mult || 1);
         }
         // Mathemagics: 2 to the power of X (a library runs out long before 2^30)
         if (v && typeof v === 'object' && v.twoToX) return 2 ** Math.max(0, Math.min(30, Number(ctx.x) || (src && src.chosenX) || 0));
@@ -40609,6 +40627,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "a token for each …" with none of them is no token (not one: _createToken reads 0 as 1)
           if (e.count && !(many > 0)) break;
+          // Secure the Wastes for X=0, Thalisse with no tokens made: "create X tokens" with X 0 is none
+          if (!e.count && !e.countBy && (e.n === 'X' || (e.n && typeof e.n === 'object')) && !(many > 0)) break;
           // "an X/X token, where X is that spell's mana value": the size, worked out now
           const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
             // Arboreal Alliance: "an X/X … token", X as it was cast
@@ -40644,7 +40664,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           // Marching Duodrone: "each player creates a Treasure token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 })); break; }
           // "a Treasure for each creature that died this turn" may be none at all
-          const many = e.n && typeof e.n === 'object' ? n(e.n) : (n(e.n) || 1);
+          // ("create X Treasure tokens" with X 0 is none too)
+          const many = e.n && (typeof e.n === 'object' || e.n === 'X') ? n(e.n) : (n(e.n) || 1);
           if (many <= 0) break;
           // "Incubate X, where X is that spell's mana value": the counters, counted now
           const wc = e.withCounters != null ? { withCounters: Math.max(0, n(e.withCounters)) } : {};
@@ -43999,6 +44020,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > (typeof e.maxMv === 'number' ? e.maxMv : n(e.maxMv))) return false;
             // Star Charter: "a creature card with power 3 or less"
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
+            // Icon of Ancestry: "of the chosen type" — the type chosen for this permanent
+            if (e.ofChosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) return false;
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);
@@ -44362,6 +44385,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
               if (e.tapped) o.tapped = true;
+              /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
+                 (or the first opponent), during combat */
+              if (e.attacking && o.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+                const def = (src && src.attacking) || (this.opponentsOf(p.id)[0] || {}).id;
+                if (def) { o.attacking = def; this.combat.attackers.push(o.id); }
+              }
               this._lastPut = o.id;
             }
           }
@@ -44409,7 +44438,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (!objs.length) break;
           // spread it as evenly as the numbers allow, remainder to the first
           const each = Math.floor(total / objs.length);
-          let spare = total - each * objs.length;
+          // (Fireball: "divided evenly, rounded down" — what doesn't divide evenly is not dealt)
+          let spare = e.evenly ? 0 : total - each * objs.length;
           for (const t of objs) {
             const amt = each + (spare-- > 0 ? 1 : 0);
             if (amt <= 0) continue;
