@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11136,
+  "needed": 11135,
   "gainedCards": 1121,
-  "linesNeeded": 11909,
+  "linesNeeded": 11908,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -430,25 +430,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 22,
-   "lines": 16,
-   "cards": [
-    "Dollmaker's Shop // Porcelain Gallery",
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Bitter Work",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Meriadoc Brandybuck",
-    "Demonic Covenant",
-    "Attuma, Atlantean Warlord"
-   ]
-  },
-  {
    "what": "TransformIntoSourceTriggeredAbility",
    "score": 22,
    "lines": 22,
@@ -465,6 +446,25 @@
     "Sygg, Wanderwine Wisdom // Sygg, Wanderbrine Shield",
     "Trystan, Callous Cultivator // Trystan, Penitent Culler",
     "Voldaren Pariah // Abolisher of Bloodlines"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 21,
+   "lines": 15,
+   "cards": [
+    "Dollmaker's Shop // Porcelain Gallery",
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Meriadoc Brandybuck",
+    "Demonic Covenant",
+    "Attuma, Atlantean Warlord",
+    "Landroval, Horizon Witness"
    ]
   },
   {
@@ -7375,19 +7375,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Bitter Work",
-    "Meriadoc Brandybuck"
-   ]
-  },
-  {
    "what": "keyword CumulativeUpkeepAbility",
    "score": 10,
    "cards": 10,
@@ -7489,6 +7476,19 @@
     "Beyond the Quiet",
     "Born to Drive",
     "Tend the Sprigs"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Meriadoc Brandybuck",
+    "Attuma, Atlantean Warlord"
    ]
   },
   {

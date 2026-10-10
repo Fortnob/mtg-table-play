@@ -17826,4 +17826,19 @@ module.exports = (test) => {
       t.eq(mine.counters['+1/+1'] || 0, mv3 ? 2 : 1, mv3 ? 'mana value 2: proliferated' : 'mana value 6: not');
     }
   });
+
+  test('Bitter Work: a card when you attack a player with a creature of power 4 or greater', (mk, t) => {
+    t.auto('Bitter Work');
+    for (const [name, draws] of [['Grizzly Bears', 0], ['Craw Wurm', 1]]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('A', 'Bitter Work');
+      const c = T.bf('A', name);
+      T.top('A', 'Island'); T.top('A', 'Island');
+      const h = T.zone('A', 'hand').length;
+      T.answer('declareAttackers', () => [{ attackerId: c.id, defenderId: 'B' }]);
+      T.toMain('A', 'declareBlockers');
+      t.eq(T.zone('A', 'hand').length, h + draws, name + ': ' + draws);
+    }
+  });
 };
