@@ -5154,6 +5154,13 @@
     // Hammer of Nazahn: "attach that Equipment to target creature you control"
     { re: /^Attach that Equipment to (target creature(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'attachThat', targets: [targetSpec(m[1])] }) },
+    // Koskun Falls, Command Bridge: "sacrifice it unless you tap an untapped creature (permanent) you control"
+    { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you (tap (?:an?|another) untapped [A-Za-z \/-]+? you control)\.?$/i,
+      make: (m) => {
+        const cost = asCost(m[1]);
+        return cost && cost.tapUntapped ? { op: 'mayPay', pay: cost, then: [], otherwise: [{ op: 'sacrificeSelf' }],
+          prompt: m[1].replace(/^tap/i, 'Tap') + ', or sacrifice this?', yesLabel: 'Tap one', noLabel: 'Sacrifice it' } : null;
+      } },
     // Balduvian Horde: "sacrifice it unless you discard a card at random"
     { re: /^Sacrifice (?:it|CARDNAME|this (?:creature|enchantment|land|artifact|permanent)) unless you discard a card at random\.?$/i,
       make: () => ({ op: 'sacSelfUnless', how: 'discard', filter: 'card', random: true, untapped: false, another: false }) },
@@ -7736,6 +7743,17 @@
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and discard a card$/i, make: (m) => ({ mana: m[1], discard: 1, filter: 'card' }) },
+    /* Raff, Aziza, Saheeli, Filigree Master: "you may tap two untapped
+       creatures you control", "an untapped artifact", "another untapped
+       Merfolk", "two untapped creatures and/or Treasures" */
+    { re: /^tap (a|an|another|one|two|three|four|five|six|seven|\d+) (other )?untapped ([A-Za-z \/-]+?) you control$/i,
+      make: (m) => {
+        const w = m[1].toLowerCase();
+        const sing = (x) => x.trim().replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/([^s])s$/, '$1').toLowerCase();
+        const filter = m[3].split(/ and\/or /i).map(sing).join(' or ');
+        const k = /^(?:an?|another)$/.test(w) ? 1 : num(w);
+        return typeof k === 'number' && k > 0 ? { tapUntapped: { n: k, filter, another: w === 'another' || !!m[2] } } : null;
+      } },
     { re: /^remove (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? from (?:it|this creature|CARDNAME|this artifact|this enchantment|this permanent)$/i,
       make: (m) => ({ removeCounter: { n: num(m[1]), kind: m[2].toLowerCase() } }) },
   ];
@@ -8310,6 +8328,14 @@
         if (cost) {
           effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: s + ' ' + next });
           if (!thenPart.auto) auto = false;
+          // Rent Is Due: "… If you do, draw a card. Otherwise, sacrifice this enchantment."
+          const other = (sentences[i + 2] || '').match(/^Otherwise,\s*(.+)$/i);
+          if (other) {
+            const op = parseSentenceList(splitSentences(U.titleCase(other[1].charAt(0)) + other[1].slice(1)));
+            effects[effects.length - 1].otherwise = op.effects;
+            if (!op.auto) auto = false;
+            i++;
+          }
         } else {
           const innerText = U.titleCase(may[1].charAt(0)) + may[1].slice(1) + '.';
           const inner = parseSentenceList(splitSentences(innerText));

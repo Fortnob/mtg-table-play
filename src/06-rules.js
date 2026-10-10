@@ -15176,10 +15176,13 @@
             (!pay.evidence || this._evidenceTotal(ctx.controller, src) >= pay.evidence) &&
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1)) &&
-            (!pay.energy || (me.energy || 0) >= pay.energy);
-          if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.energy || (me.energy || 0) >= pay.energy) &&
+            (!pay.tapUntapped || this._tapCostPool(ctx.controller, pay.tapUntapped, src, false).length >= (pay.tapUntapped.n || 1));
+          if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            // (Koskun Falls: "Tap one" / "Sacrifice it")
+            ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${truncate(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}`) }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
@@ -15188,6 +15191,23 @@
             me.energy -= pay.energy;
             this.logEvent('counters', `${me.name} pays ${pay.energy} energy (${me.energy} left).`);
             if (!pay.mana && pay.life == null && !pay.discard && !pay.sacrifice) { this._spliceNext(e.then); break; }
+          }
+          // Raff, Weatherlight Stalwart: "you may tap two untapped creatures you control. If you do, …"
+          if (pay.tapUntapped) {
+            const pool = this._tapCostPool(ctx.controller, pay.tapUntapped, src, false);
+            const want = pay.tapUntapped.n || 1;
+            let picks = this._tapCostOrder(pool).slice(0, want);
+            if (pool.length > want && !me.isBot) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'tapToPay', kind: 'objects', items: this._chooseItems(pool), min: want, max: want,
+                prompt: want === 1 ? 'Tap one of these.' : `Tap ${['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven'][want] || want} of these.` }, 'tp');
+              if (got === SUSPEND) return SUSPEND;
+              picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && !o.tapped).slice(0, want);
+            }
+            if (picks.length < want) { this._spliceNext(e.otherwise); break; }
+            for (const o of picks) this._markTapped(o);
+            this.logEvent('rules', `${me.name} taps ${picks.map(o => o.name).join(', ')}.`);
+            this._spliceNext(e.then);
+            break;
           }
           // Izoni: "you may collect evidence 4"
           if (pay.evidence) {

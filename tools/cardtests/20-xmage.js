@@ -19034,4 +19034,91 @@ module.exports = (test) => {
     t.eq(m2.attachedTo, bear.id, 'the second Might on the Bears too');
     t.eq(T.g.powerOf(bear), 6);
   });
+
+  test('Raff, Weatherlight Stalwart: you may tap two untapped creatures to draw a card', (mk, t) => {
+    t.auto('Raff, Weatherlight Stalwart');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    T.bf('A', 'Raff, Weatherlight Stalwart');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Llanowar Elves'), b3 = T.bf('A', 'Hill Giant');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'tapToPay'); return { picks: [b1.id, b2.id] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.ok(b1.tapped && b2.tapped, 'the two picked are tapped');
+    t.no(b3.tapped, 'the third is not');
+    t.eq(T.zone('A', 'hand').length, 1, 'a card');
+  });
+
+  test('Aziza, Mage Tower Captain: three creatures tapped copy the spell, and the stack empties', (mk, t) => {
+    t.auto('Aziza, Mage Tower Captain');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Aziza, Mage Tower Captain');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Llanowar Elves');
+    T.answer('confirm', { yes: true });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.player('B').life, 14, 'the Bolt and its copy');
+    t.eq(T.g.stack.length, 0, 'nothing left on the stack');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && o.tapped).length, 3, 'Aziza and both creatures tapped');
+  });
+
+  test('Redcap Raiders: only a non-Human can be tapped for it', (mk, t) => {
+    t.auto('Redcap Raiders');
+    const T = mk();
+    const rr = T.bf('A', 'Redcap Raiders');
+    const human = T.bf('A', 'Thalia, Guardian of Thraben');
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: rr.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(human.tapped, 'a Human is no use');
+    t.eq(T.g.powerOf(rr), 3, 'no bonus (a 3/2)');
+    t.no(T.g.hasKw(rr, 'trample'), 'no trample');
+  });
+
+  test('Rent Is Due: tap two creatures and/or Treasures to draw, or else it is sacrificed', (mk, t) => {
+    t.auto('Rent Is Due');
+    const T = mk();
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const rd = T.bf('A', 'Rent Is Due');
+    const b1 = T.bf('A', 'Grizzly Bears');
+    T.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    T.toMain('A');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('confirm', (ch) => { t.ok(/tap two/i.test(ch.prompt || ''), 'asked'); return { yes: true }; });
+    T.toMain('A', 'end');
+    T.resolve();
+    t.ok(b1.tapped, 'the Bears tapped');
+    t.ok(T.g.battlefield.find(o => /Treasure/.test(o.name)).tapped, 'and the Treasure');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'a card');
+    t.zone(rd, 'battlefield');
+    T.toMain('A');
+    T.answer('confirm', { yes: false });
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(rd, 'graveyard');
+  });
+
+  test("Koskun Falls, Command Bridge: sacrificed unless you tap an untapped permanent or creature you control", (mk, t) => {
+    t.auto('Koskun Falls'); t.auto('Command Bridge');
+    const T = mk();
+    T.toMain('A');
+    const cb0 = T.put('A', 'Command Bridge', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(cb0, 'graveyard', 'it enters tapped, and with nothing else untapped it goes');
+    const forest = T.bf('A', 'Forest');
+    T.answer('confirm', (ch) => { t.eq(ch.yesLabel, 'Tap one'); t.eq(ch.noLabel, 'Sacrifice it'); return { yes: true }; });
+    const cb = T.put('A', 'Command Bridge', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(cb, 'battlefield');
+    t.ok(forest.tapped, 'the Forest tapped for it');
+    const kf = T.bf('A', 'Koskun Falls');
+    T.toMain('B'); T.toMain('A', 'upkeep');
+    T.resolve();
+    t.zone(kf, 'graveyard', 'no creature to tap: sacrificed');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10994,
+  "needed": 10979,
   "gainedCards": 1088,
-  "linesNeeded": 11741,
+  "linesNeeded": 11725,
   "linesGained": 1281,
   "gained": {
    "all": 1088,
@@ -2536,14 +2536,6 @@
    ]
   },
   {
-   "what": "tap words creature or artifact",
-   "score": 7,
-   "lines": 1,
-   "cards": [
-    "Thousand Moons Smithy // Barracks of the Thousand"
-   ]
-  },
-  {
    "what": "mana ability with more",
    "score": 7,
    "lines": 7,
@@ -2653,20 +2645,6 @@
     "Grim Giganotosaurus",
     "Vitality Hunter",
     "Sealock Monster"
-   ]
-  },
-  {
-   "what": "words: non-subtype",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Ruthless Winnower",
-    "Archangel Avacyn // Avacyn, the Purifier",
-    "Call to the Grave",
-    "Redcap Raiders",
-    "Archdemon of Unx"
    ]
   },
   {
@@ -3150,6 +3128,19 @@
     "Barret Wallace",
     "Item Shopkeep",
     "Hemlock Vial"
+   ]
+  },
+  {
+   "what": "words: non-subtype",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Ruthless Winnower",
+    "Archangel Avacyn // Avacyn, the Purifier",
+    "Call to the Grave",
+    "Archdemon of Unx"
    ]
   },
   {
@@ -4349,18 +4340,6 @@
    ]
   },
   {
-   "what": "DoIfCostPaid with [\"tapCreatures\"]",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Saheeli, Filigree Master",
-    "Raff, Weatherlight Stalwart",
-    "Tidal Terror",
-    "Gravelgill Scoundrel",
-    "Civil Servant"
-   ]
-  },
-  {
    "what": "MultikickerCount.instance",
    "score": 5,
    "lines": 5,
@@ -4813,17 +4792,6 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
-   ]
-  },
-  {
-   "what": "copy with changes",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Increasing Vengeance",
-    "Double Major",
-    "Choreographed Sparks",
-    "Aziza, Mage Tower Captain"
    ]
   },
   {
@@ -5969,6 +5937,16 @@
    ]
   },
   {
+   "what": "copy with changes",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks"
+   ]
+  },
+  {
    "what": "PutIntoGraveFromAnywhereThisTurnPredicate.instance",
    "score": 3,
    "lines": 3,
@@ -6584,6 +6562,26 @@
     "Omarthis, Ghostfire Initiate",
     "Veiled Ascension",
     "Ethereal Ambush"
+   ]
+  },
+  {
+   "what": "FinishVotingTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Model of Unity",
+    "Erestor of the Council",
+    "Grudge Keeper"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByMoreThanOneAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Michelangelo, Mutant BFF",
+    "Battlefront Krushok",
+    "Rocksteady, Crash Courser"
    ]
   }
  ],
@@ -8354,19 +8352,6 @@
    ]
   },
   {
-   "what": "words: non-subtype",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Winota, Joiner of Forces",
-    "Valkyrie's Call",
-    "Ruthless Winnower",
-    "Call to the Grave",
-    "Redcap Raiders",
-    "Archdemon of Unx"
-   ]
-  },
-  {
    "what": "keyword EquipAbility",
    "score": 6,
    "cards": 6,
@@ -9001,6 +8986,18 @@
    ]
   },
   {
+   "what": "words: non-subtype",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Winota, Joiner of Forces",
+    "Valkyrie's Call",
+    "Ruthless Winnower",
+    "Call to the Grave",
+    "Archdemon of Unx"
+   ]
+  },
+  {
    "what": "MayCastTargetCardEffect",
    "score": 5,
    "cards": 5,
@@ -9238,18 +9235,6 @@
     "Bubble Matrix",
     "Ethersworn Shieldmage",
     "Inner Sanctum"
-   ]
-  },
-  {
-   "what": "DoIfCostPaid with [\"tapCreatures\"]",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Saheeli, Filigree Master",
-    "Raff, Weatherlight Stalwart",
-    "Tidal Terror",
-    "Gravelgill Scoundrel",
-    "Civil Servant"
    ]
   },
   {
@@ -9592,17 +9577,6 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
-   ]
-  },
-  {
-   "what": "copy with changes",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Increasing Vengeance",
-    "Double Major",
-    "Choreographed Sparks",
-    "Aziza, Mage Tower Captain"
    ]
   },
   {
@@ -10263,6 +10237,28 @@
     "Kitsune Ace",
     "Forsaken City",
     "Dwarven Patrol"
+   ]
+  },
+  {
+   "what": "BlockedPredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Duelist's Flame",
+    "Smite",
+    "Tattermunge Witch",
+    "Benalish Missionary"
+   ]
+  },
+  {
+   "what": "AbilityPredicate CyclingAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Herald of the Forgotten",
+    "Zenith Flare",
+    "Rooting Moloch",
+    "Sacred Excavation"
    ]
   }
  ]
