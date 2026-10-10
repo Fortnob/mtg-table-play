@@ -439,6 +439,10 @@
       hint: 'Off means you play only what you drafted.' },
     { key: 'bestOf', label: 'Match length', type: 'odd', min: 1, max: 9,
       hint: 'Best of how many games. One, the default, is a single game.' },
+    // one of a few set values (type 'choice'); the clock itself is src/06e-clock.js
+    { key: 'clock', label: 'Clock', type: 'choice',
+      options: [[0, 'Off'], [10, '10 minutes a player'], [20, '20 minutes a player'], [30, '30 minutes a player']],
+      hint: 'Time for the whole game, counted only while the game waits on that player. Out of time is out of the game. Bots are not timed.' },
   ];
 
   /** The value a field starts at for a given format. */
@@ -452,6 +456,7 @@
     if (key === 'basicsFree') return !!fmt.basicsFree;
     if (key === 'collector') return false;
     if (key === 'bracket') return 0;
+    if (key === 'clock') return 0;
     if (key === 'maxCopies') return fmt.maxCopies == null ? 4 : fmt.maxCopies;
     if (key === 'sideboardMax') return fmt.sideboardMax == null ? 15 : fmt.sideboardMax;
     if (key === 'commanderDamage') return fmt.commanderDamage || 0;
@@ -505,6 +510,12 @@
     return fmt;
   }
 
+  /** A 'choice' rule's value, in the words its options give it. */
+  function choiceLabel(f, v) {
+    const o = (f.options || []).find(x => x[0] === v);
+    return o ? o[1] : String(v);
+  }
+
   /** What a joining player needs to be told: only what differs. */
   function houseSummary(formatId, rules) {
     if (!rules) return [];
@@ -515,6 +526,7 @@
       if (f.type === 'bool') out.push(`${f.label}: ${v ? 'on' : 'off'} (normally ${f.value ? 'on' : 'off'})`);
       else if (f.type === 'bracket') out.push(MTG.brackets ? MTG.brackets.label(v) : `${f.label} ${v}`);
       else if (f.type === 'intOff') out.push(v ? `${f.label}: ${v}` : `${f.label}: off`);
+      else if (f.type === 'choice') out.push(`${f.label}: ${choiceLabel(f, v)}`);
       else out.push(`${f.label}: ${v}`);
     }
     return out;
@@ -545,7 +557,7 @@
     get: (id) => FORMATS[id],
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
     validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
-    houseFields, houseDefaults, houseSummary, effective, presets,
+    houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel,
     isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion,
     isLimited: (id) => FORMATS[id] && FORMATS[id].kind === 'limited',
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),

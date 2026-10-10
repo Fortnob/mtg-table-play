@@ -849,7 +849,8 @@ Sideboard
       left.append(
         el('div', { class: 'deck-head' }, [
           nameInput,
-          el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation)]),
+          // its record so far, when it has played (src/10h-ui-history.js)
+          el('div', { class: 'deck-head-row' }, [fmtSel, sizePill(validation), UI.deckRecordPill ? UI.deckRecordPill(deck) : null]),
           fmtObj.commander && fmtObj.kind !== 'limited' ? el('div', { class: 'deck-head-row bracket-row' }, [
             UI.bracketPill(deck, { onMark: (k) => setHighlight('bracket', k) }),
             el('span', { class: 'tiny dim grow', text: bracketGist() }),

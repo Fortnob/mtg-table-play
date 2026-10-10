@@ -257,7 +257,19 @@ declare namespace MTG {
     /** added by the app, not the engine */
     spectating?: boolean;
     match?: MatchView | null;
+    /** the game clock, when the table plays with one (src/06e-clock.js) */
+    clock?: ClockView | null;
     [k: string]: any;
+  }
+
+  /** The host's clock as of a view: each table counts the running time down from here until the next. */
+  interface ClockView {
+    /** each player's time for the whole game, in ms */
+    total: number;
+    /** ms left, by player; bots are not on the clock */
+    left: Record<PlayerId, number>;
+    /** whom the game was waiting on, whose time is running */
+    running: PlayerId[];
   }
 
   interface MatchView {

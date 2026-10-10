@@ -149,12 +149,13 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'profile-body' });
-    const TABS = [['overview', 'Overview'], ['quests', 'Quests'], ['mastery', 'Mastery'], ['ranked', 'Ranked'], ['achievements', 'Achievements']];
+    const TABS = [['overview', 'Overview'], ['history', 'History'], ['quests', 'Quests'], ['mastery', 'Mastery'], ['ranked', 'Ranked'], ['achievements', 'Achievements']];
     const show = (id) => {
       tab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
       body.innerHTML = '';
-      ({ overview, quests, mastery, ranked, achievements })[id](body, opts);
+      // every game and match you have finished: src/10h-ui-history.js
+      ({ overview, history: UI.renderHistory, quests, mastery, ranked, achievements })[id](body, opts);
     };
     for (const [id, label] of TABS) tabs.appendChild(el('button', { type: 'button', role: 'tab', class: 'store-tab', dataset: { tab: id }, text: label, onclick: () => show(id) }));
     host.append(el('div', { class: 'profile' }, [head, tabs, body]));
