@@ -9185,6 +9185,8 @@
     [/^you control your commander$/i, () => ({ kind: 'controlCommander' })],
     [/^there are (\w+) or more permanent cards in your graveyard$/i, (m) => ({ kind: 'graveyardPermanents', n: num(m[1]) })],
     [/^you descended this turn$/i, () => ({ kind: 'descended' })],
+    // Cloakwood Hermit, Raphael, Fiendish Savior: "a creature card was put into your graveyard from anywhere this turn"
+    [/^an? creature card was put into your graveyard from anywhere this turn$/i, () => ({ kind: 'creatureCardToGrave' })],
     [/^this spell was bargained$/i, () => ({ kind: 'bargained' })],
     [/^(?:CARDNAME|it) was bargained$/i, () => ({ kind: 'bargained' })],
     [/^you cast this spell during your main phase$/i, () => ({ kind: 'castInMain' })],

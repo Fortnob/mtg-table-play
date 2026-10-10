@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11021,
+  "needed": 11018,
   "gainedCards": 1090,
-  "linesNeeded": 11772,
+  "linesNeeded": 11769,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -89,8 +89,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 194,
-   "lines": 188,
+   "score": 193,
+   "lines": 187,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -5393,17 +5393,6 @@
    ]
   },
   {
-   "what": "GainAbilityAllEffect.withForceQuotes",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Cloakwood Hermit",
-    "Dungeon Delver",
-    "Acolyte of Bahamut",
-    "Scion of Halaster"
-   ]
-  },
-  {
    "what": "activated with 0 effects in its constructor",
    "score": 4,
    "lines": 4,
@@ -6596,6 +6585,16 @@
     "Turtle Van",
     "Getaway Car"
    ]
+  },
+  {
+   "what": "NamePredicate",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Detention Sphere",
+    "Clever Conjurer",
+    "Dutiful Replicator"
+   ]
   }
  ],
  "sole": [
@@ -6627,8 +6626,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 145,
-   "cards": 142,
+   "score": 144,
+   "cards": 141,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -10148,17 +10147,6 @@
    ]
   },
   {
-   "what": "GainAbilityAllEffect.withForceQuotes",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Cloakwood Hermit",
-    "Dungeon Delver",
-    "Acolyte of Bahamut",
-    "Scion of Halaster"
-   ]
-  },
-  {
    "what": "AddExtraTurnControllerEffect",
    "score": 4,
    "cards": 4,
@@ -10277,6 +10265,17 @@
     "Expose the Culprit",
     "Skirk Alarmist",
     "Break Open"
+   ]
+  },
+  {
+   "what": "TapSourceEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Dragon Turtle",
+    "Devouring Sugarmaw // Have for Dinner",
+    "Civilized Scholar // Homicidal Brute",
+    "Ravenous Vampire"
    ]
   }
  ]

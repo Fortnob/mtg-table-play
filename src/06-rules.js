@@ -9819,6 +9819,7 @@
         case 'lifeGained': return !!me && me.gainedTurn === this.turn && (me.gained || 0) >= (cond.n || 1);
         case 'graveyardPermanents': return !!me && this.zones[me.id].graveyard.filter(o => (o.analysis() || {}).isPermanent).length >= (cond.n || 1);
         case 'descended': return !!me && me.descendedTurn === this.turn;
+        case 'creatureCardToGrave': return !!me && me.creatureCardToGraveTurn === this.turn;
         case 'bargained': return !!(ctx && ctx.bargained) || !!(src && src.bargainedTurn != null && src.bargainedTurn === this.turn);
         /* Starting Town: "your first, second, or third turn of the game" */
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
@@ -11086,6 +11087,11 @@
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
         if (own) own.descendedTurn = this.turn;
+      }
+      // Cloakwood Hermit: "if a creature card was put into your graveyard from anywhere this turn"
+      if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isCreature) {
+        const own = this.player(o.owner);
+        if (own) own.creatureCardToGraveTurn = this.turn;
       }
       /* "When this is put into a graveyard from anywhere": the card's own
          trigger, from wherever it came. */

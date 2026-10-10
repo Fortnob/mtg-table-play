@@ -18750,4 +18750,37 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, 1, 'only once each turn');
   });
+
+  test('Cloakwood Hermit: Squirrels at your end step only if a creature card went to your graveyard this turn', (mk, t) => {
+    t.auto('Cloakwood Hermit');
+    const T = mk();
+    T.toMain('A');
+    const cmd = T.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    T.bf('A', 'Cloakwood Hermit');
+    T.g.bumpBoard();
+    const squirrels = () => T.g.battlefield.filter(o => o.controller === 'A' && /Squirrel/.test(o.name));
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(squirrels().length, 0, 'nothing went to the graveyard');
+    T.toMain('A');
+    const elf = T.bf('B', 'Llanowar Elves');
+    T.g.moveObject(elf, 'graveyard');
+    t.eq(squirrels().length, 0, "an opponent's creature is not yours");
+    T.g.moveObject(T.hand('A', 'Hill Giant'), 'graveyard');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(squirrels().length, 2, 'a creature card from your hand counts');
+    t.ok(squirrels().every(o => o.tapped), 'tapped');
+  });
+
+  test('Macabre Reconstruction: {2} less once a creature card has gone to your graveyard this turn', (mk, t) => {
+    t.auto('Macabre Reconstruction');
+    const T = mk();
+    T.toMain('A');
+    const mr = T.hand('A', 'Macabre Reconstruction');
+    t.eq(T.g.castCostFor('A', mr.id), '{3}{B}', 'full price at first');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.g.moveObject(bear, 'graveyard');
+    t.eq(T.g.castCostFor('A', mr.id), '{1}{B}', '{2} less now');
+  });
 };
