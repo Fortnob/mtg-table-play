@@ -2839,6 +2839,29 @@
   }
   App.joinRoom = joinRoom;
 
+  /**
+   * A table set up for a friends tournament's match (src/10i-ui-tourney.js):
+   * the format and house rules it plays by, `mode` to say which match it
+   * is, and a room opened at once for the other player to join. Resolves
+   * the room's code, or null if no room could be opened (the lobby stays,
+   * to open one by hand).
+   */
+  App.hostTableFor = async function (o) {
+    App.formatId = o.formatId;
+    const sess = App.session = new Session(o.formatId, o.rules || null);
+    sess.mode = o.mode || null;
+    sess.addLocalHost(App.myName);
+    showScreen('lobby');
+    renderLobby();
+    const busy = UI.busy('Opening a room');
+    try { await net.host(); }
+    catch (e) { busy.close(); UI.error(e.message || String(e)); return null; }
+    busy.close();
+    setNetBadge();
+    if (App.session === sess && App.screen === 'lobby') renderLobby();
+    return net.roomCode;
+  };
+
   function renderLobby() {
     const s = screens.lobby;
     const sess = App.session;
@@ -2899,6 +2922,10 @@
     if (sess.roster.length < fmt.maxPlayers) grid.appendChild(addBotCard(sess, fmt));
     seats.appendChild(grid);
     main.appendChild(seats);
+
+    // a friends tournament's match: which one, and that its result is sent by itself
+    const tourneyNote = sess.mode && sess.mode.tourney && UI.tourneyLobbyNote ? UI.tourneyLobbyNote(sess.mode.tourney) : null;
+    if (tourneyNote) side.appendChild(tourneyNote);
 
     /* -- start: the biggest button on the screen -- */
     const ready = sess.readyToStart();

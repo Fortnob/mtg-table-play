@@ -707,8 +707,8 @@
       const r = t.rnds.length;
       const pair = pairOf(t, r, me);
       if (!pair || !pair.b || pair.res || roomOf(t, r, pair) !== room) continue;
-      const mineNow = pair.rep[me] ? (pair.a === me ? pair.rep[me] : flip(pair.rep[me])) : null;
-      if (mineNow && mineNow.a === res.w && mineNow.b === res.l && mineNow.d === res.d) return null;
+      // reported already: a friendly rematch at the same table afterwards is not the match
+      if (pair.rep[me]) return null;
       const got = report(t.id, r, pair.t, res.w, res.l, res.d, true);
       return got.ok ? { t, pair, res } : null;
     }
@@ -850,7 +850,12 @@
       hub.sendTourney(code, { op: 'sync', id: t.id, rev: t.rev });
     }
   }
-  /** Your opponent invited you to their table the usual way: that is your match's room. */
+  /**
+   * Your opponent invited you to their table the usual way: that is your
+   * match's room. The invite is marked as the tournament's (inv.tourney),
+   * so the note about it is the tournament's own rather than a friend's
+   * plain invite (src/10g-ui-social.js).
+   */
   function friendInvite(inv) {
     if (!inv || !inv.code || !inv.room) return;
     const me = myCode();
@@ -858,11 +863,14 @@
       if (t.state !== 'running') continue;
       const r = t.rnds.length;
       const p = pairOf(t, r, me);
-      if (!p || !p.b || p.res || (p.a !== inv.code && p.b !== inv.code) || roomOf(t, r, p) === inv.room) continue;
+      if (!p || !p.b || p.res || (p.a !== inv.code && p.b !== inv.code)) continue;
+      inv.tourney = t.id;
+      if (roomOf(t, r, p) === inv.room) return;
       t.hint[r + ':' + p.t] = inv.room;
       save();
       tourney.emit('room', t, p, inv.room);
       changed(t);
+      return;
     }
   }
   function fmtName(t) {
