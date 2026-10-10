@@ -19226,7 +19226,9 @@
         }
         // Beacon of Immortality
         case 'doubleLife': {
-          const p = firstPlayer();
+          // Revival: "your life total"; Celestial Mantle: the enchanted creature's controller's
+          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          const p = e.who === 'you' ? me : e.who === 'attachedController' ? (host ? this.player(host.controller) : null) : firstPlayer();
           if (p && !p.hasLost && p.life > 0) this.changeLife(p, p.life);
           break;
         }

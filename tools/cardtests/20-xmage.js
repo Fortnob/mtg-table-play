@@ -18394,4 +18394,19 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.zone('A', 'hand').length, h + 1, 'one card: the enchanted Bears, not the Giant');
   });
+
+  test("Celestial Mantle: the enchanted creature's controller doubles their life; Revenge: double your life total", (mk, t) => {
+    t.auto('Celestial Mantle');
+    t.auto('Revival // Revenge');
+    const T = mk();
+    T.toMain('A');
+    T.g.player('A').life = 7;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const m = T.bf('A', 'Celestial Mantle');
+    m.attachedTo = bear.id; bear.attachments = [m.id]; T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('A'), 14, '7 doubled');
+    t.eq(T.life('B'), 15, 'a 5/5 Bear');
+  });
 };

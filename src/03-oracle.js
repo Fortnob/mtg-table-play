@@ -1286,6 +1286,8 @@
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
     // Beacon of Immortality: "Double target player's life total."
     { re: /^Double target player'?s life total\.?$/i, make: () => ({ op: 'doubleLife', targets: [{ type: 'player' }] }) },
+    // Revival // Revenge: "Double your life total."; Celestial Mantle: "double its controller's life total" (the enchanted creature's)
+    { re: /^Double (your|its controller'?s) life total\.?$/i, make: (m) => ({ op: 'doubleLife', who: /^your$/i.test(m[1]) ? 'you' : 'attachedController' }) },
     // Geode Rager: "goad each creature target player controls"
     { re: /^Goad each creature (target player|target opponent|that player) controls\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'goad', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
