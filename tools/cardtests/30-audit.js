@@ -6192,4 +6192,18 @@ module.exports = (test) => {
     T.mana('A', 'B2'); T.cast('A', T.hand('A', 'Plaguecrafter'));
     t.eq(T.g.zones.B.hand.length, 1, 'B, with no creature, discards one');
   });
+
+  test('Audit: Tourach\u2019s Canticle: the card chosen is discarded first, then one at random from what is left', (mk, t) => {
+    t.auto("Tourach's Canticle");
+    for (let k = 0; k < 4; k++) {
+      const T = mk(); T.toMain('A');
+      T.g.zones.B.hand.length = 0;
+      const bolt = T.hand('B', 'Lightning Bolt'), isl = T.hand('B', 'Island');
+      T.answer('pickCard', { picks: [bolt.id] });
+      T.mana('A', 'B3'); T.cast('A', T.hand('A', "Tourach's Canticle"), { targets: ['B'] });
+      t.zone(bolt, 'graveyard', 'the chosen card'); t.zone(isl, 'graveyard', 'and the other, at random');
+      const log = T.g.log.map(e => e.text || '');
+      t.ok(log.findIndex(x => /discards Lightning Bolt/.test(x)) < log.findIndex(x => /discards Island at random/.test(x)), 'in that order');
+    }
+  });
 };
