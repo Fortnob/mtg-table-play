@@ -1690,6 +1690,14 @@
     // Malakir Bloodwitch: "Each opponent loses life equal to the number of Vampires you control."
     { re: /^Each opponent loses life equal to (the number of .+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
+    // Jaws of Defeat: "Target opponent loses life equal to the difference between that creature's power and its toughness."
+    { re: /^Target (opponent|player) loses life equal to (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        // (Hidetsugu and Kairi: "its mana value" after "exile the top card" is that card's, not the creature's — left to a person)
+        if (!k || (k.ofTrigger && /^its\b/i.test(m[2]))) return null;
+        return { op: 'loseLife', who: 'target', n: k, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] };
+      } },
     // Invigorating Surge: "Put a +1/+1 counter on target creature you control, then double the number of +1/+1 counters on that creature."
     { re: /^Put (a|one|two|three) \+1\/\+1 counters? on (target creature(?: you control)?), then double the number of \+1\/\+1 counters on (?:it|that creature)\.?$/i,
       make: (m) => [{ op: 'counters', kind: '+1/+1', n: num(m[1]), targets: [targetSpec(m[2])] }, { op: 'doubleCounters', kind: '+1/+1', scope: 'lastTarget' }] },
@@ -5830,6 +5838,8 @@
     // Morbid Curiosity, Shadow: "the mana value of the sacrificed permanent"
     if ((m = p.match(/^the (power|toughness|mana value) of the sacrificed (?:creature|artifact|permanent|land)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
+    // Jaws of Defeat: "the difference between that creature's power and its toughness" (ofTrigger 'ptDiff')
+    if (/^the difference between (?:that creature|its)'?s? power and its toughness$/i.test(p)) return done({ ofTrigger: 'ptDiff' });
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });

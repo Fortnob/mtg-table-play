@@ -4,13 +4,13 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11157,
-  "gainedCards": 1130,
-  "linesNeeded": 11933,
-  "linesGained": 1331,
+  "needed": 11150,
+  "gainedCards": 1126,
+  "linesNeeded": 11924,
+  "linesGained": 1326,
   "gained": {
-   "all": 1130,
-   "top2000": 46,
+   "all": 1126,
+   "top2000": 45,
    "stdTop": 8
   },
   "compare": {
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4156,
-   "lines": 3907,
+   "score": 4154,
+   "lines": 3905,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -3500,19 +3500,6 @@
    ]
   },
   {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Kabira Evangel",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader",
-    "Tajuru Archer",
-    "Bala Ged Thief"
-   ]
-  },
-  {
    "what": "ConditionalRequirementEffect",
    "score": 6,
    "lines": 6,
@@ -4386,6 +4373,18 @@
     "Dragonstorm Forecaster",
     "Bogbrew Witch",
     "Liu Bei, Lord of Shu"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Kabira Evangel",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
    ]
   },
   {
@@ -6623,8 +6622,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3464,
-   "cards": 3296,
+   "score": 3462,
+   "cards": 3294,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8644,19 +8643,6 @@
    ]
   },
   {
-   "what": "AllyEntersBattlefieldTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Kabira Evangel",
-    "Hagra Diabolist",
-    "Murasa Pyromancer",
-    "Munda, Ambush Leader",
-    "Tajuru Archer",
-    "Bala Ged Thief"
-   ]
-  },
-  {
    "what": "BoostEnchantedEffect p/t",
    "score": 6,
    "cards": 6,
@@ -9294,6 +9280,18 @@
     "Dragonstorm Forecaster",
     "Bogbrew Witch",
     "Liu Bei, Lord of Shu"
+   ]
+  },
+  {
+   "what": "AllyEntersBattlefieldTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Kabira Evangel",
+    "Murasa Pyromancer",
+    "Munda, Ambush Leader",
+    "Tajuru Archer",
+    "Bala Ged Thief"
    ]
   },
   {

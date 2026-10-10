@@ -17716,4 +17716,16 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, h0 + 4, 'four drawn, none discarded');
     t.zone(ogre, 'battlefield');
   });
+
+  test("Jaws of Defeat: life equal to the difference between the creature's power and toughness; Starlit Sanctum", (mk, t) => {
+    t.auto('Jaws of Defeat');
+    t.auto('Starlit Sanctum');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Jaws of Defeat');
+    T.mana('A', 'UU1');
+    T.cast('A', T.hand('A', 'Wall of Air'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 16, 'a 1/5: 4 life');
+  });
 };

@@ -12080,6 +12080,8 @@
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
           if (v.ofTrigger === 'power') return gone ? o._lastPower : this.powerOf(o);
           if (v.ofTrigger === 'toughness') return gone ? o._lastToughness : this.toughnessOf(o);
+          // Jaws of Defeat: "the difference between that creature's power and its toughness"
+          if (v.ofTrigger === 'ptDiff') return Math.abs((gone ? o._lastPower : this.powerOf(o)) - (gone ? o._lastToughness : this.toughnessOf(o)));
           return (o.card && o.card.cmc) || 0;
         }
         if (v && typeof v === 'object' && v.ofTarget) {
