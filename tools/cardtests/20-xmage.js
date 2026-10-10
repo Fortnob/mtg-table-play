@@ -20481,4 +20481,24 @@ module.exports = (test) => {
     T2.cast('A', jb);
     t.eq(jb.counters.loyalty, 6, 'and a planeswalker enters with twice its loyalty');
   });
+
+  test('Devour and incubate counters are put on: Mycoloth with Hardened Scales, an Incubator with Doubling Season', (mk, t) => {
+    t.auto('Mycoloth'); t.auto('Eyes of Gitaxias');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Hardened Scales');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const my = T.hand('A', 'Mycoloth');
+    T.mana('A', '3GG');
+    T.cast('A', my, { choices: { devour: { picks: [bear.id] } } });
+    t.zone(bear, 'graveyard');
+    t.eq(my.counters['+1/+1'], 3, 'devour 2 for the Bears, and one more');
+    const T2 = mk({ library: ['Island', 'Island'] });
+    T2.toMain('A');
+    T2.bf('A', 'Doubling Season');
+    T2.mana('A', '2U');
+    T2.cast('A', T2.hand('A', 'Eyes of Gitaxias'));
+    const inc = T2.bfOf('A').find(o => o.name === 'Incubator');
+    t.eq(inc && inc.counters['+1/+1'], 6, 'incubate 3, doubled');
+  });
 };

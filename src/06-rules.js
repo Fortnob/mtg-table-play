@@ -5983,7 +5983,8 @@
           // (_sacrificeNow tells the table of each one: oneSacrificeEach)
           this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
           o.devoured = eaten.length;
-          o.counters['+1/+1'] = (Number(o.counters['+1/+1']) || 0) + a.devour * eaten.length;
+          // (Mycoloth with Hardened Scales: the counters it enters with are put on it, CR 122.6)
+          this.addCounters(o, '+1/+1', a.devour * eaten.length);
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
         }
       }
@@ -21813,7 +21814,11 @@
         const o = this._register(new GObj(card, controller, 'battlefield'));
         o.isToken = true; o.zone = 'battlefield'; o.entered = this.turn;
         if (e.tapped) o.tapped = true;
-        if (e.withCounters) o.counters['+1/+1'] = e.withCounters;
+        // Incubate with Doubling Season: the token's counters are put on it as it is created (CR 122.6)
+        if (e.withCounters) {
+          const evC = this._replace({ kind: 'counters', object: o, n: e.withCounters, counter: '+1/+1', controller, putter: controller });
+          o.counters['+1/+1'] = evC.cancelled ? 0 : Math.max(0, Number(evC.n) || 0);
+        }
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
         this.bumpBoard();
