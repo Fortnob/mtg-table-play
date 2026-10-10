@@ -12337,6 +12337,12 @@
     let mm0;
     if ((mm0 = rest.match(/ that entered (?:the battlefield )?this turn$/i))) { sc.enteredThisTurn = true; rest = rest.slice(0, mm0.index); }
     if ((mm0 = rest.match(/ that(?:'s| is| are)(?: not|n'?t) historic$/i))) { sc.notHistoric = true; rest = rest.slice(0, mm0.index); }
+    /* Finneas, Ace Archer: "each other creature you control that's a token or a Rabbit"; Vault 12: "that's
+       a Zombie or Mutant" — a kind or a creature type (thatIs, read as words) */
+    if ((mm0 = rest.match(/ that(?:'s| is| are) (?:an? )?(token|nontoken|legendary|artifact|enchantment|[A-Z][a-z]+)(?: or (?:an? )?(token|nontoken|legendary|artifact|enchantment|[A-Z][a-z]+))?$/))) {
+      sc.thatIs = [mm0[1], mm0[2]].filter(Boolean).join(' or ').toLowerCase();
+      rest = rest.slice(0, mm0.index);
+    }
     /* "Creatures you control of the chosen type": whatever this permanent
        was told as it entered */
     // Crippling Fear: "Creatures that aren't of the chosen type"

@@ -21119,6 +21119,8 @@
       if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
           (oa.keywordSet && oa.keywordSet.has('changeling')))) return false;
       if (sc.notSubtype && (oa.subtypes || []).some(t => t.toLowerCase() === sc.notSubtype)) return false;
+      // Finneas, Ace Archer: "that's a token or a Rabbit"
+      if (sc.thatIs && !this._cardFitsWords(o, sc.thatIs)) return false;
       // Whelming Wave: "except for Krakens, Leviathans, Octopuses, and Serpents"
       if (sc.notSubtypes && (oa.subtypes || []).some(t => sc.notSubtypes.includes(t.toLowerCase()))) return false;
       // (Season of Gathering: a card type chosen as it resolved)

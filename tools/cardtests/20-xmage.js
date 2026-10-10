@@ -20674,4 +20674,28 @@ module.exports = (test) => {
     t.eq(T.life('B'), 20 - 2 - 4, 'B: 2 for the two attacking them, then 4 combat damage');
     t.eq(T.life('C'), 20 - 1 - 2, 'C: 1, then 2');
   });
+
+  test('"Each creature you control that\'s a token or a Rabbit": Finneas, Ace Archer; Paladin Danse ("an artifact or Human")', (mk, t) => {
+    t.auto('Finneas, Ace Archer'); t.auto('Paladin Danse, Steel Maverick');
+    const T = mk();
+    const fi = T.bf('A', 'Finneas, Ace Archer');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const rabbit = T.bf('A', 'Intrepid Rabbit');
+    T.g._runEffect({ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], subtypes: 'Soldier', keywords: [] }, { controller: 'A', name: 'test' });
+    const tok = T.bfOf('A').find(o => o.isToken);
+    T.answer('declareAttackers', () => [{ attackerId: fi.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(rabbit.counters['+1/+1'], 1, 'the Rabbit');
+    t.eq(tok.counters['+1/+1'], 1, 'the token');
+    t.no(bear.counters['+1/+1'], 'not the Bears');
+    t.no(fi.counters['+1/+1'], 'not Finneas (other)');
+    const T2 = mk();
+    T2.toMain('A');
+    const pd = T2.bf('A', 'Paladin Danse, Steel Maverick');
+    const orn = T2.bf('A', 'Ornithopter');
+    const b2 = T2.bf('A', 'Grizzly Bears');
+    T2.activate('A', pd, 0);
+    t.ok(T2.g.hasKw(orn, 'indestructible'), 'an artifact creature: indestructible');
+    t.no(T2.g.hasKw(b2, 'indestructible'), 'the Bears: no');
+  });
 };
