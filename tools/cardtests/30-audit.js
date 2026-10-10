@@ -5810,4 +5810,17 @@ module.exports = (test) => {
     T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
     t.eq(T.zone('A', 'hand').length - h0, 0, "the Bears only (a Bear by choice): one drawn, one discarded; not B's Bears, not the Giant or the Human Wizard");
   });
+
+  test('Audit: Felisa makes an Inkling for each counter (of any kind) a nontoken creature of yours died with; none without counters', (mk, t) => {
+    t.auto('Felisa, Fang of Silverquill');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Felisa, Fang of Silverquill');
+    const b1 = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 2, 'oil': 1 } }), b2 = T.bf('A', 'Grizzly Bears');
+    const ink = () => T.g.battlefield.filter(o => o.isToken && /Inkling/.test(o.name));
+    T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [b2.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(ink().length, 0, 'no counters: none');
+    T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [b1.id] }); T.settle(); T.resolve(); T.settle();
+    t.eq(ink().length, 3, 'three counters: three'); t.ok(ink().every(o => o.tapped && T.g.hasKw(o, 'flying')));
+  });
 };
