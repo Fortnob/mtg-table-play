@@ -2474,6 +2474,8 @@
       ]),
       slider('cardScale', 'Card size', 0.8, 1.6, 0.05, (v) => Math.round(v * 100) + '%',
         'Makes cards in lists, packs and the deck builder bigger or smaller.'),
+      choice('cardLang', 'Card language', MTG.cardLang.options(),
+        'Card pictures in this language wherever Scryfall has a printing in it, and in English where it has none. The rules text the game runs on stays in English.'),
       pick('theme', 'Theme', [['dark', 'Dark'], ['light', 'Light']], 'The menus and deck builder. The game table is always dark.', 'dark'),
       toggle('showOracleOnHover', 'Show a large card preview on hover', 'Hover any card to read it at full size.'),
       toggle('keywordHelp', 'Explain keywords beside enlarged cards',
