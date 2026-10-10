@@ -29654,11 +29654,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (p.life < mv || (mv > 0 && this._lifeFrozen(p))) return { ok: false, reason: 'Not enough life.' };
         return { ok: true, cost: '', lifeInstead: mv };
       }
-      // Omniscience: without paying the mana cost, which leaves the taxes (CR 601.2f)
-      if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: this._freeCastPrice(o, playerId) };
+      // Omniscience: without paying the mana cost, which leaves the taxes and Trinisphere's floor (CR 601.2f), shown as the cast will charge them
+      if (o.zone === 'hand' && !opts && this._anyStaticOf(playerId, 'freeFromHand')) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
-        (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: this._freeCastPrice(o, playerId) };
+        (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
       const base = this.castCost(o, opts);
       const gTax = /^\{\d+\}$/.test(flashTax) ? parseInt(flashTax.slice(1), 10) : 0;
       const plainCost = gTax ? this._addGeneric(base, gTax) : base + flashTax;
