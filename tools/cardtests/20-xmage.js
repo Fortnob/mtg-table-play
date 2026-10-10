@@ -19470,4 +19470,22 @@ module.exports = (test) => {
     T.resolve();
     t.eq(sc.counters['+1/+1'], 3, "the sacrificed 0/3's toughness");
   });
+
+  test('Neheb, Dreadhorde Champion: discard any number, draw that many and add that much {R}, kept for the turn', (mk, t) => {
+    t.auto('Neheb, Dreadhorde Champion');
+    const T = mk();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const nb = T.bf('A', 'Neheb, Dreadhorde Champion');
+    const c1 = T.hand('A', 'Forest'), c2 = T.hand('A', 'Swamp');
+    T.hand('A', 'Lightning Bolt');
+    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'discardAny'); return { picks: [c1.id, c2.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: nb.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(c1, 'graveyard'); t.zone(c2, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, 3, 'the Bolt and two new cards');
+    t.eq(T.g.player('A').pool.R, 2, 'two red');
+    T.toMain('A', 'end');
+    t.eq(T.g.player('A').pool.R, 2, 'still there at the end step');
+  });
 };

@@ -7054,6 +7054,11 @@
        graveyard to the battlefield." */
     { re: /^Each player chooses a creature type\. Each player returns all creature cards of a type chosen this way from their graveyard to the battlefield\.$/i,
       make: () => [{ op: 'patriarchsBidding' }] },
+    /* Neheb, Dreadhorde Champion: "you may discard any number of cards. If you
+       do, draw that many cards and add that much {R}. Until end of turn, you
+       don't lose this mana as steps and phases end." */
+    { re: /^(?:You may )?discard any number of cards\. If you do, draw that many cards and add that much \{([WUBRGC])\}\.( Until end of turn, you don'?t lose this mana as steps and phases end\.)?$/i,
+      make: (m) => [{ op: 'discardAnyDraw', plus: 0, addMana: m[1].toUpperCase(), keepMana: !!m[2] }] },
     // Brass's Tunnel-Grinder: "discard any number of cards, then draw that many cards plus one."
     { re: /^Discard any number of cards, then draw that many cards(?: plus (one|two))?\.$/i,
       make: (m) => [{ op: 'discardAnyDraw', plus: m[1] ? num(m[1]) : 0 }] },

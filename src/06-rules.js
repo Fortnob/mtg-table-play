@@ -16054,6 +16054,12 @@
           if (picks.length) this._discardNow(ctx.controller, picks);
           const k = picks.length + (e.plus || 0);
           if (k > 0) this._drawCards(me, k);
+          // Neheb, Dreadhorde Champion: "and add that much {R}", kept until end of turn
+          if (e.addMana && picks.length) {
+            me.pool.add(e.addMana, picks.length);
+            this.logEvent('mana', `${me.name} adds ${picks.length} {${e.addMana}}.`);
+            if (e.keepMana) this._runEffect({ op: 'keepMana' }, ctx);
+          }
           break;
         }
         // Brass's Tunnel-Grinder: enough counters, and they come off as it transforms

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10922,
+  "needed": 10921,
   "gainedCards": 1060,
-  "linesNeeded": 11652,
+  "linesNeeded": 11651,
   "linesGained": 1248,
   "gained": {
    "all": 1060,
@@ -3863,18 +3863,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Neheb, Dreadhorde Champion",
-    "Bladewing, Deathless Tyrant",
-    "Jaya's Phoenix",
-    "Storrev, Devkarin Lich",
-    "Garruk's Harbinger"
-   ]
-  },
-  {
    "what": "or of AbilityPredicate",
    "score": 5,
    "lines": 5,
@@ -5160,6 +5148,17 @@
     "Armor Wars",
     "Spellbinding Soprano",
     "Urza, Planeswalker"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Bladewing, Deathless Tyrant",
+    "Jaya's Phoenix",
+    "Storrev, Devkarin Lich",
+    "Garruk's Harbinger"
    ]
   },
   {
@@ -8882,18 +8881,6 @@
    ]
   },
   {
-   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Neheb, Dreadhorde Champion",
-    "Bladewing, Deathless Tyrant",
-    "Jaya's Phoenix",
-    "Storrev, Devkarin Lich",
-    "Garruk's Harbinger"
-   ]
-  },
-  {
    "what": "unless pays a count",
    "score": 5,
    "cards": 5,
@@ -9897,6 +9884,17 @@
     "Experiment Twelve",
     "Printlifter Ooze",
     "Kingpin, Wilson Fisk"
+   ]
+  },
+  {
+   "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Bladewing, Deathless Tyrant",
+    "Jaya's Phoenix",
+    "Storrev, Devkarin Lich",
+    "Garruk's Harbinger"
    ]
   },
   {
