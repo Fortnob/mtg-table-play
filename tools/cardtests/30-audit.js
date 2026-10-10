@@ -6333,4 +6333,33 @@ module.exports = (test) => {
       t.zone(ee, horror ? 'hand' : 'graveyard', horror ? 'a changeling was a Horror: back to hand' : 'not a Horror: stays gone');
     }
   });
+
+  test('Audit: Liesa, Shroud of Dusk can\u2019t be cast for a life tax you don\u2019t have; Zaxara sees {X} on the face cast (Agadeem\u2019s Awakening)', (mk, t) => {
+    const { card } = require('../harness');
+    for (const life of [3, 4, 5]) {
+      const T = mk(); T.toMain('A');
+      const { GObj } = T.MTG.rules;
+      const li = T.g._register(new GObj(card('Liesa, Shroud of Dusk'), 'A', 'command'));
+      li.isCommander = true; T.g.zones.A.command.push(li);
+      T.g.player('A').commanderCasts[li.id] = 2;      // cast twice before: 4 life
+      T.g.player('A').life = life;
+      for (const l of ['Plains', 'Plains', 'Swamp', 'Swamp', 'Swamp']) T.bf('A', l);
+      const chk = T.g.canCast('A', li.id);
+      t.eq(chk.ok, life >= 4, `${life} life`);
+      if (life < 4) t.ok(/commander tax is 4 life/.test(chk.reason || ''), 'says why: ' + chk.reason);
+      t.eq((T.g.viewFor('A').playable || []).includes(li.id), life >= 4, 'and the table offers it only then');
+      const ok = T.g.castSpell('A', li.id, { auto: true });
+      t.eq(!!ok, life >= 4);
+      t.eq(T.life('A'), life >= 4 ? life - 4 : life, life >= 4 ? 'the 4 life paid' : 'nothing paid');
+    }
+    t.auto('Zaxara, the Exemplary');
+    const T = mk(); T.toMain('A');
+    T.bf('A', 'Zaxara, the Exemplary');
+    T.g.zones.A.graveyard.length = 0; const g = T.grave('A', 'Grizzly Bears');
+    T.answer('*', () => ({ picks: [g.id], cardIds: [g.id] }));
+    T.mana('A', 'BBB1');
+    T.cast('A', T.hand('A', "Agadeem's Awakening // Agadeem, the Undercrypt"), { x: 1, face: 0 });
+    const hy = T.g.battlefield.find(x => x.isToken && /Hydra/.test(x.name));
+    t.ok(hy, 'a modal double-faced card\u2019s front, {X}{B}{B}{B}: a Hydra'); t.eq(hy && hy.counters['+1/+1'], 1, 'with X counters');
+  });
 };

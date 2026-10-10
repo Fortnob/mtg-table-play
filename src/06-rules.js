@@ -3453,6 +3453,11 @@
       // Oathbreaker: the Signature Spell only while its Oathbreaker is on the battlefield
       if (o.isSignature && o.zone === 'command' && !this._oathbreakerOut(o.owner))
         return { ok: false, reason: 'A Signature Spell can be cast only while its Oathbreaker is on the battlefield.' };
+      // Liesa, Shroud of Dusk: the commander tax in life, which has to be there to pay (CR 119.4)
+      if (o.zone === 'command') {
+        const lifeTax = this._commanderTax(o).life;
+        if (lifeTax && p && p.life < lifeTax) return { ok: false, reason: `${o.name}'s commander tax is ${lifeTax} life, and you have ${p.life}.` };
+      }
       const leave = (o.zone === 'library' || o.zone === 'graveyard') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
       if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
       if (o.zone === 'graveyard' && leave && this._anyStatic('cageGraveyards'))
@@ -11991,7 +11996,13 @@
           // Captain Ripley Vance: only the third spell its controller casts this turn
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
           // Zaxara: a spell with {X} in its mana cost (xSpell); Zuko: one cast during combat (duringCombat)
-          if (ab.xSpell && !/\{X\}/.test(((data.object && data.object.card) || {}).mana_cost || '')) continue;
+          // (the cost of the face being cast: a split card's half, an adventure, an MDFC's back; both halves fused)
+          if (ab.xSpell) {
+            const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
+            const mc = xItem && xItem.fused && xo && xo.card && xo.card.card_faces ? xo.card.card_faces.map(f => f.mana_cost || '').join('')
+              : ((xo && xo.analysis && (xo.analysis() || {}).manaCost) || ((xo && xo.card) || {}).mana_cost || '');
+            if (!/\{X\}/.test(mc)) continue;
+          }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
           if (ab.firstXSpell) {
