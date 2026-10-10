@@ -22050,4 +22050,83 @@ module.exports = (test) => {
     W.cast('A', W.hand('A', 'Raise the Alarm')); W.resolve();
     t.eq(Number(wc.counters['+1/+1']) || 0, 2, 'Woodland Champion: two tokens at once, two counters');
   });
+
+  test("Commanders: Najeela, Kari Zev, Samut, Imskir, Aatchik, Tori D'Avenant, Balan, Raubahn; Runaway Trash-Bot, Lita's untap", (mk, t) => {
+    for (const n of ['Najeela, the Blade-Blossom', 'Kari Zev, Skyship Raider', 'Samut, Vizier of Naktamun', 'Imskir Iron-Eater', 'Aatchik, Emerald Radian',
+      "Tori D'Avenant, Fury Rider", 'Balan, Wandering Knight', 'Raubahn, Bull of Ala Mhigo', 'Runaway Trash-Bot']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // Najeela: a Warrior attacks, its controller makes a 1/1 Warrior, tapped and attacking
+    const N = mk({ library: Array(10).fill('Island') });
+    N.toMain('A');
+    N.answer('confirm', { yes: true });
+    attack(N, [N.bf('A', 'Najeela, the Blade-Blossom')]);
+    const tok = N.bfOf('A').find(o => o.isToken && /Warrior/.test(o.name));
+    t.ok(!!tok && tok.tapped && !!tok.attacking, 'Najeela: a Warrior token, tapped and attacking');
+    // Kari Zev: Ragavan enters tapped and attacking
+    const K = mk({ library: Array(10).fill('Island') });
+    K.toMain('A');
+    attack(K, [K.bf('A', 'Kari Zev, Skyship Raider')]);
+    const rag = K.bfOf('A').find(o => o.name === 'Ragavan');
+    t.ok(!!rag && rag.tapped && !!rag.attacking, 'Kari Zev: Ragavan, tapped and attacking');
+    // Samut: draws for a creature that entered this turn and hit a player, not for one that didn't
+    const S = mk({ library: Array(10).fill('Island') });
+    S.toMain('A');
+    const sm = S.bf('A', 'Samut, Vizier of Naktamun'); sm.entered = S.g.turn;
+    const old = S.bf('A', 'Grizzly Bears'); old.entered = S.g.turn - 1;
+    const h0 = S.zone('A', 'hand').length;
+    attack(S, [sm, old]);
+    S.toMain('A', 'endCombat');
+    t.eq(S.zone('A', 'hand').length, h0 + 1, 'Samut: one card, for the creature that entered this turn');
+    // Imskir: X is half the number of artifacts you control, rounded down
+    const I = mk({ library: Array(10).fill('Island') });
+    I.toMain('A');
+    for (let k = 0; k < 5; k++) I.bf('A', 'Ornithopter');
+    const ih = I.zone('A', 'hand').length;
+    I.put('A', 'Imskir Iron-Eater', 'battlefield', { etb: true }); I.resolve();
+    t.eq(I.zone('A', 'hand').length, ih + 2, 'Imskir: five artifacts, two cards');
+    t.eq(I.life('A'), 18, 'Imskir: and 2 life');
+    // Aatchik: an Insect for each artifact and/or creature card in your graveyard
+    const A = mk({ library: Array(10).fill('Island') });
+    A.toMain('A');
+    A.grave('A', 'Grizzly Bears'); A.grave('A', 'Ornithopter'); A.grave('A', 'Island');
+    A.put('A', 'Aatchik, Emerald Radian', 'battlefield', { etb: true }); A.resolve();
+    t.eq(A.bfOf('A').filter(o => o.isToken && /Insect/.test(o.name)).length, 2, 'Aatchik: two Insects (the land does not count)');
+    // Tori D'Avenant: other white attackers untap
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const lions = T.bf('A', 'Savannah Lions'), bears = T.bf('A', 'Grizzly Bears');
+    attack(T, [T.bf('A', "Tori D'Avenant, Fury Rider"), lions, bears]);
+    t.ok(!lions.tapped && bears.tapped, "Tori: the white attacker untaps, the green one doesn't");
+    // Balan: every Equipment you control onto Balan
+    const B = mk({ library: Array(10).fill('Plains') });
+    B.toMain('A');
+    const bal = B.bf('A', 'Balan, Wandering Knight'), gb = B.bf('A', 'Grizzly Bears');
+    const bs = B.bf('A', 'Bonesplitter'), ss = B.bf('A', 'Short Sword');
+    bs.attachedTo = gb.id; gb.attachments = [bs.id]; B.g.bumpBoard();
+    B.mana('A', '1W');
+    B.activate('A', bal, 0); B.resolve();
+    t.ok(bs.attachedTo === bal.id && ss.attachedTo === bal.id && !(gb.attachments || []).length, 'Balan: both Equipment moved onto Balan');
+    t.ok(B.g.hasKw(bal, 'double strike'), 'Balan: two Equipment, double strike');
+    // Raubahn: attach an Equipment you control to an attacking creature
+    const R = mk({ library: Array(10).fill('Island') });
+    R.toMain('A');
+    const rb = R.bf('A', 'Raubahn, Bull of Ala Mhigo'), rgb = R.bf('A', 'Grizzly Bears'), rbs = R.bf('A', 'Bonesplitter');
+    R.answer('pickTarget', { targets: [{ kind: 'object', id: rbs.id }, { kind: 'object', id: rgb.id }] });
+    attack(R, [rb, rgb]);
+    t.eq(rbs.attachedTo, rgb.id, 'Raubahn: Bonesplitter onto the attacking Bears');
+    // Bebop: "you may draw X cards, where X is the number of counters on Bebop. If you do, you lose X life." — the same X
+    const Q = mk({ library: Array(10).fill('Island') });
+    Q.toMain('A');
+    const bb = Q.bf('A', 'Bebop, Skull & Crossbones'); bb.counters['+1/+1'] = 2;
+    const qh = Q.zone('A', 'hand').length;
+    Q.answer('confirm', { yes: true });
+    attack(Q, [bb]);
+    Q.toMain('A', 'endCombat');
+    t.eq(Q.zone('A', 'hand').length, qh + 2, 'Bebop: two counters, two cards');
+    t.eq(Q.life('A'), 18, 'Bebop: and 2 life lost');
+  });
 };

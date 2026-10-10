@@ -10187,7 +10187,8 @@
         case 'opponentMoreLife': return !!me && this.opponentsOf(me.id).some(p => p.life > me.life);
         // Brass Knuckles: the creature it's on wears two Equipment or more
         case 'hostEquipmentAtLeast': {
-          const host = src && src.attachedTo && this.obj(src.attachedTo);
+          // (Balan, Wandering Knight: "CARDNAME has double strike as long as two or more Equipment are attached to it" — itself: selfEquipmentCount)
+          const host = (src && src.attachedTo && this.obj(src.attachedTo)) || (src && src.zone === 'battlefield' && !(src.analysis() || {}).isEquipment ? src : null);
           return !!host && (host.attachments || []).filter(id => { const at = this.obj(id); return at && (at.analysis() || {}).isEquipment; }).length >= (cond.n || 2);
         }
         // Kinship: the top card of your library shares a creature type with this
@@ -10339,6 +10340,8 @@
           return cond.cmp === 'atLeast' ? pw >= cond.n : pw <= cond.n;
         }
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
+        // Samut, Vizier of Naktamun: "if that creature entered this turn" (triggerObjEntered)
+        case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
@@ -20174,6 +20177,19 @@
           break;
         }
         // Brass Squire: an Equipment of yours onto a creature of yours
+        // Balan, Wandering Knight: every Equipment its controller controls, onto it (attachAllToSelf)
+        case 'attachAllToSelf': {
+          if (!src || src.zone !== 'battlefield' || !(this.characteristics(src) || {}).isCreature) break;
+          const eqs = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && x !== src && x.attachedTo !== src.id && (x.analysis() || {}).isEquipment);
+          for (const eq of eqs) {
+            const old = eq.attachedTo && this.obj(eq.attachedTo);
+            if (old) old.attachments = (old.attachments || []).filter(id => id !== eq.id);
+            eq.attachedTo = src.id;
+            src.attachments = (src.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          }
+          if (eqs.length) { this.logEvent('rules', `${eqs.map(x => x.name).join(', ')} ${eqs.length === 1 ? 'is' : 'are'} attached to ${src.name}.`); this.bumpBoard(); }
+          break;
+        }
         case 'attachEquipment': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [eq, host] = objs;

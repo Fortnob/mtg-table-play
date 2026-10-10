@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10511,
+  "needed": 10501,
   "gainedCards": 970,
-  "linesNeeded": 11166,
+  "linesNeeded": 11155,
   "linesGained": 1136,
   "gained": {
    "all": 970,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4026,
-   "lines": 3780,
+   "score": 4024,
+   "lines": 3778,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -89,8 +89,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 192,
-   "lines": 186,
+   "score": 191,
+   "lines": 185,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
@@ -1940,21 +1940,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Samut, Vizier of Naktamun",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
-    "Romana II"
-   ]
-  },
-  {
    "what": "target count 0",
    "score": 8,
    "lines": 8,
@@ -2367,6 +2352,20 @@
     "Codie, Vociferous Codex",
     "Rainbow Vale",
     "Undiscovered Paradise"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
+    "Romana II"
    ]
   },
   {
@@ -3054,19 +3053,6 @@
    ]
   },
   {
-   "what": "AttachTargetToTargetEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Raubahn, Bull of Ala Mhigo",
-    "Barret, Avalanche Leader",
-    "Noctis, Heir Apparent",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
-   ]
-  },
-  {
    "what": "delayed UntilYourNextTurnDelayedTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -3746,18 +3732,6 @@
    ]
   },
   {
-   "what": "attacks you, or its controller",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Najeela, the Blade-Blossom",
-    "Sarkhan the Masterless",
-    "Circle of Flame",
-    "Palazzo Archers",
-    "Lost in the Woods"
-   ]
-  },
-  {
    "what": "BecomePreparedSourceEffect",
    "score": 5,
    "lines": 5,
@@ -3866,17 +3840,6 @@
    ]
   },
   {
-   "what": "HalfValue",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Imskir Iron-Eater",
-    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
-    "Rakdos the Defiler",
-    "Banshee"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesAllEffect",
    "score": 5,
    "lines": 5,
@@ -3910,6 +3873,18 @@
     "Jade Statue",
     "Kjeldoran Elite Guard",
     "Heart Wolf"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Barret, Avalanche Leader",
+    "Noctis, Heir Apparent",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
    ]
   },
   {
@@ -4719,17 +4694,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Éomer, Marshal of Rohan",
-    "Lita, Mechanical Engineer",
-    "Preston Garvey, Minuteman",
-    "Jiang Yanggu, Never Alone"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 4,
    "lines": 4,
@@ -4749,6 +4713,17 @@
     "Compy Swarm",
     "Phoenix Fleet Airship",
     "Joo Dee, One of Many"
+   ]
+  },
+  {
+   "what": "attacks you, or its controller",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Sarkhan the Masterless",
+    "Circle of Flame",
+    "Palazzo Archers",
+    "Lost in the Woods"
    ]
   },
   {
@@ -4858,6 +4833,16 @@
     "Necrogen Rotpriest",
     "Flensing Raptor",
     "Slaughter Singer"
+   ]
+  },
+  {
+   "what": "HalfValue",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
+    "Rakdos the Defiler",
+    "Banshee"
    ]
   },
   {
@@ -5801,6 +5786,16 @@
    ]
   },
   {
+   "what": "UntapAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Éomer, Marshal of Rohan",
+    "Preston Garvey, Minuteman",
+    "Jiang Yanggu, Never Alone"
+   ]
+  },
+  {
    "what": "ToughnessGreaterThanPowerPredicate.instance",
    "score": 3,
    "lines": 3,
@@ -6482,8 +6477,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3368,
-   "cards": 3203,
+   "score": 3366,
+   "cards": 3201,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6508,8 +6503,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 143,
-   "cards": 140,
+   "score": 142,
+   "cards": 139,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -7446,19 +7441,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Samut, Vizier of Naktamun",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor"
-   ]
-  },
-  {
    "what": "scope:alts",
    "score": 8,
    "cards": 8,
@@ -7714,6 +7696,19 @@
     "Golden-Tail Trainer",
     "Edgewalker",
     "Ragemonger"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
    ]
   },
   {
@@ -8725,18 +8720,6 @@
    ]
   },
   {
-   "what": "attacks you, or its controller",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Najeela, the Blade-Blossom",
-    "Sarkhan the Masterless",
-    "Circle of Flame",
-    "Palazzo Archers",
-    "Lost in the Woods"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrDiesSourceTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -8758,18 +8741,6 @@
     "Cosmium Confluence",
     "Riveteers Confluence",
     "Obscura Confluence"
-   ]
-  },
-  {
-   "what": "AttachTargetToTargetEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Raubahn, Bull of Ala Mhigo",
-    "Barret, Avalanche Leader",
-    "Iron Hills Stalwart",
-    "Aura Finesse",
-    "Swordsman, Sharp Scoundrel"
    ]
   },
   {
@@ -9459,6 +9430,17 @@
    ]
   },
   {
+   "what": "attacks you, or its controller",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Sarkhan the Masterless",
+    "Circle of Flame",
+    "Palazzo Archers",
+    "Lost in the Woods"
+   ]
+  },
+  {
    "what": "BecomesCreatureAllEffect",
    "score": 4,
    "cards": 4,
@@ -9599,6 +9581,17 @@
     "Dark Apostle",
     "Sloppity Bilepiper",
     "Smoldering Stagecoach"
+   ]
+  },
+  {
+   "what": "AttachTargetToTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Barret, Avalanche Leader",
+    "Iron Hills Stalwart",
+    "Aura Finesse",
+    "Swordsman, Sharp Scoundrel"
    ]
   },
   {

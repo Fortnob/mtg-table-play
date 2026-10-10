@@ -1324,6 +1324,14 @@
        enchanted creature" (picked as it resolves) */
     { re: /^Return any number of target Aura and\/or Equipment cards from your graveyard to the battlefield attached to enchanted creature\.?$/i,
       make: () => ({ op: 'returnAttachedToEnchanted' }) },
+    // Najeela, the Blade-Blossom: "you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking" (itsControllerCreates)
+    { re: /^(?:You may )?[Hh]ave its controller (create .+? tokens?(?: that'?s| that are)? tapped and attacking)\.?$/,
+      make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
+    // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
+    { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
+    // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
+    { re: /^Attach up to one target Equipment you control to target attacking creature\.?$/i,
+      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'], upTo: true }, Object.assign(targetSpec('target attacking creature') || { type: 'creature' })] }) },
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
@@ -1618,6 +1626,9 @@
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ and /, ' or '), yours: false }) },
     // Hexplate Wallbreaker: "Untap each attacking creature."
     { re: /^Untap each attacking creature\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }) },
+    // Tori D'Avenant, Fury Rider: "Untap each other white attacking creature you control." (untapEachYours)
+    { re: /^Untap each ((?:other |another )?(?:[a-z]+ )*?)creature you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[1].replace(/^another /, 'other ') + 'creatures you control'); return sc && !sc.self && sc.who === 'you' ? { op: 'untapAll', scope: sc } : null; } },
     // Vines of Vastwood: "can't be the target of spells or abilities your opponents control this turn" is hexproof
     { re: /^(Target creature|Target permanent) can'?t be the target of spells or abilities your opponents control this turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: ['Hexproof'], duration: 'eot', targets: [targetSpec(m[1])] }) },
@@ -5966,7 +5977,8 @@
     /* Alibou, Ancient Witness: "deals X damage to any target and you scry
        X, where X is the number of tapped artifacts you control" — two
        things, each with the same X */
-    { re: /^(.+? X .+?) and (you (?:scry|surveil|draw|gain|mill) X\b.*?), where X is (.+?)\.?$/i,
+    // (Imskir Iron-Eater: "you draw X cards and you lose X life, where X is …" — whereXRounded)
+    { re: /^(.+? X .+?) and (you (?:scry|surveil|draw|gain|lose|mill) X\b.*?), where X is (.+?)\.?$/i,
       make: (m) => {
         const a = parseEffectSentence(m[1] + ', where X is ' + m[3] + '.');
         const b = parseEffectSentence(U.titleCase(m[2].charAt(0)) + m[2].slice(1) + ', where X is ' + m[3] + '.');
@@ -6096,6 +6108,8 @@
     if (/^(?:permanent|creature) (?:destroyed|exiled|returned) this way$/i.test(p)) return { lastSweep: true, mult: k };
     // "for each land card in your graveyard"
     if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
+    // Aatchik, Emerald Radian: "for each artifact and/or creature card in your graveyard" (eitherCardInGraveyard)
+    if ((m = p.match(/^([a-z]+) (?:and\/or|or) ([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
@@ -6895,7 +6909,8 @@
     /* "You draw X cards and lose X life, where X is the number of colors of
        mana spent to cast this spell": the sentence read with X in it, and
        every X then made the number the rider names. */
-    const wx = !depth && s.match(/^(.+?), where X is ([^,]+?)\.?$/);
+    // (Imskir Iron-Eater: "where X is half the number of artifacts you control, rounded down" — whereXRounded)
+    const wx = !depth && s.match(/^(.+?), where X is ([^,]+?(?:, rounded (?:up|down))?)\.?$/);
     if (wx && !/\bwhere X\b/.test(wx[1])) {
       const k = amountOf(wx[2]);
       const inner = k && parseEffectSentence(wx[1] + '.', 0);
@@ -9186,7 +9201,25 @@
     }
     const modal = parseModal(cleaned);
     if (modal) return modal;
-    return parseSentenceList(splitSentences(cleaned));
+    const res = parseSentenceList(splitSentences(cleaned));
+    /* Bebop, The Ice Dancer: "draw X cards, where X is …. If you do, you lose X
+       life." — an X the reading left as it was, after one it filled, is the same
+       number (xCarry) */
+    if (res && res.effects && /\bwhere X is\b/i.test(cleaned)) {
+      let xk = null;
+      const walk = (arr) => {
+        for (const e of arr || []) {
+          if (!e || typeof e !== 'object') continue;
+          for (const k of ['n', 'amount']) {
+            if (e[k] && typeof e[k] === 'object' && /\bX\b/.test(e.text || '')) xk = e[k];
+            else if (e[k] === 'X' && xk) e[k] = JSON.parse(JSON.stringify(xk));
+          }
+          walk(e.then); walk(e.list); walk(e.otherwise);
+        }
+      };
+      walk(res.effects);
+    }
+    return res;
   }
 
   /** Straighten quotes and dashes so ASCII rule patterns match Scryfall text. */
@@ -9542,6 +9575,8 @@
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
     [/^you sacrificed (a|an|one or more|two or more|three or more|four or more) ([A-Z][a-z]+|permanent|creature|artifact|enchantment|land)s? this turn$/,
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
+    // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
+    [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
     [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
@@ -11386,6 +11421,16 @@
             parsed.effects = [{ op: 'returnItToHand', ownerHand: true, text: parsed.effects[0].text }];
             parsed.auto = true;
           }
+        }
+        // Kari Zev, Skyship Raider: "create Ragavan, … token. Ragavan enters tapped and attacking." — the token just made (namedTokenAttacking)
+        for (let k = 0; k + 1 < parsed.effects.length; k++) {
+          const tk = parsed.effects[k], nx = parsed.effects[k + 1];
+          if (!tk || tk.op !== 'createToken' || !nx || nx.op !== 'manual' || tk.attacking) continue;
+          const who = tk.name ? escapeRe(tk.name) + '|' : '';
+          if (!new RegExp('^(?:' + who + 'It|That token) enters tapped and attacking\\.?$', 'i').test(String(nx.text || '').trim())) continue;
+          tk.tapped = true; tk.attacking = true;
+          parsed.effects.splice(k + 1, 1);
+          if (parsed.effects.every(e => e && e.op !== 'manual')) parsed.auto = true;
         }
         /* The Earth King, Grand Warlord Radha, Fangorn, Raphael: "that many" and "that much" in a
            trigger — the amount it was about, or how many set it off (batchCount). Only here: in a spell
