@@ -4476,6 +4476,8 @@
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      // Kroxa: who discarded what as this resolves (lifeUnlessDiscarded)
+      if (this.resolving) (this.resolving._discBy = this.resolving._discBy || []).push({ pid: playerId, id: o.id });
       // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
       { const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1; }
       /* Obstinate Baloth: "If a spell or ability an opponent controls causes
@@ -15596,6 +15598,50 @@
           if (e.not ? !is : is) this._spliceNext(e.then || []);
           break;
         }
+        // Avatar Roku, Firebender: the mana stays until combat ends, as firebending's does (keepManaCombat)
+        case 'keepManaCombat':
+          if (this.phase && this.phase.id === 'combat') { me.poolKeepUntil = 'combat'; this.logEvent('mana', `${me.name} keeps their mana until the end of combat.`); }
+          break;
+        /* Kroxa: "each opponent who didn't discard a nonland card this way
+           loses 3 life" — what each player discarded as this resolved (lifeUnlessDiscarded) */
+        case 'loseLifeUnlessDiscarded': {
+          const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : this.opponentsOf(ctx.controller);
+          const disc = ((this.resolving || {})._discBy) || [];
+          for (const p of who) {
+            if (!p || p.hasLost) continue;
+            const hit = disc.some(d => d.pid === p.id && this._cardFitsWords(this.obj(d.id) || { analysis: () => null }, e.filter || 'card'));
+            if (!hit) this.changeLife(p, -(e.n || 0), 'card');
+          }
+          break;
+        }
+        /* Danitha, Benalia's Hope: an Aura or Equipment card from your hand
+           or graveyard onto the battlefield attached to it (putAttachedToSelf) */
+        case 'putAttachedToSelf': {
+          const host = src && src.zone === 'battlefield' ? src : null;
+          const pool = [];
+          for (const zn of (e.from || ['hand'])) for (const c of (this.zones[ctx.controller][zn] || [])) {
+            const ca = c.analysis() || {};
+            if (!(e.words || []).some(w => this._cardFitsWords(c, w))) continue;
+            // an Aura that couldn't enchant it stays where it is (CR 303.4f)
+            if (ca.isAura && !(host && this._attachLegal(c, ca, host))) continue;
+            pool.push(c);
+          }
+          if (!pool.length) break;
+          const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+            prompt: `Choose an Aura or Equipment card to put onto the battlefield${host ? ' attached to ' + host.name : ''}.` }, 'pas');
+          if (got === SUSPEND) return SUSPEND;
+          const c = ((got || []).map(id => this.obj(id)).find(x => x && pool.includes(x))) || pool[0];
+          if (!c || (c.zone !== 'hand' && c.zone !== 'graveyard')) break;
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (c.zone !== 'battlefield') break;
+          if (host && host.zone === 'battlefield') {
+            c.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+            this.logEvent('attach', `${c.name} enters attached to ${host.name}.`);
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'keepMana':
           me.poolKeepUntil = 'turn';
           me.poolKeepTurn = this.turn;
@@ -21908,7 +21954,8 @@
       // "artifacts and enchantments" counts anything that is either (Thousand Moons Smithy: "artifacts and/or creatures")
       const wants = String(per || '')
         .split(/\s+and\/or\s+|\s+and\s+|\s*,\s*/)
-        .map(w => w.trim().replace(/(?<!plain)s$/, ''))
+        // (Abomination of Llanowar, Ondu Cleric: "Elves", "Allies" — the type's own singular: pluralTypes)
+        .map(w => (O.singularType ? O.singularType(w) : w.trim().replace(/(?<!plain)s$/, '')))
         .filter(Boolean);
       if (!wants.length) return [];
       const out = [];
@@ -23900,6 +23947,7 @@
           answers: JSON.parse(JSON.stringify(this.resolving.answers)),
           // Rise of the Witch-king: who sacrificed what so far (sacrificedThisWay)
           sacBy: this.resolving._sacBy ? JSON.parse(JSON.stringify(this.resolving._sacBy)) : undefined,
+          discBy: this.resolving._discBy ? JSON.parse(JSON.stringify(this.resolving._discBy)) : undefined,
           manual: JSON.parse(JSON.stringify(this.resolving.manual)),
           afterKind: this.resolving.afterKind,
         } : null,
@@ -23967,7 +24015,7 @@
         if (ctx.objId) ctx.obj = byId(ctx.objId);
         this.resolving = {
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
-          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy,
+          manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy, _discBy: rs.discBy,
           // the callback is a closure, so it is rebuilt from what it was for
           after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx) : null,
         };

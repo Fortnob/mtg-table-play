@@ -5630,6 +5630,14 @@
     /* Rituals that last: "Until end of turn, you don't lose this mana as
        steps and phases end." */
     { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
+    // Avatar Roku, Firebender: "Until end of combat, you don't lose this mana as steps end." (keepManaCombat)
+    // Strongarm Tactics: "Then each player who didn't discard a creature card this way loses 4 life."; Kroxa: "… then each opponent who didn't discard a nonland card this way loses 3 life" (lifeUnlessDiscarded)
+    { re: /^(?:Then )?each (opponent|player) who didn'?t discard an? (nonland|creature|land|noncreature) card this way loses (\d+) life\.?$/i,
+      make: (m) => ({ op: 'loseLifeUnlessDiscarded', who: /opponent/i.test(m[1]) ? 'opponents' : 'each', filter: m[2].toLowerCase(), n: +m[3] }) },
+    // Danitha, Benalia's Hope: "put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to Danitha" (putAttachedToSelf)
+    { re: /^Put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'putAttachedToSelf', from: ['hand', 'graveyard'], words: ['aura', 'equipment'] }) },
+    { re: /^Until end of combat, you don'?t lose (?:this|that) mana as steps end\.?$/i, make: () => ({ op: 'keepManaCombat' }) },
     /* "Target land becomes the basic land type of your choice until end of turn." */
     { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
@@ -10498,6 +10506,19 @@
   /* "Whenever <who> A, B, or C, <effect>" (and "… A or B, …") as one line
      for each of A, B and C — or null when the line is to stay as it is */
   function orTriggerLines(line) {
+    return orTriggerLinesOneSubject(line) || orTwoSubjects(line);
+  }
+  /* Norin the Wary: "When a player casts a spell or a creature attacks" —
+     each event with its own subject (orTwoSubjects). "When" and "Whenever"
+     are the same here: whichever the event reads with. */
+  function orTwoSubjects(line) {
+    const two = line.match(/^(When(?:ever)? )((?:an opponent|a player|you) [^,"]+?) or ((?:a|another) creature [^,"]+), ([^"]*)$/);
+    if (!two || triggerRest(line) === two[4].trim()) return null;
+    const alt = (x) => [two[1], /^Whenever/.test(two[1]) ? 'When ' : 'Whenever '].map(w => w + x + ', ' + two[4]).find(l => triggerRest(l) === two[4].trim());
+    const out = [alt(two[2]), alt(two[3])];
+    return out.every(Boolean) ? out : null;
+  }
+  function orTriggerLinesOneSubject(line) {
     const SUBJ = '(an opponent|a player|you|this [a-z]+|CARDNAME|enchanted creature|equipped creature)';
     const m = line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ((?:[^,"]+, )+)or ([^,"]+), ([^"]*)$'))
       || line.match(new RegExp('^(When(?:ever)? )' + SUBJ + ' ([^,"]+?) or ([^,"]+), ([^"]*)$'));
@@ -13539,6 +13560,14 @@
     // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
       make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
+    // Abomination of Llanowar: "… the number of Elves you control plus the number of Elf cards in your graveyard" (cdaPlusGraveyard)
+    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?) you control plus the number of ([a-z]+) cards in your graveyard\.?$/i,
+      make: (m) => {
+        const a = cdaCount(m[1], 'you'), b = countOf(m[2] + ' card in your graveyard');
+        if (!a || a.unread || !b) return null;
+        const k = { sum: [a, b], mult: 1 };
+        return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } };
+      } },
     // "<name>'s power and toughness are each equal to the number of X you control."
     // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?)(?: you control| on the battlefield)?\.?$/i,
@@ -15367,6 +15396,8 @@
     analyze, normalizePunct, faceDownAnalysis,
     abilityLabel, named, describeEffects, condOf,
     parseTypeLine, scopeOf,
+    // (the engine's counts: "the number of Elves you control" — pluralTypes)
+    singularType,
     parseCost,
     parseEffects,
     parseEffectSentence,

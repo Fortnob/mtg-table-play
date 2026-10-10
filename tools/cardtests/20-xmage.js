@@ -21838,4 +21838,76 @@ module.exports = (test) => {
     T7.cast('A', T7.hand('A', 'Grizzly Bears'));
     t.zone(T7.bfOf('A').find(o => o.name === 'Grizzly Bears'), 'battlefield', 'a creature spell is fine');
   });
+
+  test("Commanders: Kroxa, Danitha, Abomination of Llanowar, Avatar Roku, Norin the Wary; Strongarm Tactics", (mk, t) => {
+    for (const n of ["Kroxa, Titan of Death's Hunger", "Danitha, Benalia's Hope", 'Abomination of Llanowar', 'Avatar Roku, Firebender', 'Norin the Wary', 'Strongarm Tactics']) t.auto(n);
+    // Kroxa: each opponent discards a card; one who didn't discard a nonland card loses 3 life
+    const kroxa = (card) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      T.toMain('A');
+      if (card) T.hand('B', card);
+      T.put('A', "Kroxa, Titan of Death's Hunger", 'battlefield', { etb: true }); T.resolve();
+      return T.life('B');
+    };
+    t.eq(kroxa('Island'), 17, 'Kroxa: a land discarded, 3 life lost');
+    t.eq(kroxa('Lightning Bolt'), 20, 'Kroxa: a nonland card discarded, no life lost');
+    t.eq(kroxa(null), 17, 'Kroxa: nothing to discard, 3 life lost');
+    // Strongarm Tactics: each player discards; each who didn't discard a creature card loses 4
+    const S = mk({ library: Array(10).fill('Island') });
+    S.toMain('A');
+    S.hand('A', 'Grizzly Bears'); S.hand('B', 'Island');
+    S.mana('A', '1B');
+    S.cast('A', S.hand('A', 'Strongarm Tactics')); S.resolve();
+    t.eq(S.life('A'), 20, 'Strongarm Tactics: a creature card discarded, no life lost');
+    t.eq(S.life('B'), 16, 'Strongarm Tactics: a land discarded, 4 life lost');
+    // Danitha: an Aura or Equipment from hand or graveyard onto the battlefield attached to her
+    const D = mk({ library: Array(10).fill('Island') });
+    D.toMain('A');
+    D.grave('A', 'Rancor');
+    D.grave('A', 'Wild Growth');
+    const bs = D.hand('A', 'Bonesplitter');
+    let offered = [];
+    D.answer('confirm', { yes: true });
+    D.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [ch.cards.find(c => c.name === 'Bonesplitter').id] }; });
+    const dan = D.put('A', "Danitha, Benalia's Hope", 'battlefield', { etb: true }); D.resolve();
+    t.ok(offered.includes('Bonesplitter') && offered.includes('Rancor'), 'Danitha: the Equipment in hand and the Aura in the graveyard are offered');
+    t.ok(!offered.includes('Wild Growth'), 'Danitha: not an Aura that could not enchant her');
+    t.zone(bs, 'battlefield');
+    t.eq(bs.attachedTo, dan.id, 'Danitha: Bonesplitter enters attached to her');
+    t.eq(D.g.powerOf(dan), 6, 'Danitha: 4/4 with Bonesplitter, 6 power');
+    // Abomination of Llanowar: Elves you control plus Elf cards in your graveyard
+    const E = mk({ library: Array(10).fill('Island') });
+    const ab = E.bf('A', 'Abomination of Llanowar');
+    E.bf('A', 'Llanowar Elves'); E.grave('A', 'Elvish Mystic'); E.grave('A', 'Grizzly Bears');
+    t.eq(E.g.powerOf(ab), 3, 'Abomination: two Elves on the battlefield (itself one) and one Elf card in the graveyard');
+    // Avatar Roku: six red mana when a player attacks, kept until combat ends
+    const R = mk({ library: Array(10).fill('Island') });
+    R.toMain('A');
+    R.bf('A', 'Avatar Roku, Firebender');
+    const gb = R.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    R.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    R.toMain('A', 'declareBlockers');
+    t.eq(R.player('A').pool.R, 6, 'Roku: six red mana, still there in the declare blockers step');
+    R.toMain('A', 'endCombat');
+    t.eq(R.player('A').pool.R, 6, 'Roku: still there at end of combat');
+    R.toMain('A', 'end');
+    t.eq(R.player('A').pool.R || 0, 0, 'Roku: gone after combat');
+    // Norin the Wary: exiled when a player casts a spell or a creature attacks; back at the next end step
+    const N = mk({ library: Array(10).fill('Island') });
+    N.toMain('A');
+    N.bf('A', 'Norin the Wary');
+    const norin = () => N.bfOf('A').find(o => o.name === 'Norin the Wary');
+    N.mana('A', 'R');
+    N.cast('A', N.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); N.resolve();
+    t.ok(!norin(), 'Norin: exiled when a spell is cast');
+    N.toMain('A', 'end'); N.resolve();
+    t.ok(!!norin(), 'Norin: back at the end step');
+    const N2 = mk({ library: Array(10).fill('Island') });
+    N2.toMain('A');
+    N2.bf('A', 'Norin the Wary');
+    const gb2 = N2.bf('A', 'Grizzly Bears'); gb2.summoningSick = false;
+    N2.answer('declareAttackers', () => [{ attackerId: gb2.id, defenderId: 'B' }]);
+    N2.toMain('A', 'declareBlockers');
+    t.ok(!N2.bfOf('A').some(o => o.name === 'Norin the Wary'), 'Norin: exiled when a creature attacks');
+  });
 };
