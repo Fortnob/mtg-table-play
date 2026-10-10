@@ -17992,4 +17992,23 @@ module.exports = (test) => {
     t.ok(gr, 'a Gremlin');
     t.eq(gr && (gr.counters['+1/+1'] || 0), 3, 'Treasure, Clue and the Gremlin itself: three names');
   });
+
+  test("Magebane Lizard: damage equal to the noncreature spells that player has cast this turn", (mk, t) => {
+    t.auto('Magebane Lizard');
+    const T = mk();
+    T.toMain('B');
+    T.bf('A', 'Magebane Lizard');
+    T.mana('B', 'G1');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    T.settle();
+    t.eq(T.life('B'), 20, 'a creature spell: nothing');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 19, 'the first noncreature spell: 1');
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('B'), 17, 'the second: 2');
+  });
 };

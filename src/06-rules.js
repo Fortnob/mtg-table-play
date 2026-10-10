@@ -12267,7 +12267,8 @@
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
         // Rug of Smothering: the spells that player has cast this turn
-        if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return ((p && p.spellsCastThisTurn) || 0) * (v.mult || 1); }
+        // (Magebane Lizard: "noncreature spells they've cast this turn" — words)
+        if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return (v.words ? ((p && p.spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.words)).length : ((p && p.spellsCastThisTurn) || 0)) * (v.mult || 1); }
         // Kaya's Wrath: the ones of yours the sweep just took
         if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
         // Wojek Investigator: the opponents holding more cards than you

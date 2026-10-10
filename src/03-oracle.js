@@ -1676,6 +1676,9 @@
     { re: /^It also gets ([+-]\d+)\/([+-]\d+) until end of turn if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[3]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'lastTarget' }] } : null; } },
     // Rug of Smothering: "they lose 1 life for each spell they've cast this turn"
+    // Magebane Lizard: "this creature deals damage to that player equal to the number of noncreature spells they've cast this turn"
+    { re: /^(?:It|CARDNAME|This creature) deals damage to that player equal to the number of ((?:non)?[a-z]+ )?spells they'?ve cast this turn\.?$/i,
+      make: (m) => ({ op: 'damage', n: Object.assign({ triggerPlayerSpells: true, mult: 1 }, m[1] ? { words: m[1].trim().toLowerCase() } : {}), toTriggerPlayer: true }) },
     { re: /^They lose (one|two|\d+) life for each spell they'?ve cast this turn\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerPlayerSpells: true, mult: num(m[1]) } }) },
     // Hydra Omnivore: "it deals that much damage to each other opponent"
