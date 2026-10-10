@@ -3738,6 +3738,11 @@
         if (t) facts.appendChild(el('span', { text: t }));
       facts.appendChild(rttPill('host'));
       if (!banner._art) { banner._art = true; decorArt(banner.firstChild, FORMAT_ART[payload.formatId] || HERO_ART[0]); }
+      // a tournament match the table has only now said it is (src/10i-ui-tourney.js): its panel under the banner
+      if (UI.tourneyRoomNote && banner.parentNode && !banner.parentNode.querySelector('.tn-lobby')) {
+        const note = UI.tourneyRoomNote(net.roomCode);
+        if (note) banner.after(note);
+      }
     }
     if (fmt.blurb) box.appendChild(el('p', { class: 'small muted', style: { marginTop: 0 }, text: fmt.blurb }));
 
