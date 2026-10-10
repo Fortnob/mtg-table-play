@@ -18378,4 +18378,20 @@ module.exports = (test) => {
     t.ok(ids.includes(g.id), 'the Shocked Giant');
     t.no(ids.includes(g2.id), 'not the other Giant');
   });
+
+  test('Ellivere of the Wild Court: a card when an enchanted creature of yours deals combat damage to a player', (mk, t) => {
+    t.auto('Ellivere of the Wild Court');
+    t.auto('Kestia, the Cultivator');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ellivere of the Wild Court');
+    const bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('A', 'Hill Giant');
+    const aura = T.bf('A', 'Rancor');
+    aura.attachedTo = bear.id; bear.attachments = [aura.id]; T.g.bumpBoard();
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: giant.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'one card: the enchanted Bears, not the Giant');
+  });
 };

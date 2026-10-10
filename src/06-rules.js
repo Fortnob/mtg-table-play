@@ -22313,6 +22313,8 @@
         if (w === 'blocking') return !!(o.blocking || []).length;
         // Jor Kadeen: "equipped creatures you control"
         if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
+        // Ellivere of the Wild Court: "an enchanted creature you control" — an Aura on it
+        if (w === 'enchanted') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && ((x.analysis() || {}).subtypes || []).includes('Aura'); });
         // Trail of Mystery: "a face-down creature"
         if (w === 'face-down') return !!o.faceDown;
         if (w === 'tapped') return !!o.tapped;

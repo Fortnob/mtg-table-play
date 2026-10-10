@@ -9192,6 +9192,8 @@
     'nonwhite', 'nonblue', 'nonblack', 'nonred', 'nongreen',
     // Nahiri, Forged in Fury: "an equipped creature you control"
     'equipped',
+    // Ellivere of the Wild Court: "an enchanted creature you control"
+    'enchanted',
     // Arbaaz Mir: "another nontoken historic permanent you control" — legendary, an artifact or a Saga
     'historic',
     // Trail of Mystery: "a face-down creature you control"

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11044,
+  "needed": 11042,
   "gainedCards": 1090,
-  "linesNeeded": 11804,
+  "linesNeeded": 11802,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -1983,22 +1983,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Ellivere of the Wild Court",
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental",
-    "Ramses Overdark",
-    "Cut the Earthly Bond",
-    "Venomous Vines"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
    "score": 9,
    "lines": 9,
@@ -2479,6 +2463,21 @@
     "Reluctant Dounguard",
     "Encumbered Reejerey",
     "Tourach's Gate"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Estrid, the Masked",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental",
+    "Ramses Overdark",
+    "Cut the Earthly Bond",
+    "Venomous Vines"
    ]
   },
   {
@@ -6464,16 +6463,6 @@
    ]
   },
   {
-   "what": "or of EnchantedPredicate.instance",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Koll, the Forgemaster",
-    "Kestia, the Cultivator",
-    "Feast of Dreams"
-   ]
-  },
-  {
    "what": "AttackingCreatureCount",
    "score": 3,
    "lines": 3,
@@ -6600,6 +6589,16 @@
     "Alena, Kessig Trapper",
     "Tetsuo, Imperial Champion",
     "Impetuous Protege"
+   ]
+  },
+  {
+   "what": "ConniveTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Kamiz, Obscura Oculus",
+    "Villainous Hideout",
+    "Valentina Allegra de Fontaine"
    ]
   }
  ],
@@ -7764,19 +7763,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Ellivere of the Wild Court",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental",
-    "Ramses Overdark"
-   ]
-  },
-  {
    "what": "PartyCount.instance",
    "score": 8,
    "cards": 8,
@@ -8227,6 +8213,19 @@
     "Icy Prison",
     "Wild Might",
     "Rhystic Shield"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental",
+    "Ramses Overdark",
+    "Cut the Earthly Bond"
    ]
   },
   {
