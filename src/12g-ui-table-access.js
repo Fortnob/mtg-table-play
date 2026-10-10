@@ -482,7 +482,8 @@
       if (key === this._srAsked) return;
       if (key && !this._ready()) return;          // the table is still catching up: ask again when it has
       this._srAsked = key;
-      if (!key) return;
+      // the question is over; anything the focus was to go back to has had its chance
+      if (!key) { this._srReturn = null; return; }
       const a = document.activeElement;
       // somebody busy elsewhere (typing, a window, a menu, reading a card) is left to it
       if (a && (/input|textarea|select/i.test(a.tagName) || a.isContentEditable)) return;
