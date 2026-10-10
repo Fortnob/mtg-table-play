@@ -5407,4 +5407,28 @@ module.exports = (test) => {
     const gf = T.bf('A', 'Glittering Frost'); gf.attachedTo = f2.id; f2.attachments = [gf.id]; T.g.bumpBoard();
     t.ok(T.g._cardFitsWords(f2, 'snow land')); t.no(T.g._cardFitsWords(f, 'snow land'));
   });
+
+  test("Audit: \"whenever a player mills\" sees every mill: Angel of Suffering's milling instead of damage, Millikin's cost, and a mill spell", (mk, t) => {
+    t.auto('Glowing One'); t.auto('Zellix, Sanity Flayer');
+    let T = mk();
+    T.toMain('B');
+    T.bf('A', 'Glowing One'); T.bf('A', 'Angel of Suffering');
+    for (let i = 0; i < 4; i++) T.top('A', 'Grizzly Bears');
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'graveyard').length, 4); t.eq(T.life('A'), 24, 'four nonland cards milled instead of the damage: 4 life');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Glowing One');
+    const mk1 = T.bf('A', 'Millikin');
+    T.top('A', 'Grizzly Bears');
+    T.g.activateAbility('A', mk1.id, 0, { auto: true }); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'graveyard').length, 1); t.eq(T.life('A'), 21, "Millikin's milled card counts");
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Zellix, Sanity Flayer');
+    T.top('B', 'Island'); T.top('B', 'Grizzly Bears'); T.top('B', 'Hill Giant');
+    T.g._runEffects([{ op: 'mill', n: 3, who: 'target', targets: [{ type: 'player' }] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [{ kind: 'player', id: 'B' }] });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.battlefield.filter(o => o.isToken && /Horror/.test(o.name)).length, 1, 'two creature cards in one mill: one Horror');
+  });
 };

@@ -7006,8 +7006,11 @@
       }
       // Millikin: cards off the top of the library as the price
       if (cost.mill) {
-        for (let i = 0; i < cost.mill; i++) { const c = this.zones[pid].library[0]; if (c) this.moveObject(c, 'graveyard'); }
+        const ids = [];
+        for (let i = 0; i < cost.mill; i++) { const c = this.zones[pid].library[0]; if (c) { this.moveObject(c, 'graveyard'); ids.push(c.id); } }
         this.logEvent('rules', `${p.name} mills ${cost.mill} card${cost.mill === 1 ? '' : 's'}.`);
+        // (milled as a cost is milled all the same: Zellix, Glowing One)
+        this._noteMilled(pid, ids);
       }
       // Void Attendant: one card an opponent owns, from exile to its owner's graveyard
       if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
@@ -9107,9 +9110,12 @@
           ev.n = 0; ev.cancelled = true;
           const lib = (this.zones[src.controller] || {}).library || [];
           let milled = 0;
-          for (let i = 0; i < k && lib.length; i++) { this.moveObject(lib[0], 'graveyard'); milled++; }
+          const ids = [];
+          for (let i = 0; i < k && lib.length; i++) { ids.push(lib[0].id); this.moveObject(lib[0], 'graveyard'); milled++; }
           const who = this.player(src.controller);
           if (who) this.logEvent('mill', `${who.name} mills ${milled} instead of taking the damage.`);
+          // (Zellix, Glowing One see these too)
+          this._noteMilled(src.controller, ids);
           break;
         }
         // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
@@ -23101,7 +23107,13 @@
         case 'poison': this.addPoison(p, data.n || 0); break;
         case 'energy': p.energy += (data.n || 0); break;
         case 'draw': this._drawCards(p, data.n || 1); break;
-        case 'mill': for (let i = 0; i < (data.n || 1); i++) { const c = this.zones[playerId].library.shift(); if (c) this.moveObject(c, 'graveyard'); } break;
+        case 'mill': {
+          // (a mill done by hand is a mill: Zellix, Glowing One)
+          const ids = [];
+          for (let i = 0; i < (data.n || 1); i++) { const c = this.zones[playerId].library.shift(); if (c) { this.moveObject(c, 'graveyard'); ids.push(c.id); } }
+          this._noteMilled(playerId, ids);
+          break;
+        }
         case 'shuffle': this.rng.shuffle(this.zones[playerId].library); this.emit('sfx', 'shuffle'); this.logEvent('manual', `${p.name} shuffles.`); break;
         case 'attach': {
           const host = this.obj(data.hostId);
