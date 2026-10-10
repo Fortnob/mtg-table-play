@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10765,
+  "needed": 10762,
   "gainedCards": 1022,
-  "linesNeeded": 11465,
+  "linesNeeded": 11462,
   "linesGained": 1204,
   "gained": {
    "all": 1022,
@@ -5789,16 +5789,6 @@
    ]
   },
   {
-   "what": "keyword DevourAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Famished Worldsire",
-    "Feasting Hobbit",
-    "Caprichrome"
-   ]
-  },
-  {
    "what": "TargetCardInGraveyardBattlefieldOrStack",
    "score": 3,
    "lines": 3,
@@ -6524,6 +6514,16 @@
     "Chancellor of the Annex",
     "Blood Funnel",
     "Nether Void"
+   ]
+  },
+  {
+   "what": "DrawCardTargetControllerEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Gwafa Hazid, Profiteer",
+    "Nin, the Pain Artist",
+    "Triad of Fates"
    ]
   }
  ],

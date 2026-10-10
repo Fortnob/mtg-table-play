@@ -4642,10 +4642,12 @@
       /* Devour N (CR 702.82): which creatures it will eat as it enters,
          asked with the cast and done as it arrives */
       if (a && a.devour && !o.isCopy && !(opts.choices && opts.choices.devour)) {
-        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && (this.characteristics(x) || {}).isCreature);
+        // (Famished Worldsire: "Devour land 3" — lands, not creatures; Feasting Hobbit: Foods)
+        const pool = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o &&
+          (a.devourWhat ? this._cardFitsWords(x, a.devourWhat) : (this.characteristics(x) || {}).isCreature));
         if (pool.length && this._castChoose(playerId, o, opts, { purpose: 'devour', kind: 'objects', zone: 'battlefield',
           items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
-          prompt: `${o.name}: devour ${a.devour} — sacrifice any number of creatures as it enters.` }) === 'asked') return 'asked';
+          prompt: `${o.name}: devour ${a.devourWhat ? a.devourWhat + ' ' : ''}${a.devour} — sacrifice any number of ${a.devourWhat ? a.devourWhat + 's' : 'creatures'} as it enters.` }) === 'asked') return 'asked';
       }
       /* The Defilers: pay 2 life for one less coloured mana — a generic
          question (purpose defiler), asked with the cast */

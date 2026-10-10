@@ -20603,4 +20603,31 @@ module.exports = (test) => {
     T3.toMain('B');
     t.zone(g3, 'battlefield', 'Aerith after 7 life: to the battlefield');
   });
+
+  test('Devour a kind: Feasting Hobbit eats Foods, Famished Worldsire eats lands (not creatures)', (mk, t) => {
+    t.auto('Feasting Hobbit'); t.auto('Famished Worldsire');
+    const T = mk();
+    T.toMain('A');
+    T.g._runEffect({ op: 'createNamedToken', token: 'Food', n: 2 }, { controller: 'A', name: 'test' });
+    const foods = T.bfOf('A').filter(o => o.name === 'Food');
+    const fh = T.hand('A', 'Feasting Hobbit');
+    T.mana('A', '1G');
+    T.cast('A', fh, { choices: { devour: { picks: foods.map(f => f.id) } } });
+    t.eq(fh.counters['+1/+1'], 6, 'two Foods, three counters each');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Food').length, 0, 'the Foods are gone');
+    const T2 = mk();
+    T2.toMain('A');
+    const f1 = T2.bf('A', 'Forest'), f2 = T2.bf('A', 'Forest');
+    const bear = T2.bf('A', 'Grizzly Bears');
+    const fw = T2.hand('A', 'Famished Worldsire');
+    let offered = null;
+    T2.answer('choose', (ch) => { offered = (ch.items || []).map(x => x.name || (T2.g.obj(x.id) || {}).name).sort(); return { picks: (ch.items || []).filter(x => (T2.g.obj(x.id) || {}).name === 'Forest').map(x => x.id) }; });
+    T2.mana('A', '5GGG');
+    T2.cast('A', fw);
+    t.no((offered || []).includes('Grizzly Bears'), 'only lands are offered');
+    t.zone(f1, 'graveyard'); t.zone(f2, 'graveyard');
+    t.eq(fw.counters['+1/+1'], 6, 'two lands, three counters each');
+    t.zone(bear, 'battlefield', 'the Bears are not eaten');
+    t.ok(offered && offered.length === 2, 'the two Forests were offered');
+  });
 };

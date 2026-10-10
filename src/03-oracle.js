@@ -176,6 +176,8 @@
   const RUN_CAST_LOWER = new Set(Array.from(RUN_CAST_KEYWORDS).map(k => k.toLowerCase()));
 
   const KEYWORD_PATTERNS = [
+    // Famished Worldsire, Feasting Hobbit, Caprichrome: "Devour land 3", "Devour Food 3" — devouring a kind (devourWhat)
+    /^(Devour) (?:artifact|land|Food) \d+$/i,
     // simple flags, matched as whole comma-separated clauses
     /^(Increment|Undaunted|Paradigm|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
     // parameterised keywords with a number
@@ -11922,8 +11924,8 @@
         effects: [{ op: 'draw', n: 1, who: 'you' }], text: 'Ravenous: when it enters, if X is 5 or more, draw a card.', auto: true });
     }
     // Devour N: how many counters for each creature it eats
-    const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (\d+)/)).find(Boolean);
-    if (devourN) out.devour = +devourN[1];
+    const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (?:(artifact|land|Food) )?(\d+)/i)).find(Boolean);
+    if (devourN) { out.devour = +devourN[2]; if (devourN[1]) out.devourWhat = devourN[1].toLowerCase(); }
     const modular = out.keywords.find(k => k.keyword === 'Modular');
     if (modular && modular.arg) out.entersWithCounters = { kind: '+1/+1', n: parseInt(modular.arg, 10) || 0 };
 
