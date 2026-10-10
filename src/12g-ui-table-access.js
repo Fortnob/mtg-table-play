@@ -103,7 +103,7 @@
     ]));
     const note = el('p', { class: 'kh-note', text: 'With a screen reader, switch to focus mode (forms mode) at the table so the letters reach the game. ' +
       'Each new line of the game log is read out as it happens, and every card says what it can do right now.' });
-    const m = UI.modal({ title: 'Keys at the table', width: '720px', className: 'kh-modal', content: el('div', { class: 'kh-body' }, groups.concat([note])) });
+    const m = UI.modal({ title: 'Keyboard', width: '720px', className: 'kh-modal', content: el('div', { class: 'kh-body' }, groups.concat([note])) });
     m.button('Close', (mm) => mm.close(), 'primary');
     return m;
   };
@@ -409,6 +409,18 @@
           spoken(s.abilityText || s.name || '').replace(/\.\s*$/, '') + (tg.length ? '. Targeting ' + tg.join(' and ') : '') + (s === top ? '. Resolves next' : '') +
           (w.classList.contains('targetable') ? '. Can be chosen as the target' : '');
         if (chip.getAttribute('aria-label') !== label) chip.setAttribute('aria-label', label);
+      }
+      // each side of the table, and its two rows, named for moving round by group
+      for (const root of [...this.oppWrap.children, ...this.myWrap.children]) {
+        const p = v.players.find(x => x.id === root.dataset.seat);
+        const name = !p ? 'A player’s side' : p.id === this.meId ? 'Your side' : `${possessive(p.name)} side`;
+        if (root.getAttribute('aria-label') !== name) { root.setAttribute('role', 'group'); root.setAttribute('aria-label', name); }
+        for (const row of root.querySelectorAll(':scope .field-row')) {
+          if (!row.hasAttribute('aria-label')) {
+            row.setAttribute('role', 'group');
+            row.setAttribute('aria-label', row.classList.contains('front') ? 'Creatures' : 'Lands and other permanents');
+          }
+        }
       }
       // a question in the middle is a group named by its title
       const panel = this.decision.querySelector(':scope > .dpanel');

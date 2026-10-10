@@ -24,7 +24,7 @@ function check(what, ok, detail) {
 /* ---- a node, as much of one as the labels read ---- */
 function node(label, classes, opts) {
   opts = opts || {};
-  const attrs = { 'aria-label': label };
+  const attrs = label == null ? {} : { 'aria-label': label };
   const cls = new Set(classes || []);
   return {
     isConnected: true,
@@ -129,7 +129,16 @@ const none = { querySelectorAll: () => [], querySelector: () => null, classList:
     arena: none, stackCol: none, decision: none,
     targetName: (tg) => (tg.id === 'e1' ? 'Llanowar Elves' : '?'),
   };
+  // each side of the table, and its rows
+  const front = node(null, ['front']), back = node(null, ['back']);
+  const seat = Object.assign(node(null, []), { dataset: { seat: 'mira' }, querySelectorAll: () => [front, back] });
+  const mySeat = Object.assign(node(null, []), { dataset: { seat: 'me' }, querySelectorAll: () => [] });
+  t.oppWrap = { children: [seat] };
+  t.myWrap = { children: [mySeat] };
   T.accessLabels.call(t);
+  check('their side is named', seat.getAttribute('aria-label') === 'Mira’s side' && seat.getAttribute('role') === 'group', seat.getAttribute('aria-label'));
+  check('your side is named', mySeat.getAttribute('aria-label') === 'Your side', mySeat.getAttribute('aria-label'));
+  check('each row is named', front.getAttribute('aria-label') === 'Creatures' && back.getAttribute('aria-label') === 'Lands and other permanents');
   check('a playable card says so', hand.getAttribute('aria-label') === 'Lightning Bolt, red, Instant. can be played', hand.getAttribute('aria-label'));
   check('their permanent says whose', theirs.getAttribute('aria-label') === 'Mira’s Grizzly Bears, 1 generic, green, Creature — Bear, 2 by 2', theirs.getAttribute('aria-label'));
   check('an attacker to choose says it can attack', mine.getAttribute('aria-label').endsWith('. can attack'), mine.getAttribute('aria-label'));
