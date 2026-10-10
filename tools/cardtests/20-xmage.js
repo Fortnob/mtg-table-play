@@ -18246,4 +18246,23 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && /Squirrel/.test(o.name)).length, 1, 'a Squirrel as she enters');
   });
+
+  test('Veteran Explorer: each player may search for up to two basic lands, onto the battlefield', (mk, t) => {
+    t.auto('Veteran Explorer');
+    t.auto('Jungle Wayfinder');
+    t.auto('New Frontiers');
+    const T = mk();
+    T.toMain('A');
+    const ve = T.bf('A', 'Veteran Explorer');
+    for (const p of ['A', 'B']) { T.top(p, 'Forest'); T.top(p, 'Island'); T.top(p, 'Lightning Bolt'); }
+    let askedB = false;
+    T.answer('confirm', (ch) => { if (ch.playerId === 'B') askedB = true; return { yes: true }; });
+    T.answer('confirm', (ch) => { if (ch.playerId === 'B') askedB = true; return { yes: true }; });
+    T.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: ve.id }] });
+    T.settle(); T.resolve(); T.settle();
+    const lands = (p) => T.g.battlefield.filter(o => o.controller === p && (o.analysis() || {}).isLand).length;
+    t.eq(lands('A'), 2, 'A put two basics onto the battlefield');
+    t.eq(lands('B'), 2, 'and B two of their own');
+    t.ok(askedB, 'B was asked');
+  });
 };

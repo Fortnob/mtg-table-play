@@ -11703,6 +11703,8 @@
         // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
         const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
+        // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
+        this._curAs = e._as || null;
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
@@ -11710,7 +11712,7 @@
           r.index++;
           continue;
         }
-        finally { this._putBy = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; }
+        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
@@ -15603,6 +15605,13 @@
         /* Terastodon: "For each permanent put into a graveyard this way, its
            controller creates a 3/3 green Elephant creature token." */
         // Scheming Symmetry: each target player does it, as that player, in turn (forEachTargetPlayer)
+        // Veteran Explorer: "Each player may search their library …" — as each player in turn, starting with you
+        case 'forEachPlayer': {
+          const list = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
+          if (list.length) this._spliceNext(list);
+          break;
+        }
         case 'forEachTargetPlayer': {
           const list = [];
           for (const t of targets) {
@@ -22090,7 +22099,10 @@
     _spliceNext(list) {
       if (!list || !list.length || !this.resolving) return;
       const r = this.resolving;
-      r.effects.splice(r.index + 1, 0, ...list);
+      /* Veteran Explorer: "each player may search …" — the "may" done as one
+         player puts its search next in line as that same player */
+      const as = this._curAs;
+      r.effects.splice(r.index + 1, 0, ...(as ? list.map(x => (x && x._as == null ? Object.assign({}, x, { _as: as }) : x)) : list));
     }
 
     /**

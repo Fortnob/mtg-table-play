@@ -2276,6 +2276,15 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
+    /* Veteran Explorer, Jungle Wayfinder, New Frontiers: "Each player may search their library for up to two basic land
+       cards, put them onto the battlefield, then shuffle." — each player's own search, in turn order (forEachPlayer) */
+    { re: /^Each player may (search their library for [^.]+?)\.?$/i,
+      make: (m) => {
+        const own = 'You may ' + m[1].replace(/\btheir hands?\b/gi, 'your hand').replace(/\btheir\b/gi, 'your').replace(/\bthey\b/gi, 'you') + '.';
+        const inner = parseSentenceList(splitSentences(own));
+        if (!inner.auto || !inner.effects.length || JSON.stringify(inner.effects).includes('"targets":[{')) return null;
+        return { op: 'forEachPlayer', then: inner.effects };
+      } },
     /* Jace, Memory Adept, Riverchurn Monument, Wheel and Deal: "Any number of target players each draw twenty cards" —
        the words read as each player's own ("their" is "your"), and done as each of them in turn (forEachTargetPlayer).
        Words that speak of you, the caster, are left to a person. */
