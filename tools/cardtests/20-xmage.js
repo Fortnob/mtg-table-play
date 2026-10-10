@@ -19390,4 +19390,21 @@ module.exports = (test) => {
     T.settle();
     t.zone(bear, 'battlefield', 'with nobody to choose, one is still put');
   });
+
+  test("Masumaro, Mordenkainen, Thousand Moons Smithy: sizes from your hand, twice over, and from artifacts and/or creatures", (mk, t) => {
+    t.auto('Masumaro, First to Live'); t.auto('Mordenkainen');
+    const T = mk();
+    T.toMain('A');
+    const ma = T.bf('A', 'Masumaro, First to Live');
+    for (const n of ['Island', 'Forest', 'Swamp']) T.hand('A', n);
+    t.eq(T.g.powerOf(ma), 6, 'twice three cards in hand');
+    const sm = T.put('A', 'Thousand Moons Smithy // Barracks of the Thousand', 'battlefield', { etb: true });
+    T.resolve();
+    const gnome = T.g.battlefield.find(o => o.isToken && /Gnome/.test(o.name));
+    t.ok(gnome, 'a Gnome Soldier');
+    T.bf('A', 'Sol Ring');
+    T.g.bumpBoard();
+    // artifacts and/or creatures: Masumaro, the Smithy, the Gnome, the Sol Ring, each once
+    t.eq(T.g.powerOf(gnome), 4, 'each artifact or creature counted once');
+  });
 };

@@ -21172,9 +21172,9 @@
     }
     /** The permanents a count's words name. */
     _perList(pid, spec, per) {
-      // "artifacts and enchantments" counts anything that is either
+      // "artifacts and enchantments" counts anything that is either (Thousand Moons Smithy: "artifacts and/or creatures")
       const wants = String(per || '')
-        .split(/\s+and\s+|\s*,\s*/)
+        .split(/\s+and\/or\s+|\s+and\s+|\s*,\s*/)
         .map(w => w.trim().replace(/(?<!plain)s$/, ''))
         .filter(Boolean);
       if (!wants.length) return [];

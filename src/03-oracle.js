@@ -12926,9 +12926,12 @@
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of (?:([a-z]+) )?cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
+    // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
+    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
+      make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
     // "<name>'s power and toughness are each equal to the number of X you control."
     // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
-    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
+    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?)(?: you control| on the battlefield)?\.?$/i,
       make: (m) => {
         // ("you control" counts yours; without it, or "on the battlefield", every one)
         const k = cdaCount(m[1], / you control\.?$/i.test(m[0]) ? 'you' : 'any');
