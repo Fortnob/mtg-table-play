@@ -703,9 +703,12 @@
 
   UI.attachPreview = function (node, card, faceIndex) {
     if (!MTG.settings.showOracleOnHover) return;
-    let timer = null;
+    let timer = null, last = null;
     const show = (e) => {
-      if (MTG.isTouch() && !e.forceShow) return;   // a finger has no hover
+      /* A finger has no hover. Asked of the pointer itself rather than the
+         device: a laptop with a touch screen still has a mouse, and the
+         mouse should get its preview. */
+      if (e.pointerType === 'touch') return;
       const p = ensurePreview();
       p.innerHTML = '';
       const cards = el('div', { class: 'prev-cards' });
@@ -713,7 +716,8 @@
       let gotImage = false;
       for (let i = 0; i < faces; i++) {
         const url = MTG.scry.imageUrl(card, UI.bigSize(320 * (MTG.settings.cardScale || 1)), i) || MTG.scry.imageUrl(card, 'normal', i);
-        if (url) { cards.appendChild(el('img', { src: url, alt: card.name })); gotImage = true; }
+        // placed again once the picture has come, when it has its real size and may run off the bottom
+        if (url) { cards.appendChild(el('img', { src: url, alt: card.name, onload: () => { if (last) move(last); } })); gotImage = true; }
       }
       // no art, or the reader asked for text as well: show the card in words
       if (!gotImage || MTG.settings.alwaysCardText) {
@@ -737,6 +741,7 @@
     };
     const move = (e) => {
       if (!previewEl) return;
+      last = e;
       const pad = 14;
       const w = previewEl.offsetWidth || 300, h = previewEl.offsetHeight || 420;
       const pt = U.pt(e), vw = U.viewW(), vh = U.viewH();
@@ -750,10 +755,10 @@
       previewEl.style.left = x + 'px';
       previewEl.style.top = y + 'px';
     };
-    const hide = () => { clearTimeout(timer); if (previewEl) previewEl.style.display = 'none'; };
-    node.addEventListener('mouseenter', (e) => { timer = setTimeout(() => show(e), 170); });
-    node.addEventListener('mousemove', move);
-    node.addEventListener('mouseleave', hide);
+    const hide = () => { clearTimeout(timer); last = null; if (previewEl) previewEl.style.display = 'none'; };
+    node.addEventListener('pointerenter', (e) => { if (e.pointerType === 'touch') return; timer = setTimeout(() => show(e), 170); });
+    node.addEventListener('pointermove', (e) => { if (e.pointerType !== 'touch') move(e); });
+    node.addEventListener('pointerleave', hide);
     node.addEventListener('click', hide);
   };
 
