@@ -717,12 +717,32 @@
 
   /** Saved presets live beside the settings, keyed by format. */
   const presets = {
-    all() { return MTG.settings.rulePresets || {}; },
+    all() {
+      const all = MTG.settings.rulePresets || {};
+      /* A preset saved before free mulligans and the first draw went "by the rules" has the old
+         defaults written out (0, off), not a choice: read once as "by the rules", stamped v: 2
+         and saved back. Any other value was chosen, and stays. */
+      let moved = false;
+      const out = {};
+      for (const fid of Object.keys(all)) {
+        out[fid] = (all[fid] || []).map(p => {
+          if (!p || p.v >= 2) return p;
+          moved = true;
+          const rules = Object.assign({}, p.rules);
+          if (rules.freeMulligans === 0) rules.freeMulligans = null;
+          if (rules.firstPlayerDraws === false) rules.firstPlayerDraws = null;
+          return Object.assign({}, p, { rules, v: 2 });
+        });
+      }
+      if (!moved) return all;
+      MTG.setSetting('rulePresets', out);
+      return out;
+    },
     forFormat(formatId) { return (this.all()[formatId] || []).slice(); },
     save(formatId, name, rules) {
       const all = Object.assign({}, this.all());
       const list = (all[formatId] || []).filter(p => p.name !== name);
-      list.push({ name, rules: Object.assign({}, rules), savedAt: Date.now() });
+      list.push({ name, rules: Object.assign({}, rules), savedAt: Date.now(), v: 2 });
       all[formatId] = list;
       MTG.setSetting('rulePresets', all);
       return list;

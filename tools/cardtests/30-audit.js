@@ -5652,4 +5652,25 @@ module.exports = (test) => {
       t.eq(!!g.config.firstPlayerDraws, draws, `${seats.length} players: the first player ${draws ? 'draws' : 'skips the draw'}`);
     }
   });
+
+  test('Audit: a rule preset saved before "by the rules" reads its 0 / off as by the rules, once; a real choice stays', (mk, t) => {
+    const M = mk().MTG, P = M.formats.presets;
+    const keep = M.settings.rulePresets;
+    try {
+      M.settings.rulePresets = { commander: [
+        { name: 'old book', rules: { startingLife: 30, freeMulligans: 0, firstPlayerDraws: false }, savedAt: 1 },
+        { name: 'old choice', rules: { freeMulligans: 2, firstPlayerDraws: true }, savedAt: 2 },
+        { name: 'new', rules: { freeMulligans: 0, firstPlayerDraws: false }, savedAt: 3, v: 2 },
+      ] };
+      const list = P.forFormat('commander');
+      const by = (n) => list.find(p => p.name === n);
+      t.eq(by('old book').rules.freeMulligans, null); t.eq(by('old book').rules.firstPlayerDraws, null); t.eq(by('old book').rules.startingLife, 30);
+      t.eq(by('old choice').rules.freeMulligans, 2); t.eq(by('old choice').rules.firstPlayerDraws, true);
+      t.eq(by('new').rules.freeMulligans, 0, 'a stamped preset is not touched'); t.eq(by('new').rules.firstPlayerDraws, false);
+      t.ok(list.every(p => p.v === 2), 'all stamped');
+      t.ok(M.settings.rulePresets.commander.every(p => p.v === 2), 'and saved back');
+      P.save('commander', 'fresh', { freeMulligans: 0 });
+      t.eq(P.forFormat('commander').find(p => p.name === 'fresh').rules.freeMulligans, 0, 'a 0 saved now is a choice');
+    } finally { M.settings.rulePresets = keep; }
+  });
 };
