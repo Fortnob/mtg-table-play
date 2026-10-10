@@ -609,7 +609,7 @@
     for (let i = 0; i < faces; i++) {
       if (!gotImage || MTG.settings.alwaysCardText || MTG.isPhone()) body.appendChild(UI.cardTextBlock(card, i));
     }
-    // its rulings, folded away under it (src/10g-rulings.js)
+    // its rulings under it (src/10g-rulings.js)
     const rulings = UI.rulingsBox ? UI.rulingsBox(card) : null;
     if (rulings) body.appendChild(rulings);
     const close = () => { sheet.remove(); document.removeEventListener('keydown', onEsc, true); };

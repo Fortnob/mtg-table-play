@@ -2772,7 +2772,7 @@
             sides.tokens,
             roomy ? null : sides.keywords,
             el('div', { class: 'cv-meta', text: `${card.set_name || ''}${card.artist ? ' · ' + card.artist : ''}` }),
-            // its rulings, folded away (src/10g-rulings.js)
+            // its rulings (src/10g-rulings.js)
             UI.rulingsBox ? UI.rulingsBox(card) : null,
             el('div', { class: 'row', style: { marginTop: 'auto' } }, [
               el('button', { class: 'btn sm', text: 'Choose art…', onclick: () => { close(); UI.pickArt(card); } }),

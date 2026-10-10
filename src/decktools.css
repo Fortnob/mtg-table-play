@@ -4,7 +4,7 @@
    deck link makes when it is opened
    ============================================================ */
 
-/* ---- a card's rulings, folded away under it (10g-rulings.js) ----
+/* ---- a card's rulings under it, and the window that goes through them (10g-rulings.js) ----
    Dark wherever it is, like the enlarged card it sits under. */
 .rulings {
   border-radius: 10px; border: 1px solid rgba(212,175,71,.22); color: #dfe5ef; text-align: left;
@@ -12,18 +12,12 @@
 }
 .card-sheet-body > .rulings { margin-top: 10px; }
 .cardview-side .rulings { flex: none; background: rgba(0,0,0,.22); }
-.rulings > summary {
-  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px;
-  min-height: 44px; padding: 0 12px; user-select: none; -webkit-user-select: none;
-}
-.rulings > summary::-webkit-details-marker { display: none; }
-.rulings > summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 10px; }
+.rul-top { display: flex; align-items: center; gap: 8px; padding: 10px 12px 2px; }
 .rul-title { font: 600 13.5px/1.2 var(--serif); color: var(--gold-1); }
 .rul-count {
   min-width: 22px; padding: 3px 7px; border-radius: 99px; text-align: center;
   font: 700 11px/1 var(--font); color: #f3dd96; background: rgba(212,175,71,.16);
 }
-.rulings > summary .rules-chev { margin-left: auto; border-color: #8d97a8; }
 .rul-body { padding: 0 12px 10px; }
 .rul-list { list-style: none; margin: 0; padding: 0; }
 .rul { padding: 9px 0; border-top: 1px solid rgba(255,255,255,.07); }
@@ -31,6 +25,20 @@
 .rul-src { font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #9cc7ff; }
 .rul-text { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: #c4ccd9; overflow-wrap: anywhere; }
 .rul-wait { margin: 0 0 4px; font-size: 12px; color: #8d97a8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rul-first { border-top: 0; padding: 6px 0 0; }
+/* the first ruling cut to three lines when there is more to read */
+.rul-first.clipped .rul-text { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rul-more {
+  margin-top: 6px; padding: 6px 0; min-height: 32px; border: 0; background: none; cursor: pointer;
+  font: 600 12.5px/1.2 var(--font); color: var(--gold-1); text-decoration: underline; text-underline-offset: 3px;
+}
+.rul-more:hover { color: #f3dd96; }
+.rul-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 4px; }
+.rul-window { display: flex; flex-direction: column; gap: 14px; }
+.rul-window .rul-text { font-size: 14px; line-height: 1.6; color: #dfe5ef; }
+.rul-window .rul-head { font-size: 12px; }
+.rul-pager { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rul-where { font-size: 12.5px; color: #8d97a8; font-variant-numeric: tabular-nums; }
 
 /* ---- the deck builder's Playtest tab (11b-ui-playtest.js) ---- */
 .pt-status { margin: -4px 0 12px; }

@@ -1,9 +1,10 @@
 /* ============================================================
    10g-rulings.js - a card's official rulings, from Scryfall
    The notes Wizards publishes on how a card plays (and the few
-   Scryfall adds), each with its date. They sit folded away under
-   the enlarged card, one line until opened, so a phone still shows
-   the card first.
+   Scryfall adds), each with its date. The first sits under the
+   enlarged card, cut to a few lines; when there are more, or it runs
+   long, "Show more" opens them in a window of their own, one at a
+   time.
    ============================================================ */
 'use strict';
 (function (MTG) {
@@ -71,19 +72,75 @@
 
   MTG.rulings = { get: rulings, tidy, dateText, scryfallId };
 
+  /** One ruling: its date, whose it is, and its words. */
+  const rulingBody = (r) => [
+    el('div', { class: 'rul-head' }, [
+      el('time', { datetime: r.date, text: dateText(r.date) }),
+      r.source === 'scryfall' ? el('span', { class: 'rul-src', text: 'Scryfall note', title: 'Added by Scryfall, not an official ruling' }) : null,
+    ].filter(Boolean)),
+    el('div', { class: 'rul-text', html: MTG.mana.textHtml(r.text) }),
+  ];
+
+  // past this many letters a ruling no longer fits the few lines under the card
+  const LONG = 180;
+
   /**
-   * The rulings, folded up under a card: one line saying how many there
-   * are, opened with a tap. Null for a card that cannot have any. It asks
-   * Scryfall as soon as it is made, so the count is there by the time
-   * anyone looks; a card with no rulings takes the line away again rather
-   * than leave an empty fold.
+   * Every ruling in a window of its own, one at a time, with Previous and
+   * Next (and the arrow keys) to go through them. It sits above the
+   * enlarged card, and Escape closes it before the card.
+   */
+  function rulingsWindow(card, list, start) {
+    let at = Math.max(0, Math.min(list.length - 1, start || 0));
+    const where = el('span', { class: 'rul-where', 'aria-live': 'polite' });
+    const page = el('div', { class: 'rul-page' });
+    const prev = el('button', { type: 'button', class: 'btn sm', text: 'Previous', onclick: () => go(-1) });
+    const next = el('button', { type: 'button', class: 'btn sm primary', text: 'Next', onclick: () => go(1) });
+    const pager = list.length > 1 ? el('div', { class: 'rul-pager' }, [prev, where, next]) : null;
+    const draw = () => {
+      page.replaceChildren(...rulingBody(list[at]));
+      where.textContent = `${at + 1} of ${list.length}`;
+      prev.disabled = at === 0;
+      next.disabled = at === list.length - 1;
+    };
+    const go = (d) => {
+      const to = Math.max(0, Math.min(list.length - 1, at + d));
+      if (to !== at) { at = to; draw(); }
+    };
+    const m = UI.modal({
+      title: `Rulings — ${card.name}`, className: 'rul-modal', width: '560px',
+      content: el('div', { class: 'rul-window' }, [page, pager].filter(Boolean)),
+      buttons: [{ label: 'Close' }],
+    });
+    // above the enlarged card it was opened from
+    if (m.el.parentNode) m.el.parentNode.style.zIndex = '900';
+    /* Caught before anything else hears it: Escape closes this window and
+       not the card under it, and the arrows turn the page. */
+    const onKey = (e) => {
+      if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); m.close(); }
+      else if (e.key === 'ArrowLeft' && list.length > 1) { e.preventDefault(); go(-1); }
+      else if (e.key === 'ArrowRight' && list.length > 1) { e.preventDefault(); go(1); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    m._onClose = () => window.removeEventListener('keydown', onKey, true);
+    draw();
+    (pager ? next : m.foot.querySelector('button')).focus({ preventScroll: true });
+    return m;
+  }
+  UI.rulingsWindow = rulingsWindow;
+
+  /**
+   * The rulings under a card: the first one, cut to a few lines, and
+   * "Show more" when there are others or it runs on. Null for a card
+   * that cannot have any. It asks Scryfall as soon as it is made, so the
+   * ruling is there by the time anyone looks; a card with no rulings takes
+   * the box away again rather than leave an empty one.
    */
   UI.rulingsBox = function (card) {
     if (!scryfallId(card)) return null;
     const count = el('span', { class: 'rul-count', text: '…' });
     const body = el('div', { class: 'rul-body' }, el('p', { class: 'rul-wait', text: 'Asking Scryfall…' }));
-    const box = el('details', { class: 'rulings' }, [
-      el('summary', null, [el('span', { class: 'rul-title', text: 'Rulings' }), count, el('span', { class: 'rules-chev', 'aria-hidden': 'true' })]),
+    const box = el('section', { class: 'rulings', 'aria-label': 'Rulings' }, [
+      el('div', { class: 'rul-top' }, [el('span', { class: 'rul-title', text: 'Rulings' }), count]),
       body,
     ]);
     // the enlarged card closes on a click anywhere; a click in here is for the rulings
@@ -92,13 +149,11 @@
     const show = (list) => {
       if (!list || !list.length) { box.remove(); return; }
       count.textContent = String(list.length);
-      body.replaceChildren(el('ol', { class: 'rul-list' }, list.map(r => el('li', { class: 'rul' }, [
-        el('div', { class: 'rul-head' }, [
-          el('time', { datetime: r.date, text: dateText(r.date) }),
-          r.source === 'scryfall' ? el('span', { class: 'rul-src', text: 'Scryfall note', title: 'Added by Scryfall, not an official ruling' }) : null,
-        ].filter(Boolean)),
-        el('div', { class: 'rul-text', html: MTG.mana.textHtml(r.text) }),
-      ]))));
+      const more = list.length > 1 || list[0].text.length > LONG;
+      body.replaceChildren(...[
+        el('div', { class: 'rul rul-first' + (more ? ' clipped' : '') }, rulingBody(list[0])),
+        more ? el('button', { type: 'button', class: 'rul-more', text: 'Show more', onclick: () => rulingsWindow(card, list, 0) }) : null,
+      ].filter(Boolean));
     };
     const fail = () => {
       count.textContent = '!';
