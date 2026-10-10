@@ -588,6 +588,65 @@ html[data-play="1"] .hoard-chip { display: none; }
 .precon-art { height: 120px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
 .precon-tile .sc-title { font-size: 15px; }
+.precon-tile { cursor: pointer; }
+.precon-tile:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 2px; }
+
+/* ---------- a Commander deck looked through: built, as it sits on a table ---------- */
+.deck-view-modal .modal-body { padding-top: 14px; }
+.deck-view { --dv-w: 132px; --dv-h: calc(var(--dv-w) * 88 / 63); display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 22px; align-items: start; }
+.dv-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.dv-cmds { display: grid; gap: 8px; }
+.dv-cmds.two { grid-template-columns: 1fr 1fr; }
+.dv-facts { display: flex; flex-direction: column; gap: 9px; }
+.dv-ident .pip { width: 18px; height: 18px; }
+/* the curve: a bar for each mana value, its count on it and the value under it */
+.dv-curve { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; height: 76px; }
+.dv-bar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; padding-bottom: 14px; }
+.dv-bar i { display: block; width: 100%; min-height: 2px; border-radius: 3px 3px 0 0; background: linear-gradient(180deg, var(--gold-hi), #8a6a1c); }
+.dv-bar b { position: absolute; left: 0; right: 0; bottom: 16px; font: 700 10px/1 var(--font); text-align: center; color: #241a05; }
+.dv-bar span { position: absolute; left: 0; right: 0; bottom: 0; font-size: 10px; line-height: 12px; text-align: center; color: var(--ink-2); }
+.dv-owned { color: var(--ink-2); }
+.dv-buyrow { display: flex; align-items: center; justify-content: flex-end; gap: 10px; width: 100%; }
+.dv-mark { align-self: flex-start; }
+.dv-buy svg { width: 14px; height: 14px; vertical-align: -2px; }
+
+.dv-stacks { display: flex; flex-wrap: wrap; gap: 18px 10px; align-items: flex-start; }
+.dv-col { width: var(--dv-w); }
+.dv-head { height: 18px; margin-bottom: 6px; font: 600 11px/18px var(--font); letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: visible; }
+.dv-pile { display: flex; flex-direction: column; }
+.dv-card {
+  position: relative; display: block; width: var(--dv-w); height: var(--dv-h); padding: 0; border: 0; border-radius: 4.75% / 3.5%;
+  background: #0d0f14; cursor: pointer; box-shadow: 0 -2px 6px rgba(0,0,0,.45), 0 1px 0 rgba(255,255,255,.04);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast);
+}
+/* each card over the last, its name showing: a pile of them */
+.dv-pile .dv-card + .dv-card { margin-top: calc(var(--dv-h) * -0.855); }
+.dv-card .card-img, .dv-card .card-fallback { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; border-radius: inherit; background-size: cover; }
+.dv-pile .dv-card:hover, .dv-pile .dv-card:focus-visible { z-index: 5; transform: translateY(-6px) scale(1.04); box-shadow: 0 14px 30px rgba(0,0,0,.6), 0 0 0 1px rgba(246,220,140,.45); }
+.dv-card.big { width: 100%; height: auto; aspect-ratio: 63 / 88; box-shadow: 0 12px 30px rgba(0,0,0,.55); }
+.dv-card.big:hover { transform: translateY(-3px); }
+/* new to you: shown when asked for */
+.dv-new { display: none; }
+.deck-view.marking .dv-new { display: block; }
+.deck-view.marking .dv-card:not(:has(.dv-new)) { filter: saturate(.55) brightness(.75); }
+.deck-view.marking .dv-card:not(:has(.dv-new)):hover { filter: none; }
+.dv-qty, .dv-new {
+  position: absolute; top: 5%; z-index: 1; padding: 2px 6px; border-radius: 99px; font: 700 10px/1.2 var(--font);
+  box-shadow: 0 1px 4px rgba(0,0,0,.6); pointer-events: none;
+}
+.dv-qty { right: 6px; color: #fff; background: rgba(10,12,16,.88); border: 1px solid rgba(255,255,255,.25); }
+.dv-new { right: 6px; color: #241a05; background: linear-gradient(180deg, #f3d77e, #c99a2e); text-transform: uppercase; letter-spacing: .05em; font-size: 8.5px; }
+.dv-qty + .dv-new { right: 40px; }
+
+@media (max-width: 760px) {
+  .deck-view { --dv-w: 100px; grid-template-columns: 1fr; gap: 14px; }
+  .dv-side { position: static; }
+  .dv-cmds { grid-template-columns: minmax(0, 200px); justify-content: center; }
+  .dv-cmds.two { grid-template-columns: repeat(2, minmax(0, 160px)); }
+  .dv-stacks { gap: 14px 8px; justify-content: center; }
+  .dv-head { font-size: 10px; }
+}
+
 .precon-owns { font-size: 12px; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .precon-buy { display: flex; align-items: center; gap: 10px; margin-top: auto; padding-top: 4px; }
 .precon-was { font-size: 12px; }

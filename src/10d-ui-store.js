@@ -582,7 +582,11 @@
         const had = artReg.by['deck:' + p.file];
         if (had) art.style.backgroundImage = 'url("' + had.url + '")';
         else preconInfo(p).then((info) => { if (info.art) art.style.backgroundImage = 'url("' + info.art + '")'; }).catch(() => {});
-        return miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+        // a deck here is looked through where it is, like one in its own tab
+        const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
+        tile.onclick = () => inspectPrecon(p);
+        tile.title = 'Look through ' + p.name;
+        return tile;
       }, 170, 16);
       decks.replaceWith(row);
     }).catch(() => decks.replaceWith(el('p', { class: 'dim', text: 'The deck lists could not be loaded.' })));
@@ -797,14 +801,20 @@
     if (had) art.style.backgroundImage = 'url("' + had.url + '")';
     const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
     const owns = el('div', { class: 'precon-owns dim' });
-    btn.addEventListener('click', () => buyPrecon(p, btn));
-    const tile = el('div', { class: 'store-card precon-tile' }, [
+    btn.addEventListener('click', (e) => { e.stopPropagation(); buyPrecon(p, btn); });
+    const tile = el('div', { class: 'store-card precon-tile', role: 'button', tabindex: '0',
+      title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
       el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
       owns,
       el('div', { class: 'precon-buy' }, [btn]),
     ]);
+    // the rest of the tile opens the deck, laid out as it would be built
+    tile.addEventListener('click', () => inspectPrecon(p));
+    tile.addEventListener('keydown', (e) => {
+      if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
+    });
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
       if (!tile._rows) return;
@@ -823,13 +833,15 @@
     };
     return tile;
   }
-  async function buyPrecon(p, btn) {
+  async function buyPrecon(p, btn, have) {
     const S = E();
-    const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
-    let deck;
-    try { deck = await preconCards(p); }
-    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
-    busy.close();
+    let deck = have;
+    if (!deck) {
+      const busy = UI.busy('Commander deck', `Fetching the list of ${p.name}…`);
+      try { deck = await preconCards(p); }
+      catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+      busy.close();
+    }
     const pr = S.deckPrice(deck.all.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty })));
     // everything in it yours already: nothing to buy, but it can still be saved as a deck
     if (pr.owned >= pr.cards) return preconBought(p, deck, { ok: true, cards: pr.cards, fresh: 0, price: 0 });
@@ -842,6 +854,134 @@
       after: () => preconBought(p, deck, got),
     });
   }
+  /* A card's place in a built deck: the first of these its front face is. */
+  const STACKS = [['Creature', 'Creatures'], ['Planeswalker', 'Planeswalkers'], ['Battle', 'Battles'], ['Instant', 'Instants'],
+    ['Sorcery', 'Sorceries'], ['Artifact', 'Artifacts'], ['Enchantment', 'Enchantments'], ['Land', 'Lands']];
+  const stackOf = (c) => {
+    const t = String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || '');
+    const hit = STACKS.find(([k]) => new RegExp('\\b' + k + '\\b').test(t));
+    return hit ? hit[0] : 'Other';
+  };
+  const PER_STACK = 12;
+
+  /**
+   * A Commander deck looked through before it is bought, laid out the way
+   * it sits built on a table: its commander at full size, the rest in
+   * overlapping stacks by type, cheapest at the top, each one read with a
+   * click. Beside it, its bracket, its curve and colours and what of it you
+   * own, with a switch to mark the cards new to you; under it, the button
+   * to buy it.
+   */
+  async function inspectPrecon(p) {
+    const busy = UI.busy('Commander deck', `Laying out ${p.name}…`);
+    let deck, sets;
+    try { [deck, sets] = await Promise.all([preconCards(p), MTG.scry.sets().catch(() => [])]); }
+    catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    const S = E();
+    const built = { name: p.name, format: 'commander', commanders: deck.commanders, main: deck.main, sideboard: [] };
+    const setName = (sets.find(s => s.code === p.code) || {}).name || p.code.toUpperCase();
+    const isNew = (c) => !S.isBasic(c.name) && S.owned(c.name) < 1;
+
+    const dvCard = (card, qty, big) => {
+      const b = el('button', { type: 'button', class: 'dv-card' + (big ? ' big' : ''), 'aria-label': `${qty > 1 ? qty + ' ' : ''}${card.name}` }, [
+        UI.cardImage(card, big ? 'large' : 'normal', 0),
+        qty > 1 ? el('span', { class: 'dv-qty', text: '\u00d7' + qty }) : null,
+        isNew(card) ? el('span', { class: 'dv-new', text: 'new', title: 'Not in your collection yet' }) : null,
+      ].filter(Boolean));
+      // each card knows what it is, so a purchase can take its "new" away
+      b._card = card;
+      b.addEventListener('click', () => UI.cardSheet(card));
+      UI.attachPreview(b, card, 0);
+      return b;
+    };
+
+    // the stacks: by type, cheapest first, a long one carried on in the next column
+    const groups = new Map();
+    for (const e of UI.sortCards(deck.main, 'cmc')) {
+      const k = stackOf(e.card);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(e);
+    }
+    const order = STACKS.map(x => x[0]).concat(['Other']);
+    const stacks = el('div', { class: 'dv-stacks' });
+    for (const k of order) {
+      const list = groups.get(k);
+      if (!list || !list.length) continue;
+      const n = U.sum(list.map(e => e.qty));
+      const label = (STACKS.find(x => x[0] === k) || [k, 'Other'])[1];
+      for (let i = 0; i < list.length; i += PER_STACK) {
+        stacks.appendChild(el('div', { class: 'dv-col' }, [
+          el('div', { class: 'dv-head' + (i ? ' more' : ''), text: i ? '' : `${label} \u00b7 ${n}` }),
+          el('div', { class: 'dv-pile' }, list.slice(i, i + PER_STACK).map(e => dvCard(e.card, e.qty))),
+        ]));
+      }
+    }
+
+    // beside it: the commander, and the deck in numbers
+    const curve = [0, 0, 0, 0, 0, 0, 0, 0];
+    let lands = 0;
+    for (const e of deck.main) {
+      if (stackOf(e.card) === 'Land') { lands += e.qty; continue; }
+      curve[Math.min(7, Math.floor(e.card.cmc || 0))] += e.qty;
+    }
+    const top = Math.max(1, ...curve);
+    const ident = [...new Set(deck.commanders.flatMap(c => c.color_identity || []))];
+    const WUBRG = ['W', 'U', 'B', 'R', 'G'];
+    const owned = el('div', { class: 'dv-owned small' });
+    // the deck as built, unmarked; a switch marks the cards you do not have yet
+    const markNew = el('button', { type: 'button', class: 'btn xs dv-mark', 'aria-pressed': 'false', text: 'Mark the cards new to me' });
+    markNew.addEventListener('click', () => {
+      const on = body.classList.toggle('marking');
+      markNew.setAttribute('aria-pressed', on ? 'true' : 'false');
+      markNew.classList.toggle('primary', on);
+    });
+    const buy = el('button', { type: 'button', class: 'btn primary dv-buy' });
+    const was = el('s', { class: 'dim dv-was' });
+    const reprice = () => {
+      const pr = S.deckPrice(deck.all.map(e => ({ name: e.card.name, rarity: e.card.rarity, qty: e.qty })));
+      const all = pr.owned >= pr.cards;
+      buy.innerHTML = all ? 'Save as a deck' : `Buy the deck \u00b7 ${shardSvg()} ${fmtN(pr.price)}`;
+      was.textContent = !all && pr.price < pr.full ? fmtN(pr.full) : '';
+      const fresh = new Set(deck.all.filter(e => isNew(e.card)).map(e => e.card.name)).size;
+      owned.textContent = all ? 'Every card of it is in your collection.'
+        : `You own ${pr.owned} of its ${pr.cards} cards; ${fresh} ${fresh === 1 ? 'is' : 'are'} new to you.`;
+      markNew.hidden = all;
+      for (const n of body.querySelectorAll('.dv-card')) {
+        const tag = n.querySelector('.dv-new');
+        if (tag && n._card && !isNew(n._card)) tag.remove();
+      }
+    };
+    buy.addEventListener('click', () => buyPrecon(p, buy, deck));
+
+    const side = el('aside', { class: 'dv-side' }, [
+      el('div', { class: 'dv-cmds' + (deck.commanders.length > 1 ? ' two' : '') }, deck.commanders.map(c => dvCard(c, 1, true))),
+      el('div', { class: 'dv-facts' }, [
+        el('div', { class: 'row', style: { gap: '8px', flexWrap: 'wrap', alignItems: 'center' } }, [
+          UI.bracketPill ? UI.bracketPill(built) : null,
+          ident.length ? el('span', { class: 'dv-ident', html: MTG.mana.html(WUBRG.filter(x => ident.includes(x)).map(x => `{${x}}`).join('')) }) : el('span', { class: 'tiny dim', text: 'Colourless' }),
+        ].filter(Boolean)),
+        el('div', { class: 'tiny dim', text: `${U.sum(deck.all.map(e => e.qty))} cards \u00b7 ${lands} lands \u00b7 ${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
+        el('div', { class: 'dv-curve', title: 'Mana curve: spells by mana value' }, curve.map((v, i) => el('div', { class: 'dv-bar' }, [
+          el('i', { style: { height: Math.round(v / top * 100) + '%' } }),
+          el('b', { text: v ? String(v) : '' }),
+          el('span', { text: i === 7 ? '7+' : String(i) }),
+        ]))),
+        owned,
+        markNew,
+        deck.missing ? el('div', { class: 'tiny dim', text: `${deck.missing} of its cards could not be found.` }) : null,
+      ].filter(Boolean)),
+    ]);
+    const body = el('div', { class: 'deck-view' }, [side, stacks]);
+    reprice();
+    const m = UI.modal({ title: p.name, width: '1100px', className: 'deck-view-modal', art: deck.commanders[0] || null, content: body });
+    // buying it is always in reach, however far down the stacks go
+    m.foot.classList.remove('empty');
+    m.foot.append(el('div', { class: 'dv-buyrow' }, [was, buy]));
+    const off = MTG.bus.on('economy:changed', () => { if (!body.isConnected) { off(); return; } reprice(); });
+    return m;
+  }
+
   /** What the deck brought, and the deck saved if you want it. */
   async function preconBought(p, deck, got) {
     if (!got || !got.ok) return;
