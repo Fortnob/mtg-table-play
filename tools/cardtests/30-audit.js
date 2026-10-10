@@ -6159,4 +6159,37 @@ module.exports = (test) => {
     T.mana('A', 'G1'); T.cast('A', T.hand('A', 'Farseek'));
     t.ok(sv2.tapped); t.eq(T.life('A'), 20, 'the bot pays nothing');
   });
+
+  test('Audit: "draw, then discard" waits for the discard: Frantic Search untaps after it, Jace flips on the card discarded, Pulse of the Grid counts the hand after it', (mk, t) => {
+    t.auto('Frantic Search'); t.auto("Jace, Vryn's Prodigy"); t.auto('Pulse of the Grid'); t.auto('Plaguecrafter');
+    let T = mk(); T.toMain('A');
+    const lands = [T.bf('A', 'Island'), T.bf('A', 'Island'), T.bf('A', 'Island')];
+    lands.forEach(l => { l.tapped = true; });
+    T.hand('A', 'Forest'); T.hand('A', 'Forest');
+    T.mana('A', 'U2'); T.cast('A', T.hand('A', 'Frantic Search'));
+    const log = T.g.log.map(e => e.text || '');
+    const at = (re) => log.findIndex(x => re.test(x));
+    t.ok(at(/draws 2 cards/) >= 0 && at(/draws 2 cards/) < at(/discards/), 'draws, then discards');
+    t.ok(at(/discards/) < at(/untaps 3 lands/), 'and untaps after the discard: ' + log.slice(-4).join(' / '));
+    t.ok(lands.every(l => !l.tapped));
+    // Jace: four in the graveyard, the card discarded is the fifth
+    T = mk(); T.toMain('A');
+    const j = T.bf('A', "Jace, Vryn's Prodigy"); j.summoningSick = false;
+    T.g.zones.A.graveyard.length = 0; for (let i = 0; i < 4; i++) T.grave('A', 'Island');
+    T.activate('A', j, 0); T.settle(); T.resolve();
+    t.eq(j.face, 1, 'Jace flips on the fifth card, the one just discarded');
+    // Pulse of the Grid: 2 cards, draws 2, discards 1 = 3; the opponent's 4 is more
+    T = mk(); T.toMain('A');
+    T.g.zones.A.hand.length = 0; T.g.zones.B.hand.length = 0;
+    T.hand('A', 'Island'); T.hand('A', 'Island');
+    for (let i = 0; i < 4; i++) T.hand('B', 'Swamp');
+    const pg = T.hand('A', 'Pulse of the Grid');
+    T.mana('A', 'UU1'); T.cast('A', pg);
+    t.zone(pg, 'hand', 'counted after the discard: back to hand');
+    // Plaguecrafter: a player with nothing to sacrifice discards, and is waited for
+    T = mk(); T.toMain('A');
+    T.g.zones.B.hand.length = 0; T.hand('B', 'Swamp'); T.hand('B', 'Swamp');
+    T.mana('A', 'B2'); T.cast('A', T.hand('A', 'Plaguecrafter'));
+    t.eq(T.g.zones.B.hand.length, 1, 'B, with no creature, discards one');
+  });
 };

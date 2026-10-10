@@ -14169,7 +14169,11 @@
             });
             if (!pool.length) {
               if (e.orDiscard && this.zones[p.id].hand.length) {
-                this.queueChoice({ type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' });
+                // (waited for, as the sacrifice is)
+                const q = { type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' };
+                const got = this.resolving ? this._ask(q, 'sacOrDiscard' + p.id) : null;
+                if (got === SUSPEND) return SUSPEND;
+                if (!this.resolving) this.queueChoice(q);
               }
               continue;
             }
@@ -15263,9 +15267,17 @@
         }
         case 'drawDiscard': {
           const drew = n(e.n), toss = e.discard == null ? drew : n(e.discard);
-          this._drawCards(me, drew);
+          // (drawn once, however many times this resumes)
+          if (!this._doneHere('ddDraw')) this._drawCards(me, drew);
           const can = Math.min(toss, this.zones[ctx.controller].hand.length);
-          if (can > 0) this.queueChoice({ type: 'discard', playerId: ctx.controller, count: can, prompt: `Discard ${can}.` });
+          if (can > 0) {
+            /* Frantic Search, Jace, Vryn's Prodigy: the discard is waited for, so what comes after it
+               (the untap, "if there are five or more cards in your graveyard") comes after it */
+            const q = { type: 'discard', playerId: ctx.controller, count: can, prompt: `Discard ${can}.` };
+            const got = this._ask(q, 'ddToss');
+            if (got === SUSPEND) return SUSPEND;
+            if (got === null && !this.resolving) this.queueChoice(q);
+          }
           break;
         }
         /* Timetwister: hand and graveyard shuffled into the library, then
