@@ -194,6 +194,10 @@
      "10 ramp / 10 draw / 10 interaction" guidance; 60-card numbers are the
      conventional constructed split. */
   function targetsFor(fmt, deckSize) {
+    // Brawl and Oathbreaker: a commander deck in sixty cards, with a sixty-card mana base
+    if (fmt.commander && fmt.kind !== 'limited' && (fmt.deckMin || 100) < 100) {
+      return { land: 24, ramp: 4, draw: 6, removal: 6, wipe: 2, interaction: 3, threat: 9 };
+    }
     if (fmt.commander) {
       return { land: 36, ramp: 10, draw: 10, removal: 8, wipe: 3, interaction: 4, threat: 12 };
     }
