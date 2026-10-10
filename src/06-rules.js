@@ -10480,6 +10480,8 @@
       if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat });
       // Niv-Mizzet, Visionary: a source of yours hurt an opponent
       if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
+      // Dragonborn Champion: a source of yours hurt a player, you included (minAmount)
+      if (source && source.controller != null) this._fire('yourSourceDamagesPlayer', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
@@ -11302,6 +11304,8 @@
           if (ab.fromHandOnly && !(data.spell && data.spell.fromZone === 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only
           if (ab.noncombatOnly && data.combat) continue;
+          // Dragonborn Champion: "deals 5 or more damage" — at once
+          if (ab.minAmount != null && !((Number(data.amount) || 0) >= ab.minAmount)) continue;
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
           if (data.exiledFromBattlefield && !ab.orExiled) continue;
           // "leave the battlefield without dying", "is exiled from the battlefield"

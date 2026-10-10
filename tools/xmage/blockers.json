@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11220,
+  "needed": 11218,
   "gainedCards": 1130,
-  "linesNeeded": 12001,
+  "linesNeeded": 11999,
   "linesGained": 1334,
   "gained": {
    "all": 1130,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 713,
-   "lines": 653,
+   "score": 711,
+   "lines": 651,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6665,8 +6665,8 @@
   },
   {
    "what": "custom ability",
-   "score": 553,
-   "cards": 508,
+   "score": 551,
+   "cards": 506,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

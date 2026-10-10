@@ -17360,4 +17360,25 @@ module.exports = (test) => {
     U.toMain('A', 'upkeep'); U.toMain('A');
     t.eq(U.life('A'), 19, 'no opponent at 10 or less: 1 life');
   });
+
+  test('Dragonborn Champion: a draw when a source of yours deals 5 or more to a player; Night Dealings: "to another player"', (mk, t) => {
+    t.auto('Dragonborn Champion');
+    t.auto('Night Dealings');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Dragonborn Champion');
+    const nd = T.bf('A', 'Night Dealings');
+    const wurm = T.bf('A', 'Craw Wurm');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, hand, 'three damage: no card');
+    t.eq(nd.counters.theft || 0, 3, 'three theft counters');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'six combat damage: a card');
+    t.eq(nd.counters.theft || 0, 9, 'six more');
+  });
 };

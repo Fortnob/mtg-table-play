@@ -9704,8 +9704,12 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
     // Niv-Mizzet, Visionary: "Whenever a source you control deals noncombat damage to an opponent"
-    { re: /^When(?:ever)? a source you control deals (noncombat )?damage to an opponent(?:,| )/i, event: 'yourSourceDamagesOpponent',
+    // (Night Dealings: "to another player" — the same)
+    { re: /^When(?:ever)? a source you control deals (noncombat )?damage to (?:an opponent|another player)(?:,| )/i, event: 'yourSourceDamagesOpponent',
       extraOf: (m) => (m[1] ? { noncombatOnly: true } : {}) },
+    // Dragonborn Champion: "Whenever a source you control deals 5 or more damage to a player" — you too (minAmount)
+    { re: /^When(?:ever)? a source you control deals (\d+) or more damage to a player,? /i, event: 'yourSourceDamagesPlayer',
+      extraOf: (m) => ({ minAmount: +m[1] }) },
     // Surveillance Monitor: "Whenever you collect evidence"
     { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"
