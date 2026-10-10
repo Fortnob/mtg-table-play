@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10487,
-  "gainedCards": 969,
-  "linesNeeded": 11142,
-  "linesGained": 1135,
+  "needed": 10473,
+  "gainedCards": 967,
+  "linesNeeded": 11127,
+  "linesGained": 1133,
   "gained": {
-   "all": 969,
+   "all": 967,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4018,
-   "lines": 3772,
+   "score": 4016,
+   "lines": 3770,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 666,
-   "lines": 612,
+   "score": 665,
+   "lines": 611,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -2251,21 +2251,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental",
-    "Ramses Overdark",
-    "Cut the Earthly Bond",
-    "Venomous Vines"
-   ]
-  },
-  {
    "what": "opponent or planeswalker",
    "score": 8,
    "lines": 8,
@@ -2872,19 +2857,6 @@
    ]
   },
   {
-   "what": "ModifiedPredicate.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Thundering Raiju",
-    "Jugan Defends the Temple // Remnant of the Rising Star",
-    "Arna Kennerüd, Skycaptain",
-    "One with the Kami",
-    "Silver Sable, Mercenary Leader",
-    "Expanding Ooze"
-   ]
-  },
-  {
    "what": "keyword OfferingAbility",
    "score": 6,
    "lines": 6,
@@ -2895,19 +2867,6 @@
     "Patron of the Nezumi",
     "Patron of the Kitsune",
     "Patron of the Akki"
-   ]
-  },
-  {
-   "what": "EquippedPredicate.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Nahiri, Forged in Fury",
-    "Dáin Ironfoot",
-    "Barret Wallace",
-    "Item Shopkeep",
-    "Hemlock Vial"
    ]
   },
   {
@@ -4080,6 +4039,18 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Estrid, the Masked",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental"
+   ]
+  },
+  {
    "what": "TurnFaceUpTargetEffect",
    "score": 5,
    "lines": 5,
@@ -4624,6 +4595,28 @@
     "Abigale, Eloquent First-Year",
     "The Wondrous Wasp",
     "Invasion of Muraganda // Primordial Plasm"
+   ]
+  },
+  {
+   "what": "ModifiedPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Thundering Raiju",
+    "Jugan Defends the Temple // Remnant of the Rising Star",
+    "Arna Kennerüd, Skycaptain",
+    "One with the Kami"
+   ]
+  },
+  {
+   "what": "EquippedPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Cloud, Ex-SOLDIER",
+    "Nahiri, Forged in Fury",
+    "Dáin Ironfoot",
+    "Hemlock Vial"
    ]
   },
   {
@@ -6476,8 +6469,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3360,
-   "cards": 3195,
+   "score": 3359,
+   "cards": 3194,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6489,8 +6482,8 @@
   },
   {
    "what": "custom ability",
-   "score": 511,
-   "cards": 472,
+   "score": 510,
+   "cards": 471,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -8010,19 +8003,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental",
-    "Ramses Overdark",
-    "Cut the Earthly Bond"
-   ]
-  },
-  {
    "what": "ConditionalContinuousEffect without a condition",
    "score": 7,
    "cards": 7,
@@ -8644,18 +8624,6 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
-   ]
-  },
-  {
-   "what": "ModifiedPredicate.instance",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Thundering Raiju",
-    "Arna Kennerüd, Skycaptain",
-    "One with the Kami",
-    "Silver Sable, Mercenary Leader",
-    "Expanding Ooze"
    ]
   },
   {
@@ -9396,17 +9364,6 @@
    ]
   },
   {
-   "what": "EquippedPredicate.instance",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Nahiri, Forged in Fury",
-    "Barret Wallace",
-    "Item Shopkeep",
-    "Hemlock Vial"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 4,
    "cards": 4,
@@ -9891,6 +9848,17 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental"
+   ]
+  },
+  {
    "what": "IsPhaseCondition",
    "score": 4,
    "cards": 4,
@@ -10117,6 +10085,26 @@
     "Repulsive Mutation",
     "Bighorner Rancher",
     "Peema Aether-Seer"
+   ]
+  },
+  {
+   "what": "TargetActivatedOrTriggeredAbility",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Tishana's Tidebinder",
+    "Trickbind",
+    "Emerald Dragon // Dissonant Wave"
+   ]
+  },
+  {
+   "what": "(constructor: local method addSubType)",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Weathered Sentinels",
+    "Thran Portal",
+    "Phabine, Boss's Confidant"
    ]
   }
  ]

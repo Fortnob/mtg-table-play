@@ -22211,4 +22211,74 @@ module.exports = (test) => {
     W3.toMain('A', 'declareBlockers');
     t.ok(cb.zone === 'graveyard' && bb3.zone === 'battlefield', 'Witch-king: the defending player sacrifices, not the other opponent');
   });
+
+  test("Commanders: Tolsimir, Rasaad yn Bashir, Silver Sable, Barret Wallace, Imoen; Tormentor's Helm, Expanding Ooze, Item Shopkeep, Ramses Overdark", (mk, t) => {
+    for (const n of ['Tolsimir, Friend to Wolves', 'Rasaad yn Bashir', 'Silver Sable, Mercenary Leader', 'Barret Wallace', 'Imoen, Mystic Trickster',
+      "Tormentor's Helm", 'Expanding Ooze', 'Item Shopkeep', 'Ramses Overdark', 'Venomous Vines']) t.auto(n);
+    t.ok(!T0auto('Feast of Dreams'), 'Feast of Dreams: "enchanted creature or enchantment creature" stays with a person');
+    function T0auto(n) { const T0 = mk(); return !T0.put('A', n, 'library').analysis().needsManual; }
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // Tolsimir: Voja, Friend to Elves, a legendary 3/3 Wolf, and 3 life as it enters
+    const T = mk({ library: Array(10).fill('Forest') });
+    T.toMain('A');
+    T.put('A', 'Tolsimir, Friend to Wolves', 'battlefield', { etb: true }); T.resolve();
+    const voja = T.bfOf('A').find(o => o.name === 'Voja, Friend to Elves');
+    t.ok(!!voja && T.g.powerOf(voja) === 3, 'Tolsimir: Voja, Friend to Elves, 3/3');
+    t.eq(T.life('A'), 23, 'Tolsimir: a Wolf entered, 3 life');
+    // Rasaad: with the initiative, toughness doubled as it attacks
+    const R = mk({ library: Array(10).fill('Plains') });
+    R.toMain('A');
+    R.player('A').initiative = true;
+    const gb = R.bf('A', 'Horned Turtle');
+    attack(R, [R.bf('A', 'Rasaad yn Bashir')]);
+    t.eq(R.g.toughnessOf(gb), 8, 'Rasaad: the Turtle is 1/8');
+    t.eq(R.g.powerOf(gb), 1, 'Rasaad: power as it was');
+    // Silver Sable: only a modified creature you control is a legal target
+    const S = mk({ library: Array(10).fill('Plains') });
+    S.toMain('A');
+    const plain = S.bf('A', 'Grizzly Bears'), mod = S.bf('A', 'Hill Giant'); mod.counters['+1/+1'] = 1;
+    const ss = S.bf('A', 'Silver Sable, Mercenary Leader');
+    const spec = ss.analysis().abilities.find(ab => ab.kind === 'triggered' && ab.event === 'attacks').effects[0].targets[0];
+    t.ok(S.MTG.oracle.matchesSpec(spec, mod, mod.analysis(), 'A', S.g._specCtx()), 'Silver Sable: the Giant with a counter is a target');
+    t.ok(!S.MTG.oracle.matchesSpec(spec, plain, plain.analysis(), 'A', S.g._specCtx()), 'Silver Sable: the Bears without one are not');
+    S.answer('pickTarget', { targets: [{ kind: 'object', id: mod.id }] });
+    attack(S, [ss]);
+    t.ok(S.g.hasKw(mod, 'lifelink'), 'Silver Sable: the Giant gains lifelink');
+    // Barret Wallace: damage to the defending player for each equipped creature you control
+    const B = mk({ library: Array(10).fill('Mountain') });
+    B.toMain('A');
+    const bw = B.bf('A', 'Barret Wallace'), eqd = B.bf('A', 'Grizzly Bears'), bsp = B.bf('A', 'Bonesplitter');
+    bsp.attachedTo = eqd.id; eqd.attachments = [bsp.id]; B.g.bumpBoard();
+    attack(B, [bw]);
+    t.eq(B.life('B'), 19, 'Barret Wallace: one equipped creature, 1 damage');
+    // Imoen: with the initiative, a card; another for a completed dungeon
+    const I = mk({ library: Array(10).fill('Island') });
+    I.toMain('A');
+    I.bf('A', 'Imoen, Mystic Trickster');
+    I.player('A').initiative = true;
+    const ih = I.zone('A', 'hand').length;
+    I.toMain('A', 'end'); I.resolve();
+    t.eq(I.zone('A', 'hand').length, ih + 1, 'Imoen: one card');
+    const I2 = mk({ library: Array(10).fill('Island') });
+    I2.toMain('A');
+    I2.bf('A', 'Imoen, Mystic Trickster');
+    I2.player('A').initiative = true; I2.player('A').dungeonsCompleted = ['Undercity'];
+    const i2h = I2.zone('A', 'hand').length;
+    I2.toMain('A', 'end'); I2.resolve();
+    t.eq(I2.zone('A', 'hand').length, i2h + 2, 'Imoen: a dungeon completed, two cards');
+    // Tormentor's Helm: "it deals 1 damage to defending player" as the equipped creature becomes blocked
+    const H = mk({ library: Array(10).fill('Mountain') });
+    H.toMain('A');
+    const hb = H.bf('A', 'Grizzly Bears'), helm = H.bf('A', "Tormentor's Helm"), blk = H.bf('B', 'Hill Giant');
+    helm.attachedTo = hb.id; hb.attachments = [helm.id]; H.g.bumpBoard();
+    hb.summoningSick = false;
+    H.answer('declareAttackers', () => [{ attackerId: hb.id, defenderId: 'B' }]);
+    H.answer('declareBlockers', () => [{ blockerId: blk.id, attackerIds: [hb.id] }]);
+    H.toMain('A', 'combatDamage');
+    t.eq(H.life('B'), 19, "Tormentor's Helm: blocked, 1 damage to the defending player");
+  });
 };

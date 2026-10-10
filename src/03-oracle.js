@@ -468,7 +468,8 @@
     /* Kari Zev: "Create Ragavan, a legendary 2/1 red Monkey creature token."
        — a token with a name of its own, said first (not one named after the
        card making it: "CARDNAME Twin" is left to a person) */
-    const named = s.match(/^Create ([A-Z][A-Za-z' -]*?), an? (legendary )?(.+)$/);
+    // (Tolsimir, Friend to Wolves: "Create Voja, Friend to Elves, a legendary …" — a name with an epithet: namedTokenEpithet)
+    const named = s.match(/^Create ([A-Z][A-Za-z' -]*?(?:, [A-Z][A-Za-z' -]*?)?), an? (legendary )?(.+)$/);
     if (named && !/CARDNAME/.test(named[1])) {
       const e = parseTokenSentence('Create a ' + named[3], named[1].trim());
       if (!e) return null;
@@ -1811,6 +1812,9 @@
     // The Endstone: "your life total becomes half your starting life total, rounded up"
     { re: /^[Yy]our life total becomes half your starting life total, rounded (up|down)\.?$/,
       make: (m) => ({ op: 'setLife', who: 'you', n: { halfStartingLife: true, up: /up/i.test(m[1]) } }) },
+    // Rasaad yn Bashir: "Double the toughness of each creature you control until end of turn." (doubleToughness)
+    { re: /^Double the toughness of each ([A-Za-z ]+? you control) until end of turn\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1].replace(/^([A-Za-z]+)(?= you control$)/, (w) => (/s$/.test(w) ? w : w + 's'))); return sc ? { op: 'doublePower', toughness: true, scope: sc } : null; } },
     { re: /^Double the power of each ([A-Za-z ]+? you control) until end of turn\.?$/i,
       make: (m) => { const sc = scopeOf(m[1].replace(/^([A-Za-z]+)(?= you control$)/, (w) => (/s$/.test(w) ? w : w + 's'))); return sc ? { op: 'doublePower', scope: sc } : null; } },
     // Maddening Cacophony: "each opponent mills half their library, rounded up" — each their own half
@@ -2964,6 +2968,14 @@
     { re: /^(Target opponent|Each opponent) creates? an? (tapped )?(Treasure|Food|Clue|Blood|Map) token\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'target', targets: [{ type: 'player', opponent: true }] }
         : { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'opponents' }) },
+    // Imoen, Mystic Trickster: "Draw another card if you've completed a dungeon." (drawAnotherIf)
+    { re: /^Draw another card if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] } : null; } },
+    // Barret Wallace, Ghost-Spider, Commander Mustard: "it deals 1 (X) damage to defending player", "deals damage equal to … to defending player" (damageDefending)
+    { re: /^(?:It|CARDNAME|This creature) deals (\d+|X) damage to defending player(?:, where X is (.+?))?\.?$/i,
+      make: (m) => { const k = m[1] === 'X' ? (m[2] ? amountOf(m[2]) : null) : +m[1]; return k == null || k === false ? null : { op: 'damage', n: k, toDefending: true }; } },
+    { re: /^(?:It|CARDNAME|This creature) deals damage equal to (.+?) to defending player\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k == null || k === false ? null : { op: 'damage', n: k, toDefending: true }; } },
     // Generous Plunderer: "it deals damage to defending player equal to the number of artifacts they control"
     { re: /^(?:It|CARDNAME|This creature) deals damage to defending player equal to the number of ([a-z]+)s they control\.?$/i,
       make: (m) => ({ op: 'damage', n: { defendersCount: m[1].toLowerCase() }, toDefenderOf: 'self' }) },
@@ -6367,7 +6379,7 @@
      one it would offer wrongly. */
   const SPEC_FLAGS = new Set(['attacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
-    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked']);
+    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'modified', 'equipped', 'enchanted']);
   const SPEC_FILLER = new Set(['a', 'an', 'or', 'and', 'and/or', 'target', 'other', 'another', 'of', 'card', 'cards',
     'one', 'two', 'three', 'up', 'to']);
 
@@ -6539,6 +6551,9 @@
         else if (lw === 'face-down') spec.faceDown = true;
         // Curtain of Light: "target unblocked attacking creature"
         else if (lw === 'unblocked') { spec.unblocked = true; spec.attacking = true; }
+        // Silver Sable, Mercenary Leader: "target modified creature you control" (modifiedTarget)
+        // (Feast of Dreams: "enchanted creature or enchantment creature" — the word for one of two kinds is left to a person)
+        else if (lw === 'modified' || lw === 'equipped' || lw === 'enchanted') { spec[lw] = true; if (/\b(?:or|and\/or)\b/i.test(rest)) spec.unknown = true; }
         else spec.unknown = true;
         continue;
       }
@@ -6668,6 +6683,8 @@
     if (spec.attacking && !obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
+    // (modifiedTarget: what is on it, as the game reads it)
+    for (const w of ['modified', 'equipped', 'enchanted']) if (spec[w] && !(ctx && ctx.fits && ctx.fits(obj, w))) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;

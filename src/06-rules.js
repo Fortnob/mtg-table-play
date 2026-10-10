@@ -13445,6 +13445,16 @@
           // (in a spell, "that player" is the one it targets: Hit)
           if (e.toTriggerPlayer) { const p = triggerPlayer() || firstPlayer(); if (p) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // Hellrider: "to the player or planeswalker it's attacking"
+          // Barret Wallace: "to defending player" — the player it attacks, or the one the attack trigger names (damageDefending)
+          if (e.toDefending) {
+            // (Tormentor's Helm: "it" is the equipped creature the trigger is about)
+            const tdD = ctx.triggerData || {};
+            const att = (e.fromTrigger && tdD.objectId && this.obj(tdD.objectId)) || src;
+            const p = this._defenderOf(att) || this._defenderOf(src) || triggerPlayer();
+            if (p) this.dealDamageToPlayer(p, cnt, dsrc);
+            this.emit('sfx', 'damage');
+            break;
+          }
           if (e.toDefenderOf) {
             // Generous Plunderer: the creature itself, attacking
             const att = e.toDefenderOf === 'self' ? src : (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
@@ -19984,8 +19994,9 @@
         case 'doublePower': {
           applyToScope(e, (o) => {
             if (!o || o.zone !== 'battlefield') return;
-            const k = this.powerOf(o);
-            if (k > 0) { o.effects.push({ p: k, t: 0, until: 'eot' }); o._chr = null; }
+            // (Rasaad yn Bashir: the toughness — doubleToughness)
+            const k = e.toughness ? this.toughnessOf(o) : this.powerOf(o);
+            if (k > 0) { o.effects.push(e.toughness ? { p: 0, t: k, until: 'eot' } : { p: k, t: 0, until: 'eot' }); o._chr = null; }
           });
           this.bumpBoard();
           break;
@@ -23437,7 +23448,7 @@
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
         // (Valley Questcaller: "Mice" are Mouse creatures)
         const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
-        if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\b' + bare + 's?\b').test(line)) return true;
+        if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line)) return true;
         // a changeling is every creature type, wherever it is (CR 702.73a): "a Goblin card", "if it was a Human"
         return !!(a.keywordSet && a.keywordSet.has('changeling')) && [w, bare, alt].some(x => CREATURE_TYPES_LOWER.has(x));
       };
@@ -23659,6 +23670,8 @@
       if (!this.__specCtx) this.__specCtx = {
         powerOf: (o) => this.powerOf(o),
         toughnessOf: (o) => this.toughnessOf(o),
+        // (Silver Sable: "target modified creature" — modifiedTarget)
+        fits: (o, w) => this._cardFitsWords(o, w),
         hasKw: (o, k) => this.hasKw(o, k),
         // "with mana value X": the X of the spell or ability being cast, while it is checked
         get x() { return game._specX; },
