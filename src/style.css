@@ -1426,7 +1426,8 @@ label.opt-row:hover .opt-label { color: var(--ink); }
 .sugg-thumb .card-img, .sugg-thumb .card-fallback {
   width: 52px; height: 73px; min-height: 73px; border-radius: 4px; box-shadow: none;
 }
-.sugg-name { font-size: 13px; font-weight: 600; display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+/* the name and its cost on one middle line: a number or X and a coloured symbol level with each other */
+.sugg-name { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; min-width: 0; }
 .sugg-name > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sugg-cost { flex: none; }
 .sugg-why { font-size: 11.5px; color: var(--ink-2); margin-top: 3px; line-height: 1.45; }
