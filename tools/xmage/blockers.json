@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10961,
+  "needed": 10959,
   "gainedCards": 1075,
-  "linesNeeded": 11704,
+  "linesNeeded": 11701,
   "linesGained": 1266,
   "gained": {
    "all": 1075,
@@ -3790,18 +3790,6 @@
    ]
   },
   {
-   "what": "ToughnessGreaterThanPowerPredicate.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Fecund Greenshell",
-    "Doran, Besieged by Time",
-    "Plagon, Lord of the Beach",
-    "Catapult Fodder // Catapult Captain",
-    "Immobilizer Eldrazi"
-   ]
-  },
-  {
    "what": "damage affecting the defending player",
    "score": 5,
    "lines": 5,
@@ -6229,6 +6217,16 @@
     "Emperor of Bones",
     "Cursed Wombat",
     "Growth-Chamber Guardian"
+   ]
+  },
+  {
+   "what": "ToughnessGreaterThanPowerPredicate.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Doran, Besieged by Time",
+    "Catapult Fodder // Catapult Captain",
+    "Immobilizer Eldrazi"
    ]
   },
   {

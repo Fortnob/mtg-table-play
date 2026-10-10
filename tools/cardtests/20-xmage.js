@@ -19217,4 +19217,38 @@ module.exports = (test) => {
     t.eq(T.g.player('B').life, 17, 'the Bolt, cast for {R}');
     t.zone(bolt, 'exile');
   });
+
+  test('Fecund Greenshell: a creature with toughness greater than its power entering digs; a square one does not', (mk, t) => {
+    t.auto('Fecund Greenshell');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Fecund Greenshell');
+    const top = T.top('A', 'Grizzly Bears');
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(top, 'library', 'a 2/2 is not taller than it is strong');
+    T.put('A', 'Wall of Wood', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(top, 'hand', 'a 0/3 wall: the top card, not a land, into the hand');
+  });
+
+  test('Plagon, Lord of the Beach: a card for each creature tougher than it is strong; one deals damage by toughness this turn', (mk, t) => {
+    t.auto('Plagon, Lord of the Beach');
+    const T = mk();
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const wall = T.bf('A', 'Wall of Wood');
+    T.bf('A', 'Grizzly Bears');
+    T.toMain('A');
+    const pl = T.put('A', 'Plagon, Lord of the Beach', 'battlefield', { etb: true });
+    T.resolve();
+    const tough = [wall, pl].filter(o => T.g.toughnessOf(o) > T.g.powerOf(o)).length;
+    t.eq(T.zone('A', 'hand').length, tough, 'one card for each of them, Plagon counted if it is one');
+    const a = pl.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.mana('A', 'W');
+    T.activate('A', pl, list.findIndex(x => x.kind === 'activated'), { targets: [wall.id] });
+    T.resolve();
+    t.ok(T.g._dealsByToughness(wall), 'the wall deals damage by its toughness this turn');
+    t.no(T.g._dealsByToughness(T.g.battlefield.find(o => o.name === 'Grizzly Bears')), 'not the Bears');
+  });
 };

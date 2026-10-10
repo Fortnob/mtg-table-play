@@ -3628,6 +3628,9 @@
     // Chandra, Flame's Catalyst: "Until end of turn, you may cast spells from your hand without paying their mana costs." — Omniscience for the turn
     { re: /^Until end of turn, you may cast spells from your hand without paying their mana costs\.?$/i,
       make: () => ({ op: 'getEmblem', emblemText: 'You may cast spells from your hand without paying their mana costs.', thisTurn: true, name: 'Until end of turn' }) },
+    // Plagon, Lord of the Beach: "Target creature you control assigns combat damage equal to its toughness rather than its power this turn."
+    { re: /^(target creature(?: you control)?) assigns combat damage equal to its toughness rather than its power this turn\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'toughDamageTurn', targets: [t] } : null; } },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -9394,6 +9397,9 @@
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         // Luminous Broodmoth: "a creature you control without flying"
         f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with toughness greater than its power$/i))) {
+        // Fecund Greenshell: "another creature you control with toughness greater than its power"
+        f.toughGtPow = true; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? counter on it$/i))) {
         // The Swarmlord: "a creature you control with a counter on it" — of any kind
         f.withCounter = '*'; p = p.slice(0, m.index);
@@ -12126,6 +12132,9 @@
       } else if ((m = rest.match(/ with (?:mana value|converted mana cost) (\d+) or (less|greater|more)$/i))) {
         if (/less/i.test(m[2])) sc.maxMv = +m[1]; else sc.minMv = +m[1];
         rest = rest.slice(0, m.index);
+      } else if ((m = rest.match(/ with toughness greater than (?:its|their) power$/i))) {
+        // Plagon, Lord of the Beach: "each creature you control with toughness greater than its power"
+        sc.toughGtPow = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with (?:one or more |a )?counters? on (?:it|them)$/i))) {
         sc.withAnyCounter = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||

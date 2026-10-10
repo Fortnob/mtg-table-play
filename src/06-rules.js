@@ -461,6 +461,8 @@
     /** Does this player's creature deal its combat damage by its toughness (Weight Advantage)? */
     _dealsByToughness(o) {
       if (this._conspiracyOps(o.controller, 'toughnessDamage').length > 0) return true;
+      // Plagon, Lord of the Beach: this creature, this turn
+      if (o.toughDamageTurn === this.turn) return true;
       // Doran: "Each creature assigns combat damage equal to its toughness rather than its power"
       return this.battlefield.some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
@@ -11000,6 +11002,8 @@
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
+        // (Plagon's "this turn" was said of the creature that left)
+        o.toughDamageTurn = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
@@ -16728,6 +16732,14 @@
           }
           break;
         }
+        // Plagon, Lord of the Beach: it deals its combat damage by its toughness this turn
+        case 'toughDamageTurn': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          x.toughDamageTurn = this.turn;
+          this.logEvent('rules', `${x.name} assigns combat damage equal to its toughness this turn.`);
+          break;
+        }
         // Archway of Innovation
         case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
@@ -20866,6 +20878,12 @@
         if (sc.minPower != null && pw < sc.minPower) return false;
         if (sc.maxPower != null && pw > sc.maxPower) return false;
       }
+      // Plagon, Lord of the Beach: "with toughness greater than its power"
+      if (sc.toughGtPow) {
+        const pw = inLayers ? (parseInt(oa.power, 10) || 0) : this.powerOf(o);
+        const tg = inLayers ? (parseInt(oa.toughness, 10) || 0) : this.toughnessOf(o);
+        if (!(tg > pw)) return false;
+      }
       // "with toughness 1 or less", the same way
       if (sc.minToughness != null && (inLayers ? (parseInt(oa.toughness, 10) || 0) : this.toughnessOf(o)) < sc.minToughness) return false;
       if (sc.maxToughness != null) {
@@ -22585,6 +22603,8 @@
       }
       if (f.attacking && !x.attacking) return false;
       if (f.pumped && !(this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0))) return false;
+      // Fecund Greenshell: "with toughness greater than its power"
+      if (f.toughGtPow && !(this.toughnessOf(x) > this.powerOf(x))) return false;
       return true;
     }
 
