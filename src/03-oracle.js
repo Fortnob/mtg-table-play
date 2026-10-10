@@ -8898,6 +8898,21 @@
           out.push(prev);
           continue;
         }
+        /* Throw from the Saddle: "Target creature you control gets +1/+1 … Put a +1/+1 counter on it
+           instead if it's a Mount. Then it deals damage …" — the target is chosen as the spell is cast
+           whichever branch happens: it stays in front (a noop that holds it), where the sentences
+           after it count it, and both branches act on it */
+        const onIt = (x) => !(x.targets || []).length && (x.scope === 'lastTarget' ||
+          (x.scope === 'self' && /\bit\b/i.test(x.text || '') && !/\bthis\b|CARDNAME/.test(x.text || '')));
+        if (prev && prev.op !== 'sequence' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player' &&
+            e.insteadOf.effects.length && e.insteadOf.effects.every(onIt)) {
+          for (const x of e.insteadOf.effects) x.scope = 'lastTarget';
+          out.push({ op: 'noop', targets: prev.targets, text: prev.text });
+          const rest = Object.assign({}, prev, { scope: 'lastTarget' });
+          delete rest.targets;
+          out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [rest] });
+          continue;
+        }
         if (prev) out.push({ op: 'ifCond', cond: e.insteadOf.cond, then: e.insteadOf.effects, otherwise: [prev] });
         // with nothing before it on this line, the line before this one is what it replaces
         else out.push(e);
@@ -11302,6 +11317,18 @@
             out.abilities.push({ kind: 'activated', cost, text: k.text, sorcerySpeed: true, auto: true, fromGraveyard: true,
               effects: [{ op: 'counters', kind: '+1/+1', n: +out.power, targets: [targetSpec('target creature')] }] });
             autoLines += 1 / kws.length;
+            continue;
+          }
+          /* Vicious Offering: "Kicker—Sacrifice a creature." A kicker that is not mana is an
+             additional cost you may pay (CR 702.33a): the table takes it as the spell is cast, and
+             paying it kicks the spell. One with mana as well (Dwarven Landslide) is left to the table
+             (Thieving Skydiver's "Kicker {X}. X can't be 0." is mana) */
+          if (lower === 'kicker' && k.arg && !/^(?:\{[^}]+\})+(?:\s+and\/or\s+(?:\{[^}]+\})+)?(?:\.|$)/.test(String(k.arg).trim())) {
+            const what = String(k.arg).trim().replace(/\.$/, '');
+            const c = !out.additionalCost && oneAdditionalCost(what.charAt(0).toLowerCase() + what.slice(1), true);
+            if (c && c.mana == null) { c.kicker = true; c.label = what.charAt(0).toLowerCase() + what.slice(1); out.additionalCost = c; }
+            else autoLines -= 1 / kws.length;
+            out.abilities.push({ kind: 'castModifier', text: k.text, auto: !!(c && c.mana == null), effects: [] });
             continue;
           }
           if (CAST_LOWER.has(lower) || cycles) {

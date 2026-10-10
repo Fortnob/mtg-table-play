@@ -4593,6 +4593,8 @@
       if (add && add.optional && !add.choice && !opts.skipAdditional && opts.payAdditional == null) {
         if (this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) opts.payAdditional = false;
         else if (decides) opts.payAdditional = true;
+        // Vicious Offering: "Kicker—Sacrifice a creature", asked as a kick
+        else if (add.kicker) return ask('payAdditional', `${o.name}: kick it? (${add.label})`, ['Kick it', "Don't kick it"], [true, false]);
         else return ask('payAdditional', `${o.name}: pay the additional cost?`, ['Pay it', "Don't pay it"], [true, false]);
       }
       /* Bargain (CR 702.166): an artifact, enchantment or token sacrificed

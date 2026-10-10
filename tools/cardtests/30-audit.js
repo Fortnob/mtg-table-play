@@ -5862,4 +5862,112 @@ module.exports = (test) => {
     T.activate('A', ca, 0, { targets: [fresh.id] }); T.settle();
     t.eq(fresh.counters['+1/+1'], 1); t.eq(ca.counters['+1/+1'] || 0, 0, 'not on the Acolyte');
   });
+
+  test('Audit: "Untap it" / "put a counter on it" in a spell act on its target (Shore Up, Throw from the Saddle), or on the card manifested (Wildcall)', (mk, t) => {
+    t.auto('Shore Up'); t.auto('Throw from the Saddle'); t.auto('Wildcall'); t.auto('Might of Old Krosa');
+    let T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'U'); T.cast('A', T.hand('A', 'Shore Up'), { targets: [bear.id] }); T.settle();
+    t.no(bear.tapped, 'untapped'); t.eq(T.g.powerOf(bear), 3); t.ok(T.g.hasKw(bear, 'hexproof'));
+    for (const [mine, power, counter] of [['Hill Giant', 4, 0], ['Bounding Felidar', 5, 1]]) {
+      T = mk();
+      T.toMain('A');
+      const m = T.bf('A', mine), foe = T.bf('B', 'Colossal Dreadmaw');
+      T.mana('A', 'G1'); T.cast('A', T.hand('A', 'Throw from the Saddle'), { targets: [m.id, foe.id] }); T.settle();
+      t.eq(m.counters['+1/+1'] || 0, counter, counter ? 'a Mount: a counter' : 'not a Mount: no counter');
+      t.eq(T.g.powerOf(m), power); t.eq(foe.damage, power, 'it deals its power to the other target, and only there');
+      t.eq(foe.counters['+1/+1'] || 0, 0, 'nothing for the target creature you do not control');
+    }
+    T = mk();
+    T.toMain('A');
+    T.top('A', 'Island');
+    T.mana('A', 'GG2');
+    t.ok(T.g.castSpell('A', T.hand('A', 'Wildcall').id, { auto: true, x: 2 })); T.settle(); T.resolve(); T.settle();
+    const mf = T.g.battlefield.find(o => o.faceDown);
+    t.ok(mf, 'a manifested card'); t.eq(mf && mf.counters['+1/+1'], 2, 'X counters on it');
+  });
+
+  test('Audit: "… instead" on the target of the spell keeps that one target: Might of Old Krosa +4/+4 in a main phase, +2/+2 in combat', (mk, t) => {
+    t.auto('Might of Old Krosa');
+    for (const main of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+      if (!main) {
+        T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+        T.toMain('A', 'declareBlockers');
+        if (T.g.priorityPlayer && T.g.priorityPlayer.id !== 'A') T.g.passPriority(T.g.priorityPlayer.id, true);
+      }
+      T.mana('A', 'G');
+      T.cast('A', T.hand('A', 'Might of Old Krosa'), { targets: [bear.id] }); T.settle();
+      t.eq(T.g.powerOf(bear), main ? 6 : 4, main ? 'main phase: +4/+4' : 'combat: +2/+2');
+    }
+  });
+
+  test('Audit: a kicker that is not mana is paid as the spell is cast (Vicious Offering, Phyrexian Scuta, Blood Tribute, Bog Down, Arctic Merfolk)', (mk, t) => {
+    for (const n of ['Vicious Offering', 'Phyrexian Scuta', 'Blood Tribute', 'Bog Down', 'Arctic Merfolk']) t.auto(n);
+    for (const kick of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      const wurm = T.bf('B', 'Craw Wurm'), fodder = T.bf('A', 'Grizzly Bears');
+      let asked = '';
+      T.answer('mode', (ch) => { asked = ch.prompt; return { modes: [ch.options.find(o => o.label === (kick ? 'Kick it' : "Don't kick it")).i] }; });
+      T.mana('A', 'B1'); T.cast('A', T.hand('A', 'Vicious Offering'), { targets: [wurm.id] });
+      t.ok(/kick it\? \(sacrifice a creature\)/.test(asked), 'asked: ' + asked);
+      t.zone(fodder, kick ? 'graveyard' : 'battlefield', kick ? 'the creature is sacrificed' : 'nothing sacrificed');
+      if (kick) t.zone(wurm, 'graveyard', 'kicked: -5/-5 on the 6/4');
+      else t.eq(T.g.powerOf(wurm), 4, 'not kicked: -2/-2');
+    }
+    {
+      // nothing to sacrifice: not asked, and not kicked
+      const T = mk();
+      T.toMain('A');
+      const wurm = T.bf('B', 'Craw Wurm');
+      T.mana('A', 'B1'); T.cast('A', T.hand('A', 'Vicious Offering'), { targets: [wurm.id] });
+      t.no(T.asked.some(c => c.purpose === 'castChoice'), 'nothing to ask');
+      t.eq(T.g.powerOf(wurm), 4);
+    }
+    for (const pay of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      T.mana('A', 'B3'); T.cast('A', T.hand('A', 'Phyrexian Scuta'), { payAdditional: pay });
+      const s = T.g.battlefield.find(x => x.name === 'Phyrexian Scuta');
+      t.eq(T.life('A'), pay ? 17 : 20, 'Scuta: 3 life when kicked');
+      t.eq(s.counters['+1/+1'] || 0, pay ? 2 : 0, 'Scuta: two counters when kicked');
+    }
+    {
+      const T = mk();
+      T.toMain('A');
+      const vamp = T.bf('A', 'Vampire Nighthawk');
+      T.mana('A', 'BB4'); T.cast('A', T.hand('A', 'Blood Tribute'), { targets: ['B'], payAdditional: true });
+      t.ok(vamp.tapped, 'Blood Tribute: the Vampire is tapped');
+      t.eq(T.life('B'), 10); t.eq(T.life('A'), 30, 'kicked: the life lost is gained');
+    }
+    for (const pay of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      const l1 = T.bf('A', 'Swamp'), l2 = T.bf('A', 'Swamp');
+      T.g.zones.B.hand.length = 0;
+      for (let i = 0; i < 5; i++) T.hand('B', 'Island');
+      T.mana('A', 'B2'); T.cast('A', T.hand('A', 'Bog Down'), { targets: ['B'], payAdditional: pay });
+      t.zone(l1, pay ? 'graveyard' : 'battlefield'); t.zone(l2, pay ? 'graveyard' : 'battlefield', 'Bog Down: two lands when kicked');
+      t.eq(T.g.zones.B.hand.length, pay ? 2 : 3, 'three cards discarded when kicked, two when not');
+    }
+    {
+      const T = mk();
+      T.toMain('A');
+      const bear = T.bf('A', 'Grizzly Bears');
+      T.mana('A', 'U1'); T.cast('A', T.hand('A', 'Arctic Merfolk'), { payAdditional: true });
+      const m = T.g.battlefield.find(x => x.name === 'Arctic Merfolk');
+      t.zone(bear, 'hand', 'Arctic Merfolk: a creature returned'); t.eq(m.counters['+1/+1'] || 0, 1);
+    }
+  });
+
+  test('Audit: a kicker of mana and more is left to a person (Dwarven Landslide, Dralnu’s Pet); one of mana with a sentence after it is mana (Thieving Skydiver)', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Dwarven Landslide', "Dralnu's Pet"]) t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+    t.auto('Thieving Skydiver');
+  });
 };
