@@ -291,6 +291,15 @@
   const bigButton = (t) => t.dock && t.dock._main;
   const blockersOn = (t, id) => (t.blockPlan ? t.blockPlan.declarations.filter(d => (d.attackerIds || []).includes(id)).length : 0);
 
+  /* With Tap lands for me off, a spell cast waits for its mana (src/12c-ui-table-ask.js):
+     the same note in every lesson points at a land to tap. */
+  const payNote = () => ({
+    id: 'pay', title: 'Tap lands to pay', times: 9,
+    text: () => `${tap()} a glowing land to tap it for mana. Once your mana pool covers the cost, the spell is cast.`,
+    when: (t) => !!t.paying, done: (t) => !t.paying,
+    at: (t) => { const o = t.manaSources()[0]; return o ? nodeOf(t, o.id) : null; },
+  });
+
   /** The first note: what the lesson is about. It holds the bot back until it has been read. */
   const intro = (def, text, at) => ({
     id: 'intro', title: def.title, text: () => text, times: 9, ok: 'Start', focus: true,
@@ -303,11 +312,11 @@
       intro(def, 'It is their turn, and they are holding a Shock for your Grizzly Bears. A spell does not happen the moment it is cast: it waits on the stack, where you can answer it first.', theirOrb),
       { id: 'wait', title: 'Shock is on the stack', times: 9,
         text: () => 'Aimed at your Bears, and nothing has happened yet. Until both players pass, you can answer it.',
-        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting,
+        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting && !t.paying,
         at: (t) => stackCol(t), done: (t) => !inHand(t, ids.defense) },
       { id: 'respond', title: 'Respond with an instant', times: 9,
         text: () => `${tap()} Blossoming Defense to cast it on your Bears. An instant can be cast now, and it goes on the stack on top of Shock.`,
-        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting,
+        when: (t, v) => onStack(v, ids.shock) && myPriority(t, v) && inHand(t, ids.defense) && !t.targeting && !t.paying,
         at: (t) => nodeOf(t, ids.defense), done: (t) => !inHand(t, ids.defense) },
       { id: 'aim', title: 'Choose your Bears', times: 9, text: () => 'Your Grizzly Bears are the target.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.bears), done: (t) => !t.targeting },
@@ -326,7 +335,7 @@
         at: (t) => bigButton(t), done: (t, v) => v.step !== 'declareAttackers' || !inHand(t, ids.growth) },
       { id: 'trick', title: 'Now the trick', times: 9,
         text: () => `The Giant has blocked, and blockers cannot be taken back. ${tap()} Giant Growth to cast it on your Bears.`,
-        when: (t, v) => myPriority(t, v) && inHand(t, ids.growth) && !t.targeting && v.battlefield.some(o => o.id === ids.giant && (o.blocking || []).includes(ids.bears)),
+        when: (t, v) => myPriority(t, v) && inHand(t, ids.growth) && !t.targeting && !t.paying && v.battlefield.some(o => o.id === ids.giant && (o.blocking || []).includes(ids.bears)),
         at: (t) => nodeOf(t, ids.growth), done: (t) => !inHand(t, ids.growth) },
       { id: 'aim', title: 'Your Bears, not their Giant', times: 9, text: () => 'Choose your Grizzly Bears: +3/+3 makes them 5/5.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.bears), done: (t) => !t.targeting },
@@ -349,11 +358,11 @@
       intro(def, 'They have six Forests and something big in their hand. A counterspell stops a spell while it is still on the stack, before it ever reaches the battlefield.', theirOrb),
       { id: 'wait', title: 'On the stack, not yet on the battlefield', times: 9,
         text: () => 'Colossal Dreadmaw is on the stack. Until it resolves, it can still be countered.',
-        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting,
+        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting && !t.paying,
         at: (t) => stackCol(t), done: (t) => !inHand(t, ids.counter) },
       { id: 'counter', title: 'Counter it', times: 9,
         text: () => `${tap()} Counterspell to cast it. Its target is a spell: the Dreadmaw on the stack.`,
-        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting,
+        when: (t, v) => onStack(v, ids.maw) && myPriority(t, v) && inHand(t, ids.counter) && !t.targeting && !t.paying,
         at: (t) => nodeOf(t, ids.counter), done: (t) => !inHand(t, ids.counter) },
       { id: 'aim', title: 'Choose the Dreadmaw', times: 9, text: () => 'Choose Colossal Dreadmaw on the stack.',
         when: (t) => !!t.targeting, at: (t) => nodeOf(t, ids.maw) || stackCol(t), done: (t) => !t.targeting },
@@ -415,7 +424,7 @@
       mine.stopWatch = watch(g, def, mine.ids, (r) => settle(mine, r));
       if (App.table) {
         mine.coach = new UI.Coach(App.table, {
-          marks: NOTES[def.id](def, mine.ids), name: def.title, skipLabel: 'Hide the notes',
+          marks: NOTES[def.id](def, mine.ids).concat([payNote()]), name: def.title, skipLabel: 'Hide the notes',
           onClose: (m) => { if (m.id === 'intro') go(); },
           onSkip: () => go(),
           onFinish: () => {},
