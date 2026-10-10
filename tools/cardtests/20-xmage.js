@@ -21357,4 +21357,31 @@ module.exports = (test) => {
     t.zone(one.a, 'battlefield', 'one is not enough: nothing sacrificed');
     t.eq(one.drew, 2, 'and you draw two');
   });
+
+  test('Mirri, Weatherlight Duelist: one blocker this combat when she attacks; one attacker at you while she is tapped', (mk, t) => {
+    t.auto('Mirri, Weatherlight Duelist');
+    const blockWith = (n) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      const m = T.bf('A', 'Mirri, Weatherlight Duelist');
+      T.toMain('A');
+      const bs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Hill Giant')].slice(0, n);
+      T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => bs.map(b => ({ blockerId: b.id, attackerIds: [m.id] })));
+      try { T.toMain('A', 'endCombat'); return 'ok'; } catch (e) { return String(e.message); }
+    };
+    t.ok(/can't block with more than 1 creature/.test(blockWith(2)), 'two blockers refused');
+    t.eq(blockWith(1), 'ok', 'one blocker is fine');
+    const attackWith = (n, tapped) => {
+      const T = mk({ library: Array(10).fill('Island') });
+      const m = T.bf('A', 'Mirri, Weatherlight Duelist'); m.tapped = tapped;
+      T.toMain('B');
+      const xs = [T.bf('B', 'Grizzly Bears'), T.bf('B', 'Hill Giant')].slice(0, n);
+      for (const x of xs) x.summoningSick = false;
+      T.answer('declareAttackers', () => xs.map(x => ({ attackerId: x.id, defenderId: 'A' })));
+      try { T.toMain('B', 'endCombat'); return T.life('A'); } catch (e) { return String(e.message); }
+    };
+    t.ok(/no more than 1 creature can attack/.test(String(attackWith(2, true))), 'tapped: two attackers refused');
+    t.eq(attackWith(1, true), 18, 'tapped: one attacker is fine');
+    t.eq(attackWith(2, false), 15, 'untapped: both may attack');
+  });
 };

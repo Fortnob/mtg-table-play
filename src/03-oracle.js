@@ -5387,6 +5387,9 @@
     // Alandra, Sky Dreamer: "CARDNAME and Drakes you control each get +X/+X …" — the group, and this one as well (orSelf)
     { re: /^CARDNAME and ([A-Z][a-z]+s) you control each get (.+)$/,
       make: (m) => { const e = parseEffectSentence(m[1] + ' you control get ' + m[2]); return e && e.op === 'pump' && e.scope && typeof e.scope === 'object' ? Object.assign(e, { scope: Object.assign({}, e.scope, { orSelf: true }) }) : null; } },
+    // Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this combat" (blockLimitCombat)
+    { re: /^Each opponent can'?t block with more than (one|two|three) creatures? this combat\.?$/i,
+      make: (m) => ({ op: 'blockLimitCombat', n: num(m[1]) }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -14793,6 +14796,9 @@
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },
       { re: /^No more than (one|two|three) creatures? can block each combat\.?$/i,
         make: (m) => ({ op: 'blockLimit', n: num(m[1]) }), auto: true },
+      // Mirri, Weatherlight Duelist: "As long as Mirri is tapped, no more than one creature can attack you each combat." (limitWhileTapped)
+      { re: /^As long as (?:CARDNAME|this creature) is tapped, no more than (one|two|three) creatures? can attack you each combat\.?$/i,
+        make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: true, whileTapped: true }), auto: true },
       // Glacial Chasm
       { re: /^Prevent all damage that would be dealt to you\.?$/i, eff: { op: 'preventAllToYou' }, auto: true },
       // Deafening Silence, Rule of Law, Eidolon of Rhetoric

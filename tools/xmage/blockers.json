@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10600,
+  "needed": 10599,
   "gainedCards": 970,
-  "linesNeeded": 11288,
+  "linesNeeded": 11286,
   "linesGained": 1140,
   "gained": {
    "all": 970,
@@ -590,25 +590,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Mirri, Weatherlight Duelist",
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "Tragic Trajectory",
-    "Joust",
-    "Poisoner's Apprentice",
-    "Paragon of Modernity",
-    "Savage Offensive",
-    "Tribute to Urborg"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 17,
    "lines": 17,
@@ -663,6 +644,25 @@
     "Fear of Falling",
     "Coveted Peacock",
     "Goblin Racketeer"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory",
+    "Joust",
+    "Poisoner's Apprentice",
+    "Paragon of Modernity",
+    "Savage Offensive",
+    "Tribute to Urborg",
+    "Charging Hooligan"
    ]
   },
   {

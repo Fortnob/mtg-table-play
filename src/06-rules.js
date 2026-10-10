@@ -8134,6 +8134,8 @@
         if (s0.phasedOut) continue;
         const lim = this._staticOp(s0, 'attackLimit');
         if (!lim) continue;
+        // Mirri, Weatherlight Duelist: only while it is tapped (limitWhileTapped)
+        if (lim.whileTapped && !s0.tapped) continue;
         const hits = (d) => !lim.you || d.defenderId === s0.controller || (this.obj(d.defenderId) || {}).controller === s0.controller;
         let seen = 0;
         const before = declarations.length;
@@ -8711,6 +8713,16 @@
           this.logEvent('rules', `${lone.name} can't block alone.`);
           declarations = [];
         }
+      }
+      /* Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this
+         combat" — each opponent of the player who set it (blockLimitCombat) */
+      for (const bl of (this._blockLimitsCombat || [])) {
+        if (bl.turn !== this.turn || bl.by === playerId || !this.opponentsOf(bl.by).some(q => q.id === playerId)) continue;
+        if (declarations.length <= bl.n) continue;
+        if (!(this.player(playerId) || {}).isBot)
+          return this.fail(`${bl.name}: you can't block with more than ${bl.n} creature${bl.n === 1 ? '' : 's'} this combat.`);
+        declarations = declarations.slice(0, bl.n);
+        this.logEvent('rules', `${bl.name}: no more than ${bl.n} blocking.`);
       }
       // Silent Arbiter: "No more than one creature can block each combat."
       for (const s0 of this.battlefield) {
@@ -13468,6 +13480,11 @@
         }
         // Domri: spells of this kind its controller casts this turn can't be countered
         // (Veil of Summer: with no words, every spell)
+        // Mirri, Weatherlight Duelist: kept for this turn's combat (blockLimitCombat)
+        case 'blockLimitCombat':
+          (this._blockLimitsCombat = (this._blockLimitsCombat || []).filter(x => x.turn === this.turn)).push({ by: ctx.controller, n: n(e.n) || 1, turn: this.turn, name: (src && src.name) || ctx.name || 'Effect' });
+          this.logEvent('rules', `${me.name}'s opponents can't block with more than ${n(e.n) || 1} creature${(n(e.n) || 1) === 1 ? '' : 's'} this combat.`);
+          break;
         case 'uncounterableTurn': (me.uncounterableKinds = me.uncounterableKinds || []).push({ turn: this.turn, words: e.words || null }); break;
         // Aetherspouts: each attacker's owner picks top or bottom of their library for it
         case 'attackersTopOrBottom': {
