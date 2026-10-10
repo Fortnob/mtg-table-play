@@ -4,6 +4,8 @@
    the end of each.
    ============================================================ */
 .ev-tutorials { --ev-a: #15302a; --ev-b: #07130f; --ev-glow: rgba(120, 220, 170, .28); }
+/* held on a touch screen for its menu (Hide), so no text selection or callout gets there first */
+.event-card.ev-tutorials { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 
 .lesson-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; min-width: min(580px, 86vw); }
 .lesson { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px;

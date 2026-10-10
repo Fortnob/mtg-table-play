@@ -475,6 +475,38 @@
 
   /* ---------------- the list ---------------- */
 
+  /** Whether the tutorials are offered where you play: the Play screen's tile and the home screen's cards. */
+  const shown = () => MTG.settings.showTutorials !== false;
+
+  /**
+   * The Tutorials tile among the Play screen's events, made with the
+   * screen's own `card` maker, or null while it is hidden. Right-click it,
+   * or hold it on a touch screen, for the menu that hides it; Options has
+   * it back.
+   */
+  function playTile(card, opts) {
+    opts = opts || {};
+    if (!shown()) return null;
+    const pr = progress();
+    const tile = card('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
+      `<span>${pr.done} of ${pr.total} done</span>`, () => open());
+    tile.addEventListener('contextmenu', (e) => { e.preventDefault(); tileMenu(e, opts.rerender); });
+    if (UI.longPress) UI.longPress(tile, (e) => tileMenu(e, opts.rerender));
+    return tile;
+  }
+
+  /** The tile's own menu: hide it. */
+  function tileMenu(e, rerender) {
+    UI.contextMenu(e, [['Hide', () => hide(rerender)]], { title: 'Tutorials' });
+  }
+
+  /** Hide the tutorials from the Play and home screens, saying where they come back from. */
+  function hide(rerender) {
+    MTG.setSetting('showTutorials', false);
+    UI.toast('Tutorials hidden. Options, under Gameplay, shows them again; the lessons are there too.');
+    if (rerender) rerender();
+  }
+
   /** The tutorials: the first game, then the lessons, each marked once done. */
   function open() {
     const S = MTG.settings;
@@ -512,7 +544,7 @@
   function homeCard(opts) {
     opts = opts || {};
     const S = MTG.settings;
-    if (!S.tutorialDone || S.lessonsDismissed || count() >= LESSONS.length) return null;
+    if (!shown() || !S.tutorialDone || S.lessonsDismissed || count() >= LESSONS.length) return null;
     const next = LESSONS.find(l => !done()[l.id]);
     const card = el('div', { class: 'resume-card guide-card lesson-card' }, [
       el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
@@ -530,9 +562,31 @@
     return card;
   }
 
+  /**
+   * For the home screen: somebody new is offered a guided first game,
+   * until they take it, say no, or hide the tutorials. Null otherwise.
+   */
+  function firstGameCard(opts) {
+    opts = opts || {};
+    const S = MTG.settings;
+    if (!shown() || S.tutorialDone || S.tutorialDismissed) return null;
+    const card = el('div', { class: 'resume-card guide-card' }, [
+      el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
+      el('div', { class: 'guide-mark', 'aria-hidden': 'true', html: opts.icon || '' }),
+      el('div', { class: 'grow', style: { minWidth: 0 } }, [
+        el('div', { class: 'resume-title', text: 'New to Magic, or to this table?' }),
+        el('div', { class: 'resume-sub', text: 'Play a guided first game against a gentle bot. Notes on the table show you each thing as it comes up: playing a land, tapping it for mana, casting a creature, attacking and blocking.' }),
+      ]),
+      el('button', { class: 'btn sm ghost', text: 'No thanks', onclick: () => { MTG.setSetting('tutorialDismissed', true); if (opts.rerender) opts.rerender(); } }),
+      el('button', { class: 'btn primary', text: 'Show me', onclick: () => MTG.app.startTutorial() }),
+    ]);
+    if (opts.art) opts.art(card.firstChild, 'Lightning Helix');
+    return card;
+  }
+
   MTG.lessons = {
     LESSONS, NOTES, REWARD,
-    open, start, homeCard,
+    open, start, homeCard, firstGameCard, playTile, tileMenu, hide, shown,
     count, progress, isDone: (id) => !!done()[id],
     // for tools/lessontest.js: the parts that only read the engine
     cardNames, build, script, watch, stopsFor, filler,

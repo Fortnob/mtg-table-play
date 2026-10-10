@@ -1147,22 +1147,10 @@
       resumeHost.appendChild(card);
     }).catch(() => {});
 
-    /* -- somebody new is offered a guided first game, until they take it or say no -- */
-    if (!MTG.settings.tutorialDone && !MTG.settings.tutorialDismissed) {
-      const offer = el('div', { class: 'resume-card guide-card' }, [
-        el('div', { class: 'resume-art', 'aria-hidden': 'true' }),
-        el('div', { class: 'guide-mark', 'aria-hidden': 'true', html: SVG.play }),
-        el('div', { class: 'grow', style: { minWidth: 0 } }, [
-          el('div', { class: 'resume-title', text: 'New to Magic, or to this table?' }),
-          el('div', { class: 'resume-sub', text: 'Play a guided first game against a gentle bot. A few notes on the table show you the land, the creature, the big button, attacking and blocking as they come up.' }),
-        ]),
-        el('button', { class: 'btn sm ghost', text: 'No thanks', onclick: () => { MTG.setSetting('tutorialDismissed', true); renderHome(); } }),
-        el('button', { class: 'btn primary', text: 'Show me', onclick: () => App.startTutorial() }),
-      ]);
-      decorArt(offer.firstChild, 'Lightning Helix');
-      notes.appendChild(offer);
-    }
-    /* -- and once the first game is done, the lessons after it -- */
+    /* -- somebody new is offered a guided first game, until they take it or say no;
+          and once it is done, the lessons after it (src/14b-lessons.js) -- */
+    const offer = MTG.lessons ? MTG.lessons.firstGameCard({ art: decorArt, rerender: renderHome, icon: SVG.play }) : null;
+    if (offer) notes.appendChild(offer);
     const lesson = MTG.lessons ? MTG.lessons.homeCard({ art: decorArt, rerender: renderHome }) : null;
     if (lesson) notes.appendChild(lesson);
 
@@ -1519,10 +1507,9 @@
         `<span>Entry ${shardHtml(App.EVENTS.gauntlet.entry)}</span><span>Up to 3 packs and 12,500 Shards</span>`, () => App.startGauntlet('standard')),
       evCard('ev-challenge', 'Challenges', 'A board set up for you: find the way to win this turn.',
         `<span>${solved} of ${App.CHALLENGES.length} solved</span>`, () => App.openChallenges()),
-      // the first game and the short lessons after it (src/14b-lessons.js)
-      MTG.lessons ? evCard('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
-        `<span>${MTG.lessons.progress().done} of ${MTG.lessons.progress().total} done</span>`, () => MTG.lessons.open()) : null,
-    ]));
+      // the first game and the short lessons after it (src/14b-lessons.js); right-click or hold it to hide it
+      MTG.lessons ? MTG.lessons.playTile(evCard, { rerender: renderFormats }) : null,
+    ].filter(Boolean)));
 
     for (const cat of CATEGORIES) {
       const list = MTG.formats.list().filter(f => f.kind === cat.id);
@@ -2399,6 +2386,10 @@
         ]),
         el('button', { class: 'btn sm', text: 'Open', onclick: () => MTG.lessons.open() }),
       ]) : null,
+      // (the Play screen's Tutorials tile, hidden from its own right-click menu, comes back here)
+      MTG.lessons ? toggle('showTutorials', 'Show the Tutorials on the Play screen',
+        'Also the home screen’s offers of the guided first game and the lessons. Off, they are hidden; the two rows above still open them.',
+        null) : null,
       toggle('autoTapLands', 'Tap lands for me', 'On: when you cast a spell or use an ability, the game taps the lands that pay for it. ' +
         'Off: you tap lands for mana yourself first, and it is paid from the mana they made.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
