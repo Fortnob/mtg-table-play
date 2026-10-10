@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11090,
+  "needed": 11087,
   "gainedCards": 1097,
-  "linesNeeded": 11860,
+  "linesNeeded": 11857,
   "linesGained": 1295,
   "gained": {
    "all": 1097,
@@ -3966,18 +3966,6 @@
    ]
   },
   {
-   "what": "GreenManaAbility with arguments",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Scaled Nurturer",
-    "Jade Orb of Dragonkind",
-    "Gilanra, Caller of Wirewood",
-    "Chocobo Camp",
-    "Black Tom Cassidy"
-   ]
-  },
-  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 5,
    "lines": 5,
@@ -6238,6 +6226,16 @@
     "Clockspinning",
     "Fury Charm",
     "Venser's Diffusion"
+   ]
+  },
+  {
+   "what": "GreenManaAbility with arguments",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Jade Orb of Dragonkind",
+    "Chocobo Camp",
+    "Black Tom Cassidy"
    ]
   },
   {
@@ -8963,18 +8961,6 @@
    ]
   },
   {
-   "what": "GreenManaAbility with arguments",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Scaled Nurturer",
-    "Jade Orb of Dragonkind",
-    "Gilanra, Caller of Wirewood",
-    "Chocobo Camp",
-    "Black Tom Cassidy"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrPlaneswalkerTriggeredAbility",
    "score": 5,
    "cards": 5,
@@ -10290,6 +10276,17 @@
     "Prismari Apprentice",
     "Elemental Expressionist",
     "Symmetry Sage"
+   ]
+  },
+  {
+   "what": "TurnFaceUpTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ixidor, Reality Sculptor",
+    "Expose the Culprit",
+    "Skirk Alarmist",
+    "Break Open"
    ]
   }
  ]

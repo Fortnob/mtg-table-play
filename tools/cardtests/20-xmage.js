@@ -18112,4 +18112,24 @@ module.exports = (test) => {
     U.settle();
     t.ok(U.g.hasKw(dr, 'haste'), 'a Dragon: haste');
   });
+
+  test('Scaled Nurturer: 2 life when its mana casts a Dragon; Gilanra: a card for a spell of mana value 6 or more', (mk, t) => {
+    t.auto('Scaled Nurturer');
+    t.auto('Lapis Orb of Dragonkind');
+    t.auto('Gilanra, Caller of Wirewood');
+    const T = mk();
+    T.toMain('A');
+    const sn = T.bf('A', 'Scaled Nurturer');
+    T.g.tapForMana('A', sn.id, 0);
+    T.mana('A', '1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.settle();
+    t.eq(T.life('A'), 20, 'not a Dragon');
+    sn.tapped = false;
+    T.g.tapForMana('A', sn.id, 0);
+    T.mana('A', 'RR3');
+    T.cast('A', T.hand('A', 'Shivan Dragon'));
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 22, 'a Dragon: 2 life');
+  });
 };

@@ -7490,6 +7490,15 @@
     /* What a spent mana promised beyond itself: Path of Ancestry scries
        when its mana casts a creature that shares a type with your commander. */
     _manaRider(rider, item, playerId) {
+      // Scaled Nurturer: "When you spend this mana to cast a Dragon creature spell, you gain 2 life" — a trigger of its own
+      if (rider && typeof rider === 'object' && Array.isArray(rider.effects)) {
+        const so = item.obj;
+        if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
+        if (rider.minMv != null && ((so.card && so.card.cmc) || 0) < rider.minMv) return;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+          name: truncate(rider.text || 'Mana rider', 60), effects: rider.effects, auto: true, abilityText: truncate(rider.text || '', 80) });
+        return;
+      }
       // Arena of Glory: a creature spell paid with it arrives with haste
       if (rider === 'hasteCreature') {
         const a = item.obj && item.obj.analysis();

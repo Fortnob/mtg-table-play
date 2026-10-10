@@ -1197,6 +1197,16 @@
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
+    /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
+       you gain 2 life." — a rider on the mana: what it pays for, and what happens then (nothing said of the spell itself) */
+    { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?(?:creature |instant or sorcery |noncreature )?)spell( with mana value (\d+) or greater)?, (.+?)\.?$/,
+      make: (m) => {
+        if (/\b(?:it|that spell|its)\b/i.test(m[4])) return null;
+        const then = parseSentenceList(splitSentences(m[4].charAt(0).toUpperCase() + m[4].slice(1) + '.'));
+        if (!then.auto || !then.effects.length) return null;
+        return { op: 'spendOnly', open: true, rider: Object.assign({ words: (m[1] || 'spell').trim().toLowerCase() || 'spell', effects: then.effects, text: m[0] },
+          m[3] ? { minMv: +m[3] } : {}) };
+      } },
     /* Arena of Glory */
     { re: /^If any of that mana is spent on a creature spell, it gains haste until end of turn\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'hasteCreature', open: true }) },
