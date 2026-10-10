@@ -4087,7 +4087,7 @@
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
     // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
-    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking)?\.?$/i,
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking(?: that (?:opponent|player))?)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
@@ -9691,7 +9691,8 @@
     // Nalfeshnee: "Whenever you cast a spell from exile"
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
-    { re: /^Whenever (?:this creature|CARDNAME) attacks a player,? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
+    // (Kaalia of the Vast: "Whenever Kaalia attacks an opponent" — a player, who is always an opponent)
+    { re: /^Whenever (?:this creature|CARDNAME) attacks (?:a player|an opponent),? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
     { re: /^When (?:this (?:creature|artifact|enchantment|permanent|land)|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
     // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
     { re: /^Whenever an? ([+\-0-9/a-z]+) counter is put on a creature,? /i, event: 'countersPut',

@@ -20387,4 +20387,20 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Gatekeeper of Malakir').length, 2, 'the Gatekeeper and its copy');
     t.zone(b1, 'graveyard'); t.zone(b2, 'graveyard');
   });
+
+  test('Kaalia of the Vast: attacking an opponent, an Angel, Demon or Dragon from your hand comes in tapped and attacking that opponent', (mk, t) => {
+    t.auto('Kaalia of the Vast');
+    const T = mk();
+    const ka = T.bf('A', 'Kaalia of the Vast');
+    const dragon = T.hand('A', 'Shivan Dragon');
+    T.hand('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('declareAttackers', () => [{ attackerId: ka.id, defenderId: 'B' }]);
+    T.answer('confirm', () => ({ yes: true }));
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [dragon.id] }; });
+    T.toMain('A', 'endCombat');
+    t.eq(JSON.stringify(offered), JSON.stringify(['Shivan Dragon']), 'only the Dragon is offered');
+    t.ok(dragon.tapped, 'tapped');
+    t.eq(T.life('B'), 13, 'and attacking: 2 from Kaalia and 5 from the Dragon');
+  });
 };
