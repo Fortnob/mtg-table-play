@@ -18327,4 +18327,16 @@ module.exports = (test) => {
       t.eq(T.life('A'), human ? 20 : 16, human ? 'a Human: no life lost' : 'no Human: 4 life, the Wurm\'s toughness');
     }
   });
+
+  test('Well of Ideas: each other player draws an additional card in their draw step', (mk, t) => {
+    t.auto('Well of Ideas');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Well of Ideas');
+    for (const p of ['A', 'B']) for (let i = 0; i < 6; i++) T.top(p, 'Island');
+    const hb = T.zone('B', 'hand').length, ha = T.zone('A', 'hand').length;
+    T.toMain('B');
+    t.eq(T.zone('B', 'hand').length, hb + 2, 'B: the draw and one more');
+    t.eq(T.zone('A', 'hand').length, ha, 'not A');
+  });
 };

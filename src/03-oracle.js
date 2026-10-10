@@ -2451,6 +2451,8 @@
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
     { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
+    // Well of Ideas: "that player draws an additional card" — the player whose step it is
+    { re: /^That player draws an additional card\.?$/i, make: () => ({ op: 'draw', n: 1, who: 'triggerPlayer' }) },
     // Contagion Engine: "Proliferate twice."
     // Expansion Algorithm: "Proliferate X times."; Tromell: "Proliferate X times, where X is …" (proliferateTimes)
     { re: /^Proliferate (X|\d+) times(?:, where X is (.+?))?\.?$/i,
@@ -9578,6 +9580,8 @@
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
     // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
     { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
+    // Well of Ideas: "At the beginning of each other player's draw step," — everyone's but yours
+    { re: /^At the beginning of each other player'?s draw step,? /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
     // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
