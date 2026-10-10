@@ -11452,9 +11452,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Ghalta and Mavren: "a tapped and attacking X/X … token"
     if ((m = s.match(/^tapped and attacking /i))) { e.tapped = true; e.attacking = true; s = s.slice(m[0].length); }
     if ((m = s.match(/^tapped /i))) { e.tapped = true; s = s.slice(m[0].length); }
-    if (!(m = s.match(/^([\dX*]+\/[\dX*]+) /))) return null;
-    e.pt = m[1];
-    s = s.slice(m[0].length);
+    /* Hallowed Haunting, Wrenn and Seven: a token with no size printed, its
+       power and toughness defined by the words it is given (checked below) */
+    let noPt = false;
+    if ((m = s.match(/^([\dX*]+\/[\dX*]+) /))) { e.pt = m[1]; s = s.slice(m[0].length); }
+    else { noPt = true; e.pt = '0/0'; }
     // the words up to "creature token(s)": colours, then types
     if (!(m = s.match(/^(.+?) creature tokens?/i))) return null;
     const words = m[1].replace(/,/g, ' ').split(/\s+/).filter(w => w && !/^and$/i.test(w));
@@ -11518,6 +11520,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       s = s.slice(m[0].length);
     }
     if (s.trim()) return null;
+    // (no size printed: only one its words give it, and not one that counts on the card making it)
+    if (noPt && !(e.grantedText && /^This (?:token|creature)'s power and toughness are each equal to /i.test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
     if (e.grantedText) {
@@ -13671,8 +13675,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
     /* Ghalta, Stampede Tyrant */
-    { re: /^Put any number of (creature|artifact|permanent|land) cards from your hand onto the battlefield\.?$/i,
-      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', any: true }) },
+    // (Wrenn and Seven: "… onto the battlefield tapped")
+    { re: /^Put any number of (creature|artifact|permanent|land) cards from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', any: true }, m[2] ? { tapped: true } : {}) },
     /* Buster Sword */
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value less than or equal to (?:that damage|the damage dealt) without paying its mana cost\.?$/,
       make: () => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount' }) },
@@ -15006,8 +15011,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Aether Vial: "You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield."
     { re: /^You may put an? (creature|artifact|enchantment|permanent) card with mana value equal to the number of ([a-z]+) counters on (?:this artifact|this enchantment|CARDNAME) from your hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
-    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {}) },
+    /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
+       "you may" it is not — optional: false, and a card is put if there is one) */
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
@@ -15815,8 +15822,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'shuffleFromGraveyard',
         max: /any number/i.test(m[1]) ? 99 : /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1 }) },
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
-    { re: /^(?:Then )?(?:[Yy]ou may )?[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
-      make: (m) => { const k = amountOf(m[1]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[2] ? { tapped: true } : {}); } },
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
     { re: /^When you next cast a creature spell this turn, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
       make: () => ({ op: 'nextCreatureCounter', n: 1 }) },
@@ -19338,7 +19345,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
              The token gains haste. Exile it at the beginning of the next end
              step." — what is said of the token only happens if it was made */
           while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
-            /^Exile (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+            // (Cadric, Soul Kindler: "Sacrifice it …" — declined, nothing of yours is sacrificed)
+            /^(?:Exile|Sacrifice) (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         }
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
@@ -23891,9 +23899,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true },
         setPt: { p: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() }, t: { cardsInAllGraveyards: (m[1] || 'card').toLowerCase() } } }) },
     // "<name>'s power and toughness are each equal to the number of X you control."
-    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
+    // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
+    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)?\.?$/i,
       make: (m) => {
-        const k = cdaCount(m[1], /on the battlefield/i.test(m[0]) ? 'any' : 'you');
+        // ("you control" counts yours; without it, or "on the battlefield", every one)
+        const k = cdaCount(m[1], / you control\.?$/i.test(m[0]) ? 'you' : 'any');
         return k ? { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } } : null;
       } },
     { re: /^(?:CARDNAME|This creature)'?s? power is equal to the number of ([-a-z' ]+?)(?: you control| on the battlefield)? and its toughness is equal to that number plus (\d+)\.?$/i,
@@ -44016,11 +44026,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
-            const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: true,
+            /* "You may put", "any number", "up to two" are choices; a card that
+               says only "put a creature card from your hand onto the battlefield"
+               (optional: false) has one put if there is one */
+            const must = e.optional === false;
+            const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: !must,
               cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'Put a card from your hand onto the battlefield.' }, 'p' + p.id);
+              prompt: must ? 'Put one of these cards from your hand onto the battlefield.'
+                : many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'You may put a card from your hand onto the battlefield.' }, 'p' + p.id);
             if (picked === SUSPEND) return SUSPEND;
-            for (const id of (picked || []).slice(0, many)) {
+            let ids = (picked || []).filter(id => pool.some(o => o.id === id)).slice(0, many);
+            if (must && ids.length < many) ids = ids.concat(this._cheapestFirst(pool).reverse().filter(o => !ids.includes(o.id)).slice(0, many - ids.length).map(o => o.id));
+            for (const id of ids) {
               const o = this.obj(id);
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id });
