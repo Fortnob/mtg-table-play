@@ -5032,7 +5032,11 @@
       if (!opts.free) {
         const fl = this.battlefield.find(s0 => { if (s0.phasedOut) return false; const ef = this._staticOp(s0, 'costFloor'); return !!ef && !(ef.whileUntapped && s0.tapped); });
         const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
-        const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}'));
+        /* convoke, improvise and delve pay for the spell rather than make it
+           cheaper (CR 702.51b), so what they would pay is still in its price */
+        const paidOther = floor && !via && opts.costOverride == null && chk.cost === this.castCost(o, opts)
+          ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
+        const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}')) + paidOther;
         if (floor && total < floor) {
           cost = this._addGeneric(cost || '', floor - total);
           this.logEvent('rules', `${fl.name}: ${o.name} costs ${floor} mana.`);

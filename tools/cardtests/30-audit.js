@@ -3863,4 +3863,33 @@ module.exports = (test) => {
     t.eq(T.g.zones.A.library.indexOf(want), 1, 'below the only other card');
     t.eq(T.g.zones.A.library.indexOf(other), 0);
   });
+
+  test('Audit: Trinisphere counts what delve and convoke pay, but not what affinity takes off', (mk, t) => {
+    t.auto('Trinisphere');
+    let T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    for (let i = 0; i < 7; i++) T.grave('A', 'Island');
+    T.mana('A', 'U');
+    const tc = T.hand('A', 'Treasure Cruise');
+    t.ok(T.g.castSpell('A', tc.id, { auto: true }), 'a {7}{U} spell, delved down to {U}, is not raised');
+    t.zone(tc, 'stack');
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'RR');
+    const st = T.hand('A', 'Stoke the Flames');
+    t.ok(T.g.castSpell('A', st.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'convoke pays the {2}');
+    T = mk();
+    T.toMain('A');
+    T.bf('B', 'Trinisphere');
+    for (let i = 0; i < 4; i++) T.bf('A', 'Ornithopter');
+    T.mana('A', '2');
+    const fm = T.hand('A', 'Frogmite');
+    t.no(T.g.castSpell('A', fm.id, { auto: true }), 'affinity takes it to nothing: it costs three');
+    T.mana('A', '1');
+    t.ok(T.g.castSpell('A', fm.id, { auto: true }));
+    t.ok(T.g.player('A').pool.isEmpty());
+  });
 };
