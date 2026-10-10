@@ -676,3 +676,46 @@ html[data-play="1"] .hoard-chip { display: none; }
 /* a card in its vintage printing, as it is turned over and in the art picker */
 .po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
 .art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }
+
+/* ---------- what is in a pack (packPreview) ---------- */
+.pack-look { display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; }
+.pack-look:hover .booster { transform: translateY(-3px); }
+.pack-look:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 4px; border-radius: 10px; }
+.store-sub { margin: 28px 2px 4px; font: 600 12px/1.2 var(--font); letter-spacing: .18em; text-transform: uppercase; color: var(--gold-hi); }
+.pack-view-modal .modal-body { padding-top: 14px; }
+.pack-view { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; align-items: start; }
+.pv-side { position: sticky; top: 0; display: flex; flex-direction: column; gap: 12px; }
+.pv-pack { display: grid; place-items: center; padding: 4px 0; }
+.pv-pack .booster.big { width: 150px; }
+.pv-kind { display: flex; gap: 6px; }
+.pv-kind .chip { flex: 1; justify-content: center; text-align: center; }
+.pv-buys { display: flex; flex-wrap: wrap; gap: 6px; }
+.pv-buys .btn { flex: 1; }
+.pv-block h4 { margin: 0 0 6px; font: 700 11px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: var(--ink-2); }
+.pv-slots { margin: 0; padding-left: 16px; font-size: 12.5px; line-height: 1.5; color: var(--ink); }
+.pv-rar { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; }
+.pv-rar-row { display: flex; align-items: center; gap: 8px; }
+.pv-gem { flex: none; width: 9px; height: 9px; border-radius: 2px; transform: rotate(45deg); background: #9aa3b2; box-shadow: 0 0 0 1px rgba(0,0,0,.4); }
+.r-uncommon .pv-gem { background: linear-gradient(135deg, #e3eaf2, #8c9bb0); }
+.r-rare .pv-gem { background: linear-gradient(135deg, #fbe8a6, #b8902e); }
+.r-mythic .pv-gem { background: linear-gradient(135deg, #ffb27a, #d4401c); }
+.pv-notes { margin: 0; padding-left: 16px; line-height: 1.45; }
+.pv-main { min-width: 0; }
+.pv-chips { margin-bottom: 10px; }
+.pv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px 10px; }
+.pv-card { position: relative; display: flex; flex-direction: column; gap: 5px; padding: 0; border: 0; background: none; color: inherit; cursor: pointer; text-align: left; }
+.pv-img { --card-w: 100%; aspect-ratio: 63 / 88; border-radius: 4.75% / 3.5%; overflow: hidden; box-shadow: 0 6px 16px rgba(0,0,0,.45); transition: transform var(--fast), box-shadow var(--fast); }
+.pv-img .card-img, .pv-img .card-fallback { width: 100%; height: 100%; min-height: 0; }
+.pv-card:hover .pv-img { transform: translateY(-3px); box-shadow: 0 12px 26px rgba(0,0,0,.55), 0 0 0 1px rgba(246,220,140,.4); }
+.pv-meta { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.pv-price { color: var(--gold-hi); }
+.pv-odds { margin-left: auto; color: var(--ink-2); font-size: 11px; white-space: nowrap; }
+.pv-tag, .pv-own { position: absolute; top: 6px; padding: 2px 6px; border-radius: 99px; font: 700 9.5px/1.2 var(--font); box-shadow: 0 1px 4px rgba(0,0,0,.6); }
+.pv-tag { left: 6px; text-transform: uppercase; letter-spacing: .05em; color: #0b1a26; background: #9fd8ff; }
+.pv-own { right: 6px; color: #fff; background: rgba(10,12,16,.85); border: 1px solid rgba(255,255,255,.25); }
+.pv-grid .search-more { grid-column: 1 / -1; }
+@media (max-width: 760px) {
+  .pack-view { grid-template-columns: 1fr; gap: 14px; }
+  .pv-side { position: static; }
+  .pv-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
+}

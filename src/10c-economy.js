@@ -990,7 +990,7 @@
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
     SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
-    digestHex, animPayload,
+    digestHex, animPayload, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
     /** Your moving sleeve, on this device: { anim, crop }, or nothing. */

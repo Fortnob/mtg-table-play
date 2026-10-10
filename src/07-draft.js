@@ -557,6 +557,65 @@
     return out;
   }
 
+  /**
+   * What a pack holds, by the odds makeBooster draws with: each slot's
+   * chance of each rarity, how many of each a pack holds on average, the
+   * chance a pack has at least one of a rarity, and each card's chance of
+   * being in a pack (its rarity's share in each slot, split among that
+   * rarity's cards; the cards folded in from other sets take their share
+   * by BONUS_RATE). A card is never twice in a pack, so the chance of one
+   * and the number to expect are the same.
+   * opts: { bonus } (MTG.scry.packExtras), { variants } (collector printings).
+   */
+  function packOdds(spec, pool, opts) {
+    opts = opts || {};
+    const count = (src, r) => ((src && src[r]) || []).length;
+    const has = (r) => count(pool, r) > 0;
+    const bonus = opts.bonus || null;
+    const v = opts.variants || null;
+    const rareMix = (mythicShare) => (has('mythic') && has('rare') ? { rare: 1 - mythicShare, mythic: mythicShare } : has('mythic') ? { mythic: 1 } : { rare: 1 });
+    const BONUS_SLOT = { common: 'common', uncommon: 'uncommon', rareMythic: 'rareMythic', wildcard: 'wildcard' };
+    const slots = spec.slots.map((slot) => {
+      let mix;
+      switch (slot.pick) {
+        case 'common': case 'commonOrList': case 'commonOrLand': mix = has('common') ? { common: 1 } : { uncommon: 1 }; break;
+        case 'uncommon': case 'variantUncommon': mix = has('uncommon') ? { uncommon: 1 } : { common: 1 }; break;
+        case 'rareMythic': mix = rareMix(0.125); break;
+        case 'variantRare': mix = rareMix(v && (v.rare.length || v.mythic.length) ? 0.2 : 0.125); break;
+        case 'wildcard': mix = Object.fromEntries(WILDCARD_MIX); break;
+        case 'land': mix = Object.fromEntries(LAND_SLOT_MIX); break;
+        default: mix = { common: 1 };
+      }
+      const b = bonus && BONUS_SLOT[slot.pick] ? BONUS_RATE[BONUS_SLOT[slot.pick]] || 0 : 0;
+      return { pick: slot.pick, n: slot.n, foil: !!slot.foil, mix, bonus: b };
+    });
+    const RAR = ['common', 'uncommon', 'rare', 'mythic'];
+    const expect = {}, own = {}, folded = {};
+    for (const r of RAR) { expect[r] = 0; own[r] = 0; folded[r] = 0; }
+    for (const s of slots) {
+      for (const r of RAR) {
+        const p = (s.mix[r] || 0) * s.n;
+        expect[r] += p;
+        // a folded-in card of that rarity, when there is one to take
+        const fromBonus = s.bonus && count(bonus, r) ? s.bonus : 0;
+        folded[r] += p * fromBonus;
+        own[r] += p * (1 - fromBonus);
+      }
+    }
+    // at least one of a rarity: one less the chance that no slot gives one
+    const atLeast = {};
+    for (const r of RAR) atLeast[r] = 1 - slots.reduce((q, s) => q * Math.pow(1 - (s.mix[r] || 0), s.n), 1);
+    atLeast.rarePlus = 1 - slots.reduce((q, s) => q * Math.pow(1 - (s.mix.rare || 0) - (s.mix.mythic || 0), s.n), 1);
+    return {
+      slots, expect, atLeast, size: spec.size,
+      /** A card's chance of being in a pack: one of the set's own, or (folded) one folded in. */
+      chance(rarity, isFolded) {
+        const r = RAR.includes(rarity) ? rarity : rarity === 'special' || rarity === 'bonus' ? 'mythic' : 'common';
+        return isFolded ? folded[r] / Math.max(1, count(bonus, r)) : own[r] / Math.max(1, count(pool, r));
+      },
+    };
+  }
+
   /** A cube pack: N singleton cards off the shuffled cube. */
   function makeCubePack(cubeCards, rng, size, usedSet) {
     const out = [];
@@ -2154,7 +2213,7 @@
     DRAFT_ABILITIES, draftAbilityOf, LAND_SLOT_MIX, DRAFT_SCRIPTS,
     isConspiracy, agendaOf, agendaNames, PREGAME_EXILE, pregameDefaults, applyPregame, wholePoolUsed,
     Draft, makeBooster, makeCubePack, boosterSpecFor,
-    PLAY_BOOSTER, DRAFT_BOOSTER, COLLECTOR_BOOSTER, WILDCARD_MIX,
+    PLAY_BOOSTER, DRAFT_BOOSTER, COLLECTOR_BOOSTER, WILDCARD_MIX, BONUS_RATE, packOdds,
     cubes, autoBuildLimited, getBasics,
   };
 })(window.MTG);

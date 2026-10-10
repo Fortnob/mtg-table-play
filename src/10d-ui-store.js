@@ -1010,9 +1010,11 @@
       rich ? el('span', { class: 'pack-tag bonus', text: 'Rarer cards', title: 'Never sold in ordinary boosters, its packs hold rarer cards than most, and cost accordingly' }) : null,
       extra ? el('span', { class: 'pack-tag bonus', text: '+ ' + extra.short, title: extra.long }) : null,
     ].filter(Boolean);
+    // the pack and its name open it up, to see what it holds; the buttons buy
+    const look = el('button', { type: 'button', class: 'pack-look', title: `What is in a ${s.name} pack`, 'aria-label': `What is in a ${s.name} pack`,
+      onclick: () => packPreview(s, 'play') }, [boosterEl(s, 'play', { lazy: true }), el('div', { class: 'sc-title', text: s.name })]);
     return el('div', { class: 'store-card pack-tile' }, [
-      boosterEl(s, 'play', { lazy: true }),
-      el('div', { class: 'sc-title', text: s.name }),
+      look,
       notes.length ? el('div', { class: 'pack-notes' }, notes) : null,
       // Collector Boosters only where they were made, or could be (see hasCollector)
       el('div', { class: 'pack-buys' }, [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10), S.hasCollector(s) ? buyBtn(s, 'collector', 1) : null].filter(Boolean)),
@@ -1034,15 +1036,164 @@
     const all = await MTG.scry.sets().catch(() => []);
     if (!sets.length) { body.appendChild(el('p', { class: 'dim', text: 'The sets could not be loaded.' })); return; }
     const search = el('input', { type: 'search', placeholder: 'Find a set…', class: 'store-search', 'aria-label': 'Find a set' });
+    // the regular sets first, newest first; the Eternal sets (Assassin's Creed and its like) after them
     const grid = el('div', { class: 'store-grid packs' });
+    const eternalHead = el('h3', { class: 'store-sub', text: 'Eternal sets' });
+    const eternalBlurb = el('p', { class: 'dim small', text: 'Sets made for the formats that use every card, rather than for Standard.' });
+    const eternalGrid = el('div', { class: 'store-grid packs' });
     const draw = () => {
       const q = search.value.trim().toLowerCase();
-      grid.innerHTML = '';
-      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) grid.appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      grid.innerHTML = ''; eternalGrid.innerHTML = '';
+      let eternal = 0;
+      for (const s of sets.filter(x => !q || x.name.toLowerCase().includes(q) || x.code === q)) {
+        const isEternal = s.set_type === 'eternal';
+        if (isEternal) eternal++;
+        (isEternal ? eternalGrid : grid).appendChild(packTile(s, extrasNote(hosts.get(s.code), all)));
+      }
+      eternalHead.hidden = eternalBlurb.hidden = eternalGrid.hidden = !eternal;
     };
     search.addEventListener('input', draw);
-    body.append(search, grid);
+    body.append(search, grid, eternalHead, eternalBlurb, eternalGrid);
     draw();
+  }
+
+  /* ---------------- what is in a pack ----------------
+     A set's pack looked into before it is bought: what each slot holds and
+     how often, the rarities to expect, and every card it can hold, the
+     most valuable first, each with its chance of being in a pack (by the
+     odds the packs are made with, MTG.draft.packOdds). */
+  const PV_ORDER = ['mythic', 'rare', 'uncommon', 'common'];
+  const PV_RAR = { mythic: 'Mythic', rare: 'Rare', uncommon: 'Uncommon', common: 'Common' };
+  const pctOf = (p) => (p >= 0.995 ? '100%' : p >= 0.01 ? +(p * 100).toFixed(1) + '%' : +(p * 100).toFixed(2) + '%');
+  /** "in every pack", "1 in 3 packs", "1 in 1,240 packs". */
+  const oddsOf = (p) => (p >= 0.995 ? 'every pack' : p >= 0.5 ? `${Math.round(p * 100)}% of packs` : `1 in ${fmtN(Math.max(2, Math.round(1 / Math.max(p, 1e-6))))} packs`);
+  /** A slot of a pack, in words: "3 uncommons", "1 foil wildcard: …". */
+  function slotWords(sl) {
+    const mixText = Object.entries(sl.mix).filter(([, p]) => p > 0).sort((a, b) => b[1] - a[1])
+      .map(([r, p]) => `${PV_RAR[r] || r} ${pctOf(p)}`).join(', ');
+    const foil = sl.foil ? 'foil ' : '';
+    const many = sl.n > 1;
+    switch (sl.pick) {
+      case 'common': case 'commonOrList': case 'commonOrLand': return `${sl.n} ${foil}common${many ? 's' : ''}`;
+      case 'uncommon': return `${sl.n} ${foil}uncommon${many ? 's' : ''}`;
+      case 'variantUncommon': return `${sl.n} ${foil}uncommon${many ? 's' : ''} in a special printing`;
+      case 'rareMythic': return `${sl.n} ${foil}rare or mythic (${mixText})`;
+      case 'variantRare': return `${sl.n} ${foil}rare or mythic in a special printing (${mixText})`;
+      case 'wildcard': return `${sl.n} ${foil}card of any rarity (${mixText})`;
+      case 'land': return `${sl.n} ${foil}card in place of the basic land (${mixText})`;
+    }
+    return `${sl.n} ${foil}card${many ? 's' : ''}`;
+  }
+
+  async function packPreview(s, kind) {
+    const S = E();
+    const D = MTG.draft;
+    kind = kind === 'collector' && S.hasCollector(s) ? 'collector' : 'play';
+    const busy = UI.busy(s.name, 'Looking into the pack…');
+    let pool, bonus, variants;
+    try {
+      [pool, bonus, variants] = await Promise.all([
+        MTG.scry.setPool(s.code),
+        MTG.scry.packExtras(s.code).catch(() => null),
+        kind === 'collector' ? MTG.scry.setVariants(s.code).catch(() => null) : Promise.resolve(null),
+      ]);
+    } catch (e) { busy.close(); return UI.error(e.message || String(e)); }
+    busy.close();
+    if (!pool || !pool.all || pool.all.length < 20) return UI.error(`The cards of ${s.name} could not be loaded.`);
+    const spec = kind === 'collector' ? D.COLLECTOR_BOOSTER : D.boosterSpecFor(s);
+    const odds = D.packOdds(spec, pool, { bonus, variants });
+
+    // every card it can hold, with its chance and its worth
+    const rarOf = (c) => (PV_ORDER.includes(c.rarity) ? c.rarity : c.rarity === 'special' || c.rarity === 'bonus' ? 'mythic' : 'common');
+    const seen = new Set();
+    const items = [];
+    const add = (c, folded) => {
+      if (!c || S.isBasic(c.name) || seen.has(c.name)) return;
+      seen.add(c.name);
+      items.push({ card: c, rarity: rarOf(c), folded, chance: odds.chance(rarOf(c), folded), value: S.cardValue({ card: c }) });
+    };
+    for (const c of pool.all) add(c, false);
+    for (const c of (bonus && bonus.all) || []) add(c, true);
+    items.sort((a, b) => (b.value - a.value) || (PV_ORDER.indexOf(a.rarity) - PV_ORDER.indexOf(b.rarity)) || a.card.name.localeCompare(b.card.name));
+
+    /* -- beside the cards: the pack, its price, what is in it -- */
+    const side = el('aside', { class: 'pv-side' }, [
+      el('div', { class: 'pv-pack' }, [boosterEl(s, kind, { big: true })]),
+      S.hasCollector(s) ? el('div', { class: 'pv-kind', role: 'radiogroup', 'aria-label': 'Kind of booster' }, [['play', 'Play Booster'], ['collector', 'Collector']].map(([k, label]) =>
+        el('button', { type: 'button', role: 'radio', class: 'chip' + (kind === k ? ' on' : ''), 'aria-checked': kind === k ? 'true' : 'false', text: label,
+          onclick: () => { if (k !== kind) { m.close(); packPreview(s, k); } } }))) : null,
+      el('div', { class: 'pv-buys' }, kind === 'collector' ? [buyBtn(s, 'collector', 1)] : [buyBtn(s, 'play', 1), buyBtn(s, 'play', 10)]),
+      el('div', { class: 'tiny dim', text: `${s.name}${s.released_at ? ', ' + s.released_at.slice(0, 4) : ''} \u00b7 ${spec.size} cards a pack` }),
+      el('section', { class: 'pv-block' }, [
+        el('h4', { text: 'In every pack' }),
+        el('ul', { class: 'pv-slots' }, odds.slots.map(sl => el('li', { text: slotWords(sl) }))),
+      ]),
+      el('section', { class: 'pv-block' }, [
+        el('h4', { text: 'The rarities' }),
+        el('div', { class: 'pv-rar' }, PV_ORDER.filter(r => odds.expect[r] > 0).map(r => el('div', { class: 'pv-rar-row r-' + r }, [
+          el('i', { class: 'pv-gem', 'aria-hidden': 'true' }),
+          el('b', { text: PV_RAR[r] }),
+          el('span', { class: 'grow', text: `${+odds.expect[r].toFixed(2)} a pack` }),
+          el('span', { class: 'dim', text: odds.atLeast[r] >= 0.995 ? 'in every pack' : `in ${pctOf(odds.atLeast[r])} of packs` }),
+        ])).concat(odds.atLeast.rarePlus >= 0.995 ? [el('div', { class: 'pv-rar-row tiny dim', text: 'A rare or a mythic in every pack.' })] : [])),
+      ]),
+      el('ul', { class: 'pv-notes tiny dim' }, [
+        bonus && bonus.all && bonus.all.length ? el('li', { text: `Now and then a card folded in from another set takes a slot (${pctOf(D.BONUS_RATE.rareMythic)} of rares, less often in the others); those are marked "extra" below.` }) : null,
+        (s.released_at || '9999') >= '2003-07-28' && kind !== 'collector' ? el('li', { text: `About ${pctOf(S.VINTAGE_RATE)} of packs have a card in an old-frame printing.` }) : null,
+        el('li', { text: 'A rare or mythic you already have four of comes as one of the set\u2019s you have not, while there are any.' }),
+      ].filter(Boolean)),
+    ].filter(Boolean));
+
+    /* -- the cards, the most valuable first, a page at a time -- */
+    let rarOn = null;
+    const chips = el('div', { class: 'search-chips pv-chips' });
+    const grid = el('div', { class: 'pv-grid' });
+    const more = el('div', { class: 'search-more' });
+    const count = el('span', { class: 'tiny dim' });
+    let list = items, shown = 0;
+    const PAGE = 48;
+    const tile = (it) => {
+      const own = S.owned(it.card.name);
+      const t = el('button', { type: 'button', class: 'pv-card r-' + it.rarity + (it.folded ? ' folded' : ''), 'aria-label': it.card.name }, [
+        el('div', { class: 'pv-img' }, [UI.cardImage(it.card, 'normal', 0)]),
+        el('div', { class: 'pv-meta' }, [
+          el('i', { class: 'pv-gem', title: PV_RAR[it.rarity], 'aria-hidden': 'true' }),
+          el('b', { class: 'pv-price', text: it.value ? '$' + (it.value >= 100 ? Math.round(it.value).toLocaleString() : it.value.toFixed(2)) : '\u2014' }),
+          el('span', { class: 'pv-odds', text: oddsOf(it.chance), title: `About ${pctOf(it.chance)} of packs` }),
+        ]),
+        it.folded ? el('span', { class: 'pv-tag', text: 'extra', title: 'Folded in from another set: it takes a slot now and then' }) : null,
+        own ? el('span', { class: 'pv-own', text: own === Infinity ? 'free' : '\u00d7' + Math.min(own, 4), title: `You own ${Math.min(own, 4)}` }) : null,
+      ].filter(Boolean));
+      t.addEventListener('click', () => UI.cardSheet(it.card));
+      UI.attachPreview(t, it.card, 0);
+      return t;
+    };
+    const page = () => {
+      const next = list.slice(shown, shown + PAGE);
+      for (const it of next) grid.insertBefore(tile(it), more);
+      shown += next.length;
+      more.textContent = shown < list.length ? 'Scroll for more' : '';
+    };
+    const draw = () => {
+      list = rarOn ? items.filter(it => it.rarity === rarOn) : items;
+      grid.innerHTML = '';
+      grid.appendChild(more);
+      shown = 0;
+      page();
+      count.textContent = `${list.length} card${list.length === 1 ? '' : 's'}, the most valuable first`;
+      chips.innerHTML = '';
+      chips.append(...[[null, 'All']].concat(PV_ORDER.filter(r => items.some(it => it.rarity === r)).map(r => [r, PV_RAR[r]])).map(([r, label]) =>
+        el('button', { type: 'button', class: 'chip' + (rarOn === r ? ' on' : ''), 'aria-pressed': rarOn === r ? 'true' : 'false', text: label,
+          onclick: () => { rarOn = r; draw(); } })), el('span', { class: 'grow' }), count);
+    };
+    const seen2 = new IntersectionObserver((en) => { if (en.some(e => e.isIntersecting) && shown < list.length) { page(); seen2.unobserve(more); seen2.observe(more); } }, { rootMargin: '400px' });
+    draw();
+    const main = el('div', { class: 'pv-main' }, [chips, grid]);
+    const body = el('div', { class: 'pack-view' }, [side, main]);
+    const m = UI.modal({ title: `${s.name}: ${kind === 'collector' ? 'Collector Booster' : spec.id === 'play' ? 'Play Booster' : 'Draft Booster'}`, width: '1100px', className: 'pack-view-modal', content: body });
+    seen2.observe(more);
+    const off = MTG.bus.on('economy:changed', () => { if (!body.isConnected) { off(); seen2.disconnect(); } });
+    return m;
   }
 
   /** Today's deals, the first time they are asked for: a mythic and two rares from recent sets. */
