@@ -2057,7 +2057,8 @@
         // a copy of a spell is not a card: off the stack, it is gone (CR 707.10a)
         else if (item.isCopy && item.obj.isCopy && item.obj.zone === 'stack' && (!a || !a.isPermanent)) item.obj.zone = null;
         else if (item.obj.zone !== 'stack' && !item.isCopy) { /* it already went somewhere as it resolved */ }
-        else if (a && a.keywordSet && a.keywordSet.has('rebound') && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
+        // (Ojer Pakpatiq: rebound handed to the spell as it was cast)
+        else if (a && ((a.keywordSet && a.keywordSet.has('rebound')) || item.grantedRebound) && item.fromZone === 'hand' && !item.countered && !item.isCopy) {
           this.moveObject(item.obj, 'exile');
           item.obj.reboundBy = item.controller;
           item.obj.reboundTurn = this.turn;
@@ -11241,7 +11242,8 @@
         for (const x of this.battlefield) {
           if (x.controller !== p.id || x.phasedOut) continue;
           const e = this._staticOp(x, 'drawDouble');
-          if (e && !(e.exceptFirst && firstInStep)) k++;
+          // (Vnwxt, Verbose Host: only at max speed)
+          if (e && !(e.exceptFirst && firstInStep) && !(e.cond && !this._condMet(e.cond, { controller: x.controller, obj: x }))) k++;
         }
         return k ? (1 << Math.min(k, 6)) - 1 : 0;
       };
@@ -16745,6 +16747,13 @@
           if (!x || x.zone !== 'battlefield') break;
           x.toughDamageTurn = this.turn;
           this.logEvent('rules', `${x.name} assigns combat damage equal to its toughness this turn.`);
+          break;
+        }
+        // Ojer Pakpatiq: the spell the trigger is about gains rebound
+        case 'spellGainsRebound': {
+          const sid = (ctx.triggerData || {}).stackId;
+          const it = sid && this.stack.find(x => x.id === sid);
+          if (it && it.kind === 'spell') { it.grantedRebound = true; this.logEvent('keyword', `${it.name} gains rebound.`); }
           break;
         }
         // Archway of Innovation

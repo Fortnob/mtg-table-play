@@ -578,7 +578,8 @@
       else if (ab.kind === 'activated' || ab.kind === 'loyalty') ab.levelCond = both(ab.levelCond);
       else if (ab.kind === 'static') {
         const effs = (ab.effects || []).flatMap(e => (e.op === 'sequence' ? e.list : [e]));
-        if (!effs.every(e => e.op === 'continuous')) { ok = false; ab.auto = false; }
+        // (Vnwxt, Verbose Host: "Max speed — If you would draw a card, draw two cards instead" — the engine asks drawDouble's condition too)
+        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble')) { ok = false; ab.auto = false; }
         ab.effects = effs.map(e => Object.assign({}, e, { cond: both(e.cond) }));
       } else { ok = false; ab.auto = false; }
       out.abilities.push(ab);
@@ -3639,6 +3640,8 @@
     // Plagon, Lord of the Beach: "Target creature you control assigns combat damage equal to its toughness rather than its power this turn."
     { re: /^(target creature(?: you control)?) assigns combat damage equal to its toughness rather than its power this turn\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'toughDamageTurn', targets: [t] } : null; } },
+    // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
+    { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -8650,7 +8653,8 @@
     const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 4 &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
-      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |[A-Z][a-z]+s you control )/.test(m[2].trim()) ||
+      // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
+      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -9553,7 +9557,8 @@
     { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
-    { re: /^Whenever you cast an? (instant or sorcery |creature |noncreature )?spell from your hand,? /i, event: 'youCastSpell',
+    // (Ojer Pakpatiq: "an instant spell", "a sorcery spell")
+    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your hand,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
@@ -13703,9 +13708,10 @@
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
-      { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
+      // (Wildsear, Scouring Maw: "Enchantment spells you cast from your hand have cascade.")
+      { re: /^([A-Za-z ]*?)spells you cast( from your hand)?(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
-          m[2] ? { minMv: +m[2] } : {}), auto: true },
+          m[2] ? { fromZones: ['hand'] } : {}, m[3] ? { minMv: +m[3] } : {}), auto: true },
       /* Winter Orb, Static Orb, Smoke: "players can't untap more than one
          land during their untap steps" */
       { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,

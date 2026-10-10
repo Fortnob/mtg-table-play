@@ -19407,4 +19407,42 @@ module.exports = (test) => {
     // artifacts and/or creatures: Masumaro, the Smithy, the Gnome, the Sol Ring, each once
     t.eq(T.g.powerOf(gnome), 4, 'each artifact or creature counted once');
   });
+
+  test('Vnwxt, Alisaie, Wildsear, Ojer Pakpatiq: max speed draws, dualcast, cascade from hand, rebound handed out', (mk, t) => {
+    t.auto('Vnwxt, Verbose Host'); t.auto('Alisaie Leveilleur'); t.auto('Wildsear, Scouring Maw'); t.auto('Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 12; i++) T.top('A', 'Island');
+    T.bf('A', 'Vnwxt, Verbose Host');
+    T.g.drawCards('A', 1);
+    t.eq(T.zone('A', 'hand').length, 1, 'below max speed: one card');
+    T.g.player('A').speed = 4;
+    T.g.drawCards('A', 1);
+    t.eq(T.zone('A', 'hand').length, 3, 'at max speed: two instead');
+    T.bf('A', 'Alisaie Leveilleur');
+    const axe = T.hand('A', 'Lava Axe');
+    t.eq(T.g.castCostFor('A', axe.id), '{4}{R}', 'the first spell: full price');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.g.castCostFor('A', axe.id), '{2}{R}', 'the second: {2} less');
+    T.bf('A', 'Wildsear, Scouring Maw');
+    const elf = T.top('A', 'Llanowar Elves');
+    T.mana('A', 'W1');
+    T.cast('A', T.hand('A', 'Pacifism'), { targets: [T.bf('B', 'Grizzly Bears').id] });
+    T.resolve();
+    t.zone(elf, 'battlefield', 'an enchantment from hand cascades into the Elves');
+  });
+
+  test('Ojer Pakpatiq: an instant from your hand gains rebound', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time');
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    T.resolve();
+    t.zone(bolt, 'exile', 'exiled with rebound');
+    t.eq(bolt.reboundBy, 'A');
+  });
 };

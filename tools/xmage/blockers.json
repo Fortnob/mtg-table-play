@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10932,
+  "needed": 10927,
   "gainedCards": 1060,
-  "linesNeeded": 11666,
+  "linesNeeded": 11659,
   "linesGained": 1248,
   "gained": {
    "all": 1060,
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 20,
-   "lines": 17,
-   "cards": [
-    "Rain of Riches",
-    "Pearl-Ear, Imperial Advisor",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Shadow the Hedgehog",
-    "Quandrix, the Proof",
-    "Silverquill, the Disputant",
-    "Ezio Auditore da Firenze",
-    "Abaddon the Despoiler",
-    "Silverquill Lecturer",
-    "Samut, Tyrant of Naktamun"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 20,
    "lines": 20,
@@ -539,6 +520,25 @@
     "Otherworldly Outburst",
     "Searing Blood",
     "Melira, the Living Cure"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 18,
+   "lines": 15,
+   "cards": [
+    "Rain of Riches",
+    "Pearl-Ear, Imperial Advisor",
+    "Zhulodok, Void Gorger",
+    "Hunting Velociraptor",
+    "Shadow the Hedgehog",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer",
+    "Samut, Tyrant of Naktamun",
+    "Ashad, the Lone Cyberman",
+    "Peri Brown"
    ]
   },
   {
@@ -3828,18 +3828,6 @@
    ]
   },
   {
-   "what": "spell from a zone",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Ojer Pakpatiq, Deepest Epoch // Temple of Cyclical Time",
-    "Gale, Waterdeep Prodigy",
-    "Taigam, Ojutai Master",
-    "Goliath Daydreamer",
-    "Harness the Storm"
-   ]
-  },
-  {
    "what": "ExileFaceDownTopNLibraryYouMayPlayAsLongAsExiledTargetEffect",
    "score": 5,
    "lines": 5,
@@ -3849,18 +3837,6 @@
     "Dream-Thief's Bandana",
     "Predators' Hour",
     "Petty Larceny"
-   ]
-  },
-  {
-   "what": "MaxSpeedAbility",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Vnwxt, Verbose Host",
-    "Racers' Scoreboard",
-    "Far Fortune, End Boss",
-    "Lightwheel Enhancements",
-    "Tsagan, Raider Warlord"
    ]
   },
   {
@@ -4881,17 +4857,6 @@
    ]
   },
   {
-   "what": "ConditionalCostModificationEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Alisaie Leveilleur",
-    "Paladin Class",
-    "Momo, Friendly Flier",
-    "Nahiri, Storm of Stone"
-   ]
-  },
-  {
    "what": "AllianceAbility",
    "score": 4,
    "lines": 4,
@@ -5162,6 +5127,17 @@
     "Ian Chesterton",
     "Djinn Illuminatus",
     "Threefold Signal"
+   ]
+  },
+  {
+   "what": "MaxSpeedAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Racers' Scoreboard",
+    "Far Fortune, End Boss",
+    "Lightwheel Enhancements",
+    "Tsagan, Raider Warlord"
    ]
   },
   {
@@ -6091,6 +6067,16 @@
    ]
   },
   {
+   "what": "ConditionalCostModificationEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Paladin Class",
+    "Momo, Friendly Flier",
+    "Nahiri, Storm of Stone"
+   ]
+  },
+  {
    "what": "DoWhenCostPaid not optional",
    "score": 3,
    "lines": 3,
@@ -6108,6 +6094,16 @@
     "Black Sun's Twilight",
     "Scavenger Regent // Exude Toxin",
     "Drana, Kalastria Bloodchief"
+   ]
+  },
+  {
+   "what": "spell from a zone",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Gale, Waterdeep Prodigy",
+    "Goliath Daydreamer",
+    "Harness the Storm"
    ]
   },
   {
@@ -6583,8 +6579,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3435,
-   "cards": 3270,
+   "score": 3436,
+   "cards": 3271,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6851,19 +6847,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 16,
-   "cards": 13,
-   "names": [
-    "Rain of Riches",
-    "Zhulodok, Void Gorger",
-    "Wildsear, Scouring Maw",
-    "Hunting Velociraptor",
-    "Quandrix, the Proof",
-    "Silverquill, the Disputant"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 16,
    "cards": 16,
@@ -6926,6 +6909,19 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 14,
+   "cards": 11,
+   "names": [
+    "Rain of Riches",
+    "Zhulodok, Void Gorger",
+    "Hunting Velociraptor",
+    "Silverquill, the Disputant",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer"
    ]
   },
   {
@@ -9585,17 +9581,6 @@
    ]
   },
   {
-   "what": "MaxSpeedAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Vnwxt, Verbose Host",
-    "Racers' Scoreboard",
-    "Far Fortune, End Boss",
-    "Lightwheel Enhancements"
-   ]
-  },
-  {
    "what": "CastFromGraveyardSourceCondition.instance",
    "score": 4,
    "cards": 4,
@@ -10253,6 +10238,17 @@
     "Graven Abomination",
     "Wolf of Devil's Breach",
     "Shrouded Serpent"
+   ]
+  },
+  {
+   "what": "AddCardTypeTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ashnod's Transmogrant",
+    "Tezzeret, Agent of Bolas",
+    "Workshop Elders",
+    "Thran Forge"
    ]
   }
  ]
