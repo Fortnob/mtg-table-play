@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11048,
+  "needed": 11047,
   "gainedCards": 1091,
-  "linesNeeded": 11810,
+  "linesNeeded": 11808,
   "linesGained": 1284,
   "gained": {
    "all": 1091,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4132,
-   "lines": 3883,
+   "score": 4130,
+   "lines": 3881,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -6606,8 +6606,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3441,
-   "cards": 3273,
+   "score": 3440,
+   "cards": 3272,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -7452,6 +7452,19 @@
    ]
   },
   {
+   "what": "SetBasePowerToughnessSourceEffect with two values",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Unlicensed Hearse",
+    "Scourge of the Skyclaves",
+    "Soulless One",
+    "Adamaro, First to Desire",
+    "Fungal Behemoth",
+    "Monstrous War-Leech"
+   ]
+  },
+  {
    "what": "CompositeCost",
    "score": 9,
    "cards": 9,
@@ -7670,19 +7683,6 @@
     "Katara, Waterbending Master",
     "Vault 12: The Necropolis",
     "Contaminated Drink"
-   ]
-  },
-  {
-   "what": "SetBasePowerToughnessSourceEffect with two values",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Unlicensed Hearse",
-    "Soulless One",
-    "Adamaro, First to Desire",
-    "Fungal Behemoth",
-    "Monstrous War-Leech",
-    "Mwonvuli Ooze"
    ]
   },
   {

@@ -18339,4 +18339,15 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'hand').length, hb + 2, 'B: the draw and one more');
     t.eq(T.zone('A', 'hand').length, ha, 'not A');
   });
+
+  test('Dire Fleet Ravager: each player loses a third of their own life, rounded up', (mk, t) => {
+    t.auto('Dire Fleet Ravager');
+    const T = mk();
+    T.toMain('A');
+    T.g.player('B').life = 10;
+    T.bf('A', 'Dire Fleet Ravager', { etb: true });
+    T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 13, '20: 7 lost');
+    t.eq(T.life('B'), 6, '10: 4 lost');
+  });
 };

@@ -12188,7 +12188,9 @@
         if (v && typeof v === 'object' && v.halfLife) {
           const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : v.halfLife === 'you' ? me : null;
           const life = p ? Math.max(0, p.life) : 0;
-          return v.up ? Math.ceil(life / 2) : Math.floor(life / 2);
+          // (Dire Fleet Ravager: "a third of their life" — div)
+          const dv = v.div || 2;
+          return v.up ? Math.ceil(life / dv) : Math.floor(life / dv);
         }
         /* "that creature's power": the permanent the trigger is about, as it
            is now or as it last was */

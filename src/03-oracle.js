@@ -1633,6 +1633,9 @@
         : { op: 'discard', n: 'all', who: /opponent/i.test(m[1]) ? 'opponents' : 'each' }) },
     // Infernal Contract: "You lose half your life, rounded up."
     { re: /^You lose half your life, rounded (up|down)\.?$/i, make: (m) => ({ op: 'loseLife', n: { halfLife: 'you', up: /up/i.test(m[1]) }, who: 'you' }) },
+    // Dire Fleet Ravager: "each player loses a third of their life, rounded up" — each one's own life (div), each in turn
+    { re: /^Each player loses (half|a third of) their life, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'forEachPlayer', then: [{ op: 'loseLife', who: 'you', n: { halfLife: 'you', up: /up/i.test(m[2]), div: /third/i.test(m[1]) ? 3 : 2 } }] }) },
     // Blessed Wind: "Target player's life total becomes 20."
     { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
     /* Wrathful Raptors: "it deals that much damage to any target that isn't a
