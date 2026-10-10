@@ -46078,6 +46078,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           const shown = from.slice(0, n(e.n)).map(o => o.name);
           // "Reveal the top card of your library. If it's a creature card, …"
           if (from.length) this._lastRevealed = from[0].id;
+          /* Nissa's Revelation, Interpret the Signs, Sifter Wurm: "equal to its power", "that card's mana
+             value" — the one card revealed from the top (revealNotes) */
+          if (from.length && e.from === 'library' && n(e.n) === 1) this._noteLastAffected([{ kind: 'object', id: from[0].id }]);
           this.logEvent('reveal', `${me.name} reveals ${shown.join(', ') || 'nothing'}.`);
           break;
         }
@@ -67869,7 +67872,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 'use strict';
 (function (MTG) {
   // the relay this app was set up with (tools/recommander-relay/README.md); Options can name another
-  const DEFAULT_RELAY = 'https://recommander-relay.zach-s-carver.workers.dev';
+  const DEFAULT_RELAY = 'https://recommander-relay.mtgtable.workers.dev';
   const TIMEOUT = 15000;
   const KEEP = 10 * 60 * 1000;
   const remembered = new Map();      // the deck's key -> { at, list }
