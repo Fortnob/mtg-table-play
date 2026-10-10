@@ -21623,6 +21623,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
     // Banishing Slash: "you control an artifact and an enchantment"
     [/^you control an? ([a-z]+) and an? ([a-z]+)$/i, (m) => [{ kind: 'control', what: m[1].toLowerCase(), n: 1 }, { kind: 'control', what: m[2].toLowerCase(), n: 1 }]],
+    // Ana Sanctuary: "you control a blue permanent and a black permanent" — each half as a condition of its own (controlBoth)
+    [/^you control (an? [a-z ]+?) and (an? [a-z ]+?)$/i, (m) => { const a = condOf('you control ' + m[1]), b = condOf('you control ' + m[2]); return a && b && !Array.isArray(a) && !Array.isArray(b) ? [a, b] : null; }],
     // Survival Cache: "you have more life than an opponent"
     [/^you have more life than an opponent$/i, () => ({ kind: 'moreLifeThanAnOpponent' })],
     // Thickest in the Thicket: "you control the creature with the greatest power or tied for the greatest power"
@@ -21811,7 +21813,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Mistform Wall: "as long as it's a Wall"
     [/^(?:this creature is|CARDNAME is) an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'selfSubtype', type: m[1] })],
     // Defy Death: "if it's an Angel" — what was targeted, or what the trigger is about
-    [/^it'?s an? ([A-Z][a-z]+)$/, (m) => ({ kind: 'itSubtype', type: m[1] })],
+    // (Cemetery Recruitment, Zephyr Sentinel, Slayer's Plate: "if it's a Zombie card", "if it was a Soldier" — itSubtypeWas)
+    [/^it(?:'?s| was) an? ([A-Z][a-z]+)(?: card)?$/, (m) => ({ kind: 'itSubtype', type: m[1] })],
     [/^an opponent has (\w+) or more poison counters$/i, (m) => ({ kind: 'opponentPoison', n: num(m[1]) })],
     // Jace's Phantasm: "an opponent has ten or more cards in their graveyard"
     [/^an opponent has (\w+) or more cards in their graveyard$/i, (m) => ({ kind: 'opponentGraveyard', n: num(m[1]) })],
@@ -38854,6 +38857,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
            Blessed: the creature that entered; with neither, itself */
         case 'itSubtype': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          /* Zephyr Sentinel: "return up to one other target creature … If it was a Soldier" — with no
+             target chosen there is no "it", not the trigger's own creature (itSubtypeWas) */
+          const aimedObj = !tg && ((ctx && ctx.effects) || []).some(x => x && (x.targets || []).some(sp => sp && sp.type !== 'player' && sp.zone !== 'stack'));
+          if (aimedObj) return false;
           const td = ctx && ctx.triggerData && ctx.triggerData.objectId;
           const it = (tg && this.obj(tg.id)) || (td && this.obj(td)) || src;
           return !!it && this._hasSubtype(it, cond.type);
