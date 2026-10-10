@@ -12261,14 +12261,17 @@
        layers can make, with its sign */
     { re: /^(?:CARDNAME|This creature) gets ([+-])X\/([+-])(X|0), where X is (.+?)\.?$/,
       make: (m) => {
-        // (a defending player is one opponent, not all of them: left to a person)
-        if (/defending player/i.test(m[4])) return null;
+        /* Elturel Survivors: "the number of lands defending player controls" — the player it is
+           attacking; there is none, and nothing counts, when it isn't (selfAttacking) */
+        const defending = /defending player/i.test(m[4]);
         const k = amountOf(m[4]);
+        if (defending && !(k && k.scope && k.scope.defending)) return null;
         const OK = ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'countersOnSelf', 'greatestMv', 'party', 'playerStat', 'devotion', 'typesInGraveyards', 'cardsInAllGraveyards'];
         if (!k || typeof k !== 'object' || k.plus || !OK.some(x => k[x])) return null;
         if ((m[1] === '-') !== (m[2] === '-') && m[3] === 'X') return null;
         const signed = Object.assign({}, k, { mult: (k.mult || 1) * (m[1] === '-' ? -1 : 1) });
-        return { op: 'continuous', layer: 7, scope: { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } };
+        return Object.assign({ op: 'continuous', layer: 7, scope: { self: true }, pt: { p: signed, t: m[3] === 'X' ? Object.assign({}, signed) : 0 } },
+          defending ? { cond: { kind: 'selfAttacking' } } : {});
       } },
     // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
     { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+X, where X is (.+?)\.?$/,

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11150,
+  "needed": 11149,
   "gainedCards": 1126,
-  "linesNeeded": 11924,
+  "linesNeeded": 11923,
   "linesGained": 1326,
   "gained": {
    "all": 1126,
@@ -647,25 +647,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Spring Splasher",
-    "Fear of Falling",
-    "Coveted Peacock"
-   ]
-  },
-  {
    "what": "CantBeBlockedByCreaturesSourceEffect",
    "score": 17,
    "lines": 17,
@@ -718,6 +699,25 @@
     "Crack in Time",
     "Staff of the Flame Magus",
     "Staff of the Wild Magus"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Conformer Shuriken",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Spring Splasher",
+    "Fear of Falling",
+    "Coveted Peacock",
+    "Goblin Racketeer"
    ]
   },
   {
@@ -6933,19 +6933,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Conformer Shuriken",
-    "Elturel Survivors",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
-   ]
-  },
-  {
    "what": "AddContinuousEffectToGame",
    "score": 15,
    "cards": 15,
@@ -6982,6 +6969,19 @@
     "Birth of the Imperium",
     "Green Goblin, Revenant",
     "Misty Knight, Hero for Hire"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Conformer Shuriken",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark"
    ]
   },
   {

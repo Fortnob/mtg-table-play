@@ -20410,7 +20410,8 @@
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
-      if (sc.defending && this._defendingPid && o.controller !== this._defendingPid) return false;
+      // (Elturel Survivors: in a standing rule, the player its source is attacking)
+      if (sc.defending) { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id; if (dp && o.controller !== dp) return false; }
       if (sc.historic && !(oa.isLegendary || oa.isArtifact || (oa.subtypes || []).includes('Saga'))) return false;
       // Massacre Girl: "each creature other than <the one that made this>"
       if (sc.exceptId && o.id === sc.exceptId) return false;

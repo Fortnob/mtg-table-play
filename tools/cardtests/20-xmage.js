@@ -17728,4 +17728,19 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), 16, 'a 1/5: 4 life');
   });
+
+  test('Elturel Survivors: +X/+0 while attacking, X the lands of the player it attacks', (mk, t) => {
+    t.auto('Elturel Survivors');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const es = T.bf('A', 'Elturel Survivors');
+    for (let i = 0; i < 3; i++) T.bf('B', 'Forest');
+    for (let i = 0; i < 5; i++) T.bf('C', 'Island');
+    const base = T.g.powerOf(es);
+    T.answer('declareAttackers', () => [{ attackerId: es.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(T.g.powerOf(es), base + 3, "B's three lands, not C's five");
+    T.toMain('A', 'end');
+    t.eq(T.g.powerOf(es), base, 'back once it is no longer attacking');
+  });
 };
