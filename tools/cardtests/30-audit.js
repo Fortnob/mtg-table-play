@@ -4200,4 +4200,33 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Tinybones Joins Up')); T.settle(); T.resolve(); T.settle();
     t.eq(who, 'B', 'B picks the discard'); t.zone(cw, 'graveyard');
   });
+
+  test("Audit: New Frontiers gives each player the caster's X, tapped; Veteran Explorer: a player who declines gets nothing", (mk, t) => {
+    t.auto('New Frontiers'); t.auto('Veteran Explorer');
+    let T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) { T.top('A', 'Forest'); T.top('B', 'Plains'); }
+    const asked = [];
+    for (let k = 0; k < 2; k++) T.answer('confirm', (ch) => { asked.push(ch.playerId); return { yes: true }; });
+    for (let k = 0; k < 2; k++) T.answer('pickCard', (ch) => ({ cardIds: (ch.cards || []).slice(0, ch.count || 1).map(c => c.id) }));
+    T.mana('A', 'GG1');
+    t.ok(T.g.castSpell('A', T.hand('A', 'New Frontiers').id, { auto: true, x: 2 }));
+    T.settle(); T.resolve(); T.settle();
+    const lands = (p) => T.g.battlefield.filter(o => o.controller === p && (o.analysis() || {}).isLand);
+    t.eq(asked.join(','), 'A,B', 'each decides for themselves');
+    t.eq(lands('A').length, 2); t.eq(lands('B').length, 2, 'X is 2 for B as well');
+    t.ok(lands('A').concat(lands('B')).every(o => o.tapped), 'tapped');
+    T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) { T.top('A', 'Forest'); T.top('B', 'Plains'); }
+    const ve = T.bf('A', 'Veteran Explorer');
+    T.answer('confirm', (ch) => ({ yes: ch.playerId === 'A' }));
+    T.answer('confirm', (ch) => ({ yes: ch.playerId === 'A' }));
+    T.answer('pickCard', (ch) => ({ cardIds: (ch.cards || []).slice(0, ch.count || 1).map(c => c.id) }));
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [ve.id] });
+    T.settle(); T.resolve(); T.settle();
+    t.zone(ve, 'graveyard');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && /Forest/.test(o.name)).length, 2, 'A searched for two');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && /Plains/.test(o.name)).length, 0, 'B declined');
+  });
 };
