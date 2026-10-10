@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10592,
-  "gainedCards": 970,
-  "linesNeeded": 11279,
+  "needed": 10586,
+  "gainedCards": 971,
+  "linesNeeded": 11270,
   "linesGained": 1140,
   "gained": {
-   "all": 970,
+   "all": 971,
    "top2000": 41,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4057,
-   "lines": 3811,
+   "score": 4052,
+   "lines": 3806,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 164,
-   "lines": 152,
+   "score": 163,
+   "lines": 151,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -136,12 +136,12 @@
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Éowyn, Shieldmaiden",
     "Rith, Liberated Primeval",
     "Wakka, Devoted Guardian",
     "Tinybones, Trinket Thief",
     "March of the Canonized",
-    "Gavel of the Righteous"
+    "Gavel of the Righteous",
+    "Eshki, Temur's Roar"
    ]
   },
   {
@@ -1584,23 +1584,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousEffect without a condition",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Sardian Cliffstomper",
-    "Goblin Caves",
-    "Favorable Destiny",
-    "Blood Lust",
-    "Gorilla Titan",
-    "Swordsworn Cavalier",
-    "Bloodfire Enforcers",
-    "Relic Runner",
-    "Heroic Defiance",
-    "Jihad"
-   ]
-  },
-  {
    "what": "LoseAbilitySourceEffect",
    "score": 10,
    "lines": 10,
@@ -1932,6 +1915,22 @@
     "Brawn, Amadeus Cho",
     "Iron Fist, Hero for Hire",
     "Donald Blake, Guise of Thor"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousEffect without a condition",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Sardian Cliffstomper",
+    "Goblin Caves",
+    "Favorable Destiny",
+    "Blood Lust",
+    "Gorilla Titan",
+    "Bloodfire Enforcers",
+    "Relic Runner",
+    "Heroic Defiance",
+    "Jihad"
    ]
   },
   {
@@ -6509,8 +6508,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3386,
-   "cards": 3221,
+   "score": 3382,
+   "cards": 3217,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6561,15 +6560,15 @@
   },
   {
    "what": "custom condition",
-   "score": 127,
-   "cards": 124,
+   "score": 126,
+   "cards": 123,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
     "Elanor Gardner",
     "Lux Artillery",
-    "Éowyn, Shieldmaiden",
-    "Rith, Liberated Primeval"
+    "Rith, Liberated Primeval",
+    "Wakka, Devoted Guardian"
    ]
   },
   {
@@ -7733,19 +7732,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousEffect without a condition",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Sardian Cliffstomper",
-    "Goblin Caves",
-    "Blood Lust",
-    "Gorilla Titan",
-    "Swordsworn Cavalier",
-    "Bloodfire Enforcers"
-   ]
-  },
-  {
    "what": "BecomesBasicLandTargetEffect",
    "score": 8,
    "cards": 8,
@@ -8066,6 +8052,19 @@
     "Time Elemental",
     "Ramses Overdark",
     "Cut the Earthly Bond"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousEffect without a condition",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Sardian Cliffstomper",
+    "Goblin Caves",
+    "Blood Lust",
+    "Gorilla Titan",
+    "Bloodfire Enforcers",
+    "Relic Runner"
    ]
   },
   {

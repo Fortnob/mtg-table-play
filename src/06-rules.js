@@ -10283,6 +10283,11 @@
         case 'youSacrificedThisWay': return !!me && ((this.resolving || {})._sacBy || []).some(s => s.pid === me.id && (!cond.what || (s.types || []).includes(cond.what)));
         case 'enteredTypeThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
+          // Éowyn, Shieldmaiden: "another Human" — one more than this one, if it came in this turn as well (enteredOther)
+          if (cond.other) {
+            const selfIn = src && src.entered === this.turn && (cond.types || []).some(t => this._hasCreatureType(src, t)) ? 1 : 0;
+            return (cond.types || []).some(t => (by['sub:' + t] || 0) + (by['sub:*'] || 0) > selfIn);
+          }
           return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
         }
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
@@ -17573,7 +17578,9 @@
             return this._matchesFilter(o, e.filter);
           });
           let taken = [];
-          if (legal.length) {
+          // Muxus, Goblin Grandee: "Put all … from among them" — no choosing (takeAll)
+          if (legal.length && e.all) taken = legal.slice();
+          else if (legal.length) {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               // "If it's a land card, put it into your hand": not a choice

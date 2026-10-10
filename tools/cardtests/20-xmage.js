@@ -21442,4 +21442,57 @@ module.exports = (test) => {
     t.eq(T5.life('B'), 19, 'an instant discarded: each opponent loses 1');
     t.eq(T5.life('A'), 21, 'and you gain 1');
   });
+
+  test('Commanders: Muxus, Goblin Grandee, Raffine, Scheming Seer, Golbez, Crystal Collector, Éowyn, Shieldmaiden; Sorin, Grim Nemesis', (mk, t) => {
+    for (const n of ['Muxus, Goblin Grandee', 'Raffine, Scheming Seer', 'Golbez, Crystal Collector', 'Éowyn, Shieldmaiden']) t.auto(n);
+    const top = (T, pid, name) => { const c = T.put(pid, name, 'library'); const lib = T.zone(pid, 'library'); lib.splice(lib.indexOf(c), 1); lib.unshift(c); return c; };
+    // Muxus: every Goblin creature card with mana value 5 or less among the top six, nothing else
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const g1 = top(T, 'A', 'Goblin Guide'), g5 = top(T, 'A', 'Siege-Gang Commander'), bear = top(T, 'A', 'Grizzly Bears');
+    let asked = false;
+    T.answer('pickCard', () => { asked = true; return { cardIds: [g1.id] }; });
+    T.put('A', 'Muxus, Goblin Grandee', 'battlefield', { etb: true }); T.resolve();
+    t.no(asked, 'all of them: nothing to choose');
+    t.zone(g1, 'battlefield'); t.zone(g5, 'battlefield', 'mana value 5 is in');
+    t.zone(bear, 'library', 'not a Goblin: to the bottom');
+    // Raffine: the attacking creature connives X, X the number attacking
+    const T2 = mk({ library: Array(10).fill('Island') });
+    const r = T2.bf('A', 'Raffine, Scheming Seer'), g = T2.bf('A', 'Grizzly Bears');
+    T2.toMain('A');
+    T2.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: g.id }] }));
+    T2.answer('declareAttackers', () => [{ attackerId: r.id, defenderId: 'B' }, { attackerId: g.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.zone('A', 'graveyard').length, 2, 'two attackers: connive 2, two cards discarded');
+    // Golbez: with eight artifacts, the opponents lose the returned card's power
+    const T3 = mk();
+    T3.toMain('A');
+    T3.bf('A', 'Golbez, Crystal Collector');
+    for (let i = 0; i < 8; i++) T3.bf('A', 'Mind Stone');
+    const w = T3.put('A', 'Craw Wurm', 'graveyard');
+    T3.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    T3.toMain('B');
+    t.zone(w, 'hand');
+    t.eq(T3.life('B'), 14, "the Craw Wurm's 6");
+    // Éowyn, Shieldmaiden: another Human, not herself
+    const knights = (T4) => T4.bfOf('A').filter(o => o.isToken && /Knight/.test(o.name)).length;
+    const T4 = mk();
+    T4.toMain('A');
+    T4.put('A', 'Éowyn, Shieldmaiden', 'battlefield', { etb: true }); T4.resolve();
+    T4.toMain('A', 'beginCombat'); T4.resolve();
+    t.eq(knights(T4), 0, 'only Éowyn entered: no Knights');
+    const T5 = mk();
+    T5.toMain('A');
+    T5.put('A', 'Éowyn, Shieldmaiden', 'battlefield', { etb: true });
+    T5.put('A', 'Elite Vanguard', 'battlefield', { etb: true }); T5.resolve();
+    T5.toMain('A', 'beginCombat'); T5.resolve();
+    t.eq(knights(T5), 2, 'another Human entered: two Knights');
+    // Sorin, Grim Nemesis +1: each opponent loses the mana value of the card
+    const T6 = mk({ library: Array(5).fill('Island') });
+    T6.toMain('A');
+    const so = T6.bf('A', 'Sorin, Grim Nemesis'); so.counters.loyalty = 6;
+    top(T6, 'A', 'Craw Wurm');
+    T6.activate('A', so, 0); T6.resolve();
+    t.eq(T6.life('B'), 14, '6 life');
+  });
 };

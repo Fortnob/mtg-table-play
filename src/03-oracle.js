@@ -1899,7 +1899,8 @@
     /* Connive (CR 702.153). */
     { re: /^(?:It|He|She|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
-    { re: /^(Target creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
+    // (Raffine, Scheming Seer: "Target attacking creature connives X" — raffineConnive)
+    { re: /^(Target (?:attacking )?creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
 
     /* "…copy that spell." */
@@ -3524,6 +3525,9 @@
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
     { re: /^Exile the top (a|one|two|three|\d+)? ?cards? of your library face down\.?$/i,
       make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false, faceDown: true }) },
+    // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
+    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: 'battlefield', rest: 'bottomRandom' }) },
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' }) },
@@ -5392,6 +5396,9 @@
     // Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this combat" (blockLimitCombat)
     { re: /^Each opponent can'?t block with more than (one|two|three) creatures? this combat\.?$/i,
       make: (m) => ({ op: 'blockLimitCombat', n: num(m[1]) }) },
+    // Golbez, Crystal Collector: "each opponent loses life equal to that card's power" (lifeEqualTo)
+    { re: /^Each opponent loses life equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -9397,6 +9404,9 @@
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
+    // Éowyn, Shieldmaiden: "another Human entered the battlefield under your control this turn" — not this one (enteredOther)
+    [/^another ([A-Z][a-z]+) entered the battlefield under your control this turn$/,
+      (m) => ({ kind: 'enteredTypeThisTurn', types: [m[1].toLowerCase()], other: true })],
     // Wilhelt, the Rotcleaver: "it didn't have decayed" — the creature that died, as it last was (triggerObjKeyword)
     [/^it (didn'?t have|had) (decayed|flying|deathtouch|lifelink|trample|haste|vigilance|undying|persist)$/i,
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
