@@ -18128,22 +18128,6 @@
         }
 
         // "Target creature blocks this creature this turn if able."
-        /* Sewer-veillance Cam: "tap or untap target creature" — its
-           controller's choice; a bot taps what an opponent has and untaps
-           its own */
-        case 'tapOrUntap': {
-          const x = firstObj();
-          if (!x || x.zone !== 'battlefield') break;
-          let tapIt = !x.tapped;
-          if (!me.isBot) {
-            const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
-              options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }], prompt: `${ctx.name || 'Effect'}: tap or untap ${x.name}?` }, 'tou');
-            if (got === SUSPEND) return SUSPEND;
-            tapIt = ((got && got.picks) || [0])[0] === 0;
-          } else tapIt = x.controller !== ctx.controller;
-          if (tapIt) this._markTapped(x); else this._markUntapped(x);
-          break;
-        }
         // Vampire Hexmage: every counter of every kind comes off
         case 'removeAllCounters': {
           const x = firstObj();
