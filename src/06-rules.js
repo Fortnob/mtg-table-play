@@ -18,6 +18,13 @@
 
   const ZONES = ['library', 'hand', 'battlefield', 'graveyard', 'stack', 'exile', 'command'];
 
+  /* Oathbreaker: a deck's commanders are its Oathbreaker and its Signature
+     Spell, and the spell is the one that is an instant or a sorcery (the
+     same test as MTG.formats.isSignatureSpell, kept here so the engine
+     needs nothing from the deck-building side). */
+  const isSignatureCard = (c) => /\b(Instant|Sorcery)\b/.test(String(
+    (c && c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || (c && c.type_line) || '').split(/\s+\/\/\s+/)[0]);
+
   /* Returned by an effect that has stopped to ask somebody a question. It is
      only ever a return value inside one resolution, so it never needs to
      survive a snapshot. */
@@ -333,9 +340,13 @@
       }
       for (const c of (deck.commanders || [])) {
         const o = this._register(new GObj(c, playerId, 'command'));
-        o.isCommander = true;
+        /* Oathbreaker: an instant or sorcery among the commanders is the
+           deck's Signature Spell (src/04-formats.js). It is not a commander
+           to any card that asks, but it pays commander tax of its own,
+           counted in commanderCasts beside the Oathbreaker's. */
+        if (isSignatureCard(c)) o.isSignature = true;
+        else { o.isCommander = true; p.commanderDamage[o.id] = 0; }
         z.command.push(o);
-        p.commanderDamage[o.id] = 0;
         p.commanderCasts[o.id] = 0;
       }
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
@@ -1532,6 +1543,23 @@
         }
       }
       return { produces, any, amount: Math.max(amount, (produces.size || any) ? 1 : 0) };
+    }
+
+    /**
+     * Times this player has cast a commander from the command zone. An
+     * Oathbreaker's Signature Spell keeps its tax in the same tally, but it
+     * is not a commander, so its casts are left out here.
+     */
+    _commanderCastCount(pid) {
+      const cc = ((this.player(pid) || {}).commanderCasts) || {};
+      let n = 0;
+      for (const [id, k] of Object.entries(cc)) { const x = this.obj(id); if (!(x && x.isSignature)) n += Number(k) || 0; }
+      return n;
+    }
+
+    /** Oathbreaker: whether this player's Oathbreaker is on the battlefield, so its Signature Spell may be cast. */
+    _oathbreakerOut(pid) {
+      return this.battlefield.some(o => o.isCommander && o.owner === pid && !o.phasedOut);
     }
 
     /** The colours in this player's commanders' colour identity. */
@@ -2764,7 +2792,8 @@
       opts = opts || {};
       const a = o.analysis();
       let mana = (a && a.manaCost) || '';
-      if (o.zone === 'command' && o.isCommander) {
+      // commander tax; an Oathbreaker's Signature Spell pays its own
+      if (o.zone === 'command' && (o.isCommander || o.isSignature)) {
         const p = this.player(o.owner);
         const tax = (p.commanderCasts[o.id] || 0) * 2;
         if (tax) mana = this._addGeneric(mana, tax);
@@ -2795,7 +2824,7 @@
      */
     _freeCastPrice(o, pid) {
       let gen = 0;
-      if (o.zone === 'command' && o.isCommander) {
+      if (o.zone === 'command' && (o.isCommander || o.isSignature)) {
         const p = this.player(o.owner);
         gen += ((p && p.commanderCasts[o.id]) || 0) * 2;
       }
@@ -2982,7 +3011,7 @@
         return k * mult;
       }
       // Commander's Insignia: times its controller has cast a commander from the command zone
-      if (v.commanderCasts) return Object.values(((this.player(pid) || {}).commanderCasts) || {}).reduce((k, x) => k + (Number(x) || 0), 0) * mult;
+      if (v.commanderCasts) return this._commanderCastCount(pid) * mult;
       // Vishgraz: the poison counters among your opponents
       if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
       if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
@@ -3318,6 +3347,9 @@
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
+      // Oathbreaker: the Signature Spell only while its Oathbreaker is on the battlefield
+      if (o.isSignature && o.zone === 'command' && !this._oathbreakerOut(o.owner))
+        return { ok: false, reason: 'A Signature Spell can be cast only while its Oathbreaker is on the battlefield.' };
       const leave = (o.zone === 'library' || o.zone === 'graveyard') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
       if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
       if (o.zone === 'graveyard' && leave && this._anyStatic('cageGraveyards'))
@@ -4021,7 +4053,7 @@
         const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost'));
         if (gs) {
           const mana = this._staticOp(gs, 'grantAltCost').mana;
-          const tax = o.zone === 'command' && o.isCommander ? (((this.player(o.owner) || {}).commanderCasts || {})[o.id] || 0) * 2 : 0;
+          const tax = o.zone === 'command' && (o.isCommander || o.isSignature) ? (((this.player(o.owner) || {}).commanderCasts || {})[o.id] || 0) * 2 : 0;
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
         }
       }
@@ -10633,7 +10665,8 @@
       this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount });
       this._fire('youLoseLife', p.id, { player: p.id, amount: lost });
       this._fire('playerDealtDamage', null, { player: p.id, amount, combat: !!combat });
-      if (combat && source && source.isCommander) {
+      // counted only where it can decide a game: Brawl and Oathbreaker have no commander damage
+      if (combat && source && source.isCommander && this.config.commanderDamage) {
         p.commanderDamage[source.id] = (p.commanderDamage[source.id] || 0) + amount;
         this.logEvent('commander', `${p.name} has taken ${p.commanderDamage[source.id]} commander damage from ${source.name}.`);
       }
@@ -10878,6 +10911,13 @@
       // commander replacement effect (CR 903.9)
       if (o.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from === 'battlefield') {
         if (MTG.settings.commanderToZone !== false) toZone = 'command';
+      }
+      /* Oathbreaker: a Signature Spell that would go anywhere but the stack
+         goes back to the command zone instead: resolved, countered, exiled
+         or returned to a hand, and with no choice about it. */
+      if (o.isSignature && toZone && toZone !== 'stack' && toZone !== 'command') {
+        toZone = 'command';
+        if (from === 'stack') this.logEvent('rules', `${o.name} returns to the command zone.`);
       }
       if (from === 'battlefield' && toZone !== 'battlefield') {
         const wasA = o.analysis();
@@ -12280,10 +12320,7 @@
         // the Commander storms: how many times you've cast your commander from the command zone
         // Keening Stone: "the number of cards in that player's graveyard" — the targeted player
         if (v && typeof v === 'object' && v.targetGraveyardCount) { const tp = firstPlayer(); return tp ? ((this.zones[tp.id] || {}).graveyard || []).length : 0; }
-        if (v && typeof v === 'object' && v.commanderCasts) {
-          const cc = (me && me.commanderCasts) || {};
-          return Object.values(cc).reduce((k, x) => k + (Number(x) || 0), 0) * (v.mult || 1);
-        }
+        if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
@@ -22834,7 +22871,7 @@
           attacking: o.attacking, blocking: o.blocking.slice(), blockedBy: o.blockedBy.slice(),
           blockOrder: o.blockOrder.slice(), removedFromCombat: o.removedFromCombat, blockedNoBlocker: o.blockedNoBlocker || null,
           chosenX: o.chosenX, targets: JSON.parse(JSON.stringify(o.targets || [])),
-          manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander,
+          manualNote: o.manualNote, revealedTo: o.revealedTo, isCommander: !!o.isCommander, isSignature: !!o.isSignature,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
           shields: o.shields || 0, preventShield: o.preventShield || 0,
           noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || null,
@@ -23233,6 +23270,8 @@
         blockedNoBlocker: !!o.blockedNoBlocker,
         effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
+        // Oathbreaker: the Signature Spell waiting in the command zone (said only of that one card)
+        isSignature: o.isSignature ? true : undefined,
         // what it chose as it entered: a creature type, a colour, a card name, a player, a number
         chosen: o.zone !== 'battlefield' || secret(o) ? null : (() => {
           const c = {};
