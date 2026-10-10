@@ -175,6 +175,77 @@ function device(name, broker, opts) {
     get code() { return hub.code; },
   };
 }
+/* A device with the windows too: the interface modules on a pretend DOM
+   (tools/fakedom.js), the app itself stood in for by a few functions. */
+const UI_MODULES = ['00-core.js', '09-net.js', '10c-economy.js', '09c-friends.js', '09d-trade.js', '09e-move.js',
+  '10-ui-core.js', '10b-ui-avatar.js', '10g-ui-social.js', '10h-ui-trade.js'];
+const UI_CODE = UI_MODULES.map(f => [f, SRC(f)]);
+function uiDevice(name, broker, opts) {
+  opts = opts || {};
+  const { Document } = require('./fakedom');
+  const store = new Map();
+  const doc = new Document();
+  const timers = [];
+  const ctx = {
+    console, setTimeout, clearTimeout, clearInterval, TextEncoder, performance, URLSearchParams,
+    setInterval: (f, ms) => { const t = setInterval(f, ms); timers.push(t); return t; },
+    crypto: nodeCrypto.webcrypto, unescape, encodeURIComponent, document: doc, Blob: class {},
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k), key: (i) => Array.from(store.keys())[i], get length() { return store.size; },
+    },
+    location: { search: opts.search || '', pathname: '/play/', origin: 'https://example.com', hash: '', href: 'https://example.com/play/' + (opts.search || '') },
+    history: { state: null, replaceState(s, t, url) { ctx.location.search = String(url).includes('?') ? String(url).slice(String(url).indexOf('?')) : ''; } },
+    navigator: {}, innerWidth: 1440, innerHeight: 900, CSS: { escape: (s) => s },
+    addEventListener() {}, removeEventListener() {}, requestAnimationFrame: (f) => setTimeout(f, 0), cancelAnimationFrame: clearTimeout,
+  };
+  ctx.window = ctx;
+  ctx.Peer = broker.makePeerClass();
+  vm.createContext(ctx);
+  const run = (file, code) => vm.runInContext(code, ctx, { filename: file });
+  run('00-core.js', UI_CODE[0][1]);
+  const MTG = ctx.MTG;
+  MTG.sfx = () => {};
+  MTG.formats = { get: () => ({ name: 'Commander' }) };
+  MTG.scry = {
+    imageUrl: () => '', forgetArt() {},
+    byId: async () => null,
+    byName: async (n) => ({ name: n, id: uuid(n), type_line: 'Instant' }),
+    collection: async (ids) => ({ cards: ids.map(i => (i.name ? { name: i.name, id: uuid(i.name) } : null)) }),
+  };
+  for (const [file, code] of UI_CODE.slice(1)) run(file, code);
+  MTG.settings.playerName = opts.unnamed ? '' : name;
+  MTG.economy.state.col = {};
+  MTG.economy.save();
+  const decks = [];
+  MTG.decks = {
+    index: () => decks.map((d, i) => ({ id: 'd' + i, name: d.name })),
+    load: async (id) => { const d = decks[+id.slice(1)]; return { main: d.cards.map(([n, q]) => ({ card: { name: n }, qty: q })), sideboard: [], commanders: [] }; },
+  };
+  const app = MTG.app = {
+    screen: 'home', myName: name, joined: [], loaded: null,
+    joinRoom(code) { app.joined.push(code); },
+    async exitToMenu() { app.screen = 'home'; },
+    leaveGame() { app.screen = 'home'; },
+    profileDoc: () => { const data = {}; for (const [k, v] of store) if (k.startsWith('mtgtable.')) data[k] = v; return { app: 'mtg-table', kind: 'profile', v: 1, at: new Date().toISOString(), data }; },
+    async loadProfileDoc(d, o) { app.loaded = d; if (o && o.before) await o.before(); return true; },
+  };
+  const all = (sel) => doc.querySelectorAll(sel);
+  return {
+    name, ctx, MTG, doc, store, app, all, timers, decks,
+    own(cards) { const col = MTG.economy.state.col; for (const [n, k, r] of cards) col[n] = { n: k, r: r || 'common', s: 'tst', id: uuid(n) }; MTG.economy.save(); },
+    count: (n) => { const e = MTG.economy.state.col[n]; return e ? e.n : 0; },
+    /** The button whose words are `text`, inside `root` (a selector or a node), the last one found. */
+    button(text, root) {
+      const host = typeof root === 'string' ? doc.querySelectorAll(root).pop() : (root || doc);
+      if (!host) return null;
+      const list = host.querySelectorAll('button').filter(b => b.textContent.trim() === text);
+      return list[list.length - 1] || null;
+    },
+    /** The last window open. */
+    top: () => all('.modal').pop() || null,
+  };
+}
 const uuid = (s) => { const h = nodeCrypto.createHash('md5').update(s).digest('hex'); return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20, 32)}`; };
 const entryOf = (d, code) => d.hub.entries().find(e => e.code === code);
 const stored = (d) => JSON.parse(d.store.get('mtgtable.friends') || '{}');
@@ -576,6 +647,165 @@ async function main() {
     !M.checkDoc({ app: 'mtg-table', kind: 'profile', data: { 'mtgtable.x': 5 } }).ok && M.checkDoc(doc()).ok, 'only a real save is accepted');
 
   for (const d of [ann, ben, cat, dan, eve, fay]) d.hub.stop();
+
+  /* ---------------- the windows, clicked through ---------------- */
+  const ub = new Broker();
+  const uma = uiDevice('Uma', ub), vic = uiDevice('Vic', ub, { unnamed: true });
+  for (const d of [uma, vic]) d.MTG.bus.emit('app:ready');
+  await until(() => uma.MTG.friends.status === 'online' && vic.MTG.friends.status === 'online', 2000, 'both windows’ hubs reach the broker');
+  const chip = uma.MTG.ui.friendsChip();
+  uma.doc.body.appendChild(chip);
+  uma.MTG.ui.openFriends();
+  check(!!uma.doc.querySelector('.friends-modal .fr-code'), 'the Friends window shows your code');
+  check(uma.doc.querySelector('.fr-code').textContent === FC.formatCode(uma.MTG.friends.code), 'in two halves');
+  check(/No friends yet/.test(uma.doc.querySelector('.fr-lists').textContent), 'and says there is nobody yet');
+  uma.doc.querySelector('#fr-add').value = 'not a code';
+  uma.button('Add', '.fr-add').click();
+  check(uma.doc.querySelector('.fr-add-msg').classList.contains('bad'), 'a bad code is explained under the box');
+  uma.doc.querySelector('#fr-add').value = FC.formatCode(vic.MTG.friends.code).toLowerCase();
+  uma.button('Add', '.fr-add').click();
+  check(/Asked/.test(uma.doc.querySelector('.fr-add-msg').textContent), 'adding says it is asked');
+  await until(() => vic.doc.querySelector('.social-note'), 2000, 'Vic gets a note about the request');
+  check(/Uma wants to be friends/.test(vic.doc.querySelector('.social-note').textContent), 'which says who');
+  await until(() => /Asked/.test(uma.doc.querySelector('.fr-lists').textContent), 1000, 'Uma’s list shows the request she made');
+  vic.button('Accept', '.social-note').click();
+  await until(() => uma.MTG.friends.isOnline(vic.MTG.friends.code) && vic.MTG.friends.isOnline(uma.MTG.friends.code), 2000, 'the note’s Accept makes them friends');
+  await until(() => chip.querySelector('.fc-n').textContent === '1', 1000, 'the chip counts one friend online');
+  await until(() => uma.button('Trade', '.fr-lists'), 1000, 'Uma’s list has a Trade button by Vic');
+  check(/Online/.test(uma.doc.querySelector('.fr-row.p-online').textContent), 'shown as online');
+
+  // a trade, all by the buttons
+  uma.own([['Lightning Bolt', 3, 'common']]);
+  vic.own([['Counterspell', 2, 'uncommon']]);
+  uma.button('Trade', '.fr-lists').click();
+  check(!!uma.doc.querySelector('.trade-modal'), 'the trade window opens');
+  check(/Waiting for Vic/.test(uma.doc.querySelector('.tr-status').textContent), 'waiting for Vic to say yes');
+  await until(() => vic.button('Open', '.social-note'), 2000, 'Vic is asked, in a note');
+  vic.button('Open', '.social-note').click();
+  check(!!vic.doc.querySelector('.trade-modal'), 'Vic’s trade window opens');
+  await until(() => uma.doc.querySelectorAll('.trade-modal .tr-row').length && vic.doc.querySelectorAll('.trade-modal .tr-row').length, 3000, 'both see the other’s binder');
+  check(/Counterspell/.test(uma.doc.querySelector('.tr-list').textContent), 'Uma sees Vic’s Counterspells');
+  uma.doc.querySelector('.tr-row .tr-add').click();
+  await until(() => /Counterspell/.test(vic.doc.querySelector('.tr-half.give').textContent), 2000, 'what Uma asks for shows on Vic’s side as his to give');
+  vic.doc.querySelector('.tr-row .tr-add').click();
+  await until(() => /Lightning Bolt/.test(uma.doc.querySelector('.tr-half.give').textContent), 2000, 'and what Vic asks for on Uma’s');
+  uma.doc.querySelector('.trade-modal .modal-foot .btn.primary').click();
+  await until(() => /Uma confirmed/.test(vic.doc.querySelector('.tr-status').textContent), 2000, 'Vic is told Uma confirmed');
+  vic.button('Confirm trade', '.trade-modal').click();
+  await until(() => /Done/.test(uma.doc.querySelector('.tr-status').textContent) && /Done/.test(vic.doc.querySelector('.tr-status').textContent), 3000, 'both windows say it is done');
+  check(uma.count('Lightning Bolt') === 2 && uma.count('Counterspell') === 1 && vic.count('Counterspell') === 1 && vic.count('Lightning Bolt') === 1, 'and the cards moved');
+  const words = (d) => d.doc.body.textContent;
+  check(!/\bnull\b|\bundefined\b|NaN|\[object/.test(words(uma) + words(vic)), 'no "null", "undefined" or "NaN" anywhere on screen');
+  uma.button('Close', '.trade-modal').click();
+  vic.button('Close', '.trade-modal').click();
+  check(!uma.doc.querySelector('.trade-modal'), 'the window closes');
+
+  // Vic asks this time; Uma lets the note go, and opens the trade from her list instead
+  uma.decks.push({ name: 'Burn', cards: [['Lightning Bolt', 4]] });
+  vic.MTG.ui.tradeWith(uma.MTG.friends.code);
+  await until(() => uma.doc.querySelector('.social-note .sn-x') && /wants to trade/.test(uma.doc.querySelector('#social-notes').textContent), 2000, 'Uma is asked');
+  uma.doc.querySelectorAll('.social-note .sn-x').pop().click();
+  await until(() => /Wants to trade/.test(uma.doc.querySelector('.fr-lists').textContent), 1000, 'her list shows the trade waiting for her');
+  uma.button('Open', '.fr-section.invites').click();
+  await until(() => uma.doc.querySelector('.trade-modal') && uma.doc.querySelectorAll('.trade-modal .tr-row').length, 3000, 'opening it from there opens the trade');
+  uma.doc.querySelectorAll('.trade-modal .tr-tabs .seg-btn')[1].click();
+  await until(() => /Lightning Bolt/.test(uma.doc.querySelector('.tr-list').textContent), 1000, 'her own cards are a tab away');
+  check(/decks use 4/.test(uma.doc.querySelector('.tr-list').textContent), 'marked as used by her decks');
+  uma.doc.querySelectorAll('.trade-modal .tr-row').find(r => /Lightning Bolt/.test(r.textContent)).querySelector('.tr-add').click();
+  await until(() => uma.doc.querySelector('.trade-modal .tr-warn'), 2000, 'giving a card a deck uses is warned about beside it');
+  check(/Burn uses 4; you would keep 1/.test(uma.doc.querySelector('.tr-warn').textContent), 'in so many words');
+  uma.button('Confirm trade', '.trade-modal').click();
+  await until(() => uma.button('Keep them'), 1000, 'and again on confirming');
+  uma.button('Keep them').click();
+  await sleep(30);
+  check(!uma.MTG.trade.iConfirmed(uma.MTG.trade.current()), 'Keep them does not confirm');
+  uma.button('Confirm trade', '.trade-modal').click();
+  await until(() => uma.button('Trade anyway'), 1000);
+  uma.button('Trade anyway').click();
+  await until(() => uma.MTG.trade.iConfirmed(uma.MTG.trade.current()), 1000, 'Trade anyway does');
+  await until(() => uma.button('Change my mind', '.trade-modal'), 1000, 'and the button offers to take it back');
+  vic.button('Cancel trade', '.trade-modal').click();
+  await until(() => /Vic closed the trade/.test(uma.doc.querySelector('.tr-status').textContent), 2000, 'Uma sees Vic closed it');
+  check(uma.count('Lightning Bolt') === 2 && !uma.MTG.trade.pending().length, 'nothing moved, and nothing is owed');
+  uma.button('Close', '.trade-modal').click();
+
+  // Remove and Block are behind the row's More button, and stay open while the list is drawn again
+  uma.doc.querySelector('.fr-section.friends .fr-row .icon-only').click();
+  check(!!uma.doc.querySelector('.fr-more'), 'More shows Remove and Block');
+  uma.MTG.friends.emit('change');
+  await sleep(80);
+  check(!!uma.doc.querySelector('.fr-more'), 'and they are still there after the list is drawn again');
+  uma.doc.querySelector('.fr-section.friends .fr-row .icon-only').click();
+  check(!uma.doc.querySelector('.fr-more'), 'More again puts them away');
+
+  // the other tabs
+  uma.button('Trades', '.friends-modal').click();
+  check(/Traded with Vic/.test(uma.doc.querySelector('.th-list').textContent), 'the Trades tab lists it');
+  uma.button('Wishlist', '.friends-modal').click();
+  check(/Nothing on your wishlist/.test(uma.doc.querySelector('.wl-list').textContent), 'the Wishlist tab starts empty');
+  const want = uma.MTG.ui.wishButton({ name: 'Black Lotus', id: uuid('Black Lotus'), rarity: 'rare', set: 'lea' });
+  uma.doc.body.appendChild(want);
+  want.click();
+  check(want.textContent === 'Wanted' && want.getAttribute('aria-pressed') === 'true', 'Want becomes Wanted');
+  await until(() => /Black Lotus/.test(uma.doc.querySelector('.wl-list').textContent), 1000, 'and the wishlist shows it');
+  check(uma.MTG.ui.wishButton({ name: 'Island', type_line: 'Basic Land' }) === null && uma.MTG.ui.wishButton({ name: 'Goblin', layout: 'token' }) === null, 'no Want on a basic land or a token');
+  uma.button('Remove', '.wl-list').click();
+  await until(() => /Nothing on your wishlist/.test(uma.doc.querySelector('.wl-list').textContent), 1000, 'Remove takes it off');
+  uma.button('Friends', '.friends-modal .fr-tabs').click();
+  check(!/\bnull\b|\bundefined\b|NaN|\[object/.test(words(uma)), 'nor in the Friends window after its tabs');
+
+  // an invite from a lobby, joined from the note (Vic has no name yet: he is asked for one)
+  const row = uma.MTG.ui.lobbyInvites({ fmt: 'Commander', onOpened: () => {} });
+  uma.doc.body.appendChild(row);
+  check(/1 online/.test(row.textContent), 'the lobby shows a friend online');
+  uma.button('Invite friends', row).click();
+  await until(() => uma.doc.querySelector('.invite-modal'), 2000, 'a room opens and the invite window with it');
+  const room = uma.MTG.net.roomCode;
+  check(/^[A-HJ-NP-Z2-9]{5}$/.test(room || ''), 'with a room code');
+  uma.button('Invite', '.invite-modal').click();
+  await until(() => vic.button('Join', '.social-note'), 2000, 'Vic gets the invite');
+  check(new RegExp('room ' + room).test(vic.doc.querySelector('.social-note').textContent), 'naming the room');
+  vic.button('Join', '.social-note').click();
+  await until(() => vic.doc.querySelector('.prompt-input'), 1000, 'Vic, with no name yet, is asked for one');
+  vic.doc.querySelector('.prompt-input').value = 'Victor';
+  vic.button('OK').click();
+  await until(() => vic.app.joined.length, 1000, 'and then joins');
+  check(vic.app.joined[0] === room && vic.MTG.settings.playerName === 'Victor', 'the right room, under his new name');
+  uma.button('Copy invite link', row).click();
+  await until(() => uma.doc.copied.length, 1000);
+  check(uma.doc.copied.pop() === 'https://example.com/play/?room=' + room, 'the invite link is the room on this page');
+  uma.MTG.net.destroy();
+
+  // moving a save, from Options
+  const sendRow = uma.MTG.ui.moveSaveRow(), recvRow = vic.MTG.ui.moveSaveRow();
+  uma.doc.body.appendChild(sendRow); vic.doc.body.appendChild(recvRow);
+  uma.button('Send…', sendRow).click();
+  await until(() => /^[A-HJ-NP-Z2-9]{3}-[A-HJ-NP-Z2-9]{3}$/.test((uma.doc.querySelector('.move-code') || {}).textContent || ''), 2000, 'the sender shows a code');
+  vic.button('Receive…', recvRow).click();
+  vic.doc.querySelector('.move-input').value = 'nonsense';
+  vic.button('Connect', '.move-modal').click();
+  check(vic.doc.querySelector('.move-say').classList.contains('bad'), 'a code that cannot be one is explained');
+  vic.doc.querySelector('.move-input').value = uma.doc.querySelector('.move-code').textContent.toLowerCase();
+  vic.button('Connect', '.move-modal').click();
+  await until(() => vic.app.loaded, 3000, 'the save arrives and is offered to load');
+  check(vic.app.loaded.data['mtgtable.settings.v1'] === uma.store.get('mtgtable.settings.v1'), 'Uma’s save, as it is');
+  await until(() => /Done/.test(uma.doc.querySelector('.move-say').textContent), 2000, 'the sender is told it was taken');
+  check(uma.MTG.friends.status === 'off', 'and stops answering for the friend code it gave away');
+
+  // a friend link opens the app ready to ask
+  const wen = uiDevice('Wen', ub, { search: '?friend=' + FC.formatCode(vic.MTG.friends.code) });
+  wen.MTG.bus.emit('app:ready');
+  await until(() => wen.button('Ask'), 2000, 'a friend link asks whether to send a request');
+  check(wen.ctx.location.search === '', 'and is taken out of the address');
+  wen.button('Ask').click();
+  await until(() => wen.MTG.friends.entries().some(e => e.code === vic.MTG.friends.code && e.state === 'out'), 1000, 'Ask sends it');
+  await until(() => vic.MTG.friends.counts().requests === 1, 2000, 'and it reaches Vic');
+  const room2 = uiDevice('Xan', ub, { search: '?room=abcde' });
+  room2.MTG.bus.emit('app:ready');
+  await until(() => room2.app.joined.length, 2000, 'an invite link joins the room it names');
+  check(room2.app.joined[0] === 'ABCDE', 'that room');
+
+  for (const d of [uma, vic, wen, room2]) { d.MTG.friends.stop(); d.timers.forEach(clearInterval); }
   console.log(`social: ${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 }
