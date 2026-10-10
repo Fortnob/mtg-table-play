@@ -8355,6 +8355,12 @@
         let more = 0;
         if (/^When/i.test(next)) {
           while (/^(?:It|That creature|Its) /.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+        } else if (/\bcreate\b[^.]*\btokens?\b/i.test(thenText)) {
+          /* Inalla: "If you do, create a token that's a copy of that Wizard.
+             The token gains haste. Exile it at the beginning of the next end
+             step." — what is said of the token only happens if it was made */
+          while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
+            /^Exile (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         }
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
@@ -10746,6 +10752,16 @@
         }
         // Speedway Fanatic: "that Vehicle" is the creature it crewed
         if (trig.event === 'crewsVehicle') body = body.replace(/\bthat Vehicle\b/g, 'that creature');
+        /* Inalla, Archmage Ritualist: "Whenever another nontoken Wizard you
+           control enters, … a copy of that Wizard" — the creature the
+           trigger is about, by the type it was watched for */
+        if (objFilter && objFilter.words && trig.event === 'permEnters') {
+          for (const w of String(objFilter.words).split(/\s+/)) {
+            // (a creature type: not Hammer of Nazahn's "that Equipment", nor an Aura, a Vehicle, a Food)
+            if (!/^[a-z][a-z'-]+$/.test(w) || /^(?:creature|permanent|nontoken|token|artifact|enchantment|land|planeswalker|another|equipment|aura|vehicle|treasure|food|clue|blood|map|saga|class|room|curse|role|case|shrine|background|fortification|mount|spacecraft|planet)$/.test(w)) continue;
+            body = body.replace(new RegExp('\\bthat ' + w.charAt(0).toUpperCase() + w.slice(1) + '\\b', 'g'), 'that creature');
+          }
+        }
         if (trig.event === 'selfToGraveyard') body = body.replace(/^(you may )?put it onto the battlefield\.?$/i, (x, may) => (may ? 'you may ' : '') + 'return CARDNAME from your graveyard to the battlefield.');
         /* "This ability triggers only once each turn." is about the
            trigger, not something it does. */

@@ -19295,4 +19295,25 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.eq(T.zone('A', 'graveyard').length, 1, 'drew one and discarded one');
   });
+
+  test('Eminence: Inalla copies a Wizard that enters, for {1}, from the command zone; the copy has haste and is exiled at end of turn', (mk, t) => {
+    t.auto('Inalla, Archmage Ritualist');
+    const T = mk();
+    T.toMain('A');
+    const ina = T.put('A', 'Inalla, Archmage Ritualist', 'command'); ina.isCommander = true;
+    const copies = () => T.g.battlefield.filter(o => o.isToken && o.name === 'Prodigal Sorcerer');
+    T.answer('confirm', { yes: false });
+    T.put('A', 'Prodigal Sorcerer', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(copies().length, 0, 'not paid: no copy');
+    T.answer('confirm', { yes: true });
+    T.mana('A', '1');
+    T.put('A', 'Prodigal Sorcerer', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(copies().length, 1, 'paid: a copy');
+    t.ok(T.g.hasKw(copies()[0], 'haste'), 'with haste');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(copies().length, 0, 'exiled at the end step');
+  });
 };
