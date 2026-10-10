@@ -17944,4 +17944,28 @@ module.exports = (test) => {
       t.eq(T.life('B'), flier ? 20 : 17, flier ? 'A declined {4}: countered' : 'A paid {1}: the bolt resolves');
     }
   });
+
+  test('All-Fates Scroll: draw X, X the differently named lands you control; Gimbal: differently named artifact tokens', (mk, t) => {
+    t.auto('All-Fates Scroll');
+    t.auto('Gimbal, Gremlin Prodigy');
+    t.auto('Emil, Vastlands Roamer');
+    const T = mk();
+    T.toMain('A');
+    const sc = T.bf('A', 'All-Fates Scroll');
+    T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.bf('A', 'Island'); T.bf('A', 'Swamp');
+    for (let i = 0; i < 6; i++) T.top('A', 'Plains');
+    const h = T.zone('A', 'hand').length;
+    T.mana('A', '7');
+    T.activate('A', sc, 1);
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, h + 3, 'Forest, Island, Swamp: three names');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Gimbal, Gremlin Prodigy');
+    U.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }, { op: 'createNamedToken', n: 1, token: 'Clue' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    U.toMain('A', 'end'); U.settle(); U.resolve(); U.settle();
+    const gr = U.g.battlefield.find(o => o.isToken && /Gremlin/.test(o.name));
+    t.ok(gr, 'a Gremlin');
+    t.eq(gr && (gr.counters['+1/+1'] || 0), 3, 'Treasure, Clue and the Gremlin itself: three names');
+  });
 };

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11126,
+  "needed": 11123,
   "gainedCards": 1121,
-  "linesNeeded": 11898,
+  "linesNeeded": 11895,
   "linesGained": 1321,
   "gained": {
    "all": 1121,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4147,
-   "lines": 3898,
+   "score": 4146,
+   "lines": 3897,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -4374,18 +4374,6 @@
    ]
   },
   {
-   "what": "activated with 0 effects in its constructor",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Voyager Staff",
-    "Emil, Vastlands Roamer",
-    "Geometric Nexus",
-    "Chromium, the Mutable",
-    "Kianne, Dean of Substance // Imbraham, Dean of Theory"
-   ]
-  },
-  {
    "what": "TapEnchantedEffect",
    "score": 5,
    "lines": 5,
@@ -5478,6 +5466,17 @@
     "Dungeon Delver",
     "Acolyte of Bahamut",
     "Scion of Halaster"
+   ]
+  },
+  {
+   "what": "activated with 0 effects in its constructor",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Voyager Staff",
+    "Geometric Nexus",
+    "Chromium, the Mutable",
+    "Kianne, Dean of Substance // Imbraham, Dean of Theory"
    ]
   },
   {
@@ -6617,8 +6616,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3455,
-   "cards": 3287,
+   "score": 3454,
+   "cards": 3286,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
