@@ -9006,6 +9006,14 @@
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
         case 'untapped': ev.untapped = true; break;
+        // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
+        case 'countersOnSelf': {
+          const k = ef.perDamage ? (ev.n || 0) : (ef.n || 1);
+          if (!((ev.n || 0) > 0)) break;
+          ev.n = 0; ev.cancelled = true;
+          if (src.zone === 'battlefield') this.addCounters(src, ef.counterKind, k);
+          break;
+        }
         default: break;
       }
     }
@@ -10567,6 +10575,8 @@
         return this.dealDamageToObject(to, amount, source, combat);
       }
       amount = this._damageAmount(amount, source, p.id, combat, true);
+      // all of it replaced or prevented (Nine Lives, Force Bubble): no damage is dealt
+      if (amount <= 0) return 0;
       if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
       if (source && !this._noPrevention(combat) && this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t))) {
         this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
@@ -18685,6 +18695,10 @@
         case 'sacSelfThen':
           if (src && src.zone === 'battlefield') { this._sacrificeNow(ctx.controller, [src]); this._spliceNext(e.then || []); }
           break;
+        // Mazemind Tome: "exile it. If you do, you gain 4 life."
+        case 'exileSelfThen':
+          if (src && src.zone === 'battlefield') { this.moveObject(src, 'exile'); this._spliceNext(e.then || []); }
+          break;
         // The Celestus: night becomes day, and anything else becomes night
         case 'flipDayNight': this.setDayNight(this.isDay === false, src ? src.name : null); break;
         case 'setDayNight': this.setDayNight(!!e.day, src ? src.name : null); break;
@@ -21432,7 +21446,10 @@
              writing a permanent that depends on your having the land. */
           // Dark Depths: a state trigger, put on the stack once while it holds
           const stt = this._staticOp(o, 'stateTrigger');
-          if (stt && o.zone === 'battlefield' && stt.noCounter && !(Number(o.counters[stt.noCounter]) > 0) &&
+          // (Mazemind Tome, Darksteel Reactor: or once it has enough of a kind)
+          const sttOn = stt && (stt.noCounter ? !(Number(o.counters[stt.noCounter]) > 0)
+            : stt.minCounter ? (Number(o.counters[stt.minCounter.kind]) || 0) >= stt.minCounter.n : false);
+          if (sttOn && o.zone === 'battlefield' &&
               !this.pendingTriggers.concat(this.stack).some(x => x && x.objId === o.id && x.stateTrigger)) {
             this.pendingTriggers.push({
               id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, stateTrigger: true,

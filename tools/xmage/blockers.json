@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11035,
+  "needed": 11030,
   "gainedCards": 1090,
-  "linesNeeded": 11792,
+  "linesNeeded": 11781,
   "linesGained": 1283,
   "gained": {
    "all": 1090,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4126,
-   "lines": 3877,
+   "score": 4123,
+   "lines": 3874,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 704,
-   "lines": 644,
+   "score": 698,
+   "lines": 638,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -4645,18 +4645,6 @@
    ]
   },
   {
-   "what": "RemoveAllCountersSourceEffect",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Witherscale Wurm",
-    "Blood Hound",
-    "Force Bubble",
-    "Energy Vortex",
-    "Discordant Spirit"
-   ]
-  },
-  {
    "what": "TargetActivatedAbility",
    "score": 5,
    "lines": 5,
@@ -6601,13 +6589,23 @@
     "Niv-Mizzet, Guildpact",
     "Niv-Mizzet, Supreme"
    ]
+  },
+  {
+   "what": "TargetSpellOrPermanent",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Eight-and-a-Half-Tails",
+    "Blind Seer",
+    "Illusion // Reality"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3437,
-   "cards": 3269,
+   "score": 3439,
+   "cards": 3271,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6619,8 +6617,8 @@
   },
   {
    "what": "custom ability",
-   "score": 544,
-   "cards": 499,
+   "score": 541,
+   "cards": 496,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",

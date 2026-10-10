@@ -18457,4 +18457,95 @@ module.exports = (test) => {
     t.eq(k1.impulseBy, 'A', 'the Bolt can be played from exile');
     t.ok(k1.impulseUntil > T.g.turn, 'until the end of your next turn');
   });
+
+  test('Mazemind Tome: the fourth page counter exiles it and you gain 4 life', (mk, t) => {
+    t.auto('Mazemind Tome');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const mt = T.bf('A', 'Mazemind Tome', { counters: { page: 3 } });
+    const life = T.g.player('A').life;
+    T.mana('A', '2');
+    T.activate('A', mt, 1);
+    T.settle();
+    t.zone(mt, 'exile');
+    t.eq(T.g.player('A').life, life + 4, '4 life');
+    t.eq(T.zone('A', 'hand').length, 1, 'and the card drawn');
+  });
+
+  test('Darksteel Reactor: twenty charge counters win the game, nineteen do not', (mk, t) => {
+    t.auto('Darksteel Reactor');
+    const T = mk();
+    T.toMain('A');
+    const dr = T.bf('A', 'Darksteel Reactor', { counters: { charge: 19 } });
+    T.g.checkStateBasedActions(); T.resolve();
+    t.no(T.g.player('B').hasLost, 'nineteen is not enough');
+    T.g.addCounters(dr, 'charge', 1);
+    T.g.checkStateBasedActions(); T.resolve();
+    t.ok(T.g.player('B').hasLost, 'twenty wins');
+  });
+
+  test('Nine Lives: damage to you is prevented and counted; the ninth counter exiles it and you lose', (mk, t) => {
+    t.auto('Nine Lives');
+    const T = mk();
+    T.toMain('A');
+    const nl = T.bf('A', 'Nine Lives', { counters: { incarnation: 7 } });
+    const life = T.g.player('A').life;
+    T.mana('B', 'R');
+    T.g.passPriority('A', true);
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: ['A'] });
+    T.settle();
+    t.eq(T.g.player('A').life, life, 'the Bolt prevented');
+    t.eq(nl.counters.incarnation, 8, 'an incarnation counter');
+    t.no(T.g.player('A').hasLost, 'still in at eight');
+    T.g.dealDamageToPlayer(T.g.player('A'), 2, T.bf('B', 'Grizzly Bears'), false);
+    T.g.checkStateBasedActions(); T.resolve();
+    t.zone(nl, 'exile');
+    t.ok(T.g.player('A').hasLost, 'leaving the battlefield loses the game');
+  });
+
+  test('Force Bubble: damage becomes depletion counters, four sacrifice it, and the end step clears them', (mk, t) => {
+    t.auto('Force Bubble');
+    const T = mk();
+    T.toMain('A');
+    const fb = T.bf('A', 'Force Bubble');
+    const life = T.g.player('A').life;
+    const src = T.bf('B', 'Grizzly Bears');
+    T.g.dealDamageToPlayer(T.g.player('A'), 3, src, false);
+    T.settle();
+    t.eq(T.g.player('A').life, life, 'no life lost');
+    t.eq(fb.counters.depletion, 3, 'three depletion counters');
+    T.toMain('A', 'end');
+    T.settle();
+    t.no(fb.counters.depletion, 'removed at the end step');
+    T.g.dealDamageToPlayer(T.g.player('A'), 5, src, false);
+    T.g.checkStateBasedActions(); T.resolve();
+    t.eq(T.g.player('A').life, life, 'all five turned into counters');
+    t.zone(fb, 'graveyard');
+  });
+
+  test('Plague Boiler: the third plague counter sacrifices it and destroys every nonland permanent', (mk, t) => {
+    const T = mk();
+    T.toMain('A');
+    const pb = T.bf('A', 'Plague Boiler', { counters: { plague: 2 } });
+    const bears = T.bf('B', 'Grizzly Bears');
+    const land = T.bf('B', 'Forest');
+    T.g.addCounters(pb, 'plague', 1);
+    T.g.checkStateBasedActions(); T.resolve();
+    t.zone(pb, 'graveyard'); t.zone(bears, 'graveyard'); t.zone(land, 'battlefield');
+  });
+
+  test('Deadly Designs: the fifth plot counter, from anyone, sacrifices it and destroys up to two target creatures', (mk, t) => {
+    t.auto('Deadly Designs');
+    const T = mk();
+    T.toMain('A');
+    const dd = T.bf('A', 'Deadly Designs', { counters: { plot: 4 } });
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Hill Giant'), mine = T.bf('A', 'Llanowar Elves');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: b1.id }, { kind: 'object', id: b2.id }] }));
+    T.g.passPriority('A', true);
+    T.mana('B', '2');
+    T.activate('B', dd, 0);
+    T.resolve();
+    t.zone(dd, 'graveyard'); t.zone(b1, 'graveyard'); t.zone(b2, 'graveyard'); t.zone(mine, 'battlefield');
+  });
 };

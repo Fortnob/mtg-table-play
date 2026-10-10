@@ -3515,6 +3515,9 @@
 
     /* ===== what an aura or equipment is stuck to ===== */
     { re: /^Tap (enchanted|equipped) (?:creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'tap', scope: 'attached' }) },
+    // Force Bubble: "Remove all depletion counters from this enchantment."
+    { re: /^Remove all ([a-z]+) counters from (?:this (?:land|artifact|enchantment|permanent|creature)|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[1].toLowerCase(), mult: -1 }, scope: 'self' }) },
     // River Delta: "Remove a depletion counter from this land."
     { re: /^Remove an? ([a-z+\-0-9/]+) counter from (?:this (?:land|artifact|enchantment|permanent|creature)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: -1, scope: 'self' }) },
@@ -12903,6 +12906,14 @@
     // Gisela, Blade of Goldnight: double to opponents and theirs, half (rounded down) to you and yours
     { re: /^If a source would deal damage to an opponent or a permanent an opponent controls, that source deals double that damage to that player or permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgdoubleOpp', event: 'damage', who: 'any', how: 'double', toOpponent: true }) },
+    // Nine Lives: "prevent that damage and put an incarnation counter on this enchantment"
+    { re: /^If a source would deal damage to you, prevent that damage and put an? ([a-z]+) counter on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME)\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgToCounters', event: 'damage', who: 'any', how: 'countersOnSelf', counterKind: m[1].toLowerCase(), n: 1,
+        toYou: true, toPlayerOnly: true, prevention: true }) },
+    // Force Bubble: "If damage would be dealt to you, put that many depletion counters on this enchantment instead."
+    { re: /^If damage would be dealt to you, put that many ([a-z]+) counters on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgToCounters', event: 'damage', who: 'any', how: 'countersOnSelf', counterKind: m[1].toLowerCase(), perDamage: true,
+        toYou: true, toPlayerOnly: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -13932,6 +13943,28 @@
         make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
           effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
             legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      /* Mazemind Tome, Darksteel Reactor, Nine Lives, Force Bubble: the same
+         kind of state trigger on a pile of counters. Once there are enough it
+         goes on the stack, and not again while that one is waiting */
+      { re: /^When (?:there are (\w+) or more ([a-z]+) counters on (?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME)|(?:this (?:artifact|enchantment|creature|permanent|land)|CARDNAME) has (\w+) or more ([a-z]+) counters on it), (.+)$/i,
+        make: (m) => {
+          const k = num((m[1] || m[3]).toLowerCase());
+          const kind = (m[2] || m[4]).toLowerCase();
+          if (!(typeof k === 'number' && k > 0)) return null;
+          const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+          let effects;
+          const self = m[5].match(/^(exile|sacrifice) it\.(?: If you do, (.+))?$/i);
+          if (self) {
+            let then = [];
+            if (self[2]) { const p = parseEffects(cap(self[2])); if (!p.auto) return null; then = p.effects; }
+            effects = [{ op: /^exile/i.test(self[1]) ? 'exileSelfThen' : 'sacSelfThen', then }];
+          } else {
+            const p = parseEffects(cap(m[5]));
+            if (!p.auto) return null;
+            effects = p.effects;
+          }
+          return { op: 'stateTrigger', minCounter: { kind, n: k }, label: k + ' or more ' + kind + ' counters', effects };
+        }, auto: true },
       // K'rrik, Son of Yawgmoth
       { re: /^For each \{B\} in a cost, you may pay 2 life rather than pay that mana\.?$/i, eff: { op: 'blackAsLife' }, auto: true },
       // Vigor
