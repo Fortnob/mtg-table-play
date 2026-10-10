@@ -841,6 +841,15 @@ async function main() {
   await until(() => uma.doc.copied.length, 1000);
   check(uma.doc.copied.pop() === 'https://example.com/play/?room=' + room, 'the invite link is the room on this page');
   uma.MTG.net.destroy();
+  // with no room open yet, the tap opens one, and the link waits in a window to be copied with a tap of its own
+  uma.button('Copy invite link', row).click();
+  await until(() => uma.button('Copy link'), 2000, 'a room opens and its link is shown');
+  const room3 = uma.MTG.net.roomCode;
+  check(uma.top().querySelector('.link-box').value === 'https://example.com/play/?room=' + room3, 'the link to that room');
+  uma.button('Copy link').click();
+  await until(() => uma.doc.copied.length, 1000);
+  check(uma.doc.copied.pop() === 'https://example.com/play/?room=' + room3, 'and Copy link copies it');
+  uma.MTG.net.destroy();
 
   // moving a save, from Options
   const sendRow = uma.MTG.ui.moveSaveRow(), recvRow = vic.MTG.ui.moveSaveRow();
