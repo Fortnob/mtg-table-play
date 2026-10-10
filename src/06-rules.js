@@ -14498,6 +14498,15 @@
           }
           break;
         }
+        // Hex Magic: the hand exiled (remembered for "cards exiled this way"), then as many drawn
+        case 'exileHandDraw': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          for (const c of hand) this.moveObject(c, 'exile');
+          this._lastExiledList = hand.map(c => c.id);
+          this.logEvent('exile', `${me.name} exiles their hand (${hand.length}).`);
+          if (hand.length) this._drawCards(me, hand.length);
+          break;
+        }
         // Expansion Algorithm: "Proliferate X times" — that many, one after another
         case 'proliferateTimes': {
           const k = Math.max(0, Math.min(50, n(e.n) || 0));

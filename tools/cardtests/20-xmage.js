@@ -18436,4 +18436,20 @@ module.exports = (test) => {
     t.eq(T.g.battlefield.filter(o => o.controller === 'B' && /Treasure/.test(o.name)).length, 0, "B's Treasures all gone");
     t.eq(T.g.battlefield.filter(o => o.controller === 'A' && /Treasure/.test(o.name)).length, 1, "A's stays");
   });
+
+  test('Hex Magic: the hand exiled, as many drawn, and the exiled cards playable until the end of your next turn', (mk, t) => {
+    t.auto('Hex Magic');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const k1 = T.hand('A', 'Lightning Bolt'), k2 = T.hand('A', 'Forest');
+    const hm = T.hand('A', 'Hex Magic');
+    T.mana('A', 'R2');
+    T.cast('A', hm);
+    T.settle();
+    t.zone(k1, 'exile'); t.zone(k2, 'exile');
+    t.eq(T.zone('A', 'hand').length, 2, 'two drawn for the two exiled');
+    t.eq(k1.impulseBy, 'A', 'the Bolt can be played from exile');
+    t.ok(k1.impulseUntil > T.g.turn, 'until the end of your next turn');
+  });
 };

@@ -2465,6 +2465,8 @@
     { re: /^Untap target creature\. It gains haste until end of turn\.?$/i,
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
+    // Hex Magic: "Exile all the cards from your hand, then draw that many cards."
+    { re: /^Exile (?:all the cards from |all cards from )?your hand, then draw that many cards\.?$/i, make: () => ({ op: 'exileHandDraw' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
     { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
     // Well of Ideas: "that player draws an additional card" — the player whose step it is
