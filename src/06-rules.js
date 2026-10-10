@@ -3076,6 +3076,8 @@
       }
       // Omnath, Locus of Mana: "for each unspent green mana you have" (unspentMana)
       if (v.unspentMana) return this._unspentMana(this.player(pid), v.unspentMana) * mult;
+      // Rakdos, Lord of Riots: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
+      if (v.opponentsLifeLost) return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0) * mult;
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
       if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || w.includes(v.sacrificedThisTurn)).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
@@ -8465,7 +8467,8 @@
       if (A('horsemanship') && !B('horsemanship')) return false;
       if (A('fear') && !(ba.isArtifact || (ba.colors || []).includes('B'))) return false;
       if (A('intimidate') && !(ba.isArtifact || (aa.colors || []).some(c => (ba.colors || []).includes(c)))) return false;
-      if (A('skulk') && this.powerOf(blocker) > this.powerOf(attacker)) return false;
+      // (Locke, Treasure Hunter: "can't be blocked by creatures with greater power" without the keyword — notByGreaterPower)
+      if ((A('skulk') || this._hasFlag(attacker, 'notByGreaterPower')) && this.powerOf(blocker) > this.powerOf(attacker)) return false;
       const walkKinds = (aa.keywords || []).filter(k => k.keyword === 'Landwalk' && k.arg).map(k => String(k.arg).toLowerCase());
       for (const k of (this.characteristics(attacker).keywords || [])) {
         const w = String(k).match(/^(nonbasic land|[a-z]+)walk$/i);
@@ -10926,6 +10929,16 @@
         if (vg) {
           this.addCounters(o, '+1/+1', amount);
           this.logEvent('damage', `${vg.name} prevents ${amount} damage to ${o.name} and puts that many +1/+1 counters on it.`);
+          return 0;
+        }
+      }
+      /* Anti-Venom: "prevent that damage and put that many +1/+1 counters on him"; Phytohydra: "… on it
+         instead" — a replacement, so it works where damage can't be prevented (damageToCounters) */
+      if (o.zone === 'battlefield') {
+        const dc = this._staticOp(o, 'damageToCounters');
+        if (dc && (!dc.prevent || !this._noPrevention(isCombat)) && (!dc.cond || this._condMet(dc.cond, { controller: o.controller, obj: o }))) {
+          this.addCounters(o, '+1/+1', amount);
+          this.logEvent('damage', `${dc.prevent ? amount + ' damage to ' + o.name + ' is prevented, and' : 'Instead of ' + amount + ' damage,'} ${o.name} gets ${amount === 1 ? 'a +1/+1 counter' : amount + ' +1/+1 counters'}.`);
           return 0;
         }
       }
@@ -13656,7 +13669,7 @@
             const picked = this._ask({ type: 'pickCard', playerId: gyOwner.id, count: want, optional: !!e.upTo,
               cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
               // ("a card", not "a card card"; "an artifact card")
-              prompt: `Return ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from your graveyard.` }, 'gy');
+              prompt: `${e.anyGraveyard ? 'Put' : 'Return'} ${want === 1 ? this._aCard(e.filter, 'card') : want + ' ' + this._aCard(e.filter, 'card', true)} from ${e.anyGraveyard ? 'a' : 'your'} graveyard${e.anyGraveyard ? ' onto the battlefield' : ''}.` }, 'gy');
             if (picked === SUSPEND) return SUSPEND;
             ids = (picked || []).filter(id => pool.some(c => c.id === id)).slice(0, want);
           }

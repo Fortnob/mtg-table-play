@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10523,
+  "needed": 10517,
   "gainedCards": 969,
-  "linesNeeded": 11185,
+  "linesNeeded": 11173,
   "linesGained": 1136,
   "gained": {
    "all": 969,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4035,
-   "lines": 3789,
+   "score": 4029,
+   "lines": 3783,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -89,21 +89,21 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 193,
-   "lines": 187,
+   "score": 192,
+   "lines": 186,
    "cards": [
     "Plumb the Forbidden",
     "Emrakul, the Promised End",
     "Not of This World",
     "Chandra's Incinerator",
-    "Bloodsoaked Insight // Sanguine Morass",
     "Rottenmouth Viper",
     "Spirit Water Revival",
     "Notorious Throng",
     "Price of Fame",
     "Shadow of Mortality",
     "The Magic Mirror",
-    "Abhorrent Oculus"
+    "Abhorrent Oculus",
+    "Dig Up"
    ]
   },
   {
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 158,
-   "lines": 146,
+   "score": 157,
+   "lines": 145,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -590,25 +590,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 17,
-   "lines": 17,
-   "cards": [
-    "Azure Beastbinder",
-    "Locke, Treasure Hunter",
-    "Lydia Frye",
-    "Departed Deckhand",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Tatsunari, Toad Rider",
-    "Ant-Man, Elusive Avenger",
-    "Exit Specialist",
-    "Skyscythe Engulfer"
-   ]
-  },
-  {
    "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
    "score": 16,
    "lines": 16,
@@ -789,6 +770,25 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Azure Beastbinder",
+    "Lydia Frye",
+    "Departed Deckhand",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Tatsunari, Toad Rider",
+    "Exit Specialist",
+    "Skyscythe Engulfer",
+    "Temple Thief",
+    "Pompous Gadabout",
+    "Sabertooth Alley Cat"
    ]
   },
   {
@@ -6482,8 +6482,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3373,
-   "cards": 3208,
+   "score": 3371,
+   "cards": 3206,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6573,8 +6573,8 @@
   },
   {
    "what": "Ability.setIdentifier",
-   "score": 56,
-   "cards": 44,
+   "score": 57,
+   "cards": 45,
    "names": [
     "Muldrotha, the Gravetide",
     "One with the Multiverse",
@@ -6750,6 +6750,19 @@
    ]
   },
   {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 15,
+   "cards": 15,
+   "names": [
+    "Conformer Shuriken",
+    "The Tarrasque",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders"
+   ]
+  },
+  {
    "what": "ConditionalAsThoughEffect",
    "score": 15,
    "cards": 15,
@@ -6773,19 +6786,6 @@
     "Silverquill, the Disputant",
     "Abaddon the Despoiler",
     "Silverquill Lecturer"
-   ]
-  },
-  {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Conformer Shuriken",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark"
    ]
   },
   {
@@ -6901,19 +6901,6 @@
     "Quag Feast",
     "Abuelo's Awakening",
     "Cloudspire Skycycle"
-   ]
-  },
-  {
-   "what": "CantBeBlockedByCreaturesSourceEffect",
-   "score": 13,
-   "cards": 13,
-   "names": [
-    "Lydia Frye",
-    "Tin Street Dodger",
-    "Ox Drover",
-    "Beloved Princess",
-    "Prehistoric Pet",
-    "Ant-Man, Elusive Avenger"
    ]
   },
   {
@@ -7079,6 +7066,19 @@
     "Promise of Aclazotz // Foul Rebirth",
     "Family's Favor",
     "Dreadfeast Demon"
+   ]
+  },
+  {
+   "what": "CantBeBlockedByCreaturesSourceEffect",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Lydia Frye",
+    "Tin Street Dodger",
+    "Ox Drover",
+    "Beloved Princess",
+    "Exit Specialist",
+    "Skyscythe Engulfer"
    ]
   },
   {

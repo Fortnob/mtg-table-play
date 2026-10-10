@@ -6107,6 +6107,8 @@
       if (a && b) return { sum: [a, b], mult: k };
     }
     if (/^opponent you have$/i.test(p)) return { opponents: true, mult: k };
+    // Rakdos, Lord of Riots, Bloodsoaked Insight: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
+    if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
@@ -9407,6 +9409,8 @@
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
     [/^creatures you control have total power (\d+) or greater$/i, (m) => ({ kind: 'totalPower', n: +m[1] })],
     [/^you cast it$/i, () => ({ kind: 'wasCast' })],
+    // Anti-Venom, Horrifying Healer: "if he was cast" (wasCastPronoun)
+    [/^(?:it|he|she|they) (?:was|were) cast$/i, () => ({ kind: 'wasCast' })],
     [/^this spell was cast from (?:a|your) graveyard$/i, () => ({ kind: 'castFromGraveyard' })],
     [/^(?:CARDNAME|this \w+) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', counter: m[2], n: num(m[1]) })],
     [/^(?:CARDNAME|this \w+) has counters on it$/i, () => ({ kind: 'selfCounters', n: 1 })],
@@ -14680,6 +14684,22 @@
         make: (m) => ({ op: 'attackRequires', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^CARDNAME can'?t be countered\.?$/i, eff: { op: 'cantBeCountered' }, auto: true },
       // a permanent spell's window: "Cast this spell only if a creature died this turn" (Grim Wanderer)
+      // Rakdos, Lord of Riots: "You can't cast CARDNAME unless an opponent lost life this turn." (castUnless)
+      { re: /^You can'?t cast (?:CARDNAME|this spell) unless (.+?)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'noop', castWindow: { cond: c } } : null; }, auto: true },
+      /* Anti-Venom: "If damage would be dealt to CARDNAME, prevent that damage and put that many +1/+1
+         counters on him"; Phytohydra: "… put that many +1/+1 counters on it instead"; Jared Carthalion:
+         "… while you're the monarch, …" (damageToCounters) */
+      { re: /^If damage would be dealt to (?:CARDNAME|this creature)(?: while (.+?))?, (prevent that damage and )?put that many \+1\/\+1 counters on (?:it|him|her|them|CARDNAME|this creature)( instead)?\.?$/i,
+        make: (m) => {
+          if (!m[2] === !m[3]) return null;
+          const c = m[1] ? condOf(m[1]) : null;
+          if (m[1] && !c) return null;
+          return Object.assign({ op: 'damageToCounters', prevent: !!m[2] }, c ? { cond: c } : {});
+        }, auto: true },
+      // Locke, Treasure Hunter, Ant-Man: "CARDNAME can't be blocked by creatures with greater power." — skulk's rule (notByGreaterPower)
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with greater power\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'notByGreaterPower' }, auto: true },
       { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
         make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },

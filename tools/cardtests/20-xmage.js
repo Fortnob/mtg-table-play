@@ -21958,4 +21958,46 @@ module.exports = (test) => {
     t.eq(wolves(), 1, 'Huntmaster: a Wolf as it transforms into Huntmaster');
     t.eq(H.life('A'), 22, 'and 2 life');
   });
+
+  test("Commanders: Anti-Venom, Rakdos, Lord of Riots, Ant-Man, Proft; Phytohydra, Prehistoric Pet, Locke's evasion", (mk, t) => {
+    for (const n of ['Anti-Venom, Horrifying Healer', 'Rakdos, Lord of Riots', 'Ant-Man, Elusive Avenger', 'Proft, Sinister Mastermind', 'Phytohydra', 'Prehistoric Pet']) t.auto(n);
+    // Anti-Venom: cast, he returns a creature card; damage to him becomes +1/+1 counters
+    const T = mk({ library: Array(10).fill('Plains') });
+    T.toMain('A');
+    const gb = T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'WWWWW');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: gb.id }] });
+    T.cast('A', T.hand('A', 'Anti-Venom, Horrifying Healer')); T.resolve();
+    t.zone(gb, 'battlefield');
+    const av = T.bfOf('A').find(o => o.name === 'Anti-Venom, Horrifying Healer');
+    T.g.dealDamageToObject(av, 3, gb, false);
+    t.eq(av.damage || 0, 0, 'Anti-Venom: the damage is prevented');
+    t.eq(Number(av.counters['+1/+1']) || 0, 3, 'Anti-Venom: three +1/+1 counters instead');
+    // put onto the battlefield without being cast: nothing comes back
+    const T2 = mk({ library: Array(10).fill('Plains') });
+    T2.toMain('A');
+    const gb2 = T2.grave('A', 'Grizzly Bears');
+    T2.put('A', 'Anti-Venom, Horrifying Healer', 'battlefield', { etb: true }); T2.resolve();
+    t.zone(gb2, 'graveyard');
+    // Phytohydra: "put that many +1/+1 counters on it instead"
+    const ph = T2.bf('A', 'Phytohydra');
+    T2.g.dealDamageToObject(ph, 2, gb2, false);
+    t.ok(!(ph.damage > 0) && Number(ph.counters['+1/+1']) === 2, 'Phytohydra: two counters, no damage');
+    // Rakdos, Lord of Riots: not castable until an opponent lost life; creature spells {1} less for each 1 life they lost
+    const R = mk({ library: Array(10).fill('Swamp') });
+    R.toMain('A');
+    R.mana('A', 'BBRR');
+    const rk = R.hand('A', 'Rakdos, Lord of Riots');
+    t.ok(!R.g.castSpell('A', rk.id, { auto: true, targets: [] }), 'Rakdos: no opponent lost life, not castable');
+    R.g.changeLife(R.player('B'), -3, 'card');
+    R.cast('A', rk); R.resolve();
+    t.zone(rk, 'battlefield');
+    t.eq(R.g.castCost(R.hand('A', 'Hill Giant')), '{R}', 'Rakdos: B lost 3 life, Hill Giant costs {3} less');
+    // Locke, Treasure Hunter: not blocked by creatures with greater power
+    const L = mk({ library: Array(10).fill('Swamp') });
+    const lk = L.bf('A', 'Locke, Treasure Hunter');
+    const big = L.bf('B', 'Craw Wurm'), small = L.bf('B', 'Grizzly Bears');
+    t.ok(!L.g.couldBlock(big, lk, 'B'), 'Locke: the Wurm, with greater power, cannot block');
+    t.ok(L.g.couldBlock(small, lk, 'B'), 'Locke: the Bears can');
+  });
 };
