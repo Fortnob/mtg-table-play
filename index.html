@@ -15626,8 +15626,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         grant: m[3] ? m[3].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean) : [] }) },
 
     /* ===== notes left for later (CR 603.7) ===== */
-    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature) at the beginning of the next end step\.?$/i,
-      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
+    // (Pyric Salamander, Dragon Whelp: "this creature" is itself — subject 'self' — not the last thing aimed at)
+    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of the next end step\.?$/i,
+      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
         name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
@@ -19794,6 +19795,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // Wilhelt, the Rotcleaver: "it didn't have decayed" — the creature that died, as it last was (triggerObjKeyword)
     [/^it (didn'?t have|had) (decayed|flying|deathtouch|lifelink|trample|haste|vigilance|undying|persist)$/i,
       (m) => ({ kind: 'triggerObjKeyword', kw: m[2].toLowerCase(), not: /didn/i.test(m[1]) })],
+    // Dragon Whelp, Initiates of the Ebon Hand: "this ability has been activated four or more times this turn" (abilityUsesThisTurn)
+    [/^this ability has been activated (\w+) or more times this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'abilityUsesThisTurn', n: num(m[1]) } : null)],
     // River of Tears: "you played a land this turn" (playedLandThisTurn)
     [/^you played a land this turn$/i, () => ({ kind: 'playedLandThisTurn' })],
     // Obstinate Gargoyle, Skyward Spider: "as long as it's modified" — this permanent (selfModified)
@@ -32326,11 +32329,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
       if (used === 'exhaust' || used === 'power-up') { o._exhausted = o._exhausted || {}; o._exhausted[ab.text] = o.entered; }
       if (ab.only && ab.only.once) { o._usedOnce = o._usedOnce || {}; o._usedOnce[ab.text] = o.entered; }
-      // "only once each turn", "no more than twice each turn"
-      if (ab.only && ab.only.perTurn) {
-        if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
-        o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
-      }
+      // "only once each turn", "no more than twice each turn" — and Dragon Whelp's "activated four or more times this turn": every ability counted
+      if (!o._turnUses || o._turnUses.turn !== this.turn) o._turnUses = { turn: this.turn, n: {} };
+      o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
 
       if (ab.kind === 'loyalty') {
         o.activatedLoyaltyThisTurn = true;
@@ -35962,6 +35963,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'playedLandThisTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id && (me.landsPlayed || 0) > 0;
         // Obstinate Gargoyle: counters on it, or an Aura or Equipment of its controller's (selfModified)
         case 'selfModified': return !!src && this._cardFitsWords(src, 'modified');
+        // Dragon Whelp: how often its ability has been activated this turn (the most-used one, for a card with several)
+        case 'abilityUsesThisTurn': {
+          const u = src && src._turnUses && src._turnUses.turn === this.turn ? Math.max(0, ...Object.values(src._turnUses.n || {})) : 0;
+          return u >= (cond.n || 1);
+        }
         // Slick Sequence, Focus the Mind: a spell cast this turn other than this one, whether it's being cast or resolving (castAnotherSpell)
         case 'castAnotherSpell': return !!me && (me.spellObjsThisTurn || []).some(x => x !== src);
         // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)
