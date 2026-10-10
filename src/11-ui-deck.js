@@ -445,15 +445,25 @@ Sideboard
         el('option', { value: 'plain', text: 'Plain (name only)' }),
         el('option', { value: 'moxfield', text: 'Moxfield / Archidekt (with set + number)' }),
         el('option', { value: 'arena', text: 'MTG Arena' }),
+        // a link that opens the deck in this table (src/05a-decklink.js)
+        el('option', { value: 'link', text: 'Share link (opens in MTG Table)' }),
       ]);
       const out = el('textarea', { rows: 18, readonly: true });
-      const refresh = () => { out.value = MTG.decklist.toText(deck, styleSel.value); };
+      const refresh = () => {
+        out.value = styleSel.value === 'link' ? MTG.decklink.url(Object.assign({}, deck, { name: String(deck.name || '').trim() || untitled }))
+          : MTG.decklist.toText(deck, styleSel.value);
+      };
       styleSel.addEventListener('change', refresh);
       refresh();
       UI.modal({
         title: 'Export decklist', width: '620px',
         content: el('div', null, [el('label', { class: 'field' }, [el('span', { text: 'Format' }), styleSel]), out]),
-        buttons: [{ label: 'Copy', class: 'primary', onClick: (mm) => { out.select(); document.execCommand('copy'); UI.ok('Copied.'); } }],
+        buttons: [
+          // a phone's own share sheet, for sending the link or the list straight to someone
+          navigator.share ? { label: 'Share…', onClick: () => navigator.share(styleSel.value === 'link'
+            ? { title: deck.name || 'Deck', url: out.value } : { title: deck.name || 'Deck', text: out.value }).catch(() => {}) } : null,
+          { label: 'Copy', class: 'primary', onClick: () => UI.copyText(out.value).then(ok => ok ? UI.ok('Copied.') : UI.error('Could not copy: select the text and copy it yourself.')) },
+        ].filter(Boolean),
       });
     }
 

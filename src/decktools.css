@@ -1,5 +1,6 @@
 /* ============================================================
-   decktools.css - a card's rulings, folded under the enlarged card
+   decktools.css - a card's rulings, and the offer a deck link
+   makes when it is opened
    ============================================================ */
 
 /* ---- a card's rulings, folded away under it (10g-rulings.js) ----
@@ -29,3 +30,7 @@
 .rul-src { font: 600 10px/1.2 var(--font); letter-spacing: .07em; text-transform: uppercase; color: #9cc7ff; }
 .rul-text { margin-top: 3px; font-size: 12.5px; line-height: 1.5; color: #c4ccd9; overflow-wrap: anywhere; }
 .rul-wait { margin: 0 0 4px; font-size: 12px; color: #8d97a8; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* ---- a deck link, opened (11c-ui-decklink.js) ---- */
+.dl-name { font: 600 22px/1.25 var(--serif); overflow-wrap: anywhere; }
+.dl-facts { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
