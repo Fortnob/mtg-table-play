@@ -5842,4 +5842,24 @@ module.exports = (test) => {
     t.zone(hg, 'graveyard');
     t.eq(T.g.battlefield.filter(o => o.isToken && /Pest/.test(o.name)).length, 3, 'power 3: three Pests');
   });
+
+  test('Audit: a counter "on target creature with flying / that entered this turn" goes on that target: Stinging Shot, Cathedral Acolyte', (mk, t) => {
+    t.auto('Stinging Shot'); t.auto('Cathedral Acolyte');
+    let T = mk();
+    T.toMain('A');
+    const bird = T.bf('B', 'Wind Drake'), bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'G');
+    t.no(T.g.castSpell('A', T.hand('A', 'Stinging Shot').id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'no flying: not a target');
+    T.cast('A', T.hand('A', 'Stinging Shot'), { targets: [bird.id] }); T.settle();
+    t.zone(bird, 'graveyard', 'a 2/2 with three -1/-1 counters'); t.zone(bear, 'battlefield');
+    T = mk();
+    T.toMain('A');
+    const ca = T.bf('A', 'Cathedral Acolyte'); ca.summoningSick = false;
+    const old = T.bf('A', 'Hill Giant'); old.entered = 0;
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears')); T.settle();
+    const fresh = T.g.battlefield.find(o => o.name === 'Grizzly Bears');
+    t.no(T.g.activateAbility('A', ca.id, 0, { auto: true, targets: [{ kind: 'object', id: old.id }] }), 'not one that entered before');
+    T.activate('A', ca, 0, { targets: [fresh.id] }); T.settle();
+    t.eq(fresh.counters['+1/+1'], 1); t.eq(ca.counters['+1/+1'] || 0, 0, 'not on the Acolyte');
+  });
 };
