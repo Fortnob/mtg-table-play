@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10889,
+  "needed": 10886,
   "gainedCards": 1052,
-  "linesNeeded": 11615,
+  "linesNeeded": 11610,
   "linesGained": 1239,
   "gained": {
    "all": 1052,
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 167,
-   "lines": 155,
+   "score": 165,
+   "lines": 153,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -1534,22 +1534,6 @@
    ]
   },
   {
-   "what": "AddCardSubTypeSourceEffect",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Skyknight Squire",
-    "Sarkhan, Dragon Ascendant",
-    "Adrestia",
-    "Ascendant Spirit",
-    "Hero of Bretagard",
-    "Figure of Destiny",
-    "Figure of Fable",
-    "Evolved Sleeper",
-    "Warden of the First Tree"
-   ]
-  },
-  {
    "what": "CastFromHandForFreeEffect",
    "score": 10,
    "lines": 10,
@@ -2733,6 +2717,20 @@
     "Dennick, Pious Apprentice // Dennick, Pious Apparition",
     "Nihilith",
     "Measure of Wickedness"
+   ]
+  },
+  {
+   "what": "AddCardSubTypeSourceEffect",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Sarkhan, Dragon Ascendant",
+    "Adrestia",
+    "Ascendant Spirit",
+    "Figure of Destiny",
+    "Figure of Fable",
+    "Evolved Sleeper",
+    "Warden of the First Tree"
    ]
   },
   {
@@ -6588,8 +6586,8 @@
   },
   {
    "what": "custom ability",
-   "score": 536,
-   "cards": 491,
+   "score": 537,
+   "cards": 492,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -6627,8 +6625,8 @@
   },
   {
    "what": "custom condition",
-   "score": 130,
-   "cards": 127,
+   "score": 128,
+   "cards": 125,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",

@@ -9095,6 +9095,8 @@
       const h = num(m[2]);
       return typeof h === 'number' ? { kind: 'any', of: [one, { kind: 'hand', n: h, cmp: 'atLeast' }] } : null;
     }],
+    // Ezio, Brash Novice: "CARDNAME has two or more counters on it" — of any kinds
+    [/^(?:CARDNAME|this creature|this permanent) has (\w+) or more counters on it$/i, (m) => { const k = num(m[1]); return typeof k === 'number' ? { kind: 'selfCountersTotal', n: k } : null; }],
     // Padeem: "you control the artifact with the greatest mana value or tied for the greatest mana value"
     [/^you control the artifact with the greatest mana value or tied for the greatest mana value$/i, () => ({ kind: 'greatestMvArtifact' })],
     // Liberator: "if the amount of mana spent to cast that spell is greater than CARDNAME's power"
@@ -12580,6 +12582,16 @@
   }
 
   const CONTINUOUS_RULES = [
+    /* Skyknight Squire, Ezio: "it has flying and is a Knight in addition to
+       its other types" (under the "As long as" the wrapper puts on it) */
+    { re: /^CARDNAME has ([a-z ,]+?) and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'sequence', list: [
+          { op: 'continuous', layer: 6, scope: { self: true, what: 'permanent' }, grant: kws },
+          { op: 'continuous', layer: 4, scope: { self: true, what: 'permanent' }, addSubtypes: [m[2]] }] };
+      } },
     /* Arixmethes: "As long as it has a slumber counter on it, it's a land"
        (and no longer a creature); War Balloon, Grond: "it's an artifact
        creature" — what it is, under the condition the wrapper adds */

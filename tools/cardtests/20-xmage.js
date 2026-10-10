@@ -19694,4 +19694,18 @@ module.exports = (test) => {
     t.eq(T2.g.powerOf(golem), 4, 'a 2/1 artifact creature gets +2/+2');
     t.ok(T2.g.hasKw(golem, 'menace'), 'and menace');
   });
+
+  test('Skyknight Squire, Ezio, Warden of the Inner Sky: keywords and a type once enough counters are on it', (mk, t) => {
+    t.auto('Skyknight Squire'); t.auto('Ezio, Brash Novice'); t.auto('Warden of the Inner Sky');
+    const T = mk();
+    const sq = T.bf('A', 'Skyknight Squire', { counters: { '+1/+1': 2 } });
+    T.g.bumpBoard();
+    t.no(T.g.hasKw(sq, 'flying'), 'two counters: not yet');
+    T.g.addCounters(sq, '+1/+1', 1);
+    t.ok(T.g.hasKw(sq, 'flying'), 'three: flying');
+    t.ok(T.g._hasCreatureType(sq, 'Knight') || (T.g.characteristics(sq).subtypes || sq.analysis().subtypes || []).includes('Knight'), 'and a Knight');
+    const ez = T.bf('A', 'Ezio, Brash Novice', { counters: { '+1/+1': 1, shield: 1 } });
+    T.g.bumpBoard();
+    t.ok(T.g.hasKw(ez, 'first strike'), 'two counters of any kinds: first strike');
+  });
 };
