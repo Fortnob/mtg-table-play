@@ -67649,7 +67649,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
       // curve fit
       const mv = Math.min(8, Math.floor(card.cmc || 0));
-      if (curveNeed[mv] > 0) { score += 0.6; reasons.push(`fills out your ${mv}-drop slot`); }
+      // (a land is no drop on the curve)
+      if (curveNeed[mv] > 0 && !/\bLand\b/.test(card.type_line || '')) { score += 0.6; reasons.push(`fills out your ${mv}-drop slot`); }
       if (mv >= 7 && prof.strategy === 'aggro') score -= 1.2;
 
       // the engine can run it, which matters at this table
@@ -67859,8 +67860,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    ============================================================ */
 'use strict';
 (function (MTG) {
-  // the relay this app was set up with (tools/recommander-relay/README.md); empty until there is one
-  const DEFAULT_RELAY = '';
+  // the relay this app was set up with (tools/recommander-relay/README.md); Options can name another
+  const DEFAULT_RELAY = 'https://recommander-relay.zach-s-carver.workers.dev';
   const TIMEOUT = 15000;
   const KEEP = 10 * 60 * 1000;
   const remembered = new Map();      // the deck's key -> { at, list }
@@ -85234,9 +85235,14 @@ Sideboard
         const who = (v.players || []).filter(p => this.isTargetablePlayer(p));
         const spec = t.specs[t.chosen.length] || t.specs[0];
         const what = spec && !t.legal ? specText(spec) : 'a target';
-        const title = t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}` : escapeHtml(t.label || 'Choose a target');
+        // a target the kick, the gift or an "if" brought in: what it is for, as the button says (Jilt (kicked): …)
+        const title = spec && spec.castWhy && t.label ? escapeHtml(t.label)
+          : t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}` : escapeHtml(t.label || 'Choose a target');
+        // "up to one": it can be left out (Return to Dust's second artifact)
+        const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
-          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}.` +
+          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}` +
+          (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
       }
       const ch = live.pendingChoice;
