@@ -117,8 +117,19 @@
   }
 
   class Coach {
-    constructor(table) {
+    /**
+     * `opts` puts other notes over a game the same way (the tutorials,
+     * src/14b-lessons.js): its own `marks`, a `name` for the step count,
+     * `skipLabel` for the button that puts the notes away, and what happens
+     * when they finish or are put away (`onFinish`, `onSkip`, each given
+     * the coach). A mark may say how many times it is offered (`times`,
+     * two by default), name its own button (`ok`), and take the focus
+     * when it comes up (`focus`), for a note that waits to be read.
+     */
+    constructor(table, opts) {
       this.t = table;
+      this.opts = opts || {};
+      this.marks = this.opts.marks || MARKS;
       this.seen = new Set();          // marks done with
       this.shown = new Map();         // how often each has been put up
       this.current = null;
@@ -154,35 +165,37 @@
       }
       // a new mark waits for the table to settle: nothing flying, no turn banner across it
       if (t.arena.querySelector('.moving, .fx-turn')) return;
-      for (const m of MARKS) {
+      for (const m of this.marks) {
         if (this.seen.has(m.id)) continue;
-        if ((this.shown.get(m.id) || 0) >= 2) continue;      // offered twice and let go by: enough
+        if ((this.shown.get(m.id) || 0) >= (m.times || 2)) continue;      // offered twice and let go by: enough
         if (!m.when(t, v)) continue;
         const anchor = m.at(t, v);
         if (!anchor) continue;
         this.show(m, anchor);
         return;
       }
-      if (MARKS.every(m => this.seen.has(m.id) || (this.shown.get(m.id) || 0) >= 2)) this.finish();
+      if (this.marks.every(m => this.seen.has(m.id) || (this.shown.get(m.id) || 0) >= (m.times || 2))) this.finish();
     }
 
     show(mark, anchor) {
       this.shown.set(mark.id, (this.shown.get(mark.id) || 0) + 1);
       this.current = { mark, anchor };
-      const n = MARKS.findIndex(m => m.id === mark.id) + 1;
+      const n = this.marks.findIndex(m => m.id === mark.id) + 1;
+      const ok = el('button', { type: 'button', class: 'btn sm primary coach-ok', text: mark.ok || 'Got it', onclick: () => this.close('ok') });
       this.bubble.innerHTML = '';
       this.bubble.append(
-        el('div', { class: 'coach-step', text: `${n} of ${MARKS.length}` }),
+        el('div', { class: 'coach-step', text: (this.opts.name ? this.opts.name + ' · ' : '') + `${n} of ${this.marks.length}` }),
         el('div', { class: 'coach-title', text: mark.title }),
         el('div', { class: 'coach-text', text: mark.text() }),
         el('div', { class: 'coach-foot' }, [
-          el('button', { type: 'button', class: 'coach-skip', text: 'Skip the walkthrough', onclick: () => this.skip() }),
-          el('button', { type: 'button', class: 'btn sm primary coach-ok', text: 'Got it', onclick: () => this.close('ok') }),
+          el('button', { type: 'button', class: 'coach-skip', text: this.opts.skipLabel || 'Skip the walkthrough', onclick: () => this.skip() }),
+          ok,
         ]),
       );
       this.ring.classList.add('on');
       this.bubble.classList.add('on');
       this.place();
+      if (mark.focus) { try { ok.focus({ preventScroll: true }); } catch (e) { /* gone */ } }
       MTG.sfx('click');
     }
 
@@ -248,6 +261,7 @@
     close(why) {
       const cur = this.current;
       if (cur && why !== 'passed') this.seen.add(cur.mark.id);
+      if (cur && this.opts.onClose) this.opts.onClose(cur.mark, why);
       this.current = null;
       this.ring.classList.remove('on');
       this.bubble.classList.remove('on');
@@ -256,6 +270,7 @@
     }
 
     skip() {
+      if (this.opts.onSkip) { this.stop(); this.opts.onSkip(this); return; }
       MTG.setSetting('tutorialDone', true);
       this.stop();
       UI.toast('Walkthrough off. You can play it again from Options.');
@@ -263,9 +278,11 @@
 
     finish() {
       if (this._stopped) return;
+      if (this.opts.onFinish) { this.stop(); this.opts.onFinish(this); return; }
       MTG.setSetting('tutorialDone', true);
       this.stop();
-      UI.ok('That is the walkthrough done. Options has it again whenever you like.');
+      if (MTG.lessons) UI.toast('That is the walkthrough done. The tutorials on the Play screen go further: the stack, combat tricks, blocking and counterspells.', 'ok', 6500);
+      else UI.ok('That is the walkthrough done. Options has it again whenever you like.');
     }
 
     stop() {

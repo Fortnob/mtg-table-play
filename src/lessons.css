@@ -1,0 +1,28 @@
+/* ============================================================
+   lessons.css - the tutorials (src/14b-lessons.js): their card on the
+   Play screen, the list of lessons with what is done, and the word at
+   the end of each.
+   ============================================================ */
+.ev-tutorials { --ev-a: #15302a; --ev-b: #07130f; --ev-glow: rgba(120, 220, 170, .28); }
+
+.lesson-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; min-width: min(580px, 86vw); }
+.lesson { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px;
+  background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
+.ls-mark { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; font-weight: 800;
+  background: rgba(120, 220, 170, .16); color: #bdf0d6; }
+.lesson.done .ls-mark { background: rgba(120, 200, 120, .22); color: #9fe09f; }
+.ls-text { display: grid; gap: 3px; min-width: 0; }
+.ls-text .rw-row { margin-top: 2px; }
+:root[data-theme="light"] .lesson { background: rgba(0,0,0,.03); border-color: var(--line); }
+:root[data-theme="light"] .ls-mark { color: #1f6b4a; }
+/* a phone: the button goes under the words rather than squeezing them */
+@media (max-width: 520px) {
+  .lesson-list { min-width: 0; }
+  .lesson { grid-template-columns: 36px minmax(0, 1fr); }
+  .lesson > .btn { grid-column: 2; justify-self: start; }
+}
+
+.lesson-result .lr-text { margin: 0 0 12px; line-height: 1.55; }
+.lesson-result .lr-reward { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.lesson-result .lr-note, .lesson-result .lr-progress { font-size: 12.5px; color: var(--ink-3); margin: 0; }
+.lesson-card .guide-mark { font-weight: 800; font-size: 16px; }

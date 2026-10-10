@@ -1145,6 +1145,9 @@
       decorArt(offer.firstChild, 'Lightning Helix');
       notes.appendChild(offer);
     }
+    /* -- and once the first game is done, the lessons after it -- */
+    const lesson = MTG.lessons ? MTG.lessons.homeCard({ art: decorArt, rerender: renderHome }) : null;
+    if (lesson) notes.appendChild(lesson);
 
     /* -- the three doors -- */
     const tile = (id, icon, title, body, onClick) => {
@@ -1488,6 +1491,9 @@
         `<span>Entry ${shardHtml(App.EVENTS.gauntlet.entry)}</span><span>Up to 3 packs and 12,500 Shards</span>`, () => App.startGauntlet('standard')),
       evCard('ev-challenge', 'Challenges', 'A board set up for you: find the way to win this turn.',
         `<span>${solved} of ${App.CHALLENGES.length} solved</span>`, () => App.openChallenges()),
+      // the first game and the short lessons after it (src/14b-lessons.js)
+      MTG.lessons ? evCard('ev-tutorials', 'Tutorials', 'Learn by playing: your first game, then the stack, combat tricks, blocking well and counterspells.',
+        `<span>${MTG.lessons.progress().done} of ${MTG.lessons.progress().total} done</span>`, () => MTG.lessons.open()) : null,
     ]));
 
     for (const cat of CATEGORIES) {
@@ -2353,6 +2359,13 @@
         ]),
         el('button', { class: 'btn sm', text: S.tutorialDone ? 'Play it again' : 'Play it', onclick: () => App.startTutorial() }),
       ]),
+      MTG.lessons ? el('div', { class: 'opt-row' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label', text: 'Tutorials' }),
+          el('div', { class: 'opt-help', text: `Short lessons after the first game: the stack, combat tricks, blocking well and counterspells. ${MTG.lessons.count()} of ${MTG.lessons.LESSONS.length} done.` }),
+        ]),
+        el('button', { class: 'btn sm', text: 'Open', onclick: () => MTG.lessons.open() }),
+      ]) : null,
       toggle('autoTapLands', 'Tap lands for me', 'When you cast something, the engine works out which lands to tap.'),
       toggle('confirmAttacks', 'Confirm before attacking', 'Ask before locking in your attackers.'),
       choice('handSort', 'Sort my hand by', [['cmc', 'Mana value'], ['name', 'Name'], ['type', 'Type'], ['color', 'Colour']]),
