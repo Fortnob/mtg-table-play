@@ -17757,8 +17757,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Counter that spell if it has the same mana value as the revealed card\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true, ifMvRevealed: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
-    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control)?)\.?$/i,
+    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
+    // Ramos, Dragon Engine: "put a +1/+1 counter on Ramos for each of that spell's colors" (spellColorCount)
+    { re: /^Put an? ([+-]\d+\/[+-]\d+) counter on (?:CARDNAME|this creature) for each of that spell'?s colou?rs\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: { ofTrigger: 'colorCount' }, scope: 'self' }) },
+    // Toph, Hardheaded Teacher: "put an additional +1/+1 counter on that land" — the one the sentence before acted on
+    { re: /^Put an additional ([+-]\d+\/[+-]\d+) counter on that (land|creature|permanent)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: 1, scope: 'lastTarget' }) },
+    // Alandra, Sky Dreamer: "CARDNAME and Drakes you control each get +X/+X …" — the group, and this one as well (orSelf)
+    { re: /^CARDNAME and ([A-Z][a-z]+s) you control each get (.+)$/,
+      make: (m) => { const e = parseEffectSentence(m[1] + ' you control get ' + m[2]); return e && e.op === 'pump' && e.scope && typeof e.scope === 'object' ? Object.assign(e, { scope: Object.assign({}, e.scope, { orSelf: true }) }) : null; } },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -18705,9 +18714,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
+    // Lulu, Stern Guardian, Flash Foliage: "target creature attacking you" — attacking this player itself (attackingYouSpec)
+    const atYou = /\s+(?:that'?s )?attacking you$/i.test(String(phrase));
+    if (atYou) phrase = String(phrase).replace(/\s+(?:that'?s )?attacking you$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
+    if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
     if (ctlGy) spec.mvAtMostCtlGy = true;
@@ -18965,6 +18978,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
     if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
     if (spec.attacking && !obj.attacking) return false;
+    if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
@@ -21802,7 +21816,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* (Gloomlance, Molten Rain, Endless Evil: "that creature was green or white", "that land was nonbasic",
        "that creature was a Horror" — what it was as it left: what the card is, or the token was. Not
        "was attacking", "was tapped": a card that has left is neither) */
-    [/^that (creature|permanent|land|artifact|enchantment|planeswalker) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
+    [/^that (creature|permanent|land|artifact|enchantment|planeswalker|spell) (is|was) (?:an? )?([A-Za-z][A-Za-z ,/-]*)$/,
       (m) => {
         const w = listWords(m[3].replace(/(,|\bor) an? /g, '$1 ')).trim();
         const state = /^(?:attacking|blocking|tapped|untapped|equipped|enchanted|goaded|modified|face-down)$/;
@@ -22659,6 +22673,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
     // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
     { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
+    // Alandra, Sky Dreamer: "Whenever you draw your fifth card each turn" (drawNthMore)
+    { re: /^When(?:ever)? you draw your (fourth|fifth|sixth|seventh) card each turn,? /i, event: 'youDraw',
+      extraOf: (m) => ({ drawNth: { fourth: 4, fifth: 5, sixth: 6, seventh: 7 }[m[1].toLowerCase()] }) },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
     /* The Council of Four: "Whenever a player draws their second card during their turn", "casts their
@@ -24801,6 +24818,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!e || typeof e !== 'object') continue;
           if ((e.targets || []).length) seen = 'target';
           if (e.op === 'manifest') seen = 'put';
+          // Lulu, Stern Guardian: "choose target creature attacking you. Put a stun counter on that creature" — the one chosen (choseThat)
+          if (e.op === 'chooseTarget') seen = 'chose';
+          if (seen === 'chose' && e.scope === 'triggerObject' && /\bthat (?:creature|permanent|artifact|enchantment|land|planeswalker)\b/i.test(e.text || '')) e.scope = 'lastTarget';
           // (Djeru's Resolve: "… dealt to it this turn" — "this turn" is no "this creature")
           if (seen && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis (?:creature|permanent|artifact|enchantment|land|card|spell|Equipment|Aura|Vehicle)\b|CARDNAME/i.test(e.text || '')) e.scope = seen === 'put' ? 'thatObject' : 'lastTarget';
           seen = itToTarget(e.list, seen);
@@ -31264,7 +31284,26 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         o.webSlung = o._webSlinging ? this.turn : null;
         // Sentinel's Mark: "if you cast it during your main phase" (castInMain)
         o.castInMain = !!item.castInMain;
+        /* An Aura spell enters attached to what it targets (CR 303.4f), a bestowed one too (CR 702.103f):
+           "When this Aura enters, if enchanted creature is red" (Ray of Frost) sees the creature as it enters */
+        if ((a.isAura && !a.auraReanimates) || item.via === 'bestow') {
+          const tp0 = a.isAura && !(item.targets || []).some(x => x.kind === 'object') && (item.targets || []).find(x => x.kind === 'player');
+          const t0 = tp0 ? null : (item.targets || []).find(x => x.kind === 'object');
+          const h0 = t0 && this.obj(t0.id);
+          if (tp0 && this.player(tp0.id) && !this.player(tp0.id).hasLost) o.attachedTo = tp0.id;
+          else if (h0 && h0.zone === 'battlefield') {
+            o.attachedTo = h0.id;
+            h0.attachments = (h0.attachments || []).concat(o.id);
+            if (item.via === 'bestow') o.bestowed = true;
+          }
+        }
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
+        // (sent somewhere else as it would have entered: attached to nothing)
+        if (o.zone !== 'battlefield' && o.attachedTo) {
+          const h1 = this.obj(o.attachedTo);
+          if (h1 && h1.attachments) h1.attachments = h1.attachments.filter(x => x !== o.id);
+          o.attachedTo = null;
+        }
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
           this.moveObject(o, 'graveyard');
@@ -31320,7 +31359,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const host = t && this.obj(t.id);
           if (host && host.zone === 'battlefield') {
             o.attachedTo = host.id;
-            host.attachments = (host.attachments || []).concat(o.id);
+            // (attached as it entered, above: not twice)
+            if (!(host.attachments || []).includes(o.id)) host.attachments = (host.attachments || []).concat(o.id);
             if (item.via === 'bestow') o.bestowed = true;
           } else if (item.via === 'bestow') {
             o.bestowed = false;                 // nothing to go on: it is just a creature
@@ -38856,7 +38896,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const ids = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).filter(t => t && t.kind === 'object').map(t => t.id);
           if (ctx && ctx.triggerData && ctx.triggerData.objectId) ids.push(ctx.triggerData.objectId);
           const noun = cond.noun === 'permanent' ? null : cond.noun;
-          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || this._cardFitsWords(x, noun)));
+          // (Toph, Hardheaded Teacher: "if that spell is a Lesson" — the spell the trigger is about, never a target)
+          if (noun === 'spell') ids.splice(0, ids.length, ...((ctx && ctx.triggerData && ctx.triggerData.objectId) ? [ctx.triggerData.objectId] : []));
+          const it = ids.map(id => this.obj(id)).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
           return !!it && this._cardFitsWords(it, cond.words);
         }
         case 'triggerObjNotCastFromHand': {
@@ -40169,6 +40211,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
+      // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
+      o.drawnTurn = null;
       // out of exile, an adventure is over
       if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
@@ -40571,6 +40615,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         const o = z.library.shift();
         o.zone = 'hand';
+        // (Sylvan Library: "cards in your hand drawn this turn")
+        o.drawnTurn = this.turn;
         z.hand.push(o);
         drawnNow++;
         p.drawnThisTurn = (p.drawnThisTurn || 0) + 1;
@@ -41659,6 +41705,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!o) return (((ctx.sacrificed || [])[0] || {})[v.ofTrigger]) || 0;
           const gone = o.zone !== 'battlefield' && o._lastPower != null;
           if (v.ofTrigger === 'power') return gone ? o._lastPower : this.powerOf(o);
+          // Ramos, Dragon Engine: "for each of that spell's colors" (spellColorCount)
+          if (v.ofTrigger === 'colorCount') return ((o.analysis() || {}).colors || []).length;
           if (v.ofTrigger === 'toughness') return gone ? o._lastToughness : this.toughnessOf(o);
           // Jaws of Defeat: "the difference between that creature's power and its toughness"
           if (v.ofTrigger === 'ptDiff') return Math.abs((gone ? o._lastPower : this.powerOf(o)) - (gone ? o._lastToughness : this.toughnessOf(o)));
@@ -47037,11 +47085,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const pay = this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: `Pay ${e.life || 4} life to keep a card? (otherwise one goes back on top)` }, 'k' + i);
             if (pay === SUSPEND) return SUSPEND;
-            if (pay && me.life > (e.life || 4)) { this.changeLife(me, -(e.life || 4), 'cost'); continue; }
+            /* (come back to for the next card's answer, a payment or a card put back is not made again:
+               Sylvan Library charged 4 life a third time) */
+            if (pay && me.life > (e.life || 4)) { if (!this._doneHere('slPaid' + i)) this.changeLife(me, -(e.life || 4), 'cost'); continue; }
+            // "a card in your hand drawn this turn"
+            const drawn = hand.filter(o => o.drawnTurn === this.turn);
+            const from = drawn.length ? drawn : hand;
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
-              cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: 'Put a card on top of your library.' }, 'b' + i);
+              cards: from.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: 'Put a card drawn this turn on top of your library.' }, 'b' + i);
             if (picked === SUSPEND) return SUSPEND;
+            if (this._doneHere('slBack' + i)) continue;
             const o = this.obj((picked || [])[0]);
             if (!o) break;
             this._removeFromZone(o);
@@ -50315,6 +50369,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      * its counters stand in.
      */
     _scopeHit(sc, o, oa, pid, src, inLayers) {
+      // Alandra, Sky Dreamer: "Alandra and Drakes you control" — this one as well (orSelf)
+      if (sc.orSelf && src && src.id === o.id) return true;
       if (sc.other && src && src.id === o.id) return false;
       // Kjeldoran Frostbeast: blocking it, or blocked by it
       if (sc.combatWithSelf) {
