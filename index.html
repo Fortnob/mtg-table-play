@@ -28806,12 +28806,18 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
      */
     _cardSpellEffects(a) { return cardSpellEffects(a); }
 
+    /* Whose count a resolution goes in: an activated ability's index counts
+       activated abilities only, a trigger's every ability, so the two are
+       kept apart (Tannuk with Viridian Longbow's ping is not "the second
+       time" its landfall has resolved) */
+    _resolvedKey(item) { return (item.activated ? 'a' : 't') + item.abilityIndex; }
+
     _resolveAbility(item) {
       this.logEvent('resolve', `${item.name} resolves.`);
       // how many times this ability has resolved this turn, for "the second time"
       if (item.obj && item.abilityIndex != null && item.abilityIndex >= 0) {
         const r = (item.obj._resolved = item.obj._resolved || {});
-        const k = item.abilityIndex;
+        const k = this._resolvedKey(item);
         r[k] = r[k] && r[k].turn === this.turn ? { turn: this.turn, n: r[k].n + 1 } : { turn: this.turn, n: 1 };
       }
       // "you may" on a trigger is a question asked as it resolves, not before
@@ -36290,7 +36296,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'spellsCastOfKind': return !!me && (me.spellObjsThisTurn || []).filter(x => this._cardFitsWords(x, cond.words)).length >= (cond.n || 1);
         /* Tannuk: "if this is the second time this ability has resolved this turn" */
         case 'nthResolution': {
-          const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[ctx.abilityIndex];
+          const rec = src && ctx && ctx.abilityIndex != null && (src._resolved || {})[this._resolvedKey(ctx)];
           return !!rec && rec.turn === this.turn && rec.n === cond.n;
         }
         case 'echoDue': return !!src && !!src.echoDue;
