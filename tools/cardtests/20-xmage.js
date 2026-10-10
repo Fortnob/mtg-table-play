@@ -17414,4 +17414,20 @@ module.exports = (test) => {
     t.zone(f1, 'graveyard'); t.zone(f2, 'graveyard');
     t.eq(T.zone('A', 'hand').length, hand - 1 + 2, 'two cards');
   });
+
+  test('Counterbalance: counter the spell when the revealed card has the same mana value', (mk, t) => {
+    t.auto('Counterbalance');
+    for (const [top, countered] of [['Shock', true], ['Grizzly Bears', false]]) {
+      const T = mk();
+      T.toMain('B');
+      T.bf('A', 'Counterbalance');
+      T.top('A', top);
+      T.answer('confirm', { yes: true });
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.cast('B', bolt, { targets: ['A'] });
+      T.settle(); T.resolve(); T.settle();
+      t.eq(T.life('A'), countered ? 20 : 17, top + (countered ? ' (mana value 1): countered' : ' (mana value 2): not countered'));
+    }
+  });
 };

@@ -5095,6 +5095,8 @@
     /* "Counter that spell": the spell already targeted (Stubborn Denial's
        "instead"), or the one a cast trigger is about (Boromir) */
     { re: /^Counter that spell\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
+    // Counterbalance: "counter that spell if it has the same mana value as the revealed card" (ifMvRevealed)
+    { re: /^Counter that spell if it has the same mana value as the revealed card\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true, ifMvRevealed: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
     { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control)?)\.?$/i,

@@ -12871,6 +12871,13 @@
             if (e.ifColor && !((ia && ia.colors) || []).includes(e.ifColor)) { this.logEvent('counter', `${item.name} is not the right colour.`); continue; }
             // Disrupting Shoal: "if its mana value is X"
             if (e.ifMv != null && ((item.obj && item.obj.card && item.obj.card.cmc) || 0) !== n(e.ifMv)) { this.logEvent('counter', `${item.name} has another mana value.`); continue; }
+            // Counterbalance: only if the card just revealed has the same mana value
+            if (e.ifMvRevealed) {
+              const rv0 = this._lastRevealed && this.obj(this._lastRevealed);
+              // (still the top card of your library: a reveal from an empty library shows nothing)
+              const rv = rv0 && rv0 === (this.zones[ctx.controller].library || [])[0] ? rv0 : null;
+              if (!rv || ((rv.card && rv.card.cmc) || 0) !== ((item.obj && item.obj.card && item.obj.card.cmc) || 0)) { this.logEvent('counter', `${item.name} has another mana value than ${rv ? rv.name : 'the revealed card'}.`); continue; }
+            }
             // an ability on the stack is countered whatever its source says about spells (Stifle)
             const proof = (item.kind === 'spell' && ((ia && (ia.abilities || []).some(ab =>
               (ab.effects || []).some(ef => ef.op === 'cantBeCountered'))) || this._uncounterable(item))) ||
