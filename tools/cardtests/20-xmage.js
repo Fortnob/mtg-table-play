@@ -17169,4 +17169,15 @@ module.exports = (test) => {
     t.eq(dc.counters.shield || 0, 0, 'off the land');
     t.eq(bear.counters.shield || 0, 1, 'onto the Bears');
   });
+
+  test("Magus of the Vineyard: each player adds {G}{G} at the start of their first main phase", (mk, t) => {
+    t.auto('Magus of the Vineyard');
+    t.auto("Eladamri's Vineyard");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Magus of the Vineyard');
+    T.toMain('B');
+    t.eq(String(T.g.player('B').pool), '2G', 'into the pool of the player whose turn it is');
+    t.ok(T.g.player('A').pool.isEmpty(), 'not its controller');
+  });
 };

@@ -1116,6 +1116,9 @@
     // --- mana ---
     { re: /^Add (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]) }) },
+    // Magus of the Vineyard, Eladamri's Vineyard: "that player adds {G}{G}" — into the pool of the player whose main phase it is
+    { re: /^That player adds ((?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'triggerPlayer' }) },
     { re: /^Add (\{[^}]+\}) or (\{[^}]+\})\.?$/i,
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])] }) },
     { re: /^Add (\{[^}]+\}), (\{[^}]+\}), or (\{[^}]+\})\.?$/i,

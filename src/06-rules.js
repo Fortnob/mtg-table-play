@@ -12187,13 +12187,17 @@
           if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
           break;
         }
-        case 'addMana':
+        case 'addMana': {
+          // Magus of the Vineyard: "that player adds {G}{G}" (who 'triggerPlayer')
+          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
-            if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) me.pool.add('C'); continue; }
+            if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) into.pool.add('C'); continue; }
             const c = MANA.COLORS.concat('C').find(x => s.includes(x));
-            me.pool.add(c || 'C');
+            into.pool.add(c || 'C');
           }
+          if (into !== me) this.logEvent('mana', `${into.name} adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
           break;
+        }
         case 'addManaAny': {
           const amt = n(e.amount);
           /* "any color in your commander's color identity" is only those */
