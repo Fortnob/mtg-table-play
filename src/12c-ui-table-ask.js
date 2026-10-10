@@ -49,7 +49,7 @@
         // "up to one": it can be left out (Return to Dust's second artifact)
         const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
-          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}Click a highlighted card${who.length ? ' or player' : ''}` +
+          `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
           (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
       }
@@ -78,21 +78,21 @@
           // banding: the chosen attackers can go in together, as one band
           const band = this._bandRow(ch);
           if (band) extra = { node: extra ? el('div', {}, [extra.node, band.node]) : band.node, sig: (extra ? extra.sig : '') + '|' + band.sig };
-          return set('combat', 'Choose attackers', 'Click your creatures to send them in, then press <b>Attack</b>.', extra);
+          return set('combat', 'Choose attackers', `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
         }
         if (ch.type === 'declareBlockers') {
           const atk = (ch.attackers || []).map(id => this.objIn(id)).filter(Boolean);
           const incoming = atk.reduce((s, o) => s + (o.power || 0), 0);
           const pend = this.blockPlan && this.blockPlan.pendingBlocker;
           const me = this.me;
-          return set('combat block', pend ? 'Now click the attacker to block' : 'Choose blockers',
+          return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers',
             `${atk.length} attacker${atk.length === 1 ? '' : 's'} · <b>${incoming}</b> damage coming at you${me ? ` (you have ${me.life})` : ''}.` +
-            (pend ? '' : ' Click your creature, then the attacker it blocks.'));
+            (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize')
-          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : 'Click a card in your hand.');
+          return set('ask', escapeHtml(ch.prompt || 'Discard'), (ch.count || 1) > 1 ? `Choose ${ch.count} cards from your hand.` : `${press()} a card in your hand.`);
         if (ch.type === 'sacrifice')
-          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : 'Click one of your permanents.');
+          return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : `${press()} one of your permanents.`);
         // a generic question answered on the board alone: what to click, and how the picks stand
         if (ch.type === 'choose') {
           const s = this.chooseSpec(ch);
@@ -241,7 +241,7 @@
         case 'scry': case 'surveil': return (st) => this.scryPanel(ch, st, card, head);
         case 'arrange': return (st) => this.arrangePanel(ch, st, { card, head });
         case 'orderTriggers': return (st) => this.arrangePanel(ch, st, { card, head,
-          note: 'Click them in the order they go on the stack. The last one you put on resolves first.', done: 'Put them on the stack',
+          note: `${press()} them in the order they go on the stack. The last one you put on resolves first.`, done: 'Put them on the stack',
         });
         case 'pickTarget':
           /* The engine is asking mid-resolution — a mode was chosen and it
@@ -407,7 +407,7 @@
       const sel = this.chooseSel(s);
       const pr = MTG.choice.progress(s, sel.picks, sel.number);
       const title = richText(s.prompt || (s.kind === 'players' ? 'Choose a player' : 'Choose'));
-      const how = s.kind === 'players' ? 'Click a highlighted player.' : 'Click the highlighted permanents.';
+      const how = s.kind === 'players' ? `${press()} a highlighted player.` : `${press()} the highlighted permanents.`;
       let extra = null;
       if (s.kind === 'players') {
         // the players as chips as well, for a seat whose orb is out of sight
@@ -641,7 +641,7 @@
         top: items.filter(x => x.where === 'top').map(x => x.id),
         bottom: items.filter(x => x.where === 'away').map(x => x.id),
       } });
-      const [t, sub] = head(surveil ? 'Surveil' : 'Scry', 'Click a card to move it between the two rows.');
+      const [t, sub] = head(surveil ? 'Surveil' : 'Scry', `${press()} a card to move it between the two rows.`);
       return this.panel(t, sub, body, [
         { label: surveil ? 'All to the graveyard' : 'All to the bottom', fn: () => { for (const it of items) it.where = 'away'; finish(); } },
         { label: 'Done', cls: 'primary', fn: finish },
@@ -678,7 +678,7 @@
         const rest = (ch.cards || []).map(c => c.id).filter(id => !st.order.includes(id));
         this.send({ kind: 'choice', data: { top: st.order.concat(rest) } });
       };
-      const note = opts.note || (lookOnly ? 'They stay where they are, in this order.' : 'Click them in the order they should sit on top of your library, first to draw first.');
+      const note = opts.note || (lookOnly ? 'They stay where they are, in this order.' : `${press()} them in the order they should sit on top of your library, first to draw first.`);
       const [t, sub] = opts.head ? opts.head('Put them in order', note) : [escapeHtml(ch.prompt || 'Put them in order'), note];
       return this.panel(t, sub, grid, [{ label: opts.done || 'Done', cls: 'primary', fn: done }], { wide: true, card: opts.card });
     },
@@ -1287,7 +1287,7 @@
         }
         if (!cands.length) row.appendChild(el('div', { class: 'empty-note', text: 'There is nothing there it could choose.' }));
         const enough = picked.length >= min;
-        return this.panel(escapeHtml(label), min === k ? (k === 1 ? 'Click the card.' : `Choose ${k}.`) : `Choose up to ${k}${min ? `, at least ${min}` : ''}.`, row, [
+        return this.panel(escapeHtml(label), min === k ? (k === 1 ? `${press()} the card.` : `Choose ${k}.`) : `Choose up to ${k}${min ? `, at least ${min}` : ''}.`, row, [
           { label: 'Cancel', fn: () => { this.asking = null; this.render(); } },
           { label: picked.length ? 'Done' : 'None', cls: 'primary', disabled: !enough, fn: () => finish() },
         ], { card: o.card, wide: true });

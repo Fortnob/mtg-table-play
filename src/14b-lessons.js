@@ -479,7 +479,7 @@
   function open() {
     const S = MTG.settings;
     const rows = [{
-      id: 'first', title: 'Your first game', blurb: 'A whole game against a gentle bot, with notes on the land, the creature, the big button, attacking and blocking.',
+      id: 'first', title: 'Your first game', blurb: 'A whole game against a gentle bot, with notes as things come up: playing a land, tapping it for mana, casting a creature, attacking and blocking.',
       done: !!S.tutorialDone, reward: null, play: () => MTG.app.startTutorial(),
     }].concat(LESSONS.map(l => ({ id: l.id, title: l.title, blurb: l.blurb, done: !!done()[l.id], reward: REWARD, play: () => start(l.id) })));
     const list = el('ol', { class: 'lesson-list' }, rows.map((r, i) => el('li', { class: 'lesson' + (r.done ? ' done' : '') }, [

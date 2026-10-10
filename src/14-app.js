@@ -2387,9 +2387,8 @@
       el('div', { class: 'opt-row' }, [
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label', text: 'First-game walkthrough' }),
-          el('div', { class: 'opt-help', text: S.tutorialDone
-            ? 'Seen. Play the guided first game again: a gentle bot, a starter deck, and notes on the table as things come up.'
-            : 'A guided first game: a gentle bot, a starter deck, and notes on the table as things come up.' }),
+          el('div', { class: 'opt-help', text: (S.tutorialDone ? 'Seen. Play the guided first game again: ' : 'A guided first game: ') +
+            'a gentle bot, a starter deck, and notes on the table as things come up, from playing a land and tapping it for mana to attacking and blocking.' }),
         ]),
         el('button', { class: 'btn sm', text: S.tutorialDone ? 'Play it again' : 'Play it', onclick: () => App.startTutorial() }),
       ]),

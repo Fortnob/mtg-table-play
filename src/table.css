@@ -979,6 +979,7 @@
 .coach-step { font: 700 9.5px/1 var(--font); letter-spacing: .18em; text-transform: uppercase; color: rgba(246,220,140,.7); }
 .coach-title { font: 600 18px/1.25 var(--serif); color: var(--gold-hi); margin: 5px 0 4px; }
 .coach-text { font-size: 13px; line-height: 1.5; color: #d8dee8; }
+.coach-text .pip { width: 15px; height: 15px; font-size: 9.5px; vertical-align: -3px; }
 .coach-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 11px; }
 .coach-skip { all: unset; cursor: pointer; font-size: 11.5px; color: #8d97a8; text-decoration: underline; text-underline-offset: 3px; }
 .coach-skip:hover { color: #c9d2e0; }

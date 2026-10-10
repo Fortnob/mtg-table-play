@@ -78,15 +78,15 @@
   };
   /* What each step is for, in a sentence, for anyone still learning the turn. */
   const PHASE_HELP = {
-    upkeep: 'Your permanents have untapped. Anything that happens “at the beginning of your upkeep” happens now.',
+    upkeep: 'Everything the player whose turn it is controls has just untapped. Anything that happens “at the beginning of your upkeep” happens now.',
     draw: 'The player whose turn it is draws a card.',
     main1: 'Play a land (one a turn) and cast creatures, sorceries and anything else.',
     beginCombat: 'The last moment to act before attackers are chosen.',
-    declareAttackers: 'The player whose turn it is chooses which creatures attack.',
-    declareBlockers: 'The defending player chooses which creatures block which attackers.',
-    combatDamage: 'Creatures deal their damage. Attackers nobody blocked hit the player.',
+    declareAttackers: 'The player whose turn it is chooses which creatures attack. Attacking taps them, unless they have vigilance.',
+    declareBlockers: 'The defending player chooses which creatures block which attackers. Blocking does not tap them.',
+    combatDamage: 'Creatures deal damage equal to their power. Attackers nobody blocked hit the player.',
     main2: 'A second main phase: cast what you held back during combat.',
-    end: 'End-of-turn abilities happen, then the next player takes their turn.',
+    end: 'End-of-turn abilities happen, damage wears off, then the next player takes their turn.',
   };
   function stepKey(v) {
     if (!v) return '';
@@ -1128,7 +1128,8 @@
       host._sig = sig;
       host.innerHTML = '';
       for (const [cls, text, title] of flags) host.appendChild(el('span', { class: 'flag ' + cls, text, title }));
-      if (pool) host.appendChild(el('span', { class: 'flag pool', html: pool, title: 'Floating mana' }));
+      if (pool) host.appendChild(el('span', { class: 'flag pool', html: pool,
+        title: 'Mana pool: mana made and not yet spent. It empties at the end of each step.' }));
     }
 
     /** Library, graveyard and exile, as piles you can see the size of and open. */
@@ -2693,7 +2694,7 @@
       const granted = (o.keywords || []).filter(k => !printed.has(String(k).toLowerCase()));
       if (granted.length) out.push(['good', 'Has ' + granted.map(k => U.titleCase ? U.titleCase(String(k)) : k).join(', ')]);
       for (const [k, n] of Object.entries(o.counters || {})) if (n) out.push(['', `${n} ${k} counter${n === 1 ? '' : 's'}`]);
-      if (o.summoningSick && o.power != null) out.push(['dim', 'Summoning sick — can’t attack or tap this turn']);
+      if (o.summoningSick && o.power != null) out.push(['dim', 'Summoning sick: can’t attack, or use abilities with the tap symbol, this turn']);
       if (o.tapped) out.push(['dim', 'Tapped']);
       if (o.attacking) out.push(['bad', 'Attacking ' + this.targetName({ kind: this.view.players.some(p => p.id === o.attacking) ? 'player' : 'object', id: o.attacking })]);
       if ((o.blocking || []).length) out.push(['info', 'Blocking ' + o.blocking.map(id => this.targetName({ kind: 'object', id })).join(', ')]);
