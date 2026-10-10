@@ -5508,4 +5508,15 @@ module.exports = (test) => {
     t.ok(offered && offered.includes(hg.id), 'Hill Giant (4) with 4 life gained'); t.no(offered && offered.includes(cw.id), 'not the Craw Wurm (6)');
     t.zone(hg, 'battlefield');
   });
+
+  test('Audit: Secure the Wastes for X=0 makes no Warrior, for X=3 three', (mk, t) => {
+    t.auto('Secure the Wastes');
+    for (const x of [0, 3]) {
+      const T = mk();
+      T.toMain('A');
+      T.mana('A', 'W' + (x ? String(x) : ''));
+      t.ok(T.g.castSpell('A', T.hand('A', 'Secure the Wastes').id, { auto: true, x })); T.settle(); T.resolve(); T.settle();
+      t.eq(T.g.battlefield.filter(o => o.isToken).length, x, `X=${x}`);
+    }
+  });
 };
