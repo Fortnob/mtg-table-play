@@ -14,7 +14,7 @@
 const { load } = require('./engine');
 
 function args() {
-  const a = { format: 'standard', games: 4, a: 5, b: 5, seed: 1, turns: 40, verbose: false, json: false, players: 2 };
+  const a = { format: 'standard', games: 4, a: 5, b: 5, seed: 1, turns: null, verbose: false, json: false, players: 2 };
   const v = process.argv.slice(2);
   for (let i = 0; i < v.length; i++) {
     const k = v[i].replace(/^--/, '');
@@ -22,6 +22,10 @@ function args() {
     const val = v[++i];
     a[k] = isNaN(Number(val)) ? val : Number(val);
   }
+  /* the turn cap, unless given: forty turns between two, and fifteen a
+     player at a bigger table, where each player gets fewer of the turns
+     (a four-player Commander game runs about forty all told) */
+  if (a.turns == null) a.turns = a.players > 2 ? 15 * a.players : 40;
   return a;
 }
 
