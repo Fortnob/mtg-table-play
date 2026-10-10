@@ -14908,7 +14908,8 @@
             const sources = e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
             for (const item of sources) {
               if (!item) continue;
-              made.push(this._copyOnStack(item, ctx.controller).id);
+              // Mister Fantastic: "Copy target triggered ability you control twice"
+              for (let rep = Math.max(1, e.times ? n(e.times) : 1); rep > 0; rep--) made.push(this._copyOnStack(item, ctx.controller).id);
               // Twinning Staff: one more
               for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push(this._copyOnStack(item, ctx.controller).id);
               this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}.`);
@@ -22780,6 +22781,9 @@
               // Drown in the Loch: no more than the cards in its controller's graveyard
               !(spec.mvAtMostCtlGy && ((st.obj && st.obj.card && st.obj.card.cmc) || 0) > ((this.zones[st.controller] || {}).graveyard || []).length)
             : !!spec.abilities && (!spec.abilityKind || (spec.abilityKind === 'triggered') === !!st.triggered) &&
+              // Tawnos, Urza's Apprentice: "from an artifact source"; The Peregrine Dynamo: "another legendary source that's not a commander"
+              !(spec.sourceWords && !(st.obj && this._cardFitsWords(st.obj, spec.sourceWords))) &&
+              !(spec.sourceOther && st.objId === sourceId) && !(spec.sourceNotCommander && st.obj && st.obj.isCommander) &&
               this._aimsAtYours(st, spec, controllerId) &&
               !(spec.controller === 'you' && st.controller !== controllerId) &&
               !(spec.controller === 'opponent' && st.controller === controllerId)))

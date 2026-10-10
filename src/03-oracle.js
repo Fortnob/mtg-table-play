@@ -2553,9 +2553,13 @@
         m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }) },
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
        The copy's targets are offered again as it is made. */
-    { re: /^Copy target (activated or triggered|triggered|activated) ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
-      make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
-        /^(?:triggered|activated)$/i.test(m[1]) ? { abilityKind: m[1].toLowerCase() } : {}, m[2] ? { controller: 'you' } : {})] }) },
+    /* (Tawnos, Urza's Apprentice: "… from an artifact source"; The Peregrine Dynamo:
+       "from another legendary source that's not a commander"; Mister Fantastic: "… twice") */
+    { re: /^Copy target (activated or triggered|triggered|activated) ability( you control)?(?: from (an? |another )(artifact|creature|enchantment|colorless|legendary) source( that's not a commander)?)?( twice)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
+      make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
+        /^(?:triggered|activated)$/i.test(m[1]) ? { abilityKind: m[1].toLowerCase() } : {}, m[2] ? { controller: 'you' } : {},
+        m[4] ? { sourceWords: m[4].toLowerCase() } : {}, /^another/i.test(m[3] || '') ? { sourceOther: true } : {}, m[5] ? { sourceNotCommander: true } : {})] },
+        m[6] ? { times: 2 } : {}) },
     { re: /^Copy target (?:instant or sorcery spell|instant spell, sorcery spell), activated ability, or triggered ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'instant or sorcery', abilities: true },
         m[1] ? { controller: 'you' } : {})] }) },

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10852,
+  "needed": 10845,
   "gainedCards": 1033,
-  "linesNeeded": 11572,
+  "linesNeeded": 11565,
   "linesGained": 1217,
   "gained": {
    "all": 1033,
@@ -1100,24 +1100,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Wyll's Reversal",
-    "Green Slime",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Katara's Reversal",
-    "Sister of Silence",
-    "Mister Fantastic",
-    "Diplomatic Escort",
-    "Teferi's Response",
-    "Silver Wyvern"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 12,
    "lines": 12,
@@ -1248,6 +1230,23 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Wyll's Reversal",
+    "Green Slime",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Katara's Reversal",
+    "Sister of Silence",
+    "Diplomatic Escort",
+    "Teferi's Response",
+    "Silver Wyvern"
    ]
   },
   {
@@ -1953,22 +1952,6 @@
    ]
   },
   {
-   "what": "limited ability with a condition",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Nature's Chosen",
-    "Hired Claw",
-    "Chittering Skitterling",
-    "Gate to Phyrexia",
-    "Scientist Supreme of A.I.M.",
-    "Ebon Praetor",
-    "Battlefield Scrounger",
-    "Security Detail",
-    "Sawback Manticore"
-   ]
-  },
-  {
    "what": "Zone.GRAVEYARD",
    "score": 9,
    "lines": 9,
@@ -2106,21 +2089,6 @@
     "Jinxed Choker",
     "Avarice Amulet",
     "Drooling Ogre"
-   ]
-  },
-  {
-   "what": "TargetActivatedOrTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Weaver of Harmony",
-    "Tishana's Tidebinder",
-    "Abstruse Archaic",
-    "The Peregrine Dynamo",
-    "Trickbind",
-    "Emerald Dragon // Dissonant Wave",
-    "Echo, Perceptive Prodigy",
-    "Tawnos, Urza's Apprentice"
    ]
   },
   {
@@ -2327,6 +2295,21 @@
     "Homarid",
     "Tidal Influence",
     "Library of Alexandria"
+   ]
+  },
+  {
+   "what": "limited ability with a condition",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Nature's Chosen",
+    "Hired Claw",
+    "Chittering Skitterling",
+    "Gate to Phyrexia",
+    "Ebon Praetor",
+    "Battlefield Scrounger",
+    "Security Detail",
+    "Sawback Manticore"
    ]
   },
   {
@@ -5779,6 +5762,16 @@
    ]
   },
   {
+   "what": "TargetActivatedOrTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Tishana's Tidebinder",
+    "Trickbind",
+    "Emerald Dragon // Dissonant Wave"
+   ]
+  },
+  {
    "what": "(constructor: local method addSubType)",
    "score": 3,
    "lines": 3,
@@ -7260,19 +7253,6 @@
    ]
   },
   {
-   "what": "TargetStackObject",
-   "score": 10,
-   "cards": 10,
-   "names": [
-    "Wyll's Reversal",
-    "Green Slime",
-    "Consign to Memory",
-    "Deny the Witch",
-    "Radiant Performer",
-    "Sister of Silence"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 10,
    "cards": 10,
@@ -7361,6 +7341,19 @@
     "Skyship Plunderer",
     "Powerful Broker",
     "Price of Betrayal"
+   ]
+  },
+  {
+   "what": "TargetStackObject",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Wyll's Reversal",
+    "Green Slime",
+    "Consign to Memory",
+    "Deny the Witch",
+    "Radiant Performer",
+    "Sister of Silence"
    ]
   },
   {
@@ -7481,19 +7474,6 @@
    ]
   },
   {
-   "what": "limited ability with a condition",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Nature's Chosen",
-    "Hired Claw",
-    "Chittering Skitterling",
-    "Gate to Phyrexia",
-    "Scientist Supreme of A.I.M.",
-    "Ebon Praetor"
-   ]
-  },
-  {
    "what": "OpponentsTurnCondition.instance",
    "score": 9,
    "cards": 9,
@@ -7595,19 +7575,6 @@
     "Experimental Pilot",
     "Slimefoot, Thallid Transplant",
     "Boseiju Pathlighter"
-   ]
-  },
-  {
-   "what": "TargetActivatedOrTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Weaver of Harmony",
-    "Tishana's Tidebinder",
-    "Abstruse Archaic",
-    "The Peregrine Dynamo",
-    "Trickbind",
-    "Emerald Dragon // Dissonant Wave"
    ]
   },
   {
@@ -7751,6 +7718,19 @@
     "Akuta, Born of Ash",
     "Death Spark",
     "Nether Spirit"
+   ]
+  },
+  {
+   "what": "limited ability with a condition",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Nature's Chosen",
+    "Hired Claw",
+    "Chittering Skitterling",
+    "Gate to Phyrexia",
+    "Ebon Praetor",
+    "Battlefield Scrounger"
    ]
   },
   {
@@ -10238,6 +10218,17 @@
     "Jade Statue",
     "Kjeldoran Elite Guard",
     "Heart Wolf"
+   ]
+  },
+  {
+   "what": "CopySourceSpellEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Ancestral Communion",
+    "Mentor's Guidance",
+    "Social Snub",
+    "Lumaret's Favor"
    ]
   }
  ]
