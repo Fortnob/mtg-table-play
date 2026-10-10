@@ -9623,6 +9623,9 @@
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
     // Spiteful Visions: "Whenever a player draws a card"
     { re: /^When(?:ever)? a player draws a card(?:,| )/i, event: 'anyDraw' },
+    // the Shrines: "At the beginning of your upkeep and whenever you cast a white spell," — two moments, one ability
+    { re: /^At the beginning of your upkeep and whenever you cast an? (white|blue|black|red|green) spell,? /i, event: 'yourUpkeep', also: 'youCastSpell',
+      filt: (m) => ({ words: m[1].toLowerCase() }), extra: { filterOnlyOn: 'youCastSpell' } },
     { re: /^At the beginning of your upkeep(?:,| )/i, event: 'yourUpkeep' },
     { re: /^At the beginning of each upkeep(?:,| )/i, event: 'eachUpkeep' },
     { re: /^At the beginning of your end step(?:,| )/i, event: 'yourEndStep' },

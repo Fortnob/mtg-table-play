@@ -11267,7 +11267,8 @@
              "whenever a creature with power 4 or greater enters" is not
              every creature: the trigger says what it is watching for. */
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
-          if (ab.objFilter && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
+          if (ab.objFilter && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"

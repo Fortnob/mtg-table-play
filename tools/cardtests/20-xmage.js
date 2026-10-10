@@ -17542,4 +17542,24 @@ module.exports = (test) => {
       t.eq(soldiers.length, toss === 'Mountain' ? 0 : 1, toss === 'Mountain' ? 'a land: no token' : 'a nonland card: a 1/1 Human Soldier');
     }
   });
+
+  test('The Shrines: a charge counter at your upkeep and for each spell of its colour', (mk, t) => {
+    t.auto('Shrine of Loyal Legions');
+    t.auto('Shrine of Burning Rage');
+    t.auto('Shrine of Boundless Growth');
+    t.auto('Shrine of Limitless Power');
+    const T = mk();
+    T.toMain('A');
+    const sh = T.bf('A', 'Shrine of Burning Rage');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle();
+    t.eq(sh.counters.charge || 0, 1, 'a red spell');
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    T.settle();
+    t.eq(sh.counters.charge || 0, 1, 'not a green one');
+    T.toMain('A', 'upkeep'); T.toMain('A');
+    t.eq(sh.counters.charge || 0, 2, 'and one at the upkeep');
+  });
 };

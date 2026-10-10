@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11191,
+  "needed": 11187,
   "gainedCards": 1129,
-  "linesNeeded": 11970,
+  "linesNeeded": 11965,
   "linesGained": 1331,
   "gained": {
    "all": 1129,
@@ -468,25 +468,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Gathering Stone",
-    "Minsc & Boo, Timeless Heroes",
-    "Shanid, Sleepers' Scourge",
-    "Obsessive Pursuit",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus",
-    "Mystic Barrier",
-    "Crack in Time",
-    "Staff of the Flame Magus",
-    "Staff of the Wild Magus"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 21,
    "lines": 21,
@@ -736,6 +717,25 @@
     "Oko, the Trickster",
     "Inkfathom Witch",
     "Oko's Hospitality"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 16,
+   "lines": 16,
+   "cards": [
+    "Gathering Stone",
+    "Minsc & Boo, Timeless Heroes",
+    "Shanid, Sleepers' Scourge",
+    "Obsessive Pursuit",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus",
+    "Mystic Barrier",
+    "Crack in Time",
+    "Staff of the Flame Magus",
+    "Staff of the Wild Magus"
    ]
   },
   {
@@ -6643,8 +6643,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3470,
-   "cards": 3302,
+   "score": 3471,
+   "cards": 3303,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6941,19 +6941,6 @@
    ]
   },
   {
-   "what": "OrTriggeredAbility halves differ",
-   "score": 16,
-   "cards": 16,
-   "names": [
-    "Gathering Stone",
-    "Shanid, Sleepers' Scourge",
-    "Wildfire Devils",
-    "Hraesvelgr of the First Brood",
-    "Staff of the Death Magus",
-    "Staff of the Sun Magus"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 16,
    "cards": 16,
@@ -7170,6 +7157,19 @@
     "Animal Attendant",
     "Sphere of the Suns",
     "Drain Life"
+   ]
+  },
+  {
+   "what": "OrTriggeredAbility halves differ",
+   "score": 12,
+   "cards": 12,
+   "names": [
+    "Gathering Stone",
+    "Shanid, Sleepers' Scourge",
+    "Wildfire Devils",
+    "Hraesvelgr of the First Brood",
+    "Staff of the Death Magus",
+    "Staff of the Sun Magus"
    ]
   },
   {
