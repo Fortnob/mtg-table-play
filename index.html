@@ -16196,6 +16196,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },
     { re: /^Choose target creature\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'creature' }] }) },
+    // Curious Herd, Haunt the Network: "Choose target opponent." — "that player" in what follows
+    { re: /^Choose target opponent\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^You may play the exiled card without paying its mana cost(?: if (.+?))?\.?$/i,
       make: (m) => {
         const cond = m[1] ? condOf(m[1]) : null;
@@ -19224,6 +19226,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'counterSpell', counterTo: 'suspend', timeCounters: num(m[1]), targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] },
+    /* Doom's Time Platform: "exile target nonland card from your graveyard with two time counters on it.
+       If it doesn't have suspend, it gains suspend." */
+    { re: /^Exile target (nonland )?card from your graveyard with (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'suspendCard', from: 'graveyard', timeCounters: num(m[2]),
+        targets: [{ type: 'permanent', filter: m[1] ? 'nonland card' : 'card', zone: 'graveyard', controller: 'you', ...(m[1] ? { nonland: true } : {}) }] }] },
+    /* The Eleventh Doctor: "you may exile a card from your hand with a number of time counters on it
+       equal to its mana value. If it doesn't have suspend, it gains suspend." */
+    { re: /^(You may )?exile an? (nonland )?card from your hand with a number of time counters on it equal to its mana value\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'suspendCard', from: 'hand', mvCounters: true, filter: m[2] ? 'nonland card' : 'card', optional: !!m[1] }] },
     /* Suspend (the card): "Exile target creature and put two time counters on it. If it doesn't have suspend, it gains suspend." */
     { re: /^Exile (target (?:nontoken )?creature) and put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'exileSuspend', timeCounters: num(m[2]), targets: [targetSpec(m[1])] }] },
@@ -20584,7 +20595,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -34151,7 +34163,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           // (_sacrificeNow tells the table of each one: oneSacrificeEach)
           this._sacrificeNow(o.controller, eaten, { controller: o.controller, obj: o });
           o.devoured = eaten.length;
-          o.counters['+1/+1'] = (Number(o.counters['+1/+1']) || 0) + a.devour * eaten.length;
+          // (Mycoloth with Hardened Scales: the counters it enters with are put on it, CR 122.6)
+          this.addCounters(o, '+1/+1', a.devour * eaten.length);
           this.logEvent('rules', `${o.name} devours ${eaten.length}.`);
         }
       }
@@ -39616,7 +39629,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const a = o.analysis();
       if (!a || !a.isSaga) return;
       const before = o.counters.lore || 0;
-      const after = before + (n || 1);
+      // Doubling Season: lore counters are put on like any others — two at a time, two chapters
+      const evL = this._replace({ kind: 'counters', object: o, n: n || 1, counter: 'lore', controller: o.controller, putter: o.controller });
+      if (evL.cancelled || !(Number(evL.n) > 0)) return;
+      const after = before + Number(evL.n);
       o.counters.lore = after;
       this.bumpBoard();
       for (const ab of a.abilities) {
@@ -48173,6 +48189,29 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
         }
         // Suspend (the card): exiled with time counters, and suspended — its owner casts it when they run out
+        /* Doom's Time Platform, The Eleventh Doctor: a card from the graveyard (targeted) or the hand
+           (chosen) is exiled with time counters, and suspended whether or not it had suspend */
+        case 'suspendCard': {
+          let cards = [];
+          if (e.from === 'hand') {
+            const pool = this.zones[ctx.controller].hand.filter(c => c !== src && this._cardFitsWords(c, e.filter || 'card'));
+            if (!pool.length) break;
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: !!e.optional,
+              cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile a card from your hand with time counters on it equal to its mana value (it is suspended).` }, 'susp');
+            if (picked === SUSPEND) return SUSPEND;
+            cards = (picked || []).map(id => this.obj(id)).filter(c => c && pool.includes(c)).slice(0, 1);
+          } else {
+            cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(c => c && c.zone === 'graveyard');
+          }
+          for (const x of cards) {
+            this.moveObject(x, 'exile');
+            x.counters.time = e.mvCounters ? ((x.card && x.card.cmc) || 0) : n(e.timeCounters);
+            x.suspendedBy = x.owner;
+            this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}, suspended.`);
+          }
+          break;
+        }
         case 'exileSuspend': {
           for (const t of targets) {
             const x = t.kind === 'object' && this.obj(t.id);
@@ -49981,7 +50020,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const o = this._register(new GObj(card, controller, 'battlefield'));
         o.isToken = true; o.zone = 'battlefield'; o.entered = this.turn;
         if (e.tapped) o.tapped = true;
-        if (e.withCounters) o.counters['+1/+1'] = e.withCounters;
+        // Incubate with Doubling Season: the token's counters are put on it as it is created (CR 122.6)
+        if (e.withCounters) {
+          const evC = this._replace({ kind: 'counters', object: o, n: e.withCounters, counter: '+1/+1', controller, putter: controller });
+          o.counters['+1/+1'] = evC.cancelled ? 0 : Math.max(0, Number(evC.n) || 0);
+        }
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         this.battlefield.push(o);
         this.bumpBoard();
