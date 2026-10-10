@@ -2409,7 +2409,7 @@
     ]));
 
     /* -- pace: how fast the table moves -- */
-    const botNow = S.botSpeed == null ? 600 : S.botSpeed;
+    const botNow = S.botSpeed == null ? 1500 : S.botSpeed;
     const botOut = el('span', { class: 'opt-value', text: botNow + ' ms' });
     const botRange = el('input', {
       type: 'range', min: '0', max: '4000', step: '50', value: String(botNow), id: 'opt-botSpeed',
@@ -2437,7 +2437,7 @@
       el('div', { class: 'opt-row stacked' }, [
         el('div', { class: 'grow' }, [
           el('div', { class: 'opt-label' }, [el('span', { text: 'Bot speed' }), botOut]),
-          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Very fast is the usual pace; slower lets you follow each play.' }),
+          el('div', { class: 'opt-help', text: 'How fast every bot at the table plays: the pause before each thing it does. Normal is the usual pace; faster keeps games brisk, slower lets you follow each play.' }),
           botSeg,
           el('div', { class: 'fine-tune' }, [el('span', { class: 'tiny dim', text: 'Fine tune' }), botRange]),
         ]),

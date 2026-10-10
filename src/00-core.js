@@ -259,7 +259,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  botSpeed: 600,                 // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES)
+  botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
   splitOpponents: false,         // two or three opponents side by side instead of one at a time
@@ -284,6 +284,16 @@ function loadSettings() {
   } catch (e) { return Object.assign({}, defaultSettings); }
 }
 MTG.settings = loadSettings();
+/* Bot speed: Normal became the default once the speeds had names. The
+   600 ms that settings saved before then was the old default written out
+   with everything else, not a choice, so it becomes Normal, once.
+   (botPaceV marks it done; it is not among the defaults, or a save from
+   before would look done already.) */
+if (MTG.settings.botPaceV !== 2) {
+  if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
+  MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
 MTG.saveSettings = function () {
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* quota */ }
   MTG.bus.emit('settings:changed', MTG.settings);
@@ -638,7 +648,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 /* How fast the bots play: how long each one pauses before each thing it
    does, so a person can follow it. One setting for the whole table
    (settings.botSpeed), named here for Options and the game menu. Very
-   fast is the pace the bots have always kept, and the default. */
+   fast is the pace the bots used to keep; Normal is the default. */
 MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
 
 

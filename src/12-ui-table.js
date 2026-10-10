@@ -3084,8 +3084,8 @@
   const nextPace = (v) => { const i = PACES.findIndex(p => p[0] === (v == null ? 1 : v)); return PACES[(i + 1) % PACES.length][0]; };
   // the bots' speed: the same named steps as Options (MTG.BOT_PACES), one setting for every bot
   const BOT_PACES = MTG.BOT_PACES;
-  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 600 : v)) || [0, 'custom'])[1].toLowerCase();
-  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 600 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
+  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 1500 : v)) || [0, 'custom'])[1].toLowerCase();
+  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 1500 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
 
   function toggleIn(list, id, max) {
     const i = list.indexOf(id);
