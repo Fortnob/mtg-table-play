@@ -66,6 +66,7 @@
   const FLOOR = 1 / 3;
   const REMATCH = 1e6;          // what a rematch costs a pairing (a point of difference squared costs 1)
   const SEARCH_STEPS = 60000;   // how hard a pairing is looked for before the best so far is taken
+  const FLOOD_MAX = 120, FLOOD_MS = 10000;  // messages from one friend in that long, at most (a busy round sends a few dozen)
   const STATES = new Set(['inviting', 'running', 'done', 'cancelled']);
   const PSTATES = new Set(['invited', 'in', 'declined', 'dropped']);
   const BY = new Set(['agreed', 'org', 'drop']);
@@ -822,7 +823,17 @@
   }
 
   /* ---------------- the line ---------------- */
+  /* A friend sends a few messages a round; one sending hundreds is not
+     playing, and is not let write to the store that often. */
+  const heard = new Map();      // code -> { n, since }
+  function flooding(code) {
+    const t0 = now();
+    const h = heard.get(code);
+    if (!h || t0 - h.since > FLOOD_MS) { heard.set(code, { n: 1, since: t0 }); return false; }
+    return ++h.n > FLOOD_MAX;
+  }
   function onMessage(from, msg) {
+    if (flooding(from)) return;
     if (!msg || typeof msg.op !== 'string' || !isId(msg.id)) return;
     if (msg.op === 'state' || msg.op === 'gone') return fromOrganiser(from, msg);
     const t = byId(msg.id);

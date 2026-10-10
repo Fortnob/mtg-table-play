@@ -595,6 +595,12 @@ async function devicesRun() {
   for (const m of junk) eve.hub.sendTourney(ann2.code, m);
   await sleep(100);
   check(snapshot(ann2) === annBefore, 'reports for someone else’s match, impossible results and junk change nothing at the organiser');
+  // a friend sending hundreds of messages is let through only so far
+  const floodId = 'c'.repeat(24);
+  for (let i = 0; i < 300; i++) eve.hub.sendTourney(ann2.code, { op: 'sync', id: floodId, rev: i });
+  await sleep(200);
+  const answered = broker.sent.filter(m => m.t === 'tn' && m.op === 'gone' && m.id === floodId).length;
+  check(answered > 0 && answered <= 120, `a flood of messages is answered only so far (${answered} of 300)`);
   check(ann2.T.get(id6).state === 'running', 'and the tournament carries on');
   // a flood of invitations from one friend: only a couple are kept
   const fakeT = (i) => ({ v: 1, id: (i + 10).toString(16).padStart(24, 'b'), org: eve.code, name: 'Spam ' + i, fmt: 'modern', bo: 1, rounds: 1, state: 'inviting', at: 1, done: 0, rev: 1,
