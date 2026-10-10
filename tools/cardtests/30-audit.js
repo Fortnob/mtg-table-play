@@ -6206,4 +6206,28 @@ module.exports = (test) => {
       t.ok(log.findIndex(x => /discards Lightning Bolt/.test(x)) < log.findIndex(x => /discards Island at random/.test(x)), 'in that order');
     }
   });
+
+  test('Audit: Braids, Arisen Nightmare: an opponent who sacrifices their last one of that type gave it up; Braids herself, the last one, still counts', (mk, t) => {
+    t.auto('Braids, Arisen Nightmare');
+    for (const give of [true, false]) {
+      const T = mk(); T.toMain('A');
+      T.bf('A', 'Braids, Arisen Nightmare'); const orni = T.bf('A', 'Ornithopter'); const ring = T.bf('B', 'Sol Ring');
+      T.answer('declareAttackers', () => []);
+      T.answer('sacrifice', () => ({ cardIds: [orni.id] }));
+      T.answer('sacrifice', () => ({ cardIds: give ? [ring.id] : [] }));
+      const h = T.g.zones.A.hand.length;
+      T.toMain('A', 'end'); T.settle(); T.resolve();
+      t.zone(orni, 'graveyard'); t.zone(ring, give ? 'graveyard' : 'battlefield');
+      t.eq(T.life('B'), give ? 20 : 18, give ? 'gave up their only artifact: no life lost' : 'kept it: 2 life');
+      t.eq(T.g.zones.A.hand.length - h, give ? 0 : 1, give ? 'and no card for Braids' : 'and Braids draws');
+    }
+    // Braids, the only one of those types: sacrificed, and the opponents still asked
+    const T = mk(); T.toMain('A');
+    const br = T.bf('A', 'Braids, Arisen Nightmare'); T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => []);
+    T.answer('sacrifice', () => ({ cardIds: [br.id] }));
+    T.answer('sacrifice', () => ({ cardIds: [] }));
+    T.toMain('A', 'end'); T.settle(); T.resolve();
+    t.zone(br, 'graveyard'); t.eq(T.life('B'), 18, 'the opponent kept their creature: 2 life');
+  });
 };

@@ -21055,7 +21055,8 @@
           const KINDS = ['artifact', 'creature', 'enchantment', 'land', 'planeswalker'];
           if (ctx._braids == null) {
             const pool = this._sacrificePool(ctx.controller, { filter: KINDS.join(' or ') }, null);
-            if (!pool.length) break;
+            // (come back to with the answer, the pool may be empty: the last one was what went)
+            if (!pool.length && ctx._braidsBefore == null) break;
             ctx._braidsBefore = ctx._braidsBefore != null ? ctx._braidsBefore : (this._sacCount || 0);
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true,
               candidates: pool.map(o => o.id), filter: 'permanent',
@@ -21071,7 +21072,9 @@
             if (ctx['_bd' + key]) continue;
             const pool = this._sacrificePool(foe.id, { filter: ctx._braids.join(' or ') }, null);
             let gave = false;
-            if (pool.length) {
+            /* Braids: asked, and come back to with the answer — the pool is empty now if the one
+               they had was the one they gave up, and that is a sacrifice made, not one refused */
+            if (pool.length || ctx['_bb' + key] != null) {
               if (ctx['_bb' + key] == null) ctx['_bb' + key] = this._sacCount || 0;
               const got = this._ask({ type: 'sacrifice', playerId: foe.id, count: 1, optional: true,
                 candidates: pool.map(o => o.id), filter: 'permanent',
