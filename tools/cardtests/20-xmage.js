@@ -20545,4 +20545,15 @@ module.exports = (test) => {
     t.eq(giant.counters.time, 4, 'The Eleventh Doctor: as many time counters as its mana value');
     t.eq(giant.suspendedBy, 'A', 'suspended');
   });
+
+  test('Curious Herd: "Choose target opponent" — X is the artifacts that player controls', (mk, t) => {
+    t.auto('Curious Herd');
+    const T = mk();
+    T.toMain('A');
+    T.bf('B', 'Ornithopter'); T.bf('B', 'Sol Ring');
+    T.bf('A', 'Mind Stone');
+    T.mana('A', '3G');
+    T.cast('A', T.hand('A', 'Curious Herd'), { targets: ['B'] });
+    t.eq(T.bfOf('A').filter(o => o.name.includes('Beast')).length, 2, "two Beasts for the opponent's two artifacts (not yours)");
+  });
 };

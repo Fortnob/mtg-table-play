@@ -4352,6 +4352,8 @@
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },
     { re: /^Choose target creature\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'creature' }] }) },
+    // Curious Herd, Haunt the Network: "Choose target opponent." — "that player" in what follows
+    { re: /^Choose target opponent\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^You may play the exiled card without paying its mana cost(?: if (.+?))?\.?$/i,
       make: (m) => {
         const cond = m[1] ? condOf(m[1]) : null;
