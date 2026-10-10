@@ -46,6 +46,34 @@
     e.preventDefault();
   });
 
+  /* No browser tooltips: a title attribute shows the system's own hover box
+     ("Tide Shaper — - and + change how many…"), which looks like nothing else
+     here. Whatever sets one, here or later, it comes off as soon as it is
+     set. Its words go where a screen reader still finds them: as the name of
+     something with no words of its own, or as its description otherwise. */
+  function untitle(node) {
+    const t = node.getAttribute('title');
+    if (t == null) return;
+    node.removeAttribute('title');
+    if (!t.trim() || node.hasAttribute('aria-label') || node.hasAttribute('aria-labelledby')) return;
+    if (!(node.textContent || '').trim()) node.setAttribute('aria-label', t);
+    else if (!node.hasAttribute('aria-description')) node.setAttribute('aria-description', t);
+  }
+  const untitleAll = (root) => {
+    if (root.nodeType !== 1) return;
+    if (root.hasAttribute('title')) untitle(root);
+    root.querySelectorAll('[title]').forEach(untitle);
+  };
+  if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+    untitleAll(document.documentElement);
+    new MutationObserver((muts) => {
+      for (const m of muts) {
+        if (m.type === 'attributes') { if (m.target.nodeType === 1) untitle(m.target); }
+        else for (const n of m.addedNodes) untitleAll(n);
+      }
+    }).observe(document.documentElement, { subtree: true, childList: true, attributes: true, attributeFilter: ['title'] });
+  }
+
   UI.modal = function (opts) {
     const id = 'modal-title-' + (++modalSeq);
     const back = el('div', { class: 'modal-back' });
@@ -1044,7 +1072,7 @@
       const len = n / total * c;
       // a hairline gap between slices, so two pale colours do not run together
       svg += `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${fills[k]}" stroke-width="13"
-        stroke-dasharray="${Math.max(0, len - 1.5)} ${c}" stroke-dashoffset="${-at}" transform="rotate(-90 ${size / 2} ${size / 2})"><title>${k}: ${n}</title></circle>`;
+        stroke-dasharray="${Math.max(0, len - 1.5)} ${c}" stroke-dashoffset="${-at}" transform="rotate(-90 ${size / 2} ${size / 2})" aria-label="${k}: ${n}"></circle>`;
       at += len;
     }
     svg += `<text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" class="pie-n">${opts.center != null ? opts.center : total}</text></svg>`;
