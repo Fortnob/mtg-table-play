@@ -14991,6 +14991,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
 
     /* ===== crowns, counters and looking at your own library ===== */
     { re: /^(?:You|you) becomes? the monarch\.?$/i, make: () => ({ op: 'becomeMonarch' }) },
+    // Éomer, King of Rohan: "Target player becomes the monarch."
+    { re: /^Target (player|opponent) becomes the monarch\.?$/i, make: (m) => ({ op: 'becomeMonarch', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
     { re: /^(?:You|you) takes? the initiative\.?$/i, make: () => ({ op: 'takeInitiative' }) },
     { re: /^(?:You|you) gets? ((?:\{E\})+)\.?$/i,
       make: (m) => ({ op: 'energy', n: (m[1].match(/\{E\}/g) || []).length }) },
@@ -16829,6 +16831,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (/^your starting life total$/i.test(p)) return done({ startingLife: true });
     // Last March of the Ents: "the greatest toughness among creatures you control"
     if ((m = p.match(/^the greatest toughness among ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[1]); if (sc) return done({ greatestToughness: sc }); }
+    // Towering Titan: "the total toughness of other creatures you control" (totalStat)
+    if ((m = p.match(/^the total (power|toughness) of ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[2]); if (sc) return done({ totalStat: m[1].toLowerCase(), of: sc }); }
     // Nighthowler: "the number of creature cards in all graveyards"
     if ((m = p.match(/^the number of ([a-z]+) cards in all graveyards$/i))) return done({ cardsInAllGraveyards: m[1].toLowerCase() });
     // Balor: "the number of cards in their hand" — the player the trigger is about
@@ -18447,6 +18451,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Target (opponent|player) reveals their hand\. You choose an? ([a-z][a-z, -]*?) card from it\. (?:Exile that card|That player discards that card)\.?$/i,
       make: (m) => [{ op: 'handAttack', filter: m[2].replace(/,/g, ' ').toLowerCase(),
         to: /Exile that card/i.test(m[0]) ? 'exile' : 'graveyard', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }] },
+    // Long-Term Plans: "Search your library for a card, then shuffle and put that card third from the top." (depth)
+    { re: /^Search your library for a card, then shuffle and put that card (second|third) from the top\.?$/i,
+      make: (m) => [{ op: 'tutor', n: 1, filter: 'any', to: 'top', depth: /second/i.test(m[1]) ? 2 : 3, prompt: 'Search your library for a card.' }] },
     /* a search whose answer goes on top of the library, which is two sentences
        on every card that does it */
     { re: /^(?:You may )?[Ss]earch your library for (?:a|an|up to one) ([-a-z' ]*?)cards?(?: and reveal (?:it|that card))?\. Shuffle(?: your library)?,? (?:and )?(?:then )?put (?:it|that card|the card) on top of it\.?$/i,
@@ -19146,6 +19153,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|target opponent|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
         s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i) ||
+        // Perplex: "…unless its controller discards their hand"
+        s.match(/^(.+?) unless (its controller|that player|they|target player) (discards? (?:their|his or her) hand)\.?$/i) ||
         /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
            creature of their choice", "…unless that player sacrifices a nonland
            permanent of their choice or discards a card" */
@@ -19153,6 +19162,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (unless) {
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
         const cost = /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
+          : /^discards? (?:their|his or her) hand$/i.test(unless[3]) ? { discardHand: true }
           : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push(Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             // Kazuul: "unless that creature's controller pays {3}" — the attacker's
@@ -19866,6 +19876,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Angrath: "it has mana value 3 or less"
     [/^it has mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // Serum Snare: "that permanent had mana value 3 or less" — what the sentence before acted on
+    [/^(?:it|that (?:creature|permanent|spell|card)) had mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Deathbringer Liege: "it's tapped"
     [/^it'?s (tapped|untapped)$/i, (m) => ({ kind: 'itTapped', tapped: /^tapped$/i.test(m[1]) })],
     // Star Charter: "you gained or lost life this turn"
@@ -20302,6 +20314,10 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     // City of Traitors: "When you play another land"
     // The Endstone: "Whenever you play a land or cast a spell, draw a card."
     { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
+    // Shanid, Sleepers' Scourge: "Whenever you play a legendary land or cast a legendary spell,"
+    { re: /^Whenever you play a legendary land or cast a legendary spell,/i, event: 'youPlayLand', also: 'youCastSpell', filt: () => ({ words: 'legendary' }) },
+    // Shadow of the Goblin: "… from anywhere other than your hand" — the land's zone or the spell's (notFromHand)
+    { re: /^Whenever you play a land or cast a spell from anywhere other than your hand,/i, event: 'youPlayLand', also: 'youCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
     // the Eldrazi titans: a trigger from the stack, as the spell is cast
     { re: /^When you cast (?:this spell|CARDNAME),? /i, event: 'castSelf' },
@@ -20700,6 +20716,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Whenever you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
+    { re: /^Whenever you attack a player with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
     // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
     { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
@@ -29106,6 +29124,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
       if (v.startingLife) return ((this.config && this.config.startingLife) || 20) * mult;
+      // Towering Titan: "the total toughness of other creatures you control" (totalStat)
+      if (v.totalStat) {
+        let sum = 0;
+        for (const o of this._scopeList(v.of, pid, src, null, inLayers)) if (o !== src) sum += Math.max(0, v.totalStat === 'power' ? this.powerOf(o) : this.toughnessOf(o));
+        return sum * mult;
+      }
       if (v.greatestToughness) {
         let best = 0;
         for (const o of this._scopeList(v.greatestToughness, pid, src, null, inLayers)) best = Math.max(best, this.toughnessOf(o));
@@ -37518,7 +37542,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           // "whenever you expend 4": only that threshold
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
-          if (ab.notFromHand && !(data.spell && data.spell.fromZone && data.spell.fromZone !== 'hand')) continue;
+          // (Shadow of the Goblin: a land played is judged by the zone it came from)
+          if (ab.notFromHand && !(data.spell ? (data.spell.fromZone && data.spell.fromZone !== 'hand') : (event === 'youPlayLand' && data.fromZone && data.fromZone !== 'hand'))) continue;
           // Taigam, Ojutai Master: only a spell cast from the hand
           if (ab.fromHandOnly && !(data.spell && data.spell.fromZone === 'hand')) continue;
           // Niv-Mizzet, Visionary: noncombat damage only
@@ -37616,6 +37641,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
+          // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
+          if (ab.attackersMinPower != null && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && x.controller === o.controller && this.player(x.attacking) && this.powerOf(x) >= ab.attackersMinPower; })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // The Ozolith: "if it had counters on it"
@@ -38370,7 +38397,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Balor: "the number of cards in their hand"
@@ -39233,8 +39260,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           this.bumpBoard();
           break;
         }
+        // (Éomer, King of Rohan: "target player becomes the monarch")
         case 'becomeMonarch': this.setMonarch(e.who === 'opponent'
-          ? (this.opponentsOf(ctx.controller)[0] || me).id : ctx.controller, 'a card'); break;
+          ? (this.opponentsOf(ctx.controller)[0] || me).id : e.who === 'target' ? ((firstPlayer() || me).id) : ctx.controller, 'a card'); break;
         case 'takeInitiative': this.takeInitiative(ctx.controller, 'a card'); break;
         /* Venture into the dungeon (CR 701.46): into the first room of a
            dungeon of your choice, or on to the next room of the one you are
@@ -40731,14 +40759,16 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
               // shuffle first, then put it where the card says (CR 701.19)
               this.rng.shuffle(z.library);
               c.zone = 'library';
-              if (where === 'top') z.library.unshift(c); else z.library.push(c);
+              // Long-Term Plans: "third from the top" (depth)
+              if (where === 'top' && e.depth > 1) z.library.splice(Math.min(e.depth - 1, z.library.length), 0, c);
+              else if (where === 'top') z.library.unshift(c); else z.library.push(c);
             } else this.moveObject(c, 'hand', { controller: seeker.id });
           }
           this._lastSearched = taken.map(c => c.id);
           if (taken.length) this._noteLastAffected([{ kind: 'object', id: taken[taken.length - 1].id }]);
           if (!taken.length || !(dest === 'top' || dest === 'bottom')) this.rng.shuffle(z.library);
           const where = dest === 'graveyard' ? ' into their graveyard'
-            : dest === 'top' ? ' onto the top of their library'
+            : dest === 'top' ? (e.depth > 1 ? ` into their library ${e.depth === 2 ? 'second' : 'third'} from the top` : ' onto the top of their library')
             : dest === 'bottom' ? ' onto the bottom of their library'
             : dest === 'battlefield' ? ' onto the battlefield' : dest === 'split' ? ' (one onto the battlefield)' : '';
           this.logEvent('search', `${seeker.name} searches their library and takes ${taken.length} card${taken.length === 1 ? '' : 's'}${where}.`);
@@ -41311,6 +41341,20 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
             if (x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x)) this._sacrificeNow(payer.id, [x], null);
             else if (x && x.zone === 'hand' && x.owner === payer.id && e.cost.orDiscard) this._discardNow(payer.id, [x]);
             else this._spliceNext(e.then);
+            break;
+          }
+          /* Perplex: "…unless its controller discards their hand" — the whole
+             hand, or it happens (a hand of no cards is discarded as easily) */
+          if (e.cost && e.cost.discardHand) {
+            const hand = this.zones[payer.id].hand.slice();
+            const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessDiscardHand', yesLabel: 'Discard your hand', noLabel: "Don't",
+              prompt: e.prompt || `Discard your hand (${hand.length} card${hand.length === 1 ? '' : 's'})? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'udh');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) {
+              const now = this.zones[payer.id].hand.slice();
+              if (now.length) this._discardNow(payer.id, now);
+              else this.logEvent('discard', `${payer.name} discards their hand of no cards.`);
+            } else this._spliceNext(e.then);
             break;
           }
           /* Painful Quandary: "…unless they discard a card" — a card picked
@@ -55291,6 +55335,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
+      // Perplex: give up the hand only when there is little in it
+      if (ch.purpose === 'unlessDiscardHand') return (g.zones[this.pid].hand || []).length <= 1;
       // Chandra: cast the exiled card only if it can be paid for
       if (ch.purpose === 'castOrElse') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       // Jace, the Mind Sculptor: an opponent's good card goes to the bottom, our own bad one does
