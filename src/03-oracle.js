@@ -2449,6 +2449,8 @@
     { re: /^Untap target creature\. It gains haste until end of turn\.?$/i,
       make: () => ({ op: 'untapHaste', targets: [{ type: 'creature' }] }) },
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
+    // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
+    { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
     // Contagion Engine: "Proliferate twice."
     // Expansion Algorithm: "Proliferate X times."; Tromell: "Proliferate X times, where X is …" (proliferateTimes)
     { re: /^Proliferate (X|\d+) times(?:, where X is (.+?))?\.?$/i,

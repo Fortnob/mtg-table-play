@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11057,
-  "gainedCards": 1094,
-  "linesNeeded": 11822,
-  "linesGained": 1289,
+  "needed": 11052,
+  "gainedCards": 1090,
+  "linesNeeded": 11815,
+  "linesGained": 1284,
   "gained": {
-   "all": 1094,
+   "all": 1090,
    "top2000": 43,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4135,
-   "lines": 3886,
+   "score": 4134,
+   "lines": 3885,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1662,23 +1662,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Lord Skitter's Blessing",
-    "Ellivere of the Wild Court",
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental",
-    "Ramses Overdark",
-    "Cut the Earthly Bond",
-    "Venomous Vines"
-   ]
-  },
-  {
    "what": "(layout flip)",
    "score": 10,
    "lines": 10,
@@ -1997,6 +1980,22 @@
     "Mindleecher",
     "Everquill Phoenix",
     "Huntmaster Liger"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Ellivere of the Wild Court",
+    "Estrid, the Masked",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental",
+    "Ramses Overdark",
+    "Cut the Earthly Bond",
+    "Venomous Vines"
    ]
   },
   {
@@ -7493,19 +7492,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Lord Skitter's Blessing",
-    "Ellivere of the Wild Court",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental"
-   ]
-  },
-  {
    "what": "activated with 2 effects in its constructor",
    "score": 9,
    "cards": 9,
@@ -7776,6 +7762,19 @@
     "Candlekeep Inspiration",
     "Archon of the Wild Rose",
     "Oko, the Trickster"
+   ]
+  },
+  {
+   "what": "EnchantedPredicate.instance",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Ellivere of the Wild Court",
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental",
+    "Ramses Overdark"
    ]
   },
   {

@@ -18296,4 +18296,19 @@ module.exports = (test) => {
     U.settle();
     t.zone(c1, 'exile'); t.zone(c2, 'exile'); t.zone(c3, 'battlefield');
   });
+
+  test("Lord Skitter's Blessing: with an enchanted creature, lose 1 life and draw an additional card in your draw step", (mk, t) => {
+    t.auto("Lord Skitter's Blessing");
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', "Lord Skitter's Blessing");
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const aura = T.bf('A', 'Rancor');
+    aura.attachedTo = bear.id; bear.attachments = [aura.id]; T.g.bumpBoard();
+    const h = T.zone('A', 'hand').length;
+    T.toMain('B'); T.toMain('A');
+    t.eq(T.zone('A', 'hand').length, h + 2, 'the normal draw and one more');
+    t.eq(T.life('A'), 19, '1 life');
+  });
 };
