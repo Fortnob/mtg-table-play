@@ -19610,4 +19610,21 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.zone(bear, 'graveyard', 'sacrificed after dealing combat damage');
   });
+
+  test('Mauhúr, Angel of Suffering: an extra counter on Armies, Goblins and Orcs; damage to you milled twice over', (mk, t) => {
+    t.auto('Mauhúr, Uruk-hai Captain'); t.auto('Angel of Suffering');
+    const T = mk({ library: ['Island'] });
+    T.toMain('A');
+    T.bf('A', 'Mauhúr, Uruk-hai Captain');
+    const gob = T.bf('A', 'Goblin Guide'), bear = T.bf('A', 'Grizzly Bears');
+    T.g.addCounters(gob, '+1/+1', 1); T.g.addCounters(bear, '+1/+1', 1);
+    t.eq(gob.counters['+1/+1'], 2, 'a Goblin gets one more');
+    t.eq(bear.counters['+1/+1'], 1, 'a Bear does not');
+    T.bf('A', 'Angel of Suffering');
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    const lib = T.zone('A', 'library').length;
+    T.g.dealDamageToPlayer(T.g.player('A'), 3, T.bf('B', 'Hill Giant'), false);
+    t.eq(T.g.player('A').life, 20, 'no damage');
+    t.eq(lib - T.zone('A', 'library').length, 6, 'six cards milled');
+  });
 };

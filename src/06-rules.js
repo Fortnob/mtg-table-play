@@ -9062,6 +9062,18 @@
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
         case 'untapped': ev.untapped = true; break;
+        // Angel of Suffering: the damage is prevented, and its controller mills (twice) that many
+        case 'millInstead': {
+          if (!((ev.n || 0) > 0)) break;
+          const k = (ev.n || 0) * (ef.mult || 1);
+          ev.n = 0; ev.cancelled = true;
+          const lib = (this.zones[src.controller] || {}).library || [];
+          let milled = 0;
+          for (let i = 0; i < k && lib.length; i++) { this.moveObject(lib[0], 'graveyard'); milled++; }
+          const who = this.player(src.controller);
+          if (who) this.logEvent('mill', `${who.name} mills ${milled} instead of taking the damage.`);
+          break;
+        }
         // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
         case 'countersOnSelf': {
           const k = ef.perDamage ? (ev.n || 0) : (ef.n || 1);

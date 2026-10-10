@@ -13142,6 +13142,10 @@
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
         / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+    // Mauhúr, Uruk-hai Captain: "… on an Army, Goblin, or Orc you control, that many plus one …" — creature types, any one of them
+    { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/,
+      make: (m) => ({ op: 'replace', id: 'cntPlus1Types', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1',
+        words: m[1].replace(/,? or /, ', ').split(/,\s*/).map(w => w.trim().toLowerCase()).filter(Boolean).join(' or ') }) },
     // Loading Zone: "If one or more counters would be put on a creature, Spacecraft, or Planet you control, twice that many of each of those kinds …" — any kind
     { re: /^If one or more counters would be put on (an? (?:creature|artifact|permanent)(?:,? (?:or )?(?:creature|artifact|Spacecraft|Planet))*)( you control)?, twice that many of each of those kinds of counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'cntDoubleAll', event: 'counters', who: m[2] ? 'you' : 'all', how: 'double',
@@ -13200,6 +13204,10 @@
     // Nine Lives: "prevent that damage and put an incarnation counter on this enchantment"
     { re: /^If a source would deal damage to you, prevent that damage and put an? ([a-z]+) counter on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgToCounters', event: 'damage', who: 'any', how: 'countersOnSelf', counterKind: m[1].toLowerCase(), n: 1,
+        toYou: true, toPlayerOnly: true, prevention: true }) },
+    // Angel of Suffering: "If damage would be dealt to you, prevent that damage and mill twice that many cards."
+    { re: /^If damage would be dealt to you, prevent that damage and mill (twice )?that many cards\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgToMill', event: 'damage', who: 'any', how: 'millInstead', mult: m[1] ? 2 : 1,
         toYou: true, toPlayerOnly: true, prevention: true }) },
     // Force Bubble: "If damage would be dealt to you, put that many depletion counters on this enchantment instead."
     { re: /^If damage would be dealt to you, put that many ([a-z]+) counters on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME) instead\.?$/i,
