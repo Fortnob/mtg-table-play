@@ -240,6 +240,8 @@ def steps(quick):
         Step('brackets', node(TOOLS / 'brackettest.js'), judge_exit, 300, needs_bulk=True),
         # match play: the game clock on a real game, the record of games, the table writing it
         Step('match', node(TOOLS / 'matchtest.js'), judge_exit, 300, needs_bulk=True),
+        # deck links, sample hands and their odds, the practice game's Goldfish, card rulings
+        Step('decktools', node(TOOLS / 'decktoolstest.js'), judge_exit, 300, needs_bulk=True),
         Step('cardtest', node(TOOLS / 'cardtest.js'), judge_cardtest, 600, needs_bulk=True),
         Step('smoke', node(TOOLS / 'smoke.js', '--from', 0, '--to', smoke_to), judge_smoke, 3600, needs_bulk=True),
         # the ready-made decks must stay legal and run in full as coverage moves
