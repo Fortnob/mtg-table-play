@@ -3569,4 +3569,29 @@ module.exports = (test) => {
     T.mana('A', '2BB'); T.cast('A', bontu); T.settle(); T.resolve();
     t.zone(bo, 'graveyard'); t.zone(bl2, 'graveyard'); t.eq(T.g.zones.A.hand.length, h - 1 + 2, 'two sacrificed, two drawn');
   });
+
+  test('Audit: stun counters keep a permanent tapped one untap at a time; Fear of Sleep Paralysis locks them; Counterbalance', (mk, t) => {
+    let T = mk();
+    t.auto('Fear of Sleep Paralysis'); t.auto('Counterbalance');
+    T.toMain('A');
+    const b = T.bf('B', 'Grizzly Bears'); b.tapped = true; b.counters.stun = 2;
+    T.nextTurn('B'); t.ok(b.tapped); t.eq(b.counters.stun, 1);
+    T.nextTurn('A'); T.nextTurn('B'); t.ok(b.tapped, 'second untap: the last counter goes');
+    T.nextTurn('A'); T.nextTurn('B'); t.no(b.tapped, 'then it untaps');
+    T = mk();
+    T.toMain('A');
+    const c = T.bf('A', 'Grizzly Bears'); c.tapped = true; c.counters.stun = 1;
+    T.mana('A', '1U'); T.cast('A', T.hand('A', 'Refocus'), { targets: [c] });
+    t.ok(c.tapped, 'an untap effect removes the counter instead'); t.eq(c.counters.stun || 0, 0);
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Fear of Sleep Paralysis');
+    const e = T.bf('B', 'Grizzly Bears'); e.tapped = true; e.counters.stun = 1;
+    T.nextTurn('B'); t.ok(e.tapped); t.eq(e.counters.stun, 1, "an opponent's stun counter can't be removed");
+    T = mk();
+    T.toMain('B');
+    T.bf('A', 'Counterbalance'); T.top('A', 'Mind Stone');
+    T.mana('B', '1G'); T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.ok(T.g.zones.B.graveyard.some(x => x.name === 'Grizzly Bears'), 'same mana value: countered');
+  });
 };
