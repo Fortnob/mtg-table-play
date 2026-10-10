@@ -6230,4 +6230,22 @@ module.exports = (test) => {
     T.toMain('A', 'end'); T.settle(); T.resolve();
     t.zone(br, 'graveyard'); t.eq(T.life('B'), 18, 'the opponent kept their creature: 2 life');
   });
+
+  test('Audit: a land given a basic land type taps for it by hand: an Island under Yavimaya for {G}, Maze of Ith under Urborg for {B}', (mk, t) => {
+    t.auto('Yavimaya, Cradle of Growth'); t.auto('Urborg, Tomb of Yawgmoth');
+    let T = mk(); T.toMain('B');
+    T.bf('A', 'Yavimaya, Cradle of Growth'); const isl = T.bf('B', 'Island');
+    const v = T.g.viewFor('B').battlefield.find(x => x.id === isl.id);
+    t.eq(JSON.stringify(v.manaExtra), '[{"i":1,"label":"Add {G}"}]', 'the table is told of the {G}, after the printed {U}');
+    t.ok(T.g.tapForMana('B', isl.id, 1), 'tapped for it by hand');
+    t.eq(T.g.player('B').pool.G || 0, 1, '{G} added'); t.eq(T.g.player('B').pool.U || 0, 0); t.ok(isl.tapped);
+    t.no(T.g.tapForMana('B', isl.id, 0), 'and only once');
+    T = mk(); T.toMain('B');
+    T.bf('A', 'Urborg, Tomb of Yawgmoth'); const maze = T.bf('B', 'Maze of Ith');
+    t.eq(JSON.stringify(T.g.viewFor('B').battlefield.find(x => x.id === maze.id).manaExtra), '[{"i":0,"label":"Add {B}"}]', 'nothing printed: the {B} is the first');
+    t.ok(T.g.tapForMana('B', maze.id, 0)); t.eq(T.g.player('B').pool.B || 0, 1);
+    T = mk(); T.toMain('B');
+    const plain = T.bf('B', 'Island');
+    t.eq(T.g.viewFor('B').battlefield.find(x => x.id === plain.id).manaExtra, null, 'a plain Island: nothing more');
+  });
 };

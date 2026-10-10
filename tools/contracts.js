@@ -116,6 +116,8 @@ const ObjectView = obj({
     lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),
   intensity: opt(maybe(num)),
   band: opt(maybe(str)),
+  /* Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
+  manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({

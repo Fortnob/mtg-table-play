@@ -1922,6 +1922,8 @@
           }
           uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.tapMana(o, i, ab) });
         });
+        // Yavimaya, Urborg: the mana a land type it was given adds (the engine's index for it)
+        if (!o.tapped) for (const m of (o.manaExtra || [])) uses.push({ label: 'Add mana', text: m.label, mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: m.i }) });
         // prepared: a copy of the spell printed with it, cast from here
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind !== 'cast' || use.via !== 'prepared') continue;
@@ -2835,6 +2837,7 @@
       } else if (loc.zone === 'battlefield' && mine && a) {
         const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
         a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.tapMana(o, i, ab)]));
+        for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: m.i })]);
         acts.forEach((ab) => {
           const idx = a.manaAbilities.length + acts.indexOf(ab);
           items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);

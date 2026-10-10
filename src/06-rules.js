@@ -7522,9 +7522,11 @@
       /* A land that only taps for mana because something else says so — an
          Urborg, a Chromatic Lantern — has nothing printed to activate, so
          the mana it was handed is used directly. */
-      if (a && !a.manaAbilities.length) {
+      /* Yavimaya, Urborg: an Island that is a Forest as well taps for {G} too — the abilities after
+         its printed ones (manaAbilitiesOf, by the same index the table shows them by) */
+      if (a && (!a.manaAbilities.length || (abilityIndex || 0) >= a.manaAbilities.length)) {
         const extra = this.manaAbilitiesOf(o);
-        const ab = extra[abilityIndex || 0] || extra[0];
+        const ab = a.manaAbilities.length ? extra[abilityIndex] : (extra[abilityIndex || 0] || extra[0]);
         if (!ab) return this.fail(`${o.name} has no mana ability.`);
         if (ab.cost && ab.cost.tap && o.tapped) return this.fail(`${o.name} is already tapped.`);
         if (this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o) && ab.cost && ab.cost.tap)
@@ -7535,6 +7537,23 @@
       }
       if (!a || !a.manaAbilities.length) return this.fail(`${o.name} has no mana ability.`);
       return this.activateAbility(playerId, objId, abilityIndex || 0, { manaChoice, manaSplit });
+    }
+
+    /* The mana abilities a permanent has beyond its printed ones (a land type it was given, "lands you
+       control have …"), for the table to offer: the index tapForMana takes, and what it adds */
+    _manaExtraView(o) {
+      const a = o.analysis();
+      const c = this.characteristics(o);
+      if (!a || (c && c.setMana)) return null;
+      const all = this.manaAbilitiesOf(o);
+      const from = a.manaAbilities.length;
+      if (all.length <= from) return null;
+      return all.slice(from).map((ab, k) => {
+        const e0 = (ab.effects || [])[0] || {};
+        const label = e0.op === 'addMana' && (e0.symbols || []).length ? 'Add ' + e0.symbols.map(x => '{' + x + '}').join('')
+          : String(ab.text || 'Add mana').replace(/^[^:]*:\s*/, '');
+        return { i: from + k, label };
+      });
     }
 
     /** Try to pay `cost`; may auto-tap lands. Returns true on success. */
@@ -23957,6 +23976,8 @@
         /* what it has right now, granted keywords included, so the table can
            tell which permanents a spell is allowed to point at */
         keywords: this._viewKeywords(o),
+        // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
+        manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
       };
       return {
         v: this.stateVersion,
