@@ -2462,6 +2462,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .big-btn .bb-sub { font: 500 11px/1.2 var(--font); letter-spacing: .01em; text-transform: none; opacity: .85; max-width: 100%;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .big-btn .bb-sub:empty { display: none; }
+.big-btn.above { margin-bottom: 8px; }
+.big-btn[hidden] { display: none; }
 .big-btn.go { color: #2a1702; background: linear-gradient(180deg, #ffe08a, #f0a83a 55%, #d9822a);
   box-shadow: 0 0 0 2px rgba(255,214,120,.55), 0 0 26px 4px rgba(255,170,60,.45), 0 10px 26px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.6);
   animation: goPulse 2.2s ease-in-out infinite; }
@@ -2733,8 +2735,11 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 }
 .cv-ghost.exiling .cv-body { animation: exiling .52s ease forwards; }
 @keyframes exiling { 40% { filter: brightness(2.2) saturate(0) ; box-shadow: 0 0 30px 12px rgba(200,230,255,.7); } 100% { filter: brightness(3) saturate(0); } }
-.fx-float { position: absolute; translate: -50% -50%; z-index: 92; font: 900 24px/1 var(--font); letter-spacing: -.02em; white-space: nowrap;
+.fx-float { position: absolute; translate: -50% -50%; z-index: 92; font: 900 26px/1 var(--font); letter-spacing: -.02em; white-space: nowrap;
   text-shadow: 0 2px 0 rgba(0,0,0,.6), 0 0 18px rgba(0,0,0,.8); animation: floatUp 1.45s cubic-bezier(.2,.8,.2,1) forwards; }
+/* damage reads as a blow: heavier, outlined, a red glow behind it */
+.fx-float.dmg, .fx-float.life-down { font-size: 30px; -webkit-text-stroke: 1px rgba(40,0,0,.55);
+  text-shadow: 0 3px 0 rgba(0,0,0,.65), 0 0 14px rgba(255,60,40,.75), 0 0 28px rgba(0,0,0,.8); }
 .fx-float.life-down, .fx-float.dmg { color: #ff6b5c; }
 .fx-float.life-up, .fx-float.buff { color: var(--up); }
 @keyframes floatUp { 0% { opacity: 0; scale: .5; } 15% { opacity: 1; scale: 1.25; } 30% { scale: 1; } 100% { opacity: 0; translate: -50% -170%; } }
@@ -3138,6 +3143,118 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   animation: feelVignette .85s ease-out forwards; }
 .feel-vignette.still { animation: none; opacity: calc(var(--feel-a, .4) * .7); }
 @keyframes feelVignette { 0% { opacity: 0; } 12% { opacity: var(--feel-a, .4); } 100% { opacity: 0; } }
+
+/* ---------- the charge ---------- */
+/* an attacker lunges at what it is attacking and comes back */
+.cv.feel-lunge { animation: feelLunge .58s cubic-bezier(.3,.1,.3,1); }
+@keyframes feelLunge {
+  0% { translate: 0 0; }
+  22% { translate: calc(var(--feel-lx) * -.25) calc(var(--feel-ly) * -.25); }
+  55% { translate: var(--feel-lx) var(--feel-ly); scale: 1.06; }
+  100% { translate: 0 0; scale: 1; }
+}
+/* what it is aimed at flinches, and stays ringed in red while the attack lasts */
+.feel-threat { animation: feelThreat .85s ease-out; }
+@keyframes feelThreat { 0% { filter: none; } 20% { filter: brightness(1.35) drop-shadow(0 0 12px rgba(255,60,40,.9)); scale: 1.06; } 100% { filter: none; scale: 1; } }
+.feel-threat-still { filter: drop-shadow(0 0 8px rgba(255,60,40,.8)); }
+.life-orb.under-attack, .cv.under-attack { position: relative; }
+.life-orb.under-attack::before, .cv.under-attack::before {
+  content: ''; position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; z-index: 5;
+  box-shadow: 0 0 0 2px rgba(255,80,60,.95), 0 0 18px 4px rgba(255,50,30,.55);
+  animation: underAttack 1.3s ease-in-out infinite; }
+.cv.under-attack::before { border-radius: 8%; inset: -4px; }
+@keyframes underAttack { 50% { box-shadow: 0 0 0 3px rgba(255,110,90,1), 0 0 30px 8px rgba(255,50,30,.75); } }
+.life-orb.under-attack::after, .cv.under-attack::after {
+  content: attr(data-attackers); position: absolute; left: 50%; top: -14px; translate: -50% 0; z-index: 6; pointer-events: none;
+  font: 800 11px/1 var(--font); color: #fff; white-space: nowrap; padding: 3px 7px; border-radius: 99px;
+  background: linear-gradient(180deg, #d4402e, #8a1c12); box-shadow: 0 2px 6px rgba(0,0,0,.6); opacity: 1; }
+.cv.under-attack::after { inset: auto; top: -12%; }
+:root[data-reduce-motion] .life-orb.under-attack::before, :root[data-reduce-motion] .cv.under-attack::before { animation: none; }
+
+/* ---------- blocks and blows in combat ---------- */
+/* an attacker checked by its blocker, and a creature striking what it damages */
+.cv.feel-recoil { animation: feelRecoil .5s ease-out .2s; }
+@keyframes feelRecoil { 0% { translate: 0 0; } 35% { translate: var(--feel-lx) var(--feel-ly); } 100% { translate: 0 0; } }
+.cv.feel-strike { animation: feelStrike .44s cubic-bezier(.5,0,.3,1); }
+@keyframes feelStrike { 0% { translate: 0 0; } 40% { translate: var(--feel-lx) var(--feel-ly); scale: 1.08; } 100% { translate: 0 0; scale: 1; } }
+.feel-clang { position: absolute; width: 74px; height: 74px; translate: -50% -50%; pointer-events: none; mix-blend-mode: screen; border-radius: 50%;
+  background: radial-gradient(circle, #fff 0 10%, rgba(220,230,255,.9) 18%, rgba(140,170,255,.4) 36%, transparent 62%),
+              repeating-conic-gradient(rgba(230,236,255,.8) 0 5deg, transparent 5deg 60deg);
+  -webkit-mask: radial-gradient(circle, #000 32%, transparent 70%); mask: radial-gradient(circle, #000 32%, transparent 70%);
+  animation: feelSpark .55s cubic-bezier(.15,.8,.3,1) both; }
+:root[data-reduce-motion] .cv.feel-recoil, :root[data-reduce-motion] .cv.feel-strike { animation: none; }
+
+/* ---------- blows, heavier ---------- */
+/* a creature hit flashes red under its shake */
+.cv.feel-hurt .cv-body { animation: feelHurt .5s ease-out; }
+@keyframes feelHurt { 0% { filter: none; } 18% { filter: brightness(1.7) sepia(1) hue-rotate(-40deg) saturate(3.5); } 100% { filter: none; } }
+/* a player hit: the orb jolts, goes red and swells a little */
+.life-orb.feel-orb-hit { animation: feelOrbHit .62s ease-out; }
+@keyframes feelOrbHit {
+  0% { translate: 0 0; filter: none; }
+  12% { translate: calc(var(--feel-amp) * -1) 0; filter: brightness(1.6) sepia(1) hue-rotate(-40deg) saturate(4); scale: 1.12; }
+  30% { translate: var(--feel-amp) 0; }
+  50% { translate: calc(var(--feel-amp) * -.5) 0; scale: 1.04; }
+  75% { translate: calc(var(--feel-amp) * .25) 0; }
+  100% { translate: 0 0; filter: none; scale: 1; }
+}
+.life-orb.feel-orb-hit-still { filter: drop-shadow(0 0 8px rgba(255,60,40,.9)); }
+.feel-shock { position: absolute; width: var(--feel-s, 140px); height: var(--feel-s, 140px); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  box-shadow: 0 0 0 3px rgba(255,90,70,.9), inset 0 0 22px rgba(255,60,40,.6), 0 0 24px rgba(255,60,40,.5);
+  animation: feelShock .7s cubic-bezier(.15,.7,.3,1) forwards; }
+@keyframes feelShock { 0% { opacity: 1; scale: .25; } 100% { opacity: 0; scale: 1.15; } }
+/* the whole table jolts with the biggest moments */
+.arena.feel-quake { animation: feelQuake .5s cubic-bezier(.36,.07,.19,.97); }
+@keyframes feelQuake {
+  10% { translate: calc(var(--feel-q) * -1) calc(var(--feel-q) * .4); }
+  25% { translate: var(--feel-q) calc(var(--feel-q) * -.5); }
+  40% { translate: calc(var(--feel-q) * -.7) calc(var(--feel-q) * .3); }
+  60% { translate: calc(var(--feel-q) * .4) 0; }
+  80% { translate: calc(var(--feel-q) * -.2) 0; }
+  100% { translate: 0 0; }
+}
+
+/* ---------- destroyed ---------- */
+/* a crack of white light across the card as it breaks */
+.feel-crack { position: absolute; translate: -50% -50%; pointer-events: none; border-radius: 6%; mix-blend-mode: screen;
+  background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.95) 48%, rgba(255,230,190,.9) 50%, transparent 56%),
+              linear-gradient(60deg, transparent 58%, rgba(255,255,255,.8) 62%, transparent 66%),
+              radial-gradient(ellipse at 50% 50%, rgba(255,240,220,.55), transparent 70%);
+  animation: feelCrack .6s ease-out forwards; }
+@keyframes feelCrack { 0% { opacity: 0; scale: .9; } 18% { opacity: 1; scale: 1.04; } 100% { opacity: 0; scale: 1.12; } }
+.feel-shard { scale: var(--feel-z, 1); }
+.feel-dust { position: absolute; width: var(--feel-s, 140px); height: calc(var(--feel-s, 140px) * .4); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(ellipse, rgba(170,160,150,.55), rgba(120,110,100,.25) 45%, transparent 70%);
+  animation: feelDust 1s ease-out both; }
+@keyframes feelDust { 0% { opacity: 0; scale: .4; } 25% { opacity: 1; } 100% { opacity: 0; scale: 1.5 1.2; } }
+
+/* ---------- exiled ---------- */
+.feel-pillar { position: absolute; translate: -50% -60%; pointer-events: none; mix-blend-mode: screen; border-radius: 40%;
+  background: linear-gradient(0deg, transparent, rgba(220,236,255,.85) 35%, rgba(255,255,255,.95) 50%, rgba(220,236,255,.6) 70%, transparent);
+  filter: blur(4px); animation: feelPillar .85s ease-out forwards; }
+@keyframes feelPillar { 0% { opacity: 0; scale: .3 1; } 25% { opacity: 1; scale: 1 1; } 100% { opacity: 0; scale: .2 1.15; } }
+.feel-mote { position: absolute; width: 6px; height: 6px; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: #fff; box-shadow: 0 0 8px 2px rgba(190,220,255,.9); animation: feelMote 1.15s ease-out both; }
+.feel-mote.heal { background: #d8ffe6; box-shadow: 0 0 8px 2px rgba(111,227,160,.9); }
+@keyframes feelMote { 0% { opacity: 0; scale: .4; } 20% { opacity: 1; scale: 1; } 100% { opacity: 0; scale: .3; translate: calc(-50% + var(--feel-dx, 0px)) calc(-50% + var(--feel-dy, -80px)); } }
+
+/* ---------- returned to a hand or library ---------- */
+.feel-swirl { position: absolute; width: var(--feel-s, 120px); height: var(--feel-s, 120px); translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: conic-gradient(from 0deg, transparent, rgba(150,200,255,.55), transparent 40%, rgba(150,200,255,.45), transparent 80%);
+  -webkit-mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 62%); mask: radial-gradient(circle, transparent 38%, #000 42%, #000 58%, transparent 62%);
+  animation: feelSwirl .65s ease-out forwards; }
+@keyframes feelSwirl { 0% { opacity: 0; scale: .5; rotate: 0deg; } 30% { opacity: 1; } 100% { opacity: 0; scale: 1.2; rotate: 220deg; } }
+
+/* ---------- life gained ---------- */
+.life-orb.feel-heal { animation: feelHeal .85s ease-out; }
+@keyframes feelHeal { 25% { filter: drop-shadow(0 0 14px rgba(111,227,160,.95)) brightness(1.2); scale: 1.06; } 100% { filter: none; scale: 1; } }
+
+/* ---------- a player out ---------- */
+.life-orb.feel-ko { animation: feelKo 1.5s ease-out forwards; }
+@keyframes feelKo { 0% { filter: none; } 15% { filter: brightness(2) saturate(0); scale: 1.12; } 100% { filter: grayscale(1) brightness(.45); scale: .94; } }
+
+/* less motion: none of the movement, the still marks only */
+:root[data-reduce-motion] .arena.feel-quake, :root[data-reduce-motion] .cv.feel-lunge { animation: none; }
 
 /* ---------- counters ---------- */
 .cv.feel-plus::after { box-shadow: 0 0 0 2px rgba(111,227,160,.9), 0 0 22px 5px rgba(111,227,160,.5); animation: feelShadow .65s ease-out both; }
@@ -14554,6 +14671,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Sliver Overlord: "Gain control of target Sliver.")
     { re: /^Gain control of target (creature|permanent|artifact|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
+    /* Treasure Nabber: "gain control of that artifact until the end of your next turn" — what the trigger
+       is about; Power of Persuasion: "Gain control of it …" — the target (endNextTurn) */
+    { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
+      make: (m) => Object.assign({ op: 'gainControl', until: 'endNextTurn' },
+        /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : /^that/i.test(m[1]) ? { scope: 'triggerObject' } : {}) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
@@ -21369,6 +21491,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Seed Spark, Rolling Spoil: "if {G} was spent to cast this spell" — one mana of that colour (manaSymbolSpent)
+    [/^\{([WUBRGC])\} was spent to cast (this spell|it|CARDNAME)$/, (m) => ({ kind: 'manaSpentAtLeast', n: 1, color: m[1], of: spentOf(m[2]) })],
     // Alchemy: "this card's intensity is 3 or more"
     [/^(?:this card'?s|CARDNAME'?s|its|this (?:creature|spell|enchantment)'?s) intensity is (\d+) or (more|greater|less)$/i, (m) => ({ kind: 'intensityAtLeast', n: +m[1], less: /less/i.test(m[2]) })],
     // Progenitor Mimic: "if this creature isn't a token"
@@ -30047,6 +30171,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.bumpBoard();
         }
         o.effects = o.effects.filter(e => e.until !== 'eot');
+        // "until the end of your next turn": over at the cleanup of that turn (endNextTurn)
+        if (o.effects.some(e => e && e.untilEndTurn != null && e.untilEndTurn <= this.turn)) {
+          o.effects = o.effects.filter(e => !(e && e.untilEndTurn != null && e.untilEndTurn <= this.turn));
+          o._chr = null; this._refreshControl();
+        }
         /* A copy that lasts until end of turn is what it was again: itself,
            or a Clone that was already a copy before Mirrorweave (CR 707). */
         if (o.copyUntilTurn != null && o.printedCard) {
@@ -43267,8 +43396,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const x = this.obj(t.id);
             if (!x || x.zone !== 'battlefield') continue;
             /* A control effect in layer 2, as new as anything on the table:
-               Threaten's ends with the turn, Dominate's lasts. */
+               Threaten's ends with the turn, Dominate's lasts, Treasure Nabber's
+               with the end of its controller's next turn (endNextTurn) */
             x.effects.push(Object.assign({ control: ctx.controller, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() },
+              e.until === 'endNextTurn' ? { untilEndTurn: this._endOfNextTurnOf(ctx.controller) } : {},
               // Kellogg: "for as long as you control this creature"
               e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {}));
             if (e.untap) this._markUntapped(x);
@@ -49540,14 +49671,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > e.maxMv) return false;
             return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
-          this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
+          // (revealed once, however many times this resumes)
+          if (!this._doneHere('handShown')) this.logEvent('reveal', `${victim.name} reveals their hand: ${this.zones[victim.id].hand.map(o => o.name).join(', ') || 'no cards'}.`);
           // Memory Leak: "from that player's graveyard or hand" (alsoGraveyard)
           if (e.alsoGraveyard) hand.push(...this.zones[victim.id].graveyard.filter(o => words === 'any' || words === 'card' || this._cardFitsWords(o, words)));
           if (!hand.length) break;
-          this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1,
+          const q = { type: 'pickCard', playerId: ctx.controller, count: 1,
             purpose: e.to === 'exile' ? 'exileFromHand' : 'discardFromHand',
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Choose ${want} card from ${victim.name}'s ${e.alsoGraveyard ? 'graveyard or hand' : 'hand'} to ${e.to === 'exile' ? 'exile' : 'discard'}.` });
+            prompt: `Choose ${want} card from ${victim.name}'s ${e.alsoGraveyard ? 'graveyard or hand' : 'hand'} to ${e.to === 'exile' ? 'exile' : 'discard'}.` };
+          /* Tourach's Canticle: "That player discards that card, then discards a card at random" — the
+             pick is waited for, so the random one comes after it */
+          if (this.resolving) { if (this._ask(q, 'handPick') === SUSPEND) return SUSPEND; break; }
+          this.queueChoice(q);
           break;
         }
 
@@ -82481,10 +82617,14 @@ Sideboard
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
+        // a second choice as big as the first, above it ("All attack" over "No attacks")
+        d._above = el('button', { type: 'button', class: 'big-btn above', hidden: true, onclick: () => { if (d._above._fn) d._above._fn(); } }, [
+          el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
+        ]);
         d._row = el('div', { class: 'dock-row' });
         // for anyone still learning: what is going on, in a sentence
         d._hint = el('div', { class: 'dock-hint', 'aria-live': 'polite' });
-        d.append(d._turn, d._strip, d._main, d._hint, d._row);
+        d.append(d._turn, d._strip, d._above, d._main, d._hint, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -82504,6 +82644,13 @@ Sideboard
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
+      d._above.hidden = !act.above;
+      if (act.above) {
+        d._above.className = 'big-btn above ' + (act.above.cls || '');
+        d._above.querySelector('.bb-label').textContent = act.above.label;
+        d._above.querySelector('.bb-sub').textContent = act.above.sub || '';
+        d._above._fn = act.above.fn;
+      }
       const hint = MTG.settings.beginnerHints === false ? '' : this.beginnerHint(act);
       if (d._hint.textContent !== hint) d._hint.textContent = hint;
       d._hint.classList.toggle('on', !!hint);
@@ -82598,8 +82745,9 @@ Sideboard
           return {
             label: n ? `Attack` : 'No attacks', sub: n ? `${n} attacker${n === 1 ? '' : 's'}` : 'skip combat',
             cls: n ? 'go attack' : 'pass',
-            secondary: n < all ? { label: 'All attack', fn: () => this.attackAll(ch) }
-              : { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } },
+            // everything in at once, as big a choice as attacking with none
+            above: n < all ? { label: 'All attack', sub: `${all} creature${all === 1 ? '' : 's'}`, cls: 'go attack', fn: () => this.attackAll(ch) } : null,
+            secondary: n ? { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } } : null,
           };
         }
         if (ch.type === 'declareBlockers') {
@@ -85111,7 +85259,8 @@ Sideboard
         if (d.target.kind === 'object') {
           const n = this.els.get(d.target.id);
           if (n && n.isConnected) {
-            this.float(n, '-' + d.amount, 'dmg');
+            // the number is as big as the blow
+            this.float(n, '-' + d.amount, 'dmg', Math.min(1, d.amount / 8));
             n.classList.remove('hit'); void n.offsetWidth; n.classList.add('hit');
             setTimeout(() => n.classList.remove('hit'), 520);
           }
@@ -87166,7 +87315,7 @@ Sideboard
       if (!prev || !next) return;
       const motion = !t._motionOff();
       const info = { casts: [], resolves: [], counters: [], enters: [], deaths: [], hits: [], life: new Map(),
-        marks: [], pulses: [], myDamage: 0, turnMine: false };
+        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [] };
       const cues = beat.fromEvents ? this._fromEvents(t, prev, next, info, motion) : this._fromDiff(t, prev, next, beat, info);
       this._lastWord(t, prev, next, cues, info);
       const pace = t._pace();
@@ -87252,7 +87401,7 @@ Sideboard
             const card = cardOf(e);
             if (e.objId) info.pulses.push(e.objId);
             if (e.kind !== 'spell') { add('resolve', { pan: pan(e.controller), ability: true, colors: colorsOf(card) }, 2, 'resolve', 40); break; }
-            info.resolves.push({ objId: e.objId, colors: colorsOf(card), entered: fromStack.has(e.objId) });
+            info.resolves.push({ objId: e.objId, colors: colorsOf(card), entered: fromStack.has(e.objId), mv: manaValue(card) });
             // a permanent spell is heard arriving instead
             if (fromStack.has(e.objId)) break;
             add('resolve', { pan: pan(e.controller), colors: colorsOf(card) }, 6, 'resolve', 90);
@@ -87298,8 +87447,8 @@ Sideboard
                 if (c.opt.count >= 3) { c.name = 'wipe'; c.pri = 8; c.opt.pan = null; }
               });
               info.deaths.push(e.objId);
-            } else if (e.to === 'exile') gather('exile', () => add('exile', { pan: p }, 6, 'leave', 90), () => {});
-            else if (e.to === 'hand' || e.to === 'library') gather('bounce', () => add('bounce', { pan: p }, 5, 'leave', 80), () => {});
+            } else if (e.to === 'exile') { gather('exile', () => add('exile', { pan: p }, 6, 'leave', 90), () => {}); info.exiles.push(e.objId); }
+            else if (e.to === 'hand' || e.to === 'library') { gather('bounce', () => add('bounce', { pan: p }, 5, 'leave', 80), () => {}); info.bounces.push(e.objId); }
             else if (e.to === 'graveyard' && !e.isToken) gather('destroy', () => add('destroy', { pan: p }, 5, 'leave', 90), () => {});
             break;
           }
@@ -87367,9 +87516,11 @@ Sideboard
             break;
           case 'attack':
             add('attack', { pan: pan(e.player), intensity: clamp(e.attackers.length / 5, 0, 1) }, 8, 'attack', 200);
+            for (const a of e.attackers) info.attacks.push({ objId: a.objId, defender: a.defender });
             break;
           case 'block':
             add('block', { pan: pan(e.player) }, 7, 'block', 140);
+            for (const b of (e.blocks || [])) info.blocks.push({ objId: b.objId, attackers: b.attackers || [] });
             break;
           case 'draw': {
             const p = e.player === me ? null : pan(e.player);
@@ -87384,6 +87535,7 @@ Sideboard
           case 'lose':
             // somebody out while the game goes on; the last one out is said by the end of the game
             if (e.player !== me && !evs.some(x => x.type === 'gameOver')) add('eliminated', { pan: pan(e.player) }, 8, 'lose', 200);
+            info.out.push(e.player);
             break;
           case 'gameOver': {
             const won = (e.winners || []).includes(me);
@@ -87582,6 +87734,78 @@ Sideboard
       // whatever spoke lights up for a moment, so you can see which card it was
       for (const id of new Set(info.pulses)) writes.push(() => t.pulse(id));
 
+      /* What something attacking is aimed at: a player's life orb, or a
+         planeswalker or battle on the table. */
+      const targetOf = (id) => {
+        if (id == null) return null;
+        if ((next.players || []).some(p => p.id === id)) return t.orbFor(id);
+        return card(id);
+      };
+      // the whole table, for the heaviest moments
+      const quake = (amp) => { if (motion && amp > 0) mark(t.arena, 'feel-quake', 520, { '--feel-q': clamp(amp, 1, 9).toFixed(1) + 'px' }); };
+
+      /* Under attack: whatever an attacker is aimed at keeps a red ring and
+         the number coming at it, for as long as they are attacking. */
+      const aimed = new Map();
+      for (const o of (next.battlefield || [])) if (o.attacking) aimed.set(o.attacking, (aimed.get(o.attacking) || 0) + 1);
+      writes.push(() => {
+        const was = t._feelAimed || new Set();
+        const now = new Set();
+        for (const [id, n] of aimed) {
+          const nodes = (next.players || []).some(p => p.id === id)
+            ? [...t.arena.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(id))}"]`)] : [card(id)].filter(Boolean);
+          for (const node of nodes) { node.classList.add('under-attack'); node.dataset.attackers = '\u2694 ' + n; now.add(node); }
+        }
+        for (const node of was) if (!now.has(node)) { node.classList.remove('under-attack'); delete node.dataset.attackers; }
+        t._feelAimed = now;
+      });
+
+      /* The charge: each attacker lunges at what it is attacking, and what
+         it is attacking flinches. */
+      for (const a of info.attacks.slice(0, 12)) {
+        const n = card(a.objId);
+        const tg = targetOf(a.defender);
+        if (!n) continue;
+        if (motion && tg) {
+          const s = this._at(t, MTG.util.rect(n)), d = this._at(t, MTG.util.rect(tg));
+          const dx = d.x - s.x, dy = d.y - s.y, len = Math.hypot(dx, dy) || 1, reach = Math.min(46, len * 0.22);
+          mark(n, 'feel-lunge', 620, { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px' });
+        }
+        if (tg) mark(tg, motion ? 'feel-threat' : 'feel-threat-still', 900);
+      }
+
+      /* A block: the blocker steps out to meet its attacker, the two meet
+         with a clang, and the attacker is checked in its stride. */
+      const toward = (fromNode, toNode, most, share) => {
+        const s = this._at(t, MTG.util.rect(fromNode)), d = this._at(t, MTG.util.rect(toNode));
+        const dx = d.x - s.x, dy = d.y - s.y, len = Math.hypot(dx, dy) || 1, reach = Math.min(most, len * share);
+        return { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px', mid: { x: s.x + dx / 2, y: s.y + dy / 2 } };
+      };
+      for (const b of info.blocks.slice(0, 10)) {
+        const n = card(b.objId), foe = card(b.attackers[0]);
+        if (!n || !foe || !motion) continue;
+        const v = toward(n, foe, 40, 0.3);
+        mark(n, 'feel-lunge', 620, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'] });
+        const back = toward(foe, n, 14, 0.12);
+        mark(foe, 'feel-recoil', 520, { '--feel-lx': back['--feel-lx'], '--feel-ly': back['--feel-ly'] });
+        spawn(t, 'feel-clang', { left: v.mid.x + 'px', top: v.mid.y + 'px', animationDelay: '260ms' }, 800);
+      }
+
+      /* Combat damage: each creature that deals it strikes at what it hits,
+         so an attacker and its blocker go at each other at once. */
+      if (motion) {
+        const struck = new Set();
+        for (const h of info.hits) {
+          if (!h.combat || !h.source || struck.has(h.source)) continue;
+          const n = card(h.source);
+          const tg = h.target.kind === 'player' ? t.orbFor(h.target.id) : card(h.target.id);
+          if (!n || !tg) continue;
+          struck.add(h.source);
+          const v = toward(n, tg, 52, 0.35);
+          mark(n, 'feel-strike', 460, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'] });
+        }
+      }
+
       // a spell on its way to the stack, glowing in its own colours
       for (const c of info.casts) {
         const n = card(c.objId) || t.arena.querySelector(`.ability-chip[data-stack="${CSS.escape(String(c.stackId))}"]`);
@@ -87593,7 +87817,8 @@ Sideboard
         const box = n ? MTG.util.rect(n) : MTG.util.rect((t.stackCol.firstElementChild || t.stackCol));
         if (!box.width) continue;
         const p = this._at(t, box);
-        spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * 1.6) + 'px',
+        // the bigger the spell, the bigger the light it lands with
+        spawn(t, 'feel-burst', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(Math.max(p.w, 60) * (1.6 + clamp(r.mv || 0, 0, 10) * 0.12)) + 'px',
           '--feel-c1': LIGHT[r.colors[0] || 'C'], '--feel-c2': LIGHT[r.colors[1] || r.colors[0] || 'C'] }, 700);
       }
       // a countered spell goes grey, shrinks, and smokes
@@ -87618,25 +87843,55 @@ Sideboard
         mark(n, cls, 1100 + (e.delay || 0), { '--feel-delay': (e.delay || 0) + 'ms', '--feel-w': String(e.weight || 0) });
       }
 
-      // deaths come apart: a few shards off the card as it falls
+      /* Deaths come apart: a crack of light, the card breaking into shards
+         that fly further the bigger it was, and dust where it stood. A big
+         creature falling, or a board being wiped, jolts the table. */
       if (motion) {
-        const shards = phone ? 5 : 11;
-        for (const id of info.deaths.slice(0, phone ? 1 : 3)) {
+        let biggest = 0;
+        for (const id of info.deaths.slice(0, phone ? 2 : 4)) {
           const g = ghost(id, true);
           if (!g) continue;
           const p = this._at(t, MTG.util.rect(g));
           const o = t.objIn(id, prev);
           const cs = colorsOf(o && o.card);
+          const w = clamp(((o && o.power) || 0) / 8, 0, 1);
+          biggest = Math.max(biggest, (o && o.power) || 0);
+          spawn(t, 'feel-crack', { left: p.x + 'px', top: p.y + 'px', width: p.w + 'px', height: p.h + 'px' }, 700);
+          spawn(t, 'feel-dust', { left: p.x + 'px', top: (p.y + p.h * 0.35) + 'px', '--feel-s': Math.round(p.w * (1.4 + w)) + 'px', animationDelay: '180ms' }, 1100);
+          const shards = phone ? 7 : 16;
           for (let i = 0; i < shards; i++) {
-            const a = rnd(0, Math.PI * 2), d = rnd(30, 90);
+            const a = rnd(0, Math.PI * 2), d = rnd(40, 110) * (1 + w * 0.7);
             spawn(t, 'feel-shard', {
               left: (p.x + rnd(-0.4, 0.4) * p.w) + 'px', top: (p.y + rnd(-0.4, 0.4) * p.h) + 'px',
-              '--feel-dx': Math.round(Math.cos(a) * d) + 'px', '--feel-dy': Math.round(Math.sin(a) * d * 0.6 + 50) + 'px',
-              '--feel-r': Math.round(rnd(-200, 200)) + 'deg', '--feel-c1': LIGHT[cs[i % Math.max(1, cs.length)] || 'R'],
-              animationDelay: Math.round(160 + rnd(0, 140)) + 'ms',
-            }, 1300);
+              '--feel-dx': Math.round(Math.cos(a) * d) + 'px', '--feel-dy': Math.round(Math.sin(a) * d * 0.6 + 60) + 'px',
+              '--feel-r': Math.round(rnd(-260, 260)) + 'deg', '--feel-c1': LIGHT[cs[i % Math.max(1, cs.length)] || 'R'],
+              '--feel-z': rnd(0.9, 1.9).toFixed(2), animationDelay: Math.round(140 + rnd(0, 140)) + 'ms',
+            }, 1400);
           }
         }
+        if (info.deaths.length >= 3) quake(7);
+        else if (biggest >= 5) quake(2 + biggest * 0.5);
+      }
+
+      /* Exile: the card is taken up in a column of light, motes rising off
+         it. Back to a hand or library: a swirl where it was. */
+      for (const id of info.exiles.slice(0, phone ? 2 : 4)) {
+        const g = ghost(id);
+        const n = g || card(id);
+        if (!n || !motion) continue;
+        const p = this._at(t, MTG.util.rect(n));
+        if (!p.w) continue;
+        spawn(t, 'feel-pillar', { left: p.x + 'px', top: p.y + 'px', width: Math.round(p.w * 1.15) + 'px', height: Math.round(p.h * 2.4) + 'px' }, 900);
+        for (let i = 0; i < (phone ? 6 : 12); i++) {
+          spawn(t, 'feel-mote', { left: (p.x + rnd(-0.45, 0.45) * p.w) + 'px', top: (p.y + rnd(-0.3, 0.4) * p.h) + 'px',
+            '--feel-dy': Math.round(-rnd(60, 140)) + 'px', '--feel-dx': Math.round(rnd(-14, 14)) + 'px', animationDelay: Math.round(rnd(0, 260)) + 'ms' }, 1300);
+        }
+      }
+      for (const id of info.bounces.slice(0, 3)) {
+        const g = ghost(id);
+        if (!g || !motion) continue;
+        const p = this._at(t, MTG.util.rect(g));
+        if (p.w) spawn(t, 'feel-swirl', { left: p.x + 'px', top: p.y + 'px', '--feel-s': Math.round(p.w * 1.5) + 'px' }, 700);
       }
 
       // blows: the card that took one shakes as hard as it was hit, and sparks where it landed
@@ -87645,7 +87900,17 @@ Sideboard
         const tg = h.target.kind === 'player' ? t.orbFor(h.target.id) : card(h.target.id);
         if (!tg) continue;
         const amp = clamp(1.5 + h.amount * 1.1, 2, 10);
-        if (h.target.kind !== 'player') mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
+        if (h.target.kind !== 'player') {
+          mark(tg, motion ? 'feel-shake' : 'feel-hit-still', 520, { '--feel-amp': amp.toFixed(1) + 'px' });
+          if (motion) mark(tg, 'feel-hurt', 520);
+        } else {
+          // a player hit: the life orb jolts and goes red, and a shockwave rings out from it
+          mark(tg, motion ? 'feel-orb-hit' : 'feel-orb-hit-still', 650, { '--feel-amp': clamp(2 + h.amount * 0.9, 3, 12).toFixed(1) + 'px' });
+          if (motion) {
+            const ob = this._at(t, MTG.util.rect(tg));
+            spawn(t, 'feel-shock', { left: ob.x + 'px', top: ob.y + 'px', '--feel-s': Math.round(clamp(80 + h.amount * 16, 90, 260)) + 'px' }, 750);
+          }
+        }
         if (!motion || sparks >= (phone ? 2 : 5)) continue;
         sparks++;
         const tb = MTG.util.rect(tg);
@@ -87661,7 +87926,8 @@ Sideboard
         spawn(t, 'feel-spark' + (h.combat ? '' : ' burn'), { left: x + 'px', top: y + 'px',
           '--feel-s': Math.round(clamp(26 + h.amount * 9, 30, 110)) + 'px', '--feel-r': Math.round(rnd(0, 90)) + 'deg' }, 600);
       }
-      // and when it is you being hurt, the edges of the table go red for a moment
+      // and when it is you being hurt, the edges of the table go red for a moment, and a big hit shakes it
+      if (info.myDamage >= 3) quake(1 + info.myDamage * 0.7);
       if (info.myDamage > 0) {
         const a = clamp(0.28 + info.myDamage * 0.07, 0.28, 0.85);
         spawn(t, 'feel-vignette' + (motion ? '' : ' still'), { '--feel-a': a.toFixed(2) }, motion ? 900 : 500);
@@ -87677,6 +87943,22 @@ Sideboard
       for (const [pid, l] of info.life) {
         if (!l.delta) continue;
         writes.push(() => this._countLife(t, pid, l.life - l.delta, l.life, motion));
+        // life gained glows green, sparkles rising off the orb
+        if (l.delta > 0 && motion) {
+          const orb = t.orbFor(pid);
+          if (!orb) continue;
+          mark(orb, 'feel-heal', 900);
+          const ob = this._at(t, MTG.util.rect(orb));
+          for (let i = 0; i < Math.min(phone ? 4 : 9, 3 + l.delta); i++) {
+            spawn(t, 'feel-mote heal', { left: (ob.x + rnd(-0.4, 0.4) * ob.w) + 'px', top: (ob.y + rnd(-0.1, 0.3) * ob.h) + 'px',
+              '--feel-dy': Math.round(-rnd(40, 90)) + 'px', '--feel-dx': Math.round(rnd(-10, 10)) + 'px', animationDelay: Math.round(rnd(0, 300)) + 'ms' }, 1200);
+          }
+        }
+      }
+      // a player out: their orb cracks and goes dark
+      for (const pid of info.out) {
+        const orb = t.orbFor(pid);
+        if (orb) mark(orb, 'feel-ko', 1600);
       }
 
       // your turn: a warm light comes up on your side of the table
@@ -91513,6 +91795,10 @@ Sideboard
     const told = () => {
       if (App.session && App.session.broadcastLobby) App.session.broadcastLobby();
       if (App.table) App.table.render();
+      /* and the screen you are on is drawn again, so the new picture is
+         there at once (Profile, the Store's frames, Home); the lobby and
+         Options are redrawn by whoever asked */
+      if (!['table', 'draft', 'lobby', 'options'].includes(App.screen)) showScreen(App.screen);
       if (after) after();
     };
     UI.avatarPicker({
@@ -95147,14 +95433,12 @@ Sideboard
         seat.deck = deck;
         seat.deckValid = MTG.formats.validate(deck, this.fmt);
         seat.building = false;
-        // now that there is a deck, the seat can be called after it (unless it came with a name of its own)
-        const taken = this.roster.filter(r => r !== seat).map(r => r.name).concat([App.myName]);
-        const named = seat.keepName ? null : botNameFor(deck, this.formatId, taken);
-        if (named) {
-          seat.name = named;
-          deck.name = named + '\u2019s deck';
-          if (this.game) { const p = this.game.player(seat.id); if (p) p.name = named; }
-        }
+        /* A bot keeps the name it sat down with: it is a player at the
+           table, called what a player is called, and that is the name its
+           turn is announced by. What it built is the deck's name ("Mono-Blue
+           Graveyard", "Krenko"), shown with the deck. */
+        const deckName = botNameFor(deck, this.formatId, []);
+        if (deckName) deck.name = deckName;
         this.broadcastLobby();
         renderLobbySoon();
       }).catch((e) => {
