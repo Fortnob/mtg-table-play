@@ -5463,4 +5463,20 @@ module.exports = (test) => {
       t.eq(hit, !countered, `${who} Shocks A's ${tgt}: ${countered ? 'countered (did not pay {1})' : 'not taxed'}`);
     }
   });
+
+  test('Audit: Ilharg puts a creature in tapped and attacking, it deals its damage and goes back to hand at the end step', (mk, t) => {
+    t.auto('Ilharg, the Raze-Boar');
+    let T = mk();
+    T.toMain('A');
+    const il = T.bf('A', 'Ilharg, the Raze-Boar'); il.summoningSick = false;
+    const cw = T.hand('A', 'Craw Wurm');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [cw.id] });
+    T.answer('declareAttackers', () => [{ attackerId: il.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat'); T.settle();
+    t.eq(T.life('B'), 20 - 6 - 6, 'Ilharg 6 and the Wurm 6');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B');
+    t.zone(cw, 'hand', 'back to hand at the end step');
+  });
 };
