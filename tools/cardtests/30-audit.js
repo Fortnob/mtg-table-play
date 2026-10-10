@@ -5970,4 +5970,38 @@ module.exports = (test) => {
     for (const n of ['Dwarven Landslide', "Dralnu's Pet"]) t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
     t.auto('Thieving Skydiver');
   });
+
+  test('Audit: a target that only a kick, a gift or the phase asks for, beside a target of its own, is left to a person (Jilt, Goblin Barrage, Return to Dust, Mind Spiral)', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    for (const n of ['Jilt', 'Goblin Barrage', 'Return to Dust', 'Mind Spiral', "Orim's Thunder", 'Rushing River', "Sazacap's Brew", 'Consumed by Greed', 'Urborg Repossession', 'Clear the Stage'])
+      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+    // one target, held in front of the "if", is not that (Throw from the Saddle, Might of Old Krosa)
+    t.auto('Throw from the Saddle'); t.auto('Might of Old Krosa'); t.auto('Vicious Offering');
+  });
+
+  test('Audit: "… on that creature instead" after a target in a trigger is that target (The Destined White Mage, Scythecat Cub)', (mk, t) => {
+    t.auto('The Destined White Mage'); t.auto('Scythecat Cub');
+    for (const party of [true, false]) {
+      const T = mk();
+      T.toMain('A');
+      T.bf('A', 'The Destined White Mage');
+      const bear = T.bf('A', 'Grizzly Bears');
+      if (party) for (let i = 0; i < 3; i++) T.bf('A', 'Woodland Changeling');
+      T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+      T.g.changeLife(T.g.player('A'), 2); T.settle(); T.resolve();
+      t.eq(bear.counters['+1/+1'] || 0, party ? 3 : 1, party ? 'a full party: three counters on the target' : 'no party: one');
+    }
+    {
+      const T = mk();
+      T.toMain('A');
+      const cub = T.bf('A', 'Scythecat Cub');
+      for (let i = 0; i < 2; i++) {
+        T.answer('pickTarget', { targets: [{ kind: 'object', id: cub.id }] });
+        T.g.player('A').landsPlayed = 0;
+        T.playLand('A', T.hand('A', 'Forest'));
+      }
+      t.eq(cub.counters['+1/+1'] || 0, 2, 'one, then doubled on the Cub (not on the land)');
+    }
+  });
 };
