@@ -303,6 +303,10 @@
     const told = () => {
       if (App.session && App.session.broadcastLobby) App.session.broadcastLobby();
       if (App.table) App.table.render();
+      /* and the screen you are on is drawn again, so the new picture is
+         there at once (Profile, the Store's frames, Home); the lobby and
+         Options are redrawn by whoever asked */
+      if (!['table', 'draft', 'lobby', 'options'].includes(App.screen)) showScreen(App.screen);
       if (after) after();
     };
     UI.avatarPicker({
@@ -3937,14 +3941,12 @@
         seat.deck = deck;
         seat.deckValid = MTG.formats.validate(deck, this.fmt);
         seat.building = false;
-        // now that there is a deck, the seat can be called after it (unless it came with a name of its own)
-        const taken = this.roster.filter(r => r !== seat).map(r => r.name).concat([App.myName]);
-        const named = seat.keepName ? null : botNameFor(deck, this.formatId, taken);
-        if (named) {
-          seat.name = named;
-          deck.name = named + '\u2019s deck';
-          if (this.game) { const p = this.game.player(seat.id); if (p) p.name = named; }
-        }
+        /* A bot keeps the name it sat down with: it is a player at the
+           table, called what a player is called, and that is the name its
+           turn is announced by. What it built is the deck's name ("Mono-Blue
+           Graveyard", "Krenko"), shown with the deck. */
+        const deckName = botNameFor(deck, this.formatId, []);
+        if (deckName) deck.name = deckName;
         this.broadcastLobby();
         renderLobbySoon();
       }).catch((e) => {
