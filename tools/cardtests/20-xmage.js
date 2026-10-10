@@ -14894,13 +14894,15 @@ module.exports = (test) => {
     const T = mk();
     T.toMain('A');
     const ac = T.hand('A', 'Astral Cornucopia');
+    // (as the spell resolves: X is what was paid)
     ac.chosenX = 3;
-    T.g.moveObject(ac, 'battlefield', { controller: 'A' });
+    T.g.moveObject(ac, 'battlefield', { controller: 'A', fromStack: true });
     T.settle();
     t.eq(ac.counters.charge, 3);
     const ls = T.hand('A', 'Lightning Serpent');
+    // (as the spell resolves: X is what was paid)
     ls.chosenX = 2;
-    T.g.moveObject(ls, 'battlefield', { controller: 'A' });
+    T.g.moveObject(ls, 'battlefield', { controller: 'A', fromStack: true });
     T.settle();
     t.eq(T.g.powerOf(ls), 4, '2/1 with two +1/+0 counters');
   });
@@ -20009,5 +20011,19 @@ module.exports = (test) => {
     t.eq(T2.bfOf('A').filter(o => o.name.includes('Elemental')).length, 2, 'Lagomos with Parallel Lives: two Elementals');
     T2.toMain('B');
     t.eq(T2.bfOf('A').filter(o => o.name.includes('Elemental')).length, 0, 'both sacrificed at the end step');
+  });
+
+  test('Put onto the battlefield other than by casting, X is 0: Stonecoil Serpent returned from the graveyard has no counters', (mk, t) => {
+    t.auto('Stonecoil Serpent');
+    const T = mk();
+    T.toMain('A');
+    const ss = T.hand('A', 'Stonecoil Serpent');
+    T.mana('A', '3');
+    T.cast('A', ss, { x: 3 });
+    t.eq(ss.counters['+1/+1'], 3, 'cast for X=3: three counters');
+    T.g.moveObject(ss, 'graveyard');
+    T.g.moveObject(ss, 'battlefield', { controller: 'A' });
+    T.resolve();
+    t.eq(ss.counters['+1/+1'] || 0, 0, 'returned: X is 0, no counters');
   });
 };

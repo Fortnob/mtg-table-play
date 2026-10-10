@@ -11073,6 +11073,9 @@
 
       if (toZone === 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
+        /* Stonecoil Serpent, Hangarback Walker, Gatekeeper of Malakir: put onto the battlefield
+           other than as a spell resolving, X is 0 and it wasn't kicked (CR 107.3m, 702.33d) */
+        if (!opts.fromStack) { o.chosenX = 0; o.kickedTimes = 0; o.wasKicked = false; }
         o._lkiAnalysis = null;
         if (o._impendingN) { o.counters.time = o._impendingN; o._impendingN = 0; }
         /* A daybound permanent makes it day if it is neither, and arrives
