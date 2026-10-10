@@ -13108,15 +13108,21 @@
           }
           break;
         }
-        /* "You may tap or untap target permanent": whoever controls the
-           effect decides which, as it resolves. */
+        /* "You may tap or untap target permanent" (Twiddle, Sewer-veillance Cam): whoever controls the
+           effect decides which, as it resolves. A bot taps someone else's
+           and untaps its own. */
         case 'tapOrUntap': {
           const x = firstObj();
           if (!x || x.zone !== 'battlefield') break;
-          const tap = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap ${x.name}? (No untaps it.)` }, 'tu');
-          if (tap === SUSPEND) return SUSPEND;
-          if (tap) this._markTapped(x); else this._markUntapped(x);
-          this.emit('sfx', tap ? 'tap' : 'untap');
+          let tapIt = !x.tapped;
+          if (!me.isBot) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'tapOrUntap', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: 'Tap it' }, { i: 1, label: 'Untap it' }], prompt: `${ctx.name || 'Effect'}: tap or untap ${x.name}?` }, 'tou');
+            if (got === SUSPEND) return SUSPEND;
+            tapIt = ((got && got.picks) || [0])[0] === 0;
+          } else tapIt = x.controller !== ctx.controller;
+          if (tapIt) this._markTapped(x); else this._markUntapped(x);
+          this.emit('sfx', tapIt ? 'tap' : 'untap');
           break;
         }
         /* Bolster N (CR 701.39): N +1/+1 counters on the creature you

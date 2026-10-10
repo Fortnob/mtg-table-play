@@ -191,9 +191,14 @@ module.exports = (test) => {
     const T = mk();
     const b = T.bf('B', 'Grizzly Bears');
     T.mana('A', 'U');
-    T.answer('confirm', { yes: true });
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'tapOrUntap', 'a choice between the two'); return { picks: [0] }; });
     T.cast('A', T.hand('A', 'Twiddle'), { targets: [b] });
     t.ok(b.tapped, 'tapped');
+    const own = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'U');
+    T.answer('choose', { picks: [1] });
+    T.cast('A', T.hand('A', 'Twiddle'), { targets: [own] });
+    t.no(own.tapped, 'untapped');
   });
 
   test('XMage: bolster goes on the creature with the least toughness', (mk, t) => {
