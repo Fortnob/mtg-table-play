@@ -3923,4 +3923,31 @@ module.exports = (test) => {
       t.eq(T.life('B'), 17, 'paid: the bolt resolves');
     }
   });
+
+  test('Audit: Emil counts land names for its Fractal; Gimbal counts each token name once and no nontoken artifacts', (mk, t) => {
+    t.auto('Emil, Vastlands Roamer'); t.auto('Gimbal, Gremlin Prodigy');
+    let T = mk();
+    T.toMain('A');
+    const e = T.bf('A', 'Emil, Vastlands Roamer'); e.summoningSick = false;
+    T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.bf('A', 'Island'); T.bf('A', 'Mountain');
+    T.bf('B', 'Swamp');
+    T.mana('A', '4G');
+    T.activate('A', e, 0);
+    T.settle();
+    const fr = T.g.battlefield.find(o => o.isToken && /Fractal/.test(o.name));
+    t.ok(fr, 'a Fractal');
+    t.eq(fr && fr.counters['+1/+1'], 3, "Forest, Island, Mountain: the opponent's Swamp is not counted");
+    t.ok(fr && T.g.hasKw(fr, 'trample'), 'with counters, it has trample');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Gimbal, Gremlin Prodigy');
+    T.bf('A', 'Sol Ring');
+    T.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    T.nextTurn('B'); T.nextTurn('A');
+    T.toMain('A', 'end'); T.settle(); T.resolve(); T.settle();
+    const gs = T.g.battlefield.filter(o => o.isToken && /Gremlin/.test(o.name));
+    t.eq(gs.length, 2);
+    t.eq(gs.map(o => o.counters['+1/+1'] || 0).join(','), '2,2', 'Treasure and Gremlin each time; Sol Ring is no token');
+  });
 };
