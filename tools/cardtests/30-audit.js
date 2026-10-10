@@ -5794,4 +5794,20 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat'); T.settle(); T.resolve(); T.settle();
     t.eq(T.g.player('C').poison, 2); t.no(T.g.player('B').poison);
   });
+
+  test('Audit: Titan of Littjara draws for each other creature of yours sharing a type with it, its chosen type included', (mk, t) => {
+    t.auto('Titan of Littjara');
+    const T = mk();
+    T.toMain('A');
+    const ti = T.bf('A', 'Titan of Littjara'); ti.chosenType = 'Bear'; ti.summoningSick = false;
+    T.bf('A', 'Grizzly Bears'); T.bf('A', 'Hill Giant'); T.bf('A', 'Fugitive Wizard'); T.bf('B', 'Grizzly Bears');
+    T.g.bumpBoard();
+    for (let i = 0; i < 6; i++) T.top('A', 'Island');
+    T.answer('confirm', { yes: true });
+    T.answer('discard', (ch) => ({ cardIds: [T.g.zones.A.hand[0].id] }));
+    const h0 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: ti.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.settle(); T.resolve(); T.settle();
+    t.eq(T.zone('A', 'hand').length - h0, 0, "the Bears only (a Bear by choice): one drawn, one discarded; not B's Bears, not the Giant or the Human Wizard");
+  });
 };
