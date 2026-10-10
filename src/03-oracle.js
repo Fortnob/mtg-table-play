@@ -9326,6 +9326,13 @@
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
     // Tome of Legends: "Whenever your commander enters or attacks"
     { re: /^Whenever your commander enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: true }) },
+    /* Norn's Choirmaster, Keleth: "a commander you control" — anyone's, while it is yours (commander 'control');
+       We Ride at Dawn, Nakia: "your commander attacks / enters" */
+    { re: /^Whenever a commander you control enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: 'control' }) },
+    { re: /^Whenever a commander you control attacks,? /i, event: 'permAttacks', filt: () => ({ commander: 'control' }) },
+    { re: /^Whenever a commander you control enters,? /i, event: 'permEnters', filt: () => ({ commander: 'control' }) },
+    { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
+    { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
     { re: /^Whenever an opponent commits a crime,? /i, event: 'opponentCommitCrime' },
     // Daxos, Blessed by the Sun: "Whenever another creature you control enters or dies"

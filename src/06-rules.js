@@ -21978,7 +21978,8 @@
       if (f.other && src && x.id === src.id) return false;
       if (f.name && x.name !== f.name) return false;
       // Tome of Legends: "your commander"
-      if (f.commander && !(x.isCommander && src && x.owner === src.controller)) return false;
+      // (Norn's Choirmaster: "a commander you control" — commander 'control')
+      if (f.commander && !(x.isCommander && src && (f.commander === 'control' ? x.controller === src.controller : x.owner === src.controller))) return false;
       // "whenever equipped creature attacks": the creature this is attached to
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       // Reyav, Master Smith: "that's enchanted or equipped" — an Aura or an Equipment on it

@@ -17264,4 +17264,30 @@ module.exports = (test) => {
     t.eq(T.life('B'), 16, 'B was hit once');
     t.eq(T.life('C'), 16, 'C in the second combat');
   });
+
+  test("Keleth, Norn's Choirmaster: \"a commander you control attacks\"; Nakia: \"your commander enters\"", (mk, t) => {
+    t.auto('Keleth, Sunmane Familiar');
+    t.auto("Norn's Choirmaster");
+    t.auto('We Ride at Dawn');
+    t.auto('Nakia, Wakandan Operative');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Keleth, Sunmane Familiar');
+    const cmd = T.bf('A', 'Grizzly Bears');
+    cmd.isCommander = true;
+    const other = T.bf('A', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: cmd.id, defenderId: 'B' }, { attackerId: other.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(cmd.counters['+1/+1'] || 0, 1, 'the commander gets the counter');
+    t.eq(other.counters['+1/+1'] || 0, 0, 'not the other attacker');
+    const U = mk();
+    U.toMain('A');
+    U.bf('A', 'Nakia, Wakandan Operative');
+    const c2 = U.hand('A', 'Grizzly Bears');
+    c2.isCommander = true;
+    U.mana('A', 'G1');
+    U.cast('A', c2);
+    U.settle();
+    t.ok(U.g.player('A').monarch, 'your commander entered: you are the monarch');
+  });
 };
