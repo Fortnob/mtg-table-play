@@ -11776,6 +11776,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
+        // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
+        (e.op === 'grantCastKeyword' && (e.keyword === 'storm' || e.keyword === 'cascade')) ||
         (e.op === 'sequence' && (e.list || []).every(x => x.op === 'continuous'))))));
   }
 
@@ -16192,6 +16194,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
+    // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
+    { re: /^The next (instant or sorcery |instant |sorcery )?spell you cast this turn has storm\.?$/i,
+      make: (m) => Object.assign({ op: 'nextSpellKeyword', keyword: 'storm' }, m[1] ? { words: m[1].trim().toLowerCase() } : {}) },
     // Ocelot Pride: "Then if you have the city's blessing, for each token you control that entered this turn, create a token that's a copy of it."
     { re: /^Then if you have the city'?s blessing, for each token you control that entered this turn, create a token that'?s a copy of it\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'cityBlessing' }, then: [{ op: 'copyTokensEnteredThisTurn' }] }) },
@@ -19062,6 +19067,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
          one to choose. */
       if (b && lent && /^target/i.test(subj) && b.targets) delete b.targets;
       if (b) return [a, b];
+      /* Well Rested: "put two +1/+1 counters on it, then you gain 2 life
+         and draw a card" — the second half is itself two steps */
+      if (/^,/.test(sentence.match(sep)[0])) {
+        const bs = parseCompound(tidy(rightRaw));
+        if (bs && bs.every(x => x.op !== 'manual' && !hasManualStep(x))) return [a, ...bs];
+      }
     }
     return null;
   }
@@ -19862,6 +19873,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^there are no ([+\-0-9/a-z]+) counters on (?:this creature|this land|this artifact|this enchantment|this permanent|CARDNAME)$/i,
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
+    // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
+    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
+    [/^this Vehicle has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
     [/^enchanted (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
@@ -19986,7 +20000,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^it(?:'?s not| isn'?t) an? (creature|land|artifact|enchantment|planeswalker)(?: card)?$/i, (m) => ({ kind: 'not', cond: { kind: 'itIs', filter: m[1].toLowerCase() } })],
     // Lily Bowen, Eagle of Deliverance: "its power is 2 or less", "that creature's power is 2 or less", "that creature has power 4 or greater"
     [/^(?:its|that (?:creature|permanent)'?s) power (?:is|was) (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
-    [/^that (?:creature|permanent) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // (Level Up: "Then if it has power 10 or greater" — what the trigger is about)
+    [/^(?:that (?:creature|permanent)|it) has power (\d+) or (less|greater)$/i, (m) => ({ kind: 'itPower', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Angrath: "it has mana value 3 or less"
     [/^it has mana value (\d+) or (less|greater)$/i, (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
     // Serum Snare: "that permanent had mana value 3 or less" — what the sentence before acted on
@@ -20145,6 +20160,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     [/^you control your commander$/i, () => ({ kind: 'controlCommander' })],
     [/^there are (\w+) or more permanent cards in your graveyard$/i, (m) => ({ kind: 'graveyardPermanents', n: num(m[1]) })],
     [/^you descended this turn$/i, () => ({ kind: 'descended' })],
+    // Cloakwood Hermit, Raphael, Fiendish Savior: "a creature card was put into your graveyard from anywhere this turn"
+    [/^an? creature card was put into your graveyard from anywhere this turn$/i, () => ({ kind: 'creatureCardToGrave' })],
     [/^this spell was bargained$/i, () => ({ kind: 'bargained' })],
     [/^(?:CARDNAME|it) was bargained$/i, () => ({ kind: 'bargained' })],
     [/^you cast this spell during your main phase$/i, () => ({ kind: 'castInMain' })],
@@ -20407,6 +20424,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
+    // Folk Hero: "Whenever you cast a spell that shares a creature type with this creature"
+    { re: /^When(?:ever)? you cast a spell that shares a creature type with (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { sharesTypeWithSelf: true } },
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
@@ -20812,6 +20831,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       extraOf: (m) => (m && /first time/i.test(m[0]) ? { oncePerTurn: true } : {}) },
     { re: /^When(?:ever)? (?:one or more \+1\/\+1 counters are put on|you put one or more \+1\/\+1 counters on) (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
       extra: { counterKind: '+1/+1' } },
+    // Danny Pink: "Whenever one or more counters are put on this creature for the first time each turn" (of any kind)
+    { re: /^When(?:ever)? one or more counters are put on (?:this (?:creature|artifact|enchantment|permanent)|CARDNAME)( for the first time each turn)?(?:,| )/i,
+      event: 'countersPut', self: true, extraOf: (m) => (m && m[1] ? { oncePerTurn: true } : {}) },
     /* Fathom Mage: "Whenever a +1/+1 counter is put on this creature" —
        once for each counter */
     { re: /^When(?:ever)? an? \+1\/\+1 counter is put on (?:this creature|CARDNAME)(?:,| )/i, event: 'countersPut', self: true,
@@ -23261,6 +23283,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
   }
 
   const CONTINUOUS_RULES = [
+    /* Arixmethes: "As long as it has a slumber counter on it, it's a land"
+       (and no longer a creature); War Balloon, Grond: "it's an artifact
+       creature" — what it is, under the condition the wrapper adds */
+    { re: /^CARDNAME(?:'s| is) a land\.?$/i, make: () => ({ op: 'continuous', layer: 4, scope: { self: true, what: 'permanent' }, setTypes: ['Land'] }) },
+    { re: /^CARDNAME(?:'s| is) an artifact creature\.?$/i, make: () => ({ op: 'continuous', layer: 4, scope: { self: true, what: 'permanent' }, setTypes: ['Artifact', 'Creature'] }) },
     /* Backgrounds: "Commander creatures you own have '…' / get +1/+1 and
        have …" — the group's rule, for your commanders */
     { re: /^Commander creatures you own (have|get) (.+)$/i,
@@ -24443,6 +24470,12 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase(),
           filter: m[1].trim().toLowerCase().replace(/ and /g, ' or ') || 'spell' }), auto: true },
+      // Prismari, the Inspiration; Ral, Crackling Wit's emblem: "Instant and sorcery spells you cast have storm."
+      { re: /^([A-Za-z ]*?)spells you cast have storm\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'storm', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
+      // Wild-Magic Sorcerer: "The first spell you cast from exile each turn has cascade."
+      { re: /^The first spell you cast from exile each turn has cascade\.?$/i,
+        make: () => ({ op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       { re: /^([A-Za-z ]*?)spells you cast(?: with mana value (\d+) or greater)? have cascade\.?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
@@ -31646,7 +31679,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         item.uncounterable = true; p.nextSpellUncounterable = null;
       }
       // Archway of Innovation: the keyword was for this spell only
-      if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn) p.nextSpellKeyword = null;
+      // (Storm, Force of Nature: "the next instant or sorcery spell" waits for one)
+      if (p.nextSpellKeyword && p.nextSpellKeyword.turn === this.turn && (!p.nextSpellKeyword.words || this._cardFitsWords(o, p.nextSpellKeyword.words))) {
+        if (p.nextSpellKeyword.keyword === 'storm') item.grantedStorm = true;
+        p.nextSpellKeyword = null;
+      }
       for (const rider of (payFlags.riders || [])) this._manaRider(rider, item, playerId);
       // floating mana with a promise attached keeps it for the next spell it pays for
       if (p.manaRiders && p.manaRiders.length && !opts.free) {
@@ -31716,6 +31753,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.stormCount++;
       this.spellsThisTurn = (this.spellsThisTurn || 0) + 1;   // day/night watches this
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
+      // Wild-Magic Sorcerer: how many spells this player has cast from exile this turn
+      if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -31927,7 +31966,14 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     }
     /** Storm: copy the spell once per spell cast before it this turn (CR 702.40). */
     _storm(item, a) {
-      if (!a || !a.keywordSet.has('storm')) return;
+      if (!a) return;
+      // Prismari, Ral's emblem: storm handed out to spells of a kind; Storm, Force of Nature: to the next one
+      const granted = item.grantedStorm || (!a.keywordSet.has('storm') && item.obj && this._withEmblems(this.battlefield).some(src => {
+        if (src.phasedOut || src.controller !== item.controller) return false;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        return !!g && g.keyword === 'storm' && (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter));
+      }));
+      if (!a.keywordSet.has('storm') && !granted) return;
       const copies = Math.max(0, this.stormCount - 1);
       if (!copies) return;
       /* Each copy is its own object (CR 707.10), not the card: the card
@@ -31967,6 +32013,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || g.keyword !== 'cascade') return false;
         if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) return false;
+        // Wild-Magic Sorcerer: the first spell cast from exile this turn, and no other
+        if (g.fromZones && !g.fromZones.includes(item.fromZone)) return false;
+        if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) return false; }
         return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
       });
       if (!a.keywordSet.has('cascade') && !granted) return;
@@ -36180,6 +36229,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'lifeGained': return !!me && me.gainedTurn === this.turn && (me.gained || 0) >= (cond.n || 1);
         case 'graveyardPermanents': return !!me && this.zones[me.id].graveyard.filter(o => (o.analysis() || {}).isPermanent).length >= (cond.n || 1);
         case 'descended': return !!me && me.descendedTurn === this.turn;
+        case 'creatureCardToGrave': return !!me && me.creatureCardToGraveTurn === this.turn;
         case 'bargained': return !!(ctx && ctx.bargained) || !!(src && src.bargainedTurn != null && src.bargainedTurn === this.turn);
         /* Starting Town: "your first, second, or third turn of the game" */
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
@@ -36275,7 +36325,9 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         case 'itPower': case 'itTapped': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const td = (ctx && ctx.triggerData) || {};
-          const it = (tg && this.obj(tg.id)) || (td.objectId && this.obj(td.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id));
+          const it = (tg && this.obj(tg.id)) || (td.objectId && this.obj(td.objectId)) || (this._lastAffected && this.obj(this._lastAffected.id))
+            // Level Up: "Whenever this creature attacks, … if it has power 10 or greater" — the creature itself
+            || (src && src.zone === 'battlefield' ? src : null);
           if (!it) return false;
           if (cond.kind === 'itTapped') return !!it.tapped === !!cond.tapped;
           const pw = it.zone === 'battlefield' ? this.powerOf(it) : (it._lkiPower != null ? it._lkiPower : parseInt((it.card && it.card.power) || '0', 10) || 0);
@@ -37446,6 +37498,11 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
         const own = this.player(o.owner);
         if (own) own.descendedTurn = this.turn;
       }
+      // Cloakwood Hermit: "if a creature card was put into your graveyard from anywhere this turn"
+      if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isCreature) {
+        const own = this.player(o.owner);
+        if (own) own.creatureCardToGraveTurn = this.turn;
+      }
       /* "When this is put into a graveyard from anywhere": the card's own
          trigger, from wherever it came. */
       if (toZone === 'graveyard' && !o.isToken) {
@@ -37874,6 +37931,17 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
+          // Folk Hero: "a spell that shares a creature type with this creature"
+          if (ab.sharesTypeWithSelf) {
+            const sp = data.object;
+            const spA = (sp && sp.analysis()) || {};
+            // only creature and kindred spells have creature types (an instant's Arcane is not one)
+            const spTypes = spA.isCreature || (spA.types || []).some(x => /^(?:Kindred|Tribal)$/.test(x)) ? (spA.subtypes || []).filter(x => this._isCreatureType(x)) : [];
+            const spAll = !!(spA.keywordSet && spA.keywordSet.has('changeling')) && (spA.isCreature || spTypes.length > 0);
+            const mine = ((o.analysis() || {}).subtypes || []).filter(x => this._isCreatureType(x));
+            const myAll = this.hasKw(o, 'changeling');
+            if (!((myAll && (spTypes.length || spAll)) || (spAll && mine.length) || mine.some(x => spTypes.includes(x)))) continue;
+          }
           // Secrets of the Dead: "a spell from your graveyard"
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"
@@ -42948,7 +43016,7 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           break;
         }
         // Archway of Innovation
-        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword }; break;
+        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
         case 'copyTokensEnteredThisTurn': {
           const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn);
@@ -47230,11 +47298,15 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
       this.stormCount++;
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
+      if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
       this.logEvent('cast', `${p.name} casts ${o.name} ${(how && how.how) || 'without paying its mana cost'}.`);
       this.emit('stack:add', item);
+      // storm and cascade trigger on casting, paid for or not (a miracle, a rebound, a copy cast)
+      this._storm(item, a);
+      this._cascade(item, a);
       const castData = { spell: item, object: o, stackId: item.id, playerId };
       this._fire('anyCastSpell', null, castData);
       this._fire('youCastSpell', playerId, castData);
