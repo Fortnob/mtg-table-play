@@ -18219,6 +18219,8 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
     if (/^the number of tokens you(?:'ve)? created this turn$/i.test(p)) return done({ tokensCreatedThisTurn: true, mult: 1 });
+    // Felisa, Fang of Silverquill: "the number of counters it had on it" — the creature the trigger is about
+    if (/^the number of counters (?:it|that creature) had on it$/i.test(p)) return done({ countersOnTrigger: true, mult: 1 });
     // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
     if (/^the number of times (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return done({ timesKicked: true, mult: 1 });
     // Rionya: "the number of instant and sorcery spells you've cast this turn"
@@ -41098,6 +41100,13 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
+        // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
+        if (v && typeof v === 'object' && v.countersOnTrigger) {
+          const tdC = ctx.triggerData || {};
+          const it = tdC.objectId && this.obj(tdC.objectId);
+          const pile = it ? (it.zone === 'battlefield' ? it.counters : (it._diedCounters || {})) : {};
+          return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
+        }
         // Titan of Littjara: the other creatures you control that share a creature type with it
         if (v && typeof v === 'object' && v.sharesTypeOthers && src) {
           return this.battlefield.filter(x => x !== src && !x.phasedOut && (x.analysis() || {}).isCreature &&
@@ -88781,6 +88790,8 @@ Sideboard
             },
           });
           slot.setAttribute('aria-pressed', chosen ? 'true' : 'false');
+          // a click chooses it; a right-click reads it at full size (a finger holds it)
+          slot.addEventListener('contextmenu', (e) => { e.preventDefault(); UI.cardSheet(c); });
           slot.style.setProperty('--i', String(i));
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
           slot.appendChild(UI.autoBadge(c, { corner: true }));
@@ -88791,15 +88802,18 @@ Sideboard
         const packKey = v.round + ':' + v.pick;
         if (this._dealt !== packKey) { this._dealt = packKey; grid.classList.add('dealing'); }
         this.packWrap.appendChild(grid);
+        const touch = MTG.isTouch();
         this.packWrap.appendChild(el('div', { class: 'pick-hint' }, [
           el('span', { text: this.chosen.length
-            ? 'Click it again or click the table to put it back.'
-            : 'Click to choose.' }),
+            ? (touch ? 'Tap it again or tap the table to put it back.' : 'Click it again or click the table to put it back.')
+            : (touch ? 'Tap to choose.' : 'Click to choose.') }),
           el('span', { text: '·' }),
-          el('span', { text: 'Double-click a card, or press ' }),
-          el('span', { class: 'kbd', text: 'Space' }),
-          el('span', { text: ' to confirm.' }),
-        ]));
+          el('span', { text: touch ? 'Hold a card to read it.' : 'Right-click a card to read it.' }),
+          el('span', { text: '·' }),
+          el('span', { text: touch ? 'Then press Confirm.' : 'Double-click a card, or press ' }),
+          touch ? null : el('span', { class: 'kbd', text: 'Space' }),
+          touch ? null : el('span', { text: ' to confirm.' }),
+        ].filter(Boolean)));
       }
 
       this._renderPool(v);
@@ -88873,6 +88887,7 @@ Sideboard
           UI.setArt(row, card);
           UI.attachPreview(row, card, 0);
           row.addEventListener('click', () => UI.cardSheet(card));
+          row.addEventListener('contextmenu', (e) => { e.preventDefault(); UI.cardSheet(card); });
           row.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); UI.cardSheet(card); } });
           col.appendChild(row);
         }
