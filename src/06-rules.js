@@ -19180,12 +19180,15 @@
             if (o.phasedOut || o.name !== name) continue;
             // Echoing Truth, Sever the Bloodline: returned to hand or exiled instead (act), of the kind the words name
             if (e.what && e.what !== 'permanent' && o !== x && !this._matchesCategory(o, e.what)) continue;
+            // Legions to Ashes: besides the target, only that player's tokens
+            if (e.tokensOfController && o !== x && !(o.isToken && o.controller === x.controller)) continue;
             if (e.act === 'exile') { this.moveObject(o, 'exile'); continue; }
             if (e.act === 'bounce') { this.moveObject(o, 'hand'); continue; }
             if (this.hasKw(o, 'indestructible') || this._regenerated(o)) continue;
             this.moveObject(o, 'graveyard');
           }
-          this.logEvent(e.act === 'exile' ? 'exile' : e.act === 'bounce' ? 'bounce' : 'destroy',
+          if (e.tokensOfController) this.logEvent('exile', `${name} and every token named ${name} its controller had are exiled.`);
+          else this.logEvent(e.act === 'exile' ? 'exile' : e.act === 'bounce' ? 'bounce' : 'destroy',
             `Every ${e.what && e.what !== 'permanent' ? e.what : 'permanent'} named ${name} is ${e.act === 'exile' ? 'exiled' : e.act === 'bounce' ? "returned to its owner's hand" : 'destroyed'}.`);
           break;
         }

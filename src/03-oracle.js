@@ -1560,6 +1560,9 @@
         const t = tgt(m[2]);
         return t ? { op: 'destroySameName', act: /^exile/i.test(m[1]) ? 'exile' : 'bounce', what: m[3].toLowerCase(), targets: [t] } : null;
       } },
+    // Legions to Ashes: "Exile target nonland permanent an opponent controls and all tokens that player controls with the same name as that permanent."
+    { re: /^Exile (target [a-z ]+?) and all tokens that player controls with the same name as that permanent\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', act: 'exile', tokensOfController: true, targets: [t] } : null; } },
     // Maelstrom Pulse, Echoing Calm: "…and all other permanents with the same name as that permanent"
     { re: /^Destroy (target [a-z ]+?) and all other ([a-z]+)s with the same name as that \2\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'destroySameName', targets: [t] } : null; } },

@@ -18423,4 +18423,17 @@ module.exports = (test) => {
     t.no(b1.tapped, 'the Bears untapped to pay');
     t.eq(T.g.battlefield.filter(o => o.isToken && /Citizen/.test(o.name)).length, 1, 'a Citizen');
   });
+
+  test("Legions to Ashes: the target and that player's tokens with its name, no one else's", (mk, t) => {
+    t.auto('Legions to Ashes');
+    const T = mk();
+    T.toMain('A');
+    T.g._runEffects([{ op: 'createNamedToken', n: 3, token: 'Treasure' }], { controller: 'B', name: 'Test', kind: 'spell', targets: [] });
+    T.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    const bt = T.g.battlefield.filter(o => o.controller === 'B' && /Treasure/.test(o.name));
+    T.mana('A', 'WB1');
+    T.cast('A', T.hand('A', 'Legions to Ashes'), { targets: [bt[0].id] });
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && /Treasure/.test(o.name)).length, 0, "B's Treasures all gone");
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && /Treasure/.test(o.name)).length, 1, "A's stays");
+  });
 };
