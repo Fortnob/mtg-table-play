@@ -6081,6 +6081,8 @@
     if (/^the number of cards in (?:their|that player'?s) hand$/i.test(p)) return done({ triggerPlayerHand: true });
     // Narset, Jeskai Waymaster: "the number of spells you've cast this turn"
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
+    // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
+    if (/^the number of tokens you(?:'ve)? created this turn$/i.test(p)) return done({ tokensCreatedThisTurn: true, mult: 1 });
     // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
     if (/^the number of times (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return done({ timesKicked: true, mult: 1 });
     // Rionya: "the number of instant and sorcery spells you've cast this turn"

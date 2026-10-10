@@ -11490,6 +11490,11 @@
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
       }
+      // Thalisse: "the number of tokens you created this turn" — kept as they are made
+      if (event === 'youCreateToken' && controllerId) {
+        const cp = this.player(controllerId);
+        if (cp) { if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 }; cp.tokensCreated.n++; }
+      }
       this._fireDelayed(event, this.activePlayer && this.activePlayer.id);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
       const tData = {
@@ -12523,6 +12528,10 @@
         if (v && typeof v === 'object' && v.timesKicked) {
           const ks = ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           return ((ctx.kicked || (ks && ks.kickedTimes) || 0) * (v.mult || 1)) + (v.plus || 0);
+        }
+        if (v && typeof v === 'object' && v.tokensCreatedThisTurn) {
+          const tc = (this.player(ctx.controller) || {}).tokensCreated;
+          return (tc && tc.turn === this.turn ? tc.n : 0) * (v.mult || 1);
         }
         // Mathemagics: 2 to the power of X (a library runs out long before 2^30)
         if (v && typeof v === 'object' && v.twoToX) return 2 ** Math.max(0, Math.min(30, Number(ctx.x) || (src && src.chosenX) || 0));
@@ -13840,6 +13849,8 @@
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "a token for each …" with none of them is no token (not one: _createToken reads 0 as 1)
           if (e.count && !(many > 0)) break;
+          // Secure the Wastes for X=0, Thalisse with no tokens made: "create X tokens" with X 0 is none
+          if (!e.count && !e.countBy && (e.n === 'X' || (e.n && typeof e.n === 'object')) && !(many > 0)) break;
           // "an X/X token, where X is that spell's mana value": the size, worked out now
           const sized = e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
             // Arboreal Alliance: "an X/X … token", X as it was cast
@@ -13875,7 +13886,8 @@
           // Marching Duodrone: "each player creates a Treasure token"
           if (e.who === 'each') { for (const p of this.players) if (!p.hasLost) this._createNamedToken(p.id, Object.assign({}, e, { n: n(e.n) || 1 })); break; }
           // "a Treasure for each creature that died this turn" may be none at all
-          const many = e.n && typeof e.n === 'object' ? n(e.n) : (n(e.n) || 1);
+          // ("create X Treasure tokens" with X 0 is none too)
+          const many = e.n && (typeof e.n === 'object' || e.n === 'X') ? n(e.n) : (n(e.n) || 1);
           if (many <= 0) break;
           // "Incubate X, where X is that spell's mana value": the counters, counted now
           const wc = e.withCounters != null ? { withCounters: Math.max(0, n(e.withCounters)) } : {};

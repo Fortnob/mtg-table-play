@@ -20305,4 +20305,27 @@ module.exports = (test) => {
     ids2 = T2.g._legalTargetsFor(s2, 'A', gs.id).map(x => x.id);
     t.ok(ids2.includes(g2.id), 'with a counter, power 4: the Hill Giant too');
   });
+
+  test('"Create X tokens" with X 0 makes none (Secure the Wastes, X Treasures); Thalisse counts the tokens you made this turn', (mk, t) => {
+    t.auto('Secure the Wastes'); t.auto('Thalisse, Reverent Medium');
+    const T = mk();
+    T.toMain('A');
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', 'Secure the Wastes'), { x: 0 });
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 0, 'X=0: no Warriors');
+    T.mana('A', '2W');
+    T.cast('A', T.hand('A', 'Secure the Wastes'), { x: 2 });
+    t.eq(T.bfOf('A').filter(o => o.isToken).length, 2, 'X=2: two');
+    T.g._runEffect({ op: 'createNamedToken', n: 'X', token: 'Treasure' }, { controller: 'A', x: 0, name: 'test' });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 0, 'X Treasures with X=0: none');
+    const T2 = mk();
+    T2.bf('A', 'Thalisse, Reverent Medium');
+    T2.toMain('A');
+    T2.mana('A', '1W');
+    T2.cast('A', T2.hand('A', 'Raise the Alarm'));
+    T2.toMain('B');
+    t.eq(T2.bfOf('A').filter(o => o.name.includes('Spirit')).length, 2, 'two Soldiers made this turn: two Spirits at the end step');
+    T2.toMain('A');
+    t.eq(T2.bfOf('A').filter(o => o.name.includes('Spirit')).length, 2, "none made on the opponent's turn: no more");
+  });
 };
