@@ -12303,7 +12303,8 @@
           if (!e || typeof e !== 'object') continue;
           if ((e.targets || []).length) seen = 'target';
           if (e.op === 'manifest') seen = 'put';
-          if (seen && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = seen === 'put' ? 'thatObject' : 'lastTarget';
+          // (Djeru's Resolve: "… dealt to it this turn" — "this turn" is no "this creature")
+          if (seen && e.scope === 'self' && /\bit\b/i.test(e.text || '') && !/\bthis (?:creature|permanent|artifact|enchantment|land|card|spell|Equipment|Aura|Vehicle)\b|CARDNAME/i.test(e.text || '')) e.scope = seen === 'put' ? 'thatObject' : 'lastTarget';
           seen = itToTarget(e.list, seen);
           // (Throw from the Saddle: "… on it instead if …" — the target is in what it replaces)
           itToTarget(e.then, itToTarget(e.otherwise, seen) || seen);

@@ -20924,4 +20924,24 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.faceDown).length, 2, 'two face-down 2/2s');
     t.eq(T.zone('A', 'hand').length, h0 + 2, 'and its other trigger draws a card for each');
   });
+
+  test("Djeru's Resolve, Jailbreak Scheme: \"it … this turn\" is the spell's target, not the spell", (mk, t) => {
+    t.auto("Djeru's Resolve"); t.auto('Jailbreak Scheme');
+    const T = mk();
+    T.toMain('A');
+    const gb = T.bf('A', 'Grizzly Bears', { tapped: true });
+    T.mana('A', 'W');
+    T.cast('A', T.hand('A', "Djeru's Resolve"), { targets: [gb] });
+    T.resolve();
+    t.no(gb.tapped, 'the Bears untap');
+    t.ok(T.g._hasFlag(gb, 'noDamageTaken'), 'and damage to them is prevented this turn');
+    const T2 = mk();
+    T2.toMain('A');
+    const hg = T2.bf('A', 'Hill Giant');
+    T2.mana('A', '3U');
+    T2.cast('A', T2.hand('A', 'Jailbreak Scheme'), { spree: [0], targets: [hg] });
+    T2.resolve();
+    t.eq(hg.counters['+1/+1'], 1, 'a counter on the Giant');
+    t.ok(T2.g._hasFlag(hg, 'unblockable'), "and it can't be blocked this turn");
+  });
 };
