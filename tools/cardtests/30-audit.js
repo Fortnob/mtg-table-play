@@ -3518,4 +3518,26 @@ module.exports = (test) => {
     T.mana('A', 'B'); T.cast('A', T.hand('A', 'Murder'), { targets: [tg] });
     t.zone(tg, 'graveyard');
   });
+
+  test('Audit: Night Dealings counts damage to other players only; Dragonborn Champion needs 5 or more', (mk, t) => {
+    let T = mk();
+    t.auto('Night Dealings'); t.auto('Dragonborn Champion');
+    T.toMain('A');
+    const nd = T.bf('A', 'Night Dealings');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.settle(); T.resolve();
+    t.eq(nd.counters.theft, 3);
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] }); T.settle(); T.resolve();
+    t.eq(nd.counters.theft, 3, 'damage to myself: nothing');
+    T = mk();
+    T.toMain('A');
+    T.bf('A', 'Dragonborn Champion');
+    const bolt = T.hand('A', 'Lightning Bolt'), h = T.g.zones.A.hand.length;
+    T.mana('A', 'R'); T.cast('A', bolt, { targets: ['B'] }); T.settle(); T.resolve();
+    t.eq(T.g.zones.A.hand.length, h - 1, '3 damage: no card');
+    const w = T.bf('A', 'Craw Wurm'); w.summoningSick = false;
+    const h2 = T.g.zones.A.hand.length;
+    T.answer('declareAttackers', () => [{ attackerId: w.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.eq(T.g.zones.A.hand.length, h2 + 1, '6 damage: a card');
+  });
 };
