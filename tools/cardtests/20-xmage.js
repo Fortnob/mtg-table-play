@@ -17519,4 +17519,27 @@ module.exports = (test) => {
     t.eq(T.life('B'), 17, 'B hit'); t.eq(T.life('C'), 18, 'C hit');
     t.eq(b1.counters['+1/+1'] || 0, 2, 'proliferated once');
   });
+
+  test('Recruit: draw, discard, and a 1/1 Human Soldier for a nonland card (Esgaroth Garrison, Lake-town Lookout)', (mk, t) => {
+    t.auto('Esgaroth Garrison');
+    t.auto('Lake-town Lookout');
+    t.auto('The Queen of Dale');
+    for (const toss of ['Lightning Bolt', 'Mountain']) {
+      const T = mk();
+      T.toMain('A');
+      T.top('A', 'Island');
+      const keep = T.hand('A', 'Grizzly Bears');
+      const card = T.hand('A', toss);
+      let asked = null;
+      T.answer('choose', (ch) => { asked = ch.purpose; return { picks: [card.id] }; });
+      const lk = T.bf('A', 'Lake-town Lookout');
+      T.g._runEffects([{ op: 'destroy' }], { controller: 'B', name: 'Murder', kind: 'spell', targets: [{ kind: 'object', id: lk.id }] });
+      T.settle(); T.resolve(); T.settle();
+      t.eq(asked, 'recruit', 'asked which card');
+      t.zone(card, 'graveyard', toss + ' discarded');
+      t.zone(keep, 'hand');
+      const soldiers = T.g.battlefield.filter(o => o.isToken && /Human Soldier/.test(o.name));
+      t.eq(soldiers.length, toss === 'Mountain' ? 0 : 1, toss === 'Mountain' ? 'a land: no token' : 'a nonland card: a 1/1 Human Soldier');
+    }
+  });
 };

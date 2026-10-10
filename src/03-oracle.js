@@ -3882,6 +3882,9 @@
     { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)\.?$/i,
       make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: (m[1] || 'Zombie').trim() }) },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
+    /* Recruit (Esgaroth Garrison, Lake-town Lookout, The Queen of Dale): "Draw a card, then discard a
+       card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token." */
+    { re: /^(?:Then )?(?:you )?recruit\.?$/i, make: () => ({ op: 'recruit' }) },
     { re: /^(?:Then )?[Cc]onnive (\d+)\.?$/i, make: (m) => ({ op: 'connive', n: +m[1] }) },
     { re: /^[Ss]cry (\d+), then draw (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'scry', n: +m[1] }, { op: 'draw', n: num(m[2]), who: 'you' }] }) },

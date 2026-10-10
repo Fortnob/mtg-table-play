@@ -13677,6 +13677,35 @@
           break;
         }
 
+        /* Recruit: draw a card, then discard a card; a nonland card discarded
+           makes a 1/1 white Human Soldier (the draw kept across a pause for the question) */
+        case 'recruit': {
+          const who = this.player(ctx.controller);
+          if (!who) break;
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = 'recr' + (r ? r.index : 0);
+          if (!(r && r.marks[slot])) { this._drawCards(who, 1); if (r) r.marks[slot] = true; }
+          const hand = (this.zones[who.id] || {}).hand || [];
+          if (!hand.length) { this.logEvent('rules', `${who.name} recruits, with nothing to discard.`); break; }
+          let toss = hand[hand.length - 1];
+          if (hand.length > 1) {
+            const got = this._choose({ playerId: who.id, purpose: 'recruit', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}discard a card. A nonland card makes a 1/1 Human Soldier.` }, slot + 'd');
+            if (got === SUSPEND) return SUSPEND;
+            const picked = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && hand.includes(c));
+            if (picked) toss = picked;
+          }
+          const ta = toss.analysis();
+          this.moveObject(toss, 'graveyard');
+          this._afterDiscard(who.id, toss);
+          this._lastDiscarded = [toss.id];
+          this.logEvent('discard', `${who.name} recruits and discards ${toss.name}.`);
+          if (ta && !ta.isLand) this._spliceNext([{ op: 'createToken', n: 1, pt: '1/1', colorWords: ['white'], addTypes: [], subtypes: 'Human Soldier', keywords: [] }]);
+          break;
+        }
+
         /* Cipher (CR 702.99): "Then you may exile this spell card encoded
            on a creature you control." Which creature is a generic question,
            with "none" as an answer. */

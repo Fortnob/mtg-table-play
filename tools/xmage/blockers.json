@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11200,
+  "needed": 11191,
   "gainedCards": 1129,
-  "linesNeeded": 11980,
+  "linesNeeded": 11970,
   "linesGained": 1331,
   "gained": {
    "all": 1129,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4164,
-   "lines": 3915,
+   "score": 4163,
+   "lines": 3914,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 709,
-   "lines": 649,
+   "score": 708,
+   "lines": 648,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -2613,21 +2613,6 @@
     "Foster",
     "Avenging Druid",
     "Sacred Guide"
-   ]
-  },
-  {
-   "what": "RecruitEffect",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Celebrate the Mountain-king",
-    "Bard's Company",
-    "The Mountain-king's Return",
-    "Great Gilded Boat",
-    "Lake-town Lookout",
-    "Esgaroth Garrison",
-    "Patient Instructor",
-    "Long Lake Nuisance"
    ]
   },
   {
@@ -6643,13 +6628,23 @@
     "Baron Helmut Zemo",
     "Arni Brokenbrow"
    ]
+  },
+  {
+   "what": "modal activated ability",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Lobelia, Defender of Bag End",
+    "Ransom Note",
+    "Pyramids"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3471,
-   "cards": 3303,
+   "score": 3470,
+   "cards": 3302,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6661,8 +6656,8 @@
   },
   {
    "what": "custom ability",
-   "score": 549,
-   "cards": 504,
+   "score": 548,
+   "cards": 503,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -8311,19 +8306,6 @@
    ]
   },
   {
-   "what": "RecruitEffect",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Celebrate the Mountain-king",
-    "The Mountain-king's Return",
-    "Great Gilded Boat",
-    "Lake-town Lookout",
-    "Esgaroth Garrison",
-    "Patient Instructor"
-   ]
-  },
-  {
    "what": "IsStepCondition",
    "score": 7,
    "cards": 7,
@@ -8549,6 +8531,19 @@
     "Preeminent Captain",
     "Shadowfax, Lord of Horses",
     "Wumpus Aberration"
+   ]
+  },
+  {
+   "what": "CastAsThoughItHadFlashIfConditionAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Flash Photography",
+    "Silver Scrutiny",
+    "Fated Clash",
+    "Bard's Company",
+    "Scarring Memories",
+    "Illusion Spinners"
    ]
   },
   {
@@ -9190,18 +9185,6 @@
     "Quistis Trepe",
     "Toshiro Umezawa",
     "Sins of the Past"
-   ]
-  },
-  {
-   "what": "CastAsThoughItHadFlashIfConditionAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Flash Photography",
-    "Silver Scrutiny",
-    "Fated Clash",
-    "Scarring Memories",
-    "Illusion Spinners"
    ]
   },
   {
@@ -10335,6 +10318,17 @@
     "Unnatural Selection",
     "Imagecrafter",
     "Mistform Mutant"
+   ]
+  },
+  {
+   "what": "CardTypesInGraveyardCount.YOU",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Deluge of Doom",
+    "Broodspinner",
+    "Peer Past the Veil",
+    "Lucid Dreams"
    ]
   }
  ]
