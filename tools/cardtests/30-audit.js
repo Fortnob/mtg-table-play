@@ -4077,4 +4077,35 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.g.battlefield.filter(o => o.isToken && /Skeleton/.test(o.name)).length, 1, 'two creature cards at once: one token');
   });
+
+  test("Audit: a spell's X counts in its mana value on the stack (Gilanra); Carnelian Orb's haste is for Dragons only; Hall of the Bandit Lord's lasts", (mk, t) => {
+    t.auto('Gilanra, Caller of Wirewood'); t.auto('Carnelian Orb of Dragonkind'); t.auto('Hall of the Bandit Lord');
+    let T = mk();
+    T.toMain('A');
+    const gi = T.bf('A', 'Gilanra, Caller of Wirewood'); gi.summoningSick = false;
+    for (let i = 0; i < 5; i++) T.bf('A', 'Forest');
+    for (let i = 0; i < 5; i++) T.top('A', 'Island');
+    const eo = T.hand('A', 'Endless One');
+    const h = T.zone('A', 'hand').length;
+    t.ok(T.g.castSpell('A', eo.id, { auto: true, x: 6 }));
+    T.settle(); T.resolve(); T.settle();
+    t.ok(gi.tapped, "Gilanra's mana went into it");
+    t.eq(T.zone('A', 'hand').length, h, 'X is 6: mana value 6, a card drawn (the Endless One left the hand)');
+    T = mk();
+    T.toMain('A');
+    const orb = T.bf('A', 'Carnelian Orb of Dragonkind');
+    T.bf('A', 'Forest');
+    const gb = T.hand('A', 'Grizzly Bears');
+    t.ok(T.g.castSpell('A', gb.id, { auto: true })); T.settle(); T.resolve(); T.settle();
+    t.ok(orb.tapped); t.no(T.g.hasKw(gb, 'haste'), 'not a Dragon');
+    T = mk();
+    T.toMain('A');
+    const hall = T.bf('A', 'Hall of the Bandit Lord'); hall.tapped = false;
+    T.bf('A', 'Forest');
+    const gb2 = T.hand('A', 'Grizzly Bears');
+    t.ok(T.g.castSpell('A', gb2.id, { auto: true })); T.settle(); T.resolve(); T.settle();
+    t.eq(T.life('A'), 17); t.ok(T.g.hasKw(gb2, 'haste'));
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    t.ok(T.g.hasKw(gb2, 'haste'), 'still hasty a turn later');
+  });
 };

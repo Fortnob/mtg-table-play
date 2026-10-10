@@ -5588,13 +5588,13 @@
         if (src.phasedOut || src.controller !== item.controller) return false;
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || g.keyword !== 'cascade') return false;
-        if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) < g.minMv) return false;
+        if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) return false;
         return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
       });
       if (!a.keywordSet.has('cascade') && !granted) return;
       const pid = item.controller;
       const lib = this.zones[pid].library;
-      const mv = a.mv || 0;
+      const mv = (a.mv || 0) + this._xMv(item);
       const exiled = [];
       let hit = null;
       while (lib.length) {
@@ -7496,7 +7496,7 @@
       if (rider && typeof rider === 'object' && Array.isArray(rider.effects)) {
         const so = item.obj;
         if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
-        if (rider.minMv != null && ((so.card && so.card.cmc) || 0) < rider.minMv) return;
+        if (rider.minMv != null && ((so.card && so.card.cmc) || 0) + this._xMv(item) < rider.minMv) return;
         this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
           name: truncate(rider.text || 'Mana rider', 60), effects: rider.effects, auto: true, abilityText: truncate(rider.text || '', 80) });
         return;
@@ -20733,7 +20733,7 @@
         // Spellbreaker Behemoth: only those with power 5 or greater
         if (e.minPower != null && !(item.obj && parseInt((item.obj.card && item.obj.card.power) || '0', 10) >= e.minPower)) continue;
         // Thryx, the Sudden Storm: only those with mana value 5 or greater
-        if (e.minMv != null && !(item.kind === 'spell' && item.obj && ((item.obj.card && item.obj.card.cmc) || 0) >= e.minMv)) continue;
+        if (e.minMv != null && !(item.kind === 'spell' && item.obj && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) >= e.minMv)) continue;
         return true;
       }
       return false;
@@ -22517,12 +22517,18 @@
         return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
       });
     }
+    /* What a spell's X adds to its mana value on the stack, X as chosen (CR 202.3e) */
+    _xMv(item) {
+      const o = item && item.kind !== 'ability' && item.obj;
+      const xs = String((o && o.card && o.card.mana_cost) || '').match(/\{X\}/g);
+      return xs && item.x > 0 ? xs.length * item.x : 0;
+    }
     /** Does a spell on the stack answer to "noncreature", "instant or sorcery"…? */
     _spellMatches(item, spec, controllerId) {
       const o = item.obj;
       const a = o && o.analysis();
       if (!a || !spec) return true;                       // unknown: do not rule it out
-      const mv = (o.card && o.card.cmc) || 0;
+      const mv = ((o.card && o.card.cmc) || 0) + this._xMv(item);
       // Spell Blast: "with mana value X" — the X being cast with, once known
       const xv = (v) => (v === 'X' ? (this._specX != null ? this._specX : null) : v);
       if (xv(spec.maxMv) != null && mv > xv(spec.maxMv)) return false;
