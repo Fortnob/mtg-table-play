@@ -20630,4 +20630,16 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield', 'the Bears are not eaten');
     t.ok(offered && offered.length === 2, 'the two Forests were offered');
   });
+
+  test('Feral Ghoul: dying, each opponent gets rad counters equal to its power (as it last was)', (mk, t) => {
+    t.auto('Feral Ghoul');
+    const T = mk();
+    const fg = T.bf('A', 'Feral Ghoul');
+    T.g.addCounters(fg, '+1/+1', 2);
+    const p = T.g.powerOf(fg);
+    T.g.moveObject(fg, 'graveyard');
+    T.resolve();
+    t.eq(T.g.player('B').rad, p, 'its power with the counters');
+    t.no(T.g.player('A').rad, 'not you');
+  });
 };

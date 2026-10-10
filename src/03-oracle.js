@@ -3712,6 +3712,15 @@
     // Mirelurk Queen and the Fallout cards: "target player gets two rad counters"
     /* (Megaton's Fate: "Each player gets four rad counters"; Glowing One, Infesting Radroach: "they get
        four (that many) rad counters"; Acquired Mutation: "defending player gets two"; Tato Farmer: "you may get two") */
+    // (Feral Ghoul: "each opponent gets a number of rad counters equal to its power")
+    { re: /^(Target player|Each opponent|Target opponent|You|Each player) gets? a number of rad counters equal to (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        if (!k) return null;
+        const w = m[1].toLowerCase();
+        return { op: 'rad', n: k, who: /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : w === 'each player' ? 'each' : 'you',
+          targets: /^target/.test(w) ? [{ type: 'player', opponent: /opponent/.test(w) }] : undefined };
+      } },
     { re: /^(?:(Target player|Each opponent|Target opponent|You|Each player|They|That player|Defending player) gets?|Get) (a|an|one|two|three|four|five|\d+|X|that many) rad counters?\.?$/i,
       make: (m) => {
         const w = (m[1] || 'you').toLowerCase();
