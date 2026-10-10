@@ -3616,6 +3616,15 @@
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
     // Teysa, Opulent Oligarch: "investigate for each opponent who lost life this turn"
     { re: /^Investigate (?:once )?for each (.+?)\.?$/i, make: (m) => { const c = countOf(m[1]); return c && !c.unread ? { op: 'createNamedToken', n: c, token: 'Clue' } : null; } },
+    // Mindwhip Sliver, Hymn to Tourach: "Target player discards a card at random", "each opponent"
+    // (Bottomless Pit's "that player" is read from its XMage line)
+    { re: /^(Target player|Target opponent|Each opponent|Each player) discards (a|one|two|three|\d+) cards? at random\.?$/i,
+      make: (m) => {
+        const w = m[1].toLowerCase();
+        const who = /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : 'each';
+        return Object.assign({ op: 'discard', n: num(m[2]), who, random: true },
+          who === 'target' ? { targets: [/opponent/.test(w) ? { type: 'player', opponent: true } : { type: 'player' }] } : {});
+      } },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -9593,7 +9602,8 @@
       event: 'attacks', also: 'becomesTarget', also2: 'blocks', self: true, extra: { bySpellOnly: true } },
     { re: /^When(?:ever)? (?:this creature|CARDNAME) attacks or becomes the target of a spell(?:,| )/i,
       event: 'attacks', also: 'becomesTarget', self: true, extra: { bySpellOnly: true } },
-    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
+    // (Opaline Sliver's granted "this permanent")
+    { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
     /* --- the general shapes, watching for a kind of thing --- */
     // Amulet of Vigor: "Whenever a permanent you control enters tapped"

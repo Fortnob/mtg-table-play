@@ -19121,4 +19121,42 @@ module.exports = (test) => {
     T.resolve();
     t.zone(kf, 'graveyard', 'no creature to tap: sacrificed');
   });
+
+  test('Hymn to Tourach, Mindwhip Sliver: target player discards at random', (mk, t) => {
+    t.auto('Hymn to Tourach'); t.auto('Mindwhip Sliver');
+    const T = mk();
+    T.toMain('A');
+    for (const n of ['Island', 'Forest', 'Swamp']) T.hand('B', n);
+    T.mana('A', 'BB');
+    T.cast('A', T.hand('A', 'Hymn to Tourach'), { targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, 1, 'two at random');
+    t.eq(T.asked.filter(c => c.playerId === 'B').length, 0, 'nobody chooses');
+    const ms = T.bf('A', 'Mindwhip Sliver');
+    T.g.bumpBoard();
+    const a = ms.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const k = list.findIndex(x => x.cost && x.cost.sacSelf);
+    t.ok(k >= 0, 'the Sliver has the ability itself');
+    T.mana('A', '2');
+    T.activate('A', ms, k, { targets: ['B'] });
+    T.resolve();
+    t.eq(T.zone('B', 'hand').length, 0, 'the last card, at random');
+    t.zone(ms, 'graveyard');
+  });
+
+  test("Opaline Sliver: a Sliver an opponent's spell targets draws its controller a card", (mk, t) => {
+    t.auto('Opaline Sliver');
+    const T = mk();
+    T.toMain('A');
+    for (let i = 0; i < 3; i++) T.top('A', 'Island');
+    const os = T.bf('A', 'Opaline Sliver');
+    T.g.bumpBoard();
+    T.answer('confirm', { yes: true });
+    T.g.passPriority('A', true);
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [os.id] });
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'a card');
+  });
 };

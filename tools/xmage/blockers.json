@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10979,
-  "gainedCards": 1088,
-  "linesNeeded": 11725,
-  "linesGained": 1281,
+  "needed": 10964,
+  "gainedCards": 1075,
+  "linesNeeded": 11708,
+  "linesGained": 1266,
   "gained": {
-   "all": 1088,
+   "all": 1075,
    "top2000": 43,
    "stdTop": 6
   },
@@ -21,7 +21,7 @@
   "verifyFail": 43,
   "overrides": {
    "drain": 65,
-   "group": 28,
+   "group": 29,
    "x": 3,
    "it": 16,
    "count": 24,
@@ -449,25 +449,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 21,
-   "lines": 21,
-   "cards": [
-    "Vronos, Masked Inquisitor",
-    "Katara's Reversal",
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry",
-    "Mindbender Spores",
-    "Alaborn Zealot",
-    "Angrath's Fury",
-    "Silent Assassin"
-   ]
-  },
-  {
    "what": "GainAbilityControlledSpellsEffect",
    "score": 20,
    "lines": 17,
@@ -484,6 +465,25 @@
     "Abaddon the Despoiler",
     "Silverquill Lecturer",
     "Samut, Tyrant of Naktamun"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 20,
+   "lines": 20,
+   "cards": [
+    "Vronos, Masked Inquisitor",
+    "Katara's Reversal",
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry",
+    "Mindbender Spores",
+    "Alaborn Zealot",
+    "Angrath's Fury",
+    "Silent Assassin"
    ]
   },
   {
@@ -3827,18 +3827,6 @@
    ]
   },
   {
-   "what": "targeted by FilterSpell",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Tectonic Giant",
-    "Stormchaser Drake",
-    "Opaline Sliver",
-    "Illuminator Virtuoso",
-    "Fugitive Druid"
-   ]
-  },
-  {
    "what": "MultipliedValue of \"X\"",
    "score": 5,
    "lines": 5,
@@ -4792,6 +4780,17 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
+   ]
+  },
+  {
+   "what": "targeted by FilterSpell",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Tectonic Giant",
+    "Stormchaser Drake",
+    "Illuminator Virtuoso",
+    "Fugitive Druid"
    ]
   },
   {
@@ -6847,19 +6846,6 @@
    ]
   },
   {
-   "what": "effect with no target",
-   "score": 17,
-   "cards": 17,
-   "names": [
-    "Absorb Identity",
-    "Sapphire Charm",
-    "Fire Giant's Fury",
-    "Act of Heroism",
-    "Stall for Time",
-    "Loyal Sentry"
-   ]
-  },
-  {
    "what": "GainAbilityControlledSpellsEffect",
    "score": 16,
    "cards": 13,
@@ -6870,6 +6856,19 @@
     "Hunting Velociraptor",
     "Quandrix, the Proof",
     "Silverquill, the Disputant"
+   ]
+  },
+  {
+   "what": "effect with no target",
+   "score": 16,
+   "cards": 16,
+   "names": [
+    "Absorb Identity",
+    "Sapphire Charm",
+    "Fire Giant's Fury",
+    "Act of Heroism",
+    "Stall for Time",
+    "Loyal Sentry"
    ]
   },
   {
@@ -8854,18 +8853,6 @@
    ]
   },
   {
-   "what": "targeted by FilterSpell",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Tectonic Giant",
-    "Stormchaser Drake",
-    "Opaline Sliver",
-    "Illuminator Virtuoso",
-    "Fugitive Druid"
-   ]
-  },
-  {
    "what": "GainAbilityControllerEffect",
    "score": 5,
    "cards": 5,
@@ -9577,6 +9564,17 @@
     "Aang, Airbending Master",
     "Appa, Loyal Sky Bison",
     "Whirlwind Technique"
+   ]
+  },
+  {
+   "what": "targeted by FilterSpell",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Tectonic Giant",
+    "Stormchaser Drake",
+    "Illuminator Virtuoso",
+    "Fugitive Druid"
    ]
   },
   {
