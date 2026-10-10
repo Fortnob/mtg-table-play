@@ -209,3 +209,53 @@ html[data-play="1"] .inbox-chip { display: none; }
 
 .rank-play { align-items: center; }
 .rank-play-label { letter-spacing: .1em; text-transform: uppercase; }
+
+/* ---------- the mastery track (UI.masteryTrack) ---------- */
+/* (min-width 0: in a grid or flex column it must not be stretched by its own long rail, which scrolls instead) */
+.mt2 { display: block; width: 100%; min-width: 0; max-width: 100%; text-align: left; color: #eef1f6; font: inherit; padding: 14px 18px 12px; margin-top: 14px;
+  border-radius: 16px; border: 1px solid rgba(212,175,71,.3);
+  background: radial-gradient(ellipse 60% 120% at 0% 0%, rgba(212,175,71,.12), transparent 60%), linear-gradient(180deg, rgba(20,24,33,.9), rgba(10,12,18,.94));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 16px 40px rgba(0,0,0,.45); }
+button.mt2 { cursor: pointer; transition: border-color .2s, box-shadow .2s, transform .2s; }
+button.mt2:hover { border-color: rgba(246,220,140,.6); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 44px rgba(0,0,0,.5), 0 0 0 1px rgba(246,220,140,.15); }
+.mt2-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.mt2-title { display: flex; align-items: baseline; gap: 8px; }
+.mt2-eyebrow { font: 700 11px/1 var(--font); letter-spacing: .12em; text-transform: uppercase; color: var(--gold-mid, #d6a84a); margin-right: 4px; }
+.mt2-level { font: 600 22px/1 var(--serif); color: #fff3cf; }
+.mt2-of { font-size: 13px; }
+.mt2-next { display: flex; align-items: center; gap: 10px; flex: 1 1 240px; min-width: 0; }
+.mt2-xp { font-size: 12.5px; color: #c3cad6; white-space: nowrap; }
+.mt2-bar { flex: 1 1 auto; max-width: 280px; height: 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.5); }
+.mt2-bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #9a6d1f, #f3cf7a 70%, #fff1c2); box-shadow: 0 0 10px rgba(243,207,122,.6); }
+.mt2-open { margin-left: auto; font: 600 12px/1 var(--font); color: var(--gold-hi, #f3cf7a); white-space: nowrap; }
+.mt2-rail { min-width: 0; max-width: 100%; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(92px, 1fr); overflow-x: auto; padding: 14px 4px 4px; scrollbar-width: thin; }
+.mt2.compact .mt2-rail { grid-auto-columns: minmax(78px, 1fr); }
+.mt2-node { position: relative; display: grid; justify-items: center; align-content: start; gap: 8px; padding: 0 4px; }
+/* the line from the level before: a dark groove, filled with gold as far as you have come */
+.mt2-link { position: absolute; top: 18px; left: -50%; right: 50%; height: 5px; margin-top: -2px; border-radius: 99px; background: rgba(255,255,255,.07);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,.6); overflow: hidden; z-index: 0; }
+.mt2-link i { display: block; height: 100%; background: linear-gradient(90deg, #a5741f, #f3cf7a); box-shadow: 0 0 8px rgba(243,207,122,.55); }
+.mt2-medal { position: relative; z-index: 1; width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(circle at 35% 30%, #303646, #12151c 72%); border: 2px solid rgba(255,255,255,.12);
+  box-shadow: 0 3px 8px rgba(0,0,0,.55); }
+.mt2-medal b { font: 700 14px/1 var(--serif); color: #8d8676; }
+.mt2-node.mid .mt2-medal { width: 40px; height: 40px; }
+.mt2-node.big .mt2-medal { width: 46px; height: 46px; border-radius: 30%; rotate: 45deg; margin: -3px 0 3px; }
+.mt2-node.big .mt2-medal b { rotate: -45deg; font-size: 16px; }
+.mt2-node.big .mt2-link { top: 20px; }
+.mt2-node.got .mt2-medal { background: radial-gradient(circle at 35% 28%, #fff1c2, #e3b448 45%, #8f6618 90%); border-color: #ffe9a8;
+  box-shadow: 0 3px 10px rgba(0,0,0,.5), 0 0 14px rgba(243,206,110,.45); }
+.mt2-node.got .mt2-medal b { color: #2a1a02; }
+.mt2-node.next .mt2-medal { border-color: #9fd8ff; box-shadow: 0 0 0 3px rgba(159,216,255,.18), 0 0 18px rgba(159,216,255,.5); animation: mt2Pulse 2.4s ease-in-out infinite; }
+.mt2-node.next .mt2-medal b { color: #e3f4ff; }
+@keyframes mt2Pulse { 50% { box-shadow: 0 0 0 5px rgba(159,216,255,.12), 0 0 26px rgba(159,216,255,.7); } }
+.mt2-rw { font-size: 11px; color: #aab3c2; text-align: center; }
+.mt2-rw .rw-row { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.mt2-rw .rw { font-size: 11px; padding: 2px 6px; white-space: nowrap; }
+.mt2-node.got .mt2-rw { opacity: .55; }
+.mt2-node.big .mt2-rw .rw { color: #ffe6a0; }
+.mt2.compact .mt2-rw .rw:nth-child(n+2) { display: none; }
+.mt2-note { margin: 10px 2px 0; font-size: 13px; }
+:root[data-phone] .mt2 { padding: 12px 12px 10px; }
+:root[data-phone] .mt2-open { display: none; }
+@media (prefers-reduced-motion: reduce) { .mt2-node.next .mt2-medal { animation: none; } }

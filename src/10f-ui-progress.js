@@ -261,24 +261,59 @@
     body.append(qs, wk, lg);
   }
 
-  /* -- mastery: the season's fifty levels -- */
-  function mastery(body) {
-    const S = P().state;
-    const into = S.xp - S.level * P().XP_LEVEL;
-    body.appendChild(el('section', { class: 'panel' }, [
-      el('h3', { text: `${P().seasonName(S.season)} mastery: level ${S.level} of ${P().LEVELS}` }),
-      el('p', { class: 'dim', text: `${P().XP.win} XP a win, ${P().XP.play} a game, more for quests. ${fmtN(P().XP_LEVEL - into)} XP to the next level. The track starts again each month.` }),
-    ]));
-    const grid = el('div', { class: 'mastery-track' });
-    for (let lv = 1; lv <= P().LEVELS; lv++) {
-      const got = S.level >= lv;
-      grid.appendChild(el('div', { class: 'mt-node' + (got ? ' got' : '') + (S.level + 1 === lv ? ' next' : '') + (lv % 10 === 0 ? ' big' : '') }, [
-        el('b', { text: String(lv) }), rewardChips(P().masteryReward(lv)),
-        S.level + 1 === lv ? el('span', { class: 'mt-bar' }, [el('i', { style: { width: (100 * into / P().XP_LEVEL).toFixed(0) + '%' } })]) : null,
+  /**
+   * The season's mastery track: a medallion for each level on a line that
+   * fills as you climb, gold where you have been, the next one lit with how
+   * far you are into it, every tenth a milestone, and what each one pays
+   * beneath it. `opts.window` shows only that many levels round where you
+   * are (Home); `opts.onOpen` makes the whole of it a way to the full track.
+   */
+  UI.masteryTrack = function (opts) {
+    opts = opts || {};
+    const S = P().state, L = P().LEVELS, XPL = P().XP_LEVEL;
+    const into = Math.max(0, S.xp - S.level * XPL);
+    const frac = S.level >= L ? 1 : Math.min(1, into / XPL);
+    let from = 1, to = L;
+    if (opts.window) {
+      from = Math.max(1, Math.min(L - opts.window + 1, S.level - 1));
+      to = Math.min(L, from + opts.window - 1);
+    }
+    const rail = el('div', { class: 'mt2-rail' });
+    for (let lv = from; lv <= to; lv++) {
+      const got = S.level >= lv, next = S.level + 1 === lv;
+      // the stretch of line leading up to this level: full once reached, part-way for the next
+      const fill = got ? 1 : next ? frac : 0;
+      rail.appendChild(el('div', { class: 'mt2-node' + (got ? ' got' : '') + (next ? ' next' : '') + (lv % 10 === 0 ? ' big' : lv % 5 === 0 ? ' mid' : '') }, [
+        lv > from || from > 1 ? el('span', { class: 'mt2-link', 'aria-hidden': 'true' }, [el('i', { style: { width: (fill * 100).toFixed(0) + '%' } })]) : null,
+        el('span', { class: 'mt2-medal', 'aria-label': `Level ${lv}${got ? ', reached' : next ? `, ${Math.round(frac * 100)}% of the way` : ''}` }, [el('b', { text: String(lv) })]),
+        el('div', { class: 'mt2-rw' }, [rewardChips(P().masteryReward(lv))]),
       ].filter(Boolean)));
     }
-    body.appendChild(grid);
-    setTimeout(() => { const n = grid.querySelector('.mt-node.next'); if (n) n.scrollIntoView({ block: 'nearest', inline: 'center' }); }, 50);
+    const head = el('div', { class: 'mt2-head' }, [
+      el('div', { class: 'mt2-title' }, [
+        el('span', { class: 'mt2-eyebrow', text: `${P().seasonName(S.season)} mastery` }),
+        el('b', { class: 'mt2-level', text: `Level ${S.level}` }),
+        el('span', { class: 'mt2-of dim', text: `of ${L}` }),
+      ]),
+      el('div', { class: 'mt2-next' }, S.level >= L ? [el('span', { text: 'Every level reached this season' })] : [
+        el('span', { class: 'mt2-xp', text: `${fmtN(XPL - into)} XP to level ${S.level + 1}` }),
+        el('span', { class: 'mt2-bar' }, [el('i', { style: { width: (frac * 100).toFixed(0) + '%' } })]),
+      ]),
+      opts.onOpen ? el('span', { class: 'mt2-open', text: 'The whole track \u203a' }) : null,
+    ].filter(Boolean));
+    const box = el(opts.onOpen ? 'button' : 'section', {
+      class: 'mt2' + (opts.window ? ' compact' : ''), type: opts.onOpen ? 'button' : null,
+      onclick: opts.onOpen || null, 'aria-label': opts.onOpen ? `Mastery level ${S.level}: open the whole track` : null,
+    }, [head, rail]);
+    // the level you are on in view
+    setTimeout(() => { const n = rail.querySelector('.mt2-node.next') || rail.querySelector('.mt2-node.got:last-of-type'); if (n && rail.scrollWidth > rail.clientWidth) rail.scrollLeft = n.offsetLeft - rail.clientWidth / 2 + n.offsetWidth / 2; }, 30);
+    return box;
+  };
+
+  /* -- mastery: the season's fifty levels -- */
+  function mastery(body) {
+    body.appendChild(UI.masteryTrack());
+    body.appendChild(el('p', { class: 'dim mt2-note', text: `${P().XP.win} XP a win, ${P().XP.play} a game, more for quests. The track starts again each month.` }));
   }
 
   /* -- ranked: the ladder against the bots -- */

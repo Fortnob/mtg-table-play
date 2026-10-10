@@ -429,10 +429,16 @@
       el('div', { class: 'crumbs', id: 'crumbs' }),
       // the four places in the app, always one click away, the way a game's
       // front end keeps its tabs along the top
+      /* each with its symbol, and a picture behind the word: grey until the
+         pointer is on it, or it is where you are */
       el('nav', { class: 'topnav', 'aria-label': 'Main' }, NAV.map(([id, label]) => el('button', {
-        type: 'button', class: 'topnav-btn', text: label, dataset: { nav: id },
+        type: 'button', class: 'topnav-btn', dataset: { nav: id },
         onclick: () => navTo(id),
-      }))),
+      }, [
+        decorArt(el('span', { class: 'topnav-art', 'aria-hidden': 'true' }), TILE_ART[id]),
+        el('span', { class: 'topnav-ic', 'aria-hidden': 'true', html: SVG[NAV_ICON[id]] || '' }),
+        el('span', { class: 'topnav-label', text: label }),
+      ]))),
       el('span', { class: 'grow' }),
       UI.friendsChip ? UI.friendsChip() : null,
       UI.inboxChip(),
@@ -500,6 +506,7 @@
 
   // (Options is the gear at the right of the bar)
   const NAV = [['home', 'Home'], ['formats', 'Play'], ['decks', 'Decks'], ['collection', 'Collection'], ['store', 'Store'], ['profile', 'Profile']];
+  const NAV_ICON = { home: 'home', formats: 'play', decks: 'deck', collection: 'cards', store: 'shard', profile: 'user' };
   App.navTo = (n) => navTo(n);
   /** The Profile screen, on one of its tabs. */
   function navProfile(tab) {
@@ -978,7 +985,8 @@
     cube: 'Jace, the Mind Sculptor', cmdrdraft: 'The Ur-Dragon',
     sealed: 'Booster Tutor', jumpstart: 'Inspiring Overseer',
   };
-  const TILE_ART = { formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe' };
+  const TILE_ART = { home: 'Command Tower', formats: 'Lightning Helix', decks: 'Demonic Tutor', options: "Sensei's Divining Top", collection: 'Mox Opal', store: 'Smothering Tithe',
+    profile: 'Jace, the Mind Sculptor' };
   const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART));
 
   /** The decoration cards by name, once they are here. */
@@ -1063,7 +1071,6 @@
     const q = P.quests || [];
     const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
     const box = MTG.progress.inboxCount();
-    const packs = MTG.economy.packs().length;
     const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
       el('span', { class: 'ti-label', text: label }),
       el('b', { class: 'ti-value', text: value }),
@@ -1074,7 +1081,6 @@
       today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
       today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
       today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
-      today('t-packs' + (packs ? ' hot' : ''), 'Your packs', packs ? `${packs} to open` : 'None', packs ? 'Open them' : 'Buy some in the Store', null, () => (packs ? App.openPacks() : showScreen('store'))),
       today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
     ]);
   }
@@ -1121,9 +1127,14 @@
       el('h1', { class: 'home-title', text: 'Shuffle up.' }),
       el('p', { class: 'home-tag', text: 'Real cards, real art and the real rules — against bots, or with friends over a direct connection.' }),
     ]));
-    inner.appendChild(quickGamePanel());
+    /* the quick game, and beside it today's things: quests, the week,
+       rewards waiting, packs to open, your rank; each goes where it says */
+    const strip = todayStrip();
+    inner.appendChild(el('div', { class: 'home-play-row' + (strip ? '' : ' alone') }, [quickGamePanel(), strip].filter(Boolean)));
     hero.append(inner, credit);
     page.appendChild(hero);
+    /* -- the season's mastery track, round where you are on it; a click opens all of it -- */
+    if (UI.masteryTrack && MTG.progress) page.appendChild(UI.masteryTrack({ window: 12, onOpen: () => navProfile('mastery') }));
 
     /* -- a game left mid-turn is offered back before anything else -- */
     const resumeHost = el('div', { class: 'home-resume' });
@@ -1163,29 +1174,6 @@
     const lesson = MTG.lessons ? MTG.lessons.homeCard({ art: decorArt, rerender: renderHome }) : null;
     if (lesson) notes.appendChild(lesson);
 
-    /* -- the three doors -- */
-    const tile = (id, icon, title, body, onClick) => {
-      const t = el('button', { class: 'home-tile', onclick: onClick, dataset: { tile: id } }, [
-        el('div', { class: 'home-tile-art', 'aria-hidden': 'true' }),
-        el('div', { class: 'home-icon', html: icon }),
-        el('div', { class: 'home-tile-body' }, [
-          el('h2', { text: title }),
-          el('p', { text: body }),
-        ]),
-        el('span', { class: 'home-arrow', 'aria-hidden': 'true', html: SVG.arrow }),
-      ]);
-      decorArt(t.firstChild, TILE_ART[id]);
-      return t;
-    };
-    /* -- today: quests, the week, rewards waiting, packs to open; each goes where it says -- */
-    const strip = todayStrip();
-    if (strip) page.appendChild(strip);
-    page.appendChild(el('div', { class: 'home-tiles four' }, [
-      tile('formats', SVG.play, 'Play', 'Every format, events and challenges. Fill the seats with friends or bots.', () => showScreen('formats')),
-      tile('decks', SVG.deck, 'Decks', 'Import a list from anywhere, build one from scratch, and see what it combos into.', () => showScreen('decks')),
-      tile('collection', SVG.cards, 'Collection', 'Every card you own, set by set, and wildcards to craft the rest.', () => showScreen('collection')),
-      tile('store', SVG.shard, 'Store', 'Packs, wildcards, sleeves and frames, for the Shards you earn.', () => showScreen('store')),
-    ]));
     const replay = el('button', { class: 'btn xs ghost', text: 'Watch a replay…', title: 'Open a replay file saved from the game menu',
       onclick: () => App.openReplayFile() });
 
@@ -1463,6 +1451,8 @@
     shard: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.5l6.5 6.2L12 21.5 5.5 8.7z"/><path d="M5.5 8.7h13M12 2.5v19"/></svg>',
     play: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
     deck: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="11" height="15" rx="2"/><path d="M8 3h9a2 2 0 0 1 2 2v12"/></svg>',
+    home: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11.5L12 4l8.5 7.5"/><path d="M6 10v9.5h4.5v-5h3v5H18V10"/></svg>',
+    user: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8.5" r="3.8"/><path d="M4.5 20c.9-3.9 3.9-6.2 7.5-6.2s6.6 2.3 7.5 6.2"/></svg>',
     gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.2 4.2l1.6 1.6M18.2 18.2l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.2 19.8l1.6-1.6M18.2 5.8l1.6-1.6"/></svg>',
     users: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 5.2a3.2 3.2 0 0 1 0 5.6M18 20a6.4 6.4 0 0 0-2.2-4.8"/></svg>',
     sound: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11"/></svg>',

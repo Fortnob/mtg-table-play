@@ -1603,3 +1603,35 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .preset-modal .preset-head input, .preset-modal .preset-head select { min-width: 0; }
 .preset-modal .section-title { margin: 14px 2px 8px; }
 .preset-rules .rule-grid { margin-bottom: 4px; }
+
+/* ---------- the top buttons: a symbol, and art behind the word ---------- */
+/* grey until the pointer is on it, or it is where you are, then in colour */
+.topnav-btn { display: inline-flex; align-items: center; gap: 7px; overflow: hidden; isolation: isolate; }
+.topnav-art { position: absolute; inset: 5px 2px; border-radius: 9px; z-index: -1; background: #10131a center 30% / cover no-repeat;
+  filter: grayscale(1) brightness(.42) contrast(1.05); opacity: .55;
+  -webkit-mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent); mask: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+  transition: filter .28s var(--ease), opacity .28s var(--ease); }
+.topnav-btn:hover .topnav-art, .topnav-btn:focus-visible .topnav-art { filter: grayscale(0) brightness(.62) saturate(1.15); opacity: 1; }
+.topnav-btn[aria-current="page"] .topnav-art { filter: grayscale(0) brightness(.5) saturate(1.05); opacity: .9; }
+.topnav-ic { display: inline-grid; place-items: center; width: 16px; height: 16px; flex: none; }
+.topnav-ic svg { width: 16px; height: 16px; }
+.topnav-label { text-shadow: 0 1px 6px rgba(0,0,0,.85); }
+:root[data-theme="light"] .topnav-label { text-shadow: none; }
+/* a phone keeps the words and the picture; the symbols would crowd them off the bar */
+:root[data-phone] .topnav-ic { display: none; }
+:root[data-phone] .topnav-art { inset: 6px 1px; }
+@media (prefers-reduced-motion: reduce) { .topnav-art { transition: none; } }
+
+/* ---------- home: the quick game, and today's things in a column beside it ---------- */
+.home-play-row { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 16px; align-items: stretch; }
+.home-play-row.alone { grid-template-columns: minmax(0, 1fr); }
+.home-play-row > .home-today { display: flex; flex-direction: column; gap: 8px; margin: 0 !important; }
+/* compact beside the quick game: what it is on the left, how it stands on the right, the bar under both */
+.home-play-row > .home-today .today-item { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: center;
+  gap: 4px 10px; padding: 8px 12px; background: linear-gradient(180deg, rgba(20,24,33,.82), rgba(10,12,18,.86)); backdrop-filter: blur(10px); }
+.home-play-row > .home-today .ti-label { grid-column: 1; margin: 0; }
+.home-play-row > .home-today .ti-value { grid-column: 2; font-size: 14px !important; white-space: nowrap; padding-right: 10px; }
+.home-play-row > .home-today .ti-sub { display: none; }
+.home-play-row > .home-today .ti-bar { grid-column: 1 / -1; margin: 0; }
+:root[data-phone] .home-play-row { grid-template-columns: minmax(0, 1fr); }
+:root[data-phone] .home-play-row > .home-today { display: grid; grid-template-columns: 1fr; gap: 6px; }
