@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10774,
+  "needed": 10772,
   "gainedCards": 1024,
-  "linesNeeded": 11474,
+  "linesNeeded": 11471,
   "linesGained": 1206,
   "gained": {
    "all": 1024,
@@ -5760,16 +5760,6 @@
    ]
   },
   {
-   "what": "search with TargetCardAndOrCardInLibrary",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Axgard Armory",
-    "Aang's Journey",
-    "Invert // Invent"
-   ]
-  },
-  {
    "what": "Ability.setUndoPossible",
    "score": 3,
    "lines": 3,
@@ -6525,13 +6515,23 @@
     "Liliana's Influence",
     "Invasion of Vryn // Overloaded Mage-Ring"
    ]
+  },
+  {
+   "what": "counter that spell unless",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Chancellor of the Annex",
+    "Blood Funnel",
+    "Nether Void"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3423,
-   "cards": 3258,
+   "score": 3424,
+   "cards": 3259,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",

@@ -20435,4 +20435,22 @@ module.exports = (test) => {
     T3.cast('A', T3.hand('A', 'For the Ancestors'));
     t.eq(JSON.stringify(off3), JSON.stringify(['Elvish Mystic', 'Fyndhorn Elves']), 'For the Ancestors, Elf: the two Elves');
   });
+
+  test('Axgard Armory: an Aura card and an Equipment card from the library to the hand', (mk, t) => {
+    t.auto('Axgard Armory');
+    const T = mk();
+    T.toMain('A');
+    const ax = T.bf('A', 'Axgard Armory');
+    const aura = T.put('A', 'Pacifism', 'library');
+    const eq = T.put('A', 'Bonesplitter', 'library');
+    T.put('A', 'Grizzly Bears', 'library');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.slice(0, 1).map(c => c.id) }));
+    T.mana('A', '1RRW');
+    const a = ax.analysis();
+    const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', ax, all.findIndex(x => (x.effects || []).some(e => e.op === 'tutor')));
+    t.zone(aura, 'hand');
+    t.zone(eq, 'hand');
+    t.zone(ax, 'graveyard');
+  });
 };

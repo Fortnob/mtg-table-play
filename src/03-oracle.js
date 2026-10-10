@@ -5523,6 +5523,10 @@
     /* Krosan Verge: "a Forest card and a Plains card", one search each way */
     { re: /^Search your library for an? ([A-Z][a-z]+) card and an? ([A-Z][a-z]+) card, put them onto the battlefield( tapped)?, then shuffle\.?$/,
       make: (m) => [m[1], m[2]].map(t => ({ op: 'tutor', n: 1, filter: t.toLowerCase(), to: 'battlefield', tapped: !!m[3] })) },
+    /* Axgard Armory, Corpse Harvester, Invent: "an Aura card and/or an Equipment card, reveal them, put
+       them into your hand" — one search for each */
+    { re: /^Search your library for an? ([A-Za-z]+) card and(?:\/or)? an? ([A-Za-z]+) card, reveal them, put them into your hand, then shuffle\.?$/i,
+      make: (m) => [m[1], m[2]].map(t => ({ op: 'tutor', n: 1, filter: t.toLowerCase(), to: 'hand' })) },
     /* Rituals that last: "Until end of turn, you don't lose this mana as
        steps and phases end." */
     { re: /^Until end of turn, you don'?t lose (?:this|that|unspent) mana as steps and phases end\.?$/i, make: () => ({ op: 'keepMana' }) },
