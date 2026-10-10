@@ -1917,11 +1917,12 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Treasure').length, 3);
   });
 
-  test('Audit: generated readings that dropped a count are left to a person (Fresh Meat, Murmuration)', (mk, t) => {
+  test('Audit: generated readings that dropped a count are left to a person (Fresh Meat)', (mk, t) => {
     const { card } = require('../harness');
     const T = mk();
     // (Death's Presence now reads its count: its own test checks it)
-    for (const n of ['Fresh Meat', 'Murmuration', 'Hoard Hauler', 'Caller of the Claw'])
+    // (Murmuration now reads its count too: "for each spell you've cast this turn", tested in 20-xmage)
+    for (const n of ['Fresh Meat', 'Hoard Hauler', 'Caller of the Claw'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
 

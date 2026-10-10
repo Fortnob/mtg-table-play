@@ -515,11 +515,13 @@
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; e.grantedText = m[2]; s = s.slice(m[0].length);
-    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?)(?=$|,| that| for each )/))) {
+    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?)(?=$|,| that| for each | named [A-Z])/))) {
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; s = s.slice(m[0].length);
     }
+    // Murmuration: "a 1/2 blue Bird creature token with flying named Storm Crow" — the name after the keywords
+    if (!e.name && (m = s.match(/^ named ([A-Z][^,.]*?)(?=$|,| that)/))) { e.name = m[1].trim(); s = s.slice(m[0].length); }
     if ((m = s.match(/^,? that(?:'s| is| are)(?: tapped and)? attacking/i))) {
       e.attacking = true;
       if (/tapped/i.test(m[0])) e.tapped = true;
@@ -3642,6 +3644,18 @@
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'toughDamageTurn', targets: [t] } : null; } },
     // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
     { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
+    /* Murmuration, Bladewing: "for each spell you've cast this turn, create
+       a 1/2 blue Bird creature token …" — the count said first, the token
+       after (a token for each of something the parser can count) */
+    { re: /^For each ([^,]+?), (?:you )?create (.+)$/i,
+      make: (m) => {
+        if (/\bthis way\b|\bof (?:those|them|the chosen)\b|\btarget\b/i.test(m[1])) return null;
+        const c = countOf(m[1]);
+        if (!c || c.unread) return null;
+        const tk = parseTokenSentence('Create ' + m[2]);
+        if (!tk || tk.op !== 'createToken' || tk.count || tk.n !== 1) return null;
+        return Object.assign(tk, { count: c });
+      } },
     // Dread Summons, Tribune of Rot: "For each creature card milled (put into a graveyard) this way, (you) create a … token."
     { re: /^For each ([a-z ]+?) cards? (?:put into a graveyard|milled) this way, (?:you )?create (.+)$/i,
       make: (m) => {
@@ -5886,6 +5900,8 @@
     if ((m = p.match(/^mana spent to cast (this spell|that spell|it|CARDNAME)$/i))) return { manaSpent: true, of: spentOf(m[1]), mult: k };
     // Squad Commander, Malakir Blood-Priest: "for each creature in your party", "the number of creatures in your party"
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
+    // Murmuration: "for each spell you've cast this turn"
+    if (/^spells? you'?ve cast this turn$/i.test(p)) return { spellsCastThisTurn: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)

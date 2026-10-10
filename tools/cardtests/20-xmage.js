@@ -19559,4 +19559,23 @@ module.exports = (test) => {
     t.eq(oz.counters['+1/+1'], 1, 'a creature card: a counter');
     t.eq(T.g.player('A').life, 21, 'and 1 life');
   });
+
+  test('"For each …, create …": Murmuration, Bladewing, The Hive (a token named after its keywords)', (mk, t) => {
+    t.auto('Murmuration'); t.auto('Bladewing, Deathless Tyrant'); t.auto('The Hive');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Murmuration');
+    for (let i = 0; i < 2; i++) { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); T.resolve(); }
+    T.toMain('A', 'end');
+    T.resolve();
+    const crows = T.g.battlefield.filter(o => o.isToken && o.name === 'Storm Crow');
+    t.eq(crows.length, 2, 'two spells: two Storm Crows');
+    t.ok(crows.every(o => T.g.hasKw(o, 'flying')), 'flying');
+    const T2 = mk();
+    const bw = T2.bf('A', 'Bladewing, Deathless Tyrant');
+    T2.grave('A', 'Grizzly Bears'); T2.grave('A', 'Hill Giant'); T2.grave('A', 'Island');
+    T2.answer('declareAttackers', () => [{ attackerId: bw.id, defenderId: 'B' }]);
+    T2.toMain('A', 'endCombat');
+    t.eq(T2.g.battlefield.filter(o => o.isToken && /Zombie Knight/.test(o.name)).length, 2, 'two creature cards: two Zombie Knights');
+  });
 };
