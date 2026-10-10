@@ -20577,4 +20577,30 @@ module.exports = (test) => {
     t.eq(T.zone('B', 'hand').length, 0, 'chapter II: the opponent discarded their card');
     t.eq(T.g.player('A').energy, 3, 'your energy: one more');
   });
+
+  test('"Return that card to the battlefield instead": Court of Ardenvale as the monarch or not; Aerith, Last Ancient after 7 life', (mk, t) => {
+    t.auto('Court of Ardenvale'); t.auto('Aerith, Last Ancient');
+    const T = mk();
+    T.bf('A', 'Court of Ardenvale');
+    T.g.setMonarch('A', 'test');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.toMain('B'); T.toMain('A');
+    t.ok(T.g.player('A').monarch, 'A is the monarch');
+    t.zone(bear, 'battlefield', 'the monarch: to the battlefield');
+    const T2 = mk();
+    T2.bf('A', 'Court of Ardenvale');
+    const b2 = T2.grave('A', 'Grizzly Bears');
+    T2.answer('pickTarget', { targets: [{ kind: 'object', id: b2.id }] });
+    T2.toMain('B'); T2.toMain('A');
+    t.zone(b2, 'hand', 'not the monarch: to the hand');
+    const T3 = mk();
+    T3.toMain('A');
+    T3.bf('A', 'Aerith, Last Ancient');
+    const g3 = T3.grave('A', 'Hill Giant');
+    T3.g.changeLife(T3.g.player('A'), 7);
+    T3.answer('pickTarget', { targets: [{ kind: 'object', id: g3.id }] });
+    T3.toMain('B');
+    t.zone(g3, 'battlefield', 'Aerith after 7 life: to the battlefield');
+  });
 };

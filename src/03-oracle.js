@@ -4286,6 +4286,9 @@
         const cond = condOf(m[1]);
         if (!cond) return null;
         const said = m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.';
+        /* Court of Ardenvale: "return target permanent card … to your hand. If you're the monarch,
+           return that card to the battlefield instead" — the card the first sentence targeted */
+        if (/^Return that (?:permanent |creature )?card to the battlefield\.$/i.test(said)) return { op: 'noop', insteadOf: { cond, effects: [{ op: 'reanimate', sameAsPrevTarget: true }] } };
         let inner = parseEffectSentence(said);
         // Lofty Denial, Dazzling Denial: "counter that spell unless its controller pays {4} instead" — a sentence the list reads
         if ((!inner || inner.op === 'manual') && / unless /i.test(said)) {
@@ -8844,6 +8847,8 @@
         if (prev && prev.who === 'target' && prev.targets) {
           for (const x of e.insteadOf.effects) if (x.who === 'triggerPlayer' && x.op === prev.op && !x.targets) { x.who = 'target'; x.targets = prev.targets; }
         }
+        // (Court of Ardenvale: "return that card to the battlefield instead" — the same target)
+        for (const x of e.insteadOf.effects) if (x.sameAsPrevTarget) { delete x.sameAsPrevTarget; if (prev && (prev.targets || []).length) x.targets = prev.targets; else x.op = 'manual'; }
         /* Cinder Strike: "…to target creature. It deals 4 damage to that
            creature instead if …" — in a spell, "that creature" is the target */
         if (prev && prev.op === 'damage' && (prev.targets || []).length === 1 && prev.targets[0].type !== 'player') {
