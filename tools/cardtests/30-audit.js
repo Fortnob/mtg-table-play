@@ -4987,7 +4987,19 @@ module.exports = (test) => {
     const { card } = require('../harness');
     t.auto('Wall of Kelp'); t.auto('Murmuration'); t.auto('Fire Navy Trebuchet');
     let T = mk();
-    t.no(T.MTG.oracle.analyze(card('Giant Caterpillar')).fullyAutomated, 'the Butterfly comes at the next end step, not now');
+    // (the Butterfly comes at the next end step: never a token right away named "Butterfly at the beginning …"; read by a person or by its XMage line)
+    {
+      const U = mk();
+      U.toMain('A');
+      const gc = U.bf('A', 'Giant Caterpillar');
+      U.mana('A', 'G'); U.activate('A', gc, 0); U.settle();
+      t.no(U.g.battlefield.some(o => o.isToken), 'no token right away');
+      if (U.MTG.oracle.analyze(card('Giant Caterpillar')).fullyAutomated) {
+        U.toMain('A', 'end'); U.settle(); U.resolve(); U.settle();
+        const bf = U.g.battlefield.find(o => o.isToken);
+        t.ok(bf && U.g.hasKw(bf, 'flying') && U.g.powerOf(bf) === 1, 'a 1/1 flier at the end step');
+      }
+    }
     T.toMain('A');
     const wk = T.bf('A', 'Wall of Kelp'); wk.summoningSick = false;
     T.mana('A', 'UU'); T.activate('A', wk, 0); T.settle();
