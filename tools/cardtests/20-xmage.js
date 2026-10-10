@@ -20663,4 +20663,15 @@ module.exports = (test) => {
     T2.cast('A', T2.hand('A', "Dina's Guidance"));
     t.zone(w2, 'hand', 'or into the hand');
   });
+
+  test('Within Range: whenever you attack, each opponent loses life for the creatures attacking them', (mk, t) => {
+    t.auto('Within Range');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Within Range');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears'), b3 = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }, { attackerId: b3.id, defenderId: 'C' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20 - 2 - 4, 'B: 2 for the two attacking them, then 4 combat damage');
+    t.eq(T.life('C'), 20 - 1 - 2, 'C: 1, then 2');
+  });
 };

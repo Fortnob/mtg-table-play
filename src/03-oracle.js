@@ -5539,6 +5539,9 @@
     /* Krosan Verge: "a Forest card and a Plains card", one search each way */
     { re: /^Search your library for an? ([A-Z][a-z]+) card and an? ([A-Z][a-z]+) card, put them onto the battlefield( tapped)?, then shuffle\.?$/,
       make: (m) => [m[1], m[2]].map(t => ({ op: 'tutor', n: 1, filter: t.toLowerCase(), to: 'battlefield', tapped: !!m[3] })) },
+    // Within Range: "each opponent loses life equal to the number of creatures attacking them"
+    { re: /^Each opponent loses life equal to the number of creatures attacking them\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'opponents', n: { attackingThem: true } }) },
     // Dina's Guidance: "Search your library for a creature card, reveal it, put it into your hand or graveyard, then shuffle."
     { re: /^Search your library for an? ([a-z]+) card, reveal it, put it into your hand or graveyard, then shuffle\.?$/i,
       make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'handOrGrave' }) },

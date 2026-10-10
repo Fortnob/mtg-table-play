@@ -12975,6 +12975,13 @@
           const cnt = n(e.n);
           // Archfiend of Despair: each loses what they lost this turn
           if (e.who === 'opponents' && e.n && e.n.lifeLostBy === 'each') { for (const p of this.opponentsOf(ctx.controller)) { const k = p.lifeLostThisTurn || 0; if (k > 0) this.changeLife(p, -k); } }
+          // Within Range: "each opponent loses life equal to the number of creatures attacking them" — each their own count
+          else if (e.who === 'opponents' && e.n && e.n.attackingThem) {
+            for (const p of this.opponentsOf(ctx.controller)) {
+              const k = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.attacking === p.id).length;
+              if (k > 0) this.changeLife(p, -k);
+            }
+          }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
