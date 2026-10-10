@@ -4331,4 +4331,29 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('B'), 16); t.eq(T.zone('A', 'hand').length, h, 'Needle Drop gone, a card drawn');
   });
+
+  test('Audit: Kestia bestowed on a creature makes it enchanted: it draws when that creature attacks, and when Kestia attacks itself', (mk, t) => {
+    t.auto('Kestia, the Cultivator');
+    let T = mk();
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const k = T.hand('A', 'Kestia, the Cultivator');
+    T.mana('A', 'GWU3');
+    T.cast('A', k, { via: 'bestow', targets: [bear.id] });
+    T.settle();
+    t.eq(k.attachedTo, bear.id); t.eq(T.g.powerOf(bear), 6);
+    const h = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, h + 1, 'the Bears, enchanted by Kestia, attacked');
+    T = mk();
+    T.toMain('A');
+    const k2 = T.bf('A', 'Kestia, the Cultivator'); k2.summoningSick = false;
+    for (let i = 0; i < 4; i++) T.top('A', 'Island');
+    const h2 = T.zone('A', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: k2.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.zone('A', 'hand').length, h2 + 1, 'an enchantment creature attacked');
+  });
 };

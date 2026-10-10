@@ -20669,12 +20669,12 @@
       if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
       if (sc.equipped || sc.enchanted || sc.modified) {
         const on = (o.attachments || []).map(id => this.obj(id)).filter(Boolean);
-        const eq = on.some(at => (at.analysis() || {}).isEquipment), au = on.some(at => (at.analysis() || {}).isAura);
+        const eq = on.some(at => (at.analysis() || {}).isEquipment), au = on.some(at => this._auraNow(at));
         if (sc.equipped && !eq) return false;
         if (sc.enchanted && !au) return false;
         // Guardians of Oboro: counters on it, or an Equipment or Aura of its controller's on it
         if (sc.modified && !Object.values(o.counters || {}).some(v => Number(v) > 0) &&
-          !on.some(at => at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura))) return false;
+          !on.some(at => at.controller === o.controller && ((at.analysis() || {}).isEquipment || this._auraNow(at)))) return false;
       }
       if (sc.colorAny && !sc.colorAny.some(c => (oa.colors || []).includes(c))) return false;
       const mv = (o.card && o.card.cmc) || 0;
@@ -22316,7 +22316,7 @@
         // Jor Kadeen: "equipped creatures you control"
         if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
         // Ellivere of the Wild Court: "an enchanted creature you control" — an Aura on it
-        if (w === 'enchanted') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && ((x.analysis() || {}).subtypes || []).includes('Aura'); });
+        if (w === 'enchanted') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => this._auraNow(this.obj(id)));
         // Trail of Mystery: "a face-down creature"
         if (w === 'face-down') return !!o.faceDown;
         if (w === 'tapped') return !!o.tapped;
@@ -22324,7 +22324,7 @@
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it
         // (one that has just left is judged as it last was: Costume Closet)
         if (w === 'modified') return Object.values((o.zone === 'battlefield' ? o.counters : o._diedCounters) || {}).some(v => Number(v) > 0) ||
-          (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || (at.analysis() || {}).isAura); });
+          (o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === o.controller && ((at.analysis() || {}).isEquipment || this._auraNow(at)); });
         if (w === 'spell' || w === 'spells') return true;
         const bare = w.replace(/s$/, '');
         // "Elves", "Allies", "Heroes": the plural of a type is still that type
@@ -22577,6 +22577,13 @@
       const o = item && item.kind !== 'ability' && item.obj;
       const xs = String((o && o.card && o.card.mana_cost) || '').match(/\{X\}/g);
       return xs && item.x > 0 ? xs.length * item.x : 0;
+    }
+    /* An Aura on something: an Aura card, or a bestowed creature or a licid
+       while it is attached (Kestia, the Cultivator on a creature) */
+    _auraNow(x) {
+      if (!x) return false;
+      const a = x.analysis() || {};
+      return !!a.isAura || ((a.subtypes || []).includes('Aura')) || (!!(x.bestowed || x.licid) && !!x.attachedTo);
     }
     /** Does a spell on the stack answer to "noncreature", "instant or sorcery"…? */
     _spellMatches(item, spec, controllerId) {
