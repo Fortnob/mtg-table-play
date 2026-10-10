@@ -3594,4 +3594,28 @@ module.exports = (test) => {
     T.mana('B', '1G'); T.cast('B', T.hand('B', 'Grizzly Bears'));
     t.ok(T.g.zones.B.graveyard.some(x => x.name === 'Grizzly Bears'), 'same mana value: countered');
   });
+
+  test('Audit: a shield counter stops damage or destruction once; spell mastery needs two instants or sorceries (Fiery Impulse)', (mk, t) => {
+    let T = mk();
+    t.auto('Fiery Impulse');
+    T.toMain('A');
+    const b = T.bf('B', 'Grizzly Bears'); b.counters.shield = 1;
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [b] });
+    t.zone(b, 'battlefield'); t.eq(b.damage || 0, 0); t.eq(b.counters.shield || 0, 0, 'the counter is spent');
+    T.mana('A', '1BB'); T.cast('A', T.hand('A', 'Murder'), { targets: [b] });
+    t.zone(b, 'graveyard', 'the second time it dies');
+    const d = T.bf('B', 'Grizzly Bears'); d.counters.shield = 1;
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Disfigure'), { targets: [d] });
+    t.zone(d, 'graveyard', '-2/-2 is not damage or destruction');
+    T = mk();
+    T.toMain('A');
+    const g = T.bf('B', 'Hill Giant'); T.grave('A', 'Opt'); T.grave('A', 'Grizzly Bears');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Fiery Impulse'), { targets: [g] });
+    t.eq(g.damage, 2, 'one instant and a creature: 2');
+    T = mk();
+    T.toMain('A');
+    const g2 = T.bf('B', 'Hill Giant'); T.grave('A', 'Opt'); T.grave('A', 'Shock');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Fiery Impulse'), { targets: [g2] });
+    t.zone(g2, 'graveyard', 'spell mastery: 3');
+  });
 };
