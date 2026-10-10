@@ -11740,11 +11740,12 @@
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
     if (WE) { sc.who = 'enchantedPlayer'; rest = rest.slice(0, WE.index); }
-    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls)$/i);
+    // (Mjölnir, Storm Hammer: "each opponent … that opponent controls" — that player)
+    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls|that opponent controls)$/i);
     if (W) {
-      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player)/i.test(W[1]) ? 'target' : 'opponents';
+      sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player|that opponent)/i.test(W[1]) ? 'target' : 'opponents';
       // Cavern-Hoard Dragon: "for each artifact that player controls"
-      if (/^that player/i.test(W[1])) sc.thatPlayer = true;
+      if (/^that (?:player|opponent)/i.test(W[1])) sc.thatPlayer = true;
       // Silumgar, the Drifting Death: "creatures defending player controls" — the one opponent attacked
       if (/^defending/i.test(W[1])) sc.defending = true;
       rest = rest.slice(0, W.index);

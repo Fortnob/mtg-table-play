@@ -1,12 +1,12 @@
 {
- "generated": "2026-10-09",
+ "generated": "2026-10-10",
  "stats": {
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11253,
+  "needed": 11252,
   "gainedCards": 1132,
-  "linesNeeded": 12036,
+  "linesNeeded": 12035,
   "linesGained": 1337,
   "gained": {
    "all": 1132,

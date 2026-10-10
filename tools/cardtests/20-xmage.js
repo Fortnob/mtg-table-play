@@ -17137,4 +17137,22 @@ module.exports = (test) => {
     T.settle();
     t.eq(asc.counters.quest || 0, 1, 'lost life this turn: none');
   });
+
+  test("Mjölnir, Storm Hammer: damage to each opponent equal to the tapped creatures that opponent controls", (mk, t) => {
+    t.auto('Mjölnir, Storm Hammer');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const mj = T.bf('A', 'Mjölnir, Storm Hammer');
+    mj.attachedTo = bear.id; bear.attachments = [mj.id];
+    const b1 = T.bf('B', 'Llanowar Elves'); T.bf('B', 'Grizzly Bears', { tapped: true });
+    T.bf('C', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: b1.id }] }));
+    T.toMain('A', 'declareBlockers');
+    t.ok(b1.tapped, 'the Elves are tapped');
+    t.eq(b1.counters.stun || 0, 1, 'with a stun counter');
+    t.eq(T.life('B'), 18, 'two tapped creatures');
+    t.eq(T.life('C'), 20, 'none tapped');
+  });
 };
