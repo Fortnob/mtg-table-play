@@ -9400,6 +9400,9 @@
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
+    // Contaminant Grafter, Forth Eorlingas!: "… deal combat damage to one or more players" — once for the lot ("one or more" batches)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to one or more players(?:,| )', 'i'),
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },

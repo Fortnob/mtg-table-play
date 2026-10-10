@@ -17505,4 +17505,18 @@ module.exports = (test) => {
       t.eq(U.life('B'), mastery ? 16 : 20, mastery ? "can't be countered" : 'countered');
     }
   });
+
+  test('Contaminant Grafter: one proliferate however many creatures hit however many players', (mk, t) => {
+    t.auto('Contaminant Grafter');
+    t.auto('The Destined Thief');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    T.bf('A', 'Contaminant Grafter', { sick: true });
+    const b1 = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const b2 = T.bf('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'C' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 17, 'B hit'); t.eq(T.life('C'), 18, 'C hit');
+    t.eq(b1.counters['+1/+1'] || 0, 2, 'proliferated once');
+  });
 };
