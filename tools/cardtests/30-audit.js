@@ -5338,4 +5338,16 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.zone(sa2, 'battlefield', 'no creature put: Sneak Attack stays'); t.zone(other, 'battlefield');
   });
+
+  test('Audit: Stonecoil Serpent cast for X=3 is 3/3; flickered it comes back with X 0 and dies', (mk, t) => {
+    t.auto('Stonecoil Serpent');
+    const T = mk();
+    T.toMain('A');
+    const ss = T.hand('A', 'Stonecoil Serpent');
+    T.mana('A', '3');
+    t.ok(T.g.castSpell('A', ss.id, { auto: true, x: 3 })); T.settle(); T.resolve(); T.settle();
+    t.eq(T.g.powerOf(ss), 3);
+    T.g.moveObject(ss, 'exile'); T.g.moveObject(ss, 'battlefield'); T.g.checkStateBasedActions(); T.settle();
+    t.zone(ss, 'graveyard', 'X is 0 the second time: a 0/0');
+  });
 };
