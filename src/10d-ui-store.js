@@ -40,7 +40,7 @@
    */
   UI.shardChip = function (onClick) {
     const val = el('b', { text: fmtN(E().shards()) });
-    const chip = el('button', { type: 'button', class: 'shard-chip', title: 'Shards: spend them in the Store', 'aria-label': 'Shards', onclick: onClick }, [
+    const chip = el('button', { type: 'button', class: 'shard-chip', title: 'Shards: a click adds 10,000 and opens the Store', 'aria-label': 'Shards: add 10,000 and open the Store', onclick: onClick }, [
       el('span', { html: shardSvg() }), val,
     ]);
     let shown = E().shards(), anim = null;

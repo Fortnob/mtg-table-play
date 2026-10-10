@@ -440,7 +440,8 @@
       el('span', { class: 'grow' }),
       UI.inboxChip(),
       UI.hoardChip(() => App.openPacks()),
-      UI.shardChip(() => navTo('store')),
+      // a click on the Shards: ten thousand more, like the backquote key, and the Store to spend them in
+      UI.shardChip(() => { MTG.economy.grantTest(); UI.ok('+10,000 Shards'); navTo('store'); }),
       el('div', { class: 'net-badge', id: 'netBadge' }, [el('span', { class: 'net-dot' }), el('span', { text: 'solo' })]),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.sound, title: 'Sound', 'aria-label': 'Sound', onclick: soundMenu }),
       el('button', { class: 'btn sm ghost icon-btn', html: SVG.gear, title: 'Options', 'aria-label': 'Options', onclick: () => navTo('options') }),
