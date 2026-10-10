@@ -5590,4 +5590,24 @@ module.exports = (test) => {
     t.zone(z, 'hand'); t.zone(sw, 'hand');
     t.eq(offers.join(' / '), 'Walking Corpse / Swamp', 'each search offers its own kind only');
   });
+
+  test('Audit: Oathbreaker: a copy of the Signature Spell is just a copy (it does not go to the command zone); the spell under Rest in Peace still goes home', (mk, t) => {
+    const { card } = require('../harness');
+    const T = mk();
+    T.g.loadDeck('A', { main: [{ card: card('Mountain'), qty: 20 }], commanders: [card('Chandra, Torch of Defiance'), card('Lightning Bolt')] });
+    const [walker, sig] = T.zone('A', 'command');
+    T.toMain('A');
+    T.g.moveObject(walker, 'battlefield', { controller: 'A' });
+    T.bf('B', 'Rest in Peace');
+    T.mana('A', 'R');
+    T.cast('A', sig, { targets: ['B'], resolve: false });
+    T.answer('confirm', { yes: false });
+    T.mana('A', 'RR');
+    T.cast('A', T.hand('A', 'Reverberate'), { targets: [{ kind: 'stack', id: T.stackItem(sig).id }] });
+    for (let i = 0; i < 4; i++) { T.settle(); T.resolve(); }
+    T.settle();
+    t.eq(T.life('B'), 14, 'the Bolt and its copy');
+    t.zone(sig, 'command', 'the Signature Spell went home, Rest in Peace or not');
+    t.eq(T.zone('A', 'command').length, 1, 'and only it: the copy is gone');
+  });
 };
