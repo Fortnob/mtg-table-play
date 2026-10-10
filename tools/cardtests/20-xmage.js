@@ -17180,4 +17180,30 @@ module.exports = (test) => {
     t.eq(String(T.g.player('B').pool), '2G', 'into the pool of the player whose turn it is');
     t.ok(T.g.player('A').pool.isEmpty(), 'not its controller');
   });
+
+  test("Each opponent who can't discard: Liliana, Waker of the Dead loses them 3 life; Refurbished Familiar draws for each", (mk, t) => {
+    t.auto('Liliana, Waker of the Dead');
+    t.auto('Refurbished Familiar');
+    t.auto('Cruel Grimnarch');
+    t.auto('Skullslither Worm');
+    t.auto('Aclazotz, Deepest Betrayal // Temple of the Dead');
+    t.auto('Entropic Battlecruiser');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.toMain('A');
+    const lili = T.bf('A', 'Liliana, Waker of the Dead');
+    T.hand('C', 'Island');
+    T.activate('A', lili, 0);
+    T.settle();
+    t.eq(T.life('A'), 20, 'you had no card either, but you are no opponent');
+    t.eq(T.life('B'), 17, 'B had no card: 3 life');
+    t.eq(T.life('C'), 20, 'C discarded');
+    t.eq(T.zone('C', 'hand').length, 0, 'the Island went');
+    for (let i = 0; i < 3; i++) T.top('A', 'Swamp');
+    T.hand('B', 'Island');
+    const hand = T.zone('A', 'hand').length;
+    T.mana('A', 'B3');
+    T.cast('A', T.hand('A', 'Refurbished Familiar'));
+    T.settle();
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'one opponent could not: one card');
+  });
 };

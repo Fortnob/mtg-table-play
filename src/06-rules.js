@@ -12107,6 +12107,8 @@
         // Nev: the X the triggering spell was cast with (firstXSpell)
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
+        // Aclazotz: "for each opponent who can't" discard (couldNot)
+        if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
@@ -12368,6 +12370,8 @@
               (firstObj() && this.player(firstObj().zone === 'battlefield' ? firstObj().controller : firstObj().owner)) ||
               this.player((ctx.triggerData || {}).objController) || triggerPlayer()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
+          // Liliana, Waker of the Dead: "each opponent who can't" — those with no card to discard, noted once (couldNot)
+          if (!this._doneHere('couldNot')) this._couldNot = who.filter(p => p && !p.hasLost && !this.zones[p.id].hand.length).map(p => p.id);
           for (const p of who) {
             if (!p || p.hasLost) continue;
             // each player discards once, however many times this resumes
@@ -12467,6 +12471,13 @@
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Liliana, Waker of the Dead: "each opponent who can't" discard (couldNot)
+          else if (e.who === 'couldNot') {
+            for (const id of this._couldNot || []) {
+              const p = this.player(id);
+              if (p && !p.hasLost && (e.couldNotOf !== 'opponents' || this.opponentsOf(ctx.controller).includes(p))) this.changeLife(p, -cnt);
+            }
+          }
           // Priest of Forgotten Gods: each player aimed at
           else if (e.who === 'targets') { for (const p of new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))) this.changeLife(p, -cnt); }
           else if (e.who === 'targetController') { const o = firstObj(); const p = o ? this.player(o.controller) : this._lastAffectedController(); if (p) this.changeLife(p, -cnt); }

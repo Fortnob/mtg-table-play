@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11248,
-  "gainedCards": 1132,
-  "linesNeeded": 12030,
+  "needed": 11243,
+  "gainedCards": 1133,
+  "linesNeeded": 12024,
   "linesGained": 1337,
   "gained": {
-   "all": 1132,
+   "all": 1133,
    "top2000": 46,
    "stdTop": 8
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4182,
-   "lines": 3930,
+   "score": 4177,
+   "lines": 3925,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 191,
-   "lines": 176,
+   "score": 190,
+   "lines": 175,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -6653,8 +6653,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3489,
-   "cards": 3318,
+   "score": 3484,
+   "cards": 3313,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6718,8 +6718,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 117,
-   "cards": 114,
+   "score": 116,
+   "cards": 113,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",

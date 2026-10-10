@@ -3516,6 +3516,18 @@
     { re: /^Investigate twice\.?$/i, make: () => ({ op: 'createNamedToken', n: 2, token: 'Clue' }) },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
+    /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
+       can't loses 3 life."; Aclazotz, Cruel Grimnarch, Skullslither Worm:
+       "For each opponent who can't, you draw a card." — after "each opponent
+       discards a card", those whose hands were empty (couldNot) */
+    { re: /^Each (opponent|player) who can'?t loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[2], who: 'couldNot', couldNotOf: /^opp/i.test(m[1]) ? 'opponents' : 'players' }) },
+    { re: /^For each (opponent|player) who can'?t, (.+?)\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.', 1);
+        if (!inner || !['draw', 'gainLife', 'counters'].includes(inner.op) || typeof inner.n !== 'number' || inner.targets) return null;
+        if (inner.op === 'draw' && inner.who !== 'you') return null;
+        return Object.assign({}, inner, { n: { couldNot: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: inner.n } });
+      } },
     // Wojek Investigator: "investigate once for each opponent who has more cards in hand than you"
     { re: /^Investigate once for each opponent who has more cards in hand than you\.?$/i,
       make: () => ({ op: 'createNamedToken', n: { opponentsMoreHand: true }, token: 'Clue' }) },
@@ -8184,6 +8196,12 @@
     /* Wild Hypothesis, Fractal Anomaly, G'raha Tia: "Create a 0/0 … Fractal
        creature token. Put X +1/+1 counters on it." — the token just made,
        not this card (thatToken) */
+    // (couldNot: "who can't" only right after "each opponent / each player discards")
+    folded.forEach((e, i) => {
+      if (!e || !(e.who === 'couldNot' || (e.n && e.n.couldNot))) return;
+      const prev = folded[i - 1];
+      if (!prev || prev.op !== 'discard' || !['opponents', 'each'].includes(prev.who)) folded[i] = { op: 'manual', text: e.text };
+    });
     folded.forEach((e, i) => {
       if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
       const prev = folded[i - 1];
