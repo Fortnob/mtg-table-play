@@ -642,10 +642,6 @@
     MTG.sfx('reject');
     UI.error(`That costs ${fmtN(cost)} Shards; you have ${fmtN(E().shards())}. Play some games to earn more.`);
   }
-  function bought(what) {
-    MTG.sfx('purchase');
-    UI.ok(`Bought: ${what}.`);
-  }
   /* Shift held: every pack button buys five times as many, and says so
      while it is held (the whole page knows, through a class on the root). */
   const SHIFT_X = 5;
@@ -1292,7 +1288,7 @@
     const app = document.getElementById('app') || document.body;
     app.classList.remove('jolt'); void app.offsetWidth; app.classList.add('jolt');
     setTimeout(() => app.classList.remove('jolt'), 400);
-    UI.ok(`Bought: ${o.title}${o.sub ? ' (' + o.sub + ')' : ''}.`);
+    // the stamp, the sparks and the flight say it was bought; no note on top
     flyFrom(from, o.visual, o.fly || 1, o.to);
     if (o.after) setTimeout(() => o.after(), 60);
   };
@@ -2358,7 +2354,6 @@
           const res = S.craft(c);
           if (!res.ok) { MTG.sfx('reject'); return UI.error(res.why); }
           MTG.sfx('wildcard');
-          UI.ok(`Crafted ${c.name}.`);
           mm.close();
           if (after) after();
         } },
@@ -2424,7 +2419,7 @@
         if (buyShort && plan.shortCost) setTimeout(() => MTG.sfx('purchase'), 120);
         m._onClose = null;
         m.close();
-        if (res.ok) { UI.ok(`Crafted ${plan.copies} card${plan.copies === 1 ? '' : 's'}. The deck is complete.`); resolve(true); }
+        if (res.ok) resolve(true);
         else { UI.error(`Still missing ${res.left.length} card${res.left.length === 1 ? '' : 's'}: not enough wildcards.`); resolve(false); }
       }, 'primary');
       const setLabel = () => {
