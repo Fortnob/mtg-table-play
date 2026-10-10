@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 11229,
-  "gainedCards": 1133,
-  "linesNeeded": 12010,
-  "linesGained": 1337,
+  "needed": 11220,
+  "gainedCards": 1130,
+  "linesNeeded": 12001,
+  "linesGained": 1334,
   "gained": {
-   "all": 1133,
+   "all": 1130,
    "top2000": 46,
    "stdTop": 8
   },
@@ -6379,16 +6379,6 @@
    ]
   },
   {
-   "what": "LifeCompareCondition",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Cryptolith Fragment // Aurora of Emrakul",
-    "Vampire Lacerator",
-    "Razor Pendulum"
-   ]
-  },
-  {
    "what": "SignInversionDynamicValue of \"X\"",
    "score": 3,
    "lines": 3,
@@ -6496,16 +6486,6 @@
     "Lantern of Insight",
     "Soldier of Fortune",
     "Boggart Forager"
-   ]
-  },
-  {
-   "what": "CorruptedCondition.instance",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "The Seedcore",
-    "Zealot's Conviction",
-    "Ravenous Necrotitan"
    ]
   },
   {
@@ -6646,6 +6626,26 @@
     "Morningtide's Light",
     "Festival of the Guildpact",
     "Decorated Griffin"
+   ]
+  },
+  {
+   "what": "LookAtTopCardOfLibraryAnyTimeEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "The Belligerent",
+    "Radha, Heart of Keld",
+    "Lens of Clarity"
+   ]
+  },
+  {
+   "what": "ExchangeLifeTwoTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Profane Transfusion",
+    "Axis of Mortality",
+    "Soul Conduit"
    ]
   }
  ],

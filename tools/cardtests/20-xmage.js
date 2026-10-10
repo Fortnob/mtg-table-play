@@ -17336,4 +17336,28 @@ module.exports = (test) => {
     U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: [other.id] });
     t.zone(other, 'graveyard', 'the other Bears cost the usual {R}');
   });
+
+  test('"X unless <condition>": Moon-Circuit Hacker discards unless it entered this turn; Vampire Lacerator', (mk, t) => {
+    t.auto('Moon-Circuit Hacker');
+    t.auto('Vampire Lacerator');
+    t.auto('Tragedy Feaster');
+    t.auto('Reaver Drone');
+    for (const fresh of [false, true]) {
+      const T = mk();
+      T.toMain('A');
+      const h = T.bf('A', 'Moon-Circuit Hacker', fresh ? { etb: true } : {});
+      h.summoningSick = false;
+      T.top('A', 'Island');
+      T.hand('A', 'Mountain');
+      const hand = T.zone('A', 'hand').length;
+      T.answer('declareAttackers', () => [{ attackerId: h.id, defenderId: 'B' }]);
+      T.answer('confirm', { yes: true });
+      T.toMain('A', 'endCombat');
+      t.eq(T.zone('A', 'hand').length, hand + (fresh ? 1 : 0), fresh ? 'entered this turn: no discard' : 'drew, then discarded');
+    }
+    const U = mk();
+    U.bf('A', 'Vampire Lacerator');
+    U.toMain('A', 'upkeep'); U.toMain('A');
+    t.eq(U.life('A'), 19, 'no opponent at 10 or less: 1 life');
+  });
 };

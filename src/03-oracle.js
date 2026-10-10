@@ -6510,6 +6510,14 @@
         return inner;
       }
     }
+    /* Moon-Circuit Hacker: "Discard a card unless this creature entered this
+       turn." — "unless" a condition the game can check is "if not" */
+    const unlessC = !depth && s.match(/^(.+?) unless (.+?)\.?$/);
+    if (unlessC && !/\bpays?\b|\{/.test(unlessC[2])) {
+      const c = condOf(unlessC[2]);
+      const inner = c && parseEffectSentence(unlessC[1] + '.', 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner)) return { op: 'ifCond', cond: { kind: 'not', cond: c }, then: [inner], text: s };
+    }
     /* Cinder Strike: "It deals 4 damage to that creature instead if this
        spell's additional cost was paid" — the same as "If …, … instead" */
     const lateIf = !depth && s.match(/^(.+?) instead if (.+?)\.?$/i);
