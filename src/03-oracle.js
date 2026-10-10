@@ -3287,6 +3287,9 @@
     { re: /^(?:Its controller|That spell'?s controller|That player) may draw up to (one|two|three) cards? at the beginning of the next turn'?s upkeep\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, name: 'Draw up to ' + num(m[1]),
         effects: [{ op: 'drawUpTo', n: num(m[1]), who: 'targetController' }] }) },
+    // Settle the Wreckage: "That player may search their library for that many basic land cards, …" — as many as were exiled
+    { re: /^That player may search their library for that many basic land cards, put those cards onto the battlefield tapped, then shuffle\.?$/i,
+      make: () => ({ op: 'fetchBasic', n: 'lastSweep', tapped: true, who: 'target', optional: true }) },
     { re: /^Its controller (?:may )?searches? their library for a basic land card, puts? (?:that card|it) onto the battlefield tapped, then shuffles?\.?$/i,
       make: () => ({ op: 'fetchBasic', n: 1, tapped: true, who: 'targetController', optional: true }) },
 

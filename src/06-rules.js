@@ -14482,8 +14482,15 @@
 
         /* --- library and graveyard --- */
         case 'fetchBasic': {
-          const z = this.zones[ctx.controller];
-          if (e.who !== 'targetController' && !this._doneHere('searched')) this._searched(ctx.controller);
+          /* Assassin's Trophy: "Its controller may search their library" — the
+             controller of what was destroyed searches their own library and
+             gets the land (it went to the caster) */
+          const fb = e.who === 'targetController'
+            ? (this._lastAffectedController() || (firstObj() && this.player(firstObj().controller)) || me)
+            // Settle the Wreckage: "That player" — the one it targets
+            : e.who === 'target' ? (firstPlayer() || me) : me;
+          const z = this.zones[fb.id];
+          if (!this._doneHere('searched')) this._searched(fb.id);
           let found = 0;
           /* "Mountaincycling" wants a Mountain, not any basic: the filter
              names the land type when the card names one. */
@@ -14493,17 +14500,17 @@
             if (!want || want === 'basic') return !!ca.isBasicLand;
             return (ca.subtypes || []).some(t => t.toLowerCase() === want);
           };
-          const reach = this._searchReach(ctx.controller);
+          const reach = this._searchReach(fb.id);
           for (let i = 0; i < n(e.n); i++) {
             const idx = z.library.slice(0, reach).findIndex(c => wanted(c.analysis()));
             if (idx < 0) break;
             const [c] = z.library.splice(idx, 1);
-            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            this.moveObject(c, 'battlefield', { controller: fb.id });
             if (e.tapped) c.tapped = true;
             found++;
           }
           this.rng.shuffle(z.library);
-          this.logEvent('search', `${me.name} fetches ${found} basic land${found === 1 ? '' : 's'}.`);
+          this.logEvent('search', `${fb.name} fetches ${found} basic land${found === 1 ? '' : 's'}.`);
           this.emit('sfx', 'shuffle');
           break;
         }

@@ -18132,4 +18132,31 @@ module.exports = (test) => {
     T.settle(); T.resolve(); T.settle();
     t.eq(T.life('A'), 22, 'a Dragon: 2 life');
   });
+
+  test("Assassin's Trophy: the destroyed permanent's controller fetches the basic land, not the caster; Settle the Wreckage", (mk, t) => {
+    t.auto("Assassin's Trophy");
+    t.auto('Settle the Wreckage');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'BG');
+    T.cast('A', T.hand('A', "Assassin's Trophy"), { targets: [bear.id] });
+    T.settle();
+    t.zone(bear, 'graveyard');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'B' && (o.analysis() || {}).isLand).length, 1, 'B fetched a land');
+    t.eq(T.g.battlefield.filter(o => o.controller === 'A' && (o.analysis() || {}).isLand).length, 0, 'A did not');
+    const U = mk();
+    U.toMain('B');
+    const x1 = U.bf('B', 'Grizzly Bears'), x2 = U.bf('B', 'Hill Giant');
+    U.answer('declareAttackers', () => [{ attackerId: x1.id, defenderId: 'A' }, { attackerId: x2.id, defenderId: 'A' }]);
+    U.toMain('B', 'declareBlockers');
+    if (U.g.priorityPlayer && U.g.priorityPlayer.id === 'B') U.g.passPriority('B', true);
+    U.mana('A', 'WW2');
+    U.cast('A', U.hand('A', 'Settle the Wreckage'), { targets: ['B'] });
+    U.settle();
+    t.zone(x1, 'exile'); t.zone(x2, 'exile');
+    const bl = U.g.battlefield.filter(o => o.controller === 'B' && (o.analysis() || {}).isLand);
+    t.eq(bl.length, 2, 'two creatures exiled: two basic lands for B');
+    t.ok(bl.every(o => o.tapped), 'tapped');
+  });
 };
