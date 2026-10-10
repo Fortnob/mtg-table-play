@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10840,
+  "needed": 10833,
   "gainedCards": 1033,
-  "linesNeeded": 11557,
+  "linesNeeded": 11543,
   "linesGained": 1217,
   "gained": {
    "all": 1033,
@@ -1027,20 +1027,6 @@
     "Master's Councillors",
     "Necropolis",
     "Asmira, Holy Avenger"
-   ]
-  },
-  {
-   "what": "KickedCostCondition",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Wastescape Battlemage",
-    "Thornscape Battlemage",
-    "Stormscape Battlemage",
-    "Nightscape Battlemage",
-    "Thunderscape Battlemage",
-    "Sunscape Battlemage",
-    "Ana Battlemage"
    ]
   },
   {
@@ -5600,17 +5586,6 @@
    ]
   },
   {
-   "what": "DamageTargetControllerEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Repulsor Blast",
-    "Agonizing Demise",
-    "Illuminate",
-    "Word of Blasting"
-   ]
-  },
-  {
    "what": "UnlessPaysDelayedEffect",
    "score": 4,
    "lines": 4,
@@ -6555,13 +6530,33 @@
     "Elemental Spectacle",
     "Explosive Prodigy"
    ]
+  },
+  {
+   "what": "AttachedToCreatureSourceTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Assimilation Aegis",
+    "Blade of Shared Souls",
+    "Enormous Energy Blade"
+   ]
+  },
+  {
+   "what": "BecomePreparedTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Skycoach Waypoint",
+    "Biblioplex Tomekeeper",
+    "Hexhaven Dueling Arena"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3427,
-   "cards": 3262,
+   "score": 3428,
+   "cards": 3263,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8429,19 +8424,6 @@
    ]
   },
   {
-   "what": "KickedCostCondition",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Wastescape Battlemage",
-    "Thornscape Battlemage",
-    "Stormscape Battlemage",
-    "Nightscape Battlemage",
-    "Thunderscape Battlemage",
-    "Sunscape Battlemage"
-   ]
-  },
-  {
    "what": "RemoveAllCountersSourceCost",
    "score": 6,
    "cards": 6,
@@ -10226,6 +10208,17 @@
     "Impetuous Devils",
     "Avalanche Tusker",
     "Giant Ambush Beetle"
+   ]
+  },
+  {
+   "what": "PreventDamageByTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Boros Fury-Shield",
+    "Energy Arc",
+    "Songstitcher",
+    "Kry Shield"
    ]
   }
  ]

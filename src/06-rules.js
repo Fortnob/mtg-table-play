@@ -17122,6 +17122,14 @@
             for (const id of (this._madeThisResolution || []).slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
             break;
           }
+          /* Lagomos, War Effort, Manaform Hellkite: "create a … token. Sacrifice it (exile that token)
+             at the beginning of the next end step" — "it" is the token just made, each of them if
+             Parallel Lives made more */
+          if (e.subject === 'lastTarget' && !this._lastCopy && !firstObj() && this._lastAffected &&
+              (this._lastTokenGroup || []).includes(this._lastAffected.id)) {
+            for (const id of this._lastTokenGroup.slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
+            break;
+          }
           /* Kiki-Jiki with Parallel Lives: "Sacrifice it" — each of the copies that one copy became */
           if (e.subject === 'lastTarget' && this._lastCopy && (this._lastGroup || []).length > 1 && this._lastGroup.includes(this._lastCopy.id)) {
             for (const id of this._lastGroup.slice()) this._runEffect(Object.assign({}, e, { subject: 'fixed', fixedId: id }), ctx);
@@ -17133,7 +17141,11 @@
             break;
           }
           // (Daretti's emblem: "that card" is the one the trigger is about, when nothing was aimed at)
-          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id ||
+          const objId = e.subject === 'fixed' ? e.fixedId : e.subject === 'lastTarget' || e.subject === 'lastPut' ? ((this._lastCopy && this._lastCopy.id) || (firstObj() || {}).id ||
+              /* Sneak Attack, Through the Breach, Purphoros: "sacrifice it" — the creature just put onto
+                 the battlefield; Nezahal, Necropotence: "return it", "put that card into your hand" — the
+                 card just exiled */
+              this._lastPut || this._lastExiled ||
               (ctx.triggerData || {}).objectId)
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           this.scheduleDelayed({
@@ -17798,7 +17810,8 @@
         }
 
         /* ===== ops the whole-pool scan asked for ===== */
-        case 'exileSelf': if (src) this.moveObject(src, 'exile'); break;
+        // (Nezahal: "Exile Nezahal. Return it …" — what "it" is)
+        case 'exileSelf': if (src) { this.moveObject(src, 'exile'); this._lastExiled = src.id; } break;
         /* "Target player reveals their hand": everybody sees it, so the log
            names the cards. "Look at target player's hand" (Gitaxian Probe):
            only the one looking sees them, shown to that player alone. */
@@ -21571,8 +21584,11 @@
         power: p, toughness: t, rarity: 'common', set: 'tkn', set_name: 'Token',
         collector_number: '0', image_uris: null, _isToken: true,
       };
+      // the tokens this one event made: what "Sacrifice it at the beginning of the next end step" means
+      this._lastTokenGroup = [];
       for (let i = 0; i < n; i++) {
         const o = this._register(new GObj(card, controller, 'battlefield'));
+        this._lastTokenGroup.push(o.id);
         o.isToken = true; o.controller = controller;
         o.zone = 'battlefield'; o.entered = this.turn; o.summoningSick = true;
         if (e.tapped) o.tapped = true;
