@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10927,
+  "needed": 10922,
   "gainedCards": 1060,
-  "linesNeeded": 11659,
+  "linesNeeded": 11652,
   "linesGained": 1248,
   "gained": {
    "all": 1060,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4116,
-   "lines": 3870,
+   "score": 4115,
+   "lines": 3869,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 696,
-   "lines": 636,
+   "score": 694,
+   "lines": 634,
    "cards": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 659,
-   "lines": 659,
+   "score": 658,
+   "lines": 658,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -799,25 +799,6 @@
    ]
   },
   {
-   "what": "custom value",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Vincent Valentine // Galian Beast",
-    "Reaper's Scythe",
-    "Kutzil's Flanker",
-    "Smoldering Egg // Ashmouth Dragon",
-    "Kellan, Daring Traveler // Journey On",
-    "Nyxathid",
-    "Geometric Nexus",
-    "Rose Tyler",
-    "Korvold, Gleeful Glutton",
-    "Thunder Salvo",
-    "Death's Approach",
-    "Master's Councillors"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 15,
    "lines": 15,
@@ -1028,6 +1009,25 @@
     "Synchronized Strike",
     "Hope and Glory",
     "Shower of Coals"
+   ]
+  },
+  {
+   "what": "custom value",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Reaper's Scythe",
+    "Kutzil's Flanker",
+    "Smoldering Egg // Ashmouth Dragon",
+    "Kellan, Daring Traveler // Journey On",
+    "Nyxathid",
+    "Rose Tyler",
+    "Korvold, Gleeful Glutton",
+    "Thunder Salvo",
+    "Death's Approach",
+    "Master's Councillors",
+    "Necropolis",
+    "Asmira, Holy Avenger"
    ]
   },
   {
@@ -6579,8 +6579,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3436,
-   "cards": 3271,
+   "score": 3435,
+   "cards": 3270,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6592,8 +6592,8 @@
   },
   {
    "what": "custom ability",
-   "score": 539,
-   "cards": 494,
+   "score": 538,
+   "cards": 493,
    "names": [
     "Trouble in Pairs",
     "Coveted Jewel",
@@ -7153,19 +7153,6 @@
    ]
   },
   {
-   "what": "custom value",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Vincent Valentine // Galian Beast",
-    "Kutzil's Flanker",
-    "Smoldering Egg // Ashmouth Dragon",
-    "Nyxathid",
-    "Rose Tyler",
-    "Thunder Salvo"
-   ]
-  },
-  {
    "what": "OrCost",
    "score": 11,
    "cards": 11,
@@ -7332,6 +7319,19 @@
     "Cid, Timeless Artificer",
     "Gloom Ripper",
     "Frantic Firebolt"
+   ]
+  },
+  {
+   "what": "custom value",
+   "score": 10,
+   "cards": 10,
+   "names": [
+    "Kutzil's Flanker",
+    "Smoldering Egg // Ashmouth Dragon",
+    "Nyxathid",
+    "Rose Tyler",
+    "Thunder Salvo",
+    "Death's Approach"
    ]
   },
   {

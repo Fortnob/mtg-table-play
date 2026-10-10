@@ -8192,6 +8192,17 @@
 
   /** Parse a list of sentences, joining the ones that belong together. */
   function parseSentenceList(sentences) {
+    /* Vincent Valentine, Lattice Library: "put a number of +1/+1 counters on
+       CARDNAME (it) equal to that creature's power" says "put X +1/+1
+       counters on CARDNAME (it), where X is that creature's power" — read
+       that way here, where the sentences around it still say what "it" is.
+       (Canopy Gargantuan's "on each other creature … equal to that
+       creature's toughness" is a different number for each: not this.) */
+    sentences = (sentences || []).map(x => {
+      const m = String(x).match(/^((?:Then )?)([Pp])ut a number of ([+\-0-9/a-z]+) counters on (.+?) equal to (.+?)\.?$/);
+      if (!m || (/^each\b/i.test(m[4]) && /\bthat (?:creature|permanent)'?s\b|\bits\b/i.test(m[5]))) return x;
+      return m[1] + m[2] + 'ut X ' + m[3] + ' counters on ' + m[4] + ', where X is ' + m[5] + '.';
+    });
     const effects = [];
     let auto = sentences.length > 0;
     const parseOne = (s) => {
@@ -8519,7 +8530,9 @@
       if (!e || e.op !== 'counters' || e.scope !== 'self' || e.targets || i === 0) return;
       const prev = folded[i - 1];
       if (!prev || prev.op !== 'createToken' || (prev.n != null && prev.n !== 1)) return;
-      if (!/\bon (?:it|that token)\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
+      // (Lattice Library: "… on it equal to the number of study counters on this enchantment" — where they go, not what is counted)
+      const dest = String(e.text || '').match(/\bcounters? on (it|that token|this\b|CARDNAME)/i);
+      if (!dest || !/^(?:it|that token)$/i.test(dest[1])) return;
       e.scope = 'thatToken';
     });
     folded.forEach((e, i) => {

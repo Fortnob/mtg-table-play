@@ -19445,4 +19445,29 @@ module.exports = (test) => {
     t.zone(bolt, 'exile', 'exiled with rebound');
     t.eq(bolt.reboundBy, 'A');
   });
+
+  test('"Put a number of +1/+1 counters on … equal to …": Vincent Valentine, Lattice Library, Scourge of Skola Vale', (mk, t) => {
+    t.auto('Vincent Valentine // Galian Beast'); t.auto('Lattice Library'); t.auto('Scourge of Skola Vale');
+    const T = mk();
+    T.toMain('A');
+    const vv = T.bf('A', 'Vincent Valentine // Galian Beast');
+    const before = Number(vv.counters['+1/+1']) || 0;
+    T.g.moveObject(T.bf('B', 'Hill Giant'), 'graveyard');
+    T.resolve();
+    t.eq((Number(vv.counters['+1/+1']) || 0) - before, 3, "a 3/3 died: three counters");
+    const ll = T.put('A', 'Lattice Library', 'battlefield', { etb: true });
+    ll.counters.study = 2;
+    T.g._runEffects(ll.analysis().abilities.find(x => x.kind === 'triggered').effects, { controller: 'A', obj: ll, name: ll.name, kind: 'ability', targets: [] });
+    T.resolve();
+    const fr = T.g.battlefield.filter(o => o.isToken && /Fractal/.test(o.name)).pop();
+    t.eq(fr && fr.counters['+1/+1'], 2, 'the Fractal gets them, not the Library');
+    t.no(ll.counters['+1/+1'], 'none on the Library');
+    const sc = T.bf('A', 'Scourge of Skola Vale');
+    const wall = T.bf('A', 'Wall of Wood');
+    const a = sc.analysis();
+    const list = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    T.activate('A', sc, list.findIndex(x => x.kind === 'activated'), { sacrificeIds: [wall.id] });
+    T.resolve();
+    t.eq(sc.counters['+1/+1'], 3, "the sacrificed 0/3's toughness");
+  });
 };
