@@ -17699,4 +17699,21 @@ module.exports = (test) => {
     t.eq(who, 'B', 'B discards');
     t.eq(U.zone('B', 'hand').length, 2, 'four in hand, two discarded');
   });
+
+  test("Felothar the Steadfast: draw the sacrificed creature's toughness, discard its power", (mk, t) => {
+    t.auto('Felothar the Steadfast');
+    const T = mk();
+    T.toMain('A');
+    const f = T.bf('A', 'Felothar the Steadfast');
+    const ogre = T.bf('A', 'Gray Ogre');      // 2/2
+    const wall = T.bf('A', 'Wall of Omens');  // 0/4
+    for (let i = 0; i < 8; i++) T.top('A', 'Island');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '3');
+    T.activate('A', f, 0, { sacrificeIds: [wall.id] });
+    T.settle();
+    t.zone(wall, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, h0 + 4, 'four drawn, none discarded');
+    t.zone(ogre, 'battlefield');
+  });
 };

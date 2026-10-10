@@ -3836,11 +3836,17 @@
       } },
     { re: /^You may cast spells this turn as though they had flash\.?$/i, make: () => ({ op: 'flashThisTurn' }) },
     /* ===== "equal to …": a number worked out as it happens ===== */
-    { re: /^(?:You )?[Dd]raws? cards equal to (.+?)(?:, then discard (a|one|two|three|\d+) cards?)?\.?$/,
+    // (Felothar the Steadfast: "…, then discard cards equal to its power" — "its" the sacrificed creature too)
+    { re: /^(?:You )?[Dd]raws? cards equal to (.+?)(?:, then discard (a|one|two|three|\d+) cards?|, then discard cards equal to (.+?))?\.?$/,
       make: (m) => {
         const k = amountOf(m[1]);
         if (!k) return null;
         const draw = { op: 'draw', n: k, who: 'you' };
+        if (m[3]) {
+          let k2 = amountOf(m[3]);
+          if (k2 && k2.ofTrigger && k.ofSacrificed) k2 = Object.assign({}, k2, { ofSacrificed: k2.ofTrigger, ofTrigger: undefined });
+          return k2 ? { op: 'sequence', list: [draw, { op: 'discard', n: k2, who: 'you' }] } : null;
+        }
         return m[2] ? { op: 'sequence', list: [draw, { op: 'discard', n: num(m[2]), who: 'you' }] } : draw;
       } },
     { re: /^(Target player|Each opponent|You) mills? cards equal to (.+?)\.?$/i,
