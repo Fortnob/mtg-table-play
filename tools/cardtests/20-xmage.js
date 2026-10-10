@@ -21272,4 +21272,25 @@ module.exports = (test) => {
     t.eq(T.life('B'), 16, '4 life');
     t.zone(vr, 'hand', 'Vraska from the library');
   });
+
+  test('"Target creature or Vehicle" is a creature or any Vehicle; Hellish Sideswipe, Falkenrath Aristocrat: "if the sacrificed … was a Vehicle (a Human)"', (mk, t) => {
+    for (const n of ['Hellish Sideswipe', 'Falkenrath Aristocrat', 'Daring Demolition']) t.auto(n);
+    const T = mk({ library: Array(10).fill('Island') });
+    T.toMain('A');
+    const hg = T.bf('B', 'Hill Giant'), cop = T.bf('A', "Smuggler's Copter");
+    // a plain creature is a legal target, and so is an uncrewed Vehicle (the Copter is the only thing to sacrifice)
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'B'); T.cast('A', T.hand('A', 'Hellish Sideswipe'), { targets: [hg] }); T.resolve();
+    t.zone(hg, 'graveyard', 'a creature that is no Vehicle can be the target');
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'a Vehicle sacrificed: a card');
+    const cop2 = T.bf('B', "Smuggler's Copter");
+    T.mana('A', '2BB'); T.cast('A', T.hand('A', 'Daring Demolition'), { targets: [cop2] }); T.resolve();
+    t.zone(cop2, 'graveyard', 'an uncrewed Vehicle can be the target');
+    // Falkenrath Aristocrat: a counter for a Human, none for a Bear
+    const fa = T.bf('A', 'Falkenrath Aristocrat'), hu = T.bf('A', 'Elite Vanguard'), gb = T.bf('A', 'Grizzly Bears');
+    T.answer('sacrifice', () => ({ cardIds: [gb.id] })); T.activate('A', fa, 0); T.resolve();
+    t.no(fa.counters['+1/+1'], 'a Bear: no counter');
+    T.answer('sacrifice', () => ({ cardIds: [hu.id] })); T.activate('A', fa, 0); T.resolve();
+    t.eq(fa.counters['+1/+1'], 1, 'a Human: a counter');
+  });
 };

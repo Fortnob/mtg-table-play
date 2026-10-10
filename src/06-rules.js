@@ -7228,7 +7228,9 @@
       for (const x of list) {
         if (!x || x.zone !== 'battlefield') continue;
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
-          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary });
+          mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
+          // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
+          subtypes: ((x.analysis() || {}).subtypes || []).slice() });
         this.moveObject(x, 'graveyard');
       }
       if (!snaps.length) return;
@@ -9868,7 +9870,7 @@
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
-          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).some(t => t.toLowerCase() === cond.what);
+          return cond.what === 'legendary' ? !!sn.legendary : (sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what);
         }
         case 'manaSpentOverPower': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);

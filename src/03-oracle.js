@@ -6502,6 +6502,13 @@
       // Thor: "Equipment, instant, or sorcery card" is any one of them, not all at once
       if (spec.subtypes && /\bor\b/.test(p)) spec.typeOrSubtype = true;
     }
+    /* Roadside Blowout, Lotusguard Disciple, Okiba Salvage: "target creature or Vehicle" is a creature, or
+       a Vehicle whether it is a creature right now or not — not only a creature that is a Vehicle
+       (typeOrSubtypePerm) */
+    if (!spec.spellish && (spec.subtypes || []).length && permTypes.length === 1 && permTypes[0] !== 'permanent' &&
+        spec.type === permTypes[0] && new RegExp('\\b' + permTypes[0] + 's?,? (?:and\\/)?or (?:an? )?[a-z]+\\b').test(p)) {
+      spec.cardTypes = permTypes.slice(); spec.type = 'permanent'; spec.typeOrSubtype = true;
+    }
     return spec;
   }
 
@@ -9245,7 +9252,8 @@
     // Progenitor Mimic: "if this creature isn't a token"
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
-    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment))$/i, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // (Falkenrath Aristocrat, Evereth, Hellish Sideswipe: "was a Human", "was a Treasure", "was a Vehicle" — sacrificedSubtype)
+    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
     [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
       const k = num(m[1]);

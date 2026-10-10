@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10611,
+  "needed": 10607,
   "gainedCards": 970,
-  "linesNeeded": 11300,
+  "linesNeeded": 11295,
   "linesGained": 1140,
   "gained": {
    "all": 970,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4062,
-   "lines": 3816,
+   "score": 4060,
+   "lines": 3814,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 165,
-   "lines": 153,
+   "score": 164,
+   "lines": 152,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -742,25 +742,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "The Tale of Tamiyo",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Cloudspire Skycycle",
-    "Hellish Sideswipe",
-    "Absorbing Man",
-    "Suit Up",
-    "Okiba Salvage",
-    "Fang Guardian"
-   ]
-  },
-  {
    "what": "ReturnFromExileForSourceEffect",
    "score": 15,
    "lines": 15,
@@ -903,6 +884,25 @@
     "Ersatz Gnomes",
     "Alchor's Tomb",
     "Aisling Leprechaun"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "The Tale of Tamiyo",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle",
+    "Absorbing Man",
+    "Suit Up",
+    "Okiba Salvage",
+    "Fang Guardian",
+    "Howler's Heavy"
    ]
   },
   {
@@ -6514,8 +6514,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3390,
-   "cards": 3225,
+   "score": 3389,
+   "cards": 3224,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6566,8 +6566,8 @@
   },
   {
    "what": "custom condition",
-   "score": 128,
-   "cards": 125,
+   "score": 127,
+   "cards": 124,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -6847,19 +6847,6 @@
    ]
   },
   {
-   "what": "filter:alts",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Kari Zev's Expertise",
-    "Opportunistic Dragon",
-    "Excava, the Risen Past",
-    "Quag Feast",
-    "Abuelo's Awakening",
-    "Cloudspire Skycycle"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 14,
    "cards": 14,
@@ -6946,6 +6933,19 @@
     "Voldaren Pariah // Abolisher of Bloodlines",
     "Afflicted Deserter // Werewolf Ransacker",
     "Concealing Curtains // Revealing Eye"
+   ]
+  },
+  {
+   "what": "filter:alts",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Kari Zev's Expertise",
+    "Opportunistic Dragon",
+    "Excava, the Risen Past",
+    "Quag Feast",
+    "Abuelo's Awakening",
+    "Cloudspire Skycycle"
    ]
   },
   {
