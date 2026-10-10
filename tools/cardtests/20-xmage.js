@@ -19592,4 +19592,22 @@ module.exports = (test) => {
     t.eq(T.g.player('A').life, 17, '3 life');
     t.eq(T.zone('A', 'hand').length, 3, '3 cards');
   });
+
+  test('Carnage, Crimson Chaos: the creature it returns gains "attacks each combat" and "sacrifice it" after combat damage', (mk, t) => {
+    t.auto('Carnage, Crimson Chaos');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.grave('A', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.put('A', 'Carnage, Crimson Chaos', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(bear, 'battlefield');
+    const abs = bear.analysis().abilities;
+    t.ok(T.g.characteristics(bear).flags.has('mustAttackEot'), 'attacks each combat if able');
+    t.ok(abs.some(a => a.kind === 'triggered'), 'and the combat-damage trigger');
+    bear.summoningSick = false; bear.entered = 0;
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.zone(bear, 'graveyard', 'sacrificed after dealing combat damage');
+  });
 };

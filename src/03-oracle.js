@@ -4631,6 +4631,17 @@
         return { op: 'sequence', list: [g,
           { op: 'pump', p: +m[2], t: +m[3], duration: 'eot', scope: g.targets ? 'lastTarget' : g.scope }] };
       } },
+    /* Clavileño, Kaya the Inexorable, Carnage: "It gains 'When this creature
+       dies, …'" — what the sentence before acted on, for good (or until end
+       of turn when it says so), one quoted ability or two */
+    { re: /^(?:Until end of turn, )?(?:It|That creature) gains? "([^"]+)"(?: and "([^"]+)")?( until end of turn)?\.?$/i,
+      make: (m) => {
+        const eot = /^Until end of turn/i.test(m[0]) || !!m[3];
+        const texts = [m[1]].concat(m[2] ? [m[2]] : []);
+        if (!texts.every(grantableText)) return null;
+        const list = texts.map(x => ({ op: 'grantAbility', ability: x, duration: eot ? 'eot' : 'permanent', scope: 'lastTarget' }));
+        return list.length === 1 ? list[0] : { op: 'sequence', list };
+      } },
     { re: /^You and (permanents you control|creatures you control|other permanents you control) gain ([a-z, ]+?) until end of turn\.?$/i,
       make: (m) => {
         const kws = keywordList(m[2]);
