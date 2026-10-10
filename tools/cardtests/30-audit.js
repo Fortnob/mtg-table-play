@@ -4134,4 +4134,21 @@ module.exports = (test) => {
     t.eq(bl.length, 1, 'B fetched a basic'); t.ok(bl.every(o => o.tapped), 'tapped');
     t.eq(T.g.battlefield.filter(o => o.controller === 'A' && (o.analysis() || {}).isLand).length, 0, 'A did not');
   });
+
+  test('Audit: Aether Vial offers creature cards only, at exactly its counters; its upkeep counter is optional', (mk, t) => {
+    t.auto('Aether Vial');
+    const T = mk();
+    T.toMain('A');
+    const vial = T.bf('A', 'Aether Vial', { counters: { charge: 1 } });
+    const lions = T.hand('A', 'Savannah Lions'); T.hand('A', 'Sol Ring'); T.hand('A', 'Ornithopter');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [lions.id] }; });
+    T.activate('A', vial, 0);
+    T.settle();
+    t.eq((offered || []).join(','), 'Savannah Lions', 'not the Sol Ring (no creature), not the Ornithopter (0)');
+    t.zone(lions, 'battlefield');
+    T.answer('confirm', { yes: false });
+    T.nextTurn('B'); T.nextTurn('A'); T.settle();
+    t.eq(vial.counters.charge, 1, 'declined: still 1');
+  });
 };
