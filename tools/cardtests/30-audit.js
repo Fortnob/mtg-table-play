@@ -6362,4 +6362,18 @@ module.exports = (test) => {
     const hy = T.g.battlefield.find(x => x.isToken && /Hydra/.test(x.name));
     t.ok(hy, 'a modal double-faced card\u2019s front, {X}{B}{B}{B}: a Hydra'); t.eq(hy && hy.counters['+1/+1'], 1, 'with X counters');
   });
+
+  test('Audit: an Aura put onto the battlefield attached (Danitha, Benalia\u2019s Hope) goes to the graveyard when its creature dies, not onto another', (mk, t) => {
+    const T = mk(); T.toMain('A');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const r = T.hand('A', 'Rancor');
+    T.answer('confirm', { yes: true });
+    T.answer('pickCard', { cardIds: [r.id] });
+    const d = T.hand('A', "Danitha, Benalia's Hope");
+    T.mana('A', 'W4'); T.cast('A', d); T.settle(); T.resolve();
+    t.eq(r.attachedTo, d.id, 'Rancor on Danitha'); t.eq(T.g.powerOf(d), 6);
+    T.mana('A', 'BB1'); T.cast('A', T.hand('A', 'Murder'), { targets: [d.id] }); T.settle(); T.resolve();
+    t.no(r.attachedTo === bear.id, 'not moved onto the Bears');
+    t.zone(r, 'hand', 'to the graveyard, and Rancor\u2019s own trigger brings it back');
+  });
 };

@@ -11257,8 +11257,8 @@
       if (o.zone === 'battlefield') {
         const i = this.battlefield.indexOf(o);
         if (i >= 0) this.battlefield.splice(i, 1);
-        // detach
-        for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) at.attachedTo = null; }
+        // detach (an Aura that was on it goes to the graveyard, and looks for no new host: _needsHost)
+        for (const aid of o.attachments.slice()) { const at = this.obj(aid); if (at) { at.attachedTo = null; at._needsHost = false; } }
         // Stone Haven Outfitter: "whenever an equipped creature you control dies" — what it had on it as it went
         o._lastAttachments = o.attachments.slice();
         o.attachments = [];
@@ -22511,6 +22511,9 @@
              battlefield, or to something it can no longer enchant goes to
              the graveyard (CR 704.5m). Equipment or a Fortification in the
              same state just comes off and stays (704.5n). */
+          /* (Danitha, Benalia's Hope: put onto the battlefield and then attached by what put it there — an
+             Aura that has had something to enchant chooses nothing new when that is gone: _needsHost) */
+          if (o._needsHost && o.attachedTo) o._needsHost = false;
           // a Curse on a player stays as long as that player is in the game
           const hostP = o.attachedTo && this.player(o.attachedTo);
           if (hostP && hostP.hasLost) {
