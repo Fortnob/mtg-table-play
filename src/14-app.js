@@ -855,13 +855,13 @@
     if (!deck || deck.starter || deck.source === 'starter' || deck.source === 'bot') return true;
     return UI.checkCollection(deck);
   };
-  /** The cards of a draft, kept: Arena lets you keep what you drafted. */
-  App.keepDrafted = function (pool) {
+  /** The cards of a draft, kept: Arena lets you keep what you drafted. `word` says how they came: drafted, opened. */
+  App.keepDrafted = function (pool, word) {
     const cards = (pool || []).map(x => (x && x.card) || x).filter(c => c && c.name);
     if (!cards.length) return;
     const res = MTG.economy.addCards(cards, 'draft');
     const fresh = res.filter(r => r.isNew).length;
-    UI.toast(`${cards.length} drafted cards added to your collection${fresh ? ` (${fresh} new)` : ''}.`, 'ok', 5000);
+    UI.toast(`${cards.length} ${word || 'drafted'} cards added to your collection${fresh ? ` (${fresh} new)` : ''}.`, 'ok', 5000);
   };
 
   /** Go to one of the top-level screens, leaving a table properly on the way. */
@@ -2689,7 +2689,9 @@
     const busy = UI.busy('Quick draft', 'Setting up the draft\u2026');
     try {
       const style = sess.fmt.draft.style;
-      if (style === 'booster' || style === 'commander') {
+      if (style === 'jumpstart') {
+        sess.jumpstart = opts.jumpstart && (opts.jumpstart.product || opts.jumpstart.set) ? opts.jumpstart : null;
+      } else if (style === 'booster' || style === 'commander' || style === 'sealed') {
         let code = opts.setCode || '';
         if (!code) { const sets = await MTG.scry.draftableSets(); code = sets.length ? sets[0].code : ''; }
         if (!code) throw new Error('No set could be found to draft. Check the connection, or download the card database in Options.');
@@ -2713,9 +2715,9 @@
         sess.cube = cube;
         sess.packSize = cube.packSize || 15;
       }
-      if (opts.collector && style !== 'cube') sess.setRule('collector', true);
-      if (opts.packs && opts.packs !== 3) sess.setRule('packs', U.clamp(Math.floor(opts.packs), 1, 8));
-      if (opts.allAtOnce) sess.setRule('allPacksAtOnce', true);
+      if (opts.collector && style !== 'cube' && style !== 'jumpstart') sess.setRule('collector', true);
+      if (opts.packs && opts.packs !== sess.fmt.draft.packs && style !== 'jumpstart') sess.setRule('packs', U.clamp(Math.floor(opts.packs), 1, 8));
+      if (opts.allAtOnce && style !== 'sealed' && style !== 'jumpstart') sess.setRule('allPacksAtOnce', true);
       const count = U.clamp(opts.opponents || 1, 1, Math.min(7, (sess.fmt.maxPlayers || 8) - 1));
       for (let i = 0; i < count; i++) sess.addBot(opts.difficulty || 5);
       const ready = sess.readyToStart();
@@ -3746,6 +3748,7 @@
       this.enforcement = 'full';
       this.setCode = '';
       this.chaosPool = null;      // {preset, sets:[code]} — chaos draft only
+      this.jumpstart = null;      // where Jumpstart's half-decks come from: {product} or {set}; null, the newest
       /** @type {any} what kind of game this is, for its rewards: { ranked }, { event }, { gauntlet } */
       this.mode = null;
       /** @type {any} set up the board of a challenge, once the game has started */
@@ -3940,6 +3943,7 @@
     setupSummary() {
       const f = this.fmt;
       if (f.kind !== 'limited') return null;
+      if (UI.limitedRun && UI.limitedRun.handles(f)) return UI.limitedRun.summary(this);
       if (f.draft.style === 'cube') return this.cube ? `Cube: ${this.cube.name}` : 'Cube: not chosen yet';
       if (f.draft.style === 'chaos') {
         const sets = this.chaosPoolSets();
@@ -3960,6 +3964,9 @@
       if (n < this.fmt.minPlayers) return { ok: false, reason: `Needs at least ${this.fmt.minPlayers} players.` };
       if (n > this.fmt.maxPlayers) return { ok: false, reason: `At most ${this.fmt.maxPlayers} players.` };
       if (this.fmt.kind === 'limited') {
+        // sealed and Jumpstart (src/13b-ui-sealed.js)
+        const asks = UI.limitedRun && UI.limitedRun.handles(this.fmt) ? UI.limitedRun.notReady(this) : null;
+        if (asks) return { ok: false, reason: asks };
         if (this.fmt.draft.style === 'cube' && !this.cube) return { ok: false, reason: 'Choose a cube first.' };
         if (this.fmt.draft.style === 'booster' && !this.setCode) return { ok: false, reason: 'Choose a set to draft.' };
         if (this.fmt.draft.style === 'chaos') {
@@ -3984,6 +3991,8 @@
     }
 
     async start() {
+      // sealed packs are opened and Jumpstart's half-decks chosen rather than drafted (src/13b-ui-sealed.js)
+      if (UI.limitedRun && UI.limitedRun.handles(this.fmt)) return UI.limitedRun.start(this);
       if (this.fmt.kind === 'limited') return this.startDraft();
       return this.startGame();
     }
@@ -4345,6 +4354,7 @@
       const g = this.game;
       if (intent.kind === 'chat') { net.chat(this.seat(actorId) ? this.seat(actorId).name : 'Player', intent.text); return; }
       if (intent.kind === 'setDeck') return;   // handled in the net layer
+      if (UI.limitedRun && UI.limitedRun.intent(this, actorId, intent)) return;
       if (this.draft && !this.draft.finished) {
         const d = this.draft;
         if (intent.kind === 'pick') {
@@ -4807,6 +4817,8 @@
   MTG.replay.load = (json, opts) => App.watchReplay(json, Object.assign({ paused: true }, opts || {}));
 
   App.Session = Session;
+  // sealed and Jumpstart go back to the table setup when something stops them (src/13b-ui-sealed.js)
+  App.renderLobby = renderLobby;
   // the pieces the test suite drives directly
   App.slimDeckForWire = slimDeckForWire;
   App.applySeatArt = applySeatArt;

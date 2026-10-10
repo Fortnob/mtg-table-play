@@ -1,0 +1,94 @@
+/* ============================================================
+   limited.css - sealed and Jumpstart (src/13b-ui-sealed.js)
+   Both live on the draft screen and borrow its head, its pool strips and
+   its colours. What is theirs alone: a pack laid out to read, a pool in
+   columns, and half-decks side by side. The screen stays dark in the
+   light theme, as the draft does, because it sits on card art.
+   ============================================================ */
+
+/* the screen scrolls as one: a pack, a pool or three half-decks are each longer than a phone */
+.sealed-layout .sealed-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
+  padding: 20px 22px 36px;
+}
+.sealed-layout .draft-act { flex-wrap: wrap; justify-content: flex-end; }
+
+/* ---------- a pack, dealt out rarest first ---------- */
+.sealed-pack {
+  --card-w: calc(168px * var(--card-scale)); --card-h: calc(234px * var(--card-scale));
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--card-w), 1fr)); gap: 20px 14px;
+  justify-items: center; max-width: 1320px; margin: 0 auto; padding-top: 8px;
+}
+.sealed-pack .pick-card { cursor: zoom-in; }
+.sealed-pack.dealing .pick-card { animation: dealCard .5s cubic-bezier(.3,.7,.3,1) both; animation-delay: calc(var(--i, 0) * 35ms); }
+:root[data-reduce-motion] .sealed-pack.dealing .pick-card { animation: none; }
+@media (max-height: 760px) {
+  .sealed-pack { --card-w: calc(136px * var(--card-scale)); --card-h: calc(190px * var(--card-scale)); }
+}
+
+/* ---------- the pool: a column to a colour ---------- */
+.sealed-summary { max-width: 1320px; margin: 0 auto 6px; }
+.sealed-cols {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 12px;
+  align-items: start; max-width: 1320px; margin: 0 auto;
+}
+.sealed-col { min-width: 0; }
+.sealed-col .pool-col-head { position: static; background: none; }
+.sealed-col-name { display: inline-flex; align-items: center; gap: 6px; }
+.sealed-col-name .pip { width: 15px; height: 15px; font-size: 9px; margin: 0; }
+.sealed-type { margin: 7px 4px 3px; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: #8d97a8; }
+.sealed-layout .strip::before { background: linear-gradient(90deg, #12161e 42%, rgba(18,22,30,.7) 64%, rgba(18,22,30,.3)); }
+.sealed-wait { margin: 6px auto 20px; text-align: center; }
+
+/* ---------- Jumpstart: half-decks side by side ---------- */
+.js-lead { max-width: 1240px; margin: 0 auto 12px; color: #c9d1de; font: 500 15px/1.45 var(--serif); }
+.js-note { max-width: 1240px; margin: 0 auto 10px; }
+.js-have {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 1240px; margin: 0 auto 14px;
+  color: #eef1f6;
+}
+.js-offers {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px;
+  max-width: 1240px; margin: 0 auto; align-items: start;
+}
+.js-offers.two { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 900px; }
+.js-half {
+  display: flex; flex-direction: column; gap: 8px; padding: 0 12px 12px; min-width: 0;
+  border-radius: 14px; overflow: hidden; color: #eef1f6;
+  background: linear-gradient(180deg, rgba(18,22,30,.94), rgba(12,15,21,.97));
+  border: 1px solid rgba(255,255,255,.08); box-shadow: 0 14px 30px rgba(0,0,0,.45);
+  animation: poolIn .35s var(--ease);
+}
+.js-half.mine { border-color: rgba(212,175,71,.45); }
+.js-art {
+  display: block; width: calc(100% + 24px); height: 132px; margin: 0 -12px; padding: 0; border: 0; border-radius: 0;
+  cursor: zoom-in; background-color: #0c0f15; opacity: .3; transition: opacity 1s var(--ease);
+  -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent); mask-image: linear-gradient(180deg, #000 55%, transparent);
+}
+.js-art.art-on { opacity: 1; }
+.js-top { display: flex; align-items: center; gap: 8px; margin-top: -26px; position: relative; }
+.js-name { flex: 1; min-width: 0; margin: 0; font: 600 20px/1.15 var(--serif); color: #fff8e4; text-shadow: 0 2px 8px rgba(0,0,0,.8); }
+.js-list { display: flex; flex-direction: column; gap: 3px; }
+.js-qty { flex: none; font: 800 11px var(--font); color: var(--gold-hi); }
+.js-lands { padding: 0 2px; }
+.js-acts { gap: 8px; margin-top: 2px; }
+.js-acts .btn { min-height: 38px; }
+.js-deck-acts { justify-content: center; margin: 14px auto 0; }
+.js-cards { --card-w: 150px; --card-h: 209px; gap: 12px; }
+.js-cards .card-slot { cursor: zoom-in; }
+.js-count { top: 6px; translate: -50% 0; }
+
+/* ---------- the deck builder's pool, a colour at a time ---------- */
+.deck-list .pool-sub { margin: 10px 4px 4px; font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); }
+
+/* ---------- on a phone ---------- */
+:root[data-phone] .sealed-layout .sealed-body { padding: 12px 10px 28px; }
+:root[data-phone] .sealed-layout .draft-act { flex-wrap: nowrap; gap: 8px; }
+:root[data-phone] .sealed-layout .draft-act .btn.ghost { flex: 0 1 auto; min-height: 46px; }
+:root[data-phone] .sealed-layout .draft-go { flex: 1 1 auto; width: auto; min-width: 0; }
+:root[data-phone] .sealed-pack { --card-w: 104px; --card-h: 145px; gap: 10px 8px; }
+:root[data-phone] .sealed-cols { grid-template-columns: 1fr; }
+:root[data-phone] .js-offers, :root[data-phone] .js-offers.two { grid-template-columns: 1fr; gap: 12px; }
+:root[data-phone] .js-art { height: 104px; }
+:root[data-phone] .js-lead { font-size: 14px; }
+:root[data-phone] .js-cards { --card-w: 100px; --card-h: 140px; gap: 8px; }
