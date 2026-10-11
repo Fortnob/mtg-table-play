@@ -4233,6 +4233,8 @@
     // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
     { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
+    // Sheoldred // The True Scriptures, Elesh Norn // The Argent Etchings: "Exile this Saga, then return it to the battlefield (front face up)." (sagaFrontFace)
+    { re: /^Exile this Saga, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i, make: () => ({ op: 'blinkTransformed', front: true, ownerControl: true }) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
 

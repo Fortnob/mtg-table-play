@@ -17673,9 +17673,10 @@
           const owner = x.owner;
           this.moveObject(x, 'exile');
           if (x.zone !== 'exile') break;
-          x.face = 1;
+          // (the Praetors' Sagas: "return it to the battlefield (front face up)" — sagaFrontFace)
+          x.face = e.front ? 0 : 1;
           this.moveObject(x, 'battlefield', { controller: e.ownerControl ? owner : ctx.controller });
-          this.logEvent('rules', `${x.name} returns transformed.`);
+          this.logEvent('rules', `${x.name} returns${e.front ? '' : ' transformed'}.`);
           break;
         }
         // Spiritmonger: the colour of its controller's choice, until end of turn

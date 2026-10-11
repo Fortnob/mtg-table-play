@@ -22457,4 +22457,19 @@ module.exports = (test) => {
     t.ok(offered.includes('Isamaru, Hound of Konda') && !offered.includes('Krenko, Mob Boss'), 'Sisay: Isamaru (1) is offered, Krenko (4) is not');
     t.eq(Y.g.powerOf(sy), base + 1, 'Sisay: Isamaru, a white legend, +1/+1');
   });
+
+  test("Commanders: Sheoldred // The True Scriptures returns front face up", (mk, t) => {
+    const T0 = mk();
+    const sa = T0.put('A', 'Sheoldred // The True Scriptures', 'library');
+    t.ok(!((sa.card && T0.MTG.oracle.analyze(sa.card, 1)) || {}).needsManual, 'The True Scriptures: every chapter read');
+    const T = mk({ library: Array(10).fill('Swamp') });
+    T.toMain('A');
+    const sh = T.bf('A', 'Sheoldred // The True Scriptures');
+    sh.face = 1; sh.counters.lore = 2; sh._chr = null; T.g.bumpBoard();
+    const gb = T.grave('B', 'Grizzly Bears');
+    T.nextTurn('B'); T.nextTurn('A'); T.resolve();
+    t.zone(gb, 'battlefield');
+    t.eq(gb.controller, 'A', 'chapter III: the Bears come back under your control');
+    t.ok(sh.zone === 'battlefield' && sh.face === 0, 'chapter III: the Saga is exiled and returns as Sheoldred, front face up');
+  });
 };

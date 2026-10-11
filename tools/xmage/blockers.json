@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10451,
+  "needed": 10450,
   "gainedCards": 963,
-  "linesNeeded": 11101,
+  "linesNeeded": 11099,
   "linesGained": 1127,
   "gained": {
    "all": 963,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4010,
-   "lines": 3764,
+   "score": 4006,
+   "lines": 3763,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -5496,16 +5496,6 @@
    ]
   },
   {
-   "what": "ExileSourceAndReturnFaceUpEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Vorinclex // The Grand Evolution",
-    "Elesh Norn // The Argent Etchings",
-    "Terra, Magical Adept // Esper Terra"
-   ]
-  },
-  {
    "what": "CantAttackYouAllEffect",
    "score": 3,
    "lines": 3,
@@ -6461,12 +6451,22 @@
     "Raving Oni-Slave",
     "Sundering Titan"
    ]
+  },
+  {
+   "what": "CardsInTargetHandCount.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Vicious Shadows",
+    "Tibalt, the Fiend-Blooded",
+    "Gerrard Capashen"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3354,
+   "score": 3351,
    "cards": 3189,
    "names": [
     "Marvin, Murderous Mimic",
