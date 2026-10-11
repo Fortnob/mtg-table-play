@@ -23739,4 +23739,33 @@ module.exports = (test) => {
     H.toMain('A', 'end'); H.resolve();
     t.ok((Number(mi.counters['+1/+1']) || 0) === 1 && H.bfOf('A').some(o => o.isToken && /Food/.test(o.name)), 'Michelangelo: attacked, a counter and a Food');
   });
+
+  test('Commanders: Jason Bright, Glowing Prophet, Barrin, Tolarian Archmage', (mk, t) => {
+    t.auto('Jason Bright, Glowing Prophet'); t.auto('Barrin, Tolarian Archmage');
+    const kill = (T, o) => { T.g.dealDamageToObject(o, 9, null, false); T.g.checkStateBasedActions(); T.resolve(); };
+    // Jason Bright: a Zombie whose power was changed dies, a card; one as printed, nothing
+    const J = mk({ library: Array(20).fill('Swamp') });
+    J.toMain('A');
+    J.bf('A', 'Jason Bright, Glowing Prophet');
+    const h0 = J.zone('A', 'hand').length;
+    kill(J, J.bf('A', 'Walking Corpse'));
+    t.eq(J.zone('A', 'hand').length - h0, 0, 'Jason Bright: a Walking Corpse as printed, nothing');
+    const z2 = J.bf('A', 'Walking Corpse'); z2.counters['+1/+1'] = 1; J.g.bumpBoard();
+    kill(J, z2);
+    t.eq(J.zone('A', 'hand').length - h0, 1, 'Jason Bright: a bigger one, a card');
+    // Barrin: a permanent returned to A's hand this turn, a card at the end step
+    const B = mk({ library: Array(20).fill('Island') });
+    B.toMain('A');
+    B.bf('A', 'Barrin, Tolarian Archmage');
+    const b0 = B.zone('A', 'hand').length;
+    B.toMain('A', 'end'); B.resolve();
+    t.eq(B.zone('A', 'hand').length - b0, 0, 'Barrin: nothing returned, nothing');
+    const B2 = mk({ library: Array(20).fill('Island') });
+    B2.toMain('A');
+    B2.bf('A', 'Barrin, Tolarian Archmage');
+    const gb = B2.bf('A', 'Grizzly Bears'); B2.g.moveObject(gb, 'hand');
+    const c0 = B2.zone('A', 'hand').length;
+    B2.toMain('A', 'end'); B2.resolve();
+    t.eq(B2.zone('A', 'hand').length - c0, 1, 'Barrin: the Bears came back to hand, a card');
+  });
 };

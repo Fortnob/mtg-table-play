@@ -9771,6 +9771,10 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
+    [/^its power was different from its base power$/i, () => ({ kind: 'triggerPowerChanged' })],
+    // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
+    [/^a permanent was put into your hand from the battlefield this turn$/i, () => ({ kind: 'bouncedToYourHand' })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
