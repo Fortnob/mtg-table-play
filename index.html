@@ -5631,7 +5631,7 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-grid.many .po-card { --w: clamp(70px, min(7.6vw, calc(20 * var(--vh, 1vh))), 150px); }
 .po-grid.dealt .po-card { opacity: 1; transform: none;
   transition: transform .5s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 55ms), opacity .25s calc(var(--i) * 55ms), filter .2s; }
-.po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 12ms), opacity .2s calc(var(--i) * 12ms), filter .2s; }
+.po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * var(--step, 12ms)), opacity .2s calc(var(--i) * var(--step, 12ms)), filter .2s; }
 .po-grid.settled .po-card, .po-grid.many.settled .po-card { transition: transform .22s ease-out, filter .2s, opacity .2s; }
 /* skipped: the haul is simply there, nothing flying in or turning over */
 .po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
@@ -6163,6 +6163,9 @@ html[data-play="1"] .hoard-chip { display: none; }
   calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }
 
 /* a card in its vintage printing, as it is turned over and in the art picker */
+.po-bonus.serial { color: #2a1a00; border-color: #ffe9a8; background: linear-gradient(100deg, #f6c94c, #fff1b8 45%, #e2a72a);
+  box-shadow: 0 0 12px rgba(255, 210, 90, .8); animation: po-serial 1.6s ease-in-out infinite alternate; }
+@keyframes po-serial { to { box-shadow: 0 0 22px rgba(255, 220, 110, 1); } }
 .po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
 .art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }
 
@@ -10378,6 +10381,47 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         !(MTG.oldPrints && MTG.oldPrints.isOld(c)));
       await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
       return list;
+    }
+
+    /**
+     * The vintage printings of every card in a set, by name (normName of
+     * the front face): one search for the whole set, kept, so a pack that
+     * turns up a vintage card needs no lookup of its own. Empty when the
+     * connection is out and nothing is kept.
+     */
+    async setVintage(code) {
+      code = String(code).toLowerCase();
+      this._vint = this._vint || new Map();
+      if (this._vint.has(code)) return this._vint.get(code);
+      const job = (async () => {
+        const key = 'vintageset2:' + code;
+        let list = null;
+        const hit = await this.db.get(STORES.meta, key);
+        if (hit && Date.now() - hit._t < CACHE_TTL) {
+          const m = await this.db.getMany(STORES.cards, hit.ids);
+          const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+          if (arr.length === hit.ids.length) list = arr;
+        }
+        if (!list) {
+          // the set's own cards and those of the sets folded into its packs
+          const kids = (await this.packHosts().catch(() => new Map())).get(code) || [];
+          const ins = [code].concat(kids).map(k => 'in:' + k).join(' or ');
+          const found = await this.search(`(${ins}) -t:basic (frame:1993 or frame:1997) -is:digital lang:en`, { unique: 'prints', max: 2000 }).catch(() => null);
+          if (!found) { this._vint.delete(code); return new Map(); }
+          list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital &&
+            !(MTG.oldPrints && MTG.oldPrints.isOld(c)));
+          await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
+        }
+        const by = new Map();
+        for (const c of list) {
+          const k = U.normName(U.frontName(c.name));
+          if (!by.has(k)) by.set(k, []);
+          by.get(k).push(c);
+        }
+        return by;
+      })();
+      this._vint.set(code, job);
+      return job;
     }
 
     /**
@@ -28012,6 +28056,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Dream Prowler: "can't be blocked as long as it's attacking alone"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as it'?s attacking alone\.?$/i,
         eff: { op: 'evasion', attackingAlone: true }, auto: true },
+      // Sidar Kondo of Jamuraa: "Creatures your opponents control without flying or reach can't block creatures with power 2 or less." (smallUnblockable)
+      { re: /^Creatures your opponents control without flying or reach can'?t block creatures with power (\d+) or less\.?$/i,
+        make: (m) => ({ op: 'oppCantBlockSmall', maxPower: +m[1], unless: ['flying', 'reach'] }), auto: true },
       // Goblin Mutant: "can't block creatures with power 3 or greater"
       { re: /^(?:CARDNAME|This creature) can'?t block creatures with power (\d+) or greater\.?$/i,
         make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },
@@ -38885,6 +38932,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const s of this.battlefield) {
         const se = !s.phasedOut && this._staticOp(s, 'subtypeEvasion');
         if (se && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
+      }
+      // Sidar Kondo of Jamuraa: an opponent's blocker without flying or reach, against a creature with power 2 or less (smallUnblockable)
+      for (const s of this.battlefield) {
+        const ck = !s.phasedOut && blocker.controller !== s.controller && this._staticOp(s, 'oppCantBlockSmall');
+        if (ck && this.powerOf(attacker) <= ck.maxPower && !ck.unless.some(k => this.hasKw(blocker, k))) return false;
       }
       for (const s of this.battlefield) {
         if (s.controller !== attacker.controller || s.phasedOut) continue;
@@ -77414,6 +77466,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
    * place, and the wildcard the track brings every so many packs. `setFor`
    * names a set for a welcome pack that has none yet.
    */
+  /**
+   * The One Ring, 1 of 1: the one serialized copy printed for The Lord of
+   * the Rings: Tales of Middle-earth (collector number 0), found in a
+   * Collector Booster. Here as there it is in the packs, and all but never
+   * comes out of one: a chance in ten million a pack, and, there being only
+   * one, never again once it has. `odds` is a field so a test can make it
+   * certain.
+   */
+  const ONE_RING = { set: 'ltr', id: '93de9042-cc62-4ade-8d8d-68fdbc84bfae', odds: 1 / 10000000 };
+
   async function openPack(packId, setFor) {
     load();
     const at = state.packs.findIndex(p => p.id === packId);
@@ -77440,11 +77502,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        (rarity and all), and its look is yours from then on, the art picker
        counting it as pulled. A set from the old frame's own time needs none. */
     if ((info.released_at || '9999') >= '2003-07-28' && rng.chance(VINTAGE_RATE)) {
+      // the old printings of the whole set's cards, looked up once a set (the shelf asks ahead)
+      const vint = await MTG.scry.setVintage(pack.set).catch(() => new Map());
       const idx = cards.map((c, i) => i).filter(i => !isBasic(cards[i].name));
       for (let t = 0; t < 3 && idx.length; t++) {
         const i = idx.splice(rng.int(idx.length), 1)[0];
         const c = cards[i];
-        const olds = await MTG.scry.vintagePrints(c).catch(() => []);
+        const olds = vint.get(MTG.util.normName(MTG.util.frontName(c.name))) || [];
         if (!olds.length) continue;
         const v = olds[rng.int(olds.length)];
         cards[i] = Object.assign({}, v, { rarity: c.rarity, _vintage: true }, c._foil ? { _foil: true } : {}, c._bonus ? { _bonus: true } : {});
@@ -77463,21 +77527,34 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return c._foil ? Object.assign({}, pick, { _foil: true }) : pick;
     });
 
+    /* The One Ring, 1 of 1, in a Collector Booster of its set: in place of
+       the pack's best card (its mythic, else its rare), and never touched by
+       what follows. Looked up only on the day it comes. */
+    if (pack.kind === 'collector' && pack.set === ONE_RING.set && !state.oneRing && rng.next() < ONE_RING.odds) {
+      const ring = await MTG.scry.byId(ONE_RING.id).catch(() => null);
+      if (ring) {
+        const at2 = Math.max(cards.findIndex(c => rarityOf(c) === 'mythic'), cards.findIndex(c => rarityOf(c) === 'rare'));
+        const one = Object.assign({}, ring, { _foil: true, _serial: '1/1' });
+        if (at2 >= 0) cards[at2] = one; else cards.push(one);
+        state.oneRing = { at: Date.now() };
+      }
+    }
+
     /* Arena's wildcards: now and then one takes a card's place, of the
-       card's own rarity. */
+       card's own rarity (never the One Ring's). */
     const slots = cards.map(c => ({ card: c, rarity: rarityOf(c) }));
     const odds = { common: 1 / 3, uncommon: 1 / 5, rare: 1 / 24, mythic: 1 / 24 };
     const swapped = new Set();
     for (const r of RARITIES) {
       if (rng.next() >= odds[r]) continue;
-      const i = slots.findIndex((s, k) => s.rarity === r && !swapped.has(k));
+      const i = slots.findIndex((s, k) => s.rarity === r && !swapped.has(k) && !s.card._serial);
       if (i >= 0) swapped.add(i);
     }
     const out = [];
     slots.forEach((s, k) => {
       if (swapped.has(k)) { state.wc[s.rarity]++; out.push({ wildcard: s.rarity }); return; }
       const res = addCard(s.card, 1);
-      out.push({ card: s.card, rarity: s.rarity, foil: !!s.card._foil, isNew: res.isNew, shards: res.shards });
+      out.push({ card: s.card, rarity: s.rarity, foil: !!s.card._foil, isNew: res.isNew, shards: res.shards, serial: s.card._serial || null });
     });
     // the wildcard track
     state.opened++;
@@ -77489,7 +77566,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     save('open');
     if (MTG.progress) { MTG.progress.notePulls(out); MTG.progress.checkSets([pack.set]); }
     // rarest last, the way they are turned over, and within a rarity the most valuable last
-    const rank = (x) => x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity);
+    const rank = (x) => x.serial ? 99 : x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity);
     out.sort((a, b) => rank(a) - rank(b) || cardValue(a) - cardValue(b));
     return { pack, cards: out, bonus };
   }
@@ -77833,7 +77910,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     packPrice, appraise, needsAppraisal,
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
-    SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    ONE_RING, SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     digestHex, animPayload, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
@@ -81237,9 +81314,25 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       return [...m.values()];
     };
+    /* The cards of every set on the shelf, fetched while the shelf is
+       looked at (once a visit), so the first pack of a set opens at once
+       rather than after a wait on the connection. */
+    const warmed = new Set();
+    const warm = (gs) => {
+      for (const g of gs) {
+        const code = g.info && g.info.code;
+        if (!code || warmed.has(g.key)) continue;
+        warmed.add(g.key);
+        MTG.scry.setPool(code).catch(() => null);
+        MTG.scry.packExtras(code).catch(() => null);
+        if (g.kind === 'collector') MTG.scry.setVariants(code).catch(() => null);
+        MTG.scry.setVintage(code).catch(() => null);
+      }
+    };
     const inventory = () => {
       const gs = groups();
       if (!gs.length) return close();
+      warm(gs);
       stage.className = 'po-stage inv';
       overlay.classList.add('shelf');
       place();
@@ -81319,7 +81412,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         MTG.sfx('pack_charge', { dur: reduced() ? 0.2 : 0.7 });
         let res;
         try {
-          [res] = await Promise.all([S.openPack(p.id, async () => info), pause(reduced() ? 150 : 650)]);
+          [res] = await Promise.all([S.openPack(p.id, async () => info), pause(reduced() ? 100 : 320)]);
         } catch (e) {
           opening = false;
           stage.onclick = null;
@@ -81359,7 +81452,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         pack.style.visibility = 'hidden';
         MTG.sfx('pack_tear');
         requestAnimationFrame(() => { body.classList.add('open'); rise.classList.add('up'); });
-        await pause(950);
+        await pause(520);
         deal(res, g, info);
       };
       pack.addEventListener('click', open);
@@ -81395,6 +81488,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
+          it.serial ? el('span', { class: 'po-bonus serial', text: it.serial === '1/1' ? '1 of 1' : it.serial }) : null,
           it.card && it.card._vintage ? el('span', { class: 'po-bonus vintage', text: 'Vintage' }) : null,
           it.card && it.card._bonus ? el('span', { class: 'po-bonus', text: it.card.set_type === 'commander' ? 'Commander'
             : it.card.set_type === 'alchemy' ? 'Alchemy' : it.card.digital ? 'Digital' : 'Bonus' }) : null,
@@ -81437,7 +81531,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           t._charging = true;
           t.classList.add('charging');
           MTG.sfx(r === 'mythic' ? 'charge_mythic' : 'charge_rare');
-          await sleep(r === 'mythic' ? 820 : 520);
+          await sleep(r === 'mythic' ? 600 : 360);
           t.classList.remove('charging');
           t._charging = false;
         }
@@ -81505,7 +81599,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const revealAll = async () => {
         if (revealing) return hurry();
         revealing = true;
-        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(140); }
+        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(70); }
       };
       refresh();
       // dealt out of the pack, one after another
@@ -81515,15 +81609,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         for (const t of tiles) {
           const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
           if (pace === 1) MTG.sfx('card_deal', { pan });
-          await paced(55);
+          await paced(32);
         }
-        await paced(350);
+        await paced(160);
         // dealt: from now on a card comes up and goes back at once
         setTimeout(() => grid.classList.add('settled'), 300 / pace);
         for (const t of tiles.filter(x => !x._big)) {
           if (!overlay.isConnected) return;
           flip(t, pace > 1);
-          await paced(150);
+          await paced(75);
         }
         for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting');
       })();
@@ -81581,6 +81675,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       setTimeout(() => { if (!revealNow || !skip) overlay.addEventListener('click', onSkip); }, 0);
       onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skipAll(); } };
       head.querySelector('.po-sub').textContent = `Opening ${packs.length} packs… click to skip`;
+      warm(gs);
+      // the whole tearing in about a second and a half, however many packs there are
+      const tearGap = Math.max(12, Math.min(120, Math.round(1500 / packs.length)));
       const results = [];
       let failed = null;
       for (let i = 0; i < packs.length; i++) {
@@ -81596,14 +81693,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         restack();
         const sub = head.querySelector('.po-sub');
         if (sub) sub.textContent = `Opening ${i + 1} of ${packs.length}… click to skip`;
-        MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
-        await sleep(reduced() ? 10 : 150);
+        if (tearGap >= 40 || i % Math.ceil(40 / tearGap) === 0) MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
+        await sleep(reduced() ? 10 : tearGap);
       }
       if (failed && !results.length) { overlay.removeEventListener('click', onSkip); UI.error(failed.message || String(failed)); return inventory(); }
       if (!skip) {
         overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
         MTG.sfx('boom');
-        await sleep(reduced() ? 50 : 520);
+        await sleep(reduced() ? 50 : 300);
       }
       // everything, together: the same card once with how many, rarest first
       const merged = new Map();
@@ -81637,7 +81734,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           ...RAR.filter(r => wcs[r]).map(r => el('span', { class: 'po-wcsum' }, [wcIcon(r, wcs[r])])),
         ].filter(Boolean)));
       const cols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(items.length * 1.8))));
-      const grid = el('div', { class: 'po-grid many', style: { '--cols': String(cols) } });
+      // dealt in about a second, however many there are
+      const grid = el('div', { class: 'po-grid many', style: { '--cols': String(cols), '--step': Math.max(2, Math.min(12, 1000 / items.length)).toFixed(1) + 'ms' } });
       stage.appendChild(grid);
       const tiles = items.map((it, i) => cardTile(it, i, items.length, cols));
       for (const t of tiles) grid.appendChild(t);
@@ -81666,15 +81764,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       {
         // the whole haul from the top, wherever the list of packs was scrolled to
         requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
-        setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
+        setTimeout(() => grid.classList.add('settled'), 500 + Math.min(1200, tiles.length * 6));
         // the best of it turned over first, with its sound; the rest in a quick wave
         const best = tiles.filter(t => t._big);
         const rest = tiles.filter(t => !t._big);
-        let at = 400;
-        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
-        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+        let at = 250;
+        const bestGap = Math.max(25, Math.min(200, Math.round(1500 / Math.max(1, best.length))));
+        const restGap = Math.max(4, Math.min(30, Math.round(1000 / Math.max(1, rest.length))));
+        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true, bestGap < 60 && t !== best[0]); }, at); at += bestGap; }
+        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true, restGap < 20 && k % 6 !== 0); }, at + k * restGap));
         // once the wave has run its course, a click is a click again
-        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * 35 + 300);
+        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * restGap + 300);
       }
       if (failed) UI.error(`Some packs could not be opened: ${failed.message || failed}`);
       // Enter or Space: the cards at once while they are still turning, and away once they are all up
