@@ -2478,6 +2478,9 @@
     { re: /^If you put an? (artifact|creature|land|enchantment) onto the battlefield this way, put (a|an|one|two|three) \+1\/\+1 counters? on it\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'putThisWayIs', what: m[1].toLowerCase() },
         then: [{ op: 'counters', kind: '+1/+1', n: num(m[2].replace(/^an?$/i, 'one')), scope: 'lastTarget' }] }) },
+    // Shelinda, Yevon Acolyte: "put a +1/+1 counter on that creature if its power is less than Shelinda's power" (triggerPowerBelowSelf)
+    { re: /^Put an? \+1\/\+1 counter on that creature if its power is less than (?:CARDNAME|this creature)'?s power\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerBelowSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerObject' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },

@@ -23435,4 +23435,21 @@ module.exports = (test) => {
     t.eq(hand() - h0, 0, 'Eshki: Craw Wurm, a card');
     t.eq(E.life('B'), 20 - E.g.powerOf(ek), "Eshki: and Eshki's power to B");
   });
+
+  test('Commanders: Shelinda, Yevon Acolyte', (mk, t) => {
+    t.auto('Shelinda, Yevon Acolyte');
+    const S = mk({ library: Array(20).fill('Forest') });
+    S.toMain('A');
+    const sh = S.bf('A', 'Shelinda, Yevon Acolyte');
+    const c0 = 3 - S.g.powerOf(sh); sh.counters['+1/+1'] = c0;   // power 3, as the Hill Giant
+    S.g.bumpBoard();
+    // a 1/1 enters under Shelinda's power: the counter goes on it
+    const el = S.hand('A', 'Llanowar Elves');
+    S.mana('A', 'G'); S.cast('A', el); S.resolve();
+    t.ok((Number(el.counters['+1/+1']) || 0) === 1 && (Number(sh.counters['+1/+1']) || 0) === c0, 'Shelinda: the Elves are smaller, the counter on them');
+    // a 3/3 is not smaller: the counter goes on Shelinda
+    const gi = S.hand('A', 'Hill Giant');
+    S.mana('A', '3R'); S.cast('A', gi); S.resolve();
+    t.ok(!(Number(gi.counters['+1/+1']) || 0) && (Number(sh.counters['+1/+1']) || 0) === c0 + 1, 'Shelinda: the Giant is not smaller, the counter on her');
+  });
 };

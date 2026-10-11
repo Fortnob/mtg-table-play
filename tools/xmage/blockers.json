@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10347,
+  "needed": 10346,
   "gainedCards": 949,
-  "linesNeeded": 10979,
+  "linesNeeded": 10978,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 151,
-   "lines": 139,
+   "score": 150,
+   "lines": 138,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -159,8 +159,8 @@
     "March of the Canonized",
     "Gavel of the Righteous",
     "Sab-Sunen, Luxa Embodied",
-    "Shelinda, Yevon Acolyte",
-    "Ephara, God of the Polis"
+    "Ephara, God of the Polis",
+    "Smaug, Wicked Worm"
    ]
   },
   {
@@ -6489,15 +6489,15 @@
   },
   {
    "what": "custom condition",
-   "score": 118,
-   "cards": 115,
+   "score": 117,
+   "cards": 114,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
     "Lux Artillery",
     "Rith, Liberated Primeval",
     "March of the Canonized",
-    "Shelinda, Yevon Acolyte"
+    "Ephara, God of the Polis"
    ]
   },
   {

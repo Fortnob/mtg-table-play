@@ -10637,6 +10637,12 @@
           const pS = parseInt(((this.characteristics(xS) || {}).power), 10) || 0;
           return pS >= (cond.n || 0);
         }
+        // Shelinda, Yevon Acolyte: "if its power is less than Shelinda's power" (triggerPowerBelowSelf)
+        case 'triggerPowerBelowSelf': {
+          const tdB = (ctx && ctx.triggerData) || {};
+          const xB = tdB.objectId && this.obj(tdB.objectId);
+          return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
+        }
         // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
         case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');
