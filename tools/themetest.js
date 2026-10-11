@@ -42,6 +42,15 @@ check(score('storm', scry('Lifelinker', 'Creature — Cat', 'Lifelink (Damage de
 // a card named for what it is not: its own name is read as "this"
 check(!/zombie/.test(T.facts(scry('Zombie Master', 'Creature — Wizard', 'When Zombie Master enters, draw a card.')).text), 'a card\'s own name is not read as its words');
 
+// lands entering is Landfall; more lands a turn is something else, and named so
+check(score('landfall', scry('Lotus Cobra', 'Creature — Snake', 'Landfall — Whenever a land you control enters, add one mana of any color.', ['Landfall'])) === 1, 'landfall is Landfall');
+check(score('landdrops', scry('Lotus Cobra', 'Creature — Snake', 'Landfall — Whenever a land you control enters, add one mana of any color.', ['Landfall'])) === 0, 'landfall is not an extra land drop');
+check(score('landdrops', scry('Azusa', 'Legendary Creature — Human Monk', 'You may play two additional lands on each of your turns.')) === 1, 'Azusa is extra land drops');
+check(score('grouphug', scry('Howling Mine', 'Artifact', 'At the beginning of each player\'s draw step, if Howling Mine is untapped, that player draws an additional card.')) === 1, 'Howling Mine is group hug');
+check(score('extraturns', scry('Time Warp', 'Sorcery', 'Target player takes an extra turn after this one.')) === 1, 'Time Warp is an extra turn');
+check(score('superfriends', scry('Guardian', 'Instant', 'Creatures and planeswalkers you control gain indestructible until end of turn.')) === 0, 'protecting planeswalkers is not Superfriends');
+check(T.identity([{ color_identity: ['G', 'W'] }, { colorIdentity: ['U'] }]) === 'WUG' && T.identity([{ color_identity: [] }]) === '', 'colour identity in WUBRG order, from either source');
+
 /* ---- popularity ---- */
 check(T.rank([{ edhrec_rank: 900 }, { edhrec_rank: 120 }]) === 120, 'partners: the better rank');
 check(T.rank([{ edhrecRank: 55 }]) === 55, 'MTGJSON\'s rank is read too');
@@ -107,6 +116,8 @@ const decks = P ? Object.entries(P.decks) : [];
 check(decks.length > 150, `${decks.length} printed Commander decks read ahead`);
 check(decks.every(([, r]) => Array.isArray(r[1]) && r[1].length && r[1].every(c => c[0] && /^[0-9a-f-]{36}$/.test(c[1] || ''))), 'every printed deck has a commander with a Scryfall id');
 check(decks.filter(([, r]) => r[2].length).length >= decks.length * 0.95, 'nearly every printed deck has a theme');
+check(decks.every(([, r]) => typeof r[3] === 'string' && /^W?U?B?R?G?$/.test(r[3])), 'every printed deck has its colour identity, in WUBRG order');
+check(decks.filter(([, r]) => r[0] > 0).length >= decks.length * 0.9, 'nearly every printed deck has its commander\'s place on EDHREC\'s list');
 const tagsOf = (file) => ((P && P.decks[file]) || [0, [], []])[2];
 for (const [file, tag] of [['DraconicDomination_C17', 'Dragons'], ['TramplesaurusRex_FDC', 'Dinosaurs'], ['ElvenEmpire_KHC', 'Elves'],
   ['ArcaneWizardry_C17', 'Instants & sorceries'], ['VampiricBloodlust_C17', 'Vampires']])
