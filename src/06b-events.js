@@ -358,8 +358,12 @@
       case 'draw': if (a && a.player) this._ev('draw', { player: a.player.id, count: a.n }); break;
       case 'game:over': this._ev('gameOver', { winners: (a || []).slice() }); break;
       case 'player:lost': if (a) this._ev('lose', { player: a.id, reason: a.lossReason || '' }); break;
-      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result }); break;
-      case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result }); break;
+      /* a die: the result kept, every die rolled and the ones ignored (Pixie Guide, Wyll), for which card;
+         a coin: heads or tails, won or lost, ignored (Krark's Thumb's other coin), for which card */
+      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result,
+        rolls: a.rolls || [a.result], ignored: a.ignored || [], source: a.sourceId || null, sourceName: a.sourceName || null }); break;
+      case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result, won: a.won != null ? !!a.won : a.result === 'heads',
+        ignored: !!a.ignored, source: a.sourceId || null, sourceName: a.sourceName || null, byHand: a.byHand || undefined }); break;
       case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;
       /* A few moments have a sound but nothing else in the stream to hang
          it on — the crown changing hands, day becoming night, a card

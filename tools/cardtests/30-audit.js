@@ -6402,4 +6402,57 @@ module.exports = (test) => {
       t.eq(T.g.zones.A.hand.length - h, drew, `Blaze for X=${x} (mana value ${x + 1}): ${drew ? 'a card' : 'no card'}`);
     }
   });
+
+  /* coins and dice, scripted: the next flips (true wins) and the next die faces */
+  const luck = (T, coins, dice) => { const c = coins.slice(), d = (dice || []).slice(); T.g.rng.chance = () => (c.length ? c.shift() : true); T.g.rng.range = (a) => (d.length ? d.shift() : a); };
+  const evsOf = (T, type) => (T.g.events || []).filter(e => e.type === type);
+
+  test('Audit: Yusri, Fortune\u2019s Flame flips the number chosen: a card for each win, 2 damage for each loss, free spells for five wins; once per attack, never on a tap', (mk, t) => {
+    t.auto("Yusri, Fortune's Flame");
+    for (const wins of [4, 5]) {
+      const T = mk(); T.toMain('A');
+      const y = T.bf('A', "Yusri, Fortune's Flame"); y.summoningSick = false;
+      const land = T.bf('A', 'Mountain');
+      T.g.tapForMana('A', land.id, 0); T.settle();
+      t.no(T.g.log.some(e => /Triggered: Yusri/.test(e.text || '')), 'a tap triggers nothing');
+      luck(T, wins === 5 ? [true, true, true, true, true] : [true, true, true, false, true]);
+      T.answer('mode', (ch) => ({ modes: [ch.options.find(o => o.label === '5').i] }));
+      T.answer('declareAttackers', () => [{ attackerId: y.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => []);
+      const h = T.g.zones.A.hand.length;
+      T.toMain('A', 'declareBlockers'); T.settle(); T.resolve();
+      t.eq(T.g.log.filter(e => /Triggered: Yusri/.test(e.text || '')).length, 1, 'once for the attack');
+      t.eq(T.g.zones.A.hand.length - h, wins, `${wins} cards`); t.eq(T.life('A'), 20 - 2 * (5 - wins), 'and 2 for each loss');
+      const coins = evsOf(T, 'coin');
+      t.eq(coins.length, 5); t.ok(coins.every(e => e.sourceName === "Yusri, Fortune's Flame" && typeof e.won === 'boolean' && e.ignored === false), 'each coin a table event, for Yusri');
+      const bolt = T.hand('A', 'Lightning Bolt');
+      t.eq(T.g.canCast('A', bolt.id).cost === '', wins === 5, wins === 5 ? 'five wins: spells from hand for free this turn' : 'four: not free');
+    }
+  });
+
+  test('Audit: Krark\u2019s Thumb keeps one coin of two (a win if there is one); Wyll, Pixie Guide, Barbarian Class roll a die more and drop the lowest; Mana Clash flips until both heads', (mk, t) => {
+    for (const n of ["Krark's Thumb", 'Wyll, Blade of Frontiers', 'Pixie Guide', 'Barbarian Class', 'Mana Clash', 'Stitch in Time']) t.auto(n);
+    let T = mk(); T.toMain('A');
+    T.bf('A', "Krark's Thumb");
+    luck(T, [false, true]);
+    T.mana('A', 'UR1'); T.cast('A', T.hand('A', 'Stitch in Time'));
+    t.eq(T.g.extraTurnsQueue.length, 1, 'Stitch in Time: the win kept, an extra turn');
+    t.eq(evsOf(T, 'coin').map(e => (e.won ? 'W' : 'L') + (e.ignored ? '-' : '')).join(','), 'L-,W', 'two coins shown, the lost one ignored');
+    for (const n of ['Wyll, Blade of Frontiers', 'Pixie Guide', 'Barbarian Class']) {
+      T = mk(); T.toMain('A');
+      T.bf('A', n);
+      luck(T, [], [7, 15]);
+      t.eq(T.g._rollDie(T.g.player('A'), 20), 15, n + ': the higher die');
+      const r = evsOf(T, 'roll').pop();
+      t.eq(JSON.stringify([r.result, r.rolls, r.ignored]), '[15,[7,15],[7]]', 'both dice shown, the lower ignored');
+    }
+    T = mk(); T.toMain('A');
+    const r0 = T.g._rollDie(T.g.player('A'), 6);
+    t.eq(evsOf(T, 'roll').pop().rolls.length, 1, 'with none of them, one die'); t.ok(r0 >= 1 && r0 <= 6);
+    T = mk(); T.toMain('A');
+    luck(T, [false, true, true, false, true, true]);
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Mana Clash'), { targets: ['B'] });
+    t.eq([T.life('A'), T.life('B')].join(','), '19,19', 'Mana Clash: 1 for each tails, until both heads');
+    t.eq(evsOf(T, 'coin').length, 6);
+  });
 };

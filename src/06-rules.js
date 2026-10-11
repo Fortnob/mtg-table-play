@@ -3755,13 +3755,47 @@
       return live.slice(i).concat(live.slice(0, i));
     }
     /** One coin flipped by a player: the result told and shown, and the win or loss seen by triggers. */
-    _flipOne(p) {
-      const won = this.rng.chance(0.5);
+    /* A coin flipped, or a die rolled, as the table shows it: who, for what card, what came up, and
+       what was set aside (Krark's Thumb's other coin, Pixie Guide's and Wyll's lower dice) */
+    _luckSource(opts) {
+      const s = (opts && opts.source) || (this.resolving && this.resolving.ctx && this.resolving.ctx.obj) || null;
+      return s ? { sourceId: s.id || null, sourceName: s.name || null } : { sourceId: null, sourceName: null };
+    }
+    /** How many of a standing rule this player's permanents have (Krark's Thumb, Pixie Guide, Wyll). */
+    _luckRules(pid, op) {
+      return this.battlefield.filter(o => o.controller === pid && !o.phasedOut && this._staticOp(o, op)).length;
+    }
+    _flipOne(p, opts) {
+      /* Krark's Thumb: "If you would flip a coin, instead flip two coins and ignore one" — and two
+         Thumbs four coins (CR 705.3): a win kept when there is one */
+      const n = Math.min(8, 2 ** this._luckRules(p.id, 'flipTwoIgnoreOne'));
+      const flips = Array.from({ length: n }, () => this.rng.chance(0.5));
+      const keep = Math.max(0, flips.indexOf(true));
+      const won = flips[keep];
+      const src = this._luckSource(opts);
+      flips.forEach((w, i) => {
+        if (n > 1) this.logEvent('rules', `${p.name} flips a coin: ${w ? 'heads' : 'tails'}${i === keep ? '' : ' (ignored)'}.`);
+        this.emit('coin', Object.assign({ playerId: p.id, result: w ? 'heads' : 'tails', won: w, ignored: i !== keep }, src));
+      });
       this.logEvent('rules', `${p.name} flips a coin: ${won ? 'heads — they win the flip' : 'tails — they lose it'}.`);
-      this.emit('coin', { playerId: p.id, result: won ? 'heads' : 'tails' });
       this._fire(won ? 'youWinFlip' : 'youLoseFlip', p.id, { playerId: p.id });
       if (won) this._fire('anyWinFlip', null, { playerId: p.id });
       return won;
+    }
+    /**
+     * Roll a die: the result kept, with every die rolled and those ignored. Wyll, Blade of Frontiers,
+     * Pixie Guide, Barbarian Class: "roll that many dice plus one and ignore the lowest roll".
+     */
+    _rollDie(p, sides, opts) {
+      sides = Math.max(1, sides | 0);
+      const extra = this._luckRules(p.id, 'rollExtraIgnoreLowest');
+      const rolls = Array.from({ length: 1 + Math.min(6, extra) }, () => this.rng.range(1, sides));
+      const result = Math.max(...rolls);
+      const sorted = rolls.slice().sort((x, y) => x - y);
+      const ignored = sorted.slice(0, rolls.length - 1);
+      this.logEvent((opts && opts.logType) || 'rules', `${p.name} rolls a d${sides}: ${result}${ignored.length ? ` (also ${ignored.join(', ')}, ignored)` : ''}.`);
+      this.emit('roll', Object.assign({ playerId: p.id, sides, result, rolls, ignored }, this._luckSource(opts)));
+      return result;
     }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
@@ -10142,6 +10176,8 @@
         }
         /* the Battlemages: "if it was kicked with its {W} kicker" — that cost among the ones
            paid, asked of the spell or of the permanent it became (as "kicked" is) */
+        // Yusri, Fortune's Flame: "if you won five flips this way" (flipsWonCond)
+        case 'flipsWonAtLeast': return (this._flipsWon || 0) >= (cond.n || 1);
         case 'kickedWith': {
           const ks = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           const paid = (ctx && ctx.kicked != null ? ctx.kickPaid : ks && ks.kickPaid) || [];
@@ -20988,9 +21024,7 @@
         /* "Roll a d20." The result is kept for the sentence after it. */
         case 'rollDie': {
           const sides = n(e.sides) || 20;
-          this._lastRoll = 1 + Math.floor(this.rng.next() * sides);
-          this.logEvent('rules', `${me.name} rolls a d${sides}: ${this._lastRoll}.`);
-          this.emit('roll', { playerId: ctx.controller, sides, result: this._lastRoll });
+          this._lastRoll = this._rollDie(me, sides);
           this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
           // the results printed under the roll
           const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
@@ -20999,15 +21033,34 @@
         }
         // "Flip three coins", "Flip a coin until you lose a flip": the wins counted
         case 'flipCoins': {
-          let wins = 0;
-          if (e.untilLose) { for (let k = 0; k < 50 && this._flipOne(me); k++) wins++; }
-          else for (let k = 0; k < (n(e.n) || 1); k++) if (this._flipOne(me)) wins++;
+          let wins = 0, flips = 0;
+          if (e.untilLose) { for (let k = 0; k < 50; k++) { flips++; if (!this._flipOne(me)) break; wins++; } }
+          else {
+            // (Yusri: "that many", the number just chosen — flipChosen)
+            const cnt = e.n === 'chosenNumber' ? Math.max(0, ctx.chosenNumber || 0) : (n(e.n) || 1);
+            for (let k = 0; k < cnt; k++) { flips++; if (this._flipOne(me)) wins++; }
+          }
           this._flipsWon = wins;
+          this._flipsLost = flips - wins;
+          break;
+        }
+        // Mana Clash: you and the opponent flip, 1 damage to each tails, until both come up heads (manaClash)
+        case 'manaClash': {
+          const opp = firstPlayer();
+          if (!opp) break;
+          for (let k = 0; k < 100; k++) {
+            if (me.hasLost || opp.hasLost) break;
+            const a = this._flipOne(me), b = this._flipOne(opp);
+            if (!a) this.dealDamageToPlayer(me, 1, src);
+            if (!b) this.dealDamageToPlayer(opp, 1, src);
+            if (a && b) break;
+          }
           break;
         }
         // "For each flip you won, …"
         case 'repeatPerFlip': {
-          const k = this._flipsWon || 0;
+          // (Yusri: "for each flip you lose" — flipsLost)
+          const k = (e.lost ? this._flipsLost : this._flipsWon) || 0;
           const run = [];
           for (let i = 0; i < k; i++) run.push(...(e.effects || []));
           if (run.length) this._spliceNext(run);
@@ -24024,15 +24077,14 @@
         case 'reveal': this.logEvent('manual', `${p.name} reveals ${o ? o.name : 'a card'}.`); break;
         case 'roll': {
           const sides = data.sides || 6;
-          const r = this.rng.range(1, sides);
-          this.logEvent('manual', `${p.name} rolls a d${sides}: ${r}.`);
-          this.emit('roll', { playerId, sides, result: r });
+          this._rollDie(p, sides, { logType: 'manual' });
           break;
         }
         case 'coin': {
           const r = this.rng.chance(0.5) ? 'heads' : 'tails';
           this.logEvent('manual', `${p.name} flips a coin: ${r}.`);
-          this.emit('coin', { playerId, result: r });
+          // (a coin flipped by hand: no flip won or lost, nothing ignored)
+          this.emit('coin', { playerId, result: r, won: r === 'heads', ignored: false, sourceId: null, sourceName: null, byHand: true });
           break;
         }
         case 'setLife': p.life = data.n; this.logEvent('manual', `${p.name} sets life to ${data.n}.`); break;

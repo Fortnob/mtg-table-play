@@ -3242,6 +3242,18 @@
     // coins: several at once, or until one is lost, counting the wins
     { re: /^Flip (two|three|four|five|\d+) coins\.?$/i, make: (m) => ({ op: 'flipCoins', n: num(m[1]) }) },
     { re: /^Flip a coin until you lose a flip\.?$/i, make: () => ({ op: 'flipCoins', untilLose: true }) },
+    // Mana Clash: both flip, tails hurts, until both come up heads together — the whole loop in its first sentence (manaClash)
+    { re: /^You and target opponent each flip a coin\.?$/i, make: () => ({ op: 'manaClash', targets: [{ type: 'player', opponent: true }] }) },
+    { re: /^CARDNAME deals 1 damage to each player whose coin comes up tails\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^Repeat this process until both players' coins come up heads on the same flip\.?$/i, make: () => ({ op: 'noop' }) },
+    // Yusri, Fortune's Flame: "Flip that many coins" — the number just chosen (flipChosen)
+    { re: /^Flip that many coins\.?$/i, make: () => ({ op: 'flipCoins', n: 'chosenNumber' }) },
+    // Yusri: "For each flip you lose, Yusri deals 2 damage to you." (flipsLost)
+    { re: /^For each flip you (?:lose|lost), (.+)$/i,
+      make: (m) => { const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return pe.auto && pe.effects.length ? { op: 'repeatPerFlip', lost: true, effects: pe.effects } : null; } },
+    // Yusri: "you may cast spells from your hand this turn without paying their mana costs" — Omniscience for the turn
+    { re: /^You may cast spells from your hand this turn without paying their mana costs\.?$/i,
+      make: () => ({ op: 'getEmblem', emblemText: 'You may cast spells from your hand without paying their mana costs.', thisTurn: true, name: 'Until end of turn' }) },
     // "For each flip you won, create a token that's a copy of that creature."
     { re: /^For each flip you (?:win|won), (.+)$/i,
       make: (m) => { const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return pe.auto && pe.effects.length ? { op: 'repeatPerFlip', effects: pe.effects } : null; } },
@@ -9813,6 +9825,8 @@
     [/^(?:CARDNAME|this spell|it|he|she|they) (?:was|were) kicked$/i, () => ({ kind: 'kicked', n: 1 })],
     // the Battlemages: "if it was kicked with its {W} kicker" — that one of its "and/or" kicker costs
     [/^(?:CARDNAME|this spell|it) was kicked with its ((?:\{[^}]+\})+) kicker$/i, (m) => ({ kind: 'kickedWith', cost: m[1] })],
+    // Yusri, Fortune's Flame: "if you won five flips this way" (flipsWonCond)
+    [/^you won (one|two|three|four|five|\d+) flips? this way$/i, (m) => ({ kind: 'flipsWonAtLeast', n: num(m[1]) })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
@@ -14977,6 +14991,10 @@
       { re: /^Your opponents can'?t search libraries\.?$/i, eff: { op: 'noSearch', who: 'opponents' }, auto: true },
       // Tainted Remedy, Plague Drone: "If an opponent would gain life, that player loses that much life instead."
       { re: /^If an opponent would gain life, that player loses that much life instead\.?$/i, eff: { op: 'gainBecomesLoss' }, auto: true },
+      // Krark's Thumb: one coin of two kept (flipTwoIgnoreOne)
+      { re: /^If you would flip a coin, instead flip two coins and ignore one\.?$/i, eff: { op: 'flipTwoIgnoreOne' }, auto: true },
+      // Wyll, Pixie Guide, Barbarian Class: a die more, the lowest ignored (rollExtraIgnoreLowest)
+      { re: /^If you would roll one or more dice, instead roll that many dice plus one and ignore the lowest roll\.?$/i, eff: { op: 'rollExtraIgnoreLowest' }, auto: true },
       // Stranglehold, Ugin's Nexus: "If a player (an opponent) would begin an extra turn, that player skips that turn instead."
       { re: /^If (a player|an opponent) would begin an extra turn, that player skips that turn instead\.?$/i,
         make: (m) => ({ op: 'skipExtraTurns', who: /opponent/i.test(m[1]) ? 'opponents' : 'all' }), auto: true },
