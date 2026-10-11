@@ -212,8 +212,8 @@ html[data-play="1"] .shard-chip { display: none; }
   100% { transform: translate(-40px, -110px) rotate(-14deg) scale(.82); opacity: 0; filter: brightness(1.4); } }
 
 /* the cards */
-.po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 18px 16px; justify-content: center; align-content: center; }
-.po-grid.many { gap: 16px 12px; padding-bottom: 30px; }
+.po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 30px 16px; justify-content: center; align-content: center; }
+.po-grid.many { gap: 28px 12px; padding: 14px 0 30px; }
 .po-card { --w: clamp(84px, min(10.5vw, calc(29 * var(--vh, 1vh))), 200px);
   position: relative; width: var(--w); aspect-ratio: 63 / 88; padding: 0; border: 0; background: none; cursor: pointer; z-index: 1;
   perspective: 1000px; opacity: 0; transition: transform .22s ease-out, filter .2s;
@@ -264,6 +264,16 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-tags { position: absolute; left: 0; right: 0; bottom: -11px; z-index: 2; display: flex; justify-content: center; gap: 4px; pointer-events: none;
   opacity: 0; transform: translateY(4px); transition: opacity .3s .45s, transform .3s .45s; }
 .po-card.flipped .po-tags { opacity: 1; transform: none; }
+/* its price, near mint, over it */
+.po-price { position: absolute; left: 50%; top: -12px; z-index: 2; transform: translate(-50%, -4px); pointer-events: none; white-space: nowrap;
+  padding: 1px 8px; border-radius: 99px; font: 700 11px/1.55 var(--font); font-variant-numeric: tabular-nums; color: #cfe8d2;
+  background: rgba(14, 20, 16, .92); border: 1px solid rgba(140, 200, 150, .35); box-shadow: 0 2px 6px rgba(0,0,0,.55);
+  opacity: 0; transition: opacity .3s .45s, transform .3s .45s; }
+.po-card.flipped .po-price { opacity: 1; transform: translate(-50%, 0); }
+.po-price.mid { color: #e9ffe9; border-color: rgba(120, 230, 140, .6); }
+.po-price.hi { color: #1a1205; border-color: #ffe9a8; background: linear-gradient(180deg, var(--gold-1, #f3dd96), var(--gold-2, #b8912f)); }
+.po-price.serial { color: #2a1a00; border-color: #ffe9a8; background: linear-gradient(100deg, #f6c94c, #fff1b8 45%, #e2a72a); box-shadow: 0 0 12px rgba(255, 210, 90, .8); }
+.po-grid.many .po-price { font-size: 10px; padding: 0 6px; top: -10px; }
 .po-new { padding: 1px 8px; border-radius: 99px; font: 800 10.5px/1.6 var(--font); letter-spacing: .1em; text-transform: uppercase; color: #1a1205;
   background: linear-gradient(180deg, var(--gold-1, #f3dd96), var(--gold-2, #b8912f)); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .po-count-tag { padding: 1px 7px; border-radius: 99px; font: 800 10.5px/1.6 var(--font); color: #f0e9d8; background: rgba(20, 22, 30, .95); border: 1px solid rgba(255,255,255,.2); }

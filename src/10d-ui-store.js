@@ -16,6 +16,8 @@
   const RAR = ['common', 'uncommon', 'rare', 'mythic'];
   const RAR_NAME = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', mythic: 'Mythic' };
   const fmtN = (n) => Number(n || 0).toLocaleString();
+  /** A price in dollars: cents under a hundred, whole dollars above. */
+  const fmtUsd = (n) => '$' + (n < 100 ? n.toFixed(2) : Math.round(n).toLocaleString());
 
   /** The Shard: a little faceted crystal. */
   /* (each one its own gradient: one shared by id stops drawing when the
@@ -2142,6 +2144,12 @@
         front.appendChild(el('div', { class: 'po-sheen' }));
       }
       const col = i % cols, row = Math.floor(i / cols), rows = Math.ceil(n / cols);
+      /* What the card goes for, near mint (the market price, in its finish):
+         over it once it is turned. The One Ring, 1 of 1, has no price. */
+      const usd = it.card ? E().cardValue(it) : 0;
+      const price = it.serial ? el('div', { class: 'po-price serial', text: 'Priceless', title: 'There is only one' })
+        : usd > 0 ? el('div', { class: 'po-price' + (usd >= 20 ? ' hi' : usd >= 3 ? ' mid' : ''), text: fmtUsd(usd),
+          title: `${fmtUsd(usd)} each, near mint${it.foil ? ', foil' : ''}` }) : null;
       const t = el('button', { type: 'button', class: `po-card r-${r}${big ? ' big' : ''}`, 'aria-label': 'A card, face down', style: {
         '--i': String(i),
         '--ox': ((cols - 1) / 2 - col).toFixed(2), '--oy': ((rows - 1) / 2 - row).toFixed(2),
@@ -2151,6 +2159,7 @@
           (() => { const b = el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]); UI.applySleeve(b, S.sleeveWorn()); return b; })(),
           front,
         ]),
+        price,
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
@@ -2396,6 +2405,7 @@
       head.append(el('div', { class: 'po-title', text: `${info.name}: ${results.length} pack${results.length === 1 ? '' : 's'}` }),
         el('div', { class: 'po-sub' }, [
           document.createTextNode(`${total} cards · ${fresh} new`),
+          (() => { const v = items.reduce((n, it) => n + (it.card ? E().cardValue(it) * (it.count || 1) : 0), 0); return v > 0 ? document.createTextNode(` · ${fmtUsd(v)} near mint`) : null; })(),
           shardsIn ? el('span', { html: ` · +${shardSvg()}${fmtN(shardsIn)} for extra copies` }) : null,
           ...RAR.filter(r => wcs[r]).map(r => el('span', { class: 'po-wcsum' }, [wcIcon(r, wcs[r])])),
         ].filter(Boolean)));
