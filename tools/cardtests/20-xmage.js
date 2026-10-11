@@ -27324,4 +27324,284 @@ module.exports = (test) => {
     M.nextTurn('B');
     t.ok(M.g.log.some(l => /Captive Audience/.test(l.text) && /resolves/.test(l.text)), "Captive Audience: it triggers in B's upkeep");
   });
+
+  test("Commanders: Gogo, Master of Mimicry — a trigger copied X times; X can't be 0; its own ability can't be copied", (mk, t) => {
+    t.auto('Gogo, Master of Mimicry'); t.auto('Lithoform Engine');
+    const setup = () => {
+      const M = mk();
+      M.toMain('A');
+      const gogo = M.bf('A', 'Gogo, Master of Mimicry');
+      M.put('A', 'Kitchen Finks', 'battlefield', { etb: true });
+      M.g._putTriggersOnStack();
+      const trig = M.g.stack.find(s => s.kind === 'ability');
+      return { M, gogo, trig };
+    };
+    let { M, gogo, trig } = setup();
+    M.mana('A', '4');
+    M.activate('A', gogo, 0, { x: 2, targets: [{ kind: 'stack', id: trig.id }] });
+    t.eq(M.life('A'), 26, 'Gogo: gained 2 three times, the trigger and two copies');
+    t.ok(gogo.tapped, 'Gogo: tapped');
+    // X can't be 0
+    ({ M, gogo, trig } = setup());
+    t.no(M.g.activateAbility('A', gogo.id, 0, { auto: true, x: 0, targets: [{ kind: 'stack', id: trig.id }] }), "Gogo: X can't be 0");
+    t.no(gogo.tapped, 'Gogo: nothing paid');
+    // only abilities its controller controls
+    ({ M, gogo, trig } = setup());
+    trig.controller = 'B';
+    const spec = gogo.analysis().abilities.find(a => a.kind === 'activated').effects[0].targets[0];
+    t.no(M.g._legalTargetsFor(spec, 'A', gogo.id).some(x => x.id === trig.id), 'Gogo: not an ability B controls');
+    // Lithoform Engine pointed at Gogo's ability copies nothing
+    ({ M, gogo, trig } = setup());
+    const lith = M.bf('A', 'Lithoform Engine');
+    M.mana('A', '2');
+    M.activate('A', gogo, 0, { x: 1, targets: [{ kind: 'stack', id: trig.id }], resolve: false });
+    const gst = M.g.stack.find(s => s.objId === gogo.id);
+    M.mana('A', '2');
+    M.activate('A', lith, 0, { targets: [{ kind: 'stack', id: gst.id }] });
+    t.eq(M.life('A'), 24, "Gogo: Lithoform Engine makes no copy of Gogo's ability — the trigger and one copy");
+  });
+
+  test('Commanders: Heliod, the Radiant Dawn // Heliod, the Warped Eclipse — transformed, spells cost {1} less for each card opponents drew this turn, and have flash', (mk, t) => {
+    t.auto('Heliod, the Radiant Dawn // Heliod, the Warped Eclipse');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.toMain('A');
+    const h = M.bf('A', 'Heliod, the Radiant Dawn // Heliod, the Warped Eclipse');
+    M.mana('A', '3U');
+    M.activate('A', h, 0);
+    t.eq(h.face, 1, 'Heliod: transformed');
+    const div = M.hand('A', 'Divination');
+    M.g.drawCards('A', 2);
+    t.eq(M.g.canCast('A', div.id).cost, '{2}{U}', "Heliod, the Warped Eclipse: A's own draws don't count");
+    M.g.drawCards('B', 2);
+    t.eq(M.g.canCast('A', div.id).cost, '{U}', 'Heliod, the Warped Eclipse: B drew two, {2} less');
+    M.mana('A', 'U');
+    M.cast('A', div);
+    t.zone(div, 'graveyard', 'Heliod, the Warped Eclipse: Divination cast for {U}');
+    // next turn: the count starts again (B's draw step drew one), and spells have flash on B's turn
+    M.nextTurn('B');
+    M.g.priorityIndex = M.g.turnOrder.indexOf('A');
+    const bears = M.hand('A', 'Grizzly Bears');
+    const sorc = M.hand('A', 'Divination');
+    t.eq(M.g.canCast('A', sorc.id).cost, '{1}{U}', "Heliod, the Warped Eclipse: a new turn, B's one draw counted");
+    M.mana('A', 'G');
+    t.ok(M.g.castSpell('A', bears.id, { auto: true }), "Heliod, the Warped Eclipse: Grizzly Bears cast on B's turn for {G}");
+    M.resolve();
+    t.zone(bears, 'battlefield');
+  });
+
+  test('Commanders: Zada, Hedron Grinder — a spell aimed only at Zada copied for each other creature of yours it could target', (mk, t) => {
+    t.auto('Zada, Hedron Grinder');
+    const M = mk();
+    M.toMain('A');
+    const z = M.bf('A', 'Zada, Hedron Grinder');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const elves = M.bf('A', 'Llanowar Elves');
+    const ench = M.bf('A', 'Argothian Enchantress');
+    const giant = M.bf('B', 'Hill Giant');
+    const a0 = M.asked.length;
+    M.mana('A', 'G');
+    M.cast('A', M.hand('A', 'Giant Growth'), { targets: [z] });
+    t.eq(M.g.powerOf(z), 6, 'Zada: +3/+3');
+    t.eq(M.g.powerOf(bears), 5, 'Zada: a copy for Grizzly Bears');
+    t.eq(M.g.powerOf(elves), 4, 'Zada: a copy for Llanowar Elves');
+    t.eq(M.g.powerOf(ench), 0, "Zada: Argothian Enchantress has shroud — the spell couldn't target it");
+    t.eq(M.g.powerOf(giant), 3, "Zada: not B's Hill Giant");
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Zada: no new targets asked');
+    // a spell aimed at another creature: nothing
+    M.mana('A', 'G');
+    M.cast('A', M.hand('A', 'Giant Growth'), { targets: [bears] });
+    t.eq(M.g.powerOf(bears), 8, 'Zada: Giant Growth on Grizzly Bears, once');
+    t.eq(M.g.powerOf(elves), 4, 'Zada: no copies');
+    // an Aura spell is no instant or sorcery
+    M.mana('A', 'G');
+    const rancor = M.hand('A', 'Rancor');
+    M.cast('A', rancor, { targets: [z] });
+    t.eq(rancor.attachedTo, z.id, 'Zada: Rancor on Zada');
+    t.eq(M.g.battlefield.filter(o => o.name === 'Rancor').length, 1, 'Zada: no copies of an Aura spell');
+  });
+
+  test("Commanders: Hashaton, Scarab's Fist — a discarded creature card, for {2}{U}, a tapped 4/4 black Zombie copy", (mk, t) => {
+    t.auto("Hashaton, Scarab's Fist");
+    const M = mk();
+    M.toMain('A');
+    M.bf('A', "Hashaton, Scarab's Fist");
+    // something exiled earlier is not "that card"
+    M.g._lastExiled = M.put('A', 'Craw Wurm', 'exile').id;
+    const bears = M.hand('A', 'Grizzly Bears');
+    M.mana('A', '2U');
+    M.g._discardNow('A', [bears]);
+    M.resolve();
+    const tok = M.g.battlefield.find(o => o.isToken);
+    t.ok(tok && tok.name === 'Grizzly Bears', "Hashaton: a copy of Grizzly Bears");
+    t.ok(tok && tok.tapped, 'Hashaton: tapped');
+    t.eq(tok && [M.g.powerOf(tok), M.g.toughnessOf(tok)].join('/'), '4/4', 'Hashaton: 4/4');
+    t.ok(tok && M.g._hasSubtype(tok, 'Zombie') && !M.g._hasSubtype(tok, 'Bear'), 'Hashaton: a Zombie, not a Bear');
+    t.eq(tok && (tok.card.colors || []).join(), 'B', 'Hashaton: black');
+    t.eq(M.player('A').pool.total(), 0, 'Hashaton: {2}{U} paid');
+    // declined: nothing
+    const elves = M.hand('A', 'Llanowar Elves');
+    M.mana('A', '2U');
+    M.answer('payOrDont', { pay: false });
+    M.answer('confirm', { yes: false });
+    M.g._discardNow('A', [elves]);
+    M.resolve();
+    t.no(M.g.battlefield.some(o => o.isToken && o.name === 'Llanowar Elves'), 'Hashaton: not paid, no token');
+    // a land card: no trigger
+    const n0 = M.asked.length;
+    M.g._discardNow('A', [M.hand('A', 'Forest')]);
+    M.resolve();
+    t.eq(M.asked.length, n0, 'Hashaton: a land discarded, nothing asked');
+  });
+
+  test("Commanders: Slicer, Hired Muscle // Slicer, High-Speed Antagonist — lent to the opponent for their turn, untapped, goaded and unsacrificable; or converted", (mk, t) => {
+    t.auto('Slicer, Hired Muscle // Slicer, High-Speed Antagonist');
+    const M = mk({ library: Array(20).fill('Mountain') });
+    M.toMain('A');
+    const sl = M.bf('A', 'Slicer, Hired Muscle // Slicer, High-Speed Antagonist', { tapped: true });
+    let asked = null;
+    M.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    M.nextTurn('B');
+    t.ok(asked && /gain control of/i.test(asked.prompt) && /If you don't, convert it/i.test(asked.prompt), 'Slicer: asked, the whole line');
+    t.eq(asked && asked.playerId, 'A', 'Slicer: A decides');
+    t.eq(sl.controller, 'B', "Slicer: B controls it on B's turn");
+    t.no(sl.tapped, 'Slicer: untapped');
+    t.eq(sl.goadedBy, 'A', 'Slicer: goaded by A');
+    t.no(M.g._canSacrifice(sl), "Slicer: can't be sacrificed this turn");
+    t.no(M.g._sacrificePool('B', { filter: 'creature' }).includes(sl), 'Slicer: not in B\'s sacrifice pool');
+    t.eq(sl.face || 0, 0, 'Slicer: not converted');
+    M.nextTurn('A');
+    t.eq(sl.controller, 'A', 'Slicer: back to A after the end of turn');
+    t.ok(M.g._canSacrifice(sl), 'Slicer: can be sacrificed again');
+    // declined: converted
+    M.answer('confirm', { yes: false });
+    M.nextTurn('B');
+    t.eq(sl.controller, 'A', 'Slicer: declined, A keeps it');
+    t.eq(sl.face, 1, 'Slicer: converted to Slicer, High-Speed Antagonist');
+    // not at A's own upkeep
+    const n0 = M.asked.filter(ch => ch.type === 'confirm').length;
+    M.nextTurn('A');
+    t.eq(M.asked.filter(ch => ch.type === 'confirm').length, n0, "Slicer: nothing at A's upkeep");
+  });
+
+  test('Commanders: Dihada, Binder of Wills — −3 legendary cards to hand, a Treasure for each card to the graveyard; −11 every nonland permanent, untapped with haste', (mk, t) => {
+    t.auto('Dihada, Binder of Wills');
+    const M = mk({ library: Array(10).fill('Plains') });
+    M.toMain('A');
+    const d = M.bf('A', 'Dihada, Binder of Wills');
+    for (const nm of ['Thalia, Guardian of Thraben', 'Llanowar Elves', 'Grizzly Bears', 'Isamaru, Hound of Konda']) M.top('A', nm);
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort().join(); return { cardIds: ch.cards.filter(c => /Isamaru/.test(c.name)).map(c => c.id) }; });
+    M.activate('A', d, 1);
+    t.eq(offered, 'Isamaru, Hound of Konda,Thalia, Guardian of Thraben', 'Dihada: only the legendary cards offered');
+    t.eq(M.names(M.zone('A', 'hand')).join(), 'Isamaru, Hound of Konda', 'Dihada: Isamaru to hand');
+    t.eq(M.names(M.zone('A', 'graveyard')).sort().join(), 'Grizzly Bears,Llanowar Elves,Thalia, Guardian of Thraben', 'Dihada: the rest to the graveyard');
+    t.eq(M.bfOf('A').filter(o => o.name === 'Treasure').length, 3, 'Dihada: three Treasures');
+    t.eq(d.counters.loyalty, 2, 'Dihada: 5 − 3');
+    // no legendary card: nothing asked, four Treasures
+    const M2 = mk({ library: Array(10).fill('Plains') });
+    M2.toMain('A');
+    const d2 = M2.bf('A', 'Dihada, Binder of Wills');
+    const n0 = M2.asked.length;
+    M2.activate('A', d2, 1);
+    t.eq(M2.asked.length, n0, 'Dihada: no legendary card, nothing asked');
+    t.eq(M2.bfOf('A').filter(o => o.name === 'Treasure').length, 4, 'Dihada: four Treasures');
+    // −11
+    const M3 = mk({ library: Array(10).fill('Plains') });
+    M3.toMain('A');
+    const d3 = M3.bf('A', 'Dihada, Binder of Wills', { counters: { loyalty: 11 } });
+    const bears = M3.bf('B', 'Grizzly Bears', { tapped: true, sick: true });
+    const ring = M3.bf('B', 'Sol Ring', { tapped: true });
+    const forest = M3.bf('B', 'Forest', { tapped: true });
+    M3.activate('A', d3, 2);
+    t.eq(bears.controller, 'A', 'Dihada: Grizzly Bears taken');
+    t.eq(ring.controller, 'A', 'Dihada: Sol Ring taken');
+    t.eq(forest.controller, 'B', 'Dihada: not the Forest');
+    t.no(bears.tapped || ring.tapped, 'Dihada: untapped');
+    t.ok(forest.tapped, 'Dihada: the Forest stays tapped');
+    t.ok(M3.g.hasKw(bears, 'haste'), 'Dihada: haste');
+    M3.nextTurn('B');
+    t.eq(bears.controller, 'B', 'Dihada: back at end of turn');
+    t.no(M3.g.hasKw(bears, 'haste'), 'Dihada: no haste');
+  });
+
+  test("Commanders: Neyali, Suns' Vanguard — tokens attacking exile the top card, playable during any turn A attacked with a token", (mk, t) => {
+    t.auto("Neyali, Suns' Vanguard");
+    const M = mk({ library: Array(20).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', "Neyali, Suns' Vanguard");
+    const tok = M.bf('A', 'Grizzly Bears');
+    tok.isToken = true;
+    const bears = M.bf('A', 'Llanowar Elves');
+    const shock = M.top('A', 'Shock');
+    const attack = (who) => {
+      M.answer('declareAttackers', () => who.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      M.answer('declareBlockers', () => []);
+      M.toMain('A', 'declareBlockers');
+      M.resolve();
+    };
+    attack([tok]);
+    t.zone(shock, 'exile', 'Neyali: the top card exiled');
+    t.ok(M.g._impulseOpen(shock, 'A'), 'Neyali: playable — A attacked with a token this turn');
+    t.ok(M.g.hasKw(tok, 'double strike'), 'Neyali: the attacking token has double strike');
+    M.nextTurn('B');
+    t.no(M.g._impulseOpen(shock, 'A'), "Neyali: not on B's turn");
+    // A's next turn: not until a token attacks
+    M.nextTurn('A');
+    t.no(M.g._impulseOpen(shock, 'A'), 'Neyali: not before attacking');
+    const n0 = M.zone('A', 'exile').length;
+    attack([bears]);
+    t.eq(M.zone('A', 'exile').length, n0, 'Neyali: a nontoken attacker, no trigger');
+    t.no(M.g._impulseOpen(shock, 'A'), 'Neyali: nor leave to play it');
+    M.nextTurn('A');
+    attack([tok]);
+    t.ok(M.g._impulseOpen(shock, 'A'), 'Neyali: a token attacked again, playable again');
+    M.mana('A', 'R');
+    M.cast('A', shock, { targets: ['B'] });
+    t.zone(shock, 'graveyard', 'Neyali: Shock cast from exile');
+  });
+
+  test('Commanders: Rona, Herald of Invasion // Rona, Tolarian Obliterator — damage to it exiles a card at random from the source controller\'s hand: a land put onto the battlefield, a spell cast free', (mk, t) => {
+    t.auto('Rona, Herald of Invasion // Rona, Tolarian Obliterator');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.toMain('A');
+    const rona = M.bf('A', 'Rona, Herald of Invasion // Rona, Tolarian Obliterator');
+    M.mana('A', '5B');
+    M.activate('A', rona, 1);
+    t.eq(rona.face, 1, 'Rona: transformed');
+    const bear = M.bf('B', 'Grizzly Bears');
+    // a land: put onto the battlefield under A's control
+    const forest = M.hand('B', 'Forest');
+    M.g.dealDamageToObject(rona, 2, bear);
+    M.resolve();
+    t.zone(forest, 'battlefield', 'Rona: B\'s Forest exiled and put onto the battlefield');
+    t.eq(forest.controller, 'A', 'Rona: under A\'s control');
+    // a spell: cast without paying its mana cost
+    const div = M.hand('B', 'Divination');
+    const h0 = M.zone('A', 'hand').length;
+    M.g.dealDamageToObject(rona, 1, bear);
+    M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'Rona: Divination cast free, two cards for A');
+    t.zone(div, 'graveyard', "Rona: to its owner's graveyard");
+    t.eq(M.player('A').pool.total(), 0, 'Rona: no mana spent');
+    // declined: the card stays exiled
+    const div2 = M.hand('B', 'Divination');
+    M.answer('confirm', { yes: false });
+    M.g.dealDamageToObject(rona, 1, bear);
+    M.resolve();
+    t.zone(div2, 'exile', 'Rona: not cast, still exiled');
+    // an empty hand: nothing asked
+    rona.damage = 0;
+    const n0 = M.asked.length;
+    M.g.dealDamageToObject(rona, 1, bear);
+    M.resolve();
+    t.eq(M.asked.length, n0, 'Rona: B has no cards, nothing asked');
+    // A's own source: from A's hand
+    const mine = M.bf('A', 'Llanowar Elves');
+    for (const o of M.zone('A', 'hand').slice()) M.g.moveObject(o, 'library');
+    const plains = M.hand('A', 'Plains');
+    t.zone(rona, 'battlefield');
+    M.g.dealDamageToObject(rona, 1, mine);
+    M.resolve();
+    t.zone(plains, 'battlefield', "Rona: A's own source, a card from A's hand");
+  });
 };

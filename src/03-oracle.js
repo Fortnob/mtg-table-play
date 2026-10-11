@@ -1449,6 +1449,12 @@
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
       make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true }, { op: 'untap', scope: 'self' },
         { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
+    /* Slicer, Hired Muscle: "you may have that player gain control of Slicer until end of turn. If you do,
+       untap Slicer, goad it, and it can't be sacrificed this turn." — whose upkeep it is */
+    { re: /^Have that player gain control of CARDNAME until end of turn\.?$/i,
+      make: () => ({ op: 'giveControl', to: 'triggerPlayer', self: true, until: 'eot' }) },
+    { re: /^Untap CARDNAME, goad it, and it can'?t be sacrificed this turn\.?$/i,
+      make: () => [{ op: 'untap', scope: 'self' }, { op: 'goad', scope: 'self' }, { op: 'restrict', flag: 'unsacrificable', scope: 'self' }] },
     // Emrakul, the World Anew: "gain control of all creatures target player controls" (stealAll)
     { re: /^Gain control of all (creatures|artifacts|permanents) target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'stealAll', what: m[1].toLowerCase().replace(/s$/, ''), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
@@ -1545,6 +1551,9 @@
       } },
     // Katara, Ruthless Technomancer: "X can't be 0." — said of an ability's X; nothing to do as it resolves
     { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop' }) },
+    /* Gogo, Master of Mimicry: "This ability can't be copied and X can't be 0." — X of 1 or more is
+       asked of the activation, and copying it makes nothing */
+    { re: /^This ability can'?t be copied and X can'?t be 0\.?$/i, make: () => ({ op: 'noop', uncopyable: true, xMin: 1 }) },
     // Noble Benefactor: "Then each player who searched their library this way shuffles."
     { re: /^Then each player who searched (?:their|a) library this way shuffles\.?$/i, make: () => ({ op: 'noop' }) },
     // Summon: Primal Odin's "that player loses the game" — the player the trigger is about
@@ -2248,7 +2257,8 @@
     { re: /^Return (?:it|CARDNAME|this card) to the battlefield (?:transformed|converted) under (?:its owner'?s|your) control\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'battlefield', transformed: true }) },
     // the Transformers: "convert Ratchet" is to transform it
-    { re: /^(you may )?convert (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent)|~)\.?$/i,
+    // (Slicer, Hired Muscle; Blaster, Combat DJ: "convert it" — always itself)
+    { re: /^(you may )?convert (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent)|~|it)\.?$/i,
       make: (m) => (m[1] ? { op: 'may', then: [{ op: 'transformSelf' }] } : { op: 'transformSelf' }) },
     { re: /^Shuffle (?:CARDNAME|this card|it) into (?:its|their) owner'?s library\.?$/i,
       make: () => ({ op: 'selfToLibrary', shuffle: true }) },
@@ -2797,12 +2807,13 @@
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
        The copy's targets are offered again as it is made. */
     /* (Tawnos, Urza's Apprentice: "… from an artifact source"; The Peregrine Dynamo:
-       "from another legendary source that's not a commander"; Mister Fantastic: "… twice") */
-    { re: /^Copy target (activated or triggered|triggered|activated) ability( you control)?(?: from (an? |another )(artifact|creature|enchantment|colorless|legendary) source( that's not a commander)?)?( twice)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
+       "from another legendary source that's not a commander"; Mister Fantastic: "… twice";
+       Gogo, Master of Mimicry: "… X times") */
+    { re: /^Copy target (activated or triggered|triggered|activated) ability( you control)?(?: from (an? |another )(artifact|creature|enchantment|colorless|legendary) source( that's not a commander)?)?( twice| X times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
       make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'ability', abilities: true, noSpells: true },
         /^(?:triggered|activated)$/i.test(m[1]) ? { abilityKind: m[1].toLowerCase() } : {}, m[2] ? { controller: 'you' } : {},
         m[4] ? { sourceWords: m[4].toLowerCase() } : {}, /^another/i.test(m[3] || '') ? { sourceOther: true } : {}, m[5] ? { sourceNotCommander: true } : {})] },
-        m[6] ? { times: 2 } : {}) },
+        m[6] ? { times: /X/.test(m[6]) ? 'X' : 2 } : {}) },
     { re: /^Copy target (?:instant or sorcery spell|instant spell, sorcery spell), activated ability, or triggered ability( you control)?\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: 'instant or sorcery', abilities: true },
         m[1] ? { controller: 'you' } : {})] }) },
@@ -2876,6 +2887,12 @@
     // Phyrexian Obliterator: "that source's controller sacrifices that many permanents of their choice"
     { re: /^(?:That source'?s controller|That player) sacrifices that many (permanents|creatures|lands)(?: of their choice)?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', who: 'triggerPlayer', n: 'triggerAmount', filter: m[1].toLowerCase().replace(/s$/, '') }) },
+    /* Rona, Tolarian Obliterator: "that source's controller exiles a card from their hand at random. If it's a land
+       card, you may put it onto the battlefield under your control. Otherwise, you may cast it without paying its
+       mana cost." — that card, put or cast as this resolves (CR 608.2g) */
+    { re: /^That source'?s controller exiles a card from their hand at random\.?$/i, make: () => ({ op: 'exileRandomFromHand', who: 'triggerPlayer' }) },
+    { re: /^If it'?s a land card, you may put it onto the battlefield under your control\.?$/i, make: () => ({ op: 'putExiledLand' }) },
+    { re: /^Otherwise, you may cast it without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
     // (To the Slaughter: "a creature and a planeswalker" is one of each, read by the rule further on)
     { re: /^[Tt]hat player sacrifices an? ([a-z ]+?) of their choice\.?$/,
       make: (m) => (/ and an? /.test(m[1]) ? null : { op: 'sacrificeChoice', who: 'triggerPlayer', n: 1, filter: m[1].toLowerCase() }) },
@@ -2896,6 +2913,9 @@
     { re: /^End the turn\.?$/i, make: () => ({ op: 'endTheTurn' }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
+    // Neyali, Suns' Vanguard: "During any turn you attacked with a token, you may play that card." — while it stays exiled
+    { re: /^During any turn you attacked with a token, you may play (?:that card|it|those cards|them)\.?$/i,
+      make: () => ({ op: 'impulseLast', duration: 'exiled', ifAttackedToken: true }) },
     // Inti: "You may play that card until your next end step."
     { re: /^You may play (?:that card|it|those cards|them) until your next end step\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextEnd' }) },
@@ -4841,6 +4861,11 @@
     { re: /^Put the rest on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
       make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
+    /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
+       your graveyard." */
+    { re: /^Put any number of ([a-z]+ )?cards from among them into your hand and the rest into your graveyard\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'graveyard',
+        prompt: `Choose any number of ${(m[1] || '').trim().toLowerCase() || 'the'} cards to put into your hand. The rest go into your graveyard.` }) },
     // Genesis Wave: "Reveal the top X cards of your library."
     { re: /^Reveal the top (X|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0, reveal: true }) },
@@ -5737,6 +5762,8 @@
       make: () => ({ op: 'destroyAll', what: 'creature', aboveTargetPower: true, targets: [{ type: 'creature' }] }) },
     // Insurrection: "Untap all creatures and gain control of them until end of turn."
     { re: /^Untap all creatures and gain control of them until end of turn\.?$/i, make: () => ({ op: 'threatenAll' }) },
+    // Dihada, Binder of Wills: "Gain control of all nonland permanents until end of turn." — "Untap them." its own sentence
+    { re: /^Gain control of all nonland permanents until end of turn\.?$/i, make: () => ({ op: 'threatenAll', what: 'nonland permanent', noUntap: true }) },
     // Temur Battle Rage: "That creature also gains trample until end of turn if you control a creature with power 4 or greater."
     { re: /^That creature also gains ([a-z ]+?) until end of turn if (.+?)\.?$/i,
       make: (m) => {
@@ -5927,9 +5954,12 @@
       make: () => ({ op: 'copyPermanent', n: 1, self: true, grant: [] }) },
     /* The Scarab God, Lazotep Quarry: "Create a token that's a copy of it,
        except it's a 4/4 black Zombie." */
-    { re: /^Create a token that'?s a copy of (it|that card|that creature|target [a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
-      make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], setColor: m[4], setType: m[5] },
-        /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : { scope: 'lastTarget' }) },
+    /* (Hashaton, Scarab's Fist: "create a tapped token that's a copy of that card" — the card discarded, when
+       nothing was exiled as this resolved: orTrigger) */
+    { re: /^Create a (tapped )?token that'?s a copy of (it|that card|that creature|target [a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
+      make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[3] + '/' + m[4], setColor: m[5], setType: m[6] },
+        /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }, /^that card$/i.test(m[2]) ? { orTrigger: true } : {},
+        m[1] ? { tapped: true } : {}) },
     /* Ratadrabik of Urborg: "… a copy of that creature, except it's not legendary and it's a 2/2 black Zombie in
        addition to its other colors and types"; The Jolly Balloon Man: "… a 1/1 red Balloon creature in addition to
        its other colors and types and it has flying and haste" (copyPlusKind) */
@@ -5987,6 +6017,11 @@
         if (!then.auto) return null;
         return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: m[1].toLowerCase() }, then: then.effects };
       } },
+    /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
+       Each copy targets a different one of those creatures." */
+    { re: /^Copy that spell for each other creature you control that the spell could target\.?$/i,
+      make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },
+    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
@@ -6519,7 +6554,11 @@
     if (/^player who lost life this turn$/i.test(p)) return { playersLostLife: true, mult: k };
     // Rakdos, Lord of Riots, Bloodsoaked Insight: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
     if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
+    // Dihada, Binder of Wills: "for each card put into your graveyard this way" — the rest of the cards looked at
+    if (/^card put into your graveyard this way$/i.test(p)) return { lookedToGraveyard: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
+    // Heliod, the Warped Eclipse: "for each card your opponents have drawn this turn"
+    if (/^card your opponents have drawn this turn$/i.test(p)) return { drawnThisTurn: 'opponents', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     // Sisay, Weatherlight Captain: "for each color among other legendary permanents you control" (colorsAmongScope)
     if ((m = p.match(/^colou?r among ((?:other )?[a-z]+ (?:permanents|creatures|artifacts|enchantments) you control)$/i))) {
@@ -9260,6 +9299,14 @@
           const inner = parseSentenceList(splitSentences(innerText));
           effects.push({ op: 'may', then: inner.effects.concat(thenPart.effects), text: s + ' ' + next });
           if (!inner.auto || !thenPart.auto) auto = false;
+          // Slicer, Hired Muscle: "… If you do, untap Slicer, …. If you don't, convert it."
+          const dont = (sentences[i + 2] || '').match(/^If you don'?t,\s*(.+)$/i);
+          if (dont) {
+            const op = parseSentenceList(splitSentences(U.titleCase(dont[1].charAt(0)) + dont[1].slice(1)));
+            Object.assign(effects[effects.length - 1], { otherwise: op.effects, text: s + ' ' + next + ' ' + sentences[i + 2] });
+            if (!op.auto) auto = false;
+            i++;
+          }
         }
         i++;                                   // both sentences are accounted for
         continue;
@@ -10604,6 +10651,8 @@
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
     // (Attuma, Atlantean Warlord: "one or more Merfolk" — a plural with no s: attackersOfTypeMerfolk)
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Neyali, Suns' Vanguard: "Whenever one or more tokens you control attack a player" (attackersFit)
+    { re: /^Whenever one or more tokens you control attack a player,? /i, event: 'youAttack', extra: { attackersFit: 'token', attackPlayerOnly: true } },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
     { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
@@ -10727,6 +10776,9 @@
     { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
+    // Zada, Hedron Grinder: "Whenever you cast an instant or sorcery spell that targets only Zada"
+    { re: /^Whenever you cast an instant or sorcery spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
+      extra: { spellFilter: 'instant or sorcery', targetsSelf: true, targetsOnlySelf: true } },
     /* Inkling Mascot, Stirring Hopesinger: "Whenever you cast an instant or
        sorcery spell that targets a creature"; Storm, Windrider: "a spell that
        targets one or more creatures"; Legolas: "… a creature you don't control" */

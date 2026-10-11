@@ -48,6 +48,7 @@
     exceptByFlying: "can't be blocked this turn except by creatures with flying",
     noDamage: 'deals no combat damage this turn',
     noDamageAll: 'deals no damage this turn',
+    unsacrificable: "can't be sacrificed this turn",
   };
 
   const PHASES = [
@@ -2847,6 +2848,8 @@
      */
     _impulseOpen(o, playerId) {
       if (!o || o.impulseBy !== playerId || o.impulseUntil == null || o.impulseUntil < this.turn) return false;
+      // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
+      if (o.impulseIfAttackedToken && (this.player(playerId) || {}).attackedWithTokenTurn !== this.turn) return false;
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
     }
     /**
@@ -3317,6 +3320,8 @@
       if (v.diedThisTurn && v.yours) return ((((this.turnHistory || {}).diedBy) || {})[pid] || 0) * mult;
       if (v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * mult;
       if (v.diedThisTurn) return ((this.turnHistory || {}).creaturesDied || 0) * mult;
+      // Heliod, the Warped Eclipse: "each card your opponents have drawn this turn"
+      if (v.drawnThisTurn === 'opponents') return this.opponentsOf(pid).reduce((k, q) => k + (q.drawnThisTurn || 0), 0) * mult;
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
@@ -6277,6 +6282,10 @@
       }
       return null;
     }
+    /** Gogo, Master of Mimicry: "This ability can't be copied" — copying it makes nothing. */
+    _uncopyable(item) {
+      return !!item && (item.effects || []).some(e => e && e.uncopyable);
+    }
     /** Twinning Staff: "If you would copy a spell one or more times, instead copy it that many times plus an additional time." */
     _extraCopies(pid, item) {
       if (!item || item.kind !== 'spell') return 0;
@@ -7014,6 +7023,8 @@
         return this.fail('That needs another target, not this one.');
       // Shanna, Purifying Blade: "X can't be greater than the amount of life you gained this turn"
       for (const x of (ab.effects || [])) {
+        // Gogo, Master of Mimicry: "X can't be 0"
+        if (x && x.xMin && (opts.x || 0) < x.xMin) return this.fail(`X can't be 0 for ${o.name}.`);
         if (!x || x.op !== 'xCap') continue;
         const most = this._countValue(x.n, playerId, o);
         if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
@@ -7486,7 +7497,8 @@
         (/^(?:permanent|permanents)$/i.test(filter) || this._cardFitsWords(x, filter)));
     }
     /** Alexios, Deimos of Kosmos, Hithlain Rope: "can't be sacrificed" — not a choice, and not gone if picked anyway. */
-    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && this._staticOp(x, 'unsacrificable')); }
+    // (Slicer, Hired Muscle: "it can't be sacrificed this turn" — the flag till end of turn)
+    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && (this._staticOp(x, 'unsacrificable') || this._hasFlag(x, 'unsacrificable'))); }
     /** The cards in hand a discard cost could take. */
     _discardPool(pid, spec, self, opts) {
       const hand = ((this.zones[pid] || {}).hand || []).filter(c => !self || c.id !== self.id);
@@ -8904,6 +8916,8 @@
         // "attacks for the first time each turn", "creatures that attacked this turn"
         o.attacksThisTurn = (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) + 1;
         o.attackedTurn = this.turn;
+        // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
+        if (o.isToken) { const ap = this.player(o.controller); if (ap) ap.attackedWithTokenTurn = this.turn; }
         if (!this.hasKw(o, 'vigilance')) this._markTapped(o);
         // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
@@ -12139,7 +12153,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false;
         o.faceDownExile = false; o.lookableBy = null;
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
@@ -12969,6 +12983,8 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
+          if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
           // Black Vise: only the upkeep of the player chosen as it entered
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
@@ -13794,6 +13810,8 @@
         // Storm Herd: "your life total"
         if (v && typeof v === 'object' && v.lifeTotal) return Math.max(0, (me && me.life) || 0) * (v.mult || 1);
         // Fists of Flame: "for each card you've drawn this turn"
+        if (v && typeof v === 'object' && v.drawnThisTurn === 'opponents') return this._countValue(v, ctx.controller, src);
+        if (v && typeof v === 'object' && v.lookedToGraveyard) return (this._lookedToGraveyard || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
@@ -15194,6 +15212,8 @@
           if (e.scope === 'lastAffected') { const x = this._lastAffected && this.obj(this._lastAffected.id); if (x && x.zone === 'battlefield') { this._markUntapped(x); this.emit('sfx', 'untap'); } break; }
           if (e.scope === 'lastTarget') { const x = firstObj(); if (x) { this._markUntapped(x); this.emit('sfx', 'untap'); } }
           else if (e.scope === 'self' && src) { this._markUntapped(src); this.emit('sfx', 'untap'); }
+          // Dihada, Binder of Wills: "Untap them." — the permanents just taken
+          else if (e.scope === 'lastGroup') { applyToScope(e, (o) => this._markUntapped(o)); this.emit('sfx', 'untap'); }
           else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) { this._markUntapped(o); this.emit('sfx', 'untap'); } } }
           break;
         /* "Untap up to three lands": no target, just your own, chosen as
@@ -15782,6 +15802,7 @@
           if (!made) {
             const item = id ? this.stack.find(st => st.id === id) : null;
             if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+            if (this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); break; }
             made = [];
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
@@ -15793,6 +15814,44 @@
           }
           for (let k = 0; k < made.length; k++) {
             const copy = this.stack.find(x => x.id === made[k]);
+            if (copy && this._newTargetsForCopy(copy, ctx.controller, 'nt' + k) === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
+
+        /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could
+           target. Each copy targets a different one of those creatures." — the targets that were Zada become
+           that creature, with no new choices; Twinning Staff's extra copy may choose new targets */
+        case 'copySpellEachOther': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const r = this.resolving;
+          const slot = r ? r.index + ':copies' : null;
+          r && (r.marks = r.marks || {});
+          let made = r && r.marks[slot];
+          if (!made) {
+            made = [];
+            const item = id ? this.stack.find(st => st.id === id) : null;
+            if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+            const have = item.targets || [];
+            const specs = this._specsOf(item, have.length);
+            const slots = have.map((t, i) => (t.kind === 'object' && t.id === src.id ? i : -1)).filter(i => i >= 0);
+            const others = this.battlefield.filter(c => c.controller === ctx.controller && c.id !== src.id && !c.phasedOut &&
+              this._matchesCategory(c, e.what || 'creature') &&
+              slots.length && slots.every(i => specs[i] && this._legalTargetsFor(specs[i], ctx.controller, item.objId).some(x => x.kind === 'object' && x.id === c.id)));
+            for (const c of others) {
+              const copy = this._copyOnStack(item, ctx.controller);
+              copy.targets = have.map((t, i) => (slots.includes(i) ? { kind: 'object', id: c.id } : t));
+              made.push({ id: copy.id, fixed: true });
+            }
+            if (others.length) for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push({ id: this._copyOnStack(item, ctx.controller).id });
+            if (r) r.marks[slot] = made;
+            if (made.length) {
+              this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'} for ${others.map(c => c.name).join(', ')}.`);
+              this.emit('sfx', 'cast');
+            }
+          }
+          for (let k = 0; k < made.length; k++) {
+            const copy = !made[k].fixed && this.stack.find(x => x.id === made[k].id);
             if (copy && this._newTargetsForCopy(copy, ctx.controller, 'nt' + k) === SUSPEND) return SUSPEND;
           }
           break;
@@ -16272,16 +16331,17 @@
           break;
         }
         // Insurrection: every creature, untapped and yours until end of turn
+        // (Dihada, Binder of Wills: "all nonland permanents", untapped by the next sentence)
         case 'threatenAll': {
           const ts = this._stampNew();
-          const all = this.battlefield.filter(x => !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+          const all = this.battlefield.filter(x => !x.phasedOut && (e.what ? this._matchesCategory(x, e.what) : (this.characteristics(x) || {}).isCreature));
           for (const x of all) {
-            this._markUntapped(x);
+            if (!e.noUntap) this._markUntapped(x);
             if (x.controller !== ctx.controller) x.effects.push({ control: ctx.controller, until: 'eot', ts });
           }
           this._refreshControl();
           this._lastGroup = all.map(x => x.id);         // "They gain haste until end of turn."
-          this.logEvent('control', `${me.name} gains control of every creature until end of turn.`);
+          this.logEvent('control', `${me.name} gains control of every ${e.what || 'creature'} until end of turn.`);
           break;
         }
         // Humble Defector: "Target opponent gains control of this creature."
@@ -16644,6 +16704,8 @@
             const sources = e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
             for (const item of sources) {
               if (!item) continue;
+              // Gogo, Master of Mimicry: "This ability can't be copied"
+              if (this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); continue; }
               // Mister Fantastic: "Copy target triggered ability you control twice"
               for (let rep = Math.max(1, e.times ? n(e.times) : 1); rep > 0; rep--) made.push(this._copyOnStack(item, ctx.controller).id);
               // Twinning Staff: one more
@@ -17016,7 +17078,9 @@
           const d1 = e.who === 'targetController' && (e.then || [])[0];
           const nm = (src && src.name) || ctx.name || 'Effect';
           const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
-          const yes = this._ask({ type: 'confirm', playerId: who.id,
+          // Slicer, Hired Muscle: lending itself to the player whose upkeep it is (lendSelf, for the bots)
+          const lend = (e.then || []).some(x => x && x.op === 'giveControl' && x.self);
+          const yes = this._ask({ type: 'confirm', playerId: who.id, ...(lend ? { purpose: 'lendSelf' } : {}),
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             prompt: e.prompt || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
@@ -17570,8 +17634,13 @@
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
           if (!source && e.scope === 'lastTarget') {
-            const ex = (this._resExiled || []).slice(-1)[0] || this._lastExiled;
+            const ex = (this._resExiled || []).slice(-1)[0] || (!e.orTrigger && this._lastExiled);
             source = ex ? this.obj(ex) : null;
+          }
+          // Hashaton, Scarab's Fist: "a copy of that card" — the card discarded, where it went
+          if (!source && e.orTrigger) {
+            const td = ctx.triggerData || {};
+            source = td.objectId ? this.obj(td.objectId) : null;
           }
           // Nightmare Shepherd: "a copy of that creature" — the card the trigger is about, wherever it went
           if (!source && e.scope === 'triggerObject') {
@@ -19171,6 +19240,7 @@
         }
 
         case 'takeFromLooked': {
+          if (e.rest === 'graveyard') this._lookedToGraveyard = 0;
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
           if (!pool.length) break;
           const want = n(e.n);
@@ -19215,7 +19285,11 @@
           // "Otherwise, draw a card": what happens when nothing was taken
           if (!taken.length && e.otherwise) this._spliceNext(e.otherwise);
           if (e.rest === 'keep') { this._looked = rest.map(o => o.id); this.logEvent('look', `${me.name} takes ${taken.length}.`); break; }
-          if (e.rest === 'graveyard') { for (const o of rest) this.moveObject(o, 'graveyard'); }
+          if (e.rest === 'graveyard') {
+            for (const o of rest) this.moveObject(o, 'graveyard');
+            // Dihada, Binder of Wills: "for each card put into your graveyard this way"
+            this._lookedToGraveyard = rest.filter(o => o.zone === 'graveyard').length;
+          }
           else if (rest.length) {
             const order = e.rest === 'bottomRandom' ? this.rng.shuffle(rest.slice()) : rest;
             for (const o of order) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
@@ -21416,6 +21490,7 @@
             /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
+            c.impulseIfAttackedToken = !!e.ifAttackedToken;
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             if (e.payLife) c.impulsePayLife = ctx.controller;
             if (c.faceDownExile) c.lookableBy = ctx.controller;
@@ -21617,11 +21692,36 @@
           const p = e.to === 'triggerPlayer' ? triggerPlayer() : firstPlayer();
           const x = e.self ? src : firstObj();
           if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
-          x.effects.push({ control: p.id, until: null, ts: this._stampNew() });
+          // (Slicer, Hired Muscle: "until end of turn")
+          x.effects.push({ control: p.id, until: e.until === 'eot' ? 'eot' : null, ts: this._stampNew() });
           this._refreshControl();
           this.logEvent('control', `${p.name} gains control of ${x.name}.`);
           // ("It gains haste until end of turn": that one)
           if (e.self) this._noteLastAffected([{ kind: 'object', id: x.id }]);
+          break;
+        }
+        // Rona, Tolarian Obliterator: "that source's controller exiles a card from their hand at random"
+        case 'exileRandomFromHand': {
+          const p = e.who === 'triggerPlayer' ? triggerPlayer() : me;
+          this._lastExiled = null; this._lastExiledList = [];
+          const hand = p && !p.hasLost ? this.zones[p.id].hand : [];
+          if (!hand.length) { if (p) this.logEvent('rules', `${p.name} has no cards in hand.`); break; }
+          const c = hand[this.rng.int(hand.length)];
+          this.moveObject(c, 'exile');
+          if (c.zone !== 'exile') break;
+          this._lastExiled = c.id; this._lastExiledList = [c.id];
+          this.logEvent('exile', `${p.name} exiles ${c.name} from their hand at random.`);
+          break;
+        }
+        // Rona, Tolarian Obliterator: "If it's a land card, you may put it onto the battlefield under your control."
+        case 'putExiledLand': {
+          const c = this._lastExiled && this.obj(this._lastExiled);
+          if (!c || c.zone !== 'exile' || !(c.analysis() || {}).isLand) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Put ${c.name} onto the battlefield under your control?` }, 'pel');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) break;
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          this.logEvent('rules', `${me.name} puts ${c.name} onto the battlefield.`);
           break;
         }
         // Roles: an Aura token made attached, and the controller's older Role on it goes
@@ -25425,8 +25525,9 @@
       if (!a) return false;
       const want = String(filter).toLowerCase().trim().replace(/^an? /, '').replace(/(?<!plain)s$/, '');
       if (want === 'permanent' || want === 'card') return true;
+      // (Dihada, Binder of Wills: "legendary cards" — a supertype)
       return (a.types || []).some(x => x.toLowerCase() === want) ||
-        (a.subtypes || []).some(x => x.toLowerCase() === want);
+        (a.subtypes || []).some(x => x.toLowerCase() === want) || (a.supertypes || []).some(x => x.toLowerCase() === want);
     }
 
     /**
@@ -25852,7 +25953,7 @@
           impulseUntil: o.impulseUntil == null ? null : o.impulseUntil, impulseBy: o.impulseBy || null,
           // how that leave may be used (Nashi: one of a lot, for life; Gonti: any mana; Inti: until the end step) and who may see a card face down in exile
           impulseCastOnly: !!o.impulseCastOnly, impulseAnyMana: o.impulseAnyMana || null, impulseGroup: o.impulseGroup || null,
-          impulsePayLife: o.impulsePayLife || null, impulseBeforeEnd: !!o.impulseBeforeEnd,
+          impulsePayLife: o.impulsePayLife || null, impulseBeforeEnd: !!o.impulseBeforeEnd, impulseIfAttackedToken: !!o.impulseIfAttackedToken,
           faceDownExile: !!o.faceDownExile, lookableBy: o.lookableBy || null, exileStamp: o.exileStamp == null ? null : o.exileStamp,
           _diedCounters: o._diedCounters ? Object.assign({}, o._diedCounters) : null,
           // a promised gift, a copy for the turn, leave to cast from elsewhere
@@ -25904,6 +26005,7 @@
           cityBlessing: !!p.cityBlessing, enduringStory: !!p.enduringStory,
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
+          attackedWithTokenTurn: p.attackedWithTokenTurn == null ? null : p.attackedWithTokenTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
           companionUsed: !!p.companionUsed,
         })),

@@ -2525,6 +2525,8 @@
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
+      // Slicer, Hired Muscle: lent out goaded, it has to attack someone else — only with another opponent to attack
+      if (ch.purpose === 'lendSelf') return g.opponentsOf(this.pid).filter(q => !q.hasLost).length > 1;
       // Perplex: give up the hand only when there is little in it
       if (ch.purpose === 'unlessDiscardHand') return (g.zones[this.pid].hand || []).length <= 1;
       // Chandra: cast the exiled card only if it can be paid for
@@ -3616,6 +3618,12 @@
           v -= Math.max(0.5, this.rating(toss) - 2);
           discardIds = [toss.id];
         }
+      }
+      // Gogo, Master of Mimicry: "X can't be 0" — the least X allowed, when it can be paid
+      const xMin = flat.reduce((m, e) => (e.xMin ? Math.max(m, e.xMin) : m), 0);
+      if (xMin && x == null) {
+        if (!g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + xMin + '}'), sources)) return null;
+        x = xMin;
       }
       // targets: chosen as for a spell, and an ability with nothing worth pointing at waits
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);

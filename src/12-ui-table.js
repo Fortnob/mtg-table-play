@@ -2496,7 +2496,7 @@
       this.closePopover();
       // an ability whose cost has an X (mana, or counters taken off) asks for it first
       const asks = x == null ? this._abilityX(o, ab) : null;
-      if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, 0, asks.max, asks.start != null ? asks.start : asks.max,
+      if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, asks.min || 0, asks.max, asks.start != null ? asks.start : asks.max,
         (n) => this.activate(o, a, index, ab, n), o.card);
       /* "Add X mana in any combination of {U} and/or {B}": how much of the
          second colour, the rest the first. Asked only when the amount is
@@ -2642,8 +2642,11 @@
       }
       if (/\{X\}/.test(String(c.mana || ''))) {
         const fixed = MTG.mana.cmc(String(c.mana).replace(/\{X\}/g, ''));
-        const max = Math.max(0, this.manaHere() - fixed - (c.tap && !o.tapped && this._makesMana(o) ? 1 : 0));
-        return { label: 'choose X', sub: `You can afford up to ${max}.`, max };
+        // Gogo, Master of Mimicry: "{X}{X}" pays X twice, and "X can't be 0"
+        const xs = (String(c.mana).match(/\{X\}/g) || []).length;
+        const max = Math.max(0, Math.floor((this.manaHere() - fixed - (c.tap && !o.tapped && this._makesMana(o) ? 1 : 0)) / xs));
+        const min = Math.max(0, ...(ab.effects || []).map(e => (e && e.xMin) || 0));
+        return { label: 'choose X', sub: `You can afford up to ${max}.`, max: Math.max(min, max), min };
       }
       return null;
     }
