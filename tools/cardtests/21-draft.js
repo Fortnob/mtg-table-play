@@ -62,6 +62,19 @@ module.exports = (test) => {
     t.eq(pack(d, 'me').length, 2);
   });
 
+  test('Draft: a pick can be switched for another while the others are still picking', (mk, t) => {
+    const d = draft([[['Grizzly Bears', 'Shock', 'Hill Giant'], ['Serra Angel', 'Llanowar Elves', 'Giant Growth']]]);
+    t.ok(take(d, 'me', 'Shock'), 'me picks Shock');
+    t.eq((d.viewFor('me').myPick || []).length, 1, 'the pick made shows as kept, waiting on the other');
+    t.ok(take(d, 'me', 'Hill Giant'), 'and switches it for Hill Giant before you have picked');
+    t.eq(d.viewFor('me').myPick[0], idOf(pack(d, 'me'), 'Hill Giant'), 'the kept pick is the new one');
+    t.ok(!take(d, 'me', 'Nonexistent Card'), 'a pick that will not do is refused');
+    t.eq(d.viewFor('me').myPick[0], idOf(pack(d, 'me'), 'Hill Giant'), 'and the pick made before it stands');
+    t.ok(take(d, 'you', 'Serra Angel'), 'you pick, and the packs move');
+    t.eq(poolNames(d, 'me').join(), 'Hill Giant', 'the switched pick is the one taken');
+    t.eq((d.viewFor('me').myPick || []).length, 0, 'with the next pack, nothing is kept yet');
+  });
+
   test('Draft: Cogwork Librarian takes a second card and goes into the pack', (mk, t) => {
     const d = draft([[['Grizzly Bears', 'Shock', 'Hill Giant'], ['Serra Angel', 'Llanowar Elves', 'Giant Growth']]], { pools: { me: ['Cogwork Librarian'] } });
     const lib = ability(d, 'me', 'Cogwork Librarian');

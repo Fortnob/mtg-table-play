@@ -105,3 +105,9 @@
 :root[data-phone] .js-art { height: 104px; }
 :root[data-phone] .js-lead { font-size: 14px; }
 :root[data-phone] .js-cards { --card-w: 100px; --card-h: 140px; gap: 8px; }
+
+/* ---------- a pick made, waiting on the others ---------- */
+/* it stays lit, green and ticked, until the packs move or it is switched for another */
+.pick-card.picked { outline: 3px solid #6fd38a; outline-offset: 2px; box-shadow: 0 0 22px rgba(111, 211, 138, .5); transform: translateY(-6px); }
+.pick-card.picked.chosen { outline-color: var(--gold-hi, #f6dc8c); }
+.pick-flag.kept { background: linear-gradient(180deg, #8de39a, #3f9d58); color: #0c1f12; }

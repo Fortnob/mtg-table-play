@@ -420,7 +420,8 @@
         class: 'btn primary hero-btn draft-go',
         text: v.broker ? 'Trading' : v.blind ? 'At random'
           : this.ability && need === 0 ? 'Take the whole pack'
-          : (this.chosen.length === need ? `Confirm pick${need > 1 ? 's' : ''}` : `Pick ${this.chosen.length}/${need}`),
+          : (v.myPick || []).length && !this.chosen.length ? 'Picked \u2713'
+          : (this.chosen.length === need ? ((v.myPick || []).length ? `Switch pick${need > 1 ? 's' : ''}` : `Confirm pick${need > 1 ? 's' : ''}`) : `Pick ${this.chosen.length}/${need}`),
         disabled: (need > 0 && this.chosen.length !== need) || !v.pack.length || v.sittingOut || !!v.blind || !!v.broker,
         onclick: () => { this.confirmPick(); },
       });
@@ -449,7 +450,8 @@
         ].filter(Boolean)),
         el('span', { class: 'grow' }),
         el('div', { class: 'draft-act' }, [
-          el('span', { class: 'wait-note', text: v.waitingOn.length ? 'Waiting on ' + v.waitingOn.join(', ') : 'All picks in…' }),
+          el('span', { class: 'wait-note', text: (v.waitingOn.length ? 'Waiting on ' + v.waitingOn.join(', ') : 'All picks in…') +
+            ((v.myPick || []).length && v.waitingOn.length ? ' \u00b7 choose another card to switch your pick' : '') }),
           confirm,
         ]),
       );
@@ -481,10 +483,13 @@
         rows.forEach(r => grid.appendChild(r));
         const rowOf = (i) => { let k = i; for (let r = 0; r < fit.rows.length; r++) { if (k < fit.rows[r]) return rows[r]; k -= fit.rows[r]; } return rows[rows.length - 1]; };
         // rarest first, left to right and down the rows
+        // the pick sent and waiting on the others stays lit, until it is switched for another
+        const kept = v.myPick || [];
         order.forEach((c, i) => {
           const chosen = this.chosen.includes(c.id);
+          const picked = kept.includes(c.id);
           const slot = UI.cardSlot(c, {}, {
-            class: 'pick-card' + (chosen ? ' chosen' : '') + ' r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
+            class: 'pick-card' + (chosen ? ' chosen' : '') + (picked ? ' picked' : '') + ' r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
             onClick: () => { this._toggle(c); MTG.sfx('click'); this.render(); },
             onDblClick: () => this._confirmCard(c),
             // Enter picks the card up, Space sends the pick; the slot's own
@@ -502,7 +507,8 @@
           slot.style.setProperty('--i', String(i));
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
           slot.appendChild(UI.autoBadge(c, { corner: true }));
-          if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : 'Your pick' }));
+          if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : (kept.length ? 'Switch to this' : 'Your pick') }));
+          else if (picked) slot.appendChild(el('span', { class: 'pick-flag kept', text: '\u2713 Your pick' }));
           rowOf(i).appendChild(slot);
         });
         // a new pack deals itself out; a re-render of the same pack does not

@@ -1156,34 +1156,41 @@
       opts = opts || {};
       const s = this._seat(seatId);
       if (!s || !this.started || this.finished || this.broker || this._holding) return false;
-      if (this.pendingPicks.has(s.index)) return false;
+      /* A pick already made can be changed while the others are still
+         picking: nothing is taken until every seat has picked, so the new
+         one simply stands in its place (and the old one stays, if the new
+         one will not do). */
+      const was = this.pendingPicks.get(s.index);
+      if (was && (was.pass || !was.ids)) return false;
+      if (was) this.pendingPicks.delete(s.index);
+      const done = (ok) => { if (!ok && was) this.pendingPicks.set(s.index, was); return ok; };
       const pack = this._packFor(s);
-      if (!pack.length) return false;
+      if (!pack.length) return done(false);
       const usable = this.availableAbilities(seatId);
       let ability = null;
       if (opts.ability) {
         ability = usable.find(a => a.cardId === opts.ability && (a.kind === 'extraPick' || a.kind === 'wholePack'));
-        if (!ability) return false;
+        if (!ability) return done(false);
       }
       const mods = [];
       for (const id of (opts.mods || [])) {
         const m = usable.find(a => a.cardId === id && a.mod);
-        if (!m) return false;
+        if (!m) return done(false);
         if (!mods.includes(m)) mods.push(m);
       }
-      if (mods.filter(m => m.kind === 'remove').length > 1) return false;
+      if (mods.filter(m => m.kind === 'remove').length > 1) return done(false);
       let ids;
       if (ability && ability.kind === 'wholePack') ids = pack.map(c => c.id);
       else {
         const want = Math.min(this.cfg.picksPerTurn + (ability ? 1 : 0), pack.length);
         ids = (cardIds || []).slice(0, want);
-        if (ids.length !== want) return false;
-        if (new Set(ids).size !== ids.length) return false;
-        if (!ids.every(id => pack.some(c => c.id === id))) return false;
+        if (ids.length !== want) return done(false);
+        if (new Set(ids).size !== ids.length) return done(false);
+        if (!ids.every(id => pack.some(c => c.id === id))) return done(false);
       }
       // noting a creature's name or types needs a creature
       const first = pack.find(c => c.id === ids[0]);
-      if (mods.some(m => m.creature) && !isCreatureCard(first)) return false;
+      if (mods.some(m => m.creature) && !isCreatureCard(first)) return done(false);
       this.pendingPicks.set(s.index, { ids, ability, mods, guess: opts.guess || null });
       MTG.sfx('pick');
       this._maybeAdvance();
@@ -1932,6 +1939,8 @@
         seen: s ? s.seen : [],
         abilityLog: (this.abilityLog || []).slice(-8),
         waitingOn: this.broker ? [] : this.seats.filter(x => !this.pendingPicks.has(x.index)).map(x => x.name),
+        // the pick made and waiting on the others: shown kept, and still to be changed until the packs move
+        myPick: s && this.pendingPicks.get(s.index) && !this.pendingPicks.get(s.index).pass ? (this.pendingPicks.get(s.index).ids || []).slice() : [],
         seats: this.seats.map(x => ({
           id: x.id, name: x.name, isBot: x.isBot, poolSize: x.pool.length,
           picked: this.cfg.faceUp ? x.picked : undefined,
