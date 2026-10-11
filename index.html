@@ -3045,6 +3045,52 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 @media (prefers-reduced-motion: reduce) {
   .seat.focus-in-r, .seat.focus-in-l, .seat.focus-in-r::after, .seat.focus-in-l::after { animation: none; }
 }
+
+/* ---------- tokens pile up ---------- */
+.token-pile { position: relative; display: flex; align-items: center; }
+.token-pile > .unit + .unit { margin-left: calc(var(--w) * -.8); }
+.token-pile.tapped > .unit + .unit { margin-left: calc(var(--w) * -1.1968); }
+.token-pile > .unit:nth-child(2) > .cv { top: calc(var(--w) * -.03); }
+.token-pile > .unit:nth-child(3) > .cv { top: calc(var(--w) * -.06); }
+.token-pile > .unit:nth-child(n+4) > .cv { top: calc(var(--w) * -.09); }
+.token-pile::after { content: attr(data-n); position: absolute; right: calc(var(--w) * -.06); top: calc(var(--w) * -.16); z-index: 6; pointer-events: none;
+  min-width: 26px; padding: 3px 7px; border-radius: 99px; text-align: center; font: 800 12px/1 var(--font); color: #241a05;
+  background: linear-gradient(180deg, #ffe6a0, #c9952f); box-shadow: 0 2px 6px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.35); }
+
+/* ---------- floating mana, an orb for each ---------- */
+.flag.pool.mana-float { display: inline-flex; gap: 3px; padding: 0 2px; background: none !important; border: 0 !important; box-shadow: none !important; }
+.mana-orb { position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.9), var(--mo) 45%, rgba(0,0,0,.5) 100%);
+  box-shadow: 0 0 10px var(--mo), 0 0 22px color-mix(in srgb, var(--mo) 55%, transparent), inset 0 -2px 4px rgba(0,0,0,.35);
+  animation: moBob 2.6s ease-in-out infinite; }
+.mana-orb:nth-child(2n) { animation-delay: -.8s; } .mana-orb:nth-child(3n) { animation-delay: -1.6s; }
+.mana-orb > .pip { width: 16px; height: 16px; margin: 0; }
+.mana-orb.new { animation: moPop .42s cubic-bezier(.2,1.6,.4,1) both, moBob 2.6s ease-in-out .42s infinite; }
+.mo-more { position: absolute; right: -6px; bottom: -6px; font: 800 10px/1 var(--font); color: #fff; background: #12151c; border-radius: 99px; padding: 2px 4px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.mo-w { --mo: #f8efc8; } .mo-u { --mo: #4aa3f0; } .mo-b { --mo: #9a7fb0; } .mo-r { --mo: #f0623f; } .mo-g { --mo: #45c06e; } .mo-c { --mo: #c9c2b4; }
+@keyframes moBob { 50% { transform: translateY(-3px); } }
+@keyframes moPop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mana-orb, .mana-orb.new { animation: none; } }
+:root[data-reduce-motion] .mana-orb, :root[data-reduce-motion] .mana-orb.new { animation: none; }
+
+/* ---------- combat ---------- */
+/* the light draws in on the battlefield while there is fighting, and the felt warms red at its edges */
+.arena-mist::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .45s ease;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(4, 4, 8, .55) 100%), linear-gradient(0deg, rgba(160, 30, 20, .12), transparent 30%, transparent 70%, rgba(160, 30, 20, .12)); }
+.arena.in-combat .arena-mist::after { opacity: 1; }
+/* attack arrows: thick, glowing, with light running along them toward what they hit */
+.arrow.atk { stroke-width: 5.5; filter: drop-shadow(0 0 6px rgba(255, 80, 60, .7)); }
+.arrow-glow.atk { stroke-width: 16; opacity: .35; }
+.arrow.atk:not(.dashed) { stroke-dasharray: 14 8; animation: atkFlow .55s linear infinite; }
+@keyframes atkFlow { to { stroke-dashoffset: -22; } }
+/* what an attacker picked up can be sent at: glowing red, waiting for the click */
+.atk-target { outline: 3px solid rgba(255, 90, 70, .85) !important; outline-offset: 3px; box-shadow: 0 0 22px rgba(255, 80, 60, .6) !important; animation: atkTargetPulse 1s ease-in-out infinite; cursor: crosshair !important; }
+.life-orb.atk-target, .opp-plate.atk-target { border-radius: 50%; }
+.opp-plate.atk-target { border-radius: 12px; }
+@keyframes atkTargetPulse { 50% { outline-color: rgba(255, 140, 110, .5); } }
+/* a creature chosen to attack rises a little, red-lit, ready to go */
+.cv.declared-atk .cv-body { box-shadow: 0 0 0 2px rgba(255, 90, 70, .9), 0 0 22px rgba(255, 70, 50, .55), 0 10px 18px rgba(0,0,0,.5); }
+@media (prefers-reduced-motion: reduce) { .arrow.atk:not(.dashed), .atk-target { animation: none; } }
 /* ============================================================
    feel.css - the small physical touches (src/12f-ui-feel.js)
 
@@ -3323,6 +3369,45 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 
 /* a die roll or a coin flip: the result, floating off the player */
 .fx-float.fx-luck { color: #fff3c4; text-shadow: 0 0 10px rgba(246,200,110,.8), 0 2px 4px rgba(0,0,0,.9); font-weight: 800; white-space: nowrap; }
+
+/* ---------- coins and dice, shown for what they came up ---------- */
+.luck-reveal { position: absolute; left: 50%; top: 42%; z-index: 60; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 10px;
+  padding: 14px 22px 16px; border-radius: 18px; cursor: pointer; pointer-events: auto;
+  background: radial-gradient(ellipse at 50% 0%, rgba(60, 50, 26, .92), rgba(12, 14, 20, .94) 70%); border: 1px solid rgba(243, 221, 150, .45);
+  box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px rgba(212, 175, 71, .2); animation: lrIn .28s cubic-bezier(.2,.8,.2,1) both; }
+.luck-reveal.out { animation: lrOut .26s ease-in both; }
+@keyframes lrIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.92); } }
+@keyframes lrOut { to { opacity: 0; transform: translate(-50%, -52%) scale(.96); } }
+.lr-head { font: 600 15px/1.2 var(--serif, Georgia, serif); color: #f3dd96; text-shadow: 0 1px 4px #000; }
+.lr-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 520px; perspective: 600px; }
+.lr-coin-wrap, .lr-die-wrap { display: grid; justify-items: center; gap: 7px; }
+.lr-coin { position: relative; width: 62px; height: 62px; transform-style: preserve-3d; animation: lrSpinH 1s cubic-bezier(.2,.75,.25,1) both; }
+.lr-coin.tails { animation-name: lrSpinT; }
+@keyframes lrSpinH { 0% { transform: translateY(0) rotateX(0); } 45% { transform: translateY(-38px) rotateX(900deg); } 100% { transform: translateY(0) rotateX(1440deg); } }
+@keyframes lrSpinT { 0% { transform: translateY(0) rotateX(0); } 45% { transform: translateY(-38px) rotateX(900deg); } 100% { transform: translateY(0) rotateX(1620deg); } }
+.lr-face { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; backface-visibility: hidden; font-style: normal;
+  box-shadow: inset 0 0 0 3px rgba(0,0,0,.25), inset 0 -4px 8px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.5); }
+.lr-face i { font-style: normal; font-size: 28px; line-height: 1; }
+.lr-h { background: radial-gradient(circle at 35% 30%, #fff3c4, #e2b84f 45%, #8a6416); color: #5a3d07; }
+.lr-t { background: radial-gradient(circle at 35% 30%, #f2f4f8, #a9b0bc 50%, #5d6470); color: #2a2f38; transform: rotateX(180deg); }
+.lr-say { font: 700 11px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: #cfc8b8; opacity: 0; animation: lrSay .3s ease-out both; }
+.lr-say.win { color: #8de39a; text-shadow: 0 0 8px rgba(120, 220, 140, .5); }
+.lr-say.loss { color: #f08d80; }
+@keyframes lrSay { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.lr-die { width: 62px; height: 62px; display: grid; place-items: center; color: #1b1f26; animation: lrTumble .9s cubic-bezier(.2,.75,.25,1) both;
+  background: linear-gradient(150deg, #fdfaf2, #d7d1c2); clip-path: polygon(50% 0, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.lr-die.d6 { clip-path: none; border-radius: 12px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.5); }
+.lr-die b { font: 800 24px/1 var(--font); }
+@keyframes lrTumble { 0% { transform: translateY(-30px) rotate(-200deg) scale(.7); } 60% { transform: translateY(4px) rotate(14deg) scale(1.05); } 100% { transform: none; } }
+.lr-tally { font: 700 13px/1 var(--font); color: #f3dd96; letter-spacing: .06em; opacity: 0; animation: lrSay .3s ease-out both; }
+.luck-reveal.still .lr-coin, .luck-reveal.still .lr-die, .luck-reveal.still .lr-say, .luck-reveal.still .lr-tally { animation: none; opacity: 1; }
+.luck-reveal.still .lr-coin.tails { transform: rotateX(180deg); }
+:root[data-phone] .luck-reveal { top: 38%; padding: 12px 14px; }
+:root[data-phone] .lr-coin, :root[data-phone] .lr-die { width: 48px; height: 48px; }
+@media (prefers-reduced-motion: reduce) { .luck-reveal, .lr-coin, .lr-die, .lr-say, .lr-tally { animation: none !important; opacity: 1 !important; } .lr-coin.tails { transform: rotateX(180deg); } }
+
+.lr-coin-wrap.ignored, .lr-die-wrap.ignored { opacity: .4; filter: grayscale(.7); }
 /* ============================================================
    screens.css - everything outside the game table
 
@@ -12885,7 +12970,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
     // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
-    if (/^(?:toxic|firebending|annihilator|afflict) \d+$/i.test(w)) return true;
+    // (Cayth, Famed Mechanist: "have fabricate 1" — fabricate is read off the keyword as it enters: grantFabricate)
+    if (/^(?:toxic|firebending|annihilator|afflict|fabricate) \d+$/i.test(w)) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
@@ -14035,6 +14121,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return out;
       } },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
+    { re: /^Spend this mana only to cast creature spells with mana value (\d+) or greater or creature spells with \{X\} in their mana costs\.?$/i,
+      make: (m) => ({ op: 'spendOnly', words: 'creature spell with mana value ' + m[1] + ' or greater', orXCreature: true }) },
+    // Helga, Skittish Seer: "you draw a card, gain 1 life, and put a +1/+1 counter on Helga" (spendBigOrX)
+    { re: /^(?:You )?draw a card, gain (\d+) life, and put an? \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'gainLife', n: +m[1], who: 'you' }, { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
     // Steelswarm Operator, Sunken Citadel, Shang-Chi: "Spend this mana only to activate abilities of artifact sources."
     { re: /^Spend this mana only to activate abilities of (artifact|land|creature) sources\.?$/i,
       make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: m[1].toLowerCase() }) },
@@ -15258,9 +15350,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
       make: (m) => Object.assign({ op: 'gainControl', until: 'endNextTurn' },
         /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : /^that/i.test(m[1]) ? { scope: 'triggerObject' } : {}) },
+    // Oviya, Automech Artisan: "If you put an artifact onto the battlefield this way, put two +1/+1 counters on it." (putThisWayIs)
+    { re: /^If you put an? (artifact|creature|land|enchantment) onto the battlefield this way, put (a|an|one|two|three) \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'putThisWayIs', what: m[1].toLowerCase() },
+        then: [{ op: 'counters', kind: '+1/+1', n: num(m[2].replace(/^an?$/i, 'one')), scope: 'lastTarget' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
+    // Akiri, Fearless Voyager: "unattach an Equipment from a creature you control" — that creature is "that creature" after (unattachFromYours)
+    { re: /^(?:You may )?[Uu]nattach an Equipment from a creature you control\.?$/, make: () => ({ op: 'unattachFromYours' }) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
@@ -22966,11 +23064,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* Inkling Mascot, Stirring Hopesinger: "Whenever you cast an instant or
        sorcery spell that targets a creature"; Storm, Windrider: "a spell that
        targets one or more creatures"; Legolas: "… a creature you don't control" */
-    { re: /^Whenever you cast an? (instant or sorcery |noncreature )?spell that targets (?:one or more |an? )(creatures?|artifact or land)( you control| you don'?t control)?,? /i,
+    // (Pearl-Ear, Imperial Advisor: "an Aura spell that targets a modified permanent you control" — affinityWords)
+    { re: /^Whenever you cast an? (instant or sorcery |noncreature |Aura )?spell that targets (?:one or more |an? )(creatures?|artifact or land|modified permanent)( you control| you don'?t control| an opponent controls)?,? /i,
       event: 'youCastSpell',
       extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
         m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
-        m[3] ? { targetsWhose: /don/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
+        m[3] ? { targetsWhose: /don|opponent/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
     // Edgewall Innkeeper, Wandermare: "Whenever you cast a creature spell that has an Adventure"
     { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
@@ -23466,6 +23565,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
+    // Akiri, Fearless Voyager: "Whenever you attack a player with one or more equipped creatures" (attackersFit)
+    { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified) creatures,? /, event: 'youAttack',
+      extraOf: (m) => Object.assign({ attackersFit: m[2] + ' creature' }, m[1] ? { attackPlayerOnly: true } : {}) },
     // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
     { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
@@ -25351,7 +25453,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (out.keywordSet.has('convoke')) out.costReduction.convoke = true;
     if (out.keywordSet.has('improvise')) out.costReduction.improvise = true;
     if (out.keywordSet.has('delve')) out.costReduction.delve = true;
-    const aff = text.match(/Affinity for ([a-z ]+)/i);
+    /* the keyword on its own line, not "Spells you cast have affinity for …" handed to other spells
+       (Tezzeret, Master of the Bridge; Memnarchitect) (affinityWords) */
+    const aff = text.match(/(?:^|\n)Affinity for ([A-Za-z ]+?)\s*(?:\(|\n|$)/);
     if (aff) out.costReduction.affinity = aff[1].trim().toLowerCase();
     const less = text.match(/(?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each ([^.]+)\./i);
     if (less) { out.costReduction.flat = parseInt(less[1], 10); out.costReduction.condition = less[2].trim(); }
@@ -25853,6 +25957,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       sc.thatIs = [mm0[1], mm0[2]].filter(Boolean).join(' or ').toLowerCase();
       rest = rest.slice(0, mm0.index);
     }
+    // Oviya, Automech Artisan: "Each creature that's attacking one of your opponents" (attackingYourOppScope)
+    // (not Martial Impetus's "each other creature": other than the enchanted one, which this can't say)
+    if (!/^(?:each |all )?other /i.test(raw) && (mm0 = rest.match(/ that(?:'s| is| are) attacking (?:one of )?your opponents$/i))) { sc.attacking = true; sc.attackingYourOpponents = true; rest = rest.slice(0, mm0.index); }
     // Eriette of the Charmed Apple: "Each creature that's enchanted by an Aura you control" (enchantedByYours)
     if ((mm0 = rest.match(/ that(?:'s| is| are) enchanted by an Aura you control$/i))) { sc.enchantedByYours = true; rest = rest.slice(0, mm0.index); }
     /* "Creatures you control of the chosen type": whatever this permanent
@@ -27468,7 +27575,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
-      { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
+      // (Pearl-Ear, Imperial Advisor: "Enchantment spells you cast have affinity for Auras." — affinityWords)
+      { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments|Auras|Equipment)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase(),
           filter: m[1].trim().toLowerCase().replace(/ and /g, ' or ') || 'spell' }), auto: true },
       // Prismari, the Inspiration; Ral, Crackling Wit's emblem: "Instant and sorcery spells you cast have storm."
@@ -33379,11 +33487,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         cut += count(x => {
           const xa = x.analysis();
           if (!xa) return false;
-          if (/artifact/.test(f)) return xa.isArtifact;
-          if (/creature/.test(f)) return xa.isCreature;
-          if (/land/.test(f)) return xa.isLand;
-          if (/enchantment/.test(f)) return xa.isEnchantment;
-          return false;
+          if (f === 'artifacts') return xa.isArtifact;
+          if (f === 'creatures') return xa.isCreature;
+          if (f === 'lands') return xa.isLand;
+          if (f === 'enchantments') return xa.isEnchantment;
+          // Tangle Golem: "Affinity for Forests"; Urza, Chief Artificer: "artifact creatures" (affinityWords)
+          return this._cardFitsWords(x, f);
         });
       }
       /* "costs {1} less for each…" and the permanents that discount spells
@@ -38012,7 +38121,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!spell) return false;
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
-      if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words)) return false;
+      // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
+      if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words) &&
+        !(spendOnly.orXCreature && this._cardFitsWords(spell, 'creature') && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       return true;
     }
@@ -40506,6 +40617,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           .reduce((t, o) => t + Math.max(0, this.toughnessOf(o)), 0) >= (cond.n || 0);
         /* "if it's a creature card": what was targeted, else the card just
            revealed, milled, exiled or put somewhere */
+        // Oviya, Automech Artisan: "if you put an artifact onto the battlefield this way" — only what this effect put (putThisWayIs)
+        case 'putThisWayIs': {
+          const tgP = ((ctx && ctx.resolvedTargets) || []).find(t => t && t.kind === 'object');
+          const itP = tgP && this.obj(tgP.id);
+          return !!itP && itP.zone === 'battlefield' && this._cardFitsWords(itP, cond.what);
+        }
         case 'itIs': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const milled = (this._lastMilled || []).slice(-1)[0];
@@ -42294,6 +42411,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
           if (ab.attackersMinPower != null && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && x.controller === o.controller && this.player(x.attacking) && this.powerOf(x) >= ab.attackersMinPower; })) continue;
+          // Akiri, Fearless Voyager: one of this player's attackers is equipped (and attacking a player) (attackersFit)
+          if (ab.attackersFit && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
+            return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // The Ozolith: "if it had counters on it"
@@ -44971,6 +45091,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this._refreshControl();
           // "It gains haste until end of turn" (Act of Treason) is about this creature
           this._noteLastAffected(targets);
+          break;
+        }
+        /* Akiri, Fearless Voyager: "unattach an Equipment from a creature you control. If you do, tap that
+           creature …" — the creature chosen is what the rest is about (unattachFromYours) */
+        case 'unattachFromYours': {
+          const isEq = (id) => { const a = this.obj(id); return !!a && !!(a.analysis() || {}).isEquipment; };
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && (x.attachments || []).some(isEq));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'unattachFrom', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a creature to unattach an Equipment from.` }, 'unat');
+          if (got === SUSPEND) return SUSPEND;
+          const host = this.obj((got && got.picks && got.picks[0]) || pool[0].id);
+          const eqId = host && (host.attachments || []).find(isEq);
+          if (!eqId) break;
+          const eq = this.obj(eqId);
+          host.attachments = host.attachments.filter(x => x !== eqId);
+          eq.attachedTo = null;
+          this.logEvent('rules', `${me.name} unattaches ${eq.name} from ${host.name}.`);
+          ctx.resolvedTargets = [{ kind: 'object', id: host.id }];
+          targets = ctx.resolvedTargets;
+          this._noteLastAffected(ctx.resolvedTargets);
+          this.bumpBoard();
           break;
         }
         // Gruul Charm: everything you own that someone else controls comes back, for good
@@ -88339,6 +88481,9 @@ Sideboard
       const others = this._opponents();
       this.arena.dataset.opponents = String(others.length);
       this.arena.classList.toggle('has-focus', !!this.focusSeat);
+      // combat: the table's light draws in on the battlefield, as it does on Arena, until the fighting is done
+      const v0 = this.view;
+      this.arena.classList.toggle('in-combat', !!v0 && (v0.phase === 'combat' || ['declareAttackers', 'declareBlockers', 'firstStrikeDamage', 'combatDamage'].includes(v0.step)) && v0.step !== 'endCombat');
 
       this.renderSeats(others);
       this.renderHand();
@@ -88749,7 +88894,9 @@ Sideboard
             const live = this.live || this.view;
             const c = live.pendingChoice;
             if (c && c.type === 'declareAttackers' && c.playerId === this.meId && (c.defenders || []).some(d => d.id === p.id)) {
-              if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: p.id };
+              if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: p.id, pending: null };
+              // an attacker picked up goes at the player whose plate is clicked
+              if (this.attackPlan.pending) { this._attackAt(this.attackPlan.pending, p.id); this.render(); return; }
               this.attackPlan.defenderId = p.id;
             }
             this.setFocus(p.id, true);
@@ -88839,8 +88986,40 @@ Sideboard
       const byAge = (x, y) => idNum(x.id) - idNum(y.id);
       creatures.sort(byAge); others.sort(byAge); lands.sort(byAge);
 
-      this.place(s.front, creatures.map(o => this.unitFor(o)));
-      this.place(s.others, others.map(o => this.unitFor(o)));
+      /* Tokens pile up too: ten Soldiers are one stack with a count on it,
+         not ten cards across the felt. Only copies alike in all you can see
+         share a pile: the same token, the same size, tapped or not, sick or
+         not, nothing on or attached to it, not attacking or blocking or
+         chosen to; anything else stands on its own, where it can be told
+         apart. Each card of a pile can still be clicked. */
+      const planned = new Set([].concat(
+        (this.attackPlan ? this.attackPlan.declarations.map(d => d.attackerId).concat(this.attackPlan.pending || []) : []),
+        (this.blockPlan ? this.blockPlan.declarations.map(d => d.blockerId).concat(this.blockPlan.pendingBlocker || []) : [])));
+      const pileable = (o) => o.isToken && !planned.has(o.id) && !(o.counters && Object.keys(o.counters).some(k => o.counters[k])) &&
+        !v.battlefield.some(x => x.attachedTo === o.id) && !o.damage && !o.attacking && !(o.blocking || []).length;
+      const piles = (list) => {
+        const out = [], at = new Map();
+        for (const o of list) {
+          const key = pileable(o)
+            ? [p.id, o.card.name, o.power, o.toughness, o.tapped ? 't' : 'u', o.summoningSick ? 's' : '', (o.keywords || []).join(','), o.faceDown ? 'fd' : ''].join('|')
+            : 'solo:' + o.id;
+          let g = at.get(key);
+          if (!g) { g = { key, list: [] }; at.set(key, g); out.push(g); }
+          g.list.push(o);
+        }
+        return out;
+      };
+      const pileEls = (groups) => groups.map(g => {
+        if (g.list.length === 1) return this.unitFor(g.list[0]);
+        const w = this.wrapFor('tp:' + g.key, 'token-pile' + (g.list[0].tapped ? ' tapped' : ''));
+        w.style.setProperty('--n', String(g.list.length));
+        w.dataset.n = '\u00d7' + g.list.length;
+        this.place(w, g.list.map(o => this.unitFor(o)));
+        return w;
+      });
+      const frontPiles = piles(creatures), otherPiles = piles(others);
+      this.place(s.front, pileEls(frontPiles));
+      this.place(s.others, pileEls(otherPiles));
 
       /* Lands pile up: eight Forests are one pile you can count, not eight
          cards across the felt. Only plain copies share a pile — anything with
@@ -88864,9 +89043,11 @@ Sideboard
       });
       this.place(s.lands, groupEls);
       s.counts = {
-        front: creatures.map(o => (o.tapped ? CARD_RATIO : 1) + this._attachSpread(o) * 0.25),
+        front: frontPiles.map(g => g.list.length > 1 ? (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2
+          : (g.list[0].tapped ? CARD_RATIO : 1) + this._attachSpread(g.list[0]) * 0.25),
         lands: groups.map(g => (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2),
-        others: others.map(o => (o.tapped ? CARD_RATIO : 1) + this._attachSpread(o) * 0.25),
+        others: otherPiles.map(g => g.list.length > 1 ? (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2
+          : (g.list[0].tapped ? CARD_RATIO : 1) + this._attachSpread(g.list[0]) * 0.25),
       };
     }
 
@@ -89055,8 +89236,8 @@ Sideboard
       host._sig = sig;
       host.innerHTML = '';
       for (const [cls, text, title] of flags) host.appendChild(el('span', { class: 'flag ' + cls, text, title }));
-      if (pool) host.appendChild(el('span', { class: 'flag pool', html: pool,
-        title: 'Mana pool: mana made and not yet spent. It empties at the end of each step.' }));
+      if (pool) host.appendChild(manaFloat(p.pool, host._poolWas));
+      host._poolWas = Object.assign({}, p.pool || {});
     }
 
     /** Library, graveyard and exile, as piles you can see the size of and open. */
@@ -89501,10 +89682,31 @@ Sideboard
     }
 
     attackAll(ch) {
-      if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: (ch.defenders[0] || {}).id };
-      this.attackPlan.declarations = ch.candidates.map(id => ({ attackerId: id, defenderId: this.attackPlan.defenderId }));
+      if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: this._defaultDefender(ch), pending: null };
+      // everything not already sent somewhere goes at the one in view (or the last one chosen)
+      const plan = this.attackPlan;
+      const sent = new Set(plan.declarations.map(d => d.attackerId));
+      for (const id of ch.candidates) if (!sent.has(id)) plan.declarations.push({ attackerId: id, defenderId: plan.defenderId });
+      plan.pending = null;
       MTG.sfx('ui_attack');
       this.render();
+    }
+
+    /** Who an attacker goes at unless told otherwise: the opponent whose board is in view, else the first who can be attacked. */
+    _defaultDefender(ch) {
+      const defs = ch.defenders || [];
+      return (defs.find(d => d.id === this.focusSeat) || defs[0] || {}).id;
+    }
+
+    /** An attacker sent at a player, planeswalker or battle: the arrow goes in, and that one is the default for the next. */
+    _attackAt(attackerId, defenderId) {
+      const plan = this.attackPlan;
+      if (!plan || !attackerId || !defenderId) return;
+      plan.declarations = plan.declarations.filter(d => d.attackerId !== attackerId);
+      plan.declarations.push({ attackerId, defenderId });
+      plan.defenderId = defenderId;
+      plan.pending = null;
+      MTG.sfx('ui_attack');
     }
 
     /* ---- the marks that say what you can do with each card ---- */
@@ -89623,7 +89825,7 @@ Sideboard
       });
       this._onAimMove = (e) => {
         this._pointer = U.pt(e);
-        if (this.targeting || (this.blockPlan && this.blockPlan.pendingBlocker)) this.renderArrows();
+        if (this.targeting || (this.blockPlan && this.blockPlan.pendingBlocker) || (this.attackPlan && this.attackPlan.pending)) this.renderArrows();
       };
       document.addEventListener('pointermove', this._onAimMove, { passive: true });
       // touch: hold a card to read it
@@ -89710,7 +89912,11 @@ Sideboard
       if (ch && ch.type === 'declareAttackers' && ch.playerId === this.meId && this.attackPlan) {
         // pointing at a player chooses who the next attackers go at
         const d = (ch.defenders || []).find(x => x.id === pid);
-        if (d) { this.attackPlan.defenderId = pid; this.render(); return; }
+        if (d) {
+          if (this.attackPlan.pending) this._attackAt(this.attackPlan.pending, pid);
+          else this.attackPlan.defenderId = pid;
+          this.render(); return;
+        }
       }
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
       // your own portrait, with nothing else to do: your name and picture
@@ -89748,13 +89954,25 @@ Sideboard
           toggleIn(this.sacSel, id, ch.count);
           return this.render();
         }
-        if (ch.type === 'declareAttackers' && (ch.candidates || []).includes(id)) {
-          if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: (ch.defenders[0] || {}).id };
-          const list = this.attackPlan.declarations;
-          const i = list.findIndex(d => d.attackerId === id);
-          if (i >= 0) list.splice(i, 1);
-          else { list.push({ attackerId: id, defenderId: this.attackPlan.defenderId }); MTG.sfx('ui_attack'); }
-          return this.render();
+        if (ch.type === 'declareAttackers') {
+          const defs = ch.defenders || [];
+          if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: this._defaultDefender(ch), pending: null };
+          const plan = this.attackPlan;
+          // an attacker picked up, and a planeswalker or battle pointed at: it goes there
+          if (plan.pending && defs.some(d => d.id === id)) { this._attackAt(plan.pending, id); return this.render(); }
+          if ((ch.candidates || []).includes(id)) {
+            const i = plan.declarations.findIndex(d => d.attackerId === id);
+            // one already going in: clicked again, it stays home
+            if (i >= 0) { plan.declarations.splice(i, 1); if (plan.pending === id) plan.pending = null; return this.render(); }
+            // only one thing to attack: it goes straight at it
+            if (defs.length <= 1) { this._attackAt(id, (defs[0] || {}).id); return this.render(); }
+            /* more than one: it is picked up, an arrow follows the pointer,
+               and the player at the top (or a planeswalker) clicked next is
+               what it attacks; clicked again, it is put down */
+            plan.pending = plan.pending === id ? null : id;
+            MTG.sfx('click');
+            return this.render();
+          }
         }
         if (ch.type === 'declareBlockers') {
           if (!this.blockPlan) this.blockPlan = { declarations: [], pendingBlocker: null };
@@ -91055,6 +91273,28 @@ Sideboard
     if (i >= 0) list.splice(i, 1);
     else if (list.length < (max || 1)) list.push(id);
   }
+  /**
+   * Mana made and not yet spent, as Arena shows it: a glowing orb for each
+   * one by the player, in its colour with its symbol, the ones just made
+   * popping in. More than six of a colour is six orbs and a count.
+   */
+  function manaFloat(pool, was) {
+    was = was || {};
+    const orbs = [];
+    for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) {
+      const n = pool[c] || 0;
+      for (let i = 0; i < Math.min(n, 6); i++) {
+        const more = i === 5 && n > 6 ? n - 5 : 0;
+        orbs.push(el('span', { class: 'mana-orb mo-' + c.toLowerCase() + (i >= (was[c] || 0) ? ' new' : ''), style: { animationDelay: (i * 50) + 'ms' } }, [
+          el('i', { class: 'pip pip-' + c.toLowerCase(), text: c }),
+          more ? el('b', { class: 'mo-more', text: '+' + more }) : null,
+        ].filter(Boolean)));
+      }
+    }
+    const total = Object.values(pool).reduce((a, n) => a + (n || 0), 0);
+    return el('span', { class: 'flag pool mana-float', 'aria-label': `Mana pool: ${total} mana not yet spent`,
+      title: 'Mana pool: mana made and not yet spent. It empties at the end of each step.' }, orbs);
+  }
   function poolHtml(pool) {
     if (!pool) return '';
     return ['W', 'U', 'B', 'R', 'G', 'C'].map(c => pool[c] ? `<i class="pip pip-n pip-${c.toLowerCase()}">${pool[c]}</i>` : '').join('');
@@ -91793,6 +92033,22 @@ Sideboard
         if (a && b) this._arrow(a, b, 'blk', true);
       }
       const ptr = this._pointer ? { x: this._pointer.x - ar.left, y: this._pointer.y - ar.top, w: 0, h: 0 } : null;
+      // an attacker picked up: its arrow follows the pointer, and whatever it can attack glows
+      const pend = this.attackPlan && this.attackPlan.pending;
+      if (pend && ptr) {
+        const a = cardBox(pend);
+        if (a) this._arrow(a, ptr, 'atk', true, true);
+      }
+      const chA = (this.live || v).pendingChoice;
+      const canHit = new Set(pend && chA && chA.type === 'declareAttackers' ? (chA.defenders || []).map(d => d.id) : []);
+      for (const n of this.arena.querySelectorAll('.atk-target')) n.classList.remove('atk-target');
+      for (const id of canHit) {
+        const plate = this._plates && this._plates.get(id);
+        if (plate) plate.classList.add('atk-target');
+        for (const n of this.arena.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(id))}"]`)) n.classList.add('atk-target');
+        const c = this.els && this.els.get(id);
+        if (c) c.classList.add('atk-target');
+      }
       if (this.blockPlan && this.blockPlan.pendingBlocker && ptr) {
         const a = cardBox(this.blockPlan.pendingBlocker);
         if (a) this._arrow(a, ptr, 'blk', true, true);
@@ -92150,19 +92406,17 @@ Sideboard
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareAttackers') {
           const defs = ch.defenders || [];
-          const plan = this.attackPlan || { defenderId: (defs[0] || {}).id };
+          // who each one attacks is chosen on the table: the creature, then the player at the top or the planeswalker
           let extra = null;
-          if (defs.length > 1) {
-            const row = el('div', { class: 'ab-chips' }, [el('span', { class: 'tiny', text: 'Attacking:' }), ...defs.map(d => el('button', {
-              type: 'button', class: 'ab-chip' + (d.id === plan.defenderId ? ' on' : ''), text: d.name,
-              onclick: () => { if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: d.id }; this.attackPlan.defenderId = d.id; this.render(); },
-            }))]);
-            extra = { node: row, sig: plan.defenderId };
-          }
           // banding: the chosen attackers can go in together, as one band
           const band = this._bandRow(ch);
-          if (band) extra = { node: extra ? el('div', {}, [extra.node, band.node]) : band.node, sig: (extra ? extra.sig : '') + '|' + band.sig };
-          return set('combat', 'Choose attackers', `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
+          if (band) extra = band;
+          if (this.attackPlan && this.attackPlan.pending) {
+            return set('combat', 'Now choose what it attacks', `${press()} a player at the top, or a planeswalker or battle, to send it there. ${press()} the creature again to put it back.`, extra);
+          }
+          return set('combat', 'Choose attackers', defs.length > 1
+            ? `${press()} a creature, then the player or planeswalker it attacks. Press <b>Attack</b> when they are all chosen.`
+            : `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
         }
         if (ch.type === 'declareBlockers') {
           const atk = (ch.attackers || []).map(id => this.objIn(id)).filter(Boolean);
@@ -94281,13 +94535,15 @@ Sideboard
       if (!prev || !next) return;
       const motion = !t._motionOff();
       const info = { casts: [], resolves: [], counters: [], enters: [], deaths: [], hits: [], life: new Map(),
-        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [] };
+        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [], luck: [] };
       const cues = beat.fromEvents ? this._fromEvents(t, prev, next, info, motion) : this._fromDiff(t, prev, next, beat, info);
       this._lastWord(t, prev, next, cues, info);
       const pace = t._pace();
       const played = this._schedule(cues, beat, pace);
       MTG.audio.tension(next.over ? 0 : (next.stack || []).length);
       try { this._visuals(t, prev, next, info, motion); } catch (e) { console.error('[feel]', e); }
+      // coins flipped and dice rolled: shown in the middle of the table, landing on what they landed on
+      if (info.luck.length) try { this._luckReveal(t, info.luck, motion); } catch (e) { console.error('[feel]', e); }
       this.trace.push({ from: (next.events && next.events[0] || {}).seq, to: (next.events && next.events.length ? next.events[next.events.length - 1].seq : null),
         events: beat.fromEvents ? next.events.map(e => e.type) : null, sounds: played });
       if (this.trace.length > 80) this.trace.splice(0, 20);
@@ -94336,13 +94592,6 @@ Sideboard
         return n;
       };
 
-      /* A die or a coin: what came up floats off the player who rolled or
-         flipped, a beat after the sound, so it reads as the result. */
-      let luckAt = 0;
-      const luck = (e, text) => {
-        const at = 260 + 380 * luckAt++;
-        setTimeout(() => { const orb = t.orbFor && t.orbFor(e.player); if (orb && t.float) t.float(orb, text, 'fx-luck', 0.5); }, at);
-      };
 
       let hitsVoiced = 0;
       for (const e of evs) {
@@ -94509,8 +94758,8 @@ Sideboard
             add(won || !seated ? 'win' : 'lose', {}, 10, 'gameOver', 0, 120);
             break;
           }
-          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); luck(e, `\u{1F3B2} d${e.sides}: ${e.result}`); break;
-          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); luck(e, `\u{1FA99} ${e.result === 'heads' ? 'Heads' : 'Tails'}`); break;
+          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); info.luck.push(e); break;
+          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); info.luck.push(e); break;
           case 'control': add('steal', { pan: pan(e.to) }, 6, 'control', 100); break;
           case 'cue': add(e.name, { pan: pan(e.player) }, 5, 'cue', 90); break;
           default: break;
@@ -94682,6 +94931,89 @@ Sideboard
     _at(t, r) {
       const ar = MTG.util.rect(t.arena);
       return { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height };
+    },
+
+    /**
+     * Coins and dice, shown for what they came up: in the middle of the
+     * table, a coin for each flip that spins and lands heads (a win) or
+     * tails (a loss), and a die for each roll that tumbles through numbers
+     * and settles on its result; with more than one coin, the wins counted.
+     * One player's flips and rolls of a moment are shown together; another
+     * moment's wait their turn. A click puts it away early.
+     */
+    _luckReveal(t, list, motion) {
+      const groups = [];
+      for (const e of list) {
+        const last = groups[groups.length - 1];
+        if (last && last.player === e.player) last.items.push(e);
+        else groups.push({ player: e.player, items: [e] });
+      }
+      for (const g of groups) {
+        const run = () => new Promise((done) => {
+          const v = t.view || {};
+          const who = (v.players || []).find(p => p.id === g.player);
+          const name = who ? (who.id === t.meId ? 'You' : who.name) : 'A player';
+          const coins = g.items.filter(e => e.type === 'coin'), dice = g.items.filter(e => e.type === 'roll');
+          // a win is the event's to say (heads, as the engine has it); a coin Krark's Thumb set aside counts for nothing
+          const wins = (e) => (e.won != null ? !!e.won : e.result === 'heads');
+          const counted = coins.filter(e => !e.ignored);
+          const won = counted.filter(wins).length;
+          const mine = who && who.id === t.meId;
+          const from = (g.items.find(e => e.sourceName) || {}).sourceName;
+          const head = (from ? from + ': ' : '') + [
+            counted.length ? `${name} ${mine ? 'flip' : 'flips'} ${counted.length === 1 ? 'a coin' : counted.length + ' coins'}` : '',
+            dice.length ? `${counted.length ? ' and ' : name + ' '}${mine ? 'roll' : 'rolls'} ${dice.length === 1 ? 'a d' + dice[0].sides : dice.length + ' dice'}` : '',
+          ].join('');
+          const row = el('div', { class: 'lr-row' });
+          const box = el('div', { class: 'luck-reveal' + (motion ? '' : ' still'), role: 'status', 'aria-live': 'polite' }, [
+            el('div', { class: 'lr-head', text: head }), row,
+          ]);
+          let at = 0;
+          for (const e of g.items) {
+            const delay = motion ? at : 0;
+            at += 140;
+            if (e.type === 'coin') {
+              const heads = e.result === 'heads', win = wins(e);
+              row.appendChild(el('div', { class: 'lr-coin-wrap' + (e.ignored ? ' ignored' : '') }, [
+                el('div', { class: 'lr-coin ' + (heads ? 'heads' : 'tails'), style: { animationDelay: delay + 'ms' } }, [
+                  el('span', { class: 'lr-face lr-h', html: '<i>\u2600</i>' }), el('span', { class: 'lr-face lr-t', html: '<i>\u263E</i>' }),
+                ]),
+                el('span', { class: 'lr-say ' + (e.ignored ? '' : win ? 'win' : 'loss'), style: { animationDelay: (delay + 900) + 'ms' },
+                  text: (heads ? 'Heads' : 'Tails') + ' \u00b7 ' + (e.ignored ? 'ignored' : win ? 'won' : 'lost') }),
+              ]));
+            } else {
+              // every die rolled (two for an advantage), the ones set aside faded
+              const sides = e.sides || 20;
+              const rolls = (e.rolls && e.rolls.length ? e.rolls : [e.result]).slice();
+              const dropped = (e.ignored || []).slice();
+              for (const r of rolls) {
+                const di = dropped.indexOf(r);
+                const out = di >= 0 && rolls.length > 1;
+                if (out) dropped.splice(di, 1);
+                const face = el('b', { text: String(r) });
+                const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : ''), style: { animationDelay: delay + 'ms' } }, [face]);
+                row.appendChild(el('div', { class: 'lr-die-wrap' + (out ? ' ignored' : '') }, [die,
+                  el('span', { class: 'lr-say', style: { animationDelay: (delay + 900) + 'ms' }, text: 'd' + sides + (out ? ' \u00b7 dropped' : '') })]));
+                // the faces it tumbles through before it settles
+                if (motion) {
+                  setTimeout(() => {
+                    let k = 0;
+                    const tick = setInterval(() => { face.textContent = String(1 + Math.floor(Math.random() * sides)); if (++k > 12) { clearInterval(tick); face.textContent = String(r); } }, 60);
+                  }, delay);
+                }
+              }
+            }
+          }
+          if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));
+          t.arena.appendChild(box);
+          let gone = false;
+          const close = () => { if (gone) return; gone = true; box.classList.add('out'); setTimeout(() => { box.remove(); done(); }, motion ? 260 : 0); };
+          box.addEventListener('click', close);
+          setTimeout(close, (motion ? 2300 : 1600) + at);
+        });
+        // one at a time, in the order they happened
+        this._luckQueue = (this._luckQueue || Promise.resolve()).then(run, run);
+      }
     },
 
     _visuals(t, prev, next, info, motion) {
