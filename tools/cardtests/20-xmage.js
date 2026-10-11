@@ -23975,4 +23975,48 @@ module.exports = (test) => {
     const el = R.bfOf('A').find(o => o.isToken && /Elemental/.test(o.name));
     t.ok(!!el && R.g.powerOf(el) === 3 && R.g.hasKw(el, 'flying') && R.g.hasKw(el, 'haste'), 'Rootha: a 3/3 flying, hasty Elemental (Fiery Temper was 3)');
   });
+
+  test('Commanders: Narfi, Taeko, Evin, Heidegger, Tegan Jovanka; Priest of the Blessed Graf', (mk, t) => {
+    for (const n of ['Narfi, Betrayer King', 'Taeko, the Patient Avalanche', 'Evin, Waterdeep Opportunist', 'Heidegger, Shinra Executive', 'Tegan Jovanka', 'Priest of the Blessed Graf']) t.auto(n);
+    // Narfi: other snow creatures and other Zombies get +1/+1, once each
+    const N = mk({ library: Array(20).fill('Swamp') });
+    N.bf('A', 'Narfi, Betrayer King');
+    const zb = N.bf('A', 'Walking Corpse'), sn = N.bf('A', 'Boreal Druid'), gb = N.bf('A', 'Grizzly Bears');
+    N.g.bumpBoard();
+    t.ok(N.g.powerOf(zb) === 3 && N.g.powerOf(sn) === 2 && N.g.powerOf(gb) === 2, 'Narfi: the Zombie and the snow Druid +1/+1, the Bears not');
+    // Taeko: another creature leaves without dying, scry 1 and a counter; one dies, nothing
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const tk = T.bf('A', 'Taeko, the Patient Avalanche');
+    const c0 = Number(tk.counters['+1/+1']) || 0;
+    T.g.moveObject(T.bf('A', 'Grizzly Bears'), 'hand'); T.resolve();
+    t.eq((Number(tk.counters['+1/+1']) || 0) - c0, 1, 'Taeko: the Bears returned to hand, a counter');
+    T.g.dealDamageToObject(T.bf('A', 'Grizzly Bears'), 9, null, false); T.g.checkStateBasedActions(); T.resolve();
+    t.eq((Number(tk.counters['+1/+1']) || 0) - c0, 1, 'Taeko: the Bears died, nothing');
+    // Evin: a creature sacrificed by anyone, a tapped Treasure for A, once each turn
+    const E = mk({ library: Array(20).fill('Swamp') });
+    E.toMain('A');
+    E.bf('A', 'Evin, Waterdeep Opportunist');
+    E.g._sacrificeNow('B', [E.bf('B', 'Grizzly Bears')]); E.resolve();
+    E.g._sacrificeNow('B', [E.bf('B', 'Grizzly Bears')]); E.resolve();
+    const tr = E.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name));
+    t.ok(tr.length === 1 && tr[0].tapped, "Evin: B's creatures sacrificed, one tapped Treasure (once each turn)");
+    // Heidegger: a Soldier for each opponent with more creatures than A
+    const H = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    H.toMain('A');
+    H.bf('A', 'Heidegger, Shinra Executive');
+    H.bf('B', 'Grizzly Bears'); H.bf('B', 'Grizzly Bears');
+    H.bf('C', 'Grizzly Bears');
+    H.toMain('A', 'end'); H.resolve();
+    t.eq(H.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 1, 'Heidegger: only B has more creatures than A, one Soldier');
+    // Tegan: an attacking historic creature, +1/+1 and indestructible
+    const G = mk({ library: Array(20).fill('Plains') });
+    G.toMain('A');
+    G.bf('A', 'Tegan Jovanka');
+    const hist = G.bf('A', 'Isamaru, Hound of Konda'); hist.summoningSick = false;
+    G.answer('pickTarget', { targets: [{ kind: 'object', id: hist.id }] });
+    G.answer('declareAttackers', () => [{ attackerId: hist.id, defenderId: 'B' }]);
+    G.toMain('A', 'declareBlockers'); G.resolve();
+    t.ok(G.g.powerOf(hist) === 3 && G.g.hasKw(hist, 'indestructible'), 'Tegan: Isamaru is 3/3 and indestructible');
+  });
 };

@@ -3941,7 +3941,8 @@
 
 
     // (Imotekh the Stormlord: "another target artifact creature you control")
-    { re: /^((?:Another )?Target (?:attacking |blocking |attacking or blocking )?(?:artifact )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
+    // (Tegan Jovanka: "target attacking historic creature" — historicTarget)
+    { re: /^((?:Another )?Target (?:attacking |blocking |attacking or blocking )?(?:artifact |historic )?creature(?: you control| you don'?t control| an opponent controls)?|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) and (?:gains|has) ([a-z, ']+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [
         { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
           targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
@@ -6435,6 +6436,8 @@
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
     // Rootha, Mastering the Moment: "the greatest mana value among instant and sorcery spells you've cast this turn" (maxMvCast)
     if ((m = p.match(/^the greatest mana value among (instant and sorcery|instant|sorcery|creature|noncreature) spells you'?ve cast this turn$/i))) return done({ maxMvCast: m[1].toLowerCase().replace(' and ', ' or ') });
+    // Heidegger, Shinra Executive: "the number of opponents who control more creatures than you" (oppsWithMore)
+    if ((m = p.match(/^the number of opponents who control more (creatures|lands|artifacts) than you$/i))) return done({ oppsWithMore: m[1].toLowerCase().replace(/s$/, '') });
     // Crystal, Inhuman Princess: "the number of colors that spell is" (spellColorsAmount)
     if (/^the number of colou?rs that spell is$/i.test(p)) return done({ ofTrigger: 'colorCount' });
     // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
@@ -9805,6 +9808,8 @@
     [/^the number of attacking creatures is greater than the number of ([a-z]+) counters on (?:CARDNAME|this creature|it)$/i, (m) => ({ kind: 'attackersOverCounters', counter: m[1].toLowerCase() })],
     // Eshki Dragonclaw: "if you've cast both a creature spell and a noncreature spell this turn" (castBothKinds)
     [/^you'?ve cast both a creature spell and a noncreature spell this turn$/i, () => ({ kind: 'castBothKinds' })],
+    // Taeko, the Patient Avalanche: "if it didn't die" — the one that left went somewhere other than a graveyard (notDiedTrigger)
+    [/^it didn'?t die$/i, () => ({ kind: 'notDiedTrigger' })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -10147,6 +10152,8 @@
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Evin, Waterdeep Opportunist: "Whenever one or more players sacrifice one or more creatures" (anySacrificeCreature)
+    { re: /^Whenever one or more players sacrifice one or more creatures,? /i, event: 'anySacrifice', filt: () => ({ words: 'creature' }) },
     // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
     { re: /^Whenever the final chapter ability of a Saga you control resolves,? /i, event: 'finalChapterResolved' },
     // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
@@ -15102,6 +15109,9 @@
         make: (m) => ([m[1], m[2]].every(k => kwKnown(k)) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with power (\d+) or less\.?$/i,
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
+      // Narfi, Betrayer King: "Other snow and Zombie creatures you control get +1/+1." — snow ones and Zombies, each once (snowOrType)
+      { re: /^Other snow and ([A-Z][a-z]+) creatures you control get \+(\d+)\/\+(\d+)\.?$/,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', other: true, thatIs: 'snow or ' + m[1].toLowerCase() }, pt: { p: +m[2], t: +m[3] } }), auto: true },
       // Rocksteady, Crash Courser: "Boars you control can't be blocked by more than one creature." (oneBlockerType)
       { re: /^([A-Z][a-z]+)s you control can'?t be blocked by more than one creature\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + 's you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, flag: 'oneBlocker' } : null; }, auto: true },

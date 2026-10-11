@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10294,
-  "gainedCards": 953,
-  "linesNeeded": 10920,
-  "linesGained": 1108,
+  "needed": 10289,
+  "gainedCards": 952,
+  "linesNeeded": 10914,
+  "linesGained": 1106,
   "gained": {
-   "all": 953,
+   "all": 952,
    "top2000": 40,
    "stdTop": 6
   },
@@ -70,8 +70,8 @@
   },
   {
    "what": "custom ability",
-   "score": 650,
-   "lines": 596,
+   "score": 649,
+   "lines": 595,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -5964,16 +5964,6 @@
    ]
   },
   {
-   "what": "filter:historic",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "What Must Be Done",
-    "Lost to Legend",
-    "Tegan Jovanka"
-   ]
-  },
-  {
    "what": "ManifestEffect",
    "score": 3,
    "lines": 3,
@@ -6343,16 +6333,6 @@
    ]
   },
   {
-   "what": "SacrificeOneOrMorePermanentsTriggeredAbility",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Evin, Waterdeep Opportunist",
-    "Blood Hypnotist",
-    "Forge Boss"
-   ]
-  },
-  {
    "what": "ConniveSourceEffect",
    "score": 3,
    "lines": 3,
@@ -6421,6 +6401,26 @@
     "Unscythe, Killer of Kings",
     "Vampiric Embrace"
    ]
+  },
+  {
+   "what": "BeginningOfUpkeepTriggeredAbility from EXILED",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Curse of the Cabal",
+    "Darigaaz Reincarnated",
+    "All Hallow's Eve"
+   ]
+  },
+  {
+   "what": "SacrificeTargetEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Ashling, the Extinguisher",
+    "Mercy Killing",
+    "Celestial Sword"
+   ]
   }
  ],
  "sole": [
@@ -6439,8 +6439,8 @@
   },
   {
    "what": "custom ability",
-   "score": 499,
-   "cards": 460,
+   "score": 498,
+   "cards": 459,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",

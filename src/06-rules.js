@@ -10750,6 +10750,8 @@
         // Eshki Dragonclaw: a creature spell and a noncreature spell this turn (castBothKinds)
         case 'castBothKinds': { const castB = (me && me.spellObjsThisTurn) || [];
           return castB.some(x => this._cardFitsWords(x, 'creature')) && castB.some(x => !this._cardFitsWords(x, 'creature')); }
+        // Taeko, the Patient Avalanche: "if it didn't die" (notDiedTrigger)
+        case 'notDiedTrigger': { const tdD = (ctx && ctx.triggerData) || {}; const xD = tdD.objectId && this.obj(tdD.objectId); return !!xD && xD.zone !== 'graveyard'; }
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -13358,6 +13360,12 @@
         if (v && typeof v === 'object' && v.maxMvCast) {
           const castM = ((me && me.spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.maxMvCast));
           return castM.reduce((k, x) => Math.max(k, x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)), 0);
+        }
+        // Heidegger, Shinra Executive: opponents who control more of that kind than this player (oppsWithMore)
+        if (v && typeof v === 'object' && v.oppsWithMore) {
+          const cntO = (pid) => this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._cardFitsWords(x, v.oppsWithMore)).length;
+          const mine = cntO(ctx.controller);
+          return this.opponentsOf(ctx.controller).filter(q => cntO(q.id) > mine).length;
         }
         // Kratos, God of War: that player's creatures that didn't attack this turn (idleCreatures)
         if (v && typeof v === 'object' && v.triggerPlayerIdle) {
