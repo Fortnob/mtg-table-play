@@ -23308,4 +23308,24 @@ module.exports = (test) => {
     G.cast('A', G.hand('A', 'Pacifism'), { targets: [{ kind: 'object', id: ob.id }] }); G.resolve();
     t.eq(G.zone('A', 'hand').length - g0, 1, "Grakk: Pacifism on B's Bears, a card");
   });
+
+  test('Commanders: Helga, Skittish Seer', (mk, t) => {
+    t.auto('Helga, Skittish Seer');
+    // a creature spell of mana value 4 or more: a card, 1 life and a counter on Helga; a 2-drop, nothing
+    const H = mk({ library: Array(20).fill('Forest') });
+    H.toMain('A');
+    const hg = H.bf('A', 'Helga, Skittish Seer');
+    const h0 = H.zone('A', 'hand').length + 1;
+    H.mana('A', '3R');
+    H.cast('A', H.hand('A', 'Hill Giant')); H.resolve();
+    t.ok(H.zone('A', 'hand').length - h0 === 0 && H.life('A') === 21 && (Number(hg.counters['+1/+1']) || 0) === 1, 'Helga: Hill Giant, a card, a life and a counter');
+    H.mana('A', '1G');
+    H.cast('A', H.hand('A', 'Grizzly Bears')); H.resolve();
+    t.eq(H.life('A'), 21, 'Helga: Grizzly Bears, nothing');
+    // her mana: creature spells of mana value 4 or more, or with {X} in their costs
+    const so = H.MTG.oracle.analyze(hg.card).manaAbilities[0].spendOnly;
+    const ok = (n) => H.g._spendAllowed(so, H.hand('A', n), hg);
+    t.ok(ok('Hill Giant') && ok('Endless One'), 'Helga: her mana for Hill Giant and Endless One');
+    t.ok(!ok('Grizzly Bears') && !ok('Lightning Bolt') && !ok('Fireball'), 'Helga: not for Grizzly Bears, Lightning Bolt or Fireball');
+  });
 };

@@ -7937,7 +7937,9 @@
       if (!spell) return false;
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
-      if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words)) return false;
+      // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
+      if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words) &&
+        !(spendOnly.orXCreature && this._cardFitsWords(spell, 'creature') && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       return true;
     }

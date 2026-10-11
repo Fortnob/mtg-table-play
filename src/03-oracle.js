@@ -1240,6 +1240,12 @@
         return out;
       } },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
+    { re: /^Spend this mana only to cast creature spells with mana value (\d+) or greater or creature spells with \{X\} in their mana costs\.?$/i,
+      make: (m) => ({ op: 'spendOnly', words: 'creature spell with mana value ' + m[1] + ' or greater', orXCreature: true }) },
+    // Helga, Skittish Seer: "you draw a card, gain 1 life, and put a +1/+1 counter on Helga" (spendBigOrX)
+    { re: /^(?:You )?draw a card, gain (\d+) life, and put an? \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'gainLife', n: +m[1], who: 'you' }, { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
     // Steelswarm Operator, Sunken Citadel, Shang-Chi: "Spend this mana only to activate abilities of artifact sources."
     { re: /^Spend this mana only to activate abilities of (artifact|land|creature) sources\.?$/i,
       make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: m[1].toLowerCase() }) },

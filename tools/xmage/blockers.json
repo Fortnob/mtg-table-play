@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10360,
+  "needed": 10359,
   "gainedCards": 949,
-  "linesNeeded": 10993,
+  "linesNeeded": 10991,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3987,
-   "lines": 3750,
+   "score": 3986,
+   "lines": 3749,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -1590,22 +1590,6 @@
    ]
   },
   {
-   "what": "words:mv",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Helga, Skittish Seer",
-    "Delivery Moogle",
-    "Runadi, Behemoth Caller",
-    "Urza Assembles the Titans",
-    "Collected Company",
-    "Gandalf, Westward Voyager",
-    "Superior Foes of Spider-Man",
-    "Storm the Festival",
-    "Exile into Darkness"
-   ]
-  },
-  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 9,
    "lines": 9,
@@ -2093,6 +2077,21 @@
     "Allied Assault",
     "Grotag Bug-Catcher",
     "Strength of Solidarity"
+   ]
+  },
+  {
+   "what": "words:mv",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Delivery Moogle",
+    "Runadi, Behemoth Caller",
+    "Urza Assembles the Titans",
+    "Collected Company",
+    "Gandalf, Westward Voyager",
+    "Superior Foes of Spider-Man",
+    "Storm the Festival",
+    "Exile into Darkness"
    ]
   },
   {
