@@ -1059,3 +1059,19 @@
    under it, and the glows (your turn, a target) still drawn around it */
 .orb-ring { background: none; border: 0; -webkit-mask: none; mask: none; }
 .orb-art { inset: 0; box-shadow: inset 0 0 0 1px rgba(0,0,0,.45); }
+
+/* ---------- turning to another player's board ---------- */
+/* it comes in from its side of the table, a little small and faint, and settles */
+@keyframes seatInR { from { opacity: .2; transform: translateX(7%) scale(.965); } 60% { opacity: 1; } }
+@keyframes seatInL { from { opacity: .2; transform: translateX(-7%) scale(.965); } 60% { opacity: 1; } }
+.seat.focus-in-r { animation: seatInR .38s cubic-bezier(.2, .8, .2, 1) both; }
+.seat.focus-in-l { animation: seatInL .38s cubic-bezier(.2, .8, .2, 1) both; }
+/* a sweep of light across it as it lands */
+.seat.focus-in-r::after, .seat.focus-in-l::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: inherit;
+  background: linear-gradient(100deg, transparent 35%, rgba(246, 220, 140, .14) 50%, transparent 65%) no-repeat; background-size: 250% 100%;
+  animation: seatSweep .45s ease-out both; }
+.seat.focus-in-l::after { animation-direction: reverse; }
+@keyframes seatSweep { from { background-position: 100% 0; } to { background-position: 0 0; opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .seat.focus-in-r, .seat.focus-in-l, .seat.focus-in-r::after, .seat.focus-in-l::after { animation: none; }
+}

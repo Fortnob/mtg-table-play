@@ -679,6 +679,7 @@
       return s;
     }
 
+    /** @this {MTG.TableInstance} */
     renderSeats(others) {
       const v = this.view;
       const live = new Set();
@@ -754,6 +755,23 @@
         kids.push(s.root);
       }
       this.place(this.oppWrap, kids);
+      /* Another board brought forward comes in from its side of the table,
+         the short way round (the next seat along from the right), settling
+         as it arrives: you can see which way you turned. */
+      if (multi && !split && this.focusSeat) {
+        const was = this._shownFocus;
+        this._shownFocus = this.focusSeat;
+        const s = this.seats.get(this.focusSeat);
+        if (was && was !== this.focusSeat && s && !this._motionOff()) {
+          const n = others.length, a = others.findIndex(p => p.id === was), b = others.findIndex(p => p.id === this.focusSeat);
+          const fromRight = a < 0 || b < 0 || (b - a + n) % n <= n / 2;
+          s.root.classList.remove('focus-in-r', 'focus-in-l');
+          void s.root.offsetWidth;   // start it again, for a quick second turn
+          s.root.classList.add(fromRight ? 'focus-in-r' : 'focus-in-l');
+          clearTimeout(s._focusAnim);
+          s._focusAnim = setTimeout(() => s.root.classList.remove('focus-in-r', 'focus-in-l'), 460);
+        }
+      } else this._shownFocus = null;
       const me = this.me;
       if (me) {
         const s = this.seatFor(me, true);
