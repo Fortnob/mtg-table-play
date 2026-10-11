@@ -10280,6 +10280,8 @@
        opponent's graveyard from the battlefield" — dying, with whose it was */
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
       event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.who = /your/i.test(m[2]) ? 'you' : 'opponent'; return f; } },
+    // Jenova, Ancient Calamity, Vogar: "Whenever a Mutant you control dies during your turn" (diesYourTurn)
+    { re: new RegExp('^Whenever ' + SUBJ + ' dies during your turn,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Boneyard Scourge: "Whenever a Dragon you control dies while this card is in your graveyard"
     { re: new RegExp('^Whenever ' + SUBJ + ' dies while this card is in your graveyard,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),

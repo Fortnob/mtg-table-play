@@ -23155,4 +23155,28 @@ module.exports = (test) => {
     R.g._runEffects([{ op: 'scry', n: 1 }], ctx); R.resolve();
     t.eq((Number(g1.counters['+1/+1']) || 0) + (Number(g2.counters['+1/+1']) || 0), 1, 'Elrond: one card looked at, one counter');
   });
+
+  test('Commanders: Jenova, Ancient Calamity, Vogar, Necropolis Tyrant — dies during your turn', (mk, t) => {
+    t.auto('Jenova, Ancient Calamity'); t.auto('Vogar, Necropolis Tyrant');
+    const kill = (T, o) => { T.g.dealDamageToObject(o, 9, null, false); T.g.checkStateBasedActions(); T.resolve(); };
+    // Jenova: a Mutant of A's dies on A's turn, cards equal to its power; on B's turn, nothing
+    const J = mk({ library: Array(20).fill('Forest') });
+    J.toMain('A');
+    J.bf('A', 'Jenova, Ancient Calamity');
+    const m1 = J.bf('A', 'Hill Giant'); m1.counters['+1/+1'] = 0;
+    J.g._runEffects([{ op: 'addTypes', subtypes: ['Mutant'], scope: 'lastTarget' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: m1.id }] });
+    J.g.bumpBoard();
+    const h0 = J.zone('A', 'hand').length;
+    kill(J, m1);
+    t.eq(J.zone('A', 'hand').length - h0, 3, "Jenova: the 3/3 Mutant Giant died on A's turn, three cards");
+    // Vogar: another creature dies on A's turn, a counter; on B's turn, none
+    const V = mk({ library: Array(20).fill('Swamp') });
+    V.toMain('A');
+    const vg = V.bf('A', 'Vogar, Necropolis Tyrant');
+    kill(V, V.bf('B', 'Grizzly Bears'));
+    t.eq(Number(vg.counters['+1/+1']) || 0, 1, "Vogar: the Bears died on A's turn, a counter");
+    V.toMain('B');
+    kill(V, V.bf('B', 'Grizzly Bears'));
+    t.eq(Number(vg.counters['+1/+1']) || 0, 1, "Vogar: on B's turn, nothing");
+  });
 };

@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10366,
-  "gainedCards": 950,
-  "linesNeeded": 11001,
-  "linesGained": 1110,
+  "needed": 10364,
+  "gainedCards": 949,
+  "linesNeeded": 10999,
+  "linesGained": 1109,
   "gained": {
-   "all": 950,
+   "all": 949,
    "top2000": 40,
    "stdTop": 6
   },
@@ -25,7 +25,7 @@
    "x": 3,
    "it": 14,
    "count": 25,
-   "condition": 26
+   "condition": 27
   }
  },
  "weights": "per blocked line: 1, +6 if in Standard top 500, +3 if in all-format top 2000, +2 if in top 500",
@@ -552,25 +552,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Change of Fortune",
-    "Blitzball Stadium",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant",
-    "Curie, Emergent Intelligence",
-    "Misty Knight, Hero for Hire",
-    "April O'Neil, Hacktivist",
-    "Moonveil Regent",
-    "Astonishing Spider-Man"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 17,
    "lines": 17,
@@ -587,6 +568,25 @@
     "Anavolver",
     "Cetavolver",
     "Degavolver"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Blitzball Stadium",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Curie, Emergent Intelligence",
+    "Misty Knight, Hero for Hire",
+    "April O'Neil, Hacktivist",
+    "Moonveil Regent",
+    "Astonishing Spider-Man",
+    "Cruel Calculations"
    ]
   },
   {
@@ -6722,19 +6722,6 @@
    ]
   },
   {
-   "what": "DrawCardSourceControllerEffect amount",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Smuggler's Share",
-    "Lifestream's Blessing",
-    "Jenova, Ancient Calamity",
-    "Change of Fortune",
-    "Birth of the Imperium",
-    "Green Goblin, Revenant"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 14,
    "cards": 14,
@@ -6771,6 +6758,19 @@
     "Silverquill, the Disputant",
     "Abaddon the Despoiler",
     "Silverquill Lecturer"
+   ]
+  },
+  {
+   "what": "DrawCardSourceControllerEffect amount",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Smuggler's Share",
+    "Lifestream's Blessing",
+    "Change of Fortune",
+    "Birth of the Imperium",
+    "Green Goblin, Revenant",
+    "Misty Knight, Hero for Hire"
    ]
   },
   {
