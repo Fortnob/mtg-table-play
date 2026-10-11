@@ -23794,4 +23794,48 @@ module.exports = (test) => {
     t.ok(L.g.hasKw(small, 'indestructible') === (1 < lp) && L.g.hasKw(big, 'indestructible') === (3 < lp), "Lena: only those with less power than hers");
     t.ok(L.g.hasKw(small, 'indestructible'), 'Lena: the 1/1 Elves are indestructible');
   });
+
+  test('Commanders: Zhao, the Moon Slayer, Doc Samson, The Great Goblin, Cleopatra, Exiled Pharaoh', (mk, t) => {
+    for (const n of ['Zhao, the Moon Slayer', 'Doc Samson, Super Psychiatrist', 'The Great Goblin', 'Cleopatra, Exiled Pharaoh']) t.auto(n);
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Zhao: nonbasic lands enter tapped, basics untapped
+    const Z = mk({ library: Array(20).fill('Mountain') });
+    Z.toMain('A');
+    Z.bf('A', 'Zhao, the Moon Slayer');
+    const nb = Z.hand('B', 'Mutavault'); Z.g.moveObject(nb, 'battlefield');
+    const bs = Z.hand('B', 'Mountain'); Z.g.moveObject(bs, 'battlefield');
+    t.ok(nb.tapped && !bs.tapped, 'Zhao: the Mutavault enters tapped, the Mountain not');
+    // Doc Samson: counters A puts on A's permanents come one more of each kind
+    const D = mk({ library: Array(20).fill('Island') });
+    D.bf('A', 'Doc Samson, Super Psychiatrist');
+    const db = D.bf('A', 'Grizzly Bears'), ob = D.bf('B', 'Grizzly Bears');
+    D.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: db.id }] }));
+    D.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: ob.id }] }));
+    t.ok((Number(db.counters['+1/+1']) || 0) === 2 && (Number(ob.counters['+1/+1']) || 0) === 1, "Doc Samson: two on A's Bears, one on B's");
+    // The Great Goblin: a counter on a Goblin of A's, 2 damage to target opponent; on a Bear, nothing
+    const G = mk({ library: Array(20).fill('Mountain') });
+    G.toMain('A');
+    G.bf('A', 'The Great Goblin');
+    const gp = G.bf('A', 'Goblin Piker'), gbr = G.bf('A', 'Grizzly Bears');
+    G.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    G.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: gbr.id }] })); G.resolve();
+    t.eq(G.life('B'), 20, 'The Great Goblin: a counter on the Bears, nothing');
+    G.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: gp.id }] })); G.resolve();
+    t.eq(G.life('B'), 18, 'The Great Goblin: a counter on the Goblin Piker, 2 to B');
+    // Cleopatra: a legendary creature with counters dies, a card per counter, and 2 life
+    const C = mk({ library: Array(20).fill('Swamp') });
+    C.toMain('A');
+    C.bf('A', 'Cleopatra, Exiled Pharaoh');
+    const leg = C.bf('A', 'Isamaru, Hound of Konda'); leg.counters['+1/+1'] = 2; leg.counters.shield = 0;
+    const h0 = C.zone('A', 'hand').length, l0 = C.life('A');
+    C.g.dealDamageToObject(leg, 9, null, false); C.g.checkStateBasedActions(); C.resolve();
+    t.ok(C.zone('A', 'hand').length - h0 === 2 && C.life('A') === l0 - 2, 'Cleopatra: two counters, two cards and 2 life');
+    const plain = C.bf('A', 'Grizzly Bears'); plain.counters['+1/+1'] = 1;
+    const h1 = C.zone('A', 'hand').length;
+    C.g.dealDamageToObject(plain, 9, null, false); C.g.checkStateBasedActions(); C.resolve();
+    t.eq(C.zone('A', 'hand').length - h1, 0, 'Cleopatra: not legendary, nothing');
+    const bare = C.bf('A', 'Isamaru, Hound of Konda'); const l1 = C.life('A');
+    C.g.dealDamageToObject(bare, 9, null, false); C.g.checkStateBasedActions(); C.resolve();
+    t.eq(C.life('A'), l1, 'Cleopatra: a legendary creature without counters, nothing');
+  });
 };

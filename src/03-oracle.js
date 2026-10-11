@@ -2497,6 +2497,8 @@
     // Lena, Selfless Champion: "Creatures you control with power less than Lena's power gain indestructible until end of turn." (powerBelowSrc)
     { re: /^Creatures you control with power less than (?:CARDNAME|this creature)'?s power gain ([a-z]+) until end of turn\.?$/i,
       make: (m) => (kwKnown(m[1]) ? { op: 'grantKeyword', keywords: [U.titleCase(m[1])], duration: 'eot', scope: { who: 'you', what: 'creature', powerBelowSrc: true } } : null) },
+    // Cleopatra, Exiled Pharaoh: "draw a card for each counter on it" — the one that died, as it went (countersOnItAny)
+    { re: /^Draw a card for each counter on it\.?$/i, make: () => ({ op: 'draw', who: 'you', n: { countersOnTrigger: true, mult: 1 } }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -10064,6 +10066,9 @@
         f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
         f.withCounter = m[1]; p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with counters on it$/i))) {
+        // Cleopatra, Exiled Pharaoh: "a legendary creature with counters on it" — of any kind (countersOnItAny)
+        f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         // Haliya, Ascendant Cadet: "one or more creatures you control with +1/+1 counters on them" (countersOnThem)
         f.withCounter = m[1]; p = p.slice(0, m.index);
@@ -10742,7 +10747,8 @@
     /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
        a creature"; Generous Patron: "counters on a creature you don't control" */
     // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
-    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) (creature|permanent|Goblin)( you don'?t control| you control)?, /i,
+    // (The Great Goblin: "… on a Goblin, Orc, or Army you control" — counterOnTypes)
+    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) (creature|permanent|Goblin, Orc, or Army|Goblin)( you don'?t control| you control)?, /i,
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
@@ -14117,6 +14123,9 @@
        instead." */
     { re: /^If you would put one or more counters on a creature or planeswalker you control or on yourself, put that many plus one of each of those kinds of counters on that permanent or player instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Any', event: 'counters', who: 'putter', onYours: true, players: true, how: 'add', n: 1, whatAny: ['creature', 'planeswalker'] }) },
+    // Doc Samson, Super Psychiatrist: "If you would put one or more counters on a permanent you control, put that many plus one …" (countersPlusPermanent)
+    { re: /^If you would put one or more counters on a permanent you control, put that many plus one of each of those kinds of counters on that permanent instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Perm', event: 'counters', who: 'putter', onYours: true, how: 'add', n: 1 }) },
     // Benevolent Hydra: "If one or more +1/+1 counters would be put on another creature you control, that many plus one … are put on it instead."
     { re: /^If one or more \+1\/\+1 counters would be put on another creature you control, that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Other', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', what: 'creature', notSelf: true }) },
@@ -14259,7 +14268,8 @@
       make: () => ({ op: 'replace', id: 'lifeDouble', event: 'gainLife', who: 'you', how: 'double' }) },
     /* Authority of the Consuls, Blind Obedience: the other side's arrivals come in tapped */
     // Root Maze: "Artifacts and lands enter tapped." — everyone's
-    { re: /^((?:Artifacts|Creatures|Lands)(?:,? (?:and )?(?:artifacts|creatures|lands))*) enter (?:the battlefield )?tapped\.?$/,
+    // (Zhao, the Moon Slayer: "Nonbasic lands enter tapped." — etbTapNonbasic)
+    { re: /^((?:Artifacts|Creatures|Lands|Nonbasic lands)(?:,? (?:and )?(?:artifacts|creatures|lands))*) enter (?:the battlefield )?tapped\.?$/,
       make: (m) => ({ op: 'replace', id: 'etbTapAll', event: 'enters', who: 'all', how: 'tapped',
         whatAny: m[1].toLowerCase().split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
     // Kismet, Frozen Aether: "Artifacts, creatures, and lands your opponents control enter tapped."
