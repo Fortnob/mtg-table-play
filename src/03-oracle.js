@@ -5647,6 +5647,19 @@
     { re: /^Create a token that'?s a copy of (it|that card|that creature|target [a-z ]+?), except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green|colorless) ([A-Z][a-z]+)\.?$/,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], setColor: m[4], setType: m[5] },
         /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : { scope: 'lastTarget' }) },
+    /* Ratadrabik of Urborg: "… a copy of that creature, except it's not legendary and it's a 2/2 black Zombie in
+       addition to its other colors and types"; The Jolly Balloon Man: "… a 1/1 red Balloon creature in addition to
+       its other colors and types and it has flying and haste" (copyPlusKind) */
+    { re: /^Create a token that'?s a copy of (that creature|(?:another )?target (?:creature|artifact)(?: you control| you don'?t control)?), except (it'?s not legendary and )?it'?s an? (\d+)\/(\d+) (white|blue|black|red|green) ([A-Z][a-z]+)( creature)?(?: token)? in addition to its other colors and types(?: and it has ([a-z ,]+?))?\.?$/,
+      make: (m) => {
+        const kws = m[8] ? keywordList(m[8]) : [];
+        if (!kws.every(kwKnown)) return null;
+        const e = { op: 'copyPermanent', n: 1, grant: kws, setPt: m[3] + '/' + m[4], addColor: m[5], addSubtypes: [m[6]] };
+        if (m[7]) e.addTypes = ['Creature'];
+        if (m[2]) e.nonLegendary = true;
+        if (/^that/i.test(m[1])) e.scope = 'triggerObject'; else e.targets = [targetSpec(m[1])];
+        return e;
+      } },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },

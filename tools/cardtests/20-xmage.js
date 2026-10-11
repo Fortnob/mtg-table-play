@@ -23104,4 +23104,32 @@ module.exports = (test) => {
     P.cast('A', P.hand('A', 'Grizzly Bears')); P.resolve();
     t.eq(ills().length, 1, 'Preston: the Bears were cast, no copy');
   });
+
+  test('Commanders: Ratadrabik of Urborg, The Jolly Balloon Man — a copy that is another kind as well', (mk, t) => {
+    t.auto('Ratadrabik of Urborg'); t.auto('The Jolly Balloon Man');
+    // Ratadrabik: a legendary creature of A's dies, a 2/2 black Zombie copy of it, not legendary
+    const R = mk({ library: Array(10).fill('Plains') });
+    R.toMain('A');
+    R.bf('A', 'Ratadrabik of Urborg');
+    const isa = R.bf('A', 'Isamaru, Hound of Konda');
+    R.g.dealDamageToObject(isa, 5, null, false); R.g.checkStateBasedActions(); R.resolve();
+    const tk = R.bfOf('A').find(o => o.isToken);
+    t.ok(!!tk && /Isamaru/.test(tk.name), 'Ratadrabik: a copy of Isamaru');
+    const ch = tk && R.g.characteristics(tk);
+    t.ok(!!ch && R.g.powerOf(tk) === 2 && R.g.toughnessOf(tk) === 2, 'Ratadrabik: 2/2');
+    t.ok(!!tk && R.g._cardFitsWords(tk, 'black') && R.g._cardFitsWords(tk, 'white') && R.g._cardFitsWords(tk, 'Zombie') && R.g._cardFitsWords(tk, 'Dog'), 'Ratadrabik: black as well as white, a Zombie as well as a Dog');
+    t.ok(!!tk && !R.g._cardFitsWords(tk, 'legendary'), 'Ratadrabik: not legendary');
+    // The Jolly Balloon Man: a 1/1 red Balloon copy with flying and haste, gone at the end step
+    const J = mk({ library: Array(10).fill('Mountain') });
+    J.toMain('A');
+    const jb = J.bf('A', 'The Jolly Balloon Man'); jb.summoningSick = false;
+    const gi = J.bf('A', 'Hill Giant');
+    J.mana('A', '1');
+    J.activate('A', jb, 0, { targets: [{ kind: 'object', id: gi.id }] }); J.resolve();
+    const bl = J.bfOf('A').find(o => o.isToken);
+    t.ok(!!bl && /Hill Giant/.test(bl.name) && J.g.powerOf(bl) === 1 && J.g.toughnessOf(bl) === 1, 'Jolly Balloon Man: a 1/1 Hill Giant');
+    t.ok(!!bl && J.g.hasKw(bl, 'flying') && J.g.hasKw(bl, 'haste') && J.g._cardFitsWords(bl, 'Balloon') && J.g._cardFitsWords(bl, 'red'), 'Jolly Balloon Man: a red Balloon with flying and haste');
+    J.toMain('A', 'end'); J.resolve();
+    t.ok(!J.bfOf('A').some(o => o.isToken), 'Jolly Balloon Man: sacrificed at the end step');
+  });
 };

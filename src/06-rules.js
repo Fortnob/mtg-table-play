@@ -16462,7 +16462,9 @@
             let line = String(card.type_line || '');
             if (e.setType) line = line.replace(/\s*\u2014.*$/, '') + ' \u2014 ' + e.setType;
             const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-            const cols = e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
+            let cols = e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
+            // Ratadrabik of Urborg: "a 2/2 black Zombie in addition to its other colors" (copyPlusKind)
+            if (e.addColor && COL[e.addColor] && !cols.includes(COL[e.addColor])) cols = cols.concat([COL[e.addColor]]);
             const [pw, tg] = e.setPt ? e.setPt.split('/') : [card.power, card.toughness];
             card = Object.assign({}, card, { id: card.id + ':as:' + U.hash(line + pw + '/' + tg + cols.join('')),
               type_line: line, power: pw, toughness: tg, colors: cols, card_faces: null });
