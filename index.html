@@ -15540,6 +15540,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Burakos, Party Leader: "defending player loses X life and you create X Treasure tokens, where X is …" (defendingLosesX)
     { re: /^defending player loses X life and you create X (Treasure|Food|Clue) tokens, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? [{ op: 'loseLife', n: k, who: 'defending' }, { op: 'createNamedToken', n: k, token: m[1] }] : null; } },
+    // Aveline de Grandpré: "put that many +1/+1 counters on that creature" — the one that dealt the damage (thatManyOnThat)
+    { re: /^Put that many (\+1\/\+1|[a-z]+) counters on that creature\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'triggerObject' }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -22146,7 +22148,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Company Commander: "Bring it Down! — …")
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
     // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -22813,6 +22816,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
+    [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
+    // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
+    [/^that spell was all colou?rs$/i, () => ({ kind: 'spellAllColors' })],
+    // Baird, Argivian Recruiter: "if you control a creature with power greater than its base power" (controlPumped)
+    [/^you control a creature with power greater than its base power$/i, () => ({ kind: 'controlPumped' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
     [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
       const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
@@ -23051,6 +23060,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
       // Athreos, God of Passage: "another creature you own" — whoever controls it
       if (/ you own$/.test(q)) { f.owned = true; return q.replace(/ you own$/, ''); }
+      // Kothophed, Soul Hoarder: "a permanent owned by another player" — whoever controls it (ownedByOther)
+      if (/ owned by another player$/.test(q)) { f.notOwned = true; return q.replace(/ owned by another player$/, ''); }
       // the Curses: "a creature enchanted player controls"
       if (/ enchanted (?:player|opponent) controls$/.test(q)) { f.who = 'enchantedPlayer'; return q.replace(/ enchanted (?:player|opponent) controls$/, ''); }
       if (/ (?:an opponent controls|your opponents control|you don'?t control)$/.test(q)) {
@@ -23063,6 +23074,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       p = who(p);
       if ((m = p.match(/ with power (\d+) or (greater|more|less)$/))) {
         if (/less/.test(m[2])) f.maxPower = +m[1]; else f.minPower = +m[1];
+        p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with power or toughness (\d+) or less$/))) {
+        // Arnyn, Deathbloom Botanist: "a creature you control with power or toughness 1 or less" (powerOrToughnessMax)
+        f.maxPowerOrToughness = +m[1];
         p = p.slice(0, m.index);
       } else if ((m = p.match(/ with toughness (\d+) or (greater|more|less)$/))) {
         // Ulvenwald Observer: "a creature you control with toughness 4 or greater"
@@ -23084,6 +23099,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // The Swarmlord: "a creature you control with a counter on it" — of any kind
         f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
+        f.withCounter = m[1]; p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
+        // Haliya, Ascendant Cadet: "one or more creatures you control with +1/+1 counters on them" (countersOnThem)
         f.withCounter = m[1]; p = p.slice(0, m.index);
       }
     }
@@ -23759,9 +23777,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
     /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
        a creature"; Generous Patron: "counters on a creature you don't control" */
-    { re: /^Whenever you put one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters on (a|another) (creature|permanent|Goblin)( you don'?t control)?, /i,
+    // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
+    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) (creature|permanent|Goblin)( you don'?t control| you control)?, /i,
       event: 'countersPut', aboutObject: true,
-      filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? 'opponent' : undefined }),
+      filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
@@ -27141,6 +27160,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
         / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+    // Mowu, Loyal Companion: "If one or more +1/+1 counters would be put on Mowu, that many plus one … on it instead." (selfCountersPlus)
+    { re: /^If one or more \+1\/\+1 counters would be put on (?:CARDNAME|this creature), that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Self', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', selfOnly: true }) },
     // Mauhúr, Uruk-hai Captain: "… on an Army, Goblin, or Orc you control, that many plus one …" — creature types, any one of them
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/,
       make: (m) => ({ op: 'replace', id: 'cntPlus1Types', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1',
@@ -27161,7 +27183,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Queen Allenal of Ruadach: "those tokens plus a 1/1 white Soldier creature token are created instead" — tokensPlusA)
     { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
-        const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
+        // (Donatello, the Brains: "plus a Mutagen token" — tokensPlusMutagen)
+        const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map|Mutagen)$/i);
         let extra = null;
         if (named) extra = { named: U.titleCase(named[1]) };
         else {
@@ -28099,6 +28122,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Challenger Troll, Flopsie: "Each creature you control with power 4 or greater can't be blocked by more than one creature." — its power as blockers are declared
       { re: /^Each creature you control with power (\d+) or greater can'?t be blocked by more than one creature\.?$/i,
         make: (m) => ({ op: 'oneBlockerPower', n: +m[1] }), auto: true },
+      // Michelangelo, Mutant BFF: "Each creature you control with a counter on it can't be blocked by more than one creature." (oneBlockerWith)
+      { re: /^Each creature you control (with (?:a|one or more) counters? on it) can'?t be blocked by more than one creature\.?$/i,
+        make: (m) => { const sc = scopeOf('creatures you control ' + m[1].replace(/counter on it/, 'counters on them')); return sc && sc.withAnyCounter ? { op: 'continuous', layer: 6, scope: sc, flag: 'oneBlocker' } : null; }, auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
@@ -39900,6 +39926,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (ef.onYours && ev.controller !== src.controller) return false;
       // Benevolent Hydra: "another creature"
       if (ef.notSelf && ev.object && ev.object.id === src.id) return false;
+      // Mowu, Loyal Companion: only counters on this one (selfCountersPlus)
+      if (ef.selfOnly && !(ev.object && ev.object.id === src.id)) return false;
       // Gond Gate: "Gates you control" — the words, as a card reads them
       if (ef.words && ev.object && !this._cardFitsWords(ev.object, ef.words)) return false;
       // Winding Constrictor: counters on you, not on your permanents
@@ -41147,6 +41175,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const xB = tdB.objectId && this.obj(tdB.objectId);
           return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
         }
+        // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
+        case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
+        // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
+        case 'spellAllColors': { const tdA = (ctx && ctx.triggerData) || {}; const xA = tdA.objectId && this.obj(tdA.objectId);
+          return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
+        // Baird, Argivian Recruiter: "a creature with power greater than its base power" (controlPumped)
+        case 'controlPumped': return !!me && this.battlefield.some(x => x.controller === me.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature &&
+          this.powerOf(x) > (this.characteristics(x) || {}).basePower);
         // Tom Bombadil: "four or more lore counters among Sagas you control" (countersAmongAtLeast)
         case 'countersAmongAtLeast': return this._countValue({ countersAmong: cond.scope, kind: cond.counter, mult: 1 }, ctx.controller, src) >= (cond.n || 0);
         // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
@@ -41400,7 +41436,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       let p = parseInt(a.power, 10); if (isNaN(p)) p = 0;
       let t = parseInt(a.toughness, 10); if (isNaN(t)) t = 0;
       const plus = Number((o.counters || {})['+1/+1']) || 0, minus = Number((o.counters || {})['-1/-1']) || 0;
-      return { power: p + plus - minus, toughness: t + plus - minus, keywords: new Set(a.keywordSet || []), flags: new Set(),
+      return { power: p + plus - minus, toughness: t + plus - minus, basePower: p, baseToughness: t, keywords: new Set(a.keywordSet || []), flags: new Set(),
         addSubtypes: [], setSubtypes: null, setMana: null, grantMana: [], addTypes: [], abilitiesLost: false, isCreature: !!a.isCreature };
     }
     _characteristics(o) {
@@ -41472,6 +41508,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       };
       if (defining.length) { defining.sort((x, y) => x.ts - y.ts); defining.forEach(setTo); }
       if (setting.length) { setting.sort((x, y) => x.ts - y.ts); setting.forEach(setTo); }
+      // its base power and toughness: what 7a and 7b make it, before anything modifies it (Baird: basePowerLayers)
+      const baseP = p, baseT = t;
       // layer 7c: effects that modify, and counters
       for (const m of modifying) {
         if (m.p) p += this._contValue(m.p, o, m.src);
@@ -41502,6 +41540,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
 
       const res = { power: Number.isFinite(p) ? p : 0, toughness: Number.isFinite(t) ? t : 0,
+        basePower: Number.isFinite(baseP) ? baseP : 0, baseToughness: Number.isFinite(baseT) ? baseT : 0,
         keywords: kw, flags, addSubtypes, setSubtypes, setMana, grantMana,
         // card types the layers gave it beyond its own (an animated land is a creature)
         addTypes: s && s.changed ? (a.types || []).filter(x => !(s.base.types || []).includes(x)) : [],
@@ -42543,6 +42582,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
+      }
+      // Gau, Feral Youth: whose graveyard a card left this turn (cardLeftGraveyard)
+      if (event === 'leftGraveyard' && data.objController) {
+        const hL = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        (hL.leftGraveyard = hL.leftGraveyard || {})[data.objController] = true;
       }
       // Thalisse: "the number of tokens you created this turn" — kept as they are made
       if (event === 'youCreateToken' && controllerId) {
@@ -54355,6 +54399,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (f.who === 'enchantedPlayer' && !(src && src.attachedTo && owner === src.attachedTo)) return false;
       // Athreos, God of Passage: "another creature you own"
       if (f.owned && src && x.owner !== src.controller) return false;
+      // Kothophed, Soul Hoarder: "owned by another player" (ownedByOther)
+      if (f.notOwned && src && x.owner === src.controller) return false;
       if (f.nontoken && x.isToken) return false;
       if (f.token && !x.isToken) return false;
       /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"
@@ -54372,6 +54418,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const pw = () => (gone ? x._lastPower : this.powerOf(x)), tg = () => (gone ? x._lastToughness : this.toughnessOf(x));
       if (f.minPower != null && pw() < f.minPower) return false;
       if (f.maxPower != null && pw() > f.maxPower) return false;
+      // Arnyn, Deathbloom Botanist: "with power or toughness 1 or less" (powerOrToughnessMax)
+      if (f.maxPowerOrToughness != null && pw() > f.maxPowerOrToughness && tg() > f.maxPowerOrToughness) return false;
       if (f.minToughness != null && tg() < f.minToughness) return false;
       if (f.maxToughness != null && tg() > f.maxToughness) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
