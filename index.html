@@ -3091,6 +3091,34 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 /* a creature chosen to attack rises a little, red-lit, ready to go */
 .cv.declared-atk .cv-body { box-shadow: 0 0 0 2px rgba(255, 90, 70, .9), 0 0 22px rgba(255, 70, 50, .55), 0 10px 18px rgba(0,0,0,.5); }
 @media (prefers-reduced-motion: reduce) { .arrow.atk:not(.dashed), .atk-target { animation: none; } }
+
+/* ---------- priority: the timer, and an opponent's spell to answer ---------- */
+.bb-timer { position: absolute; left: 14%; right: 14%; bottom: 6px; height: 3px; border-radius: 2px; pointer-events: none;
+  background: rgba(255,255,255,.75); transform-origin: left center; transform: scaleX(0); opacity: 0; }
+.big-btn.timing .bb-timer { opacity: 1; animation: bbTimer var(--t, 15s) linear forwards; }
+@keyframes bbTimer { 0% { transform: scaleX(1); background: rgba(255,255,255,.75); } 75% { background: rgba(255,255,255,.75); } 100% { transform: scaleX(0); background: #ff8a70; } }
+/* someone else's spell: the button warms and breathes, asking */
+.big-btn.respond { background: linear-gradient(180deg, #8a4a2e, #4a2416); animation: bbAsk 1.6s ease-in-out infinite; }
+@keyframes bbAsk { 50% { box-shadow: 0 0 0 2px rgba(255, 160, 110, .55), 0 0 26px rgba(255, 120, 70, .5), 0 10px 26px rgba(0,0,0,.6); } }
+.dock-respond { display: grid; gap: 7px; padding: 10px; border-radius: 14px; background: rgba(14, 16, 22, .92); border: 1px solid rgba(255, 150, 100, .45);
+  box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 22px rgba(255, 110, 60, .18); animation: drIn .32s cubic-bezier(.2,.8,.2,1) both; }
+.dock-respond[hidden] { display: none; }
+@keyframes drIn { from { opacity: 0; transform: translateX(26px); } }
+.dr-head { display: flex; gap: 10px; align-items: center; min-width: 0; cursor: help; }
+.dr-art { width: 54px; height: 40px; flex: none; border-radius: 7px; background: #1b1f28 center 30% / cover no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
+.dr-text { display: grid; gap: 1px; min-width: 0; }
+.dr-who { font-size: 11px; color: #c9b8a8; }
+.dr-name { font: 600 14px/1.15 var(--serif); color: #fff1dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-aim { font-size: 11.5px; color: #ffb39c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-could { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #9aa4b6; }
+.dr-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.dr-opt { position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 3px; border-radius: 99px; cursor: pointer;
+  border: 1px solid rgba(156, 199, 255, .45); background: rgba(30, 42, 64, .85); color: #e7eefb; font: 600 12px/1.1 var(--font); transition: transform .12s, border-color .15s; }
+.dr-opt:hover { transform: translateY(-1px); border-color: #9cc7ff; box-shadow: 0 0 12px rgba(120, 170, 255, .4); }
+.dr-opt-art { width: 22px; height: 22px; border-radius: 50%; background: #1b1f28 center 30% / cover no-repeat; flex: none; }
+.dr-opt-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+@media (prefers-reduced-motion: reduce) { .big-btn.respond, .dock-respond { animation: none; } }
+:root[data-reduce-motion] .big-btn.respond, :root[data-reduce-motion] .dock-respond { animation: none; }
 /* ============================================================
    feel.css - the small physical touches (src/12f-ui-feel.js)
 
@@ -7817,6 +7845,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
+  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
   botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
@@ -15365,6 +15394,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^If you put an? (artifact|creature|land|enchantment) onto the battlefield this way, put (a|an|one|two|three) \+1\/\+1 counters? on it\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'putThisWayIs', what: m[1].toLowerCase() },
         then: [{ op: 'counters', kind: '+1/+1', n: num(m[2].replace(/^an?$/i, 'one')), scope: 'lastTarget' }] }) },
+    // Shelinda, Yevon Acolyte: "put a +1/+1 counter on that creature if its power is less than Shelinda's power" (triggerPowerBelowSelf)
+    { re: /^Put an? \+1\/\+1 counter on that creature if its power is less than (?:CARDNAME|this creature)'?s power\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerBelowSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerObject' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -31069,6 +31101,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const o of this.battlefield) o.activatedLoyaltyThisTurn = false;
       // "until your next turn" ends as that turn begins
       for (const o of this.battlefield) {
+        // goad lasts until the goading player's next turn (CR 701.15a), every combat until then
+        if (o.goadedBy != null && o.goadedBy === this.turnOrder[this.activeIndex]) o.goadedBy = null;
         if ((o.effects || []).some(e => e.untilTurnOf === this.turnOrder[this.activeIndex])) {
           o.effects = o.effects.filter(e => e.untilTurnOf !== this.turnOrder[this.activeIndex]);
           o._chr = null;
@@ -36256,7 +36290,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const pid = this.activePlayer.id;
       const defenders = new Set(attackers.map(o => {
         const d = o.attacking;
-        return this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+        return this._defPid(d);
       }).filter(Boolean));
 
       // exalted only applies when exactly one creature attacked
@@ -36343,7 +36377,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const ann = this._kwArg(o, 'annihilator');
         if (ann) {
           const d = o.attacking;
-          const dpid = this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+          const dpid = this._defPid(d);
           if (dpid) {
             this.queueChoice({
               type: 'sacrifice', playerId: dpid, count: ann, filter: 'permanent',
@@ -36360,7 +36394,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (attackers.length === 1 && attackers[0]) {
         const at = attackers[0], d = at.attacking;
         this._fire('attacksAlone', null, { object: at, objController: at.controller, attacker: at, source: at,
-          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+          player: this._defPid(d) });
       }
     }
 
@@ -38503,8 +38537,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const o of this.battlefield) {
         const a = o.analysis();
         if (!a) continue;
+        // a battle: anyone but its protector, its controller too (CR 310.10, 508.1b)
+        if (a.isBattle) { if (this._defPid(o.id) !== attackerPid) out.push({ kind: 'object', id: o.id, name: o.name }); continue; }
         if (o.controller === attackerPid) continue;
-        if (a.isPlaneswalker || a.isBattle) out.push({ kind: 'object', id: o.id, name: o.name });
+        if (a.isPlaneswalker) out.push({ kind: 'object', id: o.id, name: o.name });
       }
       return out;
     }
@@ -38616,6 +38652,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const must = this.mustAttack(o);
           if (must && !declarations.some(d => d.attackerId === id))
             return this.fail(`${o.name} ${o.goadedBy != null ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
+          /* goaded: it attacks a player other than the one who goaded it, if it can (CR 701.15b) — a bot's
+             declaration is turned that way, a person is told */
+          if (o && o.goadedBy != null) {
+            const d = declarations.find(x => x.attackerId === id);
+            const others = this.opponentsOf(playerId).filter(q => !q.hasLost && q.id !== o.goadedBy && !this._cantAttackYou(o, q.id));
+            if (d && others.length && !others.some(q => q.id === d.defenderId)) {
+              if ((this.player(playerId) || {}).isBot) d.defenderId = others[0].id;
+              else return this.fail(`${o.name} is goaded: it attacks a player other than ${(this.player(o.goadedBy) || {}).name || 'the one who goaded it'} if it can.`);
+            }
+          }
           /* An encore token was made to go after one player in particular. */
           if (o && o.mustAttackPlayer != null) {
             const d = declarations.find(x => x.attackerId === id);
@@ -38641,9 +38687,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const o of this.battlefield) if (o.controller === playerId) o.bandId = null;
       for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
-      // goad only compels the one combat it was aimed at (CR 701.38)
-      // (Vengeful Ancestor still sees it as goaded as it attacks)
-      for (const id of ch.candidates) { const o = this.obj(id); if (o) { if (o.goadedBy != null) o._goadedAttack = this.turn; o.goadedBy = null; } }
+      // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
+      for (const id of ch.candidates) { const o = this.obj(id); if (o && o.goadedBy != null) o._goadedAttack = this.turn; }
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
@@ -38709,8 +38754,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
 
     canBlock(blocker, attacker) {
-      const def = attacker.attacking;
-      const defPid = this.player(def) ? def : (this.obj(def) ? this.obj(def).controller : null);
+      const defPid = this._defPid(attacker.attacking);
       return this.couldBlock(blocker, attacker, defPid);
     }
 
@@ -39086,7 +39130,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const id of this.combat.attackers) {
         const o = this.obj(id);
         const d = o.attacking;
-        const pid = this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+        const pid = this._defPid(d);
         if (pid) defenders.add(pid);
       }
       this.blockQueue = Array.from(defenders);
@@ -39102,7 +39146,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const attackersOnMe = this.combat.attackers.filter(id => {
         const o = this.obj(id);
         const d = o.attacking;
-        return d === pid || (this.obj(d) && this.obj(d).controller === pid);
+        return this._defPid(d) === pid;
       });
       const candidates = this.battlefield.filter(o => o.controller === pid &&
         attackersOnMe.some(aid => this.canBlock(o, this.obj(aid))));
@@ -39153,9 +39197,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const d of declarations) {
         const b = this.obj(d.blockerId);
         if (!b) return this.fail('No such blocker.');
+        // (only the blocking player's own creatures, and only what attacks that player, its planeswalkers or the battles it protects: CR 509.1a)
+        if (b.controller !== playerId) return this.fail(`${b.name} is not yours to block with.`);
         for (const aid of d.attackerIds) {
           const at = this.obj(aid);
           if (!at || !this.canBlock(b, at)) return this.fail(`${b.name} cannot block ${at ? at.name : '?'}.`);
+          if ((ch.attackers || []).length && !ch.attackers.includes(aid)) return this.fail(`${at.name} isn't attacking you.`);
         }
         if (d.attackerIds.length > 1) {
           const ba = b.analysis();
@@ -39299,7 +39346,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (!at || at.zone !== 'battlefield' || at.blockedBy.length) continue;
         const d = at.attacking;
         this._fire('attacksUnblocked', at.controller, { source: at, object: at, attacker: at,
-          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+          player: this._defPid(d) });
       }
       this.checkStateBasedActions();
       this._givePriority(this.activeIndex);
@@ -40845,6 +40892,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const pS = parseInt(((this.characteristics(xS) || {}).power), 10) || 0;
           return pS >= (cond.n || 0);
         }
+        // Shelinda, Yevon Acolyte: "if its power is less than Shelinda's power" (triggerPowerBelowSelf)
+        case 'triggerPowerBelowSelf': {
+          const tdB = (ctx && ctx.triggerData) || {};
+          const xB = tdB.objectId && this.obj(tdB.objectId);
+          return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
+        }
         // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
         case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');
@@ -41569,8 +41622,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
       }
       this.bumpBoard();
-      o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
+      const wasK = Number(o.counters[kind]) || 0;
+      o.counters[kind] = wasK + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];
+      /* A Siege's last defense counter removed: "exile it, then you may cast it transformed without
+         paying its mana cost" (CR 310.11b) — a trigger, and the battle stays until it has resolved */
+      if (kind === 'defense' && n < 0 && wasK > 0 && o.counters.defense <= 0 && o.zone === 'battlefield' && !o._siegeDone &&
+          ((o.analysis() || {}).subtypes || []).includes('Siege')) {
+        o._siegeDone = true;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, siege: true,
+          controller: o.controller, name: `${o.name} — defeated`, effects: [{ op: 'siegeDefeated' }], auto: true,
+          abilityText: 'When the last defense counter is removed from this battle, exile it, then you may cast it transformed without paying its mana cost.',
+          triggerData: { event: 'siegeDefeated', objectId: o.id } });
+      }
       // "Whenever one or more +1/+1 counters are put on this creature"
       // Wakka, Devoted Guardian: "if a counter was put on it this turn" (counterPutOnSelf)
       if (n > 0 && o.zone === 'battlefield') {
@@ -41843,7 +41907,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.logEvent('rules', `${o.name} is compleated: ${o._phyLife / 2} Phyrexian mana paid with life, ${o.counters.loyalty} loyalty.`);
           }
           o._phyLife = 0;
-          if (a.isBattle) o.counters.defense = parseInt(a.defense, 10) || 0;
+          if (a.isBattle) {
+            o.counters.defense = parseInt(a.defense, 10) || 0;
+            /* A Siege's protector: an opponent its controller chooses as it enters (CR 310.8) — the one
+               who defends it; anyone else, its controller included, may attack it */
+            const opps = this.opponentsOf(o.controller).filter(q => !q.hasLost);
+            o.protector = opps.length ? opps[0].id : null;
+            o._siegeDone = false;
+            const cp = this.player(o.controller);
+            if (opps.length > 1 && cp && !cp.isBot) {
+              this.queueChoice({ type: 'mode', playerId: o.controller, purpose: 'battleProtector', objId: o.id, count: 1,
+                options: opps.map((q, i) => ({ i, label: q.name })), values: opps.map(q => q.id),
+                prompt: `${o.name}: choose an opponent to protect it.` });
+            }
+          }
           // a Saga arrives with its first chapter already counted (CR 714.2)
           if (a.isSaga) {
             // read ahead: the chapters before the one chosen are passed over
@@ -51275,6 +51352,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this._flipsLost = flips - wins;
           break;
         }
+        /* A defeated Siege: exiled, then cast transformed for nothing if its controller likes (CR 310.11b) */
+        case 'siegeDefeated': {
+          if (!src) break;
+          // (come back to with the answer, it is already in exile)
+          if (!this._doneHere('siegeExile')) {
+            if (src.zone !== 'battlefield') break;
+            this.moveObject(src, 'exile'); this.logEvent('rules', `${src.name} is defeated and exiled.`);
+          }
+          if (src.zone !== 'exile' || !(src.card.card_faces && src.card.card_faces[1])) break;
+          const yes = me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            prompt: `Cast ${src.card.card_faces[1].name} (${src.name} transformed) without paying its mana cost?` }, 'siegeCast');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes) {
+            src.face = 1; src._chr = null;
+            if (!this._castFree(ctx.controller, src, { how: 'transformed, without paying its mana cost' })) { src.face = 0; src._chr = null; }
+          }
+          break;
+        }
         // Mana Clash: you and the opponent flip, 1 damage to each tails, until both come up heads (manaClash)
         case 'manaClash': {
           const opp = firstPlayer();
@@ -52936,7 +53031,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.logEvent('sba', `${o.name} is put into the graveyard (0 loyalty).`);
             this.moveObject(o, 'graveyard'); repeat = true; continue;
           }
-          if (a.isBattle && (o.counters.defense || 0) <= 0) {
+          // (a battle whose defeat trigger is still waiting stays: CR 704.5v)
+          if (a.isBattle && (o.counters.defense || 0) <= 0 &&
+              !(this.pendingTriggers || []).some(t => t.siege && t.objId === o.id) && !this.stack.some(st => st.siege && st.objId === o.id)) {
             this.moveObject(o, 'graveyard'); repeat = true; continue;
           }
           // +1/+1 and -1/-1 counters cancel
@@ -53555,6 +53652,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         /* a type or colour chosen as a permanent entered */
         case 'mode': {
+          // a Siege's protector, chosen as it entered (CR 310.8)
+          if (ch.purpose === 'battleProtector') {
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            const at = (ch.options || []).findIndex(op => op.i === idx);
+            const v = (ch.values || [])[at >= 0 ? at : 0];
+            if (o && v && this.player(v)) { o.protector = v; this.logEvent('rules', `${this.player(v).name} protects ${o.name}.`); }
+            break;
+          }
           if (ch.purpose === 'dredge') {
             const idx = ((data && data.modes) || [])[0];
             const at = (ch.options || []).findIndex(op => op.i === idx);
@@ -53713,10 +53819,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /** The player a creature is attacking, or the controller of the planeswalker or battle it attacks. */
     _defenderOf(o) {
       if (!o || !o.attacking) return null;
-      const p = this.player(o.attacking);
-      if (p) return p;
-      const x = this.obj(o.attacking);
-      return x ? this.player(x.controller) : null;
+      return this.player(this._defPid(o.attacking));
+    }
+    /* The defending player of an attack on this (CR 506.2): the player, a planeswalker's controller, or
+       a battle's protector (CR 310.10) */
+    _defPid(d) {
+      if (d == null) return null;
+      if (this.player(d)) return d;
+      const x = this.obj(d);
+      if (!x) return null;
+      if ((x.analysis() || {}).isBattle) return x.protector || x.controller;
+      return x.controller;
     }
     _lastAffectedController() {
       const s = this._lastAffected;
@@ -89575,13 +89688,21 @@ Sideboard
         d._strip = el('div', { class: 'phase-strip', role: 'list', 'aria-label': 'Steps of the turn' });
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
+          // the priority timer, running out along the button's foot
+          el('span', { class: 'bb-timer', 'aria-hidden': 'true' }),
         ]);
+        // an opponent's spell to answer: what it is, what it is aimed at, and what you could answer with
+        d._respond = el('div', { class: 'dock-respond', hidden: true, role: 'status', 'aria-live': 'polite' });
+        // anything you do at the table starts the timer again
+        const bump = () => { if (d._timerKey) this._startPriorityTimer(d._timerSecs, d._timerKey); };
+        this.arena.addEventListener('pointerdown', bump, true);
+        this.arena.addEventListener('keydown', bump, true);
         // a second choice as big as the first, above it ("All attack" over "No attacks")
         d._above = el('button', { type: 'button', class: 'big-btn above', hidden: true, onclick: () => { if (d._above._fn) d._above._fn(); } }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
         d._row = el('div', { class: 'dock-row' });
-        d.append(d._turn, d._strip, d._above, d._main, d._row);
+        d.append(d._turn, d._strip, d._respond, d._above, d._main, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -89596,11 +89717,26 @@ Sideboard
       }
       this.renderStrip(d._strip);
       const act = this.primaryInfo();
-      d._main.className = 'big-btn ' + (act.cls || '');
+      d._main.className = 'big-btn ' + (act.cls || '') + (d._timerKey ? ' timing' : '');
       d._main.disabled = !!act.disabled;
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
+      this._renderRespond(d);
+      /* The priority timer: only where passing is the natural thing to do
+         and nothing is being chosen (an opponent's spell to answer or not, a
+         step of their turn), never on your own main phases. A new moment
+         starts it afresh. */
+      const live0 = this.live || v;
+      const secs = MTG.settings.priorityTimer == null ? 15 : +MTG.settings.priorityTimer;
+      const want = act.timer && !act.disabled && secs > 0 && !v.replay && !v.spectating && !this.targeting && !this.paying;
+      const key = want ? [live0.turn, live0.phase, live0.step, (live0.stack || []).map(s => s.id).join(','), live0.priorityPlayer].join('|') : null;
+      if (key !== d._timerKey) {
+        clearTimeout(d._timerT);
+        d._timerKey = key;
+        d._main.classList.remove('timing');
+        if (key) this._startPriorityTimer(secs, key);
+      }
       d._above.hidden = !act.above;
       if (act.above) {
         d._above.className = 'big-btn above ' + (act.above.cls || '');
@@ -89621,6 +89757,77 @@ Sideboard
       if (live.yielding) {
         d._row.appendChild(small(live.yielding === 'turn' ? 'Passing to end of turn' : 'Passing until a response', 'Click to take priority back',
           () => this.send({ kind: 'yield', mode: null }), 'flagged'));
+      }
+    }
+
+    /** The priority timer, from the top: the bar runs out over `secs`, and then the button presses itself. */
+    _startPriorityTimer(secs, key) {
+      const d = this.dock;
+      if (!d || !d._main) return;
+      clearTimeout(d._timerT);
+      d._timerSecs = secs;
+      d._main.style.setProperty('--t', secs + 's');
+      d._main.classList.remove('timing');
+      void d._main.offsetWidth;   // the bar starts again from full
+      d._main.classList.add('timing');
+      d._timerT = setTimeout(() => {
+        if (d._timerKey !== key || this.targeting || this.paying || d._main.disabled) return;
+        d._timerKey = null;
+        d._main.classList.remove('timing');
+        this.primaryAction();
+      }, secs * 1000);
+    }
+
+    /**
+     * An opponent's spell or ability waiting on you: it slides in over the
+     * button, the card, who it is from and what it is aimed at, and under it
+     * whatever you could answer it with, each a click to cast or use.
+     */
+    _renderRespond(d) {
+      const v = this.view, live = this.live || v;
+      const top = (live.stack || [])[(live.stack || []).length - 1];
+      const ch = live.pendingChoice;
+      const show = !!top && top.controller !== this.meId && live.priorityPlayer === this.meId && !ch && !this.targeting && !this.paying && !v.replay;
+      const playable = show ? (live.playable || []).filter(id => {
+        const o = this.objIn(id);
+        return o && !/\bLand\b/.test((o.card && o.card.type_line) || '') && (o.zone === 'hand' || o.zone === 'battlefield' || o.zone === 'command' || o.zone === 'graveyard' || o.zone === 'exile');
+      }) : [];
+      const sig = show ? top.id + '|' + playable.join(',') : '';
+      if (d._respond._sig === sig) return;
+      d._respond._sig = sig;
+      d._respond.hidden = !show;
+      d._respond.innerHTML = '';
+      if (!show) return;
+      const who = v.players.find(p => p.id === top.controller);
+      const card = top.card || ((this.objIn(top.objId) || {}).card) || null;
+      const aims = (top.targets || []).map(tg => tg.kind === 'player'
+        ? (tg.id === this.meId ? 'you' : ((v.players.find(p => p.id === tg.id) || {}).name || 'a player'))
+        : tg.kind === 'object' ? (((this.objIn(tg.id) || {}).card || {}).name || 'a permanent') : 'a spell');
+      const art = el('span', { class: 'dr-art', 'aria-hidden': 'true' });
+      if (card && UI.setArt) UI.setArt(art, card);
+      const head = el('div', { class: 'dr-head' }, [
+        art,
+        el('div', { class: 'dr-text' }, [
+          el('span', { class: 'dr-who', text: `${who ? who.name : 'An opponent'} ${top.kind === 'spell' || !top.kind ? 'casts' : 'uses'}` }),
+          el('b', { class: 'dr-name', text: top.name || (card && card.name) || 'something' }),
+          aims.length ? el('span', { class: 'dr-aim', text: '\u2192 ' + aims.join(', ') }) : null,
+        ].filter(Boolean)),
+      ]);
+      if (card) UI.attachPreview(head, card, 0);
+      d._respond.appendChild(head);
+      if (playable.length) {
+        d._respond.appendChild(el('div', { class: 'dr-could', text: 'You could respond with' }));
+        d._respond.appendChild(el('div', { class: 'dr-row' }, playable.slice(0, 6).map((id) => {
+          const o = this.objIn(id);
+          const b = el('button', { type: 'button', class: 'dr-opt', title: o.card.name, onclick: (e) => {
+            e.stopPropagation();
+            const node = this.els && this.els.get(id);
+            this.onCardClick(id, e, node || null);
+          } }, [el('span', { class: 'dr-opt-art', 'aria-hidden': 'true' }), el('span', { class: 'dr-opt-name', text: o.card.name })]);
+          if (UI.setArt) UI.setArt(b.firstChild, o.card);
+          UI.attachPreview(b, o.card, 0);
+          return b;
+        })));
       }
     }
 
@@ -89737,7 +89944,8 @@ Sideboard
       if ((live.stack || []).length) {
         const top = live.stack[live.stack.length - 1];
         const mine = top.controller === this.meId;
-        return { label: 'Resolve', cls: mine ? 'go' : 'pass', sub: top.name,
+        // someone else's spell: you are being asked whether to answer it
+        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: top.name, timer: !mine,
           title: 'Let the top of the stack resolve (Space)',
           secondary: { label: 'Pass until response', title: 'Keep passing until somebody adds to the stack (Enter)', fn: () => this.send({ kind: 'yield', mode: 'response' }) } };
       }
@@ -89750,7 +89958,7 @@ Sideboard
           : { label: 'End turn', cls: 'go', sub: 'nothing can attack', yieldTurn: true };
       }
       if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', sub: 'pass to the next player' };
-      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: STEP_WORDS[k] || '',
+      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: (STEP_WORDS[k] || '') + (STEP_WORDS[k] ? ' \u00b7 ' : '') + 'let them carry on', timer: true,
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
     }
@@ -101558,6 +101766,8 @@ Sideboard
         ]),
       ]),
       toggle('animateDraws', 'Card animations', 'Tapping, drawing and combat animate. Off, the table simply changes.'),
+      pick('priorityTimer', 'Priority timer', [[0, 'Off'], [8, '8 s'], [15, '15 s'], [30, '30 s']],
+        'When the game stops for you to respond (an opponent\u2019s spell, a step of their turn), it passes for you after this long. A ring on the button counts it down; any click or key starts it again. It never runs on your own main phases or while you are choosing something.', 15),
     ]));
 
     /* -- stops -- */
