@@ -2494,6 +2494,9 @@
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? [{ op: 'loseLife', n: k, who: 'defending' }, { op: 'createNamedToken', n: k, token: m[1] }] : null; } },
     // Aveline de Grandpré: "put that many +1/+1 counters on that creature" — the one that dealt the damage (thatManyOnThat)
     { re: /^Put that many (\+1\/\+1|[a-z]+) counters on that creature\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'triggerObject' }) },
+    // Lena, Selfless Champion: "Creatures you control with power less than Lena's power gain indestructible until end of turn." (powerBelowSrc)
+    { re: /^Creatures you control with power less than (?:CARDNAME|this creature)'?s power gain ([a-z]+) until end of turn\.?$/i,
+      make: (m) => (kwKnown(m[1]) ? { op: 'grantKeyword', keywords: [U.titleCase(m[1])], duration: 'eot', scope: { who: 'you', what: 'creature', powerBelowSrc: true } } : null) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -9775,6 +9778,8 @@
     [/^its power was different from its base power$/i, () => ({ kind: 'triggerPowerChanged' })],
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
     [/^a permanent was put into your hand from the battlefield this turn$/i, () => ({ kind: 'bouncedToYourHand' })],
+    // Anje Falkenrath: "if it has madness" — the card the trigger is about (triggerHasKeyword)
+    [/^it has (madness|flashback|cycling|kicker)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)

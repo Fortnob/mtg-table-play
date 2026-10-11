@@ -10734,7 +10734,7 @@
         case 'bouncedToYourHand': return !!me && !!(((this.turnHistory || {}).bouncedTo || {})[me.id]);
         // Anje Falkenrath: "if it has madness" (triggerHasKeyword)
         case 'triggerHasKeyword': { const tdK = (ctx && ctx.triggerData) || {}; const xK = tdK.objectId && this.obj(tdK.objectId);
-          return !!xK; }
+          return !!xK && !!(((xK.analysis() || {}).keywordSet) || new Set()).has(cond.keyword); }   // (triggerHasKeyword)
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -22141,6 +22141,8 @@
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
       // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
       if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
+      // Lena, Selfless Champion: "with power less than Lena's power" — Lena as she last was, once sacrificed (powerBelowSrc)
+      if (sc.powerBelowSrc && !(src && this.powerOf(o) < (src.zone === 'battlefield' ? this.powerOf(src) : (src._lastPower || 0)))) return false;
       // Eriette of the Charmed Apple: "enchanted by an Aura you control" (enchantedByYours)
       if (sc.enchantedByYours && !(o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === pid && this._auraNow(at); })) return false;
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"

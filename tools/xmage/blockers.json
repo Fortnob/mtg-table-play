@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10310,
+  "needed": 10308,
   "gainedCards": 950,
-  "linesNeeded": 10940,
+  "linesNeeded": 10938,
   "linesGained": 1108,
   "gained": {
    "all": 950,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3976,
-   "lines": 3739,
+   "score": 3975,
+   "lines": 3738,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -70,8 +70,8 @@
   },
   {
    "what": "custom ability",
-   "score": 651,
-   "lines": 597,
+   "score": 650,
+   "lines": 596,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6432,8 +6432,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3328,
-   "cards": 3172,
+   "score": 3327,
+   "cards": 3171,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6445,8 +6445,8 @@
   },
   {
    "what": "custom ability",
-   "score": 499,
-   "cards": 460,
+   "score": 498,
+   "cards": 459,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",

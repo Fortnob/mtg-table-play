@@ -23768,4 +23768,30 @@ module.exports = (test) => {
     B2.toMain('A', 'end'); B2.resolve();
     t.eq(B2.zone('A', 'hand').length - c0, 1, 'Barrin: the Bears came back to hand, a card');
   });
+
+  test('Commanders: Anje Falkenrath, Lena, Selfless Champion', (mk, t) => {
+    t.auto('Anje Falkenrath'); t.auto('Lena, Selfless Champion');
+    // Anje: discarding a madness card untaps her; another card, not
+    const A2 = mk({ library: Array(20).fill('Mountain') });
+    A2.toMain('A');
+    const an2 = A2.bf('A', 'Anje Falkenrath'); an2.tapped = true;
+    const fm = A2.hand('A', 'Fiery Temper');
+    A2.g._runEffects([{ op: 'discard', n: 1, who: 'you' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); A2.resolve();
+    t.ok(!an2.tapped, 'Anje: a card with madness discarded, she untaps');
+    const A3 = mk({ library: Array(20).fill('Mountain') });
+    A3.toMain('A');
+    const an3 = A3.bf('A', 'Anje Falkenrath'); an3.tapped = true;
+    A3.hand('A', 'Grizzly Bears');
+    A3.g._runEffects([{ op: 'discard', n: 1, who: 'you' }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); A3.resolve();
+    t.ok(an3.tapped, 'Anje: no madness, she stays tapped');
+    // Lena: sacrificed, creatures of A's with less power than hers gain indestructible
+    const L = mk({ library: Array(20).fill('Plains') });
+    L.toMain('A');
+    const le = L.bf('A', 'Lena, Selfless Champion');
+    const small = L.bf('A', 'Llanowar Elves'), big = L.bf('A', 'Hill Giant');
+    const lp = L.g.powerOf(le);
+    L.activate('A', le, 0); L.resolve();
+    t.ok(L.g.hasKw(small, 'indestructible') === (1 < lp) && L.g.hasKw(big, 'indestructible') === (3 < lp), "Lena: only those with less power than hers");
+    t.ok(L.g.hasKw(small, 'indestructible'), 'Lena: the 1/1 Elves are indestructible');
+  });
 };
