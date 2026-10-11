@@ -996,7 +996,8 @@
           this._progress = MTG.progress.gameEnded({
             won, format: (sess && sess.formatId) || app.clientFormatId || null,
             deck: deck && deck.name, commander: deck && deck.commanders && deck.commanders[0] ? deck.commanders[0].name : null,
-            ranked: !!(sess && sess.mode && sess.mode.ranked),
+            // which ladder: 'standard' or 'commander'
+            ranked: sess && sess.mode && sess.mode.ranked ? (sess.mode.ladder || 'standard') : null,
           });
           if (MTG.app && MTG.app.onGameRecorded) MTG.app.onGameRecorded(won, this._progress);
           // the result screen, drawn again with all of it (an event's record, a challenge solved)

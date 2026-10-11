@@ -356,7 +356,7 @@
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals'], ['wildcards', 'Wildcards']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['wildcards', 'Wildcards'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');

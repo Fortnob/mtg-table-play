@@ -765,7 +765,10 @@
         this._progress && !watched ? el('div', { class: 'over-progress' }, [
           el('span', { class: 'op-xp', text: `+${this._progress.xp} XP` }),
           ...(this._progress.quests || []).map(q => el('span', { class: 'op-quest', text: `Quest done: ${MTG.progress.questText(q)}` })),
-          this._progress.ranked ? el('span', { class: 'op-rank', text: `${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }) : null,
+          this._progress.ranked ? el('span', { class: 'op-rank' }, [
+            UI.rankEmblem ? UI.rankEmblem(this._progress.ranked.after.tier, { size: 18 }) : null,
+            el('span', { text: `${this._progress.ranked.ladderName || 'Ranked'}: ${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }),
+          ].filter(Boolean)) : null,
           this._progress.weekly ? el('span', { class: 'op-weekly', text: `Weekly win ${this._progress.weekly.wins} of 15` }) : null,
           (MTG.progress.inboxCount() ? el('button', { type: 'button', class: 'btn xs', text: `Rewards to claim (${MTG.progress.inboxCount()})`, onclick: () => UI.openInbox() }) : null),
         ].filter(Boolean)) : null,

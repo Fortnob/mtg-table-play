@@ -68,6 +68,14 @@
     Platinum: { shards: 10000, pack: 3 }, Diamond: { shards: 15000, pack: 4, wc: 'rare' }, Mythic: { shards: 25000, pack: 5, wc: 'mythic' } };
   /** How hard ranked opponents are, by tier. */
   const RANK_DIFFICULTY = { Bronze: 3, Silver: 4, Gold: 5, Platinum: 7, Diamond: 8, Mythic: 10 };
+  /** The ladders, each climbed on its own: Standard, and Commander (one
+      against one, the way Brawl is played ranked on Arena). `key` is where
+      each is kept; Standard keeps the old place, so a rank already earned
+      stays. */
+  const LADDERS = [{ id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' }];
+  const ladderOf = (id) => LADDERS.find(l => l.id === id) || LADDERS[0];
+  /** The best tier reached on any ladder, as an index into TIERS. */
+  const bestTier = (p) => Math.max(...LADDERS.map(L => TIERS.indexOf((p[L.key] || {}).best || 'Bronze')));
 
   /** Achievements: what you did, the title it earns, and a few Shards. */
   const ACHIEVEMENTS = [
@@ -88,8 +96,8 @@
     { id: 'quests-10', name: 'Dutiful', text: 'Finish 10 daily quests.', test: (s) => s.quests >= 10, shards: 3000, title: 'Dutiful' },
     { id: 'streak-7', name: 'Faithful', text: 'Log in seven days running.', test: (s, e, p) => p.login.streak >= 7, shards: 3000, title: 'Faithful' },
     { id: 'weekly-15', name: 'Tireless', text: 'Finish the weekly track.', test: (s) => s.weeklyDone >= 1, shards: 5000, title: 'Tireless' },
-    { id: 'gold', name: 'Gilded', text: 'Reach Gold in ranked.', test: (s, e, p) => TIERS.indexOf(p.ranked.best) >= 2, shards: 5000, title: 'Gilded' },
-    { id: 'mythic', name: 'Mythic', text: 'Reach Mythic in ranked.', test: (s, e, p) => p.ranked.best === 'Mythic', shards: 25000, title: 'Mythic' },
+    { id: 'gold', name: 'Gilded', text: 'Reach Gold in ranked.', test: (s, e, p) => bestTier(p) >= 2, shards: 5000, title: 'Gilded' },
+    { id: 'mythic', name: 'Mythic', text: 'Reach Mythic in ranked.', test: (s, e, p) => bestTier(p) >= TIERS.indexOf('Mythic'), shards: 25000, title: 'Mythic' },
     { id: 'mastery-25', name: 'Devoted', text: 'Reach mastery level 25.', test: (s, e, p) => p.level >= 25, shards: 5000, title: 'Devoted' },
     { id: 'draft-7', name: 'Draft Master', text: 'Win seven games in a draft event.', test: (s) => s.draftPerfect >= 1, shards: 10000, title: 'Draft Master' },
     { id: 'gauntlet', name: 'Gauntlet Runner', text: 'Clear the gauntlet.', test: (s) => s.gauntlets >= 1, shards: 10000, title: 'Gauntlet Runner' },
@@ -107,6 +115,7 @@
     inbox: [],
     xp: 0, level: 0, season: '', masteryPaid: 0,
     ranked: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedCommander: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     stats: { games: 0, wins: 0, spells: 0, damage: 0, lands: 0, draws: 0, quests: 0, weeklyDone: 0, mythicsPulled: 0, foilMythics: 0,
       setsCompleted: 0, draftPerfect: 0, gauntlets: 0, byFormat: {}, byDeck: {}, commanderWins: {}, shardsEarned: 0 },
     achievements: {}, title: '', setsDone: [],
@@ -117,7 +126,7 @@
     if (state) return state;
     const b = blank();
     state = Object.assign(b, MTG.store.get(KEY, null) || {});
-    for (const k of ['weekly', 'login', 'ranked', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
+    for (const k of ['weekly', 'login', 'ranked', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
     rollOver();
     return state;
   }
@@ -162,15 +171,18 @@
       if (state.season && state.level) mail(`${seasonName(state.season)} mastery`, `You reached level ${state.level}. A new season has begun.`, {}, 'season');
       state.season = se; state.xp = 0; state.level = 0; state.masteryPaid = 0;
     }
-    if (state.ranked.season !== se) {
-      if (state.ranked.season && state.ranked.paidSeason !== state.ranked.season) {
-        const t = state.ranked.tier;
-        mail(`${seasonName(state.ranked.season)} ranked rewards`, `You finished the season in ${t}${t === 'Mythic' ? '' : ' ' + state.ranked.div}.`, RANK_REWARD[t], 'season');
+    // each ladder pays for the tier it finished in
+    for (const L of LADDERS) {
+      const r = state[L.key];
+      if (r.season === se) continue;
+      if (r.season && r.paidSeason !== r.season) {
+        const t = r.tier;
+        mail(`${seasonName(r.season)} ${L.name} ranked rewards`, `You finished the season in ${t}${t === 'Mythic' ? '' : ' ' + r.div}.`, RANK_REWARD[t], 'season');
       }
       // a new season starts a little below where the last ended
-      const ti = TIERS.indexOf(state.ranked.tier);
-      state.ranked = Object.assign(state.ranked, { season: se, tier: TIERS[Math.max(0, ti - 1)] || 'Bronze', div: 4, step: 0, paidSeason: state.ranked.season });
-      if (!state.ranked.best) state.ranked.best = state.ranked.tier;
+      const ti = TIERS.indexOf(r.tier);
+      Object.assign(r, { season: se, tier: TIERS[Math.max(0, ti - 1)] || 'Bronze', div: 4, step: 0, paidSeason: r.season });
+      if (!r.best) r.best = r.tier;
     }
     MTG.store.set(KEY, state);
   }
@@ -298,7 +310,7 @@
     out.xp = o.won ? XP.win : XP.play;
     out.levels = addXp(out.xp);
     // ranked
-    if (o.ranked) out.ranked = rankResult(!!o.won);
+    if (o.ranked) out.ranked = rankResult(!!o.won, o.ranked === 'commander' ? 'commander' : 'standard');
     out.achievements = checkAchievements();
     save('game');
     return out;
@@ -334,8 +346,9 @@
 
   /* ---------------- ranked ---------------- */
   /** A ranked game's result: up a step for a win (two in the low tiers), down one for a loss above Bronze. */
-  function rankResult(won) {
-    const r = state.ranked;
+  function rankResult(won, ladderId) {
+    const L = ladderOf(ladderId);
+    const r = state[L.key];
     const before = { tier: r.tier, div: r.div, step: r.step };
     if (r.tier === 'Mythic') {
       r.step = Math.max(0, r.step + (won ? 1 : -1));
@@ -348,15 +361,32 @@
       }
       if (TIERS.indexOf(r.tier) > TIERS.indexOf(r.best)) {
         r.best = r.tier;
-        mail(`Reached ${r.tier}`, 'A new best rank this season.', { shards: 2500 * TIERS.indexOf(r.tier) }, 'ranked');
+        mail(`Reached ${r.tier} in ${L.name}`, 'A new best rank this season.', { shards: 2500 * TIERS.indexOf(r.tier) }, 'ranked');
       }
     } else if (r.tier !== 'Bronze') {
       // no falling below a tier once reached
       r.step = Math.max(0, r.step - 1);
     }
-    return { before, after: { tier: r.tier, div: r.div, step: r.step } };
+    return { ladder: L.id, ladderName: L.name, before, after: { tier: r.tier, div: r.div, step: r.step } };
   }
   const rankLabel = (r) => r.tier === 'Mythic' ? `Mythic` : `${r.tier} ${r.div}`;
+  /** Where the next rank is: how many wins, and its name; null at Mythic. */
+  function nextRank(r) {
+    if (r.tier === 'Mythic') return null;
+    const per = TIERS.indexOf(r.tier) <= 1 ? 2 : 1;
+    const wins = Math.max(1, Math.ceil((STEPS - r.step) / per));
+    const label = r.div > 1 ? `${r.tier} ${r.div - 1}` : TIERS[TIERS.indexOf(r.tier) + 1];
+    return { wins, label };
+  }
+  /** Days until the week (Monday) and the season (the month) turn over. */
+  function untilReset(now) {
+    now = now || new Date();
+    const day = 86400000;
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const week = ((8 - now.getDay()) % 7) || 7;
+    const season = Math.max(1, Math.round((new Date(now.getFullYear(), now.getMonth() + 1, 1) - midnight) / day));
+    return { week, season };
+  }
 
   /* ---------------- achievements and set completion ---------------- */
   function checkAchievements() {
@@ -454,8 +484,11 @@
   function noteEarned(n) { load(); state.stats.shardsEarned += n || 0; save(); }
 
   MTG.progress = {
-    QUESTS, WEEKLY, LOGIN, XP_LEVEL, LEVELS, XP, TIERS, STEPS, RANK_REWARD, RANK_DIFFICULTY, ACHIEVEMENTS,
+    QUESTS, WEEKLY, LOGIN, XP_LEVEL, LEVELS, XP, TIERS, STEPS, RANK_REWARD, RANK_DIFFICULTY, ACHIEVEMENTS, LADDERS,
     get state() { return load(); },
+    /** A ladder's standing: 'standard' or 'commander'. */
+    ladder: (id) => load()[ladderOf(id).key],
+    nextRank, untilReset,
     save: () => save(),
     questText, reroll, seeEvents, gameEnded, gameLeft, mail, claim, describe, masteryReward,
     rankLabel, titles, setTitle, checkSets, notePulls, noteEarned, checkAchievements: () => { load(); const g = checkAchievements(); save(); return g; },

@@ -272,3 +272,24 @@ button.mt2:hover { border-color: rgba(246,220,140,.6); box-shadow: inset 0 1px 0
 :root[data-phone] .mt2 { padding: 12px 12px 10px; }
 :root[data-phone] .mt2-open { display: none; }
 @media (prefers-reduced-motion: reduce) { .mt2-node.next .mt2-medal { animation: none; } }
+
+/* ---------- the ranks' symbols, and the two ladders ---------- */
+.rank-emblem { display: inline-grid; place-items: center; flex: none; line-height: 0; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.rank-emblem svg { overflow: visible; }
+.rank-emblem .re-facet { stroke: var(--facet); }
+.re-mythic { filter: drop-shadow(0 0 8px rgba(255, 140, 60, .45)) drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.ladders { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.ladder { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; margin: 0; }
+.ladder-body { display: grid; gap: 4px; justify-items: start; }
+.ladder-body h3 { margin: 0; font: 600 26px/1.1 var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }
+.ladder-body .btn { margin-top: 6px; }
+.ladder-name { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a79f8c; }
+.ladder-next { margin: 0; font-size: 13px; color: #d9d2c2; }
+.ladder-body .dim.small { margin: 0; font-size: 12px; }
+.ladder-rules { margin: 12px 2px 16px; }
+.ranked-chooser .ladders { margin-top: 12px; }
+.rr { justify-items: center; }
+.rr-name { font: 600 14px/1 var(--font-display, Georgia, serif); color: #f1ead8; }
+.op-rank { display: inline-flex; align-items: center; gap: 6px; }
+:root[data-phone] .ladder { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+:root[data-phone] .ladder-body { justify-items: center; }

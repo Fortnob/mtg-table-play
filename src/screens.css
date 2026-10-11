@@ -1623,15 +1623,70 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 @media (prefers-reduced-motion: reduce) { .topnav-art { transition: none; } }
 
 /* ---------- home: the quick game, and today's things in a column beside it ---------- */
-.home-play-row { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 16px; align-items: stretch; }
+.home-play-row { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 31%, 470px); gap: 16px; align-items: stretch; }
 .home-play-row.alone { grid-template-columns: minmax(0, 1fr); }
 .home-play-row > .home-today { display: flex; flex-direction: column; gap: 8px; margin: 0 !important; }
-/* compact beside the quick game: what it is on the left, how it stands on the right, the bar under both */
-.home-play-row > .home-today .today-item { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: center;
-  gap: 4px 10px; padding: 8px 12px; background: linear-gradient(180deg, rgba(20,24,33,.82), rgba(10,12,18,.86)); backdrop-filter: blur(10px); }
-.home-play-row > .home-today .ti-label { grid-column: 1; margin: 0; }
-.home-play-row > .home-today .ti-value { grid-column: 2; font-size: 14px !important; white-space: nowrap; padding-right: 10px; }
-.home-play-row > .home-today .ti-sub { display: none; }
-.home-play-row > .home-today .ti-bar { grid-column: 1 / -1; margin: 0; }
+/* beside the quick game, each with a painting behind it: what it is and how it stands across the top, the detail under it */
+.home-play-row > .home-today .today-item.rich { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 7px;
+  padding: 11px 15px 12px; overflow: hidden; isolation: isolate; background: #0b0e14; backdrop-filter: none; text-align: left; }
 :root[data-phone] .home-play-row { grid-template-columns: minmax(0, 1fr); }
 :root[data-phone] .home-play-row > .home-today { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+/* ---------- today's four, with art ---------- */
+.today-item.rich { position: relative; }
+.ti-art { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: 50% 30%; opacity: 0;
+  filter: grayscale(.2) brightness(.92); transition: opacity .5s var(--ease), filter .35s var(--ease), transform .6s var(--ease); }
+.ti-art.art-on { opacity: 1; }
+.ti-art::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(9,11,16,.86) 0%, rgba(9,11,16,.55) 52%, rgba(9,11,16,.12) 100%); }
+.today-item.rich:hover .ti-art, .today-item.rich:focus-visible .ti-art { filter: grayscale(0) brightness(1.08) saturate(1.15); transform: scale(1.04); }
+.ti-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.today-item.rich .ti-value { font-size: 16px; padding-right: 4px; }
+.today-item.rich.hot .ti-value { padding-right: 14px; }
+.today-item.rich.hot::after { top: 9px; right: 9px; }
+.ti-list { display: grid; gap: 6px; }
+.ti-quest { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 12.5px; color: #e8e1d0; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.tq-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tq-n { color: #c3bba9; font-variant-numeric: tabular-nums; }
+.tq-bar { grid-column: 1 / -1; height: 3px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+.tq-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862b, #ffe6a0); }
+.ti-sub2 { font-size: 12.5px; color: #e2dbca; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ti-foot { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11.5px; color: #aaa391; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ti-foot .shard-ico, .ti-chips .shard-ico { width: 12px; height: 12px; }
+.ti-track { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 3px; align-items: end; padding-top: 6px; }
+.ti-track i { position: relative; height: 9px; border-radius: 2px; background: rgba(255,255,255,.14); }
+.ti-track i.won { background: linear-gradient(180deg, #ffe6a0, #b8862b); box-shadow: 0 0 6px rgba(243, 221, 150, .35); }
+.ti-track i.big { height: 13px; }
+/* a pack along the track a blue dot over its win, a wildcard a violet one */
+.ti-track i.pk::after, .ti-track i.wc::after { content: ''; position: absolute; left: 50%; top: -7px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #8fcfff; }
+.ti-track i.wc::after { background: #e0a2ff; }
+.ti-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ti-chips > span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 99px; font-size: 12px; color: #f1ead8;
+  background: rgba(0,0,0,.4); border: 1px solid rgba(243, 221, 150, .25); }
+.ti-ladders { display: grid; gap: 7px; }
+.ti-ladder { display: flex; align-items: center; gap: 10px; }
+.tl-text { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; }
+.tl-name { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #aaa391; }
+.tl-text > b { font: 600 15px/1.1 var(--serif, Georgia, serif); color: #f1ead8; }
+.tl-steps { grid-column: 1 / -1; display: flex; gap: 3px; }
+.tl-steps i { width: 15px; height: 5px; border-radius: 2px; background: rgba(255,255,255,.14); transform: skewX(-20deg); }
+.tl-steps i.on { background: linear-gradient(90deg, #ffe6a0, #b8862b); }
+.ev-meta .rank-emblem { margin-right: 3px; filter: none; }
+@media (prefers-reduced-motion: reduce) { .ti-art { transition: none; } .today-item.rich:hover .ti-art { transform: none; } }
+
+/* ---------- the format tiles: grey until the pointer is on one ---------- */
+@media (hover: hover) {
+  .format-card .fmt-art { filter: grayscale(1) brightness(.72); }
+  .format-card:hover .fmt-art, .format-card:focus-visible .fmt-art { filter: grayscale(0) brightness(1.08) saturate(1.12); }
+}
+
+/* ---------- home: the whole window, whatever its size ---------- */
+/* the banner's content runs its full width (the painting shows through the
+   glass), and the page grows to the window's height, the banner taking
+   what is left over so nothing sits in a band of empty space */
+.home-wrap { display: flex; flex-direction: column; }
+.home { flex: 1 0 auto; display: flex; flex-direction: column; width: 100%; }
+.home > .home-hero { flex: 1 0 auto; }
+.home-hero-inner, .home-hero .home-hero-inner { width: 100%; }
+.home-hero-inner > .home-play-row { flex: 1 0 auto; }
+.home-credit { top: 12px; bottom: auto; }

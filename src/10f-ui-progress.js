@@ -30,6 +30,95 @@
   }
   UI.rewardChips = rewardChips;
 
+  /* ---------------- the ranks' symbols ---------------- */
+  /* Each tier its own shape and its own mark, so a rank reads at a glance
+     and at any size: Bronze a shield with one chevron, Silver with two,
+     Gold a crowned crest, Platinum a hexagon with a star, Diamond a gem,
+     Mythic a burst with a flame. */
+  const SHIELD = 'M32 3 L57 11 V35 C57 51 46 62 32 69 C18 62 7 51 7 35 V11 Z';
+  const CREST = 'M32 2 L40 9 L57 7 V35 C57 51 46 62 32 69 C18 62 7 51 7 35 V7 L24 9 Z';
+  const HEX = 'M32 3 L59 18.5 V51.5 L32 69 L5 51.5 V18.5 Z';
+  const GEM = 'M32 2 L61 33 L32 70 L3 33 Z';
+  const BURST = (() => {
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 8, r = i % 2 ? 22 : 34;
+      pts.push((32 + r * Math.cos(a)).toFixed(1) + ' ' + (36 + r * Math.sin(a)).toFixed(1));
+    }
+    return 'M' + pts.join(' L') + ' Z';
+  })();
+  const EMBLEMS = {
+    Bronze: { shape: SHIELD, a: '#eeb27c', b: '#7a4220', rim: '#ffd6b0', ink: '#fff4e8',
+      mark: '<path d="M20 45 L32 33 L44 45" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' },
+    Silver: { shape: SHIELD, a: '#f6f8fb', b: '#78808d', rim: '#ffffff', ink: '#2a2f38',
+      mark: '<path d="M20 40 L32 28 L44 40 M20 52 L32 40 L44 52" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' },
+    Gold: { shape: CREST, a: '#ffeaa8', b: '#a8761c', rim: '#fff4c8', ink: '#4a3208',
+      mark: '<path d="M17.5 46 L19.5 27 L26.5 35 L32 24 L37.5 35 L44.5 27 L46.5 46 Z" stroke="none"/><rect x="17.5" y="49" width="29" height="4.5" rx="1.6" stroke="none"/>' },
+    Platinum: { shape: HEX, a: '#cdf5ee', b: '#2c7a72', rim: '#eafffb', ink: '#ffffff',
+      mark: '<path d="M32 19 L36.5 32 L49.5 36 L36.5 40 L32 53 L27.5 40 L14.5 36 L27.5 32 Z" stroke="none"/>' },
+    Diamond: { shape: GEM, a: '#d8ecff', b: '#3459c4', rim: '#f0f7ff', ink: '#ffffff',
+      mark: '<path d="M20 32 L26.5 24.5 H37.5 L44 32 L32 49 Z" stroke="none"/><path d="M20 32 H44 M26.5 24.5 L29.5 32 L32 49 M37.5 24.5 L34.5 32 L32 49" fill="none" stroke-width="1.5" class="re-facet"/>' },
+    Mythic: { shape: BURST, a: '#ffc68f', b: '#b4330c', rim: '#ffe2c6', ink: '#fff3e2',
+      mark: '<path d="M32 19 C35 28 43 31 41.5 41.5 C40.5 48.5 36.5 52.5 32 53 C27.5 52.5 23.5 48.5 22.5 41.5 C21.8 35 26.5 31.5 27.5 25.5 C29.5 29.5 30.8 31.5 33 33 C34.2 28 33.4 23 32 19 Z" stroke="none"/>' },
+  };
+  let emblemSeq = 0;
+  /**
+   * A rank's symbol. `opts.size` is its width in pixels; `opts.div` adds the
+   * division as a small seal at its foot.
+   */
+  UI.rankEmblem = function (tier, opts) {
+    opts = opts || {};
+    const e = EMBLEMS[tier] || EMBLEMS.Bronze;
+    const id = 'rem' + (++emblemSeq);
+    const w = opts.size || 48, h = Math.round(w * 74 / 64);
+    const facet = tier === 'Diamond' ? e.b : e.ink;
+    const seal = opts.div ? `<circle cx="32" cy="64" r="8.5" fill="#12151c" stroke="${e.rim}" stroke-width="2"/><text x="32" y="67.6" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">${opts.div}</text>` : '';
+    const svg = `<svg viewBox="0 0 64 74" width="${w}" height="${h}" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="${id}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${e.a}"/><stop offset="1" stop-color="${e.b}"/></linearGradient>
+        <radialGradient id="${id}s" cx=".34" cy=".2" r=".62"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      </defs>
+      <path d="${e.shape}" fill="url(#${id})" stroke="${e.rim}" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="${e.shape}" fill="url(#${id}s)"/>
+      <g transform="translate(0 1.4)" fill="rgba(0,0,0,.32)" stroke="rgba(0,0,0,.32)">${e.mark}</g>
+      <g fill="${e.ink}" stroke="${e.ink}" style="--facet:${facet}">${e.mark}</g>
+      ${seal}
+    </svg>`;
+    return el('span', { class: 'rank-emblem re-' + String(tier).toLowerCase() + (opts.cls ? ' ' + opts.cls : ''), html: svg, 'aria-label': tier + (opts.div ? ' ' + opts.div : '') });
+  };
+
+  /** One ladder's standing: its symbol, rank, steps, the next rank, and a button to play it. */
+  UI.ladderCard = function (ladderId, onPlay, opts) {
+    opts = opts || {};
+    const L = P().LADDERS.find(x => x.id === ladderId) || P().LADDERS[0];
+    const r = P().ladder(L.id);
+    const next = P().nextRank(r);
+    const steps = el('div', { class: 'rank-steps' }, Array.from({ length: P().STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' })));
+    return el('section', { class: 'panel ladder ladder-' + L.id + (opts.cls ? ' ' + opts.cls : '') }, [
+      UI.rankEmblem(r.tier, { size: opts.size || 96, div: r.tier === 'Mythic' ? null : r.div }),
+      el('div', { class: 'ladder-body' }, [
+        el('span', { class: 'ladder-name', text: `${L.name} ranked` }),
+        el('h3', { text: P().rankLabel(r) }),
+        r.tier === 'Mythic' ? el('p', { class: 'ladder-next', text: `${r.step} win${r.step === 1 ? '' : 's'} clear at the top.` }) : steps,
+        next ? el('p', { class: 'ladder-next', text: `${next.wins} more win${next.wins === 1 ? '' : 's'} to ${next.label}` }) : null,
+        el('p', { class: 'dim small', text: `Best this season: ${r.best}. ${L.id === 'commander' ? 'One against one, 40 life, with a Commander deck.' : 'One against one, with a Standard deck.'}` }),
+        onPlay ? el('button', { type: 'button', class: 'btn primary', text: `Play ${L.name}`, onclick: () => onPlay(L.id) }) : null,
+      ].filter(Boolean)),
+    ]);
+  };
+
+  /** Which ladder to play: both side by side, each with its rank. */
+  UI.rankedChooser = function (onPlay) {
+    let m = null;
+    const pick = (id) => { if (m) m.close(); onPlay(id); };
+    m = UI.modal({ title: 'Ranked', width: '760px', className: 'ranked-chooser',
+      content: el('div', {}, [
+        el('p', { class: 'dim', text: 'Two ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
+        el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, pick, { size: 84 }))),
+      ]) });
+    return m;
+  };
+
   /* ---------------- the inbox ---------------- */
   const BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .9-.3 1.8-.9 2.5L4 16h16l-1.1-1.3a3.9 3.9 0 0 1-.9-2.5V9a6 6 0 0 0-6-6z" fill="currentColor" opacity=".9"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>';
   /** The inbox in the top bar: a bell, and how many rewards wait. */
@@ -140,7 +229,7 @@
         [UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: E().frameWorn() })]),
       el('div', { class: 'ph-who' }, [
         el('h1', { text: name }),
-        el('div', { class: 'ph-sub' }, [titleSel, el('span', { class: 'dim', text: `Mastery level ${S.level} · ${P().rankLabel(S.ranked)}` })]),
+        el('div', { class: 'ph-sub' }, [titleSel, el('span', { class: 'dim', text: `Mastery level ${S.level} · ` + P().LADDERS.map(L => `${L.name} ${P().rankLabel(P().ladder(L.id))}`).join(' · ') })]),
         el('div', { class: 'ph-xp', title: `${fmtN(S.xp)} XP this season` }, [el('i', { style: { width: lvlPct.toFixed(0) + '%' } })]),
       ]),
       el('div', { class: 'ph-actions' }, [
@@ -318,26 +407,15 @@
 
   /* -- ranked: the ladder against the bots -- */
   function ranked(body, opts) {
-    const S = P().state, r = S.ranked;
-    const ti = P().TIERS.indexOf(r.tier);
-    const crest = el('div', { class: 'rank-crest t-' + r.tier.toLowerCase() }, [el('span', { text: r.tier }), r.tier === 'Mythic' ? null : el('b', { text: String(r.div) })].filter(Boolean));
-    const steps = el('div', { class: 'rank-steps' }, Array.from({ length: P().STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' })));
-    body.appendChild(el('section', { class: 'panel ranked' }, [
-      el('div', { class: 'rank-main' }, [crest, el('div', {}, [
-        el('h3', { text: `${P().rankLabel(r)}` }),
-        r.tier === 'Mythic' ? el('p', { text: `Mythic, ${r.step} wins clear.` }) : steps,
-        el('p', { class: 'dim', text: `${P().seasonName(r.season)} season. Best this season: ${r.best}. A win moves you up a step (two in Bronze and Silver); a loss moves you down one, but never out of a tier you have reached. Opponents get stronger as you climb.` }),
-        el('div', { class: 'rank-play' }, [
-          el('span', { class: 'tiny dim rank-play-label', text: 'Play ranked:' }),
-          el('button', { type: 'button', class: 'btn primary hero-btn', html: '<span>Standard</span>', onclick: () => opts.onRanked && opts.onRanked('standard') }),
-          el('button', { type: 'button', class: 'btn', text: 'Modern', onclick: () => opts.onRanked && opts.onRanked('modern') }),
-          el('button', { type: 'button', class: 'btn', text: 'Pauper', onclick: () => opts.onRanked && opts.onRanked('pauper') }),
-        ]),
-      ])]),
-    ]));
-    body.appendChild(el('section', { class: 'panel' }, [el('h3', { text: 'Season rewards' }), el('p', { class: 'dim', text: 'Paid at the end of the month, for the tier you finish in.' }),
+    const S = P().state;
+    const left = P().untilReset().season;
+    body.appendChild(el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, opts.onRanked || null))));
+    body.appendChild(el('p', { class: 'dim ladder-rules', text: `${P().seasonName(S.ranked.season)} season, ${left} day${left === 1 ? '' : 's'} left. A win moves you up a step (two in Bronze and Silver); a loss moves you down one, but never out of a tier you have reached. Opponents get stronger as you climb.` }));
+    // the best tier on either ladder lights the rewards it has reached; each ladder pays for its own
+    const ti = Math.max(...P().LADDERS.map(L => P().TIERS.indexOf(P().ladder(L.id).tier)));
+    body.appendChild(el('section', { class: 'panel' }, [el('h3', { text: 'Season rewards' }), el('p', { class: 'dim', text: 'Paid at the end of the month for the tier you finish in, on each ladder.' }),
       el('div', { class: 'rank-rewards' }, P().TIERS.map((t, i) => el('div', { class: 'rr' + (i <= ti ? ' got' : '') }, [
-        el('div', { class: 'rank-crest small t-' + t.toLowerCase() }, [el('span', { text: t })]), rewardChips(P().RANK_REWARD[t]),
+        UI.rankEmblem(t, { size: 54 }), el('b', { class: 'rr-name', text: t }), rewardChips(P().RANK_REWARD[t]),
       ])))]));
   }
 

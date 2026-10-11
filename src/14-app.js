@@ -520,12 +520,13 @@
    * your tier. The result moves you on the ladder (src/10e-progress.js).
    */
   App.playRanked = function (formatId) {
-    formatId = formatId || 'standard';
-    const tier = MTG.progress.state.ranked.tier;
-    UI.pickDeck(formatId, async (deck) => {
+    // two ladders, each climbed on its own: Standard, and Commander one against one
+    const ladder = formatId === 'commander' ? 'commander' : 'standard';
+    const tier = MTG.progress.ladder(ladder).tier;
+    UI.pickDeck(ladder, async (deck) => {
       if (!deck) return;
       if (!await App.collectionAllows(deck)) return;
-      App.quickGame({ formatId, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true } });
+      App.quickGame({ formatId: ladder, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true, ladder } });
     });
   };
 
@@ -994,7 +995,9 @@
     'ev-ranked': "Elspeth, Sun's Champion", 'ev-draft': 'Lore Seeker', 'ev-gauntlet': 'Arena of Glory',
     'ev-challenge': 'Enigma Sphinx', 'ev-tutorials': 'Mentor of the Meek',
   };
-  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART), Object.values(EVENT_ART));
+  /* today's four on the home screen: a quest, a triumph, riches, an angel rising */
+  const TODAY_ART = { 't-quests': 'Quest for the Holy Relic', 't-weekly': 'Triumph of the Hordes', 't-inbox': 'Revel in Riches', 't-rank': 'Archangel of Thune' };
+  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART), Object.values(EVENT_ART), Object.values(TODAY_ART));
 
   /** The decoration cards by name, once they are here. */
   function decor() {
@@ -1074,21 +1077,82 @@
      of the page (and whatever is set up in the quick game) alone. */
   function todayStrip() {
     if (!MTG.progress) return null;
-    const P = MTG.progress.state;
+    const PR = MTG.progress, P = PR.state;
     const q = P.quests || [];
-    const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
-    const box = MTG.progress.inboxCount();
-    const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
-      el('span', { class: 'ti-label', text: label }),
-      el('b', { class: 'ti-value', text: value }),
-      sub ? el('span', { class: 'ti-sub', text: sub }) : null,
-      pct != null ? el('span', { class: 'ti-bar' }, [el('i', { style: { width: Math.round(pct * 100) + '%' } })]) : null,
-    ].filter(Boolean));
+    const inbox = P.inbox || [];
+    const reset = PR.untilReset();
+    const days = (n) => `${n} day${n === 1 ? '' : 's'}`;
+    const shards = (n) => `${UI.shardIcon ? UI.shardIcon() : ''}<b>${Number(n || 0).toLocaleString()}</b>`;
+    // each a painting behind it, coloured in under the pointer; what it is and how it stands on top
+    const card = (cls, label, value, body, onClick, hot) => el('button', { type: 'button', class: 'today-item rich ' + cls + (hot ? ' hot' : ''), onclick: onClick }, [
+      decorArt(el('span', { class: 'ti-art', 'aria-hidden': 'true' }), TODAY_ART[cls]),
+      el('span', { class: 'ti-head' }, [el('span', { class: 'ti-label', text: label }), value ? el('b', { class: 'ti-value', text: value }) : null].filter(Boolean)),
+      ...body.filter(Boolean),
+    ]);
+
+    // the day's quests, each with how far along it is, and what they pay
+    const hours = Math.max(1, Math.ceil((new Date().setHours(24, 0, 0, 0) - Date.now()) / 3600000));
+    const quests = q.length ? [
+      el('span', { class: 'ti-list' }, q.map(x => {
+        const n = Math.min(x.n, x.goal);
+        return el('span', { class: 'ti-quest' }, [
+          el('span', { class: 'tq-text', text: PR.questText(x) }),
+          el('span', { class: 'tq-n', text: `${n}/${x.goal}` }),
+          el('span', { class: 'tq-bar' }, [el('i', { style: { width: Math.round(n / x.goal * 100) + '%' } })]),
+        ]);
+      })),
+      el('span', { class: 'ti-foot', html: `${shards(q.reduce((a, x) => a + (x.reward || 0), 0))}&nbsp;to earn` + (q.length < 3 ? ` · another in ${hours}h` : '') }),
+    ] : [el('span', { class: 'ti-sub2', text: 'All done for today.' }), el('span', { class: 'ti-foot', text: `New quests in ${hours}h` })];
+
+    // the week's fifteen wins, the prizes along it, and the next one
+    const wins = P.weekly.wins;
+    const nextW = PR.WEEKLY.find(r => r.wins > wins);
+    const weekly = [
+      el('span', { class: 'ti-track' }, PR.WEEKLY.map(r => el('i', {
+        class: [r.wins <= wins ? 'won' : '', r.pack ? 'pk' : '', r.wc ? 'wc' : '', r.wins === 15 ? 'big' : ''].filter(Boolean).join(' '),
+      }))),
+      el('span', { class: 'ti-sub2', text: nextW ? `Win ${nextW.wins}: ${PR.describe(nextW)}` : 'The whole track is done. Well played.' }),
+      el('span', { class: 'ti-foot', text: `Starts again in ${days(reset.week)}` }),
+    ];
+
+    // what waits in the inbox, added up; with nothing there, the login streak
+    const tot = inbox.reduce((a, m) => { const r = m.reward || {}; a.shards += r.shards || 0; a.pack += r.pack || 0; a.wc += r.wc ? 1 : 0; a.xp += r.xp || 0; return a; }, { shards: 0, pack: 0, wc: 0, xp: 0 });
+    const streak = (P.login && P.login.streak) || 0;
+    const gift = PR.LOGIN[streak % PR.LOGIN.length];
+    const rewards = inbox.length ? [
+      el('span', { class: 'ti-chips', html: [
+        tot.shards ? `<span>${shards(tot.shards)}</span>` : '',
+        tot.pack ? `<span><b>${tot.pack}</b>&nbsp;pack${tot.pack === 1 ? '' : 's'}</span>` : '',
+        tot.wc ? `<span><b>${tot.wc}</b>&nbsp;wildcard${tot.wc === 1 ? '' : 's'}</span>` : '',
+        tot.xp ? `<span><b>${tot.xp.toLocaleString()}</b>&nbsp;XP</span>` : '',
+      ].join('') }),
+      el('span', { class: 'ti-foot', text: `Newest: ${inbox[inbox.length - 1].title}` }),
+    ] : [
+      el('span', { class: 'ti-sub2', text: streak ? `Day ${streak} of your login streak` : 'Earn them by playing' }),
+      el('span', { class: 'ti-foot', text: `Tomorrow's login gift: ${PR.describe(typeof gift === 'number' ? { shards: gift } : gift)}` }),
+    ];
+
+    // both ladders: the symbol, the rank and its steps
+    const ranked = [
+      el('span', { class: 'ti-ladders' }, PR.LADDERS.map(L => {
+        const r = PR.ladder(L.id);
+        return el('span', { class: 'ti-ladder' }, [
+          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30 }) : null,
+          el('span', { class: 'tl-text' }, [
+            el('span', { class: 'tl-name', text: L.name }),
+            el('b', { text: PR.rankLabel(r) }),
+            r.tier === 'Mythic' ? null : el('span', { class: 'tl-steps' }, Array.from({ length: PR.STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' }))),
+          ].filter(Boolean)),
+        ].filter(Boolean));
+      })),
+      el('span', { class: 'ti-foot', text: `Season ends in ${days(reset.season)}` }),
+    ];
+
     return el('div', { class: 'home-today', role: 'group', 'aria-label': 'Today' }, [
-      today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
-      today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
-      today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
-      today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
+      card('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', quests, () => navProfile('quests')),
+      card('t-weekly', 'Weekly wins', `${wins} / 15`, weekly, () => navProfile('quests')),
+      card('t-inbox', 'Rewards', inbox.length ? `${inbox.length} to claim` : 'None waiting', rewards, () => UI.openInbox(), inbox.length > 0),
+      card('t-rank', 'Ranked', null, ranked, () => navProfile('ranked')),
     ]);
   }
   let stripQueued = false;
@@ -1506,8 +1570,10 @@
       el('p', { class: 'cat-blurb', text: 'Play for prizes: they wait in your inbox.' }),
     ]));
     inner.appendChild(el('div', { class: 'event-grid' }, [
-      evCard('ev-ranked', 'Ranked', `Climb from Bronze to Mythic against bots that get stronger as you rise. You are ${P.rankLabel(P.state.ranked)}.`,
-        '<span>Free · season rewards each month</span>', () => App.playRanked('standard')),
+      // two ladders: the tile asks which
+      evCard('ev-ranked', 'Ranked', 'Two ladders, Standard and Commander, each from Bronze to Mythic against bots that get stronger as you rise.',
+        P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15 }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
+        '<span>Free · season rewards</span>', () => UI.rankedChooser((id) => App.playRanked(id))),
       evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,
         `<span>Entry ${shardHtml(App.EVENTS.draft.entry)}</span><span>Up to 5 packs and 12,500 Shards</span>`, () => App.startDraftEvent()),
       evCard('ev-gauntlet', 'The gauntlet', `Your deck against ${App.EVENTS.gauntlet.rounds} bots in a row, each stronger than the last. One loss ends the run.`,
