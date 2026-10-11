@@ -11808,6 +11808,8 @@
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       this._noteNoncombatDamage(source, amount, isCombat);
       this._lifelinkFrom(source, amount, isCombat);
+      // Ghyrson Starn, Kelermorph: a source of yours dealt damage to a permanent (a planeswalker or battle too)
+      if (source && source.controller != null) this._fire('yourSourceDealsDamage', source.controller, { object: source, amount, combat: !!isCombat, victimId: o.id });
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
@@ -11953,6 +11955,8 @@
       if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       // Dragonborn Champion: a source of yours hurt a player, you included (minAmount)
       if (source && source.controller != null) this._fire('yourSourceDamagesPlayer', source.controller, { object: source, amount, combat: !!combat, player: p.id });
+      // Ghyrson Starn, Kelermorph: or to a player
+      if (source && source.controller != null) this._fire('yourSourceDealsDamage', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       if (source && (source.attachments || []).length) {
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
@@ -12795,6 +12799,8 @@
         bearerId: data.bearerId,
         // Breena, the Demagogue: the player attacked, as against the one attacking (attacksOneOfYourOpponents)
         attackedPlayer: data.attackedPlayer,
+        // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
+        victimId: data.victimId,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -12942,6 +12948,8 @@
           if (ab.noncombatOnly && data.combat) continue;
           // Dragonborn Champion: "deals 5 or more damage" — at once
           if (ab.minAmount != null && !((Number(data.amount) || 0) >= ab.minAmount)) continue;
+          // Ghyrson Starn, Kelermorph: "deals exactly 1 damage"
+          if (ab.exactAmount != null && (Number(data.amount) || 0) !== ab.exactAmount) continue;
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
           if (data.exiledFromBattlefield && !ab.orExiled) continue;
           // "leave the battlefield without dying", "is exiled from the battlefield"
@@ -14539,6 +14547,16 @@
             // (in a spell, Melt Terrain: the controller of what it just destroyed)
             const p = this.player(td.objController || (x && x.controller)) || this._lastAffectedController();
             if (p) { this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
+            break;
+          }
+          /* Ghyrson Starn, Kelermorph: "to that permanent or player" — what the trigger's source dealt damage to; a
+             permanent gone since is not there to be hit (toVictim) */
+          if (e.toVictim) {
+            const td = ctx.triggerData || {};
+            const vo = td.victimId && this.obj(td.victimId);
+            if (vo) { if (vo.zone === 'battlefield' && !vo.phasedOut) this.dealDamageToObject(vo, cnt, dsrc); }
+            else { const p = td.player && this.player(td.player); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); }
+            this.emit('sfx', 'damage');
             break;
           }
           // (in a spell, "that player" is the one it targets: Hit)

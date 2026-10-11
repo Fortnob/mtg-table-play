@@ -28421,4 +28421,36 @@ module.exports = (test) => {
     M.cast('B', M.hand('B', 'Grizzly Bears'));
     t.zone(top, 'library', "Rashmi: B's spells don't count");
   });
+
+  test('Commanders: Ghyrson Starn, Kelermorph — another source of A\'s dealing exactly 1 damage: 2 more to that permanent or player', (mk, t) => {
+    t.auto('Ghyrson Starn, Kelermorph');
+    const M = mk({ library: Array(30).fill('Island') });
+    const gh = M.bf('A', 'Ghyrson Starn, Kelermorph');
+    const pyro = M.bf('A', 'Prodigal Pyromancer');
+    // 1 to B: 2 more
+    M.activate('A', pyro, 0, { targets: ['B'] });
+    t.eq(M.life('B'), 17, 'Ghyrson: 1 and 2 to B');
+    // 1 to a 3/3: 2 more, and it dies
+    const giant = M.bf('B', 'Hill Giant');
+    M.nextTurn('A');
+    M.activate('A', pyro, 0, { targets: [giant.id] });
+    t.zone(giant, 'graveyard', 'Ghyrson: 1 and 2 to the Hill Giant');
+    // a planeswalker is a permanent too
+    const pw = M.bf('B', 'Ajani Goldmane');
+    const loy = pw.counters.loyalty;
+    M.nextTurn('A');
+    M.activate('A', pyro, 0, { targets: [pw.id] });
+    t.eq(pw.counters.loyalty, loy - 3, 'Ghyrson: 1 and 2 to a planeswalker');
+    // Shock is 2: nothing more
+    const lifeB = M.life('B');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), lifeB - 2, 'Ghyrson: 2 damage is not exactly 1');
+    // B's Pyromancer pinging A: not A's source
+    const pyroB = M.bf('B', 'Prodigal Pyromancer');
+    M.nextTurn('B');
+    M.activate('B', pyroB, 0, { targets: ['A'] });
+    t.eq(M.life('A'), 19, "Ghyrson: B's source, nothing more");
+    t.zone(gh, 'battlefield');
+  });
 };

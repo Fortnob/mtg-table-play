@@ -4115,6 +4115,8 @@
        different cards — "a colorless Treasure artifact token with
        '{T}, Sacrifice this artifact: Add one mana of any color.'" is the
        same Treasure as "a Treasure token", and some arrive tapped. */
+    // Ghyrson Starn, Kelermorph: "Ghyrson Starn deals 2 damage to that permanent or player." — what the trigger's source hit (toVictim)
+    { re: /^(?:CARDNAME|this creature) deals (\d+) damage to that permanent or player\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toVictim: true }) },
     { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
     /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
@@ -11443,6 +11445,10 @@
     // Dragonborn Champion: "Whenever a source you control deals 5 or more damage to a player" — you too (minAmount)
     { re: /^When(?:ever)? a source you control deals (\d+) or more damage to a player,? /i, event: 'yourSourceDamagesPlayer',
       extraOf: (m) => ({ minAmount: +m[1] }) },
+    /* Ghyrson Starn, Kelermorph: "Whenever another source you control deals exactly 1 damage to a permanent or player"
+       — each time, to each one (exactAmount) */
+    { re: /^When(?:ever)? another source you control deals exactly (\d+) damage to a permanent or player,? /i, event: 'yourSourceDealsDamage',
+      extraOf: (m) => ({ exactAmount: +m[1], notSelf: true }) },
     // Surveillance Monitor: "Whenever you collect evidence"
     { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"
