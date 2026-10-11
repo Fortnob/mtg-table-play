@@ -23418,4 +23418,21 @@ module.exports = (test) => {
     t.ok(!!wall.attacking || A.life('B') < 20, 'Arcades: the Wall of Wood may attack');
     t.eq(A.life('B'), 20 - A.g.toughnessOf(wall) - A.g.powerOf(gb), 'Arcades: the Wall deals its toughness, the 1/4 Turtle (no defender) its power');
   });
+
+  test("Commanders: Eshki, Temur's Roar — the creature spell's power", (mk, t) => {
+    t.auto("Eshki, Temur's Roar");
+    const E = mk({ library: Array(20).fill('Forest') });
+    E.toMain('A');
+    const ek = E.bf('A', "Eshki, Temur's Roar");
+    const hand = () => E.zone('A', 'hand').length;
+    // Grizzly Bears (2 power): a counter only
+    let h0 = hand() + 1;
+    E.mana('A', '1G'); E.cast('A', E.hand('A', 'Grizzly Bears')); E.resolve();
+    t.ok((Number(ek.counters['+1/+1']) || 0) === 1 && hand() - h0 === -1, 'Eshki: the Bears, a counter and no card');
+    // Hill Giant (3 power): no card either; Craw Wurm (6 power): a card and Eshki's power to each opponent
+    h0 = hand() + 1;
+    E.mana('A', '4GG'); E.cast('A', E.hand('A', 'Craw Wurm')); E.resolve();
+    t.eq(hand() - h0, 0, 'Eshki: Craw Wurm, a card');
+    t.eq(E.life('B'), 20 - E.g.powerOf(ek), "Eshki: and Eshki's power to B");
+  });
 };

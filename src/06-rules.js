@@ -10614,6 +10614,14 @@
           return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature)
             .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0) >= (cond.n || 0);
         case 'wasCast': return !!src && src.wasCast != null;
+        // Eshki, Temur's Roar: "if that spell's power is 4 or greater" — the spell the trigger is about, as it is (spellPowerAtLeast)
+        case 'spellPowerAtLeast': {
+          const tdS = (ctx && ctx.triggerData) || {};
+          const xS = tdS.objectId && this.obj(tdS.objectId);
+          if (!xS) return false;
+          const pS = parseInt(((this.characteristics(xS) || {}).power), 10) || 0;
+          return pS >= (cond.n || 0);
+        }
         // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
         case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');

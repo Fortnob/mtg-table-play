@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10354,
+  "needed": 10347,
   "gainedCards": 949,
-  "linesNeeded": 10986,
+  "linesNeeded": 10979,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3986,
-   "lines": 3749,
+   "score": 3980,
+   "lines": 3743,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 152,
-   "lines": 140,
+   "score": 151,
+   "lines": 139,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -158,9 +158,9 @@
     "Tinybones, Trinket Thief",
     "March of the Canonized",
     "Gavel of the Righteous",
-    "Eshki, Temur's Roar",
     "Sab-Sunen, Luxa Embodied",
-    "Shelinda, Yevon Acolyte"
+    "Shelinda, Yevon Acolyte",
+    "Ephara, God of the Polis"
    ]
   },
   {
@@ -6437,8 +6437,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3338,
-   "cards": 3182,
+   "score": 3332,
+   "cards": 3176,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6489,15 +6489,15 @@
   },
   {
    "what": "custom condition",
-   "score": 119,
-   "cards": 116,
+   "score": 118,
+   "cards": 115,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
     "Lux Artillery",
     "Rith, Liberated Primeval",
     "March of the Canonized",
-    "Eshki, Temur's Roar"
+    "Shelinda, Yevon Acolyte"
    ]
   },
   {
