@@ -1631,8 +1631,9 @@
     // Hexplate Wallbreaker: "Untap each attacking creature."
     { re: /^Untap each attacking creature\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }) },
     // Tori D'Avenant, Fury Rider: "Untap each other white attacking creature you control." (untapEachYours)
-    { re: /^Untap each ((?:other |another )?(?:[a-z]+ )*?)creature you control\.?$/,
-      make: (m) => { const sc = scopeOf(m[1].replace(/^another /, 'other ') + 'creatures you control'); return sc && !sc.self && sc.who === 'you' ? { op: 'untapAll', scope: sc } : null; } },
+    // (Jorn, God of Winter: "Untap each snow permanent you control" — untapEachYours)
+    { re: /^Untap each ((?:other |another )?(?:[a-z]+ )*?)(creature|permanent|artifact|land) you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[1].replace(/^another /, 'other ') + m[2] + 's you control'); return sc && !sc.self && sc.who === 'you' ? { op: 'untapAll', scope: sc } : null; } },
     // Vines of Vastwood: "can't be the target of spells or abilities your opponents control this turn" is hexproof
     { re: /^(Target creature|Target permanent) can'?t be the target of spells or abilities your opponents control this turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: ['Hexproof'], duration: 'eot', targets: [targetSpec(m[1])] }) },
@@ -1812,6 +1813,12 @@
     { re: /^[Dd]ouble (?:this creature'?s|CARDNAME'?s) power until end of turn\.?$/,
       make: () => ({ op: 'doublePower', scope: 'self' }) },
     // The Endstone: "your life total becomes half your starting life total, rounded up"
+    // The Frightful Four: "that player loses life equal to that spell's mana value" (triggerSpellMv)
+    { re: /^(?:That player|They) loses? life equal to that spell'?s mana value\.?$/i,
+      make: () => ({ op: 'loseLife', who: 'triggerPlayer', n: { triggerSpellMv: true } }) },
+    // Torgaar, Famine Incarnate: "up to one target player's life total becomes half their starting life total, rounded down" (targetHalfStarting)
+    { re: /^(?:[Uu]p to one )?[Tt]arget player'?s life total becomes half their starting life total, rounded (up|down)\.?$/,
+      make: (m) => ({ op: 'setLife', who: 'target', targets: [Object.assign({ type: 'player' }, /^up to one/i.test(m[0]) ? { upTo: true } : {})], n: { halfStartingLife: true, up: /up/i.test(m[1]) } }) },
     { re: /^[Yy]our life total becomes half your starting life total, rounded (up|down)\.?$/,
       make: (m) => ({ op: 'setLife', who: 'you', n: { halfStartingLife: true, up: /up/i.test(m[1]) } }) },
     // Rasaad yn Bashir: "Double the toughness of each creature you control until end of turn." (doubleToughness)
@@ -6166,7 +6173,8 @@
     // Kalemne, Disciple of Iroas: "for each experience counter you have"
     if (/^experience counter you have$/i.test(p)) return { playerStat: 'experience', mult: k };
     // Commander's Insignia: "for each time you've cast your commander from the command zone this game"
-    if (/^time you'?ve cast your commander from the command zone this game$/i.test(p)) return { commanderCasts: true, mult: k };
+    // (Jirina Kudro: "… cast a commander …" — commanderCastsAny)
+    if (/^time you'?ve cast (?:your|a) commander from the command zone this game$/i.test(p)) return { commanderCasts: true, mult: k };
     // Kyler, Sigardian Emissary: "for each counter on CARDNAME" — of any kind
     if (/^counter on (?:CARDNAME|this creature|this permanent|it)$/i.test(p)) return { countersOnSelf: '*', mult: k };
     // Vishgraz, the Doomhive: "for each poison counter your opponents have"
@@ -9935,7 +9943,8 @@
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
     { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
-    { re: /^Whenever one or more ([A-Z][a-z]+)s you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // (Attuma, Atlantean Warlord: "one or more Merfolk" — a plural with no s: attackersOfTypeMerfolk)
+    { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
     { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
@@ -10210,7 +10219,8 @@
       event: 'permCombatDamage', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     { re: /^Whenever (?:this creature|CARDNAME) or equipped creature attacks,? /i,
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
-    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?:,| )', 'i'),
+    // (Thorin, Company's Leader: "to a player or battle" — playerOrBattle)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?: or battle)?(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     // Contaminant Grafter, Forth Eorlingas!: "… deal combat damage to one or more players" — once for the lot ("one or more" batches)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to one or more players(?:,| )', 'i'),
@@ -10782,6 +10792,8 @@
        says "When Ran and Shaw enter", "Whenever Raph & Mikey attack" — the
        same thing a single creature says with "enters", "attacks" */
     // (but not "you may have CARDNAME enter as a copy", "have CARDNAME deal 4 damage to them")
+    // (Tui and La: "Whenever Tui and La become untapped, put a +1/+1 counter on them" — two of them, one card: pairBecome)
+    if (/\bCARDNAME become (?:tapped|untapped)\b/.test(text)) text = text.replace(/\bCARDNAME become (tapped|untapped)\b/g, 'CARDNAME becomes $1').replace(/ counters? on them\./g, (x) => x.replace(/them\.$/, 'CARDNAME.'));
     text = text.replace(/(?<!\b(?:have|let) )\bCARDNAME (enter|attack|block|die|deal)(?=[ ,.])/g, 'CARDNAME $1s')
       .replace(/\bCARDNAME (enters|attacks) or (attack|block|die)(?=[ ,.])/g, 'CARDNAME $1 or $2s');
 

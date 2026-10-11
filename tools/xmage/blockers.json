@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10450,
+  "needed": 10444,
   "gainedCards": 963,
-  "linesNeeded": 11099,
-  "linesGained": 1127,
+  "linesNeeded": 11088,
+  "linesGained": 1126,
   "gained": {
    "all": 963,
    "top2000": 40,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4006,
-   "lines": 3763,
+   "score": 4004,
+   "lines": 3761,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 663,
-   "lines": 609,
+   "score": 661,
+   "lines": 607,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 172,
-   "lines": 157,
+   "score": 171,
+   "lines": 156,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -1048,25 +1048,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 12,
-   "lines": 12,
-   "cards": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Karazikar, the Eye Tyrant",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Gornog, the Red Reaper",
-    "Firkraag, Cunning Instigator",
-    "Attuma, Atlantean Warlord",
-    "Landroval, Horizon Witness",
-    "Crimson Cowl, Master of Evil",
-    "Squall, Gunblade Duelist",
-    "Ordruun Mentor"
-   ]
-  },
-  {
    "what": "AddCardTypeSourceEffect",
    "score": 12,
    "lines": 12,
@@ -1213,6 +1194,24 @@
     "Sorceress Queen",
     "Serendib Sorcerer",
     "Gnottvold Hermit // Chrome Host Hulk"
+   ]
+  },
+  {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 11,
+   "lines": 11,
+   "cards": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Karazikar, the Eye Tyrant",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Gornog, the Red Reaper",
+    "Firkraag, Cunning Instigator",
+    "Landroval, Horizon Witness",
+    "Crimson Cowl, Master of Evil",
+    "Squall, Gunblade Duelist",
+    "Ordruun Mentor"
    ]
   },
   {
@@ -4036,18 +4035,6 @@
    ]
   },
   {
-   "what": "EnchantedPredicate.instance",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Estrid, the Masked",
-    "Brainspoil",
-    "Infiltrator's Magemark",
-    "Graceful Takedown",
-    "Time Elemental"
-   ]
-  },
-  {
    "what": "TurnFaceUpTargetEffect",
    "score": 5,
    "lines": 5,
@@ -5175,6 +5162,17 @@
    ]
   },
   {
+   "what": "EnchantedPredicate.instance",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Brainspoil",
+    "Infiltrator's Magemark",
+    "Graceful Takedown",
+    "Time Elemental"
+   ]
+  },
+  {
    "what": "SetBasePowerSourceEffect with two values",
    "score": 4,
    "lines": 4,
@@ -5765,16 +5763,6 @@
    ]
   },
   {
-   "what": "UntapAllEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Éomer, Marshal of Rohan",
-    "Preston Garvey, Minuteman",
-    "Jiang Yanggu, Never Alone"
-   ]
-  },
-  {
    "what": "ToughnessGreaterThanPowerPredicate.instance",
    "score": 3,
    "lines": 3,
@@ -6343,16 +6331,6 @@
    ]
   },
   {
-   "what": "scope:snow",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Dead of Winter",
-    "Jorn, God of Winter // Kaldring, the Rimestaff",
-    "Gangrenous Zombies"
-   ]
-  },
-  {
    "what": "SpellsCostModificationThatTargetSourceEffect",
    "score": 3,
    "lines": 3,
@@ -6461,13 +6439,33 @@
     "Tibalt, the Fiend-Blooded",
     "Gerrard Capashen"
    ]
+  },
+  {
+   "what": "SkipNextTurnSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Eater of Days",
+    "Magosi, the Waterveil",
+    "Chronatog Totem"
+   ]
+  },
+  {
+   "what": "SourceDealsDamageToThisTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Reaper of Sheoldred",
+    "Belltower Sphinx",
+    "Crag Saurian"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3351,
-   "cards": 3189,
+   "score": 3352,
+   "cards": 3190,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6479,8 +6477,8 @@
   },
   {
    "what": "custom ability",
-   "score": 508,
-   "cards": 469,
+   "score": 506,
+   "cards": 467,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6492,8 +6490,8 @@
   },
   {
    "what": "(cast modifier line)",
-   "score": 142,
-   "cards": 139,
+   "score": 143,
+   "cards": 140,
    "names": [
     "Plumb the Forbidden",
     "Not of This World",
@@ -6531,8 +6529,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 101,
-   "cards": 98,
+   "score": 100,
+   "cards": 97,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",
@@ -7430,19 +7428,6 @@
    ]
   },
   {
-   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Neyali, Suns' Vanguard",
-    "Echoing Assault",
-    "Soaring Lightbringer",
-    "Horn of the Mark",
-    "Attuma, Atlantean Warlord",
-    "Landroval, Horizon Witness"
-   ]
-  },
-  {
    "what": "ProtectionAbility",
    "score": 8,
    "cards": 8,
@@ -7740,6 +7725,19 @@
    ]
   },
   {
+   "what": "AttacksPlayerWithCreaturesTriggeredAbility",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Neyali, Suns' Vanguard",
+    "Echoing Assault",
+    "Soaring Lightbringer",
+    "Horn of the Mark",
+    "Landroval, Horizon Witness",
+    "Crimson Cowl, Master of Evil"
+   ]
+  },
+  {
    "what": "DiesThisOrAnotherTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -7945,6 +7943,19 @@
     "Heartseeker",
     "Leonin Bola",
     "Shuriken"
+   ]
+  },
+  {
+   "what": "filter:snow",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Rime Tender",
+    "Sculptor of Winter",
+    "Jorn, God of Winter // Kaldring, the Rimestaff",
+    "Avalanche Caller",
+    "Balduvian Frostwaker",
+    "Balduvian Conjurer"
    ]
   },
   {
@@ -8358,19 +8369,6 @@
     "Jace, Ingenious Mind-Mage",
     "Sorin, Vampire Lord",
     "Kefnet's Last Word"
-   ]
-  },
-  {
-   "what": "filter:snow",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Rime Tender",
-    "Sculptor of Winter",
-    "Avalanche Caller",
-    "Balduvian Frostwaker",
-    "Balduvian Conjurer",
-    "Ohran Yeti"
    ]
   },
   {

@@ -22472,4 +22472,59 @@ module.exports = (test) => {
     t.eq(gb.controller, 'A', 'chapter III: the Bears come back under your control');
     t.ok(sh.zone === 'battlefield' && sh.face === 0, 'chapter III: the Saga is exiled and returns as Sheoldred, front face up');
   });
+
+  test("Commanders: Attuma, The Frightful Four, Tui and La, Thorin, Company's Leader, Jirina Kudro, Jorn, God of Winter; Torgaar's life total, Font of Magic", (mk, t) => {
+    for (const n of ['Attuma, Atlantean Warlord', 'The Frightful Four', 'Tui and La, Moon and Ocean', "Thorin, Company's Leader", 'Jirina Kudro',
+      'Font of Magic']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // Attuma: "one or more Merfolk you control attack a player"
+    const A = mk({ library: Array(10).fill('Island') });
+    A.toMain('A');
+    const ah = A.zone('A', 'hand').length;
+    attack(A, [A.bf('A', 'Attuma, Atlantean Warlord')]);
+    t.eq(A.zone('A', 'hand').length, ah + 1, 'Attuma: a Merfolk attacked, a card');
+    // The Frightful Four: an opponent's first noncreature spell costs them its mana value in life
+    const F = mk({ library: Array(10).fill('Island') });
+    F.toMain('A');
+    F.bf('A', 'The Frightful Four');
+    F.nextTurn('B');
+    F.mana('B', '2U');
+    F.cast('B', F.hand('B', 'Divination')); F.resolve();
+    t.eq(F.life('B'), 17, 'The Frightful Four: Divination (3), 3 life');
+    // Tui and La: a +1/+1 counter whenever they become untapped
+    const U = mk({ library: Array(10).fill('Island') });
+    U.toMain('A');
+    const tl = U.bf('A', 'Tui and La, Moon and Ocean'); tl.tapped = true;
+    U.nextTurn('B'); U.nextTurn('A');
+    t.eq(Number(tl.counters['+1/+1']) || 0, 1, 'Tui and La: untapped, a counter');
+    // Thorin: two Treasures when a Dwarf deals combat damage to a player
+    const H = mk({ library: Array(10).fill('Mountain') });
+    H.toMain('A');
+    attack(H, [H.bf('A', "Thorin, Company's Leader")]);
+    H.toMain('A', 'endCombat');
+    t.eq(H.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 2, 'Thorin: two Treasures');
+    // Jirina Kudro: a Soldier for each time you've cast a commander from the command zone
+    const J = mk({ library: Array(10).fill('Plains') });
+    J.toMain('A');
+    J.player('A').commanderCasts = { someCommander: 2 };
+    J.put('A', 'Jirina Kudro', 'battlefield', { etb: true }); J.resolve();
+    t.eq(J.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 2, 'Jirina Kudro: two commander casts, two Soldiers');
+    // Jorn: snow permanents untap as it attacks
+    const N = mk({ library: Array(10).fill('Forest') });
+    N.toMain('A');
+    const snow = N.bf('A', 'Snow-Covered Forest'), plain = N.bf('A', 'Forest');
+    snow.tapped = true; plain.tapped = true;
+    attack(N, [N.bf('A', 'Jorn, God of Winter // Kaldring, the Rimestaff')]);
+    t.ok(!snow.tapped && plain.tapped, 'Jorn: the snow land untaps, the other does not');
+    // Torgaar: a target player's life total becomes half the starting life total
+    const G = mk({ library: Array(10).fill('Swamp') });
+    G.toMain('A');
+    G.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    G.put('A', 'Torgaar, Famine Incarnate', 'battlefield', { etb: true }); G.resolve();
+    t.eq(G.life('B'), 10, "Torgaar: B's life total becomes 10");
+  });
 };
