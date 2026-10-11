@@ -16129,6 +16129,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // coins: several at once, or until one is lost, counting the wins
     { re: /^Flip (two|three|four|five|\d+) coins\.?$/i, make: (m) => ({ op: 'flipCoins', n: num(m[1]) }) },
     { re: /^Flip a coin until you lose a flip\.?$/i, make: () => ({ op: 'flipCoins', untilLose: true }) },
+    // Mana Clash: both flip, tails hurts, until both come up heads together — the whole loop in its first sentence (manaClash)
+    { re: /^You and target opponent each flip a coin\.?$/i, make: () => ({ op: 'manaClash', targets: [{ type: 'player', opponent: true }] }) },
+    { re: /^CARDNAME deals 1 damage to each player whose coin comes up tails\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^Repeat this process until both players' coins come up heads on the same flip\.?$/i, make: () => ({ op: 'noop' }) },
+    // Yusri, Fortune's Flame: "Flip that many coins" — the number just chosen (flipChosen)
+    { re: /^Flip that many coins\.?$/i, make: () => ({ op: 'flipCoins', n: 'chosenNumber' }) },
+    // Yusri: "For each flip you lose, Yusri deals 2 damage to you." (flipsLost)
+    { re: /^For each flip you (?:lose|lost), (.+)$/i,
+      make: (m) => { const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return pe.auto && pe.effects.length ? { op: 'repeatPerFlip', lost: true, effects: pe.effects } : null; } },
+    // Yusri: "you may cast spells from your hand this turn without paying their mana costs" — Omniscience for the turn
+    { re: /^You may cast spells from your hand this turn without paying their mana costs\.?$/i,
+      make: () => ({ op: 'getEmblem', emblemText: 'You may cast spells from your hand without paying their mana costs.', thisTurn: true, name: 'Until end of turn' }) },
     // "For each flip you won, create a token that's a copy of that creature."
     { re: /^For each flip you (?:win|won), (.+)$/i,
       make: (m) => { const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return pe.auto && pe.effects.length ? { op: 'repeatPerFlip', effects: pe.effects } : null; } },
@@ -22700,6 +22712,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^(?:CARDNAME|this spell|it|he|she|they) (?:was|were) kicked$/i, () => ({ kind: 'kicked', n: 1 })],
     // the Battlemages: "if it was kicked with its {W} kicker" — that one of its "and/or" kicker costs
     [/^(?:CARDNAME|this spell|it) was kicked with its ((?:\{[^}]+\})+) kicker$/i, (m) => ({ kind: 'kickedWith', cost: m[1] })],
+    // Yusri, Fortune's Flame: "if you won five flips this way" (flipsWonCond)
+    [/^you won (one|two|three|four|five|\d+) flips? this way$/i, (m) => ({ kind: 'flipsWonAtLeast', n: num(m[1]) })],
     // an optional additional cost, paid, is counted as the spell's kicker
     [/^this spell'?s additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
@@ -27864,6 +27878,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       { re: /^Your opponents can'?t search libraries\.?$/i, eff: { op: 'noSearch', who: 'opponents' }, auto: true },
       // Tainted Remedy, Plague Drone: "If an opponent would gain life, that player loses that much life instead."
       { re: /^If an opponent would gain life, that player loses that much life instead\.?$/i, eff: { op: 'gainBecomesLoss' }, auto: true },
+      // Krark's Thumb: one coin of two kept (flipTwoIgnoreOne)
+      { re: /^If you would flip a coin, instead flip two coins and ignore one\.?$/i, eff: { op: 'flipTwoIgnoreOne' }, auto: true },
+      // Wyll, Pixie Guide, Barbarian Class: a die more, the lowest ignored (rollExtraIgnoreLowest)
+      { re: /^If you would roll one or more dice, instead roll that many dice plus one and ignore the lowest roll\.?$/i, eff: { op: 'rollExtraIgnoreLowest' }, auto: true },
       // Stranglehold, Ugin's Nexus: "If a player (an opponent) would begin an extra turn, that player skips that turn instead."
       { re: /^If (a player|an opponent) would begin an extra turn, that player skips that turn instead\.?$/i,
         make: (m) => ({ op: 'skipExtraTurns', who: /opponent/i.test(m[1]) ? 'opponents' : 'all' }), auto: true },
@@ -27914,6 +27932,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
           { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Changeling'] }] }), auto: true },
       // Doran and kin: combat damage by toughness
+      /* Arcades, the Strategist: "Each creature you control with defender assigns combat damage equal to its toughness
+         rather than its power and can attack as though it didn't have defender." (defenderToughness) */
+      { re: /^Each creature you control with defender assigns combat damage equal to its toughness rather than its power and can attack as though it didn'?t have defender\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'toughnessDamage', who: 'you', keyword: 'defender' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', keyword: 'defender' }, flag: 'attackDespiteDefender' }] }), auto: true },
       { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
       // Signal Pest: "can't be blocked except by creatures with flying or reach"
@@ -30688,6 +30711,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
         // Treefolk Umbra: only the creature it's attached to (toughnessAttached)
         if (e.who === 'attached' && s.attachedTo !== o.id) return false;
+        // Arcades, the Strategist: only those with defender (defenderToughness)
+        if (e.keyword && !this.hasKw(o, e.keyword)) return false;
         return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
       });
     }
@@ -33951,13 +33976,47 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return live.slice(i).concat(live.slice(0, i));
     }
     /** One coin flipped by a player: the result told and shown, and the win or loss seen by triggers. */
-    _flipOne(p) {
-      const won = this.rng.chance(0.5);
+    /* A coin flipped, or a die rolled, as the table shows it: who, for what card, what came up, and
+       what was set aside (Krark's Thumb's other coin, Pixie Guide's and Wyll's lower dice) */
+    _luckSource(opts) {
+      const s = (opts && opts.source) || (this.resolving && this.resolving.ctx && this.resolving.ctx.obj) || null;
+      return s ? { sourceId: s.id || null, sourceName: s.name || null } : { sourceId: null, sourceName: null };
+    }
+    /** How many of a standing rule this player's permanents have (Krark's Thumb, Pixie Guide, Wyll). */
+    _luckRules(pid, op) {
+      return this.battlefield.filter(o => o.controller === pid && !o.phasedOut && this._staticOp(o, op)).length;
+    }
+    _flipOne(p, opts) {
+      /* Krark's Thumb: "If you would flip a coin, instead flip two coins and ignore one" — and two
+         Thumbs four coins (CR 705.3): a win kept when there is one */
+      const n = Math.min(8, 2 ** this._luckRules(p.id, 'flipTwoIgnoreOne'));
+      const flips = Array.from({ length: n }, () => this.rng.chance(0.5));
+      const keep = Math.max(0, flips.indexOf(true));
+      const won = flips[keep];
+      const src = this._luckSource(opts);
+      flips.forEach((w, i) => {
+        if (n > 1) this.logEvent('rules', `${p.name} flips a coin: ${w ? 'heads' : 'tails'}${i === keep ? '' : ' (ignored)'}.`);
+        this.emit('coin', Object.assign({ playerId: p.id, result: w ? 'heads' : 'tails', won: w, ignored: i !== keep }, src));
+      });
       this.logEvent('rules', `${p.name} flips a coin: ${won ? 'heads — they win the flip' : 'tails — they lose it'}.`);
-      this.emit('coin', { playerId: p.id, result: won ? 'heads' : 'tails' });
       this._fire(won ? 'youWinFlip' : 'youLoseFlip', p.id, { playerId: p.id });
       if (won) this._fire('anyWinFlip', null, { playerId: p.id });
       return won;
+    }
+    /**
+     * Roll a die: the result kept, with every die rolled and those ignored. Wyll, Blade of Frontiers,
+     * Pixie Guide, Barbarian Class: "roll that many dice plus one and ignore the lowest roll".
+     */
+    _rollDie(p, sides, opts) {
+      sides = Math.max(1, sides | 0);
+      const extra = this._luckRules(p.id, 'rollExtraIgnoreLowest');
+      const rolls = Array.from({ length: 1 + Math.min(6, extra) }, () => this.rng.range(1, sides));
+      const result = Math.max(...rolls);
+      const sorted = rolls.slice().sort((x, y) => x - y);
+      const ignored = sorted.slice(0, rolls.length - 1);
+      this.logEvent((opts && opts.logType) || 'rules', `${p.name} rolls a d${sides}: ${result}${ignored.length ? ` (also ${ignored.join(', ')}, ignored)` : ''}.`);
+      this.emit('roll', Object.assign({ playerId: p.id, sides, result, rolls, ignored }, this._luckSource(opts)));
+      return result;
     }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
@@ -40338,6 +40397,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         /* the Battlemages: "if it was kicked with its {W} kicker" — that cost among the ones
            paid, asked of the spell or of the permanent it became (as "kicked" is) */
+        // Yusri, Fortune's Flame: "if you won five flips this way" (flipsWonCond)
+        case 'flipsWonAtLeast': return (this._flipsWon || 0) >= (cond.n || 1);
         case 'kickedWith': {
           const ks = ctx && ctx.kicked == null && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
           const paid = (ctx && ctx.kicked != null ? ctx.kickPaid : ks && ks.kickPaid) || [];
@@ -51184,9 +51245,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /* "Roll a d20." The result is kept for the sentence after it. */
         case 'rollDie': {
           const sides = n(e.sides) || 20;
-          this._lastRoll = 1 + Math.floor(this.rng.next() * sides);
-          this.logEvent('rules', `${me.name} rolls a d${sides}: ${this._lastRoll}.`);
-          this.emit('roll', { playerId: ctx.controller, sides, result: this._lastRoll });
+          this._lastRoll = this._rollDie(me, sides);
           this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
           // the results printed under the roll
           const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
@@ -51195,15 +51254,34 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // "Flip three coins", "Flip a coin until you lose a flip": the wins counted
         case 'flipCoins': {
-          let wins = 0;
-          if (e.untilLose) { for (let k = 0; k < 50 && this._flipOne(me); k++) wins++; }
-          else for (let k = 0; k < (n(e.n) || 1); k++) if (this._flipOne(me)) wins++;
+          let wins = 0, flips = 0;
+          if (e.untilLose) { for (let k = 0; k < 50; k++) { flips++; if (!this._flipOne(me)) break; wins++; } }
+          else {
+            // (Yusri: "that many", the number just chosen — flipChosen)
+            const cnt = e.n === 'chosenNumber' ? Math.max(0, ctx.chosenNumber || 0) : (n(e.n) || 1);
+            for (let k = 0; k < cnt; k++) { flips++; if (this._flipOne(me)) wins++; }
+          }
           this._flipsWon = wins;
+          this._flipsLost = flips - wins;
+          break;
+        }
+        // Mana Clash: you and the opponent flip, 1 damage to each tails, until both come up heads (manaClash)
+        case 'manaClash': {
+          const opp = firstPlayer();
+          if (!opp) break;
+          for (let k = 0; k < 100; k++) {
+            if (me.hasLost || opp.hasLost) break;
+            const a = this._flipOne(me), b = this._flipOne(opp);
+            if (!a) this.dealDamageToPlayer(me, 1, src);
+            if (!b) this.dealDamageToPlayer(opp, 1, src);
+            if (a && b) break;
+          }
           break;
         }
         // "For each flip you won, …"
         case 'repeatPerFlip': {
-          const k = this._flipsWon || 0;
+          // (Yusri: "for each flip you lose" — flipsLost)
+          const k = (e.lost ? this._flipsLost : this._flipsWon) || 0;
           const run = [];
           for (let i = 0; i < k; i++) run.push(...(e.effects || []));
           if (run.length) this._spliceNext(run);
@@ -54220,15 +54298,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'reveal': this.logEvent('manual', `${p.name} reveals ${o ? o.name : 'a card'}.`); break;
         case 'roll': {
           const sides = data.sides || 6;
-          const r = this.rng.range(1, sides);
-          this.logEvent('manual', `${p.name} rolls a d${sides}: ${r}.`);
-          this.emit('roll', { playerId, sides, result: r });
+          this._rollDie(p, sides, { logType: 'manual' });
           break;
         }
         case 'coin': {
           const r = this.rng.chance(0.5) ? 'heads' : 'tails';
           this.logEvent('manual', `${p.name} flips a coin: ${r}.`);
-          this.emit('coin', { playerId, result: r });
+          // (a coin flipped by hand: no flip won or lost, nothing ignored)
+          this.emit('coin', { playerId, result: r, won: r === 'heads', ignored: false, sourceId: null, sourceName: null, byHand: true });
           break;
         }
         case 'setLife': p.life = data.n; this.logEvent('manual', `${p.name} sets life to ${data.n}.`); break;
@@ -55707,8 +55784,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       case 'draw': if (a && a.player) this._ev('draw', { player: a.player.id, count: a.n }); break;
       case 'game:over': this._ev('gameOver', { winners: (a || []).slice() }); break;
       case 'player:lost': if (a) this._ev('lose', { player: a.id, reason: a.lossReason || '' }); break;
-      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result }); break;
-      case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result }); break;
+      /* a die: the result kept, every die rolled and the ones ignored (Pixie Guide, Wyll), for which card;
+         a coin: heads or tails, won or lost, ignored (Krark's Thumb's other coin), for which card */
+      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result,
+        rolls: a.rolls || [a.result], ignored: a.ignored || [], source: a.sourceId || null, sourceName: a.sourceName || null }); break;
+      case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result, won: a.won != null ? !!a.won : a.result === 'heads',
+        ignored: !!a.ignored, source: a.sourceId || null, sourceName: a.sourceName || null, byHand: a.byHand || undefined }); break;
       case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;
       /* A few moments have a sound but nothing else in the stream to hang
          it on — the crown changing hands, day becoming night, a card
