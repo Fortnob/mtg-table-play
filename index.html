@@ -22493,6 +22493,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
     [/^creatures you control have total power (\d+) or greater$/i, (m) => ({ kind: 'totalPower', n: +m[1] })],
     [/^you cast it$/i, () => ({ kind: 'wasCast' })],
+    // Eshki, Temur's Roar: "If that spell's power is 4 or greater" (spellPowerAtLeast)
+    [/^that spell'?s power is (\d+) or greater$/i, (m) => ({ kind: 'spellPowerAtLeast', n: +m[1] })],
     // Preston, the Vanisher: "if it wasn't cast" — the creature the trigger is about (notCastTrigger)
     [/^it wasn'?t cast$/i, () => ({ kind: 'notCastTrigger' })],
     // Anti-Venom, Horrifying Healer: "if he was cast" (wasCastPronoun)
@@ -40835,6 +40837,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature)
             .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0) >= (cond.n || 0);
         case 'wasCast': return !!src && src.wasCast != null;
+        // Eshki, Temur's Roar: "if that spell's power is 4 or greater" — the spell the trigger is about, as it is (spellPowerAtLeast)
+        case 'spellPowerAtLeast': {
+          const tdS = (ctx && ctx.triggerData) || {};
+          const xS = tdS.objectId && this.obj(tdS.objectId);
+          if (!xS) return false;
+          const pS = parseInt(((this.characteristics(xS) || {}).power), 10) || 0;
+          return pS >= (cond.n || 0);
+        }
         // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
         case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');
@@ -91768,7 +91778,8 @@ Sideboard
       const lastSeen = pl[pl.length - 1];
       let at = -1;
       if (lastSeen) for (let i = nl.length - 1; i >= 0; i--) { const x = nl[i]; if (x.t === lastSeen.t && x.type === lastSeen.type && x.text === lastSeen.text) { at = i; break; } }
-      const fresh = lastSeen ? nl.slice(at + 1) : nl;
+      // and should that line have gone (a long log trimmed), only what came after it in time: never the whole log again
+      const fresh = !lastSeen ? nl : at >= 0 ? nl.slice(at + 1) : nl.filter(x => (x.t || 0) > (lastSeen.t || 0));
       for (const e of fresh) if (e.type === 'manual') this.say(e.text, 'manual', 6000);
       // a board wipe is worth feeling
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
