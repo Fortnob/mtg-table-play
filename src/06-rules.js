@@ -846,6 +846,8 @@
       for (const o of this.battlefield) o.activatedLoyaltyThisTurn = false;
       // "until your next turn" ends as that turn begins
       for (const o of this.battlefield) {
+        // goad lasts until the goading player's next turn (CR 701.15a), every combat until then
+        if (o.goadedBy != null && o.goadedBy === this.turnOrder[this.activeIndex]) o.goadedBy = null;
         if ((o.effects || []).some(e => e.untilTurnOf === this.turnOrder[this.activeIndex])) {
           o.effects = o.effects.filter(e => e.untilTurnOf !== this.turnOrder[this.activeIndex]);
           o._chr = null;
@@ -6033,7 +6035,7 @@
       const pid = this.activePlayer.id;
       const defenders = new Set(attackers.map(o => {
         const d = o.attacking;
-        return this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+        return this._defPid(d);
       }).filter(Boolean));
 
       // exalted only applies when exactly one creature attacked
@@ -6120,7 +6122,7 @@
         const ann = this._kwArg(o, 'annihilator');
         if (ann) {
           const d = o.attacking;
-          const dpid = this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+          const dpid = this._defPid(d);
           if (dpid) {
             this.queueChoice({
               type: 'sacrifice', playerId: dpid, count: ann, filter: 'permanent',
@@ -6137,7 +6139,7 @@
       if (attackers.length === 1 && attackers[0]) {
         const at = attackers[0], d = at.attacking;
         this._fire('attacksAlone', null, { object: at, objController: at.controller, attacker: at, source: at,
-          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+          player: this._defPid(d) });
       }
     }
 
@@ -8280,8 +8282,10 @@
       for (const o of this.battlefield) {
         const a = o.analysis();
         if (!a) continue;
+        // a battle: anyone but its protector, its controller too (CR 310.10, 508.1b)
+        if (a.isBattle) { if (this._defPid(o.id) !== attackerPid) out.push({ kind: 'object', id: o.id, name: o.name }); continue; }
         if (o.controller === attackerPid) continue;
-        if (a.isPlaneswalker || a.isBattle) out.push({ kind: 'object', id: o.id, name: o.name });
+        if (a.isPlaneswalker) out.push({ kind: 'object', id: o.id, name: o.name });
       }
       return out;
     }
@@ -8393,6 +8397,16 @@
           const must = this.mustAttack(o);
           if (must && !declarations.some(d => d.attackerId === id))
             return this.fail(`${o.name} ${o.goadedBy != null ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
+          /* goaded: it attacks a player other than the one who goaded it, if it can (CR 701.15b) — a bot's
+             declaration is turned that way, a person is told */
+          if (o && o.goadedBy != null) {
+            const d = declarations.find(x => x.attackerId === id);
+            const others = this.opponentsOf(playerId).filter(q => !q.hasLost && q.id !== o.goadedBy && !this._cantAttackYou(o, q.id));
+            if (d && others.length && !others.some(q => q.id === d.defenderId)) {
+              if ((this.player(playerId) || {}).isBot) d.defenderId = others[0].id;
+              else return this.fail(`${o.name} is goaded: it attacks a player other than ${(this.player(o.goadedBy) || {}).name || 'the one who goaded it'} if it can.`);
+            }
+          }
           /* An encore token was made to go after one player in particular. */
           if (o && o.mustAttackPlayer != null) {
             const d = declarations.find(x => x.attackerId === id);
@@ -8418,9 +8432,8 @@
       for (const o of this.battlefield) if (o.controller === playerId) o.bandId = null;
       for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
-      // goad only compels the one combat it was aimed at (CR 701.38)
-      // (Vengeful Ancestor still sees it as goaded as it attacks)
-      for (const id of ch.candidates) { const o = this.obj(id); if (o) { if (o.goadedBy != null) o._goadedAttack = this.turn; o.goadedBy = null; } }
+      // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
+      for (const id of ch.candidates) { const o = this.obj(id); if (o && o.goadedBy != null) o._goadedAttack = this.turn; }
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
@@ -8486,8 +8499,7 @@
     }
 
     canBlock(blocker, attacker) {
-      const def = attacker.attacking;
-      const defPid = this.player(def) ? def : (this.obj(def) ? this.obj(def).controller : null);
+      const defPid = this._defPid(attacker.attacking);
       return this.couldBlock(blocker, attacker, defPid);
     }
 
@@ -8863,7 +8875,7 @@
       for (const id of this.combat.attackers) {
         const o = this.obj(id);
         const d = o.attacking;
-        const pid = this.player(d) ? d : (this.obj(d) ? this.obj(d).controller : null);
+        const pid = this._defPid(d);
         if (pid) defenders.add(pid);
       }
       this.blockQueue = Array.from(defenders);
@@ -8879,7 +8891,7 @@
       const attackersOnMe = this.combat.attackers.filter(id => {
         const o = this.obj(id);
         const d = o.attacking;
-        return d === pid || (this.obj(d) && this.obj(d).controller === pid);
+        return this._defPid(d) === pid;
       });
       const candidates = this.battlefield.filter(o => o.controller === pid &&
         attackersOnMe.some(aid => this.canBlock(o, this.obj(aid))));
@@ -8930,9 +8942,12 @@
       for (const d of declarations) {
         const b = this.obj(d.blockerId);
         if (!b) return this.fail('No such blocker.');
+        // (only the blocking player's own creatures, and only what attacks that player, its planeswalkers or the battles it protects: CR 509.1a)
+        if (b.controller !== playerId) return this.fail(`${b.name} is not yours to block with.`);
         for (const aid of d.attackerIds) {
           const at = this.obj(aid);
           if (!at || !this.canBlock(b, at)) return this.fail(`${b.name} cannot block ${at ? at.name : '?'}.`);
+          if ((ch.attackers || []).length && !ch.attackers.includes(aid)) return this.fail(`${at.name} isn't attacking you.`);
         }
         if (d.attackerIds.length > 1) {
           const ba = b.analysis();
@@ -9076,7 +9091,7 @@
         if (!at || at.zone !== 'battlefield' || at.blockedBy.length) continue;
         const d = at.attacking;
         this._fire('attacksUnblocked', at.controller, { source: at, object: at, attacker: at,
-          player: this.player(d) ? d : (this.obj(d) || {}).controller });
+          player: this._defPid(d) });
       }
       this.checkStateBasedActions();
       this._givePriority(this.activeIndex);
@@ -11346,8 +11361,19 @@
         }
       }
       this.bumpBoard();
-      o.counters[kind] = (Number(o.counters[kind]) || 0) + n;
+      const wasK = Number(o.counters[kind]) || 0;
+      o.counters[kind] = wasK + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];
+      /* A Siege's last defense counter removed: "exile it, then you may cast it transformed without
+         paying its mana cost" (CR 310.11b) — a trigger, and the battle stays until it has resolved */
+      if (kind === 'defense' && n < 0 && wasK > 0 && o.counters.defense <= 0 && o.zone === 'battlefield' && !o._siegeDone &&
+          ((o.analysis() || {}).subtypes || []).includes('Siege')) {
+        o._siegeDone = true;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, siege: true,
+          controller: o.controller, name: `${o.name} — defeated`, effects: [{ op: 'siegeDefeated' }], auto: true,
+          abilityText: 'When the last defense counter is removed from this battle, exile it, then you may cast it transformed without paying its mana cost.',
+          triggerData: { event: 'siegeDefeated', objectId: o.id } });
+      }
       // "Whenever one or more +1/+1 counters are put on this creature"
       // Wakka, Devoted Guardian: "if a counter was put on it this turn" (counterPutOnSelf)
       if (n > 0 && o.zone === 'battlefield') {
@@ -11620,7 +11646,20 @@
             this.logEvent('rules', `${o.name} is compleated: ${o._phyLife / 2} Phyrexian mana paid with life, ${o.counters.loyalty} loyalty.`);
           }
           o._phyLife = 0;
-          if (a.isBattle) o.counters.defense = parseInt(a.defense, 10) || 0;
+          if (a.isBattle) {
+            o.counters.defense = parseInt(a.defense, 10) || 0;
+            /* A Siege's protector: an opponent its controller chooses as it enters (CR 310.8) — the one
+               who defends it; anyone else, its controller included, may attack it */
+            const opps = this.opponentsOf(o.controller).filter(q => !q.hasLost);
+            o.protector = opps.length ? opps[0].id : null;
+            o._siegeDone = false;
+            const cp = this.player(o.controller);
+            if (opps.length > 1 && cp && !cp.isBot) {
+              this.queueChoice({ type: 'mode', playerId: o.controller, purpose: 'battleProtector', objId: o.id, count: 1,
+                options: opps.map((q, i) => ({ i, label: q.name })), values: opps.map(q => q.id),
+                prompt: `${o.name}: choose an opponent to protect it.` });
+            }
+          }
           // a Saga arrives with its first chapter already counted (CR 714.2)
           if (a.isSaga) {
             // read ahead: the chapters before the one chosen are passed over
@@ -21052,6 +21091,24 @@
           this._flipsLost = flips - wins;
           break;
         }
+        /* A defeated Siege: exiled, then cast transformed for nothing if its controller likes (CR 310.11b) */
+        case 'siegeDefeated': {
+          if (!src) break;
+          // (come back to with the answer, it is already in exile)
+          if (!this._doneHere('siegeExile')) {
+            if (src.zone !== 'battlefield') break;
+            this.moveObject(src, 'exile'); this.logEvent('rules', `${src.name} is defeated and exiled.`);
+          }
+          if (src.zone !== 'exile' || !(src.card.card_faces && src.card.card_faces[1])) break;
+          const yes = me.isBot ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            prompt: `Cast ${src.card.card_faces[1].name} (${src.name} transformed) without paying its mana cost?` }, 'siegeCast');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes) {
+            src.face = 1; src._chr = null;
+            if (!this._castFree(ctx.controller, src, { how: 'transformed, without paying its mana cost' })) { src.face = 0; src._chr = null; }
+          }
+          break;
+        }
         // Mana Clash: you and the opponent flip, 1 damage to each tails, until both come up heads (manaClash)
         case 'manaClash': {
           const opp = firstPlayer();
@@ -22713,7 +22770,9 @@
             this.logEvent('sba', `${o.name} is put into the graveyard (0 loyalty).`);
             this.moveObject(o, 'graveyard'); repeat = true; continue;
           }
-          if (a.isBattle && (o.counters.defense || 0) <= 0) {
+          // (a battle whose defeat trigger is still waiting stays: CR 704.5v)
+          if (a.isBattle && (o.counters.defense || 0) <= 0 &&
+              !(this.pendingTriggers || []).some(t => t.siege && t.objId === o.id) && !this.stack.some(st => st.siege && st.objId === o.id)) {
             this.moveObject(o, 'graveyard'); repeat = true; continue;
           }
           // +1/+1 and -1/-1 counters cancel
@@ -23332,6 +23391,15 @@
         }
         /* a type or colour chosen as a permanent entered */
         case 'mode': {
+          // a Siege's protector, chosen as it entered (CR 310.8)
+          if (ch.purpose === 'battleProtector') {
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            const at = (ch.options || []).findIndex(op => op.i === idx);
+            const v = (ch.values || [])[at >= 0 ? at : 0];
+            if (o && v && this.player(v)) { o.protector = v; this.logEvent('rules', `${this.player(v).name} protects ${o.name}.`); }
+            break;
+          }
           if (ch.purpose === 'dredge') {
             const idx = ((data && data.modes) || [])[0];
             const at = (ch.options || []).findIndex(op => op.i === idx);
@@ -23490,10 +23558,17 @@
     /** The player a creature is attacking, or the controller of the planeswalker or battle it attacks. */
     _defenderOf(o) {
       if (!o || !o.attacking) return null;
-      const p = this.player(o.attacking);
-      if (p) return p;
-      const x = this.obj(o.attacking);
-      return x ? this.player(x.controller) : null;
+      return this.player(this._defPid(o.attacking));
+    }
+    /* The defending player of an attack on this (CR 506.2): the player, a planeswalker's controller, or
+       a battle's protector (CR 310.10) */
+    _defPid(d) {
+      if (d == null) return null;
+      if (this.player(d)) return d;
+      const x = this.obj(d);
+      if (!x) return null;
+      if ((x.analysis() || {}).isBattle) return x.protector || x.controller;
+      return x.controller;
     }
     _lastAffectedController() {
       const s = this._lastAffected;

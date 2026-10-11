@@ -6455,4 +6455,56 @@ module.exports = (test) => {
     t.eq([T.life('A'), T.life('B')].join(','), '19,19', 'Mana Clash: 1 for each tails, until both heads');
     t.eq(evsOf(T, 'coin').length, 6);
   });
+
+  test('Audit: goad lasts until the goader\u2019s next turn and points the creature at another player (CR 701.15)', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] }); T.toMain('A');
+    const c = T.bf('B', 'Grizzly Bears'); c.summoningSick = false;
+    c.goadedBy = 'A';
+    let none = null, atGoader = null;
+    T.answer('declareAttackers', () => {
+      none = T.g.declareAttackers('B', []);
+      atGoader = T.g.declareAttackers('B', [{ attackerId: c.id, defenderId: 'A' }]);
+      return [{ attackerId: c.id, defenderId: 'C' }];
+    });
+    T.answer('declareBlockers', () => []);
+    T.nextTurn('B'); T.toMain('B', 'endCombat');
+    t.no(none, 'it has to attack'); t.no(atGoader, 'and not the goader, while another player can be attacked');
+    t.eq(T.life('C'), 18);
+    t.eq(c.goadedBy, 'A', 'still goaded after attacking');
+    T.nextTurn('C'); t.eq(c.goadedBy, 'A', 'through the next player\u2019s turn');
+    T.nextTurn('A'); t.eq(c.goadedBy, null, 'until the goader\u2019s next turn');
+  });
+
+  test('Audit: a Siege is attacked by its controller and defended by its protector; defeated, it is cast transformed', (mk, t) => {
+    t.auto('Invasion of Ixalan // Belligerent Regisaur');
+    const T = mk(); T.toMain('A');
+    const maw = T.bf('A', 'Colossal Dreadmaw'); maw.summoningSick = false;
+    const bear = T.bf('B', 'Grizzly Bears');
+    const inv = T.hand('A', 'Invasion of Ixalan // Belligerent Regisaur');
+    T.mana('A', 'G1'); T.cast('A', inv); T.settle(); T.resolve();
+    t.eq(inv.protector, 'B', 'the opponent protects it');
+    t.ok(T.g._legalDefenders('A').some(d => d.id === inv.id), 'its controller may attack it');
+    t.no(T.g._legalDefenders('B').some(d => d.id === inv.id), 'its protector may not');
+    let asked = null;
+    T.answer('declareAttackers', () => [{ attackerId: maw.id, defenderId: inv.id }]);
+    T.answer('declareBlockers', (ch) => { asked = ch.playerId; return []; });
+    T.answer('confirm', { yes: true });
+    T.toMain('A', 'endCombat'); T.settle(); T.resolve();
+    t.eq(asked, 'B', 'the protector is the one who blocks');
+    t.zone(inv, 'battlefield', 'defeated, exiled and cast transformed'); t.eq(inv.face, 1);
+    t.ok(T.g.characteristics(inv).isCreature, 'Belligerent Regisaur, a creature now');
+    t.eq(T.life('B'), 20, 'the protector took no damage');
+  });
+
+  test('Audit: in a multiplayer game only the attacked player blocks that attacker', (mk, t) => {
+    const T = mk({ players: ['A', 'B', 'C'] }); T.toMain('A');
+    const a = T.bf('A', 'Grizzly Bears'); a.summoningSick = false;
+    const cb = T.bf('C', 'Hill Giant');
+    T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: a.id, defenderId: 'B' }]);
+    let r = null;
+    T.answer('declareBlockers', (ch) => { r = T.g.declareBlockers(ch.playerId, [{ blockerId: cb.id, attackerIds: [a.id] }]); return []; });
+    T.toMain('A', 'endCombat');
+    t.no(r, 'C\u2019s creature can\u2019t block an attacker coming at B'); t.eq(T.life('B'), 18);
+  });
 };
