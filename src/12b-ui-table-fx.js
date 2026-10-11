@@ -345,7 +345,14 @@
       const line = told.length ? told[told.length - 1] : null;
       if (line && !(beat.spot && (line.kind === 'cast' || line.kind === 'ability' || line.kind === 'trigger'))) this.say(line.text, line.kind);
       // anything the engine could not do itself is said loudly, once
-      const fresh = (next.log || []).slice(-(Math.max(0, (next.log || []).length - (prev.log || []).length) || 0));
+      /* the entries after the last one the table had seen: the view carries only the last 200, so once
+         it is full a count of new lines comes to nothing — and slice(-0) is the whole log, which said
+         every "resolve this by hand" again on every tap (Yusri, Fortune's Flame) */
+      const pl = prev.log || [], nl = next.log || [];
+      const lastSeen = pl[pl.length - 1];
+      let at = -1;
+      if (lastSeen) for (let i = nl.length - 1; i >= 0; i--) { const x = nl[i]; if (x.t === lastSeen.t && x.type === lastSeen.type && x.text === lastSeen.text) { at = i; break; } }
+      const fresh = lastSeen ? nl.slice(at + 1) : nl;
       for (const e of fresh) if (e.type === 'manual') this.say(e.text, 'manual', 6000);
       // a board wipe is worth feeling
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
