@@ -10656,6 +10656,8 @@
           const xB = tdB.objectId && this.obj(tdB.objectId);
           return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
         }
+        // Tom Bombadil: "four or more lore counters among Sagas you control" (countersAmongAtLeast)
+        case 'countersAmongAtLeast': return this._countValue({ countersAmong: cond.scope, kind: cond.counter, mult: 1 }, ctx.controller, src) >= (cond.n || 0);
         // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
         // (Oblivion's Hunger: with no trigger, "that creature" is the target)
         case 'triggerObjCounter': {
@@ -13236,6 +13238,11 @@
           return Number(tdA.amount) || 0;
         }
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
+        // Kratos, God of War: that player's creatures that didn't attack this turn (idleCreatures)
+        if (v && typeof v === 'object' && v.triggerPlayerIdle) {
+          const pI = triggerPlayer();
+          return pI ? this.battlefield.filter(x => x.controller === pI.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature && x.attackedTurn !== this.turn).length : 0;
+        }
         // Varina, Lich Queen: "that many" — this player's attacking creatures of that type (attackingOfTypeCount)
         if (v && typeof v === 'object' && v.attackingOfType) return ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
           return x && x.controller === ctx.controller && this._hasCreatureType(x, v.attackingOfType); }).length;

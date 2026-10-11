@@ -1786,6 +1786,9 @@
     { re: /^It also gets ([+-]\d+)\/([+-]\d+) until end of turn if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[3]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'lastTarget' }] } : null; } },
     // Rug of Smothering: "they lose 1 life for each spell they've cast this turn"
+    // Kratos, God of War: "… equal to the number of creatures that player controls that didn't attack this turn" (idleCreatures)
+    { re: /^(?:It|CARDNAME|This creature) deals damage to that player equal to the number of creatures (?:that player controls|they control) that didn'?t attack this turn\.?$/i,
+      make: () => ({ op: 'damage', n: { triggerPlayerIdle: true }, toTriggerPlayer: true }) },
     // Magebane Lizard: "this creature deals damage to that player equal to the number of noncreature spells they've cast this turn"
     { re: /^(?:It|CARDNAME|This creature) deals damage to that player equal to the number of ((?:non)?[a-z]+ )?spells they'?ve cast this turn\.?$/i,
       make: (m) => ({ op: 'damage', n: Object.assign({ triggerPlayerSpells: true, mult: 1 }, m[1] ? { words: m[1].trim().toLowerCase() } : {}), toTriggerPlayer: true }) },
@@ -9762,6 +9765,11 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
+    [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
+      const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
+      return sc && typeof n === 'number' ? { kind: 'countersAmongAtLeast', n, counter: m[2].toLowerCase(), scope: sc } : null;
+    }],
     // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
     [/^that creature has an? (\+1\/\+1|[a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjCounter', counter: m[1].toLowerCase() })],
     // M'Baku, Jabari Chieftain: "if that player is the monarch" — the player the trigger is about (triggerPlayerMonarch)

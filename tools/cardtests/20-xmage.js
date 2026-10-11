@@ -23576,4 +23576,27 @@ module.exports = (test) => {
     O.cast('A', O.hand('A', "Oblivion's Hunger"), { targets: [{ kind: 'object', id: wc.id }] }); O.resolve();
     t.eq(O.zone('A', 'hand').length - o0, 0, "Oblivion's Hunger: the target has a counter, a card (one cast, one drawn)");
   });
+
+  test('Commanders: Tom Bombadil — four lore counters among Sagas', (mk, t) => {
+    t.auto('Tom Bombadil');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const tb = T.bf('A', 'Tom Bombadil');
+    const s1 = T.bf('A', 'History of Benalia'); s1.counters.lore = 2;
+    const s2 = T.bf('A', 'The Eldest Reborn'); s2.counters.lore = 1;
+    T.g.bumpBoard();
+    t.ok(!T.g.hasKw(tb, 'hexproof') && !T.g.hasKw(tb, 'indestructible'), 'Tom Bombadil: three lore counters, nothing');
+    s2.counters.lore = 2; T.g.bumpBoard();
+    t.ok(T.g.hasKw(tb, 'hexproof') && T.g.hasKw(tb, 'indestructible'), 'Tom Bombadil: four, hexproof and indestructible');
+  });
+
+  test('Commanders: Kratos, God of War — the creatures that stayed home', (mk, t) => {
+    t.auto('Kratos, God of War');
+    const K = mk({ library: Array(20).fill('Mountain') });
+    K.bf('A', 'Kratos, God of War');
+    const b1 = K.bf('B', 'Grizzly Bears'), b2 = K.bf('B', 'Grizzly Bears');
+    K.toMain('B');
+    K.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }]);
+    K.toMain('B', 'end'); K.resolve();
+    t.eq(K.life('B'), 19, "Kratos: at B's end step, one of B's two creatures didn't attack, 1 damage to B");
+  });
 };
