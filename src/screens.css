@@ -1703,3 +1703,7 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .tl-text { grid-template-columns: minmax(0, 1fr); gap: 1px; min-width: 0; }
 .tl-name, .tl-text > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ranked-chooser .ladder { padding: 14px 16px; }
+.home-credit { top: auto; bottom: 7px; }
+:root .home .home-hero .home-hero-inner { padding-bottom: 26px; }
+/* a phone: the credit on its own line across the top of the painting, the quick game under it */
+:root[data-phone] .home .home-hero .home-hero-inner { padding-top: 32px; padding-bottom: 14px; }

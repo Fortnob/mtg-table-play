@@ -1193,11 +1193,8 @@
     });
 
     const inner = el('div', { class: 'home-hero-inner' });
-    inner.appendChild(el('div', { class: 'home-brand' }, [
-      el('div', { class: 'eyebrow', text: 'MTG Table' }),
-      el('h1', { class: 'home-title', text: 'Shuffle up.' }),
-      el('p', { class: 'home-tag', text: 'Real cards, real art and the real rules — against bots, or with friends over a direct connection.' }),
-    ]));
+    // no words over the painting: the quick game leads; the page keeps a heading for a screen reader
+    inner.appendChild(el('h1', { class: 'sr-only', text: 'Home' }));
     /* the quick game, and beside it today's things: quests, the week,
        rewards waiting, packs to open, your rank; each goes where it says */
     const strip = todayStrip();
