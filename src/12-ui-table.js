@@ -1071,7 +1071,10 @@
 
     seatSub(p) {
       const v = this.view;
-      if (p.hasLost) return 'Out of the game' + (p.lossReason ? ' — ' + p.lossReason : '');
+      // why, in words (the engine keeps a short name for it)
+      const why = { life: 'no life left', poison: 'ten poison counters', deck: 'drew from an empty library', commander: '21 commander damage',
+        concede: 'conceded', timeout: 'left the game', time: 'ran out of time' }[p.lossReason] || p.lossReason;
+      if (p.hasLost) return 'Defeated' + (why ? ' — ' + why : '');
       const bits = [];
       if (p.isBot) {
         const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';

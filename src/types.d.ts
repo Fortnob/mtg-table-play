@@ -452,6 +452,7 @@ declare namespace MTG {
     | { kind: 'declareBlockers'; declarations: BlockDeclaration[] }
     | { kind: 'choice'; data: ChoiceAnswer }
     | { kind: 'concede' }
+    | { kind: 'leave' }
     | {
       kind: 'manual'; action: string; objId?: Id | null; zone?: ZoneName; toBottom?: boolean; kind2?: string; n?: number;
       hostId?: Id | null; token?: Record<string, any>; text?: string; sides?: number;

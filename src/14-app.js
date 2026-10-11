@@ -4109,6 +4109,8 @@
       this.botRunner = null;
       /** @type {any} the game clock, when the table plays with one (src/06e-clock.js) */
       this.clock = null;
+      /** @type {Map<string, any>|null} seats that have dropped out of an online game, each with the timer that puts it out if it does not come back */
+      this._gone = null;
       this.seed = Date.now();
     }
     /**
@@ -4237,6 +4239,8 @@
         if (this.game) {
           const p = this.game.player(existing.id);
           if (p) this.game.setConnected(p.id, true);
+          // back in time: the seat is theirs still
+          if (this._gone) { clearTimeout(this._gone.get(existing.id)); this._gone.delete(existing.id); }
           this.pushState();
         }
         this.broadcastLobby();
@@ -4854,6 +4858,8 @@
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
         case 'choice': g.resolveChoice(actorId, intent.data || {}); break;
         case 'concede': g.concede(actorId); break;
+        // leaving the table mid-game: out of it, for everyone to see
+        case 'leave': g.concede(actorId, 'left'); break;
         case 'manual': g.manual(actorId, intent.action, {
           objId: intent.objId, zone: intent.zone, toBottom: intent.toBottom,
           kind: intent.kind2, n: intent.n, hostId: intent.hostId, token: intent.token,
@@ -5055,7 +5061,22 @@
       if (sess.watchers) sess.watchers.delete(peerId);
       const r = sess.seatByPeer(peerId);
       if (r) {
-        if (sess.game) { const p = sess.game.player(r.id); if (p) { sess.game.setConnected(p.id, false); sess.pushState(); } }
+        if (sess.game) {
+          const p = sess.game.player(r.id);
+          if (p) {
+            sess.game.setConnected(p.id, false); sess.pushState();
+            /* not back within a minute (a tab closed, a phone put away): out of
+               the game, and shown so to everyone left; coming back in time
+               keeps the seat (addRemote) */
+            sess._gone = sess._gone || new Map();
+            clearTimeout(sess._gone.get(r.id));
+            sess._gone.set(r.id, setTimeout(() => {
+              sess._gone.delete(r.id);
+              const g2 = sess.game, q = g2 && g2.player(r.id);
+              if (App.session === sess && q && q.connected === false && !q.hasLost && !g2.over) { g2.concede(q.id, 'left'); sess.pushState(); }
+            }, LEFT_AFTER_MS));
+          }
+        }
         else { sess.roster = sess.roster.filter(x => x !== r); sess.broadcastLobby(); renderLobbySoon(); }
       }
     });
@@ -5204,8 +5225,24 @@
     App.leaveGame();
   }
 
+  /** How long a seat that has dropped out of an online game is kept before it is out of the game. */
+  const LEFT_AFTER_MS = 60000;
+
   App.leaveGame = function (opts) {
     opts = opts || {};
+    /* Leaving an online game still being played: out of it, and the others
+       see you defeated. A guest says so to the host on the way out; a host
+       with guests concedes and shows them the last of it. The connection
+       stays open a moment for that to get through. */
+    let linger = 0;
+    const tv = App.table && App.table.view;
+    if (net.online && tv && !tv.over && !tv.replay && App.table.me && !App.table.me.hasLost) {
+      if (net.isClient) { try { net.intent({ kind: 'leave' }); linger = 450; } catch (e) { /* gone already */ } }
+      else if (App.session && App.session.game && App.session.roster.some(r => r.kind === 'remote')) {
+        const meSeat = App.session.roster.find(r => r.kind === 'local');
+        if (meSeat) { try { App.session.game.concede(meSeat.id, 'left'); App.session.pushState(); linger = 450; } catch (e) { /* leave anyway */ } }
+      }
+    }
     if (App.replay) { App.replay.stop(); App.replay = null; }
     if (App.session && App.session.botRunner) App.session.botRunner.stop();
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
@@ -5220,7 +5257,8 @@
     App._buildingPool = false;
     App._poolBuilder = null;
     if (!opts.keepSave) MTG.savedGame.clear();
-    net.destroy();
+    if (linger) setTimeout(() => { net.destroy(); setNetBadge(); }, linger);
+    else net.destroy();
     setNetBadge();
     showScreen('home');
   };

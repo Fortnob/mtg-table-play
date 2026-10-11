@@ -23048,7 +23048,8 @@
       const p = this.player(playerId);
       if (!p) return;
       p.conceded = reason !== 'time';
-      this.playerLoses(p, reason === 'time' ? 'time' : 'concede');
+      // 'left': gone from an online table, by leaving or by not coming back; the others read "left the game"
+      this.playerLoses(p, reason === 'time' ? 'time' : reason === 'left' ? 'timeout' : 'concede');
       if (this.priorityPlayer && this.priorityPlayer.id === playerId) this.passPriority(playerId, true);
       if (this.activePlayer.id === playerId && !this.over) this._nextTurn();
       this.checkStateBasedActions();
