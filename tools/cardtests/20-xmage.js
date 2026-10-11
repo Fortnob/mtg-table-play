@@ -23088,4 +23088,20 @@ module.exports = (test) => {
     F.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], ctx); F.resolve();
     t.ok(toks(F, /Treasure/) === 1 && toks(F, /Frog/) === 1, 'Quina: a Treasure, and a Frog');
   });
+
+  test('Commanders: Preston, the Vanisher — a 0/1 Illusion copy of what entered without being cast', (mk, t) => {
+    t.auto('Preston, the Vanisher');
+    const P = mk({ library: Array(10).fill('Forest') });
+    P.toMain('A');
+    P.bf('A', 'Preston, the Vanisher');
+    const ills = () => P.bfOf('A').filter(o => o.isToken);
+    const put = P.hand('A', 'Hill Giant');
+    P.g.moveObject(put, 'battlefield'); P.resolve();
+    const tk = ills()[0];
+    t.ok(ills().length === 1 && /Hill Giant/.test(tk.name), 'Preston: the Giant put onto the battlefield, a copy of it');
+    t.ok(tk && P.g.powerOf(tk) === 0 && P.g.toughnessOf(tk) === 1 && P.g._cardFitsWords(tk, 'Illusion') && P.g._cardFitsWords(tk, 'white'), 'Preston: the copy is a 0/1 white Illusion');
+    P.mana('A', '1G');
+    P.cast('A', P.hand('A', 'Grizzly Bears')); P.resolve();
+    t.eq(ills().length, 1, 'Preston: the Bears were cast, no copy');
+  });
 };

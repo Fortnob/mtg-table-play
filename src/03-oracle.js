@@ -9558,6 +9558,8 @@
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
     [/^creatures you control have total power (\d+) or greater$/i, (m) => ({ kind: 'totalPower', n: +m[1] })],
     [/^you cast it$/i, () => ({ kind: 'wasCast' })],
+    // Preston, the Vanisher: "if it wasn't cast" — the creature the trigger is about (notCastTrigger)
+    [/^it wasn'?t cast$/i, () => ({ kind: 'notCastTrigger' })],
     // Anti-Venom, Horrifying Healer: "if he was cast" (wasCastPronoun)
     [/^(?:it|he|she|they) (?:was|were) cast$/i, () => ({ kind: 'wasCast' })],
     [/^this spell was cast from (?:a|your) graveyard$/i, () => ({ kind: 'castFromGraveyard' })],

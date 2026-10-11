@@ -10567,6 +10567,8 @@
           return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature)
             .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0) >= (cond.n || 0);
         case 'wasCast': return !!src && src.wasCast != null;
+        // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
+        case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');
         case 'selfCounters': {
           if (!src) return false;
