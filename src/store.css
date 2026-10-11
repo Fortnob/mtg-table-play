@@ -781,3 +781,12 @@ html[data-play="1"] .hoard-chip { display: none; }
   .pv-side { position: static; }
   .pv-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); }
 }
+
+/* the Store keeps one width whatever its tab holds, so the tabs and all
+   above them stay put when you change tab; a phone's is the screen's */
+#screen-store .store { width: 100%; max-width: min(1320px, 100%); box-sizing: border-box; }
+/* a commander's name on a deck: click it to see the card */
+.cmd-name.cmd-look { cursor: pointer; }
+.cmd-name.cmd-look:hover, .cmd-name.cmd-look:focus-visible { color: var(--gold-1, #f3dd96); text-decoration-color: currentColor; }
+/* and a short tab (the day's deals) keeps the scrollbar's room, so nothing shifts sideways when it is gone */
+#screen-store { scrollbar-gutter: stable; }

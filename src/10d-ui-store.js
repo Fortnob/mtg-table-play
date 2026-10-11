@@ -626,7 +626,7 @@
         const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
         tile.onclick = () => inspectPrecon(p);
         tile.title = 'Look through ' + p.name;
-        preconMiniMeta(tile, p, art);
+        preconMiniMeta(tile, p);
         return tile;
       }, 170, 16);
       decks.replaceWith(row);
@@ -775,22 +775,41 @@
     ['newest', 'Newest', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
     ['name', 'Name (A\u2013Z)', (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })],
   ];
-  /** A tile's commander and themes, once they are known; its picture previews the commander. */
-  function showMeta(p, names, themes, art) {
+  /**
+   * A tile's commander and themes, once they are known. The whole tile
+   * previews the commander under the pointer; a commander's name opens that
+   * card in full, rather than the deck.
+   */
+  function showMeta(p, names, themes, host) {
     const m = preconMeta(p);
     if (!m || names._shown) return !!m;
     names._shown = true;
     const cards = m.cmd.map(([n, id]) => UI.commanderStub(n, id));
-    names.replaceChildren(UI.commanderNames(cards));
+    const look = async (c) => {
+      // the preview goes, and the card comes whole from the cache or Scryfall
+      if (host) host.dispatchEvent(new PointerEvent('pointerleave'));
+      const full = (c.id ? await MTG.scry.byId(c.id, { quiet: true }).catch(() => null) : null) || await MTG.scry.byName(c.name).catch(() => null);
+      UI.cardSheet(full || c);
+    };
+    const box = el('span', { class: 'cmd-names' });
+    cards.forEach((c, i) => {
+      if (i) box.appendChild(document.createTextNode(' + '));
+      box.appendChild(el('span', {
+        class: 'cmd-name cmd-look', role: 'button', tabindex: '0', text: U.frontName(c.name), 'aria-label': `Look at ${U.frontName(c.name)}`,
+        onclick: (e) => { e.stopPropagation(); look(c); },
+        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); look(c); } },
+      }));
+    });
+    names.replaceChildren(box);
     themes.replaceChildren(UI.themeLine(m.tags));
-    if (art && cards[0]) UI.commanderPreview(art, cards[0]);
+    if (host && cards[0]) UI.commanderPreview(host, cards[0]);
     return true;
   }
   /* the Featured page's small deck tiles: the same, under the deck's name */
-  function preconMiniMeta(tile, p, art) {
+  function preconMiniMeta(tile, p) {
     const names = el('div', { class: 'sc-sub mini-cmd' }), themes = el('div', { class: 'mini-themes' });
     tile.append(names, themes);
-    if (!showMeta(p, names, themes, art)) preconInfo(p).then(() => showMeta(p, names, themes, art)).catch(() => {});
+    if (!showMeta(p, names, themes, tile)) preconInfo(p).then(() => showMeta(p, names, themes, tile)).catch(() => {});
   }
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
@@ -932,7 +951,7 @@
     tile.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
     });
-    tile._showMeta = () => showMeta(p, names, themes, art);
+    tile._showMeta = () => showMeta(p, names, themes, tile);
     tile._showMeta();
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
