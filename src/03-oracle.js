@@ -2516,6 +2516,11 @@
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', notAttackedOrEntered: true } }) },
     // Ghired, Conclave Exile: "Populate. The token enters tapped and attacking." (populateAttacking)
     { re: /^The token enters tapped and attacking\.?$/i, make: () => ({ op: 'lastCopyAttacking' }) },
+    // Killmonger, Ruthless Usurper: "gets +1/+0 until end of turn for each artifact defending player controls" (pumpPerDefending)
+    { re: /^(?:CARDNAME|This creature|It) gets \+(\d+)\/\+(\d+) until end of turn for each ([a-z]+) defending player controls\.?$/i,
+      make: (m) => { const sc = scopeOf(m[3] + 's defending player controls'); if (!sc) return null;
+        const per = (k) => (+k ? { scope: sc, mult: +k } : 0);
+        return { op: 'pump', p: per(m[1]), t: per(m[2]), duration: 'eot', scope: 'self' }; } },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -10156,7 +10161,9 @@
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
     // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
-    { re: /^Whenever you cast a spell with (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell', filt: (m) => ({ words: 'spell', keyword: m[1].toLowerCase() }) },
+    // (Saint Traft and Rem Karolus: "a spell that has convoke"; Kasla, the Broken Halo: "another spell that has convoke" — castThatHas)
+    { re: /^Whenever you cast (a|another) spell (?:with|that has) (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell',
+      filt: (m) => Object.assign({ words: 'spell', keyword: m[2].toLowerCase() }, /another/i.test(m[1]) ? { other: true } : {}) },
     // Evin, Waterdeep Opportunist: "Whenever one or more players sacrifice one or more creatures" (anySacrificeCreature)
     { re: /^Whenever one or more players sacrifice one or more creatures,? /i, event: 'anySacrifice', filt: () => ({ words: 'creature' }) },
     // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
@@ -10167,6 +10174,9 @@
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
+    // Mazzy, Truesword Paladin: "Whenever an enchanted creature attacks one of your opponents" — anyone's (attacksYourOppFit)
+    { re: /^Whenever an? (enchanted|equipped|modified) creature attacks one of your opponents,? /i, event: 'permAttacks', aboutObject: true,
+      filt: (m) => ({ words: m[1].toLowerCase() + ' creature' }), extra: { attacksYourOpp: true } },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
@@ -10521,6 +10531,8 @@
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
     { re: /^When(?:ever)? you sacrifice an? ([A-Z][a-z]+) or ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase() }) },
+    // Kingpin, Wilson Fisk: "Whenever you sacrifice CARDNAME or another creature" (sacSelfOrAnother)
+    { re: /^When(?:ever)? you sacrifice (?:CARDNAME|this creature) or another creature,? /i, event: 'youSacrifice', filt: () => subjectFilter('this creature or another creature') },
     // Savra, Queen of the Golgari: "Whenever you sacrifice a black creature" (sacColouredCreature)
     { re: /^When(?:ever)? you sacrifice (an? (?:white|blue|black|red|green) creature),? /i, event: 'youSacrifice', filt: (m) => subjectFilter(m[1]) },
     // Szarel, Genesis Shepherd: "Whenever you sacrifice another nontoken permanent during your turn" (sacAnotherYourTurn)
@@ -10809,6 +10821,9 @@
     // Akiri, Fearless Voyager: "Whenever you attack a player with one or more equipped creatures" (attackersFit)
     { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified) creatures,? /, event: 'youAttack',
       extraOf: (m) => Object.assign({ attackersFit: m[2] + ' creature' }, m[1] ? { attackPlayerOnly: true } : {}) },
+    // Rigo, Streetwise Mentor: "a player or planeswalker with one or more creatures with power 1 or less" (attackersSmall)
+    { re: /^Whenever you attack a player or planeswalker with one or more creatures with power (\d+) or less,? /, event: 'youAttack',
+      extraOf: (m) => ({ attackersFit: 'creature with power ' + m[1] + ' or less' }) },
     // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
     { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"

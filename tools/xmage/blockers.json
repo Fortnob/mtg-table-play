@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10285,
+  "needed": 10277,
   "gainedCards": 952,
-  "linesNeeded": 10910,
+  "linesNeeded": 10902,
   "linesGained": 1106,
   "gained": {
    "all": 952,
@@ -70,8 +70,8 @@
   },
   {
    "what": "custom ability",
-   "score": 649,
-   "lines": 595,
+   "score": 647,
+   "lines": 593,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -647,25 +647,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 15,
-   "lines": 15,
-   "cards": [
-    "Conformer Shuriken",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Spring Splasher",
-    "Fear of Falling",
-    "Coveted Peacock",
-    "Goblin Racketeer",
-    "Radha's Firebrand"
-   ]
-  },
-  {
    "what": "ReturnFromExileForSourceEffect",
    "score": 15,
    "lines": 15,
@@ -732,6 +713,25 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "Conformer Shuriken",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Fear of the Dark",
+    "Spring Splasher",
+    "Fear of Falling",
+    "Coveted Peacock",
+    "Goblin Racketeer",
+    "Radha's Firebrand",
+    "Kukemssa Pirates"
    ]
   },
   {
@@ -3594,18 +3594,6 @@
    ]
   },
   {
-   "what": "FilterPermanentThisOrAnother",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Esoteric Duplicator",
-    "Experiment Twelve",
-    "Printlifter Ooze",
-    "King of the Oathbreakers",
-    "Kingpin, Wilson Fisk"
-   ]
-  },
-  {
    "what": "ChosenSubtypePredicate.TRUE",
    "score": 5,
    "lines": 5,
@@ -3843,18 +3831,6 @@
     "Justice, Vance Astrovik",
     "Stormfront Riders",
     "Urza's Miter"
-   ]
-  },
-  {
-   "what": "PermanentsTargetOpponentControlsCount",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Sting, Bilbo's Sword",
-    "Bloodvial Purveyor",
-    "Gideon, Champion of Justice",
-    "Killmonger, Ruthless Usurper",
-    "Renewing Dawn"
    ]
   },
   {
@@ -4586,6 +4562,17 @@
    ]
   },
   {
+   "what": "FilterPermanentThisOrAnother",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Esoteric Duplicator",
+    "Experiment Twelve",
+    "Printlifter Ooze",
+    "King of the Oathbreakers"
+   ]
+  },
+  {
    "what": "SpellsCostReductionControllerEffect.setDuration",
    "score": 4,
    "lines": 4,
@@ -4899,6 +4886,17 @@
     "Broodspinner",
     "Peer Past the Veil",
     "Lucid Dreams"
+   ]
+  },
+  {
+   "what": "PermanentsTargetOpponentControlsCount",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Sting, Bilbo's Sword",
+    "Bloodvial Purveyor",
+    "Gideon, Champion of Justice",
+    "Renewing Dawn"
    ]
   },
   {
@@ -6439,8 +6437,8 @@
   },
   {
    "what": "custom ability",
-   "score": 498,
-   "cards": 459,
+   "score": 496,
+   "cards": 457,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6694,19 +6692,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Conformer Shuriken",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark"
-   ]
-  },
-  {
    "what": "ConditionalRestrictionEffect",
    "score": 14,
    "cards": 14,
@@ -6793,6 +6778,19 @@
     "Fae of Wishes // Granted",
     "Legion Angel",
     "Coax from the Blind Eternities"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Conformer Shuriken",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Fear of the Dark",
+    "Spring Splasher"
    ]
   },
   {
@@ -9296,17 +9294,6 @@
    ]
   },
   {
-   "what": "FilterPermanentThisOrAnother",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Esoteric Duplicator",
-    "Experiment Twelve",
-    "Printlifter Ooze",
-    "Kingpin, Wilson Fisk"
-   ]
-  },
-  {
    "what": "FilterCreatureAttackingYou",
    "score": 4,
    "cards": 4,
@@ -9546,17 +9533,6 @@
     "Broodspinner",
     "Peer Past the Veil",
     "Lucid Dreams"
-   ]
-  },
-  {
-   "what": "PermanentsTargetOpponentControlsCount",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Sting, Bilbo's Sword",
-    "Bloodvial Purveyor",
-    "Killmonger, Ruthless Usurper",
-    "Renewing Dawn"
    ]
   },
   {
@@ -10041,6 +10017,26 @@
     "Bumi, Unleashed",
     "Rude Awakening",
     "Innocuous Researcher"
+   ]
+  },
+  {
+   "what": "AddCountersPlayersEffect",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Phyresis Outbreak",
+    "Contaminated Drink",
+    "Phyrexian Vatmother"
+   ]
+  },
+  {
+   "what": "TargetCardInGraveyardBattlefieldOrStack",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Angel of Serenity",
+    "Endless Detour",
+    "Daretti, Ingenious Iconoclast"
    ]
   }
  ]

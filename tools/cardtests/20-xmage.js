@@ -24056,4 +24056,66 @@ module.exports = (test) => {
     M.mana('A', '1U'); M.cast('A', M.hand('A', 'Coral Merfolk')); M.resolve();
     t.zone(top2, 'library', 'Momir Vig: an Island on top stays');
   });
+
+  test('Commanders: Saint Traft and Rem Karolus, Kasla, Rigo, Kingpin, Mazzy, Killmonger; Coastline Marauders, Slitherwisp', (mk, t) => {
+    for (const n of ['Saint Traft and Rem Karolus', 'Kasla, the Broken Halo', 'Rigo, Streetwise Mentor', 'Kingpin, Wilson Fisk', 'Mazzy, Truesword Paladin', 'Killmonger, Ruthless Usurper', 'Coastline Marauders', 'Slitherwisp']) t.auto(n);
+    // Saint Traft and Rem Karolus: a convoke spell untaps them; another spell doesn't
+    const S = mk({ library: Array(20).fill('Mountain') });
+    S.toMain('A');
+    const st = S.bf('A', 'Saint Traft and Rem Karolus'); st.tapped = true;
+    S.mana('A', 'R'); S.cast('A', S.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); S.resolve();
+    t.ok(st.tapped, 'Saint Traft and Rem Karolus: Lightning Bolt has no convoke, still tapped');
+    S.mana('A', '2RR'); S.cast('A', S.hand('A', 'Stoke the Flames'), { targets: [{ kind: 'player', id: 'B' }] }); S.resolve();
+    t.ok(!st.tapped, 'Saint Traft and Rem Karolus: Stoke the Flames has convoke, untapped');
+    // Rigo: attacking with a 1-power creature draws
+    const R = mk({ library: Array(20).fill('Plains') });
+    R.toMain('A');
+    R.bf('A', 'Rigo, Streetwise Mentor');
+    const el = R.bf('A', 'Llanowar Elves'); el.summoningSick = false;
+    const h0 = R.zone('A', 'hand').length;
+    R.answer('declareAttackers', () => [{ attackerId: el.id, defenderId: 'B' }]);
+    R.toMain('A', 'declareBlockers'); R.resolve();
+    t.eq(R.zone('A', 'hand').length - h0, 1, 'Rigo: the 1/1 Elves attack, a card');
+    const R2 = mk({ library: Array(20).fill('Plains') });
+    R2.toMain('A');
+    R2.bf('A', 'Rigo, Streetwise Mentor');
+    const bb2 = R2.bf('A', 'Grizzly Bears'); bb2.summoningSick = false;
+    const i0 = R2.zone('A', 'hand').length;
+    R2.answer('declareAttackers', () => [{ attackerId: bb2.id, defenderId: 'B' }]);
+    R2.toMain('A', 'declareBlockers'); R2.resolve();
+    t.eq(R2.zone('A', 'hand').length - i0, 0, 'Rigo: the 2/2 Bears attack, nothing');
+    // Kingpin: a creature sacrificed, two Treasures, once each turn
+    const K = mk({ library: Array(20).fill('Swamp') });
+    K.toMain('A');
+    K.bf('A', 'Kingpin, Wilson Fisk');
+    K.g._sacrificeNow('A', [K.bf('A', 'Grizzly Bears')]); K.resolve();
+    K.g._sacrificeNow('A', [K.bf('A', 'Grizzly Bears')]); K.resolve();
+    t.eq(K.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 2, 'Kingpin: two Treasures, once each turn');
+    // Mazzy: an enchanted creature attacking one of A's opponents gets +2/+0 and trample
+    const M = mk({ library: Array(20).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', 'Mazzy, Truesword Paladin');
+    const gb = M.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    const au = M.bf('A', 'Rancor'); au.attachedTo = gb.id; gb.attachments = [au.id];
+    M.g.bumpBoard();
+    M.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers'); M.resolve();
+    t.eq(M.g.powerOf(gb), 6, 'Mazzy: the enchanted Bears (4/2 with Rancor) get +2/+0');
+    const M2 = mk({ library: Array(20).fill('Plains') });
+    M2.toMain('A');
+    M2.bf('A', 'Mazzy, Truesword Paladin');
+    const g2 = M2.bf('A', 'Grizzly Bears'); g2.summoningSick = false;
+    M2.answer('declareAttackers', () => [{ attackerId: g2.id, defenderId: 'B' }]);
+    M2.toMain('A', 'declareBlockers'); M2.resolve();
+    t.eq(M2.g.powerOf(g2), 2, 'Mazzy: Bears with no Aura, nothing');
+    // Killmonger: +1/+0 for each artifact the defending player controls
+    const L = mk({ library: Array(20).fill('Swamp') });
+    L.toMain('A');
+    const km = L.bf('A', 'Killmonger, Ruthless Usurper'); km.summoningSick = false;
+    L.bf('B', 'Sol Ring'); L.bf('B', 'Sol Ring');
+    const p0 = L.g.powerOf(km);
+    L.answer('declareAttackers', () => [{ attackerId: km.id, defenderId: 'B' }]);
+    L.toMain('A', 'declareBlockers'); L.resolve();
+    t.eq(L.g.powerOf(km), p0 + 2, 'Killmonger: B has two artifacts, +2/+0');
+  });
 };
