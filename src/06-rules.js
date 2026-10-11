@@ -12188,6 +12188,12 @@
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
+          // Harbin, Vanguard Aviator: "with five or more Soldiers" (attackersOfTypeMin)
+          if (ab.attackersOfTypeMin && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); }).length < ab.attackersOfTypeMin) continue;
+          // The Chief Warg: "while you control a creature with power 4 or greater" (attackWhile)
+          if (ab.unreadWhile || (ab.whileCond && !this._condMet(ab.whileCond, { controller: o.controller, obj: o }))) continue;
+          // Gahiji, Honored One: only an attack on one of this player's opponents (or their planeswalkers) (attacksYourOpp)
+          if (ab.attacksYourOpp) { const dp = data.object && this._defenderOf(data.object); if (!dp || !this.opponentsOf(o.controller).some(q => q.id === dp.id)) continue; }
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)

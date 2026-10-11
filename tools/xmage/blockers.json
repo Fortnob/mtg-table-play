@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10400,
+  "needed": 10395,
   "gainedCards": 952,
-  "linesNeeded": 11040,
+  "linesNeeded": 11034,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -18,7 +18,7 @@
    "differ": 0,
    "lines": 0
   },
-  "verifyFail": 40,
+  "verifyFail": 39,
   "overrides": {
    "drain": 65,
    "group": 29,
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 659,
-   "lines": 605,
+   "score": 656,
+   "lines": 602,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -849,25 +849,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Curious Obsession",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg",
-    "Painwracker Oni",
-    "Fires of Victory",
-    "Gutwrencher Oni",
-    "Burning Sun Cavalry",
-    "See Red",
-    "Sunbathing Rootwalla"
-   ]
-  },
-  {
    "what": "UnlockThisDoorTriggeredAbility",
    "score": 13,
    "lines": 4,
@@ -952,6 +933,25 @@
     "Master's Councillors",
     "Necropolis",
     "Asmira, Holy Avenger"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Curious Obsession",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "Painwracker Oni",
+    "Fires of Victory",
+    "Gutwrencher Oni",
+    "Burning Sun Cavalry",
+    "See Red",
+    "Sunbathing Rootwalla",
+    "Scourge of Numai"
    ]
   },
   {
@@ -3787,18 +3787,6 @@
    ]
   },
   {
-   "what": "attack with 2 or more",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Craig Boone, Novac Guard",
-    "Spinneret and Spiderling",
-    "Master's Guidance",
-    "Tide Skimmer",
-    "Path of Mettle // Metzali, Tower of Triumph"
-   ]
-  },
-  {
    "what": "BecomesCreatureAttachedEffect",
    "score": 5,
    "lines": 5,
@@ -4819,6 +4807,17 @@
     "Flamebreak",
     "Time Bomb",
     "Borrowing the East Wind"
+   ]
+  },
+  {
+   "what": "attack with 2 or more",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Craig Boone, Novac Guard",
+    "Master's Guidance",
+    "Tide Skimmer",
+    "Path of Mettle // Metzali, Tower of Triumph"
    ]
   },
   {
@@ -6464,8 +6463,8 @@
   },
   {
    "what": "custom ability",
-   "score": 504,
-   "cards": 465,
+   "score": 502,
+   "cards": 463,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6758,19 +6757,6 @@
    ]
   },
   {
-   "what": "(verify) condition the card does not print",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "Curious Obsession",
-    "Rufus Shinra",
-    "Oak Street Innkeeper",
-    "Glory of Warfare",
-    "Wargling",
-    "The Chief Warg"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 14,
    "cards": 14,
@@ -6870,6 +6856,19 @@
     "Razorlash Transmogrant",
     "Soul Foundry",
     "Pteramander"
+   ]
+  },
+  {
+   "what": "(verify) condition the card does not print",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "Curious Obsession",
+    "Rufus Shinra",
+    "Oak Street Innkeeper",
+    "Glory of Warfare",
+    "Wargling",
+    "Painwracker Oni"
    ]
   },
   {

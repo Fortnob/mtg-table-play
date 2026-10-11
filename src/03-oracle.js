@@ -9972,6 +9972,9 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
+    { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
@@ -10588,6 +10591,11 @@
     { re: /^When(?:ever)? you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)
+    { re: /^Whenever you attack with (two|three|four|five|six|seven) or more ([A-Z][a-z]+),? /, event: 'youAttack',
+      extraOf: (m) => ({ attackersOfType: singularType(m[2]), attackersOfTypeMin: num(m[1]) }) },
+    // The Chief Warg: "Whenever you attack while you control a creature with power 4 or greater" (attackWhile)
+    { re: /^Whenever you attack while (you control [^,]+), /i, event: 'youAttack', extraOf: (m) => { const c = condOf(m[1]); return c ? { whileCond: c } : { unreadWhile: true }; } },
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },

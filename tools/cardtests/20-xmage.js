@@ -22733,4 +22733,53 @@ module.exports = (test) => {
     R.player('A').monarch = true; R.g.monarch = 'A';
     t.ok(!!R.g._cantAttackYou(small, 'A') && !R.g._cantAttackYou(big, 'A'), 'Ramonda: the monarch — the Bears may not attack, the Giant may');
   });
+
+  test("Commanders: Gahiji, Honored One, The Chief Warg, Harbin, Vanguard Aviator; Calculating Lich, Genestealer Locus", (mk, t) => {
+    for (const n of ['Gahiji, Honored One', 'The Chief Warg', 'Harbin, Vanguard Aviator', 'Calculating Lich', 'Genestealer Locus']) t.auto(n);
+    const attack = (T, list) => {
+      for (const o of list) o.summoningSick = false;
+      T.answer('declareAttackers', () => list.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      T.toMain('A', 'declareBlockers');
+    };
+    // Gahiji: a creature attacking one of your opponents gets +2/+0
+    const G = mk({ library: Array(10).fill('Forest') });
+    G.toMain('A');
+    G.bf('A', 'Gahiji, Honored One');
+    const gb = G.bf('A', 'Grizzly Bears');
+    attack(G, [gb]);
+    t.eq(G.g.powerOf(gb), 4, 'Gahiji: the Bears attack B, +2/+0');
+    const G2 = mk({ library: Array(10).fill('Forest') });
+    G2.bf('A', 'Gahiji, Honored One');
+    const bb = G2.bf('B', 'Grizzly Bears');
+    G2.nextTurn('B'); bb.summoningSick = false;
+    G2.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'A' }]);
+    G2.toMain('B', 'declareBlockers');
+    t.eq(G2.g.powerOf(bb), 2, "Gahiji: B's Bears attacking A, not one of A's opponents, get nothing");
+    // The Chief Warg: a card and 1 life when you attack while you control a creature with power 4 or greater
+    const W = mk({ library: Array(10).fill('Forest') });
+    W.toMain('A');
+    W.bf('A', 'The Chief Warg');
+    const h0 = W.zone('A', 'hand').length;
+    attack(W, [W.bf('A', 'Grizzly Bears')]);
+    t.ok(W.zone('A', 'hand').length === h0 && W.life('A') === 20, 'The Chief Warg: no creature with power 4, nothing');
+    const W2 = mk({ library: Array(10).fill('Forest') });
+    W2.toMain('A');
+    W2.bf('A', 'The Chief Warg'); W2.bf('A', 'Craw Wurm');
+    const h2 = W2.zone('A', 'hand').length;
+    attack(W2, [W2.bf('A', 'Grizzly Bears')]);
+    t.ok(W2.zone('A', 'hand').length === h2 + 1 && W2.life('A') === 19, 'The Chief Warg: a Craw Wurm in play, a card and 1 life');
+    // Harbin: five or more Soldiers attacking — +1/+1 and flying; four is not enough
+    const H = mk({ library: Array(10).fill('Plains') });
+    H.toMain('A');
+    H.bf('A', 'Harbin, Vanguard Aviator');
+    const four = [1, 2, 3, 4].map(() => H.bf('A', 'Elite Vanguard'));
+    attack(H, four);
+    t.ok(!H.g.hasKw(four[0], 'flying'), 'Harbin: four Soldiers, nothing');
+    const H2 = mk({ library: Array(10).fill('Plains') });
+    H2.toMain('A');
+    H2.bf('A', 'Harbin, Vanguard Aviator');
+    const five = [1, 2, 3, 4, 5].map(() => H2.bf('A', 'Elite Vanguard'));
+    attack(H2, five);
+    t.ok(H2.g.hasKw(five[0], 'flying'), 'Harbin: five Soldiers, flying');
+  });
 };
