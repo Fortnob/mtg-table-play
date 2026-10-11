@@ -23861,4 +23861,22 @@ module.exports = (test) => {
     Y.mana('A', '4GG'); Y.cast('A', big); Y.resolve();
     t.eq((Number(yv.counters['+1/+1']) || 0) - c1, 2, 'Yorvo: the 6/4 Wurm is bigger than his 5, another counter');
   });
+
+  test('Commanders: ED-E, Lonesome Eyebot — more attackers than quest counters', (mk, t) => {
+    t.auto('ED-E, Lonesome Eyebot');
+    const E = mk({ library: Array(20).fill('Plains') });
+    E.toMain('A');
+    const ed = E.bf('A', 'ED-E, Lonesome Eyebot');
+    const b1 = E.bf('A', 'Grizzly Bears'); b1.summoningSick = false;
+    E.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }]);
+    E.toMain('A', 'declareBlockers'); E.resolve();
+    t.eq(Number(ed.counters.quest) || 0, 1, 'ED-E: one attacker, no quest counters yet, one');
+    const E2 = mk({ library: Array(20).fill('Plains') });
+    E2.toMain('A');
+    const ed2 = E2.bf('A', 'ED-E, Lonesome Eyebot'); ed2.counters.quest = 1;
+    const c1 = E2.bf('A', 'Grizzly Bears'); c1.summoningSick = false;
+    E2.answer('declareAttackers', () => [{ attackerId: c1.id, defenderId: 'B' }]);
+    E2.toMain('A', 'declareBlockers'); E2.resolve();
+    t.eq(Number(ed2.counters.quest) || 0, 1, 'ED-E: one attacker, one quest counter, nothing more');
+  });
 };

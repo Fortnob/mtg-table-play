@@ -10743,6 +10743,8 @@
         // Anje Falkenrath: "if it has madness" (triggerHasKeyword)
         case 'triggerHasKeyword': { const tdK = (ctx && ctx.triggerData) || {}; const xK = tdK.objectId && this.obj(tdK.objectId);
           return !!xK && !!(((xK.analysis() || {}).keywordSet) || new Set()).has(cond.keyword); }   // (triggerHasKeyword)
+        // ED-E, Lonesome Eyebot: more attackers than its quest counters (attackersOverCounters)
+        case 'attackersOverCounters': return !!src && ((this.combat && this.combat.attackers) || []).length > (Number((src.counters || {})[cond.counter]) || 0);
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)

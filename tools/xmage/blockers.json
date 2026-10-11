@@ -5,11 +5,11 @@
   "withClass": 31834,
   "skippedLayout": 21,
   "needed": 10303,
-  "gainedCards": 951,
-  "linesNeeded": 10932,
+  "gainedCards": 952,
+  "linesNeeded": 10931,
   "linesGained": 1108,
   "gained": {
-   "all": 951,
+   "all": 952,
    "top2000": 40,
    "stdTop": 6
   },
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 147,
-   "lines": 135,
+   "score": 146,
+   "lines": 134,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -6481,8 +6481,8 @@
   },
   {
    "what": "custom condition",
-   "score": 114,
-   "cards": 111,
+   "score": 113,
+   "cards": 110,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",

@@ -9785,6 +9785,8 @@
     [/^a permanent was put into your hand from the battlefield this turn$/i, () => ({ kind: 'bouncedToYourHand' })],
     // Anje Falkenrath: "if it has madness" — the card the trigger is about (triggerHasKeyword)
     [/^it has (madness|flashback|cycling|kicker)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],
+    // ED-E, Lonesome Eyebot: "if the number of attacking creatures is greater than the number of quest counters on ED-E" (attackersOverCounters)
+    [/^the number of attacking creatures is greater than the number of ([a-z]+) counters on (?:CARDNAME|this creature|it)$/i, (m) => ({ kind: 'attackersOverCounters', counter: m[1].toLowerCase() })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
