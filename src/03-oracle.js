@@ -5316,6 +5316,9 @@
     { re: /^Put all creatures on the bottom of their owners'? libraries\.?$/i, make: () => ({ op: 'bottomAll', scope: { who: 'all', what: 'creature' } }) },
     // Praetor's Counsel: "Return all cards from your graveyard to your hand."
     { re: /^Return all cards from your graveyard to your hand\.?$/i, make: () => ({ op: 'regrowthAll', filter: 'card' }) },
+    // Gerrard Capashen: "you gain 1 life for each card in target opponent's hand" (lifePerTargetHand)
+    { re: /^[Yy]ou gain (1|one) life for each card in target (opponent|player)'?s hand\.?$/,
+      make: (m) => ({ op: 'gainLife', who: 'you', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
     // Runeflare Trap: "damage to target player equal to the number of cards in that player's hand"
     { re: /^(?:CARDNAME|This creature|It) deals damage to (target (?:player|opponent)) equal to the number of cards in (?:that player'?s|their) hand\.?$/i,
       make: (m) => ({ op: 'damage', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -9975,6 +9978,8 @@
   }
 
   const TRIGGER_PATTERNS = [
+    // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
+    { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
@@ -14853,6 +14858,12 @@
         make: (m) => ([m[1], m[2]].every(k => kwKnown(k)) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with power (\d+) or less\.?$/i,
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
+      // Rocksteady, Crash Courser: "Boars you control can't be blocked by more than one creature." (oneBlockerType)
+      { re: /^([A-Z][a-z]+)s you control can'?t be blocked by more than one creature\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + 's you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, flag: 'oneBlocker' } : null; }, auto: true },
+      // Stature, Size Shifter: "CARDNAME can't be blocked if her power is 1 or less." (unblockableSmall)
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked if (?:its|his|her|their) power is (\w+) or less\.?$/i,
+        make: (m) => (typeof num(m[1]) === 'number' ? { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, cond: { kind: 'selfPowerMax', n: num(m[1]) }, grant: ['Unblockable'] } : null), auto: true },
       { re: /^(?:CARDNAME|This creature|This permanent) can'?t be blocked by more than one creature\.?$/i,
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
       // Stranglehold: "Your opponents can't search libraries."

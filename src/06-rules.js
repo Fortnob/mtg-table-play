@@ -10152,6 +10152,8 @@
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
+        // Stature, Size Shifter: "if her power is 1 or less" (unblockableSmall)
+        case 'selfPowerMax': return !!src && this.powerOf(src) <= (cond.n || 0);
         // (Apex of Power, Antiquities on the Loose: the spell itself, where it was cast from; "not": anywhere else)
         case 'castFromHand': {
           const fromHand = ctx && ctx.fromZone ? ctx.fromZone === 'hand' : !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
@@ -12138,6 +12140,8 @@
             if (!/\{X\}/.test(mc)) continue;
           }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
+          // Nita, Forum Conciliator: a spell its controller doesn't own (notOwnedSpell)
+          if (ab.notOwnedSpell && !(data.object && data.object.owner !== o.controller)) continue;
           // Fire Lord Azula: only while it is attacking (selfAttacking)
           if (ab.selfAttacking && !(o.zone === 'battlefield' && o.attacking)) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)

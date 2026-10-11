@@ -22799,4 +22799,43 @@ module.exports = (test) => {
     L.g.bumpBoard();
     t.ok(L.g.hasKw(nb, 'lifelink') && !L.g.hasKw(bb, 'lifelink'), 'Lo and Li: the Noble has lifelink, the Bears do not');
   });
+
+  test("Commanders: Gerrard Capashen, Stature, Rocksteady, Nita, Forum Conciliator; Vaan, Street Thief", (mk, t) => {
+    for (const n of ['Gerrard Capashen', 'Stature, Size Shifter', 'Rocksteady, Crash Courser', 'Nita, Forum Conciliator', 'Vaan, Street Thief']) t.auto(n);
+    // Gerrard: 1 life for each card in target opponent's hand at your upkeep
+    const G = mk({ library: Array(10).fill('Plains') });
+    G.bf('A', 'Gerrard Capashen');
+    G.toMain('A');
+    G.hand('B', 'Island'); G.hand('B', 'Island'); G.hand('B', 'Island');
+    G.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    G.nextTurn('B'); G.nextTurn('A');
+    t.ok(G.life('A') >= 23, 'Gerrard: three or more cards in B\'s hand, that much life');
+    // Stature: unblockable while her power is 1 or less
+    const S = mk({ library: Array(10).fill('Island') });
+    const st = S.bf('A', 'Stature, Size Shifter');
+    const blk = S.bf('B', 'Grizzly Bears');
+    S.g.bumpBoard();
+    const small = S.g.powerOf(st) <= 1;
+    t.eq(!S.g.couldBlock(blk, st, 'B'), small, 'Stature: unblockable exactly when her power is 1 or less');
+    st.counters['+1/+1'] = 3; S.g.bumpBoard();
+    t.ok(S.g.couldBlock(blk, st, 'B'), 'Stature: power above 1, blockable');
+    // Rocksteady: Boars you control can't be blocked by more than one creature
+    const R = mk({ library: Array(10).fill('Forest') });
+    R.bf('A', 'Rocksteady, Crash Courser');
+    const boar = R.bf('A', 'Ironhoof Boar');
+    R.g.bumpBoard();
+    t.ok(R.g._hasFlag(boar, 'oneBlocker'), 'Rocksteady: the Boar can be blocked by one creature only');
+    // Nita: a +1/+1 counter on each creature you control when you cast a spell you don't own
+    const N = mk({ library: Array(10).fill('Mountain') });
+    N.toMain('A');
+    N.bf('A', 'Nita, Forum Conciliator');
+    const gb = N.bf('A', 'Grizzly Bears');
+    const bolt = N.put('B', 'Lightning Bolt', 'exile'); bolt.impulseBy = 'A'; bolt.impulseUntil = N.g.turn;
+    N.mana('A', 'R');
+    N.cast('A', bolt, { targets: [{ kind: 'player', id: 'B' }] }); N.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, "Nita: B's Bolt cast by A, a counter");
+    N.mana('A', 'R');
+    N.cast('A', N.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); N.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, "Nita: A's own Bolt, nothing more");
+  });
 };

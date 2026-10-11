@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10393,
+  "needed": 10388,
   "gainedCards": 952,
-  "linesNeeded": 11032,
+  "linesNeeded": 11026,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -447,25 +447,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 19,
-   "lines": 19,
-   "cards": [
-    "Security Bypass",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Fugitive Droid",
-    "Nimble Trapfinder",
-    "Nimble Brigand",
-    "Slippery Scoundrel",
-    "Waterlogged Hulk // Watertight Gondola",
-    "Become the Pilot",
-    "Stature, Size Shifter",
-    "Jeskai Infiltrator",
-    "Ayesha Tanaka, Armorer"
-   ]
-  },
-  {
    "what": "delayed WhenTargetDiesDelayedTriggeredAbility",
    "score": 19,
    "lines": 19,
@@ -492,6 +473,25 @@
     "Brass's Tunnel-Grinder // Tecutlan, the Searing Rift",
     "Thousand Moons Smithy // Barracks of the Thousand",
     "The Everflowing Well // The Myriad Pools"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 18,
+   "lines": 18,
+   "cards": [
+    "Security Bypass",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Fugitive Droid",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel",
+    "Waterlogged Hulk // Watertight Gondola",
+    "Become the Pilot",
+    "Jeskai Infiltrator",
+    "Ayesha Tanaka, Armorer",
+    "Gutter Skulker // Gutter Shortcut"
    ]
   },
   {
@@ -3547,18 +3547,6 @@
    ]
   },
   {
-   "what": "words:owner",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Tasha, the Witch Queen",
-    "Don Andres, the Renegade",
-    "Vaan, Street Thief",
-    "Gonti, Canny Acquisitor",
-    "Nita, Forum Conciliator"
-   ]
-  },
-  {
    "what": "granting a mana ability",
    "score": 5,
    "lines": 5,
@@ -6088,16 +6076,6 @@
    ]
   },
   {
-   "what": "CantBeBlockedByMoreThanOneAllEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Michelangelo, Mutant BFF",
-    "Battlefront Krushok",
-    "Rocksteady, Crash Courser"
-   ]
-  },
-  {
    "what": "ReturnSourceFromGraveyardToHandEffect",
    "score": 3,
    "lines": 3,
@@ -6397,16 +6375,6 @@
    ]
   },
   {
-   "what": "CardsInTargetHandCount.instance",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Vicious Shadows",
-    "Tibalt, the Fiend-Blooded",
-    "Gerrard Capashen"
-   ]
-  },
-  {
    "what": "SkipNextTurnSourceEffect",
    "score": 3,
    "lines": 3,
@@ -6445,13 +6413,43 @@
     "Omenport Vigilante",
     "Slickshot Vault-Buster"
    ]
+  },
+  {
+   "what": "SacrificeOneOrMorePermanentsTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Evin, Waterdeep Opportunist",
+    "Blood Hypnotist",
+    "Forge Boss"
+   ]
+  },
+  {
+   "what": "ConniveSourceEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Cyclonus, the Saboteur // Cyclonus, Cybertronian Fighter",
+    "Obscura Interceptor",
+    "Psychic Pickpocket"
+   ]
+  },
+  {
+   "what": "keyword ExertAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Themberchaud",
+    "Sandstorm Crasher",
+    "Rhonas's Stalwart"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3347,
-   "cards": 3185,
+   "score": 3348,
+   "cards": 3186,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6718,19 +6716,6 @@
    ]
   },
   {
-   "what": "ConditionalRestrictionEffect",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Security Bypass",
-    "Dog Umbra",
-    "Nightkin Ambusher",
-    "Nimble Trapfinder",
-    "Nimble Brigand",
-    "Slippery Scoundrel"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 15,
    "cards": 15,
@@ -6741,6 +6726,19 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "ConditionalRestrictionEffect",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Security Bypass",
+    "Dog Umbra",
+    "Nightkin Ambusher",
+    "Nimble Trapfinder",
+    "Nimble Brigand",
+    "Slippery Scoundrel"
    ]
   },
   {
