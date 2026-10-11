@@ -3384,6 +3384,9 @@
       make: () => ({ op: 'exileTop', who: 'you', untilNonland: true }) },
     { re: /^Exile cards from the top of your library until you exile cards with total mana value (\d+) or greater\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'you', totalMv: +m[1] }) },
+    // Ulamog, the Defiler: "target opponent exiles the top half of their library, rounded up" (exileHalfLibrary)
+    { re: /^(Target opponent|Target player) exiles the top half of their library, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'exileTop', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^(Target opponent|Target player) exiles the top (card|(two|three|four|five|X|\d+) cards) of their library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: m[3] ? num(m[3]) : 1, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
@@ -3393,6 +3396,8 @@
       // (Sunbird's Invocation: cards revealed, not exiled — the ones just looked at)
       make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {},
         /revealed/i.test(m[0]) ? { from: 'looked' } : {}) },
+    // Malcolm, Alluring Scoundrel: "you may cast the discarded card without paying its mana cost" — the card just discarded (castDiscarded)
+    { re: /^(?:You may )?cast the discarded card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'discarded', upTo: 1 }) },
     { re: /^Each player discards their hand,? then draws seven cards\.?$/i, make: () => ({ op: 'wheel', n: 7 }) },
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
@@ -6469,6 +6474,8 @@
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
+    // Ulamog, the Defiler: "the greatest mana value among cards in exile" — everyone's exile (greatestMvExile)
+    if (/^the greatest mana value among cards in exile$/i.test(p)) return done({ greatestMvExile: true, mult: 1 });
     // One with the Machine: "the greatest mana value among artifacts you control"
     if ((m = p.match(/^the greatest mana value among ([a-z ]+? you control)$/i))) {
       const sc = scopeOf(m[1]);
@@ -8975,6 +8982,11 @@
       if (bareMay && !asCost(bareMay[1])) {
         const innerText = U.titleCase(bareMay[1].charAt(0)) + bareMay[1].slice(1) + '.';
         const inner = parseSentenceList(splitSentences(innerText));
+        /* (Malcolm, Alluring Scoundrel: "you may cast the discarded card without paying its mana cost" —
+           the cast asks for itself, card by card; a "may" before it would ask twice: castDiscarded) */
+        if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'castFree' && !inner.effects[0].must) {
+          effects.push(Object.assign(inner.effects[0], { text: s })); continue;
+        }
         if (inner.auto) { effects.push({ op: 'may', then: inner.effects, text: s }); continue; }
       }
 
@@ -10753,6 +10765,11 @@
       event: 'anySacrifice', aboutObject: true,
       filt: (m) => ({ words: (m[2] ? 'nontoken ' : '') + m[3].toLowerCase() }),
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
+    /* Tergrid, God of Fright: "Whenever an opponent sacrifices a nontoken permanent or discards a
+       permanent card" — either one, and the card it was (sacOrDiscardAny) */
+    { re: /^Whenever an opponent sacrifices a nontoken permanent or discards a permanent card,? /i,
+      event: 'anySacrifice', also: 'opponentDiscards', aboutObject: true, filt: () => ({ words: 'nontoken permanent' }),
+      extra: { activatorIsOpponent: true, filterOnlyOn: 'anySacrifice', discardWords: 'permanent' } },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
     // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
@@ -11749,9 +11766,11 @@
           }
         }
         // It That Betrays: "put that card onto the battlefield under your control" — the card sacrificed (sacrificedAny)
+        // (Tergrid, God of Fright: "from a graveyard" — the card sacrificed or discarded, from there only: sacOrDiscardAny)
         if (trig.event === 'anySacrifice' && parsed.effects.length === 1 && parsed.effects[0].op === 'manual' &&
-          /^put that card onto the battlefield under your control\.?$/i.test(parsed.effects[0].text || '')) {
-          parsed.effects = [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text }];
+          /^put that card (from a graveyard )?onto the battlefield under your control\.?$/i.test(parsed.effects[0].text || '')) {
+          parsed.effects = [Object.assign({ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text },
+            /from a graveyard/i.test(parsed.effects[0].text) ? { fromGrave: true } : {})];
           parsed.auto = true;
         }
         // Nev, the Practical Dean: "put X +1/+1 counters" — the X of the spell that set it off (firstXSpell)
@@ -12654,6 +12673,12 @@
       if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
+    // Ulamog, the Defiler: "enters with a number of +1/+1 counters on it equal to the greatest mana value among cards in exile" (etbEqualTo)
+    const etbEq = noReminderText(text).match(/(?:CARDNAME|This creature) enters with a number of (\+1\/\+1) counters on it equal to ([^.]+)\./i);
+    if (etbEq && !out.entersWithCounters) {
+      const k = amountOf(etbEq[2]);
+      if (k && typeof k === 'object') out.entersWithCounters = { kind: etbEq[1], n: { count: k } };
+    }
     // Prime Speaker Zegana: "enters with X +1/+1 counters on it, where X is the greatest power among other creatures you control"
     const etbX = noReminderText(text).match(/(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is ([^.]+)\./i);
     if (etbX && !out.entersWithCounters) {
@@ -14934,6 +14959,9 @@
       // Prime Speaker Zegana: the counters are read where it enters (entersWithCounters)
       { re: /^(?:CARDNAME|This creature) enters with X \+1\/\+1 counters on it, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
+      // (Ulamog, the Defiler: "enters with a number of +1/+1 counters on it equal to …" — etbEqualTo)
+      { re: /^(?:CARDNAME|This creature) enters with a number of \+1\/\+1 counters on it equal to (?!the amount of mana spent)(.+?)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'noop' } : null; }, auto: true },
       /* Killian, Ink Duelist: "Spells you cast that target a creature cost {2} less to cast."; Esior, Wardwing
          Familiar: "Spells your opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
       { re: /^Spells you cast that target an? (creature|permanent|artifact|enchantment|planeswalker|land) cost \{(\d+)\} less to cast\.?$/i,
@@ -15093,6 +15121,9 @@
       // Firebending Student, Fire Lord Zuko: "Firebending X, where X is this creature's power."
       { re: /^Firebending X, where X is (.+?)\.?$/i,
         make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'firebendingX', n: k } : null; }, auto: true },
+      // Ulamog, the Defiler: "CARDNAME has annihilator X, where X is the number of +1/+1 counters on it." (annihilatorX)
+      { re: /^(?:CARDNAME|This creature) has annihilator X, where X is (.+?)\.?$/i,
+        make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'annihilatorX', n: k } : null; }, auto: true },
       /* Control Magic: "You control enchanted creature." (layer 2) */
       { re: /^You control enchanted (creature|permanent|artifact|land|enchantment|planeswalker)\.?$/i,
         make: () => ({ op: 'continuous', layer: 2, scope: { attached: true }, control: 'you' }), auto: true },

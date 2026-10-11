@@ -2447,7 +2447,13 @@
         r[k] = r[k] && r[k].turn === this.turn ? { turn: this.turn, n: r[k].n + 1 } : { turn: this.turn, n: 1 };
       }
       // "you may" on a trigger is a question asked as it resolves, not before
-      const effects = item.optional && !item._asked
+      // (Tergrid, God of Fright: not asked once "that card" has left the graveyard — nothing left to say yes to: sacOrDiscardAny)
+      const only = (item.effects || []).length === 1 && item.effects[0];
+      const gone = item.optional && only && only.op === 'returnTriggerCard' && only.fromGrave && (() => {
+        const x = item.triggerData && item.triggerData.objectId && this.obj(item.triggerData.objectId);
+        return !x || x.zone !== 'graveyard' || x.isToken;
+      })();
+      const effects = gone ? [] : item.optional && !item._asked
         ? [{ op: 'may', prompt: truncate(item.abilityText || item.name, 100), then: item.effects || [] }]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
@@ -3091,6 +3097,12 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      // Ulamog, the Defiler: the greatest mana value among cards in exile, anyone's; face down, none (greatestMvExile)
+      if (v.greatestMvExile) {
+        let best = 0;
+        for (const p of this.players) for (const c of ((this.zones[p.id] || {}).exile || [])) if (!c.faceDownExile) best = Math.max(best, (c.card && c.card.cmc) || 0);
+        return best * mult;
+      }
       if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
       if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
@@ -6189,7 +6201,10 @@
           this.logEvent('keyword', `${o.name} firebends for ${fire} red mana.`);
         }
         // annihilator: the defending player sacrifices permanents
-        const ann = this._kwArg(o, 'annihilator');
+        let ann = this._kwArg(o, 'annihilator');
+        // Ulamog, the Defiler: "annihilator X, where X is the number of +1/+1 counters on it" (annihilatorX)
+        const ax = this._staticOp(o, 'annihilatorX');
+        if (ax && ax.n) ann += Math.max(0, this._countValue(ax.n, o.controller, o));
         if (ann) {
           const d = o.attacking;
           const dpid = this._defPid(d);
@@ -14486,10 +14501,7 @@
           break;
         // Uro: "sacrifice it unless it escaped"
         case 'sacUnlessEscaped':
-          if (src && src.zone === 'battlefield' && !(src.escapedTs != null && src.escapedTs === src.ts)) {
-            this.moveObject(src, 'graveyard');
-            this._fire('youSacrifice', ctx.controller, { count: 1 });
-          }
+          if (src && src.zone === 'battlefield' && !(src.escapedTs != null && src.escapedTs === src.ts)) this._sacrificeNow(ctx.controller, [src]);
           break;
         // "Sacrifice a creature. If you can't, sacrifice this artifact."
         case 'sacOrSelf': {
@@ -15265,11 +15277,10 @@
         // All Is Dust: "each player sacrifices all permanents they control that are one or more colors"
         case 'sacrificeColored': {
           const gone = this.battlefield.filter(x => !x.phasedOut && ((x.analysis() || {}).colors || []).length > 0);
+          // (all at once, then each one seen for what it was: Tergrid — sacOrDiscardAny)
+          const ctl = new Map(gone.map(x => [x, x.controller]));
           for (const x of gone) if (x.zone === 'battlefield') this.moveObject(x, 'graveyard');
-          for (const p of this.players) {
-            const k = gone.filter(x => x.controller === p.id).length;
-            if (k) this._fire('youSacrifice', p.id, { count: k });
-          }
+          for (const x of gone) this._fire('youSacrifice', ctl.get(x), { count: 1, object: x, objController: ctl.get(x) });
           this.logEvent('wipe', `Every coloured permanent is sacrificed (${gone.length}).`);
           break;
         }
@@ -16483,12 +16494,9 @@
           if (picked === SUSPEND) return SUSPEND;
           const chosen = (picked || []).map(id => this.obj(id)).filter(o => o && zone.includes(o)).slice(0, need);
           if (chosen.length < need) { this._spliceNext(e.otherwise); break; }
-          for (const o of chosen) {
-            this.moveObject(o, 'graveyard');
-            this.logEvent(pay.sacrifice ? 'sacrifice' : 'discard',
-              `${me.name} ${pay.sacrifice ? 'sacrifices' : 'discards'} ${o.name}.`);
-          }
-          if (pay.sacrifice) this._fire('youSacrifice', ctx.controller, { count: chosen.length });
+          // (a sacrifice and a discard like any other: Tergrid sees what went — sacOrDiscardAny)
+          if (pay.sacrifice) this._sacrificeNow(ctx.controller, chosen);
+          else this._discardNow(ctx.controller, chosen);
           this._spliceNext(e.then);
           break;
         }
@@ -18989,6 +18997,8 @@
           let x = !e.triggerOnly && this._lastExiled && this.obj(this._lastExiled);
           if (!x || x.zone !== 'exile') x = td.objectId && this.obj(td.objectId);
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
+          // Tergrid, God of Fright: "from a graveyard" — not from exile (sacOrDiscardAny)
+          if (e.fromGrave && x.zone !== 'graveyard') break;
           this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
           if (x.zone !== 'battlefield') break;
           if (e.tapped) x.tapped = true;
@@ -19701,8 +19711,10 @@
           for (const pl of who) {
             const lib = this.zones[pl.id].library;
             let total = 0;
-            for (let i = 0; i < 200 && lib.length; i++) {
-              if (!e.untilNonland && e.totalMv == null && i >= n(e.n || 1)) break;
+            // (Ulamog, the Defiler: "the top half of their library" — counted once, before any card goes: exileHalfLibrary)
+            const want = e.untilNonland || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
+            for (let i = 0; i < most && lib.length; i++) {
+              if (i >= want) break;
               const c = lib[0];
               this.moveObject(c, 'exile');
               out.push(c.id);
@@ -19731,6 +19743,8 @@
               : e.from === 'targets' ? targets.filter(t => t.kind === 'object').map(t => t.id)
               : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
               : e.from === 'looked' ? (this._looked || []).slice()
+              // Malcolm, Alluring Scoundrel: "the discarded card" — what you discarded as this resolved, still in your graveyard (castDiscarded)
+              : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             if (r) { r.marks[slot] = pool; r.marks[slot + 'n'] = 0; }
           }

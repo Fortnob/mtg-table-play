@@ -24181,4 +24181,94 @@ module.exports = (test) => {
     t.eq(M.zone('A', 'hand').length, 2, 'Hakbal, no land in hand: a card drawn');
     t.no(M.asked.some(ch => ch.purpose === 'landOrElse'), 'Hakbal, no land in hand: not asked');
   });
+
+  test('Commanders: Tergrid, God of Fright — what an opponent sacrifices or discards comes over', (mk, t) => {
+    t.auto('Tergrid, God of Fright');
+    const T = mk();
+    T.toMain('A');
+    T.bf('A', 'Tergrid, God of Fright');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '1B'); T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+    T.resolve();
+    t.zone(giant, 'battlefield', 'Tergrid: the Giant B sacrificed'); t.eq(giant.controller, 'A', "under A's control");
+    const bears = T.hand('B', 'Grizzly Bears'), bolt = T.hand('B', 'Lightning Bolt');
+    T.mana('A', '2B'); T.cast('A', T.hand('A', 'Mind Rot'), { targets: ['B'] });
+    T.resolve();
+    t.zone(bears, 'battlefield', 'Tergrid: the Bears B discarded'); t.eq(bears.controller, 'A');
+    t.zone(bolt, 'graveyard', 'Tergrid: a Bolt is no permanent card');
+    // a token, A's own sacrifice: no trigger, no question
+    const tok = T.bf('B', 'Grizzly Bears'); tok.isToken = true;
+    const mine = T.bf('A', 'Craw Wurm');
+    const n0 = T.asked.filter(c => c.type === 'confirm').length;
+    T.g._sacrificeNow('B', [tok]); T.g._sacrificeNow('A', [mine]); T.resolve();
+    t.eq(T.g.stack.length, 0); t.zone(mine, 'graveyard', 'Tergrid: my own sacrifice stays put');
+    t.eq(T.asked.filter(c => c.type === 'confirm').length, n0, 'Tergrid: nothing asked for a token or my own');
+    // declined: it stays in B's graveyard
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.answer('confirm', { yes: false });
+    T.g._sacrificeNow('B', [wurm]); T.resolve();
+    t.zone(wurm, 'graveyard', 'Tergrid: declined');
+    // gone from the graveyard before it resolves: not asked
+    const ox = T.hand('B', 'Hill Giant');
+    T.g._discardNow('B', [ox]); T.settle();
+    t.eq(T.g.pendingTriggers.length + T.g.stack.length, 1, 'Tergrid: it triggered');
+    T.g.moveObject(ox, 'exile');
+    const n1 = T.asked.filter(c => c.type === 'confirm').length;
+    T.resolve();
+    t.zone(ox, 'exile', 'Tergrid: not from exile'); t.eq(T.asked.filter(c => c.type === 'confirm').length, n1, 'Tergrid: no question once it has gone');
+  });
+
+  test('Commanders: Malcolm, Alluring Scoundrel — a chorus counter, a loot, and at four the discarded card for free', (mk, t) => {
+    t.auto('Malcolm, Alluring Scoundrel');
+    const run = (counters, toss) => {
+      const T = mk();
+      T.toMain('A');
+      const m = T.bf('A', 'Malcolm, Alluring Scoundrel', { counters: counters ? { chorus: counters } : undefined });
+      const c = T.hand('A', toss);
+      T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
+      T.answer('discard', { cardIds: [c.id] });
+      T.toMain('A', 'endCombat'); T.resolve();
+      return { T, m, c };
+    };
+    let { T, m, c } = run(3, 'Hill Giant');
+    t.eq(m.counters.chorus, 4, 'Malcolm: a fourth chorus counter'); t.eq(T.life('B'), 18);
+    t.zone(c, 'battlefield', 'Malcolm: four counters, the discarded Giant cast for nothing'); t.eq(c.controller, 'A');
+    t.eq(T.asked.filter(q => q.type === 'confirm').length, 1, 'Malcolm: asked once');
+    ({ T, m, c } = run(0, 'Hill Giant'));
+    t.eq(m.counters.chorus, 1); t.zone(c, 'graveyard', 'Malcolm: one counter, no cast');
+    t.eq(T.asked.filter(q => q.type === 'confirm').length, 0, 'Malcolm: nothing asked under four');
+    ({ T, m, c } = run(5, 'Island'));
+    t.zone(c, 'graveyard', 'Malcolm: a land is not cast'); t.eq(T.asked.filter(q => q.type === 'confirm').length, 0, 'Malcolm: nothing to ask about a land');
+  });
+
+  test('Commanders: Ulamog, the Defiler — half a library on cast, counters from exile, annihilator X', (mk, t) => {
+    t.auto('Ulamog, the Defiler');
+    const T = mk();
+    T.toMain('A');
+    const wurm = T.top('B', 'Craw Wurm');
+    const lib = T.zone('B', 'library').length;
+    t.eq(lib % 2, 1, 'an odd library, to round');
+    const u = T.hand('A', 'Ulamog, the Defiler');
+    T.mana('A', '10');
+    T.cast('A', u, { resolve: false });
+    t.ok(T.g.pendingTriggers.length + T.g.stack.length >= 2, 'Ulamog: a trigger above the spell');
+    T.resolve();
+    t.eq(T.zone('B', 'library').length, (lib - 1) / 2, 'Ulamog: the top half, rounded up');
+    t.zone(wurm, 'exile');
+    t.zone(u, 'battlefield'); t.eq(u.counters['+1/+1'], 6, 'Ulamog: the Wurm is the greatest mana value in exile');
+    for (let i = 0; i < 8; i++) T.bf('B', 'Swamp');
+    u.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: u.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.resolve();
+    t.eq(T.bfOf('B').length, 2, 'Ulamog: annihilator 6');
+    // no counters, no annihilator
+    const L = mk();
+    L.toMain('A');
+    const u2 = L.bf('A', 'Ulamog, the Defiler');
+    for (let i = 0; i < 3; i++) L.bf('B', 'Swamp');
+    L.answer('declareAttackers', () => [{ attackerId: u2.id, defenderId: 'B' }]);
+    L.toMain('A', 'declareBlockers'); L.resolve();
+    t.eq(L.bfOf('B').length, 3, 'Ulamog: annihilator 0 sacrifices nothing');
+    t.eq(L.asked.filter(q => q.type === 'sacrifice').length, 0, 'Ulamog: nothing asked');
+  });
 };
