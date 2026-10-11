@@ -15027,6 +15027,11 @@
         make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
           { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: ['Changeling'] }] }), auto: true },
       // Doran and kin: combat damage by toughness
+      /* Arcades, the Strategist: "Each creature you control with defender assigns combat damage equal to its toughness
+         rather than its power and can attack as though it didn't have defender." (defenderToughness) */
+      { re: /^Each creature you control with defender assigns combat damage equal to its toughness rather than its power and can attack as though it didn'?t have defender\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'toughnessDamage', who: 'you', keyword: 'defender' },
+          { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', keyword: 'defender' }, flag: 'attackDespiteDefender' }] }), auto: true },
       { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
       // Signal Pest: "can't be blocked except by creatures with flying or reach"

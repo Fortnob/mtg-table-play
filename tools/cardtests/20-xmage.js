@@ -23405,4 +23405,17 @@ module.exports = (test) => {
     D.toMain('A', 'declareBlockers'); D.resolve();
     t.eq(D.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 2, 'Cloud: power 7 or more, two Treasures');
   });
+
+  test('Commanders: Arcades, the Strategist — defenders attack, dealing damage by toughness', (mk, t) => {
+    t.auto('Arcades, the Strategist');
+    const A = mk({ library: Array(20).fill('Forest') });
+    A.toMain('A');
+    A.bf('A', 'Arcades, the Strategist');
+    const wall = A.bf('A', 'Wall of Wood'); wall.summoningSick = false;
+    const gb = A.bf('A', 'Horned Turtle'); gb.summoningSick = false;
+    A.answer('declareAttackers', () => [{ attackerId: wall.id, defenderId: 'B' }, { attackerId: gb.id, defenderId: 'B' }]);
+    A.toMain('A', 'end');
+    t.ok(!!wall.attacking || A.life('B') < 20, 'Arcades: the Wall of Wood may attack');
+    t.eq(A.life('B'), 20 - A.g.toughnessOf(wall) - A.g.powerOf(gb), 'Arcades: the Wall deals its toughness, the 1/4 Turtle (no defender) its power');
+  });
 };

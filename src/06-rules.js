@@ -490,6 +490,8 @@
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
         // Treefolk Umbra: only the creature it's attached to (toughnessAttached)
         if (e.who === 'attached' && s.attachedTo !== o.id) return false;
+        // Arcades, the Strategist: only those with defender (defenderToughness)
+        if (e.keyword && !this.hasKw(o, e.keyword)) return false;
         return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
       });
     }
