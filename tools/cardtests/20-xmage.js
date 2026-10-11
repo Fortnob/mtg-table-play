@@ -24397,4 +24397,117 @@ module.exports = (test) => {
     t.eq(R.g.castCost(R.hand('A', 'Ragemonger')), '{1}', 'Ragemonger: another ({1}{B}{R}) costs {1}');
     t.eq(R.g.castCost(R.hand('A', 'Lightning Bolt')), '{R}', 'Ragemonger: a Bolt is full price');
   });
+
+  test('Commanders: Muldrotha, the Gravetide — a land and a spell of each permanent type from the graveyard, once each', (mk, t) => {
+    t.auto('Muldrotha, the Gravetide');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('A');
+    T.bf('A', 'Muldrotha, the Gravetide');
+    T.bf('A', 'Exploration');
+    const forest = T.grave('A', 'Forest'), plains = T.grave('A', 'Plains');
+    const bears = T.grave('A', 'Grizzly Bears'), giant = T.grave('A', 'Hill Giant');
+    const thopter = T.grave('A', 'Ornithopter'), ring = T.grave('A', 'Sol Ring'), anthem = T.grave('A', 'Glorious Anthem');
+    const bolt = T.grave('A', 'Lightning Bolt');
+    T.playLand('A', forest);
+    t.zone(forest, 'battlefield', 'Muldrotha: a land from the graveyard');
+    t.no(T.g.playLand('A', plains.id), 'Muldrotha: one land from the graveyard, with a land play left (Exploration)');
+    t.zone(plains, 'graveyard');
+    T.playLand('A', T.hand('A', 'Island'));
+    T.mana('A', '1G'); T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'Muldrotha: a creature spell from the graveyard');
+    T.mana('A', '3G');
+    t.no(T.g.canCast('A', giant.id).ok, 'Muldrotha: a second creature spell is not');
+    // the creature is used, so Ornithopter is cast as the artifact without asking
+    T.cast('A', thopter);
+    t.zone(thopter, 'battlefield', 'Muldrotha: an artifact creature, as the artifact');
+    t.no(T.asked.some(ch => ch.purpose === 'permanentType'), 'Muldrotha: one type left, nothing asked');
+    t.no(T.g.canCast('A', ring.id).ok, 'Muldrotha: the artifact went with Ornithopter');
+    T.mana('A', '1WW'); T.cast('A', anthem);
+    t.zone(anthem, 'battlefield', 'Muldrotha: an enchantment spell as well');
+    T.mana('A', 'R');
+    t.no(T.g.canCast('A', bolt.id).ok, 'Muldrotha: an instant is no permanent spell');
+  });
+
+  test('Commanders: Muldrotha, the Gravetide — a card of two types uses the one chosen, on your turns only', (mk, t) => {
+    t.auto('Muldrotha, the Gravetide');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('A');
+    T.bf('A', 'Muldrotha, the Gravetide');
+    const thopter = T.grave('A', 'Ornithopter'), bears = T.grave('A', 'Grizzly Bears'), ring = T.grave('A', 'Sol Ring');
+    const viper = T.grave('A', 'Ambush Viper');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.findIndex(o => o.type === 'creature')] }; });
+    T.cast('A', thopter);
+    t.eq(asked && asked.purpose, 'permanentType', 'Muldrotha: artifact or creature, asked');
+    t.eq(asked && asked.options.map(o => o.type).join(','), 'artifact,creature');
+    t.zone(thopter, 'battlefield');
+    T.mana('A', '1G');
+    t.no(T.g.canCast('A', bears.id).ok, 'Muldrotha: Ornithopter was cast as the creature');
+    T.mana('A', '1'); T.cast('A', ring);
+    t.zone(ring, 'battlefield', 'Muldrotha: the artifact was still free');
+    // B's turn: Ambush Viper has flash, but the leave is for A's turns
+    T.nextTurn('B');
+    t.no(T.g._playFromRule('A', viper, 'spell'), "Muldrotha: nothing during an opponent's turn");
+    T.nextTurn('A');
+    t.ok(T.g._playFromRule('A', viper, 'spell'), 'Muldrotha: a new turn, a creature again');
+    T.mana('A', '1G'); T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'Muldrotha: Grizzly Bears, this turn');
+  });
+
+  test('Commanders: Valgavoth, Terror Eater — their cards are exiled instead, and played for life', (mk, t) => {
+    t.auto('Valgavoth, Terror Eater');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    const val = T.bf('A', 'Valgavoth, Terror Eater');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const murder = T.hand('A', 'Murder');
+    T.mana('A', '1BB'); T.cast('A', murder, { targets: [bears] });
+    t.zone(bears, 'exile', "Valgavoth: B's dying creature is exiled");
+    t.zone(murder, 'graveyard', "Valgavoth: A's own spell goes to A's graveyard");
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.g.moveObject(bolt, 'graveyard');
+    t.zone(bolt, 'exile', "Valgavoth: a card put from B's hand into the graveyard is exiled");
+    const land = T.top('B', 'Mountain');
+    T.g.moveObject(land, 'graveyard');
+    t.zone(land, 'exile', "Valgavoth: a card milled from B's library is exiled");
+    // A's turn: the Bears for 2 life and no mana, the Mountain as A's land
+    const life = T.life('A');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield', 'Valgavoth: cast from exile');
+    t.eq(bears.controller, 'A');
+    t.eq(T.life('A'), life - 2, 'Valgavoth: 2 life for a mana value of 2');
+    T.playLand('A', land);
+    t.zone(land, 'battlefield', 'Valgavoth: an exiled land played');
+    t.eq(land.controller, 'A');
+    // A controlled the Bears: they go to B's graveyard as usual
+    T.g.moveObject(bears, 'graveyard');
+    t.ok(T.zone('B', 'graveyard').includes(bears), "Valgavoth: a card A controlled isn't exiled");
+    // B's turn: the Bolt waits; A's turn, 1 life
+    T.nextTurn('B');
+    t.no(T.g._mayPlayFromExile('A', bolt), "Valgavoth: not during an opponent's turn");
+    T.nextTurn('A');
+    const life2 = T.life('A');
+    T.cast('A', bolt, { targets: [{ kind: 'player', id: 'B' }] });
+    t.eq(T.life('A'), life2 - 1, 'Valgavoth: 1 life for Lightning Bolt');
+    t.ok(T.zone('B', 'graveyard').includes(bolt), "Valgavoth: cast by A, it goes to B's graveyard");
+    // Valgavoth gone and back: what was exiled with the old one is not the new one's
+    const giant = T.hand('B', 'Hill Giant');
+    T.g.moveObject(giant, 'graveyard');
+    t.zone(giant, 'exile');
+    t.ok(T.g._mayPlayFromExile('A', giant), 'Valgavoth: Hill Giant is playable');
+    T.g.moveObject(val, 'hand'); T.g.moveObject(val, 'battlefield', { controller: 'A' }); T.settle();
+    t.no(T.g._mayPlayFromExile('A', giant), 'Valgavoth: a new object, the old exile is not its to play');
+  });
+
+  test('Commanders: Valgavoth, Terror Eater — only cards: a token of theirs dies as usual', (mk, t) => {
+    t.auto('Valgavoth, Terror Eater');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('A');
+    T.bf('A', 'Valgavoth, Terror Eater');
+    T.bf('B', 'Blood Artist');
+    const tok = T.bf('B', 'Grizzly Bears'); tok.isToken = true;
+    const life = T.life('A');
+    T.g.moveObject(tok, 'graveyard'); T.resolve();
+    t.eq(T.life('A'), life - 1, 'Valgavoth: the token died, and Blood Artist saw it');
+  });
 };

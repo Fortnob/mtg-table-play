@@ -14223,9 +14223,12 @@
       make: () => ({ op: 'replace', id: 'cntHalfOpp', event: 'counters', who: 'opponentPutter', players: true, how: 'half' }) },
     { re: /^If an effect would put one or more counters on a permanent you control, it puts twice that many of those counters on that permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntDouble', event: 'counters', who: 'you', how: 'double' }) },
-    { re: /^If (?:a card|a card or token|one or more cards?) would be put into (a|your|an opponent'?s) graveyard from anywhere, (?:exile (?:it|them|that card) instead|instead exile (?:it|them))( with an? ([a-z]+) counter on (?:it|them))?\.?$/i,
+    /* Leyline of the Void: "a card" is no token (cardsOnly); Valgavoth, Terror Eater: "If a card you
+       didn't control would be put into an opponent's graveyard" — not one its controller had (notYours) */
+    { re: /^If (a card|a card or token|one or more cards?)( you didn'?t control)? would be put into (a|your|an opponent'?s) graveyard from anywhere, (?:exile (?:it|them|that card) instead|instead exile (?:it|them))( with an? ([a-z]+) counter on (?:it|them))?\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'gyExile', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile',
-        who: 'all', owner: /opponent/i.test(m[1]) ? 'opponents' : /your/i.test(m[1]) ? 'you' : null }, m[3] ? { withCounter: m[3].toLowerCase() } : {}) },
+        who: 'all', owner: /opponent/i.test(m[3]) ? 'opponents' : /your/i.test(m[3]) ? 'you' : null }, m[5] ? { withCounter: m[5].toLowerCase() } : {},
+        /token/i.test(m[1]) ? {} : { cardsOnly: true }, m[2] ? { notYours: true } : {}) },
     /* Lae'zel, Vlaakith's Champion: "If you would put one or more counters on
        a creature or planeswalker you control or on yourself, put that many
        plus one of each of those kinds of counters on that permanent or player
@@ -15801,6 +15804,15 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
         }, auto: true },
+      /* Muldrotha, the Gravetide: "During each of your turns, you may play a land and cast a permanent
+         spell of each permanent type from your graveyard." — once a turn for each type (perType), a card
+         of more than one using up the type chosen as it is cast */
+      { re: /^During each of your turns, you may play a land and cast a permanent spell of each permanent type from your graveyard\.?$/i,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'any', duringYourTurn: true, perType: true }, auto: true },
+      /* Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth. If you cast
+         a spell this way, pay life equal to its mana value rather than pay its mana cost." (exiledWith) */
+      { re: /^During your turn, you may play cards exiled with CARDNAME\. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?$/,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, payLife: true }, auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       // Titania, Nature's Force: "You may play Forests from your graveyard."

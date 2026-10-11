@@ -1676,6 +1676,14 @@
     },
     /* Read ahead: from the start */
     readAhead() { return { picks: [0] }; },
+    /* Muldrotha, the Gravetide: use up the type the rest of the graveyard needs least */
+    permanentType(s) {
+      const g = this.game;
+      const yard = ((g.zones[this.pid] || {}).graveyard || []).filter(o => o.id !== s.sourceId);
+      const want = (t) => yard.filter(o => !!(o.analysis() || {})['is' + t.charAt(0).toUpperCase() + t.slice(1)]).length;
+      const opts = (s.options || []).slice().sort((x, y) => want(x.type) - want(y.type));
+      return opts.length ? { picks: [opts[0].i] } : null;
+    },
     /* Devour: tokens are fodder; real creatures stay */
     devour(s) { return { picks: (s.items || []).filter(x => { const o = this.game.obj(x.id); return o && o.isToken; }).map(x => x.id) }; },
     /* Circle of Protection: the opponent's source most likely to hurt us

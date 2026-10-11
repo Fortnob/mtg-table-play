@@ -2777,7 +2777,9 @@
     _mayPlayFromExile(playerId, o) {
       if (!o || o.zone !== 'exile' || o.owner === playerId) return false;
       return (o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) ||
-        (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)));
+        (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn))) ||
+        // Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth."
+        !!(o.exiledWithId && this._playFromRule(playerId, o, 'any'));
     }
     /** Cards in other players' exile that this player may play. */
     _borrowedExile(playerId) {
@@ -2884,7 +2886,8 @@
       const p = this.player(playerId);
       const o = this.obj(objId);
       if (!o) return this.fail('No such card.');
-      if (o.controller !== playerId && o.owner !== playerId) return this.fail('Not your card.');
+      // (Valgavoth, Terror Eater: an opponent's land, exiled with it, is yours to play)
+      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o)) return this.fail('Not your card.');
       const a = o.analysis();
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
       if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
@@ -2901,10 +2904,12 @@
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
+      // Muldrotha, the Gravetide: this turn's land from the graveyard
+      if (leave && leave.srcId && leave.perType) this._usePlayFromType(leave.srcId, 'land');
       if (back) o.face = 1;
       p.landsPlayed++;
       const fromZone = o.zone;
-      this.moveObject(o, 'battlefield', { asLand: true });
+      this.moveObject(o, 'battlefield', { asLand: true, controller: playerId });
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
       this._fire('youPlayLand', playerId, { object: o, fromZone });
@@ -3611,7 +3616,8 @@
         const lifeTax = this._commanderTax(o).life;
         if (lifeTax && p && p.life < lifeTax) return { ok: false, reason: `${o.name}'s commander tax is ${lifeTax} life, and you have ${p.life}.` };
       }
-      const leave = (o.zone === 'library' || o.zone === 'graveyard') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
+      // (Valgavoth, Terror Eater: cards exiled with it, too)
+      const leave = (o.zone === 'library' || o.zone === 'graveyard' || o.zone === 'exile') && !opts ? this._playFromRule(playerId, o, 'spell') : null;
       if (o.zone === 'library' && !leave && opts !== 'resolution') return { ok: false, reason: 'Not castable from library.' };
       if (o.zone === 'graveyard' && leave && this._anyStatic('cageGraveyards'))
         return { ok: false, reason: "A cage stops spells cast from graveyards." };
@@ -4046,8 +4052,10 @@
      */
     _playFromRule(playerId, o, kind) {
       const z = this.zones[playerId];
-      if (!z || !o || o.owner !== playerId) return null;
-      const where = o.zone === 'library' ? (z.library[0] === o ? 'top' : null) : o.zone === 'graveyard' ? 'graveyard' : null;
+      // Valgavoth, Terror Eater: "cards exiled with Valgavoth" are somebody else's
+      const exiled = !!(o && o.zone === 'exile' && o.exiledWithId);
+      if (!z || !o || (o.owner !== playerId && !exiled)) return null;
+      const where = o.zone === 'library' ? (z.library[0] === o ? 'top' : null) : o.zone === 'graveyard' ? 'graveyard' : exiled ? 'exiledWith' : null;
       if (!where) return null;
       // Yawgmoth's Will: leave for the rest of this turn
       const grant = ((this.player(playerId) || {}).playFromGrants || [])
@@ -4061,6 +4069,7 @@
           for (const ef of (ab.effects || [])) {
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
             if ((ef.zone || 'top') !== where) continue;
+            if (where === 'exiledWith' && o.exiledWithId !== src.id) continue;
             const what = ef.what || 'any';
             if (what !== 'any' && what !== kind) continue;
             if (ef.filter && !this._cardFitsWords(o, ef.filter)) continue;
@@ -4071,6 +4080,12 @@
             // Lurrus: once each turn for each permanent that grants it, and only up to a mana value
             if (ef.oncePerTurn && src._playFromTurn === this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
+            // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
+            if (ef.perType) {
+              const freeTypes = this._playFromTypesLeft(src, o, kind);
+              if (!freeTypes.length) continue;
+              return Object.assign({}, ef, { srcId: src.id, freeTypes });
+            }
             if (ef.oncePerTurn || ef.exileAfter) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
@@ -4081,6 +4096,26 @@
         }
       }
       return null;
+    }
+    /**
+     * Muldrotha, the Gravetide: "a land and … a permanent spell of each
+     * permanent type" — the types of this card that src's leave has not
+     * been used for this turn. A land is played as a land; a spell is any
+     * of the other permanent types it has, one of them chosen as it is cast.
+     */
+    _playFromTypesLeft(src, o, kind) {
+      const a = (o && o.analysis()) || {};
+      const has = kind === 'land' ? { land: true } : { land: kind === 'any' && !!a.isLand, artifact: !!a.isArtifact,
+        creature: !!a.isCreature, enchantment: !!a.isEnchantment, planeswalker: !!a.isPlaneswalker, battle: !!a.isBattle };
+      const used = src.playFromTypes && src.playFromTypes.turn === this.turn ? src.playFromTypes.used : [];
+      return ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'].filter(t => has[t] && !used.includes(t));
+    }
+    /** That leave, used for one type this turn. */
+    _usePlayFromType(srcId, type) {
+      const src = this.obj(srcId);
+      if (!src || !type) return;
+      if (!src.playFromTypes || src.playFromTypes.turn !== this.turn) src.playFromTypes = { turn: this.turn, used: [] };
+      src.playFromTypes.used.push(type);
     }
 
     /**
@@ -4909,6 +4944,14 @@
           sourceId: o.id, sourceName: o.name, sourceCard: o.card });
         return 'asked';
       };
+      /* Muldrotha, the Gravetide: "If a card has multiple permanent types, choose one as you play it"
+         — asked only when more than one of them is still free this turn (permanentType) */
+      if (o.zone === 'graveyard' && !opts.via && !opts.free) {
+        const lv = this._playFromRule(playerId, o, 'spell');
+        if (lv && lv.perType && lv.freeTypes.length > 1 && this._castChoose(playerId, o, opts, { purpose: 'permanentType', kind: 'options', min: 1, max: 1,
+          options: lv.freeTypes.map(t => ({ label: 'As ' + (/^[ae]/.test(t) ? 'an ' : 'a ') + t, type: t })), compact: true,
+          prompt: `${o.name}: cast it from your graveyard as which permanent type? (${(this.obj(lv.srcId) || {}).name}: one of each type each turn)` }) === 'asked') return 'asked';
+      }
       const add = a && a.additionalCost;
       if (add && add.choice && !opts.skipAdditional && opts.additionalChoice == null) {
         const ok = this._payableChoices(playerId, o, add.choice, opts.free ? '' : chk.cost, opts);
@@ -5654,6 +5697,11 @@
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
           if (lv.exileAfter) o._exileFromStack = true;
+          // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
+          if (lv.perType) {
+            const pick = (((opts.choices || {}).permanentType || {}).picks || [])[0];
+            this._usePlayFromType(lv.srcId, lv.freeTypes[pick] || lv.freeTypes[0]);
+          }
         }
       }
       const fromZone = o.zone;
@@ -9542,6 +9590,10 @@
         if (ef.owner === 'opponents' && own === src.controller) return false;
         if (ef.owner === 'you' && own !== src.controller) return false;
       }
+      // Leyline of the Void: "a card" — a token or a copy is none (cardsOnly)
+      if (ef.cardsOnly && ev.object && (ev.object.isToken || ev.object.isCopy)) return false;
+      // Valgavoth, Terror Eater: "a card you didn't control" — a spell or permanent of its controller's goes on as it would
+      if (ef.notYours && ev.controller === src.controller) return false;
       if (ef.toZone && ev.zone !== ef.toZone) return false;
       // "If this creature would die": only this one
       if (ef.self && !(ev.object && ev.object.id === src.id)) return false;
@@ -9585,6 +9637,8 @@
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
+          // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
+          if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
           break;
@@ -11654,8 +11708,8 @@
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
       o.drawnTurn = null;
-      // out of exile, an adventure is over
-      if (from === 'exile' && toZone !== 'exile') o.adventureBy = null;
+      // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -11664,12 +11718,14 @@
       }
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null;
+      let exiledWith = null;
       if (!opts.noReplace) {
         const ev = this._replace({ kind: 'zoneChange', object: o, from, zone: toZone,
           controller: o.controller || o.owner });
         if (ev.cancelled) return o;
         toZone = ev.zone;
         markCounter = ev.withCounter || null;
+        exiledWith = toZone === 'exile' ? ev.exiledWith || null : null;
         // Blightsteel Colossus, Nexus of Fate: shuffled back in, from anywhere
         if (toZone === 'graveyard') {
           const own = o.analysis();
@@ -11905,6 +11961,7 @@
       } else if (toZone === 'hand') this.zones[o.owner].hand.push(o);
       else if (toZone === 'exile') {
         this.zones[o.owner].exile.push(o);
+        if (exiledWith) o.exiledWithId = exiledWith;
         if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner });
         if (from === 'battlefield' && heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl, exiledFromBattlefield: true });
       }
@@ -11917,6 +11974,10 @@
       if (from === 'battlefield' && toZone !== 'battlefield') {
         // whatever this permanent was holding in exile comes back (CR 610.3)
         this._releaseExiled(o);
+        /* Valgavoth, Terror Eater: back again it is a new object (CR 400.7), and the cards exiled
+           with the old one are no longer its to play; Lurrus, Muldrotha: nor is the leave it used up */
+        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) c.exiledWithId = null;
+        o._playFromTurn = null; o.playFromTypes = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
@@ -24595,6 +24656,8 @@
           copyUntilTurn: o.copyUntilTurn == null ? null : o.copyUntilTurn,
           freeCastBy: o.freeCastBy || null, freeCastTurn: o.freeCastTurn == null ? null : o.freeCastTurn,
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
+          // Valgavoth, Terror Eater: what a card was exiled with; Muldrotha, the Gravetide: the types its leave was used for this turn
+          exiledWithId: o.exiledWithId || null, playFromTypes: o.playFromTypes ? JSON.parse(JSON.stringify(o.playFromTypes)) : null,
           // cipher: what is encoded on a creature, and what a card is encoded on
           encoded: o.encoded ? o.encoded.slice() : null, encodedOn: o.encodedOn || null,
           // its timestamp, who controlled it before a control effect, what a copy for the turn covered up
