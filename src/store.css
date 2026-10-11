@@ -396,13 +396,28 @@ html[data-play="1"] .shard-chip { display: none; }
 .hero-copy p { color: #d8dce6; text-shadow: 0 1px 4px #000, 0 0 12px rgba(0,0,0,.8); max-width: 520px; }
 
 /* ---------- sleeves ---------- */
-/* a back in a sleeve: the sleeve's face, a rim in its colour, and a little gloss */
+/* a back in a sleeve: the sleeve's face, a rim in its colour with a lit
+   edge inside it, and the gloss of the plastic over it all */
 .sleeved { background: var(--sleeve-bg) !important; overflow: hidden; }
 .sleeved::before { display: none !important; }
 .sleeved .back-ring { display: none !important; }
 .sleeved::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.55), inset 0 0 0 3px var(--sleeve-rim, #c9a24a), inset 0 0 14px rgba(0,0,0,.45);
-  background: linear-gradient(125deg, rgba(255,255,255,.2), transparent 32%, transparent 64%, rgba(255,255,255,.07)); }
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 0 0 2.6px var(--sleeve-rim, #c9a24a),
+    inset 0 0 0 3.2px color-mix(in srgb, var(--sleeve-rim, #c9a24a) 45%, #fff), inset 0 0 0 4px rgba(0,0,0,.4), inset 0 0 16px rgba(0,0,0,.45);
+  background: radial-gradient(ellipse 70% 22% at 32% 0%, rgba(255,255,255,.16), transparent 70%),
+    linear-gradient(125deg, rgba(255,255,255,.2), transparent 30%, transparent 66%, rgba(255,255,255,.08)); }
+/* a foil: a band of light and colour slid across now and then, a layer the
+   graphics card moves without repainting the sleeve under it */
+.sleeved[data-sleeve-fx="foil"]::before { display: block !important; content: ""; position: absolute; top: 0; bottom: 0; left: -100%; right: auto;
+  width: 300%; border: 0; border-radius: 0; pointer-events: none; will-change: transform; transform: translateX(-34%);
+  background: linear-gradient(112deg, transparent 40%, rgba(255,255,255,.05) 43%, rgba(255,140,220,.22) 46%, rgba(255,255,255,.38) 49.5%, rgba(130,220,255,.24) 53%, rgba(255,250,170,.12) 56%, transparent 60%);
+  animation: sleeveSheen 8s ease-in-out infinite; }
+@keyframes sleeveSheen { 0%, 62% { transform: translateX(-34%); } 92%, 100% { transform: translateX(34%); } }
+/* in the Store's grid a foil shines when you reach for it; the one you are buying, always */
+.sleeve-tile .sleeved[data-sleeve-fx="foil"]::before, .store-card.mini .sleeved[data-sleeve-fx="foil"]::before { animation: none; }
+.sleeve-tile:hover .sleeved[data-sleeve-fx="foil"]::before, .store-card.mini:hover .sleeved[data-sleeve-fx="foil"]::before { animation: sleeveSheen 2.6s ease-in-out infinite; }
+.pd-visual .sleeved[data-sleeve-fx="foil"]::before { animation-duration: 4s; }
+@media (prefers-reduced-motion: reduce) { .sleeved[data-sleeve-fx="foil"]::before { animation: none !important; } }
 .store-grid.sleeves { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .sleeve-tile-face { width: 120px; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; position: relative; display: grid; place-items: center;
   box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: transform .2s; }
