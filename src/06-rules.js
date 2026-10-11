@@ -10751,7 +10751,7 @@
         case 'castBothKinds': { const castB = (me && me.spellObjsThisTurn) || [];
           return castB.some(x => this._cardFitsWords(x, 'creature')) && castB.some(x => !this._cardFitsWords(x, 'creature')); }
         // Taeko, the Patient Avalanche: "if it didn't die" (notDiedTrigger)
-        case 'notDiedTrigger': { const tdD = (ctx && ctx.triggerData) || {}; const xD = tdD.objectId && this.obj(tdD.objectId); return !!xD && xD.zone !== 'graveyard'; }
+        case 'notDiedTrigger': { const tdD = (ctx && ctx.triggerData) || {}; const xD = tdD.objectId && this.obj(tdD.objectId); return tdD.toZone ? tdD.toZone !== 'graveyard' : (!!xD && xD.zone !== 'graveyard'); }   // (as it left, not where it is now: leftToZone)
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -12186,6 +12186,8 @@
         amount: data.amount,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
         objController: data.objController,
+        // where a permanent that left went, as it went (Taeko: "if it didn't die" — leftToZone)
+        toZone: data.toZone,
         // the Ring: who was named Ring-bearer as it tempted
         bearerId: data.bearerId,
       };

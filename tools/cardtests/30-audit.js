@@ -6551,4 +6551,22 @@ module.exports = (test) => {
       t.eq(y.counters['+1/+1'], 6, kill ? 'the Wurm gone: its last power 6 is still greater than 5' : 'the Wurm there: 6 is greater than 5');
     }
   });
+
+  test('Audit: "if it didn\u2019t die" asks how it left, not where the card is now (Taeko, the Patient Avalanche)', (mk, t) => {
+    t.auto('Taeko, the Patient Avalanche');
+    for (const discard of [0, 1]) {
+      const T = mk(); T.toMain('A');
+      const tk = T.bf('A', 'Taeko, the Patient Avalanche'), b = T.bf('A', 'Grizzly Bears'), g = T.g;
+      T.mana('A', 'U'); T.cast('A', T.hand('A', 'Unsummon'), { targets: [b.id], resolve: false });
+      for (let i = 0; i < 40 && b.zone !== 'hand'; i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); }
+      t.ok(g.stack.length === 1, 'Taeko\u2019s trigger waits');
+      if (discard) g.moveObject(b, 'graveyard');
+      T.resolve();
+      t.eq(tk.counters['+1/+1'] || 0, 1, discard ? 'bounced, then discarded before it resolves: it still didn\u2019t die' : 'bounced: it didn\u2019t die');
+    }
+    const T = mk(); T.toMain('A');
+    const tk = T.bf('A', 'Taeko, the Patient Avalanche'), b = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [b.id] });
+    t.eq(tk.counters['+1/+1'] || 0, 0, 'it died: nothing');
+  });
 };
