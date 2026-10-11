@@ -22838,4 +22838,38 @@ module.exports = (test) => {
     N.cast('A', N.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); N.resolve();
     t.eq(Number(gb.counters['+1/+1']) || 0, 1, "Nita: A's own Bolt, nothing more");
   });
+
+  test("Commanders: M'Baku, Jabari Chieftain, Madame Vastra; Fall from Favor", (mk, t) => {
+    for (const n of ["M'Baku, Jabari Chieftain", 'Madame Vastra', 'Fall from Favor']) t.auto(n);
+    // M'Baku: a creature attacking the monarch (an opponent) gets +1/+1 and trample
+    const M = mk({ library: Array(10).fill('Forest') });
+    M.toMain('A');
+    M.bf('A', "M'Baku, Jabari Chieftain");
+    const gb = M.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    M.player('B').monarch = true;
+    M.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    t.ok(M.g.powerOf(gb) === 3 && M.g.hasKw(gb, 'trample'), "M'Baku: attacking the monarch, +1/+1 and trample");
+    const M2 = mk({ library: Array(10).fill('Forest') });
+    M2.toMain('A');
+    M2.bf('A', "M'Baku, Jabari Chieftain");
+    const g2 = M2.bf('A', 'Grizzly Bears'); g2.summoningSick = false;
+    M2.answer('declareAttackers', () => [{ attackerId: g2.id, defenderId: 'B' }]);
+    M2.toMain('A', 'declareBlockers');
+    t.eq(M2.g.powerOf(g2), 2, "M'Baku: B isn't the monarch, nothing");
+    // Fall from Favor: the creature untaps only while its controller is the monarch
+    const F = mk({ library: Array(10).fill('Island') });
+    const bb = F.bf('B', 'Grizzly Bears');
+    const ff = F.bf('A', 'Fall from Favor'); ff.attachedTo = bb.id; bb.attachments = [ff.id];
+    F.g.bumpBoard();
+    t.ok(F.g._hasFlag(bb, 'noUntap'), 'Fall from Favor: B is not the monarch, it stays tapped');
+    F.player('B').monarch = true; F.g.bumpBoard();
+    t.ok(!F.g._hasFlag(bb, 'noUntap'), 'Fall from Favor: B is the monarch, it untaps');
+    // Madame Vastra: a Clue and a Food when a creature she dealt damage to this turn dies
+    const V = mk({ library: Array(10).fill('Forest') });
+    V.toMain('A');
+    const mv = V.bf('A', 'Madame Vastra'), vic = V.bf('B', 'Grizzly Bears');
+    V.g.dealDamageToObject(vic, 2, mv, false); V.g.checkStateBasedActions(); V.resolve();
+    t.ok(V.bfOf('A').some(o => /Clue/.test(o.name)) && V.bfOf('A').some(o => /Food/.test(o.name)), 'Madame Vastra: a Clue and a Food');
+  });
 };

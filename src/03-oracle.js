@@ -5316,6 +5316,9 @@
     { re: /^Put all creatures on the bottom of their owners'? libraries\.?$/i, make: () => ({ op: 'bottomAll', scope: { who: 'all', what: 'creature' } }) },
     // Praetor's Counsel: "Return all cards from your graveyard to your hand."
     { re: /^Return all cards from your graveyard to your hand\.?$/i, make: () => ({ op: 'regrowthAll', filter: 'card' }) },
+    // Madame Vastra: "create a Clue token and a Food token" (twoNamedTokens)
+    { re: /^[Cc]reate an? (Clue|Food|Treasure|Blood|Map|Powerstone) token and an? (Clue|Food|Treasure|Blood|Map|Powerstone) token\.?$/,
+      make: (m) => [{ op: 'createNamedToken', n: 1, token: m[1] }, { op: 'createNamedToken', n: 1, token: m[2] }] },
     // Gerrard Capashen: "you gain 1 life for each card in target opponent's hand" (lifePerTargetHand)
     { re: /^[Yy]ou gain (1|one) life for each card in target (opponent|player)'?s hand\.?$/,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
@@ -9669,6 +9672,8 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // M'Baku, Jabari Chieftain: "if that player is the monarch" — the player the trigger is about (triggerPlayerMonarch)
+    [/^that player is the monarch$/i, () => ({ kind: 'triggerPlayerMonarch' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
     [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)

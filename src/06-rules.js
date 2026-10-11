@@ -10381,10 +10381,18 @@
         case 'youPutCounterOnCreature': return !!me && !!((h.counterPutters || {})[me.id]);
         // Samut, Vizier of Naktamun: "if that creature entered this turn" (triggerObjEntered)
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
+        // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
+        // (Fall from Favor, a standing rule: "that player" is the enchanted creature's controller)
+        case 'triggerPlayerMonarch': {
+          const tdM = (ctx && ctx.triggerData) || {};
+          const host = !tdM.player && !tdM.playerId && src && src.attachedTo && this.obj(src.attachedTo);
+          const pM = this.player(tdM.player || tdM.playerId || (host && host.controller));
+          return !!pM && !!pM.monarch;
+        }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
         // Rhino, Barreling Brute: "if you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
-        case 'castMvThisTurn': return !!me && (me.spellObjsThisTurn || []).some(x => ((x.card && x.card.cmc) || 0) >= (cond.n || 0));
+        case 'castMvThisTurn': return !!me && (me.spellObjsThisTurn || []).some(x => (x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) >= (cond.n || 0));
         // Medomai the Ageless: "during extra turns" (extraTurnNow)
         case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10388,
+  "needed": 10385,
   "gainedCards": 952,
-  "linesNeeded": 11026,
+  "linesNeeded": 11024,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -70,8 +70,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 656,
-   "lines": 656,
+   "score": 655,
+   "lines": 655,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -1269,24 +1269,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Gideon of the Trials",
-    "Fall from Favor",
-    "Moonhold",
-    "Steel Dromedary",
-    "Stunning Strike",
-    "Scorching Lava",
-    "Merseine",
-    "Cocoon",
-    "Venarian Gold",
-    "Lurker",
-    "Limited Resources"
-   ]
-  },
-  {
    "what": "PreventNextDamageFromChosenSourceEffect",
    "score": 11,
    "lines": 11,
@@ -1491,6 +1473,23 @@
     "Saving Grasp",
     "Scarab of the Unseen",
     "Obelisk of Undoing"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Gideon of the Trials",
+    "Moonhold",
+    "Steel Dromedary",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Merseine",
+    "Cocoon",
+    "Venarian Gold",
+    "Lurker",
+    "Limited Resources"
    ]
   },
   {
@@ -8382,19 +8381,6 @@
    ]
   },
   {
-   "what": "ConditionalContinuousRuleModifyingEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Fall from Favor",
-    "Moonhold",
-    "Stunning Strike",
-    "Scorching Lava",
-    "Lurker",
-    "Limited Resources"
-   ]
-  },
-  {
    "what": "TargetPermanentSameController",
    "score": 6,
    "cards": 6,
@@ -9009,6 +8995,18 @@
     "Ayesha Tanaka",
     "Rust",
     "Ouphe Vandals"
+   ]
+  },
+  {
+   "what": "ConditionalContinuousRuleModifyingEffect",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Moonhold",
+    "Stunning Strike",
+    "Scorching Lava",
+    "Lurker",
+    "Limited Resources"
    ]
   },
   {
