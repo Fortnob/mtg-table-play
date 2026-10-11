@@ -23219,4 +23219,52 @@ module.exports = (test) => {
     C.g._runEffects([{ op: 'createToken', n: 1, pt: '2/2', colorWords: ['green'], subtypes: 'Wolf', keywords: [], addTypes: [] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); C.resolve();
     t.eq(C.bfOf('A').filter(o => o.isToken && /Servo/.test(o.name)).length, 1, 'Cayth: a Wolf token, no fabricate');
   });
+
+  test('Commanders: Akiri, Fearless Voyager', (mk, t) => {
+    t.auto('Akiri, Fearless Voyager');
+    // attacking a player with an equipped creature draws a card; with none equipped, nothing
+    const A = mk({ library: Array(20).fill('Plains') });
+    A.toMain('A');
+    const ak = A.bf('A', 'Akiri, Fearless Voyager'); ak.summoningSick = false;
+    const gb = A.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    const sw = A.bf('A', 'Bonesplitter'); sw.attachedTo = gb.id; gb.attachments = [sw.id];
+    A.g.bumpBoard();
+    const h0 = A.zone('A', 'hand').length;
+    A.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    A.toMain('A', 'declareBlockers'); A.resolve();
+    t.eq(A.zone('A', 'hand').length - h0, 1, 'Akiri: the equipped Bears attack B, a card');
+    const N = mk({ library: Array(20).fill('Plains') });
+    N.toMain('A');
+    N.bf('A', 'Akiri, Fearless Voyager');
+    const nb = N.bf('A', 'Grizzly Bears'); nb.summoningSick = false;
+    const n0 = N.zone('A', 'hand').length;
+    N.answer('declareAttackers', () => [{ attackerId: nb.id, defenderId: 'B' }]);
+    N.toMain('A', 'declareBlockers'); N.resolve();
+    t.eq(N.zone('A', 'hand').length - n0, 0, 'Akiri: nothing equipped, no card');
+    // an equipped creature attacking a planeswalker is no attack on a player
+    const P = mk({ library: Array(20).fill('Plains') });
+    P.toMain('A');
+    P.bf('A', 'Akiri, Fearless Voyager');
+    const pb = P.bf('A', 'Grizzly Bears'); pb.summoningSick = false;
+    const ps = P.bf('A', 'Bonesplitter'); ps.attachedTo = pb.id; pb.attachments = [ps.id];
+    const pw = P.bf('B', 'Ajani Goldmane');
+    P.g.bumpBoard();
+    const p0 = P.zone('A', 'hand').length;
+    P.answer('declareAttackers', () => [{ attackerId: pb.id, defenderId: pw.id }]);
+    P.toMain('A', 'declareBlockers'); P.resolve();
+    t.eq(P.zone('A', 'hand').length - p0, 0, "Akiri: the equipped Bears attack B's Ajani, no card");
+    // {W}: unattach the Equipment, tap that creature, indestructible until end of turn
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.toMain('A');
+    const uk = U.bf('A', 'Akiri, Fearless Voyager');
+    const ub = U.bf('A', 'Grizzly Bears');
+    const us = U.bf('A', 'Bonesplitter'); us.attachedTo = ub.id; ub.attachments = [us.id];
+    U.g.bumpBoard();
+    U.answer('may', true);
+    U.mana('A', 'W');
+    U.activate('A', uk, 0); U.resolve();
+    t.ok(!us.attachedTo && !(ub.attachments || []).length, 'Akiri: the Bonesplitter is unattached');
+    t.ok(ub.tapped && U.g.hasKw(ub, 'indestructible'), 'Akiri: the Bears are tapped and indestructible');
+    t.ok(!uk.tapped, 'Akiri herself is untouched');
+  });
 };

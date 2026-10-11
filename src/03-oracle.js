@@ -2466,6 +2466,8 @@
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
+    // Akiri, Fearless Voyager: "unattach an Equipment from a creature you control" — that creature is "that creature" after (unattachFromYours)
+    { re: /^(?:You may )?[Uu]nattach an Equipment from a creature you control\.?$/, make: () => ({ op: 'unattachFromYours' }) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
@@ -10671,6 +10673,9 @@
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
+    // Akiri, Fearless Voyager: "Whenever you attack a player with one or more equipped creatures" (attackersFit)
+    { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified) creatures,? /, event: 'youAttack',
+      extraOf: (m) => Object.assign({ attackersFit: m[2] + ' creature' }, m[1] ? { attackPlayerOnly: true } : {}) },
     // Anim Pakal: "Whenever you attack with one or more non-Gnome creatures"
     { re: /^Whenever you attack with one or more non-([A-Z][a-z]+) creatures,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"

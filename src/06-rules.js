@@ -12218,6 +12218,9 @@
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
           if (ab.attackersMinPower != null && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && x.controller === o.controller && this.player(x.attacking) && this.powerOf(x) >= ab.attackersMinPower; })) continue;
+          // Akiri, Fearless Voyager: one of this player's attackers is equipped (and attacking a player) (attackersFit)
+          if (ab.attackersFit && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
+            return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
           // The Ozolith: "if it had counters on it"
@@ -14895,6 +14898,28 @@
           this._refreshControl();
           // "It gains haste until end of turn" (Act of Treason) is about this creature
           this._noteLastAffected(targets);
+          break;
+        }
+        /* Akiri, Fearless Voyager: "unattach an Equipment from a creature you control. If you do, tap that
+           creature …" — the creature chosen is what the rest is about (unattachFromYours) */
+        case 'unattachFromYours': {
+          const isEq = (id) => { const a = this.obj(id); return !!a && !!(a.analysis() || {}).isEquipment; };
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && (x.attachments || []).some(isEq));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'unattachFrom', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 1, max: 1, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a creature to unattach an Equipment from.` }, 'unat');
+          if (got === SUSPEND) return SUSPEND;
+          const host = this.obj((got && got.picks && got.picks[0]) || pool[0].id);
+          const eqId = host && (host.attachments || []).find(isEq);
+          if (!eqId) break;
+          const eq = this.obj(eqId);
+          host.attachments = host.attachments.filter(x => x !== eqId);
+          eq.attachedTo = null;
+          this.logEvent('rules', `${me.name} unattaches ${eq.name} from ${host.name}.`);
+          ctx.resolvedTargets = [{ kind: 'object', id: host.id }];
+          targets = ctx.resolvedTargets;
+          this._noteLastAffected(ctx.resolvedTargets);
+          this.bumpBoard();
           break;
         }
         // Gruul Charm: everything you own that someone else controls comes back, for good
