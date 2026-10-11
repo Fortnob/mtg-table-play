@@ -3746,8 +3746,13 @@
       make: (m) => ({ op: 'damage', n: num(m[1]), each: 'creature', withKw: m[2].toLowerCase() }) },
 
     /* ===== reading the top of a library ===== */
-    { re: /^Look at the top (a|one|two|three|four|five|six|seven|\d+|X) cards? of your library\.?$/i,
+    // (Ureni of the Unwritten: "look at the top eight cards of your library")
+    { re: /^Look at the top (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0 }) },
+    /* Gishath, Sun's Avatar, Ojer Kaslem: "Whenever … deals combat damage to a player, reveal that many cards
+       from the top of your library" — as many as the damage the trigger is about (thatManyTop) */
+    { re: /^(Reveal|Look at) that many cards from the top of your library\.?$/i,
+      make: (m) => Object.assign({ op: 'lookAt', n: 'triggerAmount', keep: 0 }, /^reveal/i.test(m[1]) ? { reveal: true } : {}) },
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library and put (?:that card|them) into your hand\.?$/i,
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
     { re: /^Exile the top (a|one|two|three|\d+)? ?cards? of your library face down\.?$/i,
@@ -3755,9 +3760,11 @@
     // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
     { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/,
       make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: 'battlefield', rest: 'bottomRandom' }) },
-    { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
-        maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' }) },
+    // (Gishath, Sun's Avatar: "Put any number of Dinosaur creature cards from among them onto the battlefield and the rest …")
+    { re: /^Put (?:up to )?(a|one|two|three|\d+|any number of) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
+      make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
+        maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' },
+        /^any number/i.test(m[1]) ? { prompt: `Put any number of ${(m[2] || '').trim() || 'these'} cards onto the battlefield.` } : {}) },
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : 'bottom' }) },
@@ -4744,6 +4751,11 @@
       } },
     // Genesis Wave: "Then put all cards revealed this way that weren't put onto the battlefield into your graveyard."
     { re: /^(?:Then )?put all (?:other )?cards revealed this way that weren'?t put onto the battlefield into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
+    /* Ojer Kaslem, Deepest Growth: "You may put a creature card and/or a land card from among them onto the
+       battlefield." — one of each kind at most, a choice of each (In the Presence of Ages' way) */
+    { re: /^You may put an? ([a-z]+) card and\/or an? ([a-z]+) card from among them onto the battlefield( tapped)?\.?$/i,
+      make: (m) => [m[1], m[2]].map(k => ({ op: 'takeFromLooked', n: 1, filter: k.toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
+        prompt: `You may put ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k.toLowerCase()} card onto the battlefield.` })) },
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
     { re: /^You may put an? ([-a-z ]*?)card from among them onto the battlefield( tapped)?\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
@@ -5809,6 +5821,14 @@
         if (/^that/i.test(m[1])) e.scope = 'triggerObject'; else e.targets = [targetSpec(m[1])];
         return e;
       } },
+    /* Delina, Wild Mage: "Create a tapped and attacking token that's a copy of that creature, except it's not
+       legendary and it has "At end of combat, exile this token."" — "that creature" the one chosen as the
+       target; the quoted ability the token's own words (copyHasText) */
+    { re: /^Create a (tapped and attacking )?token that'?s a copy of that creature, except (it'?s not legendary and )?it has "([^"]+)"\.?$/i,
+      make: (m) => (grantableText(m[3]) ? Object.assign({ op: 'copyPermanent', n: 1, grant: [], addText: [m[3]] },
+        m[1] ? { tapped: true, attacking: true } : {}, m[2] ? { nonLegendary: true } : {}) : null) },
+    // Delina, Wild Mage: "You may roll again." — the die just rolled, its results read afresh (rollAgain)
+    { re: /^You may roll again\.?$/i, make: () => ({ op: 'may', yesLabel: 'Roll again', noLabel: 'Stop', then: [{ op: 'rollAgain' }] }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -7662,6 +7682,10 @@
         { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
           otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
         { op: 'restToBottom', random: true }] },
+    /* Eladamri, Korvecdal: "Reveal a card from your hand or the top card of your library. If you reveal a
+       creature card this way, put it onto the battlefield." — one card, from either place (revealHandOrTop) */
+    { re: /^Reveal a card from your hand or the top card of your library\. If you reveal an? ([a-z]+) card this way, put it onto the battlefield\.( Activate only during your turn\.)?$/i,
+      make: (m) => [{ op: 'revealHandOrTop', filter: m[1].toLowerCase(), to: 'battlefield' }].concat(m[2] ? [{ op: 'activateOnly', when: 'yourTurn' }] : []) },
     /* Meren of Clan Nel Toth: "choose target creature card in your graveyard.
        If that card's mana value is less than or equal to the number of
        experience counters you have, return it to the battlefield. Otherwise,
@@ -9109,6 +9133,14 @@
            the cast asks for itself, card by card; a "may" before it would ask twice: castDiscarded) */
         if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'castFree' && !inner.effects[0].must) {
           effects.push(Object.assign(inner.effects[0], { text: s })); continue;
+        }
+        /* Ureni of the Unwritten, Web of Life and Destiny: "You may put a Dragon creature card from among
+           them onto the battlefield" — the pick is the choice, one that can be passed up; with none among
+           them, nothing is asked (mayTakeLooked) */
+        const one = inner.auto && inner.effects.length === 1 && inner.effects[0];
+        if (one && one.op === 'takeFromLooked' && !one.all && !one.otherwise) {
+          effects.push(Object.assign({ prompt: s.replace(/ from among them\b/i, '') }, one, { optional: true, mustTake: false, text: s }));
+          continue;
         }
         if (inner.auto) { effects.push({ op: 'may', then: inner.effects, text: s }); continue; }
       }
@@ -11188,8 +11220,9 @@
     if (isRoom(card)) text = text.replace(/When you unlock this door/g, 'When you unlock door ' + faceIndex).replace(/\b[Tt]his Room\b/g, 'CARDNAME');
     /* A legend calls itself by its short name: "Toski attacks each combat
        if able", "When Loran enters". That is the card talking about itself
-       just as much as its full name is. */
-    if (tl.supertypes.includes('Legendary')) {
+       just as much as its full name is. A copy made not legendary (Delina, Helm of the Host, Spark Double)
+       keeps the words of the legend it copies, and they still mean itself (wasLegendary). */
+    if (tl.supertypes.includes('Legendary') || card.wasLegendary) {
       const full = normalizePunct(U.frontName(name));
       // (Jedit Ojanen of Efrava: "Jedit Ojanen" — every word before "of": shortBeforeOf)
       const short = full.includes(',') ? full.split(',')[0].trim()
@@ -13087,6 +13120,12 @@
       let roll = null;
       const walk = (list) => { for (const e of list || []) { if (!e || roll) continue; if (e.op === 'rollDie') roll = e; walk(e.list); walk(e.then); } };
       if (ab) walk(ab.effects);
+      /* Delina, Wild Mage: "15—20 | Create one of those tokens." — the token the row before describes */
+      for (const [i, r] of tb.rows.entries()) {
+        // (the sentence ends at its period, or inside the quoted ability it ends with)
+        const prev = i && tb.rows[i - 1].text.match(/^Create an? (?:[^."]|"[^"]*")*(?:\.|$)/);
+        if (prev && /\btokens?\b/.test(prev[0]) && /^Create one of those tokens\./i.test(r.text)) r.text = prev[0] + r.text.slice('Create one of those tokens.'.length);
+      }
       const rows = tb.rows.map(r => { const pe = parseEffects(r.text); return { min: r.min, max: r.max, effects: pe.effects, auto: pe.auto }; });
       if (!roll || rows.some(r => !r.auto)) { if (ab) ab.auto = false; out._keywordManual = true; continue; }
       roll.table = rows.map(r => ({ min: r.min, max: r.max, effects: r.effects }));

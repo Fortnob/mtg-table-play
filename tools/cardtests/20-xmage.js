@@ -25185,4 +25185,288 @@ module.exports = (test) => {
     S.toMain('B');
     t.eq(S.g.powerOf(sun), 6, 'Sunfrill Imitator: still, after the turn');
   });
+
+  test('Commanders: Ureni of the Unwritten — a Dragon among the top eight, the rest to the bottom', (mk, t) => {
+    t.auto('Ureni of the Unwritten');
+    const U = mk({ library: Array(20).fill('Island') });
+    U.toMain('A');
+    // from the top: Grizzly Bears, Shivan Dragon, then six Islands; a second Dragon ninth, out of reach
+    const ninth = U.top('A', 'Thundermaw Hellkite');
+    for (let i = 0; i < 6; i++) U.top('A', 'Island');
+    const dr = U.top('A', 'Shivan Dragon');
+    const gb = U.top('A', 'Grizzly Bears');
+    const looked = U.zone('A', 'library').slice(0, 8);
+    U.bf('A', 'Ureni of the Unwritten', { etb: true }); U.resolve();
+    const q = U.asked.filter(c => c.type === 'pickCard');
+    t.eq(q.length, 1, 'Ureni: asked once which Dragon');
+    t.eq(q[0].cards.map(c => c.id).join(), dr.id, 'Ureni: only the Shivan Dragon in the top eight is offered');
+    t.zone(dr, 'battlefield', 'Ureni: Shivan Dragon onto the battlefield');
+    t.zone(ninth, 'library', 'Ureni: the ninth card, a Dragon too, stays');
+    t.eq(U.zone('A', 'library')[0], ninth, 'Ureni: the ninth card is on top now');
+    const bottom = U.zone('A', 'library').slice(-7);
+    t.ok(looked.filter(o => o !== dr).every(o => bottom.includes(o)), 'Ureni: the other seven on the bottom');
+    t.ok(bottom.includes(gb), 'Ureni: Grizzly Bears, not a Dragon, on the bottom');
+    // no Dragon among the eight: nothing is asked, all eight go to the bottom
+    const V = mk({ library: Array(20).fill('Island') });
+    V.toMain('A');
+    const top8 = V.zone('A', 'library').slice(0, 8);
+    V.bf('A', 'Ureni of the Unwritten', { etb: true }); V.resolve();
+    t.eq(V.asked.filter(c => c.type === 'pickCard' || c.type === 'confirm').length, 0, 'Ureni: no Dragon, no question');
+    t.ok(V.zone('A', 'library').slice(-8).every(o => top8.includes(o)), 'Ureni: all eight on the bottom');
+    // it attacks: the same look
+    const W = mk({ library: Array(20).fill('Island') });
+    W.toMain('A');
+    const ur = W.bf('A', 'Ureni of the Unwritten');
+    const d2 = W.top('A', 'Shivan Dragon');
+    W.answer('declareAttackers', () => [{ attackerId: ur.id, defenderId: 'B' }]);
+    W.toMain('A', 'declareBlockers'); W.resolve();
+    t.zone(d2, 'battlefield', 'Ureni: attacks, the Shivan Dragon on top goes onto the battlefield');
+    // the Dragon can be passed up
+    const X = mk({ library: Array(20).fill('Island') });
+    X.toMain('A');
+    const d3 = X.top('A', 'Shivan Dragon');
+    X.answer('pickCard', { cardIds: [] });
+    X.bf('A', 'Ureni of the Unwritten', { etb: true }); X.resolve();
+    t.zone(d3, 'library', 'Ureni: "you may" — declined, the Dragon stays in the library');
+    t.eq(X.zone('A', 'library').slice(-8).includes(d3), true, 'Ureni: declined, the Dragon goes to the bottom with the rest');
+  });
+
+  test("Commanders: Gishath, Sun's Avatar — that many revealed, every Dinosaur onto the battlefield", (mk, t) => {
+    t.auto("Gishath, Sun's Avatar");
+    const G = mk({ library: Array(20).fill('Island') });
+    G.toMain('A');
+    const gi = G.bf('A', "Gishath, Sun's Avatar");
+    // Gishath is 7/6: seven revealed. Two Dinosaurs and a Bears among them, a Dinosaur eighth
+    const eighth = G.top('A', 'Regisaur Alpha');
+    for (let i = 0; i < 4; i++) G.top('A', 'Island');
+    const gb = G.top('A', 'Grizzly Bears');
+    const d1 = G.top('A', 'Ghalta, Primal Hunger');
+    const d2 = G.top('A', 'Carnage Tyrant');
+    const shown = G.zone('A', 'library').slice(0, 7);
+    G.answer('declareAttackers', () => [{ attackerId: gi.id, defenderId: 'B' }]);
+    G.toMain('A', 'endCombat'); G.resolve();
+    t.eq(G.life('B'), 13, 'Gishath: 7 damage');
+    const q = G.asked.filter(c => c.type === 'pickCard');
+    t.eq(q.length, 1, 'Gishath: one question');
+    t.eq(q[0].cards.map(c => c.id).sort().join(), [d1.id, d2.id].sort().join(), 'Gishath: the two Dinosaurs offered, not the Bears');
+    t.ok(q[0].optional && q[0].count === 2, 'Gishath: any number, none if you like');
+    t.zone(d1, 'battlefield', 'Gishath: Ghalta onto the battlefield');
+    t.zone(d2, 'battlefield', 'Gishath: Carnage Tyrant onto the battlefield');
+    t.zone(eighth, 'library', 'Gishath: the eighth card, not revealed');
+    t.eq(G.zone('A', 'library')[0], eighth, 'Gishath: the eighth card on top now');
+    const bottom = G.zone('A', 'library').slice(-5);
+    t.ok(shown.filter(o => o !== d1 && o !== d2).every(o => bottom.includes(o)), 'Gishath: the Bears and the Islands on the bottom');
+    t.ok(bottom.includes(gb), 'Gishath: Grizzly Bears on the bottom');
+    // no Dinosaur revealed: no question
+    const H = mk({ library: Array(20).fill('Island') });
+    H.toMain('A');
+    const g2 = H.bf('A', "Gishath, Sun's Avatar");
+    H.answer('declareAttackers', () => [{ attackerId: g2.id, defenderId: 'B' }]);
+    H.toMain('A', 'endCombat'); H.resolve();
+    t.eq(H.asked.filter(c => c.type === 'pickCard' || c.type === 'confirm').length, 0, 'Gishath: no Dinosaur, nothing asked');
+  });
+
+  test('Commanders: Ojer Kaslem, Deepest Growth — a creature and a land from the revealed cards', (mk, t) => {
+    t.auto('Ojer Kaslem, Deepest Growth // Temple of Cultivation');
+    const O = mk({ library: Array(20).fill('Island') });
+    O.toMain('A');
+    const oj = O.bf('A', 'Ojer Kaslem, Deepest Growth');
+    // Ojer Kaslem is 6/5: six revealed
+    const seventh = O.top('A', 'Hill Giant');
+    O.top('A', 'Lightning Bolt');
+    const gb = O.top('A', 'Grizzly Bears');
+    const fo = O.top('A', 'Forest');
+    O.top('A', 'Island');
+    const hg = O.top('A', 'Hill Giant');
+    O.top('A', 'Island');
+    const shown = O.zone('A', 'library').slice(0, 6);
+    O.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.id === hg.id).id] }));
+    O.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.id === fo.id).id] }));
+    O.answer('declareAttackers', () => [{ attackerId: oj.id, defenderId: 'B' }]);
+    O.toMain('A', 'endCombat'); O.resolve();
+    t.eq(O.life('B'), 14, 'Ojer Kaslem: 6 damage');
+    const q = O.asked.filter(c => c.type === 'pickCard');
+    t.eq(q.length, 2, 'Ojer Kaslem: a creature, then a land');
+    t.eq(q[0].cards.map(c => c.id).sort().join(), [hg.id, gb.id].sort().join(), 'Ojer Kaslem: the two creatures offered first');
+    t.ok(q[1].cards.every(c => /Forest|Island/.test(c.name)) && q[1].cards.length === 3, 'Ojer Kaslem: then the three lands');
+    t.ok(q[0].optional && q[1].optional, 'Ojer Kaslem: both may be passed up');
+    t.zone(hg, 'battlefield', 'Ojer Kaslem: Hill Giant onto the battlefield');
+    t.zone(fo, 'battlefield', 'Ojer Kaslem: Forest onto the battlefield');
+    t.zone(gb, 'library', 'Ojer Kaslem: only one creature — the Bears stay');
+    t.eq(O.zone('A', 'library')[0], seventh, 'Ojer Kaslem: the seventh card, unrevealed, on top now');
+    const bottom = O.zone('A', 'library').slice(-4);
+    t.ok(shown.filter(o => o !== hg && o !== fo).every(o => bottom.includes(o)), 'Ojer Kaslem: the Bears, the Bolt and the Islands on the bottom');
+    // only spells revealed: nothing to ask
+    const P = mk({ library: Array(20).fill('Lightning Bolt') });
+    P.toMain('A');
+    const o2 = P.bf('A', 'Ojer Kaslem, Deepest Growth');
+    P.answer('declareAttackers', () => [{ attackerId: o2.id, defenderId: 'B' }]);
+    P.toMain('A', 'endCombat'); P.resolve();
+    t.eq(P.asked.filter(c => c.type === 'pickCard' || c.type === 'confirm').length, 0, 'Ojer Kaslem: no creature or land, nothing asked');
+    t.eq(P.bfOf('A').length, 1, 'Ojer Kaslem: nothing put onto the battlefield');
+  });
+
+  test('Commanders: Eladamri, Korvecdal — a creature revealed from hand or the top goes onto the battlefield, on your turn only', (mk, t) => {
+    t.auto('Eladamri, Korvecdal');
+    const setup = () => {
+      const E = mk({ library: Array(20).fill('Island') });
+      E.toMain('A');
+      const el = E.bf('A', 'Eladamri, Korvecdal');
+      // (tapped to pay, not for {T}: summoning sickness doesn't matter)
+      const b1 = E.bf('A', 'Grizzly Bears', { sick: true }), b2 = E.bf('A', 'Llanowar Elves', { sick: true });
+      return { E, el, b1, b2 };
+    };
+    // a creature from hand
+    { const { E, el, b1, b2 } = setup();
+      const hg = E.hand('A', 'Hill Giant'); const lb = E.hand('A', 'Lightning Bolt');
+      const top = E.zone('A', 'library')[0];
+      E.answer('pickCard', (ch) => ({ cardIds: [hg.id] }));
+      E.mana('A', 'G'); E.activate('A', el, 0, { tapIds: [b1.id, b2.id] });
+      const q = E.asked.filter(c => c.type === 'pickCard');
+      t.eq(q.length, 1, 'Eladamri: asked which card');
+      t.eq(q[0].cards.map(c => c.id).sort().join(), [hg.id, lb.id, top.id].sort().join(), 'Eladamri: the hand and the top card on offer');
+      t.zone(hg, 'battlefield', 'Eladamri: Hill Giant from hand onto the battlefield');
+      t.zone(lb, 'hand', 'Eladamri: the Bolt stays in hand');
+      t.eq(E.zone('A', 'library')[0], top, 'Eladamri: the top card stays');
+      t.ok(el.tapped && b1.tapped && b2.tapped, 'Eladamri: it and the two creatures tapped'); }
+    // the creature on top
+    { const { E, el, b1, b2 } = setup();
+      const lb = E.hand('A', 'Lightning Bolt');
+      const dr = E.top('A', 'Shivan Dragon');
+      E.answer('pickCard', { cardIds: [dr.id] });
+      E.mana('A', 'G'); E.activate('A', el, 0, { tapIds: [b1.id, b2.id] });
+      t.zone(dr, 'battlefield', 'Eladamri: Shivan Dragon from the top onto the battlefield');
+      t.zone(lb, 'hand', 'Eladamri: the Bolt stays in hand'); }
+    // a noncreature revealed though a creature was there: nothing enters
+    { const { E, el, b1, b2 } = setup();
+      const lb = E.hand('A', 'Lightning Bolt'); const hg = E.hand('A', 'Hill Giant');
+      E.answer('pickCard', { cardIds: [lb.id] });
+      E.mana('A', 'G'); E.activate('A', el, 0, { tapIds: [b1.id, b2.id] });
+      t.zone(lb, 'hand', 'Eladamri: the Bolt revealed, back in hand'); t.zone(hg, 'hand', 'Eladamri: Hill Giant not revealed, stays in hand');
+      t.eq(E.bfOf('A').length, 3, 'Eladamri: nothing entered'); }
+    // no creature card anywhere: nothing to choose, nothing asked
+    { const { E, el, b1, b2 } = setup();
+      const lb = E.hand('A', 'Lightning Bolt');
+      const top = E.zone('A', 'library')[0];
+      E.mana('A', 'G'); E.activate('A', el, 0, { tapIds: [b1.id, b2.id] });
+      t.eq(E.asked.filter(c => c.type === 'pickCard').length, 0, 'Eladamri: no creature card, no question');
+      t.zone(lb, 'hand', 'Eladamri: the Bolt stays'); t.eq(E.zone('A', 'library')[0], top, 'Eladamri: the Island stays on top');
+      t.eq(E.bfOf('A').length, 3, 'Eladamri: nothing entered'); }
+    // only one other untapped creature: can't pay
+    { const E = mk({ library: Array(20).fill('Island') });
+      E.toMain('A');
+      const el = E.bf('A', 'Eladamri, Korvecdal'); E.bf('A', 'Grizzly Bears');
+      E.hand('A', 'Hill Giant');
+      E.mana('A', 'G');
+      t.no(E.g.activateAbility('A', el.id, 0, {}), 'Eladamri: itself and one Bears are not three creatures'); }
+    // on the opponent's turn: not at all
+    { const E = mk({ library: Array(20).fill('Island') });
+      E.toMain('B');
+      const el = E.bf('A', 'Eladamri, Korvecdal');
+      const b1 = E.bf('A', 'Grizzly Bears'), b2 = E.bf('A', 'Llanowar Elves');
+      E.hand('A', 'Hill Giant');
+      E.mana('A', 'G');
+      E.g.passPriority('B');
+      t.eq(E.g.priorityPlayer.id, 'A', "Eladamri: A has priority in B's main phase");
+      t.no(E.g.activateAbility('A', el.id, 0, { tapIds: [b1.id, b2.id] }), "Eladamri: not during an opponent's turn");
+      t.ok(/turn/i.test(E.g.lastError || ''), "Eladamri: refused for the turn it is (" + E.g.lastError + ')');
+      t.ok(!el.tapped && !b1.tapped, 'Eladamri: nothing paid'); }
+  });
+
+  test('Commanders: Delina, Wild Mage — a d20: a token copy attacking, again on 15 or more', (mk, t) => {
+    t.auto('Delina, Wild Mage');
+    // the d20 says what the test wants, in turn
+    const rigged = (D, rolls) => { const real = D.g._rollDie.bind(D.g); D.g._rollDie = (p, s, o) => (rolls.length ? rolls.shift() : real(p, s, o)); };
+    const setup = (rolls) => {
+      const D = mk({ library: Array(20).fill('Mountain') });
+      D.toMain('A');
+      const de = D.bf('A', 'Delina, Wild Mage');
+      const is = D.bf('A', 'Isamaru, Hound of Konda');
+      rigged(D, rolls);
+      D.answer('pickTarget', { targets: [{ kind: 'object', id: is.id }] });
+      D.answer('declareAttackers', () => [{ attackerId: de.id, defenderId: 'B' }]);
+      return { D, de, is };
+    };
+    const copies = (D) => D.bfOf('A').filter(o => o.isToken && o.name === 'Isamaru, Hound of Konda');
+    // 17, then (rolling again) 3: two tokens, and no third roll offered
+    { const { D, is } = setup([17, 3]);
+      D.toMain('A', 'declareBlockers');
+      const tk = copies(D);
+      t.eq(tk.length, 2, 'Delina: 17 then 3, two copies of Isamaru');
+      t.eq(D.asked.filter(c => c.type === 'confirm').length, 1, 'Delina: asked to roll again once, after the 17');
+      t.zone(is, 'battlefield', "Delina: the copies aren't legendary, Isamaru stays");
+      t.ok(tk.every(o => !/Legendary/.test(o.card.type_line)), 'Delina: the copies are not legendary');
+      t.ok(tk.every(o => o.tapped && o.attacking === 'B'), 'Delina: the copies are tapped and attacking B');
+      t.ok(!is.attacking, 'Delina: Isamaru itself is not attacking');
+      D.toMain('A', 'end');
+      t.eq(D.life('B'), 20 - 3 - 2 - 2, 'Delina: Delina and the two copies hit B');
+      t.eq(copies(D).length, 0, 'Delina: the copies exiled at end of combat');
+      t.zone(is, 'battlefield', 'Delina: Isamaru itself stays'); }
+    // 9: one token, nothing more asked
+    { const { D } = setup([9]);
+      D.toMain('A', 'declareBlockers');
+      t.eq(copies(D).length, 1, 'Delina: 9, one copy');
+      t.eq(D.asked.filter(c => c.type === 'confirm').length, 0, 'Delina: 9, no roll again offered'); }
+    // 20, declined: one token, no more rolls
+    { const { D } = setup([20, 20, 20]);
+      D.answer('confirm', { yes: false });
+      D.toMain('A', 'declareBlockers');
+      t.eq(copies(D).length, 1, 'Delina: 20 and no second roll, one copy'); }
+    // 15, 20, 16, then 1: four tokens
+    { const { D } = setup([15, 20, 16, 1]);
+      D.toMain('A', 'declareBlockers');
+      t.eq(copies(D).length, 4, 'Delina: 15, 20, 16, 1 — four copies');
+      t.eq(D.asked.filter(c => c.type === 'confirm').length, 3, 'Delina: asked three times'); }
+    // a token copy of a token: the "exile this token" ability is part of what is copied
+    { const { D } = setup([4]);
+      D.toMain('A', 'declareBlockers');
+      const tk = copies(D)[0];
+      t.ok(/At end of combat, exile this/.test(tk.card.oracle_text), 'Delina: the ability is in the copy\'s own words');
+      D.g._runEffect({ op: 'copyPermanent', n: 1, _forced: tk, grant: [] }, { controller: 'A', obj: tk });
+      t.eq(copies(D).length, 2, 'Delina: a copy of the token');
+      D.toMain('A', 'end');
+      t.eq(copies(D).length, 0, 'Delina: the copy of the copy goes at end of combat too'); }
+    // a legend with two faces: the copy isn't legendary, still calls itself by its short name, keeps both faces
+    { const D = mk({ library: Array(20).fill('Forest') });
+      D.toMain('A');
+      const de = D.bf('A', 'Delina, Wild Mage');
+      const oj = D.bf('A', 'Ojer Kaslem, Deepest Growth');
+      rigged(D, [6]);
+      D.answer('pickTarget', { targets: [{ kind: 'object', id: oj.id }] });
+      D.answer('declareAttackers', () => [{ attackerId: de.id, defenderId: 'B' }]);
+      D.toMain('A', 'declareBlockers');
+      const tk = D.bfOf('A').find(o => o.isToken);
+      t.ok(tk && tk.attacking === 'B' && !/Legendary/.test(tk.card.card_faces[0].type_line), 'Delina: a copy of Ojer Kaslem, not legendary, attacking');
+      t.eq((tk.card.card_faces || []).length, 2, 'Delina: the copy keeps both faces');
+      t.zone(oj, 'battlefield', 'Delina: the real Ojer Kaslem stays');
+      const ab = tk.analysis().abilities.find(x => /deals combat damage to a player/.test(x.text));
+      t.ok(ab && ab.auto && ab.kind === 'triggered', 'Delina: "Whenever Ojer Kaslem deals combat damage" is still the copy\'s own trigger');
+      const lands0 = D.bfOf('A').filter(o => (o.analysis() || {}).isLand).length;
+      D.toMain('A', 'end');
+      t.eq(D.life('B'), 20 - 3 - 6, 'Delina: Delina and the 6/5 copy hit B');
+      t.eq(D.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, lands0 + 1, "Delina: the copy's trigger put a Forest onto the battlefield");
+      t.zone(tk, 'exile', 'Delina: the copy exiled at end of combat'); }
+  });
+
+  test("Garruk's Harbinger — that many looked at, to a player or a planeswalker", (mk, t) => {
+    t.auto("Garruk's Harbinger");
+    for (const atPw of [false, true]) {
+      const H = mk({ library: Array(20).fill('Island') });
+      H.toMain('A');
+      const hb = H.bf('A', "Garruk's Harbinger");
+      const pw = atPw ? H.bf('B', 'Garruk Wildspeaker', { counters: { loyalty: 9 } }) : null;
+      // 4 power: four looked at. A Garruk third, a Bears fifth, out of reach
+      const bear = H.top('A', 'Grizzly Bears');
+      H.top('A', 'Island');
+      const gr = H.top('A', 'Garruk, Primal Hunter');
+      H.top('A', 'Island'); H.top('A', 'Island');
+      H.answer('declareAttackers', () => [{ attackerId: hb.id, defenderId: pw ? pw.id : 'B' }]);
+      H.toMain('A', 'end');
+      const q = H.asked.filter(c => c.type === 'pickCard');
+      const at = atPw ? 'a planeswalker' : 'a player';
+      t.eq(q.length && q[0].cards.map(c => c.id).join(), gr.id, "Garruk's Harbinger: damage to " + at + ', only the Garruk among the four offered');
+      t.zone(gr, 'hand', "Garruk's Harbinger: Garruk, Primal Hunter into hand");
+      t.zone(bear, 'library', "Garruk's Harbinger: the fifth card, not looked at");
+    }
+  });
 };

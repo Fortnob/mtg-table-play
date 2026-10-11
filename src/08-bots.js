@@ -2596,6 +2596,12 @@
       if (e && (e.op === 'sacrificeChoice' || e.op === 'handToTop' || e.op === 'returnOwn')) worst = true;
       const mine = cards.length && cards.every(o => o.owner === this.pid || o.controller === this.pid);
       if (ch.purpose === 'discardFromHand' || ch.purpose === 'exileFromHand') worst = false;
+      // Eladamri, Korvecdal: the best creature on offer, which then goes onto the battlefield free (revealHandOrTop)
+      if (ch.purpose === 'revealHandOrTop') {
+        const fits = cards.filter(o => g._cardFitsWords(o, (e && e.filter) || 'creature'));
+        const best = fits.sort((x, y) => this.rating(y) + ((y.analysis() || {}).mv || 0) / 2 - this.rating(x) - ((x.analysis() || {}).mv || 0) / 2)[0];
+        return [(best || cards[0]).id];
+      }
       if (ch.purpose === 'landFromHand') {
         const need = this.colorNeeds();
         return cards.sort((x, y) => this.landValue(y, need) - this.landValue(x, need)).slice(0, 1).map(o => o.id);

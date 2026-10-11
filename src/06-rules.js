@@ -13187,6 +13187,7 @@
       /* "except it's an artifact in addition", "except it isn't legendary" */
       if ((e.addTypes || []).length || e.nonLegendary) {
         let line = String(card.type_line || '');
+        const legend = e.nonLegendary && /\bLegendary\b/.test(line);
         if (e.nonLegendary) line = line.replace(/\bLegendary\s+/g, '');
         for (const t of (e.addTypes || [])) {
           if (new RegExp('\\b' + t + '\\b').test(line)) continue;
@@ -13194,7 +13195,8 @@
           if (/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle)$/.test(t)) line = t + ' ' + line;
           else line = /—/.test(line) ? line + ' ' + t : line + ' — ' + t;
         }
-        card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+        // (Spark Double copying a legend: its short name in its words is still itself — wasLegendary)
+        card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null }, legend ? { wasLegendary: true } : {});
       }
       /* "except it has flying", "except it has 'When this creature
          becomes the target of a spell or ability, sacrifice it'": the
@@ -17209,9 +17211,31 @@
           const cnt = nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
           let card = source.card;
+          let faceUp = source.face || 0;
+          if ((card.card_faces || []).length > 1) {
+            const legend0 = /\bLegendary\b/.test(String(card.type_line || ''));
+            /* Delina copying Ojer Kaslem: a double-faced copy keeps both its faces, so it can still transform;
+               "not legendary" and "it has '…'" hold on either face (copyFaces) */
+            if ((e.nonLegendary && legend0) || (e.addText || []).length) {
+              const fix = (f) => Object.assign({}, f, e.nonLegendary ? { type_line: String(f.type_line || '').replace(/\bLegendary\s+/g, '') } : {},
+                (e.addText || []).length ? { oracle_text: (String(f.oracle_text || '') + '\n' + e.addText.join('\n')).trim() } : {});
+              card = Object.assign({}, card, { id: card.id + ':faces:' + U.hash(JSON.stringify([!!e.nonLegendary, e.addText || []])),
+                type_line: e.nonLegendary ? String(card.type_line || '').replace(/\bLegendary\s+/g, '') : card.type_line,
+                card_faces: card.card_faces.map(fix) }, e.nonLegendary && legend0 ? { wasLegendary: true } : {});
+            }
+            /* any other change (a size, a colour, a type): the face up is what is copied (CR 707.8), read as a
+               card of its own, that face's words and types, not the two joined (copyFaceUp) */
+            const other = e.setPt || e.setColor || e.setType || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
+            if (other) {
+              const f = card.card_faces[faceUp] || card.card_faces[0];
+              card = Object.assign({}, card, f, { id: card.id + ':face' + faceUp, card_faces: null, layout: 'normal' });
+              faceUp = 0;
+            }
+          }
           if (e.nonLegendary && /\bLegendary\b/.test(String(card.type_line || ''))) {
             const line = String(card.type_line).replace(/\bLegendary\s+/g, '');
-            card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+            // (Delina copying Ojer Kaslem: "Whenever Ojer Kaslem deals combat damage" is still the copy talking about itself — wasLegendary)
+            card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null, wasLegendary: true });
           }
           // The Scarab God: "except it's a 4/4 black Zombie" — that size, that colour, and that creature type instead of its own
           if (e.setPt || e.setColor || e.setType) {
@@ -17243,6 +17267,12 @@
             const line = t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
+          /* Delina, Wild Mage: "it has 'At end of combat, exile this token.'" — the copy's own words, so a
+             copy of the token has them too (CR 707.9b) */
+          if ((e.addText || []).length && !(card.card_faces || []).length) {
+            const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
+            card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+          }
           const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
           for (let i = 0; i < made; i++) {
             const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
@@ -17251,10 +17281,16 @@
             copy.zone = 'battlefield';
             copy.entered = this.turn;
             copy.summoningSick = true;
-            copy.face = source.face || 0;
+            copy.face = faceUp;
             if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
             // Skyclave Relic: "two tapped tokens"
             if (e.tapped) copy.tapped = true;
+            /* Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it is
+               attacking (Ilharg's way), during combat; never declared, so nothing "whenever attacks" sees it */
+            if (e.attacking && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+              const def = (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
+              if (def) { copy.attacking = def; this.combat.attackers.push(copy.id); }
+            }
             copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
             this.battlefield.push(copy);
             this.bumpBoard();
@@ -17583,6 +17619,27 @@
           this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
           if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) top.tapped = true; }
           else this._drawCards(me, 1);
+          break;
+        }
+        /* Eladamri, Korvecdal: "Reveal a card from your hand or the top card of your library. If you reveal
+           a creature card this way, put it onto the battlefield." — one card, either place; with no creature
+           card among them nothing can come of the choice, and none is asked (revealHandOrTop) */
+        case 'revealHandOrTop': {
+          const z = this.zones[ctx.controller];
+          const top = z.library[0] || null;
+          const pool = z.hand.concat(top ? [top] : []);
+          if (!pool.length) break;
+          const fits = (o) => this._cardFitsWords(o, e.filter || 'creature');
+          let pick = pool.length === 1 || !pool.some(fits) ? (top || pool[0]) : null;
+          if (!pick) {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, purpose: 'revealHandOrTop', count: 1,
+              cards: pool.map(o => ({ id: o.id, name: o === top ? `${o.name} (top of your library)` : o.name, card: o.card })),
+              prompt: `Reveal a card from your hand or the top card of your library. If it's ${/^[aeiou]/i.test(e.filter || '') ? 'an' : 'a'} ${e.filter || 'creature'} card, it goes onto the battlefield.` }, 'rht');
+            if (got === SUSPEND) return SUSPEND;
+            pick = ((got || []).map(id => this.obj(id)).find(o => o && pool.includes(o))) || pool.find(fits);
+          }
+          this.logEvent('reveal', `${me.name} reveals ${pick.name}${pick === top ? ' from the top of their library' : ' from their hand'}.`);
+          if (fits(pick)) this.moveObject(pick, e.to || 'battlefield', { controller: ctx.controller });
           break;
         }
         // Witch's Oven: one token, or two for a big enough sacrifice
@@ -18667,7 +18724,9 @@
         case 'lookAt': {
           const cnt = n(e.n);
           this._looked = this.zones[ctx.controller].library.slice(0, cnt).map(o => o.id);
-          this.logEvent('look', `${me.name} looks at the top ${cnt}.`);
+          // Gishath, Sun's Avatar: "reveal that many cards" — what everybody sees
+          if (e.reveal) this.logEvent('reveal', `${me.name} reveals ${this._looked.map(id => this.obj(id).name).join(', ') || 'nothing'}.`);
+          else this.logEvent('look', `${me.name} looks at the top ${cnt}.`);
           break;
         }
 
@@ -21788,7 +21847,10 @@
           this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
           // the results printed under the roll
           const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
-          if (row && (row.effects || []).length) this._spliceNext(row.effects);
+          /* Delina, Wild Mage: "You may roll again." — the same die and the same results, read afresh (rollAgain) */
+          const again = (list) => (list || []).map(x => (!x ? x : x.op === 'rollAgain' ? Object.assign({}, e, { text: x.text || e.text })
+            : x.then ? Object.assign({}, x, { then: again(x.then) }) : x));
+          if (row && (row.effects || []).length) this._spliceNext(again(row.effects));
           break;
         }
         // "Flip three coins", "Flip a coin until you lose a flip": the wins counted
