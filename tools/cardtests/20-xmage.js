@@ -24042,4 +24042,18 @@ module.exports = (test) => {
     D.mana('A', '1G'); D.cast('A', D.hand('A', 'Grizzly Bears')); D.resolve();
     t.eq(D.bfOf('A').reduce((k, o) => k + (Number(o.counters['+1/+1']) || 0), 0), 1, 'The First Doctor: Grizzly Bears has no cascade, no counter anywhere');
   });
+
+  test('Commanders: Momir Vig, Simic Visionary — a creature on top goes to hand', (mk, t) => {
+    t.auto('Momir Vig, Simic Visionary');
+    const M = mk({ library: Array(10).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'Momir Vig, Simic Visionary');
+    const lib = M.zone('A', 'library');
+    const top = M.put('A', 'Hill Giant', 'library'); lib.splice(lib.indexOf(top), 1); lib.unshift(top);
+    M.mana('A', '1U'); M.cast('A', M.hand('A', 'Coral Merfolk')); M.resolve();
+    t.zone(top, 'hand', 'Momir Vig: a blue creature spell, the Hill Giant on top goes to hand');
+    const top2 = M.zone('A', 'library')[0];
+    M.mana('A', '1U'); M.cast('A', M.hand('A', 'Coral Merfolk')); M.resolve();
+    t.zone(top2, 'library', 'Momir Vig: an Island on top stays');
+  });
 };

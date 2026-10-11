@@ -8028,8 +8028,9 @@
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: 1, filter: m[2].trim().toLowerCase(), to: 'hand', rest: 'graveyard' }] },
     /* "Look at the top card of your library. If it's a creature card, you
        may reveal it and put it into your hand." */
+    // (Momir Vig, Simic Visionary: "put that card into your hand" — revealThatCard)
     // (Llanowar Empath: "Scry 2, then reveal the top card …"; Garruk, Savage Herald: "Otherwise, put it on the bottom of your library.")
-    { re: /^(?:Scry (\d+), then )?(?:look at|reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put it (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|(?:you may )?put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
+    { re: /^(?:Scry (\d+), then )?(?:look at|reveal) the top card of your library\. If it'?s an? ([a-z ]+?) card, (you may )?(?:reveal it and )?put (?:it|that card) (into your hand|onto the battlefield)( tapped)?\.(?: Otherwise, (draw a card|(?:you may )?put (?:it|that card) (?:into your graveyard|on the bottom of your library))\.)?$/i,
       make: (m) => {
         const otherwise = !m[6] ? null : /^draw/i.test(m[6]) ? [{ op: 'draw', n: 1, who: 'you' }]
           : [Object.assign({ op: 'mayMoveLooked', to: /graveyard/i.test(m[6]) ? 'graveyard' : 'bottom' }, /^you may/i.test(m[6]) ? {} : { must: true })];
