@@ -5704,7 +5704,7 @@
       // Approach of the Second Sun: the names this player has cast this game, countered or not
       if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (its mana value as it was cast, X included: Rhino, Barreling Brute — castMvNoted)
-      o._castMv = (((o.analysis() || {}).mv) || 0) + this._xMv(item);
+      o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -10153,6 +10153,8 @@
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
+        // Amalia Benavides Aguirre: "if its power is exactly 20" (selfPowerIs)
+        case 'selfPowerIs': return !!src && this.powerOf(src) === cond.n;
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
         // Stature, Size Shifter: "if her power is 1 or less" (unblockableSmall)
         case 'selfPowerMax': return !!src && this.powerOf(src) <= (cond.n || 0);
@@ -12907,6 +12909,8 @@
           if (v.ofTrigger === 'toughness') return gone ? o._lastToughness : this.toughnessOf(o);
           // Jaws of Defeat: "the difference between that creature's power and its toughness"
           if (v.ofTrigger === 'ptDiff') return Math.abs((gone ? o._lastPower : this.powerOf(o)) - (gone ? o._lastToughness : this.toughnessOf(o)));
+          // Lozhan, Dragons' Legacy: "that spell's mana value" while it is a spell — Stomp's 2, not Bonecrusher Giant's 3, X included (spellMvOnStack)
+          if (o.zone === 'stack' && o._castMv != null) return o._castMv;
           return (o.card && o.card.cmc) || 0;
         }
         if (v && typeof v === 'object' && v.ofTarget) {
@@ -21990,7 +21994,7 @@
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       // (its mana value as it was cast, X included — castMvNoted)
-      o._castMv = (((o.analysis() || {}).mv) || 0) + this._xMv(item);
+      o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
@@ -23530,6 +23534,9 @@
         if (w === 'token' || w === 'tokens') return !!o.isToken;
         // Flamekin Herald: "Commander spells you cast"
         if (w === 'commander' || w === 'commanders') return !!o.isCommander;
+        /* Lozhan, Dragons' Legacy: "an Adventure spell" is one cast as an Adventure, not the creature
+           half of the same card; elsewhere, a card that has an Adventure (adventureSpell) */
+        if (w === 'adventure' || w === 'adventures') return o.zone === 'stack' ? !!this._adventure(o) && (o.face || 0) === 1 : /\badventure\b/.test(line);
         // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
         if (w === 'attacking') return !!o.attacking;
         // Vengeful Ancestor: "a goaded creature"
@@ -23805,6 +23812,11 @@
         const x = t.kind === 'object' && this.obj(t.id);
         return x && x.zone === 'battlefield' && x.controller === controllerId && (spec.targetsYour !== 'creature' || (x.analysis() || {}).isCreature);
       });
+    }
+    /* Stomp, cast as an Adventure, has the mana value of {1}{R}, not Bonecrusher Giant's (CR 715.3b) (adventureMv) */
+    _faceMv(o) {
+      if (this._adventure(o) && (o.face || 0) === 1) return MANA.cmc(o.card.card_faces[1].mana_cost || '');
+      return ((o.analysis() || {}).mv) || 0;
     }
     /* What a spell's X adds to its mana value on the stack, X as chosen (CR 202.3e) */
     _xMv(item) {

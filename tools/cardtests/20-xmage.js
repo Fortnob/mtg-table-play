@@ -22917,4 +22917,51 @@ module.exports = (test) => {
     G.g.dealDamageToObject(vic, 5, heir, false); G.g.checkStateBasedActions(); G.resolve();
     t.eq(Number(heir.counters['+1/+1']) || 0, 4, "Galuf's Final Act: the 4/3 Giant dies, four counters on the Bears");
   });
+
+  test("Commanders: Lozhan, Dragons' Legacy, Vincent, Vengeful Atoner, Amalia Benavides Aguirre", (mk, t) => {
+    for (const n of ["Lozhan, Dragons' Legacy", 'Vincent, Vengeful Atoner', 'Amalia Benavides Aguirre']) t.auto(n);
+    // Lozhan: an Adventure spell (Stomp, mana value 2) — 2 damage; the Giant itself is neither, nothing
+    const L = mk({ library: Array(10).fill('Mountain') });
+    L.toMain('A');
+    L.bf('A', "Lozhan, Dragons' Legacy");
+    const giant = L.hand('A', 'Bonecrusher Giant');
+    L.mana('A', '1R');
+    L.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    t.ok(L.g.castSpell('A', giant.id, { auto: true, face: 1, targets: [{ kind: 'player', id: 'B' }] }), L.g.lastError);
+    L.resolve();
+    t.eq(L.life('B'), 16, "Lozhan: Stomp's 2, and Lozhan's 2 for an Adventure of mana value 2");
+    L.mana('A', '2R');
+    t.ok(L.g.castSpell('A', giant.id, { auto: true }), L.g.lastError);
+    L.resolve();
+    t.eq(L.life('B'), 16, 'Lozhan: the Giant from its adventure is no Adventure spell, nothing');
+    // ... and a commander is no target for it
+    const cmd = L.bf('B', 'Grizzly Bears'); cmd.isCommander = true;
+    const plain = L.bf('B', 'Grizzly Bears');
+    const spec = L.MTG.oracle.analyze(L.bfOf('A').find(o => /^Lozhan/.test(o.name)).card).abilities.find(a => a.event === 'youCastSpell').effects[0].targets[0];
+    const legal = L.g._legalTargetsFor(spec, 'A').map(x => x.id);
+    t.ok(!legal.includes(cmd.id) && legal.includes(plain.id), 'Lozhan: not the commander, the other Bears');
+    // Vincent: combat damage to one opponent goes to each other one too, once his power is 7 or greater
+    const V = mk({ players: ['A', 'B', 'C'], library: Array(10).fill('Mountain') });
+    V.toMain('A');
+    const vin = V.bf('A', 'Vincent, Vengeful Atoner');
+    V.g._fire('combatDamageToPlayer', 'A', { source: vin, amount: 3, player: 'B' }); V.resolve();
+    t.eq(V.life('C'), 20, 'Vincent: power below 7, nothing');
+    vin.counters['+1/+1'] = 7; V.g.bumpBoard();
+    V.g._fire('combatDamageToPlayer', 'A', { source: vin, amount: 3, player: 'B' }); V.resolve();
+    t.eq(V.life('C'), 17, 'Vincent: power 7 or more, C is dealt the 3 as well');
+    // Amalia: gaining life, she explores; at exactly 20 power every other creature is destroyed
+    const A = mk({ library: Array(10).fill('Grizzly Bears') });
+    A.toMain('A');
+    const am = A.bf('A', 'Amalia Benavides Aguirre'), foe = A.bf('B', 'Grizzly Bears');
+    am.counters['+1/+1'] = 19 - A.g.powerOf(am); A.g.bumpBoard();
+    A.g.changeLife('A', 1); A.resolve();
+    t.eq(A.g.powerOf(am), 20, 'Amalia: explored a nonland card, 20 power');
+    t.zone(foe, 'graveyard', 'Amalia: exactly 20, the Bears are destroyed');
+    const A2 = mk({ library: Array(10).fill('Forest') });
+    A2.toMain('A');
+    const am2 = A2.bf('A', 'Amalia Benavides Aguirre'), foe2 = A2.bf('B', 'Grizzly Bears');
+    am2.counters['+1/+1'] = 19 - A2.g.powerOf(am2); A2.g.bumpBoard();
+    A2.g.changeLife('A', 1); A2.resolve();
+    t.zone(foe2, 'battlefield', 'Amalia: a land, 19 power, nothing destroyed');
+  });
 };

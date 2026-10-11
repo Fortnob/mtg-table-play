@@ -2798,7 +2798,14 @@
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value less than or equal to (?:that damage|the damage dealt) without paying its mana cost\.?$/,
       make: () => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount' }) },
     /* "Draw a card if you've gained 3 or more life this turn." */
-    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?|You gain \w+ life|Scry \w+) if (.+?)\.?$/,
+    // Lozhan, Dragons' Legacy: "deals damage equal to that spell's mana value to any target that isn't a commander" (notCommanderTarget)
+    { re: /^(?:CARDNAME|It|This creature) deals damage equal to that spell'?s mana value to any target that isn'?t a commander\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTrigger: 'mv' }, targets: [Object.assign(targetSpec('any target'), { notCommander: true })] }) },
+    // Amalia Benavides Aguirre: "Then destroy all other creatures if its power is exactly 20." (selfPowerIs)
+    { re: /^(?:Then )?destroy all other creatures if its power is exactly (\d+)\.?$/i,
+      make: (m) => { const inner = parseEffectSentence('Destroy all other creatures.', 1); return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] }, then: [inner] } : null; } },
+    // (Vincent, Vengeful Atoner: "it deals that much damage to each other opponent if Vincent's power is 7 or greater" — eachOtherIf)
+    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent) if (.+?)\.?$/,
       make: (m) => {
         const cond = condOf(m[2]);
         const inner = cond && parseEffectSentence(m[1] + '.', 1);
@@ -6723,6 +6730,8 @@
     if (spec.token && !obj.isToken) return false;
     if (spec.faceDown && !obj.faceDown) return false;
     if (spec.commander && !obj.isCommander) return false;
+    // Lozhan, Dragons' Legacy: "any target that isn't a commander" (notCommanderTarget)
+    if (spec.notCommander && obj.isCommander) return false;
     if (spec.name && obj.name !== spec.name) return false;
     // "target permanent you own"
     if (spec.owner === 'you' && obj.owner !== me) return false;
@@ -9782,6 +9791,8 @@
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
+    // (Amalia Benavides Aguirre: "its power is exactly 20" — selfPowerIs)
+    [/^(?:CARDNAME|this creature)'?s power is exactly (\d+)$/i, (m) => ({ kind: 'selfPowerIs', n: +m[1] })],
     // Geistwave: "If you controlled that permanent"
     [/^you controlled that (?:permanent|creature|artifact|enchantment|land)$/i, () => ({ kind: 'lastWasYours' })],
     // Sulam Djinn: "as long as green is the most common color among all permanents or is tied for most common"

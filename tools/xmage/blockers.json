@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10381,
+  "needed": 10378,
   "gainedCards": 949,
-  "linesNeeded": 11018,
+  "linesNeeded": 11015,
   "linesGained": 1110,
   "gained": {
    "all": 949,
@@ -278,25 +278,6 @@
    ]
   },
   {
-   "what": "(constructor: call on callResult .add)",
-   "score": 28,
-   "lines": 28,
-   "cards": [
-    "Take the Bait",
-    "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
-    "Press the Enemy",
-    "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter",
-    "Self-Destruct",
-    "You Look Upon the Tarrasque",
-    "Jhoira's Timebug",
-    "Nature's Revolt",
-    "Timecrafting",
-    "Invasion of Regatha // Disciples of the Inferno"
-   ]
-  },
-  {
    "what": "CaseAbility",
    "score": 27,
    "lines": 18,
@@ -313,6 +294,25 @@
     "Case of the Gorgon's Kiss",
     "Case of the Burning Masks",
     "Case of the Lost Witness"
+   ]
+  },
+  {
+   "what": "(constructor: call on callResult .add)",
+   "score": 27,
+   "lines": 27,
+   "cards": [
+    "Take the Bait",
+    "Screaming Nemesis",
+    "Press the Enemy",
+    "Nicol Bolas, God-Pharaoh",
+    "Dune Chanter",
+    "Self-Destruct",
+    "You Look Upon the Tarrasque",
+    "Jhoira's Timebug",
+    "Nature's Revolt",
+    "Timecrafting",
+    "Invasion of Regatha // Disciples of the Inferno",
+    "Shivan Sand-Mage"
    ]
   },
   {
@@ -5535,16 +5535,6 @@
    ]
   },
   {
-   "what": "ExploreSourceEffect",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Amalia Benavides Aguirre",
-    "Jadelight Spelunker",
-    "Deepfathom Echo"
-   ]
-  },
-  {
    "what": "ControlTargetPlayerNextTurnEffect",
    "score": 3,
    "lines": 3,
@@ -6441,6 +6431,16 @@
     "Warpath",
     "Tactical Advantage"
    ]
+  },
+  {
+   "what": "BlockingOrBlockedBySourcePredicate.BLOCKED_BY",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Guardian of the Gateless",
+    "Serene Master",
+    "Whip Vine"
+   ]
   }
  ],
  "sole": [
@@ -6589,15 +6589,15 @@
   },
   {
    "what": "(constructor: call on callResult .add)",
-   "score": 25,
-   "cards": 25,
+   "score": 24,
+   "cards": 24,
    "names": [
     "Take the Bait",
     "Screaming Nemesis",
-    "Lozhan, Dragons' Legacy",
     "Press the Enemy",
     "Nicol Bolas, God-Pharaoh",
-    "Dune Chanter"
+    "Dune Chanter",
+    "Self-Destruct"
    ]
   },
   {
