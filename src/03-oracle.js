@@ -1746,6 +1746,9 @@
         if (!e || (e.op !== 'createToken' && e.op !== 'createNamedToken') || e.who) return null;
         return Object.assign({}, e, { who: 'opponents' });
       } },
+    // Astarion, the Decadent: "Target opponent loses life equal to the amount of life they lost this turn." (targetPlayerStat)
+    { re: /^Target (opponent|player) loses life equal to the amount of life they(?:'ve)? lost this turn\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'target', n: { targetPlayerStat: 'lifeLostThisTurn', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Villainous Wrath: "Target opponent loses life equal to the number of creatures they control."
     { re: /^Target (opponent|player) loses life equal to the number of ([a-z]+?)s they control\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'target', n: { scope: { who: 'target', what: m[2].toLowerCase() }, mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },

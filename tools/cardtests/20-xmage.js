@@ -23179,4 +23179,25 @@ module.exports = (test) => {
     kill(V, V.bf('B', 'Grizzly Bears'));
     t.eq(Number(vg.counters['+1/+1']) || 0, 1, "Vogar: on B's turn, nothing");
   });
+
+  test('Commanders: Astarion, the Decadent — Feed and Friends', (mk, t) => {
+    t.auto('Astarion, the Decadent');
+    // Feed: B lost 4 this turn, B loses 4 more
+    const F = mk({ library: Array(10).fill('Plains') });
+    F.toMain('A');
+    F.bf('A', 'Astarion, the Decadent');
+    F.g.changeLife('B', -4, 'test');
+    F.answer('mode', { modes: [0] });
+    F.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    F.toMain('A', 'end'); F.resolve();
+    t.eq(F.life('B'), 12, 'Astarion, Feed: B lost 4 this turn, then 4 more');
+    // Friends: A gained 3 this turn, A gains 3 more
+    const G = mk({ library: Array(10).fill('Plains') });
+    G.toMain('A');
+    G.bf('A', 'Astarion, the Decadent');
+    G.g.changeLife('A', 3);
+    G.answer('mode', { modes: [1] });
+    G.toMain('A', 'end'); G.resolve();
+    t.eq(G.life('A'), 26, 'Astarion, Friends: A gained 3 this turn, then 3 more');
+  });
 };

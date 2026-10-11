@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10364,
+  "needed": 10363,
   "gainedCards": 949,
-  "linesNeeded": 10999,
+  "linesNeeded": 10998,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -4433,17 +4433,6 @@
    ]
   },
   {
-   "what": "LoseLifeTargetEffect amount",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Astarion, the Decadent",
-    "Emissary of Despair",
-    "Final Punishment",
-    "Burden of Greed"
-   ]
-  },
-  {
    "what": "a target no effect uses",
    "score": 4,
    "lines": 4,
@@ -6435,6 +6424,16 @@
     "Clara Oswald",
     "Faceless One",
     "The Prismatic Piper"
+   ]
+  },
+  {
+   "what": "not and",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Surgical Extraction",
+    "Kotose, the Silent Spider",
+    "Extirpate"
    ]
   }
  ],
@@ -9217,17 +9216,6 @@
    ]
   },
   {
-   "what": "LoseLifeTargetEffect amount",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Astarion, the Decadent",
-    "Emissary of Despair",
-    "Final Punishment",
-    "Burden of Greed"
-   ]
-  },
-  {
    "what": "PlayFromTopOfLibraryEffect",
    "score": 4,
    "cards": 4,
@@ -10064,6 +10052,16 @@
     "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
     "Jecht, Reluctant Guardian // Braska's Final Aeon",
     "Crystal Fragments // Summon: Alexander"
+   ]
+  },
+  {
+   "what": "SetCardColorAttachedEffect",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Eye of Nidhogg",
+    "Sinister Strength",
+    "Grave Servitude"
    ]
   }
  ]
