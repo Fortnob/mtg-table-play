@@ -6403,6 +6403,8 @@
     // (Death's Presence: "the power of the creature that died")
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
+    if (/^that Saga'?s mana value$/i.test(p)) return done({ ofTrigger: 'mv' });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
     if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
@@ -10072,6 +10074,8 @@
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
+    { re: /^Whenever the final chapter ability of a Saga you control resolves,? /i, event: 'finalChapterResolved' },
     // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
     { re: /^Whenever (an? (?:land|creature|artifact|enchantment|permanent|nontoken creature)(?: you control)?) enters from exile,? /i, event: 'permEnters',
       filt: (m) => subjectFilter(m[1]), extra: { fromExileEnter: true } },

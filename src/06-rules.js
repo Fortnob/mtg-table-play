@@ -2121,6 +2121,8 @@
     }
 
     _afterResolve(item) {
+      // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
+      if (item.finalChapter && item.obj) this._fire('finalChapterResolved', item.controller, { object: item.obj, objController: item.controller });
       // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
       if (this._endTheTurn === this.turn) { this._endTheTurnNow(item); return; }
       // spells that are not permanents go to the graveyard
@@ -11936,6 +11938,8 @@
       const after = before + Number(evL.n);
       o.counters.lore = after;
       this.bumpBoard();
+      // (Narci, Fable Singer: the final chapter's ability is known as such when it resolves — finalChapterResolved)
+      const lastCh = Math.max(0, ...a.abilities.filter(x => x.kind === 'chapter').flatMap(x => x.chapters || []));
       for (const ab of a.abilities) {
         if (ab.kind !== 'chapter') continue;
         for (const c of (ab.chapters || [])) {
@@ -11944,6 +11948,7 @@
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
+            finalChapter: c === lastCh || undefined,   // (finalChapterResolved)
           });
         }
       }

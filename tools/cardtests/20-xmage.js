@@ -23500,4 +23500,23 @@ module.exports = (test) => {
     const opts = K.g._manaAmong({ from: 'selfColors' }, hu, 'A');
     t.eq(JSON.stringify(opts), JSON.stringify(['W']), "Katilda: only the Vanguard's own colour");
   });
+
+  test('Commanders: Narci, Fable Singer; Tom Bombadil — the final chapter of a Saga', (mk, t) => {
+    t.auto('Narci, Fable Singer');
+    const N = mk({ library: Array(20).fill('Plains') });
+    N.toMain('A');
+    N.bf('A', 'Narci, Fable Singer');
+    const hb = N.bf('A', 'History of Benalia'); hb.counters.lore = 1;
+    N.g._advanceSaga(hb, 1); N.resolve();
+    t.ok(N.life('B') === 20 && N.life('A') === 20, 'Narci: chapter II is not the last, nothing');
+    N.g._advanceSaga(hb, 1); N.resolve();
+    t.ok(N.life('B') === 17 && N.life('A') === 23, "Narci: chapter III, the last, resolves: History of Benalia's 3, lost and gained");
+    // Tom Bombadil: the final chapter resolving reveals until a Saga and puts it onto the battlefield
+    const T = mk({ library: ['Plains', 'Plains', 'The Eldest Reborn', 'Plains'] });
+    T.toMain('A');
+    T.bf('A', 'Tom Bombadil');
+    const h2 = T.bf('A', 'History of Benalia'); h2.counters.lore = 2;
+    T.g._advanceSaga(h2, 1); T.resolve();
+    t.ok(T.bfOf('A').some(o => o.name === 'The Eldest Reborn'), 'Tom Bombadil: The Eldest Reborn is put onto the battlefield');
+  });
 };
