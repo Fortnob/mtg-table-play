@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10367,
-  "gainedCards": 949,
-  "linesNeeded": 11003,
+  "needed": 10366,
+  "gainedCards": 950,
+  "linesNeeded": 11001,
   "linesGained": 1110,
   "gained": {
-   "all": 949,
+   "all": 950,
    "top2000": 40,
    "stdTop": 6
   },
@@ -2885,19 +2885,6 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
    "what": "EntersBattlefieldOrDiesSourceTriggeredAbility",
    "score": 6,
    "lines": 6,
@@ -4715,6 +4702,17 @@
     "Tamiyo, Inquisitive Student // Tamiyo, Seasoned Scholar",
     "Rakdos the Defiler",
     "Banshee"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Galadriel of Lothlórien",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {
@@ -8169,19 +8167,6 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
    "what": "AttacksWhileSaddledTriggeredAbility",
    "score": 6,
    "cards": 6,
@@ -9427,6 +9412,17 @@
     "Amy Rose",
     "Frodo, Determined Hero",
     "Shagrat, Loot Bearer"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Galadriel of Lothlórien",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {

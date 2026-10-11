@@ -12711,11 +12711,15 @@
         /* Heliod's Intervention: "Destroy X target artifacts" inside a mode —
            X of them (as many as there are), asked for now */
         let askSpecs = e.targets;
-        const xm = aimed.findIndex(sp => sp && sp.multi && sp.multi.count === 'X');
+        /* Elvish Mariner: "up to X target nonland permanents, where X is the number of cards looked at while
+           scrying this way" — X counted as the trigger resolves (countedTargets) */
+        const xm = aimed.findIndex(sp => sp && sp.multi && (sp.multi.count === 'X' || sp.multi.count === 'triggerAmount'));
         if (xm >= 0) {
           const one = Object.assign({}, aimed[xm], { distinct: true });
           delete one.multi;
-          const k = Math.min(Math.max(0, ctx.x || (src && src.chosenX) || 0), this._legalTargetsFor(one, ctx.controller, src ? src.id : null).length);
+          const cm = aimed[xm].multi.count;
+          const xv = cm === 'X' ? (ctx.x || (src && src.chosenX) || 0) : (Number(td.amount) || 0);
+          const k = Math.min(Math.max(0, xv), this._legalTargetsFor(one, ctx.controller, src ? src.id : null).length);
           aimed.splice(xm, 1, ...Array.from({ length: k }, () => one));
           askSpecs = aimed;
         }

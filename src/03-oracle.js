@@ -6269,6 +6269,8 @@
    */
   function amountOf(phrase) {
     let p = String(phrase || '').trim().replace(/\.$/, '');
+    // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
+    if (/^the number of cards looked at while scrying this way$/i.test(p)) return 'triggerAmount';
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     // Thraben Charm: "twice the number of creatures you control"
@@ -12189,8 +12191,10 @@
       walk(ab.effects, false);
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
       const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || ''));
-      if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any') ||
-          (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || ''))) { ab.auto = false; out._keywordManual = true; }
+      // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
+      const countedOk = (mm) => ab.kind === 'triggered' && mm.count === 'triggerAmount';
+      if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||
+          (ab.kind !== 'spell' && !xPaid && /\bX target\b/.test(ab.text || '') && !(multi.length && multi.every(countedOk)))) { ab.auto = false; out._keywordManual = true; }
     }
     // Escalate: the "choose one or more" modes, bought as the spell is cast
     if (out.escalate) {

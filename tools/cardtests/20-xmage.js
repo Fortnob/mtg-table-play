@@ -23132,4 +23132,27 @@ module.exports = (test) => {
     J.toMain('A', 'end'); J.resolve();
     t.ok(!J.bfOf('A').some(o => o.isToken), 'Jolly Balloon Man: sacrificed at the end step');
   });
+
+  test('Commanders: Elrond, Master of Healing; Elvish Mariner — up to X targets, X the cards looked at while scrying', (mk, t) => {
+    t.auto('Elrond, Master of Healing'); t.auto('Elvish Mariner');
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Elvish Mariner: scry 2, up to two of B's three Bears tapped
+    const E = mk({ library: Array(10).fill('Forest') });
+    E.toMain('A');
+    E.bf('A', 'Elvish Mariner');
+    const bs = [E.bf('B', 'Grizzly Bears'), E.bf('B', 'Grizzly Bears'), E.bf('B', 'Grizzly Bears')];
+    let asked = null;
+    E.answer('pickTarget', (ch) => { asked = ch.count; return { targets: bs.slice(0, ch.count).map(b => ({ kind: 'object', id: b.id })) }; });
+    E.g._runEffects([{ op: 'scry', n: 2 }], ctx); E.resolve();
+    t.eq(asked, 2, 'Elvish Mariner: two cards looked at, two targets asked for');
+    t.eq(bs.filter(b => b.tapped).length, 2, 'Elvish Mariner: two Bears tapped');
+    // Elrond: scry 1, a +1/+1 counter on one creature
+    const R = mk({ library: Array(10).fill('Forest') });
+    R.toMain('A');
+    R.bf('A', 'Elrond, Master of Healing');
+    const g1 = R.bf('A', 'Grizzly Bears'), g2 = R.bf('A', 'Grizzly Bears');
+    R.answer('pickTarget', (ch) => ({ targets: [g1, g2].slice(0, ch.count).map(b => ({ kind: 'object', id: b.id })) }));
+    R.g._runEffects([{ op: 'scry', n: 1 }], ctx); R.resolve();
+    t.eq((Number(g1.counters['+1/+1']) || 0) + (Number(g2.counters['+1/+1']) || 0), 1, 'Elrond: one card looked at, one counter');
+  });
 };
