@@ -5622,8 +5622,8 @@ html[data-play="1"] .shard-chip { display: none; }
   100% { transform: translate(-40px, -110px) rotate(-14deg) scale(.82); opacity: 0; filter: brightness(1.4); } }
 
 /* the cards */
-.po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 18px 16px; justify-content: center; align-content: center; }
-.po-grid.many { gap: 16px 12px; padding-bottom: 30px; }
+.po-grid { display: grid; grid-template-columns: repeat(var(--cols, 7), auto); gap: 30px 16px; justify-content: center; align-content: center; }
+.po-grid.many { gap: 28px 12px; padding: 14px 0 30px; }
 .po-card { --w: clamp(84px, min(10.5vw, calc(29 * var(--vh, 1vh))), 200px);
   position: relative; width: var(--w); aspect-ratio: 63 / 88; padding: 0; border: 0; background: none; cursor: pointer; z-index: 1;
   perspective: 1000px; opacity: 0; transition: transform .22s ease-out, filter .2s;
@@ -5674,6 +5674,16 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-tags { position: absolute; left: 0; right: 0; bottom: -11px; z-index: 2; display: flex; justify-content: center; gap: 4px; pointer-events: none;
   opacity: 0; transform: translateY(4px); transition: opacity .3s .45s, transform .3s .45s; }
 .po-card.flipped .po-tags { opacity: 1; transform: none; }
+/* its price, near mint, over it */
+.po-price { position: absolute; left: 50%; top: -12px; z-index: 2; transform: translate(-50%, -4px); pointer-events: none; white-space: nowrap;
+  padding: 1px 8px; border-radius: 99px; font: 700 11px/1.55 var(--font); font-variant-numeric: tabular-nums; color: #cfe8d2;
+  background: rgba(14, 20, 16, .92); border: 1px solid rgba(140, 200, 150, .35); box-shadow: 0 2px 6px rgba(0,0,0,.55);
+  opacity: 0; transition: opacity .3s .45s, transform .3s .45s; }
+.po-card.flipped .po-price { opacity: 1; transform: translate(-50%, 0); }
+.po-price.mid { color: #e9ffe9; border-color: rgba(120, 230, 140, .6); }
+.po-price.hi { color: #1a1205; border-color: #ffe9a8; background: linear-gradient(180deg, var(--gold-1, #f3dd96), var(--gold-2, #b8912f)); }
+.po-price.serial { color: #2a1a00; border-color: #ffe9a8; background: linear-gradient(100deg, #f6c94c, #fff1b8 45%, #e2a72a); box-shadow: 0 0 12px rgba(255, 210, 90, .8); }
+.po-grid.many .po-price { font-size: 10px; padding: 0 6px; top: -10px; }
 .po-new { padding: 1px 8px; border-radius: 99px; font: 800 10.5px/1.6 var(--font); letter-spacing: .1em; text-transform: uppercase; color: #1a1205;
   background: linear-gradient(180deg, var(--gold-1, #f3dd96), var(--gold-2, #b8912f)); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .po-count-tag { padding: 1px 7px; border-radius: 99px; font: 800 10.5px/1.6 var(--font); color: #f0e9d8; background: rgba(20, 22, 30, .95); border: 1px solid rgba(255,255,255,.2); }
@@ -14268,6 +14278,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', amount: 1 }) },
     { re: /^Add one mana of any colou?r among legendary permanents you control\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', anyLegend: true, amount: 1 }) },
+    // Katilda, Dawnhart Prime: "{T}: Add one mana of any of this creature's colors." (selfColorsMana)
+    { re: /^Add one mana of any of (?:this creature|CARDNAME)'?s colou?rs\.?$/i,
+      make: () => ({ op: 'addManaAmong', from: 'selfColors', amount: 1 }) },
     { re: /^Add one mana of any of the exiled card'?s colors\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'exiledCard', amount: 1 }) },
     { re: /^For each color among permanents you control, add one mana of that color\.?$/i,
@@ -31954,6 +31967,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const from = e.from || 'opponentLands';
       // Paliano, the High City: the colours chosen as it was drafted
       if (from === 'noted') return (this._draftNote(pid, e.noted).colors || []).slice();
+      // Katilda, Dawnhart Prime: the colours of the creature tapped for it, as it is now (selfColorsMana)
+      if (from === 'selfColors') {
+        if (!o) return [];
+        const cS = (this.characteristics(o) || {}).colors;
+        return ((cS && cS.length) ? cS : ((o.analysis() || {}).colors || (o.card && o.card.colors) || [])).slice();
+      }
       if (from === 'exiledCard') {
         const x = o && o.imprinted && this.obj(o.imprinted);
         for (const c of ((x && x.card.colors) || [])) out.add(c);
@@ -79350,6 +79369,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   const RAR = ['common', 'uncommon', 'rare', 'mythic'];
   const RAR_NAME = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', mythic: 'Mythic' };
   const fmtN = (n) => Number(n || 0).toLocaleString();
+  /** A price in dollars: cents under a hundred, whole dollars above. */
+  const fmtUsd = (n) => '$' + (n < 100 ? n.toFixed(2) : Math.round(n).toLocaleString());
 
   /** The Shard: a little faceted crystal. */
   /* (each one its own gradient: one shared by id stops drawing when the
@@ -81476,6 +81497,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         front.appendChild(el('div', { class: 'po-sheen' }));
       }
       const col = i % cols, row = Math.floor(i / cols), rows = Math.ceil(n / cols);
+      /* What the card goes for, near mint (the market price, in its finish):
+         over it once it is turned. The One Ring, 1 of 1, has no price. */
+      const usd = it.card ? E().cardValue(it) : 0;
+      const price = it.serial ? el('div', { class: 'po-price serial', text: 'Priceless', title: 'There is only one' })
+        : usd > 0 ? el('div', { class: 'po-price' + (usd >= 20 ? ' hi' : usd >= 3 ? ' mid' : ''), text: fmtUsd(usd),
+          title: `${fmtUsd(usd)} each, near mint${it.foil ? ', foil' : ''}` }) : null;
       const t = el('button', { type: 'button', class: `po-card r-${r}${big ? ' big' : ''}`, 'aria-label': 'A card, face down', style: {
         '--i': String(i),
         '--ox': ((cols - 1) / 2 - col).toFixed(2), '--oy': ((rows - 1) / 2 - row).toFixed(2),
@@ -81485,6 +81512,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           (() => { const b = el('div', { class: 'po-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]); UI.applySleeve(b, S.sleeveWorn()); return b; })(),
           front,
         ]),
+        price,
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
@@ -81730,6 +81758,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       head.append(el('div', { class: 'po-title', text: `${info.name}: ${results.length} pack${results.length === 1 ? '' : 's'}` }),
         el('div', { class: 'po-sub' }, [
           document.createTextNode(`${total} cards · ${fresh} new`),
+          (() => { const v = items.reduce((n, it) => n + (it.card ? E().cardValue(it) * (it.count || 1) : 0), 0); return v > 0 ? document.createTextNode(` · ${fmtUsd(v)} near mint`) : null; })(),
           shardsIn ? el('span', { html: ` · +${shardSvg()}${fmtN(shardsIn)} for extra copies` }) : null,
           ...RAR.filter(r => wcs[r]).map(r => el('span', { class: 'po-wcsum' }, [wcIcon(r, wcs[r])])),
         ].filter(Boolean)));
