@@ -2949,6 +2949,9 @@
 
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
+      // convoke pays coloured mana too: a creature of the colour for each symbol it covers (_convokeColors)
+      const cc = this._convokeColors(o.controller || o.owner, o);
+      if (cc.length) mana = this._dropSymbols(mana, cc.map(x => x.sym));
       return mana;
     }
 
@@ -3292,6 +3295,43 @@
       const out = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
       return out;
     }
+    /** A cost with these symbols taken out of it, one of each named (what is not there is not taken). */
+    _dropSymbols(cost, syms) {
+      const list = MANA.parse(cost || '');
+      for (const s of syms || []) { const i = list.indexOf(s); if (i >= 0) list.splice(i, 1); }
+      return this._addGeneric(list.map(x => '{' + x + '}').join(''), 0);
+    }
+
+    /**
+     * Convoke's coloured half (CR 702.51a): each creature tapped for it pays
+     * for {1} or for one mana of that creature's colour. Which of the
+     * coloured symbols of the spell's cost the creatures can pay, and with
+     * which creature: as many as their colours can cover between them (a
+     * matching, the cheapest creatures first), each creature once; the rest
+     * of the creatures go to the {1}s (costReductionFor). Empty without
+     * convoke. `among` limits it to the creatures a player chose.
+     */
+    _convokeColors(pid, o, among) {
+      if (!o || !this._costRed(o, pid).convoke) return [];
+      const a = o.analysis();
+      const syms = MANA.parse(((a && a.manaCost) || '') + this._costExtraSymbols(o, pid)).filter(s => /^[WUBRG]$/.test(s));
+      if (!syms.length) return [];
+      const list = (among || this._reductionCandidates(pid, o, 'convoke')).slice().sort((x, y) => this._cardValue(x) - this._cardValue(y));
+      const colorsOf = (x) => (this.characteristics(x) || {}).colors || (x.card && x.card.colors) || [];
+      const can = syms.map(s => list.filter(x => colorsOf(x).includes(s)));
+      const owner = new Map();   // creature id -> the symbol it pays
+      const tryAt = (i, seen) => {
+        for (const x of can[i]) {
+          if (seen.has(x.id)) continue;
+          seen.add(x.id);
+          const j = owner.get(x.id);
+          if (j == null || tryAt(j, seen)) { owner.set(x.id, i); return true; }
+        }
+        return false;
+      };
+      for (let i = 0; i < syms.length; i++) tryAt(i, new Set());
+      return [...owner].map(([id, i]) => ({ sym: syms[i], obj: list.find(x => x.id === id) }));
+    }
 
     /**
      * Total generic reduction available for casting this card right now:
@@ -3307,7 +3347,7 @@
       let cut = 0;
       const count = (fn) => this.battlefield.filter(x => x.controller === pid && fn(x)).length;
 
-      if (cr.convoke) cut += count(x => { const xa = x.analysis(); return xa && xa.isCreature && !x.tapped; });
+      if (cr.convoke) cut += Math.max(0, count(x => { const xa = x.analysis(); return xa && xa.isCreature && !x.tapped; }) - this._convokeColors(pid, o).length);
       if (cr.improvise) cut += count(x => { const xa = x.analysis(); return xa && xa.isArtifact && !x.tapped; });
       if (cr.delve) cut += this.zones[pid] ? this.zones[pid].graveyard.length : 0;
       if (cr.affinity) {
@@ -3389,13 +3429,14 @@
     /** The table's offer for a card in hand: what could pay, and how much at most. */
     _reductionExtras(pid, o) {
       const r = this._reductionRoom(pid, o);
-      if (!r || r.left <= 0) return [];
+      if (!r || (r.left <= 0 && !this._convokeColors(pid, o).length)) return [];
       const out = [];
       for (const [kind, label] of [['delve', 'Delve'], ['improvise', 'Improvise'], ['convoke', 'Convoke']]) {
         if (!r.cr[kind]) continue;
         const cands = this._reductionCandidates(pid, o, kind);
         if (!cands.length) continue;
-        out.push({ kind, label, cost: '', candidates: cands.map(x => x.id), max: Math.min(r.left, cands.length) });
+        const colored = kind === 'convoke' ? this._convokeColors(pid, o).length : 0;
+        out.push({ kind, label, cost: '', candidates: cands.map(x => x.id), max: Math.min(r.left + colored, cands.length) });
       }
       return out;
     }
@@ -3430,14 +3471,25 @@
         }
         plan.words.push([kind, ids.length]);
       }
+      /* Convoke's coloured symbols: the price already has the most the
+         creatures there could pay taken out of it (castCost); what the
+         creatures chosen pay instead is put back in its place (recolor). */
+      const all = this._convokeColors(pid, o);
+      const convokers = plan.tap.filter(x => (opts.convokeIds || []).includes(x.id));
+      const mine = all.length ? this._convokeColors(pid, o, convokers) : [];
       plan.used = plan.tap.length + plan.exile.length;
+      const generic = plan.used - mine.length;
       const can = r ? r.left : 0;
-      if (plan.used > can) return { error: `That pays for ${plan.used}, but only ${can} of ${o.name}'s cost can be paid that way.` };
-      plan.unused = can - plan.used;
+      if (generic > can) return { error: `That pays for ${plan.used}, but only ${can + mine.length} of ${o.name}'s cost can be paid that way.` };
+      plan.unused = can - generic;
+      if (all.length) {
+        const back = all.map(x => x.sym), paid = mine.map(x => x.sym);
+        plan.recolor = (cost) => this._dropSymbols(cost + back.map(s => '{' + s + '}').join(''), paid);
+      }
       return plan;
     }
     /** Pay with a checked plan, or (with none) with the cheapest things there are. */
-    _payReduction(pid, o, plan) {
+    _payReduction(pid, o, plan, held) {
       const p = this.player(pid);
       // Lethal Scheme: the creatures that convoked it
       o._convokers = [];
@@ -3456,6 +3508,13 @@
       if (!r) return;
       let left = r.left;
       const cheap = (list) => list.sort((x, y) => this._cardValue(x) - this._cardValue(y));
+      // convoke's coloured symbols: the creatures that pay them, as worked out when the price was (castSpell)
+      const colored = (held || []).filter(x => x.zone === 'battlefield' && !x.tapped);
+      if (colored.length) {
+        for (const x of colored) this._markTapped(x);
+        o._convokers = colored.map(x => x.id);
+        this.logEvent('rules', `${p.name} taps ${colored.map(x => x.name).join(', ')} to convoke.`);
+      }
       if (r.cr.delve && left > 0) {
         const gy = cheap(this._reductionCandidates(pid, o, 'delve')).slice(0, left);
         for (const c of gy) this.moveObject(c, 'exile');
@@ -3464,7 +3523,7 @@
       }
       for (const kw of ['improvise', 'convoke']) {
         if (!r.cr[kw] || left <= 0) continue;
-        const pool = cheap(this._reductionCandidates(pid, o, kw)).slice(0, left);
+        const pool = cheap(this._reductionCandidates(pid, o, kw).filter(x => !colored.includes(x))).slice(0, left);
         for (const x of pool) this._markTapped(x);
         if (kw === 'convoke') o._convokers = o._convokers.concat(pool.map(x => x.id));
         if (pool.length) this.logEvent('rules', `${p.name} taps ${pool.map(x => x.name).join(', ')} to ${kw}.`);
@@ -5458,10 +5517,13 @@
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
+      if (plan && plan.recolor) cost = plan.recolor(cost);
+      // convoke's coloured symbols, paid by the creatures of their colours (the cheapest), when the player chose none
+      const ccHeld = reduces && !plan ? this._convokeColors(playerId, o).map(x => x.obj) : [];
       o._phyLife = 0;
       if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
-        const held = plan ? plan.tap.filter(x => !x.tapped) : [];
+        const held = (plan ? plan.tap : ccHeld).filter(x => !x.tapped);
         for (const x of held) x.tapped = true;
         this._spentAcc = {};
         // a free spell's taxes are paid where it is cast, often mid-resolution: from the pool, then the lands
@@ -5481,7 +5543,7 @@
         this._spentAcc = null;
         for (const x of held) x.tapped = false;
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
-        if (reduces) this._payReduction(playerId, o, plan);
+        if (reduces) this._payReduction(playerId, o, plan, ccHeld);
       }
       /* Sneak: the unblocked attacker goes back to hand as the spell is cast;
          what it was attacking, the sneaked creature attacks */
