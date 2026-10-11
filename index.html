@@ -4932,18 +4932,73 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 @media (prefers-reduced-motion: reduce) { .topnav-art { transition: none; } }
 
 /* ---------- home: the quick game, and today's things in a column beside it ---------- */
-.home-play-row { display: grid; grid-template-columns: minmax(0, 1fr) 236px; gap: 16px; align-items: stretch; }
+.home-play-row { display: grid; grid-template-columns: minmax(0, 1fr) clamp(300px, 31%, 470px); gap: 16px; align-items: stretch; }
 .home-play-row.alone { grid-template-columns: minmax(0, 1fr); }
 .home-play-row > .home-today { display: flex; flex-direction: column; gap: 8px; margin: 0 !important; }
-/* compact beside the quick game: what it is on the left, how it stands on the right, the bar under both */
-.home-play-row > .home-today .today-item { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; align-content: center;
-  gap: 4px 10px; padding: 8px 12px; background: linear-gradient(180deg, rgba(20,24,33,.82), rgba(10,12,18,.86)); backdrop-filter: blur(10px); }
-.home-play-row > .home-today .ti-label { grid-column: 1; margin: 0; }
-.home-play-row > .home-today .ti-value { grid-column: 2; font-size: 14px !important; white-space: nowrap; padding-right: 10px; }
-.home-play-row > .home-today .ti-sub { display: none; }
-.home-play-row > .home-today .ti-bar { grid-column: 1 / -1; margin: 0; }
+/* beside the quick game, each with a painting behind it: what it is and how it stands across the top, the detail under it */
+.home-play-row > .home-today .today-item.rich { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: 7px;
+  padding: 11px 15px 12px; overflow: hidden; isolation: isolate; background: #0b0e14; backdrop-filter: none; text-align: left; }
 :root[data-phone] .home-play-row { grid-template-columns: minmax(0, 1fr); }
 :root[data-phone] .home-play-row > .home-today { display: grid; grid-template-columns: 1fr; gap: 6px; }
+
+/* ---------- today's four, with art ---------- */
+.today-item.rich { position: relative; }
+.ti-art { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: 50% 30%; opacity: 0;
+  filter: grayscale(.2) brightness(.92); transition: opacity .5s var(--ease), filter .35s var(--ease), transform .6s var(--ease); }
+.ti-art.art-on { opacity: 1; }
+.ti-art::after { content: ''; position: absolute; inset: 0;
+  background: linear-gradient(90deg, rgba(9,11,16,.86) 0%, rgba(9,11,16,.55) 52%, rgba(9,11,16,.12) 100%); }
+.today-item.rich:hover .ti-art, .today-item.rich:focus-visible .ti-art { filter: grayscale(0) brightness(1.08) saturate(1.15); transform: scale(1.04); }
+.ti-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; min-width: 0; }
+.today-item.rich .ti-value { font-size: 16px; padding-right: 4px; }
+.today-item.rich.hot .ti-value { padding-right: 14px; }
+.today-item.rich.hot::after { top: 9px; right: 9px; }
+.ti-list { display: grid; gap: 6px; }
+.ti-quest { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px 10px; font-size: 12.5px; color: #e8e1d0; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.tq-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tq-n { color: #c3bba9; font-variant-numeric: tabular-nums; }
+.tq-bar { grid-column: 1 / -1; height: 3px; border-radius: 99px; background: rgba(255,255,255,.12); overflow: hidden; }
+.tq-bar i { display: block; height: 100%; background: linear-gradient(90deg, #b8862b, #ffe6a0); }
+.ti-sub2 { font-size: 12.5px; color: #e2dbca; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ti-foot { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; font-size: 11.5px; color: #aaa391; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.ti-foot .shard-ico, .ti-chips .shard-ico { width: 12px; height: 12px; }
+.ti-track { display: grid; grid-template-columns: repeat(15, minmax(0, 1fr)); gap: 3px; align-items: end; padding-top: 6px; }
+.ti-track i { position: relative; height: 9px; border-radius: 2px; background: rgba(255,255,255,.14); }
+.ti-track i.won { background: linear-gradient(180deg, #ffe6a0, #b8862b); box-shadow: 0 0 6px rgba(243, 221, 150, .35); }
+.ti-track i.big { height: 13px; }
+/* a pack along the track a blue dot over its win, a wildcard a violet one */
+.ti-track i.pk::after, .ti-track i.wc::after { content: ''; position: absolute; left: 50%; top: -7px; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: #8fcfff; }
+.ti-track i.wc::after { background: #e0a2ff; }
+.ti-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ti-chips > span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px; border-radius: 99px; font-size: 12px; color: #f1ead8;
+  background: rgba(0,0,0,.4); border: 1px solid rgba(243, 221, 150, .25); }
+.ti-ladders { display: grid; gap: 7px; }
+.ti-ladder { display: flex; align-items: center; gap: 10px; }
+.tl-text { display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline; }
+.tl-name { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #aaa391; }
+.tl-text > b { font: 600 15px/1.1 var(--serif, Georgia, serif); color: #f1ead8; }
+.tl-steps { grid-column: 1 / -1; display: flex; gap: 3px; }
+.tl-steps i { width: 15px; height: 5px; border-radius: 2px; background: rgba(255,255,255,.14); transform: skewX(-20deg); }
+.tl-steps i.on { background: linear-gradient(90deg, #ffe6a0, #b8862b); }
+.ev-meta .rank-emblem { margin-right: 3px; filter: none; }
+@media (prefers-reduced-motion: reduce) { .ti-art { transition: none; } .today-item.rich:hover .ti-art { transform: none; } }
+
+/* ---------- the format tiles: grey until the pointer is on one ---------- */
+@media (hover: hover) {
+  .format-card .fmt-art { filter: grayscale(1) brightness(.72); }
+  .format-card:hover .fmt-art, .format-card:focus-visible .fmt-art { filter: grayscale(0) brightness(1.08) saturate(1.12); }
+}
+
+/* ---------- home: the whole window, whatever its size ---------- */
+/* the banner's content runs its full width (the painting shows through the
+   glass), and the page grows to the window's height, the banner taking
+   what is left over so nothing sits in a band of empty space */
+.home-wrap { display: flex; flex-direction: column; }
+.home { flex: 1 0 auto; display: flex; flex-direction: column; width: 100%; }
+.home > .home-hero { flex: 1 0 auto; }
+.home-hero-inner, .home-hero .home-hero-inner { width: 100%; }
+.home-hero-inner > .home-play-row { flex: 1 0 auto; }
+.home-credit { top: 12px; bottom: auto; }
 /* ============================================================
    limited.css - sealed and Jumpstart (src/13b-ui-sealed.js)
    Both live on the draft screen and borrow its head, its pool strips and
@@ -6082,6 +6137,27 @@ button.mt2:hover { border-color: rgba(246,220,140,.6); box-shadow: inset 0 1px 0
 :root[data-phone] .mt2 { padding: 12px 12px 10px; }
 :root[data-phone] .mt2-open { display: none; }
 @media (prefers-reduced-motion: reduce) { .mt2-node.next .mt2-medal { animation: none; } }
+
+/* ---------- the ranks' symbols, and the two ladders ---------- */
+.rank-emblem { display: inline-grid; place-items: center; flex: none; line-height: 0; filter: drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.rank-emblem svg { overflow: visible; }
+.rank-emblem .re-facet { stroke: var(--facet); }
+.re-mythic { filter: drop-shadow(0 0 8px rgba(255, 140, 60, .45)) drop-shadow(0 3px 6px rgba(0,0,0,.45)); }
+.ladders { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.ladder { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 20px; align-items: center; margin: 0; }
+.ladder-body { display: grid; gap: 4px; justify-items: start; }
+.ladder-body h3 { margin: 0; font: 600 26px/1.1 var(--font-display, Georgia, serif); color: var(--gold-1, #f3dd96); }
+.ladder-body .btn { margin-top: 6px; }
+.ladder-name { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #a79f8c; }
+.ladder-next { margin: 0; font-size: 13px; color: #d9d2c2; }
+.ladder-body .dim.small { margin: 0; font-size: 12px; }
+.ladder-rules { margin: 12px 2px 16px; }
+.ranked-chooser .ladders { margin-top: 12px; }
+.rr { justify-items: center; }
+.rr-name { font: 600 14px/1 var(--font-display, Georgia, serif); color: #f1ead8; }
+.op-rank { display: inline-flex; align-items: center; gap: 6px; }
+:root[data-phone] .ladder { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+:root[data-phone] .ladder-body { justify-items: center; }
 /* ============================================================
    match.css - match play: the game clock at the table, the record of
    games (Profile > History, a deck's record) and the rematch
@@ -13333,6 +13409,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     let desc = m[1].trim().toLowerCase().replace(/,$/, '');
     s = s.slice(m[0].length);
     let q;
+    // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
+    if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     while ((q = s.match(/^,? (?:with (?:mana value|converted mana cost) (X|\d+) or less|with (?:mana value|converted mana cost) (X|\d+) or (?:greater|more)|with (?:mana value|converted mana cost) (X|\d+)|with different names|that share a land type|with a basic land type|that (?:is|are) (?:a )?([a-z]+)|with (power|toughness) (\d+) or (less|greater))/i))) {
       if (q[5]) e[(q[7] === 'less' ? 'max' : 'min') + (q[5] === 'power' ? 'Power' : 'Toughness')] = +q[6];
       if (q[1]) e.maxMv = q[1] === 'X' ? 'X' : +q[1];
@@ -16639,6 +16717,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
     { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
+    // Sheoldred // The True Scriptures, Elesh Norn // The Argent Etchings: "Exile this Saga, then return it to the battlefield (front face up)." (sagaFrontFace)
+    { re: /^Exile this Saga, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i, make: () => ({ op: 'blinkTransformed', front: true, ownerControl: true }) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
 
@@ -16699,6 +16779,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
     { re: /^Add (two|three|\d+) mana of the chosen color\.?$/i, make: (m) => ({ op: 'addManaChosen', n: num(m[1]) }) },
     { re: /^Flip a coin\.?$/i, make: () => ({ op: 'flipCoin' }) },
+    // Rakdos, the Showstopper: "flip a coin for each creature that isn't a Demon, Devil, or Imp. Destroy each creature whose coin comes up tails." (coinEachCreature)
+    { re: /^[Ff]lip a coin for each creature that isn'?t an? ([A-Z][a-z]+(?:, (?:an? )?[A-Z][a-z]+)*,? or (?:an? )?[A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'coinEachCreature', exceptTypes: m[1].split(/,? or |, /).map(w => w.replace(/^an? /, '').toLowerCase()) }) },
+    { re: /^Destroy each creature whose coin comes up tails\.?$/i, make: () => ({ op: 'destroyCoinTails' }) },
     /* The Ring tempts you (CR 701.52): the emblem gains a level and you
        name a Ring-bearer. */
     { re: /^The Ring tempts you\.?$/i, make: () => ({ op: 'ringTempts' }) },
@@ -18550,6 +18634,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
+    // Sisay, Weatherlight Captain: "for each color among other legendary permanents you control" (colorsAmongScope)
+    if ((m = p.match(/^colou?r among ((?:other )?[a-z]+ (?:permanents|creatures|artifacts|enchantments) you control)$/i))) {
+      const sc = scopeOf(m[1]);
+      if (sc && !sc.self) return { colorsAmongScope: sc, mult: k };
+    }
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
@@ -21824,7 +21913,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
-    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
+    // (Captain America, Super-Soldier: "has a shield counter on him" — counterOnHim)
+    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on (?:it|him|her|them)$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
     [/^this Vehicle has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
@@ -26347,6 +26437,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^(Lands|Gates) you control enter untapped\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'enterUntapped', event: 'enters', who: 'you', how: 'untapped', whatAny: ['land'] },
         /gates/i.test(m[1]) ? { words: 'gate' } : {}) },
+    // Kalitas, Traitor of Ghet: "… would die, instead exile that card and create a 2/2 black Zombie creature token." (dieExileToken)
+    { re: /^If a (nontoken )?creature an opponent controls would die, instead exile that card and (create an? .+? token)\.?$/i,
+      make: (m) => {
+        const tok = parseTokenSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        if (!tok || tok.op !== 'createToken') return null;
+        return Object.assign({ op: 'replace', id: 'dieExileOppToken', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+          how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], alsoToken: Object.assign({}, tok, { n: 1 }) }, m[1] ? { nontoken: true } : {});
+      } },
     // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
@@ -27247,6 +27345,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return Object.assign({ op: 'damageToCounters', prevent: !!m[2] }, c ? { cond: c } : {});
         }, auto: true },
       // Locke, Treasure Hunter, Ant-Man: "CARDNAME can't be blocked by creatures with greater power." — skulk's rule (notByGreaterPower)
+      // Shanna, Sisay's Legacy: "can't be the target of abilities your opponents control" (oppAbilitiesCantTarget)
+      { re: /^(?:CARDNAME|This creature) can'?t be the target of abilities your opponents control\.?$/i, eff: { op: 'untargetableByOppAbilities' }, auto: true },
+      // Captain America, Super-Soldier: "As long as …, you and other Heroes you control have hexproof." (youAndOthersHexproof)
+      { re: /^As long as (.+?), you and other ([A-Z][a-z]+)s you control have hexproof\.?$/,
+        make: (m) => {
+          const c = condOf(m[1]), sc = scopeOf('other ' + m[2] + 's you control');
+          return c && sc ? { op: 'sequence', list: [{ op: 'playerHexproof', cond: c }, { op: 'continuous', layer: 6, scope: sc, cond: c, grant: ['Hexproof'] }] } : null;
+        }, auto: true },
+      // Medomai the Ageless: "can't attack during extra turns" (extraTurnNow)
+      { re: /^(?:CARDNAME|This creature) can'?t attack during extra turns\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'cantAttack', cond: { kind: 'extraTurn' } }, auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with greater power\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'notByGreaterPower' }, auto: true },
       { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
@@ -30259,6 +30368,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
     _nextTurn() {
       if (this.over) return;
+      // (Medomai the Ageless: "during extra turns" — extraTurnNow)
+      this.isExtraTurn = false;
       // extra turns first
       if (this.extraTurnsQueue.length) {
         const pid = this.extraTurnsQueue.shift();
@@ -30269,6 +30380,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return this._nextTurn();
         }
         this.activeIndex = this.turnOrder.indexOf(pid);
+        this.isExtraTurn = true;
       } else {
         let guard = 0, np = null;
         do {
@@ -32152,6 +32264,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return seen.size;
     }
     /** Hexproof from a quality (Knight of Grace, Veil of Summer): does this source have one of them? */
+    /** Leyline of Sanctity, Captain America (only while he has a shield counter): may this player not be targeted by opponents? (youAndOthersHexproof) */
+    _playerHexproofNow(pid) {
+      return this._withEmblems(this.battlefield).some(o => {
+        if (o.controller !== pid || o.phasedOut) return false;
+        const e = this._staticOp(o, 'playerHexproof');
+        return !!e && (!e.cond || this._condMet(e.cond, { controller: pid, obj: o }));
+      });
+    }
+    /** Shanna, Sisay's Legacy: no ability an opponent controls may target it (an ability's source is on the battlefield) (oppAbilitiesCantTarget) */
+    _oppAbilityCantTarget(o, source, controllerId) {
+      return !!(o && source && controllerId != null && controllerId !== o.controller && source.zone === 'battlefield' && source !== o &&
+        this._staticOp(o, 'untargetableByOppAbilities'));
+    }
     /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
     _untargetableHit(o, source) {
       const e = o && source && this._staticOp(o, 'untargetableBy');
@@ -32250,6 +32375,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
           if (item.obj && this._untargetableHit(o, item.obj)) return false;
+          if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
           if (this.hasKw(o, 'shroud')) return false;
           // protection from a quality the spell or ability's source has
           if (item.obj && this._protectedFrom(o, item.obj)) return false;
@@ -32614,6 +32740,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
+      // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
+      if (v.colorsAmongScope) {
+        const cols = new Set();
+        for (const x of this._scopeList(v.colorsAmongScope, pid, src, null, inLayers)) for (const c of ((x.analysis() || {}).colors || [])) cols.add(c);
+        return cols.size * mult;
+      }
       // Deepwood Denizen, Maester Seymour: the counters (of one kind, or all) on a group of permanents
       if (v.countersAmong) {
         let k = 0;
@@ -38837,7 +38969,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
-        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter; break;
+        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
+          // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
+          if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
+          break;
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
         case 'untapped': ev.untapped = true; break;
@@ -39808,6 +39943,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
+        // Medomai the Ageless: "during extra turns" (extraTurnNow)
+        case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
         case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
         // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
@@ -40063,7 +40200,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         for (const x of this._scopeList(v.greatestMv, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
         return best * (v.mult || 1);
       }
-      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
+      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong || v.colorsAmongScope)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
@@ -44785,6 +44922,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             /* Transmute looks for a mana value, not a card type. */
             if (e.mv != null && mvOf(c) !== n(e.mv)) return false;
             if (e.maxMv != null && mvOf(c) > n(e.maxMv)) return false;
+            // Sisay, Weatherlight Captain: "with mana value less than CARDNAME's power" (mvBelowSelfPower)
+            if (e.mvBelowSelfPower && !(src && mvOf(c) < this.powerOf(src))) return false;
             if (e.minMv != null && mvOf(c) < n(e.minMv)) return false;
             // Imperial Recruiter, Recruiter of the Guard: printed power or toughness
             const stat = (k) => parseInt((c.card && c.card[k]) || '0', 10) || 0;
@@ -45148,6 +45287,27 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.logEvent('attach', `${c.name} enters attached to ${host.name}.`);
           }
           this.bumpBoard();
+          break;
+        }
+        /* Rakdos, the Showstopper: a coin for each creature that isn't one of those
+           types; the tails are destroyed by the next sentence (coinEachCreature) */
+        case 'coinEachCreature': {
+          const tails = [];
+          for (const x of this.battlefield.slice()) {
+            if (x.phasedOut || !(this.characteristics(x) || {}).isCreature) continue;
+            if ((e.exceptTypes || []).some(t => this._hasCreatureType(x, t))) continue;
+            if (!this._flipOne(me)) tails.push(x.id);
+          }
+          if (this.resolving) this.resolving._coinTails = tails;
+          break;
+        }
+        case 'destroyCoinTails': {
+          for (const id of ((this.resolving || {})._coinTails || [])) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield') continue;
+            if (this.hasKw(x, 'indestructible') || this._totemArmor(x) || this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard');
+          }
           break;
         }
         case 'keepMana':
@@ -47077,9 +47237,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const owner = x.owner;
           this.moveObject(x, 'exile');
           if (x.zone !== 'exile') break;
-          x.face = 1;
+          // (the Praetors' Sagas: "return it to the battlefield (front face up)" — sagaFrontFace)
+          x.face = e.front ? 0 : 1;
           this.moveObject(x, 'battlefield', { controller: e.ownerControl ? owner : ctx.controller });
-          this.logEvent('rules', `${x.name} returns transformed.`);
+          this.logEvent('rules', `${x.name} returns${e.front ? '' : ' transformed'}.`);
           break;
         }
         // Spiritmonger: the colour of its controller's choice, until end of turn
@@ -53060,7 +53221,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         .filter(p => !tsrc || !this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
-        .filter(p => p.id === controllerId || (!this._anyStaticOf(p.id, 'playerHexproof') && p.hexproofTurn !== this.turn))
+        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
@@ -53118,6 +53279,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
         if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
+        if (zone === 'battlefield' && sourceId && this._oppAbilityCantTarget(o, this.obj(sourceId), controllerId)) continue;
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       if (spec.type === 'any') out.push(...players().filter(t => !spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn));
@@ -53466,7 +53628,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         pendingTriggers: this.pendingTriggers.map(t => Object.assign({}, t, { obj: undefined })),
         combat: JSON.parse(JSON.stringify(this.combat)),
         turnOrder: this.turnOrder.slice(), mulliganPhase: this.mulliganPhase,
-        extraTurnsQueue: this.extraTurnsQueue.slice(), stormCount: this.stormCount,
+        extraTurnsQueue: this.extraTurnsQueue.slice(), stormCount: this.stormCount, isExtraTurn: !!this.isExtraTurn,
         prevention: this.prevention.slice(),
         delayedTriggers: JSON.parse(JSON.stringify(this.delayedTriggers || [])),
         resolving: this.resolving ? {
@@ -53537,6 +53699,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.turnOrder = (snap.turnOrder || []).slice();
       this.mulliganPhase = !!snap.mulliganPhase;
       this.extraTurnsQueue = (snap.extraTurnsQueue || []).slice();
+      this.isExtraTurn = !!snap.isExtraTurn;
       this.stormCount = snap.stormCount || 0;
       this.prevention = (snap.prevention || []).slice();
       this.delayedTriggers = (snap.delayedTriggers || []).slice();
@@ -74321,7 +74484,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ]);
     const tabs = el('div', { class: 'store-tabs', role: 'tablist' });
     const body = el('div', { class: 'store-body' });
-    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['deals', 'Daily deals'], ['wildcards', 'Wildcards']];
+    const TABS = [['featured', 'Featured'], ['packs', 'Packs'], ['precons', 'Commander decks'], ['sleeves', 'Sleeves'], ['frames', 'Frames'], ['wildcards', 'Wildcards'], ['deals', 'Daily deals']];
     const show = (id) => {
       storeTab = id;
       for (const b of tabs.children) b.setAttribute('aria-selected', b.dataset.tab === id ? 'true' : 'false');
@@ -76571,6 +76734,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     Platinum: { shards: 10000, pack: 3 }, Diamond: { shards: 15000, pack: 4, wc: 'rare' }, Mythic: { shards: 25000, pack: 5, wc: 'mythic' } };
   /** How hard ranked opponents are, by tier. */
   const RANK_DIFFICULTY = { Bronze: 3, Silver: 4, Gold: 5, Platinum: 7, Diamond: 8, Mythic: 10 };
+  /** The ladders, each climbed on its own: Standard, and Commander (one
+      against one, the way Brawl is played ranked on Arena). `key` is where
+      each is kept; Standard keeps the old place, so a rank already earned
+      stays. */
+  const LADDERS = [{ id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' }];
+  const ladderOf = (id) => LADDERS.find(l => l.id === id) || LADDERS[0];
+  /** The best tier reached on any ladder, as an index into TIERS. */
+  const bestTier = (p) => Math.max(...LADDERS.map(L => TIERS.indexOf((p[L.key] || {}).best || 'Bronze')));
 
   /** Achievements: what you did, the title it earns, and a few Shards. */
   const ACHIEVEMENTS = [
@@ -76591,8 +76762,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { id: 'quests-10', name: 'Dutiful', text: 'Finish 10 daily quests.', test: (s) => s.quests >= 10, shards: 3000, title: 'Dutiful' },
     { id: 'streak-7', name: 'Faithful', text: 'Log in seven days running.', test: (s, e, p) => p.login.streak >= 7, shards: 3000, title: 'Faithful' },
     { id: 'weekly-15', name: 'Tireless', text: 'Finish the weekly track.', test: (s) => s.weeklyDone >= 1, shards: 5000, title: 'Tireless' },
-    { id: 'gold', name: 'Gilded', text: 'Reach Gold in ranked.', test: (s, e, p) => TIERS.indexOf(p.ranked.best) >= 2, shards: 5000, title: 'Gilded' },
-    { id: 'mythic', name: 'Mythic', text: 'Reach Mythic in ranked.', test: (s, e, p) => p.ranked.best === 'Mythic', shards: 25000, title: 'Mythic' },
+    { id: 'gold', name: 'Gilded', text: 'Reach Gold in ranked.', test: (s, e, p) => bestTier(p) >= 2, shards: 5000, title: 'Gilded' },
+    { id: 'mythic', name: 'Mythic', text: 'Reach Mythic in ranked.', test: (s, e, p) => bestTier(p) >= TIERS.indexOf('Mythic'), shards: 25000, title: 'Mythic' },
     { id: 'mastery-25', name: 'Devoted', text: 'Reach mastery level 25.', test: (s, e, p) => p.level >= 25, shards: 5000, title: 'Devoted' },
     { id: 'draft-7', name: 'Draft Master', text: 'Win seven games in a draft event.', test: (s) => s.draftPerfect >= 1, shards: 10000, title: 'Draft Master' },
     { id: 'gauntlet', name: 'Gauntlet Runner', text: 'Clear the gauntlet.', test: (s) => s.gauntlets >= 1, shards: 10000, title: 'Gauntlet Runner' },
@@ -76610,6 +76781,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     inbox: [],
     xp: 0, level: 0, season: '', masteryPaid: 0,
     ranked: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedCommander: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     stats: { games: 0, wins: 0, spells: 0, damage: 0, lands: 0, draws: 0, quests: 0, weeklyDone: 0, mythicsPulled: 0, foilMythics: 0,
       setsCompleted: 0, draftPerfect: 0, gauntlets: 0, byFormat: {}, byDeck: {}, commanderWins: {}, shardsEarned: 0 },
     achievements: {}, title: '', setsDone: [],
@@ -76620,7 +76792,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (state) return state;
     const b = blank();
     state = Object.assign(b, MTG.store.get(KEY, null) || {});
-    for (const k of ['weekly', 'login', 'ranked', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
+    for (const k of ['weekly', 'login', 'ranked', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
     rollOver();
     return state;
   }
@@ -76665,15 +76837,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (state.season && state.level) mail(`${seasonName(state.season)} mastery`, `You reached level ${state.level}. A new season has begun.`, {}, 'season');
       state.season = se; state.xp = 0; state.level = 0; state.masteryPaid = 0;
     }
-    if (state.ranked.season !== se) {
-      if (state.ranked.season && state.ranked.paidSeason !== state.ranked.season) {
-        const t = state.ranked.tier;
-        mail(`${seasonName(state.ranked.season)} ranked rewards`, `You finished the season in ${t}${t === 'Mythic' ? '' : ' ' + state.ranked.div}.`, RANK_REWARD[t], 'season');
+    // each ladder pays for the tier it finished in
+    for (const L of LADDERS) {
+      const r = state[L.key];
+      if (r.season === se) continue;
+      if (r.season && r.paidSeason !== r.season) {
+        const t = r.tier;
+        mail(`${seasonName(r.season)} ${L.name} ranked rewards`, `You finished the season in ${t}${t === 'Mythic' ? '' : ' ' + r.div}.`, RANK_REWARD[t], 'season');
       }
       // a new season starts a little below where the last ended
-      const ti = TIERS.indexOf(state.ranked.tier);
-      state.ranked = Object.assign(state.ranked, { season: se, tier: TIERS[Math.max(0, ti - 1)] || 'Bronze', div: 4, step: 0, paidSeason: state.ranked.season });
-      if (!state.ranked.best) state.ranked.best = state.ranked.tier;
+      const ti = TIERS.indexOf(r.tier);
+      Object.assign(r, { season: se, tier: TIERS[Math.max(0, ti - 1)] || 'Bronze', div: 4, step: 0, paidSeason: r.season });
+      if (!r.best) r.best = r.tier;
     }
     MTG.store.set(KEY, state);
   }
@@ -76801,7 +76976,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     out.xp = o.won ? XP.win : XP.play;
     out.levels = addXp(out.xp);
     // ranked
-    if (o.ranked) out.ranked = rankResult(!!o.won);
+    if (o.ranked) out.ranked = rankResult(!!o.won, o.ranked === 'commander' ? 'commander' : 'standard');
     out.achievements = checkAchievements();
     save('game');
     return out;
@@ -76837,8 +77012,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
   /* ---------------- ranked ---------------- */
   /** A ranked game's result: up a step for a win (two in the low tiers), down one for a loss above Bronze. */
-  function rankResult(won) {
-    const r = state.ranked;
+  function rankResult(won, ladderId) {
+    const L = ladderOf(ladderId);
+    const r = state[L.key];
     const before = { tier: r.tier, div: r.div, step: r.step };
     if (r.tier === 'Mythic') {
       r.step = Math.max(0, r.step + (won ? 1 : -1));
@@ -76851,15 +77027,32 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       if (TIERS.indexOf(r.tier) > TIERS.indexOf(r.best)) {
         r.best = r.tier;
-        mail(`Reached ${r.tier}`, 'A new best rank this season.', { shards: 2500 * TIERS.indexOf(r.tier) }, 'ranked');
+        mail(`Reached ${r.tier} in ${L.name}`, 'A new best rank this season.', { shards: 2500 * TIERS.indexOf(r.tier) }, 'ranked');
       }
     } else if (r.tier !== 'Bronze') {
       // no falling below a tier once reached
       r.step = Math.max(0, r.step - 1);
     }
-    return { before, after: { tier: r.tier, div: r.div, step: r.step } };
+    return { ladder: L.id, ladderName: L.name, before, after: { tier: r.tier, div: r.div, step: r.step } };
   }
   const rankLabel = (r) => r.tier === 'Mythic' ? `Mythic` : `${r.tier} ${r.div}`;
+  /** Where the next rank is: how many wins, and its name; null at Mythic. */
+  function nextRank(r) {
+    if (r.tier === 'Mythic') return null;
+    const per = TIERS.indexOf(r.tier) <= 1 ? 2 : 1;
+    const wins = Math.max(1, Math.ceil((STEPS - r.step) / per));
+    const label = r.div > 1 ? `${r.tier} ${r.div - 1}` : TIERS[TIERS.indexOf(r.tier) + 1];
+    return { wins, label };
+  }
+  /** Days until the week (Monday) and the season (the month) turn over. */
+  function untilReset(now) {
+    now = now || new Date();
+    const day = 86400000;
+    const midnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const week = ((8 - now.getDay()) % 7) || 7;
+    const season = Math.max(1, Math.round((new Date(now.getFullYear(), now.getMonth() + 1, 1) - midnight) / day));
+    return { week, season };
+  }
 
   /* ---------------- achievements and set completion ---------------- */
   function checkAchievements() {
@@ -76957,8 +77150,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   function noteEarned(n) { load(); state.stats.shardsEarned += n || 0; save(); }
 
   MTG.progress = {
-    QUESTS, WEEKLY, LOGIN, XP_LEVEL, LEVELS, XP, TIERS, STEPS, RANK_REWARD, RANK_DIFFICULTY, ACHIEVEMENTS,
+    QUESTS, WEEKLY, LOGIN, XP_LEVEL, LEVELS, XP, TIERS, STEPS, RANK_REWARD, RANK_DIFFICULTY, ACHIEVEMENTS, LADDERS,
     get state() { return load(); },
+    /** A ladder's standing: 'standard' or 'commander'. */
+    ladder: (id) => load()[ladderOf(id).key],
+    nextRank, untilReset,
     save: () => save(),
     questText, reroll, seeEvents, gameEnded, gameLeft, mail, claim, describe, masteryReward,
     rankLabel, titles, setTitle, checkSets, notePulls, noteEarned, checkAchievements: () => { load(); const g = checkAchievements(); save(); return g; },
@@ -76998,6 +77194,95 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return el('span', { class: 'rw-row' }, out);
   }
   UI.rewardChips = rewardChips;
+
+  /* ---------------- the ranks' symbols ---------------- */
+  /* Each tier its own shape and its own mark, so a rank reads at a glance
+     and at any size: Bronze a shield with one chevron, Silver with two,
+     Gold a crowned crest, Platinum a hexagon with a star, Diamond a gem,
+     Mythic a burst with a flame. */
+  const SHIELD = 'M32 3 L57 11 V35 C57 51 46 62 32 69 C18 62 7 51 7 35 V11 Z';
+  const CREST = 'M32 2 L40 9 L57 7 V35 C57 51 46 62 32 69 C18 62 7 51 7 35 V7 L24 9 Z';
+  const HEX = 'M32 3 L59 18.5 V51.5 L32 69 L5 51.5 V18.5 Z';
+  const GEM = 'M32 2 L61 33 L32 70 L3 33 Z';
+  const BURST = (() => {
+    const pts = [];
+    for (let i = 0; i < 16; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 8, r = i % 2 ? 22 : 34;
+      pts.push((32 + r * Math.cos(a)).toFixed(1) + ' ' + (36 + r * Math.sin(a)).toFixed(1));
+    }
+    return 'M' + pts.join(' L') + ' Z';
+  })();
+  const EMBLEMS = {
+    Bronze: { shape: SHIELD, a: '#eeb27c', b: '#7a4220', rim: '#ffd6b0', ink: '#fff4e8',
+      mark: '<path d="M20 45 L32 33 L44 45" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/>' },
+    Silver: { shape: SHIELD, a: '#f6f8fb', b: '#78808d', rim: '#ffffff', ink: '#2a2f38',
+      mark: '<path d="M20 40 L32 28 L44 40 M20 52 L32 40 L44 52" fill="none" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>' },
+    Gold: { shape: CREST, a: '#ffeaa8', b: '#a8761c', rim: '#fff4c8', ink: '#4a3208',
+      mark: '<path d="M17.5 46 L19.5 27 L26.5 35 L32 24 L37.5 35 L44.5 27 L46.5 46 Z" stroke="none"/><rect x="17.5" y="49" width="29" height="4.5" rx="1.6" stroke="none"/>' },
+    Platinum: { shape: HEX, a: '#cdf5ee', b: '#2c7a72', rim: '#eafffb', ink: '#ffffff',
+      mark: '<path d="M32 19 L36.5 32 L49.5 36 L36.5 40 L32 53 L27.5 40 L14.5 36 L27.5 32 Z" stroke="none"/>' },
+    Diamond: { shape: GEM, a: '#d8ecff', b: '#3459c4', rim: '#f0f7ff', ink: '#ffffff',
+      mark: '<path d="M20 32 L26.5 24.5 H37.5 L44 32 L32 49 Z" stroke="none"/><path d="M20 32 H44 M26.5 24.5 L29.5 32 L32 49 M37.5 24.5 L34.5 32 L32 49" fill="none" stroke-width="1.5" class="re-facet"/>' },
+    Mythic: { shape: BURST, a: '#ffc68f', b: '#b4330c', rim: '#ffe2c6', ink: '#fff3e2',
+      mark: '<path d="M32 19 C35 28 43 31 41.5 41.5 C40.5 48.5 36.5 52.5 32 53 C27.5 52.5 23.5 48.5 22.5 41.5 C21.8 35 26.5 31.5 27.5 25.5 C29.5 29.5 30.8 31.5 33 33 C34.2 28 33.4 23 32 19 Z" stroke="none"/>' },
+  };
+  let emblemSeq = 0;
+  /**
+   * A rank's symbol. `opts.size` is its width in pixels; `opts.div` adds the
+   * division as a small seal at its foot.
+   */
+  UI.rankEmblem = function (tier, opts) {
+    opts = opts || {};
+    const e = EMBLEMS[tier] || EMBLEMS.Bronze;
+    const id = 'rem' + (++emblemSeq);
+    const w = opts.size || 48, h = Math.round(w * 74 / 64);
+    const facet = tier === 'Diamond' ? e.b : e.ink;
+    const seal = opts.div ? `<circle cx="32" cy="64" r="8.5" fill="#12151c" stroke="${e.rim}" stroke-width="2"/><text x="32" y="67.6" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">${opts.div}</text>` : '';
+    const svg = `<svg viewBox="0 0 64 74" width="${w}" height="${h}" aria-hidden="true" focusable="false">
+      <defs>
+        <linearGradient id="${id}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${e.a}"/><stop offset="1" stop-color="${e.b}"/></linearGradient>
+        <radialGradient id="${id}s" cx=".34" cy=".2" r=".62"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+      </defs>
+      <path d="${e.shape}" fill="url(#${id})" stroke="${e.rim}" stroke-width="2.4" stroke-linejoin="round"/>
+      <path d="${e.shape}" fill="url(#${id}s)"/>
+      <g transform="translate(0 1.4)" fill="rgba(0,0,0,.32)" stroke="rgba(0,0,0,.32)">${e.mark}</g>
+      <g fill="${e.ink}" stroke="${e.ink}" style="--facet:${facet}">${e.mark}</g>
+      ${seal}
+    </svg>`;
+    return el('span', { class: 'rank-emblem re-' + String(tier).toLowerCase() + (opts.cls ? ' ' + opts.cls : ''), html: svg, 'aria-label': tier + (opts.div ? ' ' + opts.div : '') });
+  };
+
+  /** One ladder's standing: its symbol, rank, steps, the next rank, and a button to play it. */
+  UI.ladderCard = function (ladderId, onPlay, opts) {
+    opts = opts || {};
+    const L = P().LADDERS.find(x => x.id === ladderId) || P().LADDERS[0];
+    const r = P().ladder(L.id);
+    const next = P().nextRank(r);
+    const steps = el('div', { class: 'rank-steps' }, Array.from({ length: P().STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' })));
+    return el('section', { class: 'panel ladder ladder-' + L.id + (opts.cls ? ' ' + opts.cls : '') }, [
+      UI.rankEmblem(r.tier, { size: opts.size || 96, div: r.tier === 'Mythic' ? null : r.div }),
+      el('div', { class: 'ladder-body' }, [
+        el('span', { class: 'ladder-name', text: `${L.name} ranked` }),
+        el('h3', { text: P().rankLabel(r) }),
+        r.tier === 'Mythic' ? el('p', { class: 'ladder-next', text: `${r.step} win${r.step === 1 ? '' : 's'} clear at the top.` }) : steps,
+        next ? el('p', { class: 'ladder-next', text: `${next.wins} more win${next.wins === 1 ? '' : 's'} to ${next.label}` }) : null,
+        el('p', { class: 'dim small', text: `Best this season: ${r.best}. ${L.id === 'commander' ? 'One against one, 40 life, with a Commander deck.' : 'One against one, with a Standard deck.'}` }),
+        onPlay ? el('button', { type: 'button', class: 'btn primary', text: `Play ${L.name}`, onclick: () => onPlay(L.id) }) : null,
+      ].filter(Boolean)),
+    ]);
+  };
+
+  /** Which ladder to play: both side by side, each with its rank. */
+  UI.rankedChooser = function (onPlay) {
+    let m = null;
+    const pick = (id) => { if (m) m.close(); onPlay(id); };
+    m = UI.modal({ title: 'Ranked', width: '760px', className: 'ranked-chooser',
+      content: el('div', {}, [
+        el('p', { class: 'dim', text: 'Two ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
+        el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, pick, { size: 84 }))),
+      ]) });
+    return m;
+  };
 
   /* ---------------- the inbox ---------------- */
   const BELL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6v3.2c0 .9-.3 1.8-.9 2.5L4 16h16l-1.1-1.3a3.9 3.9 0 0 1-.9-2.5V9a6 6 0 0 0-6-6z" fill="currentColor" opacity=".9"/><path d="M9.5 18.5a2.5 2.5 0 0 0 5 0" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/></svg>';
@@ -77109,7 +77394,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         [UI.portrait(name, null, { size: 'lg', avatar: MTG.settings.avatar, frame: E().frameWorn() })]),
       el('div', { class: 'ph-who' }, [
         el('h1', { text: name }),
-        el('div', { class: 'ph-sub' }, [titleSel, el('span', { class: 'dim', text: `Mastery level ${S.level} · ${P().rankLabel(S.ranked)}` })]),
+        el('div', { class: 'ph-sub' }, [titleSel, el('span', { class: 'dim', text: `Mastery level ${S.level} · ` + P().LADDERS.map(L => `${L.name} ${P().rankLabel(P().ladder(L.id))}`).join(' · ') })]),
         el('div', { class: 'ph-xp', title: `${fmtN(S.xp)} XP this season` }, [el('i', { style: { width: lvlPct.toFixed(0) + '%' } })]),
       ]),
       el('div', { class: 'ph-actions' }, [
@@ -77287,26 +77572,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
   /* -- ranked: the ladder against the bots -- */
   function ranked(body, opts) {
-    const S = P().state, r = S.ranked;
-    const ti = P().TIERS.indexOf(r.tier);
-    const crest = el('div', { class: 'rank-crest t-' + r.tier.toLowerCase() }, [el('span', { text: r.tier }), r.tier === 'Mythic' ? null : el('b', { text: String(r.div) })].filter(Boolean));
-    const steps = el('div', { class: 'rank-steps' }, Array.from({ length: P().STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' })));
-    body.appendChild(el('section', { class: 'panel ranked' }, [
-      el('div', { class: 'rank-main' }, [crest, el('div', {}, [
-        el('h3', { text: `${P().rankLabel(r)}` }),
-        r.tier === 'Mythic' ? el('p', { text: `Mythic, ${r.step} wins clear.` }) : steps,
-        el('p', { class: 'dim', text: `${P().seasonName(r.season)} season. Best this season: ${r.best}. A win moves you up a step (two in Bronze and Silver); a loss moves you down one, but never out of a tier you have reached. Opponents get stronger as you climb.` }),
-        el('div', { class: 'rank-play' }, [
-          el('span', { class: 'tiny dim rank-play-label', text: 'Play ranked:' }),
-          el('button', { type: 'button', class: 'btn primary hero-btn', html: '<span>Standard</span>', onclick: () => opts.onRanked && opts.onRanked('standard') }),
-          el('button', { type: 'button', class: 'btn', text: 'Modern', onclick: () => opts.onRanked && opts.onRanked('modern') }),
-          el('button', { type: 'button', class: 'btn', text: 'Pauper', onclick: () => opts.onRanked && opts.onRanked('pauper') }),
-        ]),
-      ])]),
-    ]));
-    body.appendChild(el('section', { class: 'panel' }, [el('h3', { text: 'Season rewards' }), el('p', { class: 'dim', text: 'Paid at the end of the month, for the tier you finish in.' }),
+    const S = P().state;
+    const left = P().untilReset().season;
+    body.appendChild(el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, opts.onRanked || null))));
+    body.appendChild(el('p', { class: 'dim ladder-rules', text: `${P().seasonName(S.ranked.season)} season, ${left} day${left === 1 ? '' : 's'} left. A win moves you up a step (two in Bronze and Silver); a loss moves you down one, but never out of a tier you have reached. Opponents get stronger as you climb.` }));
+    // the best tier on either ladder lights the rewards it has reached; each ladder pays for its own
+    const ti = Math.max(...P().LADDERS.map(L => P().TIERS.indexOf(P().ladder(L.id).tier)));
+    body.appendChild(el('section', { class: 'panel' }, [el('h3', { text: 'Season rewards' }), el('p', { class: 'dim', text: 'Paid at the end of the month for the tier you finish in, on each ladder.' }),
       el('div', { class: 'rank-rewards' }, P().TIERS.map((t, i) => el('div', { class: 'rr' + (i <= ti ? ' got' : '') }, [
-        el('div', { class: 'rank-crest small t-' + t.toLowerCase() }, [el('span', { text: t })]), rewardChips(P().RANK_REWARD[t]),
+        UI.rankEmblem(t, { size: 54 }), el('b', { class: 'rr-name', text: t }), rewardChips(P().RANK_REWARD[t]),
       ])))]));
   }
 
@@ -86585,7 +86859,8 @@ Sideboard
           this._progress = MTG.progress.gameEnded({
             won, format: (sess && sess.formatId) || app.clientFormatId || null,
             deck: deck && deck.name, commander: deck && deck.commanders && deck.commanders[0] ? deck.commanders[0].name : null,
-            ranked: !!(sess && sess.mode && sess.mode.ranked),
+            // which ladder: 'standard' or 'commander'
+            ranked: sess && sess.mode && sess.mode.ranked ? (sess.mode.ladder || 'standard') : null,
           });
           if (MTG.app && MTG.app.onGameRecorded) MTG.app.onGameRecorded(won, this._progress);
           // the result screen, drawn again with all of it (an event's record, a challenge solved)
@@ -87365,7 +87640,10 @@ Sideboard
         this._progress && !watched ? el('div', { class: 'over-progress' }, [
           el('span', { class: 'op-xp', text: `+${this._progress.xp} XP` }),
           ...(this._progress.quests || []).map(q => el('span', { class: 'op-quest', text: `Quest done: ${MTG.progress.questText(q)}` })),
-          this._progress.ranked ? el('span', { class: 'op-rank', text: `${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }) : null,
+          this._progress.ranked ? el('span', { class: 'op-rank' }, [
+            UI.rankEmblem ? UI.rankEmblem(this._progress.ranked.after.tier, { size: 18 }) : null,
+            el('span', { text: `${this._progress.ranked.ladderName || 'Ranked'}: ${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }),
+          ].filter(Boolean)) : null,
           this._progress.weekly ? el('span', { class: 'op-weekly', text: `Weekly win ${this._progress.weekly.wins} of 15` }) : null,
           (MTG.progress.inboxCount() ? el('button', { type: 'button', class: 'btn xs', text: `Rewards to claim (${MTG.progress.inboxCount()})`, onclick: () => UI.openInbox() }) : null),
         ].filter(Boolean)) : null,
@@ -93494,12 +93772,13 @@ Sideboard
    * your tier. The result moves you on the ladder (src/10e-progress.js).
    */
   App.playRanked = function (formatId) {
-    formatId = formatId || 'standard';
-    const tier = MTG.progress.state.ranked.tier;
-    UI.pickDeck(formatId, async (deck) => {
+    // two ladders, each climbed on its own: Standard, and Commander one against one
+    const ladder = formatId === 'commander' ? 'commander' : 'standard';
+    const tier = MTG.progress.ladder(ladder).tier;
+    UI.pickDeck(ladder, async (deck) => {
       if (!deck) return;
       if (!await App.collectionAllows(deck)) return;
-      App.quickGame({ formatId, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true } });
+      App.quickGame({ formatId: ladder, deck, difficulty: MTG.progress.RANK_DIFFICULTY[tier] || 5, opponents: 1, mode: { ranked: true, ladder } });
     });
   };
 
@@ -93968,7 +94247,9 @@ Sideboard
     'ev-ranked': "Elspeth, Sun's Champion", 'ev-draft': 'Lore Seeker', 'ev-gauntlet': 'Arena of Glory',
     'ev-challenge': 'Enigma Sphinx', 'ev-tutorials': 'Mentor of the Meek',
   };
-  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART), Object.values(EVENT_ART));
+  /* today's four on the home screen: a quest, a triumph, riches, an angel rising */
+  const TODAY_ART = { 't-quests': 'Quest for the Holy Relic', 't-weekly': 'Triumph of the Hordes', 't-inbox': 'Revel in Riches', 't-rank': 'Archangel of Thune' };
+  const DECOR = HERO_ART.concat(Object.values(FORMAT_ART), Object.values(TILE_ART), Object.values(EVENT_ART), Object.values(TODAY_ART));
 
   /** The decoration cards by name, once they are here. */
   function decor() {
@@ -94048,21 +94329,82 @@ Sideboard
      of the page (and whatever is set up in the quick game) alone. */
   function todayStrip() {
     if (!MTG.progress) return null;
-    const P = MTG.progress.state;
+    const PR = MTG.progress, P = PR.state;
     const q = P.quests || [];
-    const qDone = q.length ? q.reduce((a, x) => a + Math.min(1, x.n / x.goal), 0) / q.length : 1;
-    const box = MTG.progress.inboxCount();
-    const today = (cls, label, value, sub, pct, onClick) => el('button', { type: 'button', class: 'today-item ' + cls, onclick: onClick }, [
-      el('span', { class: 'ti-label', text: label }),
-      el('b', { class: 'ti-value', text: value }),
-      sub ? el('span', { class: 'ti-sub', text: sub }) : null,
-      pct != null ? el('span', { class: 'ti-bar' }, [el('i', { style: { width: Math.round(pct * 100) + '%' } })]) : null,
-    ].filter(Boolean));
+    const inbox = P.inbox || [];
+    const reset = PR.untilReset();
+    const days = (n) => `${n} day${n === 1 ? '' : 's'}`;
+    const shards = (n) => `${UI.shardIcon ? UI.shardIcon() : ''}<b>${Number(n || 0).toLocaleString()}</b>`;
+    // each a painting behind it, coloured in under the pointer; what it is and how it stands on top
+    const card = (cls, label, value, body, onClick, hot) => el('button', { type: 'button', class: 'today-item rich ' + cls + (hot ? ' hot' : ''), onclick: onClick }, [
+      decorArt(el('span', { class: 'ti-art', 'aria-hidden': 'true' }), TODAY_ART[cls]),
+      el('span', { class: 'ti-head' }, [el('span', { class: 'ti-label', text: label }), value ? el('b', { class: 'ti-value', text: value }) : null].filter(Boolean)),
+      ...body.filter(Boolean),
+    ]);
+
+    // the day's quests, each with how far along it is, and what they pay
+    const hours = Math.max(1, Math.ceil((new Date().setHours(24, 0, 0, 0) - Date.now()) / 3600000));
+    const quests = q.length ? [
+      el('span', { class: 'ti-list' }, q.map(x => {
+        const n = Math.min(x.n, x.goal);
+        return el('span', { class: 'ti-quest' }, [
+          el('span', { class: 'tq-text', text: PR.questText(x) }),
+          el('span', { class: 'tq-n', text: `${n}/${x.goal}` }),
+          el('span', { class: 'tq-bar' }, [el('i', { style: { width: Math.round(n / x.goal * 100) + '%' } })]),
+        ]);
+      })),
+      el('span', { class: 'ti-foot', html: `${shards(q.reduce((a, x) => a + (x.reward || 0), 0))}&nbsp;to earn` + (q.length < 3 ? ` · another in ${hours}h` : '') }),
+    ] : [el('span', { class: 'ti-sub2', text: 'All done for today.' }), el('span', { class: 'ti-foot', text: `New quests in ${hours}h` })];
+
+    // the week's fifteen wins, the prizes along it, and the next one
+    const wins = P.weekly.wins;
+    const nextW = PR.WEEKLY.find(r => r.wins > wins);
+    const weekly = [
+      el('span', { class: 'ti-track' }, PR.WEEKLY.map(r => el('i', {
+        class: [r.wins <= wins ? 'won' : '', r.pack ? 'pk' : '', r.wc ? 'wc' : '', r.wins === 15 ? 'big' : ''].filter(Boolean).join(' '),
+      }))),
+      el('span', { class: 'ti-sub2', text: nextW ? `Win ${nextW.wins}: ${PR.describe(nextW)}` : 'The whole track is done. Well played.' }),
+      el('span', { class: 'ti-foot', text: `Starts again in ${days(reset.week)}` }),
+    ];
+
+    // what waits in the inbox, added up; with nothing there, the login streak
+    const tot = inbox.reduce((a, m) => { const r = m.reward || {}; a.shards += r.shards || 0; a.pack += r.pack || 0; a.wc += r.wc ? 1 : 0; a.xp += r.xp || 0; return a; }, { shards: 0, pack: 0, wc: 0, xp: 0 });
+    const streak = (P.login && P.login.streak) || 0;
+    const gift = PR.LOGIN[streak % PR.LOGIN.length];
+    const rewards = inbox.length ? [
+      el('span', { class: 'ti-chips', html: [
+        tot.shards ? `<span>${shards(tot.shards)}</span>` : '',
+        tot.pack ? `<span><b>${tot.pack}</b>&nbsp;pack${tot.pack === 1 ? '' : 's'}</span>` : '',
+        tot.wc ? `<span><b>${tot.wc}</b>&nbsp;wildcard${tot.wc === 1 ? '' : 's'}</span>` : '',
+        tot.xp ? `<span><b>${tot.xp.toLocaleString()}</b>&nbsp;XP</span>` : '',
+      ].join('') }),
+      el('span', { class: 'ti-foot', text: `Newest: ${inbox[inbox.length - 1].title}` }),
+    ] : [
+      el('span', { class: 'ti-sub2', text: streak ? `Day ${streak} of your login streak` : 'Earn them by playing' }),
+      el('span', { class: 'ti-foot', text: `Tomorrow's login gift: ${PR.describe(typeof gift === 'number' ? { shards: gift } : gift)}` }),
+    ];
+
+    // both ladders: the symbol, the rank and its steps
+    const ranked = [
+      el('span', { class: 'ti-ladders' }, PR.LADDERS.map(L => {
+        const r = PR.ladder(L.id);
+        return el('span', { class: 'ti-ladder' }, [
+          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30 }) : null,
+          el('span', { class: 'tl-text' }, [
+            el('span', { class: 'tl-name', text: L.name }),
+            el('b', { text: PR.rankLabel(r) }),
+            r.tier === 'Mythic' ? null : el('span', { class: 'tl-steps' }, Array.from({ length: PR.STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' }))),
+          ].filter(Boolean)),
+        ].filter(Boolean));
+      })),
+      el('span', { class: 'ti-foot', text: `Season ends in ${days(reset.season)}` }),
+    ];
+
     return el('div', { class: 'home-today', role: 'group', 'aria-label': 'Today' }, [
-      today('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', q.length ? MTG.progress.questText(q[0]) : 'A new one tomorrow', qDone, () => navProfile('quests')),
-      today('t-weekly', 'Weekly wins', `${P.weekly.wins} / 15`, 'Rewards along the way', P.weekly.wins / 15, () => navProfile('quests')),
-      today('t-inbox' + (box ? ' hot' : ''), 'Rewards', box ? `${box} to claim` : 'None waiting', box ? 'Open the inbox' : 'Earn them by playing', null, () => UI.openInbox()),
-      today('t-rank', 'Ranked', MTG.progress.rankLabel(P.ranked), `Mastery level ${P.level}`, null, () => navProfile('ranked')),
+      card('t-quests', 'Daily quests', q.length ? `${q.length} to do` : 'All done', quests, () => navProfile('quests')),
+      card('t-weekly', 'Weekly wins', `${wins} / 15`, weekly, () => navProfile('quests')),
+      card('t-inbox', 'Rewards', inbox.length ? `${inbox.length} to claim` : 'None waiting', rewards, () => UI.openInbox(), inbox.length > 0),
+      card('t-rank', 'Ranked', null, ranked, () => navProfile('ranked')),
     ]);
   }
   let stripQueued = false;
@@ -94480,8 +94822,10 @@ Sideboard
       el('p', { class: 'cat-blurb', text: 'Play for prizes: they wait in your inbox.' }),
     ]));
     inner.appendChild(el('div', { class: 'event-grid' }, [
-      evCard('ev-ranked', 'Ranked', `Climb from Bronze to Mythic against bots that get stronger as you rise. You are ${P.rankLabel(P.state.ranked)}.`,
-        '<span>Free · season rewards each month</span>', () => App.playRanked('standard')),
+      // two ladders: the tile asks which
+      evCard('ev-ranked', 'Ranked', 'Two ladders, Standard and Commander, each from Bronze to Mythic against bots that get stronger as you rise.',
+        P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15 }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
+        '<span>Free · season rewards</span>', () => UI.rankedChooser((id) => App.playRanked(id))),
       evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,
         `<span>Entry ${shardHtml(App.EVENTS.draft.entry)}</span><span>Up to 5 packs and 12,500 Shards</span>`, () => App.startDraftEvent()),
       evCard('ev-gauntlet', 'The gauntlet', `Your deck against ${App.EVENTS.gauntlet.rounds} bots in a row, each stronger than the last. One loss ends the run.`,
