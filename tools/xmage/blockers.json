@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10423,
+  "needed": 10419,
   "gainedCards": 952,
-  "linesNeeded": 11065,
+  "linesNeeded": 11061,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -127,8 +127,8 @@
   },
   {
    "what": "custom condition",
-   "score": 155,
-   "lines": 143,
+   "score": 154,
+   "lines": 142,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -1512,21 +1512,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessSourceEffect with a duration",
-   "score": 10,
-   "lines": 10,
-   "cards": [
-    "Timber Paladin",
-    "Doc Ock, Sinister Scientist",
-    "Living Conundrum",
-    "Myth Realized",
-    "Mirkwood Meditator",
-    "Snowmelt Stag",
-    "Sutured Ghoul",
-    "Entropic Specter"
-   ]
-  },
-  {
    "what": "LoseAbilitySourceEffect",
    "score": 10,
    "lines": 10,
@@ -1858,6 +1843,20 @@
     "Arcum's Weathervane",
     "Balduvian Conjurer",
     "Ohran Yeti"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessSourceEffect with a duration",
+   "score": 9,
+   "lines": 9,
+   "cards": [
+    "Timber Paladin",
+    "Living Conundrum",
+    "Myth Realized",
+    "Mirkwood Meditator",
+    "Snowmelt Stag",
+    "Sutured Ghoul",
+    "Entropic Specter"
    ]
   },
   {
@@ -3122,19 +3121,6 @@
     "Sage of the Unknowable",
     "Qarsi Deceiver",
     "Soldevi Machinist"
-   ]
-  },
-  {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Rescue Retriever",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Inner Sanctum"
    ]
   },
   {
@@ -4962,6 +4948,17 @@
    ]
   },
   {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Rescue Retriever",
+    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage"
+   ]
+  },
+  {
    "what": "DealsDamageSourceTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -6513,8 +6510,8 @@
   },
   {
    "what": "custom condition",
-   "score": 122,
-   "cards": 119,
+   "score": 121,
+   "cards": 118,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -8369,19 +8366,6 @@
    ]
   },
   {
-   "what": "SetBasePowerToughnessSourceEffect with a duration",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Timber Paladin",
-    "Doc Ock, Sinister Scientist",
-    "Myth Realized",
-    "Mirkwood Meditator",
-    "Snowmelt Stag",
-    "Entropic Specter"
-   ]
-  },
-  {
    "what": "LockedInCondition",
    "score": 6,
    "cards": 6,
@@ -8859,18 +8843,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Rescue Retriever",
-    "Emmara Tandris",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage",
-    "Inner Sanctum"
-   ]
-  },
-  {
    "what": "DynamicManaAbility shape",
    "score": 5,
    "cards": 5,
@@ -8928,6 +8900,18 @@
     "Deem Inferior",
     "Trickster's Stratagem",
     "Happy Hogan, Bodyguard"
+   ]
+  },
+  {
+   "what": "SetBasePowerToughnessSourceEffect with a duration",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Timber Paladin",
+    "Myth Realized",
+    "Mirkwood Meditator",
+    "Snowmelt Stag",
+    "Entropic Specter"
    ]
   },
   {
@@ -10094,6 +10078,16 @@
     "Increasing Vengeance",
     "Double Major",
     "Choreographed Sparks"
+   ]
+  },
+  {
+   "what": "PutIntoGraveFromAnywhereThisTurnPredicate.instance",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Abyssal Harvester",
+    "Reenact the Crime",
+    "Night Nurse, Healer of Heroes"
    ]
   }
  ]

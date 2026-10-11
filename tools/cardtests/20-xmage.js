@@ -22562,4 +22562,44 @@ module.exports = (test) => {
     t.ok(O.MTG.oracle.matchesSpec(spec, leg, leg.analysis(), 'A', O.g._specCtx()) && !O.MTG.oracle.matchesSpec(spec, plain, plain.analysis(), 'A', O.g._specCtx()),
       'Okina: Isamaru is a target, the Bears are not');
   });
+
+  test("Commanders: Emmara Tandris, Rhino, Barreling Brute, Doc Ock, Sinister Scientist; Inner Sanctum", (mk, t) => {
+    for (const n of ['Emmara Tandris', 'Rhino, Barreling Brute', 'Doc Ock, Sinister Scientist', 'Inner Sanctum']) t.auto(n);
+    // Emmara: no damage to your creature tokens; your other creatures take it
+    const E = mk({ library: Array(10).fill('Plains') });
+    E.toMain('A');
+    E.bf('A', 'Emmara Tandris');
+    const tok = E.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    const card = E.bf('A', 'Hill Giant');
+    E.g.bumpBoard();
+    E.g.dealDamageToObject(tok, 1, card, false);
+    E.g.dealDamageToObject(card, 1, card, false);
+    t.ok(!(tok.damage > 0) && card.damage === 1, 'Emmara: the token takes no damage, the Giant does');
+    // Rhino: a card as it attacks, if you cast a spell with mana value 4 or greater this turn
+    const R = mk({ library: Array(10).fill('Mountain') });
+    R.toMain('A');
+    const rh = R.bf('A', 'Rhino, Barreling Brute'); rh.summoningSick = false;
+    R.mana('A', '3R');
+    R.cast('A', R.hand('A', 'Hill Giant')); R.resolve();
+    const h0 = R.zone('A', 'hand').length;
+    R.answer('declareAttackers', () => [{ attackerId: rh.id, defenderId: 'B' }]);
+    R.toMain('A', 'declareBlockers');
+    t.eq(R.zone('A', 'hand').length, h0 + 1, 'Rhino: Hill Giant (4) cast, a card');
+    const R2 = mk({ library: Array(10).fill('Mountain') });
+    R2.toMain('A');
+    const rh2 = R2.bf('A', 'Rhino, Barreling Brute'); rh2.summoningSick = false;
+    const h2 = R2.zone('A', 'hand').length;
+    R2.answer('declareAttackers', () => [{ attackerId: rh2.id, defenderId: 'B' }]);
+    R2.toMain('A', 'declareBlockers');
+    t.eq(R2.zone('A', 'hand').length, h2, 'Rhino: nothing cast, no card');
+    // Doc Ock: base 8/8 with eight or more cards in your graveyard
+    const D = mk({ library: Array(10).fill('Island') });
+    const dk = D.bf('A', 'Doc Ock, Sinister Scientist');
+    const base = parseInt(dk.card.power, 10);
+    for (let k = 0; k < 7; k++) D.grave('A', 'Island');
+    D.g.bumpBoard();
+    t.eq(D.g.powerOf(dk), base, 'Doc Ock: seven cards, printed power');
+    D.grave('A', 'Island'); D.g.bumpBoard();
+    t.eq(D.g.powerOf(dk), 8, 'Doc Ock: eight cards, 8/8');
+  });
 };

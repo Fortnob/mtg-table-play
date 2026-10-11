@@ -9630,6 +9630,8 @@
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
     // Lord Jyscal Guado: "you put a counter on a creature this turn" (counterPutter)
     [/^you put (?:a|one or more) counters? on a creature this turn$/i, () => ({ kind: 'youPutCounterOnCreature' })],
+    // Rhino, Barreling Brute: "you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
+    [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -14825,6 +14827,13 @@
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
       // Glittering Lion: "Prevent all damage that would be dealt to this creature."
+      // Emmara Tandris: "Prevent all damage that would be dealt to creature tokens you control." (preventToGroup)
+      { re: /^Prevent all damage that would be dealt to ((?:[a-z]+ )*(?:creature|creatures|creature tokens|tokens)) you control\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, sc), flag: 'noNoncombatTaken' }] } : null; }, auto: true },
+      // Doc Ock, Sinister Scientist: "As long as there are eight or more cards in your graveyard, CARDNAME has base power and toughness 8/8." (basePtWhile)
+      { re: /^As long as (.+?), (?:CARDNAME|this creature) has base power and toughness (\d+)\/(\d+)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, setPt: { p: +m[2], t: +m[3] } } : null; }, auto: true },
       { re: /^Prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         make: () => ({ op: 'sequence', list: [
           { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' },

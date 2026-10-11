@@ -10379,6 +10379,8 @@
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
+        // Rhino, Barreling Brute: "if you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
+        case 'castMvThisTurn': return !!me && (me.spellObjsThisTurn || []).some(x => ((x.card && x.card.cmc) || 0) >= (cond.n || 0));
         // Medomai the Ageless: "during extra turns" (extraTurnNow)
         case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
