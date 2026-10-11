@@ -22713,4 +22713,24 @@ module.exports = (test) => {
     T.put('A', 'Tinybones, Pocket Nuisance', 'battlefield', { etb: true }); T.resolve();
     t.eq(T.life('B'), 19, 'Tinybones: B discarded, 1 damage');
   });
+
+  test("Commanders: Captain America, Liberator, Queen Mother Ramonda", (mk, t) => {
+    for (const n of ['Captain America, Liberator', 'Queen Mother Ramonda']) t.auto(n);
+    // Captain America, Liberator: a Soldier for each Equipment attached to him as he attacks
+    const C = mk({ library: Array(10).fill('Plains') });
+    C.toMain('A');
+    const ca = C.bf('A', 'Captain America, Liberator'); ca.summoningSick = false;
+    for (const n of ['Bonesplitter', 'Short Sword']) { const eq = C.bf('A', n); eq.attachedTo = ca.id; ca.attachments.push(eq.id); }
+    C.g.bumpBoard();
+    C.answer('declareAttackers', () => [{ attackerId: ca.id, defenderId: 'B' }]);
+    C.toMain('A', 'declareBlockers');
+    t.eq(C.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 2, 'Captain America: two Equipment, two Soldiers');
+    // Queen Mother Ramonda: while you're the monarch, creatures with power 2 or less can't attack you
+    const R = mk({ library: Array(10).fill('Plains') });
+    R.bf('A', 'Queen Mother Ramonda');
+    const small = R.bf('B', 'Grizzly Bears'), big = R.bf('B', 'Hill Giant');
+    t.ok(!R.g._cantAttackYou(small, 'A'), 'Ramonda: not the monarch, the Bears may attack');
+    R.player('A').monarch = true; R.g.monarch = 'A';
+    t.ok(!!R.g._cantAttackYou(small, 'A') && !R.g._cantAttackYou(big, 'A'), 'Ramonda: the monarch — the Bears may not attack, the Giant may');
+  });
 };

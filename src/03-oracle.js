@@ -2989,6 +2989,12 @@
         const c = condOf(m[2].replace(/^(?:his|her|its|their) power\b/i, "CARDNAME's power"));
         return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'you' }] } : null;
       } },
+    // Captain America, Liberator: "for each Equipment attached to him, create a 1/1 white Soldier creature token" (forEachAttachedCreate)
+    { re: /^[Ff]or each (Aura|Equipment) attached to (?:it|him|her|CARDNAME), (create (?:a|an) .+? tokens?)\.?$/,
+      make: (m) => {
+        const tok = parseTokenSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        return tok && tok.op === 'createToken' && !tok.count ? Object.assign(tok, { count: { attachedOf: m[1], mult: 1 } }) : null;
+      } },
     // Yukora, the Prisoner: "sacrifice all non-Ogre creatures you control"; Emrakul, the World Anew: "sacrifice all creatures you control" (sacrificeAllYours)
     { re: /^[Ss]acrifice all ((?:non-[A-Z][a-z]+ |[a-z]+ )*(?:creatures|permanents|artifacts|lands|enchantments)) you control\.?$/,
       make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && sc.who === 'you' && !sc.self ? { op: 'sacrificeAllYours', scope: sc } : null; } },
@@ -14648,6 +14654,9 @@
           return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
             { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[5]] }] };
         }, auto: true },
+      // Queen Mother Ramonda: "As long as you're the monarch, creatures with power 2 or less can't attack you." (cantAttackYouWhile)
+      { re: /^As long as (.+?), (.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,
+        make: (m) => { const c = condOf(m[1]), sc = scopeOf(m[2]); return c && sc && !sc.self ? { op: 'cantAttackYou', scope: sc, walkers: !!m[3], cond: c } : null; }, auto: true },
       // Storm, Windrider: "Creatures with flying can't attack you or block creatures you control." (flyersCantAttackOrBlock)
       { re: /^Creatures with (flying|reach|horsemanship|shadow) can'?t attack you or block creatures you control\.?$/i,
         make: (m) => { const sc = scopeOf('creatures with ' + m[1].toLowerCase()); return sc ? { op: 'sequence', list: [{ op: 'cantAttackYou', scope: sc, walkers: false },

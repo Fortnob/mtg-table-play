@@ -22212,6 +22212,8 @@
           for (const e0 of ab.effects || []) {
             for (const e of (e0 && e0.op === 'sequence' ? e0.list || [] : [e0])) {
               if (!e || e.op !== 'cantAttackYou' || (walker && !e.walkers)) continue;
+              // (Queen Mother Ramonda: "as long as you're the monarch" — cantAttackYouWhile)
+              if (e.cond && !this._condMet(e.cond, { controller: s0.controller, obj: s0 })) continue;
               const sc = e.scope || {};
               const hit = sc.attached ? s0.attachedTo === o.id : this._scopeHit(sc, o, oa, s0.controller, s0);
               if (hit) return { src: s0, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
