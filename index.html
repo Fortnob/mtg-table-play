@@ -91540,7 +91540,8 @@ Sideboard
         const re = new RegExp('\\b' + p.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'g');
         h = h.replace(re, `<b class="${p.id === this.meId ? 'me' : 'them'}">${escapeHtml(p.id === this.meId ? p.name : p.name)}</b>`);
       }
-      return MTG.mana.textHtml ? h.replace(/\{[^}]+\}/g, (m) => MTG.mana.html(m)) : h;
+      // symbols in a line of words sit on the words' middle (.pip.in-text), not on their baseline as a cost does
+      return MTG.mana.textHtml ? h.replace(/\{[^}]+\}/g, (m) => MTG.mana.html(m).replace(/class="pip /g, 'class="pip in-text ')) : h;
     }
 
     /** @this {MTG.TableInstance} */
