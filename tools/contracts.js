@@ -106,6 +106,8 @@ const HiddenObject = obj({ id, hidden: lit(true), owner: id, zone: Zone }, { clo
 const ObjectView = obj({
   id, cardId: maybe(str), card: Card, owner: id, controller: id, zone: Zone,
   tapped: bool, faceDown: opt(maybe(bool)), face: opt(maybe(int)),
+  // Yedora, Grave Gardener: face down as a land of this basic type
+  faceDownLand: opt(str),
   // Kozilek, the Broken Reality: what turning it face up costs, to its controller only
   upCost: opt(str),
   counters: rec(num), damage: num, summoningSick: opt(maybe(bool)),

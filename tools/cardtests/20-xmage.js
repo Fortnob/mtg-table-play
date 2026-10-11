@@ -27604,4 +27604,384 @@ module.exports = (test) => {
     M.resolve();
     t.zone(plains, 'battlefield', "Rona: A's own source, a card from A's hand");
   });
+
+  test('Commanders: Yedora, Grave Gardener — another nontoken creature of A\'s that dies may come back face down as a Forest land', (mk, t) => {
+    t.auto('Yedora, Grave Gardener');
+    let M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Yedora, Grave Gardener');
+    const quest = M.bf('A', 'Khalni Heart Expedition');
+    const bears = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [bears] });
+    t.zone(bears, 'battlefield', 'Yedora: the Grizzly Bears back');
+    t.ok(bears.faceDown, 'Yedora: face down');
+    t.eq(bears.faceDownLand, 'Forest');
+    const a = bears.analysis();
+    t.ok(a.isLand && !a.isCreature, 'Yedora: a land, not a creature');
+    t.eq(a.subtypes.join(','), 'Forest', 'Yedora: a Forest');
+    t.eq(bears.name, 'Face-down card');
+    t.eq((quest.counters || {}).quest || 0, 1, 'Yedora: a land entering — landfall');
+    t.ok(M.g.tapForMana('A', bears.id, 0), 'Yedora: tapped for mana');
+    t.eq(M.player('A').pool.G || 0, 1, 'Yedora: {G}');
+    // to B, a Forest land face down, and nothing more
+    const seen = M.g.viewFor('B').battlefield.find(o => o.id === bears.id);
+    t.eq(seen.faceDownLand, 'Forest', 'Yedora: B is told it is a Forest');
+    t.eq(seen.card.name, 'Face-down card', 'Yedora: but not which card');
+    t.eq(seen.power, null, 'Yedora: no power');
+    // a creature sweep leaves it; when it leaves, it is the Grizzly Bears again
+    M.mana('A', '2WW');
+    M.cast('A', M.hand('A', 'Wrath of God'));
+    t.zone(bears, 'battlefield', 'Yedora: not a creature, not destroyed');
+    M.mana('A', '2R');
+    M.cast('A', M.hand('A', 'Stone Rain'), { targets: [bears] });
+    t.zone(bears, 'graveyard', 'Yedora: destroyed as a land');
+    t.no(bears.faceDown, 'Yedora: face up in the graveyard');
+    t.no(bears.faceDownLand);
+    t.eq(bears.name, 'Grizzly Bears');
+    // declined: it stays in the graveyard
+    M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Yedora, Grave Gardener');
+    const b2 = M.bf('A', 'Grizzly Bears');
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [b2] });
+    t.zone(b2, 'graveyard', 'Yedora: declined');
+    // a token, B's creature, and Yedora herself: nothing asked
+    const tok = M.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    const theirs = M.bf('B', 'Grizzly Bears');
+    const asked0 = M.asked.length;
+    M.mana('A', 'RR');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [tok] });
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [theirs] });
+    t.zone(theirs, 'graveyard', "Yedora: B's creature stays dead");
+    t.no(M.asked.slice(asked0).some(ch => ch.type === 'confirm'), 'Yedora: a token or an opponent\'s creature asks nothing');
+    // gone from the graveyard before it resolves: not asked
+    const b3 = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [b3], resolve: false });
+    M.g.passPriority('A', true); M.g.passPriority('B', true);
+    t.zone(b3, 'graveyard');
+    M.g.moveObject(b3, 'exile');
+    const a1 = M.asked.length;
+    M.resolve();
+    t.zone(b3, 'exile', 'Yedora: left the graveyard, stays where it went');
+    t.no(M.asked.slice(a1).some(ch => ch.type === 'confirm'), 'Yedora: nothing to say yes to');
+  });
+
+  test('Commanders: Yedora, Grave Gardener — a morph returned as a Forest can still be turned face up', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Yedora, Grave Gardener');
+    const fx = M.bf('A', 'Fortune Thief');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [fx] });
+    t.ok(fx.faceDown && fx.faceDownLand === 'Forest', 'Yedora: Fortune Thief a face-down Forest');
+    M.mana('A', 'RR');
+    t.ok(M.g.turnFaceUp('A', fx.id, { auto: true }), 'Yedora: turned face up for its morph cost');
+    t.no(fx.faceDownLand, 'Yedora: no longer a Forest');
+    t.ok(fx.analysis().isCreature, 'Yedora: a creature again');
+  });
+  test('Commanders: Jin-Gitaxias // The Great Synthesis — the Saga: a hand drawn twice over and kept, the board bounced, then the hand cast for free', (mk, t) => {
+    t.auto('Jin-Gitaxias // The Great Synthesis');
+    const M = mk({ library: Array(40).fill('Island') });
+    const jin = M.bf('A', 'Jin-Gitaxias');
+    for (let i = 0; i < 6; i++) M.hand('A', 'Island');
+    M.mana('A', '3U');
+    t.no(M.g.activateAbility('A', jin.id, 0, { auto: true }), 'Jin-Gitaxias: six cards in hand are not seven');
+    M.hand('A', 'Island');
+    M.activate('A', jin, 0);
+    t.eq(jin.face, 1, 'Jin-Gitaxias: The Great Synthesis');
+    t.eq(jin.counters.lore, 1);
+    t.eq(M.zone('A', 'hand').length, 14, 'The Great Synthesis I: seven cards drawn for the seven in hand');
+    t.eq(jin.noMaxHandFor, 'A', 'The Great Synthesis I: no maximum hand size');
+    // A's cleanup: nothing discarded
+    M.nextTurn('B');
+    t.eq(M.zone('A', 'hand').length, 14, 'The Great Synthesis I: fourteen cards kept through the cleanup');
+    t.no(M.asked.some(ch => ch.type === 'discardToHandSize' && ch.playerId === 'A'), 'The Great Synthesis I: not asked to discard');
+    // II: non-Phyrexian creatures bounced, Phyrexians stay
+    const bears = M.bf('B', 'Grizzly Bears');
+    const phy = M.bf('B', 'Phyrexian Rager');
+    M.nextTurn('A');
+    t.eq(jin.counters.lore, 2);
+    t.zone(bears, 'hand', 'The Great Synthesis II: Grizzly Bears bounced');
+    t.zone(phy, 'battlefield', 'The Great Synthesis II: the Phyrexian stays');
+    // III: cast from hand for nothing, in the order chosen; a land and a spell with no target not offered
+    const div = M.hand('A', 'Divination');
+    const ox = M.hand('A', 'Grizzly Bears');
+    const bolt = M.hand('A', 'Lightning Bolt');
+    const ench = M.hand('A', 'Pacifism');
+    const doom = M.hand('A', 'Doom Blade');   // its only target, a black Phyrexian Rager: none
+    let offered = null;
+    M.answer('choose', (ch) => { offered = ch; t.eq(ch.purpose, 'castFreeHand'); return { picks: [ox.id, bolt.id, div.id], order: [ox.id, bolt.id, div.id] }; });
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    const h0 = M.zone('A', 'hand').length;
+    const lifeB = M.life('B');
+    const log0 = M.g.log.length;
+    M.nextTurn('A');
+    t.ok(offered, 'The Great Synthesis III: asked once');
+    const ids = offered.items.map(x => x.id);
+    t.ok(ids.includes(div.id) && ids.includes(ox.id) && ids.includes(bolt.id) && ids.includes(ench.id), 'The Great Synthesis III: the spells offered');
+    t.no(ids.includes(doom.id), 'The Great Synthesis III: Doom Blade, with nothing to target, not offered');
+    t.no(offered.items.some(x => M.g.obj(x.id).name === 'Island'), 'The Great Synthesis III: no lands');
+    const casts = M.g.log.slice(log0).filter(l => /^A casts /.test(l.text)).map(l => l.text.replace(/^A casts (.+?)(?: targeting .*)?\.$/, '$1'));
+    t.eq(casts.join(','), 'Grizzly Bears,Lightning Bolt,Divination', 'The Great Synthesis III: cast in the order chosen');
+    t.eq(jin.face, 0, 'The Great Synthesis III: Jin-Gitaxias again');
+    t.zone(jin, 'battlefield');
+    t.no(jin.noMaxHandFor, 'The Great Synthesis: a new object, no longer the Saga');
+    t.zone(ox, 'battlefield', 'The Great Synthesis III: Grizzly Bears for nothing');
+    t.eq(M.life('B'), lifeB - 3, 'The Great Synthesis III: Lightning Bolt at B');
+    t.eq(M.zone('A', 'hand').length, h0 + 1 - 3 + 2, 'The Great Synthesis III: the draw step, then Divination drew two');
+    t.zone(ench, 'hand', 'The Great Synthesis III: Pacifism not chosen, kept');
+  });
+
+  test('Commanders: Jin-Gitaxias // The Great Synthesis — III with no spell in hand asks nothing', (mk, t) => {
+    const M = mk({ library: Array(40).fill('Island') });
+    const jin = M.bf('A', 'Jin-Gitaxias');
+    jin.face = 1; jin._chr = null;
+    jin.counters.lore = 2;
+    M.hand('A', 'Island');
+    const a0 = M.asked.length;
+    M.g._advanceSaga(jin, 1);
+    M.resolve();
+    t.no(M.asked.slice(a0).some(ch => ch.purpose === 'castFreeHand'), 'The Great Synthesis III: only a land in hand, nothing asked');
+    t.eq(jin.face, 0, 'The Great Synthesis III: and back as Jin-Gitaxias');
+  });
+  test('Commanders: Satoru, the Infiltrator — nontoken creatures of A\'s entering uncast or cast for nothing draw a card, once for the lot', (mk, t) => {
+    t.auto('Satoru, the Infiltrator');
+    const M = mk({ library: Array(30).fill('Island') });
+    const hand = () => M.zone('A', 'hand').length;
+    // Satoru cast with mana: nothing
+    let h;
+    M.mana('A', '1UB');
+    const sat = M.hand('A', 'Satoru, the Infiltrator');
+    h = hand();
+    M.cast('A', sat);
+    t.zone(sat, 'battlefield');
+    t.eq(hand(), h - 1, 'Satoru: cast with mana, no card');
+    // a creature cast with mana: nothing
+    M.mana('A', '1G');
+    const bears = M.hand('A', 'Grizzly Bears');
+    h = hand();
+    M.cast('A', bears);
+    t.eq(hand(), h - 1, 'Satoru: Grizzly Bears cast with mana, no card');
+    // returned from the graveyard: one card
+    const dead = M.grave('A', 'Hill Giant');
+    M.mana('A', '3B');
+    const zom = M.hand('A', 'Zombify');
+    h = hand();
+    M.cast('A', zom, { targets: [dead] });
+    t.zone(dead, 'battlefield');
+    t.eq(hand(), h, 'Satoru: Hill Giant put onto the battlefield, a card (Zombify spent)');
+    // two flickered together: one card for the lot
+    M.mana('A', '2U');
+    const fl = M.hand('A', 'Ghostly Flicker');
+    h = hand();
+    M.cast('A', fl, { targets: [bears, dead] });
+    t.eq(hand(), h - 1 + 1, 'Satoru: two creatures back together, one card');
+    // Satoru itself flickered with the Grizzly Bears: still one
+    M.mana('A', '2U');
+    const fl2 = M.hand('A', 'Ghostly Flicker');
+    h = hand();
+    M.cast('A', fl2, { targets: [M.g.battlefield.find(o => o.name === 'Satoru, the Infiltrator'), M.g.battlefield.find(o => o.name === 'Grizzly Bears')] });
+    t.eq(hand(), h - 1 + 1, 'Satoru: itself and another, one card');
+    // tokens: nothing
+    M.mana('A', '1W');
+    const alarm = M.hand('A', 'Raise the Alarm');
+    h = hand();
+    M.cast('A', alarm);
+    t.eq(hand(), h - 1, 'Satoru: tokens draw nothing');
+    // B's creature: nothing
+    const theirs = M.grave('B', 'Hill Giant');
+    h = hand();
+    M.g.moveObject(theirs, 'battlefield', { controller: 'B' });
+    M.resolve();
+    t.eq(hand(), h, "Satoru: B's creature draws A nothing");
+    // a creature cast without paying its mana cost: a card
+    const ox = M.hand('A', 'Hill Giant');
+    h = hand();
+    t.ok(M.g._castFree('A', ox), 'Satoru: Hill Giant cast for nothing');
+    M.resolve();
+    t.zone(ox, 'battlefield');
+    t.eq(hand(), h - 1 + 1, 'Satoru: cast with no mana spent, a card');
+  });
+  test('Commanders: Vorinclex // The Grand Evolution — I: ten milled, up to two creature cards from among them onto the battlefield', (mk, t) => {
+    t.auto('Vorinclex // The Grand Evolution');
+    const M = mk({ library: Array(30).fill('Island') });
+    const vor = M.bf('A', 'Vorinclex');
+    const deep = M.top('A', 'Craw Wurm');           // the eleventh card: not milled
+    for (let i = 0; i < 7; i++) M.top('A', 'Island');
+    const giant = M.top('A', 'Hill Giant');
+    const bears = M.top('A', 'Grizzly Bears');
+    const wurm = M.top('A', 'Craw Wurm');
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [wurm.id, giant.id] }; });
+    M.mana('A', '6GG');
+    M.activate('A', vor, 0);
+    t.eq(vor.face, 1, 'Vorinclex: The Grand Evolution');
+    t.eq(M.zone('A', 'graveyard').length + 2, 10, 'The Grand Evolution I: ten milled');
+    t.ok(offered, 'The Grand Evolution I: asked');
+    t.eq(offered.count, 2);
+    t.eq(offered.cards.map(c => c.id).sort().join(','), [wurm.id, bears.id, giant.id].sort().join(','), 'The Grand Evolution I: only the milled creature cards');
+    t.no(offered.cards.some(c => c.id === deep.id), 'The Grand Evolution I: the eleventh card not milled');
+    t.zone(wurm, 'battlefield', 'The Grand Evolution I: Craw Wurm put onto the battlefield');
+    t.zone(giant, 'battlefield', 'The Grand Evolution I: Hill Giant too');
+    t.eq(giant.controller, 'A');
+    t.zone(bears, 'graveyard', 'The Grand Evolution I: the third stays');
+    t.zone(deep, 'library');
+  });
+
+  test('Commanders: Vorinclex // The Grand Evolution — I with no creature card milled asks nothing', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const vor = M.bf('A', 'Vorinclex');
+    const a0 = M.asked.length;
+    M.mana('A', '6GG');
+    M.activate('A', vor, 0);
+    t.eq(vor.face, 1);
+    t.eq(M.zone('A', 'graveyard').length, 10, 'The Grand Evolution I: ten Islands milled');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard'), 'The Grand Evolution I: nothing to put onto the battlefield, nothing asked');
+  });
+  test('Commanders: Roxanne, Starfall Savant — a tapped Meteorite as she enters or attacks; artifact tokens of A\'s tapped for mana make one more', (mk, t) => {
+    t.auto('Roxanne, Starfall Savant');
+    const M = mk({ library: Array(30).fill('Island') });
+    const rox = M.hand('A', 'Roxanne, Starfall Savant');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    M.mana('A', '3RG');
+    M.cast('A', rox);
+    const mets = () => M.g.battlefield.filter(o => o.name === 'Meteorite');
+    t.eq(mets().length, 1, 'Roxanne: a Meteorite as she enters');
+    const met = mets()[0];
+    t.ok(met.isToken && met.tapped, 'Roxanne: a tapped token');
+    const ma = met.analysis();
+    t.ok(ma.isArtifact && !ma.isCreature, 'Roxanne: an artifact, not a creature');
+    t.eq((met.card.colors || []).length, 0, 'Roxanne: colorless');
+    t.eq(M.life('B'), 18, 'Meteorite: 2 damage to B as it enters');
+    // tapped for {R}: one more {R}
+    met.tapped = false;
+    const pool0 = M.player('A').pool.R || 0;
+    t.ok(M.g.tapForMana('A', met.id, 0, 'R'), 'Meteorite: tapped for mana');
+    t.eq((M.player('A').pool.R || 0) - pool0, 2, 'Roxanne: {R} and one more {R}');
+    // a Treasure, also an artifact token: one more of the same
+    M.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const tr = M.g.battlefield.find(o => o.name === 'Treasure');
+    const g0 = M.player('A').pool.G || 0;
+    t.ok(M.g.tapForMana('A', tr.id, 0, 'G'));
+    t.eq((M.player('A').pool.G || 0) - g0, 2, 'Roxanne: a Treasure makes {G}{G}');
+    // a nontoken artifact: nothing more
+    const stone = M.bf('A', 'Mind Stone');
+    const c0 = M.player('A').pool.C || 0;
+    t.ok(M.g.tapForMana('A', stone.id, 0));
+    t.eq((M.player('A').pool.C || 0) - c0, 1, 'Roxanne: Mind Stone, a card, just {C}');
+    // B's Treasure: B gets nothing more
+    M.g._createNamedToken('B', { token: 'Treasure', n: 1 });
+    const trB = M.g.battlefield.find(o => o.name === 'Treasure' && o.controller === 'B');
+    const b0 = M.player('B').pool.U || 0;
+    t.ok(M.g.tapForMana('B', trB.id, 0, 'U'));
+    t.eq((M.player('B').pool.U || 0) - b0, 1, "Roxanne: B's Treasure, no more");
+    // attacking: a second Meteorite
+    M.nextTurn('A');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    M.answer('declareAttackers', () => [{ attackerId: rox.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(mets().length, 2, 'Roxanne: another Meteorite as she attacks');
+    t.eq(M.life('B'), 18 - 2 - 4, 'Roxanne: a Meteorite\'s 2 and her 4');
+  });
+  test('Commanders: Clive, Ifrit\'s Dominant // Ifrit, Warden of Inferno — the Saga: a fight, {R}{R}{R}{R} twice, and Clive again after the third', (mk, t) => {
+    t.auto("Clive, Ifrit's Dominant // Ifrit, Warden of Inferno");
+    const M = mk({ library: Array(30).fill('Island') });
+    const clive = M.bf('A', "Clive, Ifrit's Dominant");
+    const bears = M.bf('B', 'Grizzly Bears');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bears.id }] }));
+    M.mana('A', '4RR');
+    M.activate('A', clive, 0);
+    t.eq(clive.face, 1, 'Clive: Ifrit, Warden of Inferno');
+    t.eq(clive.counters.lore, 1);
+    t.zone(bears, 'graveyard', 'Ifrit I: fights the Grizzly Bears');
+    t.eq(clive.damage, 2, 'Ifrit I: and is dealt 2');
+    // II: four red mana, and it stays
+    M.nextTurn('A');
+    t.eq(clive.counters.lore, 2);
+    t.eq(M.player('A').pool.R || 0, 4, 'Ifrit II: {R}{R}{R}{R}');
+    t.eq(clive.face, 1, 'Ifrit II: two lore counters, it stays');
+    t.zone(clive, 'battlefield');
+    // III: four more, then exiled and back front face up — a new Clive, whose "you may" is asked
+    M.answer('confirm', () => ({ yes: false }));
+    M.nextTurn('A');
+    t.zone(clive, 'battlefield', 'Ifrit III: back on the battlefield');
+    t.eq(clive.face, 0, "Ifrit III: Clive, Ifrit's Dominant again");
+    t.eq(clive.counters.lore || 0, 0, 'Ifrit III: a new object, no lore counters');
+    t.eq(M.player('A').pool.R || 0, 4, 'Ifrit III: {R}{R}{R}{R}');
+    t.ok(M.asked.some(ch => ch.type === 'confirm' && /discard your hand/i.test(ch.prompt || '')), "Ifrit III: Clive's entering asked");
+  });
+  test('Commanders: Hope of Ghirapur — sacrificed, a player it hit this turn can\'t cast noncreature spells until A\'s next turn', (mk, t) => {
+    t.auto('Hope of Ghirapur');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const hope = M.bf('A', 'Hope of Ghirapur');
+    // nobody hit yet: nothing to target
+    t.no(M.g.activateAbility('A', hope.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'Hope of Ghirapur: B not hit, no target');
+    t.zone(hope, 'battlefield');
+    M.answer('declareAttackers', () => [{ attackerId: hope.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 19, 'Hope of Ghirapur: B hit');
+    t.no(M.g._legalTargetsFor({ type: 'player', hitBySource: true }, 'A', hope.id).some(x => x.id === 'C'), 'Hope of Ghirapur: C, not hit, not a target');
+    M.activate('A', hope, 0, { targets: ['B'] });
+    t.zone(hope, 'graveyard', 'Hope of Ghirapur: sacrificed');
+    // B's turn: no Lightning Bolt, a Grizzly Bears is fine
+    M.nextTurn('B');
+    const bolt = M.hand('B', 'Lightning Bolt');
+    M.mana('B', 'R');
+    t.no(M.g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), "Hope of Ghirapur: B can't cast Lightning Bolt");
+    t.ok(/noncreature/.test(M.g.lastError || ''), 'Hope of Ghirapur: for that reason');
+    t.zone(bolt, 'hand');
+    M.mana('B', '1G');
+    M.cast('B', M.hand('B', 'Grizzly Bears'));
+    t.ok(M.g.battlefield.some(o => o.name === 'Grizzly Bears' && o.controller === 'B'), 'Hope of Ghirapur: a creature spell is fine');
+    // C is free to
+    M.nextTurn('C');
+    const cb = M.hand('C', 'Lightning Bolt');
+    M.mana('C', 'R');
+    M.cast('C', cb, { targets: ['A'] });
+    t.zone(cb, 'graveyard', 'Hope of Ghirapur: C casts Lightning Bolt');
+    // A's next turn: over
+    M.nextTurn('A');
+    t.no(M.player('B').silenceUntil, "Hope of Ghirapur: over as A's next turn begins");
+    t.no(/noncreature/.test((M.g.canCast('B', bolt.id, {}) || {}).reason || ''), 'Hope of Ghirapur: nothing stopping B');
+  });
+  test('Commanders: Ardyn, the Usurper — at the beginning of combat, a creature card exiled from a graveyard comes back as a 5/5 black Demon token', (mk, t) => {
+    t.auto('Ardyn, the Usurper');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Ardyn, the Usurper');
+    const bears = M.grave('B', 'Grizzly Bears');
+    M.grave('B', 'Lightning Bolt');
+    let offered = null;
+    M.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    M.toMain('A', 'endCombat');
+    t.ok(offered, 'Ardyn: asked');
+    t.eq(offered.options[0].filter(x => x.kind === 'object').length, 1, 'Ardyn: only the creature card');
+    t.zone(bears, 'exile', 'Ardyn: Grizzly Bears exiled from B\'s graveyard');
+    const tok = M.g.battlefield.find(o => o.isToken && o.name === 'Grizzly Bears');
+    t.ok(tok, 'Ardyn: a token copy');
+    t.eq(tok.controller, 'A');
+    t.eq(M.g.powerOf(tok), 5); t.eq(M.g.toughnessOf(tok), 5);
+    const ta = tok.analysis();
+    t.eq((ta.colors || []).join(''), 'B', 'Ardyn: black');
+    t.eq((ta.subtypes || []).join(','), 'Demon', 'Ardyn: a Demon, not a Bear');
+    t.ok(ta.isCreature);
+    t.ok(M.g.hasKw(tok, 'menace') && M.g.hasKw(tok, 'lifelink') && M.g.hasKw(tok, 'haste'), 'Ardyn: his Demons have menace, lifelink and haste');
+  });
+
+  test('Commanders: Ardyn, the Usurper — none chosen, or none to choose: no token', (mk, t) => {
+    let M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Ardyn, the Usurper');
+    const bears = M.grave('B', 'Grizzly Bears');
+    M.answer('pickTarget', () => ({ targets: [] }));
+    M.toMain('A', 'endCombat');
+    t.zone(bears, 'graveyard', 'Ardyn: up to one — none');
+    t.no(M.g.battlefield.some(o => o.isToken), 'Ardyn: no token');
+    M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Ardyn, the Usurper');
+    M.grave('B', 'Lightning Bolt');
+    const a0 = M.asked.length;
+    M.toMain('A', 'endCombat');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Ardyn: no creature card in a graveyard, nothing asked');
+    t.no(M.g.battlefield.some(o => o.isToken), 'Ardyn: and no token');
+  });
 };

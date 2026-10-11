@@ -64,6 +64,8 @@ declare namespace MTG {
     zone: ZoneName;
     tapped: boolean;
     faceDown?: boolean | null;
+    /** Yedora, Grave Gardener: face down as a land of this basic type rather than a 2/2 */
+    faceDownLand?: string;
     /** Kozilek, the Broken Reality: what turning it face up costs (its controller's view only) */
     upCost?: string;
     /** which face is up, for cards with more than one */

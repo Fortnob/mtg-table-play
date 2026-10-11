@@ -1571,6 +1571,15 @@
       });
       return { picks: picks.map(x => x.id) };
     },
+    /* The Great Synthesis III: every spell it can, for nothing — the permanents first, so the sorceries after
+       them see the board they make (castFreeHand) */
+    castFreeHand(s) {
+      const g = this.game;
+      const ids = (s.items || []).map(x => g.obj(x.id)).filter(Boolean)
+        .sort((a, b) => (((b.analysis() || {}).isPermanent ? 1 : 0) - ((a.analysis() || {}).isPermanent ? 1 : 0)) || g._cardValue(b) - g._cardValue(a))
+        .map(x => x.id);
+      return { picks: ids, order: ids };
+    },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Stonehewer Giant: the Equipment goes on the strongest creature */

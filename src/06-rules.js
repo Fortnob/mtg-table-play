@@ -80,6 +80,7 @@
       this.tapped = false;
       this.flipped = false;
       this.faceDown = false;
+      this.faceDownLand = null;        // Yedora, Grave Gardener: face down as a land of this basic type, not a 2/2
       this.face = 0;                   // which card_face is showing
       this.counters = {};              // {'+1/+1': 3, 'loyalty': 4, ...}
       this.damage = 0;
@@ -113,7 +114,7 @@
     analysis() {
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
-      const base = this.faceDown ? O.faceDownAnalysis() : O.analyze(this.card, this.face);
+      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand) : O.analyze(this.card, this.face);
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -862,6 +863,8 @@
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
+      // (Hope of Ghirapur: "until your next turn" — silenceUntil)
+      for (const q of this.players) if (q.silenceUntil) { q.silenceUntil = q.silenceUntil.filter(x => x.by !== ap.id); if (!q.silenceUntil.length) q.silenceUntil = null; }
       // Phasing (CR 702.26): what has it and is phased in goes out as the rest come back
       const phasers = this.battlefield.filter(o => !o.phasedOut && o.controller === ap.id && this.hasKw(o, 'phasing'));
       for (const o of this.battlefield) {
@@ -1241,7 +1244,9 @@
       const hand = this.zones[ap.id].hand;
       // Anvil of Bogardan: "Players have no maximum hand size" — anyone's, for everyone
       const allNoMax = this.battlefield.some(o => !o.phasedOut && (this._staticOp(o, 'noMaxHandSize') || {}).all);
-      if (allNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
+      // (The Great Synthesis: "for as long as you control this Saga" — noMaxHandWhileControl)
+      const sagaNoMax = this.battlefield.some(o => o.noMaxHandFor === ap.id && o.controller === ap.id);
+      if (allNoMax || sagaNoMax || this._anyStaticOf(ap.id, 'noMaxHandSize') || ap.noMaxHand) {
         this.logEvent('step', `${ap.name} has no maximum hand size.`);
         this._finishCleanup();
         return;
@@ -3816,6 +3821,9 @@
       // "can't cast noncreature spells this turn"
       if (!a.isCreature && (this.player(playerId) || {}).silencedNoncreatureTurn === this.turn)
         return { ok: false, reason: "You can't cast noncreature spells this turn." };
+      // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
+      if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
+        return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
       const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || this._flashFor(playerId, o)));
       // Saproling Symbiosis: flash, for {2} more
       let flashTax = '';
@@ -4941,7 +4949,7 @@
       if (!this.payMana(playerId, ab.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to turn ${real.name || 'it'} face up (${ab.cost}).`);
       }
-      o.faceDown = false;
+      o.faceDown = false; o.faceDownLand = null;
       if (ab.mega) this.addCounters(o, '+1/+1', 1);
       this.logEvent('rules', `${this.player(playerId).name} turns ${o.name} face up.`);
       this.emit('sfx', 'transform');
@@ -10280,7 +10288,7 @@
 
     /** What a permanent printed, and was handed in quotation marks, before the layers. */
     _baseAnalysis(o) {
-      const base = o.faceDown ? O.faceDownAnalysis() : O.analyze(o.card, o.face);
+      const base = o.faceDown ? O.faceDownAnalysis(o.faceDownLand) : O.analyze(o.card, o.face);
       if (!base || o.zone !== 'battlefield') return base;
       return this._dynamicAnalysis(o, base);
     }
@@ -10620,6 +10628,12 @@
         case 'triggerNoMana': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && (x.manaSpent || 0) === 0;
+        }
+        // Satoru, the Infiltrator: "if none of them were cast or no mana was spent to cast them" (batchUncastOrFree)
+        case 'batchUncastOrFree': {
+          const td = (ctx && ctx.triggerData) || {};
+          const lot = (td.batchIds || [td.objectId]).map(id => id && this.obj(id)).filter(Boolean);
+          return !!lot.length && lot.every(x => !x.wasCast || (x.manaSpent || 0) === 0);
         }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && (ctx.x || (ctx.obj && ctx.obj.chosenX))) || (src && src.chosenX) || 0) >= (cond.n || 0);
@@ -12298,7 +12312,8 @@
         o.toughDamageTurn = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
-        o.faceDown = false; o.manifested = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.noMaxHandFor = null;
+        o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
@@ -15404,7 +15419,15 @@
           let took = 0;
           for (const id of (picked || []).slice(0, want)) {
             const o = this.obj(id);
-            if (o && pool.includes(o)) { this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`); }
+            if (!o || !pool.includes(o) || o.zone !== 'graveyard') continue;
+            // The Grand Evolution: "onto the battlefield" — under the one who put them there
+            if (e.to === 'battlefield') {
+              this.moveObject(o, 'battlefield', { controller: ctx.controller });
+              if (o.zone === 'battlefield' && e.tapped) o.tapped = true;
+              took++; this.logEvent('rules', `${me.name} puts ${o.name} onto the battlefield.`);
+              continue;
+            }
+            this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`);
           }
           // Ostrich-Horse: "If you don't, put a +1/+1 counter on this creature."
           if (!took && e.otherwise) this._spliceNext(e.otherwise);
@@ -19441,7 +19464,14 @@
           for (const p of (e.who === 'opponents' ? this.opponentsOf(ctx.controller) : e.who === 'target' ? [firstPlayer()].filter(Boolean)
             // Render Silent: the controller of the spell just countered
             : e.who === 'targetController' ? [this._lastAffectedController()].filter(Boolean) : this.players)) {
+            // Hope of Ghirapur: "Until your next turn" — over as that turn begins (silenceUntil)
+            if (e.duration === 'nextTurn') { (p.silenceUntil = p.silenceUntil || []).push({ by: ctx.controller, noncreature: !!e.noncreature }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+          }
+          if (e.duration === 'nextTurn') {
+            const who = e.who === 'target' ? firstPlayer() : null;
+            this.logEvent('rules', `${who ? who.name : me.name + "'s opponents"} can't cast ${e.noncreature ? 'noncreature ' : ''}spells until ${me.name}'s next turn.`);
+            break;
           }
           this.logEvent('rules', `${me.name}'s opponents can't cast spells this turn.`);
           break;
@@ -20063,8 +20093,11 @@
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
           // Tergrid, God of Fright: "from a graveyard" — not from exile (sacOrDiscardAny)
           if (e.fromGrave && x.zone !== 'graveyard') break;
+          // Yedora, Grave Gardener: "face down … It's a Forest land." — it enters as one, landfall and all (faceDownLand)
+          if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
           if (x.zone !== 'battlefield') break;
+          if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           if (e.tapped) x.tapped = true;
           if (e.counter) this.addCounters(x, e.counter, 1);
           break;
@@ -23077,6 +23110,46 @@
           try { this._castFree(ctx.controller, c); } finally { this._castingNested = false; this.priorityIndex = prior; }
           break;
         }
+        /* The Great Synthesis III: "You may cast any number of spells from your hand without paying their mana
+           costs." — which, and in what order, chosen once (none is the "may"); each is then cast in turn as this
+           resolves, timing aside, its targets chosen as it is cast. A card with nothing it could target is not
+           offered. (castFreeHandAny) */
+        case 'castFreeHandAny': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const pool = this.zones[ctx.controller].hand.filter(c => {
+            const ca = c.analysis();
+            if (!ca || ca.isLand) return false;
+            const specs = ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca);
+            this._castingSpell = c.id;
+            const ok = specs.every(spec => (spec && spec.upTo) || this._legalTargetsFor(spec, ctx.controller, c.id).length);
+            this._castingSpell = null;
+            return ok;
+          });
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'castFreeHand', kind: 'objects', zone: 'hand', ordered: true,
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}cast any number of spells from your hand without paying their mana costs (the first chosen is cast first).` }, 'cfh');
+          if (got === SUSPEND) return SUSPEND;
+          const ids = (got && (got.order || got.picks)) || [];
+          for (let k = 0; k < ids.length; k++) {
+            const mark = r ? r.index + ':cfh' + k : null;
+            if (r && r.marks[mark]) continue;
+            const c = this.obj(ids[k]);
+            if (!c || c.zone !== 'hand' || !pool.includes(c)) { if (r) r.marks[mark] = true; continue; }
+            const tg = this._askSpellTargets(ctx.controller, c, 'cfht' + k);
+            if (tg === SUSPEND) return SUSPEND;
+            if (r) r.marks[mark] = true;
+            if (tg === null) continue;
+            this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+          }
+          break;
+        }
+        /* The Great Synthesis I: "You have no maximum hand size for as long as you control this Saga." — said of
+           this Saga, which a new object (blinked, or back from anywhere) is not (noMaxHandWhileControl) */
+        case 'noMaxHandWhileControl':
+          if (src && src.zone === 'battlefield' && src.controller === ctx.controller) src.noMaxHandFor = ctx.controller;
+          break;
         /* Malakir Rebirth: "When this creature dies, return it to the battlefield tapped" */
         case 'grantDiesReturn':
           applyToScope(e, (o) => o.effects.push({ returnOnDeath: e.tapped ? 'tapped' : 'untapped', until: 'eot' }));
@@ -23693,6 +23766,7 @@
     _castBlocked(playerId, abilities) {
       const p = this.player(playerId);
       if (!abilities && p && p.silencedTurn === this.turn) return "You can't cast spells this turn.";
+      if (!abilities && p && (p.silenceUntil || []).some(x => !x.noncreature)) return "You can't cast spells until the next turn of the player who stopped you.";
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'castRestrict');
@@ -23761,6 +23835,8 @@
           }
           this.logEvent('rules', `${p.name} pays ${price} to cast ${o.name}.`);
         }
+        // (Satoru, the Infiltrator: "no mana was spent to cast them" — only what was paid just now: batchUncastOrFree)
+        o.manaSpent = price ? MANA.cmc(price) : 0;
       }
       const fromZone = o.zone;
       this._removeFromZone(o);
@@ -24320,10 +24396,11 @@
           return;
         }
       }
-      const d = defs[e.token] || { type: 'Token Artifact', text: '' };
+      // (Roxanne, Starfall Savant: a Meteorite, its words given by the card that makes it — namedTokenDef)
+      const d = e.def || defs[e.token] || { type: 'Token Artifact', text: '' };
       (this.player(controller) || {}).tokensMadeTurn = this.turn;
       const card = {
-        id: 'token:' + e.token, name: e.token, layout: 'token', mana_cost: '', cmc: 0,
+        id: 'token:' + e.token + (e.def ? ':' + U.hash(d.type + d.text) : ''), name: e.token, layout: 'token', mana_cost: '', cmc: 0,
         type_line: d.type, oracle_text: d.text, colors: [], color_identity: [], keywords: [],
         rarity: 'common', set: 'tkn', set_name: 'Token', collector_number: '0', image_uris: null, _isToken: true,
       };
@@ -25601,7 +25678,9 @@
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
       if (spec.type === 'player' || spec.type === 'opponent') {
         return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer &&
-          !(spec.notPlayers || []).includes(t.id));
+          !(spec.notPlayers || []).includes(t.id) &&
+          // Hope of Ghirapur: "who was dealt combat damage by Hope of Ghirapur this turn" — by the source, as it last was (hitBySource)
+          !(spec.hitBySource && !(tsrc && tsrc._hitPlayers && tsrc._hitPlayers.turn === this.turn && tsrc._hitPlayers.ids.includes(t.id))));
       }
       if (spec.type === 'spell' || spec.zone === 'stack') {
         return this.stack
@@ -25857,7 +25936,7 @@
         case 'night': this.setDayNight(false, 'a card said so'); break;
         case 'daynight': this.setDayNight(!this.isDay, 'a card said so'); break;
         case 'vote': this.startVote(playerId, data.text || 'Choose one', data.options || ['Yes', 'No']); break;
-        case 'flip': if (o) { o.faceDown = !o.faceDown; } break;
+        case 'flip': if (o) { o.faceDown = !o.faceDown; o.faceDownLand = null; } break;
         case 'transform': if (o && o.card.card_faces) o.face = (o.face + 1) % o.card.card_faces.length; break;
         case 'reveal': this.logEvent('manual', `${p.name} reveals ${o ? o.name : 'a card'}.`); break;
         case 'roll': {
@@ -26362,6 +26441,8 @@
         owner: o.owner, controller: o.controller,
         // (a card exiled face down that this player may not see shows its back)
         zone: o.zone, tapped: o.tapped, faceDown: o.faceDown || (o.zone === 'exile' && !!o.faceDownExile && secret(o)), face: o.face,
+        // Yedora, Grave Gardener: face down as a Forest land, which is no secret (said only of such a permanent)
+        faceDownLand: o.faceDown && o.faceDownLand && o.zone === 'battlefield' ? o.faceDownLand : undefined,
         /* what turning it face up costs, to the one who may (Kozilek, the Broken Reality: a manifested creature
            card's mana cost; a morph's, a disguise's) — said of nothing else */
         upCost: o.faceDown && o.zone === 'battlefield' && !secret(o) ? (() => {

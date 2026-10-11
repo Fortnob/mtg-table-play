@@ -404,7 +404,11 @@
       return null;
     }
 
-    analysis(o) { return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null; }
+    analysis(o) {
+      // (Yedora, Grave Gardener: face down as a Forest land, a Forest is all it is — faceDownLand)
+      if (o && o.faceDown && o.faceDownLand) return MTG.oracle.faceDownAnalysis(o.faceDownLand);
+      return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null;
+    }
 
     /**
      * Whether the game taps your lands for you when you cast something:
@@ -937,7 +941,7 @@
         // an Aura or Equipment sits on whatever it is attached to
         if (o.attachedTo && ids.has(o.attachedTo)) continue;
         const a = this.analysis(o);
-        if (o.faceDown || (a && a.isCreature) || o.power != null) creatures.push(o);
+        if ((o.faceDown && !o.faceDownLand) || (a && a.isCreature) || o.power != null) creatures.push(o);
         else if (a && a.isLand) lands.push(o);
         else others.push(o);
       }
@@ -2105,6 +2109,8 @@
         const real = (a.abilities || []).find(x => x.kind === 'castModifier' && /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
         const upCost = o.upCost || (real && real.arg);
         if (upCost) uses.push({ label: 'Turn face up', cost: upCost, fn: () => this.send({ kind: 'turnFaceUp', objId: o.id }) });
+        // (Yedora, Grave Gardener: a face-down Forest land is tapped for {G} like any other — faceDownLand)
+        if (o.faceDownLand && !o.tapped) a.manaAbilities.forEach((ab, i) => uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.tapMana(o, i, ab) }));
       } else {
         /* Marvin, an Equipment's "has '{T}: …'": what it was given beyond its printed
            abilities comes after them, each with the engine's index for it (o.gained) */

@@ -2408,6 +2408,10 @@
     // Smuggler's Surprise: "You may put up to two creature and/or land cards from among the milled cards into your hand."
     { re: /^(?:Then )?(you may )?(?:put|return) up to (two|three|four) ([a-z, \/]*?)cards from among (?:the milled cards|the cards milled this way|them) (?:into|to) your hand\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: num(m[2]), filter: m[3].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true }) },
+    // The Grand Evolution: "Put up to two creature cards from among the milled cards onto the battlefield." (takeFromMilled to the battlefield)
+    { re: /^(?:Then )?(?:you may )?put up to (one|two|three|four) ([a-z, \/]*?)cards? from among (?:the milled cards|the cards milled this way) onto the battlefield( tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true, to: 'battlefield',
+        prompt: `Choose up to ${m[1].toLowerCase()} ${(m[2].trim() || '')}${m[2].trim() ? ' ' : ''}card${num(m[1]) === 1 ? '' : 's'} from among the milled cards to put onto the battlefield${m[3] ? ' tapped' : ''}.` }, m[3] ? { tapped: true } : {}) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
 
     // --- tokens ---
@@ -4085,6 +4089,17 @@
        same Treasure as "a Treasure token", and some arrive tapped. */
     { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
+    /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
+       it deals 2 damage to any target" and "{T}: Add one mana of any color."" — a token of its own, its words read
+       as its own card's would be, and only if they read whole (namedTokenDef) */
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) (tapped )?colorless artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
+      make: (m) => {
+        // (each ability a sentence of its own, and the token calling itself a token, as printed)
+        const text = [m[4], m[5]].filter(Boolean).map(x => x.replace(/\bthis creature\b/g, 'this token').replace(/([^.])$/, '$1.')).join('\n');
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[3] + text), name: m[3], type_line: 'Token Artifact', oracle_text: text, keywords: [], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return { op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: 'Token Artifact', text } };
+      } },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
     { re: /^Destroy (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.?$/i, make: () => ({ op: 'destroy', scope: 'self' }) },
@@ -4251,6 +4266,8 @@
     { re: /^You gain (one|two|three|\d+) life for each (?:creature|permanent|artifact) (?:destroyed|exiled|returned) this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastSweep: true, mult: num(m[1]) } }) },
     { re: /^You have no maximum hand size for the rest of the game\.?$/i, make: () => ({ op: 'noMaxHandForever' }) },
+    // The Great Synthesis: "You have no maximum hand size for as long as you control this Saga." (noMaxHandWhileControl)
+    { re: /^You have no maximum hand size for as long as you control (?:this Saga|this permanent|CARDNAME)\.?$/i, make: () => ({ op: 'noMaxHandWhileControl' }) },
     /* Overwhelming Stampede: X is worked out once, as it resolves */
     { re: /^Until end of turn, creatures you control gain ([a-z, ']+?) and get \+X\/\+X, where X is (.+?)\.?$/i,
       make: (m) => {
@@ -4571,6 +4588,11 @@
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
     // Sheoldred // The True Scriptures, Elesh Norn // The Argent Etchings: "Exile this Saga, then return it to the battlefield (front face up)." (sagaFrontFace)
     { re: /^Exile this Saga, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i, make: () => ({ op: 'blinkTransformed', front: true, ownerControl: true }) },
+    /* Ifrit, Warden of Inferno: "If Ifrit has three or more lore counters on it, exile it, then return it to the
+       battlefield (front face up)." — the chapter it shares with II, done at III (sagaFrontFace) */
+    { re: /^If (?:CARDNAME|this Saga) has (\w+) or more lore counters on it, exile it, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'ifCond', cond: { kind: 'selfCounters', n: num(m[1]), counter: 'lore' },
+        then: [{ op: 'blinkTransformed', front: true, ownerControl: true }] } : null) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
 
@@ -4780,6 +4802,9 @@
     /* Rishkar's Expertise */
     { re: /^You may cast a(?:n)? ([a-z ]*?)(?:spell|card) with (?:mana value|converted mana cost) (\d+|X) or less from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: m[2] === 'X' ? 'X' : +m[2] }) },
+    /* The Great Synthesis: "You may cast any number of spells from your hand without paying their mana costs." —
+       which and in what order, one choice (castFreeHandAny) */
+    { re: /^You may cast any number of spells from your hand without paying their mana costs\.?$/i, make: () => ({ op: 'castFreeHandAny' }) },
     // Yue, the Moon Spirit: "You may cast a noncreature spell from your hand without paying its mana cost."
     { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: null }) },
@@ -6011,11 +6036,12 @@
         targets: [Object.assign(targetSpec('target ' + m[1] + ' card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] },
       m[2] ? { addTypes: [U.titleCase(m[2])] } : {}) },
     /* Bonehoard Dracosaur: "If you exiled a land card this way, create …" */
-    { re: /^If you exiled an? (land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) card this way, (.+?)\.?$/i,
+    // (Ardyn, the Usurper: "If you exiled a card this way" — any card, the "up to one" not left at none)
+    { re: /^If you exiled an? (?:(land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) )?card this way, (.+?)\.?$/i,
       make: (m) => {
         const then = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
         if (!then.auto) return null;
-        return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: m[1].toLowerCase() }, then: then.effects };
+        return { op: 'ifCond', cond: { kind: 'exiledThisWay', filter: (m[1] || 'card').toLowerCase() }, then: then.effects };
       } },
     /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
        Each copy targets a different one of those creatures." */
@@ -6264,6 +6290,11 @@
     { re: /^Creatures can'?t attack this turn\.?$/i, make: () => ({ op: 'noAttacksTurn' }) },
     // Ranger-Captain of Eos: only the noncreature ones
     { re: /^Your opponents can'?t cast noncreature spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents', noncreature: true }) },
+    /* Hope of Ghirapur: "Until your next turn, target player who was dealt combat damage by Hope of Ghirapur this turn
+       can't cast noncreature spells." — only a player it hit (hitBySource) */
+    { re: /^Until your next turn, target (player|opponent) who was dealt combat damage by (?:this creature|CARDNAME) this turn can'?t cast (noncreature )?spells\.?$/i,
+      make: (m) => ({ op: 'silence', who: 'target', noncreature: !!m[2], duration: 'nextTurn',
+        targets: [{ type: 'player', opponent: /opponent/i.test(m[1]), hitBySource: true }] }) },
 
     /* ===== the general shapes of a one-off group effect =====
        "Permanents you control gain hexproof and indestructible until end of
@@ -7496,6 +7527,12 @@
           { op: 'choosePlayer', different: true, prompt: `Choose a third player to create ${words(tr)} Treasure token${tr === 1 ? '' : 's'}.`,
             then: [{ op: 'createNamedToken', token: 'Treasure', n: tr, who: 'triggerPlayer' }] }];
       } },
+    /* Yedora, Grave Gardener: "return it to the battlefield face down under its owner's control. It's a Forest
+       land. (It has no other types or abilities.)" — the card that died, from the graveyard, a face-down Forest
+       with no name, cost or creature type, tapped for {G} (faceDownLand) */
+    { re: /^Return (?:it|that card) to the battlefield face down under (its owner'?s|your) control\. It'?s an? (Plains|Island|Swamp|Mountain|Forest) land\.$/i,
+      make: (m) => [{ op: 'returnTriggerCard', yours: /your/i.test(m[1]), triggerOnly: true, fromGrave: true,
+        faceDownLand: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }] },
     /* Teferi's Time Twist: "Exile target permanent you control. Return that card to the battlefield under its
        owner's control at the beginning of the next end step. If it enters as a creature, it enters with an
        additional +1/+1 counter on it." (enterExtraCounter) */
@@ -10017,6 +10054,9 @@
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
     [/^no mana was spent to cast (?:it|that spell)$/i, () => ({ kind: 'triggerNoMana' })],
+    /* Satoru, the Infiltrator: "if none of them were cast or no mana was spent to cast them" — every one of the lot
+       that entered either put there some other way or cast for nothing (batchUncastOrFree) */
+    [/^none of them were cast or no mana was spent to cast them$/i, () => ({ kind: 'batchUncastOrFree' })],
     // Agent of Treachery: "you control three or more permanents you don't own"
     [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
@@ -10890,6 +10930,10 @@
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
     { re: /^Whenever an opponent commits a crime,? /i, event: 'opponentCommitCrime' },
     // Daxos, Blessed by the Sun: "Whenever another creature you control enters or dies"
+    /* Satoru, the Infiltrator: "Whenever Satoru and/or one or more other nontoken creatures you control enter" — once
+       for the lot, itself one of them or not (selfOk, batch) */
+    { re: /^Whenever (?:CARDNAME|this creature) and\/or (one or more other [a-z ]+? you control) enter,? /i,
+      event: 'permEnters', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.selfOk = true; return f; } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
@@ -15267,7 +15311,8 @@
       { re: /^Whenever you tap an? (permanent|land|artifact|creature) for (\{[WUBRGC]\}), add an additional \2\.?$/i,
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]), ifMade: MANA.parse(m[2])[0] }), auto: true },
       // Badgermole Cub: "Whenever you tap a creature for mana, add an additional {G}"; Kinnan: "a nonland permanent"
-      { re: /^Whenever you tap an? (creature|nonland permanent|artifact|permanent) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that (?:creature|permanent|artifact) produced)\.?$/i,
+      // (Roxanne, Starfall Savant: "Whenever you tap an artifact token for mana, add one mana of any type that artifact token produced.")
+      { re: /^Whenever you tap an? (creature|nonland permanent|artifact token|artifact|permanent) for mana, add (?:an additional )?(\{[^}]+\}(?:\{[^}]+\})*|one (?:additional )?mana of any type that (?:creature|permanent|artifact token|artifact) produced)\.?$/i,
         make: (m) => Object.assign({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase() },
           /any type/i.test(m[2]) ? { sameType: true } : { symbols: MANA.parse(m[2]) }), auto: true },
       // Mana Reflection, Nyxbloom Ancient: "If you tap a permanent for mana, it produces twice as much of that mana instead."
@@ -16582,7 +16627,15 @@
     colors: [], color_identity: [], keywords: [], legalities: {},
     rarity: 'common', layout: 'normal', power: '2', toughness: '2',
   };
-  function faceDownAnalysis() { return analyze(FACE_DOWN_CARD); }
+  /* Yedora, Grave Gardener: "It's a Forest land. (It has no other types or abilities.)" — face down, a land of
+     that basic type and nothing more; its {T}: Add {G} comes with the type (CR 305.6) */
+  const FACE_DOWN_LANDS = {};
+  function faceDownAnalysis(land) {
+    if (!land) return analyze(FACE_DOWN_CARD);
+    const card = FACE_DOWN_LANDS[land] || (FACE_DOWN_LANDS[land] = Object.assign({}, FACE_DOWN_CARD,
+      { id: '__facedown_' + land.toLowerCase() + '__', oracle_id: '__facedown_' + land.toLowerCase() + '__', type_line: 'Land — ' + land, power: undefined, toughness: undefined }));
+    return analyze(card);
+  }
 
   MTG.oracle = {
     analyze, normalizePunct, faceDownAnalysis,
