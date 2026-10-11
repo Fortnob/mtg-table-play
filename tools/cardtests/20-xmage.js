@@ -22782,4 +22782,21 @@ module.exports = (test) => {
     attack(H2, five);
     t.ok(H2.g.hasKw(five[0], 'flying'), 'Harbin: five Soldiers, flying');
   });
+
+  test("Commanders: Hulk, Strongest There Is, Lo and Li, Twin Tutors", (mk, t) => {
+    for (const n of ['Hulk, Strongest There Is', 'Lo and Li, Twin Tutors']) t.auto(n);
+    // Hulk: the +1/+1 counters on each Gamma creature double at your upkeep; others don't
+    const H = mk({ library: Array(10).fill('Forest') });
+    H.toMain('A');
+    const hk = H.bf('A', 'Hulk, Strongest There Is'), gb = H.bf('A', 'Grizzly Bears');
+    hk.counters['+1/+1'] = 2; gb.counters['+1/+1'] = 2;
+    H.nextTurn('B'); H.nextTurn('A');
+    t.ok(Number(hk.counters['+1/+1']) === 4 && Number(gb.counters['+1/+1']) === 2, 'Hulk: the Gamma doubles, the Bears do not');
+    // Lo and Li: Noble creatures you control have lifelink
+    const L = mk({ library: Array(10).fill('Swamp') });
+    L.bf('A', 'Lo and Li, Twin Tutors');
+    const nb = L.bf('A', 'Falkenrath Noble'), bb = L.bf('A', 'Grizzly Bears');
+    L.g.bumpBoard();
+    t.ok(L.g.hasKw(nb, 'lifelink') && !L.g.hasKw(bb, 'lifelink'), 'Lo and Li: the Noble has lifelink, the Bears do not');
+  });
 };

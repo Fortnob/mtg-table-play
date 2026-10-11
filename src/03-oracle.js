@@ -2764,6 +2764,9 @@
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[3].toLowerCase() }, scope: sc } : null; } },
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on ((?:another )?target creature(?: you control)?), where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, targets: [targetSpec(m[2])] }) },
+    // Hulk, Strongest There Is: "double the number of +1/+1 counters on each Gamma creature you control" (doubleCountersType)
+    { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on each ([A-Z][a-z]+) (?:creature )?you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[2] + ' creatures you control'); return sc && !sc.self ? { op: 'doubleCounters', kind: m[1].toLowerCase(), scope: sc } : null; } },
     /* Mossborn Hydra, Bristly Bill */
     { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on (this creature|CARDNAME|each creature you control)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', kind: m[1].toLowerCase(), scope: /each/i.test(m[2]) ? 'yourCreatures' : 'self' }) },
@@ -14574,6 +14577,10 @@
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
       /* Soulfire Grand Master, Pestilent Spirit: "Instant and sorcery spells you
          control have lifelink (deathtouch)"; Firesong and Sunspeaker: "Red instant and …" */
+      // Lo and Li, Twin Tutors: "Noble creatures you control and Lesson spells you control have lifelink." (creaturesAndSpellsKeyword)
+      { re: /^([A-Z][a-z]+) creatures you control and ([A-Z][a-z]+) spells you control have (lifelink|deathtouch)\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' creatures you control'); return sc ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, grant: [U.titleCase(m[3])] },
+          { op: 'spellKeyword', keyword: m[3].toLowerCase(), words: m[2].toLowerCase() }] } : null; }, auto: true },
       { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
           words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },

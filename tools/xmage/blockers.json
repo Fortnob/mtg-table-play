@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10395,
+  "needed": 10393,
   "gainedCards": 952,
-  "linesNeeded": 11034,
+  "linesNeeded": 11032,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -485,25 +485,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 18,
-   "lines": 15,
-   "cards": [
-    "Rain of Riches",
-    "Pearl-Ear, Imperial Advisor",
-    "Zhulodok, Void Gorger",
-    "Hunting Velociraptor",
-    "Shadow the Hedgehog",
-    "Silverquill, the Disputant",
-    "Ezio Auditore da Firenze",
-    "Abaddon the Despoiler",
-    "Silverquill Lecturer",
-    "Samut, Tyrant of Naktamun",
-    "Ashad, the Lone Cyberman",
-    "Peri Brown"
-   ]
-  },
-  {
    "what": "CastSpellPaidBySourceTriggeredAbility",
    "score": 18,
    "lines": 3,
@@ -549,6 +530,25 @@
     "Novice Knight",
     "Dragon Grip",
     "Expedition Lookout"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 17,
+   "lines": 14,
+   "cards": [
+    "Rain of Riches",
+    "Pearl-Ear, Imperial Advisor",
+    "Zhulodok, Void Gorger",
+    "Hunting Velociraptor",
+    "Shadow the Hedgehog",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer",
+    "Samut, Tyrant of Naktamun",
+    "Ashad, the Lone Cyberman",
+    "Peri Brown"
    ]
   },
   {
@@ -6744,19 +6744,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 14,
-   "cards": 11,
-   "names": [
-    "Rain of Riches",
-    "Zhulodok, Void Gorger",
-    "Hunting Velociraptor",
-    "Silverquill, the Disputant",
-    "Abaddon the Despoiler",
-    "Silverquill Lecturer"
-   ]
-  },
-  {
    "what": "effect with no target",
    "score": 14,
    "cards": 14,
@@ -6767,6 +6754,19 @@
     "Act of Heroism",
     "Stall for Time",
     "Loyal Sentry"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 13,
+   "cards": 10,
+   "names": [
+    "Rain of Riches",
+    "Zhulodok, Void Gorger",
+    "Hunting Velociraptor",
+    "Silverquill, the Disputant",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer"
    ]
   },
   {
