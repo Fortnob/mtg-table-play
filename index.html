@@ -5760,22 +5760,39 @@ html[data-play="1"] .hoard-chip { display: none; }
 
 /* ---------- Commander decks ---------- */
 .store-grid.precons { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
-.precon-tile { display: flex; flex-direction: column; gap: 6px; text-align: left; padding-top: 0; overflow: hidden; }
-.precon-art { height: 120px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
+/* every tile the same height, whatever it says: the slack above the price
+   takes a long name or a second line of themes, and the price stays put */
+.precon-tile { display: flex; flex-direction: column; gap: 6px; text-align: left; padding-top: 0; overflow: hidden; height: 364px; }
+.precon-tile > * { flex: none; }
+.precon-art { height: 112px; margin: 0 -14px 4px; background: #11141b center 25% / cover no-repeat;
   -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent); mask-image: linear-gradient(180deg, #000 60%, transparent); }
-.precon-tile .sc-title { font-size: 15px; }
+.precon-tile .sc-title { font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.precon-tile .sc-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .precon-tile { cursor: pointer; }
 .precon-tile:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 2px; }
-/* who leads it, and what it leans on: one line each, never pushing the price down the tile */
+/* who leads it on one line, and what it leans on in full, on as many lines as it takes */
 .precon-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.precon-tools { scroll-margin-top: 12px; }
+.precon-colors .pip-chip { padding: 5px 8px; line-height: 0; }
+/* the pages of decks: over the grid and under it */
+.precon-pager { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 14px; }
+.precon-pager.foot { margin: 16px 0 0; }
+.precon-pager .pager-n { min-width: 34px; padding: 6px 9px; justify-content: center; }
+.precon-pager .pager-gap { padding: 0 2px; color: var(--ink-3); }
+.precon-pager .pager-count { margin-left: auto; font-size: 12.5px; white-space: nowrap; }
+.precon-pager .btn[disabled] { opacity: .4; cursor: default; }
+.precon-colors .pip-chip .pip { width: 17px; height: 17px; }
 .precon-tools .store-search { margin-bottom: 0; flex: 1 1 220px; }
 .precon-cmd { font-size: 12.5px; color: #e6dcc0; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .precon-themes { min-height: 1.4em; }
-.precon-themes .theme-line, .mini-themes .theme-line { color: #9fb4cf; }
+.precon-themes .theme-line, .mini-themes .theme-line { color: #9fb4cf; white-space: normal; overflow: visible; line-height: 1.4; }
+/* a tag is a way to find decks like it */
+.theme-tag { cursor: pointer; border-radius: 4px; }
+.theme-tag:hover, .theme-tag:focus-visible { color: var(--gold-1, #f3dd96); text-decoration: underline; text-underline-offset: 3px; outline: none; }
 .store-grid.mini > .store-card { min-width: 0; }
 .mini-cmd { color: #e6dcc0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini-themes { max-width: 100%; }
-.mini-themes .theme-line { font-size: 11.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.mini-themes .theme-line { font-size: 11.5px; }
 .dv-themes { font-size: 12.5px; color: #c9d3e2; white-space: normal; }
 
 /* ---------- a Commander deck looked through: built, as it sits on a table ---------- */
@@ -15397,6 +15414,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[3].toLowerCase() }, scope: sc } : null; } },
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on ((?:another )?target creature(?: you control)?), where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, targets: [targetSpec(m[2])] }) },
+    // Hulk, Strongest There Is: "double the number of +1/+1 counters on each Gamma creature you control" (doubleCountersType)
+    { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on each ([A-Z][a-z]+) (?:creature )?you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[2] + ' creatures you control'); return sc && !sc.self ? { op: 'doubleCounters', kind: m[1].toLowerCase(), scope: sc } : null; } },
     /* Mossborn Hydra, Bristly Bill */
     { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on (this creature|CARDNAME|each creature you control)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', kind: m[1].toLowerCase(), scope: /each/i.test(m[2]) ? 'yourCreatures' : 'self' }) },
@@ -15616,6 +15636,21 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^(Target opponent|Each opponent) creates? an? (tapped )?(Treasure|Food|Clue|Blood|Map) token\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'target', targets: [{ type: 'player', opponent: true }] }
         : { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'opponents' }) },
+    // Viv Vision: "draw a card if her power is 4 or greater"; Inga Rune-Eyes: "draw three cards if three or more creatures died this turn" (drawIfLate)
+    { re: /^[Dd]raw (a|one|two|three|four) cards? if (.+?)\.?$/,
+      make: (m) => {
+        const c = condOf(m[2].replace(/^(?:his|her|its|their) power\b/i, "CARDNAME's power"));
+        return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'you' }] } : null;
+      } },
+    // Captain America, Liberator: "for each Equipment attached to him, create a 1/1 white Soldier creature token" (forEachAttachedCreate)
+    { re: /^[Ff]or each (Aura|Equipment) attached to (?:it|him|her|CARDNAME), (create (?:a|an) .+? tokens?)\.?$/,
+      make: (m) => {
+        const tok = parseTokenSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        return tok && tok.op === 'createToken' && !tok.count ? Object.assign(tok, { count: { attachedOf: m[1], mult: 1 } }) : null;
+      } },
+    // Yukora, the Prisoner: "sacrifice all non-Ogre creatures you control"; Emrakul, the World Anew: "sacrifice all creatures you control" (sacrificeAllYours)
+    { re: /^[Ss]acrifice all ((?:non-[A-Z][a-z]+ |[a-z]+ )*(?:creatures|permanents|artifacts|lands|enchantments)) you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && sc.who === 'you' && !sc.self ? { op: 'sacrificeAllYours', scope: sc } : null; } },
     // Imoen, Mystic Trickster: "Draw another card if you've completed a dungeon." (drawAnotherIf)
     { re: /^Draw another card if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] } : null; } },
@@ -17931,6 +17966,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Put all creatures on the bottom of their owners'? libraries\.?$/i, make: () => ({ op: 'bottomAll', scope: { who: 'all', what: 'creature' } }) },
     // Praetor's Counsel: "Return all cards from your graveyard to your hand."
     { re: /^Return all cards from your graveyard to your hand\.?$/i, make: () => ({ op: 'regrowthAll', filter: 'card' }) },
+    // Gerrard Capashen: "you gain 1 life for each card in target opponent's hand" (lifePerTargetHand)
+    { re: /^[Yy]ou gain (1|one) life for each card in target (opponent|player)'?s hand\.?$/,
+      make: (m) => ({ op: 'gainLife', who: 'you', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
     // Runeflare Trap: "damage to target player equal to the number of cards in that player's hand"
     { re: /^(?:CARDNAME|This creature|It) deals damage to (target (?:player|opponent)) equal to the number of cards in (?:that player'?s|their) hand\.?$/i,
       make: (m) => ({ op: 'damage', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -21903,6 +21941,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       };
       walk(res.effects);
     }
+    // Hellion Eruption: "Sacrifice all creatures you control, then create that many …" — as many as were sacrificed (sacrificeAllYours)
+    if (res && res.effects && res.effects.some(e => e && e.op === 'sacrificeAllYours')) {
+      let after = false;
+      for (const e of res.effects) {
+        if (!e) continue;
+        if (e.op === 'sacrificeAllYours') { after = true; continue; }
+        if (after && e.n === 'triggerAmount') e.n = { lastSacCount: true };
+      }
+    }
     return res;
   }
 
@@ -22581,6 +22628,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   }
 
   const TRIGGER_PATTERNS = [
+    // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
+    { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
+    { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
@@ -23024,6 +23076,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^When(?:ever)? an opponent discards an? (creature|land|noncreature, nonland|artifact|instant or sorcery) card,? /i,
       event: 'opponentDiscards', extraOf: (m) => ({ discardWords: m[1].toLowerCase().replace(/,\s*/g, ' ') }) },
     { re: /^When(?:ever)? a player discards a card,? /i, event: 'anyDiscard' },
+    // Tinybones, Pocket Nuisance: "Whenever a player discards one or more cards" — once for the lot (anyDiscardBatch)
+    { re: /^Whenever a player discards one or more cards,? /i, event: 'anyDiscard', extra: { batch: true } },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
@@ -23195,6 +23249,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^When(?:ever)? you attack with (two|three|four|five|six|seven|eight|nine|ten|\d+) or more creatures,? /i, event: 'youAttack', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
     // Hermes, Overseer of Elpis: "Whenever you attack with one or more Birds"
     { re: /^Whenever you attack with one or more ([A-Z][a-z]+),? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Harbin, Vanguard Aviator: "Whenever you attack with five or more Soldiers" (attackersOfTypeMin)
+    { re: /^Whenever you attack with (two|three|four|five|six|seven) or more ([A-Z][a-z]+),? /, event: 'youAttack',
+      extraOf: (m) => ({ attackersOfType: singularType(m[2]), attackersOfTypeMin: num(m[1]) }) },
+    // The Chief Warg: "Whenever you attack while you control a creature with power 4 or greater" (attackWhile)
+    { re: /^Whenever you attack while (you control [^,]+), /i, event: 'youAttack', extraOf: (m) => { const c = condOf(m[1]); return c ? { whileCond: c } : { unreadWhile: true }; } },
     // Bitter Work: "Whenever you attack a player with one or more creatures with power 4 or greater" (attackersMinPower)
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
@@ -27173,6 +27232,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
       /* Soulfire Grand Master, Pestilent Spirit: "Instant and sorcery spells you
          control have lifelink (deathtouch)"; Firesong and Sunspeaker: "Red instant and …" */
+      // Lo and Li, Twin Tutors: "Noble creatures you control and Lesson spells you control have lifelink." (creaturesAndSpellsKeyword)
+      { re: /^([A-Z][a-z]+) creatures you control and ([A-Z][a-z]+) spells you control have (lifelink|deathtouch)\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' creatures you control'); return sc ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, grant: [U.titleCase(m[3])] },
+          { op: 'spellKeyword', keyword: m[3].toLowerCase(), words: m[2].toLowerCase() }] } : null; }, auto: true },
       { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
           words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },
@@ -27261,6 +27324,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
             { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[5]] }] };
         }, auto: true },
+      // Queen Mother Ramonda: "As long as you're the monarch, creatures with power 2 or less can't attack you." (cantAttackYouWhile)
+      { re: /^As long as (.+?), (.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,
+        make: (m) => { const c = condOf(m[1]), sc = scopeOf(m[2]); return c && sc && !sc.self ? { op: 'cantAttackYou', scope: sc, walkers: !!m[3], cond: c } : null; }, auto: true },
       // Storm, Windrider: "Creatures with flying can't attack you or block creatures you control." (flyersCantAttackOrBlock)
       { re: /^Creatures with (flying|reach|horsemanship|shadow) can'?t attack you or block creatures you control\.?$/i,
         make: (m) => { const sc = scopeOf('creatures with ' + m[1].toLowerCase()); return sc ? { op: 'sequence', list: [{ op: 'cantAttackYou', scope: sc, walkers: false },
@@ -27442,6 +27508,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: (m) => ([m[1], m[2]].every(k => kwKnown(k)) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with power (\d+) or less\.?$/i,
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
+      // Rocksteady, Crash Courser: "Boars you control can't be blocked by more than one creature." (oneBlockerType)
+      { re: /^([A-Z][a-z]+)s you control can'?t be blocked by more than one creature\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + 's you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, flag: 'oneBlocker' } : null; }, auto: true },
+      // Stature, Size Shifter: "CARDNAME can't be blocked if her power is 1 or less." (unblockableSmall)
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked if (?:its|his|her|their) power is (\w+) or less\.?$/i,
+        make: (m) => (typeof num(m[1]) === 'number' ? { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, cond: { kind: 'selfPowerMax', n: num(m[1]) }, grant: ['Unblockable'] } : null), auto: true },
       { re: /^(?:CARDNAME|This creature|This permanent) can'?t be blocked by more than one creature\.?$/i,
         make: () => ({ op: 'evasion', oneBlocker: true }), auto: true },
       // Stranglehold: "Your opponents can't search libraries."
@@ -39914,6 +39986,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'not': return !this._condMet(cond.cond, ctx);
         case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
+        // Stature, Size Shifter: "if her power is 1 or less" (unblockableSmall)
+        case 'selfPowerMax': return !!src && this.powerOf(src) <= (cond.n || 0);
         // (Apex of Power, Antiquities on the Loose: the spell itself, where it was cast from; "not": anywhere else)
         case 'castFromHand': {
           const fromHand = ctx && ctx.fromZone ? ctx.fromZone === 'hand' : !!src && src.wasCast === this.turn && src.castFromZone === 'hand';
@@ -41900,6 +41974,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (!/\{X\}/.test(mc)) continue;
           }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
+          // Nita, Forum Conciliator: a spell its controller doesn't own (notOwnedSpell)
+          if (ab.notOwnedSpell && !(data.object && data.object.owner !== o.controller)) continue;
           // Fire Lord Azula: only while it is attacking (selfAttacking)
           if (ab.selfAttacking && !(o.zone === 'battlefield' && o.attacking)) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
@@ -41950,6 +42026,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
+          // Harbin, Vanguard Aviator: "with five or more Soldiers" (attackersOfTypeMin)
+          if (ab.attackersOfTypeMin && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); }).length < ab.attackersOfTypeMin) continue;
+          // The Chief Warg: "while you control a creature with power 4 or greater" (attackWhile)
+          if (ab.unreadWhile || (ab.whileCond && !this._condMet(ab.whileCond, { controller: o.controller, obj: o }))) continue;
+          // Gahiji, Honored One: only an attack on one of this player's opponents (or their planeswalkers) (attacksYourOpp)
+          if (ab.attacksYourOpp) { const dp = data.object && this._defenderOf(data.object); if (!dp || !this.opponentsOf(o.controller).some(q => q.id === dp.id)) continue; }
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
@@ -50028,6 +50110,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // Brass Squire: an Equipment of yours onto a creature of yours
         // Balan, Wandering Knight: every Equipment its controller controls, onto it (attachAllToSelf)
+        // Yukora, the Prisoner: every permanent of that kind its controller controls is sacrificed (sacrificeAllYours)
+        case 'sacrificeAllYours': {
+          const list = this._scopeList(e.scope, ctx.controller, src).filter(x => x.zone === 'battlefield' && x.controller === ctx.controller);
+          if (list.length) this._sacrificeNow(ctx.controller, list, null);
+          this._lastSacCount = list.length;
+          break;
+        }
         case 'attachAllToSelf': {
           if (!src || src.zone !== 'battlefield' || !(this.characteristics(src) || {}).isCreature) break;
           const eqs = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && x !== src && x.attachedTo !== src.id && (x.analysis() || {}).isEquipment);
@@ -51967,6 +52056,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           for (const e0 of ab.effects || []) {
             for (const e of (e0 && e0.op === 'sequence' ? e0.list || [] : [e0])) {
               if (!e || e.op !== 'cantAttackYou' || (walker && !e.walkers)) continue;
+              // (Queen Mother Ramonda: "as long as you're the monarch" — cantAttackYouWhile)
+              if (e.cond && !this._condMet(e.cond, { controller: s0.controller, obj: s0 })) continue;
               const sc = e.scope || {};
               const hit = sc.attached ? s0.attachedTo === o.id : this._scopeHit(sc, o, oa, s0.controller, s0);
               if (hit) return { src: s0, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
@@ -68744,10 +68835,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /* Bump when the themes change: a deck list remembers its tags with the
      version that made them (src/11-ui-deck.js), and the Store's printed
      decks are read again by tools/precons.js. */
-  const VERSION = 1;
+  const VERSION = 2;
   const COMMANDER_WEIGHT = 4;
+  const MAX_TAGS = 5;
 
-  /** A card's words, type and keywords, the same whichever source it came from. */
+  /** A card's words, type, keywords and mana value, the same whichever source it came from. */
   function facts(c) {
     const faces = c.card_faces && c.card_faces.length ? c.card_faces : [c];
     const name = String(c.name || '');
@@ -68763,7 +68855,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
     const type = String(c.type_line || faces.map(f => f.type_line || '').filter(Boolean).join(' // ') || c.type || '');
     const kw = new Set((c.keywords || []).map(k => String(k).toLowerCase()));
-    return { raw: text, text: text.toLowerCase(), type: type.toLowerCase(), typeLine: type, kw };
+    const mv = Number(c.cmc != null ? c.cmc : c.manaValue != null ? c.manaValue : c.convertedManaCost) || 0;
+    return { raw: text, text: text.toLowerCase(), type: type.toLowerCase(), typeLine: type, kw, mv };
   }
 
   const has = (f, re) => re.test(f.text);
@@ -68773,61 +68866,102 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
   /* Each theme: its tag, the bar a deck's count must reach to be named, and
      what a card scores toward it (0 for nothing, 2 for a card that pays
-     the theme off rather than only taking part). */
+     the theme off rather than only taking part). A theme whose name depends
+     on what its cards are (Storm or Spell copying, Enchantress or
+     Enchantments) says so with `kind`, and its label reads the kinds counted. */
   const THEMES = [
     { id: 'counters', label: '+1/+1 counters', bar: 11, score: (f) =>
       has(f, /(whenever|for each|with) [^.]*\+1\/\+1 counter|double the number of|proliferate|counters? on it[^.]*instead/) ? 2
         : has(f, /\+1\/\+1 counter/) || anyKw(f, ['proliferate', 'evolve', 'adapt', 'modular', 'graft', 'bolster', 'support', 'outlast', 'training', 'mentor', 'riot', 'backup']) ? 1 : 0 },
     { id: 'minus', label: '-1/-1 counters', bar: 6, score: (f) => has(f, /-1\/-1 counter/) || anyKw(f, ['wither', 'persist']) ? 1 : 0 },
-    { id: 'poison', label: 'Poison', bar: 6, score: (f) => anyKw(f, ['infect', 'toxic', 'poisonous']) || has(f, /poison counter/) ? 1 : 0 },
+    { id: 'poison', label: 'Infect & poison', bar: 6, score: (f) => anyKw(f, ['infect', 'toxic', 'poisonous']) || has(f, /poison counter/) ? 1 : 0 },
     { id: 'lifegain', label: 'Lifegain', bar: 9, score: (f) =>
       has(f, /whenever you gain life|if you would gain life|life you gained|you've gained life/) ? 2
         : has(f, /\byou gain \w+ life|\bgain \w+ life|\bgains? that much life|\blifelink\b/) || f.kw.has('lifelink') ? 1 : 0 },
     { id: 'tokens', label: 'Tokens', bar: 10, score: (f) =>
       has(f, /whenever (one or more )?(a )?(creature )?tokens?|tokens you control|for each [^.]*token|populate/) ? 2
         : has(f, /\bcreates? [^.]*\btokens?\b/) && !NON_CREATURE_TOKENS.test(f.text) || anyKw(f, ['populate', 'amass', 'fabricate', 'afterlife', 'myriad', 'encore']) ? 1 : 0 },
-    { id: 'storm', label: (hits) => (hits.storm ? 'Storm' : 'Spell copying'), bar: 5, score: (f) =>
+    // anthems: the whole team made bigger at once
+    { id: 'gowide', label: 'Go wide', bar: 7, score: (f) =>
+      has(f, /(other )?creatures you control get \+\d|creatures you control get \+x|each (other )?creature you control gets \+/) || f.kw.has('battle cry') ? 1 : 0 },
+    { id: 'treasure', label: 'Treasure', bar: 7, score: (f) => has(f, /treasures? you control|whenever [^.]*treasure|sacrifice a treasure/) ? 2 : has(f, /\btreasure tokens?\b/) ? 1 : 0 },
+    { id: 'storm', label: (k) => (k.storm ? 'Storm' : 'Spell copying'), bar: 5,
+      kind: (f) => (f.kw.has('storm') ? 'storm' : null), score: (f) =>
       f.kw.has('storm') || has(f, /\bcopy (target|that|it|each) [^.]*\b(instant|sorcery|spell)|copies of (it|that spell)|magecraft|whenever you cast or copy/) || f.kw.has('magecraft') ? 1 : 0 },
     { id: 'spells', label: 'Instants & sorceries', bar: 26, score: (f) =>
       has(f, /instant (or|and) sorcery spell|instant or sorcery card|instants? and sorcer(y|ies)|noncreature spell/) || anyKw(f, ['prowess', 'magecraft']) ? 2
         : isType(f, 'instant') || isType(f, 'sorcery') ? 1 : 0 },
+    { id: 'cascade', label: 'Cascade', bar: 4, score: (f) => f.kw.has('cascade') || has(f, /\bcascade\b/) ? 1 : 0 },
     { id: 'recursion', label: 'Recursion', bar: 8, score: (f) =>
-      has(f, /return[^.]*from (your|a|any|their|an opponent's) graveyards? (to|onto) the battlefield|put[^.]*from (your|a) graveyard onto the battlefield|return[^.]*card[^.]*from your graveyard to your hand|you may (cast|play) [^.]*from your graveyard/)
+      has(f, /return[^.]*card[^.]*from your graveyard to your hand|you may (cast|play) [^.]*from your graveyard|return[^.]*(artifact|enchantment|permanent|land) card[^.]*from your graveyard to the battlefield/)
         || anyKw(f, ['unearth', 'embalm', 'eternalize', 'escape', 'disturb', 'encore', 'undying', 'persist', 'retrace', 'jump-start', 'flashback']) ? 1 : 0 },
+    // creatures brought back to the battlefield, not to hand
+    { id: 'reanimator', label: 'Reanimator', bar: 6, score: (f) =>
+      has(f, /(return|put)[^.]*creature cards? [^.]*from (your|a|any|their|an opponent's) graveyards? (to|onto) the battlefield|reanimate/) ? 1 : 0 },
     { id: 'graveyard', label: 'Graveyard', bar: 9, score: (f) =>
       has(f, /cards? in your graveyard|from your graveyard|\bmill\b|\bmills\b|leaves your graveyard|put into your graveyard from/) || anyKw(f, ['mill', 'surveil', 'dredge', 'delirium', 'threshold', 'descend']) ? 1 : 0 },
     { id: 'sacrifice', label: 'Sacrifice', bar: 9, score: (f) =>
-      has(f, /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?(dies|die)|whenever you sacrifice/) ? 2
+      has(f, /whenever you sacrifice/) ? 2
         : has(f, /\bsacrifice (a|another|an|two|three|x|any number of) [^.]*?(creature|artifact|permanent|token)/) || anyKw(f, ['exploit', 'casualty', 'devour', 'emerge']) ? 1 : 0 },
+    // a creature's death drains the table, or pays off some other way
+    { id: 'aristocrats', label: 'Aristocrats', bar: 6, score: (f) =>
+      has(f, /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?(dies|die)[^.]*(loses? \w+ life|deals? \w+ damage|draw)/) ? 2
+        : has(f, /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?(dies|die)/) ? 1 : 0 },
     { id: 'blink', label: 'Blink', bar: 6, score: (f) =>
       has(f, /exile [^.]*(you control|you own)[^.]*(then )?return (it|that card|them|those cards) to the battlefield|exile [^.]*, then return [^.]* to the battlefield/) ? 2
         : has(f, /return (it|that card|them|the exiled card) to the battlefield under (its owner's|your) control at the beginning of the next end step/) ? 1 : 0 },
-    { id: 'lands', label: 'Lands', bar: 8, score: (f) =>
-      f.kw.has('landfall') || has(f, /whenever (a|one or more) lands? (you control )?enters|play an additional land|lands? cards? from your graveyard|you may play lands from/) ? 1 : 0 },
+    { id: 'clones', label: 'Clones', bar: 5, score: (f) =>
+      has(f, /enters? as a copy of|becomes? a copy of|create a token that's a copy of (target|another|a|that) (creature|permanent|nonlegendary)/) ? 1 : 0 },
+    // lands entering: landfall
+    { id: 'landfall', label: 'Landfall', bar: 7, score: (f) =>
+      f.kw.has('landfall') || has(f, /whenever (a|one or more) lands? (you control )?enters?/) ? 1 : 0 },
+    // more lands than one a turn, from the graveyard or the top of the library
+    { id: 'landdrops', label: 'Extra land drops', bar: 6, score: (f) =>
+      has(f, /play (an|two|any number of) additional lands?|you may play lands from|land cards? from your graveyard|play lands from your graveyard|put a land card from your hand onto the battlefield/) ? 1 : 0 },
     { id: 'artifacts', label: 'Artifacts', bar: 24, score: (f) =>
       has(f, /whenever (you cast an|an|another|one or more) artifacts?|artifacts? you control|for each artifact|artifact spells?/) || f.kw.has('affinity') || f.kw.has('improvise') ? 2
         : isType(f, 'artifact') && !isType(f, 'land') ? 1 : 0 },
-    { id: 'enchantments', label: 'Enchantments', bar: 18, score: (f) =>
+    { id: 'enchantments', label: (k) => (k.enchantress >= 3 ? 'Enchantress' : 'Enchantments'), bar: 18,
+      kind: (f) => (has(f, /whenever you cast an enchantment spell|whenever an enchantment (you control )?enters|enchantment[^.]*, draw a card/) || f.kw.has('constellation') ? 'enchantress' : null),
+      score: (f) =>
       has(f, /whenever (you cast an|an|another) enchantment|enchantments? you control|for each enchantment|enchantment spells?/) || f.kw.has('constellation') ? 2
         : isType(f, 'enchantment') ? 1 : 0 },
-    { id: 'voltron', label: 'Equipment & Auras', bar: 11, score: (f) =>
+    { id: 'voltron', label: (k) => (k.aura > k.equipment * 2 ? 'Auras' : k.equipment > k.aura * 2 ? 'Equipment' : 'Equipment & Auras'), bar: 11,
+      kind: (f) => (isType(f, 'equipment') ? 'equipment' : isType(f, 'aura') ? 'aura' : null), score: (f) =>
       has(f, /equipped creature|enchanted creature gets|whenever [^.]* becomes equipped|equipment you control|auras? you control|attach/) && !isType(f, 'creature') || isType(f, 'equipment') || isType(f, 'aura') && has(f, /enchanted creature (gets|has)/) ? 1 : 0 },
     { id: 'vehicles', label: 'Vehicles', bar: 6, score: (f) => isType(f, 'vehicle') || f.kw.has('crew') || has(f, /\bvehicles?\b/) ? 1 : 0 },
+    // planeswalkers, and what pays them off: not "creatures and planeswalkers you control", which every protection spell says
+    { id: 'superfriends', label: 'Superfriends', bar: 9, score: (f) =>
+      has(f, /loyalty abilit|loyalty counters? on (each|target|it|that)|planeswalker spells?|whenever you (cast|activate)[^.]*planeswalker/) ? 2 : isType(f, 'planeswalker') ? 1 : 0 },
     { id: 'fliers', label: 'Fliers', bar: 16, score: (f) => isType(f, 'creature') && f.kw.has('flying') || has(f, /creatures? with flying (you control|get)/) ? 1 : 0 },
     { id: 'combat', label: 'Attacking', bar: 13, score: (f) =>
       has(f, /additional combat phase|whenever (you attack|one or more creatures you control attack)|attacking creatures you control get/) ? 2
         : has(f, /whenever [^.]* attacks|\battacking creature/) || anyKw(f, ['battle cry', 'myriad', 'melee', 'exalted', 'dethrone', 'annihilator']) ? 1 : 0 },
+    { id: 'bigspells', label: 'Big spells', bar: 11, score: (f) => !isType(f, 'land') && f.mv >= 7 ? 1 : 0 },
     { id: 'burn', label: 'Direct damage', bar: 10, score: (f) =>
       has(f, /deals? (\d+|x|that much) damage to (each opponent|each player|any target|target player|target opponent)|deals damage to each opponent/) ? 1 : 0 },
     { id: 'drain', label: 'Drain', bar: 7, score: (f) => has(f, /each opponent loses \w+ life|target opponent loses \w+ life|loses \w+ life and you gain/) ? 1 : 0 },
     { id: 'counterspells', label: 'Counterspells', bar: 7, score: (f) => has(f, /\bcounter target\b[^.]*spell|\bcounter (it|that spell)\b/) ? 1 : 0 },
-    { id: 'theft', label: 'Theft', bar: 6, score: (f) => has(f, /gain control of|cast [^.]*(spells?|cards?) (you don't own|an opponent owns)|exile[^.]*an opponent[^.]*you may cast/) ? 1 : 0 },
+    { id: 'theft', label: 'Theft', bar: 6, score: (f) => has(f, /gain control of|cast [^.]*(spells?|cards?) (you don't own|an opponent owns)|exile[^.]*an opponent[^.]*you may cast|spells? you cast but don't own/) ? 1 : 0 },
     { id: 'goad', label: 'Goad', bar: 4, score: (f) => f.kw.has('goad') || has(f, /\bgoad/) ? 1 : 0 },
+    // gifts for the whole table: everyone draws, everyone ramps
+    { id: 'grouphug', label: 'Group hug', bar: 5, score: (f) =>
+      has(f, /each player (draws|may draw|adds|may put a land|gains \w+ life|creates)|target (player|opponent) draws|each opponent (draws|may draw)|that player (draws|may draw|creates)|\bgifts? an? |an opponent of your choice draws/) || anyKw(f, ['gift']) ? 1 : 0 },
+    { id: 'pillowfort', label: 'Pillow fort', bar: 5, score: (f) =>
+      has(f, /creatures can't attack you|can't attack you or planeswalkers you control unless|prevent all combat damage that would be dealt to you|attacks? you[^.]*pays? \{/) ? 1 : 0 },
+    { id: 'stax', label: 'Stax', bar: 5, score: (f) =>
+      has(f, /(players|your opponents|each opponent|each player) can't (cast|search|draw|untap|activate|gain life|play)|spells (your opponents cast )?cost \{\d\} more|don't untap during their controllers'|can't cast more than one spell each turn|enter the battlefield tapped|enter tapped/) && !isType(f, 'land') ? 1 : 0 },
+    { id: 'wheels', label: 'Wheels', bar: 3, score: (f) =>
+      has(f, /each player (discards|shuffles) (their|his or her) hand[^.]*(then )?draws?|draws? seven cards|each player draws (seven|that many)/) ? 1 : 0 },
+    { id: 'extraturns', label: 'Extra turns', bar: 3, score: (f) => has(f, /take an extra turn|takes? an extra turn after this one/) ? 1 : 0 },
+    { id: 'discard', label: 'Discard', bar: 6, score: (f) => has(f, /(each|target) (opponent|player) discards|each opponent discards/) ? 1 : 0 },
     { id: 'mill', label: 'Mill', bar: 6, score: (f) => has(f, /(target|each) (player|opponent)s? mills?|target player puts the top/) ? 1 : 0 },
     { id: 'impulse', label: 'Exile and cast', bar: 8, score: (f) => has(f, /exile the top [^.]*(you may (play|cast)|until (the )?end of (your next|the next|this) turn)|you may (play|cast) (that card|those cards|it) (this turn|until)/) ? 1 : 0 },
     { id: 'draw', label: 'Card draw', bar: 22, score: (f) => has(f, /whenever [^.]*draw|draw (a|an additional|two|three|four|x|that many) cards?/) ? 1 : 0 },
-    { id: 'ramp', label: 'Ramp', bar: 20, score: (f) => !isType(f, 'land') && (has(f, /\badd \{|\badd (one|two|three|x) mana|\badds? [^.]*mana of any|search your library for [^.]*\blands?\b[^.]*battlefield|put [^.]*land cards? [^.]*onto the battlefield|treasure token/)) ? 1 : 0 },
+    { id: 'ramp', label: 'Ramp', bar: 20, score: (f) => !isType(f, 'land') && (has(f, /\badd \{|\badd (one|two|three|x) mana|\badds? [^.]*mana of any|search your library for [^.]*\blands?\b[^.]*battlefield|put [^.]*land cards? [^.]*onto the battlefield/)) ? 1 : 0 },
   ];
+  /* Themes that say much the same thing: the stronger of the two is named. */
+  const SAME = [['recursion', 'graveyard'], ['reanimator', 'graveyard'], ['sacrifice', 'aristocrats'], ['ramp', 'treasure']];
 
   /* A creature type as a deck would name it: Elves, Wolves, Sphinxes. */
   const PLURAL = { Elf: 'Elves', Dwarf: 'Dwarves', Wolf: 'Wolves', Werewolf: 'Werewolves', Fungus: 'Fungi', Mouse: 'Mice', Ox: 'Oxen',
@@ -68847,17 +68981,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
   /**
    * The themes a deck leans on, strongest first: [{ id, label, score, ratio }],
-   * at most `max` of them (4). `deck`: { commanders: [card], main: [{ card, qty }] }.
+   * at most `max` of them (5). `deck`: { commanders: [card], main: [{ card, qty }] }.
    * Kept on the deck object, so asking again costs nothing.
    */
   const cache = new WeakMap();
   function themes(deck, max) {
-    max = max || 4;
+    max = max || MAX_TAGS;
     if (!deck) return [];
     const hit = cache.get(deck);
     if (hit && hit.max === max) return hit.out;
     const counts = new Map(THEMES.map(t => [t.id, 0]));
-    const hits = { storm: 0 };
+    const kinds = new Map(THEMES.map(t => [t.id, {}]));
     const typeCount = new Map(), cmdTypes = new Set();
     const rows = [].concat((deck.commanders || []).filter(Boolean).map(c => ({ card: c, qty: 1, cmd: true })),
       (deck.main || []).filter(e => e && e.card).map(e => ({ card: e.card, qty: e.qty || 1 })));
@@ -68868,8 +69002,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const t of THEMES) {
         const s = t.score(f);
         if (s) counts.set(t.id, counts.get(t.id) + s * w);
+        const k = t.kind && t.kind(f);
+        if (k) { const m = kinds.get(t.id); m[k] = (m[k] || 0) + r.qty; }
       }
-      if (f.kw.has('storm')) hits.storm++;
       for (const st of subtypes(f.typeLine)) {
         typeCount.set(st, (typeCount.get(st) || 0) + (r.cmd ? 1 : r.qty));
         if (r.cmd) cmdTypes.add(st);
@@ -68885,16 +69020,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const need = COMMON_TYPE_BAR[st] ? said >= 8 : said >= 3;
       if (need) typal.push({ id: 'type:' + st, label: plural(st), score: n, ratio: n / TYPAL_BAR + (cmdTypes.has(st) ? 0.1 : 0) });
     }
-    const all = THEMES.map(t => ({ id: t.id, label: typeof t.label === 'function' ? t.label(hits) : t.label,
+    const all = THEMES.map(t => ({ id: t.id, label: typeof t.label === 'function' ? t.label(Object.assign({ storm: 0, enchantress: 0, aura: 0, equipment: 0 }, kinds.get(t.id))) : t.label,
       score: counts.get(t.id), ratio: counts.get(t.id) / t.bar }))
       .concat(typal)
       .sort((a, b) => b.ratio - a.ratio);
     let out = all.filter(t => t.ratio >= 1);
-    // no more than one creature type, and Graveyard said once when Recursion already says it
+    // no more than one creature type, and two themes that say the same thing said once
     const firstType = out.find(t => t.id.startsWith('type:'));
     out = out.filter(t => !t.id.startsWith('type:') || t === firstType);
-    if (out.some(t => t.id === 'recursion') && out.some(t => t.id === 'graveyard'))
-      out = out.filter(t => t.id !== (out.findIndex(x => x.id === 'recursion') < out.findIndex(x => x.id === 'graveyard') ? 'graveyard' : 'recursion'));
+    for (const [a, b] of SAME) {
+      const ia = out.findIndex(t => t.id === a), ib = out.findIndex(t => t.id === b);
+      if (ia >= 0 && ib >= 0) out.splice(Math.max(ia, ib), 1);
+    }
     // a deck with one clear theme still gets a second word when one comes close
     if (out.length < 2) for (const t of all) { if (out.length >= 2) break; if (t.ratio >= 0.7 && !out.includes(t) && !t.id.startsWith('type:')) out.push(t); }
     out = out.slice(0, max);
@@ -68906,8 +69043,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   const tags = (deck, max) => themes(deck, max).map(t => t.label);
 
   /**
-   * How popular a deck's commander is: its EDHREC rank (lower is more
-   * popular), the better of two partners'; Infinity when none is known.
+   * How popular a deck's commander is by Scryfall's word: its EDHREC rank
+   * among all cards (lower is more popular), the better of two partners';
+   * Infinity when none is known. The Store orders its printed decks by
+   * EDHREC's own list of commanders instead, where it has them
+   * (tools/precons.js); this is what is left when it does not.
    */
   function rank(commanders) {
     let best = Infinity;
@@ -68918,7 +69058,31 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return best;
   }
 
-  MTG.themes = { VERSION, THEMES, facts, themes, tags, rank, plural };
+  /** A deck's colour identity, in WUBRG order, from its commanders: "WU", "" for colourless. */
+  function identity(commanders) {
+    const got = new Set();
+    for (const c of commanders || []) for (const x of (c && (c.color_identity || c.colorIdentity)) || []) got.add(x);
+    return ['W', 'U', 'B', 'R', 'G'].filter(x => got.has(x)).join('');
+  }
+
+  /**
+   * Printed decks, each name once. A deck printed again (Commander
+   * Anthology Volume II reprinting Commander 2014's Built From Scratch) is
+   * shown as its latest printing, with that printing's set and art; decks
+   * are the same when their names are, whatever the case of the letters.
+   * `list`: [{ name, date }] in any order, which is kept.
+   */
+  function distinct(list) {
+    const latest = new Map();
+    const keyOf = (d) => String(d.name || '').toLowerCase().trim();
+    for (const d of list) {
+      const k = keyOf(d);
+      if (!latest.has(k) || String(d.date || '') > String(latest.get(k).date || '')) latest.set(k, d);
+    }
+    return list.filter(d => latest.get(keyOf(d)) === d);
+  }
+
+  MTG.themes = { VERSION, THEMES, facts, themes, tags, rank, identity, plural, distinct };
 })(window.MTG);
 /* ===== 16-advisor.js ===== */
 /* ============================================================
@@ -70893,11 +71057,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return out;
   };
 
-  /** What a deck leans on (src/15b-themes.js), as one short line: "Tokens · Lifegain · Sacrifice". */
-  UI.themeLine = function (tags, cls) {
+  /**
+   * What a deck leans on (src/15b-themes.js), as one short line: "Tokens ·
+   * Lifegain · Sacrifice". With `onTag`, each tag is a button of its own that
+   * tells it which was chosen, and does nothing else (the deck around it
+   * does not open).
+   */
+  UI.themeLine = function (tags, cls, onTag) {
     const list = (tags || []).filter(Boolean);
-    return el('div', { class: 'theme-line' + (cls ? ' ' + cls : ''), text: list.join(' · '),
-      title: list.length ? 'What the deck leans on: ' + list.join(', ') : '', hidden: !list.length });
+    const line = el('div', { class: 'theme-line' + (onTag ? ' picks' : '') + (cls ? ' ' + cls : ''),
+      title: list.length ? 'What the deck leans on: ' + list.join(', ') + (onTag ? '. Choose one to find decks like it.' : '') : '', hidden: !list.length });
+    if (!onTag) { line.textContent = list.join(' · '); return line; }
+    list.forEach((t, i) => {
+      if (i) line.appendChild(document.createTextNode(' · '));
+      const pick = (e) => { e.preventDefault(); e.stopPropagation(); onTag(t); };
+      line.appendChild(el('span', { class: 'theme-tag', role: 'button', tabindex: '0', text: t, 'aria-label': `Find decks that lean on ${t}`,
+        onclick: pick, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') pick(e); } }));
+    });
+    return line;
   };
 
   /* ---------------- art picker ---------------- */
@@ -74967,213 +75144,216 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
    10d4-precons.js - the Store's printed Commander decks, read ahead
 
    Written by tools/precons.js: by MTGJSON deck file, [the commander's
-   EDHREC rank (the better of two; 0 for none), [[commander, Scryfall
-   id], ...], [what the deck leans on, as src/15b-themes.js reads it]].
-   Read with themes version 1. Run it again when the themes change
-   or new decks come out; a deck missing here is read in the browser.
+   place on EDHREC's list of commanders (the better of two; 0 for one not
+   on it), [[commander, Scryfall id], ...], [what the deck leans on, as
+   src/15b-themes.js reads it], its colour identity, Scryfall's EDHREC
+   rank of the commander (0 for none), the deck's name, its release date].
+   Read with themes version 2.
+   Run it again when the themes change or new decks come out; a deck
+   missing here is read in the browser.
    ============================================================ */
 'use strict';
 (function (MTG) {
-  MTG.preconIndex = { v: 1, decks: {
-    "20WaysToWin_SLD": [5124,[["Go-Shintai of Life's Origin","4e9a1f19-6ee3-49fb-a08d-4048ee7c1e34"]],["+1/+1 counters","Enchantments","Lifegain","Tokens"]],
-    "AbzanArmor_TDC": [4082,[["Felothar the Steadfast","2c3549f6-25df-4ea7-84ad-922ccd4af6b2"]],["Lifegain","+1/+1 counters"]],
-    "AdaptiveEnchantment_C18": [11472,[["Estrid, the Masked","3340b83e-72dc-42e2-9f93-92f732c047df"]],["Enchantments","Equipment & Auras","Tokens"]],
-    "AhoyMateys_LCC": [7705,[["Admiral Brass, Unsinkable","bdc2d492-9d1e-4543-8b9c-c66ee67992ce"]],["Pirates","Recursion"]],
-    "AngelsTheyReJustLikeUsButCoolerAndWithWings_SLD": [2553,[["Gisela, the Broken Blade","d1cfc318-9c3e-471f-90eb-dc76454da957"]],["Lifegain","Angels","Fliers","Tokens"]],
-    "AnimatedArmy_BLC": [3665,[["Bello, Bard of the Brambles","31e4b7a1-b377-49d2-a92e-4bcb0db35f16"]],["Enchantments","Ramp"]],
-    "ArcaneMaelstrom_C20": [9808,[["Kalamax, the Stormsire","f990cd78-2165-446f-a116-ae55d7a0f00d"]],["Instants & sorceries","Storm","+1/+1 counters"]],
-    "ArcaneWizardry_C17": [8521,[["Inalla, Archmage Ritualist","7c6e803a-451c-4aa6-97a2-400077f32c47"]],["Wizards","Instants & sorceries","Graveyard"]],
-    "ArmForBattle_CMR": [6950,[["Wyleth, Soul of Steel","7c5ada8c-98f2-4f9c-bcb5-dfa4f804fbe6"]],["Equipment & Auras","Instants & sorceries"]],
-    "AuraOfCourage_AFC": [12676,[["Galea, Kindler of Hope","1efbea01-c6a1-4380-a14f-6206c7895e48"]],["Equipment & Auras","Enchantments"]],
-    "AvengersAssembleCollectorSEdition_MSC": [11727,[["Captain America, Team Leader","910a6dfc-04a2-4c6d-b2ba-507bc75ec821"]],["+1/+1 counters","Heroes","Attacking"]],
-    "AvengersAssemble_MSC": [11727,[["Captain America, Team Leader","61a51b67-d941-4e07-9c12-ffe583cb65d4"]],["+1/+1 counters","Heroes","Attacking"]],
-    "BedeckedBrokers_NCC": [16661,[["Perrie, the Pulverizer","d438237b-c6f7-44d0-a3e6-6ec7d7465d33"]],["+1/+1 counters","Attacking"]],
-    "BlameGame_MKC": [4850,[["Nelly Borca, Impulsive Accuser","2ef59aa9-f5e1-413a-869b-d287db95efd0"]],["Goad","Attacking","Tokens"]],
-    "BlastFromThePast_WHO": [9460,[["The Fourth Doctor","c84ea0fd-efc7-4614-9f8f-41a3c71fceaa"],["Sarah Jane Smith","1ba76f68-e647-4786-903c-92dbd3cef05d"]],["Time Lords","+1/+1 counters"]],
-    "BlightCurse_ECC": [6289,[["Auntie Ool, Cursewretch","9a2e4252-9fbc-4d43-8935-db2cafaa7b5f"]],["-1/-1 counters","Card draw"]],
-    "BloodRites_LCC": [3541,[["Clavileño, First of the Blessed","9f55b648-b1ec-407a-a0c7-7647755793d1"]],["Vampires","Lifegain","+1/+1 counters","Tokens"]],
-    "BreedLethality_C16": [2413,[["Atraxa, Praetors' Voice","c34ae834-775e-447a-a330-0270c227c667"]],["+1/+1 counters"]],
-    "BreedLethality_CM2": [2413,[["Atraxa, Praetors' Voice","b2e330dd-7cd3-445d-9c05-56e4a57526e9"]],["+1/+1 counters"]],
-    "BuckleUp_NEC": [6245,[["Kotori, Pilot Prodigy","fea6c1c8-eff9-4b66-b96d-e23016f0bb62"]],["Vehicles","Artifacts","Tokens"]],
-    "BuiltFromScratch_C14": [2027,[["Daretti, Scrap Savant","cda40e31-ba99-4565-ad92-7c687ff44bd9"]],["Artifacts","Recursion"]],
-    "BuiltFromScratch_CM2": [2027,[["Daretti, Scrap Savant","3f4e6adf-d52f-4087-a919-789a543a9a3e"]],["Artifacts","Recursion"]],
-    "CabarettiCacophony_NCC": [11843,[["Kitt Kanto, Mayhem Diva","9b9850d6-49d3-45ec-9a45-75aa0fce9ee5"]],["Tokens","Goad"]],
-    "CallForBackup_MOC": [9720,[["Bright-Palm, Soul Awakener","a485c2c3-c90b-43b4-bb00-c1b811b4b392"]],["+1/+1 counters","Attacking"]],
-    "CallTheSpirits_C15": [9604,[["Daxos the Returned","4abe142e-7e87-464b-be2a-ad2fc7aebd51"]],["Enchantments","Tokens"]],
-    "CallingAllAngels_FDC": [1654,[["Giada, Font of Hope","4ebc7622-08a1-4f43-92dd-8675d395e8f6"]],["Angels","Fliers","Lifegain","+1/+1 counters"]],
-    "CavalryCharge_MOC": [7519,[["Sidar Jabari of Zhalfir","5fc707be-9286-4ba1-90f6-475265d19ed2"]],["Knights","Attacking","Tokens"]],
-    "ChaosIncarnate_SCD": [989,[["Kardur, Doomscourge","19e4d494-e8b3-4ae2-93e3-70c65ab90f15"]],["Instants & sorceries","Lifegain","Direct damage"]],
-    "CorruptingInfluence_ONC": [5849,[["Ixhel, Scion of Atraxa","ab866ec4-dcb4-47ef-8de1-a369986609c0"]],["Poison","+1/+1 counters","Phyrexians"]],
-    "CounterBlitzCollectorSEditionFinalFantasyX_FIC": [3747,[["Tidus, Yuna's Guardian","6021debf-8d5d-40e4-a197-3751b3ef5701"]],["+1/+1 counters","Enchantments"]],
-    "CounterBlitzFinalFantasyX_FIC": [3747,[["Tidus, Yuna's Guardian","2cfd4494-346c-4cbc-8072-e267254cefcc"]],["+1/+1 counters","Enchantments"]],
-    "CounterIntelligence_EOC": [3633,[["Inspirit, Flagship Vessel","46900ec7-eb18-45c4-8e90-a48b665cfdee"]],["+1/+1 counters","Artifacts"]],
-    "Counterpunch_CMD": [9802,[["Ghave, Guru of Spores","91194df8-4066-4235-a829-2b688ba4afcb"]],["Tokens","+1/+1 counters"]],
-    "CovenCounters_MIC": [6203,[["Leinore, Autumn Sovereign","bd7e1645-ea8f-41c4-b3ee-58f44fc5c574"]],["+1/+1 counters","Humans","Tokens"]],
-    "CreativeEnergyCollectorSEdition_M3C": [6574,[["Satya, Aetherflux Genius","65a9bda0-80eb-4aa9-ad89-9f73e65dbce3"]],["Tokens","Artifacts","Attacking"]],
-    "CreativeEnergy_M3C": [6574,[["Satya, Aetherflux Genius","3b964bbe-54cc-425c-9cc6-c877f82af7ba"]],["Tokens","Artifacts","Attacking"]],
-    "DanceOfTheElements_ECC": [5506,[["Ashling, the Limitless","5924c01f-2815-4e37-b700-3ba6cc81e0e4"]],["Elementals","Tokens","Recursion"]],
-    "DeadlyDisguise_MKC": [17074,[["Kaust, Eyes of the Glade","648c15d1-a2a2-4f59-9b0a-5448be3e990f"]],["Attacking","+1/+1 counters"]],
-    "DeathToll_DSC": [9441,[["Winter, Cynical Opportunist","94dc35e4-a492-4019-afcd-cbef6f59a512"]],["Graveyard","Tokens"]],
-    "DeathdancerXira_TD0": [17021,[["Xira Arien","8c961265-72a8-4521-b413-0d51fd2e10ad"]],["Graveyard","Recursion"]],
-    "DeepClueSea_MKC": [8916,[["Morska, Undersea Sleuth","ae9ccfec-05c6-469e-b1dd-dfbafa1e927f"]],["+1/+1 counters","Tokens","Artifacts","Sacrifice"]],
-    "DesertBloom_OTC": [9105,[["Yuma, Proud Protector","18df72be-07d2-4412-b36d-a45119763db3"]],["Graveyard","Lands","Tokens"]],
-    "DevourForPower_CM2": [7445,[["The Mimeoplasm","aedc7a6b-c481-4719-bc83-424eeb216aef"]],["+1/+1 counters","Graveyard"]],
-    "DevourForPower_CMD": [7445,[["The Mimeoplasm","20ffedd2-0575-4050-b687-fa1212966c46"]],["+1/+1 counters","Graveyard"]],
-    "DivineConvocation_MOC": [14059,[["Kasla, the Broken Halo","a209bda2-f0bf-4417-94f9-b73eff0b4217"]],["Tokens","Instants & sorceries"]],
-    "DoomPrevailsCollectorSEdition_MSC": [8811,[["Doctor Doom, King of Latveria","ac011c2d-d4d9-4f17-a1fb-7e30d25ca249"]],["Villains","Attacking","Tokens"]],
-    "DoomPrevails_MSC": [8811,[["Doctor Doom, King of Latveria","099ed408-9178-4403-8b2d-479ca3cbda9b"]],["Villains","Attacking","Tokens"]],
-    "DraconicDestruction_SCD": [1367,[["Atarka, World Render","719f172b-f9ad-4960-af66-757eb54147f6"]],["Dragons","Fliers"]],
-    "DraconicDissent_CLB": [6083,[["Firkraag, Cunning Instigator","b55e624b-6f6a-42ae-89aa-0cc62ee55a31"]],["Goad","Dragons","+1/+1 counters","Fliers"]],
-    "DraconicDomination_C17": [2653,[["The Ur-Dragon","7e78b70b-0c67-4f14-8ad7-c9f8e3f59743"]],["Dragons","Fliers"]],
-    "DraconicRage_AFC": [10992,[["Vrondiss, Rage of Ancients","683ca7f0-e9df-459b-a8e3-cf80b39c732d"]],["Dragons","Fliers"]],
-    "DungeonsOfDeath_AFC": [8304,[["Sefris of the Hidden Ways","d30255f6-e058-476a-b377-2ee4c9178ed1"]],["Recursion","Graveyard"]],
-    "EldraziIncursionCollectorSEdition_M3C": [4741,[["Ulalek, Fused Atrocity","66c46ae5-d83e-41b5-81ab-a3c9c482a44e"]],["Eldrazi","Tokens","Ramp"]],
-    "EldraziIncursion_M3C": [4741,[["Ulalek, Fused Atrocity","fdad1b0e-d3cc-4d76-ae7e-fee12558cf2c"]],["Eldrazi","Tokens","Ramp"]],
-    "EldraziUnbound_CMM": [2844,[["Zhulodok, Void Gorger","a015461d-4214-4feb-8b04-519c537759eb"]],["Artifacts","+1/+1 counters"]],
-    "ElvenCouncil_LTC": [10927,[["Galadriel, Elven-Queen","8fa46d54-563d-4b5c-9c69-5ab37dd529b3"]],["Elves","+1/+1 counters"]],
-    "ElvenEmpire_KHC": [2006,[["Lathril, Blade of the Elves","547888c3-a9a6-4413-b29a-6bcd8a9279bf"]],["Elves","Tokens","Lifegain","Graveyard"]],
-    "EnchantressRubinia_TD0": [19297,[["Rubinia Soulsinger","65a6b9a5-11d6-4f6d-a646-b1ef9c9b68aa"]],["Enchantments"]],
-    "EndlessPunishment_DSC": [2270,[["Valgavoth, Harrower of Souls","8d7c1f6c-af45-4449-8cf8-e13830b3df8a"]],["Sacrifice","Direct damage"]],
-    "EnduringEnchantments_CMM": [5374,[["Anikthea, Hand of Erebos","8b796a56-1611-4835-ac5b-48b4e9263685"]],["Enchantments","Tokens","Graveyard","Lifegain"]],
-    "EnhancedEvolution_C20": [10092,[["Otrimi, the Ever-Playful","639df7bc-b87d-4bf5-8005-8eabc54e955b"]],["+1/+1 counters","Graveyard"]],
-    "EntropicUprising_C16": [9150,[["Yidris, Maelstrom Wielder","c219dd22-433c-4f6a-a0c4-fae12239291c"]],["Instants & sorceries","Lifegain"]],
-    "EternalBargain_C13": [6389,[["Oloro, Ageless Ascetic","abf8df47-405c-42d8-be9e-0f0d0a49589b"]],["Lifegain","Artifacts"]],
-    "EternalMight_DRC": [5295,[["Temmet, Naktamun's Will","c0629894-0b72-4abe-9771-03becfdb241c"]],["Zombies","Tokens","Recursion"]],
-    "EvasiveManeuvers_C13": [2962,[["Derevi, Empyrial Tactician","3d61a4d4-f0d5-4bc4-8977-57bbb3d97776"]],["Fliers","Blink"]],
-    "EvasiveManeuvers_CMA": [2962,[["Derevi, Empyrial Tactician","3a1d0dad-18a8-489e-ac11-08f64b72fda4"]],["Fliers","Blink"]],
-    "EveryoneSInvited_SLD": [1583,[["Morophon, the Boundless","58e4a55f-b35a-411a-9a05-0cbb0d767920"]],["Shapeshifters","Tokens"]],
-    "ExitFromExile_CLB": [4209,[["Faldorn, Dread Wolf Herald","213e530e-33a9-4358-b43b-4a276a7e7190"]],["Tokens","Instants & sorceries","+1/+1 counters"]],
-    "ExplorersOfTheDeep_LCC": [3879,[["Hakbal of the Surging Soul","e738e675-4fd1-4bc3-97f5-71d0e2fc3f2e"]],["+1/+1 counters","Merfolk"]],
-    "ExquisiteInvention_C18": [9970,[["Saheeli, the Gifted","ca095559-ac77-4186-8d9b-b75ce0607582"]],["Tokens","Artifacts"]],
-    "FacelessMenace_C19": [12353,[["Kadena, Slinking Sorcerer","68a144f1-df18-4dc5-81c3-dff2af27527f"]],["+1/+1 counters","Instants & sorceries"]],
-    "FaeDominion_WOC": [3859,[["Tegwyll, Duke of Splendor","03fab911-7bd4-45fa-ba07-cd0e51b0cd95"]],["Faeries","Fliers","Instants & sorceries"]],
-    "FamilyMatters_BLC": [7062,[["Zinnia, Valley's Voice","dfe36901-5841-4942-8b61-c273111f715e"]],["Tokens","Fliers"]],
-    "FelineFerocity_C17": [7836,[["Arahbo, Roar of the World","81dc3d00-97cd-4549-b5a4-15a1e08767f5"]],["Cats","Equipment & Auras","Attacking"]],
-    "FirstFlight_SCD": [8994,[["Isperia, Supreme Judge","de3278de-a045-4290-b05f-3b19e7055091"]],["Fliers","Tokens","Lifegain","Attacking"]],
-    "FoodAndFellowship_LTC": [4763,[["Frodo, Adventurous Hobbit","328df403-7428-4b17-bdd1-9759fc0f32d8"],["Sam, Loyal Attendant","687a2b76-3f05-4732-bd9b-513d06d16300"]],["Lifegain","Halflings"]],
-    "ForcesOfTheImperiumCollectorSEdition_40K": [9987,[["Inquisitor Greyfax","86a4afac-69fd-46e9-8009-58de59bf3f5c"]],["Tokens","Astarteses","Lifegain"]],
-    "ForcesOfTheImperium_40K": [9987,[["Inquisitor Greyfax","1956cebe-bb71-45cc-b4ff-72ee3bb95c81"]],["Tokens","Astarteses","Lifegain"]],
-    "ForgedInStone_C14": [9142,[["Nahiri, the Lithomancer","9a226eae-1c77-45a9-9115-f846b76681a3"]],["Tokens","Equipment & Auras"]],
-    "FromCuteToBrute_SLD": [2524,[["Esika, God of the Tree","46d43696-3c63-4c55-bc61-e1560c8b8201"]],["Blink","Tokens"]],
-    "GoblinStorm_SLD": [3429,[["Zada, Hedron Grinder","b17fb671-f7ff-4633-bdef-39375c6f857c"]],["Goblins","Tokens","Storm","Instants & sorceries"]],
-    "GrandLarceny_OTC": [8241,[["Gonti, Canny Acquisitor","03a7e79f-625a-49ac-9cb1-e1fe5f51f5a0"]],["Instants & sorceries"]],
-    "GraveDanger_SCD": [3992,[["Gisa and Geralf","4d8fd87c-caf7-402e-b543-e35ba3007bcb"]],["Zombies","Tokens","Graveyard"]],
-    "GraveyardOverdriveCollectorSEdition_M3C": [9319,[["Disa the Restless","3c8e2de5-cad6-4bb6-8351-b1e8d25e210f"]],["Graveyard","Tokens"]],
-    "GraveyardOverdrive_M3C": [9319,[["Disa the Restless","c976edeb-0fa1-4647-a16c-870d8a3c30c6"]],["Graveyard","Tokens"]],
-    "GrowingThreat_MOC": [7575,[["Brimaz, Blight of Oreskos","f0d31ae7-8580-402a-a917-3d626a9e1f49"]],["Phyrexians","Artifacts","+1/+1 counters","Recursion"]],
-    "GuidedByNature_C14": [2678,[["Freyalise, Llanowar's Fury","6c6ef042-1a69-4b16-abae-4f436dbadbbd"]],["Elves","Tokens"]],
-    "GuidedByNature_CMA": [2678,[["Freyalise, Llanowar's Fury","cb67310a-da5d-4932-8694-2ad6afe5aeae"]],["Elves","Tokens"]],
-    "HailCaesar_PIP": [2774,[["Caesar, Legion's Emperor","246a7176-98bc-4f54-aa61-38747420f178"]],["Tokens","Sacrifice","Attacking","+1/+1 counters"]],
-    "HatsuneMiku_SLD": [3134,[["Trostani, Selesnya's Voice","6ab6e6c9-fe20-40d3-997e-fe3480081f03"]],["Lifegain","Tokens","+1/+1 counters"]],
-    "HeadsIWinTailsYouLose_SLD": [7058,[["Zndrsplt, Eye of Wisdom","d5dfd236-b1da-4552-b94f-ebf6bb9dafdf"],["Okaun, Eye of Chaos","94eea6e3-20bc-4dab-90ba-3113c120fb90"]],["Instants & sorceries","Artifacts"]],
-    "HeavenlyInferno_CMA": [3477,[["Kaalia of the Vast","5c509c36-43a8-454e-80fc-321f41981049"]],["Fliers","Angels"]],
-    "HeavenlyInferno_CMD": [3477,[["Kaalia of the Vast","4b71d89b-7ba4-406f-8736-ac62b9864f21"]],["Fliers","Angels"]],
-    "InventSuperiority_C16": [5877,[["Breya, Etherium Shaper","8b585ce8-77a3-4755-8aa6-aee83724bbab"]],["Artifacts","Recursion","Lifegain","Sacrifice"]],
-    "JeskaiStriker_TDC": [8184,[["Shiko and Narset, Unified","5a42fc7d-52ac-4e95-9e04-8f8fa7f687c8"]],["Instants & sorceries","Storm","Tokens"]],
-    "JumpScare_DSC": [5942,[["Zimone, Mystery Unraveler","30f23588-5064-48d9-a271-039df757f8d2"]],["Lands","+1/+1 counters"]],
-    "KeenEngineering_FDC": [821,[["Sai, Master Thopterist","5650587a-27a5-4d68-97e2-5745627bd094"]],["Artifacts","Card draw","Tokens"]],
-    "LandSWrath_ZNC": [10824,[["Obuun, Mul Daya Ancestor","8319b155-0fba-4d30-9481-bf01afbd3457"]],["Lands","+1/+1 counters"]],
-    "LegendsLegacy_DMC": [3506,[["Dihada, Binder of Wills","ddeb54d6-a600-42b9-98df-20f8d58caed8"]],["Tokens","Lifegain"]],
-    "LimitBreakCollectorSEditionFinalFantasyVii_FIC": [4434,[["Cloud, Ex-SOLDIER","5a186ba3-94c1-4eab-8d4f-42a320bfa073"]],["Equipment & Auras","Artifacts","Attacking"]],
-    "LimitBreakFinalFantasyVii_FIC": [4434,[["Cloud, Ex-SOLDIER","07b4e4f8-6a31-4533-be51-668ce3ddc84f"]],["Equipment & Auras","Artifacts","Attacking"]],
-    "LivingEnergy_DRC": [9879,[["Saheeli, Radiant Creator","5fea0781-e933-47ef-9414-92c8652a7778"]],["Artifacts","Tokens"]],
-    "LoreholdLegacies_C21": [8146,[["Osgir, the Reconstructor","5815fe6e-e26b-4918-a090-55d6442722c1"]],["Artifacts","Graveyard","Tokens","Sacrifice"]],
-    "LoreholdSpirit_SOC": [9249,[["Quintorius, History Chaser","0742f19d-179c-43c4-ab95-4160c56b4384"]],["Graveyard","Spirits","Tokens"]],
-    "MaestrosMassacre_NCC": [11904,[["Anhelo, the Painter","462e887d-6b91-4b31-9487-2780ffe8943f"]],["Instants & sorceries","Recursion","Tokens"]],
-    "MarduSurge_TDC": [2974,[["Zurgo Stormrender","dc8eb325-75c9-4331-830d-3f7d62d77290"]],["Tokens","Sacrifice"]],
-    "MastersOfEvil_WHO": [7608,[["Davros, Dalek Creator","59c5bd2b-cf68-4e5e-819d-53917a6c5275"]],["Goad","Tokens","Artifacts"]],
-    "MercilessRage_C19": [8681,[["Anje Falkenrath","913dd06f-ed2f-4128-9c9d-9cd0d8a55425"]],["Recursion","Graveyard"]],
-    "MindFlayarrrs_CLB": [4459,[["Captain N'ghathrod","55c02dc8-0743-400c-b334-ca029caf0463"]],["Horrors","Graveyard"]],
-    "MindSeize_C13": [14170,[["Jeleva, Nephalia's Scourge","83f9aeb8-05ba-49d9-a834-62f42fcd295b"]],["Instants & sorceries","Spell copying"]],
-    "MiracleWorker_DSC": [5377,[["Aminatou, Veil Piercer","9f868023-6035-403d-ba91-7a4840c6c392"]],["Enchantments","Graveyard","Tokens"]],
-    "MirrorMastery_CMD": [12318,[["Riku of Two Reflections","716d0b3b-bac9-4fb8-882e-bd6171864043"]],["Instants & sorceries","Storm"]],
-    "MishraSBurnishedBanner_BRC": [10182,[["Mishra, Eminent One","7f5b1daa-ec45-48de-9496-6ca5b491a0dc"]],["Artifacts","Tokens","Sacrifice"]],
-    "MostWanted_OTC": [5107,[["Olivia, Opulent Outlaw","55e6c31b-f9e9-4e42-a875-985d99300d9d"]],["Sacrifice","Lifegain","+1/+1 counters","Ramp"]],
-    "MultiverseReforged_FRC": [12197,[["Jace, Multiverse Architect","55cd03d9-2535-4cf3-a8b2-1418e1190f4a"]],["Tokens","Instants & sorceries","Lifegain"]],
-    "MutantMenace_PIP": [3723,[["The Wise Mothman","3d6d6944-a364-41c2-b824-7a1bf6ad0d1e"]],["+1/+1 counters","Mutants"]],
-    "MysticIntellect_C19": [20522,[["Sevinne, the Chronoclasm","2c209efe-b4dc-44a3-bd45-d647f5680cbe"]],["Recursion","Instants & sorceries","Spell copying"]],
-    "NatureOfTheBeast_C13": [15726,[["Marath, Will of the Wild","57afa796-db46-45ff-91bd-f02922e5f33d"]],["+1/+1 counters","Beasts","Tokens"]],
-    "NatureSVengeance_C18": [6177,[["Lord Windgrace","213d6fb8-5624-4804-b263-51f339482754"]],["Recursion","Lands","+1/+1 counters","Tokens"]],
-    "NecronDynastiesCollectorSEdition_40K": [10112,[["Szarekh, the Silent King","e11174b2-2423-4a6e-9dcf-ff550eee7e5a"]],["Artifacts","Necrons","Graveyard","Vehicles"]],
-    "NecronDynasties_40K": [10112,[["Szarekh, the Silent King","12a3400d-7a8b-4bae-9a4f-c9a1bc741e68"]],["Artifacts","Necrons","Graveyard","Vehicles"]],
-    "ObscuraOperation_NCC": [7872,[["Kamiz, Obscura Oculus","74b8ae28-e169-46be-8180-ebdaf80efd81"]],["Recursion","Graveyard"]],
-    "OpenHostility_C16": [10797,[["Saskia the Unyielding","5b483db6-b614-4af1-820a-42a4ee0c8707"]],["+1/+1 counters","Tokens"]],
-    "Painbow_DMC": [9130,[["Jared Carthalion","5acffa48-9e3f-4ba3-a55f-d459307f46df"]],["Ramp","+1/+1 counters"]],
-    "ParadoxPower_WHO": [5120,[["The Thirteenth Doctor","0dc4ec90-1650-4b98-9350-66341394cf0b"],["Yasmin Khan","12b09a4f-bb62-4766-8115-cae4d5cc4c12"]],["+1/+1 counters","Instants & sorceries","Recursion"]],
-    "PartyTime_CLB": [8390,[["Nalia de'Arnise","7a1294fd-9885-4dfd-8192-0ca074fc83f7"]],["Clerics","+1/+1 counters"]],
-    "PeaceOffering_BLC": [3189,[["Ms. Bumbleflower","42bbedc1-6b83-46b4-8b3b-a4e05ce77d87"]],["+1/+1 counters","Card draw"]],
-    "PeerThroughTime_C14": [4095,[["Teferi, Temporal Archmage","80eec0bd-9eb4-4360-b97b-9c7985a63343"]],["Artifacts"]],
-    "PhantomPremonition_KHC": [12004,[["Ranar the Ever-Watchful","1c8c41dd-8551-4ce8-a9be-9b9f65718852"]],["Blink","Tokens","Fliers"]],
-    "PlanarPortal_AFC": [2184,[["Prosper, Tome-Bound","d743336e-d5c7-4053-a23d-92ec7581f74e"]],["Instants & sorceries","Sacrifice"]],
-    "PlaneswalkerParty_CMM": [6895,[["Commodore Guff","92870fc6-a6bc-4198-bb31-397e07e0e835"]],["+1/+1 counters","Tokens"]],
-    "PlunderTheGraves_C15": [1508,[["Meren of Clan Nel Toth","f43bf91d-bc08-417f-a549-64919c24052a"]],["Sacrifice","Graveyard","+1/+1 counters","Tokens"]],
-    "PlunderTheGraves_CMA": [1508,[["Meren of Clan Nel Toth","17d6703c-ad79-457b-a1b5-c2284e363085"]],["Sacrifice","Graveyard","+1/+1 counters","Tokens"]],
-    "PoliticalPuppets_CMD": [8723,[["Zedruu the Greathearted","f851b861-4e9c-4422-8156-37d7bf2928cd"]],["Instants & sorceries"]],
-    "PowerHungry_C13": [9791,[["Prossh, Skyraider of Kher","fc411c52-3ee2-4fe4-983d-3fa43b516237"]],["Sacrifice","Tokens","+1/+1 counters"]],
-    "PrimalGenesis_C19": [12396,[["Ghired, Conclave Exile","d0825bcd-8cf8-498a-a61e-406f136e1f3f"]],["Tokens","Lifegain"]],
-    "PrismariArtistry_SOC": [10610,[["Rootha, Mastering the Moment","a5b3dbb2-c090-4118-9e47-56c16202572c"]],["Instants & sorceries","Tokens"]],
-    "PrismariPerformance_C21": [11446,[["Zaffai, Thunder Conductor","ea1ab937-8647-4c83-99d5-6a40dffa4c9b"]],["Instants & sorceries","Storm","Tokens"]],
-    "QuandrixUnlimited_SOC": [7552,[["Zimone, Infinite Analyst","605afac4-d2e5-4e68-97d2-3ac2ead5f3a9"]],["+1/+1 counters","Instants & sorceries","Tokens"]],
-    "QuantumQuandrix_C21": [1407,[["Adrix and Nev, Twincasters","d495e084-92ec-4675-b6aa-8ade2775b796"]],["Tokens","+1/+1 counters"]],
-    "QuickDraw_OTC": [5114,[["Stella Lee, Wild Card","2a8a7696-b5d9-4378-9d5c-2c9007e4df63"]],["Instants & sorceries","Storm","Graveyard","Tokens"]],
-    "RainingCatsAndDogs_SLD": [5503,[["Rin and Seri, Inseparable","a129558c-45a1-441c-97f0-b70b4e9d8a56"]],["Cats","Tokens","+1/+1 counters"]],
-    "ReapTheTides_CMR": [839,[["Aesi, Tyrant of Gyre Strait","d607b003-6b48-429c-a7fd-45b8dd1bb4f9"]],["Lands","+1/+1 counters"]],
-    "RebellionRising_ONC": [3468,[["Neyali, Suns' Vanguard","2b5df03d-2463-468b-b444-d946eeb1c96d"]],["Tokens","Artifacts"]],
-    "ReignOfDragons_FDC": [1079,[["Lathliss, Dragon Queen","8a17ec4e-b508-41af-803b-32acd863e598"]],["Dragons","Fliers"]],
-    "RevenantRecon_MKC": [8110,[["Mirko, Obsessive Theorist","690acbbf-5e92-4323-b939-31bdb07f9905"]],["Graveyard","+1/+1 counters","Fliers"]],
-    "RevivalTranceCollectorSEditionFinalFantasyVi_FIC": [5257,[["Terra, Herald of Hope","4f36f28b-b9c9-42a2-a2e5-d1b532e482a3"]],["Graveyard","Recursion"]],
-    "RevivalTranceFinalFantasyVi_FIC": [5257,[["Terra, Herald of Hope","5aa1a2d7-6133-41a9-9662-9008d1309935"]],["Graveyard","Recursion"]],
-    "RidersOfRohan_LTC": [4511,[["Éowyn, Shieldmaiden","dd4a00ff-2206-4e12-a0ab-61ed82c9e6c5"]],["Humans","Tokens"]],
-    "RiveteersRampage_NCC": [7212,[["Henzie \"Toolbox\" Torre","ee228dcc-3170-4c24-80bc-28bcee07cb43"]],["Sacrifice"]],
-    "RuthlessRegiment_C20": [12616,[["Jirina Kudro","6e660d42-f5d3-452a-9662-74e18a1ae9e4"]],["Humans","Tokens"]],
-    "Science_PIP": [7214,[["Dr. Madison Li","95af426d-a8af-4314-9ad0-ac61935e8e8e"]],["Artifacts","Recursion"]],
-    "ScionsSpellcraftCollectorSEditionFinalFantasyXiv_FIC": [2565,[["Y'shtola, Night's Blessed","e8df6177-e14d-4dc9-bfc6-5e5f31c2834d"]],["Instants & sorceries","Lifegain","Tokens"]],
-    "ScionsSpellcraftFinalFantasyXiv_FIC": [2565,[["Y'shtola, Night's Blessed","c7f2c2d5-e052-49e8-b5de-712858c2ea78"]],["Instants & sorceries","Lifegain","Tokens"]],
-    "ScrappySurvivors_PIP": [9261,[["Dogmeat, Ever Loyal","86b45e3e-8460-4678-87d1-d74479936c83"]],["Equipment & Auras","Attacking","Recursion","Enchantments"]],
-    "SeizeControl_C15": [6375,[["Mizzix of the Izmagnus","d0ea2c3a-c36d-44e8-bc46-5361f5f9d0e7"]],["Instants & sorceries","Theft"]],
-    "SilverquillInfluence_SOC": [7228,[["Killian, Decisive Mentor","76b6c35a-bb92-4ad3-8f85-88b9bafc6266"]],["Enchantments","Goad","Equipment & Auras","Attacking"]],
-    "SilverquillStatement_C21": [1878,[["Breena, the Demagogue","6cb82b10-d785-4e20-84ac-0660d49be8ad"]],["+1/+1 counters","Fliers"]],
-    "SliverSwarm_CMM": [6297,[["Sliver Gravemother","9f5d253e-9eb2-423c-90ee-68f27ec6bf88"]],["Slivers","Tokens"]],
-    "SneakAttack_ZNC": [9691,[["Anowon, the Ruin Thief","bca84fc4-4710-44c8-b90a-73ef888714d8"]],["Rogues","Graveyard"]],
-    "SpiritSquadron_VOC": [11084,[["Millicent, Restless Revenant","2b86b538-0766-440d-a2cd-f5d5bfcfb010"]],["Tokens","Spirits","Fliers"]],
-    "SquirreledAway_BLC": [3158,[["Hazel of the Rootbloom","1269ca79-907e-4932-9e77-a9a5d2929060"]],["Tokens","Sacrifice","Lifegain","+1/+1 counters"]],
-    "StalwartUnity_C16": [6672,[["Kynaios and Tiro of Meletis","97fa8615-2b6c-445a-bcaf-44a7e847bf65"]],["Tokens","+1/+1 counters"]],
-    "SubjectiveReality_C18": [4618,[["Aminatou, the Fateshifter","16b9f43a-9c3f-4bfa-9eb1-734189a4bb1f"]],["Blink","Instants & sorceries"]],
-    "SultaiArisen_TDC": [2647,[["Teval, the Balanced Scale","b5d1955a-9ff0-4f8b-9af8-341371957299"]],["Graveyard","Lands","Tokens"]],
-    "SwellTheHost_C15": [5650,[["Ezuri, Claw of Progress","ef1b62ff-dbb3-4500-9d64-a3047ce193ec"]],["Tokens","+1/+1 counters"]],
-    "SwornToDarkness_C14": [9664,[["Ob Nixilis of the Black Oath","bf472be9-f375-455e-a800-7af5258f4e59"]],["Sacrifice","Tokens"]],
-    "SymbioticSwarm_C20": [14906,[["Kathril, Aspect Warper","ebc57f73-a517-463e-8d55-56aa996d091e"]],["Lifegain","Graveyard","+1/+1 counters"]],
-    "TemurRoar_TDC": [5313,[["Eshki, Temur's Roar","ff9aa863-8773-452d-946c-ae334c632e11"]],["Dragons","Fliers","+1/+1 counters"]],
-    "TheFantasticFourCollectorSEdition_MSC": [15876,[["Invisible Woman","640ebf2f-5687-42d4-97e5-85e2fefa89a9"]],["Instants & sorceries","Tokens","Attacking"]],
-    "TheFantasticFour_MSC": [15876,[["Invisible Woman","d8e13ecb-98be-4d9b-86a2-24eaa98f7f0d"]],["Instants & sorceries","Tokens","Attacking"]],
-    "TheHostsOfMordor_LTC": [5138,[["Sauron, Lord of the Rings","fc53dec0-79fe-4f6f-9d5b-cf298588e808"]],["Recursion","Tokens","Instants & sorceries"]],
-    "TheRuinousPowersCollectorSEdition_40K": [8825,[["Abaddon the Despoiler","c9f1fc97-00c0-492b-a4a3-b179afc2f95d"]],["Demons","Instants & sorceries"]],
-    "TheRuinousPowers_40K": [8825,[["Abaddon the Despoiler","a78ab8fe-4499-4860-87d3-f8707398c00c"]],["Demons","Instants & sorceries"]],
-    "TimelessWisdom_C20": [14387,[["Gavi, Nest Warden","80bc07d5-bdbb-4a6d-8958-0c172ea80245"]],["Tokens","Goad"]],
-    "TimeyWimey_WHO": [6677,[["The Tenth Doctor","f1499f49-793b-4265-9ad0-883a431941ab"],["Rose Tyler","3aa8d034-f98c-4e27-b6af-850eadf59941"]],["Attacking","Artifacts"]],
-    "TinkerTime_MOC": [15608,[["Gimbal, Gremlin Prodigy","4a9aa899-752b-4106-89ba-9475ee777d41"]],["Tokens","Artifacts","Ramp"]],
-    "TokenTriumph_SCD": [6652,[["Emmara, Soul of the Accord","e8510a1e-62ca-462c-b036-d1312729f27d"]],["Tokens","Lifegain"]],
-    "TramplesaurusRex_FDC": [458,[["Ghalta, Primal Hunger","5d9951d1-3228-4d69-8e63-6e6f0a893a86"]],["Dinosaurs","+1/+1 counters"]],
-    "TrickyTerrainCollectorSEdition_M3C": [5125,[["Omo, Queen of Vesuva","bf5a3655-cd08-46a3-b099-253708c6539e"]],["Tokens","Graveyard","Lands"]],
-    "TrickyTerrain_M3C": [5125,[["Omo, Queen of Vesuva","e5d1c814-4c22-4917-95ae-dffaf491db32"]],["Tokens","Graveyard","Lands"]],
-    "TurtlePower_TMC": [8504,[["Heroes in a Half Shell","ccc2a4e6-f505-4040-9d8a-c7b8e1a2b55e"]],["+1/+1 counters","Tokens","Mutants"]],
-    "TyranidSwarmCollectorSEdition_40K": [13543,[["The Swarmlord","d5c4077c-604e-4e8a-b448-0807849040ca"]],["+1/+1 counters","Tyranids"]],
-    "TyranidSwarm_40K": [13543,[["The Swarmlord","c9dbba5a-fb9a-422e-87a1-a29d2c17a04e"]],["+1/+1 counters","Tyranids"]],
-    "UndeadUnleashed_MIC": [2758,[["Wilhelt, the Rotcleaver","2501a911-d072-436d-ae3b-a5164e3b30aa"]],["Tokens","Zombies","Sacrifice","Graveyard"]],
-    "UpgradesUnleashed_NEC": [6084,[["Chishiro, the Shattered Blade","bffa36ac-137d-481c-b1b7-76a88ef15d54"]],["+1/+1 counters","Equipment & Auras","Tokens"]],
-    "UrzaSIronAlliance_BRC": [4895,[["Urza, Chief Artificer","ea409050-4296-4b76-a6cd-2896ce1b88e4"]],["Artifacts","Tokens"]],
-    "VampiricBloodline_VOC": [7406,[["Strefan, Maurer Progenitor","8f54c6ce-fde4-47ef-a106-5c68b4397f99"]],["Vampires","+1/+1 counters","Lifegain"]],
-    "VampiricBloodlust_C17": [3160,[["Edgar Markov","8d94b8ec-ecda-43c8-a60e-1ba33e6a54a4"]],["Vampires","Lifegain","+1/+1 counters"]],
-    "VelociRampTor_LCC": [2459,[["Pantlaza, Sun-Favored","2524645e-b066-4351-885b-10faa8d819d7"]],["Dinosaurs"]],
-    "VirtueAndValor_WOC": [6463,[["Ellivere of the Wild Court","45851394-b8f3-4713-8239-afcb387d47c5"]],["Enchantments","Tokens","Equipment & Auras"]],
-    "WadeIntoBattle_C15": [8478,[["Kalemne, Disciple of Iroas","c049d734-cb1c-4c38-b276-7e5ac9c81254"]],["Giants","Artifacts"]],
-    "WadeIntoBattle_CM2": [8478,[["Kalemne, Disciple of Iroas","3c718940-dc07-4449-ba35-4029f366c3eb"]],["Giants","Artifacts"]],
-    "WakandaForeverCollectorSEdition_MSC": [15321,[["T'Challa, the Black Panther","d5a3537f-ac0a-4517-8a89-92abe8c0b8d0"]],["+1/+1 counters","Artifacts","Tokens","Attacking"]],
-    "WakandaForever_MSC": [15321,[["T'Challa, the Black Panther","c1c8ad61-b7e1-446c-8b74-6e29371ea1d5"]],["+1/+1 counters","Artifacts","Tokens","Attacking"]],
-    "WitherbloomPestilence_SOC": [5718,[["Dina, Essence Brewer","9fe237b8-c02c-41ea-9fc4-b771b91d2157"]],["Sacrifice","Lifegain","+1/+1 counters","Tokens"]],
-    "WitherbloomWitchcraft_C21": [10579,[["Willowdusk, Essence Seer","42a97ec1-f613-49a5-9236-7fded1a81f3b"]],["Lifegain","Sacrifice"]],
-    "WorldShaper_EOC": [3391,[["Hearthhull, the Worldseed","6b913e79-a9f6-44d4-bb37-c4f6f66b8151"]],["Sacrifice","Lands","Recursion","Tokens"]],
-    "WretchedRanks_FDC": [2471,[["Ghoulcaller Gisa","909e62fa-4585-495e-812b-5df56af24610"]],["Zombies","Tokens","Recursion","Sacrifice"]],
+  MTG.preconIndex = { v: 2, decks: {
+    "20WaysToWin_SLD": [71,[["Go-Shintai of Life's Origin","4e9a1f19-6ee3-49fb-a08d-4048ee7c1e34"]],["+1/+1 counters","Enchantments","Lifegain","Tokens","Treasure"],"WUBRG",5124,"20 Ways to Win","2024-12-04"],
+    "AbzanArmor_TDC": [66,[["Felothar the Steadfast","2c3549f6-25df-4ea7-84ad-922ccd4af6b2"]],["Lifegain","+1/+1 counters"],"WBG",4082,"Abzan Armor","2025-04-11"],
+    "AdaptiveEnchantment_C18": [650,[["Estrid, the Masked","3340b83e-72dc-42e2-9f93-92f732c047df"]],["Enchantress","Auras","Tokens"],"WUG",11472,"Adaptive Enchantment","2018-08-10"],
+    "AhoyMateys_LCC": [353,[["Admiral Brass, Unsinkable","bdc2d492-9d1e-4543-8b9c-c66ee67992ce"]],["Pirates","Treasure","Graveyard"],"UBR",7705,"Ahoy Mateys","2023-11-17"],
+    "AngelsTheyReJustLikeUsButCoolerAndWithWings_SLD": [1726,[["Gisela, the Broken Blade","d1cfc318-9c3e-471f-90eb-dc76454da957"]],["Lifegain","Angels","Fliers","Tokens"],"W",2553,"Angels: They're Just Like Us but Cooler and with Wings","2023-08-14"],
+    "AnimatedArmy_BLC": [34,[["Bello, Bard of the Brambles","31e4b7a1-b377-49d2-a92e-4bcb0db35f16"]],["Enchantments","Ramp"],"RG",3665,"Animated Army","2024-08-02"],
+    "ArcaneMaelstrom_C20": [304,[["Kalamax, the Stormsire","f990cd78-2165-446f-a116-ae55d7a0f00d"]],["Instants & sorceries","Storm","+1/+1 counters"],"URG",9808,"Arcane Maelstrom","2020-04-17"],
+    "ArcaneWizardry_C17": [136,[["Inalla, Archmage Ritualist","7c6e803a-451c-4aa6-97a2-400077f32c47"]],["Wizards","Instants & sorceries","Graveyard"],"UBR",8521,"Arcane Wizardry","2017-08-25"],
+    "ArmForBattle_CMR": [942,[["Wyleth, Soul of Steel","7c5ada8c-98f2-4f9c-bcb5-dfa4f804fbe6"]],["Equipment","Instants & sorceries"],"WR",6950,"Arm for Battle","2020-11-20"],
+    "AuraOfCourage_AFC": [542,[["Galea, Kindler of Hope","1efbea01-c6a1-4380-a14f-6206c7895e48"]],["Equipment & Auras","Enchantments"],"WUG",12676,"Aura of Courage","2021-07-23"],
+    "AvengersAssembleCollectorSEdition_MSC": [530,[["Captain America, Team Leader","910a6dfc-04a2-4c6d-b2ba-507bc75ec821"]],["+1/+1 counters","Heroes","Attacking"],"WUR",11727,"Avengers Assemble Collector's Edition","2026-06-26"],
+    "AvengersAssemble_MSC": [530,[["Captain America, Team Leader","61a51b67-d941-4e07-9c12-ffe583cb65d4"]],["+1/+1 counters","Heroes","Attacking"],"WUR",11727,"Avengers Assemble","2026-06-26"],
+    "BedeckedBrokers_NCC": [1222,[["Perrie, the Pulverizer","d438237b-c6f7-44d0-a3e6-6ec7d7465d33"]],["+1/+1 counters","Attacking"],"WUG",16661,"Bedecked Brokers","2022-04-29"],
+    "BlameGame_MKC": [459,[["Nelly Borca, Impulsive Accuser","2ef59aa9-f5e1-413a-869b-d287db95efd0"]],["Goad","Attacking","Tokens"],"WR",4850,"Blame Game","2024-02-09"],
+    "BlastFromThePast_WHO": [1582,[["The Fourth Doctor","c84ea0fd-efc7-4614-9f8f-41a3c71fceaa"],["Sarah Jane Smith","1ba76f68-e647-4786-903c-92dbd3cef05d"]],["Time Lords","+1/+1 counters"],"WUG",9460,"Blast from the Past","2023-10-13"],
+    "BlightCurse_ECC": [79,[["Auntie Ool, Cursewretch","9a2e4252-9fbc-4d43-8935-db2cafaa7b5f"]],["-1/-1 counters","Card draw"],"BRG",6289,"Blight Curse","2026-01-23"],
+    "BloodRites_LCC": [224,[["Clavileño, First of the Blessed","9f55b648-b1ec-407a-a0c7-7647755793d1"]],["Vampires","Lifegain","+1/+1 counters","Tokens","Attacking"],"WB",3541,"Blood Rites","2023-11-17"],
+    "BreedLethality_C16": [4,[["Atraxa, Praetors' Voice","c34ae834-775e-447a-a330-0270c227c667"]],["+1/+1 counters"],"WUBG",2413,"Breed Lethality","2016-11-11"],
+    "BreedLethality_CM2": [4,[["Atraxa, Praetors' Voice","b2e330dd-7cd3-445d-9c05-56e4a57526e9"]],["+1/+1 counters"],"WUBG",2413,"Breed Lethality","2018-06-08"],
+    "BuckleUp_NEC": [965,[["Kotori, Pilot Prodigy","fea6c1c8-eff9-4b66-b96d-e23016f0bb62"]],["Vehicles","Artifacts","Tokens"],"WU",6245,"Buckle Up","2022-02-18"],
+    "BuiltFromScratch_C14": [816,[["Daretti, Scrap Savant","cda40e31-ba99-4565-ad92-7c687ff44bd9"]],["Artifacts","Recursion"],"R",2027,"Built From Scratch","2014-11-07"],
+    "BuiltFromScratch_CM2": [816,[["Daretti, Scrap Savant","3f4e6adf-d52f-4087-a919-789a543a9a3e"]],["Artifacts","Recursion"],"R",2027,"Built From Scratch","2018-06-08"],
+    "CabarettiCacophony_NCC": [1239,[["Kitt Kanto, Mayhem Diva","9b9850d6-49d3-45ec-9a45-75aa0fce9ee5"]],["Tokens","Goad"],"WRG",11843,"Cabaretti Cacophony","2022-04-29"],
+    "CallForBackup_MOC": [829,[["Bright-Palm, Soul Awakener","a485c2c3-c90b-43b4-bb00-c1b811b4b392"]],["+1/+1 counters","Attacking"],"WRG",9720,"Call for Backup","2023-04-21"],
+    "CallTheSpirits_C15": [1117,[["Daxos the Returned","4abe142e-7e87-464b-be2a-ad2fc7aebd51"]],["Enchantress","Tokens"],"WB",9604,"Call the Spirits","2015-11-13"],
+    "CallingAllAngels_FDC": [13,[["Giada, Font of Hope","4ebc7622-08a1-4f43-92dd-8675d395e8f6"]],["Angels","Fliers","Lifegain","+1/+1 counters"],"W",1654,"Calling All Angels","2026-10-02"],
+    "CavalryCharge_MOC": [101,[["Sidar Jabari of Zhalfir","5fc707be-9286-4ba1-90f6-475265d19ed2"]],["Knights","Attacking","Tokens"],"WUB",7519,"Cavalry Charge","2023-04-21"],
+    "ChaosIncarnate_SCD": [359,[["Kardur, Doomscourge","19e4d494-e8b3-4ae2-93e3-70c65ab90f15"]],["Instants & sorceries","Lifegain","Direct damage","Group hug"],"BR",989,"Chaos Incarnate","2022-12-02"],
+    "CorruptingInfluence_ONC": [413,[["Ixhel, Scion of Atraxa","ab866ec4-dcb4-47ef-8de1-a369986609c0"]],["Infect & poison","+1/+1 counters","Phyrexians"],"WBG",5849,"Corrupting Influence","2023-02-10"],
+    "CounterBlitzCollectorSEditionFinalFantasyX_FIC": [57,[["Tidus, Yuna's Guardian","6021debf-8d5d-40e4-a197-3751b3ef5701"]],["+1/+1 counters","Enchantments"],"WUG",3747,"Counter Blitz Collector's Edition (FINAL FANTASY X)","2025-06-13"],
+    "CounterBlitzFinalFantasyX_FIC": [57,[["Tidus, Yuna's Guardian","2cfd4494-346c-4cbc-8072-e267254cefcc"]],["+1/+1 counters","Enchantments"],"WUG",3747,"Counter Blitz (FINAL FANTASY X)","2025-06-13"],
+    "CounterIntelligence_EOC": [152,[["Inspirit, Flagship Vessel","46900ec7-eb18-45c4-8e90-a48b665cfdee"]],["+1/+1 counters","Artifacts"],"WUR",3633,"Counter Intelligence","2025-08-01"],
+    "Counterpunch_CMD": [321,[["Ghave, Guru of Spores","91194df8-4066-4235-a829-2b688ba4afcb"]],["Tokens","+1/+1 counters"],"WBG",9802,"Counterpunch","2011-06-17"],
+    "CovenCounters_MIC": [1158,[["Leinore, Autumn Sovereign","bd7e1645-ea8f-41c4-b3ee-58f44fc5c574"]],["+1/+1 counters","Humans","Tokens"],"WG",6203,"Coven Counters","2021-09-24"],
+    "CreativeEnergyCollectorSEdition_M3C": [133,[["Satya, Aetherflux Genius","65a9bda0-80eb-4aa9-ad89-9f73e65dbce3"]],["Tokens","Artifacts","Attacking"],"WUR",6574,"Creative Energy Collector's Edition","2024-06-14"],
+    "CreativeEnergy_M3C": [133,[["Satya, Aetherflux Genius","3b964bbe-54cc-425c-9cc6-c877f82af7ba"]],["Tokens","Artifacts","Attacking"],"WUR",6574,"Creative Energy","2024-06-14"],
+    "DanceOfTheElements_ECC": [33,[["Ashling, the Limitless","5924c01f-2815-4e37-b700-3ba6cc81e0e4"]],["Elementals","Tokens","Recursion"],"WUBRG",5506,"Dance of the Elements","2026-01-23"],
+    "DeadlyDisguise_MKC": [898,[["Kaust, Eyes of the Glade","648c15d1-a2a2-4f59-9b0a-5448be3e990f"]],["Attacking","+1/+1 counters"],"WRG",17074,"Deadly Disguise","2024-02-09"],
+    "DeathToll_DSC": [409,[["Winter, Cynical Opportunist","94dc35e4-a492-4019-afcd-cbef6f59a512"]],["Graveyard","Tokens"],"BG",9441,"Death Toll","2024-09-27"],
+    "DeathdancerXira_TD0": [2062,[["Xira Arien","8c961265-72a8-4521-b413-0d51fd2e10ad"]],["Graveyard","Recursion"],"BRG",17021,"Deathdancer Xira","2009-08-26"],
+    "DeepClueSea_MKC": [340,[["Morska, Undersea Sleuth","ae9ccfec-05c6-469e-b1dd-dfbafa1e927f"]],["+1/+1 counters","Tokens","Artifacts","Sacrifice","Card draw"],"WUG",8916,"Deep Clue Sea","2024-02-09"],
+    "DesertBloom_OTC": [364,[["Yuma, Proud Protector","18df72be-07d2-4412-b36d-a45119763db3"]],["Graveyard","Extra land drops","Tokens"],"WRG",9105,"Desert Bloom","2024-04-19"],
+    "DevourForPower_CM2": [408,[["The Mimeoplasm","aedc7a6b-c481-4719-bc83-424eeb216aef"]],["+1/+1 counters","Graveyard"],"UBG",7445,"Devour for Power","2018-06-08"],
+    "DevourForPower_CMD": [408,[["The Mimeoplasm","20ffedd2-0575-4050-b687-fa1212966c46"]],["+1/+1 counters","Graveyard"],"UBG",7445,"Devour for Power","2011-06-17"],
+    "DivineConvocation_MOC": [696,[["Kasla, the Broken Halo","a209bda2-f0bf-4417-94f9-b73eff0b4217"]],["Tokens","Instants & sorceries"],"WUR",14059,"Divine Convocation","2023-04-21"],
+    "DoomPrevailsCollectorSEdition_MSC": [223,[["Doctor Doom, King of Latveria","ac011c2d-d4d9-4f17-a1fb-7e30d25ca249"]],["Villains","Attacking","Tokens","Treasure"],"UBR",8811,"Doom Prevails Collector's Edition","2026-06-26"],
+    "DoomPrevails_MSC": [223,[["Doctor Doom, King of Latveria","099ed408-9178-4403-8b2d-479ca3cbda9b"]],["Villains","Attacking","Tokens","Treasure"],"UBR",8811,"Doom Prevails","2026-06-26"],
+    "DraconicDestruction_SCD": [501,[["Atarka, World Render","719f172b-f9ad-4960-af66-757eb54147f6"]],["Dragons","Fliers"],"RG",1367,"Draconic Destruction","2022-12-02"],
+    "DraconicDissent_CLB": [765,[["Firkraag, Cunning Instigator","b55e624b-6f6a-42ae-89aa-0cc62ee55a31"]],["Goad","Dragons","+1/+1 counters","Fliers"],"UR",6083,"Draconic Dissent","2022-06-10"],
+    "DraconicDomination_C17": [3,[["The Ur-Dragon","7e78b70b-0c67-4f14-8ad7-c9f8e3f59743"]],["Dragons","Fliers"],"WUBRG",2653,"Draconic Domination","2017-08-25"],
+    "DraconicRage_AFC": [876,[["Vrondiss, Rage of Ancients","683ca7f0-e9df-459b-a8e3-cf80b39c732d"]],["Dragons","Fliers"],"RG",10992,"Draconic Rage","2021-07-23"],
+    "DungeonsOfDeath_AFC": [174,[["Sefris of the Hidden Ways","d30255f6-e058-476a-b377-2ee4c9178ed1"]],["Graveyard","Reanimator"],"WUB",8304,"Dungeons of Death","2021-07-23"],
+    "EldraziIncursionCollectorSEdition_M3C": [30,[["Ulalek, Fused Atrocity","66c46ae5-d83e-41b5-81ab-a3c9c482a44e"]],["Eldrazi","Tokens","Big spells","Ramp"],"WUBRG",4741,"Eldrazi Incursion Collector's Edition","2024-06-14"],
+    "EldraziIncursion_M3C": [30,[["Ulalek, Fused Atrocity","fdad1b0e-d3cc-4d76-ae7e-fee12558cf2c"]],["Eldrazi","Tokens","Big spells","Ramp"],"WUBRG",4741,"Eldrazi Incursion","2024-06-14"],
+    "EldraziUnbound_CMM": [59,[["Zhulodok, Void Gorger","a015461d-4214-4feb-8b04-519c537759eb"]],["Artifacts","Big spells","+1/+1 counters","Cascade"],"",2844,"Eldrazi Unbound","2023-08-04"],
+    "ElvenCouncil_LTC": [1006,[["Galadriel, Elven-Queen","8fa46d54-563d-4b5c-9c69-5ab37dd529b3"]],["Elves","+1/+1 counters"],"UG",10927,"Elven Council","2023-06-23"],
+    "ElvenEmpire_KHC": [14,[["Lathril, Blade of the Elves","547888c3-a9a6-4413-b29a-6bcd8a9279bf"]],["Elves","Tokens","Lifegain","Graveyard","Drain"],"BG",2006,"Elven Empire","2021-02-05"],
+    "EnchantressRubinia_TD0": [1596,[["Rubinia Soulsinger","65a6b9a5-11d6-4f6d-a646-b1ef9c9b68aa"]],["Enchantments"],"WUG",19297,"Enchantress Rubinia","2009-08-26"],
+    "EndlessPunishment_DSC": [27,[["Valgavoth, Harrower of Souls","8d7c1f6c-af45-4449-8cf8-e13830b3df8a"]],["Aristocrats","Direct damage"],"BR",2270,"Endless Punishment","2024-09-27"],
+    "EnduringEnchantments_CMM": [162,[["Anikthea, Hand of Erebos","8b796a56-1611-4835-ac5b-48b4e9263685"]],["Enchantress","Tokens","Graveyard","Lifegain"],"WBG",5374,"Enduring Enchantments","2023-08-04"],
+    "EnhancedEvolution_C20": [747,[["Otrimi, the Ever-Playful","639df7bc-b87d-4bf5-8005-8eabc54e955b"]],["+1/+1 counters","Graveyard"],"UBG",10092,"Enhanced Evolution","2020-04-17"],
+    "EntropicUprising_C16": [238,[["Yidris, Maelstrom Wielder","c219dd22-433c-4f6a-a0c4-fae12239291c"]],["Wheels","Cascade","Instants & sorceries","Discard"],"UBRG",9150,"Entropic Uprising","2016-11-11"],
+    "EternalBargain_C13": [51,[["Oloro, Ageless Ascetic","abf8df47-405c-42d8-be9e-0f0d0a49589b"]],["Lifegain","Artifacts"],"WUB",6389,"Eternal Bargain","2013-11-01"],
+    "EternalMight_DRC": [146,[["Temmet, Naktamun's Will","c0629894-0b72-4abe-9771-03becfdb241c"]],["Zombies","Tokens","Graveyard"],"WUB",5295,"Eternal Might","2025-02-14"],
+    "EvasiveManeuvers_C13": [197,[["Derevi, Empyrial Tactician","3d61a4d4-f0d5-4bc4-8977-57bbb3d97776"]],["Fliers","Blink"],"WUG",2962,"Evasive Maneuvers","2013-11-01"],
+    "EvasiveManeuvers_CMA": [197,[["Derevi, Empyrial Tactician","3a1d0dad-18a8-489e-ac11-08f64b72fda4"]],["Fliers","Blink"],"WUG",2962,"Evasive Maneuvers","2017-06-09"],
+    "EveryoneSInvited_SLD": [116,[["Morophon, the Boundless","58e4a55f-b35a-411a-9a05-0cbb0d767920"]],["Shapeshifters","Tokens"],"WUBRG",1583,"Everyone's Invited!","2025-05-12"],
+    "ExitFromExile_CLB": [544,[["Faldorn, Dread Wolf Herald","213e530e-33a9-4358-b43b-4a276a7e7190"]],["Cascade","Tokens","Instants & sorceries","+1/+1 counters"],"RG",4209,"Exit from Exile","2022-06-10"],
+    "ExplorersOfTheDeep_LCC": [36,[["Hakbal of the Surging Soul","e738e675-4fd1-4bc3-97f5-71d0e2fc3f2e"]],["+1/+1 counters","Merfolk","Extra land drops"],"UG",3879,"Explorers of the Deep","2023-11-17"],
+    "ExquisiteInvention_C18": [1127,[["Saheeli, the Gifted","ca095559-ac77-4186-8d9b-b75ce0607582"]],["Tokens","Artifacts"],"UR",9970,"Exquisite Invention","2018-08-10"],
+    "FacelessMenace_C19": [367,[["Kadena, Slinking Sorcerer","68a144f1-df18-4dc5-81c3-dff2af27527f"]],["+1/+1 counters","Instants & sorceries"],"UBG",12353,"Faceless Menace","2019-08-23"],
+    "FaeDominion_WOC": [873,[["Tegwyll, Duke of Splendor","03fab911-7bd4-45fa-ba07-cd0e51b0cd95"]],["Faeries","Fliers","Instants & sorceries"],"UB",3859,"Fae Dominion","2023-09-08"],
+    "FamilyMatters_BLC": [100,[["Zinnia, Valley's Voice","dfe36901-5841-4942-8b61-c273111f715e"]],["Tokens","Fliers"],"WUR",7062,"Family Matters","2024-08-02"],
+    "FelineFerocity_C17": [205,[["Arahbo, Roar of the World","81dc3d00-97cd-4549-b5a4-15a1e08767f5"]],["Cats","Equipment","Attacking"],"WG",7836,"Feline Ferocity","2017-08-25"],
+    "FirstFlight_SCD": [1405,[["Isperia, Supreme Judge","de3278de-a045-4290-b05f-3b19e7055091"]],["Fliers","Tokens","Lifegain","Attacking"],"WU",8994,"First Flight","2022-12-02"],
+    "FoodAndFellowship_LTC": [32,[["Frodo, Adventurous Hobbit","328df403-7428-4b17-bdd1-9759fc0f32d8"],["Sam, Loyal Attendant","687a2b76-3f05-4732-bd9b-513d06d16300"]],["Lifegain","Halflings"],"WBG",4763,"Food and Fellowship","2023-06-23"],
+    "ForcesOfTheImperiumCollectorSEdition_40K": [957,[["Inquisitor Greyfax","86a4afac-69fd-46e9-8009-58de59bf3f5c"]],["Tokens","Astarteses","Go wide","Lifegain"],"WUB",9987,"Forces of the Imperium Collector's Edition","2022-10-07"],
+    "ForcesOfTheImperium_40K": [957,[["Inquisitor Greyfax","1956cebe-bb71-45cc-b4ff-72ee3bb95c81"]],["Tokens","Astarteses","Go wide","Lifegain"],"WUB",9987,"Forces of the Imperium","2022-10-07"],
+    "ForgedInStone_C14": [1744,[["Nahiri, the Lithomancer","9a226eae-1c77-45a9-9115-f846b76681a3"]],["Tokens","Equipment"],"W",9142,"Forged In Stone","2014-11-07"],
+    "FromCuteToBrute_SLD": [35,[["Esika, God of the Tree","46d43696-3c63-4c55-bc61-e1560c8b8201"]],["Blink","Tokens"],"WUBRG",2524,"From Cute to Brute","2023-05-08"],
+    "GoblinStorm_SLD": [122,[["Zada, Hedron Grinder","b17fb671-f7ff-4633-bdef-39375c6f857c"]],["Goblins","Tokens","Storm","Instants & sorceries","Treasure"],"R",3429,"Goblin Storm","2026-05-18"],
+    "GrandLarceny_OTC": [212,[["Gonti, Canny Acquisitor","03a7e79f-625a-49ac-9cb1-e1fe5f51f5a0"]],["Theft","Instants & sorceries"],"UBG",8241,"Grand Larceny","2024-04-19"],
+    "GraveDanger_SCD": [345,[["Gisa and Geralf","4d8fd87c-caf7-402e-b543-e35ba3007bcb"]],["Zombies","Tokens","Graveyard"],"UB",3992,"Grave Danger","2022-12-02"],
+    "GraveyardOverdriveCollectorSEdition_M3C": [181,[["Disa the Restless","3c8e2de5-cad6-4bb6-8351-b1e8d25e210f"]],["Graveyard","Tokens"],"BRG",9319,"Graveyard Overdrive Collector's Edition","2024-06-14"],
+    "GraveyardOverdrive_M3C": [181,[["Disa the Restless","c976edeb-0fa1-4647-a16c-870d8a3c30c6"]],["Graveyard","Tokens"],"BRG",9319,"Graveyard Overdrive","2024-06-14"],
+    "GrowingThreat_MOC": [310,[["Brimaz, Blight of Oreskos","f0d31ae7-8580-402a-a917-3d626a9e1f49"]],["Phyrexians","Artifacts","+1/+1 counters","Graveyard"],"WB",7575,"Growing Threat","2023-04-21"],
+    "GuidedByNature_C14": [879,[["Freyalise, Llanowar's Fury","6c6ef042-1a69-4b16-abae-4f436dbadbbd"]],["Elves","Tokens"],"G",2678,"Guided By Nature","2014-11-07"],
+    "GuidedByNature_CMA": [879,[["Freyalise, Llanowar's Fury","cb67310a-da5d-4932-8694-2ad6afe5aeae"]],["Elves","Tokens"],"G",2678,"Guided by Nature","2017-06-09"],
+    "HailCaesar_PIP": [46,[["Caesar, Legion's Emperor","246a7176-98bc-4f54-aa61-38747420f178"]],["Tokens","Attacking","Sacrifice","+1/+1 counters","Treasure"],"WBR",2774,"Hail, Caesar","2024-03-08"],
+    "HatsuneMiku_SLD": [215,[["Trostani, Selesnya's Voice","6ab6e6c9-fe20-40d3-997e-fe3480081f03"]],["Lifegain","Tokens","+1/+1 counters"],"WG",3134,"Hatsune Miku","2026-08-10"],
+    "HeadsIWinTailsYouLose_SLD": [246,[["Zndrsplt, Eye of Wisdom","d5dfd236-b1da-4552-b94f-ebf6bb9dafdf"],["Okaun, Eye of Chaos","94eea6e3-20bc-4dab-90ba-3113c120fb90"]],["Instants & sorceries","Artifacts"],"UR",7058,"Heads I Win, Tails You Lose","2022-04-22"],
+    "HeavenlyInferno_CMA": [8,[["Kaalia of the Vast","5c509c36-43a8-454e-80fc-321f41981049"]],["Fliers","Angels"],"WBR",3477,"Heavenly Inferno","2017-06-09"],
+    "HeavenlyInferno_CMD": [8,[["Kaalia of the Vast","4b71d89b-7ba4-406f-8736-ac62b9864f21"]],["Fliers","Angels"],"WBR",3477,"Heavenly Inferno","2011-06-17"],
+    "InventSuperiority_C16": [52,[["Breya, Etherium Shaper","8b585ce8-77a3-4755-8aa6-aee83724bbab"]],["Artifacts","Lifegain","Graveyard","Sacrifice","Tokens"],"WUBR",5877,"Invent Superiority","2016-11-11"],
+    "JeskaiStriker_TDC": [250,[["Shiko and Narset, Unified","5a42fc7d-52ac-4e95-9e04-8f8fa7f687c8"]],["Instants & sorceries","Storm","Tokens","Treasure","Group hug"],"WUR",8184,"Jeskai Striker","2025-04-11"],
+    "JumpScare_DSC": [130,[["Zimone, Mystery Unraveler","30f23588-5064-48d9-a271-039df757f8d2"]],["Landfall","+1/+1 counters"],"UG",5942,"Jump Scare!","2024-09-27"],
+    "KeenEngineering_FDC": [729,[["Sai, Master Thopterist","5650587a-27a5-4d68-97e2-5745627bd094"]],["Artifacts","Card draw","Tokens"],"U",821,"Keen Engineering","2026-10-02"],
+    "LandSWrath_ZNC": [760,[["Obuun, Mul Daya Ancestor","8319b155-0fba-4d30-9481-bf01afbd3457"]],["Landfall","+1/+1 counters"],"WRG",10824,"Land's Wrath","2020-09-25"],
+    "LegendsLegacy_DMC": [218,[["Dihada, Binder of Wills","ddeb54d6-a600-42b9-98df-20f8d58caed8"]],["Treasure","Tokens"],"WBR",3506,"Legends' Legacy","2022-09-09"],
+    "LimitBreakCollectorSEditionFinalFantasyVii_FIC": [19,[["Cloud, Ex-SOLDIER","5a186ba3-94c1-4eab-8d4f-42a320bfa073"]],["Equipment","Artifacts","Attacking"],"WRG",4434,"Limit Break Collector's Edition (FINAL FANTASY VII)","2025-06-13"],
+    "LimitBreakFinalFantasyVii_FIC": [19,[["Cloud, Ex-SOLDIER","07b4e4f8-6a31-4533-be51-668ce3ddc84f"]],["Equipment","Artifacts","Attacking"],"WRG",4434,"Limit Break (FINAL FANTASY VII)","2025-06-13"],
+    "LivingEnergy_DRC": [229,[["Saheeli, Radiant Creator","5fea0781-e933-47ef-9414-92c8652a7778"]],["Artifacts","Tokens","Clones"],"URG",9879,"Living Energy","2025-02-14"],
+    "LoreholdLegacies_C21": [600,[["Osgir, the Reconstructor","5815fe6e-e26b-4918-a090-55d6442722c1"]],["Artifacts","Graveyard","Tokens","Sacrifice"],"WR",8146,"Lorehold Legacies","2021-04-23"],
+    "LoreholdSpirit_SOC": [240,[["Quintorius, History Chaser","0742f19d-179c-43c4-ab95-4160c56b4384"]],["Graveyard","Spirits","Tokens"],"WR",9249,"Lorehold Spirit","2026-04-24"],
+    "MaestrosMassacre_NCC": [463,[["Anhelo, the Painter","462e887d-6b91-4b31-9487-2780ffe8943f"]],["Instants & sorceries","Tokens","Recursion"],"UBR",11904,"Maestros Massacre","2022-04-29"],
+    "MarduSurge_TDC": [64,[["Zurgo Stormrender","dc8eb325-75c9-4331-830d-3f7d62d77290"]],["Tokens","Attacking"],"WBR",2974,"Mardu Surge","2025-04-11"],
+    "MastersOfEvil_WHO": [487,[["Davros, Dalek Creator","59c5bd2b-cf68-4e5e-819d-53917a6c5275"]],["Goad","Tokens","Artifacts"],"UBR",7608,"Masters of Evil","2023-10-13"],
+    "MercilessRage_C19": [512,[["Anje Falkenrath","913dd06f-ed2f-4128-9c9d-9cd0d8a55425"]],["Graveyard","Recursion"],"BR",8681,"Merciless Rage","2019-08-23"],
+    "MindFlayarrrs_CLB": [92,[["Captain N'ghathrod","55c02dc8-0743-400c-b334-ca029caf0463"]],["Horrors","Graveyard"],"UB",4459,"Mind Flayarrrs","2022-06-10"],
+    "MindSeize_C13": [843,[["Jeleva, Nephalia's Scourge","83f9aeb8-05ba-49d9-a834-62f42fcd295b"]],["Instants & sorceries","Group hug","Spell copying"],"UBR",14170,"Mind Seize","2013-11-01"],
+    "MiracleWorker_DSC": [119,[["Aminatou, Veil Piercer","9f868023-6035-403d-ba91-7a4840c6c392"]],["Enchantress","Graveyard","Tokens"],"WUB",5377,"Miracle Worker","2024-09-27"],
+    "MirrorMastery_CMD": [558,[["Riku of Two Reflections","716d0b3b-bac9-4fb8-882e-bd6171864043"]],["Instants & sorceries","Storm"],"URG",12318,"Mirror Mastery","2011-06-17"],
+    "MishraSBurnishedBanner_BRC": [342,[["Mishra, Eminent One","7f5b1daa-ec45-48de-9496-6ca5b491a0dc"]],["Artifacts","Tokens","Sacrifice"],"UBR",10182,"Mishra's Burnished Banner","2022-11-18"],
+    "MostWanted_OTC": [514,[["Olivia, Opulent Outlaw","55e6c31b-f9e9-4e42-a875-985d99300d9d"]],["Treasure","Lifegain","+1/+1 counters","Sacrifice"],"WBR",5107,"Most Wanted","2024-04-19"],
+    "MultiverseReforged_FRC": [288,[["Jace, Multiverse Architect","55cd03d9-2535-4cf3-a8b2-1418e1190f4a"]],["Tokens","Big spells","Instants & sorceries","Lifegain"],"WUBR",12197,"Multiverse Reforged","2026-10-02"],
+    "MutantMenace_PIP": [15,[["The Wise Mothman","3d6d6944-a364-41c2-b824-7a1bf6ad0d1e"]],["+1/+1 counters","Mutants"],"UBG",3723,"Mutant Menace","2024-03-08"],
+    "MysticIntellect_C19": [1674,[["Sevinne, the Chronoclasm","2c209efe-b4dc-44a3-bd45-d647f5680cbe"]],["Recursion","Instants & sorceries","Spell copying"],"WUR",20522,"Mystic Intellect","2019-08-23"],
+    "NatureOfTheBeast_C13": [771,[["Marath, Will of the Wild","57afa796-db46-45ff-91bd-f02922e5f33d"]],["+1/+1 counters","Beasts","Tokens"],"WRG",15726,"Nature of the Beast","2013-11-01"],
+    "NatureSVengeance_C18": [245,[["Lord Windgrace","213d6fb8-5624-4804-b263-51f339482754"]],["Graveyard","Extra land drops","+1/+1 counters","Tokens","Landfall"],"BRG",6177,"Nature's Vengeance","2018-08-10"],
+    "NecronDynastiesCollectorSEdition_40K": [1298,[["Szarekh, the Silent King","e11174b2-2423-4a6e-9dcf-ff550eee7e5a"]],["Artifacts","Necrons","Graveyard","Vehicles"],"B",10112,"Necron Dynasties Collector's Edition","2022-10-07"],
+    "NecronDynasties_40K": [1298,[["Szarekh, the Silent King","12a3400d-7a8b-4bae-9a4f-c9a1bc741e68"]],["Artifacts","Necrons","Graveyard","Vehicles"],"B",10112,"Necron Dynasties","2022-10-07"],
+    "ObscuraOperation_NCC": [736,[["Kamiz, Obscura Oculus","74b8ae28-e169-46be-8180-ebdaf80efd81"]],["Treasure","Graveyard"],"WUB",7872,"Obscura Operation","2022-04-29"],
+    "OpenHostility_C16": [324,[["Saskia the Unyielding","5b483db6-b614-4af1-820a-42a4ee0c8707"]],["+1/+1 counters","Tokens"],"WBRG",10797,"Open Hostility","2016-11-11"],
+    "Painbow_DMC": [582,[["Jared Carthalion","5acffa48-9e3f-4ba3-a55f-d459307f46df"]],["+1/+1 counters","Instants & sorceries"],"WUBRG",9130,"Painbow","2022-09-09"],
+    "ParadoxPower_WHO": [1175,[["The Thirteenth Doctor","0dc4ec90-1650-4b98-9350-66341394cf0b"],["Yasmin Khan","12b09a4f-bb62-4766-8115-cae4d5cc4c12"]],["+1/+1 counters","Instants & sorceries","Cascade","Recursion"],"URG",5120,"Paradox Power","2023-10-13"],
+    "PartyTime_CLB": [921,[["Nalia de'Arnise","7a1294fd-9885-4dfd-8192-0ca074fc83f7"]],["Clerics","+1/+1 counters"],"WB",8390,"Party Time","2022-06-10"],
+    "PeaceOffering_BLC": [11,[["Ms. Bumbleflower","42bbedc1-6b83-46b4-8b3b-a4e05ce77d87"]],["Group hug","+1/+1 counters","Card draw"],"WUG",3189,"Peace Offering","2024-08-02"],
+    "PeerThroughTime_C14": [1508,[["Teferi, Temporal Archmage","80eec0bd-9eb4-4360-b97b-9c7985a63343"]],["Superfriends","Artifacts"],"U",4095,"Peer Through Time","2014-11-07"],
+    "PhantomPremonition_KHC": [781,[["Ranar the Ever-Watchful","1c8c41dd-8551-4ce8-a9be-9b9f65718852"]],["Blink","Tokens","Fliers"],"WU",12004,"Phantom Premonition","2021-02-05"],
+    "PlanarPortal_AFC": [143,[["Prosper, Tome-Bound","d743336e-d5c7-4053-a23d-92ec7581f74e"]],["Treasure","Instants & sorceries"],"BR",2184,"Planar Portal","2021-07-23"],
+    "PlaneswalkerParty_CMM": [358,[["Commodore Guff","92870fc6-a6bc-4198-bb31-397e07e0e835"]],["Superfriends","+1/+1 counters","Tokens"],"WUR",6895,"Planeswalker Party","2023-08-04"],
+    "PlunderTheGraves_C15": [54,[["Meren of Clan Nel Toth","f43bf91d-bc08-417f-a549-64919c24052a"]],["Graveyard","Sacrifice","+1/+1 counters","Tokens"],"BG",1508,"Plunder the Graves","2015-11-13"],
+    "PlunderTheGraves_CMA": [54,[["Meren of Clan Nel Toth","17d6703c-ad79-457b-a1b5-c2284e363085"]],["Graveyard","Sacrifice","+1/+1 counters","Tokens"],"BG",1508,"Plunder the Graves","2017-06-09"],
+    "PoliticalPuppets_CMD": [179,[["Zedruu the Greathearted","f851b861-4e9c-4422-8156-37d7bf2928cd"]],["Instants & sorceries","Group hug"],"WUR",8723,"Political Puppets","2011-06-17"],
+    "PowerHungry_C13": [411,[["Prossh, Skyraider of Kher","fc411c52-3ee2-4fe4-983d-3fa43b516237"]],["Sacrifice","Tokens","+1/+1 counters"],"BRG",9791,"Power Hungry","2013-11-01"],
+    "PrimalGenesis_C19": [787,[["Ghired, Conclave Exile","d0825bcd-8cf8-498a-a61e-406f136e1f3f"]],["Tokens","Lifegain"],"WRG",12396,"Primal Genesis","2019-08-23"],
+    "PrismariArtistry_SOC": [393,[["Rootha, Mastering the Moment","a5b3dbb2-c090-4118-9e47-56c16202572c"]],["Instants & sorceries","Tokens","Clones","Treasure"],"UR",10610,"Prismari Artistry","2026-04-24"],
+    "PrismariPerformance_C21": [1343,[["Zaffai, Thunder Conductor","ea1ab937-8647-4c83-99d5-6a40dffa4c9b"]],["Instants & sorceries","Storm","Tokens","Big spells"],"UR",11446,"Prismari Performance","2021-04-23"],
+    "QuandrixUnlimited_SOC": [207,[["Zimone, Infinite Analyst","605afac4-d2e5-4e68-97d2-3ac2ead5f3a9"]],["+1/+1 counters","Instants & sorceries","Tokens"],"UG",7552,"Quandrix Unlimited","2026-04-24"],
+    "QuantumQuandrix_C21": [306,[["Adrix and Nev, Twincasters","d495e084-92ec-4675-b6aa-8ade2775b796"]],["Tokens","+1/+1 counters"],"UG",1407,"Quantum Quandrix","2021-04-23"],
+    "QuickDraw_OTC": [191,[["Stella Lee, Wild Card","2a8a7696-b5d9-4378-9d5c-2c9007e4df63"]],["Instants & sorceries","Storm","Graveyard","Tokens"],"UR",5114,"Quick Draw","2024-04-19"],
+    "RainingCatsAndDogs_SLD": [38,[["Rin and Seri, Inseparable","a129558c-45a1-441c-97f0-b70b4e9d8a56"]],["Cats","Tokens","+1/+1 counters"],"WRG",5503,"Raining Cats and Dogs","2024-01-22"],
+    "ReapTheTides_CMR": [108,[["Aesi, Tyrant of Gyre Strait","d607b003-6b48-429c-a7fd-45b8dd1bb4f9"]],["Landfall","Extra land drops","Big spells"],"UG",839,"Reap the Tides","2020-11-20"],
+    "RebellionRising_ONC": [1013,[["Neyali, Suns' Vanguard","2b5df03d-2463-468b-b444-d946eeb1c96d"]],["Tokens","Artifacts"],"WR",3468,"Rebellion Rising","2023-02-10"],
+    "ReignOfDragons_FDC": [617,[["Lathliss, Dragon Queen","8a17ec4e-b508-41af-803b-32acd863e598"]],["Dragons","Fliers","Treasure"],"R",1079,"Reign of Dragons","2026-10-02"],
+    "RevenantRecon_MKC": [271,[["Mirko, Obsessive Theorist","690acbbf-5e92-4323-b939-31bdb07f9905"]],["Graveyard","+1/+1 counters","Fliers"],"UB",8110,"Revenant Recon","2024-02-09"],
+    "RevivalTranceCollectorSEditionFinalFantasyVi_FIC": [75,[["Terra, Herald of Hope","4f36f28b-b9c9-42a2-a2e5-d1b532e482a3"]],["Graveyard","Reanimator"],"WBR",5257,"Revival Trance Collector's Edition (FINAL FANTASY VI)","2025-06-13"],
+    "RevivalTranceFinalFantasyVi_FIC": [75,[["Terra, Herald of Hope","5aa1a2d7-6133-41a9-9662-9008d1309935"]],["Graveyard","Reanimator"],"WBR",5257,"Revival Trance (FINAL FANTASY VI)","2025-06-13"],
+    "RidersOfRohan_LTC": [125,[["Éowyn, Shieldmaiden","dd4a00ff-2206-4e12-a0ab-61ed82c9e6c5"]],["Humans","Tokens"],"WUR",4511,"Riders of Rohan","2023-06-23"],
+    "RiveteersRampage_NCC": [89,[["Henzie \"Toolbox\" Torre","ee228dcc-3170-4c24-80bc-28bcee07cb43"]],["Big spells"],"BRG",7212,"Riveteers Rampage","2022-04-29"],
+    "RuthlessRegiment_C20": [1472,[["Jirina Kudro","6e660d42-f5d3-452a-9662-74e18a1ae9e4"]],["Humans","Tokens"],"WBR",12616,"Ruthless Regiment","2020-04-17"],
+    "Science_PIP": [442,[["Dr. Madison Li","95af426d-a8af-4314-9ad0-ac61935e8e8e"]],["Artifacts","Recursion"],"WUR",7214,"Science!","2024-03-08"],
+    "ScionsSpellcraftCollectorSEditionFinalFantasyXiv_FIC": [1,[["Y'shtola, Night's Blessed","e8df6177-e14d-4dc9-bfc6-5e5f31c2834d"]],["Instants & sorceries","Lifegain","Tokens"],"WUB",2565,"Scions & Spellcraft Collector's Edition (FINAL FANTASY XIV)","2025-06-13"],
+    "ScionsSpellcraftFinalFantasyXiv_FIC": [1,[["Y'shtola, Night's Blessed","c7f2c2d5-e052-49e8-b5de-712858c2ea78"]],["Instants & sorceries","Lifegain","Tokens"],"WUB",2565,"Scions & Spellcraft (FINAL FANTASY XIV)","2025-06-13"],
+    "ScrappySurvivors_PIP": [296,[["Dogmeat, Ever Loyal","86b45e3e-8460-4678-87d1-d74479936c83"]],["Equipment & Auras","Attacking","Graveyard","Enchantments"],"WRG",9261,"Scrappy Survivors","2024-03-08"],
+    "SeizeControl_C15": [503,[["Mizzix of the Izmagnus","d0ea2c3a-c36d-44e8-bc46-5361f5f9d0e7"]],["Instants & sorceries","Theft","Wheels"],"UR",6375,"Seize Control","2015-11-13"],
+    "SilverquillInfluence_SOC": [216,[["Killian, Decisive Mentor","76b6c35a-bb92-4ad3-8f85-88b9bafc6266"]],["Enchantress","Goad","Auras","Attacking"],"WB",7228,"Silverquill Influence","2026-04-24"],
+    "SilverquillStatement_C21": [348,[["Breena, the Demagogue","6cb82b10-d785-4e20-84ac-0660d49be8ad"]],["+1/+1 counters","Fliers","Pillow fort"],"WB",1878,"Silverquill Statement","2021-04-23"],
+    "SliverSwarm_CMM": [1056,[["Sliver Gravemother","9f5d253e-9eb2-423c-90ee-68f27ec6bf88"]],["Slivers","Tokens"],"WUBRG",6297,"Sliver Swarm","2023-08-04"],
+    "SneakAttack_ZNC": [399,[["Anowon, the Ruin Thief","bca84fc4-4710-44c8-b90a-73ef888714d8"]],["Rogues","Graveyard"],"UB",9691,"Sneak Attack","2020-09-25"],
+    "SpiritSquadron_VOC": [389,[["Millicent, Restless Revenant","2b86b538-0766-440d-a2cd-f5d5bfcfb010"]],["Tokens","Spirits","Fliers"],"WU",11084,"Spirit Squadron","2021-11-19"],
+    "SquirreledAway_BLC": [186,[["Hazel of the Rootbloom","1269ca79-907e-4932-9e77-a9a5d2929060"]],["Tokens","Lifegain","Aristocrats","+1/+1 counters","Storm"],"BG",3158,"Squirreled Away","2024-08-02"],
+    "StalwartUnity_C16": [115,[["Kynaios and Tiro of Meletis","97fa8615-2b6c-445a-bcaf-44a7e847bf65"]],["Group hug","Tokens","Pillow fort"],"WURG",6672,"Stalwart Unity","2016-11-11"],
+    "SubjectiveReality_C18": [416,[["Aminatou, the Fateshifter","16b9f43a-9c3f-4bfa-9eb1-734189a4bb1f"]],["Blink","Instants & sorceries"],"WUB",4618,"Subjective Reality","2018-08-10"],
+    "SultaiArisen_TDC": [9,[["Teval, the Balanced Scale","b5d1955a-9ff0-4f8b-9af8-341371957299"]],["Graveyard","Extra land drops","Tokens"],"UBG",2647,"Sultai Arisen","2025-04-11"],
+    "SwellTheHost_C15": [377,[["Ezuri, Claw of Progress","ef1b62ff-dbb3-4500-9d64-a3047ce193ec"]],["Tokens","+1/+1 counters"],"UG",5650,"Swell the Host","2015-11-13"],
+    "SwornToDarkness_C14": [1925,[["Ob Nixilis of the Black Oath","bf472be9-f375-455e-a800-7af5258f4e59"]],["Sacrifice","Tokens"],"B",9664,"Sworn To Darkness","2014-11-07"],
+    "SymbioticSwarm_C20": [669,[["Kathril, Aspect Warper","ebc57f73-a517-463e-8d55-56aa996d091e"]],["Lifegain","Graveyard","+1/+1 counters"],"WBG",14906,"Symbiotic Swarm","2020-04-17"],
+    "TemurRoar_TDC": [134,[["Eshki, Temur's Roar","ff9aa863-8773-452d-946c-ae334c632e11"]],["Dragons","Fliers","+1/+1 counters"],"URG",5313,"Temur Roar","2025-04-11"],
+    "TheFantasticFourCollectorSEdition_MSC": [1656,[["Invisible Woman","640ebf2f-5687-42d4-97e5-85e2fefa89a9"]],["Instants & sorceries","Tokens","Attacking"],"WURG",15876,"The Fantastic Four Collector's Edition","2026-06-26"],
+    "TheFantasticFour_MSC": [1656,[["Invisible Woman","d8e13ecb-98be-4d9b-86a2-24eaa98f7f0d"]],["Instants & sorceries","Tokens","Attacking"],"WURG",15876,"The Fantastic Four","2026-06-26"],
+    "TheHostsOfMordor_LTC": [602,[["Sauron, Lord of the Rings","fc53dec0-79fe-4f6f-9d5b-cf298588e808"]],["Tokens","Instants & sorceries","Reanimator","Big spells"],"UBR",5138,"The Hosts of Mordor","2023-06-23"],
+    "TheRuinousPowersCollectorSEdition_40K": [434,[["Abaddon the Despoiler","c9f1fc97-00c0-492b-a4a3-b179afc2f95d"]],["Cascade","Demons","Instants & sorceries"],"UBR",8825,"The Ruinous Powers Collector's Edition","2022-10-07"],
+    "TheRuinousPowers_40K": [434,[["Abaddon the Despoiler","a78ab8fe-4499-4860-87d3-f8707398c00c"]],["Cascade","Demons","Instants & sorceries"],"UBR",8825,"The Ruinous Powers","2022-10-07"],
+    "TimelessWisdom_C20": [622,[["Gavi, Nest Warden","80bc07d5-bdbb-4a6d-8958-0c172ea80245"]],["Tokens","Goad"],"WUR",14387,"Timeless Wisdom","2020-04-17"],
+    "TimeyWimey_WHO": [532,[["The Tenth Doctor","f1499f49-793b-4265-9ad0-883a431941ab"],["Rose Tyler","3aa8d034-f98c-4e27-b6af-850eadf59941"]],["Attacking","Clones"],"WUR",6677,"Timey-Wimey","2023-10-13"],
+    "TinkerTime_MOC": [831,[["Gimbal, Gremlin Prodigy","4a9aa899-752b-4106-89ba-9475ee777d41"]],["Tokens","Artifacts","Treasure"],"URG",15608,"Tinker Time","2023-04-21"],
+    "TokenTriumph_SCD": [509,[["Emmara, Soul of the Accord","e8510a1e-62ca-462c-b036-d1312729f27d"]],["Tokens","Go wide","Lifegain"],"WG",6652,"Token Triumph","2022-12-02"],
+    "TramplesaurusRex_FDC": [255,[["Ghalta, Primal Hunger","5d9951d1-3228-4d69-8e63-6e6f0a893a86"]],["Dinosaurs","+1/+1 counters"],"G",458,"Tramplesaurus Rex","2026-10-02"],
+    "TrickyTerrainCollectorSEdition_M3C": [164,[["Omo, Queen of Vesuva","bf5a3655-cd08-46a3-b099-253708c6539e"]],["Tokens","Extra land drops","Graveyard","Clones"],"UG",5125,"Tricky Terrain Collector's Edition","2024-06-14"],
+    "TrickyTerrain_M3C": [164,[["Omo, Queen of Vesuva","e5d1c814-4c22-4917-95ae-dffaf491db32"]],["Tokens","Extra land drops","Graveyard","Clones"],"UG",5125,"Tricky Terrain","2024-06-14"],
+    "TurtlePower_TMC": [683,[["Heroes in a Half Shell","ccc2a4e6-f505-4040-9d8a-c7b8e1a2b55e"]],["+1/+1 counters","Tokens","Mutants"],"WUBRG",8504,"Turtle Power!","2026-03-06"],
+    "TyranidSwarmCollectorSEdition_40K": [859,[["The Swarmlord","d5c4077c-604e-4e8a-b448-0807849040ca"]],["+1/+1 counters","Tyranids"],"URG",13543,"Tyranid Swarm Collector's Edition","2022-10-07"],
+    "TyranidSwarm_40K": [859,[["The Swarmlord","c9dbba5a-fb9a-422e-87a1-a29d2c17a04e"]],["+1/+1 counters","Tyranids"],"URG",13543,"Tyranid Swarm","2022-10-07"],
+    "UndeadUnleashed_MIC": [50,[["Wilhelt, the Rotcleaver","2501a911-d072-436d-ae3b-a5164e3b30aa"]],["Tokens","Zombies","Graveyard","Sacrifice"],"UB",2758,"Undead Unleashed","2021-09-24"],
+    "UpgradesUnleashed_NEC": [405,[["Chishiro, the Shattered Blade","bffa36ac-137d-481c-b1b7-76a88ef15d54"]],["+1/+1 counters","Equipment & Auras","Tokens"],"RG",6084,"Upgrades Unleashed","2022-02-18"],
+    "UrzaSIronAlliance_BRC": [112,[["Urza, Chief Artificer","ea409050-4296-4b76-a6cd-2896ce1b88e4"]],["Artifacts","Tokens"],"WUB",4895,"Urza's Iron Alliance","2022-11-18"],
+    "VampiricBloodline_VOC": [317,[["Strefan, Maurer Progenitor","8f54c6ce-fde4-47ef-a106-5c68b4397f99"]],["Vampires","+1/+1 counters","Lifegain"],"BR",7406,"Vampiric Bloodline","2021-11-19"],
+    "VampiricBloodlust_C17": [2,[["Edgar Markov","8d94b8ec-ecda-43c8-a60e-1ba33e6a54a4"]],["Vampires","Lifegain","+1/+1 counters"],"WBR",3160,"Vampiric Bloodlust","2017-08-25"],
+    "VelociRampTor_LCC": [12,[["Pantlaza, Sun-Favored","2524645e-b066-4351-885b-10faa8d819d7"]],["Dinosaurs"],"WRG",2459,"Veloci-Ramp-Tor","2023-11-17"],
+    "VirtueAndValor_WOC": [355,[["Ellivere of the Wild Court","45851394-b8f3-4713-8239-afcb387d47c5"]],["Enchantress","Tokens","Auras"],"WG",6463,"Virtue and Valor","2023-09-08"],
+    "WadeIntoBattle_C15": [1643,[["Kalemne, Disciple of Iroas","c049d734-cb1c-4c38-b276-7e5ac9c81254"]],["Giants","Big spells"],"WR",8478,"Wade into Battle","2015-11-13"],
+    "WadeIntoBattle_CM2": [1643,[["Kalemne, Disciple of Iroas","3c718940-dc07-4449-ba35-4029f366c3eb"]],["Giants","Big spells"],"WR",8478,"Wade into Battle","2018-06-08"],
+    "WakandaForeverCollectorSEdition_MSC": [660,[["T'Challa, the Black Panther","d5a3537f-ac0a-4517-8a89-92abe8c0b8d0"]],["+1/+1 counters","Artifacts","Tokens","Attacking"],"WG",15321,"Wakanda Forever Collector's Edition","2026-06-26"],
+    "WakandaForever_MSC": [660,[["T'Challa, the Black Panther","c1c8ad61-b7e1-446c-8b74-6e29371ea1d5"]],["+1/+1 counters","Artifacts","Tokens","Attacking"],"WG",15321,"Wakanda Forever","2026-06-26"],
+    "WitherbloomPestilence_SOC": [201,[["Dina, Essence Brewer","9fe237b8-c02c-41ea-9fc4-b771b91d2157"]],["Lifegain","Sacrifice","+1/+1 counters","Tokens","Graveyard"],"BG",5718,"Witherbloom Pestilence","2026-04-24"],
+    "WitherbloomWitchcraft_C21": [1229,[["Willowdusk, Essence Seer","42a97ec1-f613-49a5-9236-7fded1a81f3b"]],["Lifegain","+1/+1 counters"],"BG",10579,"Witherbloom Witchcraft","2021-04-23"],
+    "WorldShaper_EOC": [20,[["Hearthhull, the Worldseed","6b913e79-a9f6-44d4-bb37-c4f6f66b8151"]],["Sacrifice","Extra land drops","Graveyard","Tokens","+1/+1 counters"],"BRG",3391,"World Shaper","2025-08-01"],
+    "WretchedRanks_FDC": [534,[["Ghoulcaller Gisa","909e62fa-4585-495e-812b-5df56af24610"]],["Zombies","Tokens","Graveyard"],"B",2471,"Wretched Ranks","2026-10-02"],
   } };
 })(window.MTG);
 /* ===== 10d-ui-store.js ===== */
@@ -75805,7 +75985,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
         tile.onclick = () => inspectPrecon(p);
         tile.title = 'Look through ' + p.name;
-        preconMiniMeta(tile, p);
+        preconMiniMeta(tile, p, go);
         return tile;
       }, 170, 16);
       decks.replaceWith(row);
@@ -75893,9 +76073,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      lists. Buying one puts every card of it into your collection, and it
      can be saved as a deck ready to play. */
   const MTGJSON = 'https://mtgjson.com/api/v5/';
+  /* A deck printed again (Commander Anthology's reprints of older decks)
+     is listed once, as its latest printing: one name, one deck
+     (MTG.themes.distinct). Done to the list itself, so the tab's count,
+     order and search all see one. */
+  const onceEach = (list) => MTG.themes.distinct(list);
   async function preconList() {
     const hit = MTG.store.get('precons', null);
-    if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return hit.list;
+    if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return onceEach(hit.list);
     const res = await fetch(MTGJSON + 'DeckList.json');
     if (!res.ok) throw new Error('The deck lists could not be loaded.');
     const d = await res.json();
@@ -75903,7 +76088,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       .map(x => ({ name: x.name, code: String(x.code || '').toLowerCase(), file: x.fileName, date: x.releaseDate || '' }))
       .sort((a, b) => b.date.localeCompare(a.date));
     MTG.store.set('precons', { t: Date.now(), list });
-    return list;
+    return onceEach(list);
   }
   /* A deck's list, fetched once a session (they are small: tens of KB). */
   const deckFiles = new Map();
@@ -75920,14 +76105,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      Read ahead for the decks printed so far (src/10d4-precons.js, by
      tools/precons.js); a deck printed since is read here from its list
      the first time it is fetched, and remembered on this device. Each is
-     [EDHREC rank or 0, [[commander, Scryfall id], ...], [tag, ...]]. */
+     [place on EDHREC's list of commanders or 0, [[commander, Scryfall id],
+     ...], [tag, ...], colour identity, Scryfall's EDHREC rank or 0]. A deck
+     read here has no place on EDHREC's list (it is not to be had from the
+     browser), so it goes after the decks that have one. */
   const readMetas = () => MTG.store.get('preconmeta', {}) || {};
   function preconMeta(p) {
     const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
     const fresh = ahead && MTG.preconIndex.v === MTG.themes.VERSION;
     const here = readMetas()[p.file];
     const row = fresh ? ahead : here && here.v === MTG.themes.VERSION ? here.m : ahead || (here && here.m);
-    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [] } : null;
+    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [], ident: row[3] != null ? row[3] : null, scry: row[4] || 0 } : null;
   }
   const metaCurrent = (p) => {
     const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
@@ -75940,18 +76128,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const commanders = d.commander || [];
     const deck = { commanders, main: (d.mainBoard || []).map(c => ({ card: c, qty: Math.max(1, c.count || 1) })) };
     const rank = MTG.themes.rank(commanders);
-    const row = [Number.isFinite(rank) ? rank : 0,
-      commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
-      MTG.themes.tags(deck)];
+    const row = [0, commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
+      MTG.themes.tags(deck), MTG.themes.identity(commanders), Number.isFinite(rank) ? rank : 0];
     const all = readMetas();
     all[p.file] = { v: MTG.themes.VERSION, m: row };
     MTG.store.set('preconmeta', all);
   }
-  /* most popular first: the lowest rank, a deck with none known after the rest, newest first among equals */
-  const rankOf = (p) => (preconMeta(p) || {}).rank || Infinity;
+  /* most popular first: by place on EDHREC's list of commanders; a commander
+     not on it after all that are, by Scryfall's rank; one with neither last;
+     newest first among equals */
+  const rankOf = (p) => {
+    const m = preconMeta(p);
+    return !m ? 3e6 : m.rank ? m.rank : 1e6 + (m.scry || 1e6);
+  };
   const PRECON_SORTS = [
     ['popular', 'Most popular', (a, b) => rankOf(a) - rankOf(b) || b.date.localeCompare(a.date)],
-    ['newest', 'Newest', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    // by release date, either way
+    ['newest', 'Newest first', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    ['oldest', 'Oldest first', (a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name)],
     ['name', 'Name (A\u2013Z)', (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })],
   ];
   /**
@@ -75959,7 +76153,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
    * previews the commander under the pointer; a commander's name opens that
    * card in full, rather than the deck.
    */
-  function showMeta(p, names, themes, host) {
+  function showMeta(p, names, themes, host, onTag) {
     const m = preconMeta(p);
     if (!m || names._shown) return !!m;
     names._shown = true;
@@ -75980,15 +76174,61 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }));
     });
     names.replaceChildren(box);
-    themes.replaceChildren(UI.themeLine(m.tags));
+    // a tag finds the decks like this one; the preview goes as the list changes under it
+    themes.replaceChildren(UI.themeLine(m.tags, null, onTag ? (tag) => {
+      if (host) host.dispatchEvent(new PointerEvent('pointerleave'));
+      onTag(tag);
+    } : null));
     if (host && cards[0]) UI.commanderPreview(host, cards[0]);
     return true;
   }
-  /* the Featured page's small deck tiles: the same, under the deck's name */
-  function preconMiniMeta(tile, p) {
+  /* the Featured page's small deck tiles: the same, under the deck's name;
+     a tag there opens the Commander decks tab with it searched */
+  function preconMiniMeta(tile, p, go) {
     const names = el('div', { class: 'sc-sub mini-cmd' }), themes = el('div', { class: 'mini-themes' });
     tile.append(names, themes);
-    if (!showMeta(p, names, themes, tile)) preconInfo(p).then(() => showMeta(p, names, themes, tile)).catch(() => {});
+    const onTag = go ? (tag) => { preconAsk = searchTerm(tag); go('precons'); } : null;
+    if (!showMeta(p, names, themes, tile, onTag)) preconInfo(p).then(() => showMeta(p, names, themes, tile, onTag)).catch(() => {});
+  }
+
+  /* ---- finding a Commander deck ----
+     The search reads words (all of them must be found: in the deck's name,
+     its set, its commanders or its themes), "quoted phrases" (a tag such as
+     "+1/+1 counters" is put in quotes when it is chosen) and colours. A
+     colour named alone, "blue", or chosen with its chip, asks for decks
+     that have it, among others: two of them, decks with both. A colour
+     identity named in full asks for exactly that one: a guild, shard, wedge
+     or four-colour name ("Simic", "Esper", "Glint"), its letters ("WU",
+     "BUG"), "mono-red" or "mono red", "colourless", "five-color". */
+  let preconAsk = '';
+  const searchTerm = (tag) => (/\s/.test(tag) ? `"${tag.toLowerCase()}"` : tag.toLowerCase());
+  const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  const canonIdent = (s) => ['W', 'U', 'B', 'R', 'G'].filter(c => s.toUpperCase().includes(c)).join('');
+  const IDENTITY_NAMES = {
+    azorius: 'WU', dimir: 'UB', rakdos: 'BR', gruul: 'RG', selesnya: 'GW', orzhov: 'WB', izzet: 'UR', golgari: 'BG', boros: 'RW', simic: 'GU',
+    esper: 'WUB', grixis: 'UBR', jund: 'BRG', naya: 'RGW', bant: 'GWU', abzan: 'WBG', jeskai: 'URW', sultai: 'BGU', mardu: 'RWB', temur: 'GUR',
+    glint: 'UBRG', 'glint-eye': 'UBRG', dune: 'WBRG', 'dune-brood': 'WBRG', ink: 'WURG', 'ink-treader': 'WURG',
+    witch: 'WUBG', 'witch-maw': 'WUBG', yore: 'WUBR', 'yore-tiller': 'WUBR',
+    'five-color': 'WUBRG', 'five-colour': 'WUBRG', '5c': 'WUBRG', rainbow: 'WUBRG', colorless: '', colourless: '',
+  };
+  /** A search as { terms, exact (an identity, or null), has (colours it must include) }. */
+  function readSearch(q) {
+    const out = { terms: [], exact: null, has: new Set() };
+    const words = [];
+    for (const m of String(q || '').toLowerCase().matchAll(/"([^"]+)"|(\S+)/g)) words.push(m[1] != null ? { phrase: m[1].trim() } : { word: m[2] });
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i].word;
+      if (w == null) { if (words[i].phrase) out.terms.push(words[i].phrase); continue; }
+      const mono = /^mono-?(white|blue|black|red|green)$/.exec(w);
+      const next = words[i + 1] && words[i + 1].word;
+      if (mono) out.exact = COLOR_WORDS[mono[1]];
+      else if (w === 'mono' && next && COLOR_WORDS[next]) { out.exact = COLOR_WORDS[next]; i++; }
+      else if (COLOR_WORDS[w]) out.has.add(COLOR_WORDS[w]);
+      else if (Object.prototype.hasOwnProperty.call(IDENTITY_NAMES, w)) out.exact = canonIdent(IDENTITY_NAMES[w]);
+      else if (/^[wubrg]{2,5}$/.test(w) && new Set(w).size === w.length) out.exact = canonIdent(w);
+      else out.terms.push(w);
+    }
+    return out;
   }
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
@@ -76054,7 +76294,36 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const sortSel = el('select', { 'aria-label': 'Sort Commander decks by' },
       PRECON_SORTS.map(([k, label]) => el('option', { value: k, text: label, selected: k === sortKey })));
     sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('preconSort', sortKey); draw(); });
-    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander or a theme…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
+    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander, a theme or colours…', class: 'store-search',
+      'aria-label': 'Find a Commander deck', value: preconAsk,
+      title: 'Every word must be found. Colours: "blue" for decks with blue in them; "Simic", "WU", "mono-red" or "colourless" for exactly those colours.' });
+    preconAsk = '';
+    // a tag chosen on a tile joins the search, unless it is there already
+    const addTag = (tag) => {
+      const term = searchTerm(tag);
+      if (!readSearch(search.value).terms.includes(term.replace(/"/g, ''))) search.value = (search.value.trim() + ' ' + term).trim();
+      MTG.sfx('click');
+      draw();
+    };
+    /* colour chips: each one asks for decks with that colour (all of those
+       chosen); Colourless, for decks with none */
+    const chosen = new Set();
+    let colourless = false;
+    const chips = el('div', { class: 'filter-chips precon-colors', role: 'group', 'aria-label': 'Colours' });
+    const drawChips = () => {
+      chips.replaceChildren(...['W', 'U', 'B', 'R', 'G', 'C'].map((c) => {
+        const on = c === 'C' ? colourless : chosen.has(c);
+        const name = c === 'C' ? 'Colourless' : MTG.mana.COLOR_NAMES[c];
+        return el('button', { type: 'button', class: 'chip pip-chip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
+          title: c === 'C' ? 'Colourless decks' : `Decks with ${name} in them`, 'aria-label': name,
+          onclick: () => {
+            if (c === 'C') { colourless = !colourless; if (colourless) chosen.clear(); }
+            else { if (chosen.has(c)) chosen.delete(c); else chosen.add(c); colourless = false; }
+            drawChips(); draw();
+          } }, [UI.pips(c === 'C' ? [] : [c])]);
+      }));
+    };
+    drawChips();
     const grid = el('div', { class: 'store-grid precons' });
     /* each tile's commander and price, fetched as it comes into view, a few at a time */
     let busy = 0;
@@ -76085,27 +76354,97 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         pump();
       }
     }, { rootMargin: '200px' });
-    const draw = () => {
-      const q = search.value.trim().toLowerCase();
+    /* Pages: whole rows of tiles, about two dozen to a page at as many
+       columns as the width holds, counted again when the width changes. A
+       pager over the grid and under it; turning a page brings the top of
+       the grid into view, the tabs above it staying where they are. */
+    let page = 0, hits = [], perPage = 24;
+    const pageSize = () => {
+      const cols = Math.max(1, Math.floor(((grid.clientWidth || body.clientWidth || 960) + 16) / (220 + 16)));
+      return cols * Math.max(1, Math.round(24 / cols));
+    };
+    const pagers = [el('nav', { class: 'precon-pager', 'aria-label': 'Pages of decks' }), el('nav', { class: 'precon-pager foot', 'aria-label': 'Pages of decks' })];
+    const tools = el('div', { class: 'precon-tools' });
+    const turnTo = (n) => {
+      page = n;
+      drawPage();
+      MTG.sfx('click');
+      // only ever up, to the search over the grid: the page turned from above is already in view
+      const view = tools.closest('.screen');
+      if (tools.getBoundingClientRect().top < (view ? view.getBoundingClientRect().top : 0)) tools.scrollIntoView({ block: 'start' });
+    };
+    const drawPager = (nav, pages, from) => {
+      const shown = hits.length ? `Showing ${from + 1}\u2013${Math.min(hits.length, from + perPage)} of ${hits.length}` : '';
+      const kids = [];
+      if (pages > 1) {
+        kids.push(el('button', { type: 'button', class: 'btn xs', text: '\u2039 Previous', disabled: page === 0, onclick: () => turnTo(page - 1) }));
+        // the first and last pages, and those either side of this one; a gap for the rest
+        const want = [...new Set([0, page - 1, page, page + 1, pages - 1])].filter(n => n >= 0 && n < pages).sort((a, b) => a - b);
+        want.forEach((n, i) => {
+          if (i && n - want[i - 1] > 1) kids.push(el('span', { class: 'pager-gap', text: '\u2026', 'aria-hidden': 'true' }));
+          kids.push(el('button', { type: 'button', class: 'chip pager-n' + (n === page ? ' on' : ''), text: String(n + 1),
+            'aria-label': `Page ${n + 1}`, 'aria-current': n === page ? 'page' : false, onclick: () => { if (n !== page) turnTo(n); } }));
+        });
+        kids.push(el('button', { type: 'button', class: 'btn xs', text: 'Next \u203a', disabled: page >= pages - 1, onclick: () => turnTo(page + 1) }));
+      }
+      kids.push(el('span', { class: 'pager-count dim', text: shown }));
+      nav.replaceChildren(...kids);
+      nav.hidden = !hits.length;
+    };
+    const drawPage = () => {
       grid.innerHTML = '';
-      // by name, set, commander or theme
-      const about = (p) => { const m = preconMeta(p); return m ? (m.cmd.map(c => c[0]).join(' ') + ' ' + m.tags.join(' ')).toLowerCase() : ''; };
-      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q || about(p).includes(q))
-        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
-      for (const p of hits.slice(0, 48)) {
-        const tile = preconTile(p, setName(p.code));
+      const pages = Math.max(1, Math.ceil(hits.length / perPage));
+      page = Math.max(0, Math.min(page, pages - 1));
+      const from = page * perPage;
+      for (const p of hits.slice(from, from + perPage)) {
+        const tile = preconTile(p, setName(p.code), addTag);
         tile._precon = { p, art: tile.querySelector('.precon-art') };
         grid.appendChild(tile);
         seen.observe(tile);
       }
-      if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck by that name.' }));
+      if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck like that.' }));
+      for (const nav of pagers) drawPager(nav, pages, from);
+    };
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => {
+        if (!grid.isConnected) { ro.disconnect(); return; }
+        const size = pageSize();
+        if (size === perPage) return;
+        // the first deck shown stays on the page shown
+        page = Math.floor(page * perPage / size);
+        perPage = size;
+        drawPage();
+      });
+      ro.observe(grid);
+    }
+    // a new search, colour, tag or order starts again at the first page
+    const draw = () => {
+      const ask = readSearch(search.value);
+      for (const c of chosen) ask.has.add(c);
+      if (colourless) ask.exact = '';
+      // every word by name, set, commander or theme; the colours by the commanders' identity
+      const about = (p) => {
+        const m = preconMeta(p);
+        return [p.name, setName(p.code), p.code].concat(m ? m.cmd.map(c => c[0]).concat(m.tags) : []).join(' \n ').toLowerCase();
+      };
+      const colours = (p) => {
+        if (ask.exact == null && !ask.has.size) return true;
+        const m = preconMeta(p);
+        if (!m || m.ident == null) return false;
+        return (ask.exact == null || m.ident === ask.exact) && [...ask.has].every(c => m.ident.includes(c));
+      };
+      hits = list.filter(p => colours(p) && (!ask.terms.length || ((text) => ask.terms.every(w => text.includes(w)))(about(p))))
+        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
+      page = 0;
+      drawPage();
     };
     search.addEventListener('input', draw);
-    body.append(el('div', { class: 'precon-tools' }, [search,
-      el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel])]), grid);
+    tools.append(search, chips, el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel]));
+    body.append(tools, pagers[0], grid, pagers[1]);
+    perPage = pageSize();
     draw();
   }
-  function preconTile(p, setName) {
+  function preconTile(p, setName, onTag) {
     // its own picture at once when it has one; a plain panel until then, never another's
     const art = el('div', { class: 'precon-art' });
     const had = artReg.by['deck:' + p.file];
@@ -76118,7 +76457,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
-      el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
+      el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}`, title: `${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
       // who leads it and what it leans on, the commander previewed over its name and its picture
       names,
       themes,
@@ -76130,7 +76469,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     tile.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
     });
-    tile._showMeta = () => showMeta(p, names, themes, tile);
+    tile._showMeta = () => showMeta(p, names, themes, tile, onTag);
     tile._showMeta();
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
