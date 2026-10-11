@@ -12503,7 +12503,14 @@
       if (!r) return;
       while (r.index < r.effects.length) {
         const e = r.effects[r.index];
-        if (e.op === 'manual') { r.manual.push(e); r.index++; continue; }
+        if (e.op === 'manual') {
+          // done by hand by its controller, who the rest of the card waits for (_byHand)
+          const done = this._byHand(r.ctx, e.text || '');
+          if (done === SUSPEND) return;
+          if (done == null) r.manual.push(e);
+          r.index++;
+          continue;
+        }
         // a sequence is just more of this list: splice it in and carry on, so
         // anything inside it can suspend exactly like a top-level effect
         if (e.op === 'sequence') {
@@ -12529,8 +12536,8 @@
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
-          r.manual.push({ op: 'manual', text: e.text || JSON.stringify(e) });
-          r.index++;
+          // what went wrong is done by hand, in its place, before the rest of the card
+          r.effects.splice(r.index, 1, { op: 'manual', text: e.text || JSON.stringify(e) });
           continue;
         }
         finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null; }
@@ -12538,6 +12545,27 @@
         r.index++;
       }
       this._finishResolution();
+    }
+
+    /**
+     * A part of a card the engine cannot do, done by hand by the card's
+     * controller: the card waits for them, the rest of it not happening
+     * until they say it is done, and they can move cards, tap, count and
+     * so on in the meantime (manual). Returns SUSPEND while it waits, true
+     * once done, or null when nobody is waited for (a bot, a player who has
+     * left, or nothing resolving), in which case it is only said.
+     */
+    _byHand(ctx, text) {
+      const r = this.resolving;
+      const p = this.player(ctx && ctx.controller);
+      if (!r || !p || p.isBot || p.hasLost) return null;
+      if (!Object.prototype.hasOwnProperty.call(r.answers, r.index + ':hand')) {
+        this.logEvent('manual', `${(ctx && ctx.name) || 'Effect'}: "${text}" — resolve this by hand.`);
+        this.emit('manual', { ctx, text, controller: p.id });
+      }
+      const got = this._ask({ type: 'byHand', playerId: p.id, text: String(text || ''),
+        prompt: 'Do this by hand, then press Done.' }, 'hand');
+      return got === SUSPEND ? SUSPEND : true;
     }
 
     _finishResolution() {
@@ -21880,9 +21908,17 @@
         case 'etbTapped': case 'cantBlock': case 'cantAttack': case 'mustAttack':
         case 'anthem': case 'equipBonus': case 'auraBonus': case 'enchant': case 'equip':
           break;   // static, handled where they matter
-        default:
+        default: {
+          // the effect being resolved: its controller does it by hand, and the rest of the card waits
+          const r = this.resolving;
+          if (r && r.effects[r.index] === e) {
+            const done = this._byHand(ctx, e.text || e.op);
+            if (done === SUSPEND) return SUSPEND;
+            if (done) break;
+          }
           this.logEvent('manual', `Unhandled effect "${e.op}" - resolve by hand.`);
           this.emit('manual', { ctx, text: e.text || e.op, controller: ctx.controller });
+        }
       }
     }
 

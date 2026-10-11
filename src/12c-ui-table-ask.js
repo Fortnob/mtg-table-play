@@ -231,6 +231,13 @@
             { label: 'Let it be countered', fn: () => send({ pay: false }) },
             { html: 'Pay ' + MTG.mana.html(ch.cost || ''), cls: 'primary', fn: () => send({ pay: true }) },
           ], { card });
+        /* A part of the card the engine cannot do: it waits while you do it
+           with the table (drag cards, tap them, right-click for counters and
+           the rest), and goes on when you say it is done. */
+        case 'byHand':
+          return () => this.panel(escapeHtml(ch.sourceName || 'Resolve this by hand'),
+            `<b>By hand:</b> ${MTG.mana.textHtml(ch.text || '')}<br><span class="dim">Do it on the table (drag cards, tap them, right-click for counters and more), then press Done.</span>`,
+            null, [{ label: 'Done', cls: 'primary', fn: () => send({ done: true }) }], { card });
         case 'riot':
           return () => this.panel(...head('Riot', 'It enters with your choice of a +1/+1 counter or haste.'), null, [
             { label: 'Haste', fn: () => send({ haste: true }) },
