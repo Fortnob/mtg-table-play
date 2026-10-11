@@ -878,7 +878,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -913,9 +913,11 @@
         if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
         if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool.symbols()}).`); }
         p.pool.clear();
+        p.creatureMana = null;
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
-        p.restricted = [];
+        // (Klauth, Unrivaled Ancient: what was set aside to be kept until end of turn — keepMana)
+        p.restricted = (p.restricted || []).filter(r => r.keepTurn === this.turn && this.step !== 'cleanup');
         p.manaRiders = [];
         p.poolKeepUntil = null;
       }
@@ -1429,13 +1431,21 @@
           });
           if (okAdv) out.push({ kind: 'cast', objId: o.id, face: 1 });
         }
+        /* Halvar, God of Battle // Sword of the Realms: a modal double-faced card's back, cast as itself, with its
+           face, beside the front (mdfcBack) */
+        const mdfc = this._mdfcSpellBack(o);
+        if (mdfc && this._asHalf(o, 1, () => {
+          const c2 = this.canCast(playerId, o.id);
+          return c2.ok && this.canPayNow(playerId, String(c2.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
+            this._targetsAvailable(this._spellEffects(o.analysis()), playerId);
+        })) out.push({ kind: 'cast', objId: o.id, face: 1 });
         const chk = this.canCast(playerId, o.id);
         // the same check castSpell's payment makes, so what is offered can be paid for
         if (!chk.ok || !this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) continue;
         // a spell with nothing legal to point at is not a decision
         if (!this._targetsAvailable(this._spellEffects(o.analysis()), playerId)) continue;
-        // an adventurer's creature half says which it is, beside the adventure
-        out.push(o.zone === 'hand' && this._adventure(o) ? { kind: 'cast', objId: o.id, face: 0 } : { kind: 'cast', objId: o.id });
+        // an adventurer's creature half says which it is, beside the adventure (and a modal double-faced card's front)
+        out.push((o.zone === 'hand' && this._adventure(o)) || mdfc ? { kind: 'cast', objId: o.id, face: 0 } : { kind: 'cast', objId: o.id });
       }
       for (const o of this.battlefield) {
         if (o.controller !== playerId) continue;
@@ -2468,7 +2478,12 @@
       const gone = item.optional && only && only.op === 'returnTriggerCard' && only.fromGrave && (() => {
         const x = item.triggerData && item.triggerData.objectId && this.obj(item.triggerData.objectId);
         return !x || x.zone !== 'graveyard' || x.isToken;
-      })();
+      })() ||
+        /* Halvar, God of Battle: "you may attach target …" with nothing it could target is no question at all — a
+           trigger without the targets it needs does nothing (CR 603.3d) (noTargetNoMay) */
+        (item.optional && only && !(item.targets || []).length && (only.targets || []).length &&
+          (only.targets || []).some(sp => sp && !sp.upTo && !sp.multi && !sp.controllerId && sp.controller !== 'triggerPlayer' && !sp.notTriggerPlayer && !sp.defending && !sp.mvBelowTrigger &&
+            !this._legalTargetsFor(sp, item.controller, item.objId || null).length));
       const effects = gone ? [] : item.optional && !item._asked
         ? [{ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }]
         : (item.effects || []);
@@ -3174,7 +3189,8 @@
       // Towering Titan: "the total toughness of other creatures you control" (totalStat)
       if (v.totalStat) {
         let sum = 0;
-        for (const o of this._scopeList(v.of, pid, src, null, inLayers)) if (o !== src) sum += Math.max(0, v.totalStat === 'power' ? this.powerOf(o) : this.toughnessOf(o));
+        // (Klauth, Unrivaled Ancient: "the total power of attacking creatures" — itself among them)
+        for (const o of this._scopeList(v.of, pid, src, null, inLayers)) if (o !== src || !v.of.other) sum += Math.max(0, v.totalStat === 'power' ? this.powerOf(o) : this.toughnessOf(o));
         return sum * mult;
       }
       if (v.greatestToughness) {
@@ -3813,6 +3829,24 @@
        used to be free) */
     _spendPlan(p, plan) {
       if (plan && plan.life > 0) this.changeLife(p, -plan.life, 'cost');
+      /* Inga and Esika: "if three or more mana from creatures was spent to cast it" — which mana is spent is its
+         controller's to say: what creatures made goes first on a creature spell, last on anything else
+         (manaFromCreatures) */
+      if (plan && p && p.creatureMana) {
+        const lentBy = this._lentNow && this._lentNow.pid === p.id ? this._lentNow.by : {};
+        const forCreature = !!(this._payingFor && (this._payingFor.analysis() || {}).isCreature);
+        let fromC = 0;
+        for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) {
+          const k = Number(plan[c]) || 0;
+          const unres = Math.max(0, (Number(p.pool[c]) || 0) + k - (lentBy[c] || 0));
+          const have = Math.min(p.creatureMana[c] || 0, unres);
+          const spent = Math.min(k, unres);
+          const take = forCreature ? Math.min(spent, have) : Math.max(0, spent - (unres - have));
+          p.creatureMana[c] = have - take;
+          fromC += take;
+        }
+        if (fromC && this._spentAcc) this._spentAcc.creature = (this._spentAcc.creature || 0) + fromC;
+      }
       // expend: the fourth (eighth) total mana spent this turn
       if (plan && p) {
         const k = ['W', 'U', 'B', 'R', 'G', 'C'].reduce((t, c) => t + (Number(plan[c]) || 0), 0);
@@ -3947,6 +3981,14 @@
       return this._splitHalves(o) && ((o.card.keywords || []).includes('Fuse') ||
         /^Fuse\b/m.test(String((o.card.card_faces[0] || {}).oracle_text || '')));
     }
+    /**
+     * A modal double-faced card with a spell on its back (Halvar, God of Battle // Sword of the Realms): either face
+     * may be cast (CR 712.11b), from wherever the card may be cast. A land back is played, not cast (landBack).
+     */
+    _mdfcSpellBack(o) {
+      const faces = o && !o.faceDown && o.card && o.card.layout === 'modal_dfc' && o.card.card_faces;
+      return !!(faces && faces[1] && !/\bLand\b/.test(faces[1].type_line || ''));
+    }
     /** Ask something of one half of a split card, and put the card back as it was. */
     _asHalf(o, face, fn) {
       const was = o.face || 0;
@@ -3958,7 +4000,7 @@
       /* A split card is playable when either half is; the reason given is the
          left half's when neither is. */
       const so = this.obj(objId);
-      if (face == null && so && (this._splitHalves(so) || this._adventure(so)) && so.zone === 'hand') {
+      if (face == null && so && (((this._splitHalves(so) || this._adventure(so)) && so.zone === 'hand') || this._mdfcSpellBack(so))) {
         const left = this._asHalf(so, 0, () => this.whyNotPlayable(playerId, objId, 0));
         if (!left) return null;
         const right = this._asHalf(so, 1, () => this.whyNotPlayable(playerId, objId, 1));
@@ -5332,7 +5374,8 @@
         const f = Number(opts.face);
         const adv = this._adventure(so);
         if (adv && f === 1 && so.zone !== 'hand') return this.fail('An adventure is cast from your hand.');
-        if (!this._splitHalves(so) && !adv) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
+        // (Halvar, God of Battle // Sword of the Realms: a modal double-faced card cast as its back — mdfcBack)
+        if (!this._splitHalves(so) && !adv && !this._mdfcSpellBack(so)) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
         else {
           if (f !== 0 && f !== 1) return this.fail('A split card has two halves: face 0 or 1.');
           const was = so.face || 0;
@@ -5694,6 +5737,8 @@
         o.colorsSpent = ['W', 'U', 'B', 'R', 'G'].filter(c => (this._spentAcc[c] || 0) > 0).length;
         // adamant: how much of each
         o.manaSpentBy = Object.assign({}, this._spentAcc);
+        // Inga and Esika: how much of it creatures made (manaFromCreatures)
+        o.manaFromCreatures = this._spentAcc.creature || 0;
         o._phyLife = this._spentAcc.life || 0;
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
@@ -8060,9 +8105,13 @@
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
       const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
+      // (Inga and Esika: what of the pool is lent, spent last — manaFromCreatures)
+      const wasLent = this._lentNow;
+      this._lentNow = { pid: p.id, by: lent.reduce((acc, r) => { acc[r.color] = (acc[r.color] || 0) + 1; return acc; }, {}) };
       try {
         return this._payManaInner(p, playerId, cost, opts);
       } finally {
+        this._lentNow = wasLent;
         this._returnLent(p, lent);
         this._payingFor = wasFor;
       }
@@ -8172,13 +8221,22 @@
       const after = p.pool.snapshot();
       const made = {};
       for (const c of MANA.COLORS.concat('C')) made[c] = Math.max(0, (after[c] || 0) - (before[c] || 0));
+      /* Inga and Esika: "mana from creatures" — what a creature on the battlefield made, told apart in the pool until
+         it is spent or the pool empties (manaFromCreatures) */
+      const own = Object.assign({}, made);
+      const fromCreature = !!o && o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
+      const tagPool = () => {
+        if (!fromCreature) return;
+        const cm = p.creatureMana || (p.creatureMana = {});
+        for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
+      };
       if (ab.cost && ab.cost.tap) {
         this._extraManaOnTap(playerId, o, made);
         // Zhur-Taa Druid, Manabarbs: triggers on being tapped for mana
         this._fire('tapForMana', playerId, { source: o, object: o, objController: o.controller, player: playerId, playerId });
         this._fire('anyTapForMana', null, { object: o, objController: o.controller, player: playerId, playerId });
       }
-      if (!ab.spendOnly) return;
+      if (!ab.spendOnly) return tagPool();
       const paying = this._payingFor;
       /* Path of Ancestry: the mana is anybody's to spend, but remembers
          what it promised if it ends up casting the right creature. */
@@ -8187,19 +8245,20 @@
           this._payFlags = this._payFlags || {};
           (this._payFlags.riders = this._payFlags.riders || []).push(ab.spendOnly.rider);
         } else (p.manaRiders = p.manaRiders || []).push(ab.spendOnly.rider);
-        return;
+        return tagPool();
       }
       if (paying && this._spendAllowed(ab.spendOnly, paying, o)) {
         this._payFlags = this._payFlags || {};
         if (ab.spendOnly.uncounterable) this._payFlags.uncounterable = true;
         if (ab.spendOnly.rider) (this._payFlags.riders = this._payFlags.riders || []).push(ab.spendOnly.rider);
-        return;
+        return tagPool();
       }
       p.restricted = p.restricted || [];
       for (const c of Object.keys(made)) {
         for (let i = 0; i < made[c]; i++) {
           if (p.pool[c] > 0) p.pool[c]--;
-          p.restricted.push({ color: c, spendOnly: ab.spendOnly, srcId: o.id });
+          // (Inga and Esika: set aside, it still remembers a creature made it — manaFromCreatures)
+          p.restricted.push(Object.assign({ color: c, spendOnly: ab.spendOnly, srcId: o.id }, fromCreature && i < (own[c] || 0) ? { fromCreature: true } : {}));
         }
       }
       if (Object.values(made).some(Boolean)) this.logEvent('mana', `${o.name}'s mana can only be spent as it says.`);
@@ -8248,7 +8307,8 @@
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
       // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
-      if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words) &&
+      // (Klauth, Unrivaled Ancient: "only to cast spells" — any spell)
+      if (spendOnly.words && spendOnly.words !== 'spell' && !this._cardFitsWords(spell, spendOnly.words) &&
         !((spendOnly.orX || (spendOnly.orXCreature && this._cardFitsWords(spell, 'creature'))) && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;   // (Troyan: spendAnyOrX)
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       return true;
@@ -8284,6 +8344,8 @@
           // still there: it goes back to waiting
           if (i < back) { p.pool[c]--; p.restricted.push(r); return; }
           // it was spent: anything it promised comes with it
+          // (Inga and Esika: set-aside mana a creature made — manaFromCreatures)
+          if (r.fromCreature && this._spentAcc) this._spentAcc.creature = (this._spentAcc.creature || 0) + 1;
           this._payFlags = this._payFlags || {};
           if (r.spendOnly && r.spendOnly.uncounterable) this._payFlags.uncounterable = true;
           if (r.spendOnly && r.spendOnly.rider) (this._payFlags.riders = this._payFlags.riders || []).push(r.spendOnly.rider);
@@ -9188,12 +9250,16 @@
       const candidates = this.battlefield.filter(o => o.controller === pid &&
         attackersOnMe.some(aid => this.canBlock(o, this.obj(aid))));
       if (!candidates.length) { this._askNextBlocker(); return; }
-      this.pendingChoice = {
-        type: 'declareBlockers', playerId: pid,
+      /* Odric, Master Tactician: "you choose which creatures block this combat and how those creatures block" — the
+         question is put to that player, about the defending player's creatures (chooseBlocksCombat) */
+      const by = this.combat.blockChooser && this.player(this.combat.blockChooser);
+      const chooser = by && !by.hasLost && by.id !== pid ? by.id : pid;
+      this.pendingChoice = Object.assign({
+        type: 'declareBlockers', playerId: chooser,
         attackers: attackersOnMe,
         candidates: candidates.map(o => o.id),
-        prompt: 'Declare blockers.',
-      };
+        prompt: chooser === pid ? 'Declare blockers.' : `Declare blockers for ${p.name}: you choose which of their creatures block, and how.`,
+      }, chooser !== pid ? { blockingPlayer: pid } : {});
       this.emit('choice', this.pendingChoice);
       this.touch();
     }
@@ -9202,6 +9268,8 @@
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareBlockers' || ch.playerId !== playerId) return this.fail('Not declaring blockers.');
       declarations = declarations || [];
+      // Odric, Master Tactician: the creatures are the defending player's, whoever is choosing (chooseBlocksCombat)
+      const blockerPid = ch.blockingPlayer || playerId;
       // "can't block alone": the same, for a lone blocker
       if (declarations.length === 1) {
         const lone = this.obj(declarations[0].blockerId);
@@ -9213,7 +9281,7 @@
       /* Mirri, Weatherlight Duelist: "each opponent can't block with more than one creature this
          combat" — each opponent of the player who set it (blockLimitCombat) */
       for (const bl of (this._blockLimitsCombat || [])) {
-        if (bl.turn !== this.turn || bl.by === playerId || !this.opponentsOf(bl.by).some(q => q.id === playerId)) continue;
+        if (bl.turn !== this.turn || bl.by === blockerPid || !this.opponentsOf(bl.by).some(q => q.id === blockerPid)) continue;
         if (declarations.length <= bl.n) continue;
         if (!(this.player(playerId) || {}).isBot)
           return this.fail(`${bl.name}: you can't block with more than ${bl.n} creature${bl.n === 1 ? '' : 's'} this combat.`);
@@ -9235,11 +9303,11 @@
         const b = this.obj(d.blockerId);
         if (!b) return this.fail('No such blocker.');
         // (only the blocking player's own creatures, and only what attacks that player, its planeswalkers or the battles it protects: CR 509.1a)
-        if (b.controller !== playerId) return this.fail(`${b.name} is not yours to block with.`);
+        if (b.controller !== blockerPid) return this.fail(blockerPid === playerId ? `${b.name} is not yours to block with.` : `${b.name} is not ${this.player(blockerPid).name}'s.`);
         for (const aid of d.attackerIds) {
           const at = this.obj(aid);
           if (!at || !this.canBlock(b, at)) return this.fail(`${b.name} cannot block ${at ? at.name : '?'}.`);
-          if ((ch.attackers || []).length && !ch.attackers.includes(aid)) return this.fail(`${at.name} isn't attacking you.`);
+          if ((ch.attackers || []).length && !ch.attackers.includes(aid)) return this.fail(blockerPid === playerId ? `${at.name} isn't attacking you.` : `${at.name} isn't attacking ${this.player(blockerPid).name}.`);
         }
         if (d.attackerIds.length > 1) {
           const ba = b.analysis();
@@ -9300,7 +9368,7 @@
         }
         // "blocks this turn if able" (CR 509.1c)
         for (const o of this.battlefield) {
-          if (o.controller !== playerId) continue;
+          if (o.controller !== blockerPid) continue;
           if (!this._hasFlag(o, 'mustBlock') && !this._staticOp(o, 'mustBlock')) continue;
           if (declarations.some(d => d.blockerId === o.id)) continue;
           if (this.combat.attackers.some(aid => { const at = this.obj(aid); return at && this.canBlock(o, at); }))
@@ -9312,12 +9380,12 @@
           const at = this.obj(aid);
           if (!at || !(this._staticOp(at, 'mustBeBlocked') || this._hasFlag(at, 'mustBeBlockedTurn'))) continue;
           if (declarations.some(d => d.attackerIds.includes(aid))) continue;
-          const free = this.battlefield.filter(o => o.controller === playerId && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
+          const free = this.battlefield.filter(o => o.controller === blockerPid && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
           if (free.length) return this.fail(`${at.name} must be blocked if able.`);
         }
         // "blocks this creature if able", and lures: must block one of those it is drawn to
         for (const o of this.battlefield) {
-          if (o.controller !== playerId) continue;
+          if (o.controller !== blockerPid) continue;
           const drawn = this._blockDemands(o);
           if (!drawn.length) continue;
           if (declarations.some(d => d.blockerId === o.id && d.attackerIds.some(id => drawn.some(x => x.id === id)))) continue;
@@ -9369,7 +9437,7 @@
       if (declarations.length) {
         this.emit('sfx', 'block');
         this._blockKeywords(declarations);
-        this.logEvent('combat', `${this.player(playerId).name} blocks with ${declarations.map(d => this.obj(d.blockerId).name).join(', ')}.`);
+        this.logEvent('combat', `${this.player(blockerPid).name} blocks with ${declarations.map(d => this.obj(d.blockerId).name).join(', ')}${blockerPid !== playerId ? ` (${this.player(playerId).name} chose)` : ''}.`);
       }
       this._askNextBlocker();
       return true;
@@ -9496,12 +9564,17 @@
             this._fire('creatureCombatDamageWalker', as.source.controller, { source: as.source, object: as.source, amount: got, walker: t });
         }
         if (got > 0 && this.hasKw(as.source, 'lifelink')) this.changeLife(as.source.controller, got, 'lifelink');
+        as.dealt = got;
       }
       const dealt = assignments.reduce((k, x) => k + x.amount, 0);
       this.emit('sfx', 'damage', { player: this.activePlayer.id, size: dealt });
       this.combat.damageDealt = true;
       // combat damage to a player triggers
       for (const as of assignments) {
+        /* "Whenever … deals combat damage to a player": only damage dealt, and as much as was dealt — none once
+           The Mindskinner has prevented it, twice as much after Lightning, Army of One's double (CR 120.3, 615) */
+        if (as.targetKind === 'player' && !(as.dealt > 0)) continue;
+        if (as.targetKind === 'player') as.amount = as.dealt;
         if (as.targetKind === 'player') {
           /* Freerunning asks whether an Assassin or your commander got
              through this turn (CR 702.175). */
@@ -9640,7 +9713,8 @@
         }
       }
       // Yawgmoth's Will: replacements a spell left behind for the rest of the turn
-      this._floatingReps = (this._floatingReps || []).filter(f => f.turn === this.turn);
+      // (Lightning, Army of One: "until your next turn" — gone as its controller's next turn begins)
+      this._floatingReps = (this._floatingReps || []).filter(f => f.turn === this.turn || (f.until === 'yourNextTurn' && this._beforeNextTurnOf(f.src.controller, f.taken)));
       for (const f of this._floatingReps) list.push({ ef: f.ef, src: f.src });
       this._repCache = list;
       this._repEpoch = this._boardKey;
@@ -9663,8 +9737,10 @@
            (CR 616.1), and "deals damage equal to Ojer Axonil's power
            instead" comes to least once the others have added theirs */
         const reps = this._replacements();
-        const order = reps.some(e => e.ef.how === 'atLeastSelfPower')
+        let order = reps.some(e => e.ef.how === 'atLeastSelfPower')
           ? reps.filter(e => e.ef.how !== 'atLeastSelfPower').concat(reps.filter(e => e.ef.how === 'atLeastSelfPower')) : reps;
+        // (The Mindskinner: the opponent dealt the damage has it prevented first, before anything doubles it — oppsMillInstead)
+        if (order.some(e => e.ef.how === 'oppsMillInstead')) order = order.filter(e => e.ef.how === 'oppsMillInstead').concat(order.filter(e => e.ef.how !== 'oppsMillInstead'));
         for (const entry of order) {
           const ef = entry.ef;
           const key = entry.src.id + ':' + (ef.id || ef.event);
@@ -9678,6 +9754,12 @@
         }
       }
       return ev;
+    }
+
+    /** Has this player not begun another turn since they had taken that many ("until your next turn")? One who has left the game has none. */
+    _beforeNextTurnOf(pid, taken) {
+      const p = this.player(pid);
+      return !!p && !p.hasLost && (p.turnsTaken || 0) <= taken;
     }
 
     _replaceMatches(ef, src, ev) {
@@ -9741,6 +9823,8 @@
       if (ef.event === 'damage') {
         // "to an opponent or a permanent an opponent controls"
         if (ef.toOpponent && ev.victimController === src.controller) return false;
+        // Lightning, Army of One: "to that player or a permanent that player controls" (staggerDouble)
+        if (ef.victimPlayer && ev.victimController !== ef.victimPlayer) return false;
         // Gisela: "to you or a permanent you control"
         if (ef.toYou && ev.victimController !== src.controller) return false;
         // a prevention is no prevention when damage can't be prevented
@@ -9792,6 +9876,24 @@
           if (who) this.logEvent('mill', `${who.name} mills ${milled} instead of taking the damage.`);
           // (Zellix, Glowing One see these too)
           this._noteMilled(src.controller, ids);
+          break;
+        }
+        /* The Mindskinner: "prevent that damage and each opponent mills that many cards" — each of its controller's
+           opponents, not only the one it would have hit. Damage that can't be prevented is still dealt, and the mill
+           happens all the same (CR 615.12). (oppsMillInstead) */
+        case 'oppsMillInstead': {
+          const k = ev.n || 0;
+          if (!(k > 0)) break;
+          if (!this._noPrevention(ev.combat)) { ev.n = 0; ev.cancelled = true; }
+          for (const p of this.opponentsOf(src.controller)) {
+            const evM = this._replace({ kind: 'mill', n: k, controller: p.id });
+            if (evM.cancelled) continue;
+            const lib = this.zones[p.id].library;
+            const ids = [];
+            for (let i = 0; i < evM.n && lib.length; i++) { const c = lib[0]; ids.push(c.id); this.moveObject(c, 'graveyard'); }
+            this.logEvent('mill', `${p.name} mills ${ids.length} (${src.name}).`);
+            this._noteMilled(p.id, ids);
+          }
           break;
         }
         // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
@@ -10446,7 +10548,8 @@
         case 'manaSpentAtLeast': {
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           if (!x) return false;
-          const had = cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
+          // (Inga and Esika: "mana from creatures" — manaFromCreatures)
+          const had = cond.fromCreatures ? (x.manaFromCreatures || 0) : cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
           return had >= (cond.n || 0);
         }
         // Sneak: "if this creature's sneak cost was paid" — this turn, as it came in
@@ -12028,6 +12131,8 @@
         if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') { o.face = 0; o.flipped = false; }
         // a split card's half is only what it is on the stack
         if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'split') o.face = 0;
+        // (a modal double-faced card cast as its back and countered is a card with its front up again: mdfcBack)
+        if (toZone !== 'stack' && from === 'stack' && o.card.layout === 'modal_dfc') { o.face = 0; o._chr = null; }
         // a Room's doors lock again as it leaves (CR 709.5d)
         if (from === 'battlefield' && o.card.layout === 'split') o.face = 0;
         o._diedCounters = Object.assign({}, o.counters);
@@ -13000,7 +13105,9 @@
           r.effects.splice(r.index, 1, { op: 'manual', text: e.text || JSON.stringify(e) });
           continue;
         }
-        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null; }
+        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
+          // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
+          if (e.op !== 'spendOnly') this._lastSetAside = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
         r.index++;
       }
@@ -13375,6 +13482,8 @@
         const tp = ctx.chosenPlayer || td.drawer || td.player || td.deadController || td.playerId || '-';
         const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
           ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
+          // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
+          : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
           : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
           // Scrap Trawler: "with lesser mana value" than the one the trigger is about
           .map(spec => {
@@ -13400,7 +13509,10 @@
         const options = aimed.map(spec => this._legalTargetsFor(spec, ctx.controller, src ? src.id : null));
         // nothing legal to point at: the effect simply does not happen
         if (aimed.length && options.every(list => list.length)) {
-          const picked = this._ask({
+          /* The Lord of Pain, with one opponent, when that opponent casts: "another target player" can only be you —
+             a single player to choose is no choice to ask about (onlyOnePlayer) */
+          const forced = xm < 0 && aimed.length === 1 && !!(e.targets[0] && e.targets[0].notTriggerPlayer) && options[0].length === 1;
+          const picked = forced ? [options[0][0]] : this._ask({
             type: 'pickTarget', playerId: ctx.controller, specs: askSpecs,
             options, count: askSpecs.length, sourceId: src ? src.id : null,
             prompt: (ctx.name ? ctx.name + ': ' : '') +
@@ -13818,10 +13930,12 @@
           if (!lm || lm.pid !== me.id || e.open) break;
           me.restricted = me.restricted || [];
           let k = 0;
+          const aside = [];
           for (const c of MANA.COLORS.concat('C')) {
             const made = Math.max(0, (Number(me.pool[c]) || 0) - (Number(lm.before[c]) || 0));
-            for (let i = 0; i < made; i++) { me.pool[c]--; me.restricted.push({ color: c, spendOnly: e, srcId: src ? src.id : null }); k++; }
+            for (let i = 0; i < made; i++) { me.pool[c]--; const r = { color: c, spendOnly: e, srcId: src ? src.id : null }; me.restricted.push(r); aside.push(r); k++; }
           }
+          this._lastSetAside = { pid: me.id, list: aside };
           if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
           break;
         }
@@ -16537,6 +16651,13 @@
           break;
         }
         case 'keepMana':
+          /* Klauth, Unrivaled Ancient: "Spend this mana only to cast spells. Until end of turn, you don't lose this
+             mana as steps and phases end." — that mana, set aside, is kept; the rest of the pool empties as usual */
+          if (this._lastSetAside && this._lastSetAside.pid === me.id) {
+            for (const r of this._lastSetAside.list) r.keepTurn = this.turn;
+            if (this._lastSetAside.list.length) this.logEvent('mana', `${me.name} keeps that mana until the end of the turn.`);
+            break;
+          }
           me.poolKeepUntil = 'turn';
           me.poolKeepTurn = this.turn;
           this.logEvent('mana', `${me.name} keeps their mana until the end of the turn.`);
@@ -20673,9 +20794,27 @@
           this.bumpBoard();
           break;
         }
+        /* Odric, Master Tactician: "you choose which creatures block this combat and how those creatures block"
+           (chooseBlocksCombat) */
+        case 'chooseBlocksCombat': {
+          if (!this.combat || !(this.combat.attackers || []).length || this.step !== 'declareAttackers') break;
+          this.combat.blockChooser = ctx.controller;
+          this.logEvent('rules', `${me.name} chooses which creatures block this combat, and how.`);
+          break;
+        }
         // "…this turn, exile that card instead": a replacement that lasts until the turn ends
         case 'floatingReplace': {
-          (this._floatingReps = this._floatingReps || []).push({ turn: this.turn, ef: e.ef,
+          /* Lightning, Army of One: "until your next turn, if a source would deal damage to that player or a permanent
+             that player controls, it deals double that damage instead" — about the player it hit, for as long as
+             it says (staggerDouble) */
+          let ef = e.ef;
+          if (e.victimTriggerPlayer) {
+            const tp = triggerPlayer();
+            if (!tp) break;
+            ef = Object.assign({}, e.ef, { victimPlayer: tp.id });
+            this.logEvent('rules', `Until ${me.name}'s next turn, damage to ${tp.name} and permanents ${tp.name} controls is doubled.`);
+          }
+          (this._floatingReps = this._floatingReps || []).push({ turn: this.turn, ef, until: e.until || null, taken: me.turnsTaken || 0,
             src: { id: this._uid('rep'), controller: ctx.controller, owner: ctx.controller, name: (src && src.name) || ctx.name || 'An effect' } });
           this._repCache = null;
           break;
@@ -21183,9 +21322,13 @@
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [eq, host] = objs;
           if (!eq || !host || eq.zone !== 'battlefield' || host.zone !== 'battlefield' || eq === host) break;
+          /* Halvar, God of Battle: one that couldn't legally be attached there stays where it is (CR 701.3b) — an Aura
+             whose enchant words the creature doesn't fit, protection — and one already there isn't attached again (701.3c) */
+          if (eq.attachedTo === host.id || !this._attachableTo(eq, host, null)) break;
           const old = eq.attachedTo && this.obj(eq.attachedTo);
           if (old) old.attachments = (old.attachments || []).filter(id => id !== eq.id);
           eq.attachedTo = host.id;
+          eq.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
           host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
           this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
           this.bumpBoard();
@@ -24751,7 +24894,7 @@
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
       if (spec.type === 'player' || spec.type === 'opponent') {
-        return players().filter(t => !(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId);
+        return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer);
       }
       if (spec.type === 'spell' || spec.zone === 'stack') {
         return this.stack
@@ -24821,6 +24964,9 @@
         // (Silver Sable: "target modified creature" — modifiedTarget)
         fits: (o, w) => this._cardFitsWords(o, w),
         hasKw: (o, k) => this.hasKw(o, k),
+        // (Halvar, God of Battle: "attached to a creature you control" — attachedToYourCreature)
+        hostOf: (o) => (o && o.attachedTo ? this.obj(o.attachedTo) : null),
+        isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
         // "with mana value X": the X of the spell or ability being cast, while it is checked
         get x() { return game._specX; },
         // Spear of Heliod: "this turn"
@@ -25556,7 +25702,8 @@
         playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
         /* Split cards in hand: which halves can be cast now (0 left, 1 right),
-           for the table to offer each; cast with the intent's `face`. */
+           for the table to offer each; cast with the intent's `face`. (A
+           modal double-faced card with a spell on its back, too: mdfcBack.) */
         splitFaces: (() => {
           const out = {};
           if (!(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;

@@ -2262,6 +2262,14 @@
           return g.declareAttackers(this.pid, []);
         }
         case 'declareBlockers': {
+          /* Odric, Master Tactician: the opponent's creatures, blocking as this bot says — none of them, unless a
+             requirement says one must (chooseBlocksCombat) */
+          if (ch.blockingPlayer && ch.blockingPlayer !== this.pid) {
+            if (g.declareBlockers(this.pid, [])) return true;
+            const must = this._mustBlockPlan(ch);
+            if (must.length && g.declareBlockers(this.pid, must)) return true;
+            return g.declareBlockers(this.pid, []);
+          }
           if (!plan) {
             try { plan = this.chooseBlocks(ch); } catch (e) { console.warn('[bot] block plan', e); plan = []; }
           }
@@ -3600,6 +3608,49 @@
       return this.chooseTargetsForEffects(effects.concat(extra), o, opts);
     }
 
+    /**
+     * "Attach target Aura or Equipment … to target creature you control" (Halvar, God of Battle, Codsworth, Brass
+     * Squire): Equipment and helpful Auras move up to a better creature, one that can attack before one that can't;
+     * an opponent's Aura that holds a creature of ours down moves onto the one that matters least. The first target
+     * is the one that gains most by moving; the second, where it goes — where it already is when nothing is better,
+     * which leaves it there (CR 701.3c).
+     */
+    _attachPlan(effect, free, taken) {
+      const g = this.game;
+      const hostile = (x) => x.controller !== this.pid ||
+        /can't attack|can't block|doesn't untap|enchanted (?:creature|permanent) gets -|loses all abilities|enchanted permanent doesn't/i
+          .test(String((x.analysis() || {}).oracleText || ''));
+      const worth = (c) => this.threatValue(c) + (!c.summoningSick || g.hasKw(c, 'haste') ? 2 : 0);
+      const hostsFor = (x, list) => list.map(t => t.kind === 'object' && g.obj(t.id)).filter(c => c && c.zone === 'battlefield' &&
+        c !== x && g._attachableTo(x, c, null));
+      const best = (x, list) => {
+        const from = x.attachedTo && g.obj(x.attachedTo);
+        let pick = null, gain = 0;
+        for (const c of hostsFor(x, list)) {
+          if (from && c.id === from.id) continue;
+          const d = hostile(x) ? (from ? worth(from) : 0) - worth(c) : worth(c) - (from ? worth(from) : 0);
+          if (d > gain) { pick = c; gain = d; }
+        }
+        return { pick, gain, from };
+      };
+      if (!taken.length) {
+        const hosts = g._legalTargetsFor(effect.targets[1], this.pid);
+        let top = null, topGain = 0;
+        for (const t of free) {
+          const x = t.kind === 'object' && g.obj(t.id);
+          if (!x) continue;
+          const b = best(x, hosts);
+          if (b.pick && b.gain > topGain) { top = x; topGain = b.gain; }
+        }
+        return top ? { kind: 'object', id: top.id } : null;
+      }
+      const x = taken[0] && taken[0].kind === 'object' && g.obj(taken[0].id);
+      if (!x) return null;
+      const b = best(x, free);
+      const stay = b.from && free.find(t => t.kind === 'object' && t.id === b.from.id);
+      return b.pick ? { kind: 'object', id: b.pick.id } : stay || null;
+    }
+
     chooseTargetsForEffects(effects, source, opts) {
       opts = opts || {};
       const targets = [];
@@ -3643,6 +3694,11 @@
       const taken = opts.taken || [];
       const free = legal.filter(t => !taken.some(x => x.kind === t.kind && x.id === t.id));
       if (!free.length) return null;
+      // Halvar, God of Battle (Codsworth, Brass Squire): what to move, and onto which creature (attachPlan)
+      if (effect && effect.op === 'attachEquipment' && (effect.targets || []).length === 2) {
+        const plan = this._attachPlan(effect, free, taken);
+        if (plan) return plan;
+      }
       const harmful = isHarmful(effect);
       const objs = free.filter(t => t.kind === 'object').map(t => g.obj(t.id)).filter(Boolean);
       const players = free.filter(t => t.kind === 'player');
@@ -4513,7 +4569,7 @@
       if (ch.type === 'declareAttackers') {
         const L = this._lookCfg('attack');
         if (L) return this._thinkAttack(ch, L);
-      } else if (ch.type === 'declareBlockers') {
+      } else if (ch.type === 'declareBlockers' && !(ch.blockingPlayer && ch.blockingPlayer !== this.pid)) {
         const L = this._lookCfg('block');
         if (L) return this._thinkBlock(ch, L);
       }

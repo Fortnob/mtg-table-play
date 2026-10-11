@@ -1659,7 +1659,7 @@
         }
         if (ch.type === 'declareBlockers') {
           const n = this.blockPlan ? this.blockPlan.declarations.length : 0;
-          return { label: n ? 'Block' : 'No blocks', sub: n ? `${n} blocker${n === 1 ? '' : 's'}` : 'take the damage',
+          return { label: n ? 'Block' : 'No blocks', sub: n ? `${n} blocker${n === 1 ? '' : 's'}` : ch.blockingPlayer ? 'none of theirs block' : 'take the damage',
             cls: n ? 'go block' : 'pass',
             secondary: n ? { label: 'Clear', fn: () => { this.blockPlan = { declarations: [], pendingBlocker: null }; this.render(); } } : null };
         }
@@ -2041,7 +2041,8 @@
         if (ch.type === 'declareBlockers') {
           if (!this.blockPlan) this.blockPlan = { declarations: [], pendingBlocker: null };
           const bp = this.blockPlan;
-          if ((ch.candidates || []).includes(id) && loc.o.controller === this.meId) {
+          // (Odric, Master Tactician: another player's creatures, blocking as this player says — blockingPlayer)
+          if ((ch.candidates || []).includes(id) && loc.o.controller === (ch.blockingPlayer || this.meId)) {
             // clicking a blocker that is already assigned takes the block back
             const had = bp.declarations.findIndex(d => d.blockerId === id);
             if (had >= 0 && bp.pendingBlocker !== id) { bp.declarations.splice(had, 1); bp.pendingBlocker = null; return this.render(); }
@@ -2194,7 +2195,8 @@
       }
       if (this._landBack(o)) return this._spellOrLand(o, a);
       const halves = (live.splitFaces || {})[o.id];
-      if ((o.card.layout === 'split' || o.card.layout === 'adventure') && halves && halves.length) return this._castHalf(o, halves);
+      // (Halvar, God of Battle // Sword of the Realms: either face of a modal double-faced card — mdfcBack)
+      if ((o.card.layout === 'split' || o.card.layout === 'adventure' || o.card.layout === 'modal_dfc') && halves && halves.length) return this._castHalf(o, halves);
       /* Another way to cast it from where it is (spectacle, evoke, surge,
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */

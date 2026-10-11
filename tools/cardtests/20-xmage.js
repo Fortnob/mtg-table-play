@@ -25469,4 +25469,446 @@ module.exports = (test) => {
       t.zone(bear, 'library', "Garruk's Harbinger: the fifth card, not looked at");
     }
   });
+
+  test('Commanders: Nissa, Resurgent Animist — mana on each landfall, the dig on the second only', (mk, t) => {
+    t.auto('Nissa, Resurgent Animist');
+    const M = mk({ library: Array(20).fill('Forest') });
+    M.toMain('A');
+    M.bf('A', 'Nissa, Resurgent Animist');
+    // the library from the top: Island, Swamp, Llanowar Elves, Island, Omnath, Locus of Creation, Forest…
+    const omn = M.top('A', 'Omnath, Locus of Creation');
+    const isl2 = M.top('A', 'Island');
+    const elves = M.top('A', 'Llanowar Elves');
+    const sw = M.top('A', 'Swamp');
+    const isl = M.top('A', 'Island');
+    const pool = () => ['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (M.player('A').pool[c] || 0), 0);
+    const h0 = M.zone('A', 'hand').length;
+    M.playLand('A', M.hand('A', 'Forest'));
+    t.eq(pool(), 1, 'Nissa: the first landfall adds one mana');
+    t.eq(M.zone('A', 'hand').length, h0, 'Nissa: the first time, no reveal');
+    t.eq(M.zone('A', 'library')[0], isl, 'Nissa: the library untouched');
+    M.g.moveObject(M.put('A', 'Forest', 'hand'), 'battlefield'); M.settle(); M.resolve();
+    t.eq(pool(), 2, 'Nissa: the second landfall adds one mana too');
+    t.zone(elves, 'hand', 'Nissa: the second time, the first Elf revealed goes to hand');
+    const lib = M.zone('A', 'library');
+    t.eq(lib[0], isl2, 'Nissa: the cards under the Elf stay on top');
+    t.ok(lib.slice(-2).includes(isl) && lib.slice(-2).includes(sw), 'Nissa: the rest revealed go to the bottom');
+    M.g.moveObject(M.put('A', 'Forest', 'hand'), 'battlefield'); M.settle(); M.resolve();
+    t.eq(pool(), 3, 'Nissa: the third landfall adds mana');
+    t.zone(omn, 'library', 'Nissa: the third time, no reveal');
+    t.eq(M.zone('A', 'library')[0], isl2, 'Nissa: the library untouched the third time');
+    // a new turn counts from one again; an Elemental is found as well as an Elf
+    M.nextTurn('B'); M.nextTurn('A');
+    M.playLand('A', M.hand('A', 'Forest'));
+    t.zone(omn, 'library', 'Nissa: the first landfall of the next turn, no reveal');
+    M.g.moveObject(M.put('A', 'Forest', 'hand'), 'battlefield'); M.settle(); M.resolve();
+    t.zone(omn, 'hand', 'Nissa: the second, an Elemental card found');
+  });
+
+  test('Commanders: The Mindskinner — damage to an opponent prevented, each opponent mills that many', (mk, t) => {
+    t.auto('The Mindskinner');
+    t.auto('Skullcrack');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'The Mindskinner');
+    const lib = (p) => M.zone(p, 'library').length;
+    let b0 = lib('B'), c0 = lib('C');
+    const a0 = lib('A');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 20, 'Mindskinner: the Shock to B is prevented');
+    t.eq(b0 - lib('B'), 2, 'Mindskinner: B mills 2');
+    t.eq(c0 - lib('C'), 2, 'Mindskinner: and so does C, another opponent');
+    t.eq(a0 - lib('A'), 0, 'Mindskinner: A does not');
+    // damage to an opponent's creature, or to A, is dealt as usual
+    const bear = M.bf('B', 'Grizzly Bears');
+    b0 = lib('B');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'Mindskinner: a creature an opponent controls is dealt the damage');
+    t.eq(b0 - lib('B'), 0, 'Mindskinner: and nobody mills');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['A'] });
+    t.eq(M.life('A'), 18, "Mindskinner: A's own Shock to A is dealt");
+    // a source A doesn't control
+    b0 = lib('B');
+    M.g.dealDamageToPlayer(M.player('B'), 2, M.bf('C', 'Grizzly Bears'), false);
+    t.eq(M.life('B'), 18, "Mindskinner: C's source deals its damage to B");
+    t.eq(b0 - lib('B'), 0, 'Mindskinner: and no mill');
+    // damage that can't be prevented is dealt, and the opponents mill all the same (CR 615.12)
+    b0 = lib('B'); c0 = lib('C');
+    M.mana('A', '1R'); M.cast('A', M.hand('A', 'Skullcrack'), { targets: ['B'] });
+    t.eq(M.life('B'), 15, "Mindskinner: Skullcrack's damage can't be prevented, and is dealt");
+    t.eq(b0 - lib('B'), 3, 'Mindskinner: Skullcrack: B mills 3 too');
+    t.eq(c0 - lib('C'), 3, 'Mindskinner: Skullcrack: C mills 3 too');
+    // combat: can't be blocked; no damage dealt, so no "deals combat damage to a player" trigger
+    const N = mk({ library: Array(30).fill('Island') });
+    N.toMain('A');
+    const m2 = N.bf('A', 'The Mindskinner');
+    const sw = N.bf('A', 'Sword of Fire and Ice');
+    m2.attachments = [sw.id]; sw.attachedTo = m2.id; N.g.bumpBoard();
+    const giant = N.bf('B', 'Hill Giant');
+    t.no(N.g.canBlock(giant, m2), "Mindskinner: can't be blocked");
+    const h0 = N.zone('A', 'hand').length, nb0 = N.zone('B', 'library').length;
+    N.answer('declareAttackers', () => [{ attackerId: m2.id, defenderId: 'B' }]);
+    N.answer('declareBlockers', () => []);
+    N.toMain('A', 'end'); N.resolve();
+    t.eq(N.life('B'), 20, 'Mindskinner: its combat damage is prevented');
+    t.eq(nb0 - N.zone('B', 'library').length, 12, 'Mindskinner: B mills 12 (10 power, +2 from the Sword)');
+    t.eq(N.zone('A', 'hand').length, h0, 'Mindskinner: no combat damage dealt to a player, so the Sword does not trigger');
+  });
+
+  test('Commanders: Klauth, Unrivaled Ancient — mana for the attackers\' power, only for spells, kept until end of turn', (mk, t) => {
+    t.auto('Klauth, Unrivaled Ancient');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    M.toMain('A');
+    const kl = M.bf('A', 'Klauth, Unrivaled Ancient');
+    const bears = M.bf('A', 'Grizzly Bears');
+    M.bf('A', 'Llanowar Elves', { tapped: true });     // (tapped: no mana of its own for what follows)
+    const kept = () => (M.player('A').restricted || []).length;
+    M.answer('declareAttackers', () => [{ attackerId: kl.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'B' }]);
+    // "in any combination of colors": a colour for each, red for all six
+    M.answer('choose', (ch) => { t.eq(ch.purpose, 'manaColors', 'Klauth: the colours asked'); t.eq(ch.min, 6, 'Klauth: six of them'); return { picks: [3, 3, 3, 3, 3, 3] }; });
+    M.toMain('A', 'declareAttackers');
+    t.ok(M.player('A').restricted.every(r => r.color === 'R'), 'Klauth: six red');
+    t.eq(kept(), 6, 'Klauth: X is 6, Klauth\'s 4 and the Bears\' 2 (the Elves did not attack)');
+    M.mana('A', 'G');     // mana of A's own, of no such kind
+    M.toMain('A', 'combatDamage');
+    t.eq(kept(), 6, 'Klauth: the mana is not lost as steps end');
+    t.eq(M.player('A').pool.G || 0, 0, 'Klauth: other mana in the pool is lost as usual');
+    M.toMain('A', 'end');
+    t.eq(kept(), 6, 'Klauth: still there in the end step');
+    // only to cast spells: not for an ability
+    const stone = M.bf('A', 'Mind Stone');
+    t.no(M.g.activateAbility('A', stone.id, 1, { auto: true, targets: [] }), 'Klauth: not for an activated ability');
+    t.zone(stone, 'battlefield', 'Klauth: Mind Stone stays');
+    // a spell in the end step is paid for with it
+    const b0 = M.life('B');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(M.life('B'), b0 - 3, 'Klauth: a Lightning Bolt paid for with it');
+    t.eq(kept(), 5, 'Klauth: one of the six spent');
+    M.nextTurn('B');
+    t.eq(kept(), 0, 'Klauth: gone once the turn is over');
+  });
+
+  test('Commanders: Lightning, Army of One — stagger: damage to the player hit and their permanents doubled until A\'s next turn', (mk, t) => {
+    t.auto('Lightning, Army of One');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Mountain') });
+    M.toMain('A');
+    const li = M.bf('A', 'Lightning, Army of One');
+    const giant = M.bf('B', 'Hill Giant');
+    const ogre = M.bf('C', 'Hill Giant');
+    const mine = M.bf('A', 'Hill Giant');
+    // Shock before the hit: as printed
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 18, 'Lightning: before it hits, Shock deals 2');
+    M.answer('declareAttackers', () => [{ attackerId: li.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => []);
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.eq(M.life('B'), 15, 'Lightning: 3 combat damage to B');
+    t.eq(M.life('A'), 23, 'Lightning: lifelink');
+    M.toMain('A', 'end');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 11, 'Lightning: now Shock deals 4 to B');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [giant] });
+    t.zone(giant, 'graveyard', "Lightning: and 4 to B's Hill Giant");
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [ogre] });
+    t.eq(ogre.damage, 2, "Lightning: C's Hill Giant is dealt 2, not 4");
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['C'] });
+    t.eq(M.life('C'), 18, 'Lightning: C is dealt 2');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [mine] });
+    t.eq(mine.damage, 2, "Lightning: A's own creature, 2");
+    // any source: B's own, on B's turn
+    M.nextTurn('B');
+    M.mana('B', 'R'); M.cast('B', M.hand('B', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 7, "Lightning: B's own Shock to B, 4 on B's turn");
+    // until A's next turn
+    M.nextTurn('A');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 5, "Lightning: on A's next turn, 2 again");
+  });
+
+  test('Commanders: Halvar, God of Battle // Sword of the Realms — moving an Aura or Equipment at each combat; the Sword', (mk, t) => {
+    t.auto('Halvar, God of Battle // Sword of the Realms');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', 'Halvar, God of Battle // Sword of the Realms');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const giant = M.bf('A', 'Hill Giant');
+    const bs = M.bf('A', 'Bonesplitter');
+    bs.attachedTo = bears.id; bears.attachments = [bs.id];
+    // B's Pacifism on A's Bears, and B's Rancor on B's own creature
+    const pac = M.bf('B', 'Pacifism');
+    pac.attachedTo = bears.id; bears.attachments.push(pac.id);
+    const ogre = M.bf('B', 'Gray Ogre');
+    const ran = M.bf('B', 'Rancor');
+    ran.attachedTo = ogre.id; ogre.attachments = [ran.id];
+    M.g.bumpBoard();
+    t.ok(M.g.hasKw(bears, 'double strike'), 'Halvar: an equipped creature has double strike');
+    t.no(M.g.hasKw(giant, 'double strike'), 'Halvar: one with nothing on it does not');
+    let opts = null;
+    M.answer('pickTarget', (ch) => { opts = ch.options; return { targets: [{ kind: 'object', id: bs.id }, { kind: 'object', id: giant.id }] }; });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.ok(opts && opts[0].some(x => x.id === bs.id) && opts[0].some(x => x.id === pac.id), "Halvar: A's Bonesplitter and B's Pacifism, both on A's creature, are targets");
+    t.no(opts && opts[0].some(x => x.id === ran.id), "Halvar: B's Rancor, on B's creature, is not");
+    t.eq(bs.attachedTo, giant.id, 'Halvar: Bonesplitter moved to the Hill Giant');
+    t.eq(M.g.powerOf(giant), 5, 'Halvar: the Giant gets +2/+0');
+    t.ok(M.g.hasKw(giant, 'double strike'), 'Halvar: and double strike');
+    t.ok(M.g.hasKw(bears, 'double strike'), 'Halvar: the Bears still enchanted');
+    // each combat: B's too; B's Pacifism moves off the Bears to the Giant
+    M.nextTurn('B');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: pac.id }, { kind: 'object', id: giant.id }] }));
+    M.toMain('B', 'beginCombat'); M.resolve();
+    t.eq(pac.attachedTo, giant.id, "Halvar: on B's turn, B's Pacifism moved to A's Giant");
+    t.eq(pac.controller, 'B', 'Halvar: still B\'s');
+    t.no(M.g.hasKw(bears, 'double strike'), 'Halvar: the Bears have nothing on them now');
+    // "you may": no
+    M.nextTurn('A');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bs.id }, { kind: 'object', id: bears.id }] }));
+    M.answer('confirm', { yes: false });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.eq(bs.attachedTo, giant.id, 'Halvar: declined, Bonesplitter stays');
+    // an Aura that can't legally go there stays where it is (CR 701.3b)
+    const N = mk({ library: Array(30).fill('Plains') });
+    N.toMain('A');
+    N.bf('A', 'Halvar, God of Battle // Sword of the Realms');
+    const b2 = N.bf('A', 'Grizzly Bears');
+    const wall = N.bf('A', 'Wall of Stone');
+    const aw = N.bf('A', 'Animate Wall');
+    aw.attachedTo = wall.id; wall.attachments = [aw.id];
+    N.g.bumpBoard();
+    N.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: aw.id }, { kind: 'object', id: b2.id }] }));
+    N.toMain('A', 'beginCombat'); N.resolve();
+    t.eq(aw.attachedTo, wall.id, "Halvar: Animate Wall (Enchant Wall) can't go on the Bears, and stays");
+    // nothing attached to a creature of A's: no "you may" asked, every combat
+    const Q = mk({ library: Array(30).fill('Plains') });
+    Q.toMain('A');
+    Q.bf('A', 'Halvar, God of Battle // Sword of the Realms');
+    Q.bf('A', 'Grizzly Bears');
+    Q.bf('A', 'Bonesplitter');
+    Q.toMain('A', 'beginCombat'); Q.resolve();
+    t.no(Q.asked.some(ch => ch.type === 'confirm' || ch.type === 'pickTarget'), 'Halvar: nothing to move, nothing asked');
+    // a bot: B's Pacifism comes off its Craw Wurm onto the creature that matters least
+    const B = mk({ library: Array(20).fill('Plains') });
+    B.toMain('A');
+    B.player('A').isBot = true;
+    const bot = new B.MTG.bots.BotPlayer(B.g, 'A', 8);
+    B.bf('A', 'Halvar, God of Battle // Sword of the Realms');
+    const wurm = B.bf('A', 'Craw Wurm');
+    const elf = B.bf('A', 'Llanowar Elves');
+    const p2 = B.bf('B', 'Pacifism'); p2.attachedTo = wurm.id; wurm.attachments = [p2.id];
+    B.g.bumpBoard();
+    const toCombat = () => {
+      for (let i = 0; i < 60 && !(B.g.step === 'beginCombat' && !B.g.stack.length && !B.g.pendingChoice && !B.g.pendingTriggers.length); i++) {
+        const ch = B.g.pendingChoice;
+        if (ch && ch.playerId === 'A') bot.doChoice(ch);
+        else if (ch) B.settle();
+        else B.g.passPriority(B.g.priorityPlayer.id, true);
+      }
+    };
+    toCombat();
+    t.eq(p2.attachedTo, elf.id, "Halvar (bot): B's Pacifism moved from the Craw Wurm to the Elves");
+  });
+
+  test('Commanders: The Lord of Pain — each player\'s first spell each turn, its mana value to another player', (mk, t) => {
+    t.auto('The Lord of Pain');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'The Lord of Pain');
+    let opts = null;
+    // A's first spell: Divination (2); A chooses C
+    M.answer('pickTarget', (ch) => { opts = ch.options[0].map(x => x.id); return { targets: [{ kind: 'player', id: 'C' }] }; });
+    M.mana('A', '2U'); M.cast('A', M.hand('A', 'Divination'));
+    t.ok(opts && !opts.includes('A') && opts.includes('B') && opts.includes('C'), "Lord of Pain: another player than the caster, A — B or C");
+    t.eq(M.life('C'), 17, 'Lord of Pain: 3 damage to C, the mana value of Divination');
+    t.eq(M.life('B'), 20, 'Lord of Pain: none to B');
+    // A's second spell this turn: nothing
+    M.mana('A', '2U'); M.cast('A', M.hand('A', 'Divination'));
+    t.eq(M.life('B') + M.life('C') + M.life('A'), 57, "Lord of Pain: A's second spell, no trigger");
+    // B's first spell, on A's turn: Lightning Bolt (1), to A (B can't be chosen)
+    M.mana('B', 'R');
+    opts = null;
+    M.answer('pickTarget', (ch) => { opts = ch.options[0].map(x => x.id); return { targets: [{ kind: 'player', id: 'A' }] }; });
+    M.g.passPriority('A', true);
+    M.cast('B', M.hand('B', 'Lightning Bolt'), { targets: ['C'] });
+    t.ok(opts && !opts.includes('B') && opts.includes('A') && opts.includes('C'), 'Lord of Pain: for B\'s spell, A or C, not B');
+    t.eq(M.life('A'), 19, "Lord of Pain: 1 to A, chosen by A, the Lord's controller");
+    t.eq(M.life('C'), 14, 'Lord of Pain: and the Bolt hit C');
+    // a new turn: A's first spell counts again
+    M.nextTurn('B'); M.nextTurn('C'); M.nextTurn('A');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    const b0 = M.life('B');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['C'] });
+    t.eq(b0 - M.life('B'), 1, "Lord of Pain: on A's next turn, A's first spell again");
+    // two players: when B casts, A is the only other player, and isn't asked
+    const N = mk({ library: Array(30).fill('Island') });
+    N.toMain('A');
+    N.bf('A', 'The Lord of Pain');
+    N.nextTurn('B');
+    N.mana('B', '2U');
+    const n0 = N.asked.length;
+    N.cast('B', N.hand('B', 'Divination'));
+    t.eq(N.life('A'), 17, 'Lord of Pain: B casts, A is dealt 3');
+    t.no(N.asked.slice(n0).some(ch => ch.type === 'pickTarget'), 'Lord of Pain: A, the only other player, is not asked to choose');
+    // "Your opponents can't gain life"
+    N.mana('B', '1W'); N.cast('B', N.hand('B', 'Revitalize'));
+    t.eq(N.life('B'), 20, "Lord of Pain: B can't gain life");
+    t.eq(N.life('A'), 17, "Lord of Pain: B's second spell, no trigger");
+  });
+
+  test('Commanders: Inga and Esika — a card when three or more mana from creatures paid for a creature spell', (mk, t) => {
+    t.auto('Inga and Esika');
+    const setup = (n, elves) => {
+      const M = mk({ library: Array(30).fill('Island') });
+      M.toMain('A');
+      M.bf('A', 'Inga and Esika');
+      const bears = [];
+      for (let i = 0; i < n; i++) bears.push(M.bf('A', 'Grizzly Bears'));
+      for (let i = 0; i < (elves || 0); i++) bears.push(M.bf('A', 'Llanowar Elves'));
+      return { M, bears };
+    };
+    // three Bears tapped for Inga and Esika's mana, three more of A's own: Craw Wurm draws a card
+    let { M, bears } = setup(3);
+    t.ok(M.g.hasKw(bears[0], 'vigilance'), 'Inga and Esika: vigilance');
+    for (const b of bears) t.ok(M.g.tapForMana('A', b.id, 0, 'G'), 'Inga and Esika: a Bear taps for mana');
+    t.eq((M.player('A').restricted || []).length, 3, 'Inga and Esika: mana only for a creature spell, set aside');
+    M.mana('A', '3');
+    let h0 = M.zone('A', 'hand').length;
+    M.cast('A', M.hand('A', 'Craw Wurm'));
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Inga and Esika: three mana from creatures, a card');
+    // two of them: no card
+    ({ M, bears } = setup(2));
+    for (const b of bears) M.g.tapForMana('A', b.id, 0, 'G');
+    M.mana('A', '4');
+    h0 = M.zone('A', 'hand').length;
+    M.cast('A', M.hand('A', 'Craw Wurm'));
+    t.eq(M.zone('A', 'hand').length - h0, 0, 'Inga and Esika: two mana from creatures, no card');
+    // Llanowar Elves' own {G} counts too, beside two of the set-aside kind
+    ({ M, bears } = setup(2, 1));
+    const elf = bears[2];
+    M.g.tapForMana('A', bears[0].id, 0, 'G'); M.g.tapForMana('A', bears[1].id, 0, 'G');
+    t.ok(M.g.tapForMana('A', elf.id, 0), "Inga and Esika: the Elves' own ability");
+    M.mana('A', '3');
+    h0 = M.zone('A', 'hand').length;
+    M.cast('A', M.hand('A', 'Craw Wurm'));
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Inga and Esika: two set aside and the Elves\' {G}: three, a card');
+    // a noncreature spell spends what creatures made last; then a creature spell still has it
+    ({ M, bears } = setup(0, 3));
+    for (const b of bears) M.g.tapForMana('A', b.id, 0);
+    M.mana('A', 'U2');
+    M.cast('A', M.hand('A', 'Divination'));
+    t.eq(M.player('A').pool.G, 3, "Inga and Esika: Divination paid with A's own mana, the Elves' {G}{G}{G} left");
+    h0 = M.zone('A', 'hand').length;
+    M.cast('A', M.hand('A', 'Centaur Courser'));
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Inga and Esika: Centaur Courser, all three from the Elves, a card');
+    // mana from creatures that sat in the pool past a step is gone with the pool
+    ({ M, bears } = setup(0, 3));
+    for (const b of bears) M.g.tapForMana('A', b.id, 0);
+    M.toMain('A', 'beginCombat');
+    M.mana('A', 'GG1');
+    t.no(M.player('A').creatureMana && Object.values(M.player('A').creatureMana).some(Boolean), 'Inga and Esika: the pool emptied, nothing from creatures left in it');
+  });
+
+  test('Commanders: Odric, Master Tactician — with three others attacking, A chooses how B\'s creatures block', (mk, t) => {
+    t.auto('Odric, Master Tactician');
+    const setup = (others) => {
+      const M = mk({ library: Array(30).fill('Plains') });
+      M.toMain('A');
+      const od = M.bf('A', 'Odric, Master Tactician');
+      const mine = [];
+      for (let i = 0; i < others; i++) mine.push(M.bf('A', 'Grizzly Bears'));
+      const wall = M.bf('B', 'Wall of Stone');
+      const bb = M.bf('B', 'Grizzly Bears');
+      M.answer('declareAttackers', () => [od, ...mine].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+      return { M, od, mine, wall, bb };
+    };
+    // Odric and three others: A is asked, about B's creatures; B's Bears block Odric, the Wall stays home
+    let { M, od, mine, wall, bb } = setup(3);
+    let asked = null;
+    M.answer('declareBlockers', (ch) => { asked = ch; return [{ blockerId: bb.id, attackerIds: [od.id] }]; });
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.ok(asked && asked.playerId === 'A' && asked.blockingPlayer === 'B', 'Odric: the blocks are A\'s to declare, for B');
+    t.ok(asked && asked.candidates.includes(wall.id) && asked.candidates.includes(bb.id), "Odric: B's creatures are the candidates");
+    t.zone(bb, 'graveyard', "Odric: B's Bears blocked Odric and died to first strike");
+    t.eq(M.life('B'), 14, 'Odric: the three Bears unblocked, 6 damage');
+    t.eq(wall.blocking.length, 0, "Odric: B's Wall didn't block");
+    // A can't use A's own creatures, nor make a block the rules forbid
+    ({ M, od, mine, wall, bb } = setup(3));
+    let tried = null;
+    M.answer('declareBlockers', (ch, g) => {
+      tried = [g.declareBlockers('A', [{ blockerId: mine[0].id, attackerIds: [od.id] }]), g.declareBlockers('B', [])];
+      return [];
+    });
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.ok(tried && !tried[0] && !tried[1], "Odric: A's own Bears can't block, and B isn't the one asked");
+    t.eq(M.life('B'), 20 - 3 - 6, 'Odric: no blocks, all of it through');
+    // only two others: B blocks as usual
+    ({ M, od, mine, wall, bb } = setup(2));
+    asked = null;
+    M.answer('declareBlockers', (ch) => { asked = ch; return []; });
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.ok(asked && asked.playerId === 'B' && !asked.blockingPlayer, 'Odric: with only two others, B declares B\'s own blocks');
+    // a requirement still holds: a lured Odric must be blocked by all able
+    ({ M, od, mine, wall, bb } = setup(3));
+    const lure = M.bf('A', 'Lure');
+    lure.attachedTo = od.id; od.attachments = [lure.id]; M.g.bumpBoard();
+    let refused = null;
+    M.answer('declareBlockers', (ch, g) => {
+      refused = !g.declareBlockers('A', []);
+      return [{ blockerId: wall.id, attackerIds: [od.id] }, { blockerId: bb.id, attackerIds: [od.id] }];
+    });
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.ok(refused, 'Odric: with Lure on Odric, "no blocks" is refused');
+    t.eq(od.blockedBy.length, 2, 'Odric: both of B\'s creatures block Odric');
+    // a bot with Odric: none of B's creatures block
+    const B = mk({ library: Array(30).fill('Plains') });
+    B.toMain('A');
+    B.player('A').isBot = true;
+    const bot = new B.MTG.bots.BotPlayer(B.g, 'A', 8);
+    const od2 = B.bf('A', 'Odric, Master Tactician');
+    const four = [od2, B.bf('A', 'Grizzly Bears'), B.bf('A', 'Grizzly Bears'), B.bf('A', 'Grizzly Bears')];
+    const w2 = B.bf('B', 'Wall of Stone');
+    B.answer('declareAttackers', () => four.map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    let botAsked = null;
+    for (let i = 0; i < 80 && !(B.g.step === 'combatDamage' || B.g.step === 'endCombat'); i++) {
+      const ch = B.g.pendingChoice;
+      if (ch && ch.type === 'declareBlockers') { botAsked = ch; bot.doChoice(ch); }
+      else if (ch) B.settle();
+      else B.g.passPriority(B.g.priorityPlayer.id, true);
+    }
+    t.ok(botAsked && botAsked.playerId === 'A', 'Odric (bot): the bot is asked');
+    t.eq(w2.blocking.length, 0, "Odric (bot): B's Wall doesn't block");
+  });
+
+  test('Commanders: Halvar // Sword of the Realms — the Sword: +2/+0, vigilance, back to hand when it dies', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const sw = M.hand('A', 'Halvar, God of Battle // Sword of the Realms');
+    M.mana('A', '1W');
+    const offered = M.g.playableNow('A').filter(x => x.objId === sw.id);
+    t.ok(offered.some(x => x.face === 1), 'Sword of the Realms: its back face offered for {1}{W}');
+    t.no(offered.some(x => !x.face), 'Sword of the Realms: Halvar, at four mana, not yet');
+    t.eq(JSON.stringify(M.g.viewFor('A').splitFaces[sw.id]), '[1]', 'Sword of the Realms: the view says which face');
+    M.cast('A', sw, { face: 1 });
+    t.zone(sw, 'battlefield', 'Sword of the Realms: cast as its back face');
+    t.eq(sw.face, 1, 'Sword of the Realms: on the battlefield back face up');
+    t.ok(sw.analysis().isEquipment, 'Sword of the Realms: an Equipment, not a God');
+    const bears = M.bf('A', 'Grizzly Bears');
+    M.mana('A', '1W');
+    M.activate('A', sw, 0, { targets: [bears] });
+    t.eq(sw.attachedTo, bears.id, 'Sword of the Realms: equipped');
+    t.eq(M.g.powerOf(bears), 4, 'Sword of the Realms: +2/+0');
+    t.ok(M.g.hasKw(bears, 'vigilance'), 'Sword of the Realms: vigilance');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [bears] });
+    t.zone(bears, 'hand', 'Sword of the Realms: the creature that died returns to its owner\'s hand');
+    // gone from the battlefield, the card is Halvar again
+    M.g.moveObject(sw, 'hand');
+    t.eq(sw.face, 0, 'Sword of the Realms: in hand, front face up');
+    // countered as the Sword, it goes to the graveyard front face up
+    M.mana('A', '1W');
+    M.cast('A', sw, { face: 1, resolve: false });
+    t.eq(sw.face, 1, 'Sword of the Realms: on the stack as the Sword');
+    M.g.passPriority('A', true);
+    M.mana('B', 'UU');
+    M.cast('B', M.hand('B', 'Counterspell'), { targets: [M.stackTarget(sw)] });
+    t.zone(sw, 'graveyard', 'Sword of the Realms: countered');
+    t.eq(sw.face, 0, 'Sword of the Realms: in the graveyard as Halvar');
+  });
 };

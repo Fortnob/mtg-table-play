@@ -83,6 +83,13 @@
           const incoming = atk.reduce((s, o) => s + (o.power || 0), 0);
           const pend = this.blockPlan && this.blockPlan.pendingBlocker;
           const me = this.me;
+          // Odric, Master Tactician: another player's creatures, and how they block, are yours to choose (blockingPlayer)
+          const them = ch.blockingPlayer ? ((this.live || this.view).players || []).find(p => p.id === ch.blockingPlayer) : null;
+          if (them) {
+            return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker it blocks` : `Choose ${them.name}'s blockers`,
+              `You choose which of ${them.name}'s creatures block, and how · <b>${incoming}</b> damage coming at them (${them.life} life).` +
+              (pend ? '' : ` ${press()} one of their creatures, then the attacker it blocks, or press <b>No blocks</b>.`));
+          }
           return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers',
             `${atk.length} attacker${atk.length === 1 ? '' : 's'} · <b>${incoming}</b> damage coming at you${me ? ` (you have ${me.life})` : ''}.` +
             (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));

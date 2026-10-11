@@ -246,7 +246,7 @@ declare namespace MTG {
     yielding: 'turn' | 'response' | null;
     /** objects with something to do right now (only for the player with priority) */
     playable: Id[];
-    /** split cards in hand: which halves (0 left, 1 right) can be cast now */
+    /** split cards in hand, adventurers, modal double-faced cards with a spell on the back: which faces (0 left/front, 1 right/back) can be cast now */
     splitFaces?: Record<Id, number[]>;
     /** split cards with fuse that can be cast with both halves now */
     fusable?: Id[];
@@ -321,7 +321,7 @@ declare namespace MTG {
   interface Defender { kind: 'player' | 'object'; id: Id; name: string }
 
   interface DeclareAttackersChoice extends ChoiceBase { type: 'declareAttackers'; candidates: Id[]; defenders: Defender[] }
-  interface DeclareBlockersChoice extends ChoiceBase { type: 'declareBlockers'; attackers: Id[]; candidates: Id[] }
+  interface DeclareBlockersChoice extends ChoiceBase { type: 'declareBlockers'; attackers: Id[]; candidates: Id[]; /** Odric, Master Tactician: whose creatures these are, when someone else chooses how they block */ blockingPlayer?: Id }
   interface DiscardChoice extends ChoiceBase { type: 'discard' | 'discardToHandSize'; count: number; candidates?: Id[]; optional?: boolean }
   interface SacrificeChoice extends ChoiceBase { type: 'sacrifice'; count: number; filter?: string | null; candidates?: Id[]; optional?: boolean; /** Doomfall: the chosen permanent is exiled, not sacrificed */ exileInstead?: boolean }
   interface ScryChoice extends ChoiceBase { type: 'scry' | 'surveil'; count: number; cards: ChoiceCard[] }

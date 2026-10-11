@@ -1269,6 +1269,8 @@
         return out;
       } },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
+    { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
     // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
     // (Troyan, Gutsy Explorer: "spells with mana value 5 or greater or spells with {X} in their mana costs" — spendAnyOrX)
     { re: /^Spend this mana only to cast (creature )?spells with mana value (\d+) or greater or (creature )?spells with \{X\} in their mana costs\.?$/i,
@@ -1365,6 +1367,10 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
     { re: /^Each player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'each' }) },
+    /* Halvar, God of Battle: "attach target Aura or Equipment attached to a creature you control to target creature you
+       control" — whoever controls the Aura or Equipment; it is the creature it is on that is yours (attachedToYourCreature) */
+    { re: /^Attach target Aura or Equipment attached to a creature you control to target creature you control\.?$/i,
+      make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', filter: 'Aura or Equipment attached to a creature you control', subtypes: ['aura', 'equipment'], attachedToYourCreature: true }, { type: 'creature', controller: 'you' }] }) },
     // Codsworth, Handy Helper: "Attach target Aura or Equipment you control to target creature you control."
     { re: /^Attach target Aura or Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Aura or Equipment you control', subtypes: ['aura', 'equipment'] }, { type: 'creature', controller: 'you' }] }) },
@@ -4155,12 +4161,20 @@
     // High Tide, Bubbling Muck: "Until end of turn, whenever a player taps an Island for mana, that player adds an additional {U}."
     { re: /^Until end of turn, whenever a player taps an? (Island|Swamp|Mountain|Forest|Plains|land) for mana, that player adds an additional (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'extraManaThisTurn', filter: m[1].toLowerCase(), symbols: MANA.parse(m[2]) }) },
+    /* Odric, Master Tactician: "you choose which creatures block this combat and how those creatures block" — the
+       blockers declared by this player for every defending player (chooseBlocksCombat) */
+    { re: /^You choose which creatures block this combat and how those creatures block\.?$/i, make: () => ({ op: 'chooseBlocksCombat' }) },
     // Yawgmoth's Will, Gaea's Will: "Until end of turn, you may play lands and cast spells from your graveyard."
     { re: /^Until end of turn, you may (play lands and cast spells|cast spells|play lands) from your graveyard\.?$/i,
       make: (m) => ({ op: 'playFromThisTurn', zone: 'graveyard', what: /play lands and/i.test(m[1]) ? 'any' : /cast/i.test(m[1]) ? 'spell' : 'land' }) },
     // Yawgmoth's Will: "If a card would be put into your graveyard from anywhere this turn, exile that card instead."
     { re: /^If a card would be put into your graveyard from anywhere this turn, exile (?:that card|it) instead\.?$/i,
       make: () => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'gyExileTurn', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile', who: 'all', owner: 'you' } }) },
+    /* Lightning, Army of One: "until your next turn, if a source would deal damage to that player or a permanent that
+       player controls, it deals double that damage instead." — the player the trigger is about (staggerDouble) */
+    { re: /^Until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage (?:to that player or permanent )?instead\.?$/i,
+      make: () => ({ op: 'floatingReplace', until: 'yourNextTurn', victimTriggerPlayer: true,
+        ef: { op: 'replace', id: 'dmgStagger', event: 'damage', who: 'any', how: 'double' } }) },
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
@@ -6503,7 +6517,8 @@
     // All-Fates Scroll, Emil: "the number of differently named lands you control" — the count Awakened Amalgam's words already make
     if ((m = p.match(/^the number of (differently named (?:lands|artifact tokens|creature tokens|tokens|artifacts|creatures))(?: you control)$/i))) return done(countSpec(m[1], 1, 'you'));
     // Towering Titan: "the total toughness of other creatures you control" (totalStat)
-    if ((m = p.match(/^the total (power|toughness) of ((?:other )?creatures you control)$/i))) { const sc = scopeOf(m[2]); if (sc) return done({ totalStat: m[1].toLowerCase(), of: sc }); }
+    // (Klauth, Unrivaled Ancient: "the total power of attacking creatures" — everyone's attackers)
+    if ((m = p.match(/^the total (power|toughness) of ((?:other )?creatures you control|attacking creatures)$/i))) { const sc = scopeOf(m[2]); if (sc) return done({ totalStat: m[1].toLowerCase(), of: sc }); }
     // Nighthowler: "the number of creature cards in all graveyards"
     if ((m = p.match(/^the number of ([a-z]+) cards in all graveyards$/i))) return done({ cardsInAllGraveyards: m[1].toLowerCase() });
     // Balor: "the number of cards in their hand" — the player the trigger is about
@@ -6957,6 +6972,11 @@
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     // (modifiedTarget: what is on it, as the game reads it)
     for (const w of ['modified', 'equipped', 'enchanted']) if (spec[w] && !(ctx && ctx.fits && ctx.fits(obj, w))) return false;
+    // Halvar, God of Battle: "Aura or Equipment attached to a creature you control" (attachedToYourCreature)
+    if (spec.attachedToYourCreature) {
+      const h = ctx && ctx.hostOf ? ctx.hostOf(obj) : null;
+      if (!h || h.zone !== 'battlefield' || h.controller !== me || !(ctx.isCreature ? ctx.isCreature(h) : (h.analysis() || {}).isCreature)) return false;
+    }
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
@@ -8048,6 +8068,21 @@
         const pre = parseSentenceList(splitSentences(m[1].trim()));
         const e = turnTrigger(m[2]);
         return pre.auto && e ? [...pre.effects, e] : null;
+      } },
+    /* The Lord of Pain: "choose another target player. The Lord of Pain deals damage equal to that spell's mana value to
+       the chosen player." — any player but the one who cast it (notTriggerPlayer) */
+    { re: /^Choose another target player\. (?:CARDNAME|It) deals damage equal to that spell'?s mana value to the chosen player\.?$/i,
+      make: () => [{ op: 'damage', n: { triggerSpellMv: true }, targets: [{ type: 'player', notTriggerPlayer: true }] }] },
+    /* Nissa, Resurgent Animist: "Then if this is the second time this ability has resolved this turn, reveal cards from
+       the top of your library until you reveal an Elf or Elemental card. Put that card into your hand and the rest on
+       the bottom of your library in a random order." — both sentences are what the "if" is about */
+    { re: /^((?:[^.]+\.\s+)*?)(?:Then )?[Ii]f ([^,.]+), (reveal cards from the top of your library until you reveal [^.]+\.\s+Put [^.]+\.?)$/,
+      make: (m) => {
+        const cond = condOf(m[2]);
+        const e = cond && revealUntilOf(m[3]);
+        if (!e) return null;
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        return pre.auto ? [...pre.effects, { op: 'ifCond', cond, then: [e] }] : null;
       } },
     /* "Reveal cards from the top of your library until you reveal a
        creature card. Put that card into your hand and the rest on the
@@ -9761,6 +9796,9 @@
     [/^(?:at least )?(\w+)(?: or more)? (?:(white|blue|black|red|green|colorless) )?mana was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? Object.assign({ kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[3]) },
         m[2] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: 'C' }[m[2].toLowerCase()] } : {}) : null)],
+    // Inga and Esika: "if three or more mana from creatures was spent to cast it" (manaFromCreatures)
+    [/^(\w+) or more mana from creatures was spent to cast (this spell|that spell|it|CARDNAME)$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[2]), fromCreatures: true } : null)],
     // Seed Spark, Rolling Spoil: "if {G} was spent to cast this spell" — one mana of that colour (manaSymbolSpent)
     [/^\{([WUBRGC])\} was spent to cast (this spell|it|CARDNAME)$/, (m) => ({ kind: 'manaSpentAtLeast', n: 1, color: m[1], of: spentOf(m[2]) })],
     // Alchemy: "this card's intensity is 3 or more"
@@ -11947,7 +11985,9 @@
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
           // Zendikons: "return that card to its owner's hand" — the land that died
-          if (parsed.effects.length === 1 && parsed.effects[0].op === 'manual' && /^return that card to its owner'?s hand\.?$/i.test(parsed.effects[0].text || '')) {
+          // (Sword of the Realms: "return it to its owner's hand" — the card that died, from the graveyard, not a permanent to bounce)
+          if (parsed.effects.length === 1 && (parsed.effects[0].op === 'manual' || (parsed.effects[0].op === 'bounce' && parsed.effects[0].scope === 'triggerObject')) &&
+            /^return (?:that card|it) to its owner'?s hand\.?$/i.test(parsed.effects[0].text || '')) {
             parsed.effects = [{ op: 'returnItToHand', ownerHand: true, text: parsed.effects[0].text }];
             parsed.auto = true;
           }
@@ -14498,6 +14538,10 @@
     { re: /^If a source would deal damage to you, prevent that damage and put an? ([a-z]+) counter on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgToCounters', event: 'damage', who: 'any', how: 'countersOnSelf', counterKind: m[1].toLowerCase(), n: 1,
         toYou: true, toPlayerOnly: true, prevention: true }) },
+    /* The Mindskinner: "If a source you control would deal damage to an opponent, prevent that damage and each
+       opponent mills that many cards." — to the player, not their permanents (oppsMillInstead) */
+    { re: /^If a source you control would deal damage to an opponent, prevent that damage and each opponent mills that many cards\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgOppsMill', event: 'damage', who: 'you', how: 'oppsMillInstead', toOpponent: true, toPlayerOnly: true }) },
     // Angel of Suffering: "If damage would be dealt to you, prevent that damage and mill twice that many cards."
     { re: /^If damage would be dealt to you, prevent that damage and mill (twice )?that many cards\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgToMill', event: 'damage', who: 'any', how: 'millInstead', mult: m[1] ? 2 : 1,

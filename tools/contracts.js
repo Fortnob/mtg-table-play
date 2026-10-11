@@ -178,7 +178,7 @@ const ChooseAnswer = obj({ picks: opt(arr(either('an id or an option index', S.i
   order: opt(arr(either('an id or an option index', S.id, S.int))) }, { closed: true });
 const CHOICES = {
   declareAttackers: choice({ candidates: arr(id), defenders: arr(Defender, { min: 1 }) }),
-  declareBlockers: choice({ attackers: arr(id, { min: 1 }), candidates: arr(id) }),
+  declareBlockers: choice({ attackers: arr(id, { min: 1 }), candidates: arr(id), blockingPlayer: opt(id) }),
   discard: choice({ count: nat, candidates: opt(arr(id)), optional: opt(bool) }),
   discardToHandSize: choice({ count: nat }),
   sacrifice: choice({ count: nat, filter: opt(maybe(str)), candidates: opt(arr(id)), optional: opt(bool) }),
@@ -569,7 +569,8 @@ function checkChoice(ch, game, opts) {
         const n = C.normalize(ch);
         if (n.min !== ch.min || n.max !== ch.max) bad('', `min/max ${ch.min}/${ch.max} are not what normalize() makes of them (${n.min}/${n.max})`);
         if (n.min > n.max) bad('.min', `min ${n.min} is more than max ${n.max}`);
-        if (!ch.optional && n.min > 0 && C.candidates(n).length < n.min) bad('', `needs ${n.min} picks from ${C.candidates(n).length}`);
+        // (an option that may be picked again — a colour for each of Klauth's X mana — is enough on its own: repeat)
+        if (!ch.optional && n.min > 0 && C.candidates(n).length < (n.repeat ? 1 : n.min)) bad('', `needs ${n.min} picks from ${C.candidates(n).length}`);
       }
       break;
     }
