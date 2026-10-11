@@ -7550,6 +7550,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it without paying its mana cost
+       if it's a spell with lesser mana value. If you don't cast it, put it into your hand." — the card revealed, lesser
+       than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
+    { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if it'?s a spell with lesser mana value\. If you don'?t cast it, put (?:it|that card) into your hand\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, lesserMv: true, elseHand: true }] },
     /* Gluntch, the Bestower: "choose a player. They put two +1/+1 counters on a creature they control. Choose a
        second player to draw a card. Then choose a third player to create two Treasure tokens." — three different
        players, any one of them you; the first chooses the creature; with no player left to choose, that part

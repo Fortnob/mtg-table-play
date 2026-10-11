@@ -20915,6 +20915,8 @@
               : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
               // Gríma, Saruman's Footman, Jodah, the Unifier: "You may cast that card without paying its mana cost." — the card the digging stopped at (thatCard)
               : e.from === 'thatCard' ? (this._exileUntil ? this._exileUntil.hits.slice(-1) : [this._lastExiled].filter(Boolean))
+              // Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it …" — the card revealed, still there (revealedTop)
+              : e.from === 'revealed' ? [this._lastRevealed].filter(id => id && (this.obj(id) || {}).zone === 'library')
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
@@ -20923,6 +20925,9 @@
           if (pool === SUSPEND) { if (r) delete r.marks[slot]; return SUSPEND; }
           const most = e.upTo == null ? Infinity : n(e.upTo);
           const maxMv = e.maxMv == null ? null : n(e.maxMv);
+          /* Rashmi, Eternities Crafter: "if it's a spell with lesser mana value" — less than the spell the trigger is
+             about; with no such spell, nothing is (lesserMv) */
+          const below = e.lesserMv ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId) ? n({ triggerSpellMv: true }) : -1) : null;
           for (let k = 0; k < pool.length; k++) {
             if (r && r.marks[slot + 'n'] >= most) break;
             const c = this.obj(pool[k]);
@@ -20943,6 +20948,7 @@
             }
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
+            if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             const yes = e.must ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
@@ -20963,6 +20969,8 @@
             const it = this.stack.find(st => st.objId === c.id);
             if (it && e.exileAfter) it.viaAfter = 'exile';
           }
+          // Rashmi, Eternities Crafter: "If you don't cast it, put it into your hand." (elseHand)
+          if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && c.zone === 'library') this.moveObject(c, 'hand'); }
           break;
         }
 

@@ -28368,4 +28368,57 @@ module.exports = (test) => {
     toMain2();
     t.no(M.asked.slice(a1).some(ch => ch.type === 'pickCard'), "Florian: not on B's turn");
   });
+
+  test('Commanders: Rashmi, Eternities Crafter — the first spell each turn reveals the top card: cast free if cheaper, else into the hand', (mk, t) => {
+    t.auto('Rashmi, Eternities Crafter');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Rashmi, Eternities Crafter');
+    // Grizzly Bears (2), Lightning Bolt on top (1): cast for nothing at B
+    const bolt = M.top('A', 'Lightning Bolt');
+    let asked = null;
+    M.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.ok(asked && /Lightning Bolt/.test(asked.prompt), 'Rashmi: asked to cast the Lightning Bolt');
+    t.eq(M.life('B'), 17, 'Rashmi: Lightning Bolt cast for nothing');
+    t.zone(bolt, 'graveyard');
+    t.eq(M.player('A').pool.R || 0, 0);
+    // the second spell this turn: nothing
+    const opt = M.top('A', 'Opt');
+    const a0 = M.asked.length;
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.zone(opt, 'library', 'Rashmi: only the first spell each turn');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'confirm'));
+    // next turn: Lightning Bolt (1) first, Grizzly Bears on top (2) — not lesser, into the hand unasked
+    M.nextTurn('A');
+    const bear = M.top('A', 'Grizzly Bears');
+    const a1 = M.asked.length;
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.zone(bear, 'hand', 'Rashmi: a costlier card goes to the hand');
+    t.no(M.asked.slice(a1).some(ch => ch.type === 'confirm'), 'Rashmi: not offered');
+    // next turn: an Opt on top, declined — into the hand
+    M.nextTurn('A');
+    const opt2 = M.top('A', 'Opt');
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.zone(opt2, 'hand', "Rashmi: if you don't cast it, into your hand");
+    // a land on top: not a spell, into the hand
+    M.nextTurn('A');
+    const mtn = M.top('A', 'Mountain');
+    const a2 = M.asked.length;
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.zone(mtn, 'hand', 'Rashmi: a land goes to the hand');
+    t.no(M.asked.slice(a2).some(ch => ch.type === 'confirm'), 'Rashmi: a land is not offered');
+    // B's first spell: not Rashmi's
+    M.nextTurn('B');
+    const top = M.g.zones.A.library[0];
+    M.mana('B', '1G');
+    M.cast('B', M.hand('B', 'Grizzly Bears'));
+    t.zone(top, 'library', "Rashmi: B's spells don't count");
+  });
 };
