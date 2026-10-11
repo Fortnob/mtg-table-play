@@ -22999,7 +22999,8 @@
           const rest = kept.concat(Array.from(byId.values()));
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
-          this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId });
+          // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
+          this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId, amount: looked.length });
           break;
         }
         case 'sacrifice': {

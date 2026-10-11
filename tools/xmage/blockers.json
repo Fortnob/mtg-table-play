@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10374,
+  "needed": 10372,
   "gainedCards": 949,
-  "linesNeeded": 11011,
+  "linesNeeded": 11009,
   "linesGained": 1110,
   "gained": {
    "all": 949,
@@ -2458,20 +2458,6 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Celeborn the Wise",
-    "Legolas, Counter of Kills",
-    "Elminster",
-    "Glorfindel, Dauntless Rescuer"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
    "score": 7,
    "lines": 7,
@@ -2896,6 +2882,19 @@
     "Tribute to Horobi // Echo of Death's Wail",
     "Geyadrone Dihada",
     "Aura Thief"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {
@@ -5793,16 +5792,6 @@
    ]
   },
   {
-   "what": "becomes the target, under anyone",
-   "score": 3,
-   "lines": 3,
-   "cards": [
-    "Willbreaker",
-    "Horobi, Death's Wail",
-    "Cowardice"
-   ]
-  },
-  {
    "what": "CommittedCrimeTriggeredAbility",
    "score": 3,
    "lines": 3,
@@ -6438,6 +6427,16 @@
     "Guardian of the Gateless",
     "Serene Master",
     "Whip Vine"
+   ]
+  },
+  {
+   "what": "CommanderChooseColorAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Clara Oswald",
+    "Faceless One",
+    "The Prismatic Piper"
    ]
   }
  ],
@@ -7796,19 +7795,6 @@
    ]
   },
   {
-   "what": "ScryTriggeredAbility",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Elvish Mariner",
-    "Elrond, Master of Healing",
-    "Galadriel of Lothlórien",
-    "Celeborn the Wise",
-    "Legolas, Counter of Kills",
-    "Elminster"
-   ]
-  },
-  {
    "what": "DealsCombatDamageToAPlayerOrBattleTriggeredAbility",
    "score": 7,
    "cards": 7,
@@ -8180,6 +8166,19 @@
     "Bard's Company",
     "Scarring Memories",
     "Illusion Spinners"
+   ]
+  },
+  {
+   "what": "ScryTriggeredAbility",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Elvish Mariner",
+    "Elrond, Master of Healing",
+    "Galadriel of Lothlórien",
+    "Legolas, Counter of Kills",
+    "Elminster",
+    "Glorfindel, Dauntless Rescuer"
    ]
   },
   {

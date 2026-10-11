@@ -23043,4 +23043,29 @@ module.exports = (test) => {
     S.cast('B', S.hand('B', 'Giant Growth'), { targets: [{ kind: 'object', id: b2.id }] }); S.resolve();
     t.eq(Number(b2.counters.bounty) || 0, 0, "Shay Cormac: B's spell on B's Bears, no bounty");
   });
+
+  test("Willbreaker: what A's spells aim at among B's creatures is A's, for as long as A controls it", (mk, t) => {
+    t.auto('Willbreaker');
+    const W = mk({ library: Array(10).fill('Forest') });
+    W.toMain('A');
+    const wb = W.bf('A', 'Willbreaker'), bb = W.bf('B', 'Grizzly Bears');
+    W.mana('A', 'G');
+    W.cast('A', W.hand('A', 'Giant Growth'), { targets: [{ kind: 'object', id: bb.id }] }); W.resolve();
+    t.eq(bb.controller, 'A', "Willbreaker: B's Bears targeted by A's Giant Growth are A's");
+    W.g.moveObject(wb, 'graveyard'); W.g.checkStateBasedActions(); W.resolve();
+    t.eq(bb.controller, 'B', 'Willbreaker gone, the Bears go back to B');
+  });
+
+  test('Commanders: Celeborn the Wise — for each card looked at while scrying', (mk, t) => {
+    t.auto('Celeborn the Wise');
+    // Celeborn: scry 2, +2/+2 until end of turn; scry 1, +1/+1 more
+    const C = mk({ library: Array(10).fill('Forest') });
+    C.toMain('A');
+    const cb = C.bf('A', 'Celeborn the Wise');
+    const p0 = C.g.powerOf(cb), t0 = C.g.toughnessOf(cb);
+    C.g._runEffects([{ op: 'scry', n: 2 }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); C.resolve();
+    t.ok(C.g.powerOf(cb) === p0 + 2 && C.g.toughnessOf(cb) === t0 + 2, 'Celeborn: two cards looked at, +2/+2');
+    C.g._runEffects([{ op: 'scry', n: 1 }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); C.resolve();
+    t.eq(C.g.powerOf(cb), p0 + 3, 'Celeborn: one more card, +1/+1 more');
+  });
 };

@@ -2459,6 +2459,9 @@
     { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
       make: (m) => Object.assign({ op: 'gainControl', until: 'endNextTurn' },
         /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : /^that/i.test(m[1]) ? { scope: 'triggerObject' } : {}) },
+    // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
+    { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
     // Archmage's Charm: "...with mana value 1 or less"
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
@@ -4384,6 +4387,9 @@
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'attached' }) },
     { re: /^(?:CARDNAME|This creature|This permanent) gets ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'self' }) },
+    // Celeborn the Wise: "gets +1/+1 until end of turn for each card looked at while scrying this way" (selfPumpEach)
+    { re: /^(?:CARDNAME|This creature) gets \+1\/\+1 until end of turn for each card looked at while scrying this way\.?$/i,
+      make: () => ({ op: 'pump', p: 'triggerAmount', t: 'triggerAmount', duration: 'eot', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature) gains ([a-z ]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grant', keywords: [U.titleCase(m[1].trim())], scope: 'self' }) },
     { re: /^Up to one target creature can'?t be blocked this turn\.?$/i,
