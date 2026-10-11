@@ -3037,7 +3037,7 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .seat.focus-in-r { animation: seatInR .38s cubic-bezier(.2, .8, .2, 1) both; }
 .seat.focus-in-l { animation: seatInL .38s cubic-bezier(.2, .8, .2, 1) both; }
 /* a sweep of light across it as it lands */
-.seat.focus-in-r::after, .seat.focus-in-l::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: inherit;
+.seat.focus-in-r:not(.dead)::after, .seat.focus-in-l:not(.dead)::after { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 4; border-radius: inherit;
   background: linear-gradient(100deg, transparent 35%, rgba(246, 220, 140, .14) 50%, transparent 65%) no-repeat; background-size: 250% 100%;
   animation: seatSweep .45s ease-out both; }
 .seat.focus-in-l::after { animation-direction: reverse; }
@@ -3119,6 +3119,26 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .dr-opt-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
 @media (prefers-reduced-motion: reduce) { .big-btn.respond, .dock-respond { animation: none; } }
 :root[data-reduce-motion] .big-btn.respond, :root[data-reduce-motion] .dock-respond { animation: none; }
+
+/* ---------- a player out of the game ---------- */
+/* their board fades and a stamp says so, for everyone at the table */
+.seat.dead { opacity: 1; filter: none; }
+.seat.dead > :not(.seat-hud) { opacity: .42; filter: grayscale(.85); transition: opacity .6s, filter .6s; }
+.seat.dead::after { content: 'Defeated'; position: absolute; left: 50%; top: 50%; z-index: 6; pointer-events: none;
+  transform: translate(-50%, -50%) rotate(-7deg); padding: 7px 24px; border: 3px solid rgba(226, 86, 74, .9); border-radius: 10px;
+  font: 900 clamp(18px, 2.4vw, 30px)/1 var(--serif); letter-spacing: .22em; text-transform: uppercase; color: #ff9484;
+  background: rgba(24, 8, 8, .6); box-shadow: 0 0 30px rgba(226, 86, 74, .35); text-shadow: 0 2px 6px #000;
+  animation: defeatStamp .55s cubic-bezier(.2, 1.4, .4, 1) both; }
+@keyframes defeatStamp { from { opacity: 0; transform: translate(-50%, -50%) rotate(-7deg) scale(1.9); } }
+.seat.mine.dead::after { content: 'You were defeated'; letter-spacing: .12em; }
+.oplate.dead { position: relative; }
+.oplate.dead::before { content: 'Defeated'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%) rotate(-6deg); pointer-events: none;
+  padding: 2px 7px; border: 2px solid rgba(226, 86, 74, .9); border-radius: 6px; font: 800 10px/1 var(--font); letter-spacing: .12em;
+  text-transform: uppercase; color: #ff9484; background: rgba(24, 8, 8, .75); }
+.life-orb.dead { position: relative; }
+.life-orb.dead::after { content: '\2715'; position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none;
+  font: 900 30px/1 var(--font); color: rgba(255, 120, 100, .9); text-shadow: 0 2px 6px #000; }
+@media (prefers-reduced-motion: reduce) { .seat.dead::after { animation: none; } }
 /* ============================================================
    feel.css - the small physical touches (src/12f-ui-feel.js)
 
@@ -24606,6 +24626,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
+        /* Varina, Lich Queen: "Whenever you attack with one or more Zombies, draw that many cards, then discard that many
+           cards. You gain that much life." — as many as the Zombies attacking (attackingOfTypeCount) */
+        if (trig.event === 'youAttack' && (trig.extraOf || trig.extra) && parsed.effects.length === 2 && parsed.effects[0] && parsed.effects[0].op === 'manual' &&
+            /^draw that many cards, then discard that many cards\.?$/i.test(parsed.effects[0].text || '') && parsed.effects[1] && parsed.effects[1].op === 'gainLife' &&
+            /^You gain that much life\.?$/i.test(parsed.effects[1].text || '')) {
+          const ex = trig.extraOf ? trig.extraOf(line.match(trig.re)) : trig.extra;
+          if (ex && ex.attackersOfType) {
+            const cnt = { attackingOfType: ex.attackersOfType };
+            parsed.effects = [{ op: 'draw', n: cnt, who: 'you', text: parsed.effects[0].text }, { op: 'discard', n: cnt, who: 'you', text: parsed.effects[0].text },
+              { op: 'gainLife', n: cnt, who: 'you', text: parsed.effects[1].text }];
+            parsed.auto = true;
+          }
+        }
         /* Lathiel, the Bounteous Dawn: "if you gained life this turn, distribute up to that many +1/+1 counters among
            any number of other target creatures" — the life gained (distributeLifeGained) */
         if (condition && condition.kind === 'gainedLifeThisTurn' && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'manual') {
@@ -43439,6 +43472,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return Number(tdA.amount) || 0;
         }
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
+        // Varina, Lich Queen: "that many" — this player's attacking creatures of that type (attackingOfTypeCount)
+        if (v && typeof v === 'object' && v.attackingOfType) return ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
+          return x && x.controller === ctx.controller && this._hasCreatureType(x, v.attackingOfType); }).length;
         if (v && typeof v === 'object' && v.attackingOther) {
           const want = String(v.attackingOther).toLowerCase();
           let k = 0;
@@ -53300,7 +53336,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const p = this.player(playerId);
       if (!p) return;
       p.conceded = reason !== 'time';
-      this.playerLoses(p, reason === 'time' ? 'time' : 'concede');
+      // 'left': gone from an online table, by leaving or by not coming back; the others read "left the game"
+      this.playerLoses(p, reason === 'time' ? 'time' : reason === 'left' ? 'timeout' : 'concede');
       if (this.priorityPlayer && this.priorityPlayer.id === playerId) this.passPriority(playerId, true);
       if (this.activePlayer.id === playerId && !this.over) this._nextTurn();
       this.checkStateBasedActions();
@@ -89343,7 +89380,10 @@ Sideboard
 
     seatSub(p) {
       const v = this.view;
-      if (p.hasLost) return 'Out of the game' + (p.lossReason ? ' — ' + p.lossReason : '');
+      // why, in words (the engine keeps a short name for it)
+      const why = { life: 'no life left', poison: 'ten poison counters', deck: 'drew from an empty library', commander: '21 commander damage',
+        concede: 'conceded', timeout: 'left the game', time: 'ran out of time' }[p.lossReason] || p.lossReason;
+      if (p.hasLost) return 'Defeated' + (why ? ' — ' + why : '');
       const bits = [];
       if (p.isBot) {
         const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
@@ -103242,6 +103282,8 @@ Sideboard
       this.botRunner = null;
       /** @type {any} the game clock, when the table plays with one (src/06e-clock.js) */
       this.clock = null;
+      /** @type {Map<string, any>|null} seats that have dropped out of an online game, each with the timer that puts it out if it does not come back */
+      this._gone = null;
       this.seed = Date.now();
     }
     /**
@@ -103370,6 +103412,8 @@ Sideboard
         if (this.game) {
           const p = this.game.player(existing.id);
           if (p) this.game.setConnected(p.id, true);
+          // back in time: the seat is theirs still
+          if (this._gone) { clearTimeout(this._gone.get(existing.id)); this._gone.delete(existing.id); }
           this.pushState();
         }
         this.broadcastLobby();
@@ -103987,6 +104031,8 @@ Sideboard
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
         case 'choice': g.resolveChoice(actorId, intent.data || {}); break;
         case 'concede': g.concede(actorId); break;
+        // leaving the table mid-game: out of it, for everyone to see
+        case 'leave': g.concede(actorId, 'left'); break;
         case 'manual': g.manual(actorId, intent.action, {
           objId: intent.objId, zone: intent.zone, toBottom: intent.toBottom,
           kind: intent.kind2, n: intent.n, hostId: intent.hostId, token: intent.token,
@@ -104188,7 +104234,22 @@ Sideboard
       if (sess.watchers) sess.watchers.delete(peerId);
       const r = sess.seatByPeer(peerId);
       if (r) {
-        if (sess.game) { const p = sess.game.player(r.id); if (p) { sess.game.setConnected(p.id, false); sess.pushState(); } }
+        if (sess.game) {
+          const p = sess.game.player(r.id);
+          if (p) {
+            sess.game.setConnected(p.id, false); sess.pushState();
+            /* not back within a minute (a tab closed, a phone put away): out of
+               the game, and shown so to everyone left; coming back in time
+               keeps the seat (addRemote) */
+            sess._gone = sess._gone || new Map();
+            clearTimeout(sess._gone.get(r.id));
+            sess._gone.set(r.id, setTimeout(() => {
+              sess._gone.delete(r.id);
+              const g2 = sess.game, q = g2 && g2.player(r.id);
+              if (App.session === sess && q && q.connected === false && !q.hasLost && !g2.over) { g2.concede(q.id, 'left'); sess.pushState(); }
+            }, LEFT_AFTER_MS));
+          }
+        }
         else { sess.roster = sess.roster.filter(x => x !== r); sess.broadcastLobby(); renderLobbySoon(); }
       }
     });
@@ -104337,8 +104398,24 @@ Sideboard
     App.leaveGame();
   }
 
+  /** How long a seat that has dropped out of an online game is kept before it is out of the game. */
+  const LEFT_AFTER_MS = 60000;
+
   App.leaveGame = function (opts) {
     opts = opts || {};
+    /* Leaving an online game still being played: out of it, and the others
+       see you defeated. A guest says so to the host on the way out; a host
+       with guests concedes and shows them the last of it. The connection
+       stays open a moment for that to get through. */
+    let linger = 0;
+    const tv = App.table && App.table.view;
+    if (net.online && tv && !tv.over && !tv.replay && App.table.me && !App.table.me.hasLost) {
+      if (net.isClient) { try { net.intent({ kind: 'leave' }); linger = 450; } catch (e) { /* gone already */ } }
+      else if (App.session && App.session.game && App.session.roster.some(r => r.kind === 'remote')) {
+        const meSeat = App.session.roster.find(r => r.kind === 'local');
+        if (meSeat) { try { App.session.game.concede(meSeat.id, 'left'); App.session.pushState(); linger = 450; } catch (e) { /* leave anyway */ } }
+      }
+    }
     if (App.replay) { App.replay.stop(); App.replay = null; }
     if (App.session && App.session.botRunner) App.session.botRunner.stop();
     if (App.session && App.session.draftTimer) clearInterval(App.session.draftTimer);
@@ -104353,7 +104430,8 @@ Sideboard
     App._buildingPool = false;
     App._poolBuilder = null;
     if (!opts.keepSave) MTG.savedGame.clear();
-    net.destroy();
+    if (linger) setTimeout(() => { net.destroy(); setNetBadge(); }, linger);
+    else net.destroy();
     setNetBadge();
     showScreen('home');
   };
