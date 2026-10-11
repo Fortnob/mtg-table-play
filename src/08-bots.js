@@ -1828,6 +1828,43 @@
       const cheap = opts.slice().sort((x, y) => x.w - y.w || y.v - x.v)[0];
       return cheap ? { picks: [cheap.k] } : null;
     },
+    /* Shadrix Silverquill: "you may choose two. Each mode must target a different player." The earlier mode is
+       aimed at us and the later one, perforce, at someone else: the pair where what we get most outweighs what
+       they get — a token, a card, a counter on each creature — or none when nothing does */
+    modes(s) {
+      const g = this.game;
+      const e = this._resolvingEffect();
+      const modes = e && e.op === 'modal' ? (e.modes || []) : [];
+      const effs = (o, k) => (modes[o.i != null ? o.i : k] || {}).effects || O.parseEffects(o.label || '').effects;
+      const opts = (s.options || []).map((o, k) => ({ k, list: flatEffects(effs(o, k)) }));
+      if (!(e && e.distinctPlayers) || s.max !== 2) {
+        return { picks: opts.map(o => ({ k: o.k, v: this._modeWorth(effs(s.options[o.k], o.k)) })).sort((x, y) => y.v - x.v).slice(0, s.max).map(o => o.k).sort((x, y) => x - y) };
+      }
+      const foe = this.mainOpponent();
+      const creaturesOf = (pid) => g.battlefield.filter(o => o.controller === pid && !o.phasedOut && (g.characteristics(o) || {}).isCreature).length;
+      const gift = (list, pid) => list.reduce((v, x) => v + (x.op === 'createToken' ? 2 * nval(x.n, 1) : x.op === 'draw' ? 1.5 : x.op === 'loseLife' ? -nval(x.n, 1) * 0.5
+        : x.op === 'counters' ? (x.scope ? creaturesOf(pid) : 1) : 0), 0);
+      let best = null;
+      for (let i = 0; i < opts.length; i++) for (let j = i + 1; j < opts.length; j++) {
+        const v = gift(opts[i].list, this.pid) - gift(opts[j].list, foe ? foe.id : null);
+        if (!best || v > best.v) best = { v, picks: [opts[i].k, opts[j].k] };
+      }
+      return { picks: best && best.v > 0 ? best.picks : [] };
+    },
+    /* Mari, the Killing Quill: a hit counter off is a card and two Treasures — always */
+    removeExiledCounter(s) { return { picks: (s.items || []).slice(0, 1).map(x => x.id) }; },
+    /* Kozilek, the Broken Reality: what is worth least in hand (a bot does not turn its manifests face up) */
+    manifestFromHand(s) {
+      const g = this.game;
+      const items = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      return { picks: items.sort((x, y) => this.rating(x) - this.rating(y)).slice(0, s.max).map(o => o.id) };
+    },
+    /* Zack Fair: the Equipment worth most */
+    attachLeftEquipment(s) {
+      const g = this.game;
+      const items = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      return { picks: items.sort((x, y) => this.permanentValue(y) - this.permanentValue(x)).slice(0, 1).map(o => o.id) };
+    },
   };
 
   /* ============================================================
@@ -2311,7 +2348,8 @@
             return true;
           }).sort((a, b) => this.permanentValue(a) - this.permanentValue(b));
           // an optional sacrifice (exploit and friends) is only made when there is fodder
-          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > 3)) return g.resolveChoice(this.pid, { cardIds: [] });
+          // (Caesar, Legion's Emperor: two modes for it — a small creature is worth giving up: sacrificeForReward)
+          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > (ch.purpose === 'sacrificeForReward' ? 4.5 : 3))) return g.resolveChoice(this.pid, { cardIds: [] });
           return g.resolveChoice(this.pid, { cardIds: pool.slice(0, ch.count).map(o => o.id) });
         }
         case 'riot': {

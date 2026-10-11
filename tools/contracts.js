@@ -106,6 +106,8 @@ const HiddenObject = obj({ id, hidden: lit(true), owner: id, zone: Zone }, { clo
 const ObjectView = obj({
   id, cardId: maybe(str), card: Card, owner: id, controller: id, zone: Zone,
   tapped: bool, faceDown: opt(maybe(bool)), face: opt(maybe(int)),
+  // Kozilek, the Broken Reality: what turning it face up costs, to its controller only
+  upCost: opt(str),
   counters: rec(num), damage: num, summoningSick: opt(maybe(bool)),
   attachedTo: maybe(id), attachments: opt(arr(id)), isToken: opt(maybe(bool)),
   attacking: maybe(id), blocking: opt(arr(id)), blockedBy: opt(arr(id)), blockOrder: opt(arr(id)),
@@ -451,6 +453,8 @@ function checkView(view, viewer, game) {
   for (const [oid, seen] of all) for (const { o, where } of seen) {
     if (o.faceDown && o.card && o.card.id !== '__facedown__' && o.controller !== viewer && o.owner !== viewer)
       bad('view.privacy', `${where} ${oid}`, `face down, but ${viewer}'s view carries the card (${o.card.name})`);
+    // (and what it costs to turn face up says what it is)
+    if (o.upCost != null && o.controller !== viewer) bad('view.privacy', `${where} ${oid}`, `${viewer}'s view says what turning another player's face-down card up costs`);
   }
   for (const s of view.stack || []) {
     const src = s.objId && game && game.obj ? game.obj(s.objId) : null;

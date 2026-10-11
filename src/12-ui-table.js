@@ -2101,8 +2101,10 @@
       const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
       const uses = [];
       if (o.faceDown) {
+        // (Kozilek, the Broken Reality: a manifested creature card, for its mana cost — the engine says what it costs)
         const real = (a.abilities || []).find(x => x.kind === 'castModifier' && /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
-        if (real) uses.push({ label: 'Turn face up', cost: real.arg, fn: () => this.send({ kind: 'turnFaceUp', objId: o.id }) });
+        const upCost = o.upCost || (real && real.arg);
+        if (upCost) uses.push({ label: 'Turn face up', cost: upCost, fn: () => this.send({ kind: 'turnFaceUp', objId: o.id }) });
       } else {
         /* Marvin, an Equipment's "has '{T}: …'": what it was given beyond its printed
            abilities comes after them, each with the engine's index for it (o.gained) */

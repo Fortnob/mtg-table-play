@@ -1451,12 +1451,7 @@
         if (o.controller !== playerId) continue;
         /* A face-down creature with the mana to turn up is a thing you can
            do, and one worth being asked about. */
-        if (o.faceDown) {
-          const real = o.trueAnalysis ? o.trueAnalysis() : null;
-          const up = real && (real.abilities || []).find(x => x.kind === 'castModifier' &&
-            /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
-          if (up && this.canPayNow(playerId, up.arg)) out.push({ kind: 'unmorph', objId: o.id });
-        }
+        if (o.faceDown && this._faceUpWays(o).some(w => this.canPayNow(playerId, w.cost))) out.push({ kind: 'unmorph', objId: o.id });
         const a = o.analysis();
         if (!a) continue;
         // a mana ability on its own is not a reason to stop: it does nothing
@@ -4848,6 +4843,31 @@
       return true;
     }
 
+    /** Manifest (CR 701.40): a card put onto the battlefield face down as a 2/2 creature, under this player's control. */
+    _manifestCard(c, pid) {
+      c.faceDown = true;
+      this.moveObject(c, 'battlefield', { controller: pid });
+      if (c.zone !== 'battlefield') return;
+      c.faceDown = true;
+      c.manifested = true;
+    }
+
+    /**
+     * The ways a face-down permanent can be turned face up, cheapest first: its morph, megamorph or disguise cost;
+     * and, for a manifested creature card, its mana cost (CR 701.40b) — not a card cast face down by morph.
+     */
+    _faceUpWays(o) {
+      if (!o || !o.faceDown) return [];
+      const real = o.trueAnalysis ? o.trueAnalysis() : null;
+      if (!real) return [];
+      const out = [];
+      const ab = (real.abilities || []).find(x => x.kind === 'castModifier' && /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
+      if (ab) out.push({ cost: ab.arg, mega: /megamorph/i.test(ab.keyword) });
+      const mc = o.card && (o.card.card_faces && o.card.card_faces[0] && !o.card.mana_cost ? o.card.card_faces[0].mana_cost : o.card.mana_cost);
+      if (o.manifested && real.isCreature && mc) out.push({ cost: mc, manaCost: true });
+      return out.sort((x, y) => MANA.cmc(x.cost) - MANA.cmc(y.cost));
+    }
+
     turnFaceUp(playerId, objId, opts) {
       opts = opts || {};
       const o = this.obj(objId);
@@ -4855,14 +4875,15 @@
       if (o.controller !== playerId) return this.fail('You do not control that.');
       if (!o.faceDown) return this.fail('That is already face up.');
       const real = o.trueAnalysis ? o.trueAnalysis() : null;
-      const ab = real && (real.abilities || []).find(x => x.kind === 'castModifier' &&
-        /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
-      if (!ab) return this.fail('That has no way of turning face up.');
-      if (!this.payMana(playerId, ab.arg, Object.assign({ auto: true }, opts))) {
-        return this.fail(`Not enough mana to turn ${real.name || 'it'} face up (${ab.arg}).`);
+      // Kozilek, the Broken Reality: "Turn it face up any time for its mana cost if it's a creature card."
+      const ways = this._faceUpWays(o);
+      if (!ways.length) return this.fail('That has no way of turning face up.');
+      const ab = ways.find(w => this.canPayNow(playerId, w.cost)) || ways[0];
+      if (!this.payMana(playerId, ab.cost, Object.assign({ auto: true }, opts))) {
+        return this.fail(`Not enough mana to turn ${real.name || 'it'} face up (${ab.cost}).`);
       }
       o.faceDown = false;
-      if (/megamorph/i.test(ab.keyword)) this.addCounters(o, '+1/+1', 1);
+      if (ab.mega) this.addCounters(o, '+1/+1', 1);
       this.logEvent('rules', `${this.player(playerId).name} turns ${o.name} face up.`);
       this.emit('sfx', 'transform');
       this._fire('turnedFaceUp', playerId, { object: o, source: o });
@@ -12203,7 +12224,7 @@
         o.toughDamageTurn = null;
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
-        o.faceDown = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.faceDown = false; o.manifested = false; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
@@ -13547,6 +13568,8 @@
           ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
           // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
           : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
+          // Shadrix Silverquill: "Each mode must target a different player" — none an earlier mode pointed at
+          : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
           : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
           // Scrap Trawler: "with lesser mana value" than the one the trigger is about
           .map(spec => {
@@ -13590,6 +13613,10 @@
             targets = targets.filter(t => { if (t.kind !== 'object') return true; const c = (this.obj(t.id) || {}).controller; if (seenCtl.has(c)) return false; seenCtl.add(c); return true; });
           }
           ctx.resolvedTargets = targets;
+          if (e.targets.some(sp => sp && sp.distinctModePlayer)) {
+            ctx._modePlayers = ctx._modePlayers || [];
+            for (const t of targets) if (t.kind === 'player' && !ctx._modePlayers.includes(t.id)) ctx._modePlayers.push(t.id);
+          }
           if (ctx.kind === 'ability') this._crimeCheck(ctx.controller, targets);
         }
       }
@@ -17300,6 +17327,36 @@
             usable = usable.filter(i => !usedModes.includes(i));
             if (!usable.length) { this.logEvent('rules', `${src.name}: every mode has been chosen.`); break; }
           }
+          /* Shadrix Silverquill: "you may choose two. Each mode must target a different player." Two modes or none, in
+             one question; with fewer players it could target than modes to choose, none can be (distinctPlayers) */
+          if (e.optional || e.distinctPlayers) {
+            if (e.distinctPlayers && this._legalTargetsFor({ type: 'player' }, ctx.controller, src ? src.id : null).length < want) {
+              this.logEvent('rules', `${ctx.name || 'Effect'}: there are not enough players to choose ${want === 1 ? 'a mode' : want + ' modes'}.`);
+              break;
+            }
+            let chosenO = usable.slice(0, want);
+            if (e.optional || usable.length > want) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!e.optional,
+                options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
+                prompt: `${e.optional ? 'You may choose' : 'Choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${e.optional ? ', or none' : ''}.${e.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
+              if (got === SUSPEND) return SUSPEND;
+              chosenO = ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null).sort((x, y) => x - y);
+            }
+            if (!chosenO.length) { this.logEvent('rules', `${me.name} chooses no modes.`); break; }
+            const runO = [];
+            for (const i of chosenO) {
+              const m = modes[i];
+              if (!m) continue;
+              const list = this._ownTargets(m.effects || []);
+              // each mode's player target is one no mode before it pointed at (distinctModePlayer)
+              if (e.distinctPlayers) for (const f of list) for (const sp of (f && f.targets) || []) if (sp && sp.type === 'player') sp.distinctModePlayer = true;
+              runO.push(...list);
+            }
+            ctx._modePlayers = [];
+            this._spliceNext(runO);
+            this.logEvent('rules', `${me.name} chooses: ${chosenO.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
+            break;
+          }
           const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: want,
             min: least !== want ? least : undefined, max: most !== want ? most : undefined,
             repeatable: !!e.repeatable,
@@ -18411,10 +18468,36 @@
         case 'exileTriggerCard': {
           const td = ctx.triggerData || {};
           const x = (td.objectId && this.obj(td.objectId)) || src;
-          if (!x || x.zone !== 'graveyard') break;
+          // (a token that died has ceased to exist: it is in no graveyard to be exiled from, CR 111.7)
+          if (!x || x.zone !== 'graveyard' || x.isToken) break;
           this.moveObject(x, 'exile');
           this._lastExiled = x.id;
-          this.logEvent('exile', `${x.name} is exiled.`);
+          // Mari, the Killing Quill: "exile it with a hit counter on it"
+          if (e.counter && x.zone === 'exile') {
+            x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1;
+            this.logEvent('exile', `${x.name} is exiled with a ${e.counter} counter on it.`);
+          } else this.logEvent('exile', `${x.name} is exiled.`);
+          break;
+        }
+        /* Mari, the Killing Quill: "you may remove a hit counter from a card that player owns in exile. If you do, draw
+           a card and create two Treasure tokens." One of that player's exiled cards with one on it, or none — a
+           single question, and none when there is no such card (removeExiledCounter) */
+        case 'removeExiledCounter': {
+          const owner = e.owner === 'triggerPlayer' ? triggerPlayer() : me;
+          if (!owner) break;
+          const pool = ((this.zones[owner.id] || {}).exile || []).filter(c => c.owner === owner.id && (Number((c.counters || {})[e.kind]) || 0) > 0);
+          if (!pool.length) break;
+          const after = (String(e.text || '').match(/\bIf you do, (.+)$/i) || [])[1];
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeExiledCounter', kind: 'objects', zone: 'exile',
+            items: this._chooseItems(pool), min: 1, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}remove a ${e.kind} counter from a card ${owner.name} owns in exile?${after ? ' If you do, ' + after : ''}` }, 'rxc');
+          if (got === SUSPEND) return SUSPEND;
+          const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x) && x.zone === 'exile' && (Number(x.counters[e.kind]) || 0) > 0);
+          if (!c) { this.logEvent('rules', `${me.name} declines.`); break; }
+          c.counters[e.kind] = (Number(c.counters[e.kind]) || 0) - 1;
+          if (c.counters[e.kind] <= 0) delete c.counters[e.kind];
+          this.logEvent('counters', `${me.name} removes a ${e.kind} counter from ${c.name}.`);
+          this._spliceNext(e.then || []);
           break;
         }
         // Vexing Shusher: a spell on the stack that can't be countered from now on
@@ -20688,9 +20771,7 @@
             if (c === keep) {
               lib.splice(lib.indexOf(c), 1);
               c.zone = 'library';
-              c.faceDown = true;
-              this.moveObject(c, 'battlefield', { controller: md.id });
-              c.faceDown = true;
+              this._manifestCard(c, md.id);
               // "then put a +1/+1 counter on that creature"
               this._lastPut = c.id;
             } else if (c.zone === 'library') this.moveObject(c, 'graveyard');
@@ -21577,6 +21658,35 @@
             this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${hostName}.`);
             this.bumpBoard();
           }
+          break;
+        }
+        /* Zack Fair: "attach an Equipment that was attached to Zack Fair to that creature" — one that was on it as it
+           left and is still on the battlefield, chosen when there are more; one that couldn't legally go there stays
+           where it is (CR 701.3b) (attachLeftEquipment) */
+        case 'attachLeftEquipment': {
+          let host = null;
+          applyToScope(e, (o) => { if (!host) host = o; });
+          if (!src || !host || host.zone !== 'battlefield') break;
+          const pool = (src.zone === 'battlefield' ? [] : (src._lastAttachments || [])).map(id => this.obj(id))
+            .filter(x => x && x.zone === 'battlefield' && !x.phasedOut && x !== host && x.attachedTo !== host.id &&
+              !!(x.analysis() || {}).isEquipment && this._attachableTo(x, host, null));
+          if (!pool.length) break;
+          let eq = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'attachLeftEquipment', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose an Equipment that was attached to ${src.name} to attach to ${host.name}.` }, 'ale');
+            if (got === SUSPEND) return SUSPEND;
+            eq = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || pool[0];
+          }
+          if (eq.zone !== 'battlefield' || !this._attachableTo(eq, host, null)) break;
+          const old = eq.attachedTo && this.obj(eq.attachedTo);
+          if (old) old.attachments = (old.attachments || []).filter(id => id !== eq.id);
+          eq.attachedTo = host.id;
+          eq.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+          host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          this.bumpBoard();
           break;
         }
         // Beacon of Immortality
@@ -22698,6 +22808,24 @@
         /* Victimize: sacrifice, and only if you did, the rest happens */
         case 'sacThen': {
           const pool = this._sacrificePool(ctx.controller, { filter: e.filter || 'creature', another: !!e.other }, src);
+          /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, …" — which one, or none, is
+             the one question (optional); with nothing to sacrifice, none is asked (come back to with the answer, the
+             pool may be empty: the last one was what went) */
+          if (e.optional) {
+            if (!pool.length && ctx._sacBefore == null) break;
+            if (ctx._sacBefore == null) ctx._sacBefore = this._sacCount || 0;
+            const tail = (String(e.text || '').match(/\bWhen you do, ([^\n]+)/i) || [])[1];
+            const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true, filter: e.filter || 'creature',
+              candidates: pool.map(o => o.id), purpose: 'sacrificeForReward',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
+                (tail ? ' When you do, ' + tail.replace(/\s*[-—]+\s*$/, '.') : '') }, 'osac');
+            if (got === SUSPEND) return SUSPEND;
+            const madeIt = (this._sacCount || 0) > ctx._sacBefore;
+            ctx._sacBefore = null;
+            if (madeIt) this._spliceNext(e.then || []);
+            else this.logEvent('rules', `${me.name} declines.`);
+            break;
+          }
           if (!pool.length) break;
           const before = this._sacCount || 0;
           if (!this._doneHere('sac')) {
@@ -22777,12 +22905,46 @@
           if (!top) break;
           this.zones[who.id].library.shift();
           top.zone = 'library';
-          top.faceDown = true;
-          this.moveObject(top, 'battlefield', { controller: who.id });
-          top.faceDown = true;
+          this._manifestCard(top, who.id);
           // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
           this._lastPut = top.id;
           this.logEvent('rules', `${who.name} manifests the top card of their library.`);
+          break;
+        }
+        /* Kozilek, the Broken Reality: "up to two target players each manifest two cards from their hands. For each
+           card manifested this way, you draw a card." Each player picks their own, in turn order (CR 101.4), all
+           before any is manifested; a hand of two or fewer is no question (manifestFromHand) */
+        case 'manifestFromHand': {
+          const k = Math.max(0, n(e.n) || 0);
+          const ap = (this.activePlayer && this.activePlayer.id) || ctx.controller;
+          const ids = new Set(targets.filter(t => t.kind === 'player').map(t => t.id));
+          const who = this._turnOrderFrom(ap).filter(p => ids.has(p.id));
+          const plan = [];
+          for (const p of who) {
+            const hand = this.zones[p.id].hand.slice();
+            if (!k || !hand.length) continue;
+            let picks = hand.slice(0, k);
+            if (hand.length > k) {
+              const got = this._choose({ playerId: p.id, purpose: 'manifestFromHand', kind: 'objects', zone: 'hand',
+                items: this._chooseItems(hand), min: k, max: k, prefer: 'worst',
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}manifest ${k === 1 ? 'a card' : k + ' cards'} from your hand. Each is put onto the battlefield face down as a 2/2 creature; a creature card among them can be turned face up any time for its mana cost.` }, 'mh' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              const chosen = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && hand.includes(c));
+              if (chosen.length === k) picks = chosen;
+            }
+            plan.push({ p, picks });
+          }
+          let made = 0;
+          for (const { p, picks } of plan) {
+            let m = 0;
+            for (const c of picks) {
+              if (c.zone !== 'hand' || c.owner !== p.id) continue;
+              this._manifestCard(c, p.id);
+              if (c.zone === 'battlefield') { m++; made++; }
+            }
+            if (m) this.logEvent('rules', `${p.name} manifests ${m === 1 ? 'a card' : m + ' cards'} from their hand.`);
+          }
+          if (e.drawPer && made) this._drawCards(me, made);
           break;
         }
         /* The Ozolith: counters moved off a creature that left, and back on */
@@ -25120,7 +25282,8 @@
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
       if (spec.type === 'player' || spec.type === 'opponent') {
-        return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer);
+        return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer &&
+          !(spec.notPlayers || []).includes(t.id));
       }
       if (spec.type === 'spell' || spec.zone === 'stack') {
         return this.stack
@@ -25490,6 +25653,10 @@
           // a conspiracy and its chosen name, a card exiled before the game, a player it must attack
           conspiracy: o.conspiracy ? JSON.parse(JSON.stringify(o.conspiracy)) : null, exiledWith: o.exiledWith || null,
           mustAttackPlayer: o.mustAttackPlayer || null,
+          // Kozilek, the Broken Reality: manifested, so a creature card turns face up for its mana cost
+          manifested: !!o.manifested,
+          // Zack Fair: what was attached to it as it left the battlefield
+          _lastAttachments: o._lastAttachments ? o._lastAttachments.slice() : null,
         });
       }
       return {
@@ -25874,6 +26041,13 @@
         owner: o.owner, controller: o.controller,
         // (a card exiled face down that this player may not see shows its back)
         zone: o.zone, tapped: o.tapped, faceDown: o.faceDown || (o.zone === 'exile' && !!o.faceDownExile && secret(o)), face: o.face,
+        /* what turning it face up costs, to the one who may (Kozilek, the Broken Reality: a manifested creature
+           card's mana cost; a morph's, a disguise's) — said of nothing else */
+        upCost: o.faceDown && o.zone === 'battlefield' && !secret(o) ? (() => {
+          const ways = this._faceUpWays(o);
+          const w = ways.find(x => this.canPayNow(o.controller, x.cost)) || ways[0];
+          return w ? w.cost : undefined;
+        })() : undefined,
         /* copied, not shared: a view is a snapshot, and the table compares
            the last one against this one to see what changed */
         counters: Object.assign({}, o.counters), damage: o.damage, summoningSick: o.summoningSick,

@@ -26430,4 +26430,274 @@ module.exports = (test) => {
     t.eq(so.counters['+1/+1'] || 0, 0, 'Okinec Ahau: itself at base power, none');
     t.eq(theirs.counters['+1/+1'] || 0, 0, "Okinec Ahau: B's pumped Bears, none");
   });
+
+  test('Commanders: Kozilek, the Broken Reality — up to two players each manifest two cards from hand, a card for each', (mk, t) => {
+    t.auto('Kozilek, the Broken Reality');
+    const M = mk({ library: Array(30).fill('Wastes') });
+    M.toMain('A');
+    const koz = M.hand('A', 'Kozilek, the Broken Reality');
+    const bears = M.hand('A', 'Grizzly Bears');
+    const isl = M.hand('A', 'Island');
+    const div = M.hand('A', 'Divination');
+    const b1 = M.hand('B', 'Lightning Bolt'), b2 = M.hand('B', 'Craw Wurm');
+    let tgt = null, pick = null;
+    M.answer('pickTarget', (ch) => { tgt = ch; return { targets: [{ kind: 'player', id: 'A' }, { kind: 'player', id: 'B' }] }; });
+    M.answer('choose', (ch) => { pick = ch; return { picks: [bears.id, isl.id] }; });
+    M.mana('A', '9');
+    const h0 = M.zone('A', 'hand').length;
+    M.cast('A', koz);
+    t.ok(tgt && tgt.specs.length === 2, 'Kozilek: up to two target players');
+    t.ok(pick && pick.playerId === 'A' && pick.purpose === 'manifestFromHand' && pick.items.length === 3, 'Kozilek: A chooses two of the three cards in hand');
+    t.no(M.asked.some(ch => ch.type === 'choose' && ch.playerId === 'B'), 'Kozilek: B, with two cards, is not asked');
+    for (const c of [bears, isl, b1, b2]) { t.zone(c, 'battlefield', 'Kozilek: ' + c.card.name + ' manifested'); t.ok(c.faceDown && c.manifested, 'Kozilek: face down'); }
+    t.eq(b1.controller, 'B', "Kozilek: B's manifests are B's");
+    t.zone(div, 'hand', 'Kozilek: the card A kept');
+    t.eq(M.zone('A', 'hand').length, h0 - 1 - 2 + 4, 'Kozilek: four manifested, four cards drawn');
+    t.eq(M.g.powerOf(bears) + '/' + M.g.toughnessOf(bears), '5/4', "Kozilek: A's face-down 2/2 is colourless, +3/+2");
+    t.eq(M.g.powerOf(b1) + '/' + M.g.toughnessOf(b1), '2/2', "Kozilek: B's is not A's to pump");
+    // a manifested creature card turns face up for its mana cost; one that isn't a creature card doesn't
+    t.eq(M.g.viewFor('A').battlefield.find(o => o.id === bears.id).upCost, '{1}{G}', 'Kozilek: the view says what turning the Bears up costs');
+    const vb = M.g.viewFor('B').battlefield.find(o => o.id === bears.id);
+    t.ok(vb && vb.upCost === undefined && vb.card.name !== 'Grizzly Bears', "Kozilek: not to B, who can't see what it is");
+    t.eq(M.g.viewFor('A').battlefield.find(o => o.id === isl.id).upCost, undefined, 'Kozilek: the Island has no way up');
+    t.no(M.g.turnFaceUp('A', isl.id, { auto: true }), 'Kozilek: the Island stays face down');
+    t.no(M.g.turnFaceUp('A', bears.id, { auto: true }), 'Kozilek: no mana, no turning up');
+    M.mana('A', 'G1');
+    t.ok(M.g.playableNow('A').some(x => x.kind === 'unmorph' && x.objId === bears.id), 'Kozilek: turning the Bears up is offered');
+    t.ok(M.g.turnFaceUp('A', bears.id, { auto: true }), 'Kozilek: the Bears turned face up for {1}{G}');
+    t.no(bears.faceDown, 'Kozilek: face up');
+    t.eq(M.g.powerOf(bears) + '/' + M.g.toughnessOf(bears), '2/2', 'Kozilek: Grizzly Bears, green, not pumped');
+    // a morph cast face down is no manifest: its mana cost doesn't turn it up
+    const N = mk({ library: Array(30).fill('Island') });
+    N.toMain('A');
+    const morph = N.hand('A', 'Exalted Angel');
+    N.mana('A', '3');
+    N.g.castSpell('A', morph.id, { auto: true, via: 'morph' }); N.resolve();
+    t.ok(morph.faceDown && !morph.manifested, 'Kozilek: Exalted Angel cast face down');
+    N.mana('A', '4WW');
+    t.eq(N.g.viewFor('A').battlefield.find(o => o.id === morph.id).upCost, '{2}{W}{W}', 'Kozilek: a morph turns up for its morph cost only');
+    // only B targeted, with one card: one manifested, one card drawn; nobody asked
+    const Q = mk({ library: Array(30).fill('Wastes') });
+    Q.toMain('A');
+    const k2 = Q.hand('A', 'Kozilek, the Broken Reality');
+    const lone = Q.hand('B', 'Shock');
+    Q.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    Q.mana('A', '9');
+    const q0 = Q.zone('A', 'hand').length;
+    Q.cast('A', k2);
+    t.zone(lone, 'battlefield', "Kozilek: B's only card manifested");
+    t.eq(Q.zone('A', 'hand').length, q0 - 1 + 1, 'Kozilek: one card drawn');
+    t.no(Q.asked.some(ch => ch.type === 'choose'), 'Kozilek: no choice to make');
+  });
+
+  test('Commanders: Mari, the Killing Quill — opponents\' creatures exiled with hit counters, cashed in by Assassins, Mercenaries and Rogues', (mk, t) => {
+    t.auto('Mari, the Killing Quill');
+    const M = mk({ library: Array(30).fill('Swamp') });
+    M.toMain('A');
+    const mari = M.bf('A', 'Mari, the Killing Quill');
+    const rogue = M.bf('A', 'Bane Alley Blackguard');
+    const merc = M.bf('A', 'Misshapen Fiend');
+    const mine = M.bf('A', 'Grizzly Bears');
+    const theirs = M.bf('B', 'Grizzly Bears');
+    t.ok(M.g.hasKw(mari, 'deathtouch') && M.g.hasKw(rogue, 'deathtouch') && M.g.hasKw(merc, 'deathtouch'), 'Mari: Assassins, Mercenaries and Rogues have deathtouch');
+    t.no(M.g.hasKw(mine, 'deathtouch'), 'Mari: Grizzly Bears, none of them, does not');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [theirs] });
+    t.zone(theirs, 'exile', "Mari: B's Bears died and were exiled");
+    t.eq(theirs.counters.hit, 1, 'Mari: with a hit counter on it');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [mine] });
+    t.zone(mine, 'graveyard', "Mari: A's own Bears stay in the graveyard");
+    // a token an opponent controls dies: nothing to exile
+    const tok = M.bf('B', 'Grizzly Bears'); tok.isToken = true;
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [tok] });
+    t.eq(M.zone('B', 'exile').length, 1, "Mari: B's token is gone, nothing more in exile");
+    // the Rogue connects: remove the hit counter, a card and two Treasures
+    let asked = null;
+    M.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }]);
+    M.answer('choose', (ch) => { asked = ch; return { picks: [theirs.id] }; });
+    const h0 = M.zone('A', 'hand').length;
+    M.toMain('A', 'endCombat'); M.resolve();
+    t.ok(asked && asked.purpose === 'removeExiledCounter' && asked.optional && asked.items.length === 1, 'Mari: asked once, which card, or none');
+    t.eq(theirs.counters.hit || 0, 0, 'Mari: the hit counter removed');
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Mari: a card drawn');
+    t.eq(M.bfOf('A').filter(o => o.name === 'Treasure').length, 2, 'Mari: two Treasures');
+    // again, with no hit counter left in B's exile: nothing asked, nothing gained
+    M.nextTurn('B'); M.nextTurn('A');
+    const n0 = M.asked.length;
+    M.answer('declareAttackers', () => [{ attackerId: rogue.id, defenderId: 'B' }]);
+    const h1 = M.zone('A', 'hand').length;
+    M.toMain('A', 'endCombat'); M.resolve();
+    t.no(M.asked.slice(n0).some(ch => ch.type === 'choose' || ch.type === 'confirm'), 'Mari: no hit counter, no question');
+    t.eq(M.zone('A', 'hand').length, h1, 'Mari: and no card');
+    // declined: the counter stays, nothing drawn
+    const N = mk({ library: Array(30).fill('Swamp') });
+    N.toMain('A');
+    N.bf('A', 'Mari, the Killing Quill');
+    const r2 = N.bf('A', 'Bane Alley Blackguard');
+    const v = N.bf('B', 'Grizzly Bears');
+    N.mana('A', 'R'); N.cast('A', N.hand('A', 'Shock'), { targets: [v] });
+    N.answer('declareAttackers', () => [{ attackerId: r2.id, defenderId: 'B' }]);
+    N.answer('choose', () => ({ picks: [] }));
+    const h2 = N.zone('A', 'hand').length;
+    N.toMain('A', 'endCombat'); N.resolve();
+    t.eq(v.counters.hit, 1, 'Mari: declined, the counter stays');
+    t.eq(N.zone('A', 'hand').length, h2, 'Mari: declined, no card');
+    t.eq(N.bfOf('A').filter(o => o.name === 'Treasure').length, 0, 'Mari: declined, no Treasure');
+  });
+
+  test('Commanders: Zack Fair — sacrificed, its counters and an Equipment go to the creature it saves', (mk, t) => {
+    t.auto('Zack Fair');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    M.mana('A', 'W');
+    const zack = M.hand('A', 'Zack Fair');
+    M.cast('A', zack);
+    t.eq(zack.counters['+1/+1'], 1, 'Zack Fair: enters with a +1/+1 counter');
+    zack.counters['+1/+1'] = 2;
+    const bs = M.bf('A', 'Bonesplitter');
+    bs.attachedTo = zack.id; zack.attachments = [bs.id];
+    M.g.bumpBoard();
+    const bears = M.bf('A', 'Grizzly Bears');
+    const n0 = M.asked.length;
+    M.mana('A', '1');
+    M.activate('A', zack, 0, { targets: [bears] });
+    t.zone(zack, 'graveyard', 'Zack Fair: sacrificed');
+    t.ok(M.g.hasKw(bears, 'indestructible'), 'Zack Fair: the Bears gain indestructible');
+    t.eq(bears.counters['+1/+1'], 2, "Zack Fair: Zack's two +1/+1 counters on the Bears");
+    t.eq(bs.attachedTo, bears.id, 'Zack Fair: Bonesplitter attached to the Bears');
+    t.eq(M.g.powerOf(bears), 6, 'Zack Fair: 2 + 2 counters + 2 from Bonesplitter');
+    t.no(M.asked.slice(n0).some(ch => ch.type === 'choose'), 'Zack Fair: one Equipment, nothing to choose');
+    // two Equipment: one is chosen, the other stays unattached
+    const N = mk({ library: Array(30).fill('Plains') });
+    N.toMain('A');
+    const z2 = N.bf('A', 'Zack Fair');
+    const e1 = N.bf('A', 'Bonesplitter'), e2 = N.bf('A', 'Short Sword');
+    e1.attachedTo = z2.id; e2.attachedTo = z2.id; z2.attachments = [e1.id, e2.id];
+    N.g.bumpBoard();
+    const b2 = N.bf('A', 'Grizzly Bears');
+    let asked = null;
+    N.answer('choose', (ch) => { asked = ch; return { picks: [e2.id] }; });
+    N.mana('A', '1');
+    N.activate('A', z2, 0, { targets: [b2] });
+    t.ok(asked && asked.purpose === 'attachLeftEquipment' && asked.items.length === 2, 'Zack Fair: which Equipment, of the two');
+    t.eq(e2.attachedTo, b2.id, 'Zack Fair: Short Sword moved to the Bears');
+    t.eq(e1.attachedTo, null, 'Zack Fair: Bonesplitter stays unattached');
+    t.no(b2.counters['+1/+1'], 'Zack Fair: no counters on Zack, none to give');
+    // nothing on Zack: just indestructible, nothing asked
+    const Q = mk({ library: Array(30).fill('Plains') });
+    Q.toMain('A');
+    const z3 = Q.bf('A', 'Zack Fair');
+    const b3 = Q.bf('A', 'Grizzly Bears');
+    const free = Q.bf('A', 'Bonesplitter');
+    Q.mana('A', '1');
+    const q0 = Q.asked.length;
+    Q.activate('A', z3, 0, { targets: [b3] });
+    t.ok(Q.g.hasKw(b3, 'indestructible'), 'Zack Fair: indestructible all the same');
+    t.eq(free.attachedTo, null, "Zack Fair: an Equipment that wasn't on Zack doesn't move");
+    t.eq(Q.asked.length, q0, 'Zack Fair: nothing asked');
+  });
+
+  test('Commanders: Shadrix Silverquill — you may choose two, each mode at a different player', (mk, t) => {
+    t.auto('Shadrix Silverquill');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const sh = M.bf('A', 'Shadrix Silverquill');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const wurm = M.bf('B', 'Craw Wurm');
+    let modesQ = null; const opts = [];
+    M.answer('choose', (ch, g) => {
+      modesQ = ch;
+      t.no(g.resolveChoice('A', { picks: [0] }), 'Shadrix: one mode alone is no answer');
+      return { picks: [0, 2] };
+    });
+    M.answer('pickTarget', (ch) => { opts.push(ch.options[0].map(x => x.id)); return { targets: [{ kind: 'player', id: 'B' }] }; });
+    M.answer('pickTarget', (ch) => { opts.push(ch.options[0].map(x => x.id)); return { targets: [{ kind: 'player', id: 'A' }] }; });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.ok(modesQ && modesQ.purpose === 'modes' && modesQ.optional && modesQ.min === 2 && modesQ.max === 2, 'Shadrix: two modes or none, one question');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Shadrix: no "you may" asked on its own');
+    t.eq(JSON.stringify(opts[0]), '["A","B","C"]', 'Shadrix: the first mode may target any player');
+    t.eq(JSON.stringify(opts[1]), '["A","C"]', 'Shadrix: the second, any player but B');
+    t.eq(M.bfOf('B').filter(o => o.name === 'Inkling').length, 1, 'Shadrix: B creates an Inkling');
+    t.eq(bears.counters['+1/+1'], 1, "Shadrix: a +1/+1 counter on each of A's creatures");
+    t.eq(sh.counters['+1/+1'], 1, 'Shadrix: Shadrix too');
+    t.no(wurm.counters['+1/+1'], "Shadrix: none on B's");
+    // declined: nothing happens
+    M.nextTurn('B'); M.nextTurn('C'); M.nextTurn('A');
+    const l0 = M.zone('B', 'hand').length;
+    M.answer('choose', () => ({ picks: [] }));
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.eq(bears.counters['+1/+1'], 1, 'Shadrix: none chosen, no counters');
+    t.eq(M.bfOf('B').filter(o => o.name === 'Inkling').length, 1, 'Shadrix: none chosen, no Inkling');
+    t.eq(M.zone('B', 'hand').length, l0, 'Shadrix: none chosen, nobody draws');
+    // draw and lose 1 life at one player, the Inkling at the other
+    const N = mk({ library: Array(30).fill('Plains') });
+    N.toMain('A');
+    N.bf('A', 'Shadrix Silverquill');
+    N.answer('choose', () => ({ picks: [0, 1] }));
+    N.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'A' }] }));
+    N.answer('pickTarget', (ch) => ({ targets: [ch.options[0][0]] }));
+    const b0 = N.zone('B', 'hand').length;
+    N.toMain('A', 'beginCombat'); N.resolve();
+    t.eq(N.bfOf('A').filter(o => o.name === 'Inkling').length, 1, 'Shadrix: A creates the Inkling');
+    t.eq(N.zone('B', 'hand').length - b0, 1, 'Shadrix: B, the only other player, draws');
+    t.eq(N.life('B'), 19, 'Shadrix: and loses 1 life');
+    // only one player it could target: two modes can't be chosen, and nothing is asked
+    const Q = mk({ library: Array(30).fill('Plains') });
+    Q.toMain('A');
+    Q.bf('A', 'Shadrix Silverquill');
+    Q.bf('B', 'Leyline of Sanctity');
+    const q0 = Q.asked.length;
+    Q.toMain('A', 'beginCombat'); Q.resolve();
+    t.no(Q.asked.slice(q0).some(ch => ch.type === 'choose' || ch.type === 'confirm' || ch.type === 'mode'), 'Shadrix: B has hexproof, only A to target — nothing asked');
+  });
+
+  test('Commanders: Caesar, Legion\'s Emperor — whenever you attack, sacrifice another creature for two modes', (mk, t) => {
+    t.auto("Caesar, Legion's Emperor");
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const caesar = M.bf('A', "Caesar, Legion's Emperor");
+    const fodder = M.bf('A', 'Grizzly Bears');
+    let sacQ = null, modeQ = null;
+    M.answer('declareAttackers', () => [{ attackerId: caesar.id, defenderId: 'B' }]);
+    M.answer('sacrifice', (ch) => { sacQ = ch; return { cardIds: [fodder.id] }; });
+    M.answer('mode', (ch) => { modeQ = ch; return { modes: [0, 2] }; });
+    M.toMain('A', 'endCombat'); M.resolve();
+    t.ok(sacQ && sacQ.optional && JSON.stringify(sacQ.candidates) === JSON.stringify([fodder.id]), 'Caesar: another creature, or none — Caesar itself not offered');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Caesar: no "you may" asked before the sacrifice');
+    t.zone(fodder, 'graveyard', 'Caesar: the Bears sacrificed');
+    t.ok(modeQ && modeQ.count === 2, 'Caesar: when you do, choose two');
+    const soldiers = M.bfOf('A').filter(o => o.name === 'Soldier');
+    t.eq(soldiers.length, 2, 'Caesar: two Soldier tokens');
+    t.eq(M.life('B'), 20 - 2 - 4 - 2, 'Caesar: 2 damage (two creature tokens), then Caesar and the attacking Soldiers');
+    // declined: no modes
+    const N = mk({ library: Array(30).fill('Plains') });
+    N.toMain('A');
+    const c2 = N.bf('A', "Caesar, Legion's Emperor");
+    const f2 = N.bf('A', 'Grizzly Bears');
+    N.answer('declareAttackers', () => [{ attackerId: c2.id, defenderId: 'B' }]);
+    N.answer('sacrifice', () => ({ cardIds: [] }));
+    N.toMain('A', 'endCombat'); N.resolve();
+    t.zone(f2, 'battlefield', 'Caesar: declined, the Bears stay');
+    t.no(N.asked.some(ch => ch.type === 'mode'), 'Caesar: declined, no modes');
+    t.eq(N.life('B'), 16, 'Caesar: just Caesar\'s 4');
+    // draw a card and lose 1 life
+    const P = mk({ library: Array(30).fill('Plains') });
+    P.toMain('A');
+    const c3 = P.bf('A', "Caesar, Legion's Emperor");
+    const f3 = P.bf('A', 'Grizzly Bears');
+    P.answer('declareAttackers', () => [{ attackerId: c3.id, defenderId: 'B' }]);
+    P.answer('sacrifice', () => ({ cardIds: [f3.id] }));
+    P.answer('mode', () => ({ modes: [1, 2] }));
+    const h0 = P.zone('A', 'hand').length;
+    P.toMain('A', 'endCombat'); P.resolve();
+    t.eq(P.zone('A', 'hand').length - h0, 1, 'Caesar: A draws a card');
+    t.eq(P.life('A'), 19, 'Caesar: and loses 1 life');
+    t.eq(P.life('B'), 16, 'Caesar: no creature tokens, no damage beyond Caesar\'s');
+    // nothing else to sacrifice: nothing asked
+    const Q = mk({ library: Array(30).fill('Plains') });
+    Q.toMain('A');
+    const c4 = Q.bf('A', "Caesar, Legion's Emperor");
+    Q.answer('declareAttackers', () => [{ attackerId: c4.id, defenderId: 'B' }]);
+    Q.toMain('A', 'endCombat'); Q.resolve();
+    t.no(Q.asked.some(ch => ch.type === 'sacrifice' || ch.type === 'confirm' || ch.type === 'mode'), 'Caesar: no other creature, nothing asked');
+  });
 };

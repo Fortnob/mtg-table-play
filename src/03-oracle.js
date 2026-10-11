@@ -3505,6 +3505,15 @@
       make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
     // (a dies trigger's "exile it", as the trigger reads it)
     { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
+    // Mari, the Killing Quill: "exile it with a hit counter on it" — the card that died, a counter on it in exile
+    { re: /^Exile the card that died with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
+    /* Zack Fair: "Put CARDNAME's counters on that creature and attach an Equipment that was attached to CARDNAME to
+       that creature." — what it had as it was sacrificed (attachLeftEquipment) */
+    { re: /^Put CARDNAME'?s counters on that creature and attach an Equipment that was attached to CARDNAME to that creature\.?$/,
+      make: () => ({ op: 'sequence', list: [{ op: 'putItsCounters', scope: 'lastTarget' }, { op: 'attachLeftEquipment', scope: 'lastTarget' }] }) },
+    // Shadrix Silverquill: "Target player puts a +1/+1 counter on each creature they control."
+    { re: /^Target (player|opponent) puts an? (\+1\/\+1|[a-z]+) counter on each creature they control\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: 1, scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control get +2/+0 until end of turn"
     { re: /^Creatures attacking your opponents(?: and\/or planeswalkers they control)? get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true } }) },
@@ -7372,6 +7381,27 @@
     { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
       make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
         { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
+    /* Kozilek, the Broken Reality: "up to two target players each manifest two cards from their hands. For each card
+       manifested this way, you draw a card." — each player picks their own (manifestFromHand) */
+    { re: /^Up to (one|two|three|four) target players each manifest (one|two|three) cards? from their hands\. For each card manifested this way, you draw a card\.$/i,
+      make: (m) => [{ op: 'manifestFromHand', n: num(m[2]), drawPer: true,
+        targets: Array.from({ length: num(m[1]) }, () => ({ type: 'player', upTo: true, distinct: true })) }] },
+    /* Mari, the Killing Quill: "you may remove a hit counter from a card that player owns in exile. If you do, draw a
+       card and create two Treasure tokens." — one of that player's exiled cards with one on it, or none (removeExiledCounter) */
+    { re: /^You may remove an? ([a-z]+) counter from a card that player owns in exile\. If you do, (.+)$/i,
+      make: (m) => {
+        const tp = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!tp.auto || !tp.effects.length) return null;
+        return [{ op: 'removeExiledCounter', kind: m[1].toLowerCase(), owner: 'triggerPlayer', then: tp.effects }];
+      } },
+    /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, choose two — …" — the sacrifice
+       is the only question until it is made (an optional sacThen); the modes follow it */
+    { re: /^You may sacrifice (another|an?) ([a-z]+)\. When you do, (choose (?:one|two|three)\s*[-—][\s\S]+)$/i,
+      make: (m) => {
+        const md = parseModal(m[3].charAt(0).toUpperCase() + m[3].slice(1));
+        if (!md || !md.auto) return null;
+        return [{ op: 'sacThen', optional: true, filter: m[2].toLowerCase(), other: /another/i.test(m[1]), then: md.effects }];
+      } },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
       make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],
@@ -8363,8 +8393,11 @@
        hatchling counters on this artifact." — a footnote on the ability, not
        a mode: kept beside the choice, where the ability takes it up */
     const footnotes = [];
+    // Shadrix Silverquill: "Each mode must target a different player." — a rule on the targets, not a mode (distinctPlayers)
+    let distinctPlayers = false;
     const modes = bullets.filter(b => {
       if (/^You may choose the same mode/i.test(b)) return false;
+      if (/^Each mode must target a different player\.?$/i.test(b)) { distinctPlayers = true; return false; }
       if (/^Activate (?:this ability )?only (?!as a sorcery\.?$)/i.test(b)) {
         const f = parseEffectSentence(b);
         footnotes.push(f && f.op === 'activateOnly' ? f : { op: 'manual', text: b });
@@ -8400,6 +8433,7 @@
         /or more$|^any number$|^one or both$/.test(word) ? { max: out.length } : {},
         // Hullbreaker Horror: "choose up to one" — none at all is an answer too
         /^up to /.test(word) ? { min: 0 } : {},
+        distinctPlayers ? { distinctPlayers: true } : {},
         commanderCount ? { countIf: { cond: { kind: 'controlCommander' }, count: commanderCount } } : otherCount ? { countIf: otherCount } : {})]),
       auto: out.every(x => x.auto) && !footnotes.some(f => f.op === 'manual'),
     };
@@ -11937,7 +11971,7 @@
         /* Patron of the Vein, Promise of Tomorrow: "Whenever a creature … dies,
            (you may) exile it" — the card that died, from the graveyard */
         if (trig.event === 'permDies' || trig.event === 'equippedDies' || (trig.self && (trig.event === 'dies' || trig.also === 'dies'))) {
-          body = body.replace(/^((?:you may )?)exile it(?=\.(?! If you do)|,? and |, then )/i, '$1exile the card that died');
+          body = body.replace(/^((?:you may )?)exile it(?=\.(?! If you do)|,? and |, then | with an? [a-z]+ counter on it\.)/i, '$1exile the card that died');
           // Wight: "create a tapped 2/2 black Zombie creature token and exile that card" — the one that died
           if (trig.event === 'permDies' && !/\bcard\b/i.test(body.replace(/\bexile that card\.?$/i, '')))
             body = body.replace(/\band exile that card(?=\.?$)/i, 'and exile the card that died');
@@ -12145,7 +12179,10 @@
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         /* Ardenn, Intrepid Archaeologist: "you may attach any number of …" — none of them is the "no", so the "may"
            is not asked on its own (mayIsAnyNumber) */
-        const anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'attachAnyTo';
+        let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'attachAnyTo';
+        /* Shadrix Silverquill: "you may choose two" — the modes, or none of them, is the one question (mayModes) */
+        if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'modal' && !parsed.effects[0].min && !parsed.effects[0].max &&
+          /^you may choose (?:one|two|three)\b/i.test(body)) { parsed.effects[0].optional = true; anyNumber = true; }
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional: optional && !anyNumber,
           ...(trig.also2 ? { also2: trig.also2 } : {}),

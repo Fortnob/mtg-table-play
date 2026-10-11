@@ -64,6 +64,8 @@ declare namespace MTG {
     zone: ZoneName;
     tapped: boolean;
     faceDown?: boolean | null;
+    /** Kozilek, the Broken Reality: what turning it face up costs (its controller's view only) */
+    upCost?: string;
     /** which face is up, for cards with more than one */
     face?: number | null;
     counters: Record<string, number>;
