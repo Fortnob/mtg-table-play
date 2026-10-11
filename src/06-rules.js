@@ -12968,7 +12968,14 @@
         }
         // Nev: the X the triggering spell was cast with (firstXSpell)
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
-        if (v && typeof v === 'object' && v.triggerSpellMv) { const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId); return (x && x.card && x.card.cmc) || 0; }
+        if (v && typeof v === 'object' && v.triggerSpellMv) {
+          const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId);
+          if (!x) return 0;
+          // (on the stack, its mana value counts the X it was cast with, and a split card's half is that half: spellMvNow)
+          const st = this.stack.find(s2 => s2.kind === 'spell' && (s2.id === td.stackId || s2.objId === x.id));
+          const xa = x.analysis() || {};
+          return (st && xa.mv != null ? xa.mv : ((x.card && x.card.cmc) || 0)) + (st ? this._xMv(st) : 0);
+        }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         // Aclazotz: "for each opponent who can't" discard (couldNot)

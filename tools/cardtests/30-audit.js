@@ -6376,4 +6376,14 @@ module.exports = (test) => {
     t.no(r.attachedTo === bear.id, 'not moved onto the Bears');
     t.zone(r, 'hand', 'to the graveyard, and Rancor\u2019s own trigger brings it back');
   });
+
+  test('Audit: The Frightful Four counts a spell\u2019s mana value as it is on the stack, X included (Blaze for X=3: 4 life)', (mk, t) => {
+    t.auto('The Frightful Four');
+    for (const [n, x, mana, lost] of [['Blaze', 3, 'R3', 4], ['Lightning Bolt', 0, 'R', 1]]) {
+      const T = mk(); T.toMain('B');
+      T.bf('A', 'The Frightful Four');
+      T.mana('B', mana); T.cast('B', T.hand('B', n), { targets: ['A'], x });
+      t.eq(T.life('B'), 20 - lost, `${n}${x ? ' for X=' + x : ''}: ${lost} life`);
+    }
+  });
 };
