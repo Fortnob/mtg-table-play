@@ -2646,6 +2646,11 @@
         const have = ((this.me && this.me.hand) || []).length;
         return { label: 'discard how many cards?', sub: `X is the number of cards you discard. You have ${have} in hand.`, max: have, start: Math.min(1, have) };
       }
+      // Hazel of the Rootbloom: "Tap X untapped tokens you control" — up to the untapped tokens you have
+      if (c.tapCreatures && c.tapCreatures.n === 'X' && c.tapCreatures.filter === 'token') {
+        const have = ((this.view && this.view.battlefield) || []).filter(x => x.controller === this.meId && x.isToken && !x.tapped && x.id !== o.id).length;
+        return { label: 'tap how many tokens?', sub: `X is the number of untapped tokens you tap. You have ${have}.`, max: have };
+      }
       if (/\{X\}/.test(String(c.mana || ''))) {
         const fixed = MTG.mana.cmc(String(c.mana).replace(/\{X\}/g, ''));
         // Gogo, Master of Mimicry: "{X}{X}" pays X twice, and "X can't be 0"

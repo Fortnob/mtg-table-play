@@ -27984,4 +27984,118 @@ module.exports = (test) => {
     t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Ardyn: no creature card in a graveyard, nothing asked');
     t.no(M.g.battlefield.some(o => o.isToken), 'Ardyn: and no token');
   });
+
+  test("Commanders: Light-Paws, Emperor's Voice — a cast Aura finds another, no greater and of a new name, attached to Light-Paws", (mk, t) => {
+    t.auto("Light-Paws, Emperor's Voice");
+    const M = mk({ library: Array(30).fill('Island') });
+    const lp = M.bf('A', "Light-Paws, Emperor's Voice");
+    const armor = M.top('A', 'Ethereal Armor');
+    M.top('A', 'Holy Strength');
+    M.top('A', 'Pacifism');
+    M.top('A', 'Wild Growth');
+    const hs = M.hand('A', 'Holy Strength');
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [armor.id] }; });
+    M.mana('A', 'W');
+    M.cast('A', hs, { targets: [lp.id] });
+    t.ok(offered, 'Light-Paws: the search asked');
+    t.eq(M.names(offered.cards).sort().join(','), 'Ethereal Armor', 'Light-Paws: mana value 1 or less, not named Holy Strength, able to enchant Light-Paws');
+    t.ok(offered.optional, 'Light-Paws: "you may" — one optional pick');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Light-Paws: no yes/no before it');
+    t.zone(armor, 'battlefield');
+    t.eq(armor.attachedTo, lp.id, 'Light-Paws: Ethereal Armor attached to Light-Paws');
+    t.ok((lp.attachments || []).includes(armor.id));
+    // Ethereal Armor wasn't cast: no second search
+    t.eq(M.asked.filter(ch => ch.type === 'pickCard').length, 1, 'Light-Paws: an Aura put onto the battlefield finds nothing');
+    t.eq(M.g.powerOf(lp), 2 + 1 + 2, 'Light-Paws: Holy Strength and Ethereal Armor (two enchantments)');
+  });
+
+  test("Commanders: Light-Paws, Emperor's Voice — none taken, none to take, not cast: no search", (mk, t) => {
+    let M = mk({ library: Array(30).fill('Island') });
+    let lp = M.bf('A', "Light-Paws, Emperor's Voice");
+    M.top('A', 'Ethereal Armor');
+    M.answer('pickCard', () => ({ cardIds: [] }));
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Holy Strength'), { targets: [lp.id] });
+    t.eq(M.zone('A', 'library')[0].name, 'Ethereal Armor', 'Light-Paws: declined, the library not shuffled');
+    t.eq((lp.attachments || []).length, 1, 'Light-Paws: just Holy Strength');
+    // only a greater Aura, or one of the same name, in the library: nothing asked
+    M = mk({ library: Array(30).fill('Island') });
+    lp = M.bf('A', "Light-Paws, Emperor's Voice");
+    M.top('A', 'Pacifism');
+    M.top('A', 'Holy Strength');
+    const a0 = M.asked.length;
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Holy Strength'), { targets: [lp.id] });
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard' || ch.type === 'confirm'), 'Light-Paws: nothing it could find, nothing asked');
+    t.eq(M.zone('A', 'library')[0].name, 'Holy Strength', 'Light-Paws: and no shuffle');
+    // an Aura of A's put onto the battlefield, or B's cast: no trigger
+    M = mk({ library: Array(30).fill('Island') });
+    lp = M.bf('A', "Light-Paws, Emperor's Voice");
+    M.top('A', 'Ethereal Armor');
+    const b0 = M.asked.length;
+    M.bf('A', 'Holy Strength', { etb: true });
+    M.resolve();
+    const bb = M.bf('B', 'Grizzly Bears');
+    M.nextTurn('B');
+    M.mana('B', 'W');
+    M.cast('B', M.hand('B', 'Holy Strength'), { targets: [bb.id] });
+    t.no(M.asked.slice(b0).some(ch => ch.type === 'pickCard' && ch.purpose !== 'auraHost'), "Light-Paws: not for an Aura A didn't cast, nor for B's");
+    t.eq(M.zone('A', 'library')[0].name, 'Ethereal Armor', 'Light-Paws: no search');
+  });
+
+  test('Commanders: Hazel of the Rootbloom — {T}, 2 life and X untapped tokens tapped: X mana in any combination of colors', (mk, t) => {
+    t.auto('Hazel of the Rootbloom');
+    const M = mk({ library: Array(30).fill('Island') });
+    const hazel = M.bf('A', 'Hazel of the Rootbloom');
+    M.g._createToken('A', { n: 3, pt: '1/1', subtypes: 'Squirrel', colorWords: ['green'], keywords: [] });
+    M.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const toks = M.g.battlefield.filter(o => o.isToken && o.controller === 'A');
+    t.eq(toks.length, 4);
+    const ab = M.g.manaAbilitiesOf(hazel)[0];
+    t.ok(ab && ab.kind === 'mana', 'Hazel: a mana ability');
+    // tap three of them, chosen: {B}{G}{U}
+    const pick = [toks[0].id, toks[1].id, toks[3].id];
+    t.ok(M.g.activateAbility('A', hazel.id, 0, { x: 3, manaSplit: ['B', 'G', 'U'], tapCostIds: pick }), 'Hazel: activated');
+    t.ok(hazel.tapped, 'Hazel: tapped');
+    t.eq(M.life('A'), 18, 'Hazel: 2 life paid');
+    t.eq(toks.filter(o => o.tapped).map(o => o.id).sort().join(), pick.slice().sort().join(), 'Hazel: the three tokens chosen are tapped');
+    const pool = M.player('A').pool;
+    t.eq((pool.B || 0) + (pool.G || 0) + (pool.U || 0), 3, 'Hazel: three mana');
+    t.ok(pool.B === 1 && pool.G === 1 && pool.U === 1, 'Hazel: in the colours chosen');
+    // one untapped token left: X can't be 2, and Hazel is tapped anyway
+    hazel.tapped = false;
+    t.no(M.g.activateAbility('A', hazel.id, 0, { x: 2, manaSplit: ['R', 'R'] }), 'Hazel: only one untapped token left');
+    t.no(hazel.tapped, 'Hazel: nothing paid');
+    t.eq(M.life('A'), 18);
+    // the auto-tapper never reaches for her
+    t.no(M.g._autoTapSources('A').some(o => o.id === hazel.id) && M.g._manaCostPayable('A', hazel, ab), 'Hazel: not auto-tapped');
+  });
+
+  test('Commanders: Hazel of the Rootbloom — at her end step, a copy of a token; two of a Squirrel', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Hazel of the Rootbloom');
+    M.g._createToken('A', { n: 1, pt: '1/1', subtypes: 'Squirrel', colorWords: ['green'], keywords: [] });
+    M.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    M.g._createNamedToken('B', { token: 'Treasure', n: 1 });
+    const sq = M.g.battlefield.find(o => o.isToken && o.name !== 'Treasure');
+    const trA = M.g.battlefield.find(o => o.name === 'Treasure' && o.controller === 'A');
+    const trB = M.g.battlefield.find(o => o.name === 'Treasure' && o.controller === 'B');
+    let offered = null;
+    M.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: sq.id }] }; });
+    M.nextTurn('B');
+    t.ok(offered, 'Hazel: asked at A\'s end step');
+    const ids = offered.options[0].map(x => x.id);
+    t.ok(ids.includes(sq.id) && ids.includes(trA.id), "Hazel: A's tokens");
+    t.no(ids.includes(trB.id), "Hazel: not B's Treasure");
+    t.no(ids.some(id => !(M.g.obj(id) || {}).isToken), 'Hazel: nor a card');
+    const squirrels = M.g.battlefield.filter(o => o.isToken && o.controller === 'A' && M.g._hasCreatureType(o, 'Squirrel'));
+    t.eq(squirrels.length, 3, 'Hazel: a Squirrel, two copies of it');
+    // a Treasure: just one
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: trA.id }] }));
+    M.nextTurn('A');
+    M.nextTurn('B');
+    t.eq(M.g.battlefield.filter(o => o.name === 'Treasure' && o.controller === 'A').length, 2, 'Hazel: one copy of a Treasure');
+    t.eq(M.g.battlefield.filter(o => o.isToken && o.controller === 'A' && M.g._hasCreatureType(o, 'Squirrel')).length, 3, 'Hazel: no more Squirrels');
+  });
 };

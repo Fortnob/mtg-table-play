@@ -11198,7 +11198,11 @@
         case 'totalPower':
           return !!me && this.battlefield.filter(o => o.controller === me.id && !o.phasedOut && this.characteristics(o).isCreature)
             .reduce((t, o) => t + Math.max(0, this.powerOf(o)), 0) >= (cond.n || 0);
-        case 'wasCast': return !!src && src.wasCast != null;
+        case 'wasCast': {
+          // (Light-Paws: "if you cast it" — the permanent the trigger is about: ofTrigger)
+          if (cond.ofTrigger) { const td = (ctx && ctx.triggerData) || {}; const it = td.objectId && this.obj(td.objectId); return !!it && it.wasCast != null; }
+          return !!src && src.wasCast != null;
+        }
         // Eshki, Temur's Roar: "if that spell's power is 4 or greater" — the spell the trigger is about, as it is (spellPowerAtLeast)
         case 'spellPowerAtLeast': {
           const tdS = (ctx && ctx.triggerData) || {};
@@ -16533,7 +16537,12 @@
             this.rng.shuffle(this.zones[seeker.id].library);
             break;
           }
-          if (!this._doneHere('searched')) this._searched(seeker.id);
+          // (Light-Paws: a search that is the "may" itself counts once a card is taken — mayPick)
+          if (!e.mayPick && !this._doneHere('searched')) this._searched(seeker.id);
+          // Light-Paws, Emperor's Voice: "attached to Light-Paws" — an Aura that couldn't enchant it isn't one to find (attachSelf)
+          const hostA = e.attachSelf ? (src && src.zone === 'battlefield' ? src : null) : null;
+          const trigIt = e.maxMvTrigger ? (tdT.objectId && this.obj(tdT.objectId)) : null;
+          const yourNames = e.notNamedYour ? new Set(this.battlefield.filter(o => !o.phasedOut && o.controller === seeker.id && this._cardFitsWords(o, e.notNamedYour)).map(o => o.name)) : null;
           // Bribery: a search of an opponent's library, for the searcher
           const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : seeker.id];
           const want = String(e.filter || 'any').toLowerCase();
@@ -16566,6 +16575,10 @@
             if (e.manaArtifactOrBasic) return !!(ca && (ca.isBasicLand || (ca.isArtifact && (ca.manaAbilities || []).length)));
             // Tiamat: "not named Tiamat"
             if (e.notNamedSelf && src && U.frontName(c.card.name || '') === U.frontName((src.card && src.card.name) || src.name || '')) return false;
+            // Light-Paws: "with mana value less than or equal to that Aura and with a different name than each Aura you control"
+            if (e.maxMvTrigger && mvOf(c) > ((trigIt && trigIt.card && trigIt.card.cmc) || 0)) return false;
+            if (yourNames && yourNames.has(c.name)) return false;
+            if (e.attachSelf && !(hostA && ca && (!ca.isAura || this._attachLegal(c, ca, hostA)))) return false;
             if (want === 'any' || want === '') return true;
             if (want === 'basic land') return !!(ca && ca.isBasicLand);
             if (e.named) return (c.card.name || '').toLowerCase() === String(e.named).toLowerCase();
@@ -16583,6 +16596,8 @@
             this.opponentsOf(seeker.id).some(q => q.id === x.controller) && this._staticOp(x, op));
           const ctlAgent = agentOf('controlSearches');
           const exAgent = agentOf('searchExiles');
+          // (nothing it could find: no search, no shuffle — mayPick)
+          if (e.mayPick && !legal.length) break;
           let taken = [];
           if (want_n > 0) {
             const picked = this._ask({ type: 'pickCard', playerId: ctlAgent ? ctlAgent.controller : seeker.id, count: want_n,
@@ -16596,6 +16611,9 @@
             /* "with different names", "that share a land type": anything
                picked that breaks the rule is put back. */
             if (e.differentNames) taken = taken.filter((c, i) => taken.findIndex(x => x.name === c.name) === i);
+            // (none taken: the "may" said no — no search, no shuffle)
+            if (e.mayPick && !taken.length) { this.logEvent('rules', `${seeker.name} declines.`); break; }
+            if (e.mayPick && !this._doneHere('searched')) this._searched(seeker.id);
             if (e.shareType && taken.length > 1) {
               const typesOf = (c) => ((c.analysis() || {}).subtypes || []).filter(t => MANA.COLOR_OF_BASIC[t]);
               const first = typesOf(taken[0]);
@@ -16655,6 +16673,12 @@
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') {
               this.moveObject(c, 'battlefield', { controller: seeker.id, tapped: !!(tapped) }); if (tapped) c.tapped = true; this._lastPut = c.id;
+              // Light-Paws: "onto the battlefield attached to Light-Paws"
+              if (hostA && c.zone === 'battlefield' && hostA.zone === 'battlefield') {
+                c.attachedTo = hostA.id; c._needsHost = false;
+                hostA.attachments = (hostA.attachments || []).filter(x => x !== c.id).concat(c.id);
+                this.logEvent('attach', `${c.name} enters attached to ${hostA.name}.`);
+              }
               // Savage Order: "That creature gains haste" — the card the search put there
               if (c.zone === 'battlefield' && taken.length === 1 && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
             }
@@ -17671,7 +17695,8 @@
             source = td.objectId ? this.obj(td.objectId) : null;
           }
           if (!source) break;
-          const cnt = nVar(e.n);
+          // Hazel of the Rootbloom: "If that token is a Squirrel, instead create two tokens that are copies of it." (twiceIfType)
+          const cnt = e.twiceIfType && this._hasCreatureType(source, e.twiceIfType) ? 2 : nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
           let card = source.card;
           let faceUp = source.face || 0;

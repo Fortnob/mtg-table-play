@@ -962,6 +962,13 @@
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
     if ((q = s.match(/^ not named CARDNAME/))) { e.notNamedSelf = true; s = s.slice(q[0].length); }
+    /* Light-Paws, Emperor's Voice: "an Aura card with mana value less than or equal to that Aura and with a different
+       name than each Aura you control" — the Aura the trigger is about (maxMvTrigger), and none of your Auras' names */
+    if ((q = s.match(/^ with mana value less than or equal to that ([a-z]+)( and with a different name than each ([a-z]+) you control)?/i))) {
+      e.maxMvTrigger = true;
+      if (q[2]) e.notNamedYour = q[3].toLowerCase();
+      s = s.slice(q[0].length);
+    }
     while ((q = s.match(/^,? (?:with (?:mana value|converted mana cost) (X|\d+) or less|with (?:mana value|converted mana cost) (X|\d+) or (?:greater|more)|with (?:mana value|converted mana cost) (X|\d+)|(?:with|that each have) different names|that share a land type|with a basic land type|that (?:is|are) (?:a )?([a-z]+)|with (power|toughness) (\d+) or (less|greater))/i))) {
       if (q[5]) e[(q[7] === 'less' ? 'max' : 'min') + (q[5] === 'power' ? 'Power' : 'Toughness')] = +q[6];
       if (q[1]) e.maxMv = q[1] === 'X' ? 'X' : +q[1];
@@ -980,7 +987,10 @@
     }
     e.filter = desc || 'any';
     s = s.replace(/^,? (?:and )?reveal (?:it|them|that card|those cards|the cards)/i, '');
-    if ((m = s.match(/^,? (?:and |then )?put (?:it|them|that card|those cards|the card|the cards|one of them|that land|those lands) (onto the battlefield|into your hand|into their hand|into your graveyard|into their graveyard)( tapped)?(?: under (?:your|their|its owner'?s) control)?/i))) {
+    if ((m = s.match(/^,? (?:and )?put (?:it|that card) onto the battlefield attached to (?:CARDNAME|this creature)/i))) {
+      // Light-Paws: "put that card onto the battlefield attached to Light-Paws" (attachSelf)
+      e.to = 'battlefield'; e.attachSelf = true;
+    } else if ((m = s.match(/^,? (?:and |then )?put (?:it|them|that card|those cards|the card|the cards|one of them|that land|those lands) (onto the battlefield|into your hand|into their hand|into your graveyard|into their graveyard)( tapped)?(?: under (?:your|their|its owner'?s) control)?/i))) {
       e.to = /battlefield/i.test(m[1]) ? 'battlefield' : /graveyard/i.test(m[1]) ? 'graveyard' : 'hand';
       if (m[2]) e.tapped = true;
     } else if ((m = s.match(/^,? (?:and )?put one onto the battlefield( tapped)? and the other into your hand/i))) {
@@ -1012,7 +1022,9 @@
     e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
       what + (e.n === 1 ? '' : 's') +
       // (Tiamat: "not named Tiamat that each have different names" — the whole of what it asks for)
-      (e.notNamedSelf ? ' not named CARDNAME' : '') + (e.differentNames ? (/that each have different names/i.test(sentence) ? ' that each have different names' : ' with different names') : '') + '.';
+      (e.notNamedSelf ? ' not named CARDNAME' : '') + (e.differentNames ? (/that each have different names/i.test(sentence) ? ' that each have different names' : ' with different names') : '') +
+      (e.maxMvTrigger ? (String(sentence).match(/ with mana value less than or equal to that [a-z]+(?: and with a different name than each [a-z]+ you control)?/i) || [''])[0] : '') +
+      (e.attachSelf ? ', to put onto the battlefield attached to CARDNAME' : '') + '.';
     return after ? { op: 'sequence', list: [e, after] } : e;
   }
 
@@ -1218,6 +1230,8 @@
     // Sanctum Weaver: "Add X mana of any one color, where X is the number of enchantments you control."
     { re: /^Add X mana of any one colou?r, where X is the number of ([-a-zA-Z' ]+? you control)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'addManaX', x: 'count', scope: sc } : null; } },
+    // Hazel of the Rootbloom: "Tap X untapped tokens you control: Add X mana in any combination of colors." — the X of the cost
+    { re: /^Add X mana in any combination of colou?rs\.?$/i, make: () => ({ op: 'addManaAny', amount: 'X' }) },
     // Axebane Guardian: "Add X mana in any combination of colors, where X is the number of creatures you control with defender."
     { re: /^Add X mana in any combination of colou?rs, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'addManaAny', amount: k } : null; } },
@@ -7539,6 +7553,11 @@
     { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
       make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
         { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
+    /* Hazel of the Rootbloom: "create a token that's a copy of target token you control. If that token is a Squirrel,
+       instead create two tokens that are copies of it." (twiceIfType) */
+    { re: /^[Cc]reate a token that'?s a copy of target token you control\. If that token is an? ([A-Z][a-z]+), instead create two tokens that are copies of it\.$/,
+      make: (m) => [{ op: 'copyPermanent', n: 1, twiceIfType: m[1],
+        targets: [{ type: 'permanent', filter: 'token you control', zone: 'battlefield', controller: 'you', token: true }] }] },
     /* Kozilek, the Broken Reality: "up to two target players each manifest two cards from their hands. For each card
        manifested this way, you draw a card." — each player picks their own (manifestFromHand) */
     { re: /^Up to (one|two|three|four) target players each manifest (one|two|three) cards? from their hands\. For each card manifested this way, you draw a card\.$/i,
@@ -12233,6 +12252,8 @@
         const optional = !linked && /^you may /i.test(body);
         const parsed = parseEffects(optional ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
         if (saddledOnly) condition = condition ? [].concat(condition, { kind: 'saddled' }) : { kind: 'saddled' };
+        // Light-Paws, Emperor's Voice: "Whenever an Aura you control enters, if you cast it" — the Aura, not this card (ofTrigger)
+        if (condition && condition.kind === 'wasCast' && !trig.self && trig.event === 'permEnters') condition = { kind: 'wasCast', ofTrigger: true };
         if (whileCond) condition = condition ? [].concat(condition, whileCond) : whileCond;
         /* "Whenever this creature attacks, it gets +2/+0": with nothing
            targeted, "it" is the creature the trigger is about, this one or
@@ -12382,6 +12403,11 @@
         /* Ardenn, Intrepid Archaeologist: "you may attach any number of …" — none of them is the "no", so the "may"
            is not asked on its own (mayIsAnyNumber) */
         let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'attachAnyTo';
+        /* Light-Paws, Emperor's Voice: "you may search your library for an Aura card …" — finding none is the "no", one
+           optional pick (mayPick) */
+        if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'tutor' && parsed.effects[0].attachSelf) {
+          parsed.effects[0].mayPick = true; anyNumber = true;
+        }
         /* Shadrix Silverquill: "you may choose two" — the modes, or none of them, is the one question (mayModes) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'modal' && !parsed.effects[0].min && !parsed.effects[0].max &&
           /^you may choose (?:one|two|three)\b/i.test(body)) { parsed.effects[0].optional = true; anyNumber = true; }
