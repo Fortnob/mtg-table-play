@@ -13946,6 +13946,9 @@
         })(m0);
         return other ? Object.assign(r, { otherSource: true }) : r;
       } },
+    // Absorbing Man and Titania: "Double all damage that creature sources you control would deal." (doubleSourcesYours)
+    { re: /^Double all damage that (creature |red |green |white |blue |black )?sources you control would deal\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgDoubleYours', event: 'damage', who: 'you', how: 'double', sourceWords: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* The Sound of Drums, Inquisitor's Flail: "If enchanted (equipped) creature would
        deal combat damage (to a permanent or player), it deals double that damage
        instead"; "If another creature would deal combat damage to equipped creature" */
@@ -14625,6 +14628,10 @@
           return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope, pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, grant: kws },
             { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[5]] }] };
         }, auto: true },
+      // Storm, Windrider: "Creatures with flying can't attack you or block creatures you control." (flyersCantAttackOrBlock)
+      { re: /^Creatures with (flying|reach|horsemanship|shadow) can'?t attack you or block creatures you control\.?$/i,
+        make: (m) => { const sc = scopeOf('creatures with ' + m[1].toLowerCase()); return sc ? { op: 'sequence', list: [{ op: 'cantAttackYou', scope: sc, walkers: false },
+          { op: 'cantBlockYours', keyword: m[1].toLowerCase() }] } : null; }, auto: true },
       { re: /^(.+?) can'?t attack you( or planeswalkers you control)?\.?$/i,
         make: (m) => {
           if (/^(?:CARDNAME|this creature|it|they)$/i.test(m[1])) return null;

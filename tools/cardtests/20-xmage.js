@@ -22646,4 +22646,25 @@ module.exports = (test) => {
     const hv2 = M.put('A', 'Hamlet Vanguard', 'battlefield', { etb: true }); M.resolve();
     t.eq(Number(hv2.counters['+1/+1']) || 0, 4, 'Hamlet Vanguard: two other Humans, four counters');
   });
+
+  test("Commanders: Storm, Windrider, Absorbing Man and Titania", (mk, t) => {
+    for (const n of ['Storm, Windrider', 'Absorbing Man and Titania']) t.auto(n);
+    // Storm: creatures with flying can't attack you or block your creatures
+    const S = mk({ library: Array(10).fill('Island') });
+    S.bf('A', 'Storm, Windrider');
+    const flyer = S.bf('B', 'Wind Drake'), walker = S.bf('B', 'Grizzly Bears'), mine = S.bf('A', 'Hill Giant');
+    t.ok(!!S.g._cantAttackYou(flyer, 'A') && !S.g._cantAttackYou(walker, 'A'), "Storm: the Drake can't attack A, the Bears can");
+    t.ok(!S.g.couldBlock(flyer, mine, 'B') && S.g.couldBlock(walker, mine, 'B'), "Storm: the Drake can't block A's Giant, the Bears can");
+    // Absorbing Man and Titania: damage from creature sources you control is doubled, not from a spell
+    const D = mk({ library: Array(10).fill('Mountain') });
+    D.toMain('A');
+    D.bf('A', 'Absorbing Man and Titania');
+    const gb = D.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    D.mana('A', 'R');
+    D.cast('A', D.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); D.resolve();
+    t.eq(D.life('B'), 17, 'Absorbing Man: Lightning Bolt is not a creature, 3');
+    D.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    D.toMain('A', 'endCombat');
+    t.eq(D.life('B'), 13, 'Absorbing Man: the Bears deal 4');
+  });
 };
