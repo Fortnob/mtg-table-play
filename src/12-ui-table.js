@@ -564,6 +564,9 @@
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
       if (hidden) return;
+      // whether the game runs all of it, on every card you can see, bottom left (UI.autoBadge)
+      const auto = UI.autoBadge && UI.autoBadge(o.card, { corner: true });
+      if (auto) { auto.classList.add('cv-mark', 'cv-auto'); n.appendChild(auto); }
       // Alchemy: a perpetual change shows wherever the card is, in hand too
       if (o.perpetual) {
         const d = perpetualWords(o.perpetual);

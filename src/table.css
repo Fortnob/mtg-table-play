@@ -178,6 +178,13 @@
   background: linear-gradient(180deg, #4b4f5c, #22252e); border: 1px solid rgba(255,255,255,.35);
   border-radius: 4px 4px 50% 50% / 4px 4px 40% 40%; box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .cv-def { background: linear-gradient(180deg, #7b3a2c, #3a1a13); }
+/* the automation mark, bottom left and sized with the card; turned, it keeps to the
+   corner the card shows (the card turns about its middle: (h - w) / 2 either way) */
+.cv-mark.cv-auto { left: 4%; bottom: 3%; right: auto; pointer-events: auto;
+  min-width: max(13px, calc(var(--w, 100px) * .16)); height: max(13px, calc(var(--w, 100px) * .16)); padding: 0 2px;
+  font-size: max(8px, calc(var(--w, 100px) * .095)); }
+.cv-mark.cv-auto svg { width: 72%; height: 72%; }
+.cv.tapped .cv-mark.cv-auto { left: -16%; bottom: 16%; }
 .cv-chips { left: -4%; top: 8%; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 /* its keywords at a glance (12i-ui-keywords.js): small symbols down the right edge */
 .cv-kws { right: -7%; top: 7%; display: flex; flex-direction: column; align-items: center; gap: 2px; }
