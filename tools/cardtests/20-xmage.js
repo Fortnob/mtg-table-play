@@ -23722,4 +23722,21 @@ module.exports = (test) => {
     D.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], ctx); D.resolve();
     t.ok(D.bfOf('A').some(o => /Treasure/.test(o.name)) && D.bfOf('A').filter(o => /Mutagen/.test(o.name)).length === 1, 'Donatello: a Treasure, and a Mutagen');
   });
+
+  test('Commanders: Martha Jones, Michelangelo, the Heart, Kraven, Proud Predator — longer labels before the dash', (mk, t) => {
+    for (const n of ['Martha Jones', 'Michelangelo, the Heart', 'Kraven, Proud Predator']) t.auto(n);
+    // Martha Jones: "Woman Who Walked the Earth — When Martha Jones enters, investigate."
+    const M = mk({ library: Array(20).fill('Plains') });
+    M.toMain('A');
+    M.mana('A', '2U'); M.cast('A', M.hand('A', 'Martha Jones')); M.resolve();
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Clue/.test(o.name)).length, 1, 'Martha Jones: a Clue');
+    // Michelangelo, the Heart: "Raid (the Fridge) — at your second main phase, if you attacked: a counter and a Food"
+    const H = mk({ library: Array(20).fill('Forest') });
+    H.toMain('A');
+    const mi = H.bf('A', 'Michelangelo, the Heart'); mi.summoningSick = false;
+    H.answer('pickTarget', { targets: [{ kind: 'object', id: mi.id }] });
+    H.answer('declareAttackers', () => [{ attackerId: mi.id, defenderId: 'B' }]);
+    H.toMain('A', 'end'); H.resolve();
+    t.ok((Number(mi.counters['+1/+1']) || 0) === 1 && H.bfOf('A').some(o => o.isToken && /Food/.test(o.name)), 'Michelangelo: attacked, a counter and a Food');
+  });
 };

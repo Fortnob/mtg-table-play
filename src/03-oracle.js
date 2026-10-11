@@ -9096,6 +9096,8 @@
     'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
   function noReminderText(t) { return String(t || '').replace(/\([^)]*\)/g, ''); }
   function stripAbilityWord(line) {
+    // (Michelangelo, the Heart: "Raid (the Fridge) — …" — words in brackets inside the label: labelWords)
+    line = String(line).replace(/^([A-Za-z][A-Za-z' -]{1,30}?)\s*\([^()]{1,30}\)\s*(?=\u2014)/, '$1 ');
     // (Jumbo Cactuar: "10,000 Needles — Whenever …")
     // (Company Commander: "Bring it Down! — …")
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
@@ -9109,7 +9111,8 @@
     /* A flavour word ("Avoidance \u2014", "Siege Monster \u2014") is an ability word
        in all but name: any short label in front of a trigger or a static
        rule goes, unless it is one of the keywords above. */
-    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 4 &&
+    // (Martha Jones: "Woman Who Walked the Earth —", five words: labelWords)
+    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 5 &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
