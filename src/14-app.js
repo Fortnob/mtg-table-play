@@ -520,8 +520,8 @@
    * your tier. The result moves you on the ladder (src/10e-progress.js).
    */
   App.playRanked = function (formatId) {
-    // two ladders, each climbed on its own: Standard, and Commander one against one
-    const ladder = formatId === 'commander' ? 'commander' : 'standard';
+    // a ladder for each, climbed on its own: Standard, Modern, Pauper, and Commander one against one
+    const ladder = MTG.progress.LADDERS.some(L => L.id === formatId) ? formatId : 'standard';
     const tier = MTG.progress.ladder(ladder).tier;
     UI.pickDeck(ladder, async (deck) => {
       if (!deck) return;
@@ -1137,7 +1137,7 @@
       el('span', { class: 'ti-ladders' }, PR.LADDERS.map(L => {
         const r = PR.ladder(L.id);
         return el('span', { class: 'ti-ladder' }, [
-          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30, ladder: L.id }) : null,
+          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 26, ladder: L.id }) : null,
           el('span', { class: 'tl-text' }, [
             el('span', { class: 'tl-name', text: L.name }),
             el('b', { text: PR.rankLabel(r) }),
@@ -1571,7 +1571,7 @@
     ]));
     inner.appendChild(el('div', { class: 'event-grid' }, [
       // two ladders: the tile asks which
-      evCard('ev-ranked', 'Ranked', 'Two ladders, Standard and Commander, each from Bronze to Mythic against bots that get stronger as you rise.',
+      evCard('ev-ranked', 'Ranked', 'Standard, Modern, Pauper and Commander, each its own ladder from Bronze to Mythic against bots that get stronger as you rise.',
         P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15, ladder: L.id }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
         '<span>Free · season rewards</span>', () => UI.rankedChooser((id) => App.playRanked(id))),
       evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,

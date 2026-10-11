@@ -68,11 +68,14 @@
     Platinum: { shards: 10000, pack: 3 }, Diamond: { shards: 15000, pack: 4, wc: 'rare' }, Mythic: { shards: 25000, pack: 5, wc: 'mythic' } };
   /** How hard ranked opponents are, by tier. */
   const RANK_DIFFICULTY = { Bronze: 3, Silver: 4, Gold: 5, Platinum: 7, Diamond: 8, Mythic: 10 };
-  /** The ladders, each climbed on its own: Standard, and Commander (one
-      against one, the way Brawl is played ranked on Arena). `key` is where
-      each is kept; Standard keeps the old place, so a rank already earned
-      stays. */
-  const LADDERS = [{ id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' }];
+  /** The ladders, each climbed on its own: Standard, Modern, Pauper, and
+      Commander (one against one, the way Brawl is played ranked on Arena).
+      `key` is where each is kept; Standard keeps the old place, so a rank
+      already earned stays. */
+  const LADDERS = [
+    { id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'modern', key: 'rankedModern', name: 'Modern' },
+    { id: 'pauper', key: 'rankedPauper', name: 'Pauper' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' },
+  ];
   const ladderOf = (id) => LADDERS.find(l => l.id === id) || LADDERS[0];
   /** The best tier reached on any ladder, as an index into TIERS. */
   const bestTier = (p) => Math.max(...LADDERS.map(L => TIERS.indexOf((p[L.key] || {}).best || 'Bronze')));
@@ -115,6 +118,8 @@
     inbox: [],
     xp: 0, level: 0, season: '', masteryPaid: 0,
     ranked: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedModern: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedPauper: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     rankedCommander: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     stats: { games: 0, wins: 0, spells: 0, damage: 0, lands: 0, draws: 0, quests: 0, weeklyDone: 0, mythicsPulled: 0, foilMythics: 0,
       setsCompleted: 0, draftPerfect: 0, gauntlets: 0, byFormat: {}, byDeck: {}, commanderWins: {}, shardsEarned: 0 },
@@ -126,7 +131,7 @@
     if (state) return state;
     const b = blank();
     state = Object.assign(b, MTG.store.get(KEY, null) || {});
-    for (const k of ['weekly', 'login', 'ranked', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
+    for (const k of ['weekly', 'login', 'ranked', 'rankedModern', 'rankedPauper', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
     rollOver();
     return state;
   }
@@ -310,7 +315,7 @@
     out.xp = o.won ? XP.win : XP.play;
     out.levels = addXp(out.xp);
     // ranked
-    if (o.ranked) out.ranked = rankResult(!!o.won, o.ranked === 'commander' ? 'commander' : 'standard');
+    if (o.ranked) out.ranked = rankResult(!!o.won, typeof o.ranked === 'string' ? o.ranked : 'standard');
     out.achievements = checkAchievements();
     save('game');
     return out;

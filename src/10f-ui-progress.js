@@ -143,7 +143,7 @@
         el('h3', { text: P().rankLabel(r) }),
         r.tier === 'Mythic' ? el('p', { class: 'ladder-next', text: `${r.step} win${r.step === 1 ? '' : 's'} clear at the top.` }) : steps,
         next ? el('p', { class: 'ladder-next', text: `${next.wins} more win${next.wins === 1 ? '' : 's'} to ${next.label}` }) : null,
-        el('p', { class: 'dim small', text: `Best this season: ${r.best}. ${L.id === 'commander' ? 'One against one, 40 life, with a Commander deck.' : 'One against one, with a Standard deck.'}` }),
+        el('p', { class: 'dim small', text: `Best this season: ${r.best}. One against one${L.id === 'commander' ? ', 40 life,' : ','} with a ${L.name} deck.` }),
         onPlay ? el('button', { type: 'button', class: 'btn primary', text: `Play ${L.name}`, onclick: () => onPlay(L.id) }) : null,
       ].filter(Boolean)),
     ]);
@@ -155,7 +155,7 @@
     const pick = (id) => { if (m) m.close(); onPlay(id); };
     m = UI.modal({ title: 'Ranked', width: '760px', className: 'ranked-chooser',
       content: el('div', {}, [
-        el('p', { class: 'dim', text: 'Two ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
+        el('p', { class: 'dim', text: 'Four ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
         el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, pick, { size: 84 }))),
       ]) });
     return m;
