@@ -24271,4 +24271,130 @@ module.exports = (test) => {
     t.eq(L.bfOf('B').length, 3, 'Ulamog: annihilator 0 sacrifices nothing');
     t.eq(L.asked.filter(q => q.type === 'sacrifice').length, 0, 'Ulamog: nothing asked');
   });
+
+  test('Commanders: Ojer Axonil, Deepest Might — red noncombat damage to an opponent is at least its power', (mk, t) => {
+    t.auto('Ojer Axonil, Deepest Might');
+    const T = mk({ library: Array(20).fill('Mountain'), life: 40 });
+    T.toMain('A');
+    const oj = T.bf('A', 'Ojer Axonil, Deepest Might');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(T.life('B'), 36, 'Ojer Axonil: a Bolt at an opponent deals 4');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.eq(T.life('A'), 37, 'Ojer Axonil: a Bolt at yourself deals 3');
+    const wurm = T.bf('B', 'Craw Wurm');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [wurm] });
+    t.eq(wurm.damage, 3, 'Ojer Axonil: a Bolt at a creature deals 3');
+    T.mana('A', '4R'); T.cast('A', T.hand('A', 'Lava Axe'), { targets: ['B'] });
+    t.eq(T.life('B'), 31, 'Ojer Axonil: Lava Axe deals 5, not less');
+    // a blue source is not red; combat damage is not noncombat
+    const ps = T.bf('A', 'Prodigal Sorcerer'); ps.summoningSick = false;
+    T.activate('A', ps, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 30, 'Ojer Axonil: Prodigal Sorcerer (blue) deals 1');
+    const pp = T.bf('A', 'Prodigal Pyromancer'); pp.summoningSick = false;
+    T.activate('A', pp, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 26, 'Ojer Axonil: Prodigal Pyromancer (red) deals 4');
+    T.g.dealDamageToPlayer(T.player('B'), 1, pp, true);
+    t.eq(T.life('B'), 25, 'Ojer Axonil: combat damage stays 1');
+    // its power as it is now
+    oj.effects.push({ p: 2, t: 0, until: 'eot' }); T.g.bumpBoard();
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(T.life('B'), 19, 'Ojer Axonil: at 6 power, a Shock deals 6');
+    // with Torbran, the player dealt the damage orders the effects: +2 first, then "equal to its power"
+    const R = mk({ library: Array(20).fill('Mountain') });
+    R.toMain('A');
+    R.bf('A', 'Ojer Axonil, Deepest Might'); R.bf('A', 'Torbran, Thane of Red Fell');
+    R.mana('A', 'R'); R.cast('A', R.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(R.life('B'), 16, 'Ojer Axonil and Torbran: a Shock deals 4');
+  });
+
+  test('Commanders: Ojer Axonil, Deepest Might — returns as Temple of Power, which transforms back after 4 red noncombat damage', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    const oj = T.bf('A', 'Ojer Axonil, Deepest Might');
+    T.g.moveObject(oj, 'graveyard'); T.resolve();
+    t.zone(oj, 'battlefield', 'Ojer Axonil: back from the graveyard');
+    t.eq(oj.face, 1, 'Ojer Axonil: as Temple of Power');
+    t.ok(oj.tapped, 'Ojer Axonil: tapped');
+    oj.tapped = false;
+    T.mana('A', '2R');
+    t.no(T.g.activateAbility('A', oj.id, 1, { auto: true }), 'Temple of Power: no red damage yet');
+    // combat damage from a red creature doesn't count
+    const gob = T.bf('A', 'Raging Goblin');
+    T.g.dealDamageToPlayer(T.player('B'), 4, gob, true);
+    t.no(T.g.activateAbility('A', oj.id, 1, { auto: true }), 'Temple of Power: 4 combat damage is not enough');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.no(T.g.activateAbility('A', oj.id, 1, { auto: true }), 'Temple of Power: a Bolt is 3');
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [bear] });
+    T.activate('A', oj, 1);
+    t.eq(oj.face, 0, 'Temple of Power: 5 red noncombat damage (some to a creature), transformed back');
+  });
+
+  test('Commanders: Cloud, Midgar Mercenary — its Equipment\'s triggers trigger twice while it is equipped', (mk, t) => {
+    t.auto('Cloud, Midgar Mercenary');
+    const eq = (T, o, e) => { e.attachedTo = o.id; o.attachments = (o.attachments || []).concat(e.id); T.g.bumpBoard(); };
+    // Umezawa's Jitte on Cloud: four charge counters from one hit
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.toMain('A');
+    const cl = T.bf('A', 'Cloud, Midgar Mercenary'); cl.summoningSick = false;
+    const j = T.bf('A', "Umezawa's Jitte"); eq(T, cl, j);
+    T.answer('declareAttackers', () => [{ attackerId: cl.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(j.counters.charge, 4, 'Cloud: Jitte triggers twice');
+    // Jitte on another creature while Cloud wears something else: once
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.toMain('A');
+    const c2 = U.bf('A', 'Cloud, Midgar Mercenary');
+    eq(U, c2, U.bf('A', 'Bonesplitter'));
+    const bear = U.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const j2 = U.bf('A', "Umezawa's Jitte"); eq(U, bear, j2);
+    U.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    t.eq(j2.counters.charge, 2, 'Cloud: the Bears\' Jitte, once');
+    // Skullclamp on Cloud as it dies: it was equipped, two triggers, four cards
+    const V = mk({ library: Array(20).fill('Plains') });
+    V.toMain('A');
+    const c3 = V.bf('A', 'Cloud, Midgar Mercenary');
+    eq(V, c3, V.bf('A', 'Skullclamp'));
+    const h0 = V.zone('A', 'hand').length;
+    V.g.moveObject(c3, 'graveyard'); V.resolve();
+    t.eq(V.zone('A', 'hand').length - h0, 4, 'Cloud: Skullclamp draws twice two');
+    const b2 = V.bf('A', 'Grizzly Bears');
+    const sk = V.bfOf('A').find(o => o.name === 'Skullclamp');
+    eq(V, b2, sk);
+    const h1 = V.zone('A', 'hand').length;
+    V.g.moveObject(b2, 'graveyard'); V.resolve();
+    t.eq(V.zone('A', 'hand').length - h1, 2, 'Cloud gone: Skullclamp on the Bears draws two');
+    // unequipped: Cloud's own arrival finds one Equipment
+    const W = mk({ library: Array(10).fill('Plains').concat(['Bonesplitter', 'Skullclamp']) });
+    W.toMain('A');
+    W.put('A', 'Cloud, Midgar Mercenary', 'battlefield', { etb: true }); W.resolve();
+    t.eq(W.zone('A', 'hand').filter(o => /Bonesplitter|Skullclamp/.test(o.name)).length, 1, 'Cloud: unequipped, one search');
+  });
+
+  test('Commanders: Morophon, the Boundless — spells of the chosen type cost {W}{U}{B}{R}{G} less, coloured mana only', (mk, t) => {
+    for (const n of ['Morophon, the Boundless', 'Ragemonger']) t.auto(n);
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    T.answer('mode', (ch) => ({ modes: [ch.types.indexOf('Elf')] }));
+    const mo = T.put('A', 'Morophon, the Boundless', 'battlefield', { etb: true });
+    t.eq(mo.chosenType, 'Elf', 'Morophon: Elf chosen as it enters');
+    t.eq(T.g.castCost(T.hand('A', 'Llanowar Elves')), '', 'Morophon: Llanowar Elves ({G}) costs nothing');
+    t.eq(T.g.castCost(T.hand('A', 'Elvish Archdruid')), '{1}{G}', 'Morophon: Elvish Archdruid ({1}{G}{G}) loses one {G}, the {1} stays');
+    t.eq(T.g.castCost(T.hand('A', 'Elvish Hexhunter')), '', 'Morophon: a hybrid {G/W} Elf is paid in green, and so goes');
+    t.eq(T.g.castCost(T.hand('A', 'Grizzly Bears')), '{1}{G}', 'Morophon: a Bear is full price');
+    T.mana('A', '1');
+    const ev = T.hand('A', 'Elvish Visionary');
+    T.cast('A', ev);
+    t.zone(ev, 'battlefield', 'Morophon: Elvish Visionary cast for {1}');
+    t.eq(T.g.powerOf(ev), 2, 'Morophon: other Elves get +1/+1');
+    t.eq(T.g.powerOf(T.bf('A', 'Grizzly Bears')), 2, 'Morophon: Bears do not');
+    t.eq(T.g.castCost(T.hand('B', 'Llanowar Elves')), '{G}', 'Morophon: only spells its controller casts');
+    // Ragemonger: "Minotaur spells you cast cost {B}{R} less"
+    const R = mk({ library: Array(20).fill('Mountain') });
+    R.toMain('A');
+    R.bf('A', 'Ragemonger');
+    t.eq(R.g.castCost(R.hand('A', 'Ragemonger')), '{1}', 'Ragemonger: another ({1}{B}{R}) costs {1}');
+    t.eq(R.g.castCost(R.hand('A', 'Lightning Bolt')), '{R}', 'Ragemonger: a Bolt is full price');
+  });
 };

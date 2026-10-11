@@ -2945,13 +2945,16 @@
       if (tax) mana = this._addGeneric(mana, tax);
       /* standing taxes and discounts first (Thalia, Herald's Horn, the
          spell's own "costs {1} less for each…"), then convoke and its kin */
-      const delta = this._costDelta(o, o.controller || o.owner);
+      const less = [];
+      const delta = this._costDelta(o, o.controller || o.owner, less);
       if (delta) mana = this._addGeneric(mana, delta);
       // Alchemy: "perpetually gains 'This spell costs {1} less to cast'"
       const pd = (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
       if (pd) mana = this._addGeneric(mana, pd);
       // Andradite Leech: "Black spells you cast cost {B} more to cast"
       mana += this._costExtraSymbols(o, o.controller || o.owner);
+      // Morophon, the Boundless: "{W}{U}{B}{R}{G} less", coloured mana only
+      if (less.length) mana = this._lessColored(mana, less);
 
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
@@ -2972,18 +2975,21 @@
      */
     _freeCastPrice(o, pid) {
       let gen = 0;
+      const less = [];
       gen += this._commanderTax(o).mana;
-      gen += this._costDelta(o, pid);
+      gen += this._costDelta(o, pid, less);
       gen += (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
-      return (gen > 0 ? '{' + gen + '}' : '') + this._costExtraSymbols(o, pid);
+      const out = (gen > 0 ? '{' + gen + '}' : '') + this._costExtraSymbols(o, pid);
+      return less.length ? this._lessColored(out, less) : out;
     }
 
     /**
      * The standing changes to what a spell costs, added up: a Thalia's tax,
      * a Herald's Horn's discount, and the spell's own "costs {1} less to
      * cast for each artifact you control". More is positive, less negative.
+     * Coloured reductions (Morophon's {W}{U}{B}{R}{G}) go into `less`.
      */
-    _costDelta(o, pid) {
+    _costDelta(o, pid, less) {
       const a = o.analysis();
       if (!a) return 0;
       let d = 0;
@@ -3033,6 +3039,7 @@
             if (e.yourTurn && !(this.activePlayer && this.activePlayer.id === pid)) continue;
             // Doc Aurlock, Aven Interrupter: only spells cast from those zones
             if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
+            if (e.lessSymbols && less) less.push(...e.lessSymbols);
             d += (Number(e.amount) || 0) * (e.per ? this._countValue(e.per, src.controller, src) : 1);
           }
         }
@@ -3306,6 +3313,19 @@
       generic = Math.max(0, generic + delta);
       const out = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
       return out;
+    }
+    /* Morophon, the Boundless: "This effect reduces only the amount of
+       colored mana you pay" — each symbol takes one mana of its colour off,
+       and nothing off the generic. A hybrid or Phyrexian symbol of that
+       colour is paid with it, and so goes (Morophon's rulings). */
+    _lessColored(cost, syms) {
+      const list = MANA.parse(cost || '');
+      for (const s of syms || []) {
+        let i = list.indexOf(s);
+        if (i < 0) i = list.findIndex(x => x.includes('/') && x.split('/').includes(s));
+        if (i >= 0) list.splice(i, 1);
+      }
+      return list.map(x => '{' + x + '}').join('');
     }
     /** A cost with these symbols taken out of it, one of each named (what is not there is not taken). */
     _dropSymbols(cost, syms) {
@@ -9457,7 +9477,13 @@
       let again = true;
       while (again && guard++ < 12) {
         again = false;
-        for (const entry of this._replacements()) {
+        /* Ojer Axonil: the player dealt the damage orders the replacements
+           (CR 616.1), and "deals damage equal to Ojer Axonil's power
+           instead" comes to least once the others have added theirs */
+        const reps = this._replacements();
+        const order = reps.some(e => e.ef.how === 'atLeastSelfPower')
+          ? reps.filter(e => e.ef.how !== 'atLeastSelfPower').concat(reps.filter(e => e.ef.how === 'atLeastSelfPower')) : reps;
+        for (const entry of order) {
           const ef = entry.ef;
           const key = entry.src.id + ':' + (ef.id || ef.event);
           if (seen.has(key)) continue;
@@ -9543,6 +9569,8 @@
         if (ef.combatOnly && !ev.combat) return false;
         if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
         if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;
+        // Ojer Axonil: "an amount of noncombat damage less than Ojer Axonil's power" (atLeastSelfPower)
+        if (ef.how === 'atLeastSelfPower' && !(src.zone === 'battlefield' && (ev.n || 0) < this.powerOf(src))) return false;
       }
       if (ef.event === 'zoneChange' && ef.how === 'toZone' && ev.zone === ef.zone) return false;
       return true;
@@ -9555,6 +9583,7 @@
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
+        case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
@@ -10531,6 +10560,8 @@
         case 'lifeChangedThisTurn': return !!me && ((me.lifeLostThisTurn || 0) > 0 || (me.lifeGainedThisTurn || 0) > 0);
         // Lord Jyscal Guado: "if you put a counter on a creature this turn" (counterPutter)
         case 'youPutCounterOnCreature': return !!me && !!((h.counterPutters || {})[me.id]);
+        // Temple of Power: "red sources you controlled dealt 4 or more noncombat damage this turn" (noncombatByColor)
+        case 'colorNoncombatDealt': return !!me && ((((h.noncombatByColor || {})[me.id]) || {})[cond.color] || 0) >= (cond.n || 1);
         // Samut, Vizier of Naktamun: "if that creature entered this turn" (triggerObjEntered)
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
@@ -11259,6 +11290,7 @@
         (this._excessOn = this._excessOn || {})[o.id] = (this._excessOn[o.id] || 0) + excess;
       }
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
+      this._noteNoncombatDamage(source, amount, isCombat);
       this._lifelinkFrom(source, amount, isCombat);
       if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
       if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
@@ -11318,6 +11350,17 @@
       return Math.max(0, ev.n);
     }
 
+    /* Temple of Power: "if red sources you controlled dealt 4 or more
+       noncombat damage this turn" — what each player's sources of each
+       colour dealt this turn, outside combat */
+    _noteNoncombatDamage(source, amount, combat) {
+      if (combat || !source || source.controller == null || !(amount > 0)) return;
+      const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+      const all = h.noncombatByColor || (h.noncombatByColor = {});
+      const by = all[source.controller] || (all[source.controller] = {});
+      for (const c of ['white', 'blue', 'black', 'red', 'green']) if (this._cardFitsWords(source, c)) by[c] = (by[c] || 0) + amount;
+    }
+
     dealDamageToPlayer(p, amount, source, combat) {
       if (!p || amount <= 0) return 0;
       // Pariah, Empyrial Archangel: "all damage that would be dealt to you is dealt to this creature instead"
@@ -11361,6 +11404,7 @@
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
+      this._noteNoncombatDamage(source, amount, combat);
       this._lifelinkFrom(source, amount, combat);
       // toxic (CR 702.164): combat damage to a player gives poison counters as well
       const tox = combat && source ? this._toxicTotal(source) : 0;
@@ -22505,10 +22549,22 @@
       let extra = 0;
       const ENTER = ['etb', 'permEnters', 'yourCreatureEtb', 'anyCreatureEtb', 'otherCreatureEtb', 'yourPermanentEtb', 'landfall'];
       const DIE = ['dies', 'permDies', 'yourCreatureDies', 'anyCreatureDies', 'opponentCreatureDies', 'equippedDies'];
+      const isEquip = (x) => !!x && !!(x.analysis() || {}).isEquipment;
+      /* Cloud, Midgar Mercenary: "if a triggered ability of Cloud or an
+         Equipment attached to it triggers" — as Cloud leaves, an Equipment's
+         "whenever equipped creature dies" looks back at it (CR 603.10a) */
+      const gone = event === 'equippedDies' && data.object && data.object.zone !== 'battlefield' ? data.object : null;
+      if (gone && (data.attachedIds || []).includes(o.id) && ((this._staticOp(gone, 'triggerDouble') || {}).cause === 'selfOrEquipment')) extra++;
       for (const src of this.battlefield) {
-        if (src.controller !== o.controller || src.phasedOut) continue;
+        if (src.phasedOut || (src.controller !== o.controller && o.attachedTo !== src.id)) continue;
         const e = this._staticOp(src, 'triggerDouble');
         if (!e) continue;
+        // (as long as Cloud is equipped; the Equipment's, whoever controls it)
+        if (e.cause === 'selfOrEquipment') {
+          if ((o === src || (o.attachedTo === src.id && isEquip(o))) && (src.attachments || []).some(id => isEquip(this.obj(id)))) extra++;
+          continue;
+        }
+        if (src.controller !== o.controller) continue;
         if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent')) extra++;
         else if (e.cause === 'die' && DIE.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'creature')) extra++;
         else if (e.cause === 'any' && e.sourceChosenType && o !== src && src.chosenType &&

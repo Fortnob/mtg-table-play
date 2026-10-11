@@ -8344,6 +8344,15 @@
       if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
       return { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+nth[3]), nthEachTurn: /second/i.test(nth[1]) ? 2 : 1 };
     }
+    /* Morophon, the Boundless: "Spells of the chosen type you cast cost
+       {W}{U}{B}{R}{G} less to cast. This effect reduces only the amount of
+       colored mana you pay."; Ragemonger: "Minotaur spells you cast cost
+       {B}{R} less …" — the spells read as for {1} less, the symbols kept (lessSymbols) */
+    const col = s.match(/^(.+?) cost ((?:\{[WUBRG]\})+) less to cast\. This effect reduces only the amount of colou?red mana you pay$/i);
+    if (col) {
+      const inner = parseCostMod(col[1].replace(/^Spells of the chosen type you cast$/i, 'Spells you cast of the chosen type') + ' cost {1} less to cast');
+      return inner && inner.amount === -1 && !inner.symbols && !inner.per ? Object.assign(inner, { amount: 0, lessSymbols: col[2].match(/[WUBRG]/g) }) : null;
+    }
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {
@@ -9543,6 +9552,9 @@
     [/^there are (\w+) or more mana values among cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveMvDistinct', n: num(m[1]) } : null)],
     // Lightning Phoenix: "an opponent was dealt 3 or more damage this turn" — as life lost
     [/^an opponent was dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
+    // Temple of Power: "red sources you controlled dealt 4 or more noncombat damage this turn" (colorNoncombatDealt)
+    [/^(white|blue|black|red|green) sources you controlled dealt (\w+) or more noncombat damage this turn$/i,
+      (m) => (typeof num(m[2]) === 'number' ? { kind: 'colorNoncombatDealt', color: m[1].toLowerCase(), n: num(m[2]) } : null)],
     // High Score: "you control a creature with the greatest power among creatures on the battlefield"
     [/^you control (?:a|the) creature with the greatest power among creatures on the battlefield(?: or tied for the greatest power)?$/i, () => ({ kind: 'controlsGreatestPower' })],
     // Elenda: "your life total is at least 10 greater than your starting life total"
@@ -14291,6 +14303,13 @@
         })(m0);
         return other ? Object.assign(r, { otherSource: true }) : r;
       } },
+    /* Ojer Axonil, Deepest Might: "If a red source you control would deal an
+       amount of noncombat damage less than Ojer Axonil's power to an
+       opponent, that source deals damage equal to Ojer Axonil's power
+       instead." (atLeastSelfPower) */
+    { re: /^If an? ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal an amount of (noncombat )?damage less than (?:CARDNAME|this creature)'s power to an opponent, (?:that source|it) deals damage equal to (?:CARDNAME|this creature)'s power instead\.?$/i,
+      make: (m) => Object.assign({ op: 'replace', id: 'dmgAtLeastPower', event: 'damage', who: 'you', how: 'atLeastSelfPower',
+        toOpponent: true, toPlayerOnly: true, sourceWords: m[1].toLowerCase().replace(/\bsource\b/, '').trim() || null }, m[2] ? { noncombat: true } : {}) },
     // Absorbing Man and Titania: "Double all damage that creature sources you control would deal." (doubleSourcesYours)
     { re: /^Double all damage that (creature |red |green |white |blue |black )?sources you control would deal\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgDoubleYours', event: 'damage', who: 'you', how: 'double', sourceWords: m[1] ? m[1].trim().toLowerCase() : null }) },
@@ -15756,6 +15775,9 @@
       // Delney: "If a triggered ability of a creature you control with power 2 or less triggers, …"
       { re: /^If a triggered ability of a creature you control with power (\d+) or less triggers, that ability triggers an additional time\.?$/i,
         make: (m) => ({ op: 'triggerDouble', cause: 'source', what: 'creature', maxPower: +m[1] }), auto: true },
+      // Cloud, Midgar Mercenary: "As long as Cloud is equipped, if a triggered ability of Cloud or an Equipment attached to it triggers, …" (selfOrEquipment)
+      { re: /^As long as (?:CARDNAME|this creature) is equipped, if a triggered ability of (?:CARDNAME|this creature) or an Equipment attached to it triggers, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'selfOrEquipment' }, auto: true },
       // Delney: "Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater."
       { re: /^Creatures you control with power (\d+) or less can'?t be blocked by creatures with power (\d+) or greater\.?$/i,
         make: (m) => ({ op: 'groupEvasion', maxPower: +m[1], maxBlockerPower: +m[2] - 1 }), auto: true },
