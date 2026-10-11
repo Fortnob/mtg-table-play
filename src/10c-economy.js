@@ -571,7 +571,6 @@
     { id: 'art-atraxa', name: 'Atraxa', kind: 'art', card: "Atraxa, Praetors' Voice", rim: '#e8e2d0' },
     { id: 'art-griselbrand', name: 'Griselbrand', kind: 'art', card: 'Griselbrand', rim: '#b04040' },
     { id: 'art-craterhoof', name: 'Craterhoof', kind: 'art', card: 'Craterhoof Behemoth', rim: '#8fd46a' },
-    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', rim: '#7fc4ff' },
     // and more, from Alpha to now, every colour; `at` is where the picture is looked at
     { id: 'art-lotus', name: 'Black Lotus', kind: 'art', card: 'Black Lotus', print: ['lea', '232'], at: '55% 50%', rim: '#c9a24a' },
     { id: 'art-shivan', name: 'Shivan Dragon', kind: 'art', card: 'Shivan Dragon', print: ['lea', '174'], at: '80% 30%', rim: '#e0553a' },
@@ -596,7 +595,13 @@
     { id: 'art-omnath', name: 'Omnath', kind: 'art', card: 'Omnath, Locus of Creation', print: ['znr', '232'], rim: '#9fe0c0' },
     { id: 'art-ragavan', name: 'Ragavan', kind: 'art', card: 'Ragavan, Nimble Pilferer', print: ['mh2', '138'], at: '72% 40%', rim: '#ff8a3a' },
     { id: 'art-onering', name: 'The One Ring', kind: 'art', card: 'The One Ring', print: ['ltr', '246'], at: '55% 50%', rim: '#f3d27a' },
+    // the basic lands: John Avon's full art (Unhinged), and Wastes in its own
+    { id: 'art-plains', name: 'Plains', kind: 'art', card: 'Plains', print: ['unh', '136'], rim: '#f1e2b0' },
+    { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', print: ['unh', '137'], rim: '#7fc4ff' },
+    { id: 'art-swamp', name: 'Swamp', kind: 'art', card: 'Swamp', print: ['unh', '138'], rim: '#a77ad8' },
+    { id: 'art-mountain', name: 'Mountain', kind: 'art', card: 'Mountain', print: ['unh', '139'], rim: '#ff8a3a' },
     { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['unh', '140'], rim: '#8fd46a' },
+    { id: 'art-wastes', name: 'Wastes', kind: 'art', card: 'Wastes', print: ['ogw', '183'], rim: '#c8c0b0' },
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
   ];
