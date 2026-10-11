@@ -24510,4 +24510,147 @@ module.exports = (test) => {
     T.g.moveObject(tok, 'graveyard'); T.resolve();
     t.eq(T.life('A'), life - 1, 'Valgavoth: the token died, and Blood Artist saw it');
   });
+
+  test('Commanders: Marvin, Murderous Mimic — the activated abilities of your other creatures', (mk, t) => {
+    t.auto('Marvin, Murderous Mimic');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    const marvin = T.bf('A', 'Marvin, Murderous Mimic'); marvin.summoningSick = false;
+    const sorc = T.bf('A', 'Prodigal Sorcerer');
+    T.bf('A', 'Llanowar Elves');
+    T.bf('B', 'Onakke Javelineer');
+    const acts = () => marvin.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts().map(x => x.text).join(' / '), '{T}: This creature deals 1 damage to any target.', "Marvin: the Sorcerer's ability, not the opponent's Javelineer's");
+    t.eq(marvin.analysis().manaAbilities.length, 1, "Marvin: the Elves' mana ability too");
+    // "this creature" is Marvin, and its {T} taps Marvin
+    T.activate('A', marvin, marvin.analysis().manaAbilities.length, { targets: ['B'] });
+    t.eq(T.life('B'), 19, 'Marvin pings B');
+    t.ok(marvin.tapped && !sorc.tapped, 'Marvin tapped, the Sorcerer not');
+    marvin.tapped = false;
+    t.ok(T.g.tapForMana('A', marvin.id, 0), "Marvin taps for mana with the Elves' ability");
+    t.eq(T.player('A').pool.G, 1, 'Marvin: {G}');
+    // gone with the creature that had it
+    T.g.moveObject(sorc, 'graveyard');
+    t.eq(acts().length, 0, 'Marvin: the Sorcerer gone, its ability gone');
+    // a creature with Marvin's name lends nothing; another creature with the same ability does
+    const U = mk({ library: Array(20).fill('Forest') });
+    U.toMain('A');
+    const m2 = U.bf('A', 'Marvin, Murderous Mimic');
+    const sd = U.put('A', 'Spark Double', 'battlefield', { etb: true });
+    U.resolve();
+    t.eq(sd.name, 'Marvin, Murderous Mimic', 'Spark Double is a Marvin');
+    const bow = U.bf('A', 'Viridian Longbow');
+    bow.attachedTo = sd.id; sd.attachments = [bow.id]; U.g.bumpBoard();
+    t.ok(sd.analysis().abilities.some(x => x.kind === 'activated'), 'the Spark Double Marvin has the Longbow ability');
+    t.eq(m2.analysis().abilities.filter(x => x.kind === 'activated').length, 0, 'Marvin: nothing from a creature with the same name');
+    const bear = U.bf('A', 'Grizzly Bears');
+    bow.attachedTo = bear.id; sd.attachments = []; bear.attachments = [bow.id]; U.g.bumpBoard();
+    t.eq(m2.analysis().abilities.filter(x => x.kind === 'activated').length, 1, 'Marvin: the Longbow on the Bears, Marvin has it');
+  });
+  test("Commanders: Drana and Linvala — the opponents' creatures' abilities, paid with any colour", (mk, t) => {
+    t.auto('Drana and Linvala');
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.toMain('A');
+    const drana = T.bf('A', 'Drana and Linvala'); drana.summoningSick = false;
+    T.bf('A', 'Prodigal Sorcerer');
+    const dragon = T.bf('B', 'Shivan Dragon');
+    T.bf('B', 'Llanowar Elves');
+    const acts = () => drana.analysis().abilities.filter(x => x.kind === 'activated');
+    t.eq(acts().map(x => x.text).join(' / '), '{R}: This creature gets +1/+0 until end of turn.', "Drana and Linvala: the Dragon's ability, not A's own Sorcerer's");
+    t.eq(drana.analysis().manaAbilities.length, 1, "Drana and Linvala: the opponent's Elves' mana ability too");
+    // {R} paid with white mana
+    const p0 = T.g.powerOf(drana);
+    T.mana('A', 'W');
+    T.activate('A', drana, drana.analysis().manaAbilities.length);
+    t.eq(T.g.powerOf(drana), p0 + 1, 'Drana and Linvala: +1/+0, {R} paid with {W}');
+    t.eq(T.g.powerOf(dragon), 5, 'the Dragon itself is untouched');
+    // B can't use its own Dragon's ability
+    T.toMain('B');
+    T.mana('B', 'R');
+    t.ok(!T.g.activateAbility('B', dragon.id, 0, { auto: true }), "B can't activate the Dragon's ability");
+    // the Dragon gone, its ability gone
+    T.g.moveObject(dragon, 'graveyard');
+    t.eq(acts().length, 0, 'Drana and Linvala: the Dragon gone, its ability gone');
+  });
+  test('Commanders: Gix, Yawgmoth Praetor — a creature hitting an opponent: its controller may pay 1 life to draw', (mk, t) => {
+    t.auto('Gix, Yawgmoth Praetor');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.bf('A', 'Gix, Yawgmoth Praetor');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.toMain('A');
+    const hand = T.zone('A', 'hand').length;
+    T.answer('confirm', { yes: true });
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 18, 'the Bears hit B');
+    t.eq(T.life('A'), 19, 'Gix: A pays 1 life');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'Gix: … and draws');
+    t.ok(T.asked.some(q => q.type === 'confirm' && q.playerId === 'A' && /Pay 1 life\? If you do, you draw a card/.test(q.prompt)), 'Gix: asked of the creature\'s controller');
+    // declined: nothing paid, nothing drawn
+    const U = mk({ library: Array(20).fill('Swamp') });
+    U.bf('A', 'Gix, Yawgmoth Praetor');
+    const ape = U.bf('A', 'Grizzly Bears');
+    U.toMain('A');
+    const handU = U.zone('A', 'hand').length;
+    U.answer('confirm', { yes: false });
+    U.answer('declareAttackers', () => [{ attackerId: ape.id, defenderId: 'B' }]);
+    U.toMain('A', 'endCombat');
+    t.eq(U.life('A'), 20, 'Gix: declined, no life paid');
+    t.eq(U.zone('A', 'hand').length, handU, 'Gix: declined, no card');
+    // B's creature hitting A (not one of A's opponents): nothing asked
+    const V = mk({ library: Array(20).fill('Swamp') });
+    V.bf('A', 'Gix, Yawgmoth Praetor');
+    const cub = V.bf('B', 'Grizzly Bears');
+    V.toMain('B');
+    const handB = V.zone('B', 'hand').length;
+    V.answer('declareAttackers', () => [{ attackerId: cub.id, defenderId: 'A' }]);
+    V.toMain('B', 'endCombat');
+    t.eq(V.life('A'), 18, 'B hit A');
+    t.eq(V.life('B'), 20, 'Gix: B pays nothing');
+    t.eq(V.zone('B', 'hand').length, handB, 'Gix: B draws nothing');
+    t.no(V.asked.some(q => q.type === 'confirm'), 'Gix: nobody asked');
+  });
+
+  test("Commanders: Gix, Yawgmoth Praetor — discard X: exile X off an opponent's library, play and cast them free", (mk, t) => {
+    t.auto('Gix, Yawgmoth Praetor');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const gix = T.bf('A', 'Gix, Yawgmoth Praetor');
+    const d1 = T.hand('A', 'Swamp'), d2 = T.hand('A', 'Swamp'), keep = T.hand('A', 'Llanowar Elves');
+    const lib = T.zone('B', 'library');
+    const forest = T.put('B', 'Forest', 'library'), bears = T.put('B', 'Grizzly Bears', 'library');
+    lib.splice(lib.indexOf(forest), 1); lib.splice(lib.indexOf(bears), 1); lib.unshift(bears, forest);
+    T.mana('A', 'BBB4');
+    T.activate('A', gix, 0, { targets: ['B'], x: 2, discardIds: [d1.id, d2.id] });
+    t.zone(d1, 'graveyard', 'Gix: discarded'); t.zone(d2, 'graveyard', 'Gix: discarded'); t.zone(keep, 'hand', 'Gix: only X cards discarded');
+    t.zone(bears, 'battlefield', 'Gix: the Bears cast for nothing');
+    t.eq(bears.controller, 'A', "Gix: A controls B's Bears");
+    t.zone(forest, 'battlefield', 'Gix: the Forest played');
+    t.eq(forest.controller, 'A', "Gix: A controls B's Forest");
+    t.eq(T.player('A').landsPlayed, 1, "Gix: the Forest is A's land play this turn");
+    t.eq(T.zone('B', 'exile').length, 0, 'Gix: X cards exiled, no more');
+    // a land play already used: the land is not offered and stays exiled
+    const U = mk({ library: Array(20).fill('Island') });
+    U.toMain('A');
+    const gix2 = U.bf('A', 'Gix, Yawgmoth Praetor');
+    U.playLand('A', U.hand('A', 'Swamp'));
+    const toss = U.hand('A', 'Swamp');
+    const lib2 = U.zone('B', 'library');
+    const forest2 = U.put('B', 'Forest', 'library');
+    lib2.splice(lib2.indexOf(forest2), 1); lib2.unshift(forest2);
+    U.mana('A', 'BBB4');
+    U.activate('A', gix2, 0, { targets: ['B'], x: 1, discardIds: [toss.id] });
+    t.zone(forest2, 'exile', 'Gix: no land play left, the Forest stays exiled');
+    t.no(U.asked.some(q => q.type === 'confirm' && /Play Forest/.test(q.prompt || '')), 'Gix: not asked to play it');
+  });
+  test('Robaran Mercenaries: the activated abilities of your legendary creatures only', (mk, t) => {
+    t.auto('Robaran Mercenaries');
+    const T = mk();
+    const rob = T.bf('A', 'Robaran Mercenaries');
+    T.bf('A', 'Captain Sisay');
+    T.bf('A', 'Prodigal Sorcerer');
+    const acts = rob.analysis().abilities.filter(x => x.kind === 'activated').map(x => x.text);
+    t.eq(acts.length, 1, "Robaran: one ability, Captain Sisay's");
+    t.ok(/legendary card/.test(acts[0]), "Robaran: Captain Sisay's tutor, not the Sorcerer's ping");
+  });
 };

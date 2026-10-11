@@ -2845,14 +2845,18 @@
     /* ---------- playing cards ---------- */
 
     canPlayLand(playerId) {
-      const p = this.player(playerId);
+      return this._landPlayLeft(this.player(playerId)) && this.isMain && this.stackEmpty
+        && !!this.priorityPlayer && this.priorityPlayer.id === playerId;
+    }
+
+    /** Whether this player may play a land at all now: their turn, and a land play left (Gix: as an ability resolves too). */
+    _landPlayLeft(p) {
+      if (!p || !this.activePlayer || this.activePlayer.id !== p.id) return false;
       // Solfatara: "can't play lands this turn"
-      if (p && p.noLandsTurn === this.turn) return false;
+      if (p.noLandsTurn === this.turn) return false;
       // Aggressive Mining: "You can't play lands."
-      if (this.battlefield.some(o => o.controller === playerId && !o.phasedOut && this._staticOp(o, 'cantPlayLands'))) return false;
-      return this.activePlayer.id === playerId && this.isMain && this.stackEmpty
-        && this.priorityPlayer && this.priorityPlayer.id === playerId
-        && p.landsPlayed < this.landAllowance(p);
+      if (this.battlefield.some(o => o.controller === p.id && !o.phasedOut && this._staticOp(o, 'cantPlayLands'))) return false;
+      return p.landsPlayed < this.landAllowance(p);
     }
 
     /**
@@ -2907,6 +2911,21 @@
       // Muldrotha, the Gravetide: this turn's land from the graveyard
       if (leave && leave.srcId && leave.perType) this._usePlayFromType(leave.srcId, 'land');
       if (back) o.face = 1;
+      this._landPlayed(p, o);
+      this.checkStateBasedActions();
+      /* Playing a land is a special action and uses no stack, but a land that
+         does something as it enters has just triggered. Those triggers go on
+         the stack the next time a player would receive priority (CR 603.3),
+         which is now: you keep priority, and the trigger is waiting above
+         you. Without this a Temple sat there and never scried. */
+      this._resetPriority();
+      this.touch();
+      return true;
+    }
+
+    /** A land played, from wherever it was let be played: one of the turn's land plays, and what watches for it. */
+    _landPlayed(p, o) {
+      const playerId = p.id;
       p.landsPlayed++;
       const fromZone = o.zone;
       this.moveObject(o, 'battlefield', { asLand: true, controller: playerId });
@@ -2917,15 +2936,6 @@
       this._fire('anyPlayLand', null, { object: o, playerId });
       this._fire('opponentPlaysLand', null, { object: o, playerId, except: playerId });
       this.emit('sfx', 'land');
-      this.checkStateBasedActions();
-      /* Playing a land is a special action and uses no stack, but a land that
-         does something as it enters has just triggered. Those triggers go on
-         the stack the next time a player would receive priority (CR 603.3),
-         which is now: you keep priority, and the trigger is waiting above
-         you. Without this a Temple sat there and never scried. */
-      this._resetPriority();
-      this.touch();
-      return true;
     }
 
     /**
@@ -7638,6 +7648,8 @@
         }
         mana = (generic > 0 ? '{' + generic + '}' : '') + rest.map(x => '{' + x + '}').join('');
       }
+      // Drana and Linvala: "You may spend mana as though it were mana of any color to activate those abilities."
+      if (ab && ab.spendAnyColor && mana) mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       return this._abilityCostMods(o, ab, mana, targets);
     }
 
@@ -7916,6 +7928,27 @@
           : String(ab.text || 'Add mana').replace(/^[^:]*:\s*/, '');
         return { i: from + k, label };
       });
+    }
+
+    /* The activated and mana abilities a permanent has beyond its printed ones (handed to it in quotation
+       marks, or Marvin's and Drana and Linvala's borrowed ones), for the table to offer: each by the
+       index activateAbility takes, and where its own activated abilities start (manaBase) */
+    _gainedAbilitiesView(o) {
+      const a = o.analysis();
+      if (!a) return null;
+      const extra = (ab) => !!(ab && (ab.granted || ab.borrowed));
+      const acts = a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+      if (!acts.some(extra) && !a.manaAbilities.some(extra)) return null;
+      const list = [];
+      // (Drana and Linvala: the cost the table pays is the one with its colours made generic)
+      const shown = (ab) => {
+        const x = JSON.parse(JSON.stringify(ab));
+        if (ab.spendAnyColor && x.cost && x.cost.mana) x.cost.mana = this._abilityMana(o, ab);
+        return x;
+      };
+      a.manaAbilities.forEach((ab, i) => { if (extra(ab)) list.push({ i, mana: true, ability: shown(ab) }); });
+      acts.forEach((ab, k) => { if (extra(ab)) list.push({ i: a.manaAbilities.length + k, ability: shown(ab) }); });
+      return { manaBase: a.manaAbilities.length, list };
     }
 
     /** Try to pay `cost`; may auto-tap lands. Returns true on success. */
@@ -10987,7 +11020,9 @@
       const stationed = base.stationCreatureAt != null && (Number((o.counters || {}).charge) || 0) >= base.stationCreatureAt;
       const waiting = !!base.impending && (Number((o.counters || {}).time) || 0) > 0;
       const proto = !!(o.prototyped && base.prototype);
-      if (!own.length && !sources.length && !base.notCreatureUnless && !stationed && !waiting && !proto) return base;
+      // Marvin, Drana and Linvala: the activated abilities other creatures have right now (borrowActivated)
+      const borrowed = this._borrowedAbilities(o, base);
+      if (!own.length && !sources.length && !base.notCreatureUnless && !stationed && !waiting && !proto && !borrowed) return base;
       this._dynBusy = true;
       let texts, stamps, notCreature = false;
       try {
@@ -11009,8 +11044,9 @@
         }
         if (waiting) notCreature = true;
       } finally { this._dynBusy = false; }
-      if (!texts.length && !notCreature && !stationed && !proto) return base;
-      const key = base.name + '|' + (notCreature ? 1 : 0) + (stationed ? 's' : '') + (proto ? 'p' : '') + '|' + texts.join('\u0001') + '|' + stamps.join(',');
+      if (!texts.length && !notCreature && !stationed && !proto && !borrowed) return base;
+      const key = base.name + '|' + (notCreature ? 1 : 0) + (stationed ? 's' : '') + (proto ? 'p' : '') + '|' + texts.join('\u0001') + '|' + stamps.join(',') +
+        (borrowed ? '|' + borrowed.key : '');
       if (o._dynKey === key && o._dynBase === base) return o._dyn;
       const out = Object.assign({}, base);
       if (notCreature) {
@@ -11050,8 +11086,68 @@
         out.abilities = base.abilities.concat(extra);
         if (extraMana.length) out.manaAbilities = (base.manaAbilities || []).concat(extraMana);
       }
+      if (borrowed) {
+        out.abilities = (out.abilities || []).concat(borrowed.acts);
+        if (borrowed.mana.length) out.manaAbilities = (out.manaAbilities || []).concat(borrowed.mana);
+      }
       o._dyn = out; o._dynKey = key; o._dynBase = base;
       return out;
+    }
+    /**
+     * Marvin, Murderous Mimic: "has all activated abilities of creatures you
+     * control that don't have the same name as this creature"; Drana and
+     * Linvala: "… of all creatures your opponents control. You may spend
+     * mana as though it were mana of any color to activate those abilities."
+     * The activated abilities (mana abilities too) those creatures have right
+     * now, as this one's own: "this creature" in them is this one (and its
+     * "{T}" taps this one). An ability that only works from another zone, or
+     * a Room's door, is not one it could use here. Each is had once, however
+     * many creatures share it. Null when it has no such ability, or has lost
+     * it (Humility); a creature doing the same as it is asked is skipped
+     * (two Dranas facing each other), so the asking always ends.
+     */
+    _borrowedAbilities(o, base) {
+      const spec = (() => {
+        for (const ab of (base.abilities || [])) if (ab.kind === 'static') for (const e of (ab.effects || [])) if (e && e.op === 'borrowActivated') return e;
+        return null;
+      })();
+      if (!spec || o.phasedOut || o.faceDown) return null;
+      const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
+      const ss = lb && lb.st.get(o.id);
+      if (ss && (ss.lost || ss.rulesLost)) return null;
+      const busy = this._borrowing || (this._borrowing = new Set());
+      if (busy.has(o.id)) return null;
+      const top = !busy.size;
+      // (an ability handed to one of them changes its effects, not the board)
+      let sig = this._boardKey + ':' + (this._lbGen || 0);
+      for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
+      if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
+      busy.add(o.id);
+      let res = null;
+      try {
+        const opp = new Set(this.opponentsOf(o.controller).map(p => p.id));
+        const acts = [], mana = [], seen = new Set();
+        const take = (list, ab) => {
+          if (!ab || ab.fromGraveyard || ab.fromCommandZone || ab.special) return;
+          const k = ab.kind + ':' + (ab.text || JSON.stringify(ab.effects || []));
+          if (seen.has(k)) return;
+          seen.add(k);
+          list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor }));
+        };
+        for (const x of this.battlefield) {
+          if (x === o || x.phasedOut || x.faceDown) continue;
+          if (spec.who === 'opponents' ? !opp.has(x.controller) : x.controller !== o.controller) continue;
+          const xa = x.analysis();
+          if (!xa || !xa.isCreature) continue;
+          if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
+          if (spec.otherName && xa.name === base.name) continue;
+          for (const ab of (xa.abilities || [])) if (ab.kind === 'activated' || ab.kind === 'loyalty') take(acts, ab);
+          for (const ab of this.manaAbilitiesOf(x)) take(mana, ab);
+        }
+        if (acts.length || mana.length) res = { acts, mana, key: Array.from(seen).join('\u0001') + (spec.anyColor ? '|any' : '') };
+      } finally { busy.delete(o.id); }
+      if (top) { o._borrowed = res; o._borrowSig = sig; o._borrowBase = base; }
+      return res;
     }
     /** Every static ability on the battlefield that hands out a quoted triggered ability. */
     _grantSources() {
@@ -16418,6 +16514,20 @@
           /* "You may pay {E}{E}{E}": energy, not mana (Guide of Souls) */
           const eN = (String(pay.mana || '').match(/\{E\}/gi) || []).length;
           if (eN) pay = Object.assign({}, pay, { energy: eN, mana: String(pay.mana).replace(/\{E\}/gi, '') || null });
+          /* Gix, Yawgmoth Praetor: "its controller may pay 1 life. If they do,
+             they draw a card." — asked of the creature's controller, who pays;
+             not asked when they can't */
+          if (e.who === 'targetController' && pay.life != null) {
+            const q = this._lastAffectedController() || me;
+            if (!q || q.hasLost || (q.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(q))) { this._spliceNext(e.otherwise); break; }
+            const yes = this._ask({ type: 'confirm', playerId: q.id,
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${e.prompt || truncate(e.text || 'pay the cost', 90)}` }, 'q');
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) { this._spliceNext(e.otherwise); break; }
+            this.changeLife(q, -pay.life, 'cost');
+            this._spliceNext(e.then);
+            break;
+          }
           /* A price that cannot be paid is not offered: "you may pay {1}
              and discard a card" with no card in hand is a no. */
           const able = (!pay.mana || this.couldPay(ctx.controller, pay.mana, this.manaSources(ctx.controller))) &&
@@ -19239,6 +19349,12 @@
           const host = tid ? this.obj(tid) : firstObj();
           if (host && host.zone !== 'battlefield') break;
           if (!src || !host) break;
+          /* Marvin with an Equipment creature's equip ability: what is not an
+             Aura, Equipment or Fortification can't be attached, and stays where it is (CR 701.3b) */
+          {
+            const sa = src.analysis() || {};
+            if (!sa.isAura && !sa.isEquipment && !(sa.subtypes || []).includes('Fortification')) break;
+          }
           if (src.attachedTo) {
             const old = this.obj(src.attachedTo);
             if (old) old.attachments = old.attachments.filter(x => x !== src.id);
@@ -19861,7 +19977,19 @@
             const c = this.obj(pool[k]);
             if (!c || c.zone === 'stack' || c.zone === 'battlefield') continue;
             const ca = c.analysis();
-            if (!ca || ca.isLand) continue;
+            if (!ca) continue;
+            /* Gix, Yawgmoth Praetor: "You may play lands and cast spells from
+               among cards exiled this way" — a land only on your own turn, and
+               only with a land play left (CR 305.2, 305.3); not asked otherwise */
+            if (ca.isLand) {
+              if (!e.lands || (r && r.marks[slot + 'done' + k]) || c.zone !== 'exile' || !this._landPlayLeft(me)) continue;
+              const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Play ${c.name}?` }, 'fl' + k);
+              if (yes === SUSPEND) return SUSPEND;
+              if (r) r.marks[slot + 'done' + k] = true;
+              if (yes === false || !this._landPlayLeft(me)) continue;
+              this._landPlayed(me, c);
+              continue;
+            }
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
@@ -25081,6 +25209,8 @@
         keywords: this._viewKeywords(o),
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
+        // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use
+        gained: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._gainedAbilitiesView(o) : null,
       };
       return {
         v: this.stateVersion,

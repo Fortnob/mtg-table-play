@@ -118,6 +118,8 @@ const ObjectView = obj({
   band: opt(maybe(str)),
   /* Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
   manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
+  /* Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, by the index activateAbility takes */
+  gained: opt(maybe(obj({ manaBase: nat, list: arr(obj({ i: nat, mana: opt(bool), ability: S.plainObj })) }))),
 });
 const AnyObject = (v, p, out) => (v && v.hidden ? HiddenObject : ObjectView)(v, p, out);
 const StackItemView = obj({

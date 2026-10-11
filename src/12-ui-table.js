@@ -2098,8 +2098,13 @@
         const real = (a.abilities || []).find(x => x.kind === 'castModifier' && /^(morph|megamorph|disguise)$/i.test(x.keyword || '') && x.arg);
         if (real) uses.push({ label: 'Turn face up', cost: real.arg, fn: () => this.send({ kind: 'turnFaceUp', objId: o.id }) });
       } else {
-        acts.forEach((ab) => {
-          const idx = a.manaAbilities.length + acts.indexOf(ab);
+        /* Marvin, an Equipment's "has '{T}: …'": what it was given beyond its printed
+           abilities comes after them, each with the engine's index for it (o.gained) */
+        const gained = (o.gained && o.gained.list) || [];
+        const gActs = gained.filter(g => !g.mana), gMana = gained.filter(g => g.mana);
+        const actBase = o.gained ? o.gained.manaBase : a.manaAbilities.length;
+        acts.concat(gActs.map(g => g.ability)).forEach((ab, k) => {
+          const idx = k < acts.length ? actBase + k : gActs[k - acts.length].i;
           const c = ab.cost || {};
           const cost = ab.kind === 'loyalty'
             ? (c.loyaltyX < 0 ? '−X' : c.loyalty > 0 ? '+' + c.loyalty : c.loyalty < 0 ? '−' + -c.loyalty : '0')
@@ -2115,7 +2120,8 @@
             text, off: short ? `Needs ${-c.loyalty} loyalty; it has ${(o.counters || {}).loyalty || 0}.` : null,
             fn: () => this.activate(o, a, idx, ab) });
         });
-        a.manaAbilities.forEach((ab, i) => {
+        a.manaAbilities.concat(gMana.map(g => g.ability)).forEach((ab, k) => {
+          const i = k < a.manaAbilities.length ? k : gMana[k - a.manaAbilities.length].i;
           const xs = this._abilityX(o, ab);
           if (o.tapped && !xs) return;
           // a storage land's counters come off a number at a time: that one asks how many
@@ -2604,6 +2610,11 @@
         const have = Number((o.counters || {})[kind]) || 0;
         return { label: `remove how many ${kind} counters?`, sub: `It has ${have}.`, max: have };
       }
+      // Gix, Yawgmoth Praetor: "Discard X cards" — up to the cards in your hand
+      if (c.discard && c.discard.n === 'X') {
+        const have = ((this.me && this.me.hand) || []).length;
+        return { label: 'discard how many cards?', sub: `X is the number of cards you discard. You have ${have} in hand.`, max: have, start: Math.min(1, have) };
+      }
       if (/\{X\}/.test(String(c.mana || ''))) {
         const fixed = MTG.mana.cmc(String(c.mana).replace(/\{X\}/g, ''));
         const max = Math.max(0, this.manaHere() - fixed - (c.tap && !o.tapped && this._makesMana(o) ? 1 : 0));
@@ -3051,10 +3062,15 @@
         items.push(['Turn this hidden agenda face up', () => this.send({ kind: 'manual', action: 'revealAgenda', objId: o.id })]);
       } else if (loc.zone === 'battlefield' && mine && a) {
         const acts = (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty');
+        // (Marvin: what it was given beyond its printed abilities, by the engine's index for each: o.gained)
+        const gained = (o.gained && o.gained.list) || [];
+        const gActs = gained.filter(g => !g.mana), gMana = gained.filter(g => g.mana);
         a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.tapMana(o, i, ab)]));
+        for (const g of gMana) items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(g.ability, o), 42)}`, () => this.tapMana(o, g.i, g.ability)]);
         for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: m.i })]);
-        acts.forEach((ab) => {
-          const idx = a.manaAbilities.length + acts.indexOf(ab);
+        const actBase = o.gained ? o.gained.manaBase : a.manaAbilities.length;
+        acts.concat(gActs.map(g => g.ability)).forEach((ab, k) => {
+          const idx = k < acts.length ? actBase + k : gActs[k - acts.length].i;
           items.push([truncate(MTG.oracle.abilityLabel(ab, o), 52), () => this.activate(o, a, idx, ab)]);
         });
         for (const use of ((live.uses || {})[o.id] || [])) {

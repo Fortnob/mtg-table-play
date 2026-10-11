@@ -288,7 +288,8 @@
           another: /another/i.test(m[1]) || !!m[2] };
         continue;
       }
-      if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
+      // (Gix, Yawgmoth Praetor: "Discard X cards" — the X chosen as it is activated)
+      if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : /^X$/.test(m[1]) ? 'X' : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
       if ((m = p.match(/^Pay (\d+) life$/i))) { cost.life = +m[1]; continue; }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
@@ -3389,6 +3390,9 @@
       make: (m) => ({ op: 'exileTop', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^(Target opponent|Target player) exiles the top (card|(two|three|four|five|X|\d+) cards) of their library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: m[3] ? num(m[3]) : 1, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library."
+    { re: /^Exile the top (two|three|four|five|X|\d+) cards of target (opponent|player)'?s library\.?$/i,
+      make: (m) => ({ op: 'exileTop', who: 'target', n: num(m[1]), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
@@ -4814,9 +4818,10 @@
        remains exiled, and mana of any type can be spent to cast that spell",
        "You may cast that card without paying its mana cost" — what was
        just exiled, playable as it says */
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards))(.*)$/i,
+    // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
-        let rest = m[3].trim().replace(/\.$/, '');
+        let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
         let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : 'next') : null;
@@ -4830,8 +4835,8 @@
         take(/^,?\s*(?:and|,) (?:you may spend mana as though it were mana of any (?:color|type)|mana of any type can be spent) to cast (?:it|that spell|those spells|them)/i, () => { e.anyMana = true; });
         if (rest) return null;
         if (!dur) {
-          // no time given: during this resolution, for nothing (CR 608.2g)
-          return e.free ? { op: 'castFree' } : null;
+          // no time given: during this resolution, for nothing (CR 608.2g) — the lands among them played then too
+          return e.free ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}) : null;
         }
         e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : 'nextTurn';
         return e;
@@ -8698,6 +8703,20 @@
     for (let i = 0; i < sentences.length; i++) {
       const s = sentences[i];
       const next = sentences[i + 1] || '';
+
+      /* Gix, Yawgmoth Praetor: "its controller may pay 1 life. If they do,
+         they draw a card." — the creature's controller decides, and pays */
+      {
+        const cm = s.match(/^(?:Its|That creature'?s) controller may pay (\d+) life\.$/i);
+        const cd = cm && next.match(/^If they do, they (\w+)( .+)$/i);
+        const tp = cd && parseSentenceList(['Its controller ' + cd[1].replace(/(?:s|sh|ch|x)$|$/, (z) => (z ? z + 'es' : 's')) + cd[2]]);
+        if (tp && tp.auto && tp.effects.every(x => x.who === 'targetController')) {
+          effects.push({ op: 'mayPay', who: 'targetController', pay: { life: +cm[1] }, then: tp.effects, text: s + ' ' + next,
+            prompt: `Pay ${cm[1]} life? If you do, you ${cd[1]}${cd[2].replace(/\.$/, '')}.` });
+          i++;
+          continue;
+        }
+      }
 
       /* "That player may pay {2}. If the player doesn't, you create a
          Treasure token." — somebody else's choice, with a price on it. */
@@ -14899,6 +14918,13 @@
         make: (m) => ({ op: 'continuous', layer: 6, flag: 'cantActivate',
           scope: Object.assign({ what: m[1].replace(/s$/, '') },
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
+      /* Marvin, Murderous Mimic: "Marvin has all activated abilities of creatures you control that don't have the same
+         name as this creature." Drana and Linvala: "… of all creatures your opponents control. You may spend mana as
+         though it were mana of any color to activate those abilities." Robaran Mercenaries: "… of all legendary
+         creatures you control." What they have right now, mana abilities too (borrowActivated) */
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of (?:all )?(legendary )?creatures (you|your opponents) control( that don'?t have the same name as (?:this creature|CARDNAME))?\.( You may spend mana as though it were mana of any colou?r to activate those abilities\.)?$/i,
+        make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
+          m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^(?:CARDNAME|This creature) can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
       /* Shalai: "You, planeswalkers you control, and other creatures you control have hexproof." */

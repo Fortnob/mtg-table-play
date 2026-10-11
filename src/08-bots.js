@@ -1509,7 +1509,9 @@
   const HARMFUL = new Set(['damage', 'destroy', 'exile', 'exileUntilLeaves', 'bounce', 'tap', 'loseLife', 'discard',
     'mill', 'counterSpell', 'counterUnless', 'sacrificeChoice', 'gainControl', 'fight', 'bite', 'damageByPower', 'goad',
     'cantBlock', 'cantAttack', 'restrict', 'drain', 'discardChosen', 'exileChosen', 'handAttack', 'damageDivided',
-    'revealHand', 'tapAll', 'noUntap']);
+    'revealHand', 'tapAll', 'noUntap',
+    // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library"
+    'exileTop']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -3406,6 +3408,7 @@
         const opts = { targets: c.targets, auto: true };
         if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
         if (c.discardIds) opts.discardIds = c.discardIds;
+        if (c.x != null) opts.x = c.x;
         if (g.activateAbility(this.pid, c.o.id, c.index, opts)) { this._did('activate', c.o, c.label); return true; }
       }
       return false;
@@ -3426,13 +3429,16 @@
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';
       if (sorcery && !(myTurn && g.isMain && g.stackEmpty)) return null;
       if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return null;
-      if (cost.mana && !g.couldPay(this.pid, cost.mana, sources)) return null;
+      // (Drana and Linvala: a borrowed ability's colours paid with any mana)
+      if (cost.mana && !g.couldPay(this.pid, ab.spendAnyColor ? g._abilityMana(o, ab) : cost.mana, sources)) return null;
       const effects = ab.effects || [];
       const flat = flatEffects(effects);
       if (!flat.length || flat.some(e => e.op === 'manual')) return null;
       const label = MTG.oracle.abilityLabel ? MTG.oracle.abilityLabel(ab, o) : (ab.text || '');
 
       // equipment: onto the best creature that is not already carrying it
+      // (Marvin with an Equipment creature's equip ability: a creature that is not Equipment attaches to nothing)
+      if (flat.some(e => e.op === 'attachSelf') && !(a.isEquipment || a.isAura || (a.subtypes || []).includes('Fortification'))) return null;
       if (flat.some(e => e.op === 'attachSelf')) {
         if (window !== 'main1' && !(window === 'main2' && !o.attachedTo)) return null;
         const host = o.attachedTo ? g.obj(o.attachedTo) : null;
@@ -3445,7 +3451,7 @@
 
       // loyalty: the best of what this walker can do now
       let v = 0;
-      let sacrificeIds, discardIds;
+      let sacrificeIds, discardIds, x;
       if (ab.kind === 'loyalty') {
         const loy = g.loyaltyOf ? g.loyaltyOf(o) : (o.counters.loyalty || 0);
         const delta = (ab.cost || {}).loyalty || 0;
@@ -3472,7 +3478,14 @@
           v -= this.permanentValue(fodder);
           sacrificeIds = [fodder.id];
         }
-        if (cost.discard) {
+        // Gix, Yawgmoth Praetor: "Discard X cards" — the cards worth least, as many as are worth trading (at least one)
+        if (cost.discard && cost.discard.n === 'X') {
+          const tosses = this.worstInHand(99).filter((c, k) => k === 0 || this.rating(c) < 3).slice(0, 4);
+          if (!tosses.length) return null;
+          v += tosses.length * 1.5 - tosses.reduce((acc, c) => acc + Math.max(0.5, this.rating(c) - 2), 0);
+          discardIds = tosses.map(c => c.id);
+          x = tosses.length;
+        } else if (cost.discard) {
           const toss = this.worstInHand(1)[0];
           if (!toss) return null;
           v -= Math.max(0.5, this.rating(toss) - 2);
@@ -3483,7 +3496,7 @@
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);
       if (targets === null) return null;
       if (v <= 0) return null;
-      return { o, index, targets, v, label, sacrificeIds, discardIds };
+      return { o, index, targets, v, label, sacrificeIds, discardIds, x };
     }
 
     /** A permanent we could give up to a cost: the least valuable that fits. */
@@ -4703,6 +4716,7 @@
       const opts = { targets: c.targets, auto: true };
       if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
       if (c.discardIds) opts.discardIds = c.discardIds;
+      if (c.x != null) opts.x = c.x;
       return opts;
     }
 

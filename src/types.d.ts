@@ -107,6 +107,11 @@ declare namespace MTG {
     power: number | null;
     toughness: number | null;
     keywords: string[];
+    /** Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
+    manaExtra?: Array<{ i: number; label: string }> | null;
+    /** Marvin, an Equipment's "has '{T}: …'": abilities beyond its printed ones, for its controller; each by
+        the index activateAbility takes, and where its own activated abilities start */
+    gained?: { manaBase: number; list: Array<{ i: number; mana?: boolean; ability: any }> } | null;
   }
   type AnyObjectView = ObjectView | HiddenObjectView;
 
