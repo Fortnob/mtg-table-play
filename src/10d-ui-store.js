@@ -647,7 +647,7 @@
     const sleeves = dailyShuffle(S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id])), 'sleeves');
     body.appendChild(shelf('Sleeves', 'sleeves', go, oneRow('mini', sleeves, (sl) =>
       miniTile(go, 'sleeves', sl.name + ' sleeve', sleeveFace(sl, art[sl.id]), sl.name,
-        shardSvg() + ' ' + fmtN(sl.kind === 'custom' ? S.PRICES.sleeveCustom : S.PRICES.sleeve)), 170, 16)));
+        shardSvg() + ' ' + fmtN(S.sleevePrice(sl))), 170, 16)));
 
     const me = (MTG.app && MTG.app.myName) || 'You';
     const frames = dailyShuffle(S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id)), 'frames');
@@ -1493,8 +1493,13 @@
   /** What a sleeve draws with: a background, and the colour of its rim. */
   UI.sleeveBg = function (sl) {
     if (!sl) return null;
-    if (sl.kind === 'pattern') return sl.css;
-    if (sl.kind === 'art' && sl.art) return `url("${String(sl.art).replace(/"/g, '%22')}") 50% 30% / cover no-repeat, #111`;
+    // a woven one is drawn from this app's own picture of it, found by its name
+    if (sl.kind === 'pattern') { const known = E().sleeveById(sl.id); return (known && known.kind === 'pattern' && known.css) || sl.css || null; }
+    if (sl.kind === 'art' && sl.art) {
+      // the picture is wider than the card: where to look in it, if the sleeve says
+      const known = E().sleeveById(sl.id);
+      return `url("${String(sl.art).replace(/"/g, '%22')}") ${(known && known.at) || '50% 30%'} / cover no-repeat, #111`;
+    }
     // a GIF of your own: the part of it you chose, moving
     if (sl.kind === 'custom' && sl.anim && sl.crop) {
       const c = sl.crop, pct = (n) => (n * 100).toFixed(3) + '%';
@@ -1511,6 +1516,9 @@
     if (node._sleeve === key) return;
     node._sleeve = key;
     node.classList.toggle('sleeved', !!bg);
+    // a foil has light sliding across it (store.css), told by the sleeve itself, not by what was sent
+    const known = bg && sl.kind === 'pattern' ? E().sleeveById(sl.id) : null;
+    if (known && known.fx) node.dataset.sleeveFx = known.fx; else delete node.dataset.sleeveFx;
     if (bg) { node.style.setProperty('--sleeve-bg', bg); node.style.setProperty('--sleeve-rim', sl.rim || '#c9a24a'); }
     else { node.style.removeProperty('--sleeve-bg'); node.style.removeProperty('--sleeve-rim'); }
   };
@@ -1534,7 +1542,7 @@
     const missing = arts.filter(x => !known[x.id]);
     if (missing.length) {
       try {
-        const res = await MTG.scry.collection(missing.map(x => ({ name: x.card })));
+        const res = await MTG.scry.collection(missing.map(x => x.print ? { set: x.print[0], collector_number: x.print[1] } : { name: x.card }));
         missing.forEach((x, i) => { const c = (res.cards || [])[i]; const u = c && MTG.scry.imageUrl(c, 'art_crop', 0); if (u) S.noteSleeveArt(x.id, u); });
       } catch (e) { /* drawn without them */ }
     }
@@ -1544,28 +1552,45 @@
     }
     const art = S.sleeves().art || {};
     body.innerHTML = '';
-    body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
-    const grid = el('div', { class: 'store-grid sleeves' });
+    body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards, a foil ${fmtN(S.PRICES.sleeveFoil)}; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
     const redraw = () => sleevesTab(body);
     const on = S.sleeves().on;
-    // the plain back
-    grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (!on ? ' worn' : '') }, [
-      el('div', { class: 'sleeve-tile-face card-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
-      el('div', { class: 'sc-title', text: 'Classic back' }),
-      el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
-    ]));
+    // in shelves: yours to start with and earned, the woven ones, the foils, card art, your own
     const earned = S.sleeves().owned.filter(x => /^set-/.test(x)).map(id => S.sleeveById(id));
-    for (const sl of earned.concat(list)) {
+    const shelves = [
+      ['Yours', [null].concat(earned)],
+      ['Woven', list.filter(sl => sl.kind === 'pattern' && !sl.fx)],
+      ['Foil', list.filter(sl => sl.kind === 'pattern' && sl.fx === 'foil')],
+      ['Card art', list.filter(sl => sl.kind === 'art')],
+      ['Your own picture', list.filter(sl => sl.kind === 'custom')],
+    ];
+    for (const [title, items] of shelves) {
+      if (!items.length) continue;
+      const grid = el('div', { class: 'store-grid sleeves' });
+      body.append(el('h3', { class: 'store-h', text: title }), grid);
+      for (const sl of items) sleeveTile(grid, sl);
+    }
+    function sleeveTile(grid, sl) {
+      // the plain back
+      if (!sl) {
+        grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (!on ? ' worn' : '') }, [
+          el('div', { class: 'sleeve-tile-face card-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
+          el('div', { class: 'sc-title', text: 'Classic back' }),
+          el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
+        ]));
+        return;
+      }
       const owned = S.sleeves().owned.includes(sl.id);
       const worn = on === sl.id;
       const custom = sl.kind === 'custom';
-      const price = custom ? S.PRICES.sleeveCustom : S.PRICES.sleeve;
+      const price = S.sleevePrice(sl);
       const face = sleeveFace(sl, art[sl.id]);
       const btns = [];
       if (!owned) {
         btns.push(el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(price), onclick: () => UI.purchaseDialog({
           title: custom ? 'Custom sleeve' : `${sl.name} sleeve`,
-          sub: custom ? 'Upload any picture and crop it to the back of your cards. Yours to change whenever you like.' : 'For the back of your cards.',
+          sub: custom ? 'Upload any picture and crop it to the back of your cards. Yours to change whenever you like.'
+            : sl.fx === 'foil' ? 'A foil for the back of your cards, the light sliding across it.' : 'For the back of your cards.',
           visual: sleeveFace(sl, art[sl.id]), cost: price,
           buy: () => S.buySleeve(sl.id),
           after: () => {
@@ -1578,14 +1603,14 @@
         btns.push(el('button', { type: 'button', class: 'btn' + (worn ? '' : ' primary'), disabled: worn || (custom && !S.sleeves().custom), text: worn ? 'Wearing' : 'Wear',
           onclick: () => { S.equipSleeve(sl.id); MTG.sfx('confirm'); redraw(); } }));
       }
-      grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') }, [
+      grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') + (sl.fx ? ' fx' : '') }, [
         face,
         el('div', { class: 'sc-title', text: sl.name }),
-        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own; a GIF keeps moving' }) : null,
+        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own; a GIF keeps moving' })
+          : sl.card && sl.card !== sl.name ? el('div', { class: 'sc-sub dim', text: sl.card }) : null,
         el('div', { class: 'pack-buys' }, btns),
       ].filter(Boolean)));
     }
-    body.appendChild(grid);
   }
 
   /**

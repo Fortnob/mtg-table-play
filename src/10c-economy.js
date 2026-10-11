@@ -17,7 +17,7 @@
   const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 
   /** What things cost and what they pay, in Shards. */
-  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveFoil: 3000, sleeveCustom: 8000 };
   /* A Commander deck costs what the wildcards for its cards would, less a
      share for buying them together, and nothing for the cards you have
      already; never less than PRECON_MIN. */
@@ -38,14 +38,28 @@
     { id: 'thorns', name: 'Thorns', price: 1500, text: 'A twisted vine, its thorns standing out.' },
     { id: 'frost', name: 'Frost', price: 1500, text: 'Cold metal, shards of ice, a pale glow.' },
     { id: 'sylvan', name: 'Sylvan', price: 1500, text: 'A ring of wood in a wreath of leaves.' },
+    { id: 'obsidian', name: 'Obsidian', price: 1500, text: 'Black glass edged in gold, a stud at each diagonal.' },
+    { id: 'moonsilver', name: 'Moonsilver', price: 1500, text: 'Polished silver, a crescent moon over it.' },
     { id: 'tidal', name: 'Tidal', price: 2000, text: 'The sea, and a turning ring of foam.' },
     { id: 'bloodmoon', name: 'Blood Moon', price: 2000, text: 'Crimson, with a slow red pulse.' },
+    { id: 'briar', name: 'Briar Rose', price: 2000, text: 'A thorned vine, and five roses on it.' },
+    { id: 'jade', name: 'Jade', price: 2000, text: 'Carved green stone, bound in gold.' },
+    { id: 'laurel', name: 'Laurel', price: 2000, text: 'A gold wreath for a winner, tied in red.' },
     { id: 'ember', name: 'Ember', price: 2500, text: 'A ring of fire, flames licking off it.' },
     { id: 'arcane', name: 'Arcane', price: 2500, text: 'Runes turning one way, a dotted circle the other.' },
     { id: 'sunburst', name: 'Sunburst', price: 2500, text: 'White gold, and rays all round.' },
+    { id: 'crystal', name: 'Amethyst Crystal', price: 2500, text: 'Violet facets, crystals growing out of it.' },
+    { id: 'storm', name: 'Stormcrown', price: 2500, text: 'Turning cloud, and lightning now and then.' },
+    { id: 'neon', name: 'Neon', price: 2500, text: 'A pink tube alight, humming.' },
+    { id: 'phyrexian', name: 'Phyrexian', price: 2500, text: 'Bone and oil, claws curling off it.' },
+    { id: 'nyx', name: 'Nyx', price: 2500, text: 'The night sky of Theros, stars coming and going.' },
+    { id: 'hedron', name: 'Hedron', price: 2500, text: 'Rune-lit stone, hedrons pointing out from it.' },
     { id: 'void', name: 'Void', price: 4000, text: 'A dark ring in a turning violet nebula.' },
     { id: 'prismatic', name: 'Prismatic', price: 4000, text: 'Every colour, moving round.' },
     { id: 'orbit', name: 'Orbit', price: 4000, text: 'A midnight ring, and a star going round it.' },
+    { id: 'aurora', name: 'Aurora', price: 4000, text: 'Green and violet light, turning, a haze beyond.' },
+    { id: 'five', name: 'Five Colours', price: 4000, text: 'The five colours round, a jewel of each.' },
+    { id: 'eclipse', name: 'Eclipse', price: 4000, text: 'A black sun, its corona turning, a diamond of light.' },
   ];
   /** Another printing's art for a card you own, by rarity (one you pulled is free). */
   const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
@@ -97,10 +111,42 @@
   };
   // a medallion: rings about the middle, `rings` as [colour, from, to] in % of the card's half-diagonal
   const medallion = (rings) => `radial-gradient(circle at 50% 50%, ${rings.map(([c, a, b]) => `transparent ${a - .4}%, ${c} ${a}% ${b}%, transparent ${b + .4}%`).join(', ')})`;
+  // a drawing over the whole card, in the card's own units (63 by 88): what
+  // gradients cannot do (a glyph, a circuit, leaded glass) as one picture,
+  // which the browser draws once for every back of that size
+  const svg = (body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88' preserveAspectRatio='none'>${body}</svg>`)}") 50% 50% / 100% 100% no-repeat`;
+  // the same drawing in each corner, mirrored: `body` is drawn for the top left
+  const corners = (body) => [[1, 1, 0, 0], [-1, 1, 63, 0], [1, -1, 0, 88], [-1, -1, 63, 88]]
+    .map(([sx, sy, tx, ty]) => `<g transform='translate(${tx} ${ty}) scale(${sx} ${sy})'>${body}</g>`).join('');
+  // points strewn as if at random, the same every time: [x, y, r] in card units
+  const scatter = (n, seed, r0, r1) => {
+    let s = seed;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    return Array.from({ length: n }, () => [+(rnd() * 63).toFixed(1), +(rnd() * 88).toFixed(1), +(r0 + rnd() * (r1 - r0)).toFixed(2)]);
+  };
+  const stars = (n, seed, r0, r1, fill) => scatter(n, seed, r0, r1).map(([x, y, r], i) =>
+    `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' opacity='${(.35 + (i * 37 % 60) / 100).toFixed(2)}'/>`).join('');
+  // a four-pointed glint at (x, y), `r` from the middle to a point
+  const glint = (x, y, r, fill) => `<path d='M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z' fill='${fill}'/>`;
+  /* A fine grain, the tooth of printed card stock: grey noise, faint, in a
+     tile drawn once and laid across every sleeve that wants it. It keeps
+     a smooth gradient from banding and gives a flat colour a surface. */
+  const GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 1.7 0 0 -.35  0 1.7 0 0 -.35  0 1.7 0 0 -.35  0 0 0 0 .11'/></filter><rect width='96' height='96' filter='url(#g)'/></svg>")}") 0 0 / 96px 96px`;
+  // a fleuron for a corner: a curl, a lesser curl within it, a bead
+  const fleuron = (col) => corners(`<path d='M4.6 11Q4.6 4.6 11 4.6M6.8 9.4Q7.6 7.6 9.4 6.8' fill='none' stroke='${col}' stroke-width='.45'/><circle cx='7.4' cy='7.4' r='.8' fill='${col}'/>`);
+  // a ruled border, two lines, and a fleuron in each corner
+  const ruled = (col) => `<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='${col}' stroke-width='.55'/>` +
+    `<rect x='4.6' y='4.6' width='53.8' height='78.8' rx='1.4' fill='none' stroke='${col}' stroke-width='.25' opacity='.7'/>` + fleuron(col);
 
   const SLEEVE_CSS = {
     // black lacquer under a fine gold lattice, a ruled double border, a gold diamond at its heart
     obsidian: [
+      // filigree: scrolls out from the diamond's points, a fleuron in each corner
+      svg((() => {
+        const arm = `<path d='M21.6 44H15.5Q12 44 12 40.8Q12 38.4 14.4 38.4Q16.2 38.4 16.2 40.2M15.5 44Q12 44 12 47.2Q12 49.6 14.4 49.6Q16.2 49.6 16.2 47.8' fill='none' stroke='#e2c063' stroke-width='.45'/><circle cx='9.6' cy='44' r='.9' fill='#f3dd96'/>`;
+        const up = `<path d='M31.5 34.6V27.5Q31.5 24.5 28.6 24.5Q26.6 24.5 26.6 26.4M31.5 27.5Q31.5 24.5 34.4 24.5Q36.4 24.5 36.4 26.4' fill='none' stroke='#e2c063' stroke-width='.45'/><circle cx='31.5' cy='21.8' r='.9' fill='#f3dd96'/>`;
+        return arm + `<g transform='translate(63 0) scale(-1 1)'>${arm}</g>` + up + `<g transform='translate(0 88) scale(1 -1)'>${up}</g>` + fleuron('#e2c063');
+      })()),
       'radial-gradient(ellipse 85% 40% at 50% -6%, rgba(255,232,170,.16), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.75))',
       ...diamond('#f3dd96', 5, 3.6),
@@ -116,6 +162,8 @@
     ].join(', '),
     // a forge: coals glowing at the foot, sparks rising, a ring of fire at the heart
     crimson: [
+      // a ruled border warm from the forge, and a few sparks caught bright
+      svg(ruled('rgba(255,170,96,.72)') + glint(22, 30, 1.6, '#ffe2a8') + glint(46.6, 19.4, 1.3, '#ffd690') + glint(41.6, 77.4, 1.4, '#ffe2a8')),
       'radial-gradient(circle at 22% 30%, rgba(255,214,140,.95) 0 .6%, transparent 1%)',
       'radial-gradient(circle at 74% 22%, rgba(255,190,110,.9) 0 .5%, transparent .9%)',
       'radial-gradient(circle at 63% 64%, rgba(255,226,160,.9) 0 .55%, transparent .95%)',
@@ -140,6 +188,12 @@
     ].join(', '),
     // green strands woven over and under, lit from the top left, a leafy ring at the heart
     verdant: [
+      // a vine in each corner, in leaf, and a pale ruled border
+      svg(`<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='rgba(200,240,170,.6)' stroke-width='.45'/>` +
+        corners(`<path d='M4.6 19Q4.6 4.6 19 4.6' fill='none' stroke='#b9e48f' stroke-width='.55'/>` +
+          [[5.2, 15, 200], [6.4, 10.4, 225], [9.6, 6.6, 250], [14.6, 5.2, 275]].map(([x, y, a]) =>
+            `<path d='M0 0Q2.2 -1.8 4.4 0Q2.2 1.8 0 0Z' fill='#9fd46a' transform='translate(${x} ${y}) rotate(${a + 90})'/>`).join('') +
+          `<circle cx='7.6' cy='7.6' r='.9' fill='#e8ffd0'/>`)),
       'radial-gradient(ellipse 90% 55% at 20% 0%, rgba(210,255,170,.22), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,14,4,.7))',
       medallion([['rgba(220,255,190,.85)', 15, 15.8], ['rgba(28,72,30,.9)', 15.8, 20.6], ['rgba(150,215,110,.8)', 20.6, 21.4]]),
@@ -154,6 +208,7 @@
     ].join(', '),
     // ivory under golden rays, a sun at the heart, a ruled gold border
     ivory: [
+      svg(fleuron('#b88c3a') + glint(31.5, 44, 3.4, '#fffdf4')),
       'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120,92,40,.45))',
       ...border('rgba(184,140,58,.85)', 6, 1), ...border('rgba(184,140,58,.45)', 8, 1),
       medallion([['#fffaf0', 0, 7], ['rgba(232,190,90,.95)', 7, 8.4], ['#fff6dc', 8.4, 10], ['rgba(184,140,58,.9)', 10, 10.8]]),
@@ -163,6 +218,12 @@
     ].join(', '),
     // violet silk drawn across, faceted light, a gem at the heart, a few glints
     amethyst: [
+      // a cut gem at the heart, its facets lit from the top left
+      svg(`<defs><radialGradient id='a' cx='.35' cy='.3' r='.8'><stop offset='0' stop-color='#f1e2ff'/><stop offset='.45' stop-color='#a070e8'/><stop offset='1' stop-color='#3a1878'/></radialGradient></defs>` +
+        `<path d='M28.6 37H34.4L38.5 41.1V46.9L34.4 51H28.6L24.5 46.9V41.1Z' fill='url(#a)' stroke='#e6d0ff' stroke-width='.45'/>` +
+        `<path d='M29.6 40H33.4L35.5 42.1V45.9L33.4 48H29.6L27.5 45.9V42.1Z' fill='none' stroke='rgba(255,255,255,.55)' stroke-width='.3'/>` +
+        `<path d='M28.6 37L29.6 40M34.4 37L33.4 40M38.5 41.1L35.5 42.1M38.5 46.9L35.5 45.9M34.4 51L33.4 48M28.6 51L29.6 48M24.5 46.9L27.5 45.9M24.5 41.1L27.5 42.1' stroke='rgba(255,255,255,.45)' stroke-width='.25'/>` +
+        fleuron('rgba(220,190,255,.8)')),
       'radial-gradient(circle at 26% 24%, rgba(255,255,255,.9) 0 .4%, transparent .8%)',
       'radial-gradient(circle at 72% 70%, rgba(240,220,255,.85) 0 .35%, transparent .75%)',
       'radial-gradient(circle at 78% 18%, rgba(240,220,255,.7) 0 .3%, transparent .7%)',
@@ -176,6 +237,8 @@
     ].join(', '),
     // beaten gold, a raised lattice with a rivet at each crossing, a dark cameo at the heart
     gilded: [
+      // a star struck into the cameo, and a fleuron worked in each corner
+      svg(glint(31.5, 44, 4.2, '#f5d27a') + `<circle cx='31.5' cy='44' r='1' fill='#fff1bf'/>` + fleuron('#5c3d0a')),
       'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,250,220,.5), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(80,50,8,.55))',
       medallion([['rgba(60,38,6,.95)', 0, 12], ['#fff1bf', 12, 12.8], ['#9a6d1c', 12.8, 14], ['#f5d27a', 14, 15]]),
@@ -186,6 +249,8 @@
     ].join(', '),
     // the dark between the stars: a ring of light about nothing at all, a haze at the edges
     void: [
+      // more stars, and a disc of light seen edge on about the dark
+      svg(stars(70, 41, .08, .3, '#e6ebff') + `<ellipse cx='31.5' cy='44' rx='17' ry='2.6' transform='rotate(-8 31.5 44)' fill='none' stroke='rgba(255,226,180,.35)' stroke-width='.5'/>`),
       'radial-gradient(circle at 18% 22%, rgba(255,255,255,.8) 0 .25%, transparent .6%)',
       'radial-gradient(circle at 81% 71%, rgba(207,216,255,.7) 0 .25%, transparent .6%)',
       'radial-gradient(circle at 70% 14%, rgba(255,255,255,.5) 0 .2%, transparent .5%)',
@@ -199,18 +264,301 @@
     ].join(', '),
   };
 
+  /* ---- the sigils: a colour of mana, its mark on a disc at the heart and
+     woven small across the field, a ruled gold border ---- */
+  // each mark drawn about (0, 0), about nine across: `ink` the mark, `hole` what shows through it
+  const MARK = {
+    // a sun: a disc and eight rays
+    w: (ink) => `<circle r='4.1' fill='${ink}'/>` + Array.from({ length: 8 }, (_, k) => {
+      const a = k * Math.PI / 4, p = (r, d) => `${(Math.cos(a + d) * r).toFixed(2)} ${(Math.sin(a + d) * r).toFixed(2)}`;
+      return `<path d='M${p(5.2, -.3)}L${p(9.4, 0)}L${p(5.2, .3)}Z' fill='${ink}'/>`;
+    }).join(''),
+    // a drop of water, lit from the left
+    u: (ink, hole) => `<path d='M0 -9C3 -4.5 6.6 -1 6.6 3A6.6 6.6 0 0 1 -6.6 3C-6.6 -1 -3 -4.5 0 -9Z' fill='${ink}'/><path d='M-3.6 2.6Q-3.4 5.6 -.6 6.6' stroke='${hole}' stroke-width='1.1' fill='none' stroke-linecap='round'/>`,
+    // a skull
+    b: (ink, hole) => `<path d='M0 -8.6C6 -8.6 8.4 -4.6 8.4 -.6C8.4 2.8 6.6 4.4 5.4 5V8.4H-5.4V5C-6.6 4.4 -8.4 2.8 -8.4 -.6C-8.4 -4.6 -6 -8.6 0 -8.6Z' fill='${ink}'/>` +
+      `<ellipse cx='-3.2' cy='-.4' rx='2.2' ry='2.5' fill='${hole}'/><ellipse cx='3.2' cy='-.4' rx='2.2' ry='2.5' fill='${hole}'/><path d='M0 2.4L1.1 4.4H-1.1Z' fill='${hole}'/>` +
+      `<path d='M-2.6 6V8.4M0 6V8.4M2.6 6V8.4' stroke='${hole}' stroke-width='.7'/>`,
+    // a flame, a smaller one within it
+    r: (ink, hole) => `<path d='M0 -9.6C2 -6 6.6 -3.4 6.6 2C6.6 6 3.6 8.6 0 8.6C-3.6 8.6 -6.6 6 -6.6 2C-6.6 -1 -4.6 -3 -3.6 -5.2C-3 -2.6 -1.6 -1.6 -.5 -1.6C-1.6 -4.6 -1 -7.2 0 -9.6Z' fill='${ink}'/>` +
+      `<path d='M0 1C1.6 2.6 3 3.6 3 5.2C3 6.8 1.6 7.6 0 7.6C-1.6 7.6 -3 6.8 -3 5.2C-3 3.6 -1.6 2.6 0 1Z' fill='${hole}'/>`,
+    // a tree: a crown of three and a trunk
+    g: (ink) => `<circle cy='-4' r='4.6' fill='${ink}'/><circle cx='-4.2' cy='-.4' r='3.8' fill='${ink}'/><circle cx='4.2' cy='-.4' r='3.8' fill='${ink}'/>` +
+      `<path d='M-1.5 1.5H1.5L1.9 7.4L4 8.8H-4L-1.9 7.4Z' fill='${ink}'/>`,
+  };
+  const sigil = (k, o) => [
+    'radial-gradient(ellipse 90% 42% at 50% -6%, rgba(255,255,255,.2), transparent 70%)',
+    svg(
+      `<defs><pattern id='p' width='12' height='12' patternUnits='userSpaceOnUse' patternTransform='rotate(-12)'>` +
+      `<g transform='translate(3 3) scale(.24)'>${MARK[k](o.faint, 'transparent')}</g><g transform='translate(9 9) scale(.24)'>${MARK[k](o.faint, 'transparent')}</g></pattern>` +
+      `<radialGradient id='d' cx='.4' cy='.35' r='.75'><stop offset='0' stop-color='${o.disc[0]}'/><stop offset='1' stop-color='${o.disc[1]}'/></radialGradient></defs>` +
+      `<rect width='63' height='88' fill='url(#p)'/>` +
+      `<circle cx='31.5' cy='44' r='17' fill='none' stroke='${o.gold}' stroke-width='.3' stroke-dasharray='.6 1.2'/>` +
+      `<circle cx='31.5' cy='44' r='14.6' fill='rgba(0,0,0,.35)'/>` +
+      `<circle cx='31.5' cy='44' r='13.4' fill='url(#d)' stroke='${o.gold}' stroke-width='.9'/>` +
+      `<circle cx='31.5' cy='44' r='15.3' fill='none' stroke='${o.gold}' stroke-width='.35'/>` +
+      `<g transform='translate(31.5 44) scale(1.08)'>${MARK[k](o.ink, o.disc[0])}</g>` +
+      ruled(o.gold)),
+    `radial-gradient(circle at 50% 50%, ${o.glow}, transparent 34%)`,
+    'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.55))',
+    o.field,
+  ].join(', ');
+  const SIGILS = {
+    w: { field: 'linear-gradient(160deg, #fbf6e6, #e6dab8 55%, #cdb98a)', faint: 'rgba(150,112,40,.17)', disc: ['#fffaf0', '#eadcae'], ink: '#2b2418', gold: '#b38b34', glow: 'rgba(255,236,170,.75)' },
+    u: { field: 'linear-gradient(160deg, #144a8a, #0b2f62 55%, #051733)', faint: 'rgba(150,205,255,.14)', disc: ['#d4ecfa', '#8fc3e6'], ink: '#0b1d33', gold: '#9fd0f0', glow: 'rgba(110,190,255,.5)' },
+    b: { field: 'linear-gradient(160deg, #241d2a, #120e16 55%, #050407)', faint: 'rgba(205,185,225,.09)', disc: ['#e0d8d4', '#a69c98'], ink: '#140f12', gold: '#a48fb0', glow: 'rgba(150,110,190,.4)' },
+    r: { field: 'linear-gradient(160deg, #6e180c, #4a0e07 55%, #230403)', faint: 'rgba(255,160,100,.14)', disc: ['#fcc4a6', '#e27d58'], ink: '#2c0d06', gold: '#e8a650', glow: 'rgba(255,130,60,.5)' },
+    g: { field: 'linear-gradient(160deg, #1d4d2a, #11331b 55%, #06170c)', faint: 'rgba(160,235,150,.12)', disc: ['#cdeccb', '#7fc08a'], ink: '#0d2312', gold: '#a8cf72', glow: 'rgba(130,220,120,.42)' },
+  };
+  // the five, round a gold ring: white at the top and the rest clockwise, as on the colour pie
+  const FIVE = (() => {
+    const at = (k, r) => [31.5 + Math.cos((k * 72 - 90) * Math.PI / 180) * r, 44 + Math.sin((k * 72 - 90) * Math.PI / 180) * r].map(n => n.toFixed(2));
+    const keys = ['w', 'u', 'b', 'r', 'g'];
+    const star = [0, 2, 4, 1, 3].map(k => at(k, 17).join(' ')).join(' ');
+    return [
+      'radial-gradient(ellipse 90% 42% at 50% -6%, rgba(255,255,255,.14), transparent 70%)',
+      svg(`<defs>${keys.map(k => `<radialGradient id='${k}' cx='.4' cy='.35' r='.75'><stop offset='0' stop-color='${SIGILS[k].disc[0]}'/><stop offset='1' stop-color='${SIGILS[k].disc[1]}'/></radialGradient>`).join('')}</defs>` +
+        stars(40, 5, .12, .32, '#f3e2b0') +
+        `<circle cx='31.5' cy='44' r='17' fill='none' stroke='#e2c063' stroke-width='.6'/><circle cx='31.5' cy='44' r='21.5' fill='none' stroke='#e2c063' stroke-width='.3' opacity='.6'/>` +
+        `<polygon points='${star}' fill='none' stroke='#e2c063' stroke-width='.35' opacity='.55'/>` +
+        glint(31.5, 44, 4.2, '#fff3c4') +
+        keys.map((k, i) => { const [x, y] = at(i, 17); return `<circle cx='${x}' cy='${y}' r='6' fill='rgba(0,0,0,.45)'/><circle cx='${x}' cy='${y}' r='5.3' fill='url(#${k})' stroke='#e2c063' stroke-width='.5'/><g transform='translate(${x} ${y}) scale(.46)'>${MARK[k](SIGILS[k].ink, SIGILS[k].disc[0])}</g>`; }).join('') +
+        ruled('#e2c063')),
+      'radial-gradient(circle at 50% 50%, rgba(243,221,150,.2), transparent 40%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+      'radial-gradient(ellipse at 50% 45%, #2c3140, #141720 60%, #08090d)',
+    ].join(', ');
+  })();
+
+  /* ---- the planes and the foils ---- */
+  const DESIGN = {
+    // holographic foil: a rainbow over silver, fine diffraction lines, a seal of rings at the heart
+    holo: [
+      svg(`<g fill='none' stroke='rgba(255,255,255,.75)'>` +
+        `<circle cx='31.5' cy='44' r='6.5' stroke-width='.5'/><circle cx='31.5' cy='44' r='9' stroke-width='.3'/><circle cx='31.5' cy='44' r='13.5' stroke-width='.5'/>` +
+        Array.from({ length: 24 }, (_, k) => { const a = k * Math.PI / 12, c = Math.cos(a), s = Math.sin(a), r0 = 9.6, r1 = k % 2 ? 12 : 13; return `<path d='M${(31.5 + c * r0).toFixed(2)} ${(44 + s * r0).toFixed(2)}L${(31.5 + c * r1).toFixed(2)} ${(44 + s * r1).toFixed(2)}' stroke-width='.35'/>`; }).join('') +
+        `</g>` + glint(31.5, 44, 5.4, 'rgba(255,255,255,.9)') +
+        `<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='rgba(255,255,255,.6)' stroke-width='.45'/>`),
+      'radial-gradient(circle at 50% 50%, rgba(255,255,255,.5), transparent 22%)',
+      'repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.07) 0 1px, transparent 1px 4px)',
+      'repeating-linear-gradient(35deg, rgba(255,255,255,.09) 0 1px, transparent 1px 3px)',
+      'linear-gradient(125deg, rgba(255,90,190,.5), rgba(100,200,255,.48) 22%, rgba(255,240,110,.44) 44%, rgba(110,250,180,.46) 64%, rgba(180,110,255,.5) 84%, rgba(255,100,180,.48))',
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(30,30,60,.4))',
+      'linear-gradient(160deg, #e3e8f0, #9aa3b4 45%, #eef1f6 70%, #a0a8b8)',
+    ].join(', '),
+    // galaxy foil: a deep sky, clouds of colour, stars and a few bright glints
+    galaxy: [
+      svg(stars(90, 3, .1, .42, '#ffffff') + glint(15, 20, 2.4, '#fff') + glint(49, 31, 1.8, '#e6dcff') + glint(22, 67, 2, '#dff3ff') + glint(46, 76, 1.5, '#fff') + glint(55, 12, 1.3, '#ffe6f6')),
+      'radial-gradient(ellipse 55% 22% at 35% 40%, rgba(255,110,210,.32), transparent 70%)',
+      'radial-gradient(ellipse 45% 30% at 68% 58%, rgba(90,170,255,.34), transparent 70%)',
+      'radial-gradient(ellipse 40% 18% at 52% 48%, rgba(255,240,220,.22), transparent 70%)',
+      'radial-gradient(ellipse 70% 30% at 20% 85%, rgba(140,90,255,.25), transparent 70%)',
+      'radial-gradient(ellipse 60% 26% at 85% 12%, rgba(80,220,255,.2), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0,0,8,.7))',
+      'linear-gradient(160deg, #1a1046, #0b0a2a 50%, #050312)',
+    ].join(', '),
+    // Phyrexian oil: black gloss, a rainbow film on it, and the sign of Phyrexia in ivory
+    oilslick: [
+      svg(`<defs><linearGradient id='i' gradientUnits='userSpaceOnUse' x1='20' y1='24' x2='43' y2='64'><stop offset='0' stop-color='#f6f0e0'/><stop offset='.5' stop-color='#a9a292'/><stop offset='1' stop-color='#ece4d0'/></linearGradient></defs>` +
+        `<circle cx='31.5' cy='44' r='10' fill='none' stroke='rgba(0,0,0,.55)' stroke-width='3.6'/><path d='M31.5 23.5V64.5' stroke='rgba(0,0,0,.55)' stroke-width='3.6' stroke-linecap='round'/>` +
+        `<circle cx='31.5' cy='44' r='10' fill='none' stroke='url(#i)' stroke-width='2.3'/><path d='M31.5 24.5V63.5' stroke='url(#i)' stroke-width='2.3' stroke-linecap='round'/>` +
+        `<circle cx='31.5' cy='44' r='13.5' fill='none' stroke='rgba(217,209,189,.35)' stroke-width='.3' stroke-dasharray='.5 1.1'/>` +
+        Array.from({ length: 7 }, (_, k) => `<path d='M${8 + k * 8} 0V${4 + (k * 5 % 9)}' stroke='#0b0b0f' stroke-width='${(1.6 + (k % 3) * .5).toFixed(1)}' stroke-linecap='round'/>`).join('')),
+      'radial-gradient(ellipse 70% 50% at 28% 30%, rgba(80,255,220,.24), transparent 60%)',
+      'radial-gradient(ellipse 60% 45% at 74% 66%, rgba(255,60,200,.24), transparent 60%)',
+      'radial-gradient(ellipse 50% 36% at 72% 20%, rgba(255,210,90,.18), transparent 60%)',
+      'radial-gradient(ellipse 55% 40% at 24% 82%, rgba(110,120,255,.24), transparent 60%)',
+      'repeating-radial-gradient(ellipse at 38% 42%, rgba(255,255,255,.04) 0 2px, transparent 2px 7px)',
+      'radial-gradient(ellipse 80% 30% at 40% 8%, rgba(255,255,255,.16), transparent 70%)',
+      'linear-gradient(160deg, #15151b, #060608 55%, #000)',
+    ].join(', '),
+    // etched silver: brushed metal, lines cut into it and lit at one edge, a rose of petals at the heart
+    etched: (() => {
+      const cut = (d, w) => `<path d='${d}' fill='none' stroke='rgba(255,255,255,.75)' stroke-width='${w}' transform='translate(.3 .3)'/><path d='${d}' fill='none' stroke='rgba(38,44,56,.62)' stroke-width='${w}'/>`;
+      const petals = Array.from({ length: 12 }, (_, k) => `<ellipse cx='31.5' cy='35.5' rx='2.6' ry='7.2' transform='rotate(${k * 30} 31.5 44)'/>`).join('');
+      return [
+        svg(`<g fill='none' stroke='rgba(255,255,255,.75)' stroke-width='.35' transform='translate(.3 .3)'>${petals}</g><g fill='none' stroke='rgba(38,44,56,.6)' stroke-width='.35'>${petals}</g>` +
+          cut('M31.5 44m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', .45) + cut('M31.5 44m-17.5 0a17.5 17.5 0 1 0 35 0a17.5 17.5 0 1 0 -35 0', .4) +
+          cut('M31.5 44m-19.5 0a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0', .25) +
+          cut('M5 5H58V83H5Z', .5) + cut('M7 7H56V81H7Z', .25) +
+          corners(cut('M7 15Q7 7 15 7M9.5 13Q10 10 13 9.5M7 15Q10 14 11 11Q14 10 15 7', .35)) +
+          cut('M31.5 7V12M31.5 81V76M5 44H10M58 44H53', .35)),
+        'radial-gradient(circle at 50% 50%, rgba(255,255,255,.45), transparent 16%)',
+        'repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0 1px, rgba(0,0,0,.05) 1px 2px, transparent 2px 3px)',
+        'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(40,46,60,.4))',
+        'linear-gradient(160deg, #eef1f5, #a4adb8 38%, #f7f8fa 58%, #8c95a1 82%, #c9cfd7)',
+      ].join(', ');
+    })(),
+    // the northern lights: curtains of green and violet over a dark ridge of pines
+    aurora: [
+      svg(stars(55, 11, .1, .32, '#eafff6').replace(/cy='([0-9.]+)'/g, (m, y) => `cy='${(+y * .6).toFixed(1)}'`) +
+        `<path d='M0 88V70L5 66L9 69L15 61L20 66L26 58L31 63L36 57L42 64L47 60L53 66L58 62L63 66V88Z' fill='#04141c'/>` +
+        Array.from({ length: 13 }, (_, k) => { const x = 2 + k * 5, h = 6 + (k * 7 % 5) * 1.6, y = 77 - (k * 3 % 4); return `<path d='M${x} ${y - h}L${x + 2.2} ${y}H${x - 2.2}Z' fill='#020a10'/>`; }).join('') +
+        `<path d='M0 88V79Q31.5 75 63 79V88Z' fill='#01060a'/>`),
+      'radial-gradient(ellipse 16% 52% at 24% 34%, rgba(90,255,170,.42), transparent 70%)',
+      'radial-gradient(ellipse 13% 46% at 43% 28%, rgba(60,235,205,.36), transparent 70%)',
+      'radial-gradient(ellipse 18% 56% at 66% 36%, rgba(160,110,255,.34), transparent 70%)',
+      'radial-gradient(ellipse 11% 42% at 86% 28%, rgba(90,255,170,.3), transparent 70%)',
+      'radial-gradient(ellipse 60% 18% at 50% 60%, rgba(70,255,190,.16), transparent 70%)',
+      'repeating-linear-gradient(90deg, rgba(190,255,225,.05) 0 1px, transparent 1px 5px)',
+      'linear-gradient(180deg, #02101c, #07263a 55%, #0b3440)',
+    ].join(', '),
+    // Nyx, the night sky of Theros: stars, the lines of two constellations, a gold key border
+    nyx: [
+      svg(`<defs><pattern id='k' width='6' height='6' patternUnits='userSpaceOnUse' patternTransform='translate(3 3) scale(.62)'><path d='M0 5.4H5.4V.6H1.8V3.6H3.6' fill='none' stroke='#e2c063' stroke-width='.7'/></pattern>` +
+        `<pattern id='kv' width='6' height='6' patternUnits='userSpaceOnUse' patternTransform='translate(3 3) rotate(90) scale(.62)'><path d='M0 5.4H5.4V.6H1.8V3.6H3.6' fill='none' stroke='#e2c063' stroke-width='.7'/></pattern></defs>` +
+        stars(80, 17, .1, .4, '#fff') +
+        `<g fill='none' stroke='rgba(220,210,255,.55)' stroke-width='.3'><path d='M15 22L22 18L30 24L38 19L46 25L43 34L34 31L30 24'/><path d='M18 58L25 63L23 71L31 75L40 70L46 62'/></g>` +
+        `<g fill='#fff'>${[[15, 22], [22, 18], [30, 24], [38, 19], [46, 25], [43, 34], [34, 31], [18, 58], [25, 63], [23, 71], [31, 75], [40, 70], [46, 62]].map(([x, y], i) => glint(x, y, i % 3 ? 1.2 : 1.8, '#fff')).join('')}</g>` +
+        `<rect x='3' y='3' width='57' height='3.72' fill='url(#k)'/><rect x='3' y='81.28' width='57' height='3.72' fill='url(#k)'/>` +
+        `<rect x='3' y='6.72' width='3.72' height='74.56' fill='url(#kv)'/><rect x='56.28' y='6.72' width='3.72' height='74.56' fill='url(#kv)'/>` +
+        `<rect x='2.4' y='2.4' width='58.2' height='83.2' fill='none' stroke='#e2c063' stroke-width='.35'/><rect x='7.3' y='7.3' width='48.4' height='73.4' fill='none' stroke='#e2c063' stroke-width='.35'/>`),
+      'radial-gradient(ellipse 60% 28% at 32% 30%, rgba(140,100,255,.3), transparent 70%)',
+      'radial-gradient(ellipse 50% 26% at 68% 70%, rgba(255,120,220,.2), transparent 70%)',
+      'radial-gradient(ellipse 40% 20% at 50% 50%, rgba(170,200,255,.16), transparent 70%)',
+      'radial-gradient(ellipse at 50% 42%, #2c1d63, #140b38 60%, #070418)',
+    ].join(', '),
+    // cathedral glass: a rose window in lead and colour under a pointed arch, lit from behind
+    glass: (() => {
+      const P = (r, a) => `${(31.5 + Math.cos(a * Math.PI / 180) * r).toFixed(2)} ${(40 + Math.sin(a * Math.PI / 180) * r).toFixed(2)}`;
+      const sector = (r0, r1, a0, a1, fill) => `<path d='M${P(r0, a0)}L${P(r1, a0)}A${r1} ${r1} 0 0 1 ${P(r1, a1)}L${P(r0, a1)}A${r0} ${r0} 0 0 0 ${P(r0, a0)}Z' fill='${fill}'/>`;
+      const OUT = ['#b3122e', '#1d4fb8', '#c98a12', '#1d4fb8'], IN = ['#e8b830', '#6a2aa8'];
+      return [
+        'radial-gradient(circle at 50% 46%, rgba(255,220,160,.28), transparent 38%)',
+        svg(`<defs><pattern id='q' width='5' height='7' patternUnits='userSpaceOnUse'><path d='M2.5 0L5 3.5L2.5 7L0 3.5Z' fill='rgba(230,200,120,.22)' stroke='#0c0b0e' stroke-width='.45'/></pattern></defs>` +
+          `<path d='M9 84V32Q9 14 31.5 6Q54 14 54 32V84Z' fill='#d8c48a' opacity='.32'/><path d='M9 84V32Q9 14 31.5 6Q54 14 54 32V84Z' fill='url(#q)' stroke='#0c0b0e' stroke-width='1.2'/>` +
+          `<circle cx='31.5' cy='40' r='19.4' fill='#0c0b0e'/>` +
+          Array.from({ length: 12 }, (_, k) => `<circle cx='${P(18.6, k * 30 + 15).split(' ')[0]}' cy='${P(18.6, k * 30 + 15).split(' ')[1]}' r='2.8' fill='#1d4fb8' stroke='#0c0b0e' stroke-width='.6'/>`).join('') +
+          Array.from({ length: 12 }, (_, k) => sector(8.6, 17.4, k * 30 - 90, k * 30 - 60, OUT[k % 4])).join('') +
+          Array.from({ length: 6 }, (_, k) => sector(3.8, 7.8, k * 60 - 90, k * 60 - 30, IN[k % 2])).join('') +
+          `<g fill='none' stroke='#0c0b0e' stroke-width='.7'>` + Array.from({ length: 12 }, (_, k) => `<path d='M${P(8.2, k * 30 - 90)}L${P(17.8, k * 30 - 90)}'/>`).join('') +
+          `<circle cx='31.5' cy='40' r='8.2'/><circle cx='31.5' cy='40' r='17.8'/></g><circle cx='31.5' cy='40' r='3.4' fill='#f3dd96' stroke='#0c0b0e' stroke-width='.6'/>` +
+          `<path d='M9 62H54M31.5 62V84' stroke='#0c0b0e' stroke-width='1.1'/>`),
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+        'linear-gradient(160deg, #3a3740, #1c1b21 55%, #0d0c10)',
+      ].join(', ');
+    })(),
+    // a neon night of Kamigawa: a sun cut in bands, a gate before it, a grid to the horizon
+    neon: [
+      svg(`<defs><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#ffe27a'/><stop offset='.55' stop-color='#ff7a5a'/><stop offset='1' stop-color='#ff2d95'/></linearGradient>` +
+        `<mask id='m'><rect width='63' height='88' fill='#fff'/>${[40, 43.5, 46.6, 49.4].map((y, i) => `<rect x='0' y='${y}' width='63' height='${(.7 + i * .45).toFixed(2)}' fill='#000'/>`).join('')}</mask>` +
+        `<clipPath id='c'><rect x='0' y='52' width='63' height='36'/></clipPath></defs>` +
+        stars(30, 23, .1, .3, '#ffd9f4').replace(/cy='([0-9.]+)'/g, (m, y) => `cy='${(+y * .55).toFixed(1)}'`) +
+        `<circle cx='31.5' cy='37' r='15.5' fill='url(#s)' mask='url(#m)'/>` +
+        `<g fill='#10021c'><path d='M17.5 27.4Q31.5 29.6 45.5 27.4L44.8 30H18.2Z'/><rect x='20.5' y='32.2' width='22' height='1.5'/><rect x='23' y='29' width='1.9' height='23'/><rect x='38.1' y='29' width='1.9' height='23'/></g>` +
+        `<g clip-path='url(#c)' fill='none'><g stroke='rgba(37,230,255,.28)' stroke-width='1.1'>${[54, 57, 61, 66, 72.5, 80.5].map(y => `<path d='M0 ${y}H63'/>`).join('')}${Array.from({ length: 15 }, (_, k) => `<path d='M31.5 52L${-60 + k * 13} 88'/>`).join('')}</g>` +
+        `<g stroke='#7ff4ff' stroke-width='.35'>${[54, 57, 61, 66, 72.5, 80.5].map(y => `<path d='M0 ${y}H63'/>`).join('')}${Array.from({ length: 15 }, (_, k) => `<path d='M31.5 52L${-60 + k * 13} 88'/>`).join('')}</g></g>` +
+        `<path d='M0 52H63' stroke='#ff4fb8' stroke-width='.7'/>`),
+      'radial-gradient(ellipse 70% 14% at 50% 60%, rgba(255,70,180,.45), transparent 70%)',
+      'radial-gradient(circle at 50% 42%, rgba(255,120,120,.35), transparent 32%)',
+      'linear-gradient(180deg, #12031f, #2c0740 52%, #0a0314 60%, #06020c)',
+    ].join(', '),
+    // the hedrons of Zendikar: stones of many faces hanging in a green-grey sky, their runes alight
+    hedron: (() => {
+      const hed = (x, y, L, w, rot) => {
+        const h = L * .22, d = w * .3;
+        return `<g transform='translate(${x} ${y}) rotate(${rot})'>` +
+          `<path d='M0 ${-L}L${w} ${-h}L${w} ${h}L0 ${L}L${-w} ${h}L${-w} ${-h}Z' fill='url(#st)' stroke='#1c2624' stroke-width='.4'/>` +
+          `<path d='M0 ${-L}L${d} ${-h}V${h}L0 ${L}M${-w} ${-h}L${d} ${-h}L${w} ${-h}M${-w} ${h}L${d} ${h}L${w} ${h}' fill='none' stroke='rgba(20,30,28,.55)' stroke-width='.35'/>` +
+          `<path d='M${d} ${-h}L${w} ${-h}V${h}H${d}Z' fill='rgba(0,0,0,.28)'/>` +
+          `<path d='M${-w + 1} ${-h * .4}H${d - .8}M${-w + 1.6} ${h * .4}H${d - 1.4}M${d + .8} 0H${w - .8}' stroke='#7ff0dc' stroke-width='.45' opacity='.9'/></g>`;
+      };
+      return [
+        svg(`<defs><linearGradient id='st' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#c4cfc8'/><stop offset='.55' stop-color='#7d8c86'/><stop offset='1' stop-color='#4a5753'/></linearGradient></defs>` +
+          hed(12, 20, 9, 3.2, -32) + hed(53, 69, 11, 3.8, 38) + hed(50, 16, 5.5, 2, 20) + hed(13, 72, 6, 2.2, -18) + hed(31.5, 44, 25, 8.5, 10) +
+          `<ellipse cx='31.5' cy='44' rx='17' ry='4.5' transform='rotate(10 31.5 44)' fill='none' stroke='rgba(127,240,220,.5)' stroke-width='.35' stroke-dasharray='1.2 1'/>`),
+        'radial-gradient(circle at 50% 50%, rgba(127,240,220,.24), transparent 30%)',
+        'radial-gradient(ellipse 90% 26% at 50% 104%, rgba(170,235,220,.22), transparent 70%)',
+        'radial-gradient(ellipse 70% 30% at 30% 0%, rgba(230,240,220,.2), transparent 70%)',
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(4,10,10,.6))',
+        'linear-gradient(170deg, #4a6260, #263a3a 50%, #111c1d)',
+      ].join(', ');
+    })(),
+    // a Thran circuit: copper traces to a power stone alight at the heart
+    thran: (() => {
+      const half = ['M31.5 30V21L24 13.5H9', 'M27 34H19L13 28V15', 'M24 40H12L8 36V10', 'M23 44H5', 'M24 48H12L8 52V78', 'M27 54H19L13 60V73', 'M31.5 58V67L24 74.5H9', 'M28.5 30V25L22 18.5H17', 'M28.5 58V63L22 69.5H17'];
+      const ends = [[9, 13.5], [13, 15], [8, 10], [5, 44], [8, 78], [13, 73], [9, 74.5], [17, 18.5], [17, 69.5]];
+      const draw = (stroke, w) => `<g fill='none' stroke='${stroke}' stroke-width='${w}' stroke-linejoin='round'>${half.map(d => `<path d='${d}'/>`).join('')}</g>`;
+      const side = draw('rgba(0,0,0,.55)', 1.3) + draw('#c98a4a', .6) + ends.map(([x, y]) => `<circle cx='${x}' cy='${y}' r='1' fill='#1a1009' stroke='#e6aa66' stroke-width='.45'/>`).join('');
+      return [
+        svg(side + `<g transform='translate(63 0) scale(-1 1)'>${side}</g>` +
+          `<circle cx='31.5' cy='44' r='12' fill='none' stroke='#c98a4a' stroke-width='.4' stroke-dasharray='1.4 .8'/>` +
+          `<circle cx='31.5' cy='44' r='9.5' fill='#140c06' stroke='#e6aa66' stroke-width='1'/>` +
+          `<path d='M31.5 37.5L36 44L31.5 50.5L27 44Z' fill='#bff4ff' stroke='#5fc6ff' stroke-width='.5'/><path d='M31.5 37.5L33.2 44L31.5 50.5' fill='rgba(40,120,200,.45)'/>` +
+          `<rect x='4' y='4' width='55' height='80' rx='2' fill='none' stroke='#c98a4a' stroke-width='.45'/>`),
+        'radial-gradient(circle at 50% 50%, rgba(140,220,255,.55), rgba(60,150,255,.18) 14%, transparent 26%)',
+        'repeating-linear-gradient(0deg, rgba(255,190,120,.035) 0 1px, transparent 1px 4px)',
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+        'radial-gradient(ellipse at 50% 45%, #3a2715, #1d1209 60%, #0b0703)',
+      ].join(', ');
+    })(),
+    // lapis and gold of Amonkhet: flecked blue stone, bands of gold, the sun between the horns
+    lapis: [
+      svg(`<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff1bf'/><stop offset='.5' stop-color='#e2b450'/><stop offset='1' stop-color='#9a6d1c'/></linearGradient></defs>` +
+        stars(70, 29, .1, .38, '#f3d27a') +
+        `<rect x='0' y='6' width='63' height='5' fill='url(#g)'/><rect x='0' y='77' width='63' height='5' fill='url(#g)'/>` +
+        `<g fill='#173a8a'>${Array.from({ length: 11 }, (_, k) => `<path d='M${k * 6 - .5} 11L${k * 6 + 2.5} 7.4L${k * 6 + 5.5} 11Z'/><path d='M${k * 6 - .5} 77L${k * 6 + 2.5} 80.6L${k * 6 + 5.5} 77Z'/>`).join('')}</g>` +
+        `<path d='M0 12.6H63M0 75.4H63' stroke='#e2b450' stroke-width='.45'/>` +
+        `<path d='M31.5 60C18 60 10.5 47 13.5 19C15.5 35 22.5 48.5 31.5 50Z' fill='url(#g)'/><path d='M31.5 60C45 60 52.5 47 49.5 19C47.5 35 40.5 48.5 31.5 50Z' fill='url(#g)'/>` +
+        `<circle cx='31.5' cy='39' r='7.4' fill='url(#g)'/><circle cx='31.5' cy='39' r='5.6' fill='none' stroke='#9a6d1c' stroke-width='.4'/>` +
+        `<path d='M31.5 61.5L33 64L31.5 66.5L30 64Z' fill='#e2b450'/>`),
+      'radial-gradient(circle at 50% 44%, rgba(255,220,130,.3), transparent 28%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,8,30,.6))',
+      'radial-gradient(ellipse 60% 30% at 30% 30%, rgba(90,140,255,.22), transparent 70%)',
+      'linear-gradient(160deg, #2a52a8, #173a8a 50%, #0c2058)',
+    ].join(', '),
+    // dragon scale: rows of scales hanging one over the next, and a dragon's eye open at the heart
+    dragonscale: [
+      svg(`<defs><radialGradient id='sc' cx='.5' cy='.15' r='.85'><stop offset='0' stop-color='#ffcf6a'/><stop offset='.45' stop-color='#c43a12'/><stop offset='.85' stop-color='#5a0e05'/><stop offset='1' stop-color='#220402'/></radialGradient>` +
+        `<pattern id='p' width='8' height='8' patternUnits='userSpaceOnUse' patternTransform='scale(.9)'>` +
+        `<circle cx='0' cy='8' r='4' fill='url(#sc)'/><circle cx='8' cy='8' r='4' fill='url(#sc)'/><circle cx='4' cy='4' r='4' fill='url(#sc)'/><circle cx='0' cy='0' r='4' fill='url(#sc)'/><circle cx='8' cy='0' r='4' fill='url(#sc)'/></pattern>` +
+        `<radialGradient id='e' cx='.5' cy='.5' r='.5'><stop offset='0' stop-color='#fff2a0'/><stop offset='.45' stop-color='#f5a020'/><stop offset='1' stop-color='#7a1e04'/></radialGradient></defs>` +
+        `<rect width='63' height='88' fill='url(#p)'/>` +
+        `<path d='M14 44Q31.5 28 49 44Q31.5 60 14 44Z' fill='#120302'/><path d='M16.5 44Q31.5 31 46.5 44Q31.5 57 16.5 44Z' fill='url(#e)'/>` +
+        `<ellipse cx='31.5' cy='44' rx='1.9' ry='10.5' fill='#0d0201'/><ellipse cx='28.5' cy='40.5' rx='1.6' ry='1' fill='rgba(255,255,255,.7)'/>`),
+      'radial-gradient(ellipse 40% 20% at 50% 50%, rgba(255,170,60,.45), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(20,0,0,.65))',
+      'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,220,150,.22), transparent 70%)',
+      '#3a0805',
+    ].join(', '),
+  };
+
   /* Sleeves: what goes over the back of your cards. Woven patterns and
-     card art at one price, and a sleeve of your own picture at four times
-     that. A sleeve is drawn from what is here (src/10d-ui-store.js). */
+     card art at one price, a foil (with light sliding across it) at half
+     as much again, and a sleeve of your own picture at four times the
+     first. A sleeve is drawn from what is here (src/10d-ui-store.js). An
+     art sleeve names its card, and the printing whose art it is when that
+     is one in particular ([set, collector number]). */
   const SLEEVES = [
     { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a', css: SLEEVE_CSS.obsidian },
-    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: AZURE },
+    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: svg(ruled('rgba(205,238,255,.78)') + glint(18, 24, 1.5, '#e8f8ff') + glint(47, 66, 1.3, '#e8f8ff') + glint(44, 18, 1.1, '#fff')) + ', ' + AZURE },
     { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a', css: SLEEVE_CSS.crimson },
     { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a', css: SLEEVE_CSS.verdant },
     { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a', css: SLEEVE_CSS.ivory },
     { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff', css: SLEEVE_CSS.amethyst },
     { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a', css: SLEEVE_CSS.gilded },
     { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8', css: SLEEVE_CSS.void },
+    // the five colours, each its mark, and all five together
+    { id: 'sigil-w', name: 'Plains Sigil', kind: 'pattern', rim: '#e6c873', css: sigil('w', SIGILS.w) },
+    { id: 'sigil-u', name: 'Island Sigil', kind: 'pattern', rim: '#8fc8ee', css: sigil('u', SIGILS.u) },
+    { id: 'sigil-b', name: 'Swamp Sigil', kind: 'pattern', rim: '#b5a3c0', css: sigil('b', SIGILS.b) },
+    { id: 'sigil-r', name: 'Mountain Sigil', kind: 'pattern', rim: '#ff9a5a', css: sigil('r', SIGILS.r) },
+    { id: 'sigil-g', name: 'Forest Sigil', kind: 'pattern', rim: '#9fd46a', css: sigil('g', SIGILS.g) },
+    { id: 'five', name: 'Five Colours', kind: 'pattern', rim: '#e2c063', css: FIVE },
+    // the planes
+    { id: 'nyx', name: 'Nyx', kind: 'pattern', rim: '#e2c063', css: DESIGN.nyx },
+    { id: 'glass', name: 'Cathedral Glass', kind: 'pattern', rim: '#8a8494', css: DESIGN.glass },
+    { id: 'neon', name: 'Neon Dynasty', kind: 'pattern', rim: '#ff4fb8', css: DESIGN.neon },
+    { id: 'hedron', name: 'Hedron Field', kind: 'pattern', rim: '#7ff0dc', css: DESIGN.hedron },
+    { id: 'thran', name: 'Thran Circuit', kind: 'pattern', rim: '#d9a066', css: DESIGN.thran },
+    { id: 'lapis', name: 'Lapis and Gold', kind: 'pattern', rim: '#e2b450', css: DESIGN.lapis },
+    { id: 'dragonscale', name: 'Dragonscale', kind: 'pattern', rim: '#ffb347', css: DESIGN.dragonscale },
+    // the foils
+    { id: 'holo', name: 'Holo Foil', kind: 'pattern', fx: 'foil', rim: '#e6ebf2', css: DESIGN.holo },
+    { id: 'galaxy', name: 'Galaxy Foil', kind: 'pattern', fx: 'foil', rim: '#b9a6ff', css: DESIGN.galaxy },
+    { id: 'etched', name: 'Etched Silver', kind: 'pattern', fx: 'foil', rim: '#dfe4ea', css: DESIGN.etched },
+    { id: 'oilslick', name: 'Phyrexian Oil', kind: 'pattern', fx: 'foil', rim: '#d9d1bd', css: DESIGN.oilslick },
+    { id: 'aurora', name: 'Aurora', kind: 'pattern', fx: 'foil', rim: '#7fe8c0', css: DESIGN.aurora },
     // the art of the game's best-known faces and moments
     { id: 'art-bolas', name: 'Nicol Bolas', kind: 'art', card: 'Nicol Bolas, Dragon-God', rim: '#e05a3a' },
     { id: 'art-ugin', name: 'Ugin', kind: 'art', card: 'Ugin, the Spirit Dragon', rim: '#9fd8e6' },
@@ -224,9 +572,38 @@
     { id: 'art-griselbrand', name: 'Griselbrand', kind: 'art', card: 'Griselbrand', rim: '#b04040' },
     { id: 'art-craterhoof', name: 'Craterhoof', kind: 'art', card: 'Craterhoof Behemoth', rim: '#8fd46a' },
     { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', rim: '#7fc4ff' },
+    // and more, from Alpha to now, every colour; `at` is where the picture is looked at
+    { id: 'art-lotus', name: 'Black Lotus', kind: 'art', card: 'Black Lotus', print: ['lea', '232'], at: '55% 50%', rim: '#c9a24a' },
+    { id: 'art-shivan', name: 'Shivan Dragon', kind: 'art', card: 'Shivan Dragon', print: ['lea', '174'], at: '80% 30%', rim: '#e0553a' },
+    { id: 'art-serra', name: 'Serra Angel', kind: 'art', card: 'Serra Angel', print: ['dom', '33'], at: '40% 40%', rim: '#f1e2b0' },
+    { id: 'art-necro', name: 'Necropotence', kind: 'art', card: 'Necropotence', print: ['ice', '154'], at: '42% 30%', rim: '#8a6aa8' },
+    { id: 'art-sliverqueen', name: 'Sliver Queen', kind: 'art', card: 'Sliver Queen', print: ['sth', '129'], rim: '#c8b070' },
+    { id: 'art-goyf', name: 'Tarmogoyf', kind: 'art', card: 'Tarmogoyf', print: ['fut', '153'], at: '68% 40%', rim: '#8fd46a' },
+    { id: 'art-thoughtseize', name: 'Thoughtseize', kind: 'art', card: 'Thoughtseize', print: ['lrw', '145'], at: '30% 40%', rim: '#a77ad8' },
+    { id: 'art-cryptic', name: 'Cryptic Command', kind: 'art', card: 'Cryptic Command', print: ['lrw', '56'], rim: '#6fb6ff' },
+    { id: 'art-edgar', name: 'Edgar Markov', kind: 'art', card: 'Edgar Markov', print: ['c17', '36'], rim: '#d0485a' },
+    { id: 'art-bolt', name: 'Lightning Bolt', kind: 'art', card: 'Lightning Bolt', print: ['fdc', '163'], at: '42% 30%', rim: '#ff8a3a' },
+    { id: 'art-titan', name: 'Primeval Titan', kind: 'art', card: 'Primeval Titan', print: ['m11', '192'], rim: '#9fd46a' },
+    { id: 'art-elesh', name: 'Elesh Norn', kind: 'art', card: 'Elesh Norn, Grand Cenobite', print: ['nph', '9'], at: '78% 30%', rim: '#e8e2d0' },
+    { id: 'art-karn', name: 'Karn', kind: 'art', card: 'Karn Liberated', print: ['nph', '1'], at: '35% 40%', rim: '#c8c0b0' },
+    { id: 'art-elspeth', name: 'Elspeth', kind: 'art', card: "Elspeth, Sun's Champion", print: ['ths', '9'], at: '40% 30%', rim: '#f1d58a' },
+    { id: 'art-thassa', name: 'Thassa', kind: 'art', card: 'Thassa, God of the Sea', print: ['ths', '66'], at: '45% 40%', rim: '#7fc4ff' },
+    { id: 'art-ulamog', name: 'Ulamog', kind: 'art', card: 'Ulamog, the Ceaseless Hunger', print: ['bfz', '15'], at: '62% 30%', rim: '#c8b8e8' },
+    { id: 'art-glorybringer', name: 'Glorybringer', kind: 'art', card: 'Glorybringer', print: ['akh', '134'], rim: '#ff9a4a' },
+    { id: 'art-urdragon', name: 'The Ur-Dragon', kind: 'art', card: 'The Ur-Dragon', print: ['c17', '48'], at: '40% 30%', rim: '#e2c063' },
+    { id: 'art-teferi', name: 'Teferi', kind: 'art', card: 'Teferi, Hero of Dominaria', print: ['dom', '207'], at: '35% 30%', rim: '#b8d8f0' },
+    { id: 'art-niv', name: 'Niv-Mizzet', kind: 'art', card: 'Niv-Mizzet, Parun', print: ['grn', '192'], at: '60% 40%', rim: '#ff6a4a' },
+    { id: 'art-omnath', name: 'Omnath', kind: 'art', card: 'Omnath, Locus of Creation', print: ['znr', '232'], rim: '#9fe0c0' },
+    { id: 'art-ragavan', name: 'Ragavan', kind: 'art', card: 'Ragavan, Nimble Pilferer', print: ['mh2', '138'], at: '72% 40%', rim: '#ff8a3a' },
+    { id: 'art-onering', name: 'The One Ring', kind: 'art', card: 'The One Ring', print: ['ltr', '246'], at: '55% 50%', rim: '#f3d27a' },
+    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['unh', '140'], rim: '#8fd46a' },
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
   ];
+  // every woven sleeve has the grain of card stock over it
+  for (const sl of SLEEVES) if (sl.kind === 'pattern') sl.css = GRAIN + ', ' + sl.css;
+  /** What a sleeve costs in the Store. */
+  const sleevePrice = (sl) => !sl ? PRICES.sleeve : sl.kind === 'custom' ? PRICES.sleeveCustom : sl.fx === 'foil' ? PRICES.sleeveFoil : PRICES.sleeve;
   // a loss pays 500, a win 2,000 (500 for playing and 1,500 more), the day's first win 2,500 on top
   const REWARD = { play: 500, win: 1500, firstWin: 2500 };
   /** A copy past the fourth is worth this many Shards instead. */
@@ -732,7 +1109,7 @@
     const sl = sleeveById(id);
     if (!sl) return { ok: false, why: 'There is no such sleeve.' };
     if (state.sleeves.owned.includes(id)) return { ok: false, why: 'You already have that sleeve.' };
-    const cost = sl.kind === 'custom' ? PRICES.sleeveCustom : PRICES.sleeve;
+    const cost = sleevePrice(sl);
     if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
     state.shards -= cost;
     state.sleeves.owned.push(id);
@@ -848,13 +1225,14 @@
   function noteSleeveArt(id, url) { load(); if (url && state.sleeves.art[id] !== url) { state.sleeves.art[id] = url; save(); } }
   /**
    * The sleeve you wear, as something another player can draw too:
-   * { id, kind, css | art | img, rim }, or null for the plain back.
+   * { id, kind, art | img, rim } (a woven one by its id alone), or null for the plain back.
    */
   function sleeveWorn() {
     load();
     const sl = sleeveById(state.sleeves.on);
     if (!sl) return null;
-    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
+    // a woven one goes by its name alone: its picture is long, and every player has it already
+    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', rim: sl.rim };
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
     if (!state.sleeves.custom) return null;
     const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };
@@ -996,7 +1374,7 @@
     packPrice, appraise, needsAppraisal,
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
-    SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     digestHex, animPayload, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
