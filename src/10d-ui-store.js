@@ -1980,9 +1980,25 @@
       }
       return [...m.values()];
     };
+    /* The cards of every set on the shelf, fetched while the shelf is
+       looked at (once a visit), so the first pack of a set opens at once
+       rather than after a wait on the connection. */
+    const warmed = new Set();
+    const warm = (gs) => {
+      for (const g of gs) {
+        const code = g.info && g.info.code;
+        if (!code || warmed.has(g.key)) continue;
+        warmed.add(g.key);
+        MTG.scry.setPool(code).catch(() => null);
+        MTG.scry.packExtras(code).catch(() => null);
+        if (g.kind === 'collector') MTG.scry.setVariants(code).catch(() => null);
+        MTG.scry.setVintage(code).catch(() => null);
+      }
+    };
     const inventory = () => {
       const gs = groups();
       if (!gs.length) return close();
+      warm(gs);
       stage.className = 'po-stage inv';
       overlay.classList.add('shelf');
       place();
@@ -2062,7 +2078,7 @@
         MTG.sfx('pack_charge', { dur: reduced() ? 0.2 : 0.7 });
         let res;
         try {
-          [res] = await Promise.all([S.openPack(p.id, async () => info), pause(reduced() ? 150 : 650)]);
+          [res] = await Promise.all([S.openPack(p.id, async () => info), pause(reduced() ? 100 : 320)]);
         } catch (e) {
           opening = false;
           stage.onclick = null;
@@ -2102,7 +2118,7 @@
         pack.style.visibility = 'hidden';
         MTG.sfx('pack_tear');
         requestAnimationFrame(() => { body.classList.add('open'); rise.classList.add('up'); });
-        await pause(950);
+        await pause(520);
         deal(res, g, info);
       };
       pack.addEventListener('click', open);
@@ -2138,6 +2154,7 @@
         el('div', { class: 'po-tags' }, [
           it.count > 1 ? el('span', { class: 'po-count-tag', text: '×' + it.count }) : null,
           it.isNew ? el('span', { class: 'po-new', text: 'New' }) : null,
+          it.serial ? el('span', { class: 'po-bonus serial', text: it.serial === '1/1' ? '1 of 1' : it.serial }) : null,
           it.card && it.card._vintage ? el('span', { class: 'po-bonus vintage', text: 'Vintage' }) : null,
           it.card && it.card._bonus ? el('span', { class: 'po-bonus', text: it.card.set_type === 'commander' ? 'Commander'
             : it.card.set_type === 'alchemy' ? 'Alchemy' : it.card.digital ? 'Digital' : 'Bonus' }) : null,
@@ -2180,7 +2197,7 @@
           t._charging = true;
           t.classList.add('charging');
           MTG.sfx(r === 'mythic' ? 'charge_mythic' : 'charge_rare');
-          await sleep(r === 'mythic' ? 820 : 520);
+          await sleep(r === 'mythic' ? 600 : 360);
           t.classList.remove('charging');
           t._charging = false;
         }
@@ -2248,7 +2265,7 @@
       const revealAll = async () => {
         if (revealing) return hurry();
         revealing = true;
-        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(140); }
+        for (const t of tiles.filter(x => !x._flipped)) { if (!overlay.isConnected) return; flip(t, true); await paced(70); }
       };
       refresh();
       // dealt out of the pack, one after another
@@ -2258,15 +2275,15 @@
         for (const t of tiles) {
           const pan = Math.max(-0.7, Math.min(0.7, -parseFloat(t.style.getPropertyValue('--ox')) / 4 || 0));
           if (pace === 1) MTG.sfx('card_deal', { pan });
-          await paced(55);
+          await paced(32);
         }
-        await paced(350);
+        await paced(160);
         // dealt: from now on a card comes up and goes back at once
         setTimeout(() => grid.classList.add('settled'), 300 / pace);
         for (const t of tiles.filter(x => !x._big)) {
           if (!overlay.isConnected) return;
           flip(t, pace > 1);
-          await paced(150);
+          await paced(75);
         }
         for (const t of tiles) if (t._big && !t._flipped) t.classList.add('waiting');
       })();
@@ -2324,6 +2341,9 @@
       setTimeout(() => { if (!revealNow || !skip) overlay.addEventListener('click', onSkip); }, 0);
       onKey = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); skipAll(); } };
       head.querySelector('.po-sub').textContent = `Opening ${packs.length} packs… click to skip`;
+      warm(gs);
+      // the whole tearing in about a second and a half, however many packs there are
+      const tearGap = Math.max(12, Math.min(120, Math.round(1500 / packs.length)));
       const results = [];
       let failed = null;
       for (let i = 0; i < packs.length; i++) {
@@ -2339,14 +2359,14 @@
         restack();
         const sub = head.querySelector('.po-sub');
         if (sub) sub.textContent = `Opening ${i + 1} of ${packs.length}… click to skip`;
-        MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
-        await sleep(reduced() ? 10 : 150);
+        if (tearGap >= 40 || i % Math.ceil(40 / tearGap) === 0) MTG.sfx('pack_tear_quick', { pan: (i % 3 - 1) * 0.3 });
+        await sleep(reduced() ? 10 : tearGap);
       }
       if (failed && !results.length) { overlay.removeEventListener('click', onSkip); UI.error(failed.message || String(failed)); return inventory(); }
       if (!skip) {
         overlay.classList.remove('flash', 'quake'); void overlay.offsetWidth; overlay.classList.add('flash', 'quake');
         MTG.sfx('boom');
-        await sleep(reduced() ? 50 : 520);
+        await sleep(reduced() ? 50 : 300);
       }
       // everything, together: the same card once with how many, rarest first
       const merged = new Map();
@@ -2380,7 +2400,8 @@
           ...RAR.filter(r => wcs[r]).map(r => el('span', { class: 'po-wcsum' }, [wcIcon(r, wcs[r])])),
         ].filter(Boolean)));
       const cols = Math.max(4, Math.min(10, Math.ceil(Math.sqrt(items.length * 1.8))));
-      const grid = el('div', { class: 'po-grid many', style: { '--cols': String(cols) } });
+      // dealt in about a second, however many there are
+      const grid = el('div', { class: 'po-grid many', style: { '--cols': String(cols), '--step': Math.max(2, Math.min(12, 1000 / items.length)).toFixed(1) + 'ms' } });
       stage.appendChild(grid);
       const tiles = items.map((it, i) => cardTile(it, i, items.length, cols));
       for (const t of tiles) grid.appendChild(t);
@@ -2409,15 +2430,17 @@
       {
         // the whole haul from the top, wherever the list of packs was scrolled to
         requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
-        setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
+        setTimeout(() => grid.classList.add('settled'), 500 + Math.min(1200, tiles.length * 6));
         // the best of it turned over first, with its sound; the rest in a quick wave
         const best = tiles.filter(t => t._big);
         const rest = tiles.filter(t => !t._big);
-        let at = 400;
-        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at); at += 220; }
-        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true); }, at + k * 35));
+        let at = 250;
+        const bestGap = Math.max(25, Math.min(200, Math.round(1500 / Math.max(1, best.length))));
+        const restGap = Math.max(4, Math.min(30, Math.round(1000 / Math.max(1, rest.length))));
+        for (const t of best) { setTimeout(() => { if (overlay.isConnected) flip(t, true, bestGap < 60 && t !== best[0]); }, at); at += bestGap; }
+        rest.forEach((t, k) => setTimeout(() => { if (overlay.isConnected) flip(t, true, restGap < 20 && k % 6 !== 0); }, at + k * restGap));
         // once the wave has run its course, a click is a click again
-        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * 35 + 300);
+        setTimeout(() => { waveOver = true; overlay.removeEventListener('click', onSkip); }, at + rest.length * restGap + 300);
       }
       if (failed) UI.error(`Some packs could not be opened: ${failed.message || failed}`);
       // Enter or Space: the cards at once while they are still turning, and away once they are all up

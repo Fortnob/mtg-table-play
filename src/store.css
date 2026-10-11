@@ -221,7 +221,7 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-grid.many .po-card { --w: clamp(70px, min(7.6vw, calc(20 * var(--vh, 1vh))), 150px); }
 .po-grid.dealt .po-card { opacity: 1; transform: none;
   transition: transform .5s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 55ms), opacity .25s calc(var(--i) * 55ms), filter .2s; }
-.po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * 12ms), opacity .2s calc(var(--i) * 12ms), filter .2s; }
+.po-grid.many.dealt .po-card { transition: transform .4s cubic-bezier(.2, .85, .25, 1) calc(var(--i) * var(--step, 12ms)), opacity .2s calc(var(--i) * var(--step, 12ms)), filter .2s; }
 .po-grid.settled .po-card, .po-grid.many.settled .po-card { transition: transform .22s ease-out, filter .2s, opacity .2s; }
 /* skipped: the haul is simply there, nothing flying in or turning over */
 .po-grid.instant .po-card, .po-grid.instant .po-card * { transition: none !important; animation-duration: 0s !important; animation-delay: 0s !important; }
@@ -753,6 +753,9 @@ html[data-play="1"] .hoard-chip { display: none; }
   calc((100 * var(--vh, 1vh) - 250px) / var(--rows, 2) / 1.42 - 14px)), 200px); }
 
 /* a card in its vintage printing, as it is turned over and in the art picker */
+.po-bonus.serial { color: #2a1a00; border-color: #ffe9a8; background: linear-gradient(100deg, #f6c94c, #fff1b8 45%, #e2a72a);
+  box-shadow: 0 0 12px rgba(255, 210, 90, .8); animation: po-serial 1.6s ease-in-out infinite alternate; }
+@keyframes po-serial { to { box-shadow: 0 0 22px rgba(255, 220, 110, 1); } }
 .po-bonus.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .6); background: rgba(48, 34, 18, .95); }
 .art-option .pill.vintage { color: #f0dfc0; border-color: rgba(214, 180, 120, .5); background: rgba(80, 56, 26, .45); }
 

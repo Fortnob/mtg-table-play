@@ -780,6 +780,47 @@
     }
 
     /**
+     * The vintage printings of every card in a set, by name (normName of
+     * the front face): one search for the whole set, kept, so a pack that
+     * turns up a vintage card needs no lookup of its own. Empty when the
+     * connection is out and nothing is kept.
+     */
+    async setVintage(code) {
+      code = String(code).toLowerCase();
+      this._vint = this._vint || new Map();
+      if (this._vint.has(code)) return this._vint.get(code);
+      const job = (async () => {
+        const key = 'vintageset2:' + code;
+        let list = null;
+        const hit = await this.db.get(STORES.meta, key);
+        if (hit && Date.now() - hit._t < CACHE_TTL) {
+          const m = await this.db.getMany(STORES.cards, hit.ids);
+          const arr = hit.ids.map(id => m.get(id)).filter(Boolean);
+          if (arr.length === hit.ids.length) list = arr;
+        }
+        if (!list) {
+          // the set's own cards and those of the sets folded into its packs
+          const kids = (await this.packHosts().catch(() => new Map())).get(code) || [];
+          const ins = [code].concat(kids).map(k => 'in:' + k).join(' or ');
+          const found = await this.search(`(${ins}) -t:basic (frame:1993 or frame:1997) -is:digital lang:en`, { unique: 'prints', max: 2000 }).catch(() => null);
+          if (!found) { this._vint.delete(code); return new Map(); }
+          list = found.filter(c => c && (c.frame === '1993' || c.frame === '1997') && !c.digital &&
+            !(MTG.oldPrints && MTG.oldPrints.isOld(c)));
+          await this.db.put(STORES.meta, key, { ids: list.map(c => c.id), _t: Date.now() });
+        }
+        const by = new Map();
+        for (const c of list) {
+          const k = U.normName(U.frontName(c.name));
+          if (!by.has(k)) by.set(k, []);
+          by.get(k).push(c);
+        }
+        return by;
+      })();
+      this._vint.set(code, job);
+      return job;
+    }
+
+    /**
      * The extra cards a set's packs may hold, bucketed by rarity like a
      * pool: the first printings of the sets folded into it (packHosts), and
      * its own cards that were never in its boosters (the deck-only cards of

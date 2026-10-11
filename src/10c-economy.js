@@ -955,6 +955,16 @@
    * place, and the wildcard the track brings every so many packs. `setFor`
    * names a set for a welcome pack that has none yet.
    */
+  /**
+   * The One Ring, 1 of 1: the one serialized copy printed for The Lord of
+   * the Rings: Tales of Middle-earth (collector number 0), found in a
+   * Collector Booster. Here as there it is in the packs, and all but never
+   * comes out of one: a chance in ten million a pack, and, there being only
+   * one, never again once it has. `odds` is a field so a test can make it
+   * certain.
+   */
+  const ONE_RING = { set: 'ltr', id: '93de9042-cc62-4ade-8d8d-68fdbc84bfae', odds: 1 / 10000000 };
+
   async function openPack(packId, setFor) {
     load();
     const at = state.packs.findIndex(p => p.id === packId);
@@ -981,11 +991,13 @@
        (rarity and all), and its look is yours from then on, the art picker
        counting it as pulled. A set from the old frame's own time needs none. */
     if ((info.released_at || '9999') >= '2003-07-28' && rng.chance(VINTAGE_RATE)) {
+      // the old printings of the whole set's cards, looked up once a set (the shelf asks ahead)
+      const vint = await MTG.scry.setVintage(pack.set).catch(() => new Map());
       const idx = cards.map((c, i) => i).filter(i => !isBasic(cards[i].name));
       for (let t = 0; t < 3 && idx.length; t++) {
         const i = idx.splice(rng.int(idx.length), 1)[0];
         const c = cards[i];
-        const olds = await MTG.scry.vintagePrints(c).catch(() => []);
+        const olds = vint.get(MTG.util.normName(MTG.util.frontName(c.name))) || [];
         if (!olds.length) continue;
         const v = olds[rng.int(olds.length)];
         cards[i] = Object.assign({}, v, { rarity: c.rarity, _vintage: true }, c._foil ? { _foil: true } : {}, c._bonus ? { _bonus: true } : {});
@@ -1004,21 +1016,34 @@
       return c._foil ? Object.assign({}, pick, { _foil: true }) : pick;
     });
 
+    /* The One Ring, 1 of 1, in a Collector Booster of its set: in place of
+       the pack's best card (its mythic, else its rare), and never touched by
+       what follows. Looked up only on the day it comes. */
+    if (pack.kind === 'collector' && pack.set === ONE_RING.set && !state.oneRing && rng.next() < ONE_RING.odds) {
+      const ring = await MTG.scry.byId(ONE_RING.id).catch(() => null);
+      if (ring) {
+        const at2 = Math.max(cards.findIndex(c => rarityOf(c) === 'mythic'), cards.findIndex(c => rarityOf(c) === 'rare'));
+        const one = Object.assign({}, ring, { _foil: true, _serial: '1/1' });
+        if (at2 >= 0) cards[at2] = one; else cards.push(one);
+        state.oneRing = { at: Date.now() };
+      }
+    }
+
     /* Arena's wildcards: now and then one takes a card's place, of the
-       card's own rarity. */
+       card's own rarity (never the One Ring's). */
     const slots = cards.map(c => ({ card: c, rarity: rarityOf(c) }));
     const odds = { common: 1 / 3, uncommon: 1 / 5, rare: 1 / 24, mythic: 1 / 24 };
     const swapped = new Set();
     for (const r of RARITIES) {
       if (rng.next() >= odds[r]) continue;
-      const i = slots.findIndex((s, k) => s.rarity === r && !swapped.has(k));
+      const i = slots.findIndex((s, k) => s.rarity === r && !swapped.has(k) && !s.card._serial);
       if (i >= 0) swapped.add(i);
     }
     const out = [];
     slots.forEach((s, k) => {
       if (swapped.has(k)) { state.wc[s.rarity]++; out.push({ wildcard: s.rarity }); return; }
       const res = addCard(s.card, 1);
-      out.push({ card: s.card, rarity: s.rarity, foil: !!s.card._foil, isNew: res.isNew, shards: res.shards });
+      out.push({ card: s.card, rarity: s.rarity, foil: !!s.card._foil, isNew: res.isNew, shards: res.shards, serial: s.card._serial || null });
     });
     // the wildcard track
     state.opened++;
@@ -1030,7 +1055,7 @@
     save('open');
     if (MTG.progress) { MTG.progress.notePulls(out); MTG.progress.checkSets([pack.set]); }
     // rarest last, the way they are turned over, and within a rarity the most valuable last
-    const rank = (x) => x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity);
+    const rank = (x) => x.serial ? 99 : x.wildcard ? RARITIES.indexOf(x.wildcard) + 0.5 : RARITIES.indexOf(x.rarity);
     out.sort((a, b) => rank(a) - rank(b) || cardValue(a) - cardValue(b));
     return { pack, cards: out, bonus };
   }
@@ -1374,7 +1399,7 @@
     packPrice, appraise, needsAppraisal,
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
-    SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    ONE_RING, SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     digestHex, animPayload, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
