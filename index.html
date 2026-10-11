@@ -14398,6 +14398,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
     { re: /^Attach (up to one )?target Equipment you control to (?:CARDNAME|it|this creature)\.?$/i,
       make: (m) => ({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
+    // Kemba, Kha Enduring: "attach up to one target Equipment you control to that creature" — the one that entered (attachToThat)
+    { re: /^Attach (up to one )?target Equipment you control to that creature\.?$/i,
+      make: (m) => ({ op: 'attachTargetToSelf', toTrigger: true, targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -15550,6 +15553,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Yorvo, Lord of Garenbrig: "Then if that creature's power is greater than Yorvo's power, put another +1/+1 counter on Yorvo." (triggerPowerAboveSelf)
     { re: /^(?:Then )?if that creature'?s power is greater than (?:CARDNAME|this creature)'?s power, put another \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerAboveSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] }) },
+    // Shaile, Dean of Radiance: "Put a +1/+1 counter on each creature that entered the battlefield under your control this turn." (enteredUnderYou)
+    { re: /^Put an? \+1\/\+1 counter on each creature that entered the battlefield under your control this turn\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', enteredThisTurn: true } }) },
+    // Miles "Tails" Prower: "Otherwise, put a flying counter on it." — the Vehicle that entered (triggerHasFlying)
+    { re: /^Otherwise, put an? (flying|first strike|deathtouch|lifelink|trample|vigilance|menace|reach|haste) counter on it\.?$/i,
+      make: (m) => ({ op: 'noop', otherwiseOf: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerObject' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -19469,6 +19478,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Death's Presence: "the power of the creature that died")
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Crystal, Inhuman Princess: "the number of colors that spell is" (spellColorsAmount)
+    if (/^the number of colou?rs that spell is$/i.test(p)) return done({ ofTrigger: 'colorCount' });
     // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
     if (/^that Saga'?s mana value$/i.test(p)) return done({ ofTrigger: 'mv' });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
@@ -22832,7 +22843,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
     [/^a permanent was put into your hand from the battlefield this turn$/i, () => ({ kind: 'bouncedToYourHand' })],
     // Anje Falkenrath: "if it has madness" — the card the trigger is about (triggerHasKeyword)
-    [/^it has (madness|flashback|cycling|kicker)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],
+    [/^it has (madness|flashback|cycling|kicker|flying)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],   // (Miles "Tails" Prower: flying — triggerHasFlying)
+    // ED-E, Lonesome Eyebot: "if the number of attacking creatures is greater than the number of quest counters on ED-E" (attackersOverCounters)
+    [/^the number of attacking creatures is greater than the number of ([a-z]+) counters on (?:CARDNAME|this creature|it)$/i, (m) => ({ kind: 'attackersOverCounters', counter: m[1].toLowerCase() })],
+    // Eshki Dragonclaw: "if you've cast both a creature spell and a noncreature spell this turn" (castBothKinds)
+    [/^you'?ve cast both a creature spell and a noncreature spell this turn$/i, () => ({ kind: 'castBothKinds' })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -27191,9 +27206,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^If one or more \+1\/\+1 counters would be put on another creature you control, that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Other', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', what: 'creature', notSelf: true }) },
     /* Hardened Scales and friends: one more counter, or twice as many */
-    { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
+    // (Caradora, Heart of Alacria: "a creature or Vehicle you control" — plusOneVehicle)
+    { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature|creature or Vehicle) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
-        / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+        / or /.test(m[1]) ? { whatAny: m[1].toLowerCase().split(' or ') } : { what: m[1].toLowerCase() }) },
     // Mowu, Loyal Companion: "If one or more +1/+1 counters would be put on Mowu, that many plus one … on it instead." (selfCountersPlus)
     { re: /^If one or more \+1\/\+1 counters would be put on (?:CARDNAME|this creature), that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Self', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', selfOnly: true }) },
@@ -28175,6 +28191,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
       // Glittering Lion: "Prevent all damage that would be dealt to this creature."
+      // Goldbug, Humanity's Ally: "Prevent all combat damage that would be dealt to attacking Humans you control." (preventCombatToGroup)
+      { re: /^Prevent all combat damage that would be dealt to (attacking )?([A-Z][a-z]+s|creatures) you control\.?$/,
+        make: (m) => { const sc = scopeOf((m[1] || '') + m[2] + ' you control'); return sc && !sc.self && (!m[1] || sc.attacking) ? { op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' } : null; }, auto: true },
       // Emmara Tandris: "Prevent all damage that would be dealt to creature tokens you control." (preventToGroup)
       { re: /^Prevent all damage that would be dealt to ((?:[a-z]+ )*(?:creature|creatures|creature tokens|tokens)) you control\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' },
@@ -39980,7 +39999,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (!a) return false;
         const fits = ef.whatAny.some(w => w === 'permanent' || (w === 'nonland' ? !a.isLand
           : w === 'nonbasic land' ? (a.isLand && !(a.supertypes || []).includes('Basic'))
-          : (a.types || []).some(t => t.toLowerCase() === w)));
+          : (a.types || []).some(t => t.toLowerCase() === w) || (a.subtypes || []).some(t => t.toLowerCase() === w)));   // (Caradora: "or Vehicle" — plusOneVehicle)
         if (!fits) return false;
       }
       // "+1/+1 counters would be put on…" is only those counters
@@ -41232,7 +41251,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'bouncedToYourHand': return !!me && !!(((this.turnHistory || {}).bouncedTo || {})[me.id]);
         // Anje Falkenrath: "if it has madness" (triggerHasKeyword)
         case 'triggerHasKeyword': { const tdK = (ctx && ctx.triggerData) || {}; const xK = tdK.objectId && this.obj(tdK.objectId);
+          // (Miles "Tails" Prower: a permanent's keywords as it is now — triggerHasFlying)
+          if (xK && xK.zone === 'battlefield') return this.hasKw(xK, cond.keyword);
           return !!xK && !!(((xK.analysis() || {}).keywordSet) || new Set()).has(cond.keyword); }   // (triggerHasKeyword)
+        // ED-E, Lonesome Eyebot: more attackers than its quest counters (attackersOverCounters)
+        case 'attackersOverCounters': return !!src && ((this.combat && this.combat.attackers) || []).length > (Number((src.counters || {})[cond.counter]) || 0);
+        // Eshki Dragonclaw: a creature spell and a noncreature spell this turn (castBothKinds)
+        case 'castBothKinds': { const castB = (me && me.spellObjsThisTurn) || [];
+          return castB.some(x => this._cardFitsWords(x, 'creature')) && castB.some(x => !this._cardFitsWords(x, 'creature')); }
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -49523,15 +49549,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
            goes onto this creature */
         case 'attachTargetToSelf': {
           const eq = firstObj();
-          if (!eq || eq.zone !== 'battlefield' || !src || src.zone !== 'battlefield' || eq === src) break;
+          // Kemba, Kha Enduring: "to that creature" — the one the trigger is about (attachToThat)
+          const hostA = e.toTrigger ? (((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || null) : src;
+          if (!eq || eq.zone !== 'battlefield' || !hostA || hostA.zone !== 'battlefield' || eq === hostA) break;
           if (e.onlyEquipment && !(eq.analysis() || {}).isEquipment) break;
-          if (eq.controller !== ctx.controller || !(src.analysis() || {}).isCreature) break;
+          if (eq.controller !== ctx.controller || !(hostA.analysis() || {}).isCreature) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
-          eq.attachedTo = src.id;
+          eq.attachedTo = hostA.id;
           eq.ts = this._stampNew();
-          src.attachments.push(eq.id);
+          hostA.attachments.push(eq.id);
           this.bumpBoard();
-          this.logEvent('rules', `${eq.name} is attached to ${src.name}.`);
+          this.logEvent('rules', `${eq.name} is attached to ${hostA.name}.`);
           break;
         }
         case 'attachThat': {
