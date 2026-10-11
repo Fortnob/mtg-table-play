@@ -1378,27 +1378,37 @@
       // house rules of your own for this format: by the book, or one of them
       const presets = MTG.formats.presets.forFormat(q.formatId);
       if (q.preset && !presets.some(p => p.name === q.preset)) q.preset = '';
+      // rules submitted for this match without a preset of their own (editRulePreset's "Submit"), for this format only
+      const custom = !q.preset && q.custom && q.custom.formatId === q.formatId ? q.custom.rules : null;
       let rulesField = null;
       const canBend = MTG.formats.houseFields(q.formatId).length > 0;
       if (presets.length || canBend) {
         const parts = [];
-        if (presets.length) {
+        if (presets.length || custom) {
           const pSel = el('select', { 'aria-label': 'House rules' }, [el('option', { value: '', text: 'By the book' })]
+            .concat(custom ? [el('option', { value: '\u0000custom', text: 'Unsaved rules', selected: true })] : [])
             .concat(presets.map(p => el('option', { value: p.name, text: p.name, selected: p.name === q.preset }))));
-          pSel.addEventListener('change', () => { q.preset = pSel.value; saveQuick(q); draw(); });
+          pSel.addEventListener('change', () => {
+            if (pSel.value === '\u0000custom') return;
+            q.preset = pSel.value; q.custom = null; saveQuick(q); draw();
+          });
           parts.push(pSel);
         }
         // the chosen set to change, or a new one; a set just written (or renamed) is the one chosen after
         if (canBend) {
           parts.push(el('button', {
-            type: 'button', class: 'btn sm house-btn', html: `${SVG.gear}<span>${q.preset ? 'Edit rules' : presets.length ? 'New rules' : 'Set house rules'}</span>`,
+            type: 'button', class: 'btn sm house-btn', html: `${SVG.gear}<span>${q.preset || custom ? 'Edit rules' : presets.length ? 'New rules' : 'Set house rules'}</span>`,
             onclick: () => {
               const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
               editRulePreset(q.formatId, pr, () => {
                 const now = MTG.formats.presets.forFormat(q.formatId);
                 const added = now.find(p => !presets.some(o => o.name === p.name));
-                if (added) q.preset = added.name;
+                if (added) { q.preset = added.name; q.custom = null; }
                 saveQuick(q); draw();
+              }, {
+                rules: custom,
+                // "Submit": these rules for the game about to be played, and no preset made of them
+                onSubmit: (fid, rules) => { q.formatId = fid; q.preset = ''; q.custom = { formatId: fid, rules }; saveQuick(q); draw(); },
               });
             },
           }));
@@ -1483,13 +1493,13 @@
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
             collector: !!q.collector, packs: fmt.draft && fmt.draft.style === 'sealed' ? (q.sealedPacks || 6) : (q.packs || 3),
             allAtOnce: !!q.allAtOnce, jumpstart: q.jumpstart || null,
-            rules: q.preset ? ((presets.find(p => p.name === q.preset) || {}).rules || null) : null,
+            rules: q.preset ? ((presets.find(p => p.name === q.preset) || {}).rules || null) : (custom || null),
           });
         },
       });
       // what you will sit down to, as the chosen house rules have it: the life you start on, the format, the seats
       const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
-      const fx = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
+      const fx = pr ? MTG.formats.effective(q.formatId, pr.rules) : custom ? MTG.formats.effective(q.formatId, custom) : fmt;
       const players = q.opponents + 1;
       // nothing to play with yet: the deck picker offers to make one, and the button waits for it
       if (!limited && !q.deckId) { go.disabled = true; go.title = 'Make a deck for this format first'; }
@@ -3781,10 +3791,13 @@
    * format's rules to bend. Saved beside the others, it can be picked at
    * any table of that format and in the quick game.
    */
-  function editRulePreset(formatId, preset, onDone) {
+  /* `opts.onSubmit(formatId, rules)`: the rules as they stand, for the match being set up, kept
+     as no preset ("Submit"); `opts.rules` starts from rules like those rather than a preset's */
+  function editRulePreset(formatId, preset, onDone, opts) {
+    opts = opts || {};
     const editable = MTG.formats.list().filter(f => MTG.formats.houseFields(f.id).length);
     let fid = formatId || (editable[0] || {}).id;
-    let rules = Object.assign(MTG.formats.houseDefaults(fid), preset ? preset.rules : {});
+    let rules = Object.assign(MTG.formats.houseDefaults(fid), preset ? preset.rules : (opts.rules || {}));
     const name = el('input', { type: 'text', value: preset ? preset.name : '', placeholder: 'Kitchen table, Big life, Pauper cube…', maxlength: '40', 'aria-label': 'Preset name' });
     const fmtSel = el('select', { 'aria-label': 'Format', disabled: !!preset }, editable.map(f =>
       el('option', { value: f.id, text: f.name, selected: f.id === fid })));
@@ -3822,7 +3835,7 @@
       ]),
       buttons: [
         { label: 'Cancel', onClick: () => m.close() },
-        { label: 'Save', class: 'primary', onClick: () => {
+        { label: 'Save preset', onClick: () => {
           const nm = name.value.trim();
           if (!nm) { name.focus(); return UI.error('Give it a name.'); }
           if (preset && preset.name !== nm) MTG.formats.presets.remove(fid, preset.name);
@@ -3831,7 +3844,12 @@
           UI.ok(`Saved “${nm}”.`);
           if (onDone) onDone();
         } },
-      ],
+        // these rules for this match only, no name needed and nothing saved
+        opts.onSubmit ? { label: 'Submit', class: 'primary', onClick: () => {
+          m.close();
+          opts.onSubmit(fid, Object.assign({}, rules));
+        } } : null,
+      ].filter(Boolean),
     });
     setTimeout(() => { if (!preset) name.focus(); }, 60);
     return m;
