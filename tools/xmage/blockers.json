@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10361,
+  "needed": 10360,
   "gainedCards": 949,
-  "linesNeeded": 10995,
+  "linesNeeded": 10993,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -533,25 +533,6 @@
    ]
   },
   {
-   "what": "GainAbilityControlledSpellsEffect",
-   "score": 17,
-   "lines": 14,
-   "cards": [
-    "Rain of Riches",
-    "Pearl-Ear, Imperial Advisor",
-    "Zhulodok, Void Gorger",
-    "Hunting Velociraptor",
-    "Shadow the Hedgehog",
-    "Silverquill, the Disputant",
-    "Ezio Auditore da Firenze",
-    "Abaddon the Despoiler",
-    "Silverquill Lecturer",
-    "Samut, Tyrant of Naktamun",
-    "Ashad, the Lone Cyberman",
-    "Peri Brown"
-   ]
-  },
-  {
    "what": "(constructor: view.get)",
    "score": 17,
    "lines": 17,
@@ -568,6 +549,25 @@
     "Anavolver",
     "Cetavolver",
     "Degavolver"
+   ]
+  },
+  {
+   "what": "GainAbilityControlledSpellsEffect",
+   "score": 16,
+   "lines": 13,
+   "cards": [
+    "Rain of Riches",
+    "Zhulodok, Void Gorger",
+    "Hunting Velociraptor",
+    "Shadow the Hedgehog",
+    "Silverquill, the Disputant",
+    "Ezio Auditore da Firenze",
+    "Abaddon the Despoiler",
+    "Silverquill Lecturer",
+    "Samut, Tyrant of Naktamun",
+    "Ashad, the Lone Cyberman",
+    "Peri Brown",
+    "The Fifteenth Doctor"
    ]
   },
   {
@@ -3293,18 +3293,6 @@
    ]
   },
   {
-   "what": "TargetsPermanentPredicate",
-   "score": 5,
-   "lines": 5,
-   "cards": [
-    "Pearl-Ear, Imperial Advisor",
-    "Avoid Fate",
-    "Fugitive Droid",
-    "Ms. Marvel, Kamala Khan",
-    "Ring of Immortals"
-   ]
-  },
-  {
    "what": "IfAbilityHasResolvedXTimesEffect",
    "score": 5,
    "lines": 5,
@@ -4789,6 +4777,17 @@
     "Relic Retriever",
     "Primary Research",
     "Living History"
+   ]
+  },
+  {
+   "what": "TargetsPermanentPredicate",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Avoid Fate",
+    "Fugitive Droid",
+    "Ms. Marvel, Kamala Khan",
+    "Ring of Immortals"
    ]
   },
   {

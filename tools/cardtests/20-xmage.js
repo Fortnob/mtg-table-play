@@ -23267,4 +23267,45 @@ module.exports = (test) => {
     t.ok(ub.tapped && U.g.hasKw(ub, 'indestructible'), 'Akiri: the Bears are tapped and indestructible');
     t.ok(!uk.tapped, 'Akiri herself is untouched');
   });
+
+  test('Affinity for what the words say: Tangle Golem, Urza, Chief Artificer; Pearl-Ear, Imperial Advisor; Grakk the Pacifist', (mk, t) => {
+    for (const n of ['Tangle Golem', 'Urza, Chief Artificer', 'Pearl-Ear, Imperial Advisor', 'Grakk the Pacifist']) t.auto(n);
+    // Tangle Golem: {1} less for each Forest
+    const T = mk({ library: Array(10).fill('Forest') });
+    T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.bf('A', 'Forest'); T.bf('A', 'Island');
+    t.eq(T.g.costReductionFor(T.hand('A', 'Tangle Golem')), 3, 'Tangle Golem: three Forests, three less');
+    // Urza: artifact creatures only, not every artifact
+    const U = mk({ library: Array(10).fill('Plains') });
+    U.bf('A', 'Ornithopter'); U.bf('A', 'Sol Ring');
+    t.eq(U.g.costReductionFor(U.hand('A', 'Urza, Chief Artificer')), 1, 'Urza: the Ornithopter, not the Sol Ring');
+    // Tezzeret, Master of the Bridge in hand gives no spell affinity of its own
+    const Z = mk({ library: Array(10).fill('Island') });
+    Z.bf('A', 'Sol Ring'); Z.bf('A', 'Sol Ring');
+    t.eq(Z.g.costReductionFor(Z.hand('A', 'Tezzeret, Master of the Bridge')), 0, 'Tezzeret: its static does nothing from the hand');
+    // Pearl-Ear: enchantment spells have affinity for Auras; an Aura on a modified creature of A's draws
+    const P = mk({ library: Array(20).fill('Plains') });
+    P.toMain('A');
+    P.bf('A', 'Pearl-Ear, Imperial Advisor');
+    const gb = P.bf('A', 'Grizzly Bears'); gb.counters['+1/+1'] = 1;
+    const au = P.bf('A', 'Pacifism'); const foe = P.bf('B', 'Grizzly Bears'); au.attachedTo = foe.id; foe.attachments = [au.id];
+    P.g.bumpBoard();
+    const ench = P.hand('A', 'Pacifism');
+    t.eq(P.g.costReductionFor(ench), 1, 'Pearl-Ear: one Aura, Pacifism one less');
+    const h0 = P.zone('A', 'hand').length;
+    P.mana('A', 'W');
+    P.cast('A', ench, { targets: [{ kind: 'object', id: gb.id }] }); P.resolve();
+    t.eq(P.zone('A', 'hand').length - h0, 0, 'Pearl-Ear: Pacifism, for {W}, on the modified Bears: a card (one played, one drawn)');
+    // Grakk: an Aura on a creature an opponent controls draws, once each turn
+    const G = mk({ library: Array(20).fill('Plains') });
+    G.toMain('A');
+    G.bf('A', 'Grakk the Pacifist');
+    const ob = G.bf('B', 'Grizzly Bears'), mine = G.bf('A', 'Grizzly Bears');
+    const g0 = G.zone('A', 'hand').length;
+    G.mana('A', 'W1');
+    G.cast('A', G.hand('A', 'Pacifism'), { targets: [{ kind: 'object', id: mine.id }] }); G.resolve();
+    t.eq(G.zone('A', 'hand').length - g0, 0, "Grakk: Pacifism on A's own Bears, no card");
+    G.mana('A', 'W1');
+    G.cast('A', G.hand('A', 'Pacifism'), { targets: [{ kind: 'object', id: ob.id }] }); G.resolve();
+    t.eq(G.zone('A', 'hand').length - g0, 1, "Grakk: Pacifism on B's Bears, a card");
+  });
 };

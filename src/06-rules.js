@@ -3303,11 +3303,12 @@
         cut += count(x => {
           const xa = x.analysis();
           if (!xa) return false;
-          if (/artifact/.test(f)) return xa.isArtifact;
-          if (/creature/.test(f)) return xa.isCreature;
-          if (/land/.test(f)) return xa.isLand;
-          if (/enchantment/.test(f)) return xa.isEnchantment;
-          return false;
+          if (f === 'artifacts') return xa.isArtifact;
+          if (f === 'creatures') return xa.isCreature;
+          if (f === 'lands') return xa.isLand;
+          if (f === 'enchantments') return xa.isEnchantment;
+          // Tangle Golem: "Affinity for Forests"; Urza, Chief Artificer: "artifact creatures" (affinityWords)
+          return this._cardFitsWords(x, f);
         });
       }
       /* "costs {1} less for each…" and the permanents that discount spells

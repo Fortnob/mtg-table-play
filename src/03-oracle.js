@@ -10173,11 +10173,12 @@
     /* Inkling Mascot, Stirring Hopesinger: "Whenever you cast an instant or
        sorcery spell that targets a creature"; Storm, Windrider: "a spell that
        targets one or more creatures"; Legolas: "… a creature you don't control" */
-    { re: /^Whenever you cast an? (instant or sorcery |noncreature )?spell that targets (?:one or more |an? )(creatures?|artifact or land)( you control| you don'?t control)?,? /i,
+    // (Pearl-Ear, Imperial Advisor: "an Aura spell that targets a modified permanent you control" — affinityWords)
+    { re: /^Whenever you cast an? (instant or sorcery |noncreature |Aura )?spell that targets (?:one or more |an? )(creatures?|artifact or land|modified permanent)( you control| you don'?t control| an opponent controls)?,? /i,
       event: 'youCastSpell',
       extraOf: (m) => Object.assign({ targetsWhat: m[2].toLowerCase().replace(/s$/, '') },
         m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {},
-        m[3] ? { targetsWhose: /don/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
+        m[3] ? { targetsWhose: /don|opponent/i.test(m[3]) ? 'notYou' : 'you' } : {}) },
     // Edgewall Innkeeper, Wandermare: "Whenever you cast a creature spell that has an Adventure"
     { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
@@ -12561,7 +12562,9 @@
     if (out.keywordSet.has('convoke')) out.costReduction.convoke = true;
     if (out.keywordSet.has('improvise')) out.costReduction.improvise = true;
     if (out.keywordSet.has('delve')) out.costReduction.delve = true;
-    const aff = text.match(/Affinity for ([a-z ]+)/i);
+    /* the keyword on its own line, not "Spells you cast have affinity for …" handed to other spells
+       (Tezzeret, Master of the Bridge; Memnarchitect) (affinityWords) */
+    const aff = text.match(/(?:^|\n)Affinity for ([A-Za-z ]+?)\s*(?:\(|\n|$)/);
     if (aff) out.costReduction.affinity = aff[1].trim().toLowerCase();
     const less = text.match(/(?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each ([^.]+)\./i);
     if (less) { out.costReduction.flat = parseInt(less[1], 10); out.costReduction.condition = less[2].trim(); }
@@ -14678,7 +14681,8 @@
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
-      { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
+      // (Pearl-Ear, Imperial Advisor: "Enchantment spells you cast have affinity for Auras." — affinityWords)
+      { re: /^([A-Za-z ]*?)spells you cast have affinity for (artifacts|creatures|lands|enchantments|Auras|Equipment)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'affinity', affinityFor: m[2].toLowerCase(),
           filter: m[1].trim().toLowerCase().replace(/ and /g, ' or ') || 'spell' }), auto: true },
       // Prismari, the Inspiration; Ral, Crackling Wit's emblem: "Instant and sorcery spells you cast have storm."
