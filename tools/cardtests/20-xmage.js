@@ -26979,4 +26979,349 @@ module.exports = (test) => {
     const plain = M.put('B', 'Divination', 'exile');
     t.no(M.g._mayPlayFromExile('A', plain), 'Tinybones, Bauble Burglar: a card without a stash counter');
   });
+
+  /** Every colour of mana one permanent could tap for. */
+  const manaColors = (M, o) => {
+    const out = new Set();
+    for (const ab of M.g.manaAbilitiesOf(o)) for (const c of M.g._manaOptions(ab, o, o.controller).produces) out.add(c);
+    return Array.from(out).sort().join('');
+  };
+
+  test('Commanders: Ultima, Origin of Oblivion — a blighted land loses its land types and abilities and taps for {C}, doubled', (mk, t) => {
+    t.auto('Ultima, Origin of Oblivion');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const ul = M.bf('A', 'Ultima, Origin of Oblivion');
+    const gq = M.bf('B', 'Ghost Quarter');
+    const forest = M.bf('A', 'Forest');
+    const attack = (land) => {
+      M.answer('declareAttackers', () => [{ attackerId: ul.id, defenderId: 'B' }]);
+      M.answer('pickTarget', { targets: [{ kind: 'object', id: land.id }] });
+      M.toMain('A', 'combatDamage'); M.resolve();
+    };
+    attack(gq);
+    t.eq(gq.counters.blight, 1, 'Ultima: a blight counter on the Ghost Quarter');
+    t.eq(gq.analysis().subtypes.length, 0, 'Ultima: no land types');
+    t.ok(gq.analysis().isLand, 'Ultima: still a land');
+    t.no(gq.analysis().abilities.some(x => x.kind === 'activated'), "Ultima: the Ghost Quarter's own ability is gone");
+    t.eq(manaColors(M, gq), 'C', 'Ultima: it taps for {C}');
+    t.eq(M.life('B'), 20 - M.g.powerOf(ul), 'Ultima: the damage dealt');
+    // Ultima leaving changes nothing: the counter is what it lasts for
+    M.g.moveObject(ul, 'graveyard');
+    M.g.checkStateBasedActions();
+    t.eq(manaColors(M, gq), 'C', 'Ultima gone: still only {C}');
+    // the counter gone, the land is itself again, for good
+    delete gq.counters.blight; M.g.bumpBoard(); M.g.checkStateBasedActions();
+    t.ok(gq.analysis().abilities.some(x => x.kind === 'activated'), 'Ultima: the counter removed, Ghost Quarter has its ability back');
+    gq.counters.blight = 1; M.g.bumpBoard(); M.g.checkStateBasedActions();
+    t.ok(gq.analysis().abilities.some(x => x.kind === 'activated'), 'Ultima: a new blight counter alone does not bring the effect back');
+    // a basic land of A's: no longer a Forest, and tapping it with Ultima about makes {C}{C}
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    const ul2 = M2.bf('A', 'Ultima, Origin of Oblivion');
+    const f2 = M2.bf('A', 'Forest');
+    M2.answer('declareAttackers', () => [{ attackerId: ul2.id, defenderId: 'B' }]);
+    M2.answer('pickTarget', { targets: [{ kind: 'object', id: f2.id }] });
+    M2.toMain('A', 'combatDamage'); M2.resolve();
+    t.no(f2.analysis().subtypes.includes('Forest'), 'Ultima: the Forest is no Forest');
+    t.ok(f2.analysis().supertypes.includes('Basic'), 'Ultima: still a basic land');
+    t.eq(manaColors(M2, f2), 'C', 'Ultima: the Forest taps for {C}, not {G}');
+    M2.g.tapForMana('A', f2.id, 0);
+    t.eq(M2.player('A').pool.C, 2, 'Ultima: tapped for {C}, an additional {C}');
+    t.eq(M2.player('A').pool.G || 0, 0, 'Ultima: no green');
+    t.ok(forest && forest.zone === 'battlefield', 'the first table untouched');
+  });
+
+  test('Commanders: Eluge, the Shoreless Sea — flood counters make Islands, and the first instant or sorcery costs {U} (or {1}) less for each', (mk, t) => {
+    t.auto('Eluge, the Shoreless Sea');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const p1 = M.bf('A', 'Plains');
+    const p2 = M.bf('A', 'Plains');
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: p1.id }] });
+    const el = M.bf('A', 'Eluge, the Shoreless Sea', { etb: true });
+    M.resolve();
+    t.eq(p1.counters.flood, 1, 'Eluge: a flood counter on the Plains');
+    t.ok(p1.analysis().subtypes.includes('Island') && p1.analysis().subtypes.includes('Plains'), 'Eluge: an Island in addition to a Plains');
+    t.eq(manaColors(M, p1), 'UW', 'Eluge: it taps for {W} or {U}');
+    t.eq(M.g.powerOf(el), 1, 'Eluge: 1/1, one Island');
+    // the first instant or sorcery: {U} off for the one land
+    const div = M.hand('A', 'Divination');
+    t.eq(M.g.castCost(div), '{2}', 'Eluge: Divination costs {2}');
+    t.eq(M.g.castCost(M.hand('A', 'Grizzly Bears')), '{1}{G}', 'Eluge: a creature spell costs what it costs');
+    M.mana('A', '2');
+    M.cast('A', div);
+    t.zone(div, 'graveyard', 'Eluge: Divination cast for {2}');
+    t.eq(M.g.castCost(M.hand('A', 'Divination')), '{2}{U}', 'Eluge: the second sorcery this turn costs in full');
+    // next turn, a second flood land: {2}{U} less {U} and {1}
+    M.nextTurn('A');
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: p2.id }] });
+    M.answer('declareAttackers', () => [{ attackerId: el.id, defenderId: 'B' }]);
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.eq(p2.counters.flood, 1, 'Eluge: attacking, a second flood counter');
+    t.eq(M.g.castCost(M.hand('A', 'Divination')), '{1}', 'Eluge: two lands, a new turn, Divination costs {1}');
+    t.eq(M.g.castCost(M.hand('A', 'Lightning Bolt')), '{R}', 'Eluge: {R} has no {U} and no {1} to take off');
+    t.eq(M.g.castCost(M.hand('A', 'Counterspell')), '', 'Eluge: Counterspell costs nothing');
+    // the counter gone, the land is a Plains again; Eluge gone, the other stays an Island
+    delete p1.counters.flood; M.g.bumpBoard(); M.g.checkStateBasedActions();
+    t.no(p1.analysis().subtypes.includes('Island'), 'Eluge: the flood counter removed, no longer an Island');
+    M.g.moveObject(el, 'graveyard'); M.g.checkStateBasedActions();
+    t.ok(p2.analysis().subtypes.includes('Island'), 'Eluge gone: the other land is still an Island');
+  });
+
+  test('Commanders: Kuja, Genome Sorcerer // Trance Kuja, Fate Defied — Flare Star doubles what Wizards you control deal', (mk, t) => {
+    t.auto('Kuja, Genome Sorcerer // Trance Kuja, Fate Defied');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    // the front: a Wizard each end step, and with four Wizards it transforms
+    const kuja = M.bf('A', 'Kuja, Genome Sorcerer // Trance Kuja, Fate Defied');
+    M.bf('A', 'Prodigal Pyromancer'); M.bf('A', 'Prodigal Pyromancer');
+    M.toMain('A', 'end'); M.resolve();
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Wizard/.test(o.analysis().typeLine)).length, 1, 'Kuja: a Wizard token');
+    t.eq(kuja.face, 1, 'Kuja: four Wizards, it transforms');
+    t.eq(kuja.analysis().name, 'Trance Kuja, Fate Defied', 'Trance Kuja: face up');
+    M.nextTurn('A');
+    // a Wizard of A's: double
+    const pyro = M.bfOf('A').find(o => o.name === 'Prodigal Pyromancer');
+    M.activate('A', pyro, 0, { targets: ['B'] });
+    t.eq(M.life('B'), 18, "Trance Kuja: the Pyromancer's 1 damage is 2");
+    const bears = M.bf('B', 'Hill Giant');
+    M.activate('A', M.bfOf('A').filter(o => o.name === 'Prodigal Pyromancer')[1], 0, { targets: [bears] });
+    t.eq(bears.damage, 2, 'Trance Kuja: to a permanent as well');
+    // a source that is no Wizard, and a Wizard that isn't A's: as they are
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 18 - 2 - 2, "Trance Kuja: Shock is no Wizard, 2 damage; the Wizard token's 1 for the noncreature spell is 2");
+    const hers = M.bf('B', 'Prodigal Pyromancer');
+    M.g.dealDamageToPlayer(M.player('A'), 1, hers, false);
+    t.eq(M.life('A'), 19, "Trance Kuja: B's Wizard deals 1");
+  });
+
+  test('Commanders: Tiamat — cast, up to five Dragon cards not named Tiamat, each a different name', (mk, t) => {
+    t.auto('Tiamat');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    for (const n of ['Shivan Dragon', 'Shivan Dragon', 'Dragon Whelp', 'Tiamat', 'Serra Angel', 'Glorybringer', 'Thundermaw Hellkite', 'Utvara Hellkite', 'Lathliss, Dragon Queen']) M.top('A', n);
+    let asked = null;
+    M.answer('pickCard', (ch) => { asked = ch; return { cardIds: ch.cards.map(c => c.id) }; });
+    M.mana('A', '2WUBRG');
+    M.cast('A', M.hand('A', 'Tiamat'));
+    t.ok(asked, 'Tiamat: the search is asked');
+    t.eq(asked.count, 5, 'Tiamat: up to five');
+    t.eq(asked.prompt, 'Search your library for up to five Dragon cards not named Tiamat that each have different names.', 'Tiamat: the whole of what it asks for');
+    const names = asked.cards.map(c => c.name);
+    t.no(names.includes('Tiamat') || names.includes('Serra Angel'), 'Tiamat: no Tiamat, nothing but Dragons');
+    t.eq(names.filter(x => x === 'Shivan Dragon').length, 1, 'Tiamat: one Shivan Dragon on offer');
+    t.eq(new Set(names).size, 6, 'Tiamat: six names on offer');
+    const hand = M.zone('A', 'hand').map(o => o.name);
+    t.eq(hand.length, 5, 'Tiamat: five cards into hand');
+    t.eq(new Set(hand).size, 5, 'Tiamat: each a different name');
+    // put onto the battlefield without being cast: no search
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    M2.top('A', 'Shivan Dragon');
+    M2.bf('A', 'Tiamat', { etb: true }); M2.resolve();
+    t.eq(M2.zone('A', 'hand').length, 0, "Tiamat: not cast, it doesn't search");
+    t.no(M2.asked.some(ch => ch.type === 'pickCard'), 'Tiamat: not cast, nothing asked');
+  });
+
+  test('Commanders: Abdel Adrian, Gorion\'s Ward — exile any number of your other nonland permanents until it leaves, a Soldier for each', (mk, t) => {
+    t.auto("Abdel Adrian, Gorion's Ward");
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const plains = M.bf('A', 'Plains');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const vis = M.bf('A', 'Elvish Visionary');
+    M.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    const tr = M.bfOf('A').find(o => o.isToken);
+    const hers = M.bf('B', 'Grizzly Bears');
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [bears.id, vis.id, tr.id] }; });
+    const ab = M.bf('A', "Abdel Adrian, Gorion's Ward", { etb: true });
+    M.resolve();
+    const offered = (asked && asked.items || []).map(x => x.id);
+    t.ok(asked && asked.min === 0, 'Abdel Adrian: any number, none included');
+    t.eq(asked && asked.prompt, "Abdel Adrian, Gorion's Ward: Exile any number of other nonland permanents you control until Abdel Adrian, Gorion's Ward leaves the battlefield.", 'Abdel Adrian: the words as printed');
+    t.ok(offered.includes(bears.id) && offered.includes(vis.id) && offered.includes(tr.id), 'Abdel Adrian: the Bears, the Visionary and the Treasure on offer');
+    t.no(offered.includes(plains.id) || offered.includes(ab.id) || offered.includes(hers.id), "Abdel Adrian: not a land, not itself, not B's");
+    t.zone(bears, 'exile', 'Abdel Adrian: the Bears exiled'); t.zone(vis, 'exile', 'Abdel Adrian: the Visionary exiled');
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.analysis().typeLine)).length, 3, 'Abdel Adrian: three Soldiers, the Treasure counted');
+    const hand0 = M.zone('A', 'hand').length;
+    M.g.moveObject(ab, 'graveyard'); M.resolve();
+    t.zone(bears, 'battlefield', 'Abdel Adrian gone: the Bears return'); t.zone(vis, 'battlefield', 'Abdel Adrian gone: the Visionary returns');
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Abdel Adrian gone: the Visionary enters again and draws');
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.analysis().typeLine)).length, 0, 'Abdel Adrian gone: the Treasure token never comes back');
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.analysis().typeLine)).length, 3, 'Abdel Adrian gone: the Soldiers stay');
+    // nothing else of A's: nothing asked, no Soldiers
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    M2.bf('A', 'Plains');
+    M2.bf('A', "Abdel Adrian, Gorion's Ward", { etb: true }); M2.resolve();
+    t.no(M2.asked.some(ch => ch.type === 'choose'), 'Abdel Adrian: nothing to exile, nothing asked');
+    t.eq(M2.bfOf('A').filter(o => o.isToken).length, 0, 'Abdel Adrian: no Soldiers');
+    // none chosen: no Soldiers
+    const M3 = mk({ library: Array(30).fill('Plains') });
+    M3.toMain('A');
+    const b3 = M3.bf('A', 'Grizzly Bears');
+    M3.answer('choose', { picks: [] });
+    M3.bf('A', "Abdel Adrian, Gorion's Ward", { etb: true }); M3.resolve();
+    t.zone(b3, 'battlefield', 'Abdel Adrian: none chosen, the Bears stay');
+    t.eq(M3.bfOf('A').filter(o => o.isToken).length, 0, 'Abdel Adrian: none chosen, no Soldiers');
+  });
+
+  test('Commanders: Gluntch, the Bestower — three different players: counters, a card, two Treasures', (mk, t) => {
+    t.auto('Gluntch, the Bestower');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', 'Gluntch, the Bestower');
+    const bb = M.bf('B', 'Grizzly Bears');
+    const bb2 = M.bf('B', 'Hill Giant');
+    const asks = [];
+    M.answer('choose', (ch) => { asks.push(ch); return { picks: ['B'] }; });
+    M.answer('choose', (ch) => { asks.push(ch); return { picks: [bb2.id] }; });
+    M.answer('choose', (ch) => { asks.push(ch); return { picks: ['A'] }; });
+    const handA = M.zone('A', 'hand').length;
+    M.toMain('A', 'end'); M.resolve();
+    t.eq(asks[0].playerId, 'A', 'Gluntch: A chooses the first player');
+    t.eq(asks[0].prompt, 'Choose a player. They put two +1/+1 counters on a creature they control.', 'Gluntch: the first question');
+    t.eq(asks[0].items.length, 3, 'Gluntch: any player, A included');
+    t.eq(asks[1].playerId, 'B', 'Gluntch: B chooses the creature');
+    t.eq(bb2.counters['+1/+1'], 2, "Gluntch: two +1/+1 counters on B's Hill Giant");
+    t.no(bb.counters['+1/+1'], 'Gluntch: not on the Bears');
+    t.eq(asks[2].prompt, 'Choose a second player to draw a card.', 'Gluntch: the second question');
+    t.no(asks[2].items.some(x => x.id === 'B'), 'Gluntch: B, chosen already, is not on offer again');
+    t.eq(M.zone('A', 'hand').length, handA + 1, 'Gluntch: A draws a card');
+    t.eq(M.asked.filter(ch => ch.type === 'choose').length, 3, 'Gluntch: C, the only player left, is chosen without a question');
+    t.eq(M.bfOf('C').filter(o => o.isToken && /Treasure/.test(o.analysis().typeLine)).length, 2, 'Gluntch: C creates two Treasures');
+    // two players, and the first one has no creature: no counters, a card, and no third player for Treasures
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    M2.bf('A', 'Gluntch, the Bestower');
+    M2.answer('choose', { picks: ['B'] });
+    const handA2 = M2.zone('A', 'hand').length;
+    M2.toMain('A', 'end'); M2.resolve();
+    t.eq(M2.asked.filter(ch => ch.type === 'choose').length, 1, 'Gluntch: B chosen first; A, the only one left, draws unasked');
+    t.eq(M2.zone('A', 'hand').length, handA2 + 1, 'Gluntch: A draws');
+    t.eq(M2.g.battlefield.filter(o => o.isToken).length, 0, 'Gluntch: two players, nobody creates Treasure');
+  });
+
+  test('Commanders: Rivaz of the Claw — a Dragon cast from the graveyard gains "When this creature dies, exile it."', (mk, t) => {
+    t.auto('Rivaz of the Claw');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', 'Rivaz of the Claw');
+    const sd = M.grave('A', 'Shivan Dragon');
+    M.mana('A', '4RR');
+    M.cast('A', sd);
+    t.zone(sd, 'battlefield', 'Rivaz: Shivan Dragon cast from the graveyard');
+    t.ok((sd.effects || []).some(e => e && /When this creature dies, exile it/.test(e.grantText || '')), 'Rivaz: it has "When this creature dies, exile it."');
+    M.g.moveObject(sd, 'graveyard'); M.resolve();
+    t.zone(sd, 'exile', 'Rivaz: the Dragon died, and is exiled');
+    // one cast from the hand gains nothing
+    const sd2 = M.hand('A', 'Shivan Dragon');
+    M.nextTurn('A');
+    M.mana('A', '4RR');
+    M.cast('A', sd2);
+    t.no((sd2.effects || []).some(e => e && e.grantText), 'Rivaz: cast from the hand, nothing gained');
+    M.g.moveObject(sd2, 'graveyard'); M.resolve();
+    t.zone(sd2, 'graveyard', 'Rivaz: cast from the hand, it dies and stays in the graveyard');
+  });
+
+  test('Commanders: Yenna, Redtooth Regent — a nonlegendary token copy of an enchantment; an Aura untaps Yenna and scries 2', (mk, t) => {
+    t.auto('Yenna, Redtooth Regent');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const ye = M.bf('A', 'Yenna, Redtooth Regent');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const sanctum = M.bf('A', 'Sanctum of Stone Fangs');
+    M.mana('A', '2');
+    M.activate('A', ye, 0, { targets: [sanctum] });
+    const copies = M.bfOf('A').filter(o => o.isToken && o.name === sanctum.name);
+    t.eq(copies.length, 1, 'Yenna: a token copy of the Sanctum');
+    t.no(copies[0].analysis().isLegendary, "Yenna: the copy isn't legendary");
+    t.zone(sanctum, 'battlefield', 'Yenna: no legend rule, the original stays');
+    t.ok(ye.tapped, 'Yenna: not an Aura, Yenna stays tapped');
+    t.no(M.asked.some(ch => ch.type === 'scry'), 'Yenna: not an Aura, no scry');
+    // the Sanctum now shares its name with the token: no longer a legal target
+    M.nextTurn('A');
+    M.mana('A', '2');
+    t.no(M.g.activateAbility('A', ye.id, 0, { auto: true, targets: [{ kind: 'object', id: sanctum.id }] }), 'Yenna: the Sanctum has the same name as another permanent A controls');
+    t.ok(/legal target/.test(M.g.lastError || ''), 'Yenna: refused for its target');
+    // an Aura: the token enchants something, Yenna untaps, scry 2
+    const rancor = M.bf('A', 'Rancor');
+    rancor.attachedTo = bears.id; bears.attachments = [rancor.id]; M.g.bumpBoard();
+    let hostQ = null, scryQ = null;
+    const p0 = M.g.powerOf(ye);
+    M.answer('pickCard', (ch) => { hostQ = ch; return { cardIds: [ye.id] }; });
+    M.answer('scry', (ch) => { scryQ = ch; return { top: ch.cards.map(c => c.id), bottom: [] }; });
+    M.activate('A', ye, 0, { targets: [rancor] });
+    const r2 = M.bfOf('A').find(o => o.isToken && o.name === 'Rancor');
+    t.ok(r2, 'Yenna: a token copy of Rancor');
+    t.ok(hostQ && hostQ.purpose === 'auraHost', 'Yenna: the Aura token asks what it enchants');
+    t.eq(r2 && r2.attachedTo, ye.id, 'Yenna: the Rancor token enchants Yenna');
+    t.eq(M.g.powerOf(ye), p0 + 2, 'Yenna: +2/+0 from the copy');
+    t.no(ye.tapped, 'Yenna: an Aura, Yenna untaps');
+    t.ok(scryQ && scryQ.cards.length === 2, 'Yenna: scry 2');
+    // as a sorcery only
+    M.toMain('A', 'beginCombat');
+    M.mana('A', '2');
+    t.no(M.g.activateAbility('A', ye.id, 0, { auto: true, targets: [{ kind: 'object', id: rancor.id }] }), 'Yenna: not during combat');
+  });
+
+  test('Commanders: Xantcha, Sleeper Agent — enters under an opponent of your choice, never attacks its owner, anyone may pay {3}', (mk, t) => {
+    t.auto('Xantcha, Sleeper Agent');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Plains') });
+    M.toMain('A');
+    let asked = null;
+    M.answer('mode', (ch) => { asked = ch; return { modes: [ch.options.find(o => o.label === 'C').i] }; });
+    const xa = M.hand('A', 'Xantcha, Sleeper Agent');
+    M.mana('A', '1BR');
+    M.cast('A', xa);
+    t.ok(asked && asked.purpose === 'enterUnder' && asked.playerId === 'A', 'Xantcha: A chooses the opponent');
+    t.eq(asked && asked.options.map(o => o.label).join(','), 'B,C', 'Xantcha: an opponent, not A');
+    t.zone(xa, 'battlefield', 'Xantcha: on the battlefield');
+    t.eq(xa.controller, 'C', 'Xantcha: under C\'s control');
+    t.eq(xa.owner, 'A', 'Xantcha: A still owns it');
+    t.ok(M.g.mustAttack(xa), 'Xantcha: attacks each combat if able');
+    t.ok(M.g._cantAttackYou(xa, 'A'), "Xantcha: can't attack A, its owner");
+    t.no(M.g._cantAttackYou(xa, 'B'), 'Xantcha: may attack B');
+    const pwA = M.bf('A', 'Chandra, Torch of Defiance');
+    const pwB = M.bf('B', 'Chandra, Torch of Defiance');
+    t.ok(M.g._cantAttackYou(xa, pwA.id), "Xantcha: can't attack a planeswalker its owner controls");
+    t.no(M.g._cantAttackYou(xa, pwB.id), "Xantcha: may attack B's planeswalker");
+    // A, who doesn't control it, pays {3}: C loses 2, A draws
+    const handA = M.zone('A', 'hand').length, handC = M.zone('C', 'hand').length;
+    M.mana('A', '3');
+    M.activate('A', xa, 0);
+    t.eq(M.life('C'), 18, "Xantcha: its controller, C, loses 2");
+    t.eq(M.life('A'), 20, 'Xantcha: A loses nothing');
+    t.eq(M.zone('A', 'hand').length, handA + 1, 'Xantcha: A, who activated it, draws');
+    t.eq(M.zone('C', 'hand').length, handC, 'Xantcha: C draws nothing');
+    // two players: B, the only opponent, unasked; put onto the battlefield, it still goes to an opponent
+    const M2 = mk({ library: Array(30).fill('Plains') });
+    M2.toMain('A');
+    const x2 = M2.hand('A', 'Xantcha, Sleeper Agent');
+    M2.mana('A', '1BR');
+    M2.cast('A', x2);
+    t.no(M2.asked.some(ch => ch.purpose === 'enterUnder'), 'Xantcha: one opponent, nothing asked');
+    t.eq(x2.controller, 'B', 'Xantcha: under B\'s control');
+    const x3 = M2.bf('A', 'Xantcha, Sleeper Agent', { etb: true });
+    t.eq(x3.controller, 'B', 'Xantcha: put onto the battlefield, under B\'s control too');
+    // B's turn: Xantcha can attack nobody but A, so it doesn't attack
+    M2.nextTurn('B');
+    M2.toMain('B', 'endCombat');
+    t.no(x2.attacking, 'Xantcha: with only its owner to attack, it stays home');
+    t.eq(M2.life('A'), 20, 'Xantcha: A takes nothing');
+  });
+
+  test('Captive Audience — enters under the control of an opponent', (mk, t) => {
+    t.auto('Captive Audience');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const ca = M.hand('A', 'Captive Audience');
+    M.mana('A', '5BR');
+    M.cast('A', ca);
+    t.eq(ca.controller, 'B', "Captive Audience: under B's control");
+    M.nextTurn('B');
+    t.ok(M.g.log.some(l => /Captive Audience/.test(l.text) && /resolves/.test(l.text)), "Captive Audience: it triggers in B's upkeep");
+  });
 };

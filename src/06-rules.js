@@ -2256,6 +2256,8 @@
         /* A clone resolving for a person: they say what it copies before
            it arrives (CR 707.4), and it arrives once they have. */
         if (!item._cloneAsked && this._askCloneChoice(item, o, a)) return;
+        // Xantcha, Sleeper Agent: the opponent it enters under, asked before it arrives (entersUnderOpponent)
+        if (!item._enterAsked && this._askEnterUnder(item, o)) return;
         o.wasCast = this.turn;
         // the Myojin: "if you cast it from your hand"
         o.castFromZone = item.fromZone || null;
@@ -2387,6 +2389,35 @@
         sourceId: o.id, sourceName: o.name, sourceCard: o.card,
         prompt: `${o.name}: choose what it enters as a copy of. Choose nothing and it enters as itself.` });
       return true;
+    }
+
+    /**
+     * Xantcha, Sleeper Agent, Captive Audience: "enters under the control of an opponent of your choice" (CR
+     * 614.12) — a person casting it says which opponent as it resolves, before it arrives; with one opponent,
+     * or for a bot, nothing is asked (entersUnderOpponent).
+     */
+    _askEnterUnder(item, o) {
+      if (!this._staticOp(o, 'entersUnderOpponent')) return false;
+      const p = this.player(item.controller);
+      const opps = this.opponentsOf(item.controller).filter(q => !q.hasLost);
+      if (!p || p.isBot || opps.length < 2) return false;
+      item._enterAsked = true;
+      this._enterWait = item;
+      this.queueChoice({ type: 'mode', playerId: item.controller, purpose: 'enterUnder', objId: o.id, count: 1,
+        options: opps.map((q, i) => ({ i, label: q.name })), values: opps.map(q => q.id),
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+        prompt: `${o.name} enters under the control of an opponent of your choice. Choose an opponent.` });
+      return true;
+    }
+    /** Who it enters under: the opponent chosen, or — for a bot, or arriving other than cast — the one with the most life. */
+    _enterUnderPick(o, would) {
+      const opps = this.opponentsOf(would).filter(q => !q.hasLost);
+      const asked = o._enterUnder;
+      o._enterUnder = null;
+      if (!opps.length) return would;
+      const pick = opps.find(q => q.id === asked) || opps.slice().sort((x, y) => y.life - x.life)[0];
+      this.logEvent('control', `${o.name} enters under ${pick.name}'s control.`);
+      return pick.id;
     }
 
     /**
@@ -3116,6 +3147,8 @@
             // Doc Aurlock, Aven Interrupter: only spells cast from those zones
             if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
             if (e.lessSymbols && less) less.push(...e.lessSymbols);
+            // Eluge, the Shoreless Sea: "{U} (or {1}) less … for each land you control with a flood counter on it"
+            if (e.lessOrGeneric && less) { const k = this._countValue(e.per, src.controller, src); for (let i = 0; i < k; i++) less.push(e.lessOrGeneric + '|1'); continue; }
             d += (Number(e.amount) || 0) * (e.per ? this._countValue(e.per, src.controller, src) : 1);
           }
         }
@@ -3397,10 +3430,17 @@
        colour is paid with it, and so goes (Morophon's rulings). */
     _lessColored(cost, syms) {
       const list = MANA.parse(cost || '');
-      for (const s of syms || []) {
+      // (Eluge, the Shoreless Sea: "{U} (or {1})" — 'U|1', every {U} first and then the {1}s: lessOrGeneric)
+      const all = (syms || []).filter(s => !s.includes('|')).concat((syms || []).filter(s => s.includes('|')));
+      for (const s0 of all) {
+        const [s, orGeneric] = s0.split('|');
         let i = list.indexOf(s);
         if (i < 0) i = list.findIndex(x => x.includes('/') && x.split('/').includes(s));
-        if (i >= 0) list.splice(i, 1);
+        if (i >= 0) { list.splice(i, 1); continue; }
+        if (!orGeneric) continue;
+        const g = list.findIndex(x => /^\d+$/.test(x) && +x > 0);
+        if (g < 0) continue;
+        if (+list[g] > 1) list[g] = String(+list[g] - 1); else list.splice(g, 1);
       }
       return list.map(x => '{' + x + '}').join('');
     }
@@ -10045,9 +10085,11 @@
        CARDNAME": over the moment that stops being true. */
     _lapseWhileEffects() {
       for (const o of this.battlefield) {
-        if (!(o.effects || []).some(e => e && e.whileFrom)) continue;
+        if (!(o.effects || []).some(e => e && (e.whileFrom || e.whileCounter))) continue;
         const before = o.effects.length;
         o.effects = o.effects.filter(e => {
+          // Eluge: "for as long as it has a flood counter on it" — the counter gone, the effect is over for good
+          if (e && e.whileCounter) return this._whileCounterHolds(o, e);
           if (!e || !e.whileFrom) return true;
           const s0 = this.obj(e.whileFrom);
           if (!s0 || s0.zone !== 'battlefield') return false;
@@ -10058,6 +10100,8 @@
         if (o.effects.length !== before) { o._chr = null; this.bumpBoard(); }
       }
     }
+    /** An effect "for as long as it has a … counter on it" still applies: the counter is still there (whileCounter). */
+    _whileCounterHolds(o, e) { return !e || !e.whileCounter || Number((o.counters || {})[e.whileCounter]) > 0; }
 
     _refreshControl() {
       let changed = false;
@@ -10277,7 +10321,7 @@
       for (const o of this.battlefield) {
         local.set(o.id, this._localEpoch(o));
         if (special) continue;
-        for (const e of (o.effects || [])) if (this._changesWhatItIs(e)) { special = true; break; }
+        for (const e of (o.effects || [])) if (this._changesWhatItIs(e) && this._whileCounterHolds(o, e)) { special = true; break; }
         if (!special && this._livingMetalNow(o)) special = true;
       }
       if (!special) return { special: false, local };
@@ -10308,7 +10352,7 @@
       for (const o of this.battlefield) {
         if (!st.has(o.id)) continue;
         (o.effects || []).forEach((e, i) => {
-          if (this._changesWhatItIs(e)) split(e, { ef: e, on: o, ts: this._effTs(e, i), group: null });
+          if (this._changesWhatItIs(e) && this._whileCounterHolds(o, e)) split(e, { ef: e, on: o, ts: this._effTs(e, i), group: null });
         });
         if (this._livingMetalNow(o)) parts.push({ layer: 4, ef: { addTypes: ['Creature'] }, on: o, ts: this._tsOf(o), group: null });
       }
@@ -11532,9 +11576,11 @@
         if (ef.switchPt) switches++;
       }
       (o.effects || []).forEach((e, i) => {
-        if (!e) return;
+        if (!e || !this._whileCounterHolds(o, e)) return;
         const ts = this._effTs(e, i);
         if (e.keywords || e.loseKeywords || e.flag) six.push({ ts, grant: e.keywords, lose: e.loseKeywords, flag: e.flag });
+        // Ultima, Origin of Oblivion: 'and has "{T}: Add {C}."' — after everything it lost, with the same timestamp
+        if (e.grantMana) six.push({ ts, grantMana: e.grantMana });
         if (e.cantHave) for (const k of e.cantHave) cantHave.add(String(k).toLowerCase());
         if (e.setPt) setting.push({ ts, set: e.setPt });
         if (e.p || e.t) modifying.push({ p: e.p, t: e.t });
@@ -12267,6 +12313,8 @@
         o.echoDue = true;
         o.renowned = false;
         o.controller = opts.controller || o.controller || o.owner;
+        // Xantcha, Sleeper Agent: "enters under the control of an opponent of your choice" (entersUnderOpponent)
+        if (!o.faceDown && this._staticOp(o, 'entersUnderOpponent')) o.controller = this._enterUnderPick(o, o.controller);
         o.entered = this.turn;
         o.summoningSick = true;
         o.damage = 0;
@@ -13504,11 +13552,15 @@
          effect then acts on; with nothing to choose, nothing happens. */
       if (e.chooseFrom && !(e.targets && e.targets.length)) {
         const spec = e.chooseFrom;
+        // Gluntch, the Bestower: "They put two +1/+1 counters on a creature they control" — the player chosen picks
+        const chooser = e.chooser === 'chosenPlayer' ? ctx.chosenPlayer : ctx.controller;
+        if (chooser == null) return null;
         const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
-          MTG.oracle.matchesSpec(spec, o, o.analysis(), ctx.controller, this._specCtx()));
-        const got = this._choose({ playerId: ctx.controller, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
+          MTG.oracle.matchesSpec(spec, o, o.analysis(), chooser, this._specCtx()));
+        const got = this._choose({ playerId: chooser, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
           items: this._chooseItems(pool), min: 1, max: 1,
-          prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(spec.filter || '') ? 'an' : 'a'} ${spec.filter || 'permanent'}.` }, 'pick');
+          prompt: e.choosePrompt ? `${ctx.name ? ctx.name + ': ' : ''}${e.choosePrompt}`
+            : `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(spec.filter || '') ? 'an' : 'a'} ${spec.filter || 'permanent'}.` }, 'pick');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         targets = got.picks.map(id => ({ kind: 'object', id }));
@@ -14368,6 +14420,8 @@
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life" — whoever controls it, not who activated it (selfController)
+          else if (e.who === 'selfController') { const p = src && this.player(src.controller); if (p) this.changeLife(p, -cnt); }
           // Burakos, Party Leader: "defending player loses X life" — the one its source attacks (defendingLosesX)
           else if (e.who === 'defending') { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id; const p = dp && this.player(dp); if (p) this.changeLife(p, -cnt); }
           // Liliana, Waker of the Dead: "each opponent who can't" discard (couldNot)
@@ -15228,8 +15282,12 @@
         }
         /* "…gains 'When this creature dies, …' until end of turn": the
            quoted ability is the creature's own until the effect ends. */
-        case 'grantAbility':
-          applyToScope(e, (o) => {
+        case 'grantAbility': {
+          /* Rivaz of the Claw: "Whenever you cast a Dragon creature spell from your graveyard, it gains …" — "it"
+             is the spell, and the permanent it becomes keeps what it gained */
+          const tdG = ctx.triggerData || {};
+          const spellG = e.scope === 'lastTarget' && !firstObj() && tdG.stackId && tdG.objectId && this.obj(tdG.objectId);
+          (spellG && spellG.zone === 'stack' ? (f) => f(spellG) : (f) => applyToScope(e, f))((o) => {
             /* the ability written out already (a translated card), or its words to read */
             // Quicksmith Spy: "for as long as you control this creature"
             const lasting = e.duration === 'whileControl' && src ? { whileFrom: src.id, whileControl: ctx.controller } : {};
@@ -15241,6 +15299,7 @@
           });
           this.bumpBoard();
           break;
+        }
         /* Shadowspear: "lose hexproof and indestructible until end of turn" */
         case 'loseKeyword':
           applyToScope(e, (o) => o.effects.push({ loseKeywords: e.keywords, cantHave: e.cantHave ? e.keywords : undefined, until: e.duration === 'eot' ? 'eot' : null }));
@@ -15649,6 +15708,24 @@
           card.encodedOn = host.id;
           host.encoded = (host.encoded || []).concat(card.id);
           this.logEvent('rules', `${me.name} encodes ${card.name} on ${host.name}.`);
+          break;
+        }
+        /* Gluntch, the Bestower: "choose a player … Choose a second player … Then choose a third player" — not
+           targets; each one a different player (any of them you), and what follows is about the one chosen.
+           Nobody left to choose: that part does nothing (choosePlayer). */
+        case 'choosePlayer': {
+          const before = ctx.chosenPlayers || [];
+          const pool = this.players.filter(p => !p.hasLost && !(e.different && before.includes(p.id)));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'choosePlayer', kind: 'players',
+            items: this._choosePlayers(pool), min: 1, max: 1, prompt: e.prompt || 'Choose a player.' });
+          if (got === SUSPEND) return SUSPEND;
+          const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
+          if (!pick || !pool.includes(pick)) break;
+          ctx.chosenPlayer = pick.id;
+          ctx.chosenPlayers = before.concat(pick.id);
+          this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
+          this._spliceNext(e.then || []);
           break;
         }
         /* "Choose an opponent." Not a target: a generic question about
@@ -16404,6 +16481,8 @@
             if (e.instantOrFlash) return !!(ca && (ca.isInstant || (ca.keywordSet && ca.keywordSet.has('flash'))));
             // Moonsilver Key: "an artifact card with a mana ability or a basic land card"
             if (e.manaArtifactOrBasic) return !!(ca && (ca.isBasicLand || (ca.isArtifact && (ca.manaAbilities || []).length)));
+            // Tiamat: "not named Tiamat"
+            if (e.notNamedSelf && src && U.frontName(c.card.name || '') === U.frontName((src.card && src.card.name) || src.name || '')) return false;
             if (want === 'any' || want === '') return true;
             if (want === 'basic land') return !!(ca && ca.isBasicLand);
             if (e.named) return (c.card.name || '').toLowerCase() === String(e.named).toLowerCase();
@@ -16411,8 +16490,10 @@
                card" is both words at once. */
             return this._cardFitsWords(c, want);
           };
-          const legal = z.library.slice(0, this._searchReach(seeker.id)).filter(matches)
+          const legal0 = z.library.slice(0, this._searchReach(seeker.id)).filter(matches)
             .concat(e.alsoGraveyard ? z.graveyard.filter(matches) : []);
+          // Tiamat: "that each have different names" — one card of each name on offer
+          const legal = e.differentNames ? legal0.filter((c, i) => legal0.findIndex(x => x.name === c.name) === i) : legal0;
           const want_n = Math.min(n(e.n), legal.length);
           // Opposition Agent: an opponent of the searcher makes the choices, and what is found goes to exile for them
           const agentOf = (op) => this.battlefield.find(x => !x.phasedOut && x.controller !== seeker.id &&
@@ -16424,7 +16505,7 @@
             const picked = this._ask({ type: 'pickCard', playerId: ctlAgent ? ctlAgent.controller : seeker.id, count: want_n,
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               optional: true, fromLibrary: true,
-              prompt: e.prompt || `Search your library${want === 'any' ? '' : ' for ' + want}.` }, 'tutor');
+              prompt: (e.prompt || `Search your library${want === 'any' ? '' : ' for ' + want}.`).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it') }, 'tutor');
             if (picked === SUSPEND) return SUSPEND;
             const ok = new Set(legal.map(o => o.id));
             taken = (picked || []).filter(id => ok.has(id)).slice(0, want_n).map(id => this.obj(id)).filter(Boolean);
@@ -16688,6 +16769,23 @@
           x._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${x.name} becomes a ${t} until end of turn.`);
+          break;
+        }
+        // Yenna, Redtooth Regent: "If the token is an Aura, untap Yenna, then scry 2." — the copy just made (ifCopyIs)
+        case 'ifCopyIs': {
+          const made = this._lastCopy && (this._madeThisResolution || []).includes(this._lastCopy.id) ? this._lastCopy : null;
+          if (made && this._cardFitsWords(made, e.what)) this._spliceNext(e.then || []);
+          break;
+        }
+        /* Eluge, Ultima, Origin of Oblivion: "for as long as it has a flood (blight) counter on it" — an effect on
+           the land itself, over once that counter is gone (whileCounter), whatever became of what put it there */
+        case 'whileCounter': {
+          const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (!x || x.zone !== 'battlefield' || !(Number(x.counters[e.counter]) > 0)) break;
+          x.effects.push(Object.assign(JSON.parse(JSON.stringify(e.ef || {})), { whileCounter: e.counter, until: null }));
+          x._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${x.name}: ${whole(e.text || '')}`);
           break;
         }
         // "If a creature is destroyed this way, …": the one the destroy acted on is gone
@@ -17567,6 +17665,9 @@
             copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
             this.battlefield.push(copy);
             this.bumpBoard();
+            // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
+            const cpa = copy.analysis();
+            if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
             this._onEnter(copy);
             this._fireEnters(copy);
             // the copy is what any later sentence is talking about
@@ -19454,6 +19555,32 @@
             this.moveObject(o, 'exile');
             o.exiledBy = src.id;
           }
+          break;
+        }
+        /* Abdel Adrian, Gorion's Ward: "exile any number of other nonland permanents you control until Abdel
+           Adrian leaves the battlefield" — none if it has left already; a token exiled still counts for "each
+           permanent exiled this way" (exileAnyUntilLeaves) */
+        case 'exileAnyUntilLeaves': {
+          this._lastSweep = 0;
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && this._cardFitsWords(o, e.filter || 'nonland permanent'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'exileUntilLeaves', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${src.name}: ${whole(e.text || '').replace(/CARDNAME/g, U.frontName(src.name))}` }, 'exAny');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'battlefield');
+          let k = 0;
+          this._leavingTogether = picks;
+          for (const o of picks) {
+            const token = o.isToken;
+            this.moveObject(o, 'exile');
+            if (o.zone === 'exile') o.exiledBy = src.id;
+            if (o.zone === 'exile' || (token && o.zone !== 'battlefield')) k++;
+          }
+          this._leavingTogether = null;
+          this._lastSweep = k;
+          if (k) this.logEvent('exile', `${me.name} exiles ${k} permanent${k === 1 ? '' : 's'} until ${src.name} leaves the battlefield.`);
           break;
         }
         // Oubliette: out of the game while this stays, back when it goes
@@ -23812,7 +23939,9 @@
       if (!walker && o._attackedPlayers && o._attackedPlayers.turn === this.turn && o._attackedPlayers.ids.includes(def.id) &&
         this._staticOp(o, 'noRepeatAttack')) return { src: o, who: def.name + ' again this turn' };
       // Alexios, Deimos of Kosmos: "can't attack its owner" — the player, not their planeswalkers
-      if (!walker && def.id === o.owner && this._staticOp(o, 'cantAttackOwner')) return { src: o, who: def.name + ', its owner' };
+      // (Xantcha, Sleeper Agent: "or planeswalkers its owner controls" — walkers)
+      const ownerRule = def.id === o.owner && this._staticOp(o, 'cantAttackOwner');
+      if (ownerRule && (!walker || ownerRule.walkers)) return { src: o, who: walker ? 'planeswalkers ' + def.name + ', its owner, controls' : def.name + ', its owner' };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();
@@ -24836,6 +24965,21 @@
         }
         /* a type or colour chosen as a permanent entered */
         case 'mode': {
+          /* Xantcha, Sleeper Agent: the opponent it enters under — the spell waited for the answer, and
+             resolves now (entersUnderOpponent) */
+          if (ch.purpose === 'enterUnder') {
+            const item = this._enterWait;
+            this._enterWait = null;
+            const o = this.obj(ch.objId);
+            const idx = ((data && data.modes) || [])[0];
+            const at = (ch.options || []).findIndex(op => op.i === idx);
+            if (o) o._enterUnder = (ch.values || [])[at >= 0 ? at : 0];
+            this.pendingChoice = null;
+            if (item && o && o.zone === 'stack') this._resolveSpell(item);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           // a Siege's protector, chosen as it entered (CR 310.8)
           if (ch.purpose === 'battleProtector') {
             const o = this.obj(ch.objId);
@@ -25056,6 +25200,8 @@
       for (const o of Array.from(this.objects.values())) {
         if (o.exiledBy !== jailer.id || o.zone !== 'exile') continue;
         o.exiledBy = null;
+        // a token exiled has ceased to exist (CR 111.7): it never comes back
+        if (o.isToken && !((this.zones[o.owner] || {}).exile || []).includes(o)) continue;
         this.moveObject(o, 'battlefield', { controller: o.owner });
         this.logEvent('zone', `${o.name} returns from exile.`);
       }
@@ -25427,6 +25573,8 @@
         // (Halvar, God of Battle: "attached to a creature you control" — attachedToYourCreature)
         hostOf: (o) => (o && o.attachedTo ? this.obj(o.attachedTo) : null),
         isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
+        // (Yenna, Redtooth Regent: "the same name as another permanent you control" — uniqueName)
+        sharesName: (o) => this.battlefield.some(x => x !== o && !x.phasedOut && x.controller === o.controller && x.name === o.name),
         // "with mana value X": the X of the spell or ability being cast, while it is checked
         get x() { return game._specX; },
         // Spear of Heliod: "this turn"

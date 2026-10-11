@@ -1539,6 +1539,17 @@
       if (items.every(x => { const o = g.obj(x.id); return o && (o.analysis() || {}).isLand; })) return { picks: items.map(x => x.id) };
       return { picks: items.filter(x => { const o = g.obj(x.id); return o && o.isToken; }).map(x => x.id) };
     },
+    /* Abdel Adrian, Gorion's Ward: what comes back to enter again when Abdel goes (an enters ability), each
+       for a 1/1 Soldier meanwhile; a token gone for good only where it is worth less than the Soldier */
+    exileUntilLeaves(s) {
+      const g = this.game;
+      const picks = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).filter(o => {
+        const a = o.analysis() || {};
+        if (o.isToken) return !a.isCreature && !(a.manaAbilities || []).length && this.permanentValue(o) < 1;
+        return (a.abilities || []).some(ab => ab.kind === 'triggered' && ab.event === 'etb' && ab.self) && !(a.isCreature && g.powerOf(o) > 2);
+      });
+      return { picks: picks.map(o => o.id) };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

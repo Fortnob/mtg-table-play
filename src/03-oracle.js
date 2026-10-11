@@ -960,7 +960,9 @@
     let q;
     // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
-    while ((q = s.match(/^,? (?:with (?:mana value|converted mana cost) (X|\d+) or less|with (?:mana value|converted mana cost) (X|\d+) or (?:greater|more)|with (?:mana value|converted mana cost) (X|\d+)|with different names|that share a land type|with a basic land type|that (?:is|are) (?:a )?([a-z]+)|with (power|toughness) (\d+) or (less|greater))/i))) {
+    // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
+    if ((q = s.match(/^ not named CARDNAME/))) { e.notNamedSelf = true; s = s.slice(q[0].length); }
+    while ((q = s.match(/^,? (?:with (?:mana value|converted mana cost) (X|\d+) or less|with (?:mana value|converted mana cost) (X|\d+) or (?:greater|more)|with (?:mana value|converted mana cost) (X|\d+)|(?:with|that each have) different names|that share a land type|with a basic land type|that (?:is|are) (?:a )?([a-z]+)|with (power|toughness) (\d+) or (less|greater))/i))) {
       if (q[5]) e[(q[7] === 'less' ? 'max' : 'min') + (q[5] === 'power' ? 'Power' : 'Toughness')] = +q[6];
       if (q[1]) e.maxMv = q[1] === 'X' ? 'X' : +q[1];
       if (q[2]) e.minMv = +q[2];
@@ -1008,7 +1010,9 @@
     const what = e.filter === 'any' ? 'card' : e.filter.split(' ').map(w => w.replace(/^[a-z'-]+/, (x) => asPrinted(x))).join(' ') + ' card';
     const NW = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
     e.prompt = 'Search your library for ' + (e.n === 1 ? (/^[aeiou]/i.test(what) ? 'an ' : 'a ') : (e.upTo ? 'up to ' : '') + (NW[e.n] || e.n) + ' ') +
-      what + (e.n === 1 ? '' : 's') + '.';
+      what + (e.n === 1 ? '' : 's') +
+      // (Tiamat: "not named Tiamat that each have different names" — the whole of what it asks for)
+      (e.notNamedSelf ? ' not named CARDNAME' : '') + (e.differentNames ? (/that each have different names/i.test(sentence) ? ' that each have different names' : ' with different names') : '') + '.';
     return after ? { op: 'sequence', list: [e, after] } : e;
   }
 
@@ -2066,11 +2070,27 @@
     { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) and (scry|surveil) (\d+)\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'counters', kind: m[2], n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'self' }, { op: m[3].toLowerCase(), n: +m[4] }] }) },
 
+    /* Eluge, the Shoreless Sea, Aquitect's Will: "It's (That land is) an Island in addition to its other types
+       for as long as it has a flood counter on it."; Cyclopean Tomb: "That land is a Swamp …" — on the land the
+       counter went on, its own effect, over once the counter is gone, whatever became of what put it there (whileCounter) */
+    { re: /^(?:It'?s|It is|That land is) an? (Plains|Island|Swamp|Mountain|Forest)( in addition to its other types)? for as long as it has an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'whileCounter', counter: m[3].toLowerCase(), ef: m[2] ? { addSubtypes: [U.titleCase(m[1])] } : { setSubtypes: [U.titleCase(m[1])] } }) },
+    /* Ultima, Origin of Oblivion: "For as long as that land has a blight counter on it, it loses all land types
+       and abilities and has "{T}: Add {C}."" — its other card types and supertypes stay (whileCounter) */
+    { re: /^For as long as that land has an? ([a-z]+) counter on it, it loses all land types and abilities and has "\{T\}: Add \{C\}\.?"\.?$/i,
+      make: (m) => ({ op: 'whileCounter', counter: m[1].toLowerCase(), ef: { setSubtypes: [], loseAll: true,
+        grantMana: [{ kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {C}.', effects: [{ op: 'addMana', symbols: ['C'] }] }] } }) },
+
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
     { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
+    /* Abdel Adrian, Gorion's Ward: "exile any number of other nonland permanents you control until CARDNAME
+       leaves the battlefield" — picked as it resolves, held by it; "for each permanent exiled this way" counts
+       them (exileAnyUntilLeaves) */
+    { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you control until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
+      make: (m) => ({ op: 'exileAnyUntilLeaves', filter: m[1].toLowerCase().replace(/s$/, '') }) },
     // Ixalan's Binding's kin, en masse: "exile all artifacts your opponents control until this … leaves"
     { re: /^Exile (all|each) ([a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => {
@@ -5742,7 +5762,8 @@
     { re: /^Counter that spell if it has the same mana value as the revealed card\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true, ifMvRevealed: true }) },
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
-    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?)\.?$/i,
+    // (Yenna, Redtooth Regent: "… you control that doesn't have the same name as another permanent you control")
+    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Ramos, Dragon Engine: "put a +1/+1 counter on Ramos for each of that spell's colors" (spellColorCount)
     { re: /^Put an? ([+-]\d+\/[+-]\d+) counter on (?:CARDNAME|this creature) for each of that spell'?s colou?rs\.?$/i,
@@ -5930,6 +5951,13 @@
         m[1] ? { tapped: true, attacking: true } : {}, m[2] ? { nonLegendary: true } : {}) : null) },
     // Delina, Wild Mage: "You may roll again." — the die just rolled, its results read afresh (rollAgain)
     { re: /^You may roll again\.?$/i, make: () => ({ op: 'may', yesLabel: 'Roll again', noLabel: 'Stop', then: [{ op: 'rollAgain' }] }) },
+    // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life and you draw a card." — "you" activated it (selfController)
+    { re: /^(?:CARDNAME|this creature)'s controller loses (\w+) life and you draw (a card|two cards)\.?$/i,
+      make: (m) => [{ op: 'loseLife', who: 'selfController', n: num(m[1]) }, { op: 'draw', who: 'you', n: /two/i.test(m[2]) ? 2 : 1 }] },
+    // Yenna, Redtooth Regent: "If the token is an Aura, untap Yenna, then scry 2." — the copy just made (ifCopyIs)
+    { re: /^If the token is an? (Aura|Equipment|creature|artifact|enchantment|land), (.+)$/,
+      make: (m) => { const inner = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        return inner.auto && inner.effects.length ? { op: 'ifCopyIs', what: m[1].toLowerCase(), then: inner.effects } : null; } },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -6789,9 +6817,13 @@
     // Lulu, Stern Guardian, Flash Foliage: "target creature attacking you" — attacking this player itself (attackingYouSpec)
     const atYou = /\s+(?:that'?s )?attacking you$/i.test(String(phrase));
     if (atYou) phrase = String(phrase).replace(/\s+(?:that'?s )?attacking you$/i, '');
+    // Yenna, Redtooth Regent: "target enchantment you control that doesn't have the same name as another permanent you control" (uniqueName)
+    const unique = /\s+that doesn'?t have the same name as another permanent you control$/i.test(String(phrase));
+    if (unique) phrase = String(phrase).replace(/\s+that doesn'?t have the same name as another permanent you control$/i, '');
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
+    if (unique) spec.uniqueName = true;
     if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
     if (damaged) spec.damagedThisTurn = true;
     if (hurtYou) spec.dealtDamageToYou = true;
@@ -7066,6 +7098,8 @@
       const h = ctx && ctx.hostOf ? ctx.hostOf(obj) : null;
       if (!h || h.zone !== 'battlefield' || h.controller !== me || !(ctx.isCreature ? ctx.isCreature(h) : (h.analysis() || {}).isCreature)) return false;
     }
+    // Yenna, Redtooth Regent: "that doesn't have the same name as another permanent you control" (uniqueName)
+    if (spec.uniqueName && ctx && ctx.sharesName && ctx.sharesName(obj)) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
@@ -7407,6 +7441,22 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Gluntch, the Bestower: "choose a player. They put two +1/+1 counters on a creature they control. Choose a
+       second player to draw a card. Then choose a third player to create two Treasure tokens." — three different
+       players, any one of them you; the first chooses the creature; with no player left to choose, that part
+       does nothing (choosePlayer) */
+    { re: /^Choose a player\. They put (a|two|three) \+1\/\+1 counters? on a creature they control\. Choose a second player to draw (a card|two cards)\. Then choose a third player to create (a|two|three) Treasure tokens?\.$/i,
+      make: (m) => {
+        const k = num(m[1]), d = /two/i.test(m[2]) ? 2 : 1, tr = num(m[3]);
+        const words = (x) => (x === 1 ? 'a' : x === 2 ? 'two' : 'three');
+        return [
+          { op: 'choosePlayer', different: true, prompt: `Choose a player. They put ${words(k)} +1/+1 counter${k === 1 ? '' : 's'} on a creature they control.`,
+            then: [{ op: 'counters', kind: '+1/+1', n: k, chooser: 'chosenPlayer', chooseFrom: { type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' },
+              choosePrompt: `Put ${words(k)} +1/+1 counter${k === 1 ? '' : 's'} on a creature you control.` }] },
+          { op: 'choosePlayer', different: true, prompt: `Choose a second player to draw ${m[2].toLowerCase()}.`, then: [{ op: 'draw', who: 'triggerPlayer', n: d }] },
+          { op: 'choosePlayer', different: true, prompt: `Choose a third player to create ${words(tr)} Treasure token${tr === 1 ? '' : 's'}.`,
+            then: [{ op: 'createNamedToken', token: 'Treasure', n: tr, who: 'triggerPlayer' }] }];
+      } },
     /* Teferi's Time Twist: "Exile target permanent you control. Return that card to the battlefield under its
        owner's control at the beginning of the next end step. If it enters as a creature, it enters with an
        additional +1/+1 counter on it." (enterExtraCounter) */
@@ -8601,6 +8651,15 @@
       const words = nth[2].trim().toLowerCase();
       if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
       return { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+nth[3]), nthEachTurn: /second/i.test(nth[1]) ? 2 : 1 };
+    }
+    /* Eluge, the Shoreless Sea: "The first instant or sorcery spell you cast each turn costs {U} (or {1}) less to
+       cast for each land you control with a flood counter on it" — each {U} of its cost first, then {1}s (lessOrGeneric) */
+    const nthOr = s.match(/^The first ((?:[a-z]+ (?:or [a-z]+ )?){0,2})spell you cast each turn costs \{([WUBRG])\} or \{1\} less to cast for each (.+)$/i);
+    if (nthOr) {
+      const words = nthOr[1].trim().toLowerCase();
+      if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|noncreature)$/.test(words)) return null;
+      const per = countOf(nthOr[3]);
+      return per ? { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: 0, nthEachTurn: 1, per, lessOrGeneric: nthOr[2].toUpperCase() } : null;
     }
     /* Morophon, the Boundless: "Spells of the chosen type you cast cost
        {W}{U}{B}{R}{G} less to cast. This effect reduces only the amount of
@@ -9804,7 +9863,8 @@
       .replace(/[\u201c\u201d]/g, '"')
       .replace(/\u2212/g, '-');
   }
-  function stripReminder(t) { return normalizePunct(t).replace(/\s*\([^()]*\)/g, '').trim(); }
+  /* (Eluge, the Shoreless Sea: "costs {U} (or {1}) less" — a cost in brackets is part of the rule, not a reminder) */
+  function stripReminder(t) { return normalizePunct(t).replace(/ \(or (\{\d+\})\)/g, ' or $1').replace(/\s*\([^()]*\)/g, '').trim(); }
 
   function splitSentences(t) {
     // keep "{1}, {T}:" style intact; split on period followed by space+capital
@@ -10763,6 +10823,9 @@
       filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}), extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
     // Secrets of the Dead: "Whenever you cast a spell from your graveyard"
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
+    // Rivaz of the Claw: "Whenever you cast a Dragon creature spell from your graveyard"
+    { re: /^Whenever you cast an? ([a-zA-Z -]+?) spell from your graveyard,? /i, event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' '),
+      extra: { fromGraveyardOnly: true } },
     // Tome of Legends: "Whenever your commander enters or attacks"
     { re: /^Whenever your commander enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: true }) },
     /* Norn's Choirmaster, Keleth: "a commander you control" — anyone's, while it is yours (commander 'control');
@@ -11524,7 +11587,8 @@
       /* Reminder text explains a rule; it is not one. Taken off here so
          that "Creatures you control have trample. (Each of those…)" reads
          as the static ability it is. */
-      .map(l => l.replace(/\s*\((?![^()]*\)\s*:)[^()]*\)/g, '').trim())
+      // (Eluge, the Shoreless Sea: "costs {U} (or {1}) less" — a cost in brackets is part of the rule)
+      .map(l => l.replace(/ \(or (\{\d+\})\)/g, ' or $1').replace(/\s*\((?![^()]*\)\s*:)[^()]*\)/g, '').trim())
       .filter(Boolean));
     /* A level band printed over several lines ("LEVEL 1-3", "0/3",
        "Defender") is one band: put it back together. */
@@ -14650,7 +14714,8 @@
         extra: { named: U.titleCase(m[3]), thatMany: true, n: 1 }, tokenWhat: m[1].toLowerCase() } : null) },
     /* Fiery Emancipation, Twinflame Tyrant, Torbran, Gratuitous Violence */
     // (Tor Wauki the Younger: "If another source you control would deal noncombat damage …" — otherSource)
-    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
+    // (Trance Kuja, Fate Defied: "If a Wizard you control would deal damage to a permanent or player" — a creature type)
+    { re: /^If (?:an?|(another)) ((?:red |green |white |blue |black )?(?:source|creature)|[A-Z][a-z]+) you control would deal (noncombat )?damage to (a permanent or player|an opponent or a permanent an opponent controls), it deals (double|triple|that much damage plus (?:one|two|three|\d+))(?: that damage)?(?: to that (?:permanent or player|player or permanent))? instead\.?$/i,
       make: (mm) => {
         const other = !!mm[1];
         const m0 = [mm[0], mm[2], mm[3], mm[4], mm[5]];
@@ -14853,7 +14918,7 @@
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
     'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
-    'unsacrificable', 'cantAttackOwner']);
+    'unsacrificable', 'cantAttackOwner', 'entersUnderOpponent']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -15531,6 +15596,14 @@
          owner" (unsacrificable, cantAttackOwner) */
       { re: /^CARDNAME attacks each combat if able, can'?t be sacrificed, and can'?t attack its owner\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'unsacrificable' }, { op: 'cantAttackOwner' }] }), auto: true },
+      /* Xantcha, Sleeper Agent: "attacks each combat if able and can't attack its owner or planeswalkers its
+         owner controls" (cantAttackOwner, walkers too) */
+      { re: /^CARDNAME attacks each combat if able and can'?t attack its owner or planeswalkers its owner controls\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'cantAttackOwner', walkers: true }] }), auto: true },
+      /* Xantcha, Sleeper Agent, Captive Audience: "enters under the control of an opponent of your choice" — a
+         replacement, chosen as it enters (entersUnderOpponent) */
+      { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|permanent)) enters under the control of an opponent of your choice\.?$/i,
+        eff: { op: 'entersUnderOpponent' }, auto: true },
       // Hithlain Rope: "This artifact can't be sacrificed."
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) can'?t be sacrificed\.?$/i, eff: { op: 'unsacrificable' }, auto: true },
       { re: /^(?:CARDNAME|This creature) blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
