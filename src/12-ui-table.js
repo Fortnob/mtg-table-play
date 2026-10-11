@@ -943,10 +943,13 @@
 
       /* Tokens pile up too: ten Soldiers are one stack with a count on it,
          not ten cards across the felt. Only copies alike in all you can see
-         share a pile: the same token, the same size, tapped or not, sick or
-         not, nothing on or attached to it, not attacking or blocking or
-         chosen to; anything else stands on its own, where it can be told
-         apart. Each card of a pile can still be clicked. */
+         share a pile: the same token, the same size, tapped or not, nothing
+         on or attached to it, not attacking or blocking or chosen to;
+         anything else stands on its own, where it can be told apart. Ones
+         made this turn pile with the older ones all the same (being new is
+         not a difference in the token): the ready ones on top, and the pile
+         says how many cannot attack yet. Each card of a pile can still be
+         clicked. */
       const planned = new Set([].concat(
         (this.attackPlan ? this.attackPlan.declarations.map(d => d.attackerId).concat(this.attackPlan.pending || []) : []),
         (this.blockPlan ? this.blockPlan.declarations.map(d => d.blockerId).concat(this.blockPlan.pendingBlocker || []) : [])));
@@ -956,7 +959,7 @@
         const out = [], at = new Map();
         for (const o of list) {
           const key = pileable(o)
-            ? [p.id, o.card.name, o.power, o.toughness, o.tapped ? 't' : 'u', o.summoningSick ? 's' : '', (o.keywords || []).join(','), o.faceDown ? 'fd' : ''].join('|')
+            ? [p.id, o.card.name, o.power, o.toughness, o.tapped ? 't' : 'u', (o.keywords || []).join(','), o.faceDown ? 'fd' : ''].join('|')
             : 'solo:' + o.id;
           let g = at.get(key);
           if (!g) { g = { key, list: [] }; at.set(key, g); out.push(g); }
@@ -969,7 +972,12 @@
         const w = this.wrapFor('tp:' + g.key, 'token-pile' + (g.list[0].tapped ? ' tapped' : ''));
         w.style.setProperty('--n', String(g.list.length));
         w.dataset.n = '\u00d7' + g.list.length;
-        this.place(w, g.list.map(o => this.unitFor(o)));
+        // the new ones underneath, the ready ones on top; how many are new, when some are and some are not
+        const sick = g.list.filter(o => o.summoningSick && !(o.keywords || []).includes('haste'));
+        const list = sick.concat(g.list.filter(o => !sick.includes(o)));
+        if (sick.length && sick.length < list.length && list[0].power != null) w.dataset.sick = sick.length + ' new';
+        else delete w.dataset.sick;
+        this.place(w, list.map(o => this.unitFor(o)));
         return w;
       });
       const frontPiles = piles(creatures), otherPiles = piles(others);
