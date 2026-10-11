@@ -437,6 +437,8 @@
       if (e.op === 'counters' || e.op === 'tap' || e.op === 'untap') return e.scope === 'self';
       // Cloudcrest Lake: "This land doesn't untap during your next untap step."
       if (e.op === 'noUntap') return e.scope === 'self';
+      // Yuna, Grand Summoner: "When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it."
+      if (e.op === 'nextCreatureCounter') return true;
       return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly';
     };
     return effects.every(fits);
@@ -558,7 +560,9 @@
     }
     if (s.trim()) return null;
     // (no size printed: only one its words give it, and not one that counts on the card making it)
-    if (noPt && !(e.grantedText && /^This (?:token|creature)'s power and toughness are each equal to /i.test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
+    // (Bonny Pall, Clearcutter: "Beau's power and toughness are each equal to …" — the token's own name)
+    const selfWords = e.name ? '(?:This (?:token|creature)|' + e.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')' : 'This (?:token|creature)';
+    if (noPt && !(e.grantedText && new RegExp('^' + selfWords + "'s power and toughness are each equal to ", 'i').test(e.grantedText) && !/CARDNAME/.test(e.grantedText))) return null;
     /* A token handed an ability has to be able to use it: the text is
        read as the token's own card would be, and has to read whole. */
     if (e.grantedText) {
@@ -2629,6 +2633,9 @@
     // Burakos, Party Leader: "defending player loses X life and you create X Treasure tokens, where X is …" (defendingLosesX)
     { re: /^defending player loses X life and you create X (Treasure|Food|Clue) tokens, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? [{ op: 'loseLife', n: k, who: 'defending' }, { op: 'createNamedToken', n: k, token: m[1] }] : null; } },
+    // Yuna, Grand Summoner: "you may put that number of +1/+1 counters on target creature" — the counters it had, of every kind
+    { re: /^Put that number of \+1\/\+1 counters on target creature\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: { countersOnTrigger: true, mult: 1 }, targets: [targetSpec('target creature')] }) },
     // Aveline de Grandpré: "put that many +1/+1 counters on that creature" — the one that dealt the damage (thatManyOnThat)
     { re: /^Put that many (\+1\/\+1|[a-z]+) counters on that creature\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'triggerObject' }) },
     // Lena, Selfless Champion: "Creatures you control with power less than Lena's power gain indestructible until end of turn." (powerBelowSrc)
@@ -4670,6 +4677,8 @@
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
     { re: /^Add (two|three|\d+) mana of the chosen color\.?$/i, make: (m) => ({ op: 'addManaChosen', n: num(m[1]) }) },
     { re: /^Flip a coin\.?$/i, make: () => ({ op: 'flipCoin' }) },
+    // Krark, the Thumbless: "If you lose the flip, return that spell to its owner's hand." — the spell that triggered it
+    { re: /^Return that spell to its owner'?s hand\.?$/i, make: () => ({ op: 'bounceThatSpell' }) },
     // Rakdos, the Showstopper: "flip a coin for each creature that isn't a Demon, Devil, or Imp. Destroy each creature whose coin comes up tails." (coinEachCreature)
     { re: /^[Ff]lip a coin for each creature that isn'?t an? ([A-Z][a-z]+(?:, (?:an? )?[A-Z][a-z]+)*,? or (?:an? )?[A-Z][a-z]+)\.?$/,
       make: (m) => ({ op: 'coinEachCreature', exceptTypes: m[1].split(/,? or |, /).map(w => w.replace(/^an? /, '').toLowerCase()) }) },
@@ -5418,8 +5427,9 @@
     { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
-    { re: /^When you next cast a creature spell this turn, that creature enters with an additional \+1\/\+1 counter on it\.?$/i,
-      make: () => ({ op: 'nextCreatureCounter', n: 1 }) },
+    // Yuna, Grand Summoner: "… that creature enters with two additional +1/+1 counters on it."
+    { re: /^When you next cast a creature spell this turn, that creature enters with (an|two|three) additional \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => ({ op: 'nextCreatureCounter', n: /^an$/i.test(m[1]) ? 1 : num(m[1]) }) },
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
@@ -6148,6 +6158,9 @@
       make: (m) => ({ op: 'graveyardSweep', what: m[1].toLowerCase(), to: 'battlefield' }) },
     { re: /^(?:You may put|Put) a land card from your hand onto the battlefield\.?$/i,
       make: () => ({ op: 'landFromHand', n: 1 }) },
+    // Bonny Pall, Clearcutter: "then you may put a land card from your hand or graveyard onto the battlefield"
+    { re: /^(?:Then )?[Yy]ou may put a land card from your hand or graveyard onto the battlefield( tapped)?\.?$/,
+      make: (m) => Object.assign({ op: 'putLandFromHand', from: ['hand', 'graveyard'] }, m[1] ? { tapped: true } : {}) },
     { re: /^Exile the top (?:(\w+) )?cards? of your library\.?$/i,
       make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false }) },
 
@@ -10314,7 +10327,8 @@
     // Fevered Visions: "the player is your opponent and has four or more cards in hand" (thatPlayerHand opponent)
     [/^the player is your opponent and has (\w+) or more cards in hand$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatPlayerHand', n: num(m[1]), opponent: true } : null)],
     // Host of the Hereafter, Archfiend of the Dross, Deadly Grub: "it had counters on it", "it has no oil counters on it", "it had no time counters on it"
-    [/^it (?:had|has) counters on it$/i, () => ({ kind: 'itHadCounters' })],
+    // (Yuna, Grand Summoner: "it had one or more counters on it")
+    [/^it (?:had|has) (?:one or more )?counters on it$/i, () => ({ kind: 'itHadCounters' })],
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Transpose, Otterball Antics: "this spell was cast from your hand", "…from anywhere other than your hand"
     [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],

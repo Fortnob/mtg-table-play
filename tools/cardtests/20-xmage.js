@@ -28158,4 +28158,165 @@ module.exports = (test) => {
     t.ok(got && M.MTG.choice.check(M.asked.find(ch => ch.purpose === 'perCardType'), got).ok, 'Atraxa: the bot answers legally');
     t.ok(M.zone('A', 'hand').length >= 3, 'Atraxa: the bot takes a creature, an artifact and a land at least');
   });
+  test('Commanders: Krark, the Thumbless — a won flip copies the instant (new targets allowed), a lost one returns it to hand', (mk, t) => {
+    t.auto('Krark, the Thumbless');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Krark, the Thumbless');
+    const bears = M.bf('B', 'Grizzly Bears');
+    // won: Lightning Bolt and a copy, the copy moved to the Grizzly Bears
+    M.g.rng.chance = () => true;
+    let asked = null;
+    M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    const bolt = M.hand('A', 'Lightning Bolt');
+    M.mana('A', 'R');
+    M.cast('A', bolt, { targets: ['B'] });
+    t.ok(asked && /New targets for the copy/.test(asked.prompt || ''), 'Krark: may choose new targets for the copy');
+    t.eq(M.life('B'), 17, 'Krark: the original Bolt hits B');
+    t.zone(bears, 'graveyard', 'Krark: the copy hits the Grizzly Bears');
+    t.zone(bolt, 'graveyard');
+    // lost: back to hand, nothing dealt, the mana gone
+    M.g.rng.chance = () => false;
+    const bolt2 = M.hand('A', 'Lightning Bolt');
+    M.mana('A', 'R');
+    M.cast('A', bolt2, { targets: ['B'] });
+    t.zone(bolt2, 'hand', 'Krark: a lost flip returns Lightning Bolt to its owner\'s hand');
+    t.eq(M.life('B'), 17, 'Krark: and it never resolves');
+    t.eq(M.player('A').pool.R || 0, 0, 'Krark: the mana spent on it is gone');
+    t.eq(M.g.stack.length, 0);
+  });
+  test('Commanders: Krark, the Thumbless — not for a creature spell, nor for an opponent\'s instant', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Krark, the Thumbless');
+    const coins = []; M.g.on('coin', (c) => coins.push(c.result));
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.eq(coins.length, 0, 'Krark: a creature spell, no flip');
+    M.nextTurn('B');
+    const bolt = M.hand('B', 'Lightning Bolt');
+    M.mana('B', 'R');
+    M.cast('B', bolt, { targets: ['A'] });
+    t.eq(coins.length, 0, "Krark: B's instant, no flip");
+    t.eq(M.life('A'), 17);
+  });
+  test('Commanders: Yuna, Grand Summoner — Grand Summon: mana of any color, and the next creature spell this turn enters with two more +1/+1 counters', (mk, t) => {
+    t.auto('Yuna, Grand Summoner');
+    const M = mk({ library: Array(30).fill('Island') });
+    const yuna = M.bf('A', 'Yuna, Grand Summoner');
+    const ma = yuna.analysis().manaAbilities;
+    t.eq(ma.length, 1, 'Grand Summon: a mana ability, off the stack');
+    t.ok(M.g.tapForMana('A', yuna.id, 0, 'G'), 'Grand Summon: tapped for {G}');
+    t.eq(M.player('A').pool.G || 0, 1, 'Grand Summon: {G}');
+    t.eq(M.g.stack.length, 0, 'Grand Summon: nothing on the stack');
+    M.mana('A', '1');
+    const bears = M.hand('A', 'Grizzly Bears');
+    M.cast('A', bears);
+    t.eq(bears.counters['+1/+1'] || 0, 2, 'Grand Summon: Grizzly Bears enters with two +1/+1 counters');
+    t.eq(M.g.powerOf(bears), 4);
+    // only the next one
+    M.mana('A', 'G');
+    const elves = M.hand('A', 'Llanowar Elves');
+    M.cast('A', elves);
+    t.eq(elves.counters['+1/+1'] || 0, 0, 'Grand Summon: the creature after it, none');
+    // a noncreature spell in between does not use it up, and it ends with the turn
+    yuna.tapped = false;
+    t.ok(M.g.tapForMana('A', yuna.id, 0, 'U'));
+    M.mana('A', '1');
+    M.cast('A', M.hand('A', 'Mind Stone'));
+    M.nextTurn('B');
+    M.nextTurn('A');
+    M.mana('A', '1G');
+    const b2 = M.hand('A', 'Grizzly Bears');
+    M.cast('A', b2);
+    t.eq(b2.counters['+1/+1'] || 0, 0, 'Grand Summon: "this turn" — gone by the next turn');
+  });
+  test('Commanders: Yuna, Grand Summoner — another permanent of yours with counters goes to the graveyard: that many +1/+1 counters on target creature', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const yuna = M.bf('A', 'Yuna, Grand Summoner');
+    const bears = M.bf('B', 'Grizzly Bears');
+    // a noncreature permanent with three charge counters, put into the graveyard
+    const chalice = M.bf('A', 'Everflowing Chalice', { counters: { charge: 3 } });
+    let offered = null;
+    M.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    M.g.moveObject(chalice, 'graveyard');
+    M.resolve();
+    t.ok(offered, 'Yuna: asked for a target');
+    t.eq(bears.counters['+1/+1'] || 0, 3, 'Yuna: three counters it had, three +1/+1 counters on any target creature');
+    // counters of two kinds count together
+    const elves = M.bf('A', 'Llanowar Elves', { counters: { '+1/+1': 1, '-1/-1': 1 } });
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: yuna.id }] }));
+    M.g.moveObject(elves, 'graveyard');
+    M.resolve();
+    t.eq(yuna.counters['+1/+1'] || 0, 2, 'Yuna: a +1/+1 and a -1/-1 counter, two');
+  });
+  test('Commanders: Yuna, Grand Summoner — no counters, an opponent\'s permanent, or Yuna herself: no trigger; "you may" — none chosen', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const yuna = M.bf('A', 'Yuna, Grand Summoner', { counters: { '+1/+1': 2 } });
+    const bears = M.bf('A', 'Grizzly Bears');
+    const a0 = M.asked.length;
+    M.g.moveObject(M.bf('A', 'Llanowar Elves'), 'graveyard');
+    M.g.moveObject(M.bf('B', 'Everflowing Chalice', { counters: { charge: 2 } }), 'graveyard');
+    M.resolve();
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Yuna: no counters, or not yours — nothing asked');
+    t.eq(bears.counters['+1/+1'] || 0, 0);
+    // declined
+    M.answer('pickTarget', () => ({ targets: [] }));
+    M.g.moveObject(M.bf('A', 'Everflowing Chalice', { counters: { charge: 2 } }), 'graveyard');
+    M.resolve();
+    t.eq((bears.counters['+1/+1'] || 0) + (yuna.counters['+1/+1'] || 0), 2, 'Yuna: "you may" — no target chosen, no counters');
+    // Yuna herself: "another permanent"
+    const b0 = M.asked.length;
+    M.g.moveObject(yuna, 'graveyard');
+    M.resolve();
+    t.no(M.asked.slice(b0).some(ch => ch.type === 'pickTarget'), 'Yuna: not for herself');
+    t.eq(bears.counters['+1/+1'] || 0, 0);
+  });
+  test('Commanders: Bonny Pall, Clearcutter — Beau, a legendary blue Ox token as big as A\'s lands; attacking: draw, then a land from hand or graveyard', (mk, t) => {
+    t.auto('Bonny Pall, Clearcutter');
+    const M = mk({ library: Array(30).fill('Grizzly Bears') });
+    for (let i = 0; i < 3; i++) M.bf('A', 'Forest');
+    M.bf('B', 'Mountain');
+    const bonny = M.hand('A', 'Bonny Pall, Clearcutter');
+    M.mana('A', '3GUU');
+    M.cast('A', bonny);
+    const beau = M.g.battlefield.find(o => o.isToken && o.name === 'Beau');
+    t.ok(beau, 'Bonny Pall: Beau');
+    t.eq(beau.controller, 'A');
+    const ba = M.g.characteristics(beau);
+    t.ok(ba.isCreature && beau.analysis().isLegendary, 'Beau: a legendary creature');
+    t.eq((beau.card.colors || []).join(''), 'U', 'Beau: blue');
+    t.ok(M.g._hasCreatureType(beau, 'Ox'), 'Beau: an Ox');
+    t.eq(M.g.powerOf(beau), 3, 'Beau: three lands, 3/3');
+    t.eq(M.g.toughnessOf(beau), 3);
+    // whenever you attack: draw, then a land from the graveyard
+    const yardLand = M.grave('A', 'Plains');
+    M.hand('A', 'Swamp');
+    M.nextTurn('A');
+    const hand0 = M.zone('A', 'hand').length;
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [yardLand.id] }; });
+    M.answer('declareAttackers', () => [{ attackerId: bonny.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.ok(offered && offered.optional, 'Bonny Pall: "you may" — one optional pick');
+    t.eq(offered.cards.map(c => c.name).sort().join(','), 'Plains,Swamp', 'Bonny Pall: the lands in hand and graveyard');
+    t.zone(yardLand, 'battlefield', 'Bonny Pall: the Plains from the graveyard');
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Bonny Pall: drew a card, put none from hand');
+    t.eq(M.g.powerOf(beau), 4, 'Beau: four lands now');
+  });
+  test('Commanders: Bonny Pall, Clearcutter — no land in hand or graveyard: the draw, nothing asked; declining puts none', (mk, t) => {
+    let M = mk({ library: Array(30).fill('Grizzly Bears') });
+    const bonny = M.bf('A', 'Bonny Pall, Clearcutter');
+    const a0 = M.asked.length;
+    M.answer('declareAttackers', () => [{ attackerId: bonny.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.zone('A', 'hand').length, 1, 'Bonny Pall: drew a card');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard'), 'Bonny Pall: no land anywhere, nothing asked');
+    M = mk({ library: Array(30).fill('Island') });
+    const b2 = M.bf('A', 'Bonny Pall, Clearcutter');
+    M.grave('A', 'Forest');
+    M.answer('pickCard', { cardIds: [] });
+    M.answer('declareAttackers', () => [{ attackerId: b2.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, 0, 'Bonny Pall: declined, no land put');
+    t.eq(M.zone('A', 'hand').length, 1, 'Bonny Pall: the Island drawn stays in hand');
+  });
 };

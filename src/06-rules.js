@@ -15846,6 +15846,17 @@
           break;
         }
 
+        /* Krark, the Thumbless: "If you lose the flip, return that spell to its owner's hand." — off the stack,
+           uncast, if it is still there */
+        case 'bounceThatSpell': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const item = id ? this.stack.find(st => st.id === id) : null;
+          if (!item || item.kind !== 'spell' || !item.obj || item.isCopy) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+          this.moveObject(item.obj, 'hand');
+          this.logEvent('bounce', `${item.name} is returned to its owner's hand.`);
+          break;
+        }
+
         /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could
            target. Each copy targets a different one of those creatures." — the targets that were Zada become
            that creature, with no new choices; Twinning Staff's extra copy may choose new targets */
@@ -20978,18 +20989,22 @@
         /* "You may put a land card from your hand onto the battlefield. If
            you put a Cave onto the battlefield this way, you gain 4 life." */
         case 'putLandFromHand': {
-          const lands = this.zones[ctx.controller].hand.filter(c => (c.analysis() || {}).isLand);
+          // Bonny Pall, Clearcutter: "a land card from your hand or graveyard" (from)
+          const zonesFrom = e.from || ['hand'];
+          const lands = [].concat(...zonesFrom.map(zn => this.zones[ctx.controller][zn] || [])).filter(c => (c.analysis() || {}).isLand);
           if (!lands.length) break;
           let land = null;
           if (me.isBot) land = lands[0];
           else {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
-              cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })), prompt: 'You may put a land card from your hand onto the battlefield.' }, 'plh');
+              cards: lands.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `You may put a land card from your ${zonesFrom.join(' or ')} onto the battlefield${e.tapped ? ' tapped' : ''}.` }, 'plh');
             if (picked === SUSPEND) return SUSPEND;
             land = this.obj((picked || [])[0]);
           }
-          if (!land || land.zone !== 'hand') break;
-          this.moveObject(land, 'battlefield', { controller: ctx.controller });
+          if (!land || !lands.includes(land) || !zonesFrom.includes(land.zone)) break;
+          this.moveObject(land, 'battlefield', { controller: ctx.controller, tapped: !!e.tapped });
+          if (e.tapped && land.zone === 'battlefield') land.tapped = true;
           if (e.ifSubtype && this._hasSubtype(land, e.ifSubtype)) this._spliceNext(e.then || []);
           break;
         }
