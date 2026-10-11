@@ -14122,8 +14122,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       } },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
     // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
-    { re: /^Spend this mana only to cast creature spells with mana value (\d+) or greater or creature spells with \{X\} in their mana costs\.?$/i,
-      make: (m) => ({ op: 'spendOnly', words: 'creature spell with mana value ' + m[1] + ' or greater', orXCreature: true }) },
+    // (Troyan, Gutsy Explorer: "spells with mana value 5 or greater or spells with {X} in their mana costs" — spendAnyOrX)
+    { re: /^Spend this mana only to cast (creature )?spells with mana value (\d+) or greater or (creature )?spells with \{X\} in their mana costs\.?$/i,
+      make: (m) => (!!m[1] !== !!m[3] ? null : { op: 'spendOnly', words: (m[1] ? 'creature ' : '') + 'spell with mana value ' + m[2] + ' or greater', orXCreature: m[1] ? true : undefined, orX: m[1] ? undefined : true }) },
+    // Cloud, Ex-SOLDIER: "Then if Cloud has power 7 or greater, create two Treasure tokens." (selfPowerThen)
+    { re: /^(?:Then )?if (?:CARDNAME|this creature) has power (\d+) or greater, create (a|an|one|two|three) (Treasure|Food|Clue) tokens?\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'selfPower', n: +m[1] }, then: [{ op: 'createNamedToken', n: num(m[2].replace(/^an?$/i, 'one')), token: m[3] }] }) },
     // Helga, Skittish Seer: "you draw a card, gain 1 life, and put a +1/+1 counter on Helga" (spendBigOrX)
     { re: /^(?:You )?draw a card, gain (\d+) life, and put an? \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'gainLife', n: +m[1], who: 'you' }, { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
@@ -15313,7 +15317,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
 
     // --- fight, control, counters on many things ---
-    { re: /^(?:It|CARDNAME|This creature) fights (up to one )?(target creature(?: you don'?t control| an opponent controls)?|another target creature)\.?$/i,
+    // (The Tarrasque: "it fights target creature defending player controls" — fightDefending)
+    { re: /^(?:It|CARDNAME|This creature) fights (up to one )?(target creature(?: you don'?t control| an opponent controls| defending player controls)?|another target creature)\.?$/i,
       make: (m) => ({ op: 'fightSelf', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
     // Savage Stomp: "Put a +1/+1 counter on target creature you control. Then that creature fights target creature you don't control."
     { re: /^(?:Then )?that creature fights (up to one )?(target creature(?: you don'?t control| an opponent controls)?)\.?$/i,
@@ -27085,7 +27090,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   function parseReplacement(line) {
     for (const r of REPLACEMENT_RULES) {
       const m = line.match(r.re);
-      if (m) return { kind: 'static', text: line, auto: true, effects: [r.make(m)] };
+      if (!m) continue;
+      // (Donatello, the Brains: "plus a Mutagen token" matches Queen Allenal's words but can't be read — replaceNoRead)
+      const eff = r.make(m);
+      if (eff) return { kind: 'static', text: line, auto: true, effects: [eff] };
     }
     return null;
   }
@@ -38123,7 +38131,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (spendOnly.noSpells) return false;
       // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
       if (spendOnly.words && !this._cardFitsWords(spell, spendOnly.words) &&
-        !(spendOnly.orXCreature && this._cardFitsWords(spell, 'creature') && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;
+        !((spendOnly.orX || (spendOnly.orXCreature && this._cardFitsWords(spell, 'creature'))) && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;   // (Troyan: spendAnyOrX)
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       return true;
     }
