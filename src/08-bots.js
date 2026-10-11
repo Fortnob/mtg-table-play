@@ -1646,6 +1646,13 @@
       for (const x of cards) { if (a <= b) { one.push(x.o.id); a += x.v; } else { two.push(x.o.id); b += x.v; } }
       return { picks: one };
     },
+    /* Plargg and Nassari: the exiled card the opponent can't cast — the one worth most */
+    denyExiled(s) {
+      const g = this.game;
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean)
+        .sort((a, b) => rateCard(b.card, { prior: 0 }) - rateCard(a.card, { prior: 0 }))[0];
+      return best ? { picks: [best.id] } : null;
+    },
     /* …and choosing a pile: the one worth more, to us or to them */
     pileChoice(s) {
       const g = this.game;

@@ -3470,6 +3470,26 @@
       make: () => ({ op: 'exileTop', who: 'you', untilNonland: true }) },
     { re: /^Exile cards from the top of your library until you exile cards with total mana value (\d+) or greater\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'you', totalMv: +m[1] }) },
+    /* Gríma, Saruman's Footman, Dazzling Sphinx, Chaos Wand: "that player (target opponent) exiles cards from the
+       top of their library until they exile an instant or sorcery card"; Jodah, the Unifier: "Exile cards from the
+       top of your library until you exile a legendary nonland card with lesser mana value." — lesser than the
+       spell its trigger is about (untilWords) */
+    { re: /^(That player|Target opponent|Target player) exiles cards from the top of their library until they exile an? ((?:(?:non)?(?:legendary|artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card\.?$/i,
+      make: (m) => {
+        const w = m[2].trim().replace(/,? or |, /g, ' or ').toLowerCase();
+        return /^target/i.test(m[1]) ? { op: 'exileTop', who: 'target', untilWords: w, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
+          : { op: 'exileTop', who: 'triggerPlayer', untilWords: w };
+      } },
+    { re: /^Exile cards from the top of your library until you exile an? ((?:(?:non)?(?:legendary|artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card( with lesser mana value)?\.?$/i,
+      make: (m) => Object.assign({ op: 'exileTop', who: 'you', untilWords: m[1].trim().replace(/,? or |, /g, ' or ').toLowerCase() }, m[2] ? { lesserMv: true } : {}) },
+    // Gríma, Saruman's Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order." (exileUntil)
+    { re: /^Then (?:that player puts|put) the exiled cards that weren'?t cast this way on the bottom of (?:their|that|your) library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true }) },
+    /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way. You may cast up to two spells from
+       among the other cards exiled this way without paying their mana costs." (exceptChosen) */
+    { re: /^An opponent chooses a nonland card exiled this way\.?$/i, make: () => ({ op: 'opponentChoosesExiled', filter: 'nonland' }) },
+    { re: /^You may cast up to (one|two|three) spells? from among the other cards exiled this way without paying (?:its|their) mana costs?\.?$/i,
+      make: (m) => ({ op: 'castFree', upTo: num(m[1]), exceptChosen: true }) },
     // Ulamog, the Defiler: "target opponent exiles the top half of their library, rounded up" (exileHalfLibrary)
     { re: /^(Target opponent|Target player) exiles the top half of their library, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
@@ -3514,6 +3534,9 @@
     // Shadrix Silverquill: "Target player puts a +1/+1 counter on each creature they control."
     { re: /^Target (player|opponent) puts an? (\+1\/\+1|[a-z]+) counter on each creature they control\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: 1, scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Tinybones, Bauble Burglar: "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it."
+    { re: /^Exile (?:it|that card) from (?:their|its owner'?s) graveyard with an? ([a-z]+) counter on it\.?$/i,
+      make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
     // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control get +2/+0 until end of turn"
     { re: /^Creatures attacking your opponents(?: and\/or planeswalkers they control)? get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: { who: 'all', what: 'creature', attacking: true, attackingYourOpponents: true } }) },
@@ -4213,6 +4236,10 @@
     // Yawgmoth's Will, Gaea's Will: "Until end of turn, you may play lands and cast spells from your graveyard."
     { re: /^Until end of turn, you may (play lands and cast spells|cast spells|play lands) from your graveyard\.?$/i,
       make: (m) => ({ op: 'playFromThisTurn', zone: 'graveyard', what: /play lands and/i.test(m[1]) ? 'any' : /cast/i.test(m[1]) ? 'spell' : 'land' }) },
+    /* The Belligerent: "Until end of turn, you may look at the top card of your library any time, and you may play
+       lands and cast spells from the top of your library." (Gwenom, Remorseless: paying life, in COMBO_RULES) */
+    { re: /^Until end of turn, you may look at the top card of your library any time,? and you may (play lands and cast spells|play cards) from the top of your library\.?$/i,
+      make: () => ({ op: 'playFromThisTurn', zone: 'top', what: 'any' }) },
     // Yawgmoth's Will: "If a card would be put into your graveyard from anywhere this turn, exile that card instead."
     { re: /^If a card would be put into your graveyard from anywhere this turn, exile (?:that card|it) instead\.?$/i,
       make: () => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'gyExileTurn', event: 'zoneChange', toZone: 'graveyard', how: 'toZone', zone: 'exile', who: 'all', owner: 'you' } }) },
@@ -4417,7 +4444,10 @@
       make: () => ({ op: 'drawFromTop', n: 1 }) },
     { re: /^Reveal the top card of your library\.?$/i, make: () => ({ op: 'reveal', n: 1, from: 'library' }) },
     { re: /^Until end of turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse', duration: 'eot' }) },
-    { re: /^(?:You may )?[Cc]ast that card(?: without paying its mana cost)?\.?$/i, make: () => ({ op: 'markImpulse', duration: 'eot' }) },
+    { re: /^(?:You may )?[Cc]ast that card\.?$/i, make: () => ({ op: 'markImpulse', duration: 'eot' }) },
+    /* Wanda's Vision, Gríma, Saruman's Footman: "You may cast that card without paying its mana cost." — the
+       card just exiled, cast as this resolves or not at all (CR 608.2g), not later in the turn (thatCard) */
+    { re: /^(?:You may )?[Cc]ast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
     { re: /^Until the end of your next turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse' }) },
     // (Scrib Nibblers: "target player's library" — a player the ability targets, not the one a trigger is about)
     { re: /^Exile the top card of (that player'?s|target player'?s) library\.?$/i,
@@ -4955,6 +4985,8 @@
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
         if (/ may (?:play|cast) one of /i.test(m[0])) e.oneOf = true;
+        // (Stolen Goods: "until they exile a nonland card. Until end of turn, you may cast that card …" — the one card: thatCard)
+        if (/ may (?:play|cast) that card\b/i.test(m[0])) e.thatCard = true;
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
         // (Unlucky Witness: "Until your next end step" — up to it, this turn's when it is still to come: nextEnd)
         let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : /^your next end step$/i.test(m[1]) ? 'nextEnd' : 'next') : null;
@@ -7499,6 +7531,11 @@
        than that spell. They may cast that card without paying its mana cost.
        Then they put the exiled cards on the bottom of their library in a
        random order." */
+    /* Gwenom, Remorseless: "until end of turn, you may look at the top card of your library any time and you may
+       play cards from the top of your library. If you cast a spell this way, pay life equal to its mana value
+       rather than pay its mana cost." — the turn's leave, with life for the spells (payLife) */
+    { re: /^Until end of turn, you may look at the top card of your library any time,? and you may (?:play cards|play lands and cast spells) from the top of your library\. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.$/i,
+      make: () => [{ op: 'playFromThisTurn', zone: 'top', what: 'any', payLife: true }] },
     { re: /^Counter target spell\. Choose 1, 2, or 3 at random\. Its controller mills that many cards, then exiles cards from the top of their library until they exile a nonland card with a different name than that spell\. They may cast that card without paying its mana cost\. Then they put the exiled cards on the bottom of their library in a random order\.$/i,
       make: () => [{ op: 'tibaltsTrickery', targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] },
     /* Explore the Vastlands: "Each player looks at the top five cards of
@@ -10601,8 +10638,8 @@
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during an opponent'?s turn,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ notYourTurnOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}, m[2] ? { fromHandOnly: true } : {}) },
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
-    // (Ojer Pakpatiq: "an instant spell", "a sorcery spell")
-    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your hand,? /i, event: 'youCastSpell',
+    // (Ojer Pakpatiq: "an instant spell", "a sorcery spell"; Jodah, the Unifier: "a legendary spell")
+    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
@@ -10852,6 +10889,8 @@
     // Kefka, Ruler of Ruin: "Whenever an opponent loses life during your turn"
     { re: /^When(?:ever)? an opponent loses life during your turn,? /i, event: 'opponentLosesLife', extra: { yourTurnOnly: true } },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
+    // Emet-Selch of the Third Seat: "Whenever one or more opponents lose life" — once for what is lost together
+    { re: /^When(?:ever)? one or more opponents lose life,? /i, event: 'opponentLosesLife', extra: { batch: true } },
     // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
     { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     // Well of Ideas: "At the beginning of each other player's draw step," — everyone's but yours
@@ -12011,9 +12050,12 @@
         }
         /* "…you may draw that many cards. Do this only once each turn." The
            choice can only be taken once a turn, which for a "may" is the
-           same as the ability only working once a turn. */
+           same as the ability only working once a turn — once it has been
+           taken: a "no" leaves it there for a later trigger the same turn
+           (Emet-Selch of the Third Seat: mayOncePerTurn) */
+        let doOnce = false;
         if (/^you may .*\. Do this only once each turn\.?$/i.test(body)) {
-          oncePerTurn = true;
+          doOnce = true;
           body = body.replace(/\s*Do this only once each turn\.?$/i, '');
         }
         /* An intervening "if" clause (CR 603.4): the trigger only goes on the
@@ -12183,12 +12225,16 @@
         /* Shadrix Silverquill: "you may choose two" — the modes, or none of them, is the one question (mayModes) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'modal' && !parsed.effects[0].min && !parsed.effects[0].max &&
           /^you may choose (?:one|two|three)\b/i.test(body)) { parsed.effects[0].optional = true; anyNumber = true; }
+        // (the "may" asked as it resolves is the choice that is used up: mayOncePerTurn)
+        const mayOnce = doOnce && optional && !anyNumber;
+        if (doOnce && !mayOnce) oncePerTurn = true;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional: optional && !anyNumber,
           ...(trig.also2 ? { also2: trig.also2 } : {}),
           text: line, effects: parsed.effects, auto: parsed.auto, condition,
           atLevel: lvlHit ? +lvlHit[1] : undefined,
           objFilter: objFilter || undefined, oncePerTurn: oncePerTurn || undefined, onceEver: onceEver || undefined,
+          ...(mayOnce ? { mayOncePerTurn: true } : {}),
           ...(trig.extra || {}), ...(trig.extraOf ? trig.extraOf(line.match(trig.re)) : {}),
           intervening: !condition && /if |unless /i.test(body.split('.')[0] || ''),
         });
@@ -16150,6 +16196,10 @@
          a spell this way, pay life equal to its mana value rather than pay its mana cost." (exiledWith) */
       { re: /^During your turn, you may play cards exiled with CARDNAME\. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, payLife: true }, auto: true },
+      /* Tinybones, Bauble Burglar: "During your turn, you may play cards you don't own with stash counters on them
+         from exile, and mana of any type can be spent to cast those spells." (exiledCounter) */
+      { re: /^During your turn, you may play cards you don'?t own with ([a-z]+) counters on them from exile, and mana of any type can be spent to cast those spells\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), notOwned: true, what: 'any', duringYourTurn: true, anyMana: true }), auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       // Titania, Nature's Force: "You may play Forests from your graveyard."

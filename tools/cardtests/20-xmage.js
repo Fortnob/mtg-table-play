@@ -26700,4 +26700,283 @@ module.exports = (test) => {
     Q.toMain('A', 'endCombat'); Q.resolve();
     t.no(Q.asked.some(ch => ch.type === 'sacrifice' || ch.type === 'confirm' || ch.type === 'mode'), 'Caesar: no other creature, nothing asked');
   });
+
+  test('Commanders: Plargg and Nassari — each player digs to a nonland card, an opponent picks one, you cast the others free', (mk, t) => {
+    t.auto('Plargg and Nassari');
+    const setup = (players) => {
+      const M = mk({ library: Array(20).fill('Plains'), players });
+      M.toMain('B');
+      M.bf('A', 'Plargg and Nassari');
+      const div = M.top('A', 'Divination'), mtn = M.top('A', 'Mountain');
+      const bears = M.top('B', 'Grizzly Bears'), pl = M.top('B', 'Plains');
+      return { M, div, mtn, bears, pl };
+    };
+    // B denies A the Divination; A casts B's Bears for nothing
+    let { M, div, mtn, bears, pl } = setup();
+    let asked = null, offered = [];
+    M.answer('choose', (ch) => { asked = ch; return { picks: [div.id] }; });
+    M.answer('confirm', (ch) => { offered.push(ch.prompt); return { yes: true }; });
+    M.answer('confirm', (ch) => { offered.push(ch.prompt); return { yes: true }; });
+    M.nextTurn('A');
+    t.ok(asked && asked.playerId === 'B' && asked.purpose === 'denyExiled', 'Plargg and Nassari: B, the opponent, chooses');
+    t.eq(JSON.stringify((asked.items || []).map(x => x.id).sort()), JSON.stringify([div.id, bears.id].sort()), 'Plargg and Nassari: from the nonland cards exiled, not the lands');
+    t.zone(bears, 'battlefield', "Plargg and Nassari: B's Bears cast for nothing");
+    t.eq(bears.controller, 'A', 'Plargg and Nassari: under A\'s control');
+    t.zone(div, 'exile', 'Plargg and Nassari: the chosen card stays exiled');
+    t.zone(mtn, 'exile', 'Plargg and Nassari: the lands stay exiled');
+    t.zone(pl, 'exile');
+    t.eq(offered.length, 1, 'Plargg and Nassari: one card offered — not the chosen one, not a land');
+    // A says no: nothing cast
+    ({ M, div, mtn, bears, pl } = setup());
+    M.answer('choose', () => ({ picks: [bears.id] }));
+    M.answer('confirm', () => ({ yes: false }));
+    const h0 = M.zone('A', 'hand').length;
+    M.nextTurn('A');
+    t.zone(div, 'exile', 'Plargg and Nassari: declined, Divination stays exiled');
+    t.zone(bears, 'exile', 'Plargg and Nassari: the chosen Bears stay exiled');
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Plargg and Nassari: only the draw step\'s card');
+    // three players: A chooses the opponent who chooses; up to two spells cast
+    const T = mk({ library: Array(20).fill('Plains'), players: ['A', 'B', 'C'] });
+    T.toMain('C');
+    T.bf('A', 'Plargg and Nassari');
+    const d2 = T.top('A', 'Divination'), b2 = T.top('B', 'Grizzly Bears'), c2 = T.top('C', 'Centaur Courser');
+    let who = null, chooser = null;
+    T.answer('choose', (ch) => { who = ch; return { picks: ['C'] }; });
+    T.answer('choose', (ch) => { chooser = ch; return { picks: [d2.id] }; });
+    T.nextTurn('A');
+    t.ok(who && who.playerId === 'A' && who.purpose === 'chooseOpponent', 'Plargg and Nassari: with two opponents, A picks which one chooses');
+    t.ok(chooser && chooser.playerId === 'C', 'Plargg and Nassari: C chooses');
+    t.zone(b2, 'battlefield', "Plargg and Nassari: B's Bears cast");
+    t.zone(c2, 'battlefield', "Plargg and Nassari: C's Courser cast too — up to two");
+    t.zone(d2, 'exile', 'Plargg and Nassari: not the one C chose');
+  });
+
+  test("Commanders: Gríma, Saruman's Footman — that player digs to an instant or sorcery, A casts it free, the rest go under", (mk, t) => {
+    t.auto("Gríma, Saruman's Footman");
+    const setup = () => {
+      const M = mk({ library: Array(20).fill('Island') });
+      M.toMain('A');
+      const gr = M.bf('A', "Gríma, Saruman's Footman");
+      const sw = M.top('B', 'Swamp');
+      const div = M.top('B', 'Divination');
+      const bears = M.top('B', 'Grizzly Bears'), pl = M.top('B', 'Plains');
+      M.answer('declareAttackers', () => [{ attackerId: gr.id, defenderId: 'B' }]);
+      return { M, gr, sw, div, bears, pl };
+    };
+    let { M, sw, div, bears, pl } = setup();
+    const blk = M.bf('B', 'Grizzly Bears');
+    let prompt = null;
+    M.answer('confirm', (ch) => { prompt = ch.prompt; return { yes: true }; });
+    let h0 = M.zone('A', 'hand').length;
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.eq(blk.blocking.length, 0, "Gríma: can't be blocked");
+    t.eq(M.life('B'), 19, 'Gríma: 1 damage');
+    t.ok(/Divination/.test(prompt || ''), 'Gríma: A is offered the Divination');
+    t.eq(M.zone('A', 'hand').length - h0, 2, "Gríma: B's Divination cast by A, A draws two");
+    t.zone(div, 'graveyard', "Gríma: Divination goes to B's graveyard");
+    t.ok(M.zone('B', 'graveyard').includes(div), "Gríma: its owner's");
+    const lib = M.zone('B', 'library');
+    t.eq(lib[0], sw, 'Gríma: the Swamp under the Divination was never reached');
+    t.ok(lib.slice(-2).includes(bears) && lib.slice(-2).includes(pl), 'Gríma: the Plains and the Bears on the bottom');
+    // declined: the Divination goes to the bottom with the rest
+    ({ M, sw, div, bears, pl } = setup());
+    M.answer('confirm', () => ({ yes: false }));
+    h0 = M.zone('A', 'hand').length;
+    M.toMain('A', 'combatDamage'); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 0, 'Gríma: declined, nothing drawn');
+    t.zone(div, 'library', "Gríma: the Divination that wasn't cast goes back");
+    t.ok(M.zone('B', 'library').slice(-3).includes(div), 'Gríma: on the bottom');
+    t.eq(M.zone('B', 'exile').length, 0, 'Gríma: nothing left in exile');
+    // no instant or sorcery in the library: all of it exiled, all of it back, nothing asked
+    const N = mk({ library: Array(5).fill('Island') });
+    N.toMain('A');
+    const g2 = N.bf('A', "Gríma, Saruman's Footman");
+    N.answer('declareAttackers', () => [{ attackerId: g2.id, defenderId: 'B' }]);
+    const n0 = N.zone('B', 'library').length;
+    N.toMain('A', 'combatDamage'); N.resolve();
+    t.no(N.asked.some(ch => ch.type === 'confirm'), 'Gríma: nothing to cast, nothing asked');
+    t.eq(N.zone('B', 'library').length, n0, "Gríma: B's library all back");
+    t.eq(N.zone('B', 'exile').length, 0, 'Gríma: and none of it left in exile');
+  });
+
+  test('Commanders: Jodah, the Unifier — a legendary spell from hand digs to a cheaper legendary nonland card, cast free', (mk, t) => {
+    t.auto('Jodah, the Unifier');
+    const setup = () => {
+      const M = mk({ library: Array(20).fill('Island') });
+      M.toMain('A');
+      const jo = M.bf('A', 'Jodah, the Unifier');
+      const isl = M.top('A', 'Island');
+      const isa = M.top('A', 'Isamaru, Hound of Konda');
+      const shizo = M.top('A', "Shizo, Death's Storehouse");
+      const thalia = M.top('A', 'Thalia, Guardian of Thraben');
+      const pl = M.top('A', 'Plains');
+      return { M, jo, isl, isa, shizo, thalia, pl };
+    };
+    let { M, jo, isl, isa, shizo, thalia, pl } = setup();
+    t.eq(M.g.powerOf(jo), 6, 'Jodah, the Unifier: +1/+1 for the one legendary creature');
+    let prompt = null;
+    M.answer('confirm', (ch) => { prompt = ch.prompt; return { yes: true }; });
+    const sram = M.hand('A', 'Sram, Senior Edificer');
+    M.mana('A', '1W');
+    M.cast('A', sram);
+    t.ok(/Isamaru/.test(prompt || ''), 'Jodah, the Unifier: Isamaru (1) offered — not Thalia (2, not less than 2), not the legendary land');
+    t.zone(isa, 'battlefield', 'Jodah, the Unifier: Isamaru cast for nothing');
+    t.zone(sram, 'battlefield', 'Jodah, the Unifier: Sram resolves after');
+    t.eq(M.g.powerOf(jo), 8, 'Jodah, the Unifier: three legendary creatures, +3/+3');
+    const lib = M.zone('A', 'library');
+    t.eq(lib[0], isl, 'Jodah, the Unifier: the cards past Isamaru untouched');
+    t.ok([pl, thalia, shizo].every(c => lib.slice(-3).includes(c)), 'Jodah, the Unifier: the rest on the bottom');
+    // declined: Isamaru goes under with the rest
+    ({ M, jo, isl, isa, shizo, thalia, pl } = setup());
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', '1W');
+    M.cast('A', M.hand('A', 'Sram, Senior Edificer'));
+    t.ok(M.zone('A', 'library').slice(-4).includes(isa), 'Jodah, the Unifier: declined, Isamaru on the bottom too');
+    t.eq(M.zone('A', 'exile').length, 0, 'Jodah, the Unifier: nothing left in exile');
+    // a nonlegendary spell, or a legendary one cast from elsewhere than the hand: no trigger
+    ({ M, jo, isl, isa, shizo, thalia, pl } = setup());
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.zone(pl, 'library', 'Jodah, the Unifier: Grizzly Bears is not legendary');
+    t.eq(M.zone('A', 'exile').length, 0);
+    const ex = M.put('A', 'Sram, Senior Edificer', 'exile');
+    ex.impulseBy = 'A'; ex.impulseUntil = M.g.turn;
+    M.mana('A', '1W');
+    M.cast('A', ex);
+    t.zone(ex, 'battlefield', 'Jodah, the Unifier: Sram cast from exile');
+    t.zone(pl, 'library', 'Jodah, the Unifier: not from the hand, no trigger');
+  });
+
+  test('Commanders: Gwenom, Remorseless — attacking, the top of the library is playable this turn, spells paid in life', (mk, t) => {
+    t.auto('Gwenom, Remorseless');
+    const M = mk({ library: Array(20).fill('Swamp') });
+    M.toMain('A');
+    const gw = M.bf('A', 'Gwenom, Remorseless');
+    const opt = M.top('A', 'Opt');
+    t.no(M.g._topCardShown('A', 'A'), 'Gwenom: before it attacks, the top card is hidden');
+    t.no(M.g.playableNow('A').some(x => x.objId === opt.id), 'Gwenom: and not playable');
+    M.answer('declareAttackers', () => [{ attackerId: gw.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    t.ok(M.g._topCardShown('A', 'A'), 'Gwenom: A may look at the top card');
+    t.no(M.g._topCardShown('A', 'B'), 'Gwenom: B may not');
+    const pool0 = JSON.stringify(M.player('A').pool);
+    M.cast('A', opt);
+    t.eq(M.life('A'), 19, 'Gwenom: Opt cast for 1 life');
+    t.eq(JSON.stringify(M.player('A').pool), pool0, 'Gwenom: no mana spent');
+    // on to the second main phase: a land from the top, then a sorcery for life
+    const g = M.g;
+    for (let i = 0; i < 40 && !(g.phase.id === 'postcombat' && !g.stack.length && !g.pendingChoice); i++) { M.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    t.eq(M.life('B'), 16, 'Gwenom: 4 damage');
+    t.eq(M.life('A'), 23, 'Gwenom: lifelink');
+    const sw = M.top('A', 'Swamp');
+    M.playLand('A', sw);
+    t.zone(sw, 'battlefield', 'Gwenom: a land played from the top');
+    const div = M.top('A', 'Divination');
+    M.cast('A', div);
+    t.eq(M.life('A'), 20, 'Gwenom: Divination for 3 life');
+    // the next turn, it is over
+    M.nextTurn('A');
+    const top = M.top('A', 'Divination');
+    t.no(M.g.playableNow('A').some(x => x.objId === top.id), 'Gwenom: the next turn, no more');
+  });
+
+  test('Commanders: Emet-Selch of the Third Seat — opponents losing life lets A cast an instant or sorcery from the graveyard, once a turn', (mk, t) => {
+    t.auto('Emet-Selch of the Third Seat');
+    const setup = (players) => {
+      const M = mk({ library: Array(20).fill('Island'), players });
+      M.toMain('A');
+      M.bf('A', 'Emet-Selch of the Third Seat');
+      const div = M.grave('A', 'Divination');
+      return { M, div };
+    };
+    // Lightning Bolt at B: Divination from the graveyard for {U}, exiled afterwards
+    let { M, div } = setup();
+    M.mana('A', 'RU');
+    const h0 = M.zone('A', 'hand').length;
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(M.life('B'), 17);
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'Emet-Selch: Divination cast, two cards');
+    t.zone(div, 'exile', 'Emet-Selch: exiled instead of going to the graveyard');
+    t.eq(M.player('A').pool.U || 0, 0, 'Emet-Selch: {2} less, {U} paid');
+    // a second loss the same turn: nothing more
+    const d2 = M.grave('A', 'Divination');
+    M.mana('A', 'RU');
+    const asked0 = M.asked.length;
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.zone(d2, 'graveyard', 'Emet-Selch: only once each turn');
+    t.no(M.asked.slice(asked0).some(ch => ch.type === 'confirm'), 'Emet-Selch: and not asked');
+    // the next turn, again (the Divination, not a Lightning Bolt in the graveyard)
+    M.nextTurn('A');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: d2.id }] }));
+    M.mana('A', 'RU');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.zone(d2, 'exile', 'Emet-Selch: the next turn, once more');
+    // declining leaves it for later in the turn
+    ({ M, div } = setup());
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.zone(div, 'graveyard', 'Emet-Selch: declined');
+    M.mana('A', 'RU');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.zone(div, 'exile', 'Emet-Selch: declined once, taken the second time the same turn');
+    // A losing life is not an opponent losing life
+    ({ M, div } = setup());
+    M.mana('A', 'RU');
+    const a0 = M.asked.length;
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['A'] });
+    t.zone(div, 'graveyard', 'Emet-Selch: A losing life sets nothing off');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'confirm'), 'Emet-Selch: nothing asked');
+    // two opponents losing life together: one trigger
+    ({ M, div } = setup(['A', 'B', 'C']));
+    M.grave('A', 'Opt');
+    let n = 0;
+    M.answer('confirm', () => { n++; return { yes: false }; });
+    M.answer('confirm', () => { n++; return { yes: false }; });
+    M.mana('A', '3B');
+    M.cast('A', M.hand('A', 'Blood Tithe'));
+    t.eq(M.life('B') + M.life('C'), 34, 'Emet-Selch: Blood Tithe, both opponents lose 3');
+    t.eq(n, 1, 'Emet-Selch: one or more opponents, one trigger');
+  });
+
+  test('Commanders: Tinybones, Bauble Burglar — an opponent\'s discards exiled with stash counters, played on A\'s turn with any mana', (mk, t) => {
+    t.auto('Tinybones, Bauble Burglar');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.toMain('A');
+    const tb = M.bf('A', 'Tinybones, Bauble Burglar');
+    const div = M.hand('B', 'Divination');
+    M.mana('A', '3B');
+    M.activate('A', tb, 0);
+    t.zone(div, 'exile', 'Tinybones, Bauble Burglar: the discarded Divination exiled');
+    t.eq(div.counters.stash, 1, 'Tinybones, Bauble Burglar: with a stash counter');
+    // on B's turn, not A's to play
+    M.nextTurn('B');
+    t.no(M.g._mayPlayFromExile('A', div), "Tinybones, Bauble Burglar: not during B's turn");
+    t.no(M.g._mayPlayFromExile('B', div), 'Tinybones, Bauble Burglar: nor B, who owns it');
+    // A's turn: cast with black mana
+    M.nextTurn('A');
+    M.mana('A', 'BBB');
+    t.ok(M.g.playableNow('A').some(x => x.objId === div.id), "Tinybones, Bauble Burglar: B's Divination offered to A, {B}{B}{B} paying for {2}{U}");
+    const h0 = M.zone('A', 'hand').length;
+    M.cast('A', div);
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'Tinybones, Bauble Burglar: Divination cast with black mana, two cards');
+    t.zone(div, 'graveyard', "Tinybones, Bauble Burglar: to its owner's graveyard");
+    t.ok(M.zone('B', 'graveyard').includes(div));
+    // a land of B's discarded: played as A's land for the turn
+    const land = M.hand('B', 'Forest');
+    M.answer('discard', () => ({ cardIds: [land.id] }));
+    M.mana('A', '3B');
+    M.activate('A', tb, 0);
+    t.zone(land, 'exile');
+    M.playLand('A', land);
+    t.zone(land, 'battlefield', 'Tinybones, Bauble Burglar: a land played from exile');
+    t.eq(land.controller, 'A');
+    // A's own card with a stash counter in exile: not A's to play
+    const mine = M.put('A', 'Divination', 'exile');
+    mine.counters.stash = 1;
+    t.no(M.g._mayPlayFromExile('A', mine), "Tinybones, Bauble Burglar: only cards A doesn't own");
+    t.no(M.g.playableNow('A').some(x => x.objId === mine.id), 'Tinybones, Bauble Burglar: not offered');
+    // B's card in exile without a counter: not either
+    const plain = M.put('B', 'Divination', 'exile');
+    t.no(M.g._mayPlayFromExile('A', plain), 'Tinybones, Bauble Burglar: a card without a stash counter');
+  });
 };

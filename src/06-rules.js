@@ -499,6 +499,8 @@
     _anyColorCost(pid, o, cost) {
       // Hostage Taker: "mana of any type can be spent to cast that spell"
       if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
+      if (o && o.zone === 'exile' && o.owner !== pid && (this._playFromRule(pid, o, 'spell') || {}).anyMana) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Alchemy: "perpetually gains 'You may spend mana as though it were mana of any color to cast this spell'"
       if (o && (o.effects || []).some(e => e && e.perpetual && e.spendAny)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
@@ -2091,6 +2093,7 @@
       this._lastCopy = null;
       this._lastPut = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
+      this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
@@ -2479,8 +2482,13 @@
         (item.optional && only && !(item.targets || []).length && (only.targets || []).length &&
           (only.targets || []).some(sp => sp && !sp.upTo && !sp.multi && !sp.controllerId && sp.controller !== 'triggerPlayer' && !sp.notTriggerPlayer && !sp.defending && !sp.mvBelowTrigger &&
             !this._legalTargetsFor(sp, item.controller, item.objId || null).length));
-      const effects = gone ? [] : item.optional && !item._asked
-        ? [{ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }]
+      // (Emet-Selch of the Third Seat: "Do this only once each turn" — a second trigger waiting on the stack finds it taken: mayOncePerTurn)
+      const ab0 = item.obj && item.abilityIndex != null && item.abilityIndex >= 0 && !item.activated ? ((item.obj.analysis() || {}).abilities || [])[item.abilityIndex] : null;
+      const once = ab0 && ab0.mayOncePerTurn ? { objId: item.obj.id, i: item.abilityIndex } : null;
+      const taken = once && item.obj._mayOnce && item.obj._mayOnce[once.i] === this.turn;
+      if (taken) this.logEvent('trigger', `${item.name} does nothing — it has been done once this turn.`);
+      const effects = gone || taken ? [] : item.optional && !item._asked
+        ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }, once ? { onceMark: once } : {})]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
@@ -2829,7 +2837,8 @@
       return this._impulseOpen(o, playerId) ||
         (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn))) ||
         // Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth."
-        !!(o.exiledWithId && this._playFromRule(playerId, o, 'any'));
+        // (Tinybones, Bauble Burglar: "cards you don't own with stash counters on them" — exiledCounter)
+        !!this._playFromRule(playerId, o, 'any');
     }
     /** Cards in other players' exile that this player may play. */
     _borrowedExile(playerId) {
@@ -4144,13 +4153,16 @@
       const z = this.zones[playerId];
       // Valgavoth, Terror Eater: "cards exiled with Valgavoth" are somebody else's
       const exiled = !!(o && o.zone === 'exile' && o.exiledWithId);
-      if (!z || !o || (o.owner !== playerId && !exiled)) return null;
+      // Tinybones, Bauble Burglar: "cards you don't own with stash counters on them" — in exile, with a counter (exiledCounter)
+      const countered = !!(o && o.zone === 'exile' && Object.keys(o.counters || {}).some(k => Number(o.counters[k]) > 0));
+      if (!z || !o || (o.owner !== playerId && !exiled && !countered)) return null;
       const where = o.zone === 'library' ? (z.library[0] === o ? 'top' : null) : o.zone === 'graveyard' ? 'graveyard' : exiled ? 'exiledWith' : null;
-      if (!where) return null;
+      if (!where && !countered) return null;
       // Yawgmoth's Will: leave for the rest of this turn
-      const grant = ((this.player(playerId) || {}).playFromGrants || [])
+      const grant = where && ((this.player(playerId) || {}).playFromGrants || [])
         .find(g => g.turn === this.turn && g.zone === where && (g.what === 'any' || g.what === kind));
-      if (grant) return { op: 'playFrom', zone: where, what: grant.what };
+      // (Gwenom, Remorseless: "pay life equal to its mana value rather than pay its mana cost" — payLife)
+      if (grant) return Object.assign({ op: 'playFrom', zone: where, what: grant.what }, grant.payLife ? { payLife: true } : {});
       for (const src of this.battlefield) {
         if (src.controller !== playerId || src.phasedOut) continue;
         const a = src.analysis();
@@ -4158,7 +4170,9 @@
         for (const ab of a.abilities) {
           for (const ef of (ab.effects || [])) {
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
-            if ((ef.zone || 'top') !== where) continue;
+            if (ef.zone === 'exiledCounter') {
+              if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId)) continue;
+            } else if ((ef.zone || 'top') !== where) continue;
             if (where === 'exiledWith' && o.exiledWithId !== src.id) continue;
             const what = ef.what || 'any';
             if (what !== 'any' && what !== kind) continue;
@@ -12723,6 +12737,9 @@
           if (o._onceEver[i]) return;
           o._onceEver[i] = true;
         }
+        /* Emet-Selch of the Third Seat: "you may … Do this only once each turn" — taken already this turn,
+           there is nothing left for it to do (mayOncePerTurn) */
+        if (ab.mayOncePerTurn && o._mayOnce && o._mayOnce[i] === this.turn) return;
         // "This ability triggers only once each turn."
         if (ab.oncePerTurn) {
           o._onceTurn = o._onceTurn || {};
@@ -16907,6 +16924,8 @@
             prompt: e.prompt || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${whole(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
+          // ("Do this only once each turn": a yes uses it up for the turn — mayOncePerTurn)
+          if (yes && e.onceMark) { const ox = this.obj(e.onceMark.objId); if (ox) (ox._mayOnce = ox._mayOnce || {})[e.onceMark.i] = this.turn; }
           if (yes) this._spliceNext(e.then);
           // (an optional "instead": a no is the way the sentence before it said — mayOtherwise)
           else if ((e.otherwise || []).length) this._spliceNext(e.otherwise);
@@ -18474,7 +18493,7 @@
           this._lastExiled = x.id;
           // Mari, the Killing Quill: "exile it with a hit counter on it"
           if (e.counter && x.zone === 'exile') {
-            x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1;
+            x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
             this.logEvent('exile', `${x.name} is exiled with a ${e.counter} counter on it.`);
           } else this.logEvent('exile', `${x.name} is exiled.`);
           break;
@@ -19366,7 +19385,9 @@
            cast that spell", "…without paying its mana cost": what this
            resolution exiled, playable for as long as it says */
         case 'mayPlayExiled': {
-          const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
+          // (Stolen Goods: "that card" — the card the digging stopped at, not every card it went past: thatCard)
+          const ids = (e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
+            : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
           // Mission Briefing: "choose an instant or sorcery card in your graveyard. You may cast it this turn."
           const gy = !ids.length && this._lastAffected && this.obj(this._lastAffected.id);
@@ -19890,6 +19911,17 @@
 
         case 'restToBottom': case 'restToGraveyard': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
+          /* Jodah, the Unifier: "Put the rest on the bottom of your library in a random order."; Gríma, Saruman's
+             Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their
+             library in a random order." — what the digging exiled and is still there, to its owner's library (exileUntil) */
+          if (!pool.length && e.op === 'restToBottom' && this._exileUntil) {
+            const rest = this._exileUntil.ids.map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+            this._exileUntil = null;
+            if (!rest.length) break;
+            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
+            break;
+          }
           if (!pool.length) break;
           const z = this.zones[ctx.controller].library;
           const order = e.op === 'restToBottom' && e.random ? this.rng.shuffle(pool.slice()) : pool;
@@ -20525,12 +20557,17 @@
             : e.who === 'defending' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'target' ? [firstPlayer() || me]
             : e.who === 'triggerPlayer' ? [triggerPlayer() || me] : [me];
-          const out = [];
+          const out = [], hits = [];
+          /* Jodah, the Unifier: "until you exile a legendary nonland card with lesser mana value" — lesser
+             than the spell the trigger is about; with no such spell there is nothing to compare (untilWords) */
+          const td0 = ctx.triggerData || {};
+          const below = e.lesserMv ? (td0.objectId && this.obj(td0.objectId) ? n({ triggerSpellMv: true }) : null) : null;
+          if (e.lesserMv && below == null) break;
           for (const pl of who) {
             const lib = this.zones[pl.id].library;
             let total = 0;
             // (Ulamog, the Defiler: "the top half of their library" — counted once, before any card goes: exileHalfLibrary)
-            const want = e.untilNonland || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
+            const want = e.untilNonland || e.untilWords || e.totalMv != null ? Infinity : n(e.n || 1), most = Math.max(200, lib.length);
             for (let i = 0; i < most && lib.length; i++) {
               if (i >= want) break;
               const c = lib[0];
@@ -20538,13 +20575,39 @@
               out.push(c.id);
               const ca = c.analysis() || {};
               total += (c.card && c.card.cmc) || 0;
-              if (e.untilNonland && !ca.isLand) break;
+              if (e.untilNonland && !ca.isLand) { hits.push(c.id); break; }
+              // Gríma, Saruman's Footman: "until they exile an instant or sorcery card"
+              if (e.untilWords && this._cardFitsWords(c, e.untilWords) && (below == null || ((c.card && c.card.cmc) || 0) < below)) { hits.push(c.id); break; }
               if (e.totalMv != null && total >= e.totalMv) break;
             }
           }
+          // what "that card" is, and what "the rest" are, for the sentences after (exileUntil)
+          if (e.untilNonland || e.untilWords) this._exileUntil = { ids: out.slice(), hits };
           this._lastExiledList = out;
           if (out.length) this._lastExiled = out[out.length - 1];
           this.logEvent('exile', `${out.length} card${out.length === 1 ? ' is' : 's are'} exiled from the top of ${who.length > 1 ? 'each library' : 'the library'}.`);
+          break;
+        }
+        /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way." — the opponent is yours to
+           pick (asked only with more than one), and the card theirs; it is the one you can't cast after */
+        case 'opponentChoosesExiled': {
+          const pool = ((this._lastExiledList || []).map(id => this.obj(id)))
+            .filter(c => c && c.zone === 'exile' && (!e.filter || this._cardFitsWords(c, e.filter)));
+          if (!pool.length) break;
+          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          if (!opps.length) break;
+          const who = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
+            items: this._choosePlayers(opps), min: 1, max: 1,
+            prompt: `Choose an opponent. They choose ${e.filter ? 'a ' + e.filter : 'a'} card exiled this way, which you can't cast.` }, 'oceWho');
+          if (who === SUSPEND) return SUSPEND;
+          const q = this.player(who && who.picks && who.picks[0]) || opps[0];
+          const got = this._choose({ playerId: q.id, purpose: 'denyExiled', kind: 'objects', zone: 'exile',
+            items: this._chooseItems(pool), min: 1, max: 1, forPlayer: ctx.controller,
+            prompt: `Choose ${e.filter ? 'a ' + e.filter : 'a'} card exiled this way. ${me.name} may cast spells from among the others without paying their mana costs, but not this one.` }, 'oceCard');
+          if (got === SUSPEND) return SUSPEND;
+          const c = this.obj(got && got.picks && got.picks[0]) || pool[0];
+          this._exiledChosen = c.id;
+          this.logEvent('rules', `${q.name} chooses ${c.name}.`);
           break;
         }
         /* "You may cast any number of spells from among those cards without
@@ -20563,7 +20626,11 @@
               : e.from === 'looked' ? (this._looked || []).slice()
               // Malcolm, Alluring Scoundrel: "the discarded card" — what you discarded as this resolved, still in your graveyard (castDiscarded)
               : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
+              // Gríma, Saruman's Footman, Jodah, the Unifier: "You may cast that card without paying its mana cost." — the card the digging stopped at (thatCard)
+              : e.from === 'thatCard' ? (this._exileUntil ? this._exileUntil.hits.slice(-1) : [this._lastExiled].filter(Boolean))
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
+            // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
+            if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
             if (r) { r.marks[slot] = pool; r.marks[slot + 'n'] = 0; }
           }
           if (pool === SUSPEND) { if (r) delete r.marks[slot]; return SUSPEND; }
@@ -21065,8 +21132,12 @@
           break;
         // Yawgmoth's Will: play from the graveyard for the rest of the turn
         case 'playFromThisTurn': {
+          /* Gwenom, Remorseless, The Belligerent: "until end of turn, you may look at the top card of your library
+             any time and you may play cards from the top of your library" — and Gwenom's "If you cast a spell this
+             way, pay life equal to its mana value rather than pay its mana cost" (payLife) */
           me.playFromGrants = (me.playFromGrants || []).filter(g => g.turn === this.turn)
-            .concat([{ turn: this.turn, zone: e.zone || 'graveyard', what: e.what || 'any' }]);
+            .concat([Object.assign({ turn: this.turn, zone: e.zone || 'graveyard', what: e.what || 'any' }, e.payLife ? { payLife: true } : {})]);
+          if (e.zone === 'top') this.logEvent('rules', `${me.name} may play cards from the top of their library this turn${e.payLife ? ', paying life rather than mana for spells' : ''}.`);
           this.bumpBoard();
           break;
         }
