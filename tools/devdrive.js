@@ -51,6 +51,7 @@ window.__step = async function (stop, ms, opts) {
           sacrifice: () => ({ cardIds: v.battlefield.filter(o => o.controller === t.meId).slice(0, ch.count || 1).map(o => o.id) }),
           vote: () => ({ choice: (ch.options || [])[0] }),
           riot: () => ({ haste: true }),
+          byHand: () => ({ done: true }),
         };
         if (answers[ch.type]) { t.send({ kind: 'choice', data: answers[ch.type]() }); await sleep(400); continue; }
       }

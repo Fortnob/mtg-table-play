@@ -192,6 +192,8 @@ const CHOICES = {
   payOrDont: choice({ cost: either('a mana cost, { life } or { energy }', str, obj({ life: num }), obj({ energy: num })) }),
   payOrCounter: choice({ cost: str, stackId: id }),
   riot: choice({ objId: id }),
+  /* a part of a card the engine cannot do, done on the table by its controller, who says when it is done (_byHand) */
+  byHand: choice({ text: str }),
   vote: choice({ options: arr(str, { min: 1 }) }),
   /* The general question (src/06a-choice.js); its own check() does the rest. */
   choose: choice({
@@ -238,6 +240,7 @@ const ANSWERS = {
   payOrDont: obj({ pay: opt(bool) }, { closed: true }),
   payOrCounter: obj({ pay: opt(bool) }, { closed: true }),
   riot: obj({ haste: opt(bool) }, { closed: true }),
+  byHand: obj({ done: opt(bool) }, { closed: true }),
   vote: obj({ choice: opt(str) }, { closed: true }),
   mode: obj({ modes: opt(arr(int)) }, { closed: true }),
   pickCard: obj({ cardIds: opt(ids), cardId: opt(id) }, { closed: true }),

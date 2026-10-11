@@ -89,6 +89,8 @@ function defaultAnswer(g, ch) {
     case 'scry': case 'surveil': return g.resolveChoice(pid, { top: (ch.cards || []).map(c => c.id), bottom: [] });
     case 'arrange': return g.resolveChoice(pid, { top: (ch.cards || []).map(c => c.id) });
     case 'riot': return g.resolveChoice(pid, { haste: false });
+    // done by hand: nothing to do at a test table but say it is done
+    case 'byHand': return g.resolveChoice(pid, { done: true });
     case 'vote': return g.resolveChoice(pid, { choice: (ch.options || [])[0] });
     case 'orderTriggers': return g.resolveChoice(pid, { top: [] });
     // the generic question: the first legal answer, the fewest picks or the smallest number
