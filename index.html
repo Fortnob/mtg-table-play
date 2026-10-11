@@ -26797,7 +26797,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         how: /three/i.test(m[3]) ? 'triple' : 'double', tokenWhat: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* Peregrin Took, Xorn, Chatterfang: those tokens, and one more of another kind */
     // (Tippy-Toe, Terrific Partner: "If you would create one or more tokens, …" — any kind: tokensPlusAny)
-    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
+    // (Queen Allenal of Ruadach: "those tokens plus a 1/1 white Soldier creature token are created instead" — tokensPlusA)
+    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
         const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
         let extra = null;
@@ -28771,6 +28772,26 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return l || 'not_legal';
   }
 
+  /**
+   * What a deck made at a draft or from sealed packs is kept as once saved:
+   * a deck is never of a draft's own kind. With a commander, Commander;
+   * otherwise the first of Standard, Pioneer, Modern, Legacy and Vintage
+   * that every card of it is legal in (its size aside: forty cards make a
+   * start), and Vintage when none is.
+   */
+  const KEEP_AS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage'];
+  function keepAs(deck) {
+    if ((deck.commanders || []).length) return 'commander';
+    const cards = (deck.main || []).map(e => e.card).filter(c => c && !isBasicLand(c));
+    for (const id of KEEP_AS) {
+      const f = FORMATS[id];
+      if (f && cards.every(c => { const l = legalityOf(c, f); return l === 'legal' || l === 'restricted'; })) return id;
+    }
+    return 'vintage';
+  }
+  /** The formats a deck can be: every one but a draft's or sealed's own. */
+  const deckFormats = () => FORMAT_ORDER.map(id => FORMATS[id]).filter(f => f.kind !== 'limited');
+
   /** Color identity of a card, as Scryfall computes it (includes text-box pips). */
   function colorIdentity(card) { return card.color_identity || []; }
 
@@ -29355,7 +29376,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
     validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
     houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel, freeMulligansFor, firstPlayerDrawsFor,
-    isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion,
+    isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion, keepAs, deckFormats,
     commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
     isLimited: (id) => FORMATS[id] && FORMATS[id].kind === 'limited',
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),
@@ -85225,12 +85246,26 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   const decks = MTG.decks = {
     /** How a deck's picture is chosen (UI.keyCard); a picture worked out the old way is worked out again. 2: no legendary creature for a deck with no commander. */
     ART_V: 2,
+    /** How the formats a deck is legal in are worked out (legalIn); a deck worked out the old way, or never, is worked out again. */
+    LEGAL_V: 1,
+    /**
+     * Every format the deck can be played in as it is: its cards, its size
+     * and its commanders all as that format asks (MTG.formats.validate). A
+     * Standard deck is a Pioneer deck too, while every card is legal there.
+     */
+    legalIn(deck) {
+      return MTG.formats.deckFormats().filter(f => {
+        try { return MTG.formats.validate(deck, f.id).ok; } catch (e) { return false; }
+      }).map(f => f.id);
+    },
     index() { return MTG.store.get('deckindex', []); },
     _writeIndex(idx) { MTG.store.set('deckindex', idx); },
 
     save(deck) {
+      // a deck drafted or opened is kept as the constructed format it fits (the deck itself plays on as it is)
+      const format = MTG.formats.isLimited(deck.format) ? MTG.formats.keepAs(deck) : deck.format;
       const slim = {
-        id: deck.id, name: deck.name, format: deck.format,
+        id: deck.id, name: deck.name, format,
         main: deck.main.map(e => ({ id: e.card.id, q: e.qty })),
         side: (deck.sideboard || []).map(e => ({ id: e.card.id, q: e.qty })),
         cmd: (deck.commanders || []).map(c => c.id),
@@ -85249,7 +85284,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const e of deck.main) for (const c of (e.card.color_identity || [])) idColors.add(c);
       for (const c of (deck.commanders || [])) for (const x of (c.color_identity || [])) idColors.add(x);
       const meta = {
-        id: deck.id, name: deck.name, format: deck.format,
+        id: deck.id, name: deck.name, format,
         size: U.sum(deck.main.map(e => e.qty)) + (deck.commanders || []).length,
         commander: (deck.commanders || []).map(c => c.name).join(' + ') || null,
         identity: MTG.mana.COLORS.filter(c => idColors.has(c)),
@@ -85260,12 +85295,35 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         auto: autoMeta(deck),
         // and, for a Commander deck, what it leans on and how popular its commander is
         themes: themeMeta(deck),
+        // and every format it can be played in, the one it was saved as or not
+        legalIn: decks.legalIn(Object.assign({}, deck, { format })), legalV: decks.LEGAL_V,
         createdAt: (i >= 0 && idx[i].createdAt) || deck.createdAt || slim.updatedAt,
         updatedAt: slim.updatedAt,
       };
       if (i >= 0) idx[i] = meta; else idx.push(meta);
       decks._writeIndex(idx);
       return meta;
+    },
+
+    /**
+     * Decks saved before the index knew what it knows now, each loaded and
+     * written again, once: one saved under a draft's or sealed's own kind
+     * settles as the constructed format it fits, and one with no list of the
+     * formats it is legal in gets it. Its time of saving is kept.
+     */
+    async settle() {
+      const stale = decks.index().filter(x => MTG.formats.isLimited(x.format) || x.legalV !== decks.LEGAL_V);
+      for (const d of stale) {
+        const full = await decks.load(d.id).catch(() => null);
+        if (!full) continue;
+        decks.save(full);
+        // written again, not changed: it keeps its place among the decks
+        const idx = decks.index();
+        const at = idx.find(x => x.id === d.id);
+        if (at && d.updatedAt) { at.updatedAt = d.updatedAt; decks._writeIndex(idx); }
+        const slim = MTG.store.get('deck.' + d.id, null);
+        if (slim && d.updatedAt) { slim.updatedAt = d.updatedAt; MTG.store.set('deck.' + d.id, slim); }
+      }
     },
 
     async load(id) {
@@ -85350,6 +85408,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const fmt = MTG.formats.get(fmtId);
       return decks.index().filter(d => {
         if (d.format === fmtId) return true;
+        // legal there as it is, whatever it was saved as: a Standard deck plays in Pioneer while every card is legal there
+        if ((d.legalIn || []).includes(fmtId)) return true;
         // a commander list plays in either Commander or Commander Draft (Brawl and Oathbreaker decks are their own shape)
         if (fmt && fmt.commander && ['commander', 'cmdrdraft'].includes(fmtId)) return ['commander', 'cmdrdraft'].includes(d.format);
         return false;
@@ -85516,7 +85576,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   UI.importDeck = function (formatId, onDone) {
     const ta = el('textarea', { rows: 16, placeholder: PLACEHOLDER, spellcheck: 'false' });
     const nameInput = el('input', { type: 'text', placeholder: 'Deck name (optional)' });
-    const fmtSelect = el('select', null, MTG.formats.list().map(f =>
+    const fmtSelect = el('select', null, MTG.formats.deckFormats().map(f =>
       el('option', { value: f.id, text: f.name, selected: f.id === formatId })));
     const setInput = el('input', { type: 'text', placeholder: 'e.g. MH3 - leave blank to keep each list’s printing' });
     const status = el('div', { class: 'small muted' });
@@ -86187,7 +86247,8 @@ Sideboard
       nameInput.addEventListener('input', () => { deck.name = nameInput.value; m.setTitle(titleOf()); });
       // a new deck opens ready to be named (a phone waits for a tap, so its keyboard does not cover the deck)
       if (focusName) setTimeout(() => { focusName = false; if (nameInput.isConnected) nameInput.focus(); }, 60);
-      const fmtSel = el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
+      // a deck's format is never a draft's own kind; a drafted deck's is shown, fixed, as it is played
+      const fmtSel = el('select', { 'aria-label': 'Format' }, MTG.formats.list().filter(f => f.kind !== 'limited' || (drafted && f.id === deck.format)).map(f =>
         el('option', { value: f.id, text: f.name, selected: f.id === deck.format })));
       fmtSel.addEventListener('change', () => { deck.format = fmtSel.value; render(); });
       if (drafted) fmtSel.disabled = true;
@@ -87733,7 +87794,7 @@ Sideboard
     const main = data.size - sideboard;
     const known = knownFormat(data.format);
     // a format this table has never heard of (a newer table's, say): the player picks one
-    const fmtSel = known ? null : el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
+    const fmtSel = known ? null : el('select', { 'aria-label': 'Format' }, MTG.formats.deckFormats().map(f =>
       el('option', { value: f.id, text: f.name, selected: f.id === (data.commanders.length ? 'commander' : 'standard') })));
     const fmtName = known ? MTG.formats.get(data.format).name : null;
     const facts = [
@@ -98390,6 +98451,8 @@ Sideboard
 
   /* ================= boot ================= */
   App.boot = function () {
+    // decks saved by an older build: settled in the background, once (src/11-ui-deck.js)
+    setTimeout(() => { if (MTG.decks && MTG.decks.settle) MTG.decks.settle().catch(() => {}); }, 4000);
     App.myName = MTG.settings.playerName || randomName();
     App.myId = 'me';
     MTG.applyDisplaySettings();
@@ -100397,7 +100460,8 @@ Sideboard
   /** A deck from nothing: straight into the editor, which is where it is named. */
   function newDeck() {
     UI.deckBuilder({
-      id: MTG.uid('deck'), name: '', format: App.formatId,
+      // the format last played, unless that was a draft's: a deck is never of a draft's kind
+      id: MTG.uid('deck'), name: '', format: MTG.formats.isLimited(App.formatId) ? 'standard' : App.formatId,
       main: [], sideboard: [], commanders: [], companion: null,
     }, { onSave: () => renderDecks(), untitled: untitledName(), nameFirst: true });
   }
