@@ -8598,6 +8598,11 @@
         const se = !s.phasedOut && this._staticOp(s, 'subtypeEvasion');
         if (se && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
       }
+      // Sidar Kondo of Jamuraa: an opponent's blocker without flying or reach, against a creature with power 2 or less (smallUnblockable)
+      for (const s of this.battlefield) {
+        const ck = !s.phasedOut && blocker.controller !== s.controller && this._staticOp(s, 'oppCantBlockSmall');
+        if (ck && this.powerOf(attacker) <= ck.maxPower && !ck.unless.some(k => this.hasKw(blocker, k))) return false;
+      }
       for (const s of this.battlefield) {
         if (s.controller !== attacker.controller || s.phasedOut) continue;
         const g = this._staticOp(s, 'groupEvasion');

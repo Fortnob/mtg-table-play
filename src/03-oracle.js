@@ -15076,6 +15076,9 @@
       // Dream Prowler: "can't be blocked as long as it's attacking alone"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked as long as it'?s attacking alone\.?$/i,
         eff: { op: 'evasion', attackingAlone: true }, auto: true },
+      // Sidar Kondo of Jamuraa: "Creatures your opponents control without flying or reach can't block creatures with power 2 or less." (smallUnblockable)
+      { re: /^Creatures your opponents control without flying or reach can'?t block creatures with power (\d+) or less\.?$/i,
+        make: (m) => ({ op: 'oppCantBlockSmall', maxPower: +m[1], unless: ['flying', 'reach'] }), auto: true },
       // Goblin Mutant: "can't block creatures with power 3 or greater"
       { re: /^(?:CARDNAME|This creature) can'?t block creatures with power (\d+) or greater\.?$/i,
         make: (m) => ({ op: 'blockPowerLimit', min: +m[1] }), auto: true },

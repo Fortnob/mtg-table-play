@@ -23468,4 +23468,18 @@ module.exports = (test) => {
     t.eq(V.zone('A', 'graveyard').length - g0, 2, 'Varina: two cards discarded');
     t.eq(V.life('A'), 22, 'Varina: and 2 life');
   });
+
+  test('Commanders: Sidar Kondo of Jamuraa — small creatures go unblocked by the earthbound', (mk, t) => {
+    t.auto('Sidar Kondo of Jamuraa');
+    const S = mk({ library: Array(20).fill('Plains') });
+    S.bf('A', 'Sidar Kondo of Jamuraa');
+    const elf = S.bf('A', 'Llanowar Elves'), gi = S.bf('A', 'Hill Giant');
+    const bear = S.bf('B', 'Grizzly Bears'), drake = S.bf('B', 'Wind Drake');
+    const mine = S.bf('A', 'Grizzly Bears'), foeElf = S.bf('B', 'Llanowar Elves');
+    S.g.bumpBoard();
+    t.ok(!S.g.couldBlock(bear, elf, 'B'), "Sidar Kondo: B's Bears can't block the 1-power Elves");
+    t.ok(S.g.couldBlock(drake, elf, 'B'), "Sidar Kondo: B's Wind Drake (flying) can");
+    t.ok(S.g.couldBlock(bear, gi, 'B'), "Sidar Kondo: B's Bears can block the 3-power Giant");
+    t.ok(S.g.couldBlock(mine, foeElf, 'A'), "Sidar Kondo: A's own Bears are not held back");
+  });
 };
