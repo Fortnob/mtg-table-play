@@ -424,7 +424,7 @@
       el('button', {
         class: 'brand', title: 'Back to the main menu',
         onclick: () => goHome(),
-        html: '<span class="brand-mark">M</span><span class="brand-name">MTG Table</span>',
+        html: `<span class="brand-mark brand-logo">${logoSvg()}</span><span class="brand-name">MTG Table</span>`,
       }),
       el('div', { class: 'crumbs', id: 'crumbs' }),
       // the four places in the app, always one click away, the way a game's
@@ -1357,11 +1357,32 @@
       // house rules of your own for this format: by the book, or one of them
       const presets = MTG.formats.presets.forFormat(q.formatId);
       if (q.preset && !presets.some(p => p.name === q.preset)) q.preset = '';
-      if (presets.length) {
-        const pSel = el('select', { 'aria-label': 'House rules' }, [el('option', { value: '', text: 'By the book' })]
-          .concat(presets.map(p => el('option', { value: p.name, text: p.name, selected: p.name === q.preset }))));
-        pSel.addEventListener('change', () => { q.preset = pSel.value; saveQuick(q); draw(); });
-        colB.appendChild(field('House rules', pSel));
+      let rulesField = null;
+      const canBend = MTG.formats.houseFields(q.formatId).length > 0;
+      if (presets.length || canBend) {
+        const parts = [];
+        if (presets.length) {
+          const pSel = el('select', { 'aria-label': 'House rules' }, [el('option', { value: '', text: 'By the book' })]
+            .concat(presets.map(p => el('option', { value: p.name, text: p.name, selected: p.name === q.preset }))));
+          pSel.addEventListener('change', () => { q.preset = pSel.value; saveQuick(q); draw(); });
+          parts.push(pSel);
+        }
+        // the chosen set to change, or a new one; a set just written (or renamed) is the one chosen after
+        if (canBend) {
+          parts.push(el('button', {
+            type: 'button', class: 'btn sm house-btn', html: `${SVG.gear}<span>${q.preset ? 'Edit rules' : presets.length ? 'New rules' : 'Set house rules'}</span>`,
+            onclick: () => {
+              const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
+              editRulePreset(q.formatId, pr, () => {
+                const now = MTG.formats.presets.forFormat(q.formatId);
+                const added = now.find(p => !presets.some(o => o.name === p.name));
+                if (added) q.preset = added.name;
+                saveQuick(q); draw();
+              });
+            },
+          }));
+        }
+        rulesField = field('House rules', el('div', { class: 'house-row' }, parts));
       }
       if (!limited) {
         colB.appendChild(field('Deck', deckPick));
@@ -1418,6 +1439,7 @@
         colB.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
         if (openField) colB.appendChild(openField);
       }
+      if (rulesField) colB.appendChild(rulesField);
 
       const go = el('button', {
         class: 'btn primary hero-btn', html: `${SVG.play}<span>Play</span>`,
@@ -1448,6 +1470,8 @@
       const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
       const fx = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
       const players = q.opponents + 1;
+      // nothing to play with yet: the deck picker offers to make one, and the button waits for it
+      if (!limited && !q.deckId) { go.disabled = true; go.title = 'Make a deck for this format first'; }
       // the button under the choices it acts on; the summary in the painted column beside them
       colB.appendChild(el('div', { class: 'quick-play' }, [go]));
       panel.append(colA, colB, el('div', { class: 'quick-go' }, [
@@ -1462,6 +1486,16 @@
     draw();
     return panel;
   }
+
+  /**
+   * The logo: a round table seen from above, gold-rimmed, with two cards on
+   * it, one face down and one face up, and the five colours round its rim
+   * in the order of the colour wheel.
+   */
+  function logoSvg() {
+    return '<svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false"><defs><radialGradient id="mtgLogoTop" cx=".5" cy=".4" r=".62"><stop offset="0" stop-color="#2b3550"/><stop offset=".75" stop-color="#121722"/><stop offset="1" stop-color="#0a0d13"/></radialGradient><linearGradient id="mtgLogoGold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3c4"/><stop offset=".45" stop-color="#e2b84f"/><stop offset="1" stop-color="#8a6416"/></linearGradient><linearGradient id="mtgLogoCard" x1="0" y1="0" x2=".6" y2="1"><stop offset="0" stop-color="#fbe7a6"/><stop offset=".55" stop-color="#d9a93d"/><stop offset="1" stop-color="#9a6e18"/></linearGradient></defs><circle cx="20" cy="20" r="16.4" fill="url(#mtgLogoTop)" stroke="url(#mtgLogoGold)" stroke-width="2.4"/><circle cx="20" cy="20" r="12.6" fill="none" stroke="#e2b84f" stroke-opacity=".3" stroke-width=".7"/><rect x="12.6" y="12.4" width="9.4" height="13.2" rx="1.4" fill="#3b2a10" stroke="url(#mtgLogoGold)" stroke-width="1" transform="rotate(-15 17.3 19)"/><rect x="18" y="12.6" width="9.4" height="13.2" rx="1.4" fill="url(#mtgLogoCard)" stroke="#fff3c4" stroke-width=".7" transform="rotate(12 22.7 19.2)"/><path d="M22.7 15.6l1.7 3.6-1.7 3.6-1.7-3.6z" fill="#3b2a10" transform="rotate(12 22.7 19.2)"/><g stroke="#0a0d13" stroke-width="1.1"><circle cx="20" cy="3.6" r="3" fill="#f6eed2"/><circle cx="35.6" cy="14.9" r="3" fill="#3d93db"/><circle cx="29.6" cy="33.3" r="3" fill="#4a3e52"/><circle cx="10.4" cy="33.3" r="3" fill="#e0533b"/><circle cx="4.4" cy="14.9" r="3" fill="#3aa463"/></g></svg>';
+  }
+  App.logoSvg = logoSvg;
 
   /** A starter deck's picture: its cover card's art. */
   function starterArt(node, st) {
@@ -1487,13 +1521,20 @@
       // the painting across the whole row, its face's eyes in the middle; a deck of your own looked at here if need be
       it ? UI.focusFace(it.art(el('span', { class: 'qdp-art', 'aria-hidden': 'true' })), null, { scan: it.mine }) : el('span', { class: 'qdp-art none', 'aria-hidden': 'true' }),
       el('span', { class: 'qdp-text' }, [
-        el('b', { text: it ? it.name : 'A deck built for you' }),
-        el('span', { text: it ? it.sub : `No ${fmt.name} decks yet` }),
+        el('b', { text: it ? it.name : 'Choose a deck' }),
+        el('span', { text: it ? it.sub : `${fmt.name}` }),
       ]),
     ];
-    const btn = el('button', { type: 'button', class: 'deck-pick', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': `Deck: ${cur ? cur.name : 'a deck built for you'}` },
-      [...face(cur), items.length ? el('span', { class: 'qdp-chev', 'aria-hidden': 'true' }) : null].filter(Boolean));
-    if (!items.length) { btn.disabled = true; return btn; }
+    // no deck at all for the format: an offer to make one, on the Decks screen
+    if (!items.length) {
+      return el('button', { type: 'button', class: 'deck-pick deck-pick-none', onclick: () => showScreen('decks') }, [
+        el('span', { class: 'qdp-art none', 'aria-hidden': 'true' }),
+        el('span', { class: 'qdp-text' }, [el('b', { text: 'Create one now' }), el('span', { text: `No ${fmt.name} decks yet` })]),
+        el('span', { class: 'qdp-go', 'aria-hidden': 'true', html: SVG.arrow || '\u203a' }),
+      ]);
+    }
+    const btn = el('button', { type: 'button', class: 'deck-pick', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': `Deck: ${cur ? cur.name : 'none chosen'}` },
+      [...face(cur), el('span', { class: 'qdp-chev', 'aria-hidden': 'true' })]);
     let menu = null;
     const close = () => {
       if (!menu) return;
@@ -1765,7 +1806,7 @@
         el('p', { class: 'small muted', text: 'Paste an export from Moxfield, Archidekt, MTGGoldfish, TappedOut, Deckstats, EDHREC or MTG Arena — or just a list of card names, one per line.' }),
         el('div', { class: 'row', style: { justifyContent: 'center' } }, [
           importBtn(),
-          el('button', { class: 'btn', text: 'Start from nothing', onclick: () => newDeck() }),
+          el('button', { class: 'btn', text: 'Create a deck', onclick: () => newDeck() }),
         ]),
       ]);
       decorArt(empty.firstChild, TILE_ART.decks);
