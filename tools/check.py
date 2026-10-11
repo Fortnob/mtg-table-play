@@ -260,6 +260,8 @@ def steps(quick):
         Step('tournaments', node(TOOLS / 'tournamenttest.js'), judge_exit, 180),
         # Commander brackets: what moves a deck up, where decks land, a table's bracket turning one away
         Step('brackets', node(TOOLS / 'brackettest.js'), judge_exit, 300, needs_bulk=True),
+        # what a Commander deck leans on: single cards, whole decks, and the Store's printed decks read ahead
+        Step('themes', node(TOOLS / 'themetest.js'), judge_exit, 300),
         # match play: the game clock on a real game, the record of games, the table writing it
         Step('match', node(TOOLS / 'matchtest.js'), judge_exit, 300, needs_bulk=True),
         # deck links, sample hands and their odds, the practice game's Goldfish, card rulings
