@@ -38,14 +38,28 @@
     { id: 'thorns', name: 'Thorns', price: 1500, text: 'A twisted vine, its thorns standing out.' },
     { id: 'frost', name: 'Frost', price: 1500, text: 'Cold metal, shards of ice, a pale glow.' },
     { id: 'sylvan', name: 'Sylvan', price: 1500, text: 'A ring of wood in a wreath of leaves.' },
+    { id: 'obsidian', name: 'Obsidian', price: 1500, text: 'Black glass edged in gold, a stud at each diagonal.' },
+    { id: 'moonsilver', name: 'Moonsilver', price: 1500, text: 'Polished silver, a crescent moon over it.' },
     { id: 'tidal', name: 'Tidal', price: 2000, text: 'The sea, and a turning ring of foam.' },
     { id: 'bloodmoon', name: 'Blood Moon', price: 2000, text: 'Crimson, with a slow red pulse.' },
+    { id: 'briar', name: 'Briar Rose', price: 2000, text: 'A thorned vine, and five roses on it.' },
+    { id: 'jade', name: 'Jade', price: 2000, text: 'Carved green stone, bound in gold.' },
+    { id: 'laurel', name: 'Laurel', price: 2000, text: 'A gold wreath for a winner, tied in red.' },
     { id: 'ember', name: 'Ember', price: 2500, text: 'A ring of fire, flames licking off it.' },
     { id: 'arcane', name: 'Arcane', price: 2500, text: 'Runes turning one way, a dotted circle the other.' },
     { id: 'sunburst', name: 'Sunburst', price: 2500, text: 'White gold, and rays all round.' },
+    { id: 'crystal', name: 'Amethyst Crystal', price: 2500, text: 'Violet facets, crystals growing out of it.' },
+    { id: 'storm', name: 'Stormcrown', price: 2500, text: 'Turning cloud, and lightning now and then.' },
+    { id: 'neon', name: 'Neon', price: 2500, text: 'A pink tube alight, humming.' },
+    { id: 'phyrexian', name: 'Phyrexian', price: 2500, text: 'Bone and oil, claws curling off it.' },
+    { id: 'nyx', name: 'Nyx', price: 2500, text: 'The night sky of Theros, stars coming and going.' },
+    { id: 'hedron', name: 'Hedron', price: 2500, text: 'Rune-lit stone, hedrons pointing out from it.' },
     { id: 'void', name: 'Void', price: 4000, text: 'A dark ring in a turning violet nebula.' },
     { id: 'prismatic', name: 'Prismatic', price: 4000, text: 'Every colour, moving round.' },
     { id: 'orbit', name: 'Orbit', price: 4000, text: 'A midnight ring, and a star going round it.' },
+    { id: 'aurora', name: 'Aurora', price: 4000, text: 'Green and violet light, turning, a haze beyond.' },
+    { id: 'five', name: 'Five Colours', price: 4000, text: 'The five colours round, a jewel of each.' },
+    { id: 'eclipse', name: 'Eclipse', price: 4000, text: 'A black sun, its corona turning, a diamond of light.' },
   ];
   /** Another printing's art for a card you own, by rarity (one you pulled is free). */
   const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
@@ -1211,13 +1225,14 @@
   function noteSleeveArt(id, url) { load(); if (url && state.sleeves.art[id] !== url) { state.sleeves.art[id] = url; save(); } }
   /**
    * The sleeve you wear, as something another player can draw too:
-   * { id, kind, css | art | img, rim }, or null for the plain back.
+   * { id, kind, art | img, rim } (a woven one by its id alone), or null for the plain back.
    */
   function sleeveWorn() {
     load();
     const sl = sleeveById(state.sleeves.on);
     if (!sl) return null;
-    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
+    // a woven one goes by its name alone: its picture is long, and every player has it already
+    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', rim: sl.rim };
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
     if (!state.sleeves.custom) return null;
     const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };

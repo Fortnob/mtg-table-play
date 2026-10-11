@@ -1388,7 +1388,8 @@
   /** What a sleeve draws with: a background, and the colour of its rim. */
   UI.sleeveBg = function (sl) {
     if (!sl) return null;
-    if (sl.kind === 'pattern') return sl.css;
+    // a woven one is drawn from this app's own picture of it, found by its name
+    if (sl.kind === 'pattern') { const known = E().sleeveById(sl.id); return (known && known.kind === 'pattern' && known.css) || sl.css || null; }
     if (sl.kind === 'art' && sl.art) {
       // the picture is wider than the card: where to look in it, if the sleeve says
       const known = E().sleeveById(sl.id);

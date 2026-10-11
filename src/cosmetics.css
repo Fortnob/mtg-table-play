@@ -43,7 +43,13 @@
 .portrait.lg { --fw: 5px; }
 .pd-visual .portrait.lg { --fw: 6.5px; }
 .life-orb { --fw: calc(var(--orb, 76px) * .06); }
-.frame-fx { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3; }
+.frame-fx { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3;
+  /* the ring's own shading, laid over its colours: shadow where it meets
+     the picture and at its outer edge, a line of light along its crown, so
+     it reads as a band of metal or stone with a round to it rather than a
+     flat stripe; the same all round, so it holds while a ring turns */
+  --tube: radial-gradient(closest-side, rgba(0,0,0,.5) calc(100% - var(--fw)), rgba(0,0,0,0) calc(100% - var(--fw) * .66),
+    rgba(255,255,255,.26) calc(100% - var(--fw) * .45), rgba(255,255,255,0) calc(100% - var(--fw) * .24), rgba(0,0,0,.55)); }
 .life-orb > .frame-fx { z-index: 1; }
 .frame-fx::before, .frame-fx::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
 .frame-fx::after {
@@ -59,7 +65,7 @@
 }
 
 /* Gilded: worked gold, a gem at each quarter */
-.f-gilded::after { background: conic-gradient(from 200deg, #6e5414, #f7e3a1, #b8912f, #6e5414, #fff1bf, #a37a22, #6e5414, #f3dd96, #6e5414); }
+.f-gilded::after { background: var(--tube), conic-gradient(from 200deg, #6e5414, #f7e3a1, #b8912f, #6e5414, #fff1bf, #a37a22, #6e5414, #f3dd96, #6e5414); }
 .f-gilded::before {
   background:
     radial-gradient(circle at 50% calc(var(--fw) * 1.15), #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
@@ -70,18 +76,18 @@
 }
 
 /* Thorns: a twisted vine, its thorns standing out */
-.f-thorns::after { background: repeating-conic-gradient(from 0deg, #22341a 0 7deg, #6d9140 7deg 10deg, #182510 10deg 16deg); }
+.f-thorns::after { background: var(--tube), repeating-conic-gradient(from 0deg, #22341a 0 7deg, #6d9140 7deg 10deg, #182510 10deg 16deg); }
 .f-thorns::before { background: repeating-conic-gradient(from 4deg, #4d6e2c 0 3deg, transparent 3deg 22.5deg), repeating-conic-gradient(from 15deg, #2c4419 0 2deg, transparent 2deg 22.5deg); }
 
 /* Frost: cold metal, shards of ice, a pale glow */
-.f-frost::after { background: conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #d6efff, #8fc8ee, #e8f6ff); }
+.f-frost::after { background: var(--tube), conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #d6efff, #8fc8ee, #e8f6ff); }
 .f-frost::before {
   background: repeating-conic-gradient(from 0deg, rgba(235, 250, 255, .95) 0 1.6deg, transparent 1.6deg 30deg), repeating-conic-gradient(from 15deg, rgba(170, 220, 255, .7) 0 1deg, transparent 1deg 30deg),
     radial-gradient(closest-side, transparent 60%, rgba(160, 215, 255, .4) 80%, transparent 100%);
 }
 
 /* Ember: a ring of fire, turning, with flames licking off it */
-.f-ember::after { background: conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ffe2a0, #d8360f, #ff6a1a); animation: frameSpin 6s linear infinite; }
+.f-ember::after { background: var(--tube), conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ffe2a0, #d8360f, #ff6a1a); animation: frameSpin 6s linear infinite; }
 .f-ember::before {
   background: repeating-conic-gradient(from 0deg, rgba(255, 190, 80, .95) 0 5deg, rgba(255, 90, 20, .7) 8deg, transparent 12deg 20deg),
     radial-gradient(closest-side, transparent 55%, rgba(255, 110, 30, .55) 78%, transparent 100%);
@@ -89,7 +95,7 @@
 }
 
 /* Arcane: a ring of runes, a dotted circle turning the other way */
-.f-arcane::after { background: repeating-conic-gradient(from 0deg, #bfe4ff 0 3deg, #2a5aa8 3deg 5deg, #7fc4ff 5deg 9deg, #1b3f7a 9deg 12deg); animation: frameSpin 14s linear infinite; }
+.f-arcane::after { background: var(--tube), repeating-conic-gradient(from 0deg, #bfe4ff 0 3deg, #2a5aa8 3deg 5deg, #7fc4ff 5deg 9deg, #1b3f7a 9deg 12deg); animation: frameSpin 14s linear infinite; }
 .f-arcane::before {
   background: repeating-conic-gradient(from 0deg, rgba(170, 220, 255, .95) 0 2.4deg, transparent 2.4deg 15deg), radial-gradient(closest-side, transparent 58%, rgba(110, 180, 255, .35) 78%, transparent 100%);
   -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.3), #000 calc(100% - var(--fw) * 1.15) calc(100% - var(--fw) * .55), transparent calc(100% - var(--fw) * .4));
@@ -98,7 +104,7 @@
 }
 
 /* Void: a dark ring in a turning violet nebula */
-.f-void::after { background: conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720, #5b2aa8, #120720); }
+.f-void::after { background: var(--tube), conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720, #5b2aa8, #120720); }
 .f-void::before {
   background: conic-gradient(from 0deg, transparent, rgba(150, 90, 240, .75), transparent 35%, rgba(205, 160, 255, .6), transparent 70%, rgba(110, 50, 200, .7), transparent);
   -webkit-mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%); mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%);
@@ -106,7 +112,7 @@
 }
 
 /* Sunburst: white gold, and rays all round, slowly turning */
-.f-sunburst::after { background: conic-gradient(from 0deg, #fff6d0, #f0c860, #fffbe8, #d9a83a, #fff6d0, #f0c860, #fff6d0); }
+.f-sunburst::after { background: var(--tube), conic-gradient(from 0deg, #fff6d0, #f0c860, #fffbe8, #d9a83a, #fff6d0, #f0c860, #fff6d0); }
 .f-sunburst::before {
   background: repeating-conic-gradient(from 0deg, rgba(255, 222, 130, .95) 0 3.5deg, transparent 3.5deg 15deg), repeating-conic-gradient(from 7.5deg, rgba(255, 245, 210, .6) 0 1.5deg, transparent 1.5deg 15deg),
     radial-gradient(closest-side, transparent 55%, rgba(255, 210, 110, .45) 78%, transparent 100%);
@@ -114,7 +120,7 @@
 }
 
 /* Tidal: the sea, and a ring of foam */
-.f-tidal::after { background: conic-gradient(from 0deg, #0f3f78, #7fc4ff, #e8f6ff, #2a6fb8, #0a2a55, #5fb0f0, #0f3f78); }
+.f-tidal::after { background: var(--tube), conic-gradient(from 0deg, #0f3f78, #7fc4ff, #e8f6ff, #2a6fb8, #0a2a55, #5fb0f0, #0f3f78); }
 .f-tidal::before {
   background: repeating-conic-gradient(from 0deg, rgba(225, 245, 255, .9) 0 4deg, transparent 4deg 10deg), radial-gradient(closest-side, transparent 58%, rgba(90, 170, 240, .4) 78%, transparent 100%);
   -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.25), #000 calc(100% - var(--fw) * 1.1) calc(100% - var(--fw) * .7), transparent calc(100% - var(--fw) * .5));
@@ -123,18 +129,18 @@
 }
 
 /* Sylvan: a ring of wood in a wreath of leaves */
-.f-sylvan::after { background: repeating-conic-gradient(from 0deg, #5a3a1c 0 9deg, #8b5e2f 9deg 14deg, #3e2712 14deg 20deg); }
+.f-sylvan::after { background: var(--tube), repeating-conic-gradient(from 0deg, #5a3a1c 0 9deg, #8b5e2f 9deg 14deg, #3e2712 14deg 20deg); }
 .f-sylvan::before { background: repeating-conic-gradient(from 0deg, #7cc152 0 9deg, transparent 9deg 24deg), repeating-conic-gradient(from 12deg, #3f7f2a 0 8deg, transparent 8deg 24deg); }
 
 /* Blood Moon: crimson, and a slow red pulse */
-.f-bloodmoon::after { background: conic-gradient(from 0deg, #3a0505, #c21d1d, #ff6a5a, #7a0b0b, #3a0505, #d8301f, #3a0505); }
+.f-bloodmoon::after { background: var(--tube), conic-gradient(from 0deg, #3a0505, #c21d1d, #ff6a5a, #7a0b0b, #3a0505, #d8301f, #3a0505); }
 .f-bloodmoon::before {
   background: radial-gradient(closest-side, transparent 60%, rgba(220, 30, 30, .65) 76%, transparent 100%);
   animation: framePulse 2.6s ease-in-out infinite;
 }
 
 /* Prismatic: every colour, moving round */
-.f-prismatic::after { background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d); animation: frameSpin 5s linear infinite; }
+.f-prismatic::after { background: var(--tube), conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d); animation: frameSpin 5s linear infinite; }
 .f-prismatic::before {
   background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d);
   -webkit-mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%); mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%);
@@ -142,13 +148,99 @@
 }
 
 /* Orbit: a midnight ring, and a star going round it */
-.f-orbit::after { background: conic-gradient(from 0deg, #0b1230, #3a4f9a, #0b1230, #c9d6ff, #0b1230, #2a3a7a, #0b1230); }
+.f-orbit::after { background: var(--tube), conic-gradient(from 0deg, #0b1230, #3a4f9a, #0b1230, #c9d6ff, #0b1230, #2a3a7a, #0b1230); }
 .f-orbit::before {
   background:
     radial-gradient(circle at 50% calc(var(--fw) * 1.2), #fff 0 calc(var(--fw) * .35), rgba(200, 220, 255, .9) calc(var(--fw) * .55), rgba(150, 180, 255, .3) calc(var(--fw) * 1.1), transparent calc(var(--fw) * 1.6)),
     radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.32), rgba(170, 195, 255, .45) calc(100% - var(--fw) * 1.22) calc(100% - var(--fw) * 1.12), transparent calc(100% - var(--fw) * 1.02));
   animation: frameSpin 4.5s linear infinite;
 }
+
+/* ---- the second shelf of frames ---- */
+/* Obsidian: black glass, gold at both its edges, a gold stud at each diagonal */
+.f-obsidian::after { background: var(--tube),
+  radial-gradient(closest-side, transparent calc(100% - var(--fw)), #e2c063 calc(100% - var(--fw)) calc(100% - var(--fw) * .84), transparent calc(100% - var(--fw) * .84) calc(100% - var(--fw) * .16), #e2c063 calc(100% - var(--fw) * .16)),
+  conic-gradient(from 30deg, #0b0a0d, #4a4552, #0b0a0d 22%, #2c2833 40%, #0b0a0d 58%, #5a5266 74%, #0b0a0d 90%); }
+.f-obsidian::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3CradialGradient id='s' cx='.35' cy='.3' r='.8'%3E%3Cstop offset='0' stop-color='%23fff8da'/%3E%3Cstop offset='.5' stop-color='%23e2b450'/%3E%3Cstop offset='1' stop-color='%235c440f'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='80.05' cy='80.05' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='80.05' cy='80.05' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='19.95' cy='80.05' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='19.95' cy='80.05' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='19.95' cy='19.95' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='19.95' cy='19.95' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='80.05' cy='19.95' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='80.05' cy='19.95' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='92.5' cy='50' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='50' cy='92.5' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='7.5' cy='50' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='50' cy='7.5' r='1.3' fill='%23e2c063'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Moonsilver: polished silver, a crescent moon over it between two stars */
+.f-moonsilver::after { background: var(--tube), conic-gradient(from 0deg, #f4f6fa, #9aa3b0, #ffffff, #7d8794, #e6eaf0, #a9b1bd, #f4f6fa); }
+.f-moonsilver::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='100' height='100' fill='%23fff'/%3E%3Ccircle cx='53.4' cy='3.2' r='6.2' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx='50' cy='6.2' r='7.2' fill='%23f4f6fa' mask='url(%23m)'/%3E%3Cpath d='M36.5 9Q36.5 11.8 39.3 11.8Q36.5 11.8 36.5 14.6Q36.5 11.8 33.7 11.8Q36.5 11.8 36.5 9Z' fill='%23ffffff'/%3E%3Cpath d='M63.5 9Q63.5 11.8 66.3 11.8Q63.5 11.8 63.5 14.6Q63.5 11.8 60.7 11.8Q63.5 11.8 63.5 9Z' fill='%23ffffff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 66%, rgba(220,230,255,.35) 78%, transparent 92%); }
+
+/* Briar Rose: a dark vine, its thorns, and five roses on it */
+.f-briar::after { background: var(--tube), repeating-conic-gradient(from 0deg, #1f3a1a 0 6deg, #44732f 6deg 9deg, #162a12 9deg 15deg); }
+.f-briar::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M57.03 10.12L60.74 5.27L60.48 10.88Z' fill='%232c4419'/%3E%3Cpath d='M72.65 16.42L78 13.51L75.49 18.53Z' fill='%232c4419'/%3E%3Cpath d='M84.35 28.54L90.43 28.05L86.09 31.61Z' fill='%232c4419'/%3E%3Cpath d='M90.11 44.36L95.86 46.39L90.44 47.88Z' fill='%232c4419'/%3E%3Cpath d='M88.93 61.16L93.36 65.36L87.81 64.51Z' fill='%232c4419'/%3E%3Cpath d='M81.02 76.03L83.37 81.66L78.64 78.64Z' fill='%232c4419'/%3E%3Cpath d='M67.75 86.4L67.6 92.5L64.51 87.81Z' fill='%232c4419'/%3E%3Cpath d='M51.41 90.48L48.8 95.98L47.88 90.44Z' fill='%232c4419'/%3E%3Cpath d='M34.83 87.55L30.2 91.52L31.61 86.09Z' fill='%232c4419'/%3E%3Cpath d='M20.87 78.13L15.02 79.87L18.53 75.49Z' fill='%232c4419'/%3E%3Cpath d='M11.94 63.85L5.89 63.06L10.88 60.48Z' fill='%232c4419'/%3E%3Cpath d='M9.6 47.17L4.39 44L10 43.66Z' fill='%232c4419'/%3E%3Cpath d='M14.24 30.99L10.78 25.97L16.03 27.94Z' fill='%232c4419'/%3E%3Cpath d='M25.07 18.09L23.95 12.09L27.94 16.03Z' fill='%232c4419'/%3E%3Cpath d='M40.2 10.7L41.62 4.77L43.66 10Z' fill='%232c4419'/%3E%3Cellipse cx='56.57' cy='8.52' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(30 56.57 8.52)'/%3E%3Cellipse cx='43.43' cy='8.52' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(-30 43.43 8.52)'/%3E%3Ccircle cx='50' cy='8.5' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M47.6 8.5A2.4 2.4 0 1 1 51.6 9.7M49 8.9A1.2 1.2 0 1 1 50.9 8.3' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='91.48' cy='43.43' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(102 91.48 43.43)'/%3E%3Cellipse cx='87.42' cy='30.93' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(42 87.42 30.93)'/%3E%3Ccircle cx='89.47' cy='37.18' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M87.07 37.18A2.4 2.4 0 1 1 91.07 38.38M88.47 37.58A1.2 1.2 0 1 1 90.37 36.98' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='69.07' cy='87.42' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(174 69.07 87.42)'/%3E%3Cellipse cx='79.7' cy='79.7' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(114 79.7 79.7)'/%3E%3Ccircle cx='74.39' cy='83.57' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M71.99 83.57A2.4 2.4 0 1 1 75.99 84.77M73.39 83.97A1.2 1.2 0 1 1 75.29 83.37' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='20.3' cy='79.7' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(246 20.3 79.7)'/%3E%3Cellipse cx='30.93' cy='87.42' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(186 30.93 87.42)'/%3E%3Ccircle cx='25.61' cy='83.57' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M23.21 83.57A2.4 2.4 0 1 1 27.21 84.77M24.61 83.97A1.2 1.2 0 1 1 26.51 83.37' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='12.58' cy='30.93' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(318 12.58 30.93)'/%3E%3Cellipse cx='8.52' cy='43.43' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(258 8.52 43.43)'/%3E%3Ccircle cx='10.53' cy='37.18' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M8.13 37.18A2.4 2.4 0 1 1 12.13 38.38M9.53 37.58A1.2 1.2 0 1 1 11.43 36.98' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Jade: carved green stone, bound in gold at eight places */
+.f-jade::after { background: var(--tube), repeating-conic-gradient(from -3deg, #f3dd96 0 2deg, #9a6d1c 2deg 3.5deg, #f3dd96 3.5deg 6deg, transparent 6deg 45deg),
+  conic-gradient(from 0deg, #2f8a5e, #a8e6c0, #1e6a45, #5fc08a, #24724b, #c2f4d6, #1e6a45, #2f8a5e); }
+.f-jade::before { background: radial-gradient(closest-side, transparent 62%, rgba(110,220,160,.35) 77%, transparent 94%); }
+
+/* Laurel: a ring of gold in a gold wreath, tied below in red */
+.f-laurel::after { background: var(--tube), conic-gradient(from 200deg, #8a6418, #fff1bf, #c9992f, #8a6418, #ffe8a0, #b8862b, #8a6418); }
+.f-laurel::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff1bf'/%3E%3Cstop offset='.5' stop-color='%23e2b450'/%3E%3Cstop offset='1' stop-color='%239a6d1c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cellipse cx='55.24' cy='92.68' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(388 55.24 92.68)'/%3E%3Cellipse cx='65.41' cy='90.14' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(374 65.41 90.14)'/%3E%3Cellipse cx='74.66' cy='85.22' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(360 74.66 85.22)'/%3E%3Cellipse cx='82.45' cy='78.21' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(346 82.45 78.21)'/%3E%3Cellipse cx='88.31' cy='69.52' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(332 88.31 69.52)'/%3E%3Cellipse cx='91.9' cy='59.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(318 91.9 59.67)'/%3E%3Cellipse cx='92.99' cy='49.25' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(304 92.99 49.25)'/%3E%3Cellipse cx='91.53' cy='38.87' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(290 91.53 38.87)'/%3E%3Cellipse cx='87.61' cy='29.15' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(276 87.61 29.15)'/%3E%3Cellipse cx='81.45' cy='20.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(262 81.45 20.67)'/%3E%3Cellipse cx='44.76' cy='92.68' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(332 44.76 92.68)'/%3E%3Cellipse cx='34.59' cy='90.14' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(346 34.59 90.14)'/%3E%3Cellipse cx='25.34' cy='85.22' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(360 25.34 85.22)'/%3E%3Cellipse cx='17.55' cy='78.21' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(374 17.55 78.21)'/%3E%3Cellipse cx='11.69' cy='69.52' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(388 11.69 69.52)'/%3E%3Cellipse cx='8.1' cy='59.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(402 8.1 59.67)'/%3E%3Cellipse cx='7.01' cy='49.25' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(416 7.01 49.25)'/%3E%3Cellipse cx='8.47' cy='38.87' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(430 8.47 38.87)'/%3E%3Cellipse cx='12.39' cy='29.15' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(444 12.39 29.15)'/%3E%3Cellipse cx='18.55' cy='20.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(458 18.55 20.67)'/%3E%3Cpath d='M45 92L50 88L55 92L53 97L50 93L47 97Z' fill='%23b0183a' stroke='%235a0818' stroke-width='.4'/%3E%3Ccircle cx='50' cy='89' r='1.6' fill='%23e2b450'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Amethyst Crystal: violet facets, and crystals growing out of the ring */
+.f-crystal::after { background: var(--tube), repeating-conic-gradient(from 0deg, #eedcff 0 4deg, #8a4ae0 4deg 11deg, #3a1878 11deg 15deg); }
+.f-crystal::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10.5L52.47 5.82L50 1L47.53 5.82Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M50 9.3L50 2.2' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M77.93 22.07L81.57 21.17L82.53 17.47L78.83 18.43Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M78.78 21.22L81.68 18.32' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M89.5 50L94.18 52.47L99 50L94.18 47.53Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M90.7 50L97.8 50' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M77.93 77.93L78.83 81.57L82.53 82.53L81.57 78.83Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M78.78 78.78L81.68 81.68' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M50 89.5L47.53 94.18L50 99L52.47 94.18Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M50 90.7L50 97.8' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M22.07 77.93L18.43 78.83L17.47 82.53L21.17 81.57Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M21.22 78.78L18.32 81.68' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M10.5 50L5.82 47.53L1 50L5.82 52.47Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M9.3 50L2.2 50' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M22.07 22.07L21.17 18.43L17.47 17.47L18.43 21.17Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M21.22 21.22L18.32 18.32' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 60%, rgba(180,120,255,.4) 76%, transparent 96%); }
+
+/* Stormcrown: a turning ring of cloud, and lightning now and then */
+.f-storm::after { background: var(--tube), conic-gradient(from 0deg, #3a4452, #9aa6b8, #2a323e, #6c7888, #1d222a, #b0bccc, #3a4452); animation: frameSpin 18s linear infinite; }
+.f-storm::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M69.75 15.79L74.05 14.35L70.89 10.71L76.41 9.32' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3Cpath d='M69.75 84.21L68.85 88.65L73.58 87.74L72.02 93.21' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3Cpath d='M10.5 50L7.1 47L5.53 51.55L1.57 47.46' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 60%, rgba(200,220,255,.5) 76%, transparent 94%);
+  opacity: .35; animation: frameFlash 5.2s linear infinite; }
+
+/* Neon: a pink tube alight, a cyan line round it, a hum in the light */
+.f-neon::after { background: radial-gradient(closest-side, #4a0634 calc(100% - var(--fw)), #ff4fb8 calc(100% - var(--fw) * .74), #ffe6f6 calc(100% - var(--fw) * .5), #ff4fb8 calc(100% - var(--fw) * .26), #4a0634); }
+.f-neon::before {
+  background: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.12), #6ff6ff calc(100% - var(--fw) * 1.02) calc(100% - var(--fw) * .86), transparent calc(100% - var(--fw) * .76)),
+    radial-gradient(closest-side, transparent 70%, rgba(255,60,190,.55) 79%, rgba(80,240,255,.18) 88%, transparent 98%);
+  animation: frameHum 4s steps(1) infinite; }
+
+/* Phyrexian: ribs of bone and oil, claws curling off it, the sign above */
+.f-phyrexian::after { background: var(--tube), repeating-conic-gradient(from 0deg, #e8e0cc 0 5deg, #1a1a1f 5deg 7deg, #c2b9a0 7deg 12deg, #0b0b0e 12deg 15deg); }
+.f-phyrexian::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M65.5 12.58Q72.43 8.7 81.17 12.19' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M65.5 12.58Q72.43 8.7 81.17 12.19' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M87.42 34.5Q95.06 36.65 98.77 45.3' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M87.42 34.5Q95.06 36.65 98.77 45.3' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M87.42 65.5Q91.3 72.43 87.81 81.17' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M87.42 65.5Q91.3 72.43 87.81 81.17' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M65.5 87.42Q63.35 95.06 54.7 98.77' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M65.5 87.42Q63.35 95.06 54.7 98.77' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M34.5 87.42Q27.57 91.3 18.83 87.81' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M34.5 87.42Q27.57 91.3 18.83 87.81' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M12.58 65.5Q4.94 63.35 1.23 54.7' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M12.58 65.5Q4.94 63.35 1.23 54.7' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M12.58 34.5Q8.7 27.57 12.19 18.83' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M12.58 34.5Q8.7 27.57 12.19 18.83' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M34.5 12.58Q36.65 4.94 45.3 1.23' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M34.5 12.58Q36.65 4.94 45.3 1.23' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='6.4' r='4.2' fill='rgba(0,0,0,.6)' stroke='%23e8e0cc' stroke-width='1.3'/%3E%3Cpath d='M50 .6V12.2' stroke='%23e8e0cc' stroke-width='1.3'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Nyx: the night sky of Theros in the ring, and stars that come and go about it */
+.f-nyx::after { background: var(--tube), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='95.3' cy='57.99' r='0.7' fill='%23fff'/%3E%3Ccircle cx='82.39' cy='84.74' r='0.5' fill='%23fff'/%3E%3Ccircle cx='57.9' cy='94.81' r='0.6' fill='%23fff'/%3E%3Ccircle cx='27.47' cy='92.38' r='0.45' fill='%23fff'/%3E%3Ccircle cx='9.73' cy='73.25' r='0.7' fill='%23fff'/%3E%3Ccircle cx='4.82' cy='37.05' r='0.5' fill='%23fff'/%3E%3Ccircle cx='20.56' cy='14.92' r='0.6' fill='%23fff'/%3E%3Ccircle cx='43.29' cy='2.27' r='0.45' fill='%23fff'/%3E%3Ccircle cx='73.3' cy='9.64' r='0.7' fill='%23fff'/%3E%3Ccircle cx='92.23' cy='28.48' r='0.5' fill='%23fff'/%3E%3Ccircle cx='95.16' cy='43.65' r='0.4' fill='%23fff'/%3E%3Ccircle cx='2.38' cy='54.17' r='0.4' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  conic-gradient(from 0deg, #1a1050, #4a2a9a, #120a33, #6a4ac0, #1a1050, #3a1f80, #1a1050); }
+.f-nyx::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M65.05 5.85Q65.05 8.65 67.85 8.65Q65.05 8.65 65.05 11.45Q65.05 8.65 62.25 8.65Q65.05 8.65 65.05 5.85Z' fill='%23fff'/%3E%3Cpath d='M90.78 66.82Q90.78 69.02 92.98 69.02Q90.78 69.02 90.78 71.22Q90.78 69.02 88.58 69.02Q90.78 69.02 90.78 66.82Z' fill='%23fff'/%3E%3Cpath d='M15.91 76Q15.91 78.6 18.51 78.6Q15.91 78.6 15.91 81.2Q15.91 78.6 13.31 78.6Q15.91 78.6 15.91 76Z' fill='%23fff'/%3E%3Cpath d='M8.76 28.77Q8.76 30.77 10.76 30.77Q8.76 30.77 8.76 32.77Q8.76 30.77 6.76 30.77Q8.76 30.77 8.76 28.77Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 62%, rgba(150,120,255,.38) 77%, transparent 95%);
+  animation: framePulse 3.4s ease-in-out infinite; }
+
+/* Hedron: a ring of stone, its runes lit, hedrons pointing out from it */
+.f-hedron::after { background: var(--tube), repeating-conic-gradient(from 21deg, rgba(127,240,220,.95) 0 1.4deg, transparent 1.4deg 45deg),
+  repeating-conic-gradient(from 0deg, #7d8c86 0 20deg, #4a5753 20deg 22deg, #a4b2ac 22deg 40deg, #4a5753 40deg 45deg); }
+.f-hedron::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10.2L52 5.9L50 1.5L48 5.9Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M50 9L50 2.7' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M78.14 21.86L82.6 20.23L84.29 15.71L79.77 17.4Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M78.99 21.01L83.45 16.55' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M89.8 50L94.1 52L98.5 50L94.1 48Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M91 50L97.3 50' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M78.14 78.14L79.77 82.6L84.29 84.29L82.6 79.77Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M78.99 78.99L83.45 83.45' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M50 89.8L48 94.1L50 98.5L52 94.1Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M50 91L50 97.3' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M21.86 78.14L17.4 79.77L15.71 84.29L20.23 82.6Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M21.01 78.99L16.55 83.45' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M10.2 50L5.9 48L1.5 50L5.9 52Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M9 50L2.7 50' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M21.86 21.86L20.23 17.4L15.71 15.71L17.4 20.23Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M21.01 21.01L16.55 16.55' stroke='%237ff0dc' stroke-width='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 62%, rgba(127,240,220,.3) 77%, transparent 94%); animation: frameSpin 60s linear infinite; }
+
+/* Aurora: green and violet light turning round, a haze of it beyond */
+.f-aurora::after { background: var(--tube), conic-gradient(from 0deg, #2affb0, #3ad0ff, #8a5aff, #2affb0, #1a9a7a, #b06aff, #2affb0); animation: frameSpin 12s linear infinite; }
+.f-aurora::before {
+  background: conic-gradient(from 0deg, transparent, rgba(60,255,170,.7), transparent 30%, rgba(150,100,255,.6), transparent 62%, rgba(60,210,255,.6), transparent 85%);
+  -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 74%, transparent 100%); mask: radial-gradient(closest-side, transparent 60%, #000 74%, transparent 100%);
+  filter: blur(1.5px); animation: frameSpin 16s linear infinite reverse; }
+
+/* Five Colours: the ring in the five, white at the top, a jewel of each beyond */
+.f-five::after { background: var(--tube), repeating-conic-gradient(from -37deg, #e2c063 0 2deg, transparent 2deg 72deg),
+  conic-gradient(from -36deg, #f8f1d4 0 72deg, #4f9ee0 0 144deg, #3a3040 0 216deg, #e0582f 0 288deg, #3f9a52 0); }
+.f-five::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='6.4' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='50' cy='6.4' r='4.7' fill='%23fbf5dc' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='49' cy='5.4' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='91.47' cy='36.53' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='91.47' cy='36.53' r='4.7' fill='%239fd0f0' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='90.47' cy='35.53' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='75.63' cy='85.27' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='75.63' cy='85.27' r='4.7' fill='%23b9a9c0' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='74.63' cy='84.27' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='24.37' cy='85.27' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='24.37' cy='85.27' r='4.7' fill='%23f5a582' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='23.37' cy='84.27' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='8.53' cy='36.53' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='8.53' cy='36.53' r='4.7' fill='%239fd3a5' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='7.53' cy='35.53' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Eclipse: a black sun with a burning edge, its corona turning, and the diamond's flash */
+.f-eclipse::after { background: radial-gradient(closest-side, #fff8e0 calc(100% - var(--fw)), #ffd27a calc(100% - var(--fw) * .78), #120c06 calc(100% - var(--fw) * .5), #000); }
+.f-eclipse::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M82.94 14.86Q82.94 22.36 90.44 22.36Q82.94 22.36 82.94 29.86Q82.94 22.36 75.44 22.36Q82.94 22.36 82.94 14.86Z' fill='rgba(255,250,230,.95)'/%3E%3Ccircle cx='82.94' cy='22.36' r='2.4' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+    repeating-conic-gradient(from 0deg, rgba(255,232,180,.95) 0 1.6deg, transparent 1.6deg 7deg, rgba(255,200,120,.6) 7deg 8deg, transparent 8deg 13deg),
+    radial-gradient(closest-side, transparent 60%, rgba(255,214,140,.6) 74%, transparent 100%);
+  animation: frameSpin 50s linear infinite; }
+.frame-fx.f-eclipse::before {
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%);
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%); }
+
+@keyframes frameFlash { 0%, 70%, 74%, 77%, 100% { opacity: .35; } 71%, 73%, 75.5% { opacity: 1; } }
+@keyframes frameHum { 0%, 41%, 44%, 100% { opacity: 1; } 42%, 43.5% { opacity: .55; } }
 
 @keyframes frameSpin { to { transform: rotate(360deg); } }
 @keyframes frameFlicker { 0% { transform: scale(.97) rotate(0deg); opacity: .85; } 50% { transform: scale(1.04) rotate(3deg); opacity: 1; } 100% { transform: scale(.99) rotate(-2deg); opacity: .9; } }
