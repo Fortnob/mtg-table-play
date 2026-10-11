@@ -352,7 +352,8 @@
       const lastSeen = pl[pl.length - 1];
       let at = -1;
       if (lastSeen) for (let i = nl.length - 1; i >= 0; i--) { const x = nl[i]; if (x.t === lastSeen.t && x.type === lastSeen.type && x.text === lastSeen.text) { at = i; break; } }
-      const fresh = lastSeen ? nl.slice(at + 1) : nl;
+      // and should that line have gone (a long log trimmed), only what came after it in time: never the whole log again
+      const fresh = !lastSeen ? nl : at >= 0 ? nl.slice(at + 1) : nl.filter(x => (x.t || 0) > (lastSeen.t || 0));
       for (const e of fresh) if (e.type === 'manual') this.say(e.text, 'manual', 6000);
       // a board wipe is worth feeling
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
