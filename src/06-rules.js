@@ -2456,7 +2456,7 @@
         return !x || x.zone !== 'graveyard' || x.isToken;
       })();
       const effects = gone ? [] : item.optional && !item._asked
-        ? [{ op: 'may', prompt: truncate(item.abilityText || item.name, 100), then: item.effects || [] }]
+        ? [{ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
     }
@@ -13041,7 +13041,9 @@
          effect belongs to travels with the question, unless it says otherwise. */
       const src = r.ctx && r.ctx.obj;
       const about = { resumeKey: key, sourceName: (r.ctx && r.ctx.name) || (src && src.card && src.card.name) || null,
-        sourceId: src ? src.id : null, sourceCard: src && src.card ? src.card : null };
+        sourceId: src ? src.id : null, sourceCard: src && src.card ? src.card : null,
+        // the whole of the ability asking, so the question is never read without it
+        sourceText: (r.ctx && r.ctx.abilityText) || null };
       this.queueChoice(Object.assign(about, choice));
       return SUSPEND;
     }
@@ -13060,7 +13062,7 @@
     _choose(spec, sub) {
       const C = MTG.choice;
       const s = C.normalize(spec);
-      for (const k of ['sourceName', 'sourceId', 'sourceCard']) if (s[k] == null) delete s[k];
+      for (const k of ['sourceName', 'sourceId', 'sourceCard', 'sourceText']) if (s[k] == null) delete s[k];
       const r = this.resolving;
       if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + (sub ? ':' + sub : ''))) return this._ask(s, sub);
       const hooks = this._chooseHooks(s.playerId);
@@ -16597,8 +16599,8 @@
           const yes = this._ask({ type: 'confirm', playerId: who.id,
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
-            prompt: e.prompt || (ask ? `${nm}: ${truncate(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
-              `${ctx.name || 'Effect'}: ${truncate(e.text || 'do it', 90)}` });
+            prompt: e.prompt || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
+              `${ctx.name || 'Effect'}: ${whole(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           if (yes) this._spliceNext(e.then);
           // (an optional "instead": a no is the way the sentence before it said — mayOtherwise)
@@ -16625,7 +16627,7 @@
             const q = this._lastAffectedController() || me;
             if (!q || q.hasLost || (q.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(q))) { this._spliceNext(e.otherwise); break; }
             const yes = this._ask({ type: 'confirm', playerId: q.id,
-              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${e.prompt || truncate(e.text || 'pay the cost', 90)}` }, 'q');
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${e.prompt || whole(e.text || 'pay the cost', 90)}` }, 'q');
             if (yes === SUSPEND) return SUSPEND;
             if (!yes) { this._spliceNext(e.otherwise); break; }
             this.changeLife(q, -pay.life, 'cost');
@@ -16652,7 +16654,7 @@
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
-            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${truncate(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${truncate(e.text || 'pay the cost', 90)}`) }, 'q');
+            prompt: e.prompt || (lifeX != null ? `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay X life').replace(/^./, c => c.toUpperCase()), 110)} (X is ${lifeX}.)` : `${ctx.name || 'Effect'}: ${whole(e.text || 'pay the cost', 90)}`) }, 'q');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
           if (pay.energy && !this._doneHere('energyPaid')) {
@@ -16852,7 +16854,7 @@
               if (!perms.length && !hand.length) { hit.push(q); continue; }
               const got = this._choose({ playerId: q.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
-                prompt: `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac:' + q.id);
+                prompt: `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'usac:' + q.id);
               if (got === SUSPEND) return SUSPEND;
               const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
               if (x) pay.push({ q, x, perm: perms.includes(x) }); else hit.push(q);
@@ -16878,7 +16880,7 @@
               if (perms.length < need) { this._spliceNext(e.then); break; }
               const gotN = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(perms), min: 0, max: need, prefer: 'worst',
-                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${truncate(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
+                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${whole(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
               if (gotN === SUSPEND) return SUSPEND;
               const xs = ((gotN && gotN.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x));
               if (xs.length === need) this._sacrificeNow(payer.id, xs, null);
@@ -16887,7 +16889,7 @@
             }
             const got = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
               items: this._chooseItems(perms.concat(hand)), min: 0, max: 1, prefer: 'worst',
-              prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'usac');
+              prompt: e.prompt || `Sacrifice ${this._aCard(e.cost.sacrifice)}${e.cost.orDiscard ? ' or discard a card' : ''}? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'usac');
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x)) this._sacrificeNow(payer.id, [x], null);
@@ -16900,7 +16902,7 @@
           if (e.cost && e.cost.discardHand) {
             const hand = this.zones[payer.id].hand.slice();
             const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessDiscardHand', yesLabel: 'Discard your hand', noLabel: "Don't",
-              prompt: e.prompt || `Discard your hand (${hand.length} card${hand.length === 1 ? '' : 's'})? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'udh');
+              prompt: e.prompt || `Discard your hand (${hand.length} card${hand.length === 1 ? '' : 's'})? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'udh');
             if (yes === SUSPEND) return SUSPEND;
             if (yes) {
               const now = this.zones[payer.id].hand.slice();
@@ -16916,7 +16918,7 @@
             if (!hand.length) { this._spliceNext(e.then); break; }
             const got = this._choose({ playerId: payer.id, purpose: 'unlessDiscard', kind: 'objects', zone: 'hand',
               items: this._chooseItems(hand), min: 0, max: 1,
-              prompt: e.prompt || `Discard a card? If you don't: ${truncate(e.text || 'it happens', 80)}` }, 'disc');
+              prompt: e.prompt || `Discard a card? If you don't: ${whole(e.text || 'it happens', 80)}` }, 'disc');
             if (got === SUSPEND) return SUSPEND;
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (x && x.zone === 'hand' && x.owner === payer.id) this._discardNow(payer.id, [x]);
@@ -17252,8 +17254,8 @@
           if (!opp) break;
           ctx.chosenPlayer = opp.id;
           const yes = this._ask({ type: 'confirm', playerId: opp.id, purpose: 'opponentMay', option: e.kind,
-            prompt: e.kind === 'gift' || e.kind === 'tapIt' ? `${ctx.name ? ctx.name + ': ' : ''}${e.offer}?${e.kind === 'tapIt' ? ` If you don't: ${truncate(e.elseText || '', 90)}` : ''}`
-              : `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${truncate(e.elseText || '', 90)}` }, 'opm');
+            prompt: e.kind === 'gift' || e.kind === 'tapIt' ? `${ctx.name ? ctx.name + ': ' : ''}${e.offer}?${e.kind === 'tapIt' ? ` If you don't: ${whole(e.elseText || '', 90)}` : ''}`
+              : `${ctx.name ? ctx.name + ': ' : ''}let ${me.name} ${String(e.offer || '').replace(/^you /i, '')}? If you don't: ${whole(e.elseText || '', 90)}` }, 'opm');
           if (yes === SUSPEND) return SUSPEND;
           this.logEvent('rules', `${opp.name} ${yes ? 'agrees' : 'declines'}.`);
           this._spliceNext(yes ? e.option : e.otherwise);
@@ -18851,7 +18853,7 @@
           const x = this._lastExiled && this.obj(this._lastExiled);
           if (!x || x.zone !== 'exile' || (x.analysis() || {}).isLand) { this._spliceNext(e.otherwise); break; }
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'castOrElse', cost: (x.card && x.card.mana_cost) || '',
-            prompt: `${ctx.name || 'Effect'}: cast ${x.name}? ${truncate(e.text || '', 90)}` }, 'mco');
+            prompt: `${ctx.name || 'Effect'}: cast ${x.name}? ${whole(e.text || '', 90)}` }, 'mco');
           if (yes === SUSPEND) return SUSPEND;
           if (!yes) { this._spliceNext(e.otherwise); break; }
           x.impulseBy = ctx.controller;
@@ -19982,7 +19984,7 @@
             const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, purpose: 'landOrElse', optional: true,
               cards: lands.map(o => ({ id: o.id, name: o.name, card: o.card })),
               prompt: `${ctx.name ? ctx.name + ': ' : ''}put a land from your hand onto the battlefield?` +
-                truncate(((e.text || '').match(/ If you don'?t,.*$/i) || [''])[0], 90) }, 'lfh');
+                whole(((e.text || '').match(/ If you don'?t,.*$/i) || [''])[0], 90) }, 'lfh');
             if (got === SUSPEND) return SUSPEND;
             const o = (got || []).map(id => this.obj(id)).find(x => x && lands.includes(x) && x.zone === 'hand');
             if (!o) { this._spliceNext(e.otherwise); break; }
@@ -25701,6 +25703,8 @@
     return t;
   }
   function truncate(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+  // a question is never cut short: whoever is asked reads all of what they are asked about (the length is ignored)
+  function whole(s) { return String(s || ''); }
 
   MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs,
     targetSlots, hasBranchSlots };

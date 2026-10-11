@@ -306,6 +306,8 @@ declare namespace MTG {
     sourceName?: string | null;
     sourceId?: Id | null;
     sourceCard?: Card | null;
+    /** the whole text of the ability asking, never cut short */
+    sourceText?: string | null;
     objId?: Id | null;
     stackId?: Id | null;
     /** true when this is somebody else's question (see WaitingChoice) */

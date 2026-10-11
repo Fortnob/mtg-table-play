@@ -252,7 +252,8 @@
   function fromLegacy(ch) {
     if (!ch || !LEGACY.has(ch.type)) return null;
     const base = { playerId: ch.playerId, purpose: ch.purpose || ch.type, prompt: ch.prompt || '', legacy: ch.type,
-      sourceName: ch.sourceName || null, sourceId: ch.sourceId || ch.objId || null, sourceCard: ch.sourceCard || null };
+      sourceName: ch.sourceName || null, sourceId: ch.sourceId || ch.objId || null, sourceCard: ch.sourceCard || null,
+      sourceText: ch.sourceText || null };
     if (ch.type === 'confirm') {
       return normalize(Object.assign(base, { kind: 'options', compact: true, min: 1, max: 1,
         options: [{ label: ch.noLabel || 'No' }, { label: ch.yesLabel || 'Yes', primary: true }] }));

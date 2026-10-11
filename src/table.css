@@ -590,6 +590,15 @@
 .dp-sub { font-size: 13px; color: #b9c2d1; margin-top: 3px; }
 .dp-sub b { color: #fff; }
 .dpanel > :not(.dp-head):not(.dp-buttons) { margin-top: 14px; }
+/* the card asking, its art behind the whole panel and dark enough under the words to read them */
+.dpanel.has-art { isolation: isolate; }
+.dpanel > .dp-bg.dp-bg { position: absolute; inset: 0; z-index: -1; margin: 0; border-radius: inherit; pointer-events: none;
+  background: #151821 center 30% / cover no-repeat; }
+.dpanel > .dp-bg::after { content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(180deg, rgba(14,17,24,.50) 0%, rgba(12,14,20,.74) 50%, rgba(10,12,17,.90) 100%); }
+/* the ability asking, whole, under the question */
+.dp-ability { display: block; margin-top: 8px; padding: 8px 11px; border-radius: 10px; background: rgba(0,0,0,.38);
+  box-shadow: inset 0 0 0 1px rgba(212,175,71,.18); color: #ece3cc; font-size: 13px; line-height: 1.45; }
 .dp-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
 .dp-buttons .btn { min-width: 110px; padding: 10px 18px; font-size: 14px; border-radius: 12px; }
 .mode-list, .extras { display: flex; flex-direction: column; gap: 8px; }

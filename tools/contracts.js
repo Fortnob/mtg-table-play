@@ -161,7 +161,7 @@ const CostPick = obj({ index: nat, kind: str, label: str, key: str, candidates: 
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });
 const common = {
   type: str, playerId: id, prompt: opt(str), purpose: opt(maybe(str)), resumeKey: opt(maybe(str)),
-  sourceName: opt(maybe(str)), sourceId: opt(maybe(id)), sourceCard: opt(maybe(Card)),
+  sourceName: opt(maybe(str)), sourceId: opt(maybe(id)), sourceCard: opt(maybe(Card)), sourceText: opt(maybe(str)),
   objId: opt(maybe(id)), stackId: opt(maybe(id)),
 };
 const choice = (fields) => obj(Object.assign({}, common, fields));

@@ -162,7 +162,10 @@
     /** A panel: a title, an optional line under it, a body and a row of buttons. */
     panel(title, sub, body, buttons, opts) {
       opts = opts || {};
-      const p = el('div', { class: 'dpanel' + (opts.cls ? ' ' + opts.cls : '') }, [
+      // the card asking: its art behind the whole panel, darkened under the words
+      const art = opts.card ? MTG.scry.imageUrl(opts.card, 'art_crop', 0) : '';
+      const p = el('div', { class: 'dpanel' + (art ? ' has-art' : '') + (opts.cls ? ' ' + opts.cls : '') }, [
+        art ? el('div', { class: 'dp-bg', 'aria-hidden': 'true', style: { backgroundImage: 'url("' + art.replace(/"/g, '%22') + '")' } }) : null,
         el('div', { class: 'dp-head' }, [
           opts.card ? el('div', { class: 'dp-art', style: { backgroundImage: 'url("' + (MTG.scry.imageUrl(opts.card, 'art_crop', 0) || '').replace(/"/g, '%22') + '")' } }) : null,
           el('div', { class: 'dp-titles' }, [
@@ -205,11 +208,22 @@
       const send = (data) => { this.send({ kind: 'choice', data }); };
       const src = ch.objId ? this.objIn(ch.objId) : (ch.sourceId ? this.objIn(ch.sourceId) : null);
       const card = ch.sourceCard || (src && src.card ? src.card : null);
-      /* The card asking is the headline when there is one; the question goes underneath. */
+      /* The card asking is the headline when there is one; the question goes underneath, whole, and
+         the ability asking whole beneath it when the question does not already say all of it. A
+         prompt that leads with the ability's own label ("Titan of Littjara — Whenever …: you may …")
+         loses the label: the card and the ability are both shown in full instead. */
       const head = (fallback, extra) => {
-        const q = escapeHtml(ch.prompt || fallback || '');
-        const named = ch.sourceName && !String(ch.prompt || '').includes(ch.sourceName);
-        return named ? [escapeHtml(ch.sourceName), q + (extra ? ' ' + extra : '')] : [q, extra || ''];
+        let raw = String(ch.prompt || fallback || '');
+        const lead = [ch.sourceName, card && card.name].find(x => x && raw.startsWith(x + ': '));
+        if (lead) raw = raw.slice(lead.length + 2).replace(/^./, c => c.toUpperCase());
+        const title = card ? card.name : ch.sourceName ? String(ch.sourceName).split(' \u2014 ')[0] : '';
+        const text = String(ch.sourceText || '').replace(/CARDNAME/g, card ? card.name : 'this');
+        const flat = (x) => x.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+        let ability = text && !flat(raw).includes(flat(text)) && !(title && flat(text) === flat(title)) ? text : '';
+        // a question that is only part of the ability ("you may draw …") is the ability, read whole, once
+        if (ability && raw && flat(ability).includes(flat(raw))) { raw = ability; ability = ''; }
+        const sub = escapeHtml(raw) + (extra ? ' ' + extra : '') + (ability ? `<span class="dp-ability">${MTG.mana.textHtml(ability)}</span>` : '');
+        return title && title !== raw ? [escapeHtml(title), sub] : [escapeHtml(raw), (extra || '') + (ability ? `<span class="dp-ability">${MTG.mana.textHtml(ability)}</span>` : '')];
       };
       switch (ch.type) {
         /* The generic question, and the older shapes simple enough to be
