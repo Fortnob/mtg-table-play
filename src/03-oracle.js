@@ -11690,6 +11690,19 @@
         }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
+        /* Varina, Lich Queen: "Whenever you attack with one or more Zombies, draw that many cards, then discard that many
+           cards. You gain that much life." — as many as the Zombies attacking (attackingOfTypeCount) */
+        if (trig.event === 'youAttack' && (trig.extraOf || trig.extra) && parsed.effects.length === 2 && parsed.effects[0] && parsed.effects[0].op === 'manual' &&
+            /^draw that many cards, then discard that many cards\.?$/i.test(parsed.effects[0].text || '') && parsed.effects[1] && parsed.effects[1].op === 'gainLife' &&
+            /^You gain that much life\.?$/i.test(parsed.effects[1].text || '')) {
+          const ex = trig.extraOf ? trig.extraOf(line.match(trig.re)) : trig.extra;
+          if (ex && ex.attackersOfType) {
+            const cnt = { attackingOfType: ex.attackersOfType };
+            parsed.effects = [{ op: 'draw', n: cnt, who: 'you', text: parsed.effects[0].text }, { op: 'discard', n: cnt, who: 'you', text: parsed.effects[0].text },
+              { op: 'gainLife', n: cnt, who: 'you', text: parsed.effects[1].text }];
+            parsed.auto = true;
+          }
+        }
         /* Lathiel, the Bounteous Dawn: "if you gained life this turn, distribute up to that many +1/+1 counters among
            any number of other target creatures" — the life gained (distributeLifeGained) */
         if (condition && condition.kind === 'gainedLifeThisTurn' && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'manual') {

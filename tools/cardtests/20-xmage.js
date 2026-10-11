@@ -23452,4 +23452,20 @@ module.exports = (test) => {
     S.mana('A', '3R'); S.cast('A', gi); S.resolve();
     t.ok(!(Number(gi.counters['+1/+1']) || 0) && (Number(sh.counters['+1/+1']) || 0) === c0 + 1, 'Shelinda: the Giant is not smaller, the counter on her');
   });
+
+  test('Commanders: Varina, Lich Queen — as many as the Zombies attacking', (mk, t) => {
+    t.auto('Varina, Lich Queen');
+    const V = mk({ library: Array(20).fill('Swamp') });
+    V.toMain('A');
+    const va = V.bf('A', 'Varina, Lich Queen'); va.summoningSick = false;
+    const zb = V.bf('A', 'Walking Corpse'); zb.summoningSick = false;
+    const gb = V.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    V.hand('A', 'Island'); V.hand('A', 'Island');
+    const h0 = V.zone('A', 'hand').length, g0 = V.zone('A', 'graveyard').length;
+    V.answer('declareAttackers', () => [va, zb, gb].map(x => ({ attackerId: x.id, defenderId: 'B' })));
+    V.toMain('A', 'declareBlockers'); V.resolve();
+    t.eq(V.zone('A', 'hand').length - h0, 0, 'Varina: two Zombies attacking, two drawn and two discarded');
+    t.eq(V.zone('A', 'graveyard').length - g0, 2, 'Varina: two cards discarded');
+    t.eq(V.life('A'), 22, 'Varina: and 2 life');
+  });
 };

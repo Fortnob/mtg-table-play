@@ -13184,6 +13184,9 @@
           return Number(tdA.amount) || 0;
         }
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
+        // Varina, Lich Queen: "that many" — this player's attacking creatures of that type (attackingOfTypeCount)
+        if (v && typeof v === 'object' && v.attackingOfType) return ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id);
+          return x && x.controller === ctx.controller && this._hasCreatureType(x, v.attackingOfType); }).length;
         if (v && typeof v === 'object' && v.attackingOther) {
           const want = String(v.attackingOther).toLowerCase();
           let k = 0;
