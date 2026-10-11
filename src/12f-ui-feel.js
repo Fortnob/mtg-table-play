@@ -69,13 +69,15 @@
       if (!prev || !next) return;
       const motion = !t._motionOff();
       const info = { casts: [], resolves: [], counters: [], enters: [], deaths: [], hits: [], life: new Map(),
-        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [] };
+        marks: [], pulses: [], myDamage: 0, turnMine: false, attacks: [], blocks: [], exiles: [], bounces: [], out: [], luck: [] };
       const cues = beat.fromEvents ? this._fromEvents(t, prev, next, info, motion) : this._fromDiff(t, prev, next, beat, info);
       this._lastWord(t, prev, next, cues, info);
       const pace = t._pace();
       const played = this._schedule(cues, beat, pace);
       MTG.audio.tension(next.over ? 0 : (next.stack || []).length);
       try { this._visuals(t, prev, next, info, motion); } catch (e) { console.error('[feel]', e); }
+      // coins flipped and dice rolled: shown in the middle of the table, landing on what they landed on
+      if (info.luck.length) try { this._luckReveal(t, info.luck, motion); } catch (e) { console.error('[feel]', e); }
       this.trace.push({ from: (next.events && next.events[0] || {}).seq, to: (next.events && next.events.length ? next.events[next.events.length - 1].seq : null),
         events: beat.fromEvents ? next.events.map(e => e.type) : null, sounds: played });
       if (this.trace.length > 80) this.trace.splice(0, 20);
@@ -124,13 +126,6 @@
         return n;
       };
 
-      /* A die or a coin: what came up floats off the player who rolled or
-         flipped, a beat after the sound, so it reads as the result. */
-      let luckAt = 0;
-      const luck = (e, text) => {
-        const at = 260 + 380 * luckAt++;
-        setTimeout(() => { const orb = t.orbFor && t.orbFor(e.player); if (orb && t.float) t.float(orb, text, 'fx-luck', 0.5); }, at);
-      };
 
       let hitsVoiced = 0;
       for (const e of evs) {
@@ -297,8 +292,8 @@
             add(won || !seated ? 'win' : 'lose', {}, 10, 'gameOver', 0, 120);
             break;
           }
-          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); luck(e, `\u{1F3B2} d${e.sides}: ${e.result}`); break;
-          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); luck(e, `\u{1FA99} ${e.result === 'heads' ? 'Heads' : 'Tails'}`); break;
+          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); info.luck.push(e); break;
+          case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); info.luck.push(e); break;
           case 'control': add('steal', { pan: pan(e.to) }, 6, 'control', 100); break;
           case 'cue': add(e.name, { pan: pan(e.player) }, 5, 'cue', 90); break;
           default: break;
@@ -470,6 +465,89 @@
     _at(t, r) {
       const ar = MTG.util.rect(t.arena);
       return { x: r.left - ar.left + r.width / 2, y: r.top - ar.top + r.height / 2, w: r.width, h: r.height };
+    },
+
+    /**
+     * Coins and dice, shown for what they came up: in the middle of the
+     * table, a coin for each flip that spins and lands heads (a win) or
+     * tails (a loss), and a die for each roll that tumbles through numbers
+     * and settles on its result; with more than one coin, the wins counted.
+     * One player's flips and rolls of a moment are shown together; another
+     * moment's wait their turn. A click puts it away early.
+     */
+    _luckReveal(t, list, motion) {
+      const groups = [];
+      for (const e of list) {
+        const last = groups[groups.length - 1];
+        if (last && last.player === e.player) last.items.push(e);
+        else groups.push({ player: e.player, items: [e] });
+      }
+      for (const g of groups) {
+        const run = () => new Promise((done) => {
+          const v = t.view || {};
+          const who = (v.players || []).find(p => p.id === g.player);
+          const name = who ? (who.id === t.meId ? 'You' : who.name) : 'A player';
+          const coins = g.items.filter(e => e.type === 'coin'), dice = g.items.filter(e => e.type === 'roll');
+          // a win is the event's to say (heads, as the engine has it); a coin Krark's Thumb set aside counts for nothing
+          const wins = (e) => (e.won != null ? !!e.won : e.result === 'heads');
+          const counted = coins.filter(e => !e.ignored);
+          const won = counted.filter(wins).length;
+          const mine = who && who.id === t.meId;
+          const from = (g.items.find(e => e.sourceName) || {}).sourceName;
+          const head = (from ? from + ': ' : '') + [
+            counted.length ? `${name} ${mine ? 'flip' : 'flips'} ${counted.length === 1 ? 'a coin' : counted.length + ' coins'}` : '',
+            dice.length ? `${counted.length ? ' and ' : name + ' '}${mine ? 'roll' : 'rolls'} ${dice.length === 1 ? 'a d' + dice[0].sides : dice.length + ' dice'}` : '',
+          ].join('');
+          const row = el('div', { class: 'lr-row' });
+          const box = el('div', { class: 'luck-reveal' + (motion ? '' : ' still'), role: 'status', 'aria-live': 'polite' }, [
+            el('div', { class: 'lr-head', text: head }), row,
+          ]);
+          let at = 0;
+          for (const e of g.items) {
+            const delay = motion ? at : 0;
+            at += 140;
+            if (e.type === 'coin') {
+              const heads = e.result === 'heads', win = wins(e);
+              row.appendChild(el('div', { class: 'lr-coin-wrap' + (e.ignored ? ' ignored' : '') }, [
+                el('div', { class: 'lr-coin ' + (heads ? 'heads' : 'tails'), style: { animationDelay: delay + 'ms' } }, [
+                  el('span', { class: 'lr-face lr-h', html: '<i>\u2600</i>' }), el('span', { class: 'lr-face lr-t', html: '<i>\u263E</i>' }),
+                ]),
+                el('span', { class: 'lr-say ' + (e.ignored ? '' : win ? 'win' : 'loss'), style: { animationDelay: (delay + 900) + 'ms' },
+                  text: (heads ? 'Heads' : 'Tails') + ' \u00b7 ' + (e.ignored ? 'ignored' : win ? 'won' : 'lost') }),
+              ]));
+            } else {
+              // every die rolled (two for an advantage), the ones set aside faded
+              const sides = e.sides || 20;
+              const rolls = (e.rolls && e.rolls.length ? e.rolls : [e.result]).slice();
+              const dropped = (e.ignored || []).slice();
+              for (const r of rolls) {
+                const di = dropped.indexOf(r);
+                const out = di >= 0 && rolls.length > 1;
+                if (out) dropped.splice(di, 1);
+                const face = el('b', { text: String(r) });
+                const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : ''), style: { animationDelay: delay + 'ms' } }, [face]);
+                row.appendChild(el('div', { class: 'lr-die-wrap' + (out ? ' ignored' : '') }, [die,
+                  el('span', { class: 'lr-say', style: { animationDelay: (delay + 900) + 'ms' }, text: 'd' + sides + (out ? ' \u00b7 dropped' : '') })]));
+                // the faces it tumbles through before it settles
+                if (motion) {
+                  setTimeout(() => {
+                    let k = 0;
+                    const tick = setInterval(() => { face.textContent = String(1 + Math.floor(Math.random() * sides)); if (++k > 12) { clearInterval(tick); face.textContent = String(r); } }, 60);
+                  }, delay);
+                }
+              }
+            }
+          }
+          if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));
+          t.arena.appendChild(box);
+          let gone = false;
+          const close = () => { if (gone) return; gone = true; box.classList.add('out'); setTimeout(() => { box.remove(); done(); }, motion ? 260 : 0); };
+          box.addEventListener('click', close);
+          setTimeout(close, (motion ? 2300 : 1600) + at);
+        });
+        // one at a time, in the order they happened
+        this._luckQueue = (this._luckQueue || Promise.resolve()).then(run, run);
+      }
     },
 
     _visuals(t, prev, next, info, motion) {

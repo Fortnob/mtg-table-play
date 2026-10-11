@@ -436,6 +436,9 @@
       const others = this._opponents();
       this.arena.dataset.opponents = String(others.length);
       this.arena.classList.toggle('has-focus', !!this.focusSeat);
+      // combat: the table's light draws in on the battlefield, as it does on Arena, until the fighting is done
+      const v0 = this.view;
+      this.arena.classList.toggle('in-combat', !!v0 && (v0.phase === 'combat' || ['declareAttackers', 'declareBlockers', 'firstStrikeDamage', 'combatDamage'].includes(v0.step)) && v0.step !== 'endCombat');
 
       this.renderSeats(others);
       this.renderHand();
@@ -846,7 +849,9 @@
             const live = this.live || this.view;
             const c = live.pendingChoice;
             if (c && c.type === 'declareAttackers' && c.playerId === this.meId && (c.defenders || []).some(d => d.id === p.id)) {
-              if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: p.id };
+              if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: p.id, pending: null };
+              // an attacker picked up goes at the player whose plate is clicked
+              if (this.attackPlan.pending) { this._attackAt(this.attackPlan.pending, p.id); this.render(); return; }
               this.attackPlan.defenderId = p.id;
             }
             this.setFocus(p.id, true);
@@ -936,8 +941,40 @@
       const byAge = (x, y) => idNum(x.id) - idNum(y.id);
       creatures.sort(byAge); others.sort(byAge); lands.sort(byAge);
 
-      this.place(s.front, creatures.map(o => this.unitFor(o)));
-      this.place(s.others, others.map(o => this.unitFor(o)));
+      /* Tokens pile up too: ten Soldiers are one stack with a count on it,
+         not ten cards across the felt. Only copies alike in all you can see
+         share a pile: the same token, the same size, tapped or not, sick or
+         not, nothing on or attached to it, not attacking or blocking or
+         chosen to; anything else stands on its own, where it can be told
+         apart. Each card of a pile can still be clicked. */
+      const planned = new Set([].concat(
+        (this.attackPlan ? this.attackPlan.declarations.map(d => d.attackerId).concat(this.attackPlan.pending || []) : []),
+        (this.blockPlan ? this.blockPlan.declarations.map(d => d.blockerId).concat(this.blockPlan.pendingBlocker || []) : [])));
+      const pileable = (o) => o.isToken && !planned.has(o.id) && !(o.counters && Object.keys(o.counters).some(k => o.counters[k])) &&
+        !v.battlefield.some(x => x.attachedTo === o.id) && !o.damage && !o.attacking && !(o.blocking || []).length;
+      const piles = (list) => {
+        const out = [], at = new Map();
+        for (const o of list) {
+          const key = pileable(o)
+            ? [p.id, o.card.name, o.power, o.toughness, o.tapped ? 't' : 'u', o.summoningSick ? 's' : '', (o.keywords || []).join(','), o.faceDown ? 'fd' : ''].join('|')
+            : 'solo:' + o.id;
+          let g = at.get(key);
+          if (!g) { g = { key, list: [] }; at.set(key, g); out.push(g); }
+          g.list.push(o);
+        }
+        return out;
+      };
+      const pileEls = (groups) => groups.map(g => {
+        if (g.list.length === 1) return this.unitFor(g.list[0]);
+        const w = this.wrapFor('tp:' + g.key, 'token-pile' + (g.list[0].tapped ? ' tapped' : ''));
+        w.style.setProperty('--n', String(g.list.length));
+        w.dataset.n = '\u00d7' + g.list.length;
+        this.place(w, g.list.map(o => this.unitFor(o)));
+        return w;
+      });
+      const frontPiles = piles(creatures), otherPiles = piles(others);
+      this.place(s.front, pileEls(frontPiles));
+      this.place(s.others, pileEls(otherPiles));
 
       /* Lands pile up: eight Forests are one pile you can count, not eight
          cards across the felt. Only plain copies share a pile — anything with
@@ -961,9 +998,11 @@
       });
       this.place(s.lands, groupEls);
       s.counts = {
-        front: creatures.map(o => (o.tapped ? CARD_RATIO : 1) + this._attachSpread(o) * 0.25),
+        front: frontPiles.map(g => g.list.length > 1 ? (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2
+          : (g.list[0].tapped ? CARD_RATIO : 1) + this._attachSpread(g.list[0]) * 0.25),
         lands: groups.map(g => (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2),
-        others: others.map(o => (o.tapped ? CARD_RATIO : 1) + this._attachSpread(o) * 0.25),
+        others: otherPiles.map(g => g.list.length > 1 ? (g.list[0].tapped ? CARD_RATIO : 1) + (g.list.length - 1) * 0.2
+          : (g.list[0].tapped ? CARD_RATIO : 1) + this._attachSpread(g.list[0]) * 0.25),
       };
     }
 
@@ -1152,8 +1191,8 @@
       host._sig = sig;
       host.innerHTML = '';
       for (const [cls, text, title] of flags) host.appendChild(el('span', { class: 'flag ' + cls, text, title }));
-      if (pool) host.appendChild(el('span', { class: 'flag pool', html: pool,
-        title: 'Mana pool: mana made and not yet spent. It empties at the end of each step.' }));
+      if (pool) host.appendChild(manaFloat(p.pool, host._poolWas));
+      host._poolWas = Object.assign({}, p.pool || {});
     }
 
     /** Library, graveyard and exile, as piles you can see the size of and open. */
@@ -1598,10 +1637,31 @@
     }
 
     attackAll(ch) {
-      if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: (ch.defenders[0] || {}).id };
-      this.attackPlan.declarations = ch.candidates.map(id => ({ attackerId: id, defenderId: this.attackPlan.defenderId }));
+      if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: this._defaultDefender(ch), pending: null };
+      // everything not already sent somewhere goes at the one in view (or the last one chosen)
+      const plan = this.attackPlan;
+      const sent = new Set(plan.declarations.map(d => d.attackerId));
+      for (const id of ch.candidates) if (!sent.has(id)) plan.declarations.push({ attackerId: id, defenderId: plan.defenderId });
+      plan.pending = null;
       MTG.sfx('ui_attack');
       this.render();
+    }
+
+    /** Who an attacker goes at unless told otherwise: the opponent whose board is in view, else the first who can be attacked. */
+    _defaultDefender(ch) {
+      const defs = ch.defenders || [];
+      return (defs.find(d => d.id === this.focusSeat) || defs[0] || {}).id;
+    }
+
+    /** An attacker sent at a player, planeswalker or battle: the arrow goes in, and that one is the default for the next. */
+    _attackAt(attackerId, defenderId) {
+      const plan = this.attackPlan;
+      if (!plan || !attackerId || !defenderId) return;
+      plan.declarations = plan.declarations.filter(d => d.attackerId !== attackerId);
+      plan.declarations.push({ attackerId, defenderId });
+      plan.defenderId = defenderId;
+      plan.pending = null;
+      MTG.sfx('ui_attack');
     }
 
     /* ---- the marks that say what you can do with each card ---- */
@@ -1720,7 +1780,7 @@
       });
       this._onAimMove = (e) => {
         this._pointer = U.pt(e);
-        if (this.targeting || (this.blockPlan && this.blockPlan.pendingBlocker)) this.renderArrows();
+        if (this.targeting || (this.blockPlan && this.blockPlan.pendingBlocker) || (this.attackPlan && this.attackPlan.pending)) this.renderArrows();
       };
       document.addEventListener('pointermove', this._onAimMove, { passive: true });
       // touch: hold a card to read it
@@ -1807,7 +1867,11 @@
       if (ch && ch.type === 'declareAttackers' && ch.playerId === this.meId && this.attackPlan) {
         // pointing at a player chooses who the next attackers go at
         const d = (ch.defenders || []).find(x => x.id === pid);
-        if (d) { this.attackPlan.defenderId = pid; this.render(); return; }
+        if (d) {
+          if (this.attackPlan.pending) this._attackAt(this.attackPlan.pending, pid);
+          else this.attackPlan.defenderId = pid;
+          this.render(); return;
+        }
       }
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
       // your own portrait, with nothing else to do: your name and picture
@@ -1845,13 +1909,25 @@
           toggleIn(this.sacSel, id, ch.count);
           return this.render();
         }
-        if (ch.type === 'declareAttackers' && (ch.candidates || []).includes(id)) {
-          if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: (ch.defenders[0] || {}).id };
-          const list = this.attackPlan.declarations;
-          const i = list.findIndex(d => d.attackerId === id);
-          if (i >= 0) list.splice(i, 1);
-          else { list.push({ attackerId: id, defenderId: this.attackPlan.defenderId }); MTG.sfx('ui_attack'); }
-          return this.render();
+        if (ch.type === 'declareAttackers') {
+          const defs = ch.defenders || [];
+          if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: this._defaultDefender(ch), pending: null };
+          const plan = this.attackPlan;
+          // an attacker picked up, and a planeswalker or battle pointed at: it goes there
+          if (plan.pending && defs.some(d => d.id === id)) { this._attackAt(plan.pending, id); return this.render(); }
+          if ((ch.candidates || []).includes(id)) {
+            const i = plan.declarations.findIndex(d => d.attackerId === id);
+            // one already going in: clicked again, it stays home
+            if (i >= 0) { plan.declarations.splice(i, 1); if (plan.pending === id) plan.pending = null; return this.render(); }
+            // only one thing to attack: it goes straight at it
+            if (defs.length <= 1) { this._attackAt(id, (defs[0] || {}).id); return this.render(); }
+            /* more than one: it is picked up, an arrow follows the pointer,
+               and the player at the top (or a planeswalker) clicked next is
+               what it attacks; clicked again, it is put down */
+            plan.pending = plan.pending === id ? null : id;
+            MTG.sfx('click');
+            return this.render();
+          }
         }
         if (ch.type === 'declareBlockers') {
           if (!this.blockPlan) this.blockPlan = { declarations: [], pendingBlocker: null };
@@ -3151,6 +3227,28 @@
     const i = list.indexOf(id);
     if (i >= 0) list.splice(i, 1);
     else if (list.length < (max || 1)) list.push(id);
+  }
+  /**
+   * Mana made and not yet spent, as Arena shows it: a glowing orb for each
+   * one by the player, in its colour with its symbol, the ones just made
+   * popping in. More than six of a colour is six orbs and a count.
+   */
+  function manaFloat(pool, was) {
+    was = was || {};
+    const orbs = [];
+    for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) {
+      const n = pool[c] || 0;
+      for (let i = 0; i < Math.min(n, 6); i++) {
+        const more = i === 5 && n > 6 ? n - 5 : 0;
+        orbs.push(el('span', { class: 'mana-orb mo-' + c.toLowerCase() + (i >= (was[c] || 0) ? ' new' : ''), style: { animationDelay: (i * 50) + 'ms' } }, [
+          el('i', { class: 'pip pip-' + c.toLowerCase(), text: c }),
+          more ? el('b', { class: 'mo-more', text: '+' + more }) : null,
+        ].filter(Boolean)));
+      }
+    }
+    const total = Object.values(pool).reduce((a, n) => a + (n || 0), 0);
+    return el('span', { class: 'flag pool mana-float', 'aria-label': `Mana pool: ${total} mana not yet spent`,
+      title: 'Mana pool: mana made and not yet spent. It empties at the end of each step.' }, orbs);
   }
   function poolHtml(pool) {
     if (!pool) return '';

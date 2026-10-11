@@ -721,6 +721,22 @@
         if (a && b) this._arrow(a, b, 'blk', true);
       }
       const ptr = this._pointer ? { x: this._pointer.x - ar.left, y: this._pointer.y - ar.top, w: 0, h: 0 } : null;
+      // an attacker picked up: its arrow follows the pointer, and whatever it can attack glows
+      const pend = this.attackPlan && this.attackPlan.pending;
+      if (pend && ptr) {
+        const a = cardBox(pend);
+        if (a) this._arrow(a, ptr, 'atk', true, true);
+      }
+      const chA = (this.live || v).pendingChoice;
+      const canHit = new Set(pend && chA && chA.type === 'declareAttackers' ? (chA.defenders || []).map(d => d.id) : []);
+      for (const n of this.arena.querySelectorAll('.atk-target')) n.classList.remove('atk-target');
+      for (const id of canHit) {
+        const plate = this._plates && this._plates.get(id);
+        if (plate) plate.classList.add('atk-target');
+        for (const n of this.arena.querySelectorAll(`.life-orb[data-player="${CSS.escape(String(id))}"]`)) n.classList.add('atk-target');
+        const c = this.els && this.els.get(id);
+        if (c) c.classList.add('atk-target');
+      }
       if (this.blockPlan && this.blockPlan.pendingBlocker && ptr) {
         const a = cardBox(this.blockPlan.pendingBlocker);
         if (a) this._arrow(a, ptr, 'blk', true, true);

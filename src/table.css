@@ -1075,3 +1075,49 @@
 @media (prefers-reduced-motion: reduce) {
   .seat.focus-in-r, .seat.focus-in-l, .seat.focus-in-r::after, .seat.focus-in-l::after { animation: none; }
 }
+
+/* ---------- tokens pile up ---------- */
+.token-pile { position: relative; display: flex; align-items: center; }
+.token-pile > .unit + .unit { margin-left: calc(var(--w) * -.8); }
+.token-pile.tapped > .unit + .unit { margin-left: calc(var(--w) * -1.1968); }
+.token-pile > .unit:nth-child(2) > .cv { top: calc(var(--w) * -.03); }
+.token-pile > .unit:nth-child(3) > .cv { top: calc(var(--w) * -.06); }
+.token-pile > .unit:nth-child(n+4) > .cv { top: calc(var(--w) * -.09); }
+.token-pile::after { content: attr(data-n); position: absolute; right: calc(var(--w) * -.06); top: calc(var(--w) * -.16); z-index: 6; pointer-events: none;
+  min-width: 26px; padding: 3px 7px; border-radius: 99px; text-align: center; font: 800 12px/1 var(--font); color: #241a05;
+  background: linear-gradient(180deg, #ffe6a0, #c9952f); box-shadow: 0 2px 6px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.35); }
+
+/* ---------- floating mana, an orb for each ---------- */
+.flag.pool.mana-float { display: inline-flex; gap: 3px; padding: 0 2px; background: none !important; border: 0 !important; box-shadow: none !important; }
+.mana-orb { position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: radial-gradient(circle at 35% 30%, rgba(255,255,255,.9), var(--mo) 45%, rgba(0,0,0,.5) 100%);
+  box-shadow: 0 0 10px var(--mo), 0 0 22px color-mix(in srgb, var(--mo) 55%, transparent), inset 0 -2px 4px rgba(0,0,0,.35);
+  animation: moBob 2.6s ease-in-out infinite; }
+.mana-orb:nth-child(2n) { animation-delay: -.8s; } .mana-orb:nth-child(3n) { animation-delay: -1.6s; }
+.mana-orb > .pip { width: 16px; height: 16px; margin: 0; }
+.mana-orb.new { animation: moPop .42s cubic-bezier(.2,1.6,.4,1) both, moBob 2.6s ease-in-out .42s infinite; }
+.mo-more { position: absolute; right: -6px; bottom: -6px; font: 800 10px/1 var(--font); color: #fff; background: #12151c; border-radius: 99px; padding: 2px 4px; box-shadow: 0 0 0 1px rgba(255,255,255,.25); }
+.mo-w { --mo: #f8efc8; } .mo-u { --mo: #4aa3f0; } .mo-b { --mo: #9a7fb0; } .mo-r { --mo: #f0623f; } .mo-g { --mo: #45c06e; } .mo-c { --mo: #c9c2b4; }
+@keyframes moBob { 50% { transform: translateY(-3px); } }
+@keyframes moPop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.25); opacity: 1; } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .mana-orb, .mana-orb.new { animation: none; } }
+:root[data-reduce-motion] .mana-orb, :root[data-reduce-motion] .mana-orb.new { animation: none; }
+
+/* ---------- combat ---------- */
+/* the light draws in on the battlefield while there is fighting, and the felt warms red at its edges */
+.arena-mist::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity .45s ease;
+  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 55%, rgba(4, 4, 8, .55) 100%), linear-gradient(0deg, rgba(160, 30, 20, .12), transparent 30%, transparent 70%, rgba(160, 30, 20, .12)); }
+.arena.in-combat .arena-mist::after { opacity: 1; }
+/* attack arrows: thick, glowing, with light running along them toward what they hit */
+.arrow.atk { stroke-width: 5.5; filter: drop-shadow(0 0 6px rgba(255, 80, 60, .7)); }
+.arrow-glow.atk { stroke-width: 16; opacity: .35; }
+.arrow.atk:not(.dashed) { stroke-dasharray: 14 8; animation: atkFlow .55s linear infinite; }
+@keyframes atkFlow { to { stroke-dashoffset: -22; } }
+/* what an attacker picked up can be sent at: glowing red, waiting for the click */
+.atk-target { outline: 3px solid rgba(255, 90, 70, .85) !important; outline-offset: 3px; box-shadow: 0 0 22px rgba(255, 80, 60, .6) !important; animation: atkTargetPulse 1s ease-in-out infinite; cursor: crosshair !important; }
+.life-orb.atk-target, .opp-plate.atk-target { border-radius: 50%; }
+.opp-plate.atk-target { border-radius: 12px; }
+@keyframes atkTargetPulse { 50% { outline-color: rgba(255, 140, 110, .5); } }
+/* a creature chosen to attack rises a little, red-lit, ready to go */
+.cv.declared-atk .cv-body { box-shadow: 0 0 0 2px rgba(255, 90, 70, .9), 0 0 22px rgba(255, 70, 50, .55), 0 10px 18px rgba(0,0,0,.5); }
+@media (prefers-reduced-motion: reduce) { .arrow.atk:not(.dashed), .atk-target { animation: none; } }

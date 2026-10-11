@@ -66,19 +66,17 @@
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareAttackers') {
           const defs = ch.defenders || [];
-          const plan = this.attackPlan || { defenderId: (defs[0] || {}).id };
+          // who each one attacks is chosen on the table: the creature, then the player at the top or the planeswalker
           let extra = null;
-          if (defs.length > 1) {
-            const row = el('div', { class: 'ab-chips' }, [el('span', { class: 'tiny', text: 'Attacking:' }), ...defs.map(d => el('button', {
-              type: 'button', class: 'ab-chip' + (d.id === plan.defenderId ? ' on' : ''), text: d.name,
-              onclick: () => { if (!this.attackPlan) this.attackPlan = { declarations: [], defenderId: d.id }; this.attackPlan.defenderId = d.id; this.render(); },
-            }))]);
-            extra = { node: row, sig: plan.defenderId };
-          }
           // banding: the chosen attackers can go in together, as one band
           const band = this._bandRow(ch);
-          if (band) extra = { node: extra ? el('div', {}, [extra.node, band.node]) : band.node, sig: (extra ? extra.sig : '') + '|' + band.sig };
-          return set('combat', 'Choose attackers', `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
+          if (band) extra = band;
+          if (this.attackPlan && this.attackPlan.pending) {
+            return set('combat', 'Now choose what it attacks', `${press()} a player at the top, or a planeswalker or battle, to send it there. ${press()} the creature again to put it back.`, extra);
+          }
+          return set('combat', 'Choose attackers', defs.length > 1
+            ? `${press()} a creature, then the player or planeswalker it attacks. Press <b>Attack</b> when they are all chosen.`
+            : `${press()} your creatures to send them in, then press <b>Attack</b>.`, extra);
         }
         if (ch.type === 'declareBlockers') {
           const atk = (ch.attackers || []).map(id => this.objIn(id)).filter(Boolean);
