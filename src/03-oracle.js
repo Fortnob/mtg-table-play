@@ -2511,6 +2511,9 @@
     // Miles "Tails" Prower: "Otherwise, put a flying counter on it." — the Vehicle that entered (triggerHasFlying)
     { re: /^Otherwise, put an? (flying|first strike|deathtouch|lifelink|trample|vigilance|menace|reach|haste) counter on it\.?$/i,
       make: (m) => ({ op: 'noop', otherwiseOf: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerObject' }] }) },
+    // The Fifth Doctor: "put a +1/+1 counter on each creature you control that didn't attack or enter this turn" (idleOrNew)
+    { re: /^Put an? \+1\/\+1 counter on each creature you control that didn'?t attack or enter this turn\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', notAttackedOrEntered: true } }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -6430,6 +6433,8 @@
     // (Death's Presence: "the power of the creature that died")
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Rootha, Mastering the Moment: "the greatest mana value among instant and sorcery spells you've cast this turn" (maxMvCast)
+    if ((m = p.match(/^the greatest mana value among (instant and sorcery|instant|sorcery|creature|noncreature) spells you'?ve cast this turn$/i))) return done({ maxMvCast: m[1].toLowerCase().replace(' and ', ' or ') });
     // Crystal, Inhuman Princess: "the number of colors that spell is" (spellColorsAmount)
     if (/^the number of colou?rs that spell is$/i.test(p)) return done({ ofTrigger: 'colorCount' });
     // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)

@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10296,
+  "needed": 10294,
   "gainedCards": 953,
-  "linesNeeded": 10922,
+  "linesNeeded": 10920,
   "linesGained": 1108,
   "gained": {
    "all": 953,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3969,
-   "lines": 3732,
+   "score": 3968,
+   "lines": 3731,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -2609,19 +2609,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Romana II"
-   ]
-  },
-  {
    "what": "not or",
    "score": 6,
    "lines": 6,
@@ -3282,6 +3269,18 @@
     "Zimone, Mystery Unraveler",
     "Ashling the Pilgrim",
     "Nissa, Leyline Tamer"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "Romana II"
    ]
   },
   {
@@ -6427,8 +6426,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3321,
-   "cards": 3165,
+   "score": 3320,
+   "cards": 3164,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -8023,19 +8022,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Romana II"
-   ]
-  },
-  {
    "what": "CastFromZonePredicate",
    "score": 6,
    "cards": 6,
@@ -8421,6 +8407,18 @@
     "Magus Lucea Kane",
     "Rainbow Vale",
     "Undiscovered Paradise"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "Romana II"
    ]
   },
   {

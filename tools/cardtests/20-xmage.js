@@ -23951,4 +23951,28 @@ module.exports = (test) => {
     const cat = K.put('A', 'Savannah Lions', 'hand'); K.g.moveObject(cat, 'battlefield'); K.resolve();
     t.eq(bs.attachedTo, cat.id, 'Kemba: the Bonesplitter is attached to the Lions');
   });
+
+  test('Commanders: The Fifth Doctor, Rootha, Mastering the Moment', (mk, t) => {
+    t.auto('The Fifth Doctor'); t.auto('Rootha, Mastering the Moment');
+    // The Fifth Doctor: a counter on each creature that neither attacked nor entered this turn, untapped
+    const F = mk({ library: Array(20).fill('Plains') });
+    F.toMain('A');
+    const fd = F.bf('A', 'The Fifth Doctor'); fd.entered = F.g.turn - 1;
+    const stay = F.bf('A', 'Grizzly Bears'); stay.entered = F.g.turn - 1; stay.tapped = true;
+    const atk = F.bf('A', 'Grizzly Bears'); atk.entered = F.g.turn - 1; atk.summoningSick = false;
+    const fresh = F.bf('A', 'Grizzly Bears'); fresh.entered = F.g.turn;
+    F.answer('declareAttackers', () => [{ attackerId: atk.id, defenderId: 'B' }]);
+    F.toMain('A', 'end'); F.resolve();
+    t.ok((Number(stay.counters['+1/+1']) || 0) === 1 && !stay.tapped, 'The Fifth Doctor: the Bears that stayed home, a counter, untapped');
+    t.ok(!(Number(atk.counters['+1/+1']) || 0) && !(Number(fresh.counters['+1/+1']) || 0), 'The Fifth Doctor: not the attacker, not the new one');
+    // Rootha: at combat, an X/X Elemental, X the greatest mana value among instants and sorceries cast this turn
+    const R = mk({ library: Array(20).fill('Mountain') });
+    R.toMain('A');
+    R.bf('A', 'Rootha, Mastering the Moment');
+    R.mana('A', 'R'); R.cast('A', R.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] }); R.resolve();
+    R.mana('A', '1RR'); R.cast('A', R.hand('A', 'Fiery Temper'), { targets: [{ kind: 'player', id: 'B' }] }); R.resolve();
+    R.toMain('A', 'beginCombat'); R.resolve();
+    const el = R.bfOf('A').find(o => o.isToken && /Elemental/.test(o.name));
+    t.ok(!!el && R.g.powerOf(el) === 3 && R.g.hasKw(el, 'flying') && R.g.hasKw(el, 'haste'), 'Rootha: a 3/3 flying, hasty Elemental (Fiery Temper was 3)');
+  });
 };

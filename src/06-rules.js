@@ -13354,6 +13354,11 @@
           return Number(tdA.amount) || 0;
         }
         if (v && typeof v === 'object' && v.per) return this.countPermanents(ctx.controller, v, src) * (v.mult || 1);
+        // Rootha, Mastering the Moment: the greatest mana value among spells of a kind you cast this turn, as cast (maxMvCast)
+        if (v && typeof v === 'object' && v.maxMvCast) {
+          const castM = ((me && me.spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.maxMvCast));
+          return castM.reduce((k, x) => Math.max(k, x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)), 0);
+        }
         // Kratos, God of War: that player's creatures that didn't attack this turn (idleCreatures)
         if (v && typeof v === 'object' && v.triggerPlayerIdle) {
           const pI = triggerPlayer();
@@ -13943,7 +13948,10 @@
           // (thatToken: Wild Hypothesis, "Put X +1/+1 counters on it" — the token just made)
           else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
-            for (const o of this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id)) this.addCounters(o, e.kind, cnt);
+            // (The Fifth Doctor: "Untap those creatures" are these — idleOrNew)
+            const listC = this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id);
+            this._lastGroup = listC.map(o => o.id);
+            for (const o of listC) this.addCounters(o, e.kind, cnt);
           }
           else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.addCounters(o, e.kind, cnt); } }
           break;
@@ -22158,6 +22166,8 @@
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
       // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
       if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
+      // The Fifth Doctor: "that didn't attack or enter this turn" (idleOrNew)
+      if (sc.notAttackedOrEntered && (o.attackedTurn === this.turn || o.entered === this.turn)) return false;
       // Lena, Selfless Champion: "with power less than Lena's power" — Lena as she last was, once sacrificed (powerBelowSrc)
       if (sc.powerBelowSrc && !(src && this.powerOf(o) < (src.zone === 'battlefield' ? this.powerOf(src) : (src._lastPower || 0)))) return false;
       // Eriette of the Charmed Apple: "enchanted by an Aura you control" (enchantedByYours)
