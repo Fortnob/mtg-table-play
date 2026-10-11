@@ -23068,4 +23068,24 @@ module.exports = (test) => {
     C.g._runEffects([{ op: 'scry', n: 1 }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); C.resolve();
     t.eq(C.g.powerOf(cb), p0 + 3, 'Celeborn: one more card, +1/+1 more');
   });
+
+  test('Commanders: Queen Allenal of Ruadach, Quina, Qu Gourmet — those tokens plus one more', (mk, t) => {
+    t.auto('Queen Allenal of Ruadach'); t.auto('Quina, Qu Gourmet');
+    const toks = (T, re) => T.bfOf('A').filter(o => o.isToken && re.test(o.name)).length;
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Queen Allenal: a creature token, and a 1/1 Soldier with it; a Treasure on its own
+    const Q = mk({ library: Array(10).fill('Plains') });
+    Q.toMain('A');
+    Q.bf('A', 'Queen Allenal of Ruadach');
+    Q.g._runEffects([{ op: 'createToken', n: 2, pt: '2/2', colorWords: ['green'], subtypes: 'Wolf', keywords: [], addTypes: [] }], ctx); Q.resolve();
+    t.ok(toks(Q, /Wolf/) === 2 && toks(Q, /Soldier/) === 1, 'Queen Allenal: two Wolves, and one Soldier');
+    Q.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], ctx); Q.resolve();
+    t.eq(toks(Q, /Soldier/), 1, 'Queen Allenal: a Treasure is no creature, no Soldier');
+    // Quina: any token, and a 1/1 Frog with it
+    const F = mk({ library: Array(10).fill('Forest') });
+    F.toMain('A');
+    F.bf('A', 'Quina, Qu Gourmet');
+    F.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], ctx); F.resolve();
+    t.ok(toks(F, /Treasure/) === 1 && toks(F, /Frog/) === 1, 'Quina: a Treasure, and a Frog');
+  });
 };

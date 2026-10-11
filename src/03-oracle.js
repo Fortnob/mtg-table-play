@@ -14001,7 +14001,8 @@
         how: /three/i.test(m[3]) ? 'triple' : 'double', tokenWhat: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* Peregrin Took, Xorn, Chatterfang: those tokens, and one more of another kind */
     // (Tippy-Toe, Terrific Partner: "If you would create one or more tokens, …" — any kind: tokensPlusAny)
-    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
+    // (Queen Allenal of Ruadach: "those tokens plus a 1/1 white Soldier creature token are created instead" — tokensPlusA)
+    { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
         const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
         let extra = null;
