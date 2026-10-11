@@ -191,6 +191,26 @@
     return l || 'not_legal';
   }
 
+  /**
+   * What a deck made at a draft or from sealed packs is kept as once saved:
+   * a deck is never of a draft's own kind. With a commander, Commander;
+   * otherwise the first of Standard, Pioneer, Modern, Legacy and Vintage
+   * that every card of it is legal in (its size aside: forty cards make a
+   * start), and Vintage when none is.
+   */
+  const KEEP_AS = ['standard', 'pioneer', 'modern', 'legacy', 'vintage'];
+  function keepAs(deck) {
+    if ((deck.commanders || []).length) return 'commander';
+    const cards = (deck.main || []).map(e => e.card).filter(c => c && !isBasicLand(c));
+    for (const id of KEEP_AS) {
+      const f = FORMATS[id];
+      if (f && cards.every(c => { const l = legalityOf(c, f); return l === 'legal' || l === 'restricted'; })) return id;
+    }
+    return 'vintage';
+  }
+  /** The formats a deck can be: every one but a draft's or sealed's own. */
+  const deckFormats = () => FORMAT_ORDER.map(id => FORMATS[id]).filter(f => f.kind !== 'limited');
+
   /** Color identity of a card, as Scryfall computes it (includes text-box pips). */
   function colorIdentity(card) { return card.color_identity || []; }
 
@@ -775,7 +795,7 @@
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
     validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
     houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel, freeMulligansFor, firstPlayerDrawsFor,
-    isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion,
+    isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion, keepAs, deckFormats,
     commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
     isLimited: (id) => FORMATS[id] && FORMATS[id].kind === 'limited',
     isCommander: (id) => !!(FORMATS[id] && FORMATS[id].commander),

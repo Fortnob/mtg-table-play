@@ -24,6 +24,8 @@
 
   /* ================= boot ================= */
   App.boot = function () {
+    // decks saved by an older build: settled in the background, once (src/11-ui-deck.js)
+    setTimeout(() => { if (MTG.decks && MTG.decks.settle) MTG.decks.settle().catch(() => {}); }, 4000);
     App.myName = MTG.settings.playerName || randomName();
     App.myId = 'me';
     MTG.applyDisplaySettings();
@@ -2031,7 +2033,8 @@
   /** A deck from nothing: straight into the editor, which is where it is named. */
   function newDeck() {
     UI.deckBuilder({
-      id: MTG.uid('deck'), name: '', format: App.formatId,
+      // the format last played, unless that was a draft's: a deck is never of a draft's kind
+      id: MTG.uid('deck'), name: '', format: MTG.formats.isLimited(App.formatId) ? 'standard' : App.formatId,
       main: [], sideboard: [], commanders: [], companion: null,
     }, { onSave: () => renderDecks(), untitled: untitledName(), nameFirst: true });
   }

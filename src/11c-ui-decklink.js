@@ -33,7 +33,7 @@
     const main = data.size - sideboard;
     const known = knownFormat(data.format);
     // a format this table has never heard of (a newer table's, say): the player picks one
-    const fmtSel = known ? null : el('select', { 'aria-label': 'Format' }, MTG.formats.list().map(f =>
+    const fmtSel = known ? null : el('select', { 'aria-label': 'Format' }, MTG.formats.deckFormats().map(f =>
       el('option', { value: f.id, text: f.name, selected: f.id === (data.commanders.length ? 'commander' : 'standard') })));
     const fmtName = known ? MTG.formats.get(data.format).name : null;
     const facts = [
