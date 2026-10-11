@@ -1133,7 +1133,7 @@
           : `${o.card.name}: choose ${what}`;
         if (g.off) return this._pickOffBoard(g, o, label, next);
         this.startTargeting({
-          need: k, specs: g.specs, minChosen: g.min || 0, source: o.id, cardName: o.card.name,
+          need: k, specs: g.specs, minChosen: g.min || 0, source: o.id, cardName: o.card.name, spell: true,
           label,
           onDone: next,
         });

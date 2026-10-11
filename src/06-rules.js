@@ -1189,6 +1189,7 @@
       for (const o of this.battlefield.slice()) {
         if (o.sacAtEndOfTurn === this.turn) {
           o.sacAtEndOfTurn = null;
+          if (!this._canSacrifice(o)) continue;
           this.logEvent('sacrifice', `${o.name} is sacrificed at end of turn.`);
           this.moveObject(o, 'graveyard');
           continue;
@@ -2665,7 +2666,9 @@
       // an Aura's target is what it will enchant (Surging Might rippled, an Aura discovered), as castSpell reads it
       const specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
       if (!specs.length) return [];
+      this._castingSpell = c.id;
       const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
+      this._castingSpell = null;
       if (specs.some((spec, i) => !options[i].length && !(spec && spec.upTo))) return null;
       const picked = this._ask({ type: 'pickTarget', playerId: pid, specs, options, count: specs.length, sourceId: c.id,
         prompt: `${c.name}: choose ${specs.length === 1 ? 'a target' : 'targets'}` }, key);
@@ -4672,7 +4675,7 @@
       const a = o.analysis();
       if (!a || !(a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'exploit'))) return;
       const pool = this.battlefield.filter(x => x.controller === o.controller &&
-        (x.analysis() || {}).isCreature);
+        (x.analysis() || {}).isCreature && this._canSacrifice(x));
       if (!pool.length) return;
       this.queueChoice({
         type: 'sacrifice', playerId: o.controller, count: 1, optional: true,
@@ -5384,8 +5387,11 @@
         // overload: "each" instead of "target" — nothing is aimed at
         if (!(viaUse && viaUse.overload) && !(a && a.isPermanent && !a.isAura && !(opts.targets || []).length)) {
           this._specX = opts.x || 0;
+          // (Emrakul, the World Anew: what is being cast is a spell, wherever its card still is)
+          this._castingSpell = o.id;
           const bad = this._illegalTargets(specs, opts.targets, playerId, o);
           this._specX = null;
+          this._castingSpell = null;
           if (bad) return this.fail(bad);
         }
       }
@@ -5400,7 +5406,9 @@
       if (a && !a.isPermanent && !opts.fuse && !/overload|cleave/.test(String(opts.via || '')) && hasBranchSlots(this._cardSpellEffects(a))) {
         const specs = spellTargetSpecs(a, this._castSel(playerId, o, a, opts));
         if ((opts.targets || []).length > specs.length) opts.targets = opts.targets.slice(0, specs.length);
+        this._castingSpell = o.id;
         const bad = this._illegalTargets(specs, opts.targets, playerId, o);
+        this._castingSpell = null;
         if (bad) return this.fail(bad);
       }
       const addPick = a && a.additionalCost && a.additionalCost.choice
@@ -7297,10 +7305,12 @@
     /** What this player could sacrifice to "Sacrifice a creature" and its relatives. */
     _sacrificePool(pid, spec, self) {
       const filter = String((spec && spec.filter) || 'permanent').replace(/^(?:another|other)\s+/i, '');
-      return this.battlefield.filter(x => x.controller === pid && !x.phasedOut &&
+      return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._canSacrifice(x) &&
         !(spec && spec.another && self && x.id === self.id) &&
         (/^(?:permanent|permanents)$/i.test(filter) || this._cardFitsWords(x, filter)));
     }
+    /** Alexios, Deimos of Kosmos, Hithlain Rope: "can't be sacrificed" — not a choice, and not gone if picked anyway. */
+    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && this._staticOp(x, 'unsacrificable')); }
     /** The cards in hand a discard cost could take. */
     _discardPool(pid, spec, self, opts) {
       const hand = ((this.zones[pid] || {}).hand || []).filter(c => !self || c.id !== self.id);
@@ -7654,6 +7664,7 @@
     /** Sacrifice these as a cost, remembering what they were. */
     _sacrificeNow(pid, list, item) {
       const snaps = [];
+      list = (list || []).filter(x => this._canSacrifice(x));
       for (const x of list) {
         if (!x || x.zone !== 'battlefield') continue;
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
@@ -8548,6 +8559,8 @@
       const a = o.analysis();
       if (!a) return false;
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack')) ||
+        // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
+        !!this._staticOp(o, 'mustAttack') ||
         this._hasFlag(o, 'mustAttackEot') || o.goadedBy != null || o.mustAttackPlayer != null ||
         // Psychic Impetus: an Aura that keeps it goaded
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
@@ -8598,6 +8611,9 @@
           const why = this._cantAttackYou(o, d.defenderId);
           if (!why) { kept.push(d); continue; }
           if (!(this.player(playerId) || {}).isBot) return this.fail(`${o.name} can't attack ${why.who} (${why.src.name}).`);
+          // (Alexios, Deimos of Kosmos: a bot's compelled attacker goes at someone it may attack instead)
+          const elsewhere = this.mustAttack(o) && ch.defenders.find(x => !this._cantAttackYou(o, x.id));
+          if (elsewhere) { kept.push(Object.assign({}, d, { defenderId: elsewhere.id })); continue; }
           this.logEvent('rules', `${o.name} can't attack ${why.who} (${why.src.name}).`);
         }
         declarations = kept;
@@ -8641,7 +8657,9 @@
       if (this.config.rulesEnforcement === 'full') {
         for (const id of ch.candidates) {
           const o = this.obj(id);
-          const must = this.mustAttack(o);
+          /* "if able": not when everything it could attack is somewhere it can't
+             (Alexios, Deimos of Kosmos at two players, away from its owner) */
+          const must = this.mustAttack(o) && ch.defenders.some(x => !this._cantAttackYou(o, x.id));
           if (must && !declarations.some(d => d.attackerId === id))
             return this.fail(`${o.name} ${o.goadedBy != null ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
           /* goaded: it attacks a player other than the one who goaded it, if it can (CR 701.15b) — a bot's
@@ -9106,6 +9124,14 @@
       if (!arg) return false;
       const a = o.analysis();
       const s = arg.toLowerCase();
+      /* Emrakul, the World Anew: "protection from spells and from permanents that were cast this turn" —
+         a spell, or a permanent that was one this turn */
+      if (/ and from /.test(s)) return s.split(/ and from /).some(part => this._matchesProtection(part, o));
+      if (/^spells$/.test(s)) return o.zone === 'stack' || this._castingSpell === o.id;
+      if (/^permanents that were cast this turn$/.test(s)) return o.zone === 'battlefield' && o.wasCast === this.turn;
+      // Emrakul, the Promised End: "protection from instants"
+      const TYPE_WORDS = { instants: 'isInstant', sorceries: 'isSorcery', enchantments: 'isEnchantment', planeswalkers: 'isPlaneswalker' };
+      if (TYPE_WORDS[s]) return !!a[TYPE_WORDS[s]];
       const colorMap = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
       for (const [w, c] of Object.entries(colorMap)) if (s.includes(w) && (a.colors || []).includes(c)) return true;
       if (s.includes('artifacts') && a.isArtifact) return true;
@@ -9526,7 +9552,7 @@
         this.logEvent('rules', `${o.name} is exiled at end of combat.`);
       }
       for (const o of this.battlefield.slice()) {
-        if (!o.sacAtEndOfCombat) continue;
+        if (!o.sacAtEndOfCombat || !this._canSacrifice(o)) continue;
         this.moveObject(o, 'graveyard');
         this.logEvent('sacrifice', `${o.name} is sacrificed at end of combat.`);
       }
@@ -15155,7 +15181,7 @@
           for (const p of who) {
             const pool = this.battlefield.filter(x => {
               const xa = x.analysis();
-              if (x.controller !== p.id || !xa || x.phasedOut) return false;
+              if (x.controller !== p.id || !xa || x.phasedOut || !this._canSacrifice(x)) return false;
               // "another creature" never means the one doing the asking
               if (e.other && src && x.id === src.id) return false;
               // Pick Your Poison: "a creature with flying"
@@ -15549,7 +15575,7 @@
         }
         // All Is Dust: "each player sacrifices all permanents they control that are one or more colors"
         case 'sacrificeColored': {
-          const gone = this.battlefield.filter(x => !x.phasedOut && ((x.analysis() || {}).colors || []).length > 0);
+          const gone = this.battlefield.filter(x => !x.phasedOut && ((x.analysis() || {}).colors || []).length > 0 && this._canSacrifice(x));
           // (all at once, then each one seen for what it was: Tergrid — sacOrDiscardAny)
           const ctl = new Map(gone.map(x => [x, x.controller]));
           for (const x of gone) if (x.zone === 'battlefield') this.moveObject(x, 'graveyard');
@@ -15782,7 +15808,9 @@
             const pool = this.battlefield.filter(x => x.controller === q.id && !x.phasedOut && (e.what || ['creature']).some(w => this._matchesCategory(x, w)));
             if (!pool.length) continue;
             const top = e.least ? Math.min(...pool.map(val)) : Math.max(...pool.map(val));
-            const tied = pool.filter(x => val(x) === top);
+            // (Alexios, Deimos of Kosmos: the greatest that can't be sacrificed is still the greatest — nothing goes)
+            const tied = pool.filter(x => val(x) === top && (e.exile || this._canSacrifice(x)));
+            if (!tied.length) continue;
             let pick = tied[0];
             if (tied.length > 1) {
               const got = this._choose({ playerId: q.id, purpose: 'sacrifice', kind: 'objects', zone: 'battlefield', harmful: true,
@@ -15807,13 +15835,17 @@
           break;
         }
         // Hellkite Tyrant: "gain control of all artifacts that player controls"
+        // (Emrakul, the World Anew: "gain control of all creatures target player controls" — stealAll)
+        case 'stealAll':
         case 'stealAllArtifacts': {
-          const q = triggerPlayer();
+          const q = e.op === 'stealAll' ? firstPlayer() : triggerPlayer();
           if (!q) break;
+          const what = e.what || 'artifact';
           const ts = this._stampNew();
-          for (const x of this.battlefield.filter(y => y.controller === q.id && (y.analysis() || {}).isArtifact)) x.effects.push({ control: ctx.controller, until: null, ts });
+          const fits = (y) => (what === 'creature' ? !!(this.characteristics(y) || {}).isCreature : what === 'artifact' ? !!(y.analysis() || {}).isArtifact : true);
+          for (const x of this.battlefield.filter(y => y.controller === q.id && !y.phasedOut && fits(y))) x.effects.push({ control: ctx.controller, until: null, ts });
           this._refreshControl();
-          this.logEvent('control', `${me.name} gains control of ${q.name}'s artifacts.`);
+          this.logEvent('control', `${me.name} gains control of ${q.name}'s ${what}s.`);
           break;
         }
         // Exert (CR 701.43): it won't untap during your next untap step
@@ -16815,7 +16847,7 @@
             const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
             const pay = [], hit = [];
             for (const q of opps) {
-              const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === q.id && this._cardFitsWords(x, e.cost.sacrifice));
+              const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === q.id && this._cardFitsWords(x, e.cost.sacrifice) && this._canSacrifice(x));
               const hand = e.cost.orDiscard ? this.zones[q.id].hand.slice() : [];
               if (!perms.length && !hand.length) { hit.push(q); continue; }
               const got = this._choose({ playerId: q.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
@@ -16836,7 +16868,7 @@
             break;
           }
           if (e.cost && e.cost.sacrifice) {
-            const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice));
+            const perms = this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, e.cost.sacrifice) && this._canSacrifice(x));
             const hand = e.cost.orDiscard ? this.zones[payer.id].hand.slice() : [];
             if (!perms.length && !hand.length) { this._spliceNext(e.then); break; }
             /* Rakdos, Patron of Chaos: "may sacrifice two nonland, nontoken permanents" — all of them, or it
@@ -18236,7 +18268,7 @@
         }
         case 'sacrificeThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
-          if (x && x.zone === 'battlefield') {
+          if (x && x.zone === 'battlefield' && this._canSacrifice(x)) {
             this.moveObject(x, 'graveyard');
             this.logEvent('sacrifice', `${x.name} is sacrificed.`);
           }
@@ -19297,7 +19329,7 @@
         // Grafted Exoskeleton: "sacrifice that permanent" — only one you control
         case 'sacrificeTriggerObject': {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
-          if (x && x.zone === 'battlefield' && x.controller === ctx.controller) {
+          if (x && x.zone === 'battlefield' && x.controller === ctx.controller && this._canSacrifice(x)) {
             this.moveObject(x, 'graveyard');
             this.logEvent('sacrifice', `${me.name} sacrifices ${x.name}.`);
             this._fire('youSacrifice', ctx.controller, { count: 1, object: x, objController: ctx.controller });   // (sacrificedObject)
@@ -20577,7 +20609,7 @@
           for (; st.step < total && st.step < 2000; st.step++) {
             const p = opps[st.step % opps.length];
             if (!p || p.hasLost) continue;
-            const perms = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && !(o.analysis() || {}).isLand);
+            const perms = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && !(o.analysis() || {}).isLand && this._canSacrifice(o));
             const hand = this.zones[p.id].hand;
             const opts = [{ label: `Lose ${e.life} life`, key: 'life' }];
             if (perms.length) opts.push({ label: 'Sacrifice a nonland permanent', key: 'sac' });
@@ -20832,12 +20864,15 @@
         }
         // Wrong Turn: the target player gains control of the target permanent
         case 'giveControl': {
-          const p = firstPlayer();
-          const x = firstObj();
+          // Alexios, Deimos of Kosmos: "that player gains control of Alexios" — whose upkeep it is, of itself
+          const p = e.to === 'triggerPlayer' ? triggerPlayer() : firstPlayer();
+          const x = e.self ? src : firstObj();
           if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
           x.effects.push({ control: p.id, until: null, ts: this._stampNew() });
           this._refreshControl();
           this.logEvent('control', `${p.name} gains control of ${x.name}.`);
+          // ("It gains haste until end of turn": that one)
+          if (e.self) this._noteLastAffected([{ kind: 'object', id: x.id }]);
           break;
         }
         // Roles: an Aura token made attached, and the controller's older Role on it goes
@@ -21589,6 +21624,7 @@
           this._lastSacrificed = [];
           this._lastSacCount = 0;
           const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.filter || 'permanent') &&
+            this._canSacrifice(x) &&
             // Sephiroth: "other creatures"
             !(e.other && src && x.id === src.id));
           if (!pool.length) break;
@@ -22221,7 +22257,7 @@
         /* Animate Dead: the creature it was put on is sacrificed when it goes */
         case 'sacAttached': {
           const x = src && (src.lastAttachedTo || src.attachedTo) && this.obj(src.lastAttachedTo || src.attachedTo);
-          if (x && x.zone === 'battlefield') { this.moveObject(x, 'graveyard'); this.logEvent('sacrifice', `${x.name} is sacrificed.`); }
+          if (x && x.zone === 'battlefield' && this._canSacrifice(x)) { this.moveObject(x, 'graveyard'); this.logEvent('sacrifice', `${x.name} is sacrificed.`); }
           break;
         }
         /* Hideaway (CR 702.75): look at the top cards, keep one face down under this */
@@ -23035,6 +23071,8 @@
       // Port Razer: "can't attack a player it has already attacked this turn" (noRepeatAttack)
       if (!walker && o._attackedPlayers && o._attackedPlayers.turn === this.turn && o._attackedPlayers.ids.includes(def.id) &&
         this._staticOp(o, 'noRepeatAttack')) return { src: o, who: def.name + ' again this turn' };
+      // Alexios, Deimos of Kosmos: "can't attack its owner" — the player, not their planeswalkers
+      if (!walker && def.id === o.owner && this._staticOp(o, 'cantAttackOwner')) return { src: o, who: def.name + ', its owner' };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();

@@ -1406,6 +1406,14 @@
     // Wrong Turn, Harmless Offering: "Target opponent gains control of target creature (you control)."
     { re: /^Target (opponent|player) gains control of (target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, targetSpec(m[2])] }) },
+    /* Alexios, Deimos of Kosmos: "that player gains control of Alexios, untaps it, and puts a +1/+1 counter
+       on it" — the player whose upkeep it is, and Alexios itself (giveControl toTrigger) */
+    { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
+      make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true }, { op: 'untap', scope: 'self' },
+        { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
+    // Emrakul, the World Anew: "gain control of all creatures target player controls" (stealAll)
+    { re: /^Gain control of all (creatures|artifacts|permanents) target (player|opponent) controls\.?$/i,
+      make: (m) => ({ op: 'stealAll', what: m[1].toLowerCase().replace(/s$/, ''), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
     // Counterflux: "Counter target spell you don't control."
     { re: /^Counter target spell you don'?t control\.?$/i, make: () => ({ op: 'counterSpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'opponent' }] }) },
     // Ashling's Command: "2 damage to each creature target player controls"
@@ -14539,7 +14547,8 @@
     'cumulativeUpkeep', 'activateOnly', 'etbTappedUnlessLife', 'etbTappedUnlessOpponents', 'chooseLandTypeOnEnter',
     'etbTappedUnlessReveal', 'etbAsCopy',
     'exploit', 'ascend', 'sacUnlessControl', 'noLifeGain', 'playerHexproof', 'playerShroud', 'leyline',
-    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours']);
+    'cantAttackAlone', 'cantBlockAlone', 'etbPrepared', 'lure', 'restrictUnless', 'attackTax', 'cantAttackYou', 'abilityCostMod', 'untapLimit', 'grantCastKeyword', 'noPreventionAll', 'targetManaTax', 'spellKeyword', 'bridgeAttack', 'preventNoncombatToYou', 'protFromOpponents', 'oneBlockerPower', 'cantBlockYours',
+    'unsacrificable', 'cantAttackOwner']);
 
   function parseStatic(line, ctx) {
     /* Thornfist Striker, Dreadwing Scavenger: "… gets +1/+1 and has
@@ -15212,6 +15221,12 @@
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
       { re: /^CARDNAME attacks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustAttack' }, auto: true },
+      /* Alexios, Deimos of Kosmos: "attacks each combat if able, can't be sacrificed, and can't attack its
+         owner" (unsacrificable, cantAttackOwner) */
+      { re: /^CARDNAME attacks each combat if able, can'?t be sacrificed, and can'?t attack its owner\.?$/i,
+        make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'unsacrificable' }, { op: 'cantAttackOwner' }] }), auto: true },
+      // Hithlain Rope: "This artifact can't be sacrificed."
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) can'?t be sacrificed\.?$/i, eff: { op: 'unsacrificable' }, auto: true },
       { re: /^(?:CARDNAME|This creature) blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says

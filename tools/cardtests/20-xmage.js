@@ -24862,4 +24862,128 @@ module.exports = (test) => {
     t.ok(G.g.hasKw(c1, 'flying') && G.g.hasKw(c2, 'flying'), 'Ghost-Lit Drifter: the two chosen fly');
     t.no(G.g.hasKw(c3, 'flying'), 'Ghost-Lit Drifter: the third does not');
   });
+
+  test('Commanders: Alexios, Deimos of Kosmos — passes around the table each upkeep, never at its owner', (mk, t) => {
+    t.auto('Alexios, Deimos of Kosmos');
+    const M = mk({ players: ['A', 'B', 'C'] });
+    const ax = M.bf('A', 'Alexios, Deimos of Kosmos');
+    // B's upkeep: B gains control, untaps it, a +1/+1 counter, haste
+    ax.summoningSick = true;
+    // (tapped: B's untap step is not its controller's, only the trigger untaps it)
+    ax.tapped = true;
+    M.nextTurn('B');
+    t.eq(ax.controller, 'B', "B's upkeep: B controls Alexios");
+    t.eq(Number(ax.counters['+1/+1']) || 0, 1, 'a +1/+1 counter');
+    t.no(ax.tapped, 'untapped');
+    t.ok(M.g.hasKw(ax, 'haste'), 'haste until end of turn');
+    let refused = null, emptyRefused = null;
+    M.answer('declareAttackers', (ch, g) => {
+      refused = !g.declareAttackers('B', [{ attackerId: ax.id, defenderId: 'A' }]) && g.lastError;
+      emptyRefused = !g.declareAttackers('B', []);
+      return [{ attackerId: ax.id, defenderId: 'C' }];
+    });
+    M.toMain('B', 'endCombat');
+    t.ok(refused && /its owner/.test(refused), "can't attack its owner: " + refused);
+    t.ok(emptyRefused, 'attacks each combat if able');
+    t.eq(M.life('C'), 20 - 5, 'Alexios attacked C for 5');
+    t.eq(M.life('A'), 20, 'not its owner');
+    // C's upkeep, then A's: around the table, a counter each time
+    M.nextTurn('C');
+    t.eq(ax.controller, 'C', "C's upkeep: C controls Alexios");
+    t.eq(Number(ax.counters['+1/+1']) || 0, 2, 'a second counter');
+    M.toMain('C', 'endCombat');
+    t.eq(M.life('B'), 20 - 6, 'C attacks B with it (the harness picks a player it may attack)');
+    t.eq(M.life('A'), 20, 'still not its owner');
+    M.nextTurn('A');
+    t.eq(ax.controller, 'A', "A's upkeep: back to its owner");
+    t.eq(Number(ax.counters['+1/+1']) || 0, 3, 'a third counter');
+  });
+
+  test('Commanders: Alexios, Deimos of Kosmos — at two players, away from its owner, it need not attack', (mk, t) => {
+    const M = mk();
+    const ax = M.bf('A', 'Alexios, Deimos of Kosmos');
+    ax.summoningSick = true;
+    M.nextTurn('B');
+    let none = null, atOwner = null;
+    M.answer('declareAttackers', (ch, g) => {
+      atOwner = g.declareAttackers('B', [{ attackerId: ax.id, defenderId: 'A' }]);
+      none = g.declareAttackers('B', []);
+      return null;
+    });
+    M.toMain('B', 'endCombat');
+    t.eq(ax.controller, 'B', 'B controls Alexios');
+    t.no(atOwner, 'not at its owner');
+    t.ok(none, 'nobody it may attack: not able, so no attack is fine');
+    t.eq(M.life('A'), 20, 'A untouched');
+  });
+
+  test("Commanders: Alexios, Deimos of Kosmos — can't be sacrificed", (mk, t) => {
+    // an edict with only Alexios: nothing goes, nobody is asked
+    let M = mk();
+    let ax = M.bf('A', 'Alexios, Deimos of Kosmos');
+    M.toMain('B');
+    M.mana('B', 'B1');
+    M.cast('B', M.hand('B', 'Diabolic Edict'), { targets: ['A'] });
+    t.zone(ax, 'battlefield', 'the edict: Alexios stays');
+    t.no(M.asked.some(ch => ch.type === 'sacrifice'), 'nothing to sacrifice, nobody asked');
+    // an edict with another creature: that one goes, Alexios never offered
+    M = mk();
+    ax = M.bf('A', 'Alexios, Deimos of Kosmos');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.toMain('B');
+    M.mana('B', 'B1');
+    M.cast('B', M.hand('B', 'Diabolic Edict'), { targets: ['A'] });
+    t.zone(ax, 'battlefield', 'Alexios stays');
+    t.zone(bear, 'graveyard', 'the Grizzly Bears sacrificed');
+    const q = M.asked.find(ch => ch.type === 'sacrifice');
+    t.ok(!q || !(q.candidates || []).includes(ax.id), 'Alexios not a choice');
+  });
+
+  test('Commanders: Emrakul, the World Anew — cast: gain control of all creatures target player controls', (mk, t) => {
+    t.auto('Emrakul, the World Anew');
+    const M = mk();
+    const bear = M.bf('B', 'Grizzly Bears'), giant = M.bf('B', 'Hill Giant');
+    const mine = M.bf('A', 'Grizzly Bears');
+    const em = M.hand('A', 'Emrakul, the World Anew');
+    M.mana('A', '12');
+    M.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    M.cast('A', em, { resolve: false });
+    M.resolve();
+    t.zone(em, 'battlefield', 'Emrakul resolves');
+    t.eq(bear.controller, 'A', "B's Grizzly Bears: A's now");
+    t.eq(giant.controller, 'A', "B's Hill Giant: A's now");
+    t.eq(mine.controller, 'A', 'A keeps its own');
+    // protection from spells: no Lightning Bolt at it, no Pyroclasm damage on it
+    M.toMain('B');
+    M.mana('B', 'R');
+    const bolt = M.hand('B', 'Lightning Bolt');
+    t.no(M.g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'object', id: em.id }] }), 'a spell cannot target it');
+    M.mana('B', 'R1');
+    M.cast('B', M.hand('B', 'Pyroclasm'));
+    t.eq(em.damage || 0, 0, 'no damage from a spell');
+    // leaves: A sacrifices all creatures A controls, the stolen ones too
+    M.g.moveObject(em, 'hand');
+    M.resolve();
+    t.zone(bear, 'graveyard', 'stolen Grizzly Bears sacrificed (or burned)');
+    t.zone(giant, 'graveyard', 'stolen Hill Giant sacrificed');
+  });
+
+  test('Commanders: Emrakul, the World Anew — protection from permanents that were cast this turn', (mk, t) => {
+    const M = mk();
+    const em = M.bf('A', 'Emrakul, the World Anew');
+    const pyro = M.bf('B', 'Prodigal Pyromancer');
+    M.toMain('B');
+    // a permanent that was there before this turn: its ability may aim at Emrakul
+    pyro.summoningSick = false;
+    M.activate('B', pyro, 0, { targets: [em] });
+    t.eq(em.damage || 0, 1, 'Prodigal Pyromancer (not cast this turn) pings it');
+    // one cast this turn: Flametongue Kavu's trigger can't
+    M.mana('B', 'R3');
+    let opts = null;
+    M.answer('pickTarget', (ch) => { opts = (ch.options || [])[0] || []; return { targets: [opts[0]] }; });
+    M.cast('B', M.hand('B', 'Flametongue Kavu'));
+    t.ok(opts && opts.length, 'Flametongue Kavu asked for a target');
+    t.no(opts.some(o => o.id === em.id), 'Emrakul is not one: Flametongue Kavu was cast this turn');
+    t.eq(em.damage || 0, 1, 'no more damage');
+  });
 };

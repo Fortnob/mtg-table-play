@@ -591,7 +591,7 @@ declare namespace MTG {
     me: PlayerView | null;
     targeting: null | {
       need: number; specs: Array<Record<string, any>>; chosen: Target[]; legal?: Set<string> | null;
-      label?: string; source?: Id | null; cardName?: string; onDone: (targets: Target[]) => void; [k: string]: any;
+      label?: string; source?: Id | null; cardName?: string; spell?: boolean; onDone: (targets: Target[]) => void; [k: string]: any;
     };
     attackPlan: null | { declarations: AttackDeclaration[]; defenderId?: Id; [k: string]: any };
     blockPlan: null | { declarations: BlockDeclaration[]; pendingBlocker?: Id | null; [k: string]: any };

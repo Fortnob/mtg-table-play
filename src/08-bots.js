@@ -430,6 +430,8 @@
         if (who === 'each') return 0.6 * n;
         return 2.2 * n;
       case 'gainControl': return e.until ? 0.9 : 4.0;
+      // Emrakul, the World Anew: a whole side of the table
+      case 'stealAll': return 5.0;
       case 'sacrificeSelf': case 'exileSelf': case 'selfToLibrary': return -2.5;
       case 'copyPermanent': case 'etbAsCopy': return 2.0;
       case 'copySpell': case 'copyThatSpell': return 1.4;
@@ -1509,7 +1511,7 @@
   const HARMFUL = new Set(['damage', 'destroy', 'exile', 'exileUntilLeaves', 'bounce', 'tap', 'loseLife', 'discard',
     'mill', 'counterSpell', 'counterUnless', 'sacrificeChoice', 'gainControl', 'fight', 'bite', 'damageByPower', 'goad',
     'cantBlock', 'cantAttack', 'restrict', 'drain', 'discardChosen', 'exileChosen', 'handAttack', 'damageDivided',
-    'revealHand', 'tapAll', 'noUntap',
+    'revealHand', 'tapAll', 'noUntap', 'stealAll',
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library"
     'exileTop']);
   function isHarmful(e) {
@@ -3661,6 +3663,11 @@
           return { kind: 'object', id: pool[0].id };
         }
         const foes = players.filter(p => p.id !== this.pid).map(p => g.player(p.id)).filter(Boolean);
+        // Emrakul, the World Anew: whoever has the most worth taking
+        if (effect.op === 'stealAll' && foes.length) {
+          const worth = (p) => U.sum(g.battlefield.filter(o => o.controller === p.id && this._isCreature(o)).map(o => this.permanentValue(o)));
+          return { kind: 'player', id: foes.slice().sort((a, b) => worth(b) - worth(a))[0].id };
+        }
         if (foes.length) {
           foes.sort((a, b) => (opp && a.id === opp.id ? -1 : 0) - (opp && b.id === opp.id ? -1 : 0) || a.life - b.life);
           return { kind: 'player', id: foes[0].id };

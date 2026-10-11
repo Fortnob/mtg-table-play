@@ -2442,6 +2442,10 @@
           if ((what === 'all colors' || what === 'each color') && cols.length) return false;
           if (what === 'multicolored' && cols.length > 1) return false;
           if (what === 'monocolored' && cols.length === 1) return false;
+          // Emrakul, the World Anew: "protection from spells"; the Promised End: "from instants"
+          if (what === 'spells' && t && t.spell) return false;
+          const TYPE = { instants: 'Instant', sorceries: 'Sorcery', enchantments: 'Enchantment', planeswalkers: 'Planeswalker' }[what];
+          if (TYPE && src && src.card && new RegExp('\\b' + TYPE + '\\b').test(src.card.type_line || '')) return false;
         }
       }
       return true;

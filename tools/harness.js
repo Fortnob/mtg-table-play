@@ -62,9 +62,10 @@ function defaultAnswer(g, ch) {
   switch (ch.type) {
     case 'declareAttackers': {
       // nobody attacks, except what has to ("attacks each combat if able")
-      const def = (ch.defenders || [])[0];
-      const must = g.battlefield.filter(o => o.controller === pid && g.canAttack(o) && g.mustAttack(o));
-      return g.declareAttackers(pid, def ? must.map(o => ({ attackerId: o.id, defenderId: def.id })) : []);
+      // (at the first defender it may attack: Alexios, Deimos of Kosmos never at its owner)
+      const defOf = (o) => (ch.defenders || []).find(d => !g._cantAttackYou(o, d.id));
+      const must = g.battlefield.filter(o => o.controller === pid && g.canAttack(o) && g.mustAttack(o) && defOf(o));
+      return g.declareAttackers(pid, must.map(o => ({ attackerId: o.id, defenderId: defOf(o).id })));
     }
     case 'declareBlockers': return g.declareBlockers(pid, []);
     case 'confirm': return g.resolveChoice(pid, { yes: true });
