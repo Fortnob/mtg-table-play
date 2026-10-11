@@ -4042,6 +4042,12 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .deck-pips { position: absolute; top: 12px; right: 12px; padding: 4px 6px; border-radius: 99px; background: rgba(8,10,14,.6); backdrop-filter: blur(4px); }
 .deck-card-name { font: 600 19px/1.15 var(--serif); color: #fff8e4; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-shadow: 0 2px 10px rgba(0,0,0,.7); }
 .deck-sub { font-size: 12px; color: #b9c2d1; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* a Commander deck's commander, previewed on hover, and what the deck leans on (UI.commanderNames, UI.themeLine) */
+.cmd-name { cursor: help; text-decoration: underline dotted rgba(230, 220, 192, .45); text-underline-offset: 3px; }
+.theme-line { font-size: 12px; color: #a9bad3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.theme-line.on-art { margin-top: 2px; color: #c3d2e8; text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+.deck-sub .cmd-slot { color: #e6dcc0; }
+.pick-deck .theme-line { margin-top: 2px; font-size: 11.5px; }
 .deck-foot { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-top: 1px solid rgba(255,255,255,.06); }
 :root[data-theme="light"] .deck-foot { border-color: var(--line); }
 .deck-when { text-align: right; padding-right: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -4999,6 +5005,13 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .home-hero-inner, .home-hero .home-hero-inner { width: 100%; }
 .home-hero-inner > .home-play-row { flex: 1 0 auto; }
 .home-credit { top: 12px; bottom: auto; }
+
+/* four ladders: two by two in the home panel, the name over the rank */
+.ti-ladders { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 10px; }
+.ti-ladder { gap: 8px; min-width: 0; }
+.tl-text { grid-template-columns: minmax(0, 1fr); gap: 1px; min-width: 0; }
+.tl-name, .tl-text > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ranked-chooser .ladder { padding: 14px 16px; }
 /* ============================================================
    limited.css - sealed and Jumpstart (src/13b-ui-sealed.js)
    Both live on the draft screen and borrow its head, its pool strips and
@@ -5504,13 +5517,28 @@ html[data-play="1"] .shard-chip { display: none; }
 .hero-copy p { color: #d8dce6; text-shadow: 0 1px 4px #000, 0 0 12px rgba(0,0,0,.8); max-width: 520px; }
 
 /* ---------- sleeves ---------- */
-/* a back in a sleeve: the sleeve's face, a rim in its colour, and a little gloss */
+/* a back in a sleeve: the sleeve's face, a rim in its colour with a lit
+   edge inside it, and the gloss of the plastic over it all */
 .sleeved { background: var(--sleeve-bg) !important; overflow: hidden; }
 .sleeved::before { display: none !important; }
 .sleeved .back-ring { display: none !important; }
 .sleeved::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.55), inset 0 0 0 3px var(--sleeve-rim, #c9a24a), inset 0 0 14px rgba(0,0,0,.45);
-  background: linear-gradient(125deg, rgba(255,255,255,.2), transparent 32%, transparent 64%, rgba(255,255,255,.07)); }
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.6), inset 0 0 0 2.6px var(--sleeve-rim, #c9a24a),
+    inset 0 0 0 3.2px color-mix(in srgb, var(--sleeve-rim, #c9a24a) 45%, #fff), inset 0 0 0 4px rgba(0,0,0,.4), inset 0 0 16px rgba(0,0,0,.45);
+  background: radial-gradient(ellipse 70% 22% at 32% 0%, rgba(255,255,255,.16), transparent 70%),
+    linear-gradient(125deg, rgba(255,255,255,.2), transparent 30%, transparent 66%, rgba(255,255,255,.08)); }
+/* a foil: a band of light and colour slid across now and then, a layer the
+   graphics card moves without repainting the sleeve under it */
+.sleeved[data-sleeve-fx="foil"]::before { display: block !important; content: ""; position: absolute; top: 0; bottom: 0; left: -100%; right: auto;
+  width: 300%; border: 0; border-radius: 0; pointer-events: none; will-change: transform; transform: translateX(-34%);
+  background: linear-gradient(112deg, transparent 40%, rgba(255,255,255,.05) 43%, rgba(255,140,220,.22) 46%, rgba(255,255,255,.38) 49.5%, rgba(130,220,255,.24) 53%, rgba(255,250,170,.12) 56%, transparent 60%);
+  animation: sleeveSheen 8s ease-in-out infinite; }
+@keyframes sleeveSheen { 0%, 62% { transform: translateX(-34%); } 92%, 100% { transform: translateX(34%); } }
+/* in the Store's grid a foil shines when you reach for it; the one you are buying, always */
+.sleeve-tile .sleeved[data-sleeve-fx="foil"]::before, .store-card.mini .sleeved[data-sleeve-fx="foil"]::before { animation: none; }
+.sleeve-tile:hover .sleeved[data-sleeve-fx="foil"]::before, .store-card.mini:hover .sleeved[data-sleeve-fx="foil"]::before { animation: sleeveSheen 2.6s ease-in-out infinite; }
+.pd-visual .sleeved[data-sleeve-fx="foil"]::before { animation-duration: 4s; }
+@media (prefers-reduced-motion: reduce) { .sleeved[data-sleeve-fx="foil"]::before { animation: none !important; } }
 .store-grid.sleeves { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
 .sleeve-tile-face { width: 120px; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; position: relative; display: grid; place-items: center;
   box-shadow: 0 8px 20px rgba(0,0,0,.55); transition: transform .2s; }
@@ -5734,6 +5762,17 @@ html[data-play="1"] .hoard-chip { display: none; }
 .precon-tile .sc-title { font-size: 15px; }
 .precon-tile { cursor: pointer; }
 .precon-tile:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 2px; }
+/* who leads it, and what it leans on: one line each, never pushing the price down the tile */
+.precon-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.precon-tools .store-search { margin-bottom: 0; flex: 1 1 220px; }
+.precon-cmd { font-size: 12.5px; color: #e6dcc0; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.precon-themes { min-height: 1.4em; }
+.precon-themes .theme-line, .mini-themes .theme-line { color: #9fb4cf; }
+.store-grid.mini > .store-card { min-width: 0; }
+.mini-cmd { color: #e6dcc0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-themes { max-width: 100%; }
+.mini-themes .theme-line { font-size: 11.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dv-themes { font-size: 12.5px; color: #c9d3e2; white-space: normal; }
 
 /* ---------- a Commander deck looked through: built, as it sits on a table ---------- */
 .deck-view-modal .modal-body { padding-top: 14px; }
@@ -6730,7 +6769,13 @@ html[data-play="1"] .friends-chip { display: none; }
 .portrait.lg { --fw: 5px; }
 .pd-visual .portrait.lg { --fw: 6.5px; }
 .life-orb { --fw: calc(var(--orb, 76px) * .06); }
-.frame-fx { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3; }
+.frame-fx { position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 3;
+  /* the ring's own shading, laid over its colours: shadow where it meets
+     the picture and at its outer edge, a line of light along its crown, so
+     it reads as a band of metal or stone with a round to it rather than a
+     flat stripe; the same all round, so it holds while a ring turns */
+  --tube: radial-gradient(closest-side, rgba(0,0,0,.5) calc(100% - var(--fw)), rgba(0,0,0,0) calc(100% - var(--fw) * .66),
+    rgba(255,255,255,.26) calc(100% - var(--fw) * .45), rgba(255,255,255,0) calc(100% - var(--fw) * .24), rgba(0,0,0,.55)); }
 .life-orb > .frame-fx { z-index: 1; }
 .frame-fx::before, .frame-fx::after { content: ""; position: absolute; border-radius: 50%; pointer-events: none; }
 .frame-fx::after {
@@ -6746,7 +6791,7 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Gilded: worked gold, a gem at each quarter */
-.f-gilded::after { background: conic-gradient(from 200deg, #6e5414, #f7e3a1, #b8912f, #6e5414, #fff1bf, #a37a22, #6e5414, #f3dd96, #6e5414); }
+.f-gilded::after { background: var(--tube), conic-gradient(from 200deg, #6e5414, #f7e3a1, #b8912f, #6e5414, #fff1bf, #a37a22, #6e5414, #f3dd96, #6e5414); }
 .f-gilded::before {
   background:
     radial-gradient(circle at 50% calc(var(--fw) * 1.15), #fff8da 0 calc(var(--fw) * .32), #e7c25a calc(var(--fw) * .4) calc(var(--fw) * .8), #5c440f calc(var(--fw) * .9), transparent calc(var(--fw) * 1.05)),
@@ -6757,18 +6802,18 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Thorns: a twisted vine, its thorns standing out */
-.f-thorns::after { background: repeating-conic-gradient(from 0deg, #22341a 0 7deg, #6d9140 7deg 10deg, #182510 10deg 16deg); }
+.f-thorns::after { background: var(--tube), repeating-conic-gradient(from 0deg, #22341a 0 7deg, #6d9140 7deg 10deg, #182510 10deg 16deg); }
 .f-thorns::before { background: repeating-conic-gradient(from 4deg, #4d6e2c 0 3deg, transparent 3deg 22.5deg), repeating-conic-gradient(from 15deg, #2c4419 0 2deg, transparent 2deg 22.5deg); }
 
 /* Frost: cold metal, shards of ice, a pale glow */
-.f-frost::after { background: conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #d6efff, #8fc8ee, #e8f6ff); }
+.f-frost::after { background: var(--tube), conic-gradient(from 0deg, #e8f6ff, #8fc8ee, #ffffff, #6fa8d8, #d6efff, #8fc8ee, #e8f6ff); }
 .f-frost::before {
   background: repeating-conic-gradient(from 0deg, rgba(235, 250, 255, .95) 0 1.6deg, transparent 1.6deg 30deg), repeating-conic-gradient(from 15deg, rgba(170, 220, 255, .7) 0 1deg, transparent 1deg 30deg),
     radial-gradient(closest-side, transparent 60%, rgba(160, 215, 255, .4) 80%, transparent 100%);
 }
 
 /* Ember: a ring of fire, turning, with flames licking off it */
-.f-ember::after { background: conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ffe2a0, #d8360f, #ff6a1a); animation: frameSpin 6s linear infinite; }
+.f-ember::after { background: var(--tube), conic-gradient(from 0deg, #ff6a1a, #ffd27a, #c2280e, #ff9a3a, #ffe2a0, #d8360f, #ff6a1a); animation: frameSpin 6s linear infinite; }
 .f-ember::before {
   background: repeating-conic-gradient(from 0deg, rgba(255, 190, 80, .95) 0 5deg, rgba(255, 90, 20, .7) 8deg, transparent 12deg 20deg),
     radial-gradient(closest-side, transparent 55%, rgba(255, 110, 30, .55) 78%, transparent 100%);
@@ -6776,7 +6821,7 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Arcane: a ring of runes, a dotted circle turning the other way */
-.f-arcane::after { background: repeating-conic-gradient(from 0deg, #bfe4ff 0 3deg, #2a5aa8 3deg 5deg, #7fc4ff 5deg 9deg, #1b3f7a 9deg 12deg); animation: frameSpin 14s linear infinite; }
+.f-arcane::after { background: var(--tube), repeating-conic-gradient(from 0deg, #bfe4ff 0 3deg, #2a5aa8 3deg 5deg, #7fc4ff 5deg 9deg, #1b3f7a 9deg 12deg); animation: frameSpin 14s linear infinite; }
 .f-arcane::before {
   background: repeating-conic-gradient(from 0deg, rgba(170, 220, 255, .95) 0 2.4deg, transparent 2.4deg 15deg), radial-gradient(closest-side, transparent 58%, rgba(110, 180, 255, .35) 78%, transparent 100%);
   -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.3), #000 calc(100% - var(--fw) * 1.15) calc(100% - var(--fw) * .55), transparent calc(100% - var(--fw) * .4));
@@ -6785,7 +6830,7 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Void: a dark ring in a turning violet nebula */
-.f-void::after { background: conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720, #5b2aa8, #120720); }
+.f-void::after { background: var(--tube), conic-gradient(from 0deg, #120720, #8a4ae0, #120720, #c79bff, #120720, #5b2aa8, #120720); }
 .f-void::before {
   background: conic-gradient(from 0deg, transparent, rgba(150, 90, 240, .75), transparent 35%, rgba(205, 160, 255, .6), transparent 70%, rgba(110, 50, 200, .7), transparent);
   -webkit-mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%); mask: radial-gradient(closest-side, transparent 62%, #000 74%, transparent 100%);
@@ -6793,7 +6838,7 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Sunburst: white gold, and rays all round, slowly turning */
-.f-sunburst::after { background: conic-gradient(from 0deg, #fff6d0, #f0c860, #fffbe8, #d9a83a, #fff6d0, #f0c860, #fff6d0); }
+.f-sunburst::after { background: var(--tube), conic-gradient(from 0deg, #fff6d0, #f0c860, #fffbe8, #d9a83a, #fff6d0, #f0c860, #fff6d0); }
 .f-sunburst::before {
   background: repeating-conic-gradient(from 0deg, rgba(255, 222, 130, .95) 0 3.5deg, transparent 3.5deg 15deg), repeating-conic-gradient(from 7.5deg, rgba(255, 245, 210, .6) 0 1.5deg, transparent 1.5deg 15deg),
     radial-gradient(closest-side, transparent 55%, rgba(255, 210, 110, .45) 78%, transparent 100%);
@@ -6801,7 +6846,7 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Tidal: the sea, and a ring of foam */
-.f-tidal::after { background: conic-gradient(from 0deg, #0f3f78, #7fc4ff, #e8f6ff, #2a6fb8, #0a2a55, #5fb0f0, #0f3f78); }
+.f-tidal::after { background: var(--tube), conic-gradient(from 0deg, #0f3f78, #7fc4ff, #e8f6ff, #2a6fb8, #0a2a55, #5fb0f0, #0f3f78); }
 .f-tidal::before {
   background: repeating-conic-gradient(from 0deg, rgba(225, 245, 255, .9) 0 4deg, transparent 4deg 10deg), radial-gradient(closest-side, transparent 58%, rgba(90, 170, 240, .4) 78%, transparent 100%);
   -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.25), #000 calc(100% - var(--fw) * 1.1) calc(100% - var(--fw) * .7), transparent calc(100% - var(--fw) * .5));
@@ -6810,18 +6855,18 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Sylvan: a ring of wood in a wreath of leaves */
-.f-sylvan::after { background: repeating-conic-gradient(from 0deg, #5a3a1c 0 9deg, #8b5e2f 9deg 14deg, #3e2712 14deg 20deg); }
+.f-sylvan::after { background: var(--tube), repeating-conic-gradient(from 0deg, #5a3a1c 0 9deg, #8b5e2f 9deg 14deg, #3e2712 14deg 20deg); }
 .f-sylvan::before { background: repeating-conic-gradient(from 0deg, #7cc152 0 9deg, transparent 9deg 24deg), repeating-conic-gradient(from 12deg, #3f7f2a 0 8deg, transparent 8deg 24deg); }
 
 /* Blood Moon: crimson, and a slow red pulse */
-.f-bloodmoon::after { background: conic-gradient(from 0deg, #3a0505, #c21d1d, #ff6a5a, #7a0b0b, #3a0505, #d8301f, #3a0505); }
+.f-bloodmoon::after { background: var(--tube), conic-gradient(from 0deg, #3a0505, #c21d1d, #ff6a5a, #7a0b0b, #3a0505, #d8301f, #3a0505); }
 .f-bloodmoon::before {
   background: radial-gradient(closest-side, transparent 60%, rgba(220, 30, 30, .65) 76%, transparent 100%);
   animation: framePulse 2.6s ease-in-out infinite;
 }
 
 /* Prismatic: every colour, moving round */
-.f-prismatic::after { background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d); animation: frameSpin 5s linear infinite; }
+.f-prismatic::after { background: var(--tube), conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d); animation: frameSpin 5s linear infinite; }
 .f-prismatic::before {
   background: conic-gradient(from 0deg, #ff5f6d, #ffc371, #f9f871, #6ef0a0, #5fd3ff, #8f7cff, #ff7ad9, #ff5f6d);
   -webkit-mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%); mask: radial-gradient(closest-side, transparent 64%, rgba(0,0,0,.7) 76%, transparent 100%);
@@ -6829,13 +6874,99 @@ html[data-play="1"] .friends-chip { display: none; }
 }
 
 /* Orbit: a midnight ring, and a star going round it */
-.f-orbit::after { background: conic-gradient(from 0deg, #0b1230, #3a4f9a, #0b1230, #c9d6ff, #0b1230, #2a3a7a, #0b1230); }
+.f-orbit::after { background: var(--tube), conic-gradient(from 0deg, #0b1230, #3a4f9a, #0b1230, #c9d6ff, #0b1230, #2a3a7a, #0b1230); }
 .f-orbit::before {
   background:
     radial-gradient(circle at 50% calc(var(--fw) * 1.2), #fff 0 calc(var(--fw) * .35), rgba(200, 220, 255, .9) calc(var(--fw) * .55), rgba(150, 180, 255, .3) calc(var(--fw) * 1.1), transparent calc(var(--fw) * 1.6)),
     radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.32), rgba(170, 195, 255, .45) calc(100% - var(--fw) * 1.22) calc(100% - var(--fw) * 1.12), transparent calc(100% - var(--fw) * 1.02));
   animation: frameSpin 4.5s linear infinite;
 }
+
+/* ---- the second shelf of frames ---- */
+/* Obsidian: black glass, gold at both its edges, a gold stud at each diagonal */
+.f-obsidian::after { background: var(--tube),
+  radial-gradient(closest-side, transparent calc(100% - var(--fw)), #e2c063 calc(100% - var(--fw)) calc(100% - var(--fw) * .84), transparent calc(100% - var(--fw) * .84) calc(100% - var(--fw) * .16), #e2c063 calc(100% - var(--fw) * .16)),
+  conic-gradient(from 30deg, #0b0a0d, #4a4552, #0b0a0d 22%, #2c2833 40%, #0b0a0d 58%, #5a5266 74%, #0b0a0d 90%); }
+.f-obsidian::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3CradialGradient id='s' cx='.35' cy='.3' r='.8'%3E%3Cstop offset='0' stop-color='%23fff8da'/%3E%3Cstop offset='.5' stop-color='%23e2b450'/%3E%3Cstop offset='1' stop-color='%235c440f'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='80.05' cy='80.05' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='80.05' cy='80.05' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='19.95' cy='80.05' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='19.95' cy='80.05' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='19.95' cy='19.95' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='19.95' cy='19.95' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='80.05' cy='19.95' r='3.4' fill='%230b0a0d'/%3E%3Ccircle cx='80.05' cy='19.95' r='2.6' fill='url(%23s)'/%3E%3Ccircle cx='92.5' cy='50' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='50' cy='92.5' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='7.5' cy='50' r='1.3' fill='%23e2c063'/%3E%3Ccircle cx='50' cy='7.5' r='1.3' fill='%23e2c063'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Moonsilver: polished silver, a crescent moon over it between two stars */
+.f-moonsilver::after { background: var(--tube), conic-gradient(from 0deg, #f4f6fa, #9aa3b0, #ffffff, #7d8794, #e6eaf0, #a9b1bd, #f4f6fa); }
+.f-moonsilver::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3Cmask id='m'%3E%3Crect width='100' height='100' fill='%23fff'/%3E%3Ccircle cx='53.4' cy='3.2' r='6.2' fill='%23000'/%3E%3C/mask%3E%3C/defs%3E%3Ccircle cx='50' cy='6.2' r='7.2' fill='%23f4f6fa' mask='url(%23m)'/%3E%3Cpath d='M36.5 9Q36.5 11.8 39.3 11.8Q36.5 11.8 36.5 14.6Q36.5 11.8 33.7 11.8Q36.5 11.8 36.5 9Z' fill='%23ffffff'/%3E%3Cpath d='M63.5 9Q63.5 11.8 66.3 11.8Q63.5 11.8 63.5 14.6Q63.5 11.8 60.7 11.8Q63.5 11.8 63.5 9Z' fill='%23ffffff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 66%, rgba(220,230,255,.35) 78%, transparent 92%); }
+
+/* Briar Rose: a dark vine, its thorns, and five roses on it */
+.f-briar::after { background: var(--tube), repeating-conic-gradient(from 0deg, #1f3a1a 0 6deg, #44732f 6deg 9deg, #162a12 9deg 15deg); }
+.f-briar::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M57.03 10.12L60.74 5.27L60.48 10.88Z' fill='%232c4419'/%3E%3Cpath d='M72.65 16.42L78 13.51L75.49 18.53Z' fill='%232c4419'/%3E%3Cpath d='M84.35 28.54L90.43 28.05L86.09 31.61Z' fill='%232c4419'/%3E%3Cpath d='M90.11 44.36L95.86 46.39L90.44 47.88Z' fill='%232c4419'/%3E%3Cpath d='M88.93 61.16L93.36 65.36L87.81 64.51Z' fill='%232c4419'/%3E%3Cpath d='M81.02 76.03L83.37 81.66L78.64 78.64Z' fill='%232c4419'/%3E%3Cpath d='M67.75 86.4L67.6 92.5L64.51 87.81Z' fill='%232c4419'/%3E%3Cpath d='M51.41 90.48L48.8 95.98L47.88 90.44Z' fill='%232c4419'/%3E%3Cpath d='M34.83 87.55L30.2 91.52L31.61 86.09Z' fill='%232c4419'/%3E%3Cpath d='M20.87 78.13L15.02 79.87L18.53 75.49Z' fill='%232c4419'/%3E%3Cpath d='M11.94 63.85L5.89 63.06L10.88 60.48Z' fill='%232c4419'/%3E%3Cpath d='M9.6 47.17L4.39 44L10 43.66Z' fill='%232c4419'/%3E%3Cpath d='M14.24 30.99L10.78 25.97L16.03 27.94Z' fill='%232c4419'/%3E%3Cpath d='M25.07 18.09L23.95 12.09L27.94 16.03Z' fill='%232c4419'/%3E%3Cpath d='M40.2 10.7L41.62 4.77L43.66 10Z' fill='%232c4419'/%3E%3Cellipse cx='56.57' cy='8.52' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(30 56.57 8.52)'/%3E%3Cellipse cx='43.43' cy='8.52' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(-30 43.43 8.52)'/%3E%3Ccircle cx='50' cy='8.5' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M47.6 8.5A2.4 2.4 0 1 1 51.6 9.7M49 8.9A1.2 1.2 0 1 1 50.9 8.3' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='91.48' cy='43.43' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(102 91.48 43.43)'/%3E%3Cellipse cx='87.42' cy='30.93' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(42 87.42 30.93)'/%3E%3Ccircle cx='89.47' cy='37.18' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M87.07 37.18A2.4 2.4 0 1 1 91.07 38.38M88.47 37.58A1.2 1.2 0 1 1 90.37 36.98' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='69.07' cy='87.42' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(174 69.07 87.42)'/%3E%3Cellipse cx='79.7' cy='79.7' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(114 79.7 79.7)'/%3E%3Ccircle cx='74.39' cy='83.57' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M71.99 83.57A2.4 2.4 0 1 1 75.99 84.77M73.39 83.97A1.2 1.2 0 1 1 75.29 83.37' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='20.3' cy='79.7' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(246 20.3 79.7)'/%3E%3Cellipse cx='30.93' cy='87.42' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(186 30.93 87.42)'/%3E%3Ccircle cx='25.61' cy='83.57' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M23.21 83.57A2.4 2.4 0 1 1 27.21 84.77M24.61 83.97A1.2 1.2 0 1 1 26.51 83.37' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3Cellipse cx='12.58' cy='30.93' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(318 12.58 30.93)'/%3E%3Cellipse cx='8.52' cy='43.43' rx='3' ry='1.4' fill='%233f7f2a' transform='rotate(258 8.52 43.43)'/%3E%3Ccircle cx='10.53' cy='37.18' r='4.3' fill='%23b0183a' stroke='%235a0818' stroke-width='.5'/%3E%3Cpath d='M8.13 37.18A2.4 2.4 0 1 1 12.13 38.38M9.53 37.58A1.2 1.2 0 1 1 11.43 36.98' fill='none' stroke='%23ff7a96' stroke-width='.55'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Jade: carved green stone, bound in gold at eight places */
+.f-jade::after { background: var(--tube), repeating-conic-gradient(from -3deg, #f3dd96 0 2deg, #9a6d1c 2deg 3.5deg, #f3dd96 3.5deg 6deg, transparent 6deg 45deg),
+  conic-gradient(from 0deg, #2f8a5e, #a8e6c0, #1e6a45, #5fc08a, #24724b, #c2f4d6, #1e6a45, #2f8a5e); }
+.f-jade::before { background: radial-gradient(closest-side, transparent 62%, rgba(110,220,160,.35) 77%, transparent 94%); }
+
+/* Laurel: a ring of gold in a gold wreath, tied below in red */
+.f-laurel::after { background: var(--tube), conic-gradient(from 200deg, #8a6418, #fff1bf, #c9992f, #8a6418, #ffe8a0, #b8862b, #8a6418); }
+.f-laurel::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='lg' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%23fff1bf'/%3E%3Cstop offset='.5' stop-color='%23e2b450'/%3E%3Cstop offset='1' stop-color='%239a6d1c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cellipse cx='55.24' cy='92.68' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(388 55.24 92.68)'/%3E%3Cellipse cx='65.41' cy='90.14' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(374 65.41 90.14)'/%3E%3Cellipse cx='74.66' cy='85.22' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(360 74.66 85.22)'/%3E%3Cellipse cx='82.45' cy='78.21' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(346 82.45 78.21)'/%3E%3Cellipse cx='88.31' cy='69.52' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(332 88.31 69.52)'/%3E%3Cellipse cx='91.9' cy='59.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(318 91.9 59.67)'/%3E%3Cellipse cx='92.99' cy='49.25' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(304 92.99 49.25)'/%3E%3Cellipse cx='91.53' cy='38.87' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(290 91.53 38.87)'/%3E%3Cellipse cx='87.61' cy='29.15' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(276 87.61 29.15)'/%3E%3Cellipse cx='81.45' cy='20.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(262 81.45 20.67)'/%3E%3Cellipse cx='44.76' cy='92.68' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(332 44.76 92.68)'/%3E%3Cellipse cx='34.59' cy='90.14' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(346 34.59 90.14)'/%3E%3Cellipse cx='25.34' cy='85.22' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(360 25.34 85.22)'/%3E%3Cellipse cx='17.55' cy='78.21' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(374 17.55 78.21)'/%3E%3Cellipse cx='11.69' cy='69.52' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(388 11.69 69.52)'/%3E%3Cellipse cx='8.1' cy='59.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(402 8.1 59.67)'/%3E%3Cellipse cx='7.01' cy='49.25' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(416 7.01 49.25)'/%3E%3Cellipse cx='8.47' cy='38.87' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(430 8.47 38.87)'/%3E%3Cellipse cx='12.39' cy='29.15' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(444 12.39 29.15)'/%3E%3Cellipse cx='18.55' cy='20.67' rx='3.4' ry='1.35' fill='url(%23lg)' stroke='%237a5a14' stroke-width='.3' transform='rotate(458 18.55 20.67)'/%3E%3Cpath d='M45 92L50 88L55 92L53 97L50 93L47 97Z' fill='%23b0183a' stroke='%235a0818' stroke-width='.4'/%3E%3Ccircle cx='50' cy='89' r='1.6' fill='%23e2b450'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Amethyst Crystal: violet facets, and crystals growing out of the ring */
+.f-crystal::after { background: var(--tube), repeating-conic-gradient(from 0deg, #eedcff 0 4deg, #8a4ae0 4deg 11deg, #3a1878 11deg 15deg); }
+.f-crystal::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10.5L52.47 5.82L50 1L47.53 5.82Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M50 9.3L50 2.2' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M77.93 22.07L81.57 21.17L82.53 17.47L78.83 18.43Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M78.78 21.22L81.68 18.32' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M89.5 50L94.18 52.47L99 50L94.18 47.53Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M90.7 50L97.8 50' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M77.93 77.93L78.83 81.57L82.53 82.53L81.57 78.83Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M78.78 78.78L81.68 81.68' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M50 89.5L47.53 94.18L50 99L52.47 94.18Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M50 90.7L50 97.8' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M22.07 77.93L18.43 78.83L17.47 82.53L21.17 81.57Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M21.22 78.78L18.32 81.68' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M10.5 50L5.82 47.53L1 50L5.82 52.47Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M9.3 50L2.2 50' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3Cpath d='M22.07 22.07L21.17 18.43L17.47 17.47L18.43 21.17Z' fill='%23b88aff' stroke='%233a1878' stroke-width='.45'/%3E%3Cpath d='M21.22 21.22L18.32 18.32' stroke='rgba(255,255,255,.75)' stroke-width='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 60%, rgba(180,120,255,.4) 76%, transparent 96%); }
+
+/* Stormcrown: a turning ring of cloud, and lightning now and then */
+.f-storm::after { background: var(--tube), conic-gradient(from 0deg, #3a4452, #9aa6b8, #2a323e, #6c7888, #1d222a, #b0bccc, #3a4452); animation: frameSpin 18s linear infinite; }
+.f-storm::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M69.75 15.79L74.05 14.35L70.89 10.71L76.41 9.32' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3Cpath d='M69.75 84.21L68.85 88.65L73.58 87.74L72.02 93.21' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3Cpath d='M10.5 50L7.1 47L5.53 51.55L1.57 47.46' fill='none' stroke='%23fff6c0' stroke-width='1.1' stroke-linejoin='round'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 60%, rgba(200,220,255,.5) 76%, transparent 94%);
+  opacity: .35; animation: frameFlash 5.2s linear infinite; }
+
+/* Neon: a pink tube alight, a cyan line round it, a hum in the light */
+.f-neon::after { background: radial-gradient(closest-side, #4a0634 calc(100% - var(--fw)), #ff4fb8 calc(100% - var(--fw) * .74), #ffe6f6 calc(100% - var(--fw) * .5), #ff4fb8 calc(100% - var(--fw) * .26), #4a0634); }
+.f-neon::before {
+  background: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 1.12), #6ff6ff calc(100% - var(--fw) * 1.02) calc(100% - var(--fw) * .86), transparent calc(100% - var(--fw) * .76)),
+    radial-gradient(closest-side, transparent 70%, rgba(255,60,190,.55) 79%, rgba(80,240,255,.18) 88%, transparent 98%);
+  animation: frameHum 4s steps(1) infinite; }
+
+/* Phyrexian: ribs of bone and oil, claws curling off it, the sign above */
+.f-phyrexian::after { background: var(--tube), repeating-conic-gradient(from 0deg, #e8e0cc 0 5deg, #1a1a1f 5deg 7deg, #c2b9a0 7deg 12deg, #0b0b0e 12deg 15deg); }
+.f-phyrexian::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M65.5 12.58Q72.43 8.7 81.17 12.19' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M65.5 12.58Q72.43 8.7 81.17 12.19' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M87.42 34.5Q95.06 36.65 98.77 45.3' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M87.42 34.5Q95.06 36.65 98.77 45.3' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M87.42 65.5Q91.3 72.43 87.81 81.17' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M87.42 65.5Q91.3 72.43 87.81 81.17' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M65.5 87.42Q63.35 95.06 54.7 98.77' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M65.5 87.42Q63.35 95.06 54.7 98.77' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M34.5 87.42Q27.57 91.3 18.83 87.81' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M34.5 87.42Q27.57 91.3 18.83 87.81' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M12.58 65.5Q4.94 63.35 1.23 54.7' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M12.58 65.5Q4.94 63.35 1.23 54.7' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M12.58 34.5Q8.7 27.57 12.19 18.83' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M12.58 34.5Q8.7 27.57 12.19 18.83' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Cpath d='M34.5 12.58Q36.65 4.94 45.3 1.23' fill='none' stroke='%230b0b0e' stroke-width='2.6' stroke-linecap='round'/%3E%3Cpath d='M34.5 12.58Q36.65 4.94 45.3 1.23' fill='none' stroke='%23d9d1bd' stroke-width='.8' stroke-linecap='round'/%3E%3Ccircle cx='50' cy='6.4' r='4.2' fill='rgba(0,0,0,.6)' stroke='%23e8e0cc' stroke-width='1.3'/%3E%3Cpath d='M50 .6V12.2' stroke='%23e8e0cc' stroke-width='1.3'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Nyx: the night sky of Theros in the ring, and stars that come and go about it */
+.f-nyx::after { background: var(--tube), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='95.3' cy='57.99' r='0.7' fill='%23fff'/%3E%3Ccircle cx='82.39' cy='84.74' r='0.5' fill='%23fff'/%3E%3Ccircle cx='57.9' cy='94.81' r='0.6' fill='%23fff'/%3E%3Ccircle cx='27.47' cy='92.38' r='0.45' fill='%23fff'/%3E%3Ccircle cx='9.73' cy='73.25' r='0.7' fill='%23fff'/%3E%3Ccircle cx='4.82' cy='37.05' r='0.5' fill='%23fff'/%3E%3Ccircle cx='20.56' cy='14.92' r='0.6' fill='%23fff'/%3E%3Ccircle cx='43.29' cy='2.27' r='0.45' fill='%23fff'/%3E%3Ccircle cx='73.3' cy='9.64' r='0.7' fill='%23fff'/%3E%3Ccircle cx='92.23' cy='28.48' r='0.5' fill='%23fff'/%3E%3Ccircle cx='95.16' cy='43.65' r='0.4' fill='%23fff'/%3E%3Ccircle cx='2.38' cy='54.17' r='0.4' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  conic-gradient(from 0deg, #1a1050, #4a2a9a, #120a33, #6a4ac0, #1a1050, #3a1f80, #1a1050); }
+.f-nyx::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M65.05 5.85Q65.05 8.65 67.85 8.65Q65.05 8.65 65.05 11.45Q65.05 8.65 62.25 8.65Q65.05 8.65 65.05 5.85Z' fill='%23fff'/%3E%3Cpath d='M90.78 66.82Q90.78 69.02 92.98 69.02Q90.78 69.02 90.78 71.22Q90.78 69.02 88.58 69.02Q90.78 69.02 90.78 66.82Z' fill='%23fff'/%3E%3Cpath d='M15.91 76Q15.91 78.6 18.51 78.6Q15.91 78.6 15.91 81.2Q15.91 78.6 13.31 78.6Q15.91 78.6 15.91 76Z' fill='%23fff'/%3E%3Cpath d='M8.76 28.77Q8.76 30.77 10.76 30.77Q8.76 30.77 8.76 32.77Q8.76 30.77 6.76 30.77Q8.76 30.77 8.76 28.77Z' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 62%, rgba(150,120,255,.38) 77%, transparent 95%);
+  animation: framePulse 3.4s ease-in-out infinite; }
+
+/* Hedron: a ring of stone, its runes lit, hedrons pointing out from it */
+.f-hedron::after { background: var(--tube), repeating-conic-gradient(from 21deg, rgba(127,240,220,.95) 0 1.4deg, transparent 1.4deg 45deg),
+  repeating-conic-gradient(from 0deg, #7d8c86 0 20deg, #4a5753 20deg 22deg, #a4b2ac 22deg 40deg, #4a5753 40deg 45deg); }
+.f-hedron::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M50 10.2L52 5.9L50 1.5L48 5.9Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M50 9L50 2.7' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M78.14 21.86L82.6 20.23L84.29 15.71L79.77 17.4Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M78.99 21.01L83.45 16.55' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M89.8 50L94.1 52L98.5 50L94.1 48Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M91 50L97.3 50' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M78.14 78.14L79.77 82.6L84.29 84.29L82.6 79.77Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M78.99 78.99L83.45 83.45' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M50 89.8L48 94.1L50 98.5L52 94.1Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M50 91L50 97.3' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M21.86 78.14L17.4 79.77L15.71 84.29L20.23 82.6Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M21.01 78.99L16.55 83.45' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M10.2 50L5.9 48L1.5 50L5.9 52Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M9 50L2.7 50' stroke='%237ff0dc' stroke-width='.6'/%3E%3Cpath d='M21.86 21.86L20.23 17.4L15.71 15.71L17.4 20.23Z' fill='%238a9a94' stroke='%232a3633' stroke-width='.45'/%3E%3Cpath d='M21.01 21.01L16.55 16.55' stroke='%237ff0dc' stroke-width='.6'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+  radial-gradient(closest-side, transparent 62%, rgba(127,240,220,.3) 77%, transparent 94%); animation: frameSpin 60s linear infinite; }
+
+/* Aurora: green and violet light turning round, a haze of it beyond */
+.f-aurora::after { background: var(--tube), conic-gradient(from 0deg, #2affb0, #3ad0ff, #8a5aff, #2affb0, #1a9a7a, #b06aff, #2affb0); animation: frameSpin 12s linear infinite; }
+.f-aurora::before {
+  background: conic-gradient(from 0deg, transparent, rgba(60,255,170,.7), transparent 30%, rgba(150,100,255,.6), transparent 62%, rgba(60,210,255,.6), transparent 85%);
+  -webkit-mask: radial-gradient(closest-side, transparent 60%, #000 74%, transparent 100%); mask: radial-gradient(closest-side, transparent 60%, #000 74%, transparent 100%);
+  filter: blur(1.5px); animation: frameSpin 16s linear infinite reverse; }
+
+/* Five Colours: the ring in the five, white at the top, a jewel of each beyond */
+.f-five::after { background: var(--tube), repeating-conic-gradient(from -37deg, #e2c063 0 2deg, transparent 2deg 72deg),
+  conic-gradient(from -36deg, #f8f1d4 0 72deg, #4f9ee0 0 144deg, #3a3040 0 216deg, #e0582f 0 288deg, #3f9a52 0); }
+.f-five::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='6.4' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='50' cy='6.4' r='4.7' fill='%23fbf5dc' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='49' cy='5.4' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='91.47' cy='36.53' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='91.47' cy='36.53' r='4.7' fill='%239fd0f0' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='90.47' cy='35.53' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='75.63' cy='85.27' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='75.63' cy='85.27' r='4.7' fill='%23b9a9c0' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='74.63' cy='84.27' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='24.37' cy='85.27' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='24.37' cy='85.27' r='4.7' fill='%23f5a582' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='23.37' cy='84.27' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3Ccircle cx='8.53' cy='36.53' r='5.6' fill='rgba(0,0,0,.5)'/%3E%3Ccircle cx='8.53' cy='36.53' r='4.7' fill='%239fd3a5' stroke='%23e2c063' stroke-width='.7'/%3E%3Ccircle cx='7.53' cy='35.53' r='1.4' fill='rgba(255,255,255,.6)'/%3E%3C/svg%3E") center / 100% 100% no-repeat; }
+
+/* Eclipse: a black sun with a burning edge, its corona turning, and the diamond's flash */
+.f-eclipse::after { background: radial-gradient(closest-side, #fff8e0 calc(100% - var(--fw)), #ffd27a calc(100% - var(--fw) * .78), #120c06 calc(100% - var(--fw) * .5), #000); }
+.f-eclipse::before {
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath d='M82.94 14.86Q82.94 22.36 90.44 22.36Q82.94 22.36 82.94 29.86Q82.94 22.36 75.44 22.36Q82.94 22.36 82.94 14.86Z' fill='rgba(255,250,230,.95)'/%3E%3Ccircle cx='82.94' cy='22.36' r='2.4' fill='%23fff'/%3E%3C/svg%3E") center / 100% 100% no-repeat,
+    repeating-conic-gradient(from 0deg, rgba(255,232,180,.95) 0 1.6deg, transparent 1.6deg 7deg, rgba(255,200,120,.6) 7deg 8deg, transparent 8deg 13deg),
+    radial-gradient(closest-side, transparent 60%, rgba(255,214,140,.6) 74%, transparent 100%);
+  animation: frameSpin 50s linear infinite; }
+.frame-fx.f-eclipse::before {
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%);
+  mask: radial-gradient(closest-side, transparent calc(100% - var(--fw) * 2.2), #000 calc(100% - var(--fw) * 1.9), transparent 100%); }
+
+@keyframes frameFlash { 0%, 70%, 74%, 77%, 100% { opacity: .35; } 71%, 73%, 75.5% { opacity: 1; } }
+@keyframes frameHum { 0%, 41%, 44%, 100% { opacity: 1; } 42%, 43.5% { opacity: .55; } }
 
 @keyframes frameSpin { to { transform: rotate(360deg); } }
 @keyframes frameFlicker { 0% { transform: scale(.97) rotate(0deg); opacity: .85; } 50% { transform: scale(1.04) rotate(3deg); opacity: 1; } 100% { transform: scale(.99) rotate(-2deg); opacity: .9; } }
@@ -13819,6 +13950,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Najeela, the Blade-Blossom: "you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking" (itsControllerCreates)
     { re: /^(?:You may )?[Hh]ave its controller (create .+? tokens?(?: that'?s| that are)? tapped and attacking)\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
+    // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
+    { re: /^Attach (up to one )?target Equipment you control to (?:CARDNAME|it|this creature)\.?$/i,
+      make: (m) => ({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -18742,6 +18876,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
     // Celestine: "the amount of life you gained this turn"; Elenda and Azor: "the number of cards you've drawn this turn"
     if (/^the amount of life you(?:'ve)? gained this turn$/i.test(p)) return done({ playerStat: 'lifeGainedThisTurn' });
+    // Greven, Predator Captain: "the amount of life you've lost this turn" (lifeLostYou)
+    if (/^the amount of life you(?:'ve)? lost this turn$/i.test(p)) return done({ playerStat: 'lifeLostThisTurn' });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
@@ -22119,6 +22255,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       (m) => ({ kind: 'sacrificedThisTurn', what: (/^an?$/.test(m[1]) ? m[2] : m[2].replace(/s$/, '')).toLowerCase(), n: /^an?$/.test(m[1]) ? 1 : num(m[1].split(' ')[0]) })],
     // Lord Jyscal Guado: "you put a counter on a creature this turn" (counterPutter)
     [/^you put (?:a|one or more) counters? on a creature this turn$/i, () => ({ kind: 'youPutCounterOnCreature' })],
+    // Rhino, Barreling Brute: "you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
+    [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -24824,10 +24962,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const eqs = text.match(/enters(?: the battlefield)? with a number of ([+\-0-9/a-z]+) counters on it equal to the amount of mana spent to cast it/i);
     if (eqs && !out.entersWithCounters) out.entersWithCounters = { kind: eqs[1], n: { manaSpent: true } };
     // Diregraf Colossus: "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
-    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each ([^.]+?)\./i);
-    if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[2])) {
-      const c = countOf(etbEach[2]);
-      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[1], n: { count: c } };
+    // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two +1/+1 counters on it for each …" — etbEachMore)
+    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
+    if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
+      const c = countOf(etbEach[3]);
+      const k = /^an?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
+      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     // Prime Speaker Zegana: "enters with X +1/+1 counters on it, where X is the greatest power among other creatures you control"
@@ -27246,7 +27386,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
-      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
+      // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two … counters on it for each" — etbEachMore)
+      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
@@ -27314,6 +27455,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
       // Glittering Lion: "Prevent all damage that would be dealt to this creature."
+      // Emmara Tandris: "Prevent all damage that would be dealt to creature tokens you control." (preventToGroup)
+      { re: /^Prevent all damage that would be dealt to ((?:[a-z]+ )*(?:creature|creatures|creature tokens|tokens)) you control\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, sc), flag: 'noNoncombatTaken' }] } : null; }, auto: true },
+      // Doc Ock, Sinister Scientist: "As long as there are eight or more cards in your graveyard, CARDNAME has base power and toughness 8/8." (basePtWhile)
+      { re: /^As long as (.+?), (?:CARDNAME|this creature) has base power and toughness (\d+)\/(\d+)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, setPt: { p: +m[2], t: +m[3] } } : null; }, auto: true },
       { re: /^Prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         make: () => ({ op: 'sequence', list: [
           { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' },
@@ -27479,6 +27627,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by ([A-Z][a-z]+s)\.?$/,
         make: (m) => { const spec = targetSpec('target ' + U.titleCase(singularType(m[1]))); if (!spec || spec.unknown || !(spec.subtypes || []).length) return null; delete spec.filter; return { op: 'evasion', notBy: spec }; }, auto: true },
       // Steel Golem: "You can't cast creature spells."
+      // Llawan, Cephalid Empress: "Your opponents can't cast blue creature spells." (opponentsCantCastKind)
+      { re: /^Your opponents can'?t cast ((?:white|blue|black|red|green) (?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
+        make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase(), who: 'opponents' }), auto: true },
       { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
@@ -27526,6 +27677,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       { re: /^If you would copy a spell one or more times, instead copy it that many times plus an additional time\.(?: You may choose new targets for the additional copy\.)?$/i,
         eff: { op: 'copyPlusOne' }, auto: true },
       // Knight of Grace: "Hexproof from black"; Knight of Autumn's cousins: "Hexproof from white and from black"
+      // Nevinyrral, Urborg Tyrant: "Hexproof from artifacts, creatures, and enchantments" (hexproofFromList)
+      { re: /^Hexproof from ((?:artifacts|creatures|enchantments|planeswalkers)(?:, (?:artifacts|creatures|enchantments|planeswalkers))*,? and (?:artifacts|creatures|enchantments|planeswalkers))$/i,
+        make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and |, /) }), auto: true },
       { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
       // Dragonfire Blade: "Equipped creature gets +2/+2 and has hexproof from monocolored."
@@ -33135,8 +33289,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       // Steel Golem: "You can't cast creature spells." — its controller only
       for (const s1 of this.battlefield) {
-        if (s1.phasedOut || s1.controller !== playerId) continue;
+        if (s1.phasedOut) continue;
         const yc = this._staticOp(s1, 'youCantCast');
+        // (Llawan, Cephalid Empress: the opponents of its controller — opponentsCantCastKind)
+        if (!yc || (yc.who === 'opponents' ? s1.controller === playerId : s1.controller !== playerId)) continue;
         if (yc && this._cardFitsWords(o, yc.words)) return { ok: false, reason: `${s1.name}: you can't cast ${yc.words} spells.` };
       }
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
@@ -39967,6 +40123,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
+        // Rhino, Barreling Brute: "if you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
+        case 'castMvThisTurn': return !!me && (me.spellObjsThisTurn || []).some(x => ((x.card && x.card.cmc) || 0) >= (cond.n || 0));
         // Medomai the Ageless: "during extra turns" (extraTurnNow)
         case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
@@ -42554,7 +42712,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // Nev: the X the triggering spell was cast with (firstXSpell)
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
-        if (v && typeof v === 'object' && v.triggerSpellMv) { const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId); return (x && x.card && x.card.cmc) || 0; }
+        if (v && typeof v === 'object' && v.triggerSpellMv) {
+          const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId);
+          if (!x) return 0;
+          // (on the stack, its mana value counts the X it was cast with, and a split card's half is that half: spellMvNow)
+          const st = this.stack.find(s2 => s2.kind === 'spell' && (s2.id === td.stackId || s2.objId === x.id));
+          const xa = x.analysis() || {};
+          return (st && xa.mv != null ? xa.mv : ((x.card && x.card.cmc) || 0)) + (st ? this._xMv(st) : 0);
+        }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         // Aclazotz: "for each opponent who can't" discard (couldNot)
@@ -68537,6 +68702,204 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     isGameChanger, isMassLandDenial, takesExtraTurn, twoCardCombos,
   };
 })(window.MTG);
+/* ===== 15b-themes.js ===== */
+/* ============================================================
+   15b-themes.js - what a Commander deck is about, in a few words
+   "+1/+1 counters · Lifegain · Tokens": the handful of things a deck
+   leans on, read off its cards. Each theme is a few patterns over a
+   card's rules text, type line and keywords; a deck's cards are counted
+   against each one, its commander counting several times over (it is
+   what the deck is built around), and the themes that pass their own
+   bar are named, the most marked first. Card draw and ramp are in every
+   deck, so their bars are high: they are named only where a deck has far
+   more of them than usual.
+
+   It reads Scryfall's cards (oracle_text, type_line, card_faces) and
+   MTGJSON's (text, type), so the Store's printed Commander decks and
+   your own read the same way. Also how popular a deck's commander is:
+   its rank on EDHREC, the lower the more decks run it.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  /* Bump when the themes change: a deck list remembers its tags with the
+     version that made them (src/11-ui-deck.js), and the Store's printed
+     decks are read again by tools/precons.js. */
+  const VERSION = 1;
+  const COMMANDER_WEIGHT = 4;
+
+  /** A card's words, type and keywords, the same whichever source it came from. */
+  function facts(c) {
+    const faces = c.card_faces && c.card_faces.length ? c.card_faces : [c];
+    const name = String(c.name || '');
+    let text = faces.map(f => f.oracle_text != null ? f.oracle_text : f.text || '').join('\n');
+    if (!text && c.text) text = c.text;
+    // reminder text says what a keyword does, not what the deck does
+    text = text.replace(/\([^)]*\)/g, '');
+    // "When Llanowar Elves enters": the card's own name read as "this", so it is not taken for the elves it makes
+    for (const n of new Set([name].concat(name.split(' // '), faces.map(f => f.name || '')))) {
+      if (n && n.length > 2) text = text.split(n).join('this');
+      const short = n.split(',')[0];
+      if (short && short !== n && short.length > 3) text = text.split(short).join('this');
+    }
+    const type = String(c.type_line || faces.map(f => f.type_line || '').filter(Boolean).join(' // ') || c.type || '');
+    const kw = new Set((c.keywords || []).map(k => String(k).toLowerCase()));
+    return { raw: text, text: text.toLowerCase(), type: type.toLowerCase(), typeLine: type, kw };
+  }
+
+  const has = (f, re) => re.test(f.text);
+  const isType = (f, word) => new RegExp('\\b' + word + '\\b').test(f.type);
+  const anyKw = (f, list) => list.some(k => f.kw.has(k));
+  const NON_CREATURE_TOKENS = /create[^.]*\b(treasure|food|clue|blood|map|gold|powerstone|incubator|junk|shard|lander)\b[^.]*token/;
+
+  /* Each theme: its tag, the bar a deck's count must reach to be named, and
+     what a card scores toward it (0 for nothing, 2 for a card that pays
+     the theme off rather than only taking part). */
+  const THEMES = [
+    { id: 'counters', label: '+1/+1 counters', bar: 11, score: (f) =>
+      has(f, /(whenever|for each|with) [^.]*\+1\/\+1 counter|double the number of|proliferate|counters? on it[^.]*instead/) ? 2
+        : has(f, /\+1\/\+1 counter/) || anyKw(f, ['proliferate', 'evolve', 'adapt', 'modular', 'graft', 'bolster', 'support', 'outlast', 'training', 'mentor', 'riot', 'backup']) ? 1 : 0 },
+    { id: 'minus', label: '-1/-1 counters', bar: 6, score: (f) => has(f, /-1\/-1 counter/) || anyKw(f, ['wither', 'persist']) ? 1 : 0 },
+    { id: 'poison', label: 'Poison', bar: 6, score: (f) => anyKw(f, ['infect', 'toxic', 'poisonous']) || has(f, /poison counter/) ? 1 : 0 },
+    { id: 'lifegain', label: 'Lifegain', bar: 9, score: (f) =>
+      has(f, /whenever you gain life|if you would gain life|life you gained|you've gained life/) ? 2
+        : has(f, /\byou gain \w+ life|\bgain \w+ life|\bgains? that much life|\blifelink\b/) || f.kw.has('lifelink') ? 1 : 0 },
+    { id: 'tokens', label: 'Tokens', bar: 10, score: (f) =>
+      has(f, /whenever (one or more )?(a )?(creature )?tokens?|tokens you control|for each [^.]*token|populate/) ? 2
+        : has(f, /\bcreates? [^.]*\btokens?\b/) && !NON_CREATURE_TOKENS.test(f.text) || anyKw(f, ['populate', 'amass', 'fabricate', 'afterlife', 'myriad', 'encore']) ? 1 : 0 },
+    { id: 'storm', label: (hits) => (hits.storm ? 'Storm' : 'Spell copying'), bar: 5, score: (f) =>
+      f.kw.has('storm') || has(f, /\bcopy (target|that|it|each) [^.]*\b(instant|sorcery|spell)|copies of (it|that spell)|magecraft|whenever you cast or copy/) || f.kw.has('magecraft') ? 1 : 0 },
+    { id: 'spells', label: 'Instants & sorceries', bar: 26, score: (f) =>
+      has(f, /instant (or|and) sorcery spell|instant or sorcery card|instants? and sorcer(y|ies)|noncreature spell/) || anyKw(f, ['prowess', 'magecraft']) ? 2
+        : isType(f, 'instant') || isType(f, 'sorcery') ? 1 : 0 },
+    { id: 'recursion', label: 'Recursion', bar: 8, score: (f) =>
+      has(f, /return[^.]*from (your|a|any|their|an opponent's) graveyards? (to|onto) the battlefield|put[^.]*from (your|a) graveyard onto the battlefield|return[^.]*card[^.]*from your graveyard to your hand|you may (cast|play) [^.]*from your graveyard/)
+        || anyKw(f, ['unearth', 'embalm', 'eternalize', 'escape', 'disturb', 'encore', 'undying', 'persist', 'retrace', 'jump-start', 'flashback']) ? 1 : 0 },
+    { id: 'graveyard', label: 'Graveyard', bar: 9, score: (f) =>
+      has(f, /cards? in your graveyard|from your graveyard|\bmill\b|\bmills\b|leaves your graveyard|put into your graveyard from/) || anyKw(f, ['mill', 'surveil', 'dredge', 'delirium', 'threshold', 'descend']) ? 1 : 0 },
+    { id: 'sacrifice', label: 'Sacrifice', bar: 9, score: (f) =>
+      has(f, /whenever (a|another|one or more) (other )?(nontoken )?creatures? (you control )?(dies|die)|whenever you sacrifice/) ? 2
+        : has(f, /\bsacrifice (a|another|an|two|three|x|any number of) [^.]*?(creature|artifact|permanent|token)/) || anyKw(f, ['exploit', 'casualty', 'devour', 'emerge']) ? 1 : 0 },
+    { id: 'blink', label: 'Blink', bar: 6, score: (f) =>
+      has(f, /exile [^.]*(you control|you own)[^.]*(then )?return (it|that card|them|those cards) to the battlefield|exile [^.]*, then return [^.]* to the battlefield/) ? 2
+        : has(f, /return (it|that card|them|the exiled card) to the battlefield under (its owner's|your) control at the beginning of the next end step/) ? 1 : 0 },
+    { id: 'lands', label: 'Lands', bar: 8, score: (f) =>
+      f.kw.has('landfall') || has(f, /whenever (a|one or more) lands? (you control )?enters|play an additional land|lands? cards? from your graveyard|you may play lands from/) ? 1 : 0 },
+    { id: 'artifacts', label: 'Artifacts', bar: 24, score: (f) =>
+      has(f, /whenever (you cast an|an|another|one or more) artifacts?|artifacts? you control|for each artifact|artifact spells?/) || f.kw.has('affinity') || f.kw.has('improvise') ? 2
+        : isType(f, 'artifact') && !isType(f, 'land') ? 1 : 0 },
+    { id: 'enchantments', label: 'Enchantments', bar: 18, score: (f) =>
+      has(f, /whenever (you cast an|an|another) enchantment|enchantments? you control|for each enchantment|enchantment spells?/) || f.kw.has('constellation') ? 2
+        : isType(f, 'enchantment') ? 1 : 0 },
+    { id: 'voltron', label: 'Equipment & Auras', bar: 11, score: (f) =>
+      has(f, /equipped creature|enchanted creature gets|whenever [^.]* becomes equipped|equipment you control|auras? you control|attach/) && !isType(f, 'creature') || isType(f, 'equipment') || isType(f, 'aura') && has(f, /enchanted creature (gets|has)/) ? 1 : 0 },
+    { id: 'vehicles', label: 'Vehicles', bar: 6, score: (f) => isType(f, 'vehicle') || f.kw.has('crew') || has(f, /\bvehicles?\b/) ? 1 : 0 },
+    { id: 'fliers', label: 'Fliers', bar: 16, score: (f) => isType(f, 'creature') && f.kw.has('flying') || has(f, /creatures? with flying (you control|get)/) ? 1 : 0 },
+    { id: 'combat', label: 'Attacking', bar: 13, score: (f) =>
+      has(f, /additional combat phase|whenever (you attack|one or more creatures you control attack)|attacking creatures you control get/) ? 2
+        : has(f, /whenever [^.]* attacks|\battacking creature/) || anyKw(f, ['battle cry', 'myriad', 'melee', 'exalted', 'dethrone', 'annihilator']) ? 1 : 0 },
+    { id: 'burn', label: 'Direct damage', bar: 10, score: (f) =>
+      has(f, /deals? (\d+|x|that much) damage to (each opponent|each player|any target|target player|target opponent)|deals damage to each opponent/) ? 1 : 0 },
+    { id: 'drain', label: 'Drain', bar: 7, score: (f) => has(f, /each opponent loses \w+ life|target opponent loses \w+ life|loses \w+ life and you gain/) ? 1 : 0 },
+    { id: 'counterspells', label: 'Counterspells', bar: 7, score: (f) => has(f, /\bcounter target\b[^.]*spell|\bcounter (it|that spell)\b/) ? 1 : 0 },
+    { id: 'theft', label: 'Theft', bar: 6, score: (f) => has(f, /gain control of|cast [^.]*(spells?|cards?) (you don't own|an opponent owns)|exile[^.]*an opponent[^.]*you may cast/) ? 1 : 0 },
+    { id: 'goad', label: 'Goad', bar: 4, score: (f) => f.kw.has('goad') || has(f, /\bgoad/) ? 1 : 0 },
+    { id: 'mill', label: 'Mill', bar: 6, score: (f) => has(f, /(target|each) (player|opponent)s? mills?|target player puts the top/) ? 1 : 0 },
+    { id: 'impulse', label: 'Exile and cast', bar: 8, score: (f) => has(f, /exile the top [^.]*(you may (play|cast)|until (the )?end of (your next|the next|this) turn)|you may (play|cast) (that card|those cards|it) (this turn|until)/) ? 1 : 0 },
+    { id: 'draw', label: 'Card draw', bar: 22, score: (f) => has(f, /whenever [^.]*draw|draw (a|an additional|two|three|four|x|that many) cards?/) ? 1 : 0 },
+    { id: 'ramp', label: 'Ramp', bar: 20, score: (f) => !isType(f, 'land') && (has(f, /\badd \{|\badd (one|two|three|x) mana|\badds? [^.]*mana of any|search your library for [^.]*\blands?\b[^.]*battlefield|put [^.]*land cards? [^.]*onto the battlefield|treasure token/)) ? 1 : 0 },
+  ];
+
+  /* A creature type as a deck would name it: Elves, Wolves, Sphinxes. */
+  const PLURAL = { Elf: 'Elves', Dwarf: 'Dwarves', Wolf: 'Wolves', Werewolf: 'Werewolves', Fungus: 'Fungi', Mouse: 'Mice', Ox: 'Oxen',
+    Octopus: 'Octopuses', Cyclops: 'Cyclopes', Sphinx: 'Sphinxes', Fox: 'Foxes', Thopter: 'Thopters', Dryad: 'Dryads', Elk: 'Elk',
+    Sheep: 'Sheep', Fish: 'Fish', Squid: 'Squid', Moonfolk: 'Moonfolk', Kithkin: 'Kithkin', Merfolk: 'Merfolk', Djinn: 'Djinn',
+    Leviathan: 'Leviathans', Phoenix: 'Phoenixes', Ninja: 'Ninjas', Samurai: 'Samurai', Kor: 'Kor', Vedalken: 'Vedalken', Aetherborn: 'Aetherborn', Hero: 'Heroes',
+    Eldrazi: 'Eldrazi', Jellyfish: 'Jellyfish', Badger: 'Badgers', Viashino: 'Viashino', Azra: 'Azra', Licid: 'Licids' };
+  const plural = (t) => PLURAL[t] || (/(s|x|ch|sh)$/.test(t) ? t + 'es' : /[^aeiou]y$/.test(t) ? t.slice(0, -1) + 'ies' : t + 's');
+  // the creature types of more than one word, kept whole
+  const TWO_WORD = /\bTime Lord\b/g;
+  const subtypes = (typeLine) => typeLine.split(' // ').filter(p => /creature|kindred|tribal/i.test(p))
+    .flatMap(p => (p.split(/\s+[—-]\s+/)[1] || '').replace(TWO_WORD, (m) => m.replace(' ', '_')).split(/\s+/))
+    .filter(Boolean).map(s => s.replace('_', ' '));
+  // too common to be a deck's plan unless the deck says so loudly
+  const COMMON_TYPE_BAR = { Human: true };
+  const TYPAL_BAR = 11;
+
+  /**
+   * The themes a deck leans on, strongest first: [{ id, label, score, ratio }],
+   * at most `max` of them (4). `deck`: { commanders: [card], main: [{ card, qty }] }.
+   * Kept on the deck object, so asking again costs nothing.
+   */
+  const cache = new WeakMap();
+  function themes(deck, max) {
+    max = max || 4;
+    if (!deck) return [];
+    const hit = cache.get(deck);
+    if (hit && hit.max === max) return hit.out;
+    const counts = new Map(THEMES.map(t => [t.id, 0]));
+    const hits = { storm: 0 };
+    const typeCount = new Map(), cmdTypes = new Set();
+    const rows = [].concat((deck.commanders || []).filter(Boolean).map(c => ({ card: c, qty: 1, cmd: true })),
+      (deck.main || []).filter(e => e && e.card).map(e => ({ card: e.card, qty: e.qty || 1 })));
+    const read = rows.map(r => ({ r, f: facts(r.card) }));
+    for (const { r, f } of read) {
+      if (/\bbasic\b/.test(f.type) && isType(f, 'land')) continue;
+      const w = r.cmd ? COMMANDER_WEIGHT : r.qty;
+      for (const t of THEMES) {
+        const s = t.score(f);
+        if (s) counts.set(t.id, counts.get(t.id) + s * w);
+      }
+      if (f.kw.has('storm')) hits.storm++;
+      for (const st of subtypes(f.typeLine)) {
+        typeCount.set(st, (typeCount.get(st) || 0) + (r.cmd ? 1 : r.qty));
+        if (r.cmd) cmdTypes.add(st);
+      }
+    }
+    // a creature type is a theme when the deck is full of it and its cards talk about it
+    const typal = [];
+    for (const [st, n] of typeCount) {
+      if (n < 6) continue;
+      const word = new RegExp('\\b(' + st + '|' + plural(st) + ')\\b');
+      let said = 0;
+      for (const { r, f } of read) if (word.test(f.raw)) said += r.cmd ? COMMANDER_WEIGHT : 1;
+      const need = COMMON_TYPE_BAR[st] ? said >= 8 : said >= 3;
+      if (need) typal.push({ id: 'type:' + st, label: plural(st), score: n, ratio: n / TYPAL_BAR + (cmdTypes.has(st) ? 0.1 : 0) });
+    }
+    const all = THEMES.map(t => ({ id: t.id, label: typeof t.label === 'function' ? t.label(hits) : t.label,
+      score: counts.get(t.id), ratio: counts.get(t.id) / t.bar }))
+      .concat(typal)
+      .sort((a, b) => b.ratio - a.ratio);
+    let out = all.filter(t => t.ratio >= 1);
+    // no more than one creature type, and Graveyard said once when Recursion already says it
+    const firstType = out.find(t => t.id.startsWith('type:'));
+    out = out.filter(t => !t.id.startsWith('type:') || t === firstType);
+    if (out.some(t => t.id === 'recursion') && out.some(t => t.id === 'graveyard'))
+      out = out.filter(t => t.id !== (out.findIndex(x => x.id === 'recursion') < out.findIndex(x => x.id === 'graveyard') ? 'graveyard' : 'recursion'));
+    // a deck with one clear theme still gets a second word when one comes close
+    if (out.length < 2) for (const t of all) { if (out.length >= 2) break; if (t.ratio >= 0.7 && !out.includes(t) && !t.id.startsWith('type:')) out.push(t); }
+    out = out.slice(0, max);
+    cache.set(deck, { max, out });
+    return out;
+  }
+
+  /** The tags alone, as words. */
+  const tags = (deck, max) => themes(deck, max).map(t => t.label);
+
+  /**
+   * How popular a deck's commander is: its EDHREC rank (lower is more
+   * popular), the better of two partners'; Infinity when none is known.
+   */
+  function rank(commanders) {
+    let best = Infinity;
+    for (const c of commanders || []) {
+      const r = c && (c.edhrec_rank != null ? c.edhrec_rank : c.edhrecRank);
+      if (r != null && r > 0 && r < best) best = r;
+    }
+    return best;
+  }
+
+  MTG.themes = { VERSION, THEMES, facts, themes, tags, rank, plural };
+})(window.MTG);
 /* ===== 16-advisor.js ===== */
 /* ============================================================
    16-advisor.js - work out what a deck is trying to do, then help
@@ -70469,6 +70832,54 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     node.addEventListener('click', hide);
   };
 
+  /* ---------------- a deck's commander, and what the deck leans on ---------------- */
+
+  /**
+   * A commander known only by name and Scryfall id (a printed deck's, or
+   * one a deck list remembers) as a card enough to preview: its picture
+   * straight from the id. UI.commanderPreview fills in the rest.
+   */
+  UI.commanderStub = function (name, id) {
+    const pic = (size) => `https://cards.scryfall.io/${size}/front/${id[0]}/${id[1]}/${id}.jpg`;
+    return { name, id: id || null,
+      image_uris: id ? { small: pic('small'), normal: pic('normal'), large: pic('large'), art_crop: pic('art_crop') } : undefined };
+  };
+
+  /**
+   * Hover `node` to see `card`, as attachPreview does anywhere else. A
+   * stand-in card (commanderStub) is made whole from the card cache the
+   * first time a pointer comes over it, so its words and its back face
+   * show too. A finger is left alone, to tap what it was tapping.
+   */
+  UI.commanderPreview = function (node, card) {
+    if (!node || !card) return node;
+    let asked = false;
+    node.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch' || asked || !card.id || card.oracle_text != null || card.card_faces) return;
+      asked = true;
+      MTG.scry.byId(card.id, { low: true, quiet: true }).then((full) => { if (full) Object.assign(card, full); }).catch(() => {});
+    });
+    UI.attachPreview(node, card, 0);
+    return node;
+  };
+
+  /** A deck's commanders by name, "Rin and Seri + Atraxa", each one previewed on hover. */
+  UI.commanderNames = function (cards, cls) {
+    const out = el('span', { class: 'cmd-names' + (cls ? ' ' + cls : '') });
+    (cards || []).filter(Boolean).forEach((c, i) => {
+      if (i) out.appendChild(document.createTextNode(' + '));
+      out.appendChild(UI.commanderPreview(el('span', { class: 'cmd-name', text: U.frontName(c.name) }), c));
+    });
+    return out;
+  };
+
+  /** What a deck leans on (src/15b-themes.js), as one short line: "Tokens · Lifegain · Sacrifice". */
+  UI.themeLine = function (tags, cls) {
+    const list = (tags || []).filter(Boolean);
+    return el('div', { class: 'theme-line' + (cls ? ' ' + cls : ''), text: list.join(' · '),
+      title: list.length ? 'What the deck leans on: ' + list.join(', ') : '', hidden: !list.length });
+  };
+
   /* ---------------- art picker ---------------- */
 
   /**
@@ -71970,7 +72381,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   const RARITIES = ['common', 'uncommon', 'rare', 'mythic'];
 
   /** What things cost and what they pay, in Shards. */
-  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveCustom: 8000 };
+  const PRICES = { pack: 1000, collector: 2500, dealRare: 1500, dealMythic: 3000, sleeve: 2000, sleeveFoil: 3000, sleeveCustom: 8000 };
   /* A Commander deck costs what the wildcards for its cards would, less a
      share for buying them together, and nothing for the cards you have
      already; never less than PRECON_MIN. */
@@ -71991,14 +72402,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { id: 'thorns', name: 'Thorns', price: 1500, text: 'A twisted vine, its thorns standing out.' },
     { id: 'frost', name: 'Frost', price: 1500, text: 'Cold metal, shards of ice, a pale glow.' },
     { id: 'sylvan', name: 'Sylvan', price: 1500, text: 'A ring of wood in a wreath of leaves.' },
+    { id: 'obsidian', name: 'Obsidian', price: 1500, text: 'Black glass edged in gold, a stud at each diagonal.' },
+    { id: 'moonsilver', name: 'Moonsilver', price: 1500, text: 'Polished silver, a crescent moon over it.' },
     { id: 'tidal', name: 'Tidal', price: 2000, text: 'The sea, and a turning ring of foam.' },
     { id: 'bloodmoon', name: 'Blood Moon', price: 2000, text: 'Crimson, with a slow red pulse.' },
+    { id: 'briar', name: 'Briar Rose', price: 2000, text: 'A thorned vine, and five roses on it.' },
+    { id: 'jade', name: 'Jade', price: 2000, text: 'Carved green stone, bound in gold.' },
+    { id: 'laurel', name: 'Laurel', price: 2000, text: 'A gold wreath for a winner, tied in red.' },
     { id: 'ember', name: 'Ember', price: 2500, text: 'A ring of fire, flames licking off it.' },
     { id: 'arcane', name: 'Arcane', price: 2500, text: 'Runes turning one way, a dotted circle the other.' },
     { id: 'sunburst', name: 'Sunburst', price: 2500, text: 'White gold, and rays all round.' },
+    { id: 'crystal', name: 'Amethyst Crystal', price: 2500, text: 'Violet facets, crystals growing out of it.' },
+    { id: 'storm', name: 'Stormcrown', price: 2500, text: 'Turning cloud, and lightning now and then.' },
+    { id: 'neon', name: 'Neon', price: 2500, text: 'A pink tube alight, humming.' },
+    { id: 'phyrexian', name: 'Phyrexian', price: 2500, text: 'Bone and oil, claws curling off it.' },
+    { id: 'nyx', name: 'Nyx', price: 2500, text: 'The night sky of Theros, stars coming and going.' },
+    { id: 'hedron', name: 'Hedron', price: 2500, text: 'Rune-lit stone, hedrons pointing out from it.' },
     { id: 'void', name: 'Void', price: 4000, text: 'A dark ring in a turning violet nebula.' },
     { id: 'prismatic', name: 'Prismatic', price: 4000, text: 'Every colour, moving round.' },
     { id: 'orbit', name: 'Orbit', price: 4000, text: 'A midnight ring, and a star going round it.' },
+    { id: 'aurora', name: 'Aurora', price: 4000, text: 'Green and violet light, turning, a haze beyond.' },
+    { id: 'five', name: 'Five Colours', price: 4000, text: 'The five colours round, a jewel of each.' },
+    { id: 'eclipse', name: 'Eclipse', price: 4000, text: 'A black sun, its corona turning, a diamond of light.' },
   ];
   /** Another printing's art for a card you own, by rarity (one you pulled is free). */
   const ART_PRICES = { common: 100, uncommon: 200, rare: 400, mythic: 800 };
@@ -72050,10 +72475,42 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   };
   // a medallion: rings about the middle, `rings` as [colour, from, to] in % of the card's half-diagonal
   const medallion = (rings) => `radial-gradient(circle at 50% 50%, ${rings.map(([c, a, b]) => `transparent ${a - .4}%, ${c} ${a}% ${b}%, transparent ${b + .4}%`).join(', ')})`;
+  // a drawing over the whole card, in the card's own units (63 by 88): what
+  // gradients cannot do (a glyph, a circuit, leaded glass) as one picture,
+  // which the browser draws once for every back of that size
+  const svg = (body) => `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 63 88' preserveAspectRatio='none'>${body}</svg>`)}") 50% 50% / 100% 100% no-repeat`;
+  // the same drawing in each corner, mirrored: `body` is drawn for the top left
+  const corners = (body) => [[1, 1, 0, 0], [-1, 1, 63, 0], [1, -1, 0, 88], [-1, -1, 63, 88]]
+    .map(([sx, sy, tx, ty]) => `<g transform='translate(${tx} ${ty}) scale(${sx} ${sy})'>${body}</g>`).join('');
+  // points strewn as if at random, the same every time: [x, y, r] in card units
+  const scatter = (n, seed, r0, r1) => {
+    let s = seed;
+    const rnd = () => (s = (s * 16807) % 2147483647) / 2147483647;
+    return Array.from({ length: n }, () => [+(rnd() * 63).toFixed(1), +(rnd() * 88).toFixed(1), +(r0 + rnd() * (r1 - r0)).toFixed(2)]);
+  };
+  const stars = (n, seed, r0, r1, fill) => scatter(n, seed, r0, r1).map(([x, y, r], i) =>
+    `<circle cx='${x}' cy='${y}' r='${r}' fill='${fill}' opacity='${(.35 + (i * 37 % 60) / 100).toFixed(2)}'/>`).join('');
+  // a four-pointed glint at (x, y), `r` from the middle to a point
+  const glint = (x, y, r, fill) => `<path d='M${x} ${y - r}Q${x} ${y} ${x + r} ${y}Q${x} ${y} ${x} ${y + r}Q${x} ${y} ${x - r} ${y}Q${x} ${y} ${x} ${y - r}Z' fill='${fill}'/>`;
+  /* A fine grain, the tooth of printed card stock: grey noise, faint, in a
+     tile drawn once and laid across every sleeve that wants it. It keeps
+     a smooth gradient from banding and gives a flat colour a surface. */
+  const GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='96' height='96'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.95' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 1.7 0 0 -.35  0 1.7 0 0 -.35  0 1.7 0 0 -.35  0 0 0 0 .11'/></filter><rect width='96' height='96' filter='url(#g)'/></svg>")}") 0 0 / 96px 96px`;
+  // a fleuron for a corner: a curl, a lesser curl within it, a bead
+  const fleuron = (col) => corners(`<path d='M4.6 11Q4.6 4.6 11 4.6M6.8 9.4Q7.6 7.6 9.4 6.8' fill='none' stroke='${col}' stroke-width='.45'/><circle cx='7.4' cy='7.4' r='.8' fill='${col}'/>`);
+  // a ruled border, two lines, and a fleuron in each corner
+  const ruled = (col) => `<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='${col}' stroke-width='.55'/>` +
+    `<rect x='4.6' y='4.6' width='53.8' height='78.8' rx='1.4' fill='none' stroke='${col}' stroke-width='.25' opacity='.7'/>` + fleuron(col);
 
   const SLEEVE_CSS = {
     // black lacquer under a fine gold lattice, a ruled double border, a gold diamond at its heart
     obsidian: [
+      // filigree: scrolls out from the diamond's points, a fleuron in each corner
+      svg((() => {
+        const arm = `<path d='M21.6 44H15.5Q12 44 12 40.8Q12 38.4 14.4 38.4Q16.2 38.4 16.2 40.2M15.5 44Q12 44 12 47.2Q12 49.6 14.4 49.6Q16.2 49.6 16.2 47.8' fill='none' stroke='#e2c063' stroke-width='.45'/><circle cx='9.6' cy='44' r='.9' fill='#f3dd96'/>`;
+        const up = `<path d='M31.5 34.6V27.5Q31.5 24.5 28.6 24.5Q26.6 24.5 26.6 26.4M31.5 27.5Q31.5 24.5 34.4 24.5Q36.4 24.5 36.4 26.4' fill='none' stroke='#e2c063' stroke-width='.45'/><circle cx='31.5' cy='21.8' r='.9' fill='#f3dd96'/>`;
+        return arm + `<g transform='translate(63 0) scale(-1 1)'>${arm}</g>` + up + `<g transform='translate(0 88) scale(1 -1)'>${up}</g>` + fleuron('#e2c063');
+      })()),
       'radial-gradient(ellipse 85% 40% at 50% -6%, rgba(255,232,170,.16), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.75))',
       ...diamond('#f3dd96', 5, 3.6),
@@ -72069,6 +72526,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // a forge: coals glowing at the foot, sparks rising, a ring of fire at the heart
     crimson: [
+      // a ruled border warm from the forge, and a few sparks caught bright
+      svg(ruled('rgba(255,170,96,.72)') + glint(22, 30, 1.6, '#ffe2a8') + glint(46.6, 19.4, 1.3, '#ffd690') + glint(41.6, 77.4, 1.4, '#ffe2a8')),
       'radial-gradient(circle at 22% 30%, rgba(255,214,140,.95) 0 .6%, transparent 1%)',
       'radial-gradient(circle at 74% 22%, rgba(255,190,110,.9) 0 .5%, transparent .9%)',
       'radial-gradient(circle at 63% 64%, rgba(255,226,160,.9) 0 .55%, transparent .95%)',
@@ -72093,6 +72552,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // green strands woven over and under, lit from the top left, a leafy ring at the heart
     verdant: [
+      // a vine in each corner, in leaf, and a pale ruled border
+      svg(`<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='rgba(200,240,170,.6)' stroke-width='.45'/>` +
+        corners(`<path d='M4.6 19Q4.6 4.6 19 4.6' fill='none' stroke='#b9e48f' stroke-width='.55'/>` +
+          [[5.2, 15, 200], [6.4, 10.4, 225], [9.6, 6.6, 250], [14.6, 5.2, 275]].map(([x, y, a]) =>
+            `<path d='M0 0Q2.2 -1.8 4.4 0Q2.2 1.8 0 0Z' fill='#9fd46a' transform='translate(${x} ${y}) rotate(${a + 90})'/>`).join('') +
+          `<circle cx='7.6' cy='7.6' r='.9' fill='#e8ffd0'/>`)),
       'radial-gradient(ellipse 90% 55% at 20% 0%, rgba(210,255,170,.22), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,14,4,.7))',
       medallion([['rgba(220,255,190,.85)', 15, 15.8], ['rgba(28,72,30,.9)', 15.8, 20.6], ['rgba(150,215,110,.8)', 20.6, 21.4]]),
@@ -72107,6 +72572,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // ivory under golden rays, a sun at the heart, a ruled gold border
     ivory: [
+      svg(fleuron('#b88c3a') + glint(31.5, 44, 3.4, '#fffdf4')),
       'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(120,92,40,.45))',
       ...border('rgba(184,140,58,.85)', 6, 1), ...border('rgba(184,140,58,.45)', 8, 1),
       medallion([['#fffaf0', 0, 7], ['rgba(232,190,90,.95)', 7, 8.4], ['#fff6dc', 8.4, 10], ['rgba(184,140,58,.9)', 10, 10.8]]),
@@ -72116,6 +72582,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // violet silk drawn across, faceted light, a gem at the heart, a few glints
     amethyst: [
+      // a cut gem at the heart, its facets lit from the top left
+      svg(`<defs><radialGradient id='a' cx='.35' cy='.3' r='.8'><stop offset='0' stop-color='#f1e2ff'/><stop offset='.45' stop-color='#a070e8'/><stop offset='1' stop-color='#3a1878'/></radialGradient></defs>` +
+        `<path d='M28.6 37H34.4L38.5 41.1V46.9L34.4 51H28.6L24.5 46.9V41.1Z' fill='url(#a)' stroke='#e6d0ff' stroke-width='.45'/>` +
+        `<path d='M29.6 40H33.4L35.5 42.1V45.9L33.4 48H29.6L27.5 45.9V42.1Z' fill='none' stroke='rgba(255,255,255,.55)' stroke-width='.3'/>` +
+        `<path d='M28.6 37L29.6 40M34.4 37L33.4 40M38.5 41.1L35.5 42.1M38.5 46.9L35.5 45.9M34.4 51L33.4 48M28.6 51L29.6 48M24.5 46.9L27.5 45.9M24.5 41.1L27.5 42.1' stroke='rgba(255,255,255,.45)' stroke-width='.25'/>` +
+        fleuron('rgba(220,190,255,.8)')),
       'radial-gradient(circle at 26% 24%, rgba(255,255,255,.9) 0 .4%, transparent .8%)',
       'radial-gradient(circle at 72% 70%, rgba(240,220,255,.85) 0 .35%, transparent .75%)',
       'radial-gradient(circle at 78% 18%, rgba(240,220,255,.7) 0 .3%, transparent .7%)',
@@ -72129,6 +72601,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // beaten gold, a raised lattice with a rivet at each crossing, a dark cameo at the heart
     gilded: [
+      // a star struck into the cameo, and a fleuron worked in each corner
+      svg(glint(31.5, 44, 4.2, '#f5d27a') + `<circle cx='31.5' cy='44' r='1' fill='#fff1bf'/>` + fleuron('#5c3d0a')),
       'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,250,220,.5), transparent 70%)',
       'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(80,50,8,.55))',
       medallion([['rgba(60,38,6,.95)', 0, 12], ['#fff1bf', 12, 12.8], ['#9a6d1c', 12.8, 14], ['#f5d27a', 14, 15]]),
@@ -72139,6 +72613,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
     // the dark between the stars: a ring of light about nothing at all, a haze at the edges
     void: [
+      // more stars, and a disc of light seen edge on about the dark
+      svg(stars(70, 41, .08, .3, '#e6ebff') + `<ellipse cx='31.5' cy='44' rx='17' ry='2.6' transform='rotate(-8 31.5 44)' fill='none' stroke='rgba(255,226,180,.35)' stroke-width='.5'/>`),
       'radial-gradient(circle at 18% 22%, rgba(255,255,255,.8) 0 .25%, transparent .6%)',
       'radial-gradient(circle at 81% 71%, rgba(207,216,255,.7) 0 .25%, transparent .6%)',
       'radial-gradient(circle at 70% 14%, rgba(255,255,255,.5) 0 .2%, transparent .5%)',
@@ -72152,18 +72628,301 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ].join(', '),
   };
 
+  /* ---- the sigils: a colour of mana, its mark on a disc at the heart and
+     woven small across the field, a ruled gold border ---- */
+  // each mark drawn about (0, 0), about nine across: `ink` the mark, `hole` what shows through it
+  const MARK = {
+    // a sun: a disc and eight rays
+    w: (ink) => `<circle r='4.1' fill='${ink}'/>` + Array.from({ length: 8 }, (_, k) => {
+      const a = k * Math.PI / 4, p = (r, d) => `${(Math.cos(a + d) * r).toFixed(2)} ${(Math.sin(a + d) * r).toFixed(2)}`;
+      return `<path d='M${p(5.2, -.3)}L${p(9.4, 0)}L${p(5.2, .3)}Z' fill='${ink}'/>`;
+    }).join(''),
+    // a drop of water, lit from the left
+    u: (ink, hole) => `<path d='M0 -9C3 -4.5 6.6 -1 6.6 3A6.6 6.6 0 0 1 -6.6 3C-6.6 -1 -3 -4.5 0 -9Z' fill='${ink}'/><path d='M-3.6 2.6Q-3.4 5.6 -.6 6.6' stroke='${hole}' stroke-width='1.1' fill='none' stroke-linecap='round'/>`,
+    // a skull
+    b: (ink, hole) => `<path d='M0 -8.6C6 -8.6 8.4 -4.6 8.4 -.6C8.4 2.8 6.6 4.4 5.4 5V8.4H-5.4V5C-6.6 4.4 -8.4 2.8 -8.4 -.6C-8.4 -4.6 -6 -8.6 0 -8.6Z' fill='${ink}'/>` +
+      `<ellipse cx='-3.2' cy='-.4' rx='2.2' ry='2.5' fill='${hole}'/><ellipse cx='3.2' cy='-.4' rx='2.2' ry='2.5' fill='${hole}'/><path d='M0 2.4L1.1 4.4H-1.1Z' fill='${hole}'/>` +
+      `<path d='M-2.6 6V8.4M0 6V8.4M2.6 6V8.4' stroke='${hole}' stroke-width='.7'/>`,
+    // a flame, a smaller one within it
+    r: (ink, hole) => `<path d='M0 -9.6C2 -6 6.6 -3.4 6.6 2C6.6 6 3.6 8.6 0 8.6C-3.6 8.6 -6.6 6 -6.6 2C-6.6 -1 -4.6 -3 -3.6 -5.2C-3 -2.6 -1.6 -1.6 -.5 -1.6C-1.6 -4.6 -1 -7.2 0 -9.6Z' fill='${ink}'/>` +
+      `<path d='M0 1C1.6 2.6 3 3.6 3 5.2C3 6.8 1.6 7.6 0 7.6C-1.6 7.6 -3 6.8 -3 5.2C-3 3.6 -1.6 2.6 0 1Z' fill='${hole}'/>`,
+    // a tree: a crown of three and a trunk
+    g: (ink) => `<circle cy='-4' r='4.6' fill='${ink}'/><circle cx='-4.2' cy='-.4' r='3.8' fill='${ink}'/><circle cx='4.2' cy='-.4' r='3.8' fill='${ink}'/>` +
+      `<path d='M-1.5 1.5H1.5L1.9 7.4L4 8.8H-4L-1.9 7.4Z' fill='${ink}'/>`,
+  };
+  const sigil = (k, o) => [
+    'radial-gradient(ellipse 90% 42% at 50% -6%, rgba(255,255,255,.2), transparent 70%)',
+    svg(
+      `<defs><pattern id='p' width='12' height='12' patternUnits='userSpaceOnUse' patternTransform='rotate(-12)'>` +
+      `<g transform='translate(3 3) scale(.24)'>${MARK[k](o.faint, 'transparent')}</g><g transform='translate(9 9) scale(.24)'>${MARK[k](o.faint, 'transparent')}</g></pattern>` +
+      `<radialGradient id='d' cx='.4' cy='.35' r='.75'><stop offset='0' stop-color='${o.disc[0]}'/><stop offset='1' stop-color='${o.disc[1]}'/></radialGradient></defs>` +
+      `<rect width='63' height='88' fill='url(#p)'/>` +
+      `<circle cx='31.5' cy='44' r='17' fill='none' stroke='${o.gold}' stroke-width='.3' stroke-dasharray='.6 1.2'/>` +
+      `<circle cx='31.5' cy='44' r='14.6' fill='rgba(0,0,0,.35)'/>` +
+      `<circle cx='31.5' cy='44' r='13.4' fill='url(#d)' stroke='${o.gold}' stroke-width='.9'/>` +
+      `<circle cx='31.5' cy='44' r='15.3' fill='none' stroke='${o.gold}' stroke-width='.35'/>` +
+      `<g transform='translate(31.5 44) scale(1.08)'>${MARK[k](o.ink, o.disc[0])}</g>` +
+      ruled(o.gold)),
+    `radial-gradient(circle at 50% 50%, ${o.glow}, transparent 34%)`,
+    'radial-gradient(ellipse at 50% 50%, transparent 52%, rgba(0,0,0,.55))',
+    o.field,
+  ].join(', ');
+  const SIGILS = {
+    w: { field: 'linear-gradient(160deg, #fbf6e6, #e6dab8 55%, #cdb98a)', faint: 'rgba(150,112,40,.17)', disc: ['#fffaf0', '#eadcae'], ink: '#2b2418', gold: '#b38b34', glow: 'rgba(255,236,170,.75)' },
+    u: { field: 'linear-gradient(160deg, #144a8a, #0b2f62 55%, #051733)', faint: 'rgba(150,205,255,.14)', disc: ['#d4ecfa', '#8fc3e6'], ink: '#0b1d33', gold: '#9fd0f0', glow: 'rgba(110,190,255,.5)' },
+    b: { field: 'linear-gradient(160deg, #241d2a, #120e16 55%, #050407)', faint: 'rgba(205,185,225,.09)', disc: ['#e0d8d4', '#a69c98'], ink: '#140f12', gold: '#a48fb0', glow: 'rgba(150,110,190,.4)' },
+    r: { field: 'linear-gradient(160deg, #6e180c, #4a0e07 55%, #230403)', faint: 'rgba(255,160,100,.14)', disc: ['#fcc4a6', '#e27d58'], ink: '#2c0d06', gold: '#e8a650', glow: 'rgba(255,130,60,.5)' },
+    g: { field: 'linear-gradient(160deg, #1d4d2a, #11331b 55%, #06170c)', faint: 'rgba(160,235,150,.12)', disc: ['#cdeccb', '#7fc08a'], ink: '#0d2312', gold: '#a8cf72', glow: 'rgba(130,220,120,.42)' },
+  };
+  // the five, round a gold ring: white at the top and the rest clockwise, as on the colour pie
+  const FIVE = (() => {
+    const at = (k, r) => [31.5 + Math.cos((k * 72 - 90) * Math.PI / 180) * r, 44 + Math.sin((k * 72 - 90) * Math.PI / 180) * r].map(n => n.toFixed(2));
+    const keys = ['w', 'u', 'b', 'r', 'g'];
+    const star = [0, 2, 4, 1, 3].map(k => at(k, 17).join(' ')).join(' ');
+    return [
+      'radial-gradient(ellipse 90% 42% at 50% -6%, rgba(255,255,255,.14), transparent 70%)',
+      svg(`<defs>${keys.map(k => `<radialGradient id='${k}' cx='.4' cy='.35' r='.75'><stop offset='0' stop-color='${SIGILS[k].disc[0]}'/><stop offset='1' stop-color='${SIGILS[k].disc[1]}'/></radialGradient>`).join('')}</defs>` +
+        stars(40, 5, .12, .32, '#f3e2b0') +
+        `<circle cx='31.5' cy='44' r='17' fill='none' stroke='#e2c063' stroke-width='.6'/><circle cx='31.5' cy='44' r='21.5' fill='none' stroke='#e2c063' stroke-width='.3' opacity='.6'/>` +
+        `<polygon points='${star}' fill='none' stroke='#e2c063' stroke-width='.35' opacity='.55'/>` +
+        glint(31.5, 44, 4.2, '#fff3c4') +
+        keys.map((k, i) => { const [x, y] = at(i, 17); return `<circle cx='${x}' cy='${y}' r='6' fill='rgba(0,0,0,.45)'/><circle cx='${x}' cy='${y}' r='5.3' fill='url(#${k})' stroke='#e2c063' stroke-width='.5'/><g transform='translate(${x} ${y}) scale(.46)'>${MARK[k](SIGILS[k].ink, SIGILS[k].disc[0])}</g>`; }).join('') +
+        ruled('#e2c063')),
+      'radial-gradient(circle at 50% 50%, rgba(243,221,150,.2), transparent 40%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+      'radial-gradient(ellipse at 50% 45%, #2c3140, #141720 60%, #08090d)',
+    ].join(', ');
+  })();
+
+  /* ---- the planes and the foils ---- */
+  const DESIGN = {
+    // holographic foil: a rainbow over silver, fine diffraction lines, a seal of rings at the heart
+    holo: [
+      svg(`<g fill='none' stroke='rgba(255,255,255,.75)'>` +
+        `<circle cx='31.5' cy='44' r='6.5' stroke-width='.5'/><circle cx='31.5' cy='44' r='9' stroke-width='.3'/><circle cx='31.5' cy='44' r='13.5' stroke-width='.5'/>` +
+        Array.from({ length: 24 }, (_, k) => { const a = k * Math.PI / 12, c = Math.cos(a), s = Math.sin(a), r0 = 9.6, r1 = k % 2 ? 12 : 13; return `<path d='M${(31.5 + c * r0).toFixed(2)} ${(44 + s * r0).toFixed(2)}L${(31.5 + c * r1).toFixed(2)} ${(44 + s * r1).toFixed(2)}' stroke-width='.35'/>`; }).join('') +
+        `</g>` + glint(31.5, 44, 5.4, 'rgba(255,255,255,.9)') +
+        `<rect x='3' y='3' width='57' height='82' rx='2.2' fill='none' stroke='rgba(255,255,255,.6)' stroke-width='.45'/>`),
+      'radial-gradient(circle at 50% 50%, rgba(255,255,255,.5), transparent 22%)',
+      'repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,.07) 0 1px, transparent 1px 4px)',
+      'repeating-linear-gradient(35deg, rgba(255,255,255,.09) 0 1px, transparent 1px 3px)',
+      'linear-gradient(125deg, rgba(255,90,190,.5), rgba(100,200,255,.48) 22%, rgba(255,240,110,.44) 44%, rgba(110,250,180,.46) 64%, rgba(180,110,255,.5) 84%, rgba(255,100,180,.48))',
+      'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(30,30,60,.4))',
+      'linear-gradient(160deg, #e3e8f0, #9aa3b4 45%, #eef1f6 70%, #a0a8b8)',
+    ].join(', '),
+    // galaxy foil: a deep sky, clouds of colour, stars and a few bright glints
+    galaxy: [
+      svg(stars(90, 3, .1, .42, '#ffffff') + glint(15, 20, 2.4, '#fff') + glint(49, 31, 1.8, '#e6dcff') + glint(22, 67, 2, '#dff3ff') + glint(46, 76, 1.5, '#fff') + glint(55, 12, 1.3, '#ffe6f6')),
+      'radial-gradient(ellipse 55% 22% at 35% 40%, rgba(255,110,210,.32), transparent 70%)',
+      'radial-gradient(ellipse 45% 30% at 68% 58%, rgba(90,170,255,.34), transparent 70%)',
+      'radial-gradient(ellipse 40% 18% at 52% 48%, rgba(255,240,220,.22), transparent 70%)',
+      'radial-gradient(ellipse 70% 30% at 20% 85%, rgba(140,90,255,.25), transparent 70%)',
+      'radial-gradient(ellipse 60% 26% at 85% 12%, rgba(80,220,255,.2), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 45%, rgba(0,0,8,.7))',
+      'linear-gradient(160deg, #1a1046, #0b0a2a 50%, #050312)',
+    ].join(', '),
+    // Phyrexian oil: black gloss, a rainbow film on it, and the sign of Phyrexia in ivory
+    oilslick: [
+      svg(`<defs><linearGradient id='i' gradientUnits='userSpaceOnUse' x1='20' y1='24' x2='43' y2='64'><stop offset='0' stop-color='#f6f0e0'/><stop offset='.5' stop-color='#a9a292'/><stop offset='1' stop-color='#ece4d0'/></linearGradient></defs>` +
+        `<circle cx='31.5' cy='44' r='10' fill='none' stroke='rgba(0,0,0,.55)' stroke-width='3.6'/><path d='M31.5 23.5V64.5' stroke='rgba(0,0,0,.55)' stroke-width='3.6' stroke-linecap='round'/>` +
+        `<circle cx='31.5' cy='44' r='10' fill='none' stroke='url(#i)' stroke-width='2.3'/><path d='M31.5 24.5V63.5' stroke='url(#i)' stroke-width='2.3' stroke-linecap='round'/>` +
+        `<circle cx='31.5' cy='44' r='13.5' fill='none' stroke='rgba(217,209,189,.35)' stroke-width='.3' stroke-dasharray='.5 1.1'/>` +
+        Array.from({ length: 7 }, (_, k) => `<path d='M${8 + k * 8} 0V${4 + (k * 5 % 9)}' stroke='#0b0b0f' stroke-width='${(1.6 + (k % 3) * .5).toFixed(1)}' stroke-linecap='round'/>`).join('')),
+      'radial-gradient(ellipse 70% 50% at 28% 30%, rgba(80,255,220,.24), transparent 60%)',
+      'radial-gradient(ellipse 60% 45% at 74% 66%, rgba(255,60,200,.24), transparent 60%)',
+      'radial-gradient(ellipse 50% 36% at 72% 20%, rgba(255,210,90,.18), transparent 60%)',
+      'radial-gradient(ellipse 55% 40% at 24% 82%, rgba(110,120,255,.24), transparent 60%)',
+      'repeating-radial-gradient(ellipse at 38% 42%, rgba(255,255,255,.04) 0 2px, transparent 2px 7px)',
+      'radial-gradient(ellipse 80% 30% at 40% 8%, rgba(255,255,255,.16), transparent 70%)',
+      'linear-gradient(160deg, #15151b, #060608 55%, #000)',
+    ].join(', '),
+    // etched silver: brushed metal, lines cut into it and lit at one edge, a rose of petals at the heart
+    etched: (() => {
+      const cut = (d, w) => `<path d='${d}' fill='none' stroke='rgba(255,255,255,.75)' stroke-width='${w}' transform='translate(.3 .3)'/><path d='${d}' fill='none' stroke='rgba(38,44,56,.62)' stroke-width='${w}'/>`;
+      const petals = Array.from({ length: 12 }, (_, k) => `<ellipse cx='31.5' cy='35.5' rx='2.6' ry='7.2' transform='rotate(${k * 30} 31.5 44)'/>`).join('');
+      return [
+        svg(`<g fill='none' stroke='rgba(255,255,255,.75)' stroke-width='.35' transform='translate(.3 .3)'>${petals}</g><g fill='none' stroke='rgba(38,44,56,.6)' stroke-width='.35'>${petals}</g>` +
+          cut('M31.5 44m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0', .45) + cut('M31.5 44m-17.5 0a17.5 17.5 0 1 0 35 0a17.5 17.5 0 1 0 -35 0', .4) +
+          cut('M31.5 44m-19.5 0a19.5 19.5 0 1 0 39 0a19.5 19.5 0 1 0 -39 0', .25) +
+          cut('M5 5H58V83H5Z', .5) + cut('M7 7H56V81H7Z', .25) +
+          corners(cut('M7 15Q7 7 15 7M9.5 13Q10 10 13 9.5M7 15Q10 14 11 11Q14 10 15 7', .35)) +
+          cut('M31.5 7V12M31.5 81V76M5 44H10M58 44H53', .35)),
+        'radial-gradient(circle at 50% 50%, rgba(255,255,255,.45), transparent 16%)',
+        'repeating-linear-gradient(90deg, rgba(255,255,255,.07) 0 1px, rgba(0,0,0,.05) 1px 2px, transparent 2px 3px)',
+        'radial-gradient(ellipse at 50% 50%, transparent 55%, rgba(40,46,60,.4))',
+        'linear-gradient(160deg, #eef1f5, #a4adb8 38%, #f7f8fa 58%, #8c95a1 82%, #c9cfd7)',
+      ].join(', ');
+    })(),
+    // the northern lights: curtains of green and violet over a dark ridge of pines
+    aurora: [
+      svg(stars(55, 11, .1, .32, '#eafff6').replace(/cy='([0-9.]+)'/g, (m, y) => `cy='${(+y * .6).toFixed(1)}'`) +
+        `<path d='M0 88V70L5 66L9 69L15 61L20 66L26 58L31 63L36 57L42 64L47 60L53 66L58 62L63 66V88Z' fill='#04141c'/>` +
+        Array.from({ length: 13 }, (_, k) => { const x = 2 + k * 5, h = 6 + (k * 7 % 5) * 1.6, y = 77 - (k * 3 % 4); return `<path d='M${x} ${y - h}L${x + 2.2} ${y}H${x - 2.2}Z' fill='#020a10'/>`; }).join('') +
+        `<path d='M0 88V79Q31.5 75 63 79V88Z' fill='#01060a'/>`),
+      'radial-gradient(ellipse 16% 52% at 24% 34%, rgba(90,255,170,.42), transparent 70%)',
+      'radial-gradient(ellipse 13% 46% at 43% 28%, rgba(60,235,205,.36), transparent 70%)',
+      'radial-gradient(ellipse 18% 56% at 66% 36%, rgba(160,110,255,.34), transparent 70%)',
+      'radial-gradient(ellipse 11% 42% at 86% 28%, rgba(90,255,170,.3), transparent 70%)',
+      'radial-gradient(ellipse 60% 18% at 50% 60%, rgba(70,255,190,.16), transparent 70%)',
+      'repeating-linear-gradient(90deg, rgba(190,255,225,.05) 0 1px, transparent 1px 5px)',
+      'linear-gradient(180deg, #02101c, #07263a 55%, #0b3440)',
+    ].join(', '),
+    // Nyx, the night sky of Theros: stars, the lines of two constellations, a gold key border
+    nyx: [
+      svg(`<defs><pattern id='k' width='6' height='6' patternUnits='userSpaceOnUse' patternTransform='translate(3 3) scale(.62)'><path d='M0 5.4H5.4V.6H1.8V3.6H3.6' fill='none' stroke='#e2c063' stroke-width='.7'/></pattern>` +
+        `<pattern id='kv' width='6' height='6' patternUnits='userSpaceOnUse' patternTransform='translate(3 3) rotate(90) scale(.62)'><path d='M0 5.4H5.4V.6H1.8V3.6H3.6' fill='none' stroke='#e2c063' stroke-width='.7'/></pattern></defs>` +
+        stars(80, 17, .1, .4, '#fff') +
+        `<g fill='none' stroke='rgba(220,210,255,.55)' stroke-width='.3'><path d='M15 22L22 18L30 24L38 19L46 25L43 34L34 31L30 24'/><path d='M18 58L25 63L23 71L31 75L40 70L46 62'/></g>` +
+        `<g fill='#fff'>${[[15, 22], [22, 18], [30, 24], [38, 19], [46, 25], [43, 34], [34, 31], [18, 58], [25, 63], [23, 71], [31, 75], [40, 70], [46, 62]].map(([x, y], i) => glint(x, y, i % 3 ? 1.2 : 1.8, '#fff')).join('')}</g>` +
+        `<rect x='3' y='3' width='57' height='3.72' fill='url(#k)'/><rect x='3' y='81.28' width='57' height='3.72' fill='url(#k)'/>` +
+        `<rect x='3' y='6.72' width='3.72' height='74.56' fill='url(#kv)'/><rect x='56.28' y='6.72' width='3.72' height='74.56' fill='url(#kv)'/>` +
+        `<rect x='2.4' y='2.4' width='58.2' height='83.2' fill='none' stroke='#e2c063' stroke-width='.35'/><rect x='7.3' y='7.3' width='48.4' height='73.4' fill='none' stroke='#e2c063' stroke-width='.35'/>`),
+      'radial-gradient(ellipse 60% 28% at 32% 30%, rgba(140,100,255,.3), transparent 70%)',
+      'radial-gradient(ellipse 50% 26% at 68% 70%, rgba(255,120,220,.2), transparent 70%)',
+      'radial-gradient(ellipse 40% 20% at 50% 50%, rgba(170,200,255,.16), transparent 70%)',
+      'radial-gradient(ellipse at 50% 42%, #2c1d63, #140b38 60%, #070418)',
+    ].join(', '),
+    // cathedral glass: a rose window in lead and colour under a pointed arch, lit from behind
+    glass: (() => {
+      const P = (r, a) => `${(31.5 + Math.cos(a * Math.PI / 180) * r).toFixed(2)} ${(40 + Math.sin(a * Math.PI / 180) * r).toFixed(2)}`;
+      const sector = (r0, r1, a0, a1, fill) => `<path d='M${P(r0, a0)}L${P(r1, a0)}A${r1} ${r1} 0 0 1 ${P(r1, a1)}L${P(r0, a1)}A${r0} ${r0} 0 0 0 ${P(r0, a0)}Z' fill='${fill}'/>`;
+      const OUT = ['#b3122e', '#1d4fb8', '#c98a12', '#1d4fb8'], IN = ['#e8b830', '#6a2aa8'];
+      return [
+        'radial-gradient(circle at 50% 46%, rgba(255,220,160,.28), transparent 38%)',
+        svg(`<defs><pattern id='q' width='5' height='7' patternUnits='userSpaceOnUse'><path d='M2.5 0L5 3.5L2.5 7L0 3.5Z' fill='rgba(230,200,120,.22)' stroke='#0c0b0e' stroke-width='.45'/></pattern></defs>` +
+          `<path d='M9 84V32Q9 14 31.5 6Q54 14 54 32V84Z' fill='#d8c48a' opacity='.32'/><path d='M9 84V32Q9 14 31.5 6Q54 14 54 32V84Z' fill='url(#q)' stroke='#0c0b0e' stroke-width='1.2'/>` +
+          `<circle cx='31.5' cy='40' r='19.4' fill='#0c0b0e'/>` +
+          Array.from({ length: 12 }, (_, k) => `<circle cx='${P(18.6, k * 30 + 15).split(' ')[0]}' cy='${P(18.6, k * 30 + 15).split(' ')[1]}' r='2.8' fill='#1d4fb8' stroke='#0c0b0e' stroke-width='.6'/>`).join('') +
+          Array.from({ length: 12 }, (_, k) => sector(8.6, 17.4, k * 30 - 90, k * 30 - 60, OUT[k % 4])).join('') +
+          Array.from({ length: 6 }, (_, k) => sector(3.8, 7.8, k * 60 - 90, k * 60 - 30, IN[k % 2])).join('') +
+          `<g fill='none' stroke='#0c0b0e' stroke-width='.7'>` + Array.from({ length: 12 }, (_, k) => `<path d='M${P(8.2, k * 30 - 90)}L${P(17.8, k * 30 - 90)}'/>`).join('') +
+          `<circle cx='31.5' cy='40' r='8.2'/><circle cx='31.5' cy='40' r='17.8'/></g><circle cx='31.5' cy='40' r='3.4' fill='#f3dd96' stroke='#0c0b0e' stroke-width='.6'/>` +
+          `<path d='M9 62H54M31.5 62V84' stroke='#0c0b0e' stroke-width='1.1'/>`),
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+        'linear-gradient(160deg, #3a3740, #1c1b21 55%, #0d0c10)',
+      ].join(', ');
+    })(),
+    // a neon night of Kamigawa: a sun cut in bands, a gate before it, a grid to the horizon
+    neon: [
+      svg(`<defs><linearGradient id='s' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#ffe27a'/><stop offset='.55' stop-color='#ff7a5a'/><stop offset='1' stop-color='#ff2d95'/></linearGradient>` +
+        `<mask id='m'><rect width='63' height='88' fill='#fff'/>${[40, 43.5, 46.6, 49.4].map((y, i) => `<rect x='0' y='${y}' width='63' height='${(.7 + i * .45).toFixed(2)}' fill='#000'/>`).join('')}</mask>` +
+        `<clipPath id='c'><rect x='0' y='52' width='63' height='36'/></clipPath></defs>` +
+        stars(30, 23, .1, .3, '#ffd9f4').replace(/cy='([0-9.]+)'/g, (m, y) => `cy='${(+y * .55).toFixed(1)}'`) +
+        `<circle cx='31.5' cy='37' r='15.5' fill='url(#s)' mask='url(#m)'/>` +
+        `<g fill='#10021c'><path d='M17.5 27.4Q31.5 29.6 45.5 27.4L44.8 30H18.2Z'/><rect x='20.5' y='32.2' width='22' height='1.5'/><rect x='23' y='29' width='1.9' height='23'/><rect x='38.1' y='29' width='1.9' height='23'/></g>` +
+        `<g clip-path='url(#c)' fill='none'><g stroke='rgba(37,230,255,.28)' stroke-width='1.1'>${[54, 57, 61, 66, 72.5, 80.5].map(y => `<path d='M0 ${y}H63'/>`).join('')}${Array.from({ length: 15 }, (_, k) => `<path d='M31.5 52L${-60 + k * 13} 88'/>`).join('')}</g>` +
+        `<g stroke='#7ff4ff' stroke-width='.35'>${[54, 57, 61, 66, 72.5, 80.5].map(y => `<path d='M0 ${y}H63'/>`).join('')}${Array.from({ length: 15 }, (_, k) => `<path d='M31.5 52L${-60 + k * 13} 88'/>`).join('')}</g></g>` +
+        `<path d='M0 52H63' stroke='#ff4fb8' stroke-width='.7'/>`),
+      'radial-gradient(ellipse 70% 14% at 50% 60%, rgba(255,70,180,.45), transparent 70%)',
+      'radial-gradient(circle at 50% 42%, rgba(255,120,120,.35), transparent 32%)',
+      'linear-gradient(180deg, #12031f, #2c0740 52%, #0a0314 60%, #06020c)',
+    ].join(', '),
+    // the hedrons of Zendikar: stones of many faces hanging in a green-grey sky, their runes alight
+    hedron: (() => {
+      const hed = (x, y, L, w, rot) => {
+        const h = L * .22, d = w * .3;
+        return `<g transform='translate(${x} ${y}) rotate(${rot})'>` +
+          `<path d='M0 ${-L}L${w} ${-h}L${w} ${h}L0 ${L}L${-w} ${h}L${-w} ${-h}Z' fill='url(#st)' stroke='#1c2624' stroke-width='.4'/>` +
+          `<path d='M0 ${-L}L${d} ${-h}V${h}L0 ${L}M${-w} ${-h}L${d} ${-h}L${w} ${-h}M${-w} ${h}L${d} ${h}L${w} ${h}' fill='none' stroke='rgba(20,30,28,.55)' stroke-width='.35'/>` +
+          `<path d='M${d} ${-h}L${w} ${-h}V${h}H${d}Z' fill='rgba(0,0,0,.28)'/>` +
+          `<path d='M${-w + 1} ${-h * .4}H${d - .8}M${-w + 1.6} ${h * .4}H${d - 1.4}M${d + .8} 0H${w - .8}' stroke='#7ff0dc' stroke-width='.45' opacity='.9'/></g>`;
+      };
+      return [
+        svg(`<defs><linearGradient id='st' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#c4cfc8'/><stop offset='.55' stop-color='#7d8c86'/><stop offset='1' stop-color='#4a5753'/></linearGradient></defs>` +
+          hed(12, 20, 9, 3.2, -32) + hed(53, 69, 11, 3.8, 38) + hed(50, 16, 5.5, 2, 20) + hed(13, 72, 6, 2.2, -18) + hed(31.5, 44, 25, 8.5, 10) +
+          `<ellipse cx='31.5' cy='44' rx='17' ry='4.5' transform='rotate(10 31.5 44)' fill='none' stroke='rgba(127,240,220,.5)' stroke-width='.35' stroke-dasharray='1.2 1'/>`),
+        'radial-gradient(circle at 50% 50%, rgba(127,240,220,.24), transparent 30%)',
+        'radial-gradient(ellipse 90% 26% at 50% 104%, rgba(170,235,220,.22), transparent 70%)',
+        'radial-gradient(ellipse 70% 30% at 30% 0%, rgba(230,240,220,.2), transparent 70%)',
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(4,10,10,.6))',
+        'linear-gradient(170deg, #4a6260, #263a3a 50%, #111c1d)',
+      ].join(', ');
+    })(),
+    // a Thran circuit: copper traces to a power stone alight at the heart
+    thran: (() => {
+      const half = ['M31.5 30V21L24 13.5H9', 'M27 34H19L13 28V15', 'M24 40H12L8 36V10', 'M23 44H5', 'M24 48H12L8 52V78', 'M27 54H19L13 60V73', 'M31.5 58V67L24 74.5H9', 'M28.5 30V25L22 18.5H17', 'M28.5 58V63L22 69.5H17'];
+      const ends = [[9, 13.5], [13, 15], [8, 10], [5, 44], [8, 78], [13, 73], [9, 74.5], [17, 18.5], [17, 69.5]];
+      const draw = (stroke, w) => `<g fill='none' stroke='${stroke}' stroke-width='${w}' stroke-linejoin='round'>${half.map(d => `<path d='${d}'/>`).join('')}</g>`;
+      const side = draw('rgba(0,0,0,.55)', 1.3) + draw('#c98a4a', .6) + ends.map(([x, y]) => `<circle cx='${x}' cy='${y}' r='1' fill='#1a1009' stroke='#e6aa66' stroke-width='.45'/>`).join('');
+      return [
+        svg(side + `<g transform='translate(63 0) scale(-1 1)'>${side}</g>` +
+          `<circle cx='31.5' cy='44' r='12' fill='none' stroke='#c98a4a' stroke-width='.4' stroke-dasharray='1.4 .8'/>` +
+          `<circle cx='31.5' cy='44' r='9.5' fill='#140c06' stroke='#e6aa66' stroke-width='1'/>` +
+          `<path d='M31.5 37.5L36 44L31.5 50.5L27 44Z' fill='#bff4ff' stroke='#5fc6ff' stroke-width='.5'/><path d='M31.5 37.5L33.2 44L31.5 50.5' fill='rgba(40,120,200,.45)'/>` +
+          `<rect x='4' y='4' width='55' height='80' rx='2' fill='none' stroke='#c98a4a' stroke-width='.45'/>`),
+        'radial-gradient(circle at 50% 50%, rgba(140,220,255,.55), rgba(60,150,255,.18) 14%, transparent 26%)',
+        'repeating-linear-gradient(0deg, rgba(255,190,120,.035) 0 1px, transparent 1px 4px)',
+        'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(0,0,0,.6))',
+        'radial-gradient(ellipse at 50% 45%, #3a2715, #1d1209 60%, #0b0703)',
+      ].join(', ');
+    })(),
+    // lapis and gold of Amonkhet: flecked blue stone, bands of gold, the sun between the horns
+    lapis: [
+      svg(`<defs><linearGradient id='g' x1='0' y1='0' x2='0' y2='1'><stop offset='0' stop-color='#fff1bf'/><stop offset='.5' stop-color='#e2b450'/><stop offset='1' stop-color='#9a6d1c'/></linearGradient></defs>` +
+        stars(70, 29, .1, .38, '#f3d27a') +
+        `<rect x='0' y='6' width='63' height='5' fill='url(#g)'/><rect x='0' y='77' width='63' height='5' fill='url(#g)'/>` +
+        `<g fill='#173a8a'>${Array.from({ length: 11 }, (_, k) => `<path d='M${k * 6 - .5} 11L${k * 6 + 2.5} 7.4L${k * 6 + 5.5} 11Z'/><path d='M${k * 6 - .5} 77L${k * 6 + 2.5} 80.6L${k * 6 + 5.5} 77Z'/>`).join('')}</g>` +
+        `<path d='M0 12.6H63M0 75.4H63' stroke='#e2b450' stroke-width='.45'/>` +
+        `<path d='M31.5 60C18 60 10.5 47 13.5 19C15.5 35 22.5 48.5 31.5 50Z' fill='url(#g)'/><path d='M31.5 60C45 60 52.5 47 49.5 19C47.5 35 40.5 48.5 31.5 50Z' fill='url(#g)'/>` +
+        `<circle cx='31.5' cy='39' r='7.4' fill='url(#g)'/><circle cx='31.5' cy='39' r='5.6' fill='none' stroke='#9a6d1c' stroke-width='.4'/>` +
+        `<path d='M31.5 61.5L33 64L31.5 66.5L30 64Z' fill='#e2b450'/>`),
+      'radial-gradient(circle at 50% 44%, rgba(255,220,130,.3), transparent 28%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 50%, rgba(2,8,30,.6))',
+      'radial-gradient(ellipse 60% 30% at 30% 30%, rgba(90,140,255,.22), transparent 70%)',
+      'linear-gradient(160deg, #2a52a8, #173a8a 50%, #0c2058)',
+    ].join(', '),
+    // dragon scale: rows of scales hanging one over the next, and a dragon's eye open at the heart
+    dragonscale: [
+      svg(`<defs><radialGradient id='sc' cx='.5' cy='.15' r='.85'><stop offset='0' stop-color='#ffcf6a'/><stop offset='.45' stop-color='#c43a12'/><stop offset='.85' stop-color='#5a0e05'/><stop offset='1' stop-color='#220402'/></radialGradient>` +
+        `<pattern id='p' width='8' height='8' patternUnits='userSpaceOnUse' patternTransform='scale(.9)'>` +
+        `<circle cx='0' cy='8' r='4' fill='url(#sc)'/><circle cx='8' cy='8' r='4' fill='url(#sc)'/><circle cx='4' cy='4' r='4' fill='url(#sc)'/><circle cx='0' cy='0' r='4' fill='url(#sc)'/><circle cx='8' cy='0' r='4' fill='url(#sc)'/></pattern>` +
+        `<radialGradient id='e' cx='.5' cy='.5' r='.5'><stop offset='0' stop-color='#fff2a0'/><stop offset='.45' stop-color='#f5a020'/><stop offset='1' stop-color='#7a1e04'/></radialGradient></defs>` +
+        `<rect width='63' height='88' fill='url(#p)'/>` +
+        `<path d='M14 44Q31.5 28 49 44Q31.5 60 14 44Z' fill='#120302'/><path d='M16.5 44Q31.5 31 46.5 44Q31.5 57 16.5 44Z' fill='url(#e)'/>` +
+        `<ellipse cx='31.5' cy='44' rx='1.9' ry='10.5' fill='#0d0201'/><ellipse cx='28.5' cy='40.5' rx='1.6' ry='1' fill='rgba(255,255,255,.7)'/>`),
+      'radial-gradient(ellipse 40% 20% at 50% 50%, rgba(255,170,60,.45), transparent 70%)',
+      'radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(20,0,0,.65))',
+      'radial-gradient(ellipse 80% 40% at 30% 0%, rgba(255,220,150,.22), transparent 70%)',
+      '#3a0805',
+    ].join(', '),
+  };
+
   /* Sleeves: what goes over the back of your cards. Woven patterns and
-     card art at one price, and a sleeve of your own picture at four times
-     that. A sleeve is drawn from what is here (src/10d-ui-store.js). */
+     card art at one price, a foil (with light sliding across it) at half
+     as much again, and a sleeve of your own picture at four times the
+     first. A sleeve is drawn from what is here (src/10d-ui-store.js). An
+     art sleeve names its card, and the printing whose art it is when that
+     is one in particular ([set, collector number]). */
   const SLEEVES = [
     { id: 'obsidian', name: 'Obsidian Filigree', kind: 'pattern', rim: '#c9a24a', css: SLEEVE_CSS.obsidian },
-    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: AZURE },
+    { id: 'azure', name: 'Azure Tide', kind: 'pattern', rim: '#7fc4ff', css: svg(ruled('rgba(205,238,255,.78)') + glint(18, 24, 1.5, '#e8f8ff') + glint(47, 66, 1.3, '#e8f8ff') + glint(44, 18, 1.1, '#fff')) + ', ' + AZURE },
     { id: 'crimson', name: 'Crimson Ember', kind: 'pattern', rim: '#ff8a4a', css: SLEEVE_CSS.crimson },
     { id: 'verdant', name: 'Verdant Weave', kind: 'pattern', rim: '#8fd46a', css: SLEEVE_CSS.verdant },
     { id: 'ivory', name: 'Ivory Sun', kind: 'pattern', rim: '#f1d58a', css: SLEEVE_CSS.ivory },
     { id: 'amethyst', name: 'Amethyst Veil', kind: 'pattern', rim: '#c79bff', css: SLEEVE_CSS.amethyst },
     { id: 'gilded', name: 'Gilded Lattice', kind: 'pattern', rim: '#ffe29a', css: SLEEVE_CSS.gilded },
     { id: 'void', name: 'Starless Void', kind: 'pattern', rim: '#9aa6c8', css: SLEEVE_CSS.void },
+    // the five colours, each its mark, and all five together
+    { id: 'sigil-w', name: 'Plains Sigil', kind: 'pattern', rim: '#e6c873', css: sigil('w', SIGILS.w) },
+    { id: 'sigil-u', name: 'Island Sigil', kind: 'pattern', rim: '#8fc8ee', css: sigil('u', SIGILS.u) },
+    { id: 'sigil-b', name: 'Swamp Sigil', kind: 'pattern', rim: '#b5a3c0', css: sigil('b', SIGILS.b) },
+    { id: 'sigil-r', name: 'Mountain Sigil', kind: 'pattern', rim: '#ff9a5a', css: sigil('r', SIGILS.r) },
+    { id: 'sigil-g', name: 'Forest Sigil', kind: 'pattern', rim: '#9fd46a', css: sigil('g', SIGILS.g) },
+    { id: 'five', name: 'Five Colours', kind: 'pattern', rim: '#e2c063', css: FIVE },
+    // the planes
+    { id: 'nyx', name: 'Nyx', kind: 'pattern', rim: '#e2c063', css: DESIGN.nyx },
+    { id: 'glass', name: 'Cathedral Glass', kind: 'pattern', rim: '#8a8494', css: DESIGN.glass },
+    { id: 'neon', name: 'Neon Dynasty', kind: 'pattern', rim: '#ff4fb8', css: DESIGN.neon },
+    { id: 'hedron', name: 'Hedron Field', kind: 'pattern', rim: '#7ff0dc', css: DESIGN.hedron },
+    { id: 'thran', name: 'Thran Circuit', kind: 'pattern', rim: '#d9a066', css: DESIGN.thran },
+    { id: 'lapis', name: 'Lapis and Gold', kind: 'pattern', rim: '#e2b450', css: DESIGN.lapis },
+    { id: 'dragonscale', name: 'Dragonscale', kind: 'pattern', rim: '#ffb347', css: DESIGN.dragonscale },
+    // the foils
+    { id: 'holo', name: 'Holo Foil', kind: 'pattern', fx: 'foil', rim: '#e6ebf2', css: DESIGN.holo },
+    { id: 'galaxy', name: 'Galaxy Foil', kind: 'pattern', fx: 'foil', rim: '#b9a6ff', css: DESIGN.galaxy },
+    { id: 'etched', name: 'Etched Silver', kind: 'pattern', fx: 'foil', rim: '#dfe4ea', css: DESIGN.etched },
+    { id: 'oilslick', name: 'Phyrexian Oil', kind: 'pattern', fx: 'foil', rim: '#d9d1bd', css: DESIGN.oilslick },
+    { id: 'aurora', name: 'Aurora', kind: 'pattern', fx: 'foil', rim: '#7fe8c0', css: DESIGN.aurora },
     // the art of the game's best-known faces and moments
     { id: 'art-bolas', name: 'Nicol Bolas', kind: 'art', card: 'Nicol Bolas, Dragon-God', rim: '#e05a3a' },
     { id: 'art-ugin', name: 'Ugin', kind: 'art', card: 'Ugin, the Spirit Dragon', rim: '#9fd8e6' },
@@ -72177,9 +72936,38 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { id: 'art-griselbrand', name: 'Griselbrand', kind: 'art', card: 'Griselbrand', rim: '#b04040' },
     { id: 'art-craterhoof', name: 'Craterhoof', kind: 'art', card: 'Craterhoof Behemoth', rim: '#8fd46a' },
     { id: 'art-island', name: 'Island', kind: 'art', card: 'Island', rim: '#7fc4ff' },
+    // and more, from Alpha to now, every colour; `at` is where the picture is looked at
+    { id: 'art-lotus', name: 'Black Lotus', kind: 'art', card: 'Black Lotus', print: ['lea', '232'], at: '55% 50%', rim: '#c9a24a' },
+    { id: 'art-shivan', name: 'Shivan Dragon', kind: 'art', card: 'Shivan Dragon', print: ['lea', '174'], at: '80% 30%', rim: '#e0553a' },
+    { id: 'art-serra', name: 'Serra Angel', kind: 'art', card: 'Serra Angel', print: ['dom', '33'], at: '40% 40%', rim: '#f1e2b0' },
+    { id: 'art-necro', name: 'Necropotence', kind: 'art', card: 'Necropotence', print: ['ice', '154'], at: '42% 30%', rim: '#8a6aa8' },
+    { id: 'art-sliverqueen', name: 'Sliver Queen', kind: 'art', card: 'Sliver Queen', print: ['sth', '129'], rim: '#c8b070' },
+    { id: 'art-goyf', name: 'Tarmogoyf', kind: 'art', card: 'Tarmogoyf', print: ['fut', '153'], at: '68% 40%', rim: '#8fd46a' },
+    { id: 'art-thoughtseize', name: 'Thoughtseize', kind: 'art', card: 'Thoughtseize', print: ['lrw', '145'], at: '30% 40%', rim: '#a77ad8' },
+    { id: 'art-cryptic', name: 'Cryptic Command', kind: 'art', card: 'Cryptic Command', print: ['lrw', '56'], rim: '#6fb6ff' },
+    { id: 'art-edgar', name: 'Edgar Markov', kind: 'art', card: 'Edgar Markov', print: ['c17', '36'], rim: '#d0485a' },
+    { id: 'art-bolt', name: 'Lightning Bolt', kind: 'art', card: 'Lightning Bolt', print: ['fdc', '163'], at: '42% 30%', rim: '#ff8a3a' },
+    { id: 'art-titan', name: 'Primeval Titan', kind: 'art', card: 'Primeval Titan', print: ['m11', '192'], rim: '#9fd46a' },
+    { id: 'art-elesh', name: 'Elesh Norn', kind: 'art', card: 'Elesh Norn, Grand Cenobite', print: ['nph', '9'], at: '78% 30%', rim: '#e8e2d0' },
+    { id: 'art-karn', name: 'Karn', kind: 'art', card: 'Karn Liberated', print: ['nph', '1'], at: '35% 40%', rim: '#c8c0b0' },
+    { id: 'art-elspeth', name: 'Elspeth', kind: 'art', card: "Elspeth, Sun's Champion", print: ['ths', '9'], at: '40% 30%', rim: '#f1d58a' },
+    { id: 'art-thassa', name: 'Thassa', kind: 'art', card: 'Thassa, God of the Sea', print: ['ths', '66'], at: '45% 40%', rim: '#7fc4ff' },
+    { id: 'art-ulamog', name: 'Ulamog', kind: 'art', card: 'Ulamog, the Ceaseless Hunger', print: ['bfz', '15'], at: '62% 30%', rim: '#c8b8e8' },
+    { id: 'art-glorybringer', name: 'Glorybringer', kind: 'art', card: 'Glorybringer', print: ['akh', '134'], rim: '#ff9a4a' },
+    { id: 'art-urdragon', name: 'The Ur-Dragon', kind: 'art', card: 'The Ur-Dragon', print: ['c17', '48'], at: '40% 30%', rim: '#e2c063' },
+    { id: 'art-teferi', name: 'Teferi', kind: 'art', card: 'Teferi, Hero of Dominaria', print: ['dom', '207'], at: '35% 30%', rim: '#b8d8f0' },
+    { id: 'art-niv', name: 'Niv-Mizzet', kind: 'art', card: 'Niv-Mizzet, Parun', print: ['grn', '192'], at: '60% 40%', rim: '#ff6a4a' },
+    { id: 'art-omnath', name: 'Omnath', kind: 'art', card: 'Omnath, Locus of Creation', print: ['znr', '232'], rim: '#9fe0c0' },
+    { id: 'art-ragavan', name: 'Ragavan', kind: 'art', card: 'Ragavan, Nimble Pilferer', print: ['mh2', '138'], at: '72% 40%', rim: '#ff8a3a' },
+    { id: 'art-onering', name: 'The One Ring', kind: 'art', card: 'The One Ring', print: ['ltr', '246'], at: '55% 50%', rim: '#f3d27a' },
+    { id: 'art-forest', name: 'Forest', kind: 'art', card: 'Forest', print: ['unh', '140'], rim: '#8fd46a' },
     // your own picture
     { id: 'custom', name: 'Your own picture', kind: 'custom', rim: '#f1d58a' },
   ];
+  // every woven sleeve has the grain of card stock over it
+  for (const sl of SLEEVES) if (sl.kind === 'pattern') sl.css = GRAIN + ', ' + sl.css;
+  /** What a sleeve costs in the Store. */
+  const sleevePrice = (sl) => !sl ? PRICES.sleeve : sl.kind === 'custom' ? PRICES.sleeveCustom : sl.fx === 'foil' ? PRICES.sleeveFoil : PRICES.sleeve;
   // a loss pays 500, a win 2,000 (500 for playing and 1,500 more), the day's first win 2,500 on top
   const REWARD = { play: 500, win: 1500, firstWin: 2500 };
   /** A copy past the fourth is worth this many Shards instead. */
@@ -72685,7 +73473,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const sl = sleeveById(id);
     if (!sl) return { ok: false, why: 'There is no such sleeve.' };
     if (state.sleeves.owned.includes(id)) return { ok: false, why: 'You already have that sleeve.' };
-    const cost = sl.kind === 'custom' ? PRICES.sleeveCustom : PRICES.sleeve;
+    const cost = sleevePrice(sl);
     if (state.shards < cost) return { ok: false, why: `That costs ${cost.toLocaleString()} Shards; you have ${state.shards.toLocaleString()}.` };
     state.shards -= cost;
     state.sleeves.owned.push(id);
@@ -72801,13 +73589,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   function noteSleeveArt(id, url) { load(); if (url && state.sleeves.art[id] !== url) { state.sleeves.art[id] = url; save(); } }
   /**
    * The sleeve you wear, as something another player can draw too:
-   * { id, kind, css | art | img, rim }, or null for the plain back.
+   * { id, kind, art | img, rim } (a woven one by its id alone), or null for the plain back.
    */
   function sleeveWorn() {
     load();
     const sl = sleeveById(state.sleeves.on);
     if (!sl) return null;
-    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', css: sl.css, rim: sl.rim };
+    // a woven one goes by its name alone: its picture is long, and every player has it already
+    if (sl.kind === 'pattern') return { id: sl.id, kind: 'pattern', rim: sl.rim };
     if (sl.kind === 'art') return state.sleeves.art[sl.id] ? { id: sl.id, kind: 'art', art: state.sleeves.art[sl.id], rim: sl.rim } : null;
     if (!state.sleeves.custom) return null;
     const out = { id: 'custom', kind: 'custom', img: state.sleeves.custom, rim: sl.rim };
@@ -72949,7 +73738,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     packPrice, appraise, needsAppraisal,
     buyPacks, buyBundle, hasCollector, dailyDeals, buyDeal, openPack, awardGame, missingFor, craftMissing, wildcardsFor,
     rulesOn, grantTest, slimCard,
-    SLEEVES, sleeveById, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
+    SLEEVES, sleeveById, sleevePrice, buySleeve, equipSleeve, setCustomSleeve, noteSleeveArt, sleeveWorn,
     digestHex, animPayload, VINTAGE_RATE,
     /** Your GIF's name between players, or null. */
     ownGifHash: () => { load(); return (state.sleeves.anim && state.sleeves.anim.h) || null; },
@@ -74153,6 +74942,220 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   MTG.packValue = {"acr":1.25,"cmm":1.5,"2x2":1.25,"clb":1.25,"plst":1.25,"2xm":1.5,"mh1":1.25,"uma":1.5,"a25":1.25,"ima":1.25,"mm3":1.25,"ema":1.75,"mma":1.5};
   MTG.coreCovered = new Set(["2ed","3ed","sum","4ed","5ed"]);
 })(window.MTG);
+/* ===== 10d4-precons.js ===== */
+/* ============================================================
+   10d4-precons.js - the Store's printed Commander decks, read ahead
+
+   Written by tools/precons.js: by MTGJSON deck file, [the commander's
+   EDHREC rank (the better of two; 0 for none), [[commander, Scryfall
+   id], ...], [what the deck leans on, as src/15b-themes.js reads it]].
+   Read with themes version 1. Run it again when the themes change
+   or new decks come out; a deck missing here is read in the browser.
+   ============================================================ */
+'use strict';
+(function (MTG) {
+  MTG.preconIndex = { v: 1, decks: {
+    "20WaysToWin_SLD": [5124,[["Go-Shintai of Life's Origin","4e9a1f19-6ee3-49fb-a08d-4048ee7c1e34"]],["+1/+1 counters","Enchantments","Lifegain","Tokens"]],
+    "AbzanArmor_TDC": [4082,[["Felothar the Steadfast","2c3549f6-25df-4ea7-84ad-922ccd4af6b2"]],["Lifegain","+1/+1 counters"]],
+    "AdaptiveEnchantment_C18": [11472,[["Estrid, the Masked","3340b83e-72dc-42e2-9f93-92f732c047df"]],["Enchantments","Equipment & Auras","Tokens"]],
+    "AhoyMateys_LCC": [7705,[["Admiral Brass, Unsinkable","bdc2d492-9d1e-4543-8b9c-c66ee67992ce"]],["Pirates","Recursion"]],
+    "AngelsTheyReJustLikeUsButCoolerAndWithWings_SLD": [2553,[["Gisela, the Broken Blade","d1cfc318-9c3e-471f-90eb-dc76454da957"]],["Lifegain","Angels","Fliers","Tokens"]],
+    "AnimatedArmy_BLC": [3665,[["Bello, Bard of the Brambles","31e4b7a1-b377-49d2-a92e-4bcb0db35f16"]],["Enchantments","Ramp"]],
+    "ArcaneMaelstrom_C20": [9808,[["Kalamax, the Stormsire","f990cd78-2165-446f-a116-ae55d7a0f00d"]],["Instants & sorceries","Storm","+1/+1 counters"]],
+    "ArcaneWizardry_C17": [8521,[["Inalla, Archmage Ritualist","7c6e803a-451c-4aa6-97a2-400077f32c47"]],["Wizards","Instants & sorceries","Graveyard"]],
+    "ArmForBattle_CMR": [6950,[["Wyleth, Soul of Steel","7c5ada8c-98f2-4f9c-bcb5-dfa4f804fbe6"]],["Equipment & Auras","Instants & sorceries"]],
+    "AuraOfCourage_AFC": [12676,[["Galea, Kindler of Hope","1efbea01-c6a1-4380-a14f-6206c7895e48"]],["Equipment & Auras","Enchantments"]],
+    "AvengersAssembleCollectorSEdition_MSC": [11727,[["Captain America, Team Leader","910a6dfc-04a2-4c6d-b2ba-507bc75ec821"]],["+1/+1 counters","Heroes","Attacking"]],
+    "AvengersAssemble_MSC": [11727,[["Captain America, Team Leader","61a51b67-d941-4e07-9c12-ffe583cb65d4"]],["+1/+1 counters","Heroes","Attacking"]],
+    "BedeckedBrokers_NCC": [16661,[["Perrie, the Pulverizer","d438237b-c6f7-44d0-a3e6-6ec7d7465d33"]],["+1/+1 counters","Attacking"]],
+    "BlameGame_MKC": [4850,[["Nelly Borca, Impulsive Accuser","2ef59aa9-f5e1-413a-869b-d287db95efd0"]],["Goad","Attacking","Tokens"]],
+    "BlastFromThePast_WHO": [9460,[["The Fourth Doctor","c84ea0fd-efc7-4614-9f8f-41a3c71fceaa"],["Sarah Jane Smith","1ba76f68-e647-4786-903c-92dbd3cef05d"]],["Time Lords","+1/+1 counters"]],
+    "BlightCurse_ECC": [6289,[["Auntie Ool, Cursewretch","9a2e4252-9fbc-4d43-8935-db2cafaa7b5f"]],["-1/-1 counters","Card draw"]],
+    "BloodRites_LCC": [3541,[["Clavileño, First of the Blessed","9f55b648-b1ec-407a-a0c7-7647755793d1"]],["Vampires","Lifegain","+1/+1 counters","Tokens"]],
+    "BreedLethality_C16": [2413,[["Atraxa, Praetors' Voice","c34ae834-775e-447a-a330-0270c227c667"]],["+1/+1 counters"]],
+    "BreedLethality_CM2": [2413,[["Atraxa, Praetors' Voice","b2e330dd-7cd3-445d-9c05-56e4a57526e9"]],["+1/+1 counters"]],
+    "BuckleUp_NEC": [6245,[["Kotori, Pilot Prodigy","fea6c1c8-eff9-4b66-b96d-e23016f0bb62"]],["Vehicles","Artifacts","Tokens"]],
+    "BuiltFromScratch_C14": [2027,[["Daretti, Scrap Savant","cda40e31-ba99-4565-ad92-7c687ff44bd9"]],["Artifacts","Recursion"]],
+    "BuiltFromScratch_CM2": [2027,[["Daretti, Scrap Savant","3f4e6adf-d52f-4087-a919-789a543a9a3e"]],["Artifacts","Recursion"]],
+    "CabarettiCacophony_NCC": [11843,[["Kitt Kanto, Mayhem Diva","9b9850d6-49d3-45ec-9a45-75aa0fce9ee5"]],["Tokens","Goad"]],
+    "CallForBackup_MOC": [9720,[["Bright-Palm, Soul Awakener","a485c2c3-c90b-43b4-bb00-c1b811b4b392"]],["+1/+1 counters","Attacking"]],
+    "CallTheSpirits_C15": [9604,[["Daxos the Returned","4abe142e-7e87-464b-be2a-ad2fc7aebd51"]],["Enchantments","Tokens"]],
+    "CallingAllAngels_FDC": [1654,[["Giada, Font of Hope","4ebc7622-08a1-4f43-92dd-8675d395e8f6"]],["Angels","Fliers","Lifegain","+1/+1 counters"]],
+    "CavalryCharge_MOC": [7519,[["Sidar Jabari of Zhalfir","5fc707be-9286-4ba1-90f6-475265d19ed2"]],["Knights","Attacking","Tokens"]],
+    "ChaosIncarnate_SCD": [989,[["Kardur, Doomscourge","19e4d494-e8b3-4ae2-93e3-70c65ab90f15"]],["Instants & sorceries","Lifegain","Direct damage"]],
+    "CorruptingInfluence_ONC": [5849,[["Ixhel, Scion of Atraxa","ab866ec4-dcb4-47ef-8de1-a369986609c0"]],["Poison","+1/+1 counters","Phyrexians"]],
+    "CounterBlitzCollectorSEditionFinalFantasyX_FIC": [3747,[["Tidus, Yuna's Guardian","6021debf-8d5d-40e4-a197-3751b3ef5701"]],["+1/+1 counters","Enchantments"]],
+    "CounterBlitzFinalFantasyX_FIC": [3747,[["Tidus, Yuna's Guardian","2cfd4494-346c-4cbc-8072-e267254cefcc"]],["+1/+1 counters","Enchantments"]],
+    "CounterIntelligence_EOC": [3633,[["Inspirit, Flagship Vessel","46900ec7-eb18-45c4-8e90-a48b665cfdee"]],["+1/+1 counters","Artifacts"]],
+    "Counterpunch_CMD": [9802,[["Ghave, Guru of Spores","91194df8-4066-4235-a829-2b688ba4afcb"]],["Tokens","+1/+1 counters"]],
+    "CovenCounters_MIC": [6203,[["Leinore, Autumn Sovereign","bd7e1645-ea8f-41c4-b3ee-58f44fc5c574"]],["+1/+1 counters","Humans","Tokens"]],
+    "CreativeEnergyCollectorSEdition_M3C": [6574,[["Satya, Aetherflux Genius","65a9bda0-80eb-4aa9-ad89-9f73e65dbce3"]],["Tokens","Artifacts","Attacking"]],
+    "CreativeEnergy_M3C": [6574,[["Satya, Aetherflux Genius","3b964bbe-54cc-425c-9cc6-c877f82af7ba"]],["Tokens","Artifacts","Attacking"]],
+    "DanceOfTheElements_ECC": [5506,[["Ashling, the Limitless","5924c01f-2815-4e37-b700-3ba6cc81e0e4"]],["Elementals","Tokens","Recursion"]],
+    "DeadlyDisguise_MKC": [17074,[["Kaust, Eyes of the Glade","648c15d1-a2a2-4f59-9b0a-5448be3e990f"]],["Attacking","+1/+1 counters"]],
+    "DeathToll_DSC": [9441,[["Winter, Cynical Opportunist","94dc35e4-a492-4019-afcd-cbef6f59a512"]],["Graveyard","Tokens"]],
+    "DeathdancerXira_TD0": [17021,[["Xira Arien","8c961265-72a8-4521-b413-0d51fd2e10ad"]],["Graveyard","Recursion"]],
+    "DeepClueSea_MKC": [8916,[["Morska, Undersea Sleuth","ae9ccfec-05c6-469e-b1dd-dfbafa1e927f"]],["+1/+1 counters","Tokens","Artifacts","Sacrifice"]],
+    "DesertBloom_OTC": [9105,[["Yuma, Proud Protector","18df72be-07d2-4412-b36d-a45119763db3"]],["Graveyard","Lands","Tokens"]],
+    "DevourForPower_CM2": [7445,[["The Mimeoplasm","aedc7a6b-c481-4719-bc83-424eeb216aef"]],["+1/+1 counters","Graveyard"]],
+    "DevourForPower_CMD": [7445,[["The Mimeoplasm","20ffedd2-0575-4050-b687-fa1212966c46"]],["+1/+1 counters","Graveyard"]],
+    "DivineConvocation_MOC": [14059,[["Kasla, the Broken Halo","a209bda2-f0bf-4417-94f9-b73eff0b4217"]],["Tokens","Instants & sorceries"]],
+    "DoomPrevailsCollectorSEdition_MSC": [8811,[["Doctor Doom, King of Latveria","ac011c2d-d4d9-4f17-a1fb-7e30d25ca249"]],["Villains","Attacking","Tokens"]],
+    "DoomPrevails_MSC": [8811,[["Doctor Doom, King of Latveria","099ed408-9178-4403-8b2d-479ca3cbda9b"]],["Villains","Attacking","Tokens"]],
+    "DraconicDestruction_SCD": [1367,[["Atarka, World Render","719f172b-f9ad-4960-af66-757eb54147f6"]],["Dragons","Fliers"]],
+    "DraconicDissent_CLB": [6083,[["Firkraag, Cunning Instigator","b55e624b-6f6a-42ae-89aa-0cc62ee55a31"]],["Goad","Dragons","+1/+1 counters","Fliers"]],
+    "DraconicDomination_C17": [2653,[["The Ur-Dragon","7e78b70b-0c67-4f14-8ad7-c9f8e3f59743"]],["Dragons","Fliers"]],
+    "DraconicRage_AFC": [10992,[["Vrondiss, Rage of Ancients","683ca7f0-e9df-459b-a8e3-cf80b39c732d"]],["Dragons","Fliers"]],
+    "DungeonsOfDeath_AFC": [8304,[["Sefris of the Hidden Ways","d30255f6-e058-476a-b377-2ee4c9178ed1"]],["Recursion","Graveyard"]],
+    "EldraziIncursionCollectorSEdition_M3C": [4741,[["Ulalek, Fused Atrocity","66c46ae5-d83e-41b5-81ab-a3c9c482a44e"]],["Eldrazi","Tokens","Ramp"]],
+    "EldraziIncursion_M3C": [4741,[["Ulalek, Fused Atrocity","fdad1b0e-d3cc-4d76-ae7e-fee12558cf2c"]],["Eldrazi","Tokens","Ramp"]],
+    "EldraziUnbound_CMM": [2844,[["Zhulodok, Void Gorger","a015461d-4214-4feb-8b04-519c537759eb"]],["Artifacts","+1/+1 counters"]],
+    "ElvenCouncil_LTC": [10927,[["Galadriel, Elven-Queen","8fa46d54-563d-4b5c-9c69-5ab37dd529b3"]],["Elves","+1/+1 counters"]],
+    "ElvenEmpire_KHC": [2006,[["Lathril, Blade of the Elves","547888c3-a9a6-4413-b29a-6bcd8a9279bf"]],["Elves","Tokens","Lifegain","Graveyard"]],
+    "EnchantressRubinia_TD0": [19297,[["Rubinia Soulsinger","65a6b9a5-11d6-4f6d-a646-b1ef9c9b68aa"]],["Enchantments"]],
+    "EndlessPunishment_DSC": [2270,[["Valgavoth, Harrower of Souls","8d7c1f6c-af45-4449-8cf8-e13830b3df8a"]],["Sacrifice","Direct damage"]],
+    "EnduringEnchantments_CMM": [5374,[["Anikthea, Hand of Erebos","8b796a56-1611-4835-ac5b-48b4e9263685"]],["Enchantments","Tokens","Graveyard","Lifegain"]],
+    "EnhancedEvolution_C20": [10092,[["Otrimi, the Ever-Playful","639df7bc-b87d-4bf5-8005-8eabc54e955b"]],["+1/+1 counters","Graveyard"]],
+    "EntropicUprising_C16": [9150,[["Yidris, Maelstrom Wielder","c219dd22-433c-4f6a-a0c4-fae12239291c"]],["Instants & sorceries","Lifegain"]],
+    "EternalBargain_C13": [6389,[["Oloro, Ageless Ascetic","abf8df47-405c-42d8-be9e-0f0d0a49589b"]],["Lifegain","Artifacts"]],
+    "EternalMight_DRC": [5295,[["Temmet, Naktamun's Will","c0629894-0b72-4abe-9771-03becfdb241c"]],["Zombies","Tokens","Recursion"]],
+    "EvasiveManeuvers_C13": [2962,[["Derevi, Empyrial Tactician","3d61a4d4-f0d5-4bc4-8977-57bbb3d97776"]],["Fliers","Blink"]],
+    "EvasiveManeuvers_CMA": [2962,[["Derevi, Empyrial Tactician","3a1d0dad-18a8-489e-ac11-08f64b72fda4"]],["Fliers","Blink"]],
+    "EveryoneSInvited_SLD": [1583,[["Morophon, the Boundless","58e4a55f-b35a-411a-9a05-0cbb0d767920"]],["Shapeshifters","Tokens"]],
+    "ExitFromExile_CLB": [4209,[["Faldorn, Dread Wolf Herald","213e530e-33a9-4358-b43b-4a276a7e7190"]],["Tokens","Instants & sorceries","+1/+1 counters"]],
+    "ExplorersOfTheDeep_LCC": [3879,[["Hakbal of the Surging Soul","e738e675-4fd1-4bc3-97f5-71d0e2fc3f2e"]],["+1/+1 counters","Merfolk"]],
+    "ExquisiteInvention_C18": [9970,[["Saheeli, the Gifted","ca095559-ac77-4186-8d9b-b75ce0607582"]],["Tokens","Artifacts"]],
+    "FacelessMenace_C19": [12353,[["Kadena, Slinking Sorcerer","68a144f1-df18-4dc5-81c3-dff2af27527f"]],["+1/+1 counters","Instants & sorceries"]],
+    "FaeDominion_WOC": [3859,[["Tegwyll, Duke of Splendor","03fab911-7bd4-45fa-ba07-cd0e51b0cd95"]],["Faeries","Fliers","Instants & sorceries"]],
+    "FamilyMatters_BLC": [7062,[["Zinnia, Valley's Voice","dfe36901-5841-4942-8b61-c273111f715e"]],["Tokens","Fliers"]],
+    "FelineFerocity_C17": [7836,[["Arahbo, Roar of the World","81dc3d00-97cd-4549-b5a4-15a1e08767f5"]],["Cats","Equipment & Auras","Attacking"]],
+    "FirstFlight_SCD": [8994,[["Isperia, Supreme Judge","de3278de-a045-4290-b05f-3b19e7055091"]],["Fliers","Tokens","Lifegain","Attacking"]],
+    "FoodAndFellowship_LTC": [4763,[["Frodo, Adventurous Hobbit","328df403-7428-4b17-bdd1-9759fc0f32d8"],["Sam, Loyal Attendant","687a2b76-3f05-4732-bd9b-513d06d16300"]],["Lifegain","Halflings"]],
+    "ForcesOfTheImperiumCollectorSEdition_40K": [9987,[["Inquisitor Greyfax","86a4afac-69fd-46e9-8009-58de59bf3f5c"]],["Tokens","Astarteses","Lifegain"]],
+    "ForcesOfTheImperium_40K": [9987,[["Inquisitor Greyfax","1956cebe-bb71-45cc-b4ff-72ee3bb95c81"]],["Tokens","Astarteses","Lifegain"]],
+    "ForgedInStone_C14": [9142,[["Nahiri, the Lithomancer","9a226eae-1c77-45a9-9115-f846b76681a3"]],["Tokens","Equipment & Auras"]],
+    "FromCuteToBrute_SLD": [2524,[["Esika, God of the Tree","46d43696-3c63-4c55-bc61-e1560c8b8201"]],["Blink","Tokens"]],
+    "GoblinStorm_SLD": [3429,[["Zada, Hedron Grinder","b17fb671-f7ff-4633-bdef-39375c6f857c"]],["Goblins","Tokens","Storm","Instants & sorceries"]],
+    "GrandLarceny_OTC": [8241,[["Gonti, Canny Acquisitor","03a7e79f-625a-49ac-9cb1-e1fe5f51f5a0"]],["Instants & sorceries"]],
+    "GraveDanger_SCD": [3992,[["Gisa and Geralf","4d8fd87c-caf7-402e-b543-e35ba3007bcb"]],["Zombies","Tokens","Graveyard"]],
+    "GraveyardOverdriveCollectorSEdition_M3C": [9319,[["Disa the Restless","3c8e2de5-cad6-4bb6-8351-b1e8d25e210f"]],["Graveyard","Tokens"]],
+    "GraveyardOverdrive_M3C": [9319,[["Disa the Restless","c976edeb-0fa1-4647-a16c-870d8a3c30c6"]],["Graveyard","Tokens"]],
+    "GrowingThreat_MOC": [7575,[["Brimaz, Blight of Oreskos","f0d31ae7-8580-402a-a917-3d626a9e1f49"]],["Phyrexians","Artifacts","+1/+1 counters","Recursion"]],
+    "GuidedByNature_C14": [2678,[["Freyalise, Llanowar's Fury","6c6ef042-1a69-4b16-abae-4f436dbadbbd"]],["Elves","Tokens"]],
+    "GuidedByNature_CMA": [2678,[["Freyalise, Llanowar's Fury","cb67310a-da5d-4932-8694-2ad6afe5aeae"]],["Elves","Tokens"]],
+    "HailCaesar_PIP": [2774,[["Caesar, Legion's Emperor","246a7176-98bc-4f54-aa61-38747420f178"]],["Tokens","Sacrifice","Attacking","+1/+1 counters"]],
+    "HatsuneMiku_SLD": [3134,[["Trostani, Selesnya's Voice","6ab6e6c9-fe20-40d3-997e-fe3480081f03"]],["Lifegain","Tokens","+1/+1 counters"]],
+    "HeadsIWinTailsYouLose_SLD": [7058,[["Zndrsplt, Eye of Wisdom","d5dfd236-b1da-4552-b94f-ebf6bb9dafdf"],["Okaun, Eye of Chaos","94eea6e3-20bc-4dab-90ba-3113c120fb90"]],["Instants & sorceries","Artifacts"]],
+    "HeavenlyInferno_CMA": [3477,[["Kaalia of the Vast","5c509c36-43a8-454e-80fc-321f41981049"]],["Fliers","Angels"]],
+    "HeavenlyInferno_CMD": [3477,[["Kaalia of the Vast","4b71d89b-7ba4-406f-8736-ac62b9864f21"]],["Fliers","Angels"]],
+    "InventSuperiority_C16": [5877,[["Breya, Etherium Shaper","8b585ce8-77a3-4755-8aa6-aee83724bbab"]],["Artifacts","Recursion","Lifegain","Sacrifice"]],
+    "JeskaiStriker_TDC": [8184,[["Shiko and Narset, Unified","5a42fc7d-52ac-4e95-9e04-8f8fa7f687c8"]],["Instants & sorceries","Storm","Tokens"]],
+    "JumpScare_DSC": [5942,[["Zimone, Mystery Unraveler","30f23588-5064-48d9-a271-039df757f8d2"]],["Lands","+1/+1 counters"]],
+    "KeenEngineering_FDC": [821,[["Sai, Master Thopterist","5650587a-27a5-4d68-97e2-5745627bd094"]],["Artifacts","Card draw","Tokens"]],
+    "LandSWrath_ZNC": [10824,[["Obuun, Mul Daya Ancestor","8319b155-0fba-4d30-9481-bf01afbd3457"]],["Lands","+1/+1 counters"]],
+    "LegendsLegacy_DMC": [3506,[["Dihada, Binder of Wills","ddeb54d6-a600-42b9-98df-20f8d58caed8"]],["Tokens","Lifegain"]],
+    "LimitBreakCollectorSEditionFinalFantasyVii_FIC": [4434,[["Cloud, Ex-SOLDIER","5a186ba3-94c1-4eab-8d4f-42a320bfa073"]],["Equipment & Auras","Artifacts","Attacking"]],
+    "LimitBreakFinalFantasyVii_FIC": [4434,[["Cloud, Ex-SOLDIER","07b4e4f8-6a31-4533-be51-668ce3ddc84f"]],["Equipment & Auras","Artifacts","Attacking"]],
+    "LivingEnergy_DRC": [9879,[["Saheeli, Radiant Creator","5fea0781-e933-47ef-9414-92c8652a7778"]],["Artifacts","Tokens"]],
+    "LoreholdLegacies_C21": [8146,[["Osgir, the Reconstructor","5815fe6e-e26b-4918-a090-55d6442722c1"]],["Artifacts","Graveyard","Tokens","Sacrifice"]],
+    "LoreholdSpirit_SOC": [9249,[["Quintorius, History Chaser","0742f19d-179c-43c4-ab95-4160c56b4384"]],["Graveyard","Spirits","Tokens"]],
+    "MaestrosMassacre_NCC": [11904,[["Anhelo, the Painter","462e887d-6b91-4b31-9487-2780ffe8943f"]],["Instants & sorceries","Recursion","Tokens"]],
+    "MarduSurge_TDC": [2974,[["Zurgo Stormrender","dc8eb325-75c9-4331-830d-3f7d62d77290"]],["Tokens","Sacrifice"]],
+    "MastersOfEvil_WHO": [7608,[["Davros, Dalek Creator","59c5bd2b-cf68-4e5e-819d-53917a6c5275"]],["Goad","Tokens","Artifacts"]],
+    "MercilessRage_C19": [8681,[["Anje Falkenrath","913dd06f-ed2f-4128-9c9d-9cd0d8a55425"]],["Recursion","Graveyard"]],
+    "MindFlayarrrs_CLB": [4459,[["Captain N'ghathrod","55c02dc8-0743-400c-b334-ca029caf0463"]],["Horrors","Graveyard"]],
+    "MindSeize_C13": [14170,[["Jeleva, Nephalia's Scourge","83f9aeb8-05ba-49d9-a834-62f42fcd295b"]],["Instants & sorceries","Spell copying"]],
+    "MiracleWorker_DSC": [5377,[["Aminatou, Veil Piercer","9f868023-6035-403d-ba91-7a4840c6c392"]],["Enchantments","Graveyard","Tokens"]],
+    "MirrorMastery_CMD": [12318,[["Riku of Two Reflections","716d0b3b-bac9-4fb8-882e-bd6171864043"]],["Instants & sorceries","Storm"]],
+    "MishraSBurnishedBanner_BRC": [10182,[["Mishra, Eminent One","7f5b1daa-ec45-48de-9496-6ca5b491a0dc"]],["Artifacts","Tokens","Sacrifice"]],
+    "MostWanted_OTC": [5107,[["Olivia, Opulent Outlaw","55e6c31b-f9e9-4e42-a875-985d99300d9d"]],["Sacrifice","Lifegain","+1/+1 counters","Ramp"]],
+    "MultiverseReforged_FRC": [12197,[["Jace, Multiverse Architect","55cd03d9-2535-4cf3-a8b2-1418e1190f4a"]],["Tokens","Instants & sorceries","Lifegain"]],
+    "MutantMenace_PIP": [3723,[["The Wise Mothman","3d6d6944-a364-41c2-b824-7a1bf6ad0d1e"]],["+1/+1 counters","Mutants"]],
+    "MysticIntellect_C19": [20522,[["Sevinne, the Chronoclasm","2c209efe-b4dc-44a3-bd45-d647f5680cbe"]],["Recursion","Instants & sorceries","Spell copying"]],
+    "NatureOfTheBeast_C13": [15726,[["Marath, Will of the Wild","57afa796-db46-45ff-91bd-f02922e5f33d"]],["+1/+1 counters","Beasts","Tokens"]],
+    "NatureSVengeance_C18": [6177,[["Lord Windgrace","213d6fb8-5624-4804-b263-51f339482754"]],["Recursion","Lands","+1/+1 counters","Tokens"]],
+    "NecronDynastiesCollectorSEdition_40K": [10112,[["Szarekh, the Silent King","e11174b2-2423-4a6e-9dcf-ff550eee7e5a"]],["Artifacts","Necrons","Graveyard","Vehicles"]],
+    "NecronDynasties_40K": [10112,[["Szarekh, the Silent King","12a3400d-7a8b-4bae-9a4f-c9a1bc741e68"]],["Artifacts","Necrons","Graveyard","Vehicles"]],
+    "ObscuraOperation_NCC": [7872,[["Kamiz, Obscura Oculus","74b8ae28-e169-46be-8180-ebdaf80efd81"]],["Recursion","Graveyard"]],
+    "OpenHostility_C16": [10797,[["Saskia the Unyielding","5b483db6-b614-4af1-820a-42a4ee0c8707"]],["+1/+1 counters","Tokens"]],
+    "Painbow_DMC": [9130,[["Jared Carthalion","5acffa48-9e3f-4ba3-a55f-d459307f46df"]],["Ramp","+1/+1 counters"]],
+    "ParadoxPower_WHO": [5120,[["The Thirteenth Doctor","0dc4ec90-1650-4b98-9350-66341394cf0b"],["Yasmin Khan","12b09a4f-bb62-4766-8115-cae4d5cc4c12"]],["+1/+1 counters","Instants & sorceries","Recursion"]],
+    "PartyTime_CLB": [8390,[["Nalia de'Arnise","7a1294fd-9885-4dfd-8192-0ca074fc83f7"]],["Clerics","+1/+1 counters"]],
+    "PeaceOffering_BLC": [3189,[["Ms. Bumbleflower","42bbedc1-6b83-46b4-8b3b-a4e05ce77d87"]],["+1/+1 counters","Card draw"]],
+    "PeerThroughTime_C14": [4095,[["Teferi, Temporal Archmage","80eec0bd-9eb4-4360-b97b-9c7985a63343"]],["Artifacts"]],
+    "PhantomPremonition_KHC": [12004,[["Ranar the Ever-Watchful","1c8c41dd-8551-4ce8-a9be-9b9f65718852"]],["Blink","Tokens","Fliers"]],
+    "PlanarPortal_AFC": [2184,[["Prosper, Tome-Bound","d743336e-d5c7-4053-a23d-92ec7581f74e"]],["Instants & sorceries","Sacrifice"]],
+    "PlaneswalkerParty_CMM": [6895,[["Commodore Guff","92870fc6-a6bc-4198-bb31-397e07e0e835"]],["+1/+1 counters","Tokens"]],
+    "PlunderTheGraves_C15": [1508,[["Meren of Clan Nel Toth","f43bf91d-bc08-417f-a549-64919c24052a"]],["Sacrifice","Graveyard","+1/+1 counters","Tokens"]],
+    "PlunderTheGraves_CMA": [1508,[["Meren of Clan Nel Toth","17d6703c-ad79-457b-a1b5-c2284e363085"]],["Sacrifice","Graveyard","+1/+1 counters","Tokens"]],
+    "PoliticalPuppets_CMD": [8723,[["Zedruu the Greathearted","f851b861-4e9c-4422-8156-37d7bf2928cd"]],["Instants & sorceries"]],
+    "PowerHungry_C13": [9791,[["Prossh, Skyraider of Kher","fc411c52-3ee2-4fe4-983d-3fa43b516237"]],["Sacrifice","Tokens","+1/+1 counters"]],
+    "PrimalGenesis_C19": [12396,[["Ghired, Conclave Exile","d0825bcd-8cf8-498a-a61e-406f136e1f3f"]],["Tokens","Lifegain"]],
+    "PrismariArtistry_SOC": [10610,[["Rootha, Mastering the Moment","a5b3dbb2-c090-4118-9e47-56c16202572c"]],["Instants & sorceries","Tokens"]],
+    "PrismariPerformance_C21": [11446,[["Zaffai, Thunder Conductor","ea1ab937-8647-4c83-99d5-6a40dffa4c9b"]],["Instants & sorceries","Storm","Tokens"]],
+    "QuandrixUnlimited_SOC": [7552,[["Zimone, Infinite Analyst","605afac4-d2e5-4e68-97d2-3ac2ead5f3a9"]],["+1/+1 counters","Instants & sorceries","Tokens"]],
+    "QuantumQuandrix_C21": [1407,[["Adrix and Nev, Twincasters","d495e084-92ec-4675-b6aa-8ade2775b796"]],["Tokens","+1/+1 counters"]],
+    "QuickDraw_OTC": [5114,[["Stella Lee, Wild Card","2a8a7696-b5d9-4378-9d5c-2c9007e4df63"]],["Instants & sorceries","Storm","Graveyard","Tokens"]],
+    "RainingCatsAndDogs_SLD": [5503,[["Rin and Seri, Inseparable","a129558c-45a1-441c-97f0-b70b4e9d8a56"]],["Cats","Tokens","+1/+1 counters"]],
+    "ReapTheTides_CMR": [839,[["Aesi, Tyrant of Gyre Strait","d607b003-6b48-429c-a7fd-45b8dd1bb4f9"]],["Lands","+1/+1 counters"]],
+    "RebellionRising_ONC": [3468,[["Neyali, Suns' Vanguard","2b5df03d-2463-468b-b444-d946eeb1c96d"]],["Tokens","Artifacts"]],
+    "ReignOfDragons_FDC": [1079,[["Lathliss, Dragon Queen","8a17ec4e-b508-41af-803b-32acd863e598"]],["Dragons","Fliers"]],
+    "RevenantRecon_MKC": [8110,[["Mirko, Obsessive Theorist","690acbbf-5e92-4323-b939-31bdb07f9905"]],["Graveyard","+1/+1 counters","Fliers"]],
+    "RevivalTranceCollectorSEditionFinalFantasyVi_FIC": [5257,[["Terra, Herald of Hope","4f36f28b-b9c9-42a2-a2e5-d1b532e482a3"]],["Graveyard","Recursion"]],
+    "RevivalTranceFinalFantasyVi_FIC": [5257,[["Terra, Herald of Hope","5aa1a2d7-6133-41a9-9662-9008d1309935"]],["Graveyard","Recursion"]],
+    "RidersOfRohan_LTC": [4511,[["Éowyn, Shieldmaiden","dd4a00ff-2206-4e12-a0ab-61ed82c9e6c5"]],["Humans","Tokens"]],
+    "RiveteersRampage_NCC": [7212,[["Henzie \"Toolbox\" Torre","ee228dcc-3170-4c24-80bc-28bcee07cb43"]],["Sacrifice"]],
+    "RuthlessRegiment_C20": [12616,[["Jirina Kudro","6e660d42-f5d3-452a-9662-74e18a1ae9e4"]],["Humans","Tokens"]],
+    "Science_PIP": [7214,[["Dr. Madison Li","95af426d-a8af-4314-9ad0-ac61935e8e8e"]],["Artifacts","Recursion"]],
+    "ScionsSpellcraftCollectorSEditionFinalFantasyXiv_FIC": [2565,[["Y'shtola, Night's Blessed","e8df6177-e14d-4dc9-bfc6-5e5f31c2834d"]],["Instants & sorceries","Lifegain","Tokens"]],
+    "ScionsSpellcraftFinalFantasyXiv_FIC": [2565,[["Y'shtola, Night's Blessed","c7f2c2d5-e052-49e8-b5de-712858c2ea78"]],["Instants & sorceries","Lifegain","Tokens"]],
+    "ScrappySurvivors_PIP": [9261,[["Dogmeat, Ever Loyal","86b45e3e-8460-4678-87d1-d74479936c83"]],["Equipment & Auras","Attacking","Recursion","Enchantments"]],
+    "SeizeControl_C15": [6375,[["Mizzix of the Izmagnus","d0ea2c3a-c36d-44e8-bc46-5361f5f9d0e7"]],["Instants & sorceries","Theft"]],
+    "SilverquillInfluence_SOC": [7228,[["Killian, Decisive Mentor","76b6c35a-bb92-4ad3-8f85-88b9bafc6266"]],["Enchantments","Goad","Equipment & Auras","Attacking"]],
+    "SilverquillStatement_C21": [1878,[["Breena, the Demagogue","6cb82b10-d785-4e20-84ac-0660d49be8ad"]],["+1/+1 counters","Fliers"]],
+    "SliverSwarm_CMM": [6297,[["Sliver Gravemother","9f5d253e-9eb2-423c-90ee-68f27ec6bf88"]],["Slivers","Tokens"]],
+    "SneakAttack_ZNC": [9691,[["Anowon, the Ruin Thief","bca84fc4-4710-44c8-b90a-73ef888714d8"]],["Rogues","Graveyard"]],
+    "SpiritSquadron_VOC": [11084,[["Millicent, Restless Revenant","2b86b538-0766-440d-a2cd-f5d5bfcfb010"]],["Tokens","Spirits","Fliers"]],
+    "SquirreledAway_BLC": [3158,[["Hazel of the Rootbloom","1269ca79-907e-4932-9e77-a9a5d2929060"]],["Tokens","Sacrifice","Lifegain","+1/+1 counters"]],
+    "StalwartUnity_C16": [6672,[["Kynaios and Tiro of Meletis","97fa8615-2b6c-445a-bcaf-44a7e847bf65"]],["Tokens","+1/+1 counters"]],
+    "SubjectiveReality_C18": [4618,[["Aminatou, the Fateshifter","16b9f43a-9c3f-4bfa-9eb1-734189a4bb1f"]],["Blink","Instants & sorceries"]],
+    "SultaiArisen_TDC": [2647,[["Teval, the Balanced Scale","b5d1955a-9ff0-4f8b-9af8-341371957299"]],["Graveyard","Lands","Tokens"]],
+    "SwellTheHost_C15": [5650,[["Ezuri, Claw of Progress","ef1b62ff-dbb3-4500-9d64-a3047ce193ec"]],["Tokens","+1/+1 counters"]],
+    "SwornToDarkness_C14": [9664,[["Ob Nixilis of the Black Oath","bf472be9-f375-455e-a800-7af5258f4e59"]],["Sacrifice","Tokens"]],
+    "SymbioticSwarm_C20": [14906,[["Kathril, Aspect Warper","ebc57f73-a517-463e-8d55-56aa996d091e"]],["Lifegain","Graveyard","+1/+1 counters"]],
+    "TemurRoar_TDC": [5313,[["Eshki, Temur's Roar","ff9aa863-8773-452d-946c-ae334c632e11"]],["Dragons","Fliers","+1/+1 counters"]],
+    "TheFantasticFourCollectorSEdition_MSC": [15876,[["Invisible Woman","640ebf2f-5687-42d4-97e5-85e2fefa89a9"]],["Instants & sorceries","Tokens","Attacking"]],
+    "TheFantasticFour_MSC": [15876,[["Invisible Woman","d8e13ecb-98be-4d9b-86a2-24eaa98f7f0d"]],["Instants & sorceries","Tokens","Attacking"]],
+    "TheHostsOfMordor_LTC": [5138,[["Sauron, Lord of the Rings","fc53dec0-79fe-4f6f-9d5b-cf298588e808"]],["Recursion","Tokens","Instants & sorceries"]],
+    "TheRuinousPowersCollectorSEdition_40K": [8825,[["Abaddon the Despoiler","c9f1fc97-00c0-492b-a4a3-b179afc2f95d"]],["Demons","Instants & sorceries"]],
+    "TheRuinousPowers_40K": [8825,[["Abaddon the Despoiler","a78ab8fe-4499-4860-87d3-f8707398c00c"]],["Demons","Instants & sorceries"]],
+    "TimelessWisdom_C20": [14387,[["Gavi, Nest Warden","80bc07d5-bdbb-4a6d-8958-0c172ea80245"]],["Tokens","Goad"]],
+    "TimeyWimey_WHO": [6677,[["The Tenth Doctor","f1499f49-793b-4265-9ad0-883a431941ab"],["Rose Tyler","3aa8d034-f98c-4e27-b6af-850eadf59941"]],["Attacking","Artifacts"]],
+    "TinkerTime_MOC": [15608,[["Gimbal, Gremlin Prodigy","4a9aa899-752b-4106-89ba-9475ee777d41"]],["Tokens","Artifacts","Ramp"]],
+    "TokenTriumph_SCD": [6652,[["Emmara, Soul of the Accord","e8510a1e-62ca-462c-b036-d1312729f27d"]],["Tokens","Lifegain"]],
+    "TramplesaurusRex_FDC": [458,[["Ghalta, Primal Hunger","5d9951d1-3228-4d69-8e63-6e6f0a893a86"]],["Dinosaurs","+1/+1 counters"]],
+    "TrickyTerrainCollectorSEdition_M3C": [5125,[["Omo, Queen of Vesuva","bf5a3655-cd08-46a3-b099-253708c6539e"]],["Tokens","Graveyard","Lands"]],
+    "TrickyTerrain_M3C": [5125,[["Omo, Queen of Vesuva","e5d1c814-4c22-4917-95ae-dffaf491db32"]],["Tokens","Graveyard","Lands"]],
+    "TurtlePower_TMC": [8504,[["Heroes in a Half Shell","ccc2a4e6-f505-4040-9d8a-c7b8e1a2b55e"]],["+1/+1 counters","Tokens","Mutants"]],
+    "TyranidSwarmCollectorSEdition_40K": [13543,[["The Swarmlord","d5c4077c-604e-4e8a-b448-0807849040ca"]],["+1/+1 counters","Tyranids"]],
+    "TyranidSwarm_40K": [13543,[["The Swarmlord","c9dbba5a-fb9a-422e-87a1-a29d2c17a04e"]],["+1/+1 counters","Tyranids"]],
+    "UndeadUnleashed_MIC": [2758,[["Wilhelt, the Rotcleaver","2501a911-d072-436d-ae3b-a5164e3b30aa"]],["Tokens","Zombies","Sacrifice","Graveyard"]],
+    "UpgradesUnleashed_NEC": [6084,[["Chishiro, the Shattered Blade","bffa36ac-137d-481c-b1b7-76a88ef15d54"]],["+1/+1 counters","Equipment & Auras","Tokens"]],
+    "UrzaSIronAlliance_BRC": [4895,[["Urza, Chief Artificer","ea409050-4296-4b76-a6cd-2896ce1b88e4"]],["Artifacts","Tokens"]],
+    "VampiricBloodline_VOC": [7406,[["Strefan, Maurer Progenitor","8f54c6ce-fde4-47ef-a106-5c68b4397f99"]],["Vampires","+1/+1 counters","Lifegain"]],
+    "VampiricBloodlust_C17": [3160,[["Edgar Markov","8d94b8ec-ecda-43c8-a60e-1ba33e6a54a4"]],["Vampires","Lifegain","+1/+1 counters"]],
+    "VelociRampTor_LCC": [2459,[["Pantlaza, Sun-Favored","2524645e-b066-4351-885b-10faa8d819d7"]],["Dinosaurs"]],
+    "VirtueAndValor_WOC": [6463,[["Ellivere of the Wild Court","45851394-b8f3-4713-8239-afcb387d47c5"]],["Enchantments","Tokens","Equipment & Auras"]],
+    "WadeIntoBattle_C15": [8478,[["Kalemne, Disciple of Iroas","c049d734-cb1c-4c38-b276-7e5ac9c81254"]],["Giants","Artifacts"]],
+    "WadeIntoBattle_CM2": [8478,[["Kalemne, Disciple of Iroas","3c718940-dc07-4449-ba35-4029f366c3eb"]],["Giants","Artifacts"]],
+    "WakandaForeverCollectorSEdition_MSC": [15321,[["T'Challa, the Black Panther","d5a3537f-ac0a-4517-8a89-92abe8c0b8d0"]],["+1/+1 counters","Artifacts","Tokens","Attacking"]],
+    "WakandaForever_MSC": [15321,[["T'Challa, the Black Panther","c1c8ad61-b7e1-446c-8b74-6e29371ea1d5"]],["+1/+1 counters","Artifacts","Tokens","Attacking"]],
+    "WitherbloomPestilence_SOC": [5718,[["Dina, Essence Brewer","9fe237b8-c02c-41ea-9fc4-b771b91d2157"]],["Sacrifice","Lifegain","+1/+1 counters","Tokens"]],
+    "WitherbloomWitchcraft_C21": [10579,[["Willowdusk, Essence Seer","42a97ec1-f613-49a5-9236-7fded1a81f3b"]],["Lifegain","Sacrifice"]],
+    "WorldShaper_EOC": [3391,[["Hearthhull, the Worldseed","6b913e79-a9f6-44d4-bb37-c4f6f66b8151"]],["Sacrifice","Lands","Recursion","Tokens"]],
+    "WretchedRanks_FDC": [2471,[["Ghoulcaller Gisa","909e62fa-4585-495e-812b-5df56af24610"]],["Zombies","Tokens","Recursion","Sacrifice"]],
+  } };
+})(window.MTG);
 /* ===== 10d-ui-store.js ===== */
 'use strict';
 /* ============================================================
@@ -74782,6 +75785,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
         tile.onclick = () => inspectPrecon(p);
         tile.title = 'Look through ' + p.name;
+        preconMiniMeta(tile, p, art);
         return tile;
       }, 170, 16);
       decks.replaceWith(row);
@@ -74802,7 +75806,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const sleeves = dailyShuffle(S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id])), 'sleeves');
     body.appendChild(shelf('Sleeves', 'sleeves', go, oneRow('mini', sleeves, (sl) =>
       miniTile(go, 'sleeves', sl.name + ' sleeve', sleeveFace(sl, art[sl.id]), sl.name,
-        shardSvg() + ' ' + fmtN(sl.kind === 'custom' ? S.PRICES.sleeveCustom : S.PRICES.sleeve)), 170, 16)));
+        shardSvg() + ' ' + fmtN(S.sleevePrice(sl))), 170, 16)));
 
     const me = (MTG.app && MTG.app.myName) || 'You';
     const frames = dailyShuffle(S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id)), 'frames');
@@ -74892,6 +75896,61 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
     return deckFiles.get(p.file);
   }
+  /* ---- who leads a printed deck, what it leans on, how popular it is ----
+     Read ahead for the decks printed so far (src/10d4-precons.js, by
+     tools/precons.js); a deck printed since is read here from its list
+     the first time it is fetched, and remembered on this device. Each is
+     [EDHREC rank or 0, [[commander, Scryfall id], ...], [tag, ...]]. */
+  const readMetas = () => MTG.store.get('preconmeta', {}) || {};
+  function preconMeta(p) {
+    const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
+    const fresh = ahead && MTG.preconIndex.v === MTG.themes.VERSION;
+    const here = readMetas()[p.file];
+    const row = fresh ? ahead : here && here.v === MTG.themes.VERSION ? here.m : ahead || (here && here.m);
+    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [] } : null;
+  }
+  const metaCurrent = (p) => {
+    const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
+    if (ahead && MTG.preconIndex.v === MTG.themes.VERSION) return true;
+    const here = readMetas()[p.file];
+    return !!(here && here.v === MTG.themes.VERSION);
+  };
+  /** A deck's list read for its commander, rank and themes (src/15b-themes.js), and kept. */
+  function rememberMeta(p, d) {
+    const commanders = d.commander || [];
+    const deck = { commanders, main: (d.mainBoard || []).map(c => ({ card: c, qty: Math.max(1, c.count || 1) })) };
+    const rank = MTG.themes.rank(commanders);
+    const row = [Number.isFinite(rank) ? rank : 0,
+      commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
+      MTG.themes.tags(deck)];
+    const all = readMetas();
+    all[p.file] = { v: MTG.themes.VERSION, m: row };
+    MTG.store.set('preconmeta', all);
+  }
+  /* most popular first: the lowest rank, a deck with none known after the rest, newest first among equals */
+  const rankOf = (p) => (preconMeta(p) || {}).rank || Infinity;
+  const PRECON_SORTS = [
+    ['popular', 'Most popular', (a, b) => rankOf(a) - rankOf(b) || b.date.localeCompare(a.date)],
+    ['newest', 'Newest', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    ['name', 'Name (A\u2013Z)', (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })],
+  ];
+  /** A tile's commander and themes, once they are known; its picture previews the commander. */
+  function showMeta(p, names, themes, art) {
+    const m = preconMeta(p);
+    if (!m || names._shown) return !!m;
+    names._shown = true;
+    const cards = m.cmd.map(([n, id]) => UI.commanderStub(n, id));
+    names.replaceChildren(UI.commanderNames(cards));
+    themes.replaceChildren(UI.themeLine(m.tags));
+    if (art && cards[0]) UI.commanderPreview(art, cards[0]);
+    return true;
+  }
+  /* the Featured page's small deck tiles: the same, under the deck's name */
+  function preconMiniMeta(tile, p, art) {
+    const names = el('div', { class: 'sc-sub mini-cmd' }), themes = el('div', { class: 'mini-themes' });
+    tile.append(names, themes);
+    if (!showMeta(p, names, themes, art)) preconInfo(p).then(() => showMeta(p, names, themes, art)).catch(() => {});
+  }
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
     .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
@@ -74910,6 +75969,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return id ? { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: c.name, ill: c.identifiers.scryfallIllustrationId || null } : null;
     });
     const art = claimArt('deck:' + p.file, pick);
+    if (!metaCurrent(p)) rememberMeta(p, d);
     return { art: art ? art.url : null, rows: preconRows(d) };
   }
   /** A deck's cards, as Scryfall prints them: the commanders, the rest, and all of it with counts. */
@@ -74937,10 +75997,25 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     let list;
     try { list = await preconList(); }
     catch (e) { lead.textContent = 'The deck lists could not be loaded. Check the connection.'; return; }
-    lead.textContent = 'Every Commander deck as printed. A deck costs less than the wildcards for its cards would, and the cards you already own come off the price. Its cards go into your collection, and you can save it as a deck ready to play.';
+    const blurb = 'Every Commander deck as printed, the most popular commanders first. A deck costs less than the wildcards for its cards would, and the cards you already own come off the price. Its cards go into your collection, and you can save it as a deck ready to play.';
+    lead.textContent = blurb;
     const sets = await MTG.scry.sets().catch(() => []);
     const setName = (c) => (sets.find(s => s.code === c) || {}).name || c.toUpperCase();
-    const search = el('input', { type: 'search', placeholder: 'Find a deck or a set…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
+    /* a deck printed since the decks were read ahead has no rank yet: the
+       newest few are read now, so they take their places in the order */
+    const unread = list.filter(p => !preconMeta(p)).slice(0, 12);
+    if (unread.length) {
+      lead.textContent = 'Reading the newest decks…';
+      let at = 0;
+      const next = async () => { while (at < unread.length) { const p = unread[at++]; await preconInfo(p).catch(() => {}); } };
+      await Promise.all([next(), next(), next(), next()]);
+      lead.textContent = blurb;
+    }
+    let sortKey = PRECON_SORTS.some(x => x[0] === MTG.settings.preconSort) ? MTG.settings.preconSort : 'popular';
+    const sortSel = el('select', { 'aria-label': 'Sort Commander decks by' },
+      PRECON_SORTS.map(([k, label]) => el('option', { value: k, text: label, selected: k === sortKey })));
+    sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('preconSort', sortKey); draw(); });
+    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander or a theme…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
     const grid = el('div', { class: 'store-grid precons' });
     /* each tile's commander and price, fetched as it comes into view, a few at a time */
     let busy = 0;
@@ -74952,6 +76027,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         preconInfo(tile._precon.p).then((info) => {
           if (info.art) tile._precon.art.style.backgroundImage = 'url("' + info.art + '")';
           tile._precon.art.classList.add('face');
+          tile._showMeta();
           tile._rows = info.rows;
           tile._reprice();
         }).catch(() => {}).finally(() => { busy--; pump(); });
@@ -74973,7 +76049,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       grid.innerHTML = '';
-      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q);
+      // by name, set, commander or theme
+      const about = (p) => { const m = preconMeta(p); return m ? (m.cmd.map(c => c[0]).join(' ') + ' ' + m.tags.join(' ')).toLowerCase() : ''; };
+      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q || about(p).includes(q))
+        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
       for (const p of hits.slice(0, 48)) {
         const tile = preconTile(p, setName(p.code));
         tile._precon = { p, art: tile.querySelector('.precon-art') };
@@ -74983,7 +76062,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck by that name.' }));
     };
     search.addEventListener('input', draw);
-    body.append(search, grid);
+    body.append(el('div', { class: 'precon-tools' }, [search,
+      el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel])]), grid);
     draw();
   }
   function preconTile(p, setName) {
@@ -74993,12 +76073,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (had) art.style.backgroundImage = 'url("' + had.url + '")';
     const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
     const owns = el('div', { class: 'precon-owns dim' });
+    const names = el('div', { class: 'precon-cmd' }), themes = el('div', { class: 'precon-themes' });
     btn.addEventListener('click', (e) => { e.stopPropagation(); buyPrecon(p, btn); });
     const tile = el('div', { class: 'store-card precon-tile', role: 'button', tabindex: '0',
       title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
       el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
+      // who leads it and what it leans on, the commander previewed over its name and its picture
+      names,
+      themes,
       owns,
       el('div', { class: 'precon-buy' }, [btn]),
     ]);
@@ -75007,6 +76091,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     tile.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
     });
+    tile._showMeta = () => showMeta(p, names, themes, art);
+    tile._showMeta();
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
       if (!tile._rows) return;
@@ -75153,6 +76239,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           UI.bracketPill ? UI.bracketPill(built) : null,
           ident.length ? el('span', { class: 'dv-ident', html: MTG.mana.html(WUBRG.filter(x => ident.includes(x)).map(x => `{${x}}`).join('')) }) : el('span', { class: 'tiny dim', text: 'Colourless' }),
         ].filter(Boolean)),
+        UI.themeLine(MTG.themes.tags(built), 'dv-themes'),
         el('div', { class: 'tiny dim', text: `${U.sum(deck.all.map(e => e.qty))} cards \u00b7 ${lands} lands \u00b7 ${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
         el('div', { class: 'dv-curve', title: 'Mana curve: spells by mana value' }, curve.map((v, i) => el('div', { class: 'dv-bar' }, [
           el('i', { style: { height: Math.round(v / top * 100) + '%' } }),
@@ -75565,8 +76652,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /** What a sleeve draws with: a background, and the colour of its rim. */
   UI.sleeveBg = function (sl) {
     if (!sl) return null;
-    if (sl.kind === 'pattern') return sl.css;
-    if (sl.kind === 'art' && sl.art) return `url("${String(sl.art).replace(/"/g, '%22')}") 50% 30% / cover no-repeat, #111`;
+    // a woven one is drawn from this app's own picture of it, found by its name
+    if (sl.kind === 'pattern') { const known = E().sleeveById(sl.id); return (known && known.kind === 'pattern' && known.css) || sl.css || null; }
+    if (sl.kind === 'art' && sl.art) {
+      // the picture is wider than the card: where to look in it, if the sleeve says
+      const known = E().sleeveById(sl.id);
+      return `url("${String(sl.art).replace(/"/g, '%22')}") ${(known && known.at) || '50% 30%'} / cover no-repeat, #111`;
+    }
     // a GIF of your own: the part of it you chose, moving
     if (sl.kind === 'custom' && sl.anim && sl.crop) {
       const c = sl.crop, pct = (n) => (n * 100).toFixed(3) + '%';
@@ -75583,6 +76675,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (node._sleeve === key) return;
     node._sleeve = key;
     node.classList.toggle('sleeved', !!bg);
+    // a foil has light sliding across it (store.css), told by the sleeve itself, not by what was sent
+    const known = bg && sl.kind === 'pattern' ? E().sleeveById(sl.id) : null;
+    if (known && known.fx) node.dataset.sleeveFx = known.fx; else delete node.dataset.sleeveFx;
     if (bg) { node.style.setProperty('--sleeve-bg', bg); node.style.setProperty('--sleeve-rim', sl.rim || '#c9a24a'); }
     else { node.style.removeProperty('--sleeve-bg'); node.style.removeProperty('--sleeve-rim'); }
   };
@@ -75606,7 +76701,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const missing = arts.filter(x => !known[x.id]);
     if (missing.length) {
       try {
-        const res = await MTG.scry.collection(missing.map(x => ({ name: x.card })));
+        const res = await MTG.scry.collection(missing.map(x => x.print ? { set: x.print[0], collector_number: x.print[1] } : { name: x.card }));
         missing.forEach((x, i) => { const c = (res.cards || [])[i]; const u = c && MTG.scry.imageUrl(c, 'art_crop', 0); if (u) S.noteSleeveArt(x.id, u); });
       } catch (e) { /* drawn without them */ }
     }
@@ -75616,28 +76711,45 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
     const art = S.sleeves().art || {};
     body.innerHTML = '';
-    body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
-    const grid = el('div', { class: 'store-grid sleeves' });
+    body.appendChild(el('p', { class: 'dim', text: `Sleeves go over the back of your cards, on the table and in your packs, and the other players see them. Sleeves are ${fmtN(S.PRICES.sleeve)} Shards, a foil ${fmtN(S.PRICES.sleeveFoil)}; a sleeve of your own picture is ${fmtN(S.PRICES.sleeveCustom)}.` }));
     const redraw = () => sleevesTab(body);
     const on = S.sleeves().on;
-    // the plain back
-    grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (!on ? ' worn' : '') }, [
-      el('div', { class: 'sleeve-tile-face card-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
-      el('div', { class: 'sc-title', text: 'Classic back' }),
-      el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
-    ]));
+    // in shelves: yours to start with and earned, the woven ones, the foils, card art, your own
     const earned = S.sleeves().owned.filter(x => /^set-/.test(x)).map(id => S.sleeveById(id));
-    for (const sl of earned.concat(list)) {
+    const shelves = [
+      ['Yours', [null].concat(earned)],
+      ['Woven', list.filter(sl => sl.kind === 'pattern' && !sl.fx)],
+      ['Foil', list.filter(sl => sl.kind === 'pattern' && sl.fx === 'foil')],
+      ['Card art', list.filter(sl => sl.kind === 'art')],
+      ['Your own picture', list.filter(sl => sl.kind === 'custom')],
+    ];
+    for (const [title, items] of shelves) {
+      if (!items.length) continue;
+      const grid = el('div', { class: 'store-grid sleeves' });
+      body.append(el('h3', { class: 'store-h', text: title }), grid);
+      for (const sl of items) sleeveTile(grid, sl);
+    }
+    function sleeveTile(grid, sl) {
+      // the plain back
+      if (!sl) {
+        grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (!on ? ' worn' : '') }, [
+          el('div', { class: 'sleeve-tile-face card-back' }, [el('div', { class: 'back-ring' }, el('div', { class: 'back-pip' }))]),
+          el('div', { class: 'sc-title', text: 'Classic back' }),
+          el('button', { type: 'button', class: 'btn' + (!on ? '' : ' primary'), disabled: !on, text: !on ? 'Wearing' : 'Wear', onclick: () => { S.equipSleeve(null); MTG.sfx('confirm'); redraw(); } }),
+        ]));
+        return;
+      }
       const owned = S.sleeves().owned.includes(sl.id);
       const worn = on === sl.id;
       const custom = sl.kind === 'custom';
-      const price = custom ? S.PRICES.sleeveCustom : S.PRICES.sleeve;
+      const price = S.sleevePrice(sl);
       const face = sleeveFace(sl, art[sl.id]);
       const btns = [];
       if (!owned) {
         btns.push(el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' ' + fmtN(price), onclick: () => UI.purchaseDialog({
           title: custom ? 'Custom sleeve' : `${sl.name} sleeve`,
-          sub: custom ? 'Upload any picture and crop it to the back of your cards. Yours to change whenever you like.' : 'For the back of your cards.',
+          sub: custom ? 'Upload any picture and crop it to the back of your cards. Yours to change whenever you like.'
+            : sl.fx === 'foil' ? 'A foil for the back of your cards, the light sliding across it.' : 'For the back of your cards.',
           visual: sleeveFace(sl, art[sl.id]), cost: price,
           buy: () => S.buySleeve(sl.id),
           after: () => {
@@ -75650,14 +76762,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         btns.push(el('button', { type: 'button', class: 'btn' + (worn ? '' : ' primary'), disabled: worn || (custom && !S.sleeves().custom), text: worn ? 'Wearing' : 'Wear',
           onclick: () => { S.equipSleeve(sl.id); MTG.sfx('confirm'); redraw(); } }));
       }
-      grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') }, [
+      grid.appendChild(el('div', { class: 'store-card sleeve-tile' + (worn ? ' worn' : '') + (custom ? ' custom' : '') + (sl.fx ? ' fx' : '') }, [
         face,
         el('div', { class: 'sc-title', text: sl.name }),
-        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own; a GIF keeps moving' }) : null,
+        custom ? el('div', { class: 'sc-sub dim', text: 'Upload and crop your own; a GIF keeps moving' })
+          : sl.card && sl.card !== sl.name ? el('div', { class: 'sc-sub dim', text: sl.card }) : null,
         el('div', { class: 'pack-buys' }, btns),
       ].filter(Boolean)));
     }
-    body.appendChild(grid);
   }
 
   /**
@@ -76783,11 +77895,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     Platinum: { shards: 10000, pack: 3 }, Diamond: { shards: 15000, pack: 4, wc: 'rare' }, Mythic: { shards: 25000, pack: 5, wc: 'mythic' } };
   /** How hard ranked opponents are, by tier. */
   const RANK_DIFFICULTY = { Bronze: 3, Silver: 4, Gold: 5, Platinum: 7, Diamond: 8, Mythic: 10 };
-  /** The ladders, each climbed on its own: Standard, and Commander (one
-      against one, the way Brawl is played ranked on Arena). `key` is where
-      each is kept; Standard keeps the old place, so a rank already earned
-      stays. */
-  const LADDERS = [{ id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' }];
+  /** The ladders, each climbed on its own: Standard, Modern, Pauper, and
+      Commander (one against one, the way Brawl is played ranked on Arena).
+      `key` is where each is kept; Standard keeps the old place, so a rank
+      already earned stays. */
+  const LADDERS = [
+    { id: 'standard', key: 'ranked', name: 'Standard' }, { id: 'modern', key: 'rankedModern', name: 'Modern' },
+    { id: 'pauper', key: 'rankedPauper', name: 'Pauper' }, { id: 'commander', key: 'rankedCommander', name: 'Commander' },
+  ];
   const ladderOf = (id) => LADDERS.find(l => l.id === id) || LADDERS[0];
   /** The best tier reached on any ladder, as an index into TIERS. */
   const bestTier = (p) => Math.max(...LADDERS.map(L => TIERS.indexOf((p[L.key] || {}).best || 'Bronze')));
@@ -76830,6 +77945,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     inbox: [],
     xp: 0, level: 0, season: '', masteryPaid: 0,
     ranked: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedModern: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
+    rankedPauper: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     rankedCommander: { season: '', tier: 'Bronze', div: 4, step: 0, best: 'Bronze', paidSeason: '' },
     stats: { games: 0, wins: 0, spells: 0, damage: 0, lands: 0, draws: 0, quests: 0, weeklyDone: 0, mythicsPulled: 0, foilMythics: 0,
       setsCompleted: 0, draftPerfect: 0, gauntlets: 0, byFormat: {}, byDeck: {}, commanderWins: {}, shardsEarned: 0 },
@@ -76841,7 +77958,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (state) return state;
     const b = blank();
     state = Object.assign(b, MTG.store.get(KEY, null) || {});
-    for (const k of ['weekly', 'login', 'ranked', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
+    for (const k of ['weekly', 'login', 'ranked', 'rankedModern', 'rankedPauper', 'rankedCommander', 'stats']) state[k] = Object.assign(b[k], state[k] || {});
     rollOver();
     return state;
   }
@@ -77025,7 +78142,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     out.xp = o.won ? XP.win : XP.play;
     out.levels = addXp(out.xp);
     // ranked
-    if (o.ranked) out.ranked = rankResult(!!o.won, o.ranked === 'commander' ? 'commander' : 'standard');
+    if (o.ranked) out.ranked = rankResult(!!o.won, typeof o.ranked === 'string' ? o.ranked : 'standard');
     out.achievements = checkAchievements();
     save('game');
     return out;
@@ -77357,7 +78474,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         el('h3', { text: P().rankLabel(r) }),
         r.tier === 'Mythic' ? el('p', { class: 'ladder-next', text: `${r.step} win${r.step === 1 ? '' : 's'} clear at the top.` }) : steps,
         next ? el('p', { class: 'ladder-next', text: `${next.wins} more win${next.wins === 1 ? '' : 's'} to ${next.label}` }) : null,
-        el('p', { class: 'dim small', text: `Best this season: ${r.best}. ${L.id === 'commander' ? 'One against one, 40 life, with a Commander deck.' : 'One against one, with a Standard deck.'}` }),
+        el('p', { class: 'dim small', text: `Best this season: ${r.best}. One against one${L.id === 'commander' ? ', 40 life,' : ','} with a ${L.name} deck.` }),
         onPlay ? el('button', { type: 'button', class: 'btn primary', text: `Play ${L.name}`, onclick: () => onPlay(L.id) }) : null,
       ].filter(Boolean)),
     ]);
@@ -77369,7 +78486,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const pick = (id) => { if (m) m.close(); onPlay(id); };
     m = UI.modal({ title: 'Ranked', width: '760px', className: 'ranked-chooser',
       content: el('div', {}, [
-        el('p', { class: 'dim', text: 'Two ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
+        el('p', { class: 'dim', text: 'Four ladders, each climbed on its own, from Bronze to Mythic. The bots get stronger as you rise.' }),
         el('div', { class: 'ladders' }, P().LADDERS.map(L => UI.ladderCard(L.id, pick, { size: 84 }))),
       ]) });
     return m;
@@ -80324,6 +81441,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         art: UI.artUrl(UI.keyCard(deck)) || null,
         // and how much of it the game runs by itself, for the same reason
         auto: autoMeta(deck),
+        // and, for a Commander deck, what it leans on and how popular its commander is
+        themes: themeMeta(deck),
         createdAt: (i >= 0 && idx[i].createdAt) || deck.createdAt || slim.updatedAt,
         updatedAt: slim.updatedAt,
       };
@@ -80382,6 +81501,30 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return meta;
     },
 
+    /**
+     * What a Commander deck leans on, as {v, tags, rank, cmd}, the same way:
+     * the index remembers it, and a deck saved before it did, or read by an
+     * older version of the themes (src/15b-themes.js), is loaded once and
+     * read again. A deck with no commander has none, and is never loaded for it.
+     * Asked twice at once (its box and the list's sort), it is loaded once.
+     */
+    ensureThemes(id) {
+      const have = decks.index().find(d => d.id === id);
+      if (!have || !have.commander) return Promise.resolve(null);
+      if (have.themes && have.themes.v === MTG.themes.VERSION) return Promise.resolve(have.themes);
+      if (!themesAsked.has(id)) {
+        themesAsked.set(id, decks.load(id).then((full) => {
+          if (!full) return null;
+          const meta = themeMeta(full);
+          const idx = decks.index();
+          const at = idx.find(d => d.id === id);
+          if (at) { at.themes = meta; decks._writeIndex(idx); }
+          return meta;
+        }).finally(() => themesAsked.delete(id)));
+      }
+      return themesAsked.get(id);
+    },
+
     remove(id) {
       MTG.store.del('deck.' + id);
       decks._writeIndex(decks.index().filter(d => d.id !== id));
@@ -80395,6 +81538,46 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return false;
       }).sort((a, b) => b.updatedAt - a.updatedAt);
     },
+  };
+
+  const themesAsked = new Map();
+  /* A Commander deck's themes, its commander's EDHREC rank (0 for none
+     known) and its commanders by name and id, enough to show and preview them. */
+  function themeMeta(deck) {
+    const cmds = (deck.commanders || []).filter(Boolean);
+    if (!cmds.length || !MTG.themes) return null;
+    const rank = MTG.themes.rank(cmds);
+    return { v: MTG.themes.VERSION, tags: MTG.themes.tags(deck), rank: Number.isFinite(rank) ? rank : 0,
+      cmd: cmds.map(c => [c.name, c.id || null]) };
+  }
+
+  /**
+   * A Commander deck's commanders, each previewed on hover, and what it
+   * leans on, for a list: from the index when it is current and worked out
+   * in the background when it is not. `d` is an index entry; `opts.art`, a
+   * picture of the deck that should preview its commander too; `opts.cls`, a
+   * class for the themes' line. Returns { names, tags }: two elements to
+   * place, the names holding the plain names until the cards are known.
+   * `opts.plain`: names without a preview of their own, where the whole
+   * box around them previews the commander already.
+   */
+  UI.deckCommander = function (d, opts) {
+    opts = opts || {};
+    const names = el('span', { class: 'cmd-slot', text: d.commander ? d.commander.split(' + ').map(U.frontName).join(' + ') : '' });
+    const tags = el('span', { class: 'theme-slot' });
+    let shown = null;
+    const put = (t) => {
+      if (!t || t === shown) return;
+      shown = t;
+      const cards = (t.cmd || []).map(([n, id]) => UI.commanderStub(n, id));
+      names.replaceChildren(opts.plain ? cards.map(c => U.frontName(c.name)).join(' + ') : UI.commanderNames(cards));
+      tags.replaceChildren(UI.themeLine(t.tags, opts.cls));
+      if (opts.art && cards[0] && !opts.art._cmdPreview) { opts.art._cmdPreview = true; UI.commanderPreview(opts.art, cards[0]); }
+    };
+    if (!d.commander) return { names, tags };
+    if (d.themes) put(d.themes);
+    if (!d.themes || d.themes.v !== MTG.themes.VERSION) decks.ensureThemes(d.id).then(put).catch(() => {});
+    return { names, tags };
   };
 
   function autoMeta(deck) {
@@ -82346,13 +83529,17 @@ Sideboard
         const art = el('div', { class: 'pick-deck-art', 'aria-hidden': 'true' });
         if (d.art) UI.setArt(art, d.art);
         else MTG.decks.ensureArt(d.id).then((url) => { if (url) UI.setArt(art, url); }).catch(() => {});
+        // a Commander deck: who leads it, previewed on hover, and what it leans on
+        const cmd = UI.deckCommander(d);
         const row = el('div', { class: 'pick-deck' }, [
           art,
           el('button', { type: 'button', class: 'pick-deck-main', onclick: use, 'aria-label': 'Use ' + d.name }, [
             UI.pips(d.identity),
             el('div', { class: 'grow' }, [
               el('div', { class: 'pick-deck-name', text: d.name }),
-              el('div', { class: 'tiny dim', text: `${d.size} cards · ${MTG.formats.get(d.format) ? MTG.formats.get(d.format).name : d.format}${d.commander ? ' · ' + d.commander : ''}` }),
+              el('div', { class: 'tiny dim' }, [`${d.size} cards · ${MTG.formats.get(d.format) ? MTG.formats.get(d.format).name : d.format}`,
+                d.commander ? ' · ' : null, d.commander ? cmd.names : null]),
+              cmd.tags,
             ]),
             UI.deckAutoPill(d),
           ]),
@@ -93864,8 +95051,8 @@ Sideboard
    * your tier. The result moves you on the ladder (src/10e-progress.js).
    */
   App.playRanked = function (formatId) {
-    // two ladders, each climbed on its own: Standard, and Commander one against one
-    const ladder = formatId === 'commander' ? 'commander' : 'standard';
+    // a ladder for each, climbed on its own: Standard, Modern, Pauper, and Commander one against one
+    const ladder = MTG.progress.LADDERS.some(L => L.id === formatId) ? formatId : 'standard';
     const tier = MTG.progress.ladder(ladder).tier;
     UI.pickDeck(ladder, async (deck) => {
       if (!deck) return;
@@ -94481,7 +95668,7 @@ Sideboard
       el('span', { class: 'ti-ladders' }, PR.LADDERS.map(L => {
         const r = PR.ladder(L.id);
         return el('span', { class: 'ti-ladder' }, [
-          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30, ladder: L.id }) : null,
+          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 26, ladder: L.id }) : null,
           el('span', { class: 'tl-text' }, [
             el('span', { class: 'tl-name', text: L.name }),
             el('b', { text: PR.rankLabel(r) }),
@@ -94915,7 +96102,7 @@ Sideboard
     ]));
     inner.appendChild(el('div', { class: 'event-grid' }, [
       // two ladders: the tile asks which
-      evCard('ev-ranked', 'Ranked', 'Two ladders, Standard and Commander, each from Bronze to Mythic against bots that get stronger as you rise.',
+      evCard('ev-ranked', 'Ranked', 'Standard, Modern, Pauper and Commander, each its own ladder from Bronze to Mythic against bots that get stronger as you rise.',
         P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15, ladder: L.id }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
         '<span>Free · season rewards</span>', () => UI.rankedChooser((id) => App.playRanked(id))),
       evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,
@@ -95004,7 +96191,10 @@ Sideboard
       return k(a).localeCompare(k(b)) || b.updatedAt - a.updatedAt;
     }],
     ['attention', 'Needs attention', (a, b) => (deckLegalSize(a) ? 1 : 0) - (deckLegalSize(b) ? 1 : 0) || b.updatedAt - a.updatedAt],
+    // the commanders most decks run first (EDHREC's rank, src/15b-themes.js); decks with no commander after them
+    ['popularity', 'Popularity', (a, b) => deckRank(a) - deckRank(b) || b.updatedAt - a.updatedAt],
   ];
+  const deckRank = (d) => (d.themes && d.themes.rank) || (d.commander ? 1e7 : 1e8);
   const fmtName = (id) => { const f = MTG.formats.get(id); return (f && f.name) || String(id); };
   function deckLegalSize(d) {
     const fmt = MTG.formats.get(d.format);
@@ -95094,6 +96284,13 @@ Sideboard
     if (shelf) inner.appendChild(shelf);
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
     draw();
+    /* sorted by popularity, a deck saved before decks knew their commander's
+       rank is read in the background, and the list put in order again once */
+    const unread = all.filter(d => d.commander && !(d.themes && d.themes.v === MTG.themes.VERSION));
+    if (unread.length) {
+      Promise.all(unread.map(d => MTG.decks.ensureThemes(d.id).then((t) => { d.themes = t; }).catch(() => {})))
+        .then(() => { if (sortKey === 'popularity' && host.isConnected) draw(); });
+    }
 
     function draw() {
       const sorter = (DECK_SORTS.find(x => x[0] === sortKey) || DECK_SORTS[0])[2];
@@ -95102,6 +96299,8 @@ Sideboard
         list = list.filter(d =>
           String(d.name).toLowerCase().includes(query) ||
           String(d.commander || '').toLowerCase().includes(query) ||
+          // what a Commander deck leans on: "tokens", "lifegain"
+          (d.themes && d.themes.tags || []).join(' ').toLowerCase().includes(query) ||
           fmtName(d.format).toLowerCase().includes(query));
       }
       list.sort(sorter);
@@ -95140,20 +96339,23 @@ Sideboard
     const fmt = MTG.formats.get(d.format);
     const art = el('div', { class: 'deck-art', 'aria-hidden': 'true' });
     deckArt(art, d);
+    const open = el('button', { class: 'deck-open', 'aria-label': 'Open ' + d.name, onclick: () => openDeck(d.id) });
+    // a Commander deck says who leads it and what it leans on; its box previews the commander
+    const cmd = UI.deckCommander(d, { art: open, plain: true, cls: 'on-art' });
     const sizeTip = legalSize ? 'A legal size' : `Not a legal size for ${fmtName(d.format)}` +
       (fmt ? ` (${fmt.exactSize ? 'exactly ' + fmt.deckMin : 'at least ' + (fmt.deckMin || 0)})` : '');
+    open.append(art, el('div', { class: 'deck-face' }, [
+      UI.pips(d.identity, 'deck-pips'),
+      el('div', { class: 'deck-card-name', text: d.name }),
+      el('div', { class: 'deck-sub' }, d.commander ? [cmd.names, ' · ' + timeAgo(d.updatedAt)]
+        : (d.source === 'draft' ? 'Drafted' : fmtName(d.format)) + ' · ' + timeAgo(d.updatedAt)),
+      cmd.tags,
+      UI.deckAutoPill(d, 'on-art'),
+      // how it has done so far (src/10h-ui-history.js)
+      UI.deckRecordPill ? UI.deckRecordPill(d, 'on-art') : null,
+    ].filter(Boolean)));
     return el('article', { class: 'deck-card' + (legalSize ? '' : ' needs-work') }, [
-      el('button', { class: 'deck-open', 'aria-label': 'Open ' + d.name, onclick: () => openDeck(d.id) }, [
-        art,
-        el('div', { class: 'deck-face' }, [
-          UI.pips(d.identity, 'deck-pips'),
-          el('div', { class: 'deck-card-name', text: d.name }),
-          el('div', { class: 'deck-sub', text: (d.commander || (d.source === 'draft' ? 'Drafted' : fmtName(d.format))) + ' · ' + timeAgo(d.updatedAt) }),
-          UI.deckAutoPill(d, 'on-art'),
-          // how it has done so far (src/10h-ui-history.js)
-          UI.deckRecordPill ? UI.deckRecordPill(d, 'on-art') : null,
-        ]),
-      ]),
+      open,
       el('div', { class: 'deck-foot' }, [
         el('span', { class: 'pill', text: fmtName(d.format) }),
         el('span', { class: 'pill ' + (legalSize ? 'good' : 'bad'), title: sizeTip, text: d.size + ' cards' }),
