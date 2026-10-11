@@ -21866,9 +21866,11 @@
       const p = this.player(playerId);
       if (!abilities && p && p.silencedTurn === this.turn) return "You can't cast spells this turn.";
       for (const o of this.battlefield) {
-        if (o.controller === playerId || o.phasedOut) continue;
+        if (o.phasedOut) continue;
         const e = this._staticOp(o, 'castRestrict');
         if (!e) continue;
+        // (Basandra: "Players can't …" — its own controller as well: castRestrictAll)
+        if (o.controller === playerId && e.who !== 'all') continue;
         if (abilities && !e.abilities) continue;
         if (e.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
         // Marisi: only during combat

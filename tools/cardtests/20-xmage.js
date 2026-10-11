@@ -22527,4 +22527,39 @@ module.exports = (test) => {
     G.put('A', 'Torgaar, Famine Incarnate', 'battlefield', { etb: true }); G.resolve();
     t.eq(G.life('B'), 10, "Torgaar: B's life total becomes 10");
   });
+
+  test("Commanders: Basandra, Battle Seraph, Mishra, Excavation Prodigy, Urza, Powerstone Prodigy, Doctor Doom, King of Latveria; Okina and other target pumps", (mk, t) => {
+    for (const n of ['Basandra, Battle Seraph', 'Mishra, Excavation Prodigy', 'Urza, Powerstone Prodigy', 'Okina, Temple to the Grandfathers', 'Hate Weaver', 'Weldfast Engineer', 'Toxic Stench']) t.auto(n);
+    // Basandra: nobody casts spells during combat, her controller included
+    const B = mk({ library: Array(10).fill('Mountain') });
+    B.toMain('A');
+    B.bf('A', 'Basandra, Battle Seraph');
+    const gb = B.bf('A', 'Grizzly Bears'); gb.summoningSick = false;
+    B.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }]);
+    B.toMain('A', 'declareBlockers');
+    B.mana('A', 'R');
+    t.ok(!B.g.castSpell('A', B.hand('A', 'Lightning Bolt').id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'Basandra: no spells during combat, not even its controller');
+    // Mishra: {R}{R} when you discard an artifact card, once each turn; not for another card
+    const M = mk({ library: Array(10).fill('Mountain') });
+    M.toMain('A');
+    const ms = M.bf('A', 'Mishra, Excavation Prodigy'); ms.summoningSick = false;
+    M.hand('A', 'Mountain');
+    M.mana('A', '1');
+    M.activate('A', ms, 0, { discardIds: [M.zone('A', 'hand')[0].id] }); M.resolve();
+    t.eq(M.player('A').pool.R || 0, 0, 'Mishra: a land discarded, no mana');
+    const M2 = mk({ library: Array(10).fill('Mountain') });
+    M2.toMain('A');
+    const ms2 = M2.bf('A', 'Mishra, Excavation Prodigy'); ms2.summoningSick = false;
+    const orn = M2.hand('A', 'Ornithopter');
+    M2.mana('A', '1');
+    M2.activate('A', ms2, 0, { discardIds: [orn.id] }); M2.resolve();
+    t.eq(M2.player('A').pool.R || 0, 2, 'Mishra: an artifact discarded, {R}{R}');
+    // Okina: "Target legendary creature gets +1/+1" — only a legendary creature is a target
+    const O = mk({ library: Array(10).fill('Forest') });
+    const ok = O.bf('A', 'Okina, Temple to the Grandfathers');
+    const spec = ok.analysis().abilities.find(ab => ab.kind === 'activated').effects[0].targets[0];
+    const leg = O.bf('A', 'Isamaru, Hound of Konda'), plain = O.bf('A', 'Grizzly Bears');
+    t.ok(O.MTG.oracle.matchesSpec(spec, leg, leg.analysis(), 'A', O.g._specCtx()) && !O.MTG.oracle.matchesSpec(spec, plain, plain.analysis(), 'A', O.g._specCtx()),
+      'Okina: Isamaru is a target, the Bears are not');
+  });
 };

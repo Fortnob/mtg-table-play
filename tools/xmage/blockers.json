@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10444,
-  "gainedCards": 963,
-  "linesNeeded": 11088,
-  "linesGained": 1126,
+  "needed": 10423,
+  "gainedCards": 952,
+  "linesNeeded": 11065,
+  "linesGained": 1114,
   "gained": {
-   "all": 963,
+   "all": 952,
    "top2000": 40,
    "stdTop": 6
   },
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4004,
-   "lines": 3761,
+   "score": 4003,
+   "lines": 3760,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 661,
-   "lines": 607,
+   "score": 660,
+   "lines": 606,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -609,25 +609,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "Tragic Trajectory",
-    "Joust",
-    "Poisoner's Apprentice",
-    "Paragon of Modernity",
-    "Savage Offensive",
-    "Tribute to Urborg",
-    "Charging Hooligan"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 16,
    "lines": 16,
@@ -751,6 +732,25 @@
     "Living Wish",
     "Cunning Wish",
     "Death Wish"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 14,
+   "lines": 14,
+   "cards": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory",
+    "Joust",
+    "Poisoner's Apprentice",
+    "Paragon of Modernity",
+    "Savage Offensive",
+    "Tribute to Urborg",
+    "Charging Hooligan"
    ]
   },
   {
@@ -914,24 +914,6 @@
     "Monstrous War-Leech",
     "Mwonvuli Ooze",
     "Umbra Stalker"
-   ]
-  },
-  {
-   "what": "two types at once",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar",
-    "Golem Artisan",
-    "Neurok Transmuter",
-    "Abuna Acolyte",
-    "Auriok Siege Sled",
-    "Argivian Blacksmith",
-    "Weldfast Engineer"
    ]
   },
   {
@@ -1460,6 +1442,22 @@
     "Surtland Elementalist",
     "Oracle of Bones",
     "Twinning Glass"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Golem Artisan",
+    "Neurok Transmuter",
+    "Abuna Acolyte",
+    "Auriok Siege Sled",
+    "Argivian Blacksmith"
    ]
   },
   {
@@ -4626,17 +4624,6 @@
    ]
   },
   {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Captain Howler, Sea Scourge",
-    "Doctor Doom, King of Latveria",
-    "Urza, Powerstone Prodigy",
-    "Mishra, Excavation Prodigy"
-   ]
-  },
-  {
    "what": "AttacksIfAbleAllEffect",
    "score": 4,
    "lines": 4,
@@ -6459,13 +6446,23 @@
     "Belltower Sphinx",
     "Crag Saurian"
    ]
+  },
+  {
+   "what": "DealsDamageToACreatureAllTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Toxin Sliver",
+    "Ohabi Caleria",
+    "Quest for the Gemblades"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3352,
-   "cards": 3190,
+   "score": 3351,
+   "cards": 3189,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6477,8 +6474,8 @@
   },
   {
    "what": "custom ability",
-   "score": 506,
-   "cards": 467,
+   "score": 505,
+   "cards": 466,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6771,19 +6768,6 @@
    ]
   },
   {
-   "what": "AddContinuousEffectToGame",
-   "score": 14,
-   "cards": 14,
-   "names": [
-    "The Irencrag",
-    "Bilbo's Gambit",
-    "Frodo, Sauron's Bane",
-    "Regal Sliver",
-    "Join the Dead",
-    "Tragic Trajectory"
-   ]
-  },
-  {
    "what": "(verify) condition the card does not print",
    "score": 14,
    "cards": 14,
@@ -6857,6 +6841,19 @@
     "Fae of Wishes // Granted",
     "Legion Angel",
     "Coax from the Blind Eternities"
+   ]
+  },
+  {
+   "what": "AddContinuousEffectToGame",
+   "score": 13,
+   "cards": 13,
+   "names": [
+    "The Irencrag",
+    "Bilbo's Gambit",
+    "Frodo, Sauron's Bane",
+    "Regal Sliver",
+    "Join the Dead",
+    "Tragic Trajectory"
    ]
   },
   {
@@ -7009,19 +7006,6 @@
     "Fancy Footwork",
     "Wanderwine Farewell",
     "Become Brutes"
-   ]
-  },
-  {
-   "what": "two types at once",
-   "score": 11,
-   "cards": 11,
-   "names": [
-    "Pre-War Formalwear",
-    "Arcum Dagsson",
-    "Grand Architect",
-    "Cryptek",
-    "Pia Nalaar",
-    "Golem Artisan"
    ]
   },
   {
@@ -7321,6 +7305,19 @@
     "Insatiable Hemophage",
     "Archipelagore",
     "Illuna, Apex of Wishes"
+   ]
+  },
+  {
+   "what": "two types at once",
+   "score": 9,
+   "cards": 9,
+   "names": [
+    "Pre-War Formalwear",
+    "Arcum Dagsson",
+    "Grand Architect",
+    "Cryptek",
+    "Golem Artisan",
+    "Neurok Transmuter"
    ]
   },
   {
@@ -9347,17 +9344,6 @@
    ]
   },
   {
-   "what": "DiscardOneOrMoreCardsTriggeredAbility",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Captain Howler, Sea Scourge",
-    "Doctor Doom, King of Latveria",
-    "Urza, Powerstone Prodigy",
-    "Mishra, Excavation Prodigy"
-   ]
-  },
-  {
    "what": "CastFromGraveyardOnceDuringEachOfYourTurnAbility",
    "score": 4,
    "cards": 4,
@@ -10098,6 +10084,16 @@
     "Tiamat",
     "Reach the Horizon",
     "Alpine Houndmaster"
+   ]
+  },
+  {
+   "what": "copy with changes",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Increasing Vengeance",
+    "Double Major",
+    "Choreographed Sparks"
    ]
   }
  ]

@@ -2151,6 +2151,9 @@
       make: (m) => ({ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+    // Tegan Jovanka: "target attacking historic creature gets +1/+1 until end of turn" — any target the words can check (targetPumpAny)
+    { re: /^((?:[Aa]nother )?[Tt]arget [a-z][a-z -]*? creature(?: you control| an opponent controls| you don'?t control)?) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/,
+      make: (m) => { const t = targetSpec(m[1].charAt(0).toLowerCase() + m[1].slice(1)); return t && !t.unknown ? { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [t] } : null; } },
     // Arahbo, Roar of the World: "another target Cat you control gets +3/+3 until end of turn"
     { re: /^((?:[Aa]nother )?[Tt]arget [A-Z][a-z'-]+(?: you control| an opponent controls)?) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/,
       make: (m) => { const t = targetSpec(m[1].charAt(0).toLowerCase() + m[1].slice(1)); return t && !t.unknown ? { op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [t] } : null; } },
@@ -10327,6 +10330,8 @@
     { re: /^When(?:ever)? you discard a card(?:,| )/i, event: 'youDiscard' },
     // Inti: "Whenever you discard one or more cards" — once for the lot
     { re: /^Whenever you discard one or more cards,? /i, event: 'youDiscard', extra: { batch: true } },
+    // (Mishra, Excavation Prodigy: "one or more artifact cards" — of that kind: discardKind)
+    { re: /^Whenever you discard one or more ([a-z]+) cards,? /i, event: 'youDiscard', extra: { batch: true }, filt: (m) => ({ words: m[1].toLowerCase() }) },
     /* The Gitrog Monster: "Whenever one or more land cards are put into your
        graveyard from anywhere"; Vulturous Zombie: "a card … into an
        opponent's graveyard"; Sidisi: "from your library" */
@@ -14035,6 +14040,8 @@
     { re: /^As long as this Equipment is attached to a creature, your opponents can'?t cast spells during your turn\.?$/i,
       make: () => ({ op: 'castRestrict', who: 'opponents', yourTurnOnly: true, whileAttached: true }) },
     // Marisi, Breaker of the Coil: "Your opponents can't cast spells during combat."
+    // Basandra, Battle Seraph: "Players can't cast spells during combat." — its controller too (castRestrictAll)
+    { re: /^Players can'?t cast spells during combat\.?$/, make: () => ({ op: 'castRestrict', who: 'all', combatOnly: true }) },
     { re: /^Your opponents can'?t cast spells during combat\.?$/,
       make: () => ({ op: 'castRestrict', who: 'opponents', combatOnly: true }) },
     /* Silence on a stick: Grand Abolisher, Voice of Victory, Kutzil */
