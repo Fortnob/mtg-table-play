@@ -10006,6 +10006,9 @@
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
+    { re: /^Whenever (an? (?:land|creature|artifact|enchantment|permanent|nontoken creature)(?: you control)?) enters from exile,? /i, event: 'permEnters',
+      filt: (m) => subjectFilter(m[1]), extra: { fromExileEnter: true } },
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
@@ -10702,7 +10705,8 @@
      each event with its own subject (orTwoSubjects). "When" and "Whenever"
      are the same here: whichever the event reads with. */
   function orTwoSubjects(line) {
-    const two = line.match(/^(When(?:ever)? )((?:an opponent|a player|you) [^,"]+?) or ((?:a|another) creature [^,"]+), ([^"]*)$/);
+    // (Faldorn, Dread Wolf Herald: "you cast a spell from exile or a land you control enters from exile" — enteredFromExile)
+    const two = line.match(/^(When(?:ever)? )((?:an opponent|a player|you) [^,"]+?) or ((?:a|another) (?:creature|land) [^,"]+), ([^"]*)$/);
     if (!two || triggerRest(line) === two[4].trim()) return null;
     const alt = (x) => [two[1], /^Whenever/.test(two[1]) ? 'When ' : 'Whenever '].map(w => w + x + ', ' + two[4]).find(l => triggerRest(l) === two[4].trim());
     const out = [alt(two[2]), alt(two[3])];
@@ -11614,6 +11618,13 @@
         }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
+        /* Lathiel, the Bounteous Dawn: "if you gained life this turn, distribute up to that many +1/+1 counters among
+           any number of other target creatures" — the life gained (distributeLifeGained) */
+        if (condition && condition.kind === 'gainedLifeThisTurn' && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'manual') {
+          const dm = String(parsed.effects[0].text || '').match(/^distribute up to that many \+1\/\+1 counters among any number of (other )?target creatures\.?$/i);
+          const inner = dm && parseEffectSentence('Distribute X +1/+1 counters among any number of ' + (dm[1] || '') + 'target creatures, where X is the amount of life you gained this turn.', 1);
+          if (inner && inner.op === 'countersDivided') { parsed.effects = [Object.assign(inner, { text: parsed.effects[0].text })]; parsed.auto = true; }
+        }
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,

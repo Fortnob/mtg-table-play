@@ -12102,6 +12102,8 @@
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
           // Phyrexian Dragon Engine: only when it came straight from the graveyard
           if (ab.fromGraveyardEnter && !(data.object && data.object.enteredFrom === 'graveyard')) continue;
+          // Faldorn, Dread Wolf Herald: "enters from exile" (enteredFromExile)
+          if (ab.fromExileEnter && !(data.object && data.object.enteredFrom === 'exile')) continue;
           // Pain Distributor: the caster's first spell this turn
           if (ab.firstSpellOfCaster && ((this.player(data.playerId) || {}).spellsCastThisTurn || 0) !== 1) continue;
           // Flourishing Defenses: only that kind of counter

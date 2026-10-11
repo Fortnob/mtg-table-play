@@ -22964,4 +22964,51 @@ module.exports = (test) => {
     A2.g.changeLife('A', 1); A2.resolve();
     t.zone(foe2, 'battlefield', 'Amalia: a land, 19 power, nothing destroyed');
   });
+
+  test('Commanders: Faldorn, Dread Wolf Herald, Fire Lord Zuko', (mk, t) => {
+    for (const n of ['Faldorn, Dread Wolf Herald', 'Fire Lord Zuko']) t.auto(n);
+    const wolves = (T) => T.bfOf('A').filter(o => o.isToken && /Wolf/.test(o.name)).length;
+    // Faldorn: a spell cast from exile, and a land of A's entering from exile; not a land played from hand
+    const F = mk({ library: Array(10).fill('Forest') });
+    F.toMain('A');
+    F.bf('A', 'Faldorn, Dread Wolf Herald');
+    const ex = F.put('A', 'Grizzly Bears', 'exile'); ex.impulseBy = 'A'; ex.impulseUntil = F.g.turn;
+    F.mana('A', '1G');
+    t.ok(F.g.castSpell('A', ex.id, { auto: true }), F.g.lastError);
+    F.resolve();
+    t.eq(wolves(F), 1, 'Faldorn: the Bears cast from exile, a Wolf');
+    const ld = F.put('A', 'Forest', 'exile');
+    F.g.moveObject(ld, 'battlefield'); F.resolve();
+    t.eq(wolves(F), 2, 'Faldorn: a Forest enters from exile, a Wolf');
+    t.ok(F.g.playLand('A', F.hand('A', 'Forest').id), F.g.lastError); F.resolve();
+    t.eq(wolves(F), 2, 'Faldorn: a Forest played from hand, nothing');
+    // Fire Lord Zuko: a permanent of A's entering from exile, a counter on each creature A controls
+    const Z = mk({ library: Array(10).fill('Forest') });
+    Z.toMain('A');
+    const zk = Z.bf('A', 'Fire Lord Zuko');
+    const back = Z.put('A', 'Grizzly Bears', 'exile');
+    Z.g.moveObject(back, 'battlefield'); Z.resolve();
+    t.eq(Number(zk.counters['+1/+1']) || 0, 1, 'Fire Lord Zuko: the Bears back from exile, a counter');
+    Z.bf('A', 'Grizzly Bears'); Z.resolve();
+    t.eq(Number(zk.counters['+1/+1']) || 0, 1, 'Fire Lord Zuko: from nowhere in particular, nothing');
+  });
+
+  test('Commanders: Lathiel, the Bounteous Dawn', (mk, t) => {
+    t.auto('Lathiel, the Bounteous Dawn');
+    // at each end step, the life A gained this turn as +1/+1 counters among other creatures
+    const L = mk({ library: Array(10).fill('Plains') });
+    L.toMain('A');
+    const la = L.bf('A', 'Lathiel, the Bounteous Dawn'), gb = L.bf('A', 'Grizzly Bears');
+    L.g.changeLife('A', 3);
+    L.answer('choose', (ch) => (ch.purpose === 'anyTargets' ? { picks: [gb.id] } : { picks: [0] }));
+    L.toMain('A', 'end'); L.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 3, 'Lathiel: three life gained, three counters on the Bears');
+    t.eq(Number(la.counters['+1/+1']) || 0, 0, 'Lathiel: none on herself');
+    const L2 = mk({ library: Array(10).fill('Plains') });
+    L2.toMain('A');
+    L2.bf('A', 'Lathiel, the Bounteous Dawn'); const g2 = L2.bf('A', 'Grizzly Bears');
+    L2.answer('choose', (ch) => (ch.purpose === 'anyTargets' ? { picks: [g2.id] } : { picks: [0] }));
+    L2.toMain('A', 'end'); L2.resolve();
+    t.eq(Number(g2.counters['+1/+1']) || 0, 0, 'Lathiel: no life gained, nothing');
+  });
 };

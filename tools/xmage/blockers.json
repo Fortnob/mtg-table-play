@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10378,
+  "needed": 10375,
   "gainedCards": 949,
-  "linesNeeded": 11015,
+  "linesNeeded": 11012,
   "linesGained": 1110,
   "gained": {
    "all": 949,
@@ -50,25 +50,6 @@
    ]
   },
   {
-   "what": "custom ability",
-   "score": 656,
-   "lines": 602,
-   "cards": [
-    "Coveted Jewel",
-    "Carpet of Flowers",
-    "All Will Be One",
-    "Tergrid, God of Fright // Tergrid's Lantern",
-    "The Skullspore Nexus",
-    "Extraplanar Lens",
-    "Firemane Commando",
-    "Wedding Ring",
-    "Colossal Grave-Reaver",
-    "Breena, the Demagogue",
-    "Gix, Yawgmoth Praetor",
-    "Volatile Stormdrake"
-   ]
-  },
-  {
    "what": "(no XMage class)",
    "score": 655,
    "lines": 655,
@@ -85,6 +66,25 @@
     "Immortal Obligation",
     "Lorehold, the Historian",
     "Secret of Bloodbending"
+   ]
+  },
+  {
+   "what": "custom ability",
+   "score": 654,
+   "lines": 600,
+   "cards": [
+    "Coveted Jewel",
+    "Carpet of Flowers",
+    "All Will Be One",
+    "Tergrid, God of Fright // Tergrid's Lantern",
+    "The Skullspore Nexus",
+    "Extraplanar Lens",
+    "Firemane Commando",
+    "Wedding Ring",
+    "Colossal Grave-Reaver",
+    "Breena, the Demagogue",
+    "Gix, Yawgmoth Praetor",
+    "Volatile Stormdrake"
    ]
   },
   {
@@ -1590,22 +1590,6 @@
    ]
   },
   {
-   "what": "amount from a count",
-   "score": 9,
-   "lines": 9,
-   "cards": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Ghired's Belligerence",
-    "Impact Resonance",
-    "Monstrous Onslaught",
-    "Ravenous Gigantotherium",
-    "Hail of Arrows",
-    "Volcanic Wind",
-    "Rock Slide"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 9,
    "lines": 9,
@@ -2049,6 +2033,21 @@
     "Insatiable Skittermaw",
     "Voidforged Titan",
     "Kavaron Skywarden"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 8,
+   "lines": 8,
+   "cards": [
+    "Ureni, the Song Unending",
+    "Ghired's Belligerence",
+    "Impact Resonance",
+    "Monstrous Onslaught",
+    "Ravenous Gigantotherium",
+    "Hail of Arrows",
+    "Volcanic Wind",
+    "Rock Slide"
    ]
   },
   {
@@ -6459,8 +6458,8 @@
   },
   {
    "what": "custom ability",
-   "score": 502,
-   "cards": 463,
+   "score": 500,
+   "cards": 461,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -7228,19 +7227,6 @@
    ]
   },
   {
-   "what": "amount from a count",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Lathiel, the Bounteous Dawn",
-    "Ureni, the Song Unending",
-    "Ghired's Belligerence",
-    "Impact Resonance",
-    "Monstrous Onslaught",
-    "Ravenous Gigantotherium"
-   ]
-  },
-  {
    "what": "SetBasePowerToughnessSourceEffect with two values",
    "score": 9,
    "cards": 9,
@@ -7446,6 +7432,19 @@
     "Interceptor Mechan",
     "Plasma Bolt",
     "Insatiable Skittermaw"
+   ]
+  },
+  {
+   "what": "amount from a count",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Ureni, the Song Unending",
+    "Ghired's Belligerence",
+    "Impact Resonance",
+    "Monstrous Onslaught",
+    "Ravenous Gigantotherium",
+    "Hail of Arrows"
    ]
   },
   {
