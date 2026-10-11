@@ -626,7 +626,7 @@
         const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
         tile.onclick = () => inspectPrecon(p);
         tile.title = 'Look through ' + p.name;
-        preconMiniMeta(tile, p);
+        preconMiniMeta(tile, p, go);
         return tile;
       }, 170, 16);
       decks.replaceWith(row);
@@ -714,9 +714,14 @@
      lists. Buying one puts every card of it into your collection, and it
      can be saved as a deck ready to play. */
   const MTGJSON = 'https://mtgjson.com/api/v5/';
+  /* A deck printed again (Commander Anthology's reprints of older decks)
+     is listed once, as its latest printing: one name, one deck
+     (MTG.themes.distinct). Done to the list itself, so the tab's count,
+     order and search all see one. */
+  const onceEach = (list) => MTG.themes.distinct(list);
   async function preconList() {
     const hit = MTG.store.get('precons', null);
-    if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return hit.list;
+    if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return onceEach(hit.list);
     const res = await fetch(MTGJSON + 'DeckList.json');
     if (!res.ok) throw new Error('The deck lists could not be loaded.');
     const d = await res.json();
@@ -724,7 +729,7 @@
       .map(x => ({ name: x.name, code: String(x.code || '').toLowerCase(), file: x.fileName, date: x.releaseDate || '' }))
       .sort((a, b) => b.date.localeCompare(a.date));
     MTG.store.set('precons', { t: Date.now(), list });
-    return list;
+    return onceEach(list);
   }
   /* A deck's list, fetched once a session (they are small: tens of KB). */
   const deckFiles = new Map();
@@ -741,14 +746,17 @@
      Read ahead for the decks printed so far (src/10d4-precons.js, by
      tools/precons.js); a deck printed since is read here from its list
      the first time it is fetched, and remembered on this device. Each is
-     [EDHREC rank or 0, [[commander, Scryfall id], ...], [tag, ...]]. */
+     [place on EDHREC's list of commanders or 0, [[commander, Scryfall id],
+     ...], [tag, ...], colour identity, Scryfall's EDHREC rank or 0]. A deck
+     read here has no place on EDHREC's list (it is not to be had from the
+     browser), so it goes after the decks that have one. */
   const readMetas = () => MTG.store.get('preconmeta', {}) || {};
   function preconMeta(p) {
     const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
     const fresh = ahead && MTG.preconIndex.v === MTG.themes.VERSION;
     const here = readMetas()[p.file];
     const row = fresh ? ahead : here && here.v === MTG.themes.VERSION ? here.m : ahead || (here && here.m);
-    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [] } : null;
+    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [], ident: row[3] != null ? row[3] : null, scry: row[4] || 0 } : null;
   }
   const metaCurrent = (p) => {
     const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
@@ -761,18 +769,24 @@
     const commanders = d.commander || [];
     const deck = { commanders, main: (d.mainBoard || []).map(c => ({ card: c, qty: Math.max(1, c.count || 1) })) };
     const rank = MTG.themes.rank(commanders);
-    const row = [Number.isFinite(rank) ? rank : 0,
-      commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
-      MTG.themes.tags(deck)];
+    const row = [0, commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
+      MTG.themes.tags(deck), MTG.themes.identity(commanders), Number.isFinite(rank) ? rank : 0];
     const all = readMetas();
     all[p.file] = { v: MTG.themes.VERSION, m: row };
     MTG.store.set('preconmeta', all);
   }
-  /* most popular first: the lowest rank, a deck with none known after the rest, newest first among equals */
-  const rankOf = (p) => (preconMeta(p) || {}).rank || Infinity;
+  /* most popular first: by place on EDHREC's list of commanders; a commander
+     not on it after all that are, by Scryfall's rank; one with neither last;
+     newest first among equals */
+  const rankOf = (p) => {
+    const m = preconMeta(p);
+    return !m ? 3e6 : m.rank ? m.rank : 1e6 + (m.scry || 1e6);
+  };
   const PRECON_SORTS = [
     ['popular', 'Most popular', (a, b) => rankOf(a) - rankOf(b) || b.date.localeCompare(a.date)],
-    ['newest', 'Newest', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    // by release date, either way
+    ['newest', 'Newest first', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    ['oldest', 'Oldest first', (a, b) => a.date.localeCompare(b.date) || a.name.localeCompare(b.name)],
     ['name', 'Name (A\u2013Z)', (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })],
   ];
   /**
@@ -780,7 +794,7 @@
    * previews the commander under the pointer; a commander's name opens that
    * card in full, rather than the deck.
    */
-  function showMeta(p, names, themes, host) {
+  function showMeta(p, names, themes, host, onTag) {
     const m = preconMeta(p);
     if (!m || names._shown) return !!m;
     names._shown = true;
@@ -801,15 +815,61 @@
       }));
     });
     names.replaceChildren(box);
-    themes.replaceChildren(UI.themeLine(m.tags));
+    // a tag finds the decks like this one; the preview goes as the list changes under it
+    themes.replaceChildren(UI.themeLine(m.tags, null, onTag ? (tag) => {
+      if (host) host.dispatchEvent(new PointerEvent('pointerleave'));
+      onTag(tag);
+    } : null));
     if (host && cards[0]) UI.commanderPreview(host, cards[0]);
     return true;
   }
-  /* the Featured page's small deck tiles: the same, under the deck's name */
-  function preconMiniMeta(tile, p) {
+  /* the Featured page's small deck tiles: the same, under the deck's name;
+     a tag there opens the Commander decks tab with it searched */
+  function preconMiniMeta(tile, p, go) {
     const names = el('div', { class: 'sc-sub mini-cmd' }), themes = el('div', { class: 'mini-themes' });
     tile.append(names, themes);
-    if (!showMeta(p, names, themes, tile)) preconInfo(p).then(() => showMeta(p, names, themes, tile)).catch(() => {});
+    const onTag = go ? (tag) => { preconAsk = searchTerm(tag); go('precons'); } : null;
+    if (!showMeta(p, names, themes, tile, onTag)) preconInfo(p).then(() => showMeta(p, names, themes, tile, onTag)).catch(() => {});
+  }
+
+  /* ---- finding a Commander deck ----
+     The search reads words (all of them must be found: in the deck's name,
+     its set, its commanders or its themes), "quoted phrases" (a tag such as
+     "+1/+1 counters" is put in quotes when it is chosen) and colours. A
+     colour named alone, "blue", or chosen with its chip, asks for decks
+     that have it, among others: two of them, decks with both. A colour
+     identity named in full asks for exactly that one: a guild, shard, wedge
+     or four-colour name ("Simic", "Esper", "Glint"), its letters ("WU",
+     "BUG"), "mono-red" or "mono red", "colourless", "five-color". */
+  let preconAsk = '';
+  const searchTerm = (tag) => (/\s/.test(tag) ? `"${tag.toLowerCase()}"` : tag.toLowerCase());
+  const COLOR_WORDS = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+  const canonIdent = (s) => ['W', 'U', 'B', 'R', 'G'].filter(c => s.toUpperCase().includes(c)).join('');
+  const IDENTITY_NAMES = {
+    azorius: 'WU', dimir: 'UB', rakdos: 'BR', gruul: 'RG', selesnya: 'GW', orzhov: 'WB', izzet: 'UR', golgari: 'BG', boros: 'RW', simic: 'GU',
+    esper: 'WUB', grixis: 'UBR', jund: 'BRG', naya: 'RGW', bant: 'GWU', abzan: 'WBG', jeskai: 'URW', sultai: 'BGU', mardu: 'RWB', temur: 'GUR',
+    glint: 'UBRG', 'glint-eye': 'UBRG', dune: 'WBRG', 'dune-brood': 'WBRG', ink: 'WURG', 'ink-treader': 'WURG',
+    witch: 'WUBG', 'witch-maw': 'WUBG', yore: 'WUBR', 'yore-tiller': 'WUBR',
+    'five-color': 'WUBRG', 'five-colour': 'WUBRG', '5c': 'WUBRG', rainbow: 'WUBRG', colorless: '', colourless: '',
+  };
+  /** A search as { terms, exact (an identity, or null), has (colours it must include) }. */
+  function readSearch(q) {
+    const out = { terms: [], exact: null, has: new Set() };
+    const words = [];
+    for (const m of String(q || '').toLowerCase().matchAll(/"([^"]+)"|(\S+)/g)) words.push(m[1] != null ? { phrase: m[1].trim() } : { word: m[2] });
+    for (let i = 0; i < words.length; i++) {
+      const w = words[i].word;
+      if (w == null) { if (words[i].phrase) out.terms.push(words[i].phrase); continue; }
+      const mono = /^mono-?(white|blue|black|red|green)$/.exec(w);
+      const next = words[i + 1] && words[i + 1].word;
+      if (mono) out.exact = COLOR_WORDS[mono[1]];
+      else if (w === 'mono' && next && COLOR_WORDS[next]) { out.exact = COLOR_WORDS[next]; i++; }
+      else if (COLOR_WORDS[w]) out.has.add(COLOR_WORDS[w]);
+      else if (Object.prototype.hasOwnProperty.call(IDENTITY_NAMES, w)) out.exact = canonIdent(IDENTITY_NAMES[w]);
+      else if (/^[wubrg]{2,5}$/.test(w) && new Set(w).size === w.length) out.exact = canonIdent(w);
+      else out.terms.push(w);
+    }
+    return out;
   }
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
@@ -875,7 +935,36 @@
     const sortSel = el('select', { 'aria-label': 'Sort Commander decks by' },
       PRECON_SORTS.map(([k, label]) => el('option', { value: k, text: label, selected: k === sortKey })));
     sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('preconSort', sortKey); draw(); });
-    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander or a theme…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
+    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander, a theme or colours…', class: 'store-search',
+      'aria-label': 'Find a Commander deck', value: preconAsk,
+      title: 'Every word must be found. Colours: "blue" for decks with blue in them; "Simic", "WU", "mono-red" or "colourless" for exactly those colours.' });
+    preconAsk = '';
+    // a tag chosen on a tile joins the search, unless it is there already
+    const addTag = (tag) => {
+      const term = searchTerm(tag);
+      if (!readSearch(search.value).terms.includes(term.replace(/"/g, ''))) search.value = (search.value.trim() + ' ' + term).trim();
+      MTG.sfx('click');
+      draw();
+    };
+    /* colour chips: each one asks for decks with that colour (all of those
+       chosen); Colourless, for decks with none */
+    const chosen = new Set();
+    let colourless = false;
+    const chips = el('div', { class: 'filter-chips precon-colors', role: 'group', 'aria-label': 'Colours' });
+    const drawChips = () => {
+      chips.replaceChildren(...['W', 'U', 'B', 'R', 'G', 'C'].map((c) => {
+        const on = c === 'C' ? colourless : chosen.has(c);
+        const name = c === 'C' ? 'Colourless' : MTG.mana.COLOR_NAMES[c];
+        return el('button', { type: 'button', class: 'chip pip-chip' + (on ? ' on' : ''), 'aria-pressed': on ? 'true' : 'false',
+          title: c === 'C' ? 'Colourless decks' : `Decks with ${name} in them`, 'aria-label': name,
+          onclick: () => {
+            if (c === 'C') { colourless = !colourless; if (colourless) chosen.clear(); }
+            else { if (chosen.has(c)) chosen.delete(c); else chosen.add(c); colourless = false; }
+            drawChips(); draw();
+          } }, [UI.pips(c === 'C' ? [] : [c])]);
+      }));
+    };
+    drawChips();
     const grid = el('div', { class: 'store-grid precons' });
     /* each tile's commander and price, fetched as it comes into view, a few at a time */
     let busy = 0;
@@ -906,27 +995,97 @@
         pump();
       }
     }, { rootMargin: '200px' });
-    const draw = () => {
-      const q = search.value.trim().toLowerCase();
+    /* Pages: whole rows of tiles, about two dozen to a page at as many
+       columns as the width holds, counted again when the width changes. A
+       pager over the grid and under it; turning a page brings the top of
+       the grid into view, the tabs above it staying where they are. */
+    let page = 0, hits = [], perPage = 24;
+    const pageSize = () => {
+      const cols = Math.max(1, Math.floor(((grid.clientWidth || body.clientWidth || 960) + 16) / (220 + 16)));
+      return cols * Math.max(1, Math.round(24 / cols));
+    };
+    const pagers = [el('nav', { class: 'precon-pager', 'aria-label': 'Pages of decks' }), el('nav', { class: 'precon-pager foot', 'aria-label': 'Pages of decks' })];
+    const tools = el('div', { class: 'precon-tools' });
+    const turnTo = (n) => {
+      page = n;
+      drawPage();
+      MTG.sfx('click');
+      // only ever up, to the search over the grid: the page turned from above is already in view
+      const view = tools.closest('.screen');
+      if (tools.getBoundingClientRect().top < (view ? view.getBoundingClientRect().top : 0)) tools.scrollIntoView({ block: 'start' });
+    };
+    const drawPager = (nav, pages, from) => {
+      const shown = hits.length ? `Showing ${from + 1}\u2013${Math.min(hits.length, from + perPage)} of ${hits.length}` : '';
+      const kids = [];
+      if (pages > 1) {
+        kids.push(el('button', { type: 'button', class: 'btn xs', text: '\u2039 Previous', disabled: page === 0, onclick: () => turnTo(page - 1) }));
+        // the first and last pages, and those either side of this one; a gap for the rest
+        const want = [...new Set([0, page - 1, page, page + 1, pages - 1])].filter(n => n >= 0 && n < pages).sort((a, b) => a - b);
+        want.forEach((n, i) => {
+          if (i && n - want[i - 1] > 1) kids.push(el('span', { class: 'pager-gap', text: '\u2026', 'aria-hidden': 'true' }));
+          kids.push(el('button', { type: 'button', class: 'chip pager-n' + (n === page ? ' on' : ''), text: String(n + 1),
+            'aria-label': `Page ${n + 1}`, 'aria-current': n === page ? 'page' : false, onclick: () => { if (n !== page) turnTo(n); } }));
+        });
+        kids.push(el('button', { type: 'button', class: 'btn xs', text: 'Next \u203a', disabled: page >= pages - 1, onclick: () => turnTo(page + 1) }));
+      }
+      kids.push(el('span', { class: 'pager-count dim', text: shown }));
+      nav.replaceChildren(...kids);
+      nav.hidden = !hits.length;
+    };
+    const drawPage = () => {
       grid.innerHTML = '';
-      // by name, set, commander or theme
-      const about = (p) => { const m = preconMeta(p); return m ? (m.cmd.map(c => c[0]).join(' ') + ' ' + m.tags.join(' ')).toLowerCase() : ''; };
-      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q || about(p).includes(q))
-        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
-      for (const p of hits.slice(0, 48)) {
-        const tile = preconTile(p, setName(p.code));
+      const pages = Math.max(1, Math.ceil(hits.length / perPage));
+      page = Math.max(0, Math.min(page, pages - 1));
+      const from = page * perPage;
+      for (const p of hits.slice(from, from + perPage)) {
+        const tile = preconTile(p, setName(p.code), addTag);
         tile._precon = { p, art: tile.querySelector('.precon-art') };
         grid.appendChild(tile);
         seen.observe(tile);
       }
-      if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck by that name.' }));
+      if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck like that.' }));
+      for (const nav of pagers) drawPager(nav, pages, from);
+    };
+    if (window.ResizeObserver) {
+      const ro = new ResizeObserver(() => {
+        if (!grid.isConnected) { ro.disconnect(); return; }
+        const size = pageSize();
+        if (size === perPage) return;
+        // the first deck shown stays on the page shown
+        page = Math.floor(page * perPage / size);
+        perPage = size;
+        drawPage();
+      });
+      ro.observe(grid);
+    }
+    // a new search, colour, tag or order starts again at the first page
+    const draw = () => {
+      const ask = readSearch(search.value);
+      for (const c of chosen) ask.has.add(c);
+      if (colourless) ask.exact = '';
+      // every word by name, set, commander or theme; the colours by the commanders' identity
+      const about = (p) => {
+        const m = preconMeta(p);
+        return [p.name, setName(p.code), p.code].concat(m ? m.cmd.map(c => c[0]).concat(m.tags) : []).join(' \n ').toLowerCase();
+      };
+      const colours = (p) => {
+        if (ask.exact == null && !ask.has.size) return true;
+        const m = preconMeta(p);
+        if (!m || m.ident == null) return false;
+        return (ask.exact == null || m.ident === ask.exact) && [...ask.has].every(c => m.ident.includes(c));
+      };
+      hits = list.filter(p => colours(p) && (!ask.terms.length || ((text) => ask.terms.every(w => text.includes(w)))(about(p))))
+        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
+      page = 0;
+      drawPage();
     };
     search.addEventListener('input', draw);
-    body.append(el('div', { class: 'precon-tools' }, [search,
-      el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel])]), grid);
+    tools.append(search, chips, el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel]));
+    body.append(tools, pagers[0], grid, pagers[1]);
+    perPage = pageSize();
     draw();
   }
-  function preconTile(p, setName) {
+  function preconTile(p, setName, onTag) {
     // its own picture at once when it has one; a plain panel until then, never another's
     const art = el('div', { class: 'precon-art' });
     const had = artReg.by['deck:' + p.file];
@@ -939,7 +1098,7 @@
       title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
-      el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
+      el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}`, title: `${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
       // who leads it and what it leans on, the commander previewed over its name and its picture
       names,
       themes,
@@ -951,7 +1110,7 @@
     tile.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
     });
-    tile._showMeta = () => showMeta(p, names, themes, tile);
+    tile._showMeta = () => showMeta(p, names, themes, tile, onTag);
     tile._showMeta();
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {

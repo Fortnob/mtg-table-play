@@ -852,11 +852,24 @@
     return out;
   };
 
-  /** What a deck leans on (src/15b-themes.js), as one short line: "Tokens · Lifegain · Sacrifice". */
-  UI.themeLine = function (tags, cls) {
+  /**
+   * What a deck leans on (src/15b-themes.js), as one short line: "Tokens ·
+   * Lifegain · Sacrifice". With `onTag`, each tag is a button of its own that
+   * tells it which was chosen, and does nothing else (the deck around it
+   * does not open).
+   */
+  UI.themeLine = function (tags, cls, onTag) {
     const list = (tags || []).filter(Boolean);
-    return el('div', { class: 'theme-line' + (cls ? ' ' + cls : ''), text: list.join(' · '),
-      title: list.length ? 'What the deck leans on: ' + list.join(', ') : '', hidden: !list.length });
+    const line = el('div', { class: 'theme-line' + (onTag ? ' picks' : '') + (cls ? ' ' + cls : ''),
+      title: list.length ? 'What the deck leans on: ' + list.join(', ') + (onTag ? '. Choose one to find decks like it.' : '') : '', hidden: !list.length });
+    if (!onTag) { line.textContent = list.join(' · '); return line; }
+    list.forEach((t, i) => {
+      if (i) line.appendChild(document.createTextNode(' · '));
+      const pick = (e) => { e.preventDefault(); e.stopPropagation(); onTag(t); };
+      line.appendChild(el('span', { class: 'theme-tag', role: 'button', tabindex: '0', text: t, 'aria-label': `Find decks that lean on ${t}`,
+        onclick: pick, onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') pick(e); } }));
+    });
+    return line;
   };
 
   /* ---------------- art picker ---------------- */
