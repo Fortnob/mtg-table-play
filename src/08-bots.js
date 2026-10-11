@@ -3564,7 +3564,7 @@
       if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.n || 1)) return null;
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';
       if (sorcery && !(myTurn && g.isMain && g.stackEmpty)) return null;
-      if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return null;
+      if (ab.kind === 'loyalty' && g._loyaltyUsedUp(o)) return null;
       // (Drana and Linvala: a borrowed ability's colours paid with any mana)
       if (cost.mana && !g.couldPay(this.pid, ab.spendAnyColor ? g._abilityMana(o, ab) : cost.mana, sources)) return null;
       const effects = ab.effects || [];
@@ -4901,7 +4901,7 @@
       const sources = this.manaSources();
       const out = [];
       for (const o of g.battlefield) {
-        if (o.controller !== this.pid || o.activatedLoyaltyThisTurn) continue;
+        if (o.controller !== this.pid || g._loyaltyUsedUp(o)) continue;
         const a = o.analysis();
         if (!a || !a.isPlaneswalker) continue;
         const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));

@@ -4663,6 +4663,22 @@
     /* The Ring tempts you (CR 701.52): the emblem gains a level and you
        name a Ring-bearer. */
     { re: /^The Ring tempts you\.?$/i, make: () => ({ op: 'ringTempts' }) },
+    /* Meld (CR 701.42): the two cards of a meld pair exiled and put back as one permanent. Hanweir
+       Battlements, Urza, Lord Protector: "If you both own and control this land and a creature named
+       Hanweir Garrison, exile them, then meld them into Hanweir, the Writhing Township." */
+    { re: /^If you both own and control (?:CARDNAME|this (?:creature|land|artifact|permanent)) and an? (creature|land|artifact|permanent) named (.+?), exile them, then meld them into (.+?)\.?$/i,
+      make: (m) => ({ op: 'meld', partner: m[2], partnerType: m[1].toLowerCase(), into: m[3] }) },
+    // Mishra, Claimed by Gix: "If Mishra … and a creature named Phyrexian Dragon Engine are attacking, and you both own and control them, …"
+    { re: /^If (?:CARDNAME|this creature) and an? (creature|artifact) named (.+?) are attacking, and you both own and control them, exile them, then meld them into (.+?)\.?$/i,
+      make: (m) => ({ op: 'meld', partner: m[2], partnerType: m[1].toLowerCase(), into: m[3], bothAttacking: true }) },
+    // Gisela, the Broken Blade, Graf Rats: the pair is the trigger's "if" clause, filled in after (meldPair)
+    { re: /^Exile them, then meld them into (.+?)\.?$/i, make: (m) => ({ op: 'meld', into: m[1] }) },
+    // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast." (costModTurn)
+    { re: /^(.+? spells you cast) this turn cost (\{\d+\}) less to cast\.?$/i,
+      make: (m) => {
+        const c = parseCostMod(m[1] + ' cost ' + m[2] + ' less to cast');
+        return c && c.who === 'you' && !c.per && !c.symbols && !c.chosenType ? { op: 'costModTurn', mod: c } : null;
+      } },
 
     /* Clash (CR 701.23): both players look at the top of their library and
        the bigger mana value wins. */
@@ -9917,6 +9933,16 @@
       };
       walk(res.effects);
     }
+    // Mishra, Claimed by Gix: "… meld them into Mishra, Lost to Phyrexia. It enters tapped and attacking."
+    if (res && res.effects) {
+      const k = res.effects.findIndex(e => e && e.op === 'meld');
+      const nx = k >= 0 ? res.effects[k + 1] : null;
+      if (nx && nx.op === 'manual' && /^It enters tapped and attacking\.?$/i.test(String(nx.text || '').trim())) {
+        res.effects[k].entersAttacking = true;
+        res.effects.splice(k + 1, 1);
+        if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
+      }
+    }
     // Hellion Eruption: "Sacrifice all creatures you control, then create that many …" — as many as were sacrificed (sacrificeAllYours)
     if (res && res.effects && res.effects.some(e => e && e.op === 'sacrificeAllYours')) {
       let after = false;
@@ -9973,6 +9999,12 @@
      in here is not a condition this can read, and the line stays manual. */
 
   const COND_RULES = [
+    /* Meld (CR 701.42): Gisela, the Broken Blade's "if you both own and control Gisela and a creature
+       named Bruna, the Fading Light"; Titania, Voice of Gaea's with "there are four or more land cards in
+       your graveyard and" before it (meldPair) */
+    [/^you both own and control (?:CARDNAME|this (?:creature|land|artifact|permanent)) and an? (creature|land|artifact|permanent) named (.+)$/i,
+      (m) => ({ kind: 'meldPair', name: m[2], type: m[1].toLowerCase() })],
+    [/^(.+?) and (you both own and control .+)$/i, (m) => { const a = condOf(m[1]), b = condOf(m[2]); return a && b ? [].concat(a, b) : null; }],
     // Myrkul, Bane and Bhaal, Lords: "your life total is less than or equal to half your starting life total"
     [/^your life total is less than or equal to half your starting life total$/i, () => ({ kind: 'lifeAtMostHalfStart' })],
     // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
@@ -12221,7 +12253,11 @@
         /* An intervening "if" clause (CR 603.4): the trigger only goes on the
            stack when it holds, and is checked again on resolution. */
         let condition = null;
-        const iff = body.match(/^if (.+?), (.+)$/i);
+        /* Gisela, the Broken Blade, Titania, Voice of Gaea, Vanille, Cheerful l'Cie: the partner's name has a
+           comma in it of its own ("named Bruna, the Fading Light, exile them"), so the clause ends where the
+           meld (or its payment) begins (meldPair) */
+        const meldIf = body.match(/^if (.*?\byou both own and control .+? named .+?), ((?:exile them|you may pay)\b.+)$/i);
+        const iff = meldIf && condOf(meldIf[1]) ? meldIf : body.match(/^if (.+?), (.+)$/i);
         if (iff) {
           const c = condOf(iff[1]);
           if (c) { condition = c; body = iff[2].replace(/^(\w)/, (ch) => ch.toUpperCase()); }
@@ -12232,6 +12268,16 @@
         const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) || /\bthis way\b/i.test(body);
         const optional = !linked && /^you may /i.test(body);
         const parsed = parseEffects(optional ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
+        // the pair the "if" clause names is the pair that melds (meldPair)
+        const meldPair = [].concat(condition || []).find(c => c && c.kind === 'meldPair');
+        if (meldPair) {
+          const fill = (list) => (list || []).forEach(e => {
+            if (!e) return;
+            if (e.op === 'meld' && !e.partner) { e.partner = meldPair.name; e.partnerType = meldPair.type; }
+            fill(e.then); fill(e.list);
+          });
+          fill(parsed.effects);
+        }
         if (saddledOnly) condition = condition ? [].concat(condition, { kind: 'saddled' }) : { kind: 'saddled' };
         if (whileCond) condition = condition ? [].concat(condition, whileCond) : whileCond;
         /* "Whenever this creature attacks, it gets +2/+0": with nothing
@@ -15353,6 +15399,11 @@
         make: (m) => ({ op: 'keepManaColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
       // Void Winnower: "Your opponents can't cast spells with even mana values." "…can't block with creatures with even mana values."
       { re: /^Your opponents can'?t cast spells with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantCastParity', even: /even/i.test(m[1]) }), auto: true },
+      // Brisela, Voice of Nightmares: "Your opponents can't cast spells with mana value 3 or less." (opponentsCantCastMv)
+      { re: /^Your opponents can'?t cast spells with mana value (\d+) or (less|greater)\.?$/i,
+        make: (m) => (/less/i.test(m[2]) ? { op: 'opponentsCantCastMv', max: +m[1] } : { op: 'opponentsCantCastMv', min: +m[1] }), auto: true },
+      // Urza, Planeswalker: "You may activate the loyalty abilities of Urza twice each turn rather than only once." (loyaltyTwice)
+      { re: /^You may activate the loyalty abilities of (?:CARDNAME|this planeswalker) twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice' }, auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
       // Doc Aurlock, Aven Interrupter: "Spells you cast (your opponents cast) from your graveyard (graveyards) or from exile cost {2} less (more) to cast."
       { re: /^Spells (you|your opponents) cast from (?:your |their )?graveyards? or from exile cost \{(\d+)\} (less|more) to cast\.?$/i,

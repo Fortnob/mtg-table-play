@@ -97,6 +97,9 @@
       if (!c) continue;
       const text = [c.oracle_text || ''].concat((c.card_faces || []).map(f => f.oracle_text || '')).join('\n');
       for (const m of text.matchAll(CONJURE_RE)) for (const n of m[1].split(/\s+or\s+/)) out.add(n.trim());
+      /* Meld (CR 701.42): Gisela, the Broken Blade melds with Bruna into Brisela, Voice of Nightmares, a
+         card no deck holds, so it is fetched alongside (the game keeps it: Game._meldCard) */
+      for (const p of c.all_parts || []) if (p && p.component === 'meld_result' && p.name && p.name !== c.name) out.add(p.name);
     }
     return [...out].filter(n => n && !conjured.has(U.normName(n)));
   };

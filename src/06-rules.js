@@ -364,6 +364,8 @@
       p.sideboard = (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty }));
       p.deck = deck;
       this._loadDraftExtras(p, deck);
+      // a meld card's other half is in the deck too: the card the pair melds into, at hand before it is needed (_meldCard)
+      for (const c of deck.main.map(e => e.card).concat(deck.commanders || [])) { const r = this._meldResultName(c); if (r) this._meldCard(r); }
       this.rng.shuffle(z.library);
     }
 
@@ -1483,7 +1485,7 @@
           if (c.energy && (p.energy || 0) < c.energy) return false;
           if (x.sorcerySpeed && !this._equipAnyTime(playerId, x) && !(this.isMain && this.stackEmpty &&
               this.activePlayer && this.activePlayer.id === playerId)) return false;
-          if (x.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return false;
+          if (x.kind === 'loyalty' && this._loyaltyUsedUp(o)) return false;
           if (!this.couldPay(playerId, this._abilityMana(o, x), purse) && !(c.waterbend && this._waterbendPlan(playerId, o, x, this._abilityMana(o, x)))) return false;
           const specs = (x.targets || []).map(spec => ({ targets: [spec] })).concat(x.effects || []);
           return this._targetsAvailable(specs, playerId);
@@ -2481,6 +2483,160 @@
       }
     }
 
+    /* ---------- meld (CR 701.42, 712.4) ----------
+       The two cards of a meld pair, exiled, come back as one permanent with
+       the combined back face's characteristics. One of the two objects
+       carries it: its card is the meld result's for as long as it stays,
+       and the other card waits inside it (zone 'merged'), as a mutated
+       pile's cards do. Gisela, the Broken Blade and Bruna, the Fading Light
+       become Brisela, Voice of Nightmares; every pair melds the same way. */
+
+    /** The meld result named on a meld card (its Scryfall all_parts), or null. */
+    _meldResultName(card) {
+      const r = ((card && card.all_parts) || []).find(p => p && p.component === 'meld_result' && p.name !== card.name);
+      return r ? r.name : null;
+    }
+
+    /** The combined back face's card: kept with the game once found, so a save or an undo has it too. */
+    _meldCard(name) {
+      const key = U.normName(name || '');
+      if (!key) return null;
+      this.meldCards = this.meldCards || {};
+      if (this.meldCards[key]) return this.meldCards[key];
+      const c = this._cardByName(name);
+      if (c && U.normName(c.name) === key) this.meldCards[key] = c;
+      return this.meldCards[key] || null;
+    }
+
+    /** A copy of a melded permanent copies its combined back face, whose mana value is 0 (CR 712.8). */
+    _copiable(card) {
+      return card && card._melded ? Object.assign({}, card, { cmc: 0, _melded: undefined }) : card;
+    }
+
+    /**
+     * Meld (CR 701.42a): `src` and the permanent its words name ("a creature named
+     * Bruna, the Fading Light"), both owned and controlled by the ability's
+     * controller, are exiled and put onto the battlefield as one. Only the two
+     * cards of a meld pair can meld (701.42b); a card that was not exiled, or a
+     * token, leaves the other where it went (701.42c).
+     */
+    _meld(src, e, ctx) {
+      const me = this.player(ctx.controller);
+      if (!me || !src) return;
+      const name = U.normName;
+      const into = e.into || this._meldResultName(src.printedCard || src.card);
+      const partnerName = e.partner || (((src.printedCard || src.card).all_parts || [])
+        .find(p => p && p.component === 'meld_part' && name(p.name) !== name(src.card.name)) || {}).name;
+      const yours = (x) => !!x && x.zone === 'battlefield' && !x.phasedOut && x.owner === me.id && x.controller === me.id;
+      /* "If you both own and control Gisela and a creature named Bruna" (Mishra, Claimed by Gix: "are attacking,
+         and you both own and control them"); with more than one, the first is the one exiled */
+      const partner = partnerName ? this.battlefield.find(x => x !== src && yours(x) && name(x.name) === name(partnerName) &&
+        (!e.partnerType || this._cardFitsWords(x, e.partnerType)) && (!e.bothAttacking || !!x.attacking)) : null;
+      if (!into || !yours(src) || !partner || (e.bothAttacking && !src.attacking)) {
+        this.logEvent('rules', `${src.name}: nothing melds${partnerName ? ` (you need to own and control it and ${partnerName}${e.bothAttacking ? ', both attacking' : ''})` : ''}.`);
+        return;
+      }
+      const was = [src.name, partner.name];
+      // (a card the game has no data for is not worth both of these: they stay)
+      const rc = this._meldCard(into);
+      if (!rc) { this.logEvent('rules', `${was[0]} and ${was[1]} can't meld: the card ${into} could not be found.`); return; }
+      const defender = (e.entersAttacking && (src.attacking || partner.attacking)) || null;
+      // "exile them"
+      this.moveObject(src, 'exile', { meld: true });
+      this.moveObject(partner, 'exile', { meld: true });
+      // "then meld them": the two cards of the pair, both of them in exile
+      const fits = (x, n) => x.zone === 'exile' && !x.isToken && name(x.card.name) === name(n) &&
+        (!this._meldResultName(x.card) || name(this._meldResultName(x.card)) === name(into));
+      if (!fits(src, was[0]) || !fits(partner, was[1])) {
+        this.logEvent('rules', `${was[0]} and ${was[1]} can't meld, and stay where they went.`);
+        return;
+      }
+      /* One permanent, represented by both cards: a commander's card carries it, so the melded permanent is
+         that commander, its tax and its damage carried on (the rulings on Gisela, the Broken Blade) */
+      const host = partner.isCommander && !src.isCommander ? partner : src;
+      const other = host === src ? partner : src;
+      const mv = (c) => Number(c && c.cmc) || 0;
+      this._removeFromZone(other);
+      other.zone = 'merged';
+      other.mergedInto = host.id;
+      // its mana value is its two front faces' added up (CR 712.8)
+      host.meld = { card: host.card, partner: other.id };
+      host.card = Object.assign({}, rc, { cmc: mv(host.card) + mv(other.card), _melded: true });
+      host.face = 0;
+      host._chr = null;
+      this.logEvent('rules', `${me.name} melds ${was[0]} and ${was[1]} into ${rc.name}.`);
+      this.emit('sfx', 'transform');
+      this.moveObject(host, 'battlefield', { controller: me.id });
+      // sent somewhere else as it would have entered: both cards go there (CR 712.4)
+      if (host.zone !== 'battlefield') {
+        if (host.meld) this._meldOut(host, host.zone, {});
+        return;
+      }
+      // Mishra, Lost to Phyrexia: "It enters tapped and attacking." — the player or planeswalker Mishra was attacking
+      if (e.entersAttacking) {
+        host.tapped = true;
+        const def = defender && (this.player(defender) || (this.obj(defender) && this.obj(defender).zone === 'battlefield')) ? defender
+          : (this.opponentsOf(host.controller).find(q => !q.hasLost) || {}).id;
+        if (def && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+          host.attacking = def;
+          if (!this.combat.attackers.includes(host.id)) this.combat.attackers.push(host.id);
+        }
+      }
+      this.bumpBoard();
+    }
+
+    /**
+     * A melded permanent gone from the battlefield: its cards are their front
+     * faces again, and the other one goes where it went (CR 712.4) — to the
+     * command zone instead, if it is a commander. Put into a library, their
+     * owner says which goes first (the meld rulings).
+     */
+    _meldOut(host, toZone, opts) {
+      const m = host.meld;
+      if (!m) return;
+      host.meld = null;
+      host.card = m.card;
+      host.face = 0;
+      host._chr = null;
+      const x = this.obj(m.partner);
+      if (!x || x.zone !== 'merged') return;
+      x.mergedInto = null;
+      let dest = toZone === 'battlefield' || toZone === 'stack' ? 'graveyard' : toZone;
+      if (x.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(dest) && MTG.settings.commanderToZone !== false) dest = 'command';
+      this.moveObject(x, dest, { controller: x.owner, toBottom: !!(opts && opts.toBottom) });
+      const lib = (this.zones[host.owner] || {}).library || [];
+      if (host.zone === 'library' && x.zone === 'library' && lib.length > 1) {
+        const p = this.player(host.owner);
+        if (p && !p.isBot) this._meldOrderAsk = { owner: host.owner, ids: [host.id, x.id], bottom: !!(opts && opts.toBottom) };
+      }
+    }
+
+    /* The two cards of a melded permanent put into a library together: which goes first, once whatever put
+       them there is done (a library shuffled after leaves nothing to ask) */
+    _askMeldOrder() {
+      const ask = this._meldOrderAsk;
+      this._meldOrderAsk = null;
+      const lib = (this.zones[ask.owner] || {}).library || [];
+      const end = ask.bottom ? lib.slice(-2) : lib.slice(0, 2);
+      const objs = ask.ids.map(id => this.obj(id));
+      if (objs.some(o => !o || !end.includes(o))) return;
+      const s = MTG.choice.normalize({ type: 'choose', playerId: ask.owner, purpose: 'meldOrder', kind: 'objects', zone: 'library',
+        items: this._chooseItems(end), min: 1, max: 1, bottom: ask.bottom,
+        prompt: ask.bottom ? 'Your melded permanent went to the bottom of your library as two cards. Which of them goes at the very bottom?'
+          : 'Your melded permanent went on top of your library as two cards. Which of them goes on top?' });
+      this.queueChoice(s);
+    }
+    _meldOrder(ch, pick) {
+      const lib = (this.zones[ch.playerId] || {}).library || [];
+      const o = this.obj(pick);
+      const i = lib.indexOf(o);
+      if (!o || i < 0) return;
+      const want = ch.bottom ? lib.length - 1 : 0;
+      if (i === want || Math.abs(i - want) !== 1) return;
+      lib[i] = lib[want]; lib[want] = o;
+      this.logEvent('zone', `${this.player(ch.playerId).name} orders the two cards.`);
+    }
+
     /**
      * What an instant or sorcery does when it resolves.
      *
@@ -3161,6 +3317,12 @@
           }
         }
       }
+      // Urza, Planeswalker's +2: spells of these kinds cost less for the rest of the turn (costModTurn)
+      for (const e of ((this.player(pid) || {}).turnCostMods || [])) {
+        if (e.turn !== this.turn) continue;
+        if (e.words && e.words !== 'spell' && !this._cardFitsWords(o, e.words)) continue;
+        d += Number(e.amount) || 0;
+      }
       for (const sc of (a.selfCost || [])) {
         let k = 0;
         if (sc.per) k = this._countValue(sc.per, pid, o);
@@ -3767,6 +3929,15 @@
         const e0 = this._staticOp(vw, 'opponentsCantCastParity');
         const mv = (o.card && o.card.cmc) || 0;
         if ((mv % 2 === 0) === !!e0.even) return { ok: false, reason: `${vw.name}: you can't cast spells with ${e0.even ? 'even' : 'odd'} mana values.` };
+      }
+      // Brisela, Voice of Nightmares: "Your opponents can't cast spells with mana value 3 or less."
+      for (const q of this.opponentsOf(playerId)) {
+        const bv = this._anyStaticOf(q.id, 'opponentsCantCastMv');
+        if (!bv) continue;
+        const e1 = this._staticOp(bv, 'opponentsCantCastMv');
+        const mv = (o.card && o.card.cmc) || 0;
+        if (e1.max != null && mv <= e1.max) return { ok: false, reason: `${bv.name}: you can't cast spells with mana value ${e1.max} or less.` };
+        if (e1.min != null && mv >= e1.min) return { ok: false, reason: `${bv.name}: you can't cast spells with mana value ${e1.min} or greater.` };
       }
       // Lavinia, Azorius Renegade: no noncreature spell with mana value greater than the caster's lands (mvLandCap)
       if (!(o.analysis() || {}).isCreature) {
@@ -7075,7 +7246,7 @@
       if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab)) || ab.kind === 'loyalty') {
         if (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty)
           return this.fail('That ability is sorcery speed only.');
-        if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return this.fail('One loyalty ability per turn.');
+        if (ab.kind === 'loyalty' && this._loyaltyUsedUp(o)) return this.fail(this._staticOp(o, 'loyaltyTwice') ? 'Two loyalty abilities per turn.' : 'One loyalty ability per turn.');
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
         if (ab.kind === 'loyalty') { const sun = this._anyStatic('noLoyalty'); if (sun) return this.fail(`${sun.name}: loyalty abilities can't be activated.`); }
         // a minus ability needs that many loyalty counters to take off (CR 606.6)
@@ -7101,7 +7272,8 @@
       o._turnUses.n[ab.text] = (o._turnUses.n[ab.text] || 0) + 1;
 
       if (ab.kind === 'loyalty') {
-        o.activatedLoyaltyThisTurn = true;
+        // (how many this turn: Urza, Planeswalker may twice — loyaltyTwice)
+        o.activatedLoyaltyThisTurn = (Number(o.activatedLoyaltyThisTurn) || 0) + 1;
         const delta = this._loyaltyDelta(ab, opts);
         this.addCounters(o, 'loyalty', delta);
       }
@@ -10559,6 +10731,13 @@
       switch (cond.kind) {
         // Gathering Place: "if this land entered this turn or if you control a basic land"
         case 'any': return (cond.of || []).some(c => this._condMet(c, ctx));
+        /* Meld (CR 701.42): Gisela, the Broken Blade's "if you both own and control Gisela and a creature
+           named Bruna, the Fading Light" (meldPair) */
+        case 'meldPair': {
+          const yours = (x) => !!x && x.zone === 'battlefield' && !x.phasedOut && x.owner === me.id && x.controller === me.id;
+          return !!me && yours(src) && this.battlefield.some(x => x !== src && yours(x) && U.normName(x.name) === U.normName(cond.name) &&
+            (!cond.type || this._cardFitsWords(x, cond.type)));
+        }
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         case 'enduringStory': return !!me && !!me.enduringStory;
         case 'distinctNames': return !!me && new Set(this.battlefield.filter(x => x.controller === me.id && !x.phasedOut && this._hasSubtype(x, cond.subtype)).map(x => x.name)).size >= (cond.n || 1);
@@ -12210,6 +12389,10 @@
       if (from === 'battlefield' && toZone !== 'battlefield' && o.mutateCards) {
         this._unmutate(o, toZone);
       }
+      /* A melded permanent is two cards, and each goes where it went (CR 712.4) — before the commander's
+         own way to the command zone, which is its card's alone. It leaves as the melded permanent, and the
+         cards come apart once it has (meldOut, below). */
+      const meldTo = from === 'battlefield' && toZone !== 'battlefield' && o.meld ? toZone : null;
       /* A clone is only a copy while it is on the battlefield; anywhere
          else it is the card that was printed (CR 707.2). */
       // what it was as it left, for "if it was a creature" afterwards
@@ -12218,7 +12401,8 @@
            creature that was handed "When this creature dies, …" still has
            it when the trigger looks back, and a copy dies as the copy. */
         const was = o.analysis();
-        o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard ? was : null;
+        // (Ragnarok, Divine Deliverance: "When Ragnarok dies" is the melded permanent's, after its cards are Fang and Vanille again)
+        o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo ? was : null;
         const lc = this.characteristics(o);
         o._leftAsCreature = !!(lc && lc.isCreature);
         // its power as it last existed, for "equal to its power" after it has gone
@@ -12236,8 +12420,9 @@
       if (from === 'battlefield' && toZone !== 'battlefield' && o.printedCard) {
         o.card = o.printedCard; o.printedCard = null; o.copyOf = null; o._chr = null;
       }
-      // commander replacement effect (CR 903.9)
-      if (o.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from === 'battlefield') {
+      /* commander replacement effect (CR 903.9). Exiled to meld, a commander is back on the battlefield, melded,
+         before the state-based action that would send it to the command zone (CR 903.9a) is ever checked. */
+      if (o.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from === 'battlefield' && !opts.meld) {
         if (MTG.settings.commanderToZone !== false) toZone = 'command';
       }
       /* Oathbreaker: a Signature Spell that would go anywhere but the stack
@@ -12248,7 +12433,7 @@
         if (from === 'stack') this.logEvent('rules', `${o.name} returns to the command zone.`);
       }
       if (from === 'battlefield' && toZone !== 'battlefield') {
-        const wasA = o.analysis();
+        const wasA = o._lkiAnalysis || o.analysis();
         const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         h.permanentsLeft++;
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
@@ -12463,6 +12648,8 @@
         this._lastLeft = o.id;
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
       }
+      // (meldTo, above: gone as the melded permanent, its two cards are their front faces again, side by side)
+      if (meldTo && o.meld) this._meldOut(o, meldTo, opts);
       if (toZone === 'graveyard' && from !== 'battlefield') this._fire('cardToGraveyard', null, { object: o, objController: o.owner });
       // The Gitrog Monster: a card into a graveyard from anywhere, the battlefield as well
       if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
@@ -13471,6 +13658,7 @@
      */
     _copyExcept(card, own, e) {
       own = own || {};
+      card = this._copiable(card);
       /* "except it's an artifact in addition", "except it isn't legendary" */
       if ((e.addTypes || []).length || e.nonLegendary) {
         let line = String(card.type_line || '');
@@ -17673,7 +17861,7 @@
           if (!source) break;
           const cnt = nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
-          let card = source.card;
+          let card = this._copiable(source.card);
           let faceUp = source.face || 0;
           if ((card.card_faces || []).length > 1) {
             const legend0 = /\bLegendary\b/.test(String(card.type_line || ''));
@@ -21555,6 +21743,14 @@
         /* Nesting Grounds: a counter moved from one target to the other */
         /* Craft: the materials (other permanents you control, cards in your
            graveyard) exiled with this, and it comes back transformed */
+        // Meld (CR 701.42): Gisela, the Broken Blade, Urza, Lord Protector, Hanweir Battlements and the rest
+        case 'meld': this._meld(src, e, ctx); break;
+        // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast."
+        case 'costModTurn': {
+          if (!me || !e.mod) break;
+          me.turnCostMods = (me.turnCostMods || []).filter(x => x.turn === this.turn).concat(Object.assign({}, e.mod, { turn: this.turn }));
+          break;
+        }
         case 'craft': {
           if (!src || src.zone !== 'battlefield') break;
           const m = e.materials || { words: 'permanent', min: 1, max: 1 };
@@ -23485,7 +23681,7 @@
             model = got && got.picks.length ? this.obj(got.picks[0]) : null;
           } else model = firstObj();
           if (!model || model.zone !== 'battlefield') break;
-          const card = model.card, face = model.face || 0;
+          const card = this._copiable(model.card), face = model.face || 0;
           const others = e.of === 'chosenToken' ? yourTokens().filter(o => o !== model)
             : this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
           for (const o of others) {
@@ -24090,6 +24286,11 @@
 
     /** Is this permanent under a combat restriction right now? */
     /** The first static effect with this op on a permanent, if it has one. */
+    /** Has this permanent activated all the loyalty abilities it may this turn? One (CR 606.3); Urza, Planeswalker two (loyaltyTwice). */
+    _loyaltyUsedUp(o) {
+      const n = Number(o && o.activatedLoyaltyThisTurn) || 0;
+      return n > 0 && n >= (this._staticOp(o, 'loyaltyTwice') ? 2 : 1);
+    }
     _staticOp(o, op) {
       const a = o && o.analysis();
       if (!a) return null;
@@ -24432,6 +24633,8 @@
     /* ---------- state-based actions (CR 704) ---------- */
     checkStateBasedActions() {
       this._unattachWatch();
+      // a melded permanent's two cards put into a library: their owner orders them, once nothing else is going on
+      if (this._meldOrderAsk && !this.resolving) this._askMeldOrder();
       let repeat = true, guard = 0;
       this._checkAscend();
       while (repeat && guard++ < 20) {
@@ -24864,6 +25067,7 @@
           }
           data = { picks: got.picks, number: got.number, order: got.order };
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
+          if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // asked while casting: the cast starts again with the answer
           if (ch.then && ch.then.kind === 'cast') {
             const again = Object.assign({}, ch.then.opts);
@@ -26056,6 +26260,10 @@
           manifested: !!o.manifested,
           // Zack Fair: what was attached to it as it left the battlefield
           _lastAttachments: o._lastAttachments ? o._lastAttachments.slice() : null,
+          // meld: the card a melded permanent's own object was, and the other card inside it (and which one that is in)
+          meld: o.meld ? { card: o.meld.card, partner: o.meld.partner } : null, mergedInto: o.mergedInto || null,
+          // the loyalty abilities it has activated this turn (Urza, Planeswalker may twice)
+          activatedLoyaltyThisTurn: Number(o.activatedLoyaltyThisTurn) || 0,
         });
       }
       return {
@@ -26087,6 +26295,8 @@
           attackedWithTokenTurn: p.attackedWithTokenTurn == null ? null : p.attackedWithTokenTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
           companionUsed: !!p.companionUsed,
+          // Urza, Planeswalker's +2: what costs less for the rest of the turn
+          turnCostMods: p.turnCostMods ? JSON.parse(JSON.stringify(p.turnCostMods)) : null,
         })),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
@@ -26125,6 +26335,8 @@
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
         objSeq: this._objSeq, uidSeq: this._uidSeq, tsSeq: this._tsSeq || 0, exileSeq: this._exileSeq || 0,
+        // the meld results the decks can make (Brisela, Voice of Nightmares), and two melded cards waiting to be ordered in a library
+        meldCards: this.meldCards ? Object.assign({}, this.meldCards) : null, meldOrderAsk: this._meldOrderAsk || null,
       };
     }
 
@@ -26199,6 +26411,8 @@
       if (snap.isDay !== null && snap.isDay !== undefined) this.isDay = snap.isDay;
       this.holdFor = snap.holdFor || null;
       this.spellsThisTurn = snap.spellsThisTurn || 0;
+      this.meldCards = snap.meldCards ? Object.assign({}, snap.meldCards) : (this.meldCards || {});
+      this._meldOrderAsk = snap.meldOrderAsk || null;
       // the event stream carries on from the game as it now is
       this._evRebase();
       this.emit('state', this.stateVersion);
@@ -26484,6 +26698,8 @@
         agenda: !!(o.conspiracy && o.conspiracy.hidden && o.owner === playerId),
         // soulbond: the creature it is paired with
         pairedWith: o.zone === 'battlefield' ? ((this._pairOf(o) || {}).id || null) : null,
+        // meld: the two cards a melded permanent is (said only of one)
+        melded: o.meld && o.zone === 'battlefield' && !secret(o) ? [o.meld.card.name].concat(this.obj(o.meld.partner) ? [this.obj(o.meld.partner).name] : []) : undefined,
         power: (() => { const a = o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
         toughness: (() => { const a = o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
         /* what it has right now, granted keywords included, so the table can
