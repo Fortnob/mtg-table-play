@@ -4,10 +4,10 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10342,
+  "needed": 10337,
   "gainedCards": 949,
-  "linesNeeded": 10973,
-  "linesGained": 1109,
+  "linesNeeded": 10967,
+  "linesGained": 1108,
   "gained": {
    "all": 949,
    "top2000": 40,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3979,
-   "lines": 3742,
+   "score": 3977,
+   "lines": 3740,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 150,
-   "lines": 138,
+   "score": 149,
+   "lines": 137,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -2065,21 +2065,6 @@
    ]
   },
   {
-   "what": "PartyCount.instance",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Burakos, Party Leader",
-    "Archpriest of Iona",
-    "Concerted Defense",
-    "Practiced Tactics",
-    "Emeria Captain",
-    "Allied Assault",
-    "Grotag Bug-Catcher",
-    "Strength of Solidarity"
-   ]
-  },
-  {
    "what": "words:mv",
    "score": 8,
    "lines": 8,
@@ -2387,20 +2372,6 @@
    ]
   },
   {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "The Ooze",
-    "Zenos yae Galvus // Shinryu, Transcendent Rival",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Genku, Future Shaper",
-    "Nikara, Lair Scavenger",
-    "Dual Nature"
-   ]
-  },
-  {
    "what": "PayEnergyCost",
    "score": 7,
    "lines": 7,
@@ -2580,6 +2551,20 @@
     "Mild-Mannered Librarian",
     "Goblin Ski Patrol",
     "Subversive Acolyte"
+   ]
+  },
+  {
+   "what": "PartyCount.instance",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Archpriest of Iona",
+    "Concerted Defense",
+    "Practiced Tactics",
+    "Emeria Captain",
+    "Allied Assault",
+    "Grotag Bug-Catcher",
+    "Strength of Solidarity"
    ]
   },
   {
@@ -2804,6 +2789,19 @@
     "Patron of the Nezumi",
     "Patron of the Kitsune",
     "Patron of the Akki"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "The Ooze",
+    "Zenos yae Galvus // Shinryu, Transcendent Rival",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Genku, Future Shaper",
+    "Nikara, Lair Scavenger",
+    "Dual Nature"
    ]
   },
   {
@@ -6437,8 +6435,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3331,
-   "cards": 3175,
+   "score": 3329,
+   "cards": 3173,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6489,8 +6487,8 @@
   },
   {
    "what": "custom condition",
-   "score": 117,
-   "cards": 114,
+   "score": 116,
+   "cards": 113,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -7479,19 +7477,6 @@
    ]
   },
   {
-   "what": "PartyCount.instance",
-   "score": 8,
-   "cards": 8,
-   "names": [
-    "Burakos, Party Leader",
-    "Archpriest of Iona",
-    "Concerted Defense",
-    "Practiced Tactics",
-    "Emeria Captain",
-    "Allied Assault"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility from GRAVEYARD",
    "score": 8,
    "cards": 8,
@@ -7903,6 +7888,19 @@
     "Heartseeker",
     "Leonin Bola",
     "Shuriken"
+   ]
+  },
+  {
+   "what": "PartyCount.instance",
+   "score": 7,
+   "cards": 7,
+   "names": [
+    "Archpriest of Iona",
+    "Concerted Defense",
+    "Practiced Tactics",
+    "Emeria Captain",
+    "Allied Assault",
+    "Grotag Bug-Catcher"
    ]
   },
   {
@@ -8528,18 +8526,6 @@
     "Lilting Refrain",
     "Ixidor's Will",
     "Phantasmal Sphere"
-   ]
-  },
-  {
-   "what": "LeavesBattlefieldAllTriggeredAbility",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "The Ooze",
-    "Aang, at the Crossroads // Aang, Destined Savior",
-    "Suki, Courageous Rescuer",
-    "Genku, Future Shaper",
-    "Nikara, Lair Scavenger"
    ]
   },
   {
@@ -9232,6 +9218,17 @@
     "Thieving Varmint",
     "Overgrown Zealot",
     "Jeweled Lotus"
+   ]
+  },
+  {
+   "what": "LeavesBattlefieldAllTriggeredAbility",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "The Ooze",
+    "Aang, at the Crossroads // Aang, Destined Savior",
+    "Genku, Future Shaper",
+    "Nikara, Lair Scavenger"
    ]
   },
   {

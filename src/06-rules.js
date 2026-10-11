@@ -10656,6 +10656,14 @@
           const xB = tdB.objectId && this.obj(tdB.objectId);
           return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
         }
+        // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
+        // (Oblivion's Hunger: with no trigger, "that creature" is the target)
+        case 'triggerObjCounter': {
+          const tdC = (ctx && ctx.triggerData) || {};
+          const tgC = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const xC = this.obj(tdC.objectId || (tgC && tgC.id));
+          return !!xC && (Number((xC.counters || {})[cond.counter]) || 0) > 0;
+        }
         // Preston, the Vanisher: "if it wasn't cast" — the one that entered, or this one (notCastTrigger)
         case 'notCastTrigger': { const tdN = (ctx && ctx.triggerData) || {}; const xN = tdN.objectId ? this.obj(tdN.objectId) : src; return !!xN && xN.wasCast == null; }
         case 'castFromGraveyard': return !!ctx && (ctx.fromZone === 'graveyard');
@@ -13593,6 +13601,8 @@
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
+          // Burakos, Party Leader: "defending player loses X life" — the one its source attacks (defendingLosesX)
+          else if (e.who === 'defending') { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id; const p = dp && this.player(dp); if (p) this.changeLife(p, -cnt); }
           // Liliana, Waker of the Dead: "each opponent who can't" discard (couldNot)
           else if (e.who === 'couldNot') {
             for (const id of this._couldNot || []) {

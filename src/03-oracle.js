@@ -2484,6 +2484,11 @@
     // Shelinda, Yevon Acolyte: "put a +1/+1 counter on that creature if its power is less than Shelinda's power" (triggerPowerBelowSelf)
     { re: /^Put an? \+1\/\+1 counter on that creature if its power is less than (?:CARDNAME|this creature)'?s power\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerBelowSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerObject' }] }) },
+    // Marcus, Mutant Mayor: "If it doesn't, put a +1/+1 counter on it." — the other branch (triggerObjCounter)
+    { re: /^If it doesn'?t, put an? \+1\/\+1 counter on it\.?$/i, make: () => ({ op: 'noop', otherwiseOf: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerObject' }] }) },
+    // Burakos, Party Leader: "defending player loses X life and you create X Treasure tokens, where X is …" (defendingLosesX)
+    { re: /^defending player loses X life and you create X (Treasure|Food|Clue) tokens, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? [{ op: 'loseLife', n: k, who: 'defending' }, { op: 'createNamedToken', n: k, token: m[1] }] : null; } },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -9757,6 +9762,8 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
+    [/^that creature has an? (\+1\/\+1|[a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjCounter', counter: m[1].toLowerCase() })],
     // M'Baku, Jabari Chieftain: "if that player is the monarch" — the player the trigger is about (triggerPlayerMonarch)
     [/^that player is the monarch$/i, () => ({ kind: 'triggerPlayerMonarch' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -10328,6 +10335,8 @@
        opponent's graveyard from the battlefield" — dying, with whose it was */
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
       event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.who = /your/i.test(m[2]) ? 'you' : 'opponent'; return f; } },
+    // Suki, Courageous Rescuer: "Whenever another permanent you control leaves the battlefield during your turn" (leavesYourTurn)
+    { re: new RegExp('^Whenever ' + SUBJ + ' leaves the battlefield during your turn,? ', 'i'), event: 'permLeaves', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Jenova, Ancient Calamity, Vogar: "Whenever a Mutant you control dies during your turn" (diesYourTurn)
     { re: new RegExp('^Whenever ' + SUBJ + ' dies during your turn,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Boneyard Scourge: "Whenever a Dragon you control dies while this card is in your graveyard"
@@ -10434,6 +10443,8 @@
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
     { re: /^When(?:ever)? you sacrifice an? ([A-Z][a-z]+) or ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase() }) },
+    // Savra, Queen of the Golgari: "Whenever you sacrifice a black creature" (sacColouredCreature)
+    { re: /^When(?:ever)? you sacrifice (an? (?:white|blue|black|red|green) creature),? /i, event: 'youSacrifice', filt: (m) => subjectFilter(m[1]) },
     // Szarel, Genesis Shepherd: "Whenever you sacrifice another nontoken permanent during your turn" (sacAnotherYourTurn)
     { re: /^When(?:ever)? you sacrifice (another (?:nontoken )?(?:permanent|creature|artifact|enchantment|land))( during your turn)?,? /i, event: 'youSacrifice',
       filt: (m) => subjectFilter(m[1]), extraOf: (m) => (m[2] ? { yourTurnOnly: true } : {}) },

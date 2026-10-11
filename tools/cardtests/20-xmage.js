@@ -23519,4 +23519,61 @@ module.exports = (test) => {
     T.g._advanceSaga(h2, 1); T.resolve();
     t.ok(T.bfOf('A').some(o => o.name === 'The Eldest Reborn'), 'Tom Bombadil: The Eldest Reborn is put onto the battlefield');
   });
+
+  test("Commanders: Suki, Savra, Marcus, Burakos; Oblivion's Hunger", (mk, t) => {
+    for (const n of ['Suki, Courageous Rescuer', 'Savra, Queen of the Golgari', 'Marcus, Mutant Mayor', 'Burakos, Party Leader', "Oblivion's Hunger"]) t.auto(n);
+    const kill = (T, o) => { T.g.dealDamageToObject(o, 9, null, false); T.g.checkStateBasedActions(); T.resolve(); };
+    const allies = (T) => T.bfOf('A').filter(o => o.isToken && /Ally/.test(o.name)).length;
+    // Suki: another permanent of A's leaves on A's turn, an Ally, once each turn; not on B's turn
+    const S = mk({ library: Array(20).fill('Plains') });
+    S.toMain('A');
+    S.bf('A', 'Suki, Courageous Rescuer');
+    kill(S, S.bf('A', 'Grizzly Bears')); kill(S, S.bf('A', 'Grizzly Bears'));
+    t.eq(allies(S), 1, "Suki: two left on A's turn, one Ally (once each turn)");
+    S.toMain('B');
+    kill(S, S.bf('A', 'Grizzly Bears'));
+    t.eq(allies(S), 1, "Suki: on B's turn, nothing");
+    // Savra: A sacrifices a black creature and pays 2 life; B sacrifices a creature
+    const V = mk({ library: Array(20).fill('Swamp') });
+    V.toMain('A');
+    V.bf('A', 'Savra, Queen of the Golgari');
+    const bb = V.bf('B', 'Grizzly Bears');
+    V.answer('mayPay', true); V.answer('may', true);
+    V.g._sacrificeNow('A', [V.bf('A', 'Walking Corpse')]); V.resolve();
+    t.zone(bb, 'graveyard', 'Savra: B sacrifices the Bears');
+    t.eq(V.life('A'), 18, 'Savra: A paid 2 life');
+    V.g._sacrificeNow('A', [V.bf('A', 'Grizzly Bears')]); V.resolve();
+    t.eq(V.life('A'), 20, 'Savra: a green creature, 2 life');
+    V.g._sacrificeNow('A', [V.bf('A', 'Goblin Piker')]); V.resolve();
+    t.eq(V.life('A'), 20, 'Savra: a red creature, nothing');
+    // Marcus: a creature with a +1/+1 counter hits, a card; one without, a counter
+    const M = mk({ library: Array(20).fill('Forest') });
+    M.toMain('A');
+    M.bf('A', 'Marcus, Mutant Mayor');
+    const c1 = M.bf('A', 'Grizzly Bears'); c1.counters['+1/+1'] = 1;
+    const c2 = M.bf('A', 'Grizzly Bears');
+    const h0 = M.zone('A', 'hand').length;
+    M.g._fire('permCombatDamage', 'A', { object: c1, objController: 'A', source: c1, amount: 3, player: 'B' }); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Marcus: the Bears with a counter hit, a card');
+    M.g._fire('permCombatDamage', 'A', { object: c2, objController: 'A', source: c2, amount: 2, player: 'B' }); M.resolve();
+    t.ok(M.zone('A', 'hand').length - h0 === 1 && (Number(c2.counters['+1/+1']) || 0) === 1, 'Marcus: the Bears without one, a counter instead');
+    // Burakos: defending player loses X and A makes X Treasures, X the party
+    const B = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    B.toMain('A');
+    const bu = B.bf('A', 'Burakos, Party Leader'); bu.summoningSick = false;
+    B.bf('A', 'Grizzly Bears');
+    B.answer('declareAttackers', () => [{ attackerId: bu.id, defenderId: 'C' }]);
+    B.toMain('A', 'declareBlockers'); B.resolve();
+    const party = B.g._partySize('A');
+    t.ok(party >= 1 && B.life('C') === 20 - party && B.life('B') === 20, 'Burakos: C, the defending player, loses the party size; B nothing');
+    t.eq(B.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, party, 'Burakos: as many Treasures');
+    // Oblivion's Hunger: the target's counter
+    const O = mk({ library: Array(20).fill('Swamp') });
+    O.toMain('A');
+    const wc = O.bf('A', 'Grizzly Bears'); wc.counters['+1/+1'] = 1;
+    const o0 = O.zone('A', 'hand').length + 1;
+    O.mana('A', '1B');
+    O.cast('A', O.hand('A', "Oblivion's Hunger"), { targets: [{ kind: 'object', id: wc.id }] }); O.resolve();
+    t.eq(O.zone('A', 'hand').length - o0, 0, "Oblivion's Hunger: the target has a counter, a card (one cast, one drawn)");
+  });
 };
