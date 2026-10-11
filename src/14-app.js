@@ -132,7 +132,10 @@
     const members = sess ? sess.roster : (App.lobbyMembers || []);
     const r = members.find(x => x.id === pid);
     if (!r) return null;
-    if (r.kind === 'local' || (!sess && pid === (App.clientYou || null))) return MTG.economy.sleeveWorn();
+    /* yours: the seat that is local to this table, or, for a guest (no
+       table of its own), the seat that is you. The host's own seat comes to
+       a guest marked local too, as the host sees it, and is the host's. */
+    if (sess ? r.kind === 'local' : pid === (App.clientYou || null)) return MTG.economy.sleeveWorn();
     if (r.kind === 'bot') {
       const pats = MTG.economy.SLEEVES.filter(x => x.kind === 'pattern');
       let h = 0; for (const ch of String(r.name || pid)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -270,7 +273,8 @@
     const members = sess ? sess.roster : (App.lobbyMembers || []);
     const r = members.find(x => x.id === pid);
     if (!r) return null;
-    if (r.kind === 'local' || (!sess && pid === (App.clientYou || null))) return MTG.economy.frameWorn();
+    // yours as for the sleeve: the host's seat, marked local where it comes from, is the host's
+    if (sess ? r.kind === 'local' : pid === (App.clientYou || null)) return MTG.economy.frameWorn();
     return r.frame && MTG.economy.frameById(r.frame) ? r.frame : null;
   };
   /**
