@@ -2502,6 +2502,9 @@
     // Yorvo, Lord of Garenbrig: "Then if that creature's power is greater than Yorvo's power, put another +1/+1 counter on Yorvo." (triggerPowerAboveSelf)
     { re: /^(?:Then )?if that creature'?s power is greater than (?:CARDNAME|this creature)'?s power, put another \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerAboveSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] }) },
+    // Shaile, Dean of Radiance: "Put a +1/+1 counter on each creature that entered the battlefield under your control this turn." (enteredUnderYou)
+    { re: /^Put an? \+1\/\+1 counter on each creature that entered the battlefield under your control this turn\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', enteredThisTurn: true } }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -6421,6 +6424,8 @@
     // (Death's Presence: "the power of the creature that died")
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Crystal, Inhuman Princess: "the number of colors that spell is" (spellColorsAmount)
+    if (/^the number of colou?rs that spell is$/i.test(p)) return done({ ofTrigger: 'colorCount' });
     // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
     if (/^that Saga'?s mana value$/i.test(p)) return done({ ofTrigger: 'mv' });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
@@ -9787,6 +9792,8 @@
     [/^it has (madness|flashback|cycling|kicker)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],
     // ED-E, Lonesome Eyebot: "if the number of attacking creatures is greater than the number of quest counters on ED-E" (attackersOverCounters)
     [/^the number of attacking creatures is greater than the number of ([a-z]+) counters on (?:CARDNAME|this creature|it)$/i, (m) => ({ kind: 'attackersOverCounters', counter: m[1].toLowerCase() })],
+    // Eshki Dragonclaw: "if you've cast both a creature spell and a noncreature spell this turn" (castBothKinds)
+    [/^you'?ve cast both a creature spell and a noncreature spell this turn$/i, () => ({ kind: 'castBothKinds' })],
     // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -14145,9 +14152,10 @@
     { re: /^If one or more \+1\/\+1 counters would be put on another creature you control, that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Other', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', what: 'creature', notSelf: true }) },
     /* Hardened Scales and friends: one more counter, or twice as many */
-    { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
+    // (Caradora, Heart of Alacria: "a creature or Vehicle you control" — plusOneVehicle)
+    { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature|creature or Vehicle) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
-        / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+        / or /.test(m[1]) ? { whatAny: m[1].toLowerCase().split(' or ') } : { what: m[1].toLowerCase() }) },
     // Mowu, Loyal Companion: "If one or more +1/+1 counters would be put on Mowu, that many plus one … on it instead." (selfCountersPlus)
     { re: /^If one or more \+1\/\+1 counters would be put on (?:CARDNAME|this creature), that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Self', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', selfOnly: true }) },
@@ -15129,6 +15137,9 @@
         make: () => ({ op: 'blocksExtra', n: 99 }), auto: true },
       // Bouncing Beebles: "can't be blocked as long as defending player controls an artifact"
       // Glittering Lion: "Prevent all damage that would be dealt to this creature."
+      // Goldbug, Humanity's Ally: "Prevent all combat damage that would be dealt to attacking Humans you control." (preventCombatToGroup)
+      { re: /^Prevent all combat damage that would be dealt to (attacking )?([A-Z][a-z]+s|creatures) you control\.?$/,
+        make: (m) => { const sc = scopeOf((m[1] || '') + m[2] + ' you control'); return sc && !sc.self && (!m[1] || sc.attacking) ? { op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' } : null; }, auto: true },
       // Emmara Tandris: "Prevent all damage that would be dealt to creature tokens you control." (preventToGroup)
       { re: /^Prevent all damage that would be dealt to ((?:[a-z]+ )*(?:creature|creatures|creature tokens|tokens)) you control\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, flag: 'noDamageTaken' },

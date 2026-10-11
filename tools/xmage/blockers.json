@@ -4,12 +4,12 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10303,
-  "gainedCards": 952,
-  "linesNeeded": 10931,
+  "needed": 10299,
+  "gainedCards": 953,
+  "linesNeeded": 10925,
   "linesGained": 1108,
   "gained": {
-   "all": 952,
+   "all": 953,
    "top2000": 40,
    "stdTop": 6
   },
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 162,
-   "lines": 147,
+   "score": 161,
+   "lines": 146,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 146,
-   "lines": 134,
+   "score": 145,
+   "lines": 133,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -974,25 +974,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 13,
-   "lines": 13,
-   "cards": [
-    "Mana Cannons",
-    "Niv-Mizzet, Guildpact",
-    "Anathemancer",
-    "Monstrous Emergence",
-    "Moonveil Regent",
-    "Voracious Dragon",
-    "Close Encounter",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt",
-    "Galvanic Bombardment",
-    "Blazing Effigy",
-    "Kindle"
-   ]
-  },
-  {
    "what": "EntersBattlefieldEffect",
    "score": 12,
    "lines": 12,
@@ -1141,6 +1122,25 @@
     "Thoughtweft Trio",
     "Nova Chaser",
     "Supreme Exemplar"
+   ]
+  },
+  {
+   "what": "DamageTargetEffect amount",
+   "score": 12,
+   "lines": 12,
+   "cards": [
+    "Niv-Mizzet, Guildpact",
+    "Anathemancer",
+    "Monstrous Emergence",
+    "Moonveil Regent",
+    "Voracious Dragon",
+    "Close Encounter",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment",
+    "Blazing Effigy",
+    "Kindle",
+    "Sarkhan's Scorn"
    ]
   },
   {
@@ -2287,20 +2287,6 @@
    ]
   },
   {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Shaile, Dean of Radiance // Embrose, Dean of Shadow",
-    "Romana II"
-   ]
-  },
-  {
    "what": "PermanentPredicate.instance",
    "score": 7,
    "lines": 7,
@@ -2620,6 +2606,19 @@
     "Sidewinder Naga",
     "Gilded Cerodon",
     "Wretched Camel"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 6,
+   "lines": 6,
+   "cards": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Romana II"
    ]
   },
   {
@@ -4849,17 +4848,6 @@
    ]
   },
   {
-   "what": "PreventAllDamageToAllEffect",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Rescue Retriever",
-    "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout",
-    "Bubble Matrix",
-    "Ethersworn Shieldmage"
-   ]
-  },
-  {
    "what": "DealsDamageSourceTriggeredAbility",
    "score": 4,
    "lines": 4,
@@ -6056,6 +6044,16 @@
    ]
   },
   {
+   "what": "PreventAllDamageToAllEffect",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Rescue Retriever",
+    "Bubble Matrix",
+    "Ethersworn Shieldmage"
+   ]
+  },
+  {
    "what": "cant be blocked except",
    "score": 3,
    "lines": 3,
@@ -6442,8 +6440,8 @@
   },
   {
    "what": "custom ability",
-   "score": 498,
-   "cards": 459,
+   "score": 499,
+   "cards": 460,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6481,8 +6479,8 @@
   },
   {
    "what": "custom condition",
-   "score": 113,
-   "cards": 110,
+   "score": 112,
+   "cards": 109,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -6494,8 +6492,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 92,
-   "cards": 89,
+   "score": 91,
+   "cards": 88,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",
@@ -7315,19 +7313,6 @@
    ]
   },
   {
-   "what": "DamageTargetEffect amount",
-   "score": 9,
-   "cards": 9,
-   "names": [
-    "Mana Cannons",
-    "Anathemancer",
-    "Voracious Dragon",
-    "Pyre-Sledge Arsonist",
-    "Electrostatic Bolt",
-    "Galvanic Bombardment"
-   ]
-  },
-  {
    "what": "prevent damage by some permanents",
    "score": 9,
    "cards": 9,
@@ -7562,6 +7547,19 @@
    ]
   },
   {
+   "what": "DamageTargetEffect amount",
+   "score": 8,
+   "cards": 8,
+   "names": [
+    "Anathemancer",
+    "Voracious Dragon",
+    "Pyre-Sledge Arsonist",
+    "Electrostatic Bolt",
+    "Galvanic Bombardment",
+    "Blazing Effigy"
+   ]
+  },
+  {
    "what": "RevealCardsFromLibraryUntilEffect",
    "score": 8,
    "cards": 8,
@@ -7609,19 +7607,6 @@
     "Golden-Tail Trainer",
     "Edgewalker",
     "Ragemonger"
-   ]
-  },
-  {
-   "what": "EnteredThisTurnPredicate.instance",
-   "score": 7,
-   "cards": 7,
-   "names": [
-    "Forge of Heroes",
-    "Sweet-Gum Recluse",
-    "Drannith Ruins",
-    "Let the Galaxy Burn",
-    "The Fifth Doctor",
-    "Shaile, Dean of Radiance // Embrose, Dean of Shadow"
    ]
   },
   {
@@ -8035,6 +8020,19 @@
     "Exploration Broodship",
     "Inspirit, Flagship Vessel",
     "Synthesizer Labship"
+   ]
+  },
+  {
+   "what": "EnteredThisTurnPredicate.instance",
+   "score": 6,
+   "cards": 6,
+   "names": [
+    "Forge of Heroes",
+    "Sweet-Gum Recluse",
+    "Drannith Ruins",
+    "Let the Galaxy Burn",
+    "The Fifth Doctor",
+    "Romana II"
    ]
   },
   {

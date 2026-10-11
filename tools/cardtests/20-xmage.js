@@ -23879,4 +23879,55 @@ module.exports = (test) => {
     E2.toMain('A', 'declareBlockers'); E2.resolve();
     t.eq(Number(ed2.counters.quest) || 0, 1, 'ED-E: one attacker, one quest counter, nothing more');
   });
+
+  test('Commanders: Caradora, Shaile, Crystal, Goldbug, Eshki Dragonclaw; Mana Cannons', (mk, t) => {
+    for (const n of ['Caradora, Heart of Alacria', 'Crystal, Inhuman Princess', 'Eshki Dragonclaw', 'Mana Cannons']) t.auto(n);
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Caradora: +1/+1 counters on a Vehicle of A's come one more
+    const C = mk({ library: Array(20).fill('Plains') });
+    C.bf('A', 'Caradora, Heart of Alacria');
+    const vh = C.bf('A', 'Smuggler\'s Copter'), sol = C.bf('A', 'Sol Ring');
+    C.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'permanent' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: vh.id }] }));
+    C.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'permanent' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: sol.id }] }));
+    t.ok((Number(vh.counters['+1/+1']) || 0) === 2 && (Number(sol.counters['+1/+1']) || 0) === 1, 'Caradora: two on the Copter, one on the Sol Ring');
+    // Shaile: a counter on each creature that entered under A's control this turn
+    const S = mk({ library: Array(20).fill('Plains') });
+    S.toMain('A');
+    const sh = S.bf('A', 'Shaile, Dean of Radiance // Embrose, Dean of Shadow'); sh.summoningSick = false;
+    const old = S.bf('A', 'Grizzly Bears'); old.entered = S.g.turn - 1;
+    const nu = S.hand('A', 'Grizzly Bears'); S.mana('A', '1G'); S.cast('A', nu); S.resolve();
+    S.activate('A', sh, 0); S.resolve();
+    t.ok((Number(nu.counters['+1/+1']) || 0) === 1 && !(Number(old.counters['+1/+1']) || 0), 'Shaile: the new Bears get a counter, the old ones not');
+    // Crystal: a noncreature spell, its colours in damage to each opponent
+    const R = mk({ library: Array(20).fill('Island') });
+    R.toMain('A');
+    R.bf('A', 'Crystal, Inhuman Princess');
+    R.mana('A', 'BR'); R.cast('A', R.hand('A', 'Terminate'), { targets: [{ kind: 'object', id: R.bf('B', 'Grizzly Bears').id }] }); R.resolve();
+    t.eq(R.life('B'), 18, 'Crystal: Terminate is two colours, 2 to B');
+    // Goldbug: attacking Humans take no combat damage; the others do
+    const G = mk({ library: Array(20).fill('Plains') });
+    G.toMain('A');
+    G.bf('A', 'Goldbug, Humanity\'s Ally // Goldbug, Scrappy Scout');
+    const hu = G.bf('A', 'Elite Vanguard'); hu.summoningSick = false;
+    G.g.bumpBoard();
+    t.ok(!G.g._hasFlag(hu, 'noDamageTaken'), 'Goldbug: a Human at home is not covered');
+    G.answer('declareAttackers', () => [{ attackerId: hu.id, defenderId: 'B' }]);
+    G.toMain('A', 'declareBlockers'); G.g.bumpBoard();
+    t.ok(G.g._hasFlag(hu, 'noDamageTaken'), 'Goldbug: the attacking Human is');
+    // Eshki Dragonclaw: a creature spell and a noncreature spell cast this turn, at combat a card and two counters
+    const E = mk({ library: Array(20).fill('Forest') });
+    E.toMain('A');
+    const ek = E.bf('A', 'Eshki Dragonclaw');
+    E.mana('A', '1G'); E.cast('A', E.hand('A', 'Grizzly Bears')); E.resolve();
+    E.mana('A', 'G'); E.cast('A', E.hand('A', 'Giant Growth'), { targets: [{ kind: 'object', id: ek.id }] }); E.resolve();
+    const h0 = E.zone('A', 'hand').length;
+    E.toMain('A', 'beginCombat'); E.resolve();
+    t.ok(E.zone('A', 'hand').length - h0 === 1 && (Number(ek.counters['+1/+1']) || 0) === 2, 'Eshki Dragonclaw: both kinds cast, a card and two counters');
+    const E2 = mk({ library: Array(20).fill('Forest') });
+    E2.toMain('A');
+    const ek2 = E2.bf('A', 'Eshki Dragonclaw');
+    E2.mana('A', '1G'); E2.cast('A', E2.hand('A', 'Grizzly Bears')); E2.resolve();
+    E2.toMain('A', 'beginCombat'); E2.resolve();
+    t.eq(Number(ek2.counters['+1/+1']) || 0, 0, 'Eshki Dragonclaw: only a creature spell, nothing');
+  });
 };

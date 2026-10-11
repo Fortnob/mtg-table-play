@@ -9490,7 +9490,7 @@
         if (!a) return false;
         const fits = ef.whatAny.some(w => w === 'permanent' || (w === 'nonland' ? !a.isLand
           : w === 'nonbasic land' ? (a.isLand && !(a.supertypes || []).includes('Basic'))
-          : (a.types || []).some(t => t.toLowerCase() === w)));
+          : (a.types || []).some(t => t.toLowerCase() === w) || (a.subtypes || []).some(t => t.toLowerCase() === w)));   // (Caradora: "or Vehicle" — plusOneVehicle)
         if (!fits) return false;
       }
       // "+1/+1 counters would be put on…" is only those counters
@@ -10745,6 +10745,9 @@
           return !!xK && !!(((xK.analysis() || {}).keywordSet) || new Set()).has(cond.keyword); }   // (triggerHasKeyword)
         // ED-E, Lonesome Eyebot: more attackers than its quest counters (attackersOverCounters)
         case 'attackersOverCounters': return !!src && ((this.combat && this.combat.attackers) || []).length > (Number((src.counters || {})[cond.counter]) || 0);
+        // Eshki Dragonclaw: a creature spell and a noncreature spell this turn (castBothKinds)
+        case 'castBothKinds': { const castB = (me && me.spellObjsThisTurn) || [];
+          return castB.some(x => this._cardFitsWords(x, 'creature')) && castB.some(x => !this._cardFitsWords(x, 'creature')); }
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
