@@ -2983,6 +2983,15 @@
     { re: /^(Target opponent|Each opponent) creates? an? (tapped )?(Treasure|Food|Clue|Blood|Map) token\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'target', targets: [{ type: 'player', opponent: true }] }
         : { op: 'createNamedToken', n: 1, token: m[3], tapped: !!m[2], who: 'opponents' }) },
+    // Viv Vision: "draw a card if her power is 4 or greater"; Inga Rune-Eyes: "draw three cards if three or more creatures died this turn" (drawIfLate)
+    { re: /^[Dd]raw (a|one|two|three|four) cards? if (.+?)\.?$/,
+      make: (m) => {
+        const c = condOf(m[2].replace(/^(?:his|her|its|their) power\b/i, "CARDNAME's power"));
+        return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'you' }] } : null;
+      } },
+    // Yukora, the Prisoner: "sacrifice all non-Ogre creatures you control"; Emrakul, the World Anew: "sacrifice all creatures you control" (sacrificeAllYours)
+    { re: /^[Ss]acrifice all ((?:non-[A-Z][a-z]+ |[a-z]+ )*(?:creatures|permanents|artifacts|lands|enchantments)) you control\.?$/,
+      make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && sc.who === 'you' && !sc.self ? { op: 'sacrificeAllYours', scope: sc } : null; } },
     // Imoen, Mystic Trickster: "Draw another card if you've completed a dungeon." (drawAnotherIf)
     { re: /^Draw another card if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] } : null; } },
@@ -9270,6 +9279,15 @@
       };
       walk(res.effects);
     }
+    // Hellion Eruption: "Sacrifice all creatures you control, then create that many …" — as many as were sacrificed (sacrificeAllYours)
+    if (res && res.effects && res.effects.some(e => e && e.op === 'sacrificeAllYours')) {
+      let after = false;
+      for (const e of res.effects) {
+        if (!e) continue;
+        if (e.op === 'sacrificeAllYours') { after = true; continue; }
+        if (after && e.n === 'triggerAmount') e.n = { lastSacCount: true };
+      }
+    }
     return res;
   }
 
@@ -10391,6 +10409,8 @@
     { re: /^When(?:ever)? an opponent discards an? (creature|land|noncreature, nonland|artifact|instant or sorcery) card,? /i,
       event: 'opponentDiscards', extraOf: (m) => ({ discardWords: m[1].toLowerCase().replace(/,\s*/g, ' ') }) },
     { re: /^When(?:ever)? a player discards a card,? /i, event: 'anyDiscard' },
+    // Tinybones, Pocket Nuisance: "Whenever a player discards one or more cards" — once for the lot (anyDiscardBatch)
+    { re: /^Whenever a player discards one or more cards,? /i, event: 'anyDiscard', extra: { batch: true } },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },

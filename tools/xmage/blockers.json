@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10410,
+  "needed": 10402,
   "gainedCards": 952,
-  "linesNeeded": 11051,
+  "linesNeeded": 11042,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4000,
-   "lines": 3757,
+   "score": 3999,
+   "lines": 3756,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -51,8 +51,8 @@
   },
   {
    "what": "custom ability",
-   "score": 660,
-   "lines": 606,
+   "score": 659,
+   "lines": 605,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -126,25 +126,6 @@
    ]
   },
   {
-   "what": "custom condition",
-   "score": 154,
-   "lines": 142,
-   "cards": [
-    "Ojer Axonil, Deepest Might // Temple of Power",
-    "Sting, the Glinting Dagger",
-    "The Chain Veil",
-    "Blitzball",
-    "Lux Artillery",
-    "Rith, Liberated Primeval",
-    "Tinybones, Trinket Thief",
-    "March of the Canonized",
-    "Gavel of the Righteous",
-    "Eshki, Temur's Roar",
-    "Sab-Sunen, Luxa Embodied",
-    "Shelinda, Yevon Acolyte"
-   ]
-  },
-  {
    "what": "Ability.setTargetAdjuster",
    "score": 153,
    "lines": 147,
@@ -161,6 +142,25 @@
     "Demonic Junker",
     "Kitesail Larcenist",
     "Guff Rewrites History"
+   ]
+  },
+  {
+   "what": "custom condition",
+   "score": 152,
+   "lines": 140,
+   "cards": [
+    "Ojer Axonil, Deepest Might // Temple of Power",
+    "Sting, the Glinting Dagger",
+    "The Chain Veil",
+    "Blitzball",
+    "Lux Artillery",
+    "Rith, Liberated Primeval",
+    "Tinybones, Trinket Thief",
+    "March of the Canonized",
+    "Gavel of the Righteous",
+    "Eshki, Temur's Roar",
+    "Sab-Sunen, Luxa Embodied",
+    "Shelinda, Yevon Acolyte"
    ]
   },
   {
@@ -203,8 +203,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 71,
-   "lines": 71,
+   "score": 70,
+   "lines": 70,
    "cards": [
     "Temple of the Dragon Queen",
     "Struggle for Project Purity",
@@ -2694,19 +2694,6 @@
     "Skirk Shaman",
     "Angelic Voices",
     "Elven Riders"
-   ]
-  },
-  {
-   "what": "SacrificeAllControllerEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Emrakul, the World Anew",
-    "The Apprentice's Folly",
-    "Hellcarver Demon",
-    "Day of the Dragons",
-    "Yukora, the Prisoner",
-    "Death Pit Offering"
    ]
   },
   {
@@ -6449,13 +6436,23 @@
     "Ohabi Caleria",
     "Quest for the Gemblades"
    ]
+  },
+  {
+   "what": "CommittedCrimeCondition.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Oko, the Ringleader",
+    "Omenport Vigilante",
+    "Slickshot Vault-Buster"
+   ]
   }
  ],
  "sole": [
   {
    "what": "custom effect",
-   "score": 3348,
-   "cards": 3186,
+   "score": 3347,
+   "cards": 3185,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6467,8 +6464,8 @@
   },
   {
    "what": "custom ability",
-   "score": 505,
-   "cards": 466,
+   "score": 504,
+   "cards": 465,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6506,8 +6503,8 @@
   },
   {
    "what": "custom condition",
-   "score": 121,
-   "cards": 118,
+   "score": 119,
+   "cards": 116,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -6610,8 +6607,8 @@
   },
   {
    "what": "AsEntersBattlefieldAbility",
-   "score": 24,
-   "cards": 24,
+   "score": 23,
+   "cards": 23,
    "names": [
     "Temple of the Dragon Queen",
     "Struggle for Project Purity",
@@ -9112,6 +9109,17 @@
    ]
   },
   {
+   "what": "GainControlAllControlledTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Emrakul, the World Anew",
+    "Ashiok, Sculptor of Fears",
+    "Gilt-Leaf Archdruid",
+    "Tezzeret, Master of Metal"
+   ]
+  },
+  {
    "what": "AnotherTargetPredicate",
    "score": 4,
    "cards": 4,
@@ -9758,17 +9766,6 @@
     "Tezzeret, Agent of Bolas",
     "Workshop Elders",
     "Thran Forge"
-   ]
-  },
-  {
-   "what": "SacrificeAllControllerEffect",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Hellcarver Demon",
-    "Day of the Dragons",
-    "Yukora, the Prisoner",
-    "Death Pit Offering"
    ]
   },
   {

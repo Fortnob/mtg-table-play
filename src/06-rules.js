@@ -20266,6 +20266,13 @@
         }
         // Brass Squire: an Equipment of yours onto a creature of yours
         // Balan, Wandering Knight: every Equipment its controller controls, onto it (attachAllToSelf)
+        // Yukora, the Prisoner: every permanent of that kind its controller controls is sacrificed (sacrificeAllYours)
+        case 'sacrificeAllYours': {
+          const list = this._scopeList(e.scope, ctx.controller, src).filter(x => x.zone === 'battlefield' && x.controller === ctx.controller);
+          if (list.length) this._sacrificeNow(ctx.controller, list, null);
+          this._lastSacCount = list.length;
+          break;
+        }
         case 'attachAllToSelf': {
           if (!src || src.zone !== 'battlefield' || !(this.characteristics(src) || {}).isCreature) break;
           const eqs = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && x !== src && x.attachedTo !== src.id && (x.analysis() || {}).isEquipment);

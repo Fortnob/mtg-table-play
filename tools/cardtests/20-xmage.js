@@ -22667,4 +22667,50 @@ module.exports = (test) => {
     D.toMain('A', 'endCombat');
     t.eq(D.life('B'), 13, 'Absorbing Man: the Bears deal 4');
   });
+
+  test("Commanders: Viv Vision, Yukora, Inga Rune-Eyes, Tinybones, Pocket Nuisance; Hellion Eruption, Death Pit Offering", (mk, t) => {
+    for (const n of ['Viv Vision, Teen Synthezoid', 'Yukora, the Prisoner', 'Inga Rune-Eyes', 'Tinybones, Pocket Nuisance', 'Hellion Eruption', 'Death Pit Offering']) t.auto(n);
+    // Viv Vision: a card as she attacks, only with power 4 or greater
+    const V = mk({ library: Array(10).fill('Island') });
+    V.toMain('A');
+    const vv = V.bf('A', 'Viv Vision, Teen Synthezoid'); vv.summoningSick = false;
+    const h0 = V.zone('A', 'hand').length;
+    V.answer('declareAttackers', () => [{ attackerId: vv.id, defenderId: 'B' }]);
+    V.toMain('A', 'declareBlockers');
+    t.eq(V.zone('A', 'hand').length, h0, 'Viv Vision: power below 4, no card');
+    const V2 = mk({ library: Array(10).fill('Island') });
+    V2.toMain('A');
+    const v2 = V2.bf('A', 'Viv Vision, Teen Synthezoid'); v2.summoningSick = false; v2.counters['+1/+1'] = 2;
+    const h2 = V2.zone('A', 'hand').length;
+    V2.answer('declareAttackers', () => [{ attackerId: v2.id, defenderId: 'B' }]);
+    V2.toMain('A', 'declareBlockers');
+    t.eq(V2.zone('A', 'hand').length, h2 + 1, 'Viv Vision: power 4, a card');
+    // Yukora: as it leaves, your non-Ogre creatures are sacrificed
+    const Y = mk({ library: Array(10).fill('Swamp') });
+    Y.toMain('A');
+    const yk = Y.bf('A', 'Yukora, the Prisoner'), gb = Y.bf('A', 'Grizzly Bears'), og = Y.bf('A', 'Gray Ogre'), theirs = Y.bf('B', 'Grizzly Bears');
+    Y.g.moveObject(yk, 'graveyard'); Y.resolve();
+    t.ok(gb.zone === 'graveyard' && og.zone === 'battlefield' && theirs.zone === 'battlefield', 'Yukora: the Bears go, the Ogre and their Bears stay');
+    // Hellion Eruption: sacrifice your creatures, a 4/4 Hellion for each
+    const H = mk({ library: Array(10).fill('Mountain') });
+    H.toMain('A');
+    H.bf('A', 'Grizzly Bears'); H.bf('A', 'Hill Giant');
+    H.mana('A', '5R');
+    H.cast('A', H.hand('A', 'Hellion Eruption')); H.resolve();
+    t.eq(H.bfOf('A').filter(o => o.isToken && /Hellion/.test(o.name)).length, 2, 'Hellion Eruption: two sacrificed, two Hellions');
+    // Inga Rune-Eyes: three cards as she dies, if three or more creatures died this turn
+    const I = mk({ library: Array(10).fill('Island') });
+    I.toMain('A');
+    const ig = I.bf('A', 'Inga Rune-Eyes');
+    for (let k = 0; k < 2; k++) I.g.moveObject(I.bf('B', 'Grizzly Bears'), 'graveyard');
+    const ih = I.zone('A', 'hand').length;
+    I.g.moveObject(ig, 'graveyard'); I.resolve();
+    t.eq(I.zone('A', 'hand').length, ih + 3, 'Inga: three creatures died, three cards');
+    // Tinybones: 1 damage to each opponent when a player discards
+    const T = mk({ library: Array(10).fill('Swamp') });
+    T.toMain('A');
+    T.hand('B', 'Island');
+    T.put('A', 'Tinybones, Pocket Nuisance', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.life('B'), 19, 'Tinybones: B discarded, 1 damage');
+  });
 };
