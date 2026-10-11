@@ -22395,4 +22395,66 @@ module.exports = (test) => {
     J2.toMain('A', 'end'); J2.resolve();
     t.eq(J2.bfOf('A').filter(o => o.isToken && /Clue/.test(o.name)).length, 1, 'Lord Jyscal: a counter put on a creature, a Clue');
   });
+
+  test("Commanders: Shanna, Captain America, Super-Soldier, Medomai, Kalitas, Rakdos, the Showstopper, Sisay, Weatherlight Captain", (mk, t) => {
+    for (const n of ["Shanna, Sisay's Legacy", 'Captain America, Super-Soldier', 'Medomai the Ageless', 'Kalitas, Traitor of Ghet', 'Rakdos, the Showstopper',
+      'Sisay, Weatherlight Captain']) t.auto(n);
+    // Shanna: an opponent's ability can't target her; an opponent's spell can
+    const S = mk({ library: Array(10).fill('Plains') });
+    S.toMain('A');
+    const sh = S.bf('A', "Shanna, Sisay's Legacy");
+    const tim = S.bf('B', 'Prodigal Sorcerer'); tim.summoningSick = false;
+    const legalFrom = (src) => S.g._legalTargetsFor({ type: 'any', filter: 'any target', zone: 'battlefield' }, 'B', src.id).map(x => x.id);
+    t.ok(!legalFrom(tim).includes(sh.id), "Shanna: not a target for the opponent's Prodigal Sorcerer");
+    const bolt = S.hand('B', 'Lightning Bolt');
+    t.ok(legalFrom(bolt).includes(sh.id), "Shanna: a target for the opponent's Lightning Bolt");
+    // Captain America: with a shield counter, you and other Heroes have hexproof
+    const C = mk({ library: Array(10).fill('Plains') });
+    C.toMain('A');
+    const ca = C.put('A', 'Captain America, Super-Soldier', 'battlefield', { etb: true }); C.resolve();
+    const hero = C.bf('A', 'Silver Sable, Mercenary Leader');
+    C.g.bumpBoard();
+    const players = () => C.g._legalTargetsFor({ type: 'player' }, 'B', null).map(x => x.id);
+    t.ok(!players().includes('A') && C.g.hasKw(hero, 'hexproof') && !C.g.hasKw(ca, 'hexproof'), 'Captain America: you and other Heroes have hexproof');
+    delete ca.counters.shield; C.g.bumpBoard();
+    t.ok(players().includes('A') && !C.g.hasKw(hero, 'hexproof'), 'Captain America: no shield counter, no hexproof');
+    // Medomai: can't attack during extra turns
+    const M = mk({ library: Array(10).fill('Island') });
+    const md = M.bf('A', 'Medomai the Ageless');
+    t.ok(!M.g._hasFlag(md, 'cantAttack'), 'Medomai: may attack in a turn of its own');
+    M.g.isExtraTurn = true; M.g.bumpBoard();
+    t.ok(M.g._hasFlag(md, 'cantAttack'), 'Medomai: not during an extra turn');
+    // Kalitas: an opponent's nontoken creature that would die is exiled, and you get a Zombie
+    const K = mk({ library: Array(10).fill('Swamp') });
+    K.toMain('A');
+    K.bf('A', 'Kalitas, Traitor of Ghet');
+    const gb = K.bf('B', 'Grizzly Bears');
+    K.g.moveObject(gb, 'graveyard'); K.resolve();
+    t.zone(gb, 'exile');
+    t.eq(K.bfOf('A').filter(o => o.isToken && /Zombie/.test(o.name)).length, 1, 'Kalitas: a Zombie');
+    // Rakdos, the Showstopper: a coin for each creature that isn't a Demon, Devil or Imp; the tails are destroyed
+    const R = mk({ library: Array(10).fill('Swamp'), seed: 11 });
+    R.toMain('A');
+    const bears = [1, 2, 3, 4, 5, 6].map(() => R.bf('B', 'Grizzly Bears'));
+    const imp = R.bf('B', 'Putrid Imp');
+    const rk = R.put('A', 'Rakdos, the Showstopper', 'battlefield', { etb: true }); R.resolve();
+    const flips = R.g.log.filter(l => /flips a coin/.test(l.text));
+    const tails = flips.filter(l => /tails/.test(l.text)).length;
+    t.eq(flips.length, 6, 'Rakdos: six coins, one for each non-Demon, non-Imp creature');
+    t.eq(bears.filter(b => b.zone === 'graveyard').length, tails, 'Rakdos: one Bears destroyed for each tails');
+    t.ok(rk.zone === 'battlefield' && imp.zone === 'battlefield', 'Rakdos: the Demon and the Imp are spared');
+    // Sisay: +1/+1 for each color among other legendary permanents; the search is for mana value less than her power
+    const Y = mk({ library: ['Isamaru, Hound of Konda', 'Krenko, Mob Boss', 'Plains', 'Plains'] });
+    Y.toMain('A');
+    const sy = Y.bf('A', 'Sisay, Weatherlight Captain');
+    const base = parseInt(sy.card.power, 10);
+    Y.bf('A', 'Goblin Guide'); Y.g.bumpBoard();
+    t.eq(Y.g.powerOf(sy), base, 'Sisay: a nonlegendary red creature adds nothing');
+    let offered = [];
+    Y.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: ch.cards.slice(0, 1).map(c => c.id) }; });
+    Y.mana('A', 'WUBRG');
+    Y.activate('A', sy, 0); Y.resolve();
+    t.ok(offered.includes('Isamaru, Hound of Konda') && !offered.includes('Krenko, Mob Boss'), 'Sisay: Isamaru (1) is offered, Krenko (4) is not');
+    t.eq(Y.g.powerOf(sy), base + 1, 'Sisay: Isamaru, a white legend, +1/+1');
+  });
 };

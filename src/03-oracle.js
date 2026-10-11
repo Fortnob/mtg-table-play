@@ -925,6 +925,8 @@
     let desc = m[1].trim().toLowerCase().replace(/,$/, '');
     s = s.slice(m[0].length);
     let q;
+    // (Sisay: "with mana value less than CARDNAME's power" — mvBelowSelfPower)
+    if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     while ((q = s.match(/^,? (?:with (?:mana value|converted mana cost) (X|\d+) or less|with (?:mana value|converted mana cost) (X|\d+) or (?:greater|more)|with (?:mana value|converted mana cost) (X|\d+)|with different names|that share a land type|with a basic land type|that (?:is|are) (?:a )?([a-z]+)|with (power|toughness) (\d+) or (less|greater))/i))) {
       if (q[5]) e[(q[7] === 'less' ? 'max' : 'min') + (q[5] === 'power' ? 'Power' : 'Toughness')] = +q[6];
       if (q[1]) e.maxMv = q[1] === 'X' ? 'X' : +q[1];
@@ -4291,6 +4293,10 @@
     { re: /^Add \{([WUBRG])\} or one mana of the chosen colou?r\.?$/i, make: (m) => ({ op: 'addManaChosen', n: 1, orSymbol: m[1].toUpperCase() }) },
     { re: /^Add (two|three|\d+) mana of the chosen color\.?$/i, make: (m) => ({ op: 'addManaChosen', n: num(m[1]) }) },
     { re: /^Flip a coin\.?$/i, make: () => ({ op: 'flipCoin' }) },
+    // Rakdos, the Showstopper: "flip a coin for each creature that isn't a Demon, Devil, or Imp. Destroy each creature whose coin comes up tails." (coinEachCreature)
+    { re: /^[Ff]lip a coin for each creature that isn'?t an? ([A-Z][a-z]+(?:, (?:an? )?[A-Z][a-z]+)*,? or (?:an? )?[A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'coinEachCreature', exceptTypes: m[1].split(/,? or |, /).map(w => w.replace(/^an? /, '').toLowerCase()) }) },
+    { re: /^Destroy each creature whose coin comes up tails\.?$/i, make: () => ({ op: 'destroyCoinTails' }) },
     /* The Ring tempts you (CR 701.52): the emblem gains a level and you
        name a Ring-bearer. */
     { re: /^The Ring tempts you\.?$/i, make: () => ({ op: 'ringTempts' }) },
@@ -6142,6 +6148,11 @@
     if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
+    // Sisay, Weatherlight Captain: "for each color among other legendary permanents you control" (colorsAmongScope)
+    if ((m = p.match(/^colou?r among ((?:other )?[a-z]+ (?:permanents|creatures|artifacts|enchantments) you control)$/i))) {
+      const sc = scopeOf(m[1]);
+      if (sc && !sc.self) return { colorsAmongScope: sc, mult: k };
+    }
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
@@ -9416,7 +9427,8 @@
       (m) => ({ kind: 'selfCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     [/^(?:this creature|CARDNAME) has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // Arixmethes: "CARDNAME has a slumber counter on it"; War Balloon: "this Vehicle has three or more fire counters on it"
-    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
+    // (Captain America, Super-Soldier: "has a shield counter on him" — counterOnHim)
+    [/^(?:this (?:creature|Vehicle|artifact|land|permanent)|CARDNAME) has an? ([+\-0-9/a-z]+) counter on (?:it|him|her|them)$/i, (m) => ({ kind: 'selfCounters', n: 1, counter: m[1].toLowerCase() })],
     [/^this Vehicle has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
@@ -13939,6 +13951,14 @@
     { re: /^(Lands|Gates) you control enter untapped\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'enterUntapped', event: 'enters', who: 'you', how: 'untapped', whatAny: ['land'] },
         /gates/i.test(m[1]) ? { words: 'gate' } : {}) },
+    // Kalitas, Traitor of Ghet: "… would die, instead exile that card and create a 2/2 black Zombie creature token." (dieExileToken)
+    { re: /^If a (nontoken )?creature an opponent controls would die, instead exile that card and (create an? .+? token)\.?$/i,
+      make: (m) => {
+        const tok = parseTokenSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        if (!tok || tok.op !== 'createToken') return null;
+        return Object.assign({ op: 'replace', id: 'dieExileOppToken', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+          how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], alsoToken: Object.assign({}, tok, { n: 1 }) }, m[1] ? { nontoken: true } : {});
+      } },
     // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
@@ -14839,6 +14859,17 @@
           return Object.assign({ op: 'damageToCounters', prevent: !!m[2] }, c ? { cond: c } : {});
         }, auto: true },
       // Locke, Treasure Hunter, Ant-Man: "CARDNAME can't be blocked by creatures with greater power." — skulk's rule (notByGreaterPower)
+      // Shanna, Sisay's Legacy: "can't be the target of abilities your opponents control" (oppAbilitiesCantTarget)
+      { re: /^(?:CARDNAME|This creature) can'?t be the target of abilities your opponents control\.?$/i, eff: { op: 'untargetableByOppAbilities' }, auto: true },
+      // Captain America, Super-Soldier: "As long as …, you and other Heroes you control have hexproof." (youAndOthersHexproof)
+      { re: /^As long as (.+?), you and other ([A-Z][a-z]+)s you control have hexproof\.?$/,
+        make: (m) => {
+          const c = condOf(m[1]), sc = scopeOf('other ' + m[2] + 's you control');
+          return c && sc ? { op: 'sequence', list: [{ op: 'playerHexproof', cond: c }, { op: 'continuous', layer: 6, scope: sc, cond: c, grant: ['Hexproof'] }] } : null;
+        }, auto: true },
+      // Medomai the Ageless: "can't attack during extra turns" (extraTurnNow)
+      { re: /^(?:CARDNAME|This creature) can'?t attack during extra turns\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'cantAttack', cond: { kind: 'extraTurn' } }, auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with greater power\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'notByGreaterPower' }, auto: true },
       { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,

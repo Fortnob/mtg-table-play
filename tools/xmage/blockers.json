@@ -1,12 +1,12 @@
 {
- "generated": "2026-10-10",
+ "generated": "2026-10-11",
  "stats": {
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10457,
+  "needed": 10451,
   "gainedCards": 963,
-  "linesNeeded": 11109,
+  "linesNeeded": 11101,
   "linesGained": 1127,
   "gained": {
    "all": 963,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4014,
-   "lines": 3768,
+   "score": 4010,
+   "lines": 3764,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -412,11 +412,10 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 21,
-   "lines": 21,
+   "score": 20,
+   "lines": 20,
    "cards": [
     "Security Bypass",
-    "Medomai the Ageless",
     "Dog Umbra",
     "Nightkin Ambusher",
     "Fugitive Droid",
@@ -426,7 +425,8 @@
     "Waterlogged Hulk // Watertight Gondola",
     "Become the Pilot",
     "Queen Mother Ramonda",
-    "Stature, Size Shifter"
+    "Stature, Size Shifter",
+    "Jeskai Infiltrator"
    ]
   },
   {
@@ -2755,19 +2755,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 6,
-   "lines": 6,
-   "cards": [
-    "Surge of Salvation",
-    "Captain America, Super-Soldier",
-    "Gor Muldrak, Amphinologist",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
    "what": "SacrificeTargetCost",
    "score": 6,
    "lines": 6,
@@ -3460,6 +3447,18 @@
     "Edward Kenway",
     "Rogue Class",
     "Etrata, Deadly Fugitive"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 5,
+   "lines": 5,
+   "cards": [
+    "Surge of Salvation",
+    "Gor Muldrak, Amphinologist",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {
@@ -6467,8 +6466,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3357,
-   "cards": 3192,
+   "score": 3354,
+   "cards": 3189,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6723,15 +6722,15 @@
   },
   {
    "what": "ConditionalRestrictionEffect",
-   "score": 17,
-   "cards": 17,
+   "score": 16,
+   "cards": 16,
    "names": [
     "Security Bypass",
-    "Medomai the Ageless",
     "Dog Umbra",
     "Nightkin Ambusher",
     "Nimble Trapfinder",
-    "Nimble Brigand"
+    "Nimble Brigand",
+    "Slippery Scoundrel"
    ]
   },
   {
@@ -8577,18 +8576,6 @@
    ]
   },
   {
-   "what": "GainAbilityControllerEffect",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Surge of Salvation",
-    "Captain America, Super-Soldier",
-    "Blossoming Calm",
-    "Gilded Light",
-    "Gruul Spellbreaker"
-   ]
-  },
-  {
    "what": "MeldEffect",
    "score": 5,
    "cards": 5,
@@ -9183,6 +9170,17 @@
     "Shuri, Wakandan Inventor",
     "Band Together",
     "True Polymorph"
+   ]
+  },
+  {
+   "what": "GainAbilityControllerEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Surge of Salvation",
+    "Blossoming Calm",
+    "Gilded Light",
+    "Gruul Spellbreaker"
    ]
   },
   {

@@ -804,6 +804,8 @@
 
     _nextTurn() {
       if (this.over) return;
+      // (Medomai the Ageless: "during extra turns" — extraTurnNow)
+      this.isExtraTurn = false;
       // extra turns first
       if (this.extraTurnsQueue.length) {
         const pid = this.extraTurnsQueue.shift();
@@ -814,6 +816,7 @@
           return this._nextTurn();
         }
         this.activeIndex = this.turnOrder.indexOf(pid);
+        this.isExtraTurn = true;
       } else {
         let guard = 0, np = null;
         do {
@@ -2697,6 +2700,19 @@
       return seen.size;
     }
     /** Hexproof from a quality (Knight of Grace, Veil of Summer): does this source have one of them? */
+    /** Leyline of Sanctity, Captain America (only while he has a shield counter): may this player not be targeted by opponents? (youAndOthersHexproof) */
+    _playerHexproofNow(pid) {
+      return this._withEmblems(this.battlefield).some(o => {
+        if (o.controller !== pid || o.phasedOut) return false;
+        const e = this._staticOp(o, 'playerHexproof');
+        return !!e && (!e.cond || this._condMet(e.cond, { controller: pid, obj: o }));
+      });
+    }
+    /** Shanna, Sisay's Legacy: no ability an opponent controls may target it (an ability's source is on the battlefield) (oppAbilitiesCantTarget) */
+    _oppAbilityCantTarget(o, source, controllerId) {
+      return !!(o && source && controllerId != null && controllerId !== o.controller && source.zone === 'battlefield' && source !== o &&
+        this._staticOp(o, 'untargetableByOppAbilities'));
+    }
     /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
     _untargetableHit(o, source) {
       const e = o && source && this._staticOp(o, 'untargetableBy');
@@ -2795,6 +2811,7 @@
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
           if (item.obj && this._untargetableHit(o, item.obj)) return false;
+          if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
           if (this.hasKw(o, 'shroud')) return false;
           // protection from a quality the spell or ability's source has
           if (item.obj && this._protectedFrom(o, item.obj)) return false;
@@ -3159,6 +3176,12 @@
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
+      // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
+      if (v.colorsAmongScope) {
+        const cols = new Set();
+        for (const x of this._scopeList(v.colorsAmongScope, pid, src, null, inLayers)) for (const c of ((x.analysis() || {}).colors || [])) cols.add(c);
+        return cols.size * mult;
+      }
       // Deepwood Denizen, Maester Seymour: the counters (of one kind, or all) on a group of permanents
       if (v.countersAmong) {
         let k = 0;
@@ -9382,7 +9405,10 @@
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
-        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter; break;
+        case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
+          // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
+          if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
+          break;
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
         case 'untapped': ev.untapped = true; break;
@@ -10353,6 +10379,8 @@
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
         case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
+        // Medomai the Ageless: "during extra turns" (extraTurnNow)
+        case 'extraTurn': return !!this.isExtraTurn;
         // Ozai, the Phoenix King: "as long as you have six or more unspent mana" (unspentMana)
         case 'unspentMana': return !!me && this._unspentMana(me, '*') >= (cond.n || 1);
         // Elanor Gardner: "if you sacrificed a Food this turn" (sacrificedThisTurn)
@@ -10608,7 +10636,7 @@
         for (const x of this._scopeList(v.greatestMv, (src || o).controller, src || o, null, true)) best = Math.max(best, (x.card && x.card.cmc) || 0);
         return best * (v.mult || 1);
       }
-      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong)) {
+      if (typeof v === 'object' && (v.scope || v.cardsInHand || v.cardsInGraveyard || v.opponents || v.domain || v.sum || v.attachedOf || v.countersAmong || v.colorsAmongScope)) {
         // counted from inside the layers, so it must not ask for characteristics again
         return this._countValue(v, o.controller, o, true);
       }
@@ -15330,6 +15358,8 @@
             /* Transmute looks for a mana value, not a card type. */
             if (e.mv != null && mvOf(c) !== n(e.mv)) return false;
             if (e.maxMv != null && mvOf(c) > n(e.maxMv)) return false;
+            // Sisay, Weatherlight Captain: "with mana value less than CARDNAME's power" (mvBelowSelfPower)
+            if (e.mvBelowSelfPower && !(src && mvOf(c) < this.powerOf(src))) return false;
             if (e.minMv != null && mvOf(c) < n(e.minMv)) return false;
             // Imperial Recruiter, Recruiter of the Guard: printed power or toughness
             const stat = (k) => parseInt((c.card && c.card[k]) || '0', 10) || 0;
@@ -15693,6 +15723,27 @@
             this.logEvent('attach', `${c.name} enters attached to ${host.name}.`);
           }
           this.bumpBoard();
+          break;
+        }
+        /* Rakdos, the Showstopper: a coin for each creature that isn't one of those
+           types; the tails are destroyed by the next sentence (coinEachCreature) */
+        case 'coinEachCreature': {
+          const tails = [];
+          for (const x of this.battlefield.slice()) {
+            if (x.phasedOut || !(this.characteristics(x) || {}).isCreature) continue;
+            if ((e.exceptTypes || []).some(t => this._hasCreatureType(x, t))) continue;
+            if (!this._flipOne(me)) tails.push(x.id);
+          }
+          if (this.resolving) this.resolving._coinTails = tails;
+          break;
+        }
+        case 'destroyCoinTails': {
+          for (const id of ((this.resolving || {})._coinTails || [])) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield') continue;
+            if (this.hasKw(x, 'indestructible') || this._totemArmor(x) || this._regenerated(x)) continue;
+            this.moveObject(x, 'graveyard');
+          }
           break;
         }
         case 'keepMana':
@@ -23605,7 +23656,7 @@
         .filter(p => !tsrc || !this._protCardTypes(p.id).some(t => this._cardTypesOf(tsrc).includes(t)))
         // Absolute Virtue: not by an opponent's spell or ability
         .filter(p => p.id === controllerId || !this._anyStaticOf(p.id, 'protFromOpponents'))
-        .filter(p => p.id === controllerId || (!this._anyStaticOf(p.id, 'playerHexproof') && p.hexproofTurn !== this.turn))
+        .filter(p => p.id === controllerId || (!this._playerHexproofNow(p.id) && p.hexproofTurn !== this.turn))
         // True Believer: "You have shroud" — not even its controller's spells
         .filter(p => !this._anyStaticOf(p.id, 'playerShroud'))
         .map(p => ({ kind: 'player', id: p.id, name: p.name }));
@@ -23663,6 +23714,7 @@
         // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
         if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
+        if (zone === 'battlefield' && sourceId && this._oppAbilityCantTarget(o, this.obj(sourceId), controllerId)) continue;
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       if (spec.type === 'any') out.push(...players().filter(t => !spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn));
@@ -24011,7 +24063,7 @@
         pendingTriggers: this.pendingTriggers.map(t => Object.assign({}, t, { obj: undefined })),
         combat: JSON.parse(JSON.stringify(this.combat)),
         turnOrder: this.turnOrder.slice(), mulliganPhase: this.mulliganPhase,
-        extraTurnsQueue: this.extraTurnsQueue.slice(), stormCount: this.stormCount,
+        extraTurnsQueue: this.extraTurnsQueue.slice(), stormCount: this.stormCount, isExtraTurn: !!this.isExtraTurn,
         prevention: this.prevention.slice(),
         delayedTriggers: JSON.parse(JSON.stringify(this.delayedTriggers || [])),
         resolving: this.resolving ? {
@@ -24082,6 +24134,7 @@
       this.turnOrder = (snap.turnOrder || []).slice();
       this.mulliganPhase = !!snap.mulliganPhase;
       this.extraTurnsQueue = (snap.extraTurnsQueue || []).slice();
+      this.isExtraTurn = !!snap.isExtraTurn;
       this.stormCount = snap.stormCount || 0;
       this.prevention = (snap.prevention || []).slice();
       this.delayedTriggers = (snap.delayedTriggers || []).slice();
