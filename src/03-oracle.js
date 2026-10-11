@@ -2207,7 +2207,18 @@
     { re: /^Untap (target creature that has an activated ability with \{T\} in its cost)\.?$/i, make: (m) => ({ op: 'untap', targets: [targetSpec(m[1])] }) },
     { re: /^Untap (CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
       make: (m) => Object.assign({ op: 'untap', scope: 'self' }, /^it$/i.test(m[1]) ? { itWord: true } : {}) },
-    { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|~)\.?$/i,
+    /* Sovereign Okinec Ahau: "for each creature you control with power greater than that creature's base power, put a
+       number of +1/+1 counters on that creature equal to the difference" (countersPowerOverBase) */
+    { re: /^For each creature you control with power greater than that creature'?s base power, put a number of \+1\/\+1 counters on that creature equal to the difference\.?$/i,
+      make: () => ({ op: 'countersPowerOverBase' }) },
+    // Kefka, Court Mage: "Then you draw a card for each card type among cards discarded this way." (typesDiscarded)
+    { re: /^(?:Then )?you draw a card for each card type among cards discarded this way\.?$/i,
+      make: () => ({ op: 'draw', who: 'you', n: { typesDiscarded: true } }) },
+    // Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your control" (exiledWithToBattlefield)
+    { re: /^Put all (creature) cards exiled with CARDNAME onto the battlefield under your control\.?$/i,
+      make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase() }) },
+    // (Witch-king of Angmar: "Tap him.")
+    { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|him|her|~)\.?$/i,
       make: () => ({ op: 'tap', scope: 'self' }) },
     { re: /^Exile (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|~)\.?$/i,
       make: () => ({ op: 'exileSelf' }) },
@@ -2513,6 +2524,9 @@
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase(), keyword: m[3].toLowerCase() }) },
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
+    // Witch-king of Angmar: "each opponent sacrifices a creature of their choice that dealt combat damage to you this turn" (hitYouThisTurn)
+    { re: /^Each opponent sacrifices (a|one) creature of their choice that dealt combat damage to you this turn\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: 'creature', hitYouThisTurn: true }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
 
@@ -10602,6 +10616,9 @@
     // Rooms: "When you unlock this door" (one door), "Whenever you fully unlock a Room"
     { re: /^When you unlock door ([01]),? /i, event: 'unlockDoor', self: true, extraOf: (m) => ({ door: +m[1] }) },
     { re: /^Whenever you fully unlock a Room,? /i, event: 'youFullyUnlock' },
+    // Witch-king of Angmar: "Whenever one or more creatures deal combat damage to you" — once for the lot
+    { re: /^Whenever one or more creatures deal combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { combatOnly: true, batch: true } },
     // The Cabbage Merchant, Teysa: "Whenever a creature deals combat damage to you"
     { re: /^Whenever (?:a|an) ([A-Za-z ]+?) deals combat damage to you,/i, event: 'youDealtDamage', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() }), extra: { combatOnly: true } },
@@ -10798,6 +10815,8 @@
     // Valgavoth, Harrower of Souls: "Whenever an opponent loses life for the first time during each of their turns"
     { re: /^When(?:ever)? an opponent loses life for the first time during each of their turns,? /i, event: 'opponentLosesLife',
       extra: { firstLossThisTurn: true, theirTurn: true } },
+    // Kefka, Ruler of Ruin: "Whenever an opponent loses life during your turn"
+    { re: /^When(?:ever)? an opponent loses life during your turn,? /i, event: 'opponentLosesLife', extra: { yourTurnOnly: true } },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
     // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
     { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
@@ -15212,9 +15231,10 @@
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       // (Wildsear, Scouring Maw: "Enchantment spells you cast from your hand have cascade.")
-      { re: /^([A-Za-z ]*?)spells you cast( from your hand)?(?: with mana value (\d+) or greater)? have cascade\.?$/i,
+      // (Zhulodok, Void Gorger: "Colorless spells you cast from your hand with mana value 7 or greater have "Cascade, cascade."" — two)
+      { re: /^([A-Za-z ]*?)spells you cast( from your hand)?(?: with mana value (\d+) or greater)? have (cascade|"Cascade, cascade\.?")\.?"?$/i,
         make: (m) => Object.assign({ op: 'grantCastKeyword', keyword: 'cascade', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' },
-          m[2] ? { fromZones: ['hand'] } : {}, m[3] ? { minMv: +m[3] } : {}), auto: true },
+          m[2] ? { fromZones: ['hand'] } : {}, m[3] ? { minMv: +m[3] } : {}, /,/.test(m[4]) ? { times: 2 } : {}), auto: true },
       /* Winter Orb, Static Orb, Smoke: "players can't untap more than one
          land during their untap steps" */
       { re: /^(As long as (?:this artifact|CARDNAME) is untapped, )?(players|you) can'?t untap more than (one|two|three) (lands?|creatures?|artifacts?|permanents?) during (?:their|your) untap steps?\.?$/i,
@@ -16049,6 +16069,10 @@
         make: (m) => ({ op: 'triggerDouble', cause: 'enter', what: m[1].toLowerCase() }), auto: true },
       { re: /^If an? ((?:[a-z]+ or )?[a-z]+) dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         make: (m) => ({ op: 'triggerDouble', cause: 'die', what: m[1].toLowerCase() }), auto: true },
+      /* Gandalf the White: "If a legendary permanent or an artifact entering or leaving the battlefield causes a
+         triggered ability of a permanent you control to trigger, …" (enterOrLeave) */
+      { re: /^If a legendary permanent or an artifact entering or leaving the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'enterOrLeave', what: 'legendary or artifact' }, auto: true },
       { re: /^If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'attack' }, auto: true },
       // Delney: "If a triggered ability of a creature you control with power 2 or less triggers, …"

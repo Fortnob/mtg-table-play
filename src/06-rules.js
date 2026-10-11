@@ -6275,22 +6275,37 @@
     _cascade(item, a) {
       if (!a) return;
       // Imoti: cascade handed out to spells of a kind
-      const granted = !a.keywordSet.has('cascade') && item.obj && this._withEmblems(this.battlefield).some(src => {
-        if (src.phasedOut || src.controller !== item.controller) return false;
+      // (Zhulodok, Void Gorger: "Cascade, cascade." — two instances, each its own trigger: times)
+      let granted = 0;
+      if (item.obj) for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut || src.controller !== item.controller) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
-        if (!g || g.keyword !== 'cascade') return false;
-        if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) return false;
+        if (!g || g.keyword !== 'cascade') continue;
+        if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) continue;
         // Wild-Magic Sorcerer: the first spell cast from exile this turn, and no other
-        if (g.fromZones && !g.fromZones.includes(item.fromZone)) return false;
-        if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) return false; }
+        if (g.fromZones && !g.fromZones.includes(item.fromZone)) continue;
+        if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) continue; }
         // Maelstrom Nexus: the first spell its controller casts this turn
-        if (g.firstEachTurn && ((this.player(item.controller) || {}).spellsCastThisTurn || 0) !== 1) return false;
-        return !g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter);
-      });
-      if (!a.keywordSet.has('cascade') && !granted) return;
+        if (g.firstEachTurn && ((this.player(item.controller) || {}).spellsCastThisTurn || 0) !== 1) continue;
+        if (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter)) granted += g.times || 1;
+      }
+      // every instance triggers, printed or given (Maelstrom Wanderer's two; Imoti's on a spell with its own: CR 702.85c)
+      const printed = (a.keywords || []).filter(k => String(k.keyword).toLowerCase() === 'cascade').length || (a.keywordSet.has('cascade') ? 1 : 0);
+      const times = printed + granted;
+      if (!times) return;
       const pid = item.controller;
       const lib = this.zones[pid].library;
       const mv = (a.mv || 0) + this._xMv(item);
+      /* The first is done now; each other one waits on the stack beneath what the first casts, so that resolves
+         before the next cascade goes looking (cascadeAgain) */
+      for (let k = 1; k < times; k++) {
+        const t = { id: this._uid('tr'), kind: 'ability', obj: item.obj, objId: item.objId, abilityIndex: -1, controller: pid,
+          name: `${item.name} — cascade`, auto: true, triggered: true, effects: [{ op: 'cascadeAgain', mv }],
+          abilityText: `Cascade (${item.name}, mana value ${mv}).`, triggerData: { event: 'castSelf', stackId: item.id, objectId: item.objId } };
+        this.stack.push(t);
+        this.logEvent('trigger', `Triggered: ${t.name}`);
+        this.emit('stack:add', t);
+      }
       const exiled = [];
       let hit = null;
       while (lib.length) {
@@ -11828,7 +11843,8 @@
       if (source && (source.attachments || []).length) {
         this._fire('equippedDealsDamage', null, { object: source, attachedIds: source.attachments.slice(), player: p.id, amount });
       }
-      this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount });
+      // (the life lost, as youLoseLife has it: none past Platinum Emperion — Kefka, Ruler of Ruin's "that many")
+      if (lost > 0) this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount: lost });
       this._fire('youLoseLife', p.id, { player: p.id, amount: lost });
       this._fire('playerDealtDamage', null, { player: p.id, amount, combat: !!combat });
       // counted only where it can decide a game: Brawl and Oathbreaker have no commander damage
@@ -12050,7 +12066,7 @@
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
       o.drawnTurn = null;
       // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
-      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; }
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -12154,6 +12170,8 @@
       /* Who controlled it as it left matters to anything watching ("a
          creature you control dies"), so it is taken before the reset. */
       const lastCtrl = o.controller;
+      // (Gandalf the White, leaving with others, is still its controller's: _leftController)
+      if (from === 'battlefield' && toZone !== 'battlefield') o._leftController = lastCtrl;
       /* A token that leaves the battlefield still dies, or still leaves —
          everything watching for that sees it go — and then ceases to exist
          (CR 111.7), so it is never filed in the zone it was sent to. */
@@ -12323,7 +12341,9 @@
         this._releaseExiled(o);
         /* Valgavoth, Terror Eater: back again it is a new object (CR 400.7), and the cards exiled
            with the old one are no longer its to play; Lurrus, Muldrotha: nor is the leave it used up */
-        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) c.exiledWithId = null;
+        // (Gisa, Glorious Resurrector: a trigger of the old one still knows them — _exiledWithGone, _leftSeq)
+        o._leftSeq = this._uid('lv');
+        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
         o._playFromTurn = null; o.playFromTypes = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
@@ -13716,6 +13736,13 @@
         }
         // Children of Korlis: the life lost this turn
         if (v && typeof v === 'object' && v.lifeLostThisTurn) return (me && me.lifeLostThisTurn) || 0;
+        /* Kefka, Court Mage: "a card for each card type among cards discarded this way" — what every player
+           discarded as this resolved, the cards as they are now (typesDiscarded) */
+        if (v && typeof v === 'object' && v.typesDiscarded) {
+          const kinds = new Set();
+          for (const d of ((this.resolving || {})._discBy || [])) for (const ty of this._cardTypesOf(this.obj(d.id))) kinds.add(ty);
+          return kinds.size * (v.mult || 1);
+        }
         // Traumatize: half a library
         if (v && typeof v === 'object' && v.halfLibrary) {
           const p = v.halfLibrary === 'target' ? firstPlayer() : v.halfLibrary === 'defending' ? (this._defenderOf(src) || triggerPlayer()) : me;
@@ -15430,6 +15457,8 @@
               if (e.other && src && x.id === src.id) return false;
               // Pick Your Poison: "a creature with flying"
               if (e.keyword && !this.hasKw(x, e.keyword)) return false;
+              // Witch-king of Angmar: "that dealt combat damage to you this turn" (hitYouThisTurn)
+              if (e.hitYouThisTurn && !(x._hitPlayers && x._hitPlayers.turn === this.turn && x._hitPlayers.ids.includes(ctx.controller))) return false;
               return !e.filter || e.filter === 'permanent' || this._cardFitsWords(x, e.filter);
             });
             if (!pool.length) {
@@ -15448,7 +15477,7 @@
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(n(e.n), pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -17967,6 +17996,40 @@
           if (!list.length) break;
           for (const c of list) this.moveObject(c, 'graveyard');
           for (const q of this.opponentsOf(ctx.controller)) this.dealDamageToPlayer(q, list.length, src, false);
+          break;
+        }
+        /* Sovereign Okinec Ahau: "for each creature you control with power greater than that creature's base power,
+           put a number of +1/+1 counters on that creature equal to the difference" — each worked out before any is
+           put on (CR 608.2h), its base power what layers 7a and 7b leave it */
+        case 'countersPowerOverBase': {
+          const grow = [];
+          for (const x of this.battlefield) {
+            if (x.controller !== ctx.controller || x.phasedOut) continue;
+            const c = this.characteristics(x);
+            if (!c || !c.isCreature) continue;
+            const d = this.powerOf(x) - (c.basePower || 0);
+            if (d > 0) grow.push([x, d]);
+          }
+          for (const [x, d] of grow) this.addCounters(x, '+1/+1', d);
+          break;
+        }
+        /* Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your
+           control" — the cards that Gisa exiled, still so if Gisa has left since this triggered (_exiledWithGone) */
+        case 'exiledWithToBattlefield': {
+          if (!src) break;
+          const gone = src.zone !== 'battlefield';
+          const list = [];
+          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) {
+            const mine = gone ? !!(c._exiledWithGone && c._exiledWithGone.id === src.id && c._exiledWithGone.n === src._leftSeq) : c.exiledWithId === src.id;
+            if (mine && this._cardFitsWords(c, e.words || 'card')) list.push(c);
+          }
+          const moved = [];
+          for (const c of list) {
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            if (c.zone === 'battlefield') moved.push(c.id);
+          }
+          this._lastGroup = moved;          // "They gain decayed."
+          if (moved.length) this.logEvent('rules', `${src.name}: ${moved.map(id => this.obj(id).name).join(', ')} onto the battlefield under ${me.name}'s control.`);
           break;
         }
         // Mizzix's Mastery: each card exiled, and a copy of it cast for nothing if you like
@@ -20509,6 +20572,40 @@
         /* Discover N (CR 701.57): exile from the top until a nonland card
            with mana value N or less; cast it for nothing or put it into your
            hand; the rest go to the bottom in a random order. */
+        /* Maelstrom Wanderer, Zhulodok, Void Gorger: a cascade after the first, from the mana value the spell was cast
+           with — exile until a nonland card that costs less, cast it free, the rest (and it, if not cast) to the bottom
+           in a random order (CR 702.85a) */
+        case 'cascadeAgain': {
+          const pid = ctx.controller;
+          const lib = this.zones[pid].library;
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = r ? r.index + ':casc' : null;
+          let st = r && r.marks[slot];
+          if (!st) {
+            st = { exiled: [], hit: null };
+            while (lib.length) {
+              const c = lib[0];
+              this.moveObject(c, 'exile');
+              st.exiled.push(c.id);
+              const ca = c.analysis() || {};
+              if (!ca.isLand && ((c.card && c.card.cmc) || 0) < (e.mv || 0)) { st.hit = c.id; break; }
+            }
+            if (r) r.marks[slot] = st;
+          }
+          const hit = st.hit && this.obj(st.hit);
+          if (hit && hit.zone === 'exile') {
+            const tg = this._askSpellTargets(pid, hit, 'cascT');
+            if (tg === SUSPEND) return SUSPEND;
+            if (tg) this.logEvent('keyword', `Cascade hits ${hit.name} — casting it for free.`);
+            else this.logEvent('keyword', `${hit.name} has nothing to target.`);
+            if (tg) this.castSpell(pid, hit.id, { free: true, alternative: 'cascade', targets: tg, auto: true });
+          } else if (!hit) this.logEvent('keyword', 'Cascade found nothing cheaper.');
+          const rest = st.exiled.map(id => this.obj(id)).filter(c => c && c.zone === 'exile');
+          this.rng.shuffle(rest);
+          for (const c of rest) this.moveObject(c, 'library', { toBottom: true });
+          break;
+        }
         case 'discover': {
           const k = n(e.n);
           const lib = this.zones[ctx.controller].library;
@@ -23291,6 +23388,20 @@
          "whenever equipped creature dies" looks back at it (CR 603.10a) */
       const gone = event === 'equippedDies' && data.object && data.object.zone !== 'battlefield' ? data.object : null;
       if (gone && (data.attachedIds || []).includes(o.id) && ((this._staticOp(gone, 'triggerDouble') || {}).cause === 'selfOrEquipment')) extra++;
+      /* Gandalf the White: "a legendary permanent or an artifact entering or leaving the battlefield causes a triggered
+         ability of a permanent you control to trigger" — as it was as it left (CR 603.10a), and a Gandalf leaving with
+         it still sees it go; a card's trigger from a graveyard is no permanent's (enterOrLeave) */
+      const LEAVE = DIE.concat(['ltb', 'permLeaves', 'exiledFromBf', 'youSacrifice', 'anySacrifice', 'youSacToken']);
+      const moved = (ENTER.includes(event) || LEAVE.includes(event) || (event === 'cardToGraveyardAny' && data.fromZone === 'battlefield')) && data.object;
+      const asWas = (x) => (x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x);
+      const leaving = moved && !ENTER.includes(event) ? [...new Set([data.object].concat(this._leavingTogether || []))].filter(x => x && x.zone !== 'battlefield') : [];
+      const gandalf = moved && (o.zone === 'battlefield' || leaving.includes(o)) && this._cardFitsWords(asWas(data.object), 'legendary or artifact');
+      if (gandalf) {
+        for (const x of leaving) {
+          const e = this._staticOp(asWas(x), 'triggerDouble');
+          if (e && e.cause === 'enterOrLeave' && (x._leftController || x.controller) === o.controller) extra++;
+        }
+      }
       for (const src of this.battlefield) {
         if (src.phasedOut || (src.controller !== o.controller && o.attachedTo !== src.id)) continue;
         const e = this._staticOp(src, 'triggerDouble');
@@ -23301,7 +23412,8 @@
           continue;
         }
         if (src.controller !== o.controller) continue;
-        if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent')) extra++;
+        if (e.cause === 'enterOrLeave') { if (gandalf) extra++; }
+        else if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent')) extra++;
         else if (e.cause === 'die' && DIE.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'creature')) extra++;
         else if (e.cause === 'any' && e.sourceChosenType && o !== src && src.chosenType &&
           this.characteristics(o).isCreature && this._hasCreatureType(o, src.chosenType)) extra++;
@@ -25368,6 +25480,8 @@
           graveCastBy: o.graveCastBy || null, graveCastTurn: o.graveCastTurn == null ? null : o.graveCastTurn,
           // Valgavoth, Terror Eater: what a card was exiled with; Muldrotha, the Gravetide: the types its leave was used for this turn
           exiledWithId: o.exiledWithId || null, playFromTypes: o.playFromTypes ? JSON.parse(JSON.stringify(o.playFromTypes)) : null,
+          // Gisa, Glorious Resurrector: what a card was exiled with that has since left, and when that left
+          _exiledWithGone: o._exiledWithGone || null, _leftSeq: o._leftSeq || null,
           // cipher: what is encoded on a creature, and what a card is encoded on
           encoded: o.encoded ? o.encoded.slice() : null, encodedOn: o.encodedOn || null,
           // its timestamp, who controlled it before a control effect, what a copy for the turn covered up

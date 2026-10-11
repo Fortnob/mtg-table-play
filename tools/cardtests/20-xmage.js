@@ -26199,4 +26199,235 @@ module.exports = (test) => {
     toMain2(K2);
     t.zone(kt, 'exile'); t.eq(kt.impulseBy, 'A', 'Edward Kenway: A may play it');
   });
+
+  test('Commanders: Gandalf the White — a legendary permanent or an artifact entering or leaving triggers twice', (mk, t) => {
+    t.auto('Gandalf the White');
+    const T = mk({ library: Array(40).fill('Plains') });
+    T.toMain('A');
+    T.bf('A', 'Gandalf the White');
+    const hand = () => T.zone('A', 'hand').length;
+    // Ichor Wellspring: "When this artifact enters and when it's put into a graveyard from the battlefield, draw a card."
+    let h0 = hand();
+    const iw = T.hand('A', 'Ichor Wellspring');
+    T.mana('A', '2'); T.cast('A', iw);
+    t.eq(hand() - h0, 2, 'Gandalf: Ichor Wellspring entering, two cards');
+    h0 = hand();
+    T.g.moveObject(iw, 'graveyard'); T.resolve();
+    t.eq(hand() - h0, 2, 'Gandalf: Ichor Wellspring going to the graveyard, two cards');
+    // a creature neither legendary nor an artifact: once
+    h0 = hand();
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Elvish Visionary'));
+    t.eq(hand() - h0, 1, 'Gandalf: Elvish Visionary, once');
+    // Soul Warden watching: a legendary creature twice, another creature once
+    T.bf('A', 'Soul Warden');
+    let l0 = T.life('A');
+    T.put('A', 'Isamaru, Hound of Konda', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.life('A') - l0, 2, 'Gandalf: Isamaru, legendary, sets Soul Warden off twice');
+    l0 = T.life('A');
+    T.put('A', 'Grizzly Bears', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.life('A') - l0, 1, 'Gandalf: Grizzly Bears, once');
+    // an opponent's ability is not doubled
+    const hB = T.zone('B', 'hand').length;
+    T.put('B', 'Ichor Wellspring', 'battlefield', { etb: true }); T.resolve();
+    t.eq(T.zone('B', 'hand').length - hB, 1, "Gandalf: B's Ichor Wellspring, once");
+    // destroyed together: Gandalf still sees the Wellspring go (CR 603.10a)
+    T.bf('A', 'Ichor Wellspring');
+    h0 = hand();
+    T.mana('A', '3WWW'); T.cast('A', T.hand('A', 'Planar Cleansing'));
+    t.no(T.bfOf('A').some(o => o.name === 'Gandalf the White'), 'Gandalf: destroyed by Planar Cleansing');
+    t.eq(hand() - h0, 2, 'Gandalf: the Wellspring that died alongside it, two cards');
+    // without Gandalf: once
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.toMain('A');
+    const iw2 = U.bf('A', 'Ichor Wellspring');
+    const u0 = U.zone('A', 'hand').length;
+    U.g.moveObject(iw2, 'graveyard'); U.resolve();
+    t.eq(U.zone('A', 'hand').length - u0, 1, 'no Gandalf: once');
+  });
+
+  test('Commanders: Witch-king of Angmar — creatures that hit you are sacrificed, once for the lot, and the Ring tempts you', (mk, t) => {
+    t.auto('Witch-king of Angmar');
+    const T = mk({ library: Array(30).fill('Plains') });
+    T.toMain('A');
+    const wk = T.bf('A', 'Witch-king of Angmar');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    T.toMain('B');
+    T.answer('declareAttackers', () => [b1, b2].map(o => ({ attackerId: o.id, defenderId: 'A' })));
+    T.answer('declareBlockers', () => []);
+    let asked = [];
+    T.answer('sacrifice', (ch) => { asked.push(ch); return { cardIds: [b2.id] }; });
+    T.toMain('B', 'endCombat');
+    t.eq(T.life('A'), 16, 'Witch-king: both Bears hit A');
+    t.eq(asked.length, 1, 'Witch-king: one trigger for both Bears');
+    t.ok(asked[0] && asked[0].playerId === 'B' && asked[0].candidates.includes(b1.id) && asked[0].candidates.includes(b2.id) && !asked[0].candidates.includes(giant.id),
+      'Witch-king: B chooses among the Bears that hit, not the Hill Giant');
+    t.zone(b2, 'graveyard', 'Witch-king: the Bears B chose');
+    t.zone(b1, 'battlefield', 'Witch-king: the other Bears stays');
+    t.eq(T.player('A').ringLevel, 1, 'Witch-king: the Ring tempts A');
+    // noncombat damage: nothing
+    T.toMain('B', 'main');
+    const n0 = T.asked.filter(c => c.type === 'sacrifice').length;
+    T.mana('B', 'R'); T.cast('B', T.hand('B', 'Shock'), { targets: ['A'] });
+    t.eq(T.asked.filter(c => c.type === 'sacrifice').length, n0, 'Witch-king: Shock to A sets nothing off');
+    t.eq(T.player('A').ringLevel, 1, 'Witch-king: no tempting from Shock');
+    // "Discard a card: Witch-king gains indestructible until end of turn. Tap him."
+    T.toMain('A');
+    T.hand('A', 'Plains');
+    T.activate('A', wk, 0);
+    t.ok(T.g.hasKw(wk, 'indestructible'), 'Witch-king: indestructible');
+    t.ok(wk.tapped, 'Witch-king: tapped');
+  });
+
+  test('Commanders: Zhulodok, Void Gorger — a big colorless spell from hand cascades twice, the first hit resolving before the second cascade', (mk, t) => {
+    t.auto('Zhulodok, Void Gorger');
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.toMain('A');
+    T.bf('A', 'Zhulodok, Void Gorger');
+    for (const nm of ['Juggernaut', 'Plains', 'Ornithopter', 'Plains']) T.top('A', nm);
+    const cr = T.hand('A', "Ulamog's Crusher");
+    T.mana('A', '8');
+    T.cast('A', cr, { resolve: false });
+    const st = T.g.stack;
+    t.eq(st.length, 3, 'Zhulodok: the Crusher, the second cascade, the first hit');
+    t.eq(st[2].obj && st[2].obj.name, 'Ornithopter', 'Zhulodok: the first cascade cast Ornithopter, on top');
+    t.ok((st[1].effects || []).some(e => e.op === 'cascadeAgain'), 'Zhulodok: the second cascade waits beneath it');
+    t.eq(st[0].obj && st[0].obj.name, "Ulamog's Crusher", 'Zhulodok: the Crusher at the bottom');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => ['Ornithopter', 'Juggernaut', "Ulamog's Crusher"].includes(o.name)).length, 3, 'Zhulodok: both hits and the Crusher on the battlefield');
+    // a colored spell, and a colorless one under 7: no cascade
+    const U = mk({ library: Array(20).fill('Plains') });
+    U.toMain('A');
+    U.bf('A', 'Zhulodok, Void Gorger');
+    U.mana('A', 'GGG5');
+    U.cast('A', U.hand('A', 'Craterhoof Behemoth'), { resolve: false });
+    t.eq(U.g.stack.length, 1, 'Zhulodok: Craterhoof Behemoth is green, no cascade');
+    U.resolve();
+    U.mana('A', '6');
+    U.cast('A', U.hand('A', 'Wurmcoil Engine'), { resolve: false });
+    t.eq(U.g.stack.length, 1, 'Zhulodok: Wurmcoil Engine, mana value 6, no cascade');
+    // Maelstrom Wanderer's own "Cascade, cascade": two as well
+    const W = mk({ library: Array(20).fill('Plains') });
+    W.toMain('A');
+    for (const nm of ['Grizzly Bears', 'Ornithopter']) W.top('A', nm);
+    W.mana('A', 'GUR5');
+    W.cast('A', W.hand('A', 'Maelstrom Wanderer'), { resolve: false });
+    t.eq(W.g.stack.length, 3, 'Maelstrom Wanderer: two cascades');
+    W.resolve();
+    t.ok(W.bfOf('A').some(o => o.name === 'Grizzly Bears') && W.bfOf('A').some(o => o.name === 'Ornithopter'), 'Maelstrom Wanderer: both hits cast');
+  });
+
+  test('Commanders: Gisa, Glorious Resurrector — opponents\' creatures exiled as they die come back at your upkeep with decayed', (mk, t) => {
+    t.auto('Gisa, Glorious Resurrector');
+    const T = mk({ library: Array(40).fill('Plains') });
+    T.toMain('A');
+    const gisa = T.bf('A', 'Gisa, Glorious Resurrector');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const mine = T.bf('A', 'Elvish Visionary');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [bears] });
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [mine] });
+    t.zone(bears, 'exile', "Gisa: B's Bears exiled instead of dying");
+    t.eq(bears.exiledWithId, gisa.id, 'Gisa: exiled with Gisa');
+    t.zone(mine, 'graveyard', "Gisa: A's own creature dies as usual");
+    T.nextTurn('A');
+    t.zone(bears, 'battlefield', 'Gisa: the Bears back at A\'s upkeep');
+    t.eq(bears.controller, 'A', 'Gisa: under A\'s control');
+    t.ok(T.g.hasKw(bears, 'decayed'), 'Gisa: with decayed');
+    t.no(T.g.canBlock(bears, T.bf('B', 'Hill Giant')), 'Gisa: decayed, it can\'t block');
+    // Gisa gone with the trigger waiting: the cards it exiled still come back
+    const U = mk({ library: Array(40).fill('Plains') });
+    U.toMain('A');
+    const g2 = U.bf('A', 'Gisa, Glorious Resurrector');
+    const b2 = U.bf('B', 'Grizzly Bears');
+    U.mana('A', 'R'); U.cast('A', U.hand('A', 'Shock'), { targets: [b2] });
+    U.toMain('B');
+    for (let i = 0; i < 200 && !U.g.stack.some(s => s.objId === g2.id); i++) { U.settle(); U.g.passPriority(U.g.priorityPlayer.id, true); }
+    t.ok(U.g.stack.some(s => s.objId === g2.id), 'Gisa: the upkeep trigger on the stack');
+    U.g.moveObject(g2, 'graveyard');
+    U.resolve();
+    t.zone(b2, 'battlefield', 'Gisa: gone before it resolved, the Bears still return');
+    t.eq(b2.controller, 'A', 'Gisa: to A');
+    // Gisa gone between upkeeps: a new Gisa is a new object, and the card stays in exile
+    const V = mk({ library: Array(40).fill('Plains') });
+    V.toMain('A');
+    const g3 = V.bf('A', 'Gisa, Glorious Resurrector');
+    const b3 = V.bf('B', 'Grizzly Bears');
+    V.mana('A', 'R'); V.cast('A', V.hand('A', 'Shock'), { targets: [b3] });
+    V.g.moveObject(g3, 'graveyard');
+    V.g.moveObject(g3, 'battlefield', { controller: 'A' });
+    V.nextTurn('A');
+    t.zone(b3, 'exile', 'Gisa: the old Gisa\'s card stays exiled');
+  });
+
+  test('Commanders: Kefka, Court Mage // Kefka, Ruler of Ruin — draws for the card types discarded; transformed, draws for life opponents lose on your turn', (mk, t) => {
+    t.auto('Kefka, Court Mage // Kefka, Ruler of Ruin');
+    const T = mk({ library: Array(40).fill('Plains') });
+    T.toMain('A');
+    T.hand('A', 'Ornithopter');
+    T.hand('B', 'Shock');
+    const kf = T.put('A', 'Kefka, Court Mage // Kefka, Ruler of Ruin', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(T.zone('A', 'graveyard').map(o => o.name).join(), 'Ornithopter', 'Kefka: A discards Ornithopter');
+    t.eq(T.zone('B', 'graveyard').map(o => o.name).join(), 'Shock', 'Kefka: B discards Shock');
+    t.eq(T.zone('A', 'hand').length, 3, 'Kefka: artifact, creature, instant — three cards');
+    // attacking: two lands discarded are one type
+    T.hand('B', 'Island');
+    for (const o of T.zone('A', 'hand').slice(1)) T.g.moveObject(o, 'library');
+    kf.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: kf.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(T.zone('A', 'hand').length, 1, 'Kefka: Plains and Island, one type, one card');
+    // nobody with a card: nothing drawn
+    const U = mk({ library: Array(40).fill('Plains') });
+    U.toMain('A');
+    U.put('A', 'Kefka, Court Mage // Kefka, Ruler of Ruin', 'battlefield', { etb: true }); U.resolve();
+    t.eq(U.zone('A', 'hand').length, 0, 'Kefka: nothing discarded, nothing drawn');
+    // {8}: each opponent sacrifices a permanent, and Kefka transforms
+    const V = mk({ library: Array(40).fill('Plains') });
+    V.toMain('A');
+    const k2 = V.bf('A', 'Kefka, Court Mage // Kefka, Ruler of Ruin');
+    const vb = V.bf('B', 'Grizzly Bears');
+    V.mana('A', '8'); V.activate('A', k2, 0);
+    t.zone(vb, 'graveyard', 'Kefka: B sacrifices the Bears');
+    t.eq(k2.face, 1, 'Kefka: transformed');
+    t.ok(V.g.hasKw(k2, 'flying'), 'Kefka, Ruler of Ruin: flying');
+    // Ruler of Ruin: B loses 3 during A's turn, A draws 3
+    let h0 = V.zone('A', 'hand').length;
+    V.mana('A', 'R'); V.cast('A', V.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(V.zone('A', 'hand').length - h0, 3, 'Kefka, Ruler of Ruin: B lost 3 on A\'s turn, three cards');
+    // during B's turn: nothing
+    V.toMain('B');
+    V.g.passPriority('B');
+    h0 = V.zone('A', 'hand').length;
+    V.mana('A', 'R'); V.cast('A', V.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(V.zone('A', 'hand').length - h0, 0, 'Kefka, Ruler of Ruin: on B\'s turn, nothing');
+  });
+
+  test('Commanders: Sovereign Okinec Ahau — attacking, counters make up what power exceeds base power', (mk, t) => {
+    t.auto('Sovereign Okinec Ahau');
+    const T = mk({ library: Array(30).fill('Plains') });
+    T.toMain('A');
+    const so = T.bf('A', 'Sovereign Okinec Ahau');
+    const pumped = T.bf('A', 'Grizzly Bears');
+    pumped.effects.push({ p: 2, t: 0, until: 'eot' });
+    const counted = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const plain = T.bf('A', 'Grizzly Bears');
+    const shrunk = T.bf('A', 'Hill Giant');
+    shrunk.effects.push({ p: -2, t: 0, until: 'eot' });
+    const theirs = T.bf('B', 'Grizzly Bears');
+    theirs.effects.push({ p: 2, t: 0, until: 'eot' });
+    T.g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: so.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(pumped.counters['+1/+1'] || 0, 2, 'Okinec Ahau: +2/+0 Bears, two counters');
+    t.eq(counted.counters['+1/+1'] || 0, 2, 'Okinec Ahau: the Bears with a counter, one more');
+    t.eq(plain.counters['+1/+1'] || 0, 0, 'Okinec Ahau: plain Bears, none');
+    t.eq(shrunk.counters['+1/+1'] || 0, 0, 'Okinec Ahau: a shrunken Hill Giant, none');
+    t.eq(so.counters['+1/+1'] || 0, 0, 'Okinec Ahau: itself at base power, none');
+    t.eq(theirs.counters['+1/+1'] || 0, 0, "Okinec Ahau: B's pumped Bears, none");
+  });
 };
