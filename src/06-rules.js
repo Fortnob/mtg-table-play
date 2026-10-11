@@ -1358,7 +1358,7 @@
       if (!z) return out;
       // lands are played, not cast, and only at sorcery speed
       const purse = this.manaSources(playerId);
-      const impulsed = (z.exile || []).filter(o => o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn)
+      const impulsed = (z.exile || []).filter(o => this._impulseOpen(o, playerId))
         .concat(this._borrowedExile(playerId));
       /* Cards set aside earlier that are now yours to cast: plotted last
          turn, or left in exile by warp. */
@@ -2806,10 +2806,32 @@
         return !!e && (e.who === 'each' || x.controller !== p.id);
       });
     }
+    /**
+     * Is this exiled card's impulse leave this player's, and still open?
+     * Inti, Dragonhawk: "until your next end step" is shut once that step
+     * has begun (impulseBeforeEnd).
+     */
+    _impulseOpen(o, playerId) {
+      if (!o || o.impulseBy !== playerId || o.impulseUntil == null || o.impulseUntil < this.turn) return false;
+      return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
+    }
+    /**
+     * Nashi, Moon Sage's Scion: an exiled card played with its leave — "one
+     * of those cards", so the rest of its lot can no longer be played that way.
+     */
+    _impulseUsed(o, playerId) {
+      if (!o || o.zone !== 'exile' || !o.impulseGroup || o.impulseBy !== playerId) return;
+      for (const q of this.players) {
+        for (const c of ((this.zones[q.id] || {}).exile || [])) {
+          if (c === o || c.impulseGroup !== o.impulseGroup) continue;
+          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null;
+        }
+      }
+    }
     /** May this player play this exiled card right now (impulse or free)? */
     _mayPlayFromExile(playerId, o) {
       if (!o || o.zone !== 'exile' || o.owner === playerId) return false;
-      return (o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) ||
+      return this._impulseOpen(o, playerId) ||
         (o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn))) ||
         // Valgavoth, Terror Eater: "During your turn, you may play cards exiled with Valgavoth."
         !!(o.exiledWithId && this._playFromRule(playerId, o, 'any'));
@@ -2923,7 +2945,7 @@
       const p = this.player(playerId);
       const o = this.obj(objId);
       if (!o) return this.fail('No such card.');
-      // (Valgavoth, Terror Eater: an opponent's land, exiled with it, is yours to play)
+      // (Valgavoth, Terror Eater; Nashi, Gonti, Night Minister: an opponent's land, exiled with it or for you to play, is yours to play)
       if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o)) return this.fail('Not your card.');
       const a = o.analysis();
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
@@ -2936,7 +2958,7 @@
       if (o.zone !== 'hand' && this.config.rulesEnforcement !== 'relaxed') {
         const z = this.zones[playerId] || {};
         const impulsed = o.zone === 'exile' && !o.impulseCastOnly &&
-          ((o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) || this._mayPlayFromExile(playerId, o));
+          (this._impulseOpen(o, playerId) || this._mayPlayFromExile(playerId, o));
         if (o.zone === 'graveyard' || (o.zone === 'library' && (z.library || [])[0] === o)) leave = this._playFromRule(playerId, o, 'land');
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
@@ -2944,6 +2966,8 @@
       // Muldrotha, the Gravetide: this turn's land from the graveyard
       if (leave && leave.srcId && leave.perType) this._usePlayFromType(leave.srcId, 'land');
       if (back) o.face = 1;
+      // Nashi, Moon Sage's Scion: "one of those cards" — a land played is the one
+      if (o.zone === 'exile') this._impulseUsed(o, playerId);
       this._landPlayed(p, o);
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
@@ -3668,7 +3692,7 @@
       if ((o.zone === 'graveyard' || o.zone === 'exile') && !leave) {
         if (o.zone === 'graveyard' && this._anyStatic('cageGraveyards'))
           return { ok: false, reason: "A cage stops spells cast from graveyards." };
-        const impulsed = (o.zone === 'exile' && o.impulseBy === playerId && o.impulseUntil != null && o.impulseUntil >= this.turn) ||
+        const impulsed = (o.zone === 'exile' && this._impulseOpen(o, playerId)) ||
           // back from an adventure: the creature, for its cost
           (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0);
         if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts) };
@@ -3768,8 +3792,9 @@
         const why = this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, a.additionalCost), o, null);
         if (why) return { ok: false, reason: why };
       }
-      /* Bolas's Citadel: life equal to the mana value, instead of mana */
-      if (leave && leave.payLife) {
+      /* Bolas's Citadel: life equal to the mana value, instead of mana (Nashi, Moon Sage's Scion: a card
+         exiled with that leave — impulsePayLife) */
+      if ((leave && leave.payLife) || (!opts && o.zone === 'exile' && o.impulsePayLife === playerId && this._impulseOpen(o, playerId))) {
         const mv = MANA.cmc(a.manaCost || '');
         if (p.life < mv || (mv > 0 && this._lifeFrozen(p))) return { ok: false, reason: 'Not enough life.' };
         return { ok: true, cost: '', lifeInstead: mv };
@@ -5837,6 +5862,8 @@
       }
       // The Great Work: "If a spell cast this way would be put into a graveyard, exile it instead."
       if (via && via.via === 'graveGrant' && via.exileAfter) o._exileFromStack = true;
+      // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
+      if (o.zone === 'exile') this._impulseUsed(o, playerId);
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';
@@ -12011,6 +12038,13 @@
         o._uginCard = null;
         if (c && c.zone === 'exile') { c.faceDownExile = false; this.moveObject(c, 'hand'); }
       }
+      /* A card that changes zones is a new object (CR 400.7): leave to play it from exile, and its being
+         face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
+      if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
+        o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false;
+        o.faceDownExile = false; o.lookableBy = null;
+      }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
@@ -12273,6 +12307,8 @@
       else if (toZone === 'exile') {
         this.zones[o.owner].exile.push(o);
         if (exiledWith) o.exiledWithId = exiledWith;
+        // which time in exile this is: Dragonhawk's "those cards that are still exiled" are these, not a later one (exileStamp)
+        if (from !== 'exile') o.exileStamp = this._exileSeq = (this._exileSeq || 0) + 1;
         if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner });
         if (from === 'battlefield' && heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl, exiledFromBattlefield: true });
       }
@@ -12629,7 +12665,10 @@
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
         if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
-          const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i);
+          /* (Rev, Tithe Extractor: "one or more creatures you control deal combat damage to a player" — a
+             lot for each player hit: batchPerPlayer) */
+          const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i &&
+            (!ab.batchPerPlayer || (t.triggerData || {}).player === tData.player));
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
@@ -12657,7 +12696,9 @@
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional,
             // (a trigger for a lot of them, which "that many" counts: batchCount)
-            triggerData: Object.assign({}, tData, ((ab.objFilter && ab.objFilter.batch) || ab.batch) ? { batch: true } : {}),
+            triggerData: Object.assign({}, tData, ((ab.objFilter && ab.objFilter.batch) || ab.batch) ? { batch: true } : {},
+              // Blightwing Bandit: "that player" — the opponent whose turn it is (thatPlayerActive)
+              ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {}),
           });
         }
         // "When you next cast …": the turn's emblem goes once it has triggered
@@ -12837,6 +12878,8 @@
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
           // Nita, Forum Conciliator: a spell its controller doesn't own (notOwnedSpell)
           if (ab.notOwnedSpell && !(data.object && data.object.owner !== o.controller)) continue;
+          // Gonti, Night Minister: a spell its caster doesn't own (notOwnedByCaster)
+          if (ab.notOwnedByCaster && !(data.object && data.playerId && data.object.owner !== data.playerId)) continue;
           // Fire Lord Azula: only while it is attacking (selfAttacking)
           if (ab.selfAttacking && !(o.zone === 'battlefield' && o.attacking)) continue;
           // Nev: the first spell with {X} in its mana cost this turn (firstXSpell)
@@ -13620,6 +13663,10 @@
         if (v && typeof v === 'object' && v.creaturesOfTargetPlayers) {
           const ids = new Set(targets.filter(t => t.kind === 'player').map(t => t.id));
           return this.battlefield.filter(o => ids.has(o.controller) && !o.phasedOut && (this.characteristics(o) || {}).isCreature).length;
+        }
+        // Dragonhawk, Fate's Tempest: "for each of those cards that are still exiled" — the same cards, not back again since
+        if (v && typeof v === 'object' && v.stillExiled) {
+          return (v.held || []).filter(([id, st]) => { const c = this.obj(id); return !!c && c.zone === 'exile' && c.exileStamp === st; }).length * (v.mult || 1);
         }
         // Shatterskull Smashing: X, or twice X once X is big enough
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
@@ -18006,7 +18053,7 @@
             if (picked === SUSPEND) return SUSPEND;
             const c = (picked || []).map(x => this.obj(x)).find(x => x && x.zone === 'library');
             if (!c) { this.rng.shuffle(z.library); break; }
-            this.moveObject(c, 'exile'); c.faceDownExile = true;
+            this.moveObject(c, 'exile'); c.faceDownExile = true; c.lookableBy = ctx.controller;
             this.rng.shuffle(z.library);
             id = c.id;
             if (r) r.marks[slot] = id;
@@ -18833,6 +18880,12 @@
               }
               // Phelia: the counter goes on the creature that set this up
               if (x.op === 'returnThatCounterSource') return Object.assign({}, x, { srcId: src ? src.id : null });
+              /* Dragonhawk, Fate's Tempest: "those cards" are the ones just exiled, each as it is in exile
+                 now — counted later only while it stays there (heldExiled) */
+              if (e.heldExiled && x.n && typeof x.n === 'object' && x.n.stillExiled) {
+                const held = (this._lastExiledList || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile').map(c => [c.id, c.exileStamp]);
+                return Object.assign({}, x, { n: Object.assign({}, x.n, { held }) });
+              }
               return Object.assign({}, x,
                 objId && (x.scope === 'lastTarget' || x.scope === 'thatObject') ? { scope: 'thatObject' } : {});
             }),
@@ -19120,6 +19173,47 @@
           this.logEvent('rules', `${me.name} will cast ${x.name}.`);
           break;
         }
+        /* Gonti, Lord of Luxury: "look at the top four cards of target opponent's library, exile one of
+           them face down, then put the rest on the bottom of that library in a random order"; Rev, Tithe
+           Extractor, Gonti, Night Minister: the top card, face down. The looker picks (exileFaceDown) when
+           there is more than one to pick from; the leave after it is about the cards exiled here. */
+        case 'lookExileFaceDown': {
+          const whose = e.whose === 'target' ? firstPlayer() : triggerPlayer();
+          const by = e.by === 'objController' ? this.player((ctx.triggerData || {}).objController) : me;
+          this._lastExiledList = [];
+          if (!whose || !by) break;
+          const lib = this.zones[whose.id].library;
+          const looked = lib.slice(0, Math.max(0, n(e.n) || 1));
+          if (!looked.length) break;
+          const k = Math.min(Math.max(1, n(e.keep) || 1), looked.length);
+          let keep = looked.slice(0, k);
+          if (looked.length > k) {
+            const picked = this._ask({ type: 'pickCard', playerId: by.id, count: k, purpose: 'exileFaceDown',
+              cards: looked.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}exile ${k === 1 ? 'one' : k} of the top ${looked.length} cards of ${whose.id === by.id ? 'your' : whose.name + "'s"} library face down.` }, 'lefd');
+            if (picked === SUSPEND) return SUSPEND;
+            const got = (picked || []).map(id => this.obj(id)).filter(c => c && looked.includes(c)).filter((c, i, a) => a.indexOf(c) === i).slice(0, k);
+            keep = got.concat(looked.filter(c => !got.includes(c))).slice(0, k);
+          }
+          const rest = looked.filter(c => !keep.includes(c));
+          for (const c of keep) {
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            c.faceDownExile = true; c.lookableBy = by.id;
+            this._lastExiledList.push(c.id);
+          }
+          if (this._lastExiledList.length) this._lastExiled = this._lastExiledList[this._lastExiledList.length - 1];
+          // Thief of Sanity: "the rest into their graveyard"; Gonti: "on the bottom of that library in a random order"
+          if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');
+          else if (e.rest === 'bottomRandom' && rest.length) {
+            for (const c of rest) { const i = lib.indexOf(c); if (i >= 0) lib.splice(i, 1); }
+            const under = rest.slice();
+            this.rng.shuffle(under);
+            lib.push(...under);
+          }
+          this.logEvent('exile', `${by.name} looks at the top ${looked.length === 1 ? 'card' : looked.length + ' cards'} of ${whose.id === by.id ? 'their' : whose.name + "'s"} library and exiles ${keep.length === 1 ? 'one' : keep.length} face down.`);
+          break;
+        }
         /* "You may play that card this turn", "Until the end of your next
            turn, you may play those cards", "You may cast that card for as
            long as it remains exiled, and mana of any type can be spent to
@@ -19136,17 +19230,29 @@
             this.logEvent('rules', `${me.name} may cast ${gy.name} from the graveyard this turn.`);
             break;
           }
+          // Nashi, Moon Sage's Scion: "you may play one of those cards" — one leave for the lot (impulseGroup)
+          const group = e.oneOf ? this._uid('ig') : null;
+          // Gonti, Night Minister: "They may play that card" — the controller of the creature that hit
+          const whoFor = e.who === 'objController' ? ((ctx.triggerData || {}).objController || null) : ctx.controller;
           for (const id of ids) {
             const c = this.obj(id);
-            if (!c || c.zone !== 'exile') continue;
+            if (!c || c.zone !== 'exile' || !whoFor) continue;
             // Chandra, Dressed to Kill: only the red ones
             if (e.color && !(((c.analysis() || {}).colors) || []).includes(e.color)) continue;
-            const pid = e.who === 'owner' ? c.owner : ctx.controller;
-            const until = e.duration === 'eot' ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(pid);
+            const pid = e.who === 'owner' ? c.owner : whoFor;
+            // Unlucky Witness: "Until your next end step" — this turn's, if it is theirs and still to come
+            const nextEndNow = e.duration === 'nextEnd' && this.activePlayer && this.activePlayer.id === pid && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
+            const until = e.duration === 'eot' || nextEndNow ? this.turn : e.duration === 'exiled' ? 99999 : this._endOfNextTurnOf(pid);
             // (a land "played without paying its mana cost" is simply played)
             if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; }
             else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
             if (e.anyMana) c.impulseAnyMana = pid;
+            if (group) c.impulseGroup = group;
+            if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
+            // Nashi: "If you cast a spell this way, pay life equal to its mana value rather than paying its mana cost."
+            if (e.payLife) c.impulsePayLife = pid;
+            // the player who may play a face-down card may look at it
+            if (c.faceDownExile) c.lookableBy = pid;
             if (e.faceUpForThem) c.faceDownExile = false;
             if (e.exileAfter) c._exileFromStack = true;
           }
@@ -20349,8 +20455,10 @@
             if (tg === SUSPEND) return SUSPEND;
             if (r) r.marks[slot + 'done' + k] = true;
             if (tg === null) continue;
+            // Tinybones, the Pickpocket: "and mana of any type can be spent to cast that spell"
+            if (e.anyMana) c.impulseAnyMana = ctx.controller;
             const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
-            if (!ok) continue;
+            if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (r) r.marks[slot + 'n']++;
             const it = this.stack.find(st => st.objId === c.id);
             if (it && e.exileAfter) it.viaAfter = 'exile';
@@ -20929,6 +21037,12 @@
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
             c.impulseBy = ctx.controller; c.impulseUntil = until;
+            /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
+               (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
+            if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
+            if (e.anyMana) c.impulseAnyMana = ctx.controller;
+            if (e.payLife) c.impulsePayLife = ctx.controller;
+            if (c.faceDownExile) c.lookableBy = ctx.controller;
           }
           break;
         }
@@ -25242,6 +25356,10 @@
           shields: o.shields || 0, preventShield: o.preventShield || 0,
           noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || null,
           impulseUntil: o.impulseUntil == null ? null : o.impulseUntil, impulseBy: o.impulseBy || null,
+          // how that leave may be used (Nashi: one of a lot, for life; Gonti: any mana; Inti: until the end step) and who may see a card face down in exile
+          impulseCastOnly: !!o.impulseCastOnly, impulseAnyMana: o.impulseAnyMana || null, impulseGroup: o.impulseGroup || null,
+          impulsePayLife: o.impulsePayLife || null, impulseBeforeEnd: !!o.impulseBeforeEnd,
+          faceDownExile: !!o.faceDownExile, lookableBy: o.lookableBy || null, exileStamp: o.exileStamp == null ? null : o.exileStamp,
           _diedCounters: o._diedCounters ? Object.assign({}, o._diedCounters) : null,
           // a promised gift, a copy for the turn, leave to cast from elsewhere
           giftTo: o.giftTo || null, printedCard: o.printedCard || null, copyOf: o.copyOf || null,
@@ -25325,7 +25443,7 @@
         } : null,
         stateVersion: this.stateVersion, isDay: this.isDay === undefined ? null : this.isDay,
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
-        objSeq: this._objSeq, uidSeq: this._uidSeq, tsSeq: this._tsSeq || 0,
+        objSeq: this._objSeq, uidSeq: this._uidSeq, tsSeq: this._tsSeq || 0, exileSeq: this._exileSeq || 0,
       };
     }
 
@@ -25348,7 +25466,7 @@
       const highest = snap.objs.reduce((m, d) => Math.max(m, parseInt(String(d.id).slice(1), 10) || 0), 0);
       this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
       this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
-      this._tsSeq = snap.tsSeq || 0;
+      this._tsSeq = snap.tsSeq || 0; this._exileSeq = snap.exileSeq || 0;
       this._lb = null; this._contCache = null;
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
@@ -25632,11 +25750,16 @@
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
-      const secret = (o) => (o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId;
+      const secret = (o) => ((o.faceDown || !!(o.conspiracy && o.conspiracy.hidden)) && (o.zone === 'battlefield' || o.zone === 'stack' ? o.controller : o.owner) !== playerId) ||
+        /* exiled face down, a card is nobody's to see but the player allowed to look at or play it, or
+           whose hideaway holds it (CR 406.3) — Gonti, Lord of Luxury's opponent included */
+        (o.zone === 'exile' && !!o.faceDownExile && o.lookableBy !== playerId && o.impulseBy !== playerId && o.freeCastBy !== playerId &&
+          !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
       const ser = (o, hidden) => hidden ? { id: o.id, hidden: true, owner: o.owner, zone: o.zone } : {
         id: o.id, cardId: secret(o) ? FACE_DOWN_VIEW.id : o.card.id, card: secret(o) ? FACE_DOWN_VIEW : o.card,
         owner: o.owner, controller: o.controller,
-        zone: o.zone, tapped: o.tapped, faceDown: o.faceDown, face: o.face,
+        // (a card exiled face down that this player may not see shows its back)
+        zone: o.zone, tapped: o.tapped, faceDown: o.faceDown || (o.zone === 'exile' && !!o.faceDownExile && secret(o)), face: o.face,
         /* copied, not shared: a view is a snapshot, and the table compares
            the last one against this one to see what changed */
         counters: Object.assign({}, o.counters), damage: o.damage, summoningSick: o.summoningSick,

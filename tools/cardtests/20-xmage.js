@@ -25911,4 +25911,292 @@ module.exports = (test) => {
     t.zone(sw, 'graveyard', 'Sword of the Realms: countered');
     t.eq(sw.face, 0, 'Sword of the Realms: in the graveyard as Halvar');
   });
+
+  /* to the second main phase of the active player's turn, past combat */
+  const toMain2 = (T) => {
+    const g = T.g;
+    T.toMain(g.activePlayer.id, 'endCombat');
+    for (let i = 0; i < 20 && !(g.phase.id === 'postcombat' && !g.stack.length && !g.pendingChoice); i++) {
+      T.settle();
+      if (g.priorityPlayer) g.passPriority(g.priorityPlayer.id, true);
+    }
+    T.settle();
+  };
+
+  test("Commanders: Nashi, Moon Sage's Scion — one of the exiled cards, for life, this turn only", (mk, t) => {
+    t.auto("Nashi, Moon Sage's Scion");
+    const T = mk({ library: Array(20).fill('Island') });
+    const na = T.bf('A', "Nashi, Moon Sage's Scion");
+    const giant = T.top('A', 'Hill Giant'), bears = T.top('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: na.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.zone(giant, 'exile', "Nashi: the top of A's library"); t.zone(bears, 'exile', "Nashi: the top of B's library");
+    const life = T.life('A');
+    const chk = T.g.canCast('A', bears.id);
+    t.ok(chk.ok && chk.lifeInstead === 2, "Nashi: B's Grizzly Bears for 2 life");
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield'); t.eq(bears.controller, 'A');
+    t.eq(T.life('A'), life - 2, 'Nashi: 2 life rather than {1}{G}');
+    T.mana('A', '3R');
+    t.no(T.g.canCast('A', giant.id).ok, 'Nashi: one of those cards — the Hill Giant can no longer be cast');
+    // a land of the opponent's, played as A's land drop, and that is the one
+    const L = mk({ library: Array(20).fill('Island') });
+    const n2 = L.bf('A', "Nashi, Moon Sage's Scion");
+    const bolt = L.top('A', 'Lightning Bolt'), forest = L.top('B', 'Forest');
+    L.answer('declareAttackers', () => [{ attackerId: n2.id, defenderId: 'B' }]);
+    toMain2(L);
+    L.playLand('A', forest);
+    t.zone(forest, 'battlefield'); t.eq(forest.controller, 'A', "Nashi: B's Forest, played under A's control");
+    t.no(L.g.canCast('A', bolt.id).ok, "Nashi: the Lightning Bolt's leave went with the Forest");
+    // nothing played: the leave is over at the end of the turn
+    const E = mk({ library: Array(20).fill('Island') });
+    const n3 = E.bf('A', "Nashi, Moon Sage's Scion");
+    const b3 = E.top('B', 'Grizzly Bears');
+    E.answer('declareAttackers', () => [{ attackerId: n3.id, defenderId: 'B' }]);
+    toMain2(E);
+    t.ok(E.g.canCast('A', b3.id).ok, 'Nashi: castable this turn');
+    E.nextTurn('A');
+    t.zone(b3, 'exile');
+    t.no(E.g.canCast('A', b3.id).ok, "Nashi: \"until end of turn\" — not on A's next turn");
+  });
+
+  test('Commanders: Gonti, Lord of Luxury — one of four face down, cast with any mana while it stays exiled', (mk, t) => {
+    t.auto('Gonti, Lord of Luxury');
+    const T = mk({ library: Array(20).fill('Island') });
+    const four = ['Forest', 'Lightning Bolt', 'Grizzly Bears', 'Hill Giant'].map(n => T.top('B', n));
+    const giant = four[3];
+    T.answer('pickCard', (ch) => {
+      t.eq(ch.purpose, 'exileFaceDown'); t.eq(ch.cards.length, 4, 'Gonti: the top four to pick from');
+      return { cardIds: [giant.id] };
+    });
+    T.put('A', 'Gonti, Lord of Luxury', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(giant, 'exile'); t.ok(giant.faceDownExile, 'Gonti: face down');
+    const lib = T.zone('B', 'library');
+    t.ok(four.slice(0, 3).every(c => lib.indexOf(c) >= lib.length - 3), 'Gonti: the other three on the bottom');
+    // face down: B sees its back, A sees the card it may cast
+    const seenBy = (pid) => [].concat(...T.g.viewFor(pid).players.map(p => p.exile)).find(c => c.id === giant.id);
+    t.ok(seenBy('B').faceDown && seenBy('B').card.name !== 'Hill Giant', 'Gonti: hidden from B');
+    t.eq(seenBy('A').card.name, 'Hill Giant', 'Gonti: A may look at it');
+    // a bot would have taken a spell over the Forest, and casts it from exile with whatever mana it has
+    const bot = new T.MTG.bots.BotPlayer(T.g, 'A', 5);
+    const ask = T.asked.find(ch => ch.purpose === 'exileFaceDown');
+    t.no(bot.pickCards(ask).includes(four[0].id), 'Gonti: a bot does not exile the Forest it could not cast');
+    for (let i = 0; i < 4; i++) T.bf('A', 'Island');
+    t.ok(bot.castOptions('main1').some(x => x.o === giant), 'Gonti: a bot sees the Hill Giant it may cast with Islands');
+    T.nextTurn('A');
+    T.mana('A', 'UUUU');
+    T.cast('A', giant);
+    t.zone(giant, 'battlefield'); t.eq(giant.controller, 'A', 'Gonti: cast with blue mana, for as long as it remained exiled');
+    // "cast": a land picked stays where it is
+    const L = mk({ library: Array(20).fill('Island') });
+    const forest = L.top('B', 'Forest');
+    L.answer('pickCard', () => ({ cardIds: [forest.id] }));
+    L.put('A', 'Gonti, Lord of Luxury', 'battlefield', { etb: true });
+    L.resolve();
+    t.zone(forest, 'exile');
+    t.no(L.g.playLand('A', forest.id), "Gonti: a land can't be cast");
+  });
+
+  test('Commanders: Rev, Tithe Extractor — one Treasure and one card for each player hit, cast for as long as it stays', (mk, t) => {
+    t.auto('Rev, Tithe Extractor');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Rev, Tithe Extractor');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Grizzly Bears');
+    const giant = T.top('B', 'Hill Giant');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: b1.id }] });
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 1, 'Rev: two creatures hit B, one trigger, one Treasure');
+    t.zone(giant, 'exile'); t.ok(giant.faceDownExile, 'Rev: face down');
+    t.eq(T.zone('B', 'exile').length, 1, 'Rev: one card exiled');
+    for (let i = 0; i < 4; i++) T.bf('A', 'Island');
+    t.no(T.g.castSpell('A', giant.id, { auto: true }), 'Rev: no "mana of any type" — four Islands do not pay {3}{R}');
+    t.zone(giant, 'exile');
+    T.nextTurn('A');
+    T.mana('A', '3R');
+    T.cast('A', giant);
+    t.zone(giant, 'battlefield'); t.eq(giant.controller, 'A', 'Rev: cast on a later turn, while it remained exiled');
+    // two players hit: a trigger for each
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    M.bf('A', 'Rev, Tithe Extractor');
+    const c1 = M.bf('A', 'Grizzly Bears'), c2 = M.bf('A', 'Grizzly Bears');
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: c1.id }] });
+    M.answer('declareAttackers', () => [{ attackerId: c1.id, defenderId: 'B' }, { attackerId: c2.id, defenderId: 'C' }]);
+    toMain2(M);
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 2, 'Rev: B and C hit, two Treasures');
+    t.ok(M.zone('B', 'exile').length === 1 && M.zone('C', 'exile').length === 1, 'Rev: a card from each of their libraries');
+  });
+
+  test("Commanders: Gonti, Night Minister — the creature's controller takes the card; a spell they don't own makes a Treasure", (mk, t) => {
+    t.auto('Gonti, Night Minister');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Gonti, Night Minister');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.top('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.zone(giant, 'exile'); t.ok(giant.faceDownExile, 'Gonti: face down');
+    t.eq(giant.impulseBy, 'A', 'Gonti: A may play it');
+    T.mana('A', 'UUUU');
+    T.cast('A', giant);
+    t.zone(giant, 'battlefield', 'Gonti: cast with blue mana');
+    const treasures = () => T.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length;
+    t.eq(treasures(), 1, "Gonti: A cast a spell it doesn't own, a Treasure");
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(treasures(), 1, 'Gonti: its own Grizzly Bears, nothing');
+    // another player's creature hitting another of A's opponents: that player looks and plays
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    M.bf('A', 'Gonti, Night Minister');
+    const bb = M.bf('B', 'Grizzly Bears');
+    const top = M.top('C', 'Forest');
+    M.nextTurn('B');
+    M.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'C' }]);
+    toMain2(M);
+    t.zone(top, 'exile'); t.eq(top.impulseBy, 'B', "Gonti: B's Bears hit C, B may play C's card");
+    M.playLand('B', top);
+    t.eq(top.controller, 'B', "Gonti: B plays C's Forest");
+    // damage to Gonti's controller is not to one of its opponents
+    const N = mk({ library: Array(20).fill('Island') });
+    N.bf('A', 'Gonti, Night Minister');
+    const nb = N.bf('B', 'Grizzly Bears');
+    N.nextTurn('B');
+    const atop = N.zone('A', 'library')[0];
+    N.answer('declareAttackers', () => [{ attackerId: nb.id, defenderId: 'A' }]);
+    toMain2(N);
+    t.zone(atop, 'library', 'Gonti: B hit A, nothing exiled');
+  });
+
+  test("Commanders: Dragonhawk, Fate's Tempest — X cards to play until the end step, 2 damage for each still exiled", (mk, t) => {
+    t.auto("Dragonhawk, Fate's Tempest");
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Craw Wurm');
+    T.bf('A', 'Grizzly Bears');
+    const bolt = T.top('A', 'Lightning Bolt'), forest = T.top('A', 'Forest'), shock = T.top('A', 'Shock');
+    T.put('A', "Dragonhawk, Fate's Tempest", 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(shock, 'exile'); t.zone(forest, 'exile'); t.zone(bolt, 'library', 'Dragonhawk: X is 2 (itself and the Wurm, not the Bears)');
+    T.playLand('A', forest);
+    t.zone(forest, 'battlefield', 'Dragonhawk: played from exile');
+    const life = T.life('B');
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), life - 2, 'Dragonhawk: one card still exiled, 2 damage');
+    T.mana('A', 'R');
+    t.no(T.g.canCast('A', shock.id).ok, 'Dragonhawk: "until your next end step" — not in it');
+    // a card that left exile and came back is not one of "those cards"
+    const R = mk({ library: Array(20).fill('Island') });
+    R.bf('A', 'Craw Wurm');
+    const s2 = R.top('A', 'Shock'), s1 = R.top('A', 'Lightning Bolt');
+    R.put('A', "Dragonhawk, Fate's Tempest", 'battlefield', { etb: true });
+    R.resolve();
+    t.ok(s1.zone === 'exile' && s2.zone === 'exile', 'Dragonhawk: two exiled');
+    R.g.moveObject(s1, 'graveyard'); R.g.moveObject(s1, 'exile');
+    const l2 = R.life('B');
+    R.toMain('A', 'end');
+    t.eq(R.life('B'), l2 - 2, 'Dragonhawk: the Bolt is a new object in exile, only the Shock counts');
+  });
+
+  test('Commanders: Tinybones, the Pickpocket — a nonland permanent card from their graveyard, with any mana', (mk, t) => {
+    t.auto('Tinybones, the Pickpocket');
+    const T = mk({ library: Array(20).fill('Island') });
+    const tb = T.bf('A', 'Tinybones, the Pickpocket');
+    T.bf('A', 'Island'); T.bf('A', 'Island');
+    const bears = T.grave('B', 'Grizzly Bears');
+    T.grave('B', 'Lightning Bolt'); T.grave('B', 'Forest');
+    T.answer('pickTarget', (ch) => {
+      const ids = [].concat(...ch.options).map(x => x.id);
+      t.ok(ids.length === 1 && ids[0] === bears.id, 'Tinybones: only the Grizzly Bears is a nonland permanent card');
+      return { targets: [{ kind: 'object', id: bears.id }] };
+    });
+    T.answer('declareAttackers', () => [{ attackerId: tb.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.zone(bears, 'battlefield'); t.eq(bears.controller, 'A', "Tinybones: cast with two Islands' blue mana");
+    // nothing to pay with: it stays where it is
+    const N = mk({ library: Array(20).fill('Island') });
+    const t2 = N.bf('A', 'Tinybones, the Pickpocket');
+    const b2 = N.grave('B', 'Grizzly Bears');
+    N.answer('declareAttackers', () => [{ attackerId: t2.id, defenderId: 'B' }]);
+    toMain2(N);
+    t.zone(b2, 'graveyard', 'Tinybones: no mana, no spell');
+  });
+
+  test('Commanders: the same words elsewhere — Thief of Sanity, Black Cat, Klaw, Edward Kenway, Blightwing Bandit; Unlucky Witness, Electrostatic Blast', (mk, t) => {
+    for (const n of ['Thief of Sanity', 'Black Cat, Cunning Thief', 'Klaw, Master of Sound', 'Edward Kenway', 'Blightwing Bandit', 'Unlucky Witness', 'Electrostatic Blast']) t.auto(n);
+    // Thief of Sanity: one of three face down, the other two into B's graveyard, cast with any mana
+    const T = mk({ library: Array(20).fill('Island') });
+    const th = T.bf('A', 'Thief of Sanity');
+    const three = ['Forest', 'Lightning Bolt', 'Hill Giant'].map(n => T.top('B', n));
+    T.answer('pickCard', () => ({ cardIds: [three[2].id] }));
+    T.answer('declareAttackers', () => [{ attackerId: th.id, defenderId: 'B' }]);
+    toMain2(T);
+    t.zone(three[2], 'exile'); t.zone(three[0], 'graveyard'); t.zone(three[1], 'graveyard', 'Thief of Sanity: the rest into their graveyard');
+    T.mana('A', 'UUUU'); T.cast('A', three[2]);
+    t.eq(three[2].controller, 'A', 'Thief of Sanity: Hill Giant cast with blue mana');
+    // Black Cat: two of nine, played for as long as they stay exiled
+    const C = mk({ library: Array(20).fill('Island') });
+    const nine = ['Forest', 'Grizzly Bears', 'Shock', 'Shock', 'Shock', 'Shock', 'Shock', 'Shock', 'Shock'].map(n => C.top('B', n));
+    C.answer('pickCard', (ch) => { t.eq(ch.count, 2, 'Black Cat: two to pick'); return { cardIds: [nine[0].id, nine[1].id] }; });
+    C.put('A', 'Black Cat, Cunning Thief', 'battlefield', { etb: true });
+    C.resolve();
+    t.ok(nine[0].zone === 'exile' && nine[1].zone === 'exile' && C.zone('B', 'exile').length === 2, 'Black Cat: two exiled');
+    C.playLand('A', nine[0]);
+    C.mana('A', 'UU'); C.cast('A', nine[1]);
+    t.ok(nine[0].controller === 'A' && nine[1].zone === 'battlefield', 'Black Cat: both played — the Forest, and the Bears with blue mana');
+    // Klaw: the top card, played with any mana
+    const K = mk({ library: Array(20).fill('Island') });
+    const kl = K.bf('A', 'Klaw, Master of Sound');
+    const kg = K.top('B', 'Grizzly Bears');
+    K.answer('declareAttackers', () => [{ attackerId: kl.id, defenderId: 'B' }]);
+    toMain2(K);
+    K.mana('A', 'UU'); K.cast('A', kg);
+    t.eq(kg.controller, 'A', 'Klaw: the Bears with blue mana');
+    t.ok(K.g.hasKw(kl, 'indestructible'), 'Klaw: a card played from exile, indestructible');
+    // Blightwing Bandit: "that player" is the opponent whose turn it is
+    const W = mk({ library: Array(20).fill('Island') });
+    W.bf('A', 'Blightwing Bandit');
+    W.nextTurn('B');
+    const wb = W.top('B', 'Grizzly Bears');
+    const atop = W.zone('A', 'library')[0];
+    W.g.passPriority('B', true); W.settle();
+    W.mana('A', 'R'); W.cast('A', W.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.zone(wb, 'exile', "Blightwing Bandit: the top of B's library"); t.zone(atop, 'library', "Blightwing Bandit: not A's own");
+    t.eq(wb.impulseBy, 'A');
+    // Unlucky Witness: one of two, until A's end step
+    const U = mk({ library: Array(20).fill('Island') });
+    const uw = U.bf('A', 'Unlucky Witness');
+    const u2 = U.top('A', 'Grizzly Bears'), u1 = U.top('A', 'Forest');
+    U.mana('A', 'R'); U.cast('A', U.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'object', id: uw.id }] });
+    t.ok(u1.zone === 'exile' && u2.zone === 'exile', 'Unlucky Witness: two exiled');
+    U.playLand('A', u1);
+    U.mana('A', '1G');
+    t.no(U.g.canCast('A', u2.id).ok, 'Unlucky Witness: one of those cards — the Forest was it');
+    const U2 = mk({ library: Array(20).fill('Island') });
+    const uw2 = U2.bf('A', 'Unlucky Witness');
+    const v2 = U2.top('A', 'Shock'), v1 = U2.top('A', 'Lightning Bolt');
+    U2.mana('A', 'R'); U2.cast('A', U2.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'object', id: uw2.id }] });
+    t.ok(U2.g.canCast('A', v1.id).ok, 'Unlucky Witness: playable in the main phase');
+    U2.toMain('A', 'end');
+    U2.mana('A', 'R');
+    t.no(U2.g.canCast('A', v2.id).ok, 'Unlucky Witness: "until your next end step" — this turn\'s, and not in it');
+    // Electrostatic Blast: the boon's three cards, one of them this turn
+    const E = mk({ library: Array(20).fill('Island') });
+    E.mana('A', '1R'); E.cast('A', E.hand('A', 'Electrostatic Blast'), { targets: [{ kind: 'player', id: 'B' }] });
+    const e3 = E.top('A', 'Shock'), e2 = E.top('A', 'Shock'), e1 = E.top('A', 'Shock');
+    E.mana('A', 'R'); E.cast('A', E.hand('A', 'Lightning Bolt'), { targets: [{ kind: 'player', id: 'B' }] });
+    t.ok([e1, e2, e3].every(c => c.zone === 'exile'), 'Electrostatic Blast: three exiled by the boon');
+    E.mana('A', 'R'); E.cast('A', e1, { targets: [{ kind: 'player', id: 'B' }] });
+    E.mana('A', 'R');
+    t.no(E.g.canCast('A', e2.id).ok, 'Electrostatic Blast: one of those cards');
+    // Edward Kenway: a Vehicle's hit, the top card to play
+    const K2 = mk({ library: Array(20).fill('Island') });
+    K2.bf('A', 'Edward Kenway');
+    const veh = K2.bf('A', 'Smuggler\'s Copter');
+    veh.effects.push({ addTypes: ['Creature'], setPt: { p: 3, t: 3 }, until: 'eot' }); K2.g.bumpBoard();
+    const kt = K2.top('B', 'Forest');
+    K2.answer('declareAttackers', () => [{ attackerId: veh.id, defenderId: 'B' }]);
+    K2.answer('*', (ch) => (ch.type === 'pickCard' ? { cardIds: [] } : {}));
+    toMain2(K2);
+    t.zone(kt, 'exile'); t.eq(kt.impulseBy, 'A', 'Edward Kenway: A may play it');
+  });
 };

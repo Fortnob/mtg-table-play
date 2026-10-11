@@ -2610,6 +2610,14 @@
         const best = fits.sort((x, y) => this.rating(y) + ((y.analysis() || {}).mv || 0) / 2 - this.rating(x) - ((x.analysis() || {}).mv || 0) / 2)[0];
         return [(best || cards[0]).id];
       }
+      /* Gonti, Lord of Luxury: the card to exile face down is the one we will most want to cast from
+         there — a land only if it may be played */
+      if (ch.purpose === 'exileFaceDown') {
+        const r = g.resolving;
+        const castOnly = !!(r && r.effects && r.effects.slice(r.index).some(x => x && x.op === 'mayPlayExiled' && x.castOnly));
+        const v = (o) => { const a = o.analysis() || {}; return a.isLand ? (castOnly ? -5 : this.drawValue(o) - 2) : this.rating(o); };
+        return cards.sort((x, y) => v(y) - v(x)).slice(0, want).map(o => o.id);
+      }
       if (ch.purpose === 'landFromHand') {
         const need = this.colorNeeds();
         return cards.sort((x, y) => this.landValue(y, need) - this.landValue(x, need)).slice(0, 1).map(o => o.id);
@@ -2758,6 +2766,12 @@
       const g = this.game;
       if (!g.canPlayLand(this.pid)) return false;
       let lands = this.hand().filter(o => { const a = o.analysis(); return a && a.isLand; });
+      // with none in hand, a land exiled with leave to play it (Nashi, Gonti, Night Minister, Dragonhawk)
+      if (!lands.length) {
+        const z = g.zones[this.pid];
+        lands = z.exile.concat(g._borrowedExile(this.pid)).filter(o => !o.impulseCastOnly && (o.analysis() || {}).isLand &&
+          (g._impulseOpen(o, this.pid) || g._mayPlayFromExile(this.pid, o)));
+      }
       // with no land in hand, a spell with a land on its back goes down as the land
       if (!lands.length) {
         const backs = this.hand().filter(o => g.landBack(o));
@@ -2930,7 +2944,10 @@
         if (!a || a.isLand || this._wasRefused(o)) return;
         const chk = g.canCast(this.pid, o.id, via ? via.via : undefined);
         if (!chk.ok) return;
-        const costStr = via ? (via.cost || '') : (chk.cost || '');
+        // Nashi, Moon Sage's Scion: life rather than mana — only with life to spare
+        if (chk.lifeInstead && this.me.life - chk.lifeInstead < 10) return;
+        // Gonti, Lord of Luxury: "mana of any type can be spent to cast that spell"
+        const costStr = g._anyColorCost(this.pid, o, via ? (via.cost || '') : (chk.cost || ''));
         if (!g.couldPay(this.pid, costStr, sources)) return;
         const cost = MTG.mana.cmc(costStr);
         if (cost > mana) return;
@@ -2974,6 +2991,11 @@
       }
       // back from an adventure: the creature, cast from exile like a card in hand
       for (const o of z.exile) if (o.adventureBy === this.pid) consider(o, null);
+      /* exiled with leave to cast it (Act on Impulse, Gonti, Nashi), ours or somebody else's: a card in
+         hand for as long as the leave lasts */
+      for (const o of z.exile.concat(g._borrowedExile(this.pid))) {
+        if (o.adventureBy !== this.pid && (g._impulseOpen(o, this.pid) || g._mayPlayFromExile(this.pid, o))) consider(o, null);
+      }
       // flashback and its friends: a card in the graveyard is a card in hand for these
       // (The Great Work: and an opponent's instant or sorcery, from their graveyard)
       for (const o of z.graveyard.concat(z.exile, g._borrowedGraveyard(this.pid))) {

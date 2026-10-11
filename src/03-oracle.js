@@ -2084,6 +2084,12 @@
     // Vohar, Dire Fleet Daredevil: "If that spell would be put into your graveyard, exile it instead."
     { re: /^If that (?:spell|card) would be put into (?:your|a|its owner'?s) graveyard, exile it instead\.?$/i,
       make: () => ({ op: 'noop', exileAfterCastRider: true }) },
+    /* Nashi, Moon Sage's Scion, Inside Information: "If you cast a spell this way, pay life equal to its
+       mana value rather than paying its mana cost." (payLifeRider); Gonti, Night Minister, Klaw: "Mana of
+       any type can be spent to cast a spell this way." (anyManaRider) — riders on the leave before them */
+    { re: /^If you cast a spell this way, (?:you )?pay life equal to its mana value rather than pay(?:ing)? its mana cost\.?$/i,
+      make: () => ({ op: 'noop', payLifeRider: true }) },
+    { re: /^Mana of any type can be spent to cast (?:a spell|spells) this way\.?$/i, make: () => ({ op: 'noop', anyManaRider: true }) },
     // Oubliette: "Tap that creature as it phases in this way."
     { re: /^Tap that creature as it phases in this way\.?$/i, make: () => ({ op: 'noop', phaseTapRider: true }) },
     { re: /^Return the exiled cards? to the battlefield under (?:its owner'?s|their owners'?|your) control\.?$/i,
@@ -3763,6 +3769,23 @@
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
     { re: /^Exile the top (a|one|two|three|\d+)? ?cards? of your library face down\.?$/i,
       make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false, faceDown: true }) },
+    /* Gonti, Lord of Luxury: "look at the top four cards of target opponent's library, exile one of them
+       face down, then put the rest on the bottom of that library in a random order"; Rev, Tithe
+       Extractor: "look at the top card of that player's library and exile it face down"; Gonti, Night
+       Minister: "its controller looks at the top card of that opponent's library and exiles it face
+       down" — the looker's pick, face down (lookExileFaceDown) */
+    { re: /^(?:Then )?(you |its controller )?looks? at the top (card|(two|three|four|five|six|seven|eight|nine|\d+) cards) of (target opponent|that player|that opponent)'?s library(?:,? and|,? then|,) exiles? (it|(one|two|three) of them) face down(?:,? then put the rest (on the bottom of (?:that|their) library in a random order|into (?:their|that player'?s) graveyard))?\.?$/i,
+      make: (m) => {
+        const look = m[3] ? num(m[3]) : 1;
+        const keep = m[6] ? num(m[6]) : 1;
+        if (typeof look !== 'number' || typeof keep !== 'number') return null;
+        // "exile it" is the one card looked at; "one of them" leaves a rest, which has to be said
+        if ((look === 1) !== !m[6] || keep >= look === !!m[7] || keep > look) return null;
+        return Object.assign({ op: 'lookExileFaceDown', n: look, keep, whose: /^target/i.test(m[4]) ? 'target' : 'triggerPlayer',
+          by: /its controller/i.test(m[1] || '') ? 'objController' : 'you' },
+          m[7] ? { rest: /graveyard/i.test(m[7]) ? 'graveyard' : 'bottomRandom' } : {},
+          /^target/i.test(m[4]) ? { targets: [{ type: 'player', opponent: true }] } : {});
+      } },
     // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
     { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/,
       make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: 'battlefield', rest: 'bottomRandom' }) },
@@ -4903,12 +4926,15 @@
        "You may cast that card without paying its mana cost" — what was
        just exiled, playable as it says */
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
+        if (/ may (?:play|cast) one of /i.test(m[0])) e.oneOf = true;
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
-        let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : 'next') : null;
+        // (Unlucky Witness: "Until your next end step" — up to it, this turn's when it is still to come: nextEnd)
+        let dur = m[1] ? (/end of turn/i.test(m[1]) && !/next/i.test(m[1]) ? 'eot' : /^your next end step$/i.test(m[1]) ? 'nextEnd' : 'next') : null;
         const take = (re, f) => { const x = rest.match(re); if (x) { rest = (rest.slice(0, x.index) + rest.slice(x.index + x[0].length)).trim(); f(x); } };
         take(/^,?\s*without paying (?:its|their) mana costs?/i, () => { e.free = true; });
         take(/^,?\s*this turn/i, () => { dur = 'eot'; });
@@ -4920,9 +4946,9 @@
         if (rest) return null;
         if (!dur) {
           // no time given: during this resolution, for nothing (CR 608.2g) — the lands among them played then too
-          return e.free ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}) : null;
+          return e.free && !e.oneOf ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}) : null;
         }
-        e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : 'nextTurn';
+        e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : dur === 'nextEnd' ? 'nextEnd' : 'nextTurn';
         return e;
       } },
     // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
@@ -5210,6 +5236,12 @@
     { re: /^At the beginning of (the|your) next end step, exile (it|that (?:creature|token|permanent))\.?$/i,
       make: (m) => Object.assign({ op: 'delayed', event: /your/i.test(m[1]) ? 'yourEndStep' : 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }, /your/i.test(m[1]) ? { forPlayer: 'you' } : {}) },
+    /* Dragonhawk, Fate's Tempest: "At the beginning of your next end step, Dragonhawk deals 2 damage to
+       each opponent for each of those cards that are still exiled." — the cards just exiled, noted now
+       and counted then (heldExiled, stillExiled) */
+    { re: /^At the beginning of your next end step, CARDNAME deals (\d+) damage to each opponent for each of those cards that are still exiled\.?$/,
+      make: (m) => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', subject: 'self', heldExiled: true,
+        name: 'Damage for each card still exiled', effects: [{ op: 'damage', each: 'opponent', n: { stillExiled: true, mult: +m[1] } }] }) },
     /* (Daretti's emblem: "return that card to the battlefield at the
        beginning of the next end step" — with nobody named, under your control) */
     { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
@@ -6941,6 +6973,8 @@
     if (spec.nonbasic && (a.supertypes || []).includes('Basic')) return false;
     if (spec.basic && !(a.supertypes || []).includes('Basic')) return false;
     if (spec.nonland && a.isLand) return false;
+    // Tinybones, the Pickpocket: "target nonland permanent card" — off the battlefield, a card of a permanent type
+    if (spec.type === 'permanent' && obj.zone !== 'battlefield' && /\bpermanent cards?\b/i.test(spec.filter || '') && !(spec.cardTypes || []).length && !a.isPermanent) return false;
     if (spec.nontoken && obj.isToken) return false;
     if (spec.token && !obj.isToken) return false;
     if (spec.faceDown && !obj.faceDown) return false;
@@ -7985,13 +8019,16 @@
        instant or sorcery card with mana value 3 or less from your graveyard.
        If that spell would be put into your graveyard, exile it instead." —
        now, as this resolves, paying its mana cost */
-    { re: /^(You may )?cast target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from your graveyard\.(?: If that (?:spell|card) would be put into (?:your|a) graveyard,? exile it instead\.)?$/i,
+    /* (Tinybones, the Pickpocket: "cast target nonland permanent card from that player's graveyard, and
+       mana of any type can be spent to cast that spell" — the player it hit, any mana: anyMana) */
+    { re: /^(You may )?cast target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|that player'?s) graveyard(, and mana of any type can be spent to cast that spell)?\.(?: If that (?:spell|card) would be put into (?:your|a) graveyard,? exile it instead\.)?$/i,
       make: (m) => {
         const words = m[2].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
-        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', controller: 'you' }, m[3] ? { maxMv: +m[3] } : {});
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', controller: /^your/i.test(m[4]) ? 'you' : 'triggerPlayer' }, m[3] ? { maxMv: +m[3] } : {});
         if (spec.unknown) return null;
         // (a trigger's "you may" is asked as it triggers: what is left is a must)
-        return [{ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] }];
+        return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
+          m[5] ? { anyMana: true } : {})];
       } },
     // Singularity Rupture: "Destroy all creatures, then any number of target players each mill half their library, rounded down."
     { re: /^Destroy all creatures, then any number of target players each mill half their library, rounded (down|up)\.?$/i,
@@ -9544,6 +9581,20 @@
         out.push({ op: 'asPlayer', who: 'attackingOpponent', effects: JSON.parse(JSON.stringify(out)) });
         continue;
       }
+      /* Gonti, Night Minister: "its controller looks at … and exiles it face down. They may play that
+         card for as long as it remains exiled." — "they" is the one who exiled it */
+      if (e && e.op === 'manual' && /^They may (play|cast) that card for as long as it remains exiled\.?$/i.test(e.text || '') &&
+          prevE && prevE.op === 'lookExileFaceDown' && prevE.by === 'objController') {
+        out.push({ op: 'mayPlayExiled', castOnly: /^They may cast/i.test(e.text), who: 'objController', duration: 'exiled', text: e.text });
+        continue;
+      }
+      // Nashi, Moon Sage's Scion: life for the spell; Gonti, Night Minister: any mana for it — on the leave just given
+      if (e && (e.payLifeRider || e.anyManaRider)) {
+        const host = out.slice().reverse().find(x => x && (x.op === 'mayPlayExiled' || x.op === 'impulseLast'));
+        if (!host || host.free) { unrideable(); continue; }
+        if (e.payLifeRider) host.payLife = true; else host.anyMana = true;
+        continue;
+      }
       // Lembas: "its owner shuffles it" is the card itself only when nothing was aimed at before it
       if (e && e.ownerIt && out.some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) { unrideable(); continue; }
       // Vohar: the spell cast this way is exiled rather than put into a graveyard
@@ -10382,6 +10433,8 @@
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
+    { re: /^Whenever a player casts a spell they don'?t own,? /i, event: 'anyCastSpell', extra: { notOwnedByCaster: true } },
     // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
     // (Saint Traft and Rem Karolus: "a spell that has convoke"; Kasla, the Broken Halo: "another spell that has convoke" — castThatHas)
     { re: /^Whenever you cast (a|another) spell (?:with|that has) (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell',
@@ -10411,7 +10464,8 @@
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
     { re: /^Whenever you cast a spell with \{X\} in its mana cost,? /i, event: 'youCastSpell', extra: { xSpell: true } },
     // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
-    { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true } },
+    // (Blightwing Bandit: "that player" is the opponent whose turn it is — thatPlayerActive)
+    { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true, thatPlayerActive: true } },
     // Scrap Trawler: "Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield"
     { re: /^Whenever (?:this creature|CARDNAME) dies or (another [a-z ]+? you control) is put into a graveyard from the battlefield,? /i,
       event: 'permDies', filt: (m) => subjectFilter('this creature or ' + m[1]) },
@@ -10689,8 +10743,9 @@
     { re: /^Whenever (?:this creature|CARDNAME) or equipped creature attacks,? /i,
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     // (Thorin, Company's Leader: "to a player or battle" — playerOrBattle)
+    // (Rev, Tithe Extractor: "one or more creatures … deal combat damage to a player" — one trigger for each player hit: batchPerPlayer)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to a player(?: or battle)?(?:,| )', 'i'),
-      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extraOf: (m) => (/^one or more /i.test(m[1]) ? { batchPerPlayer: true } : {}) },
     // Contaminant Grafter, Forth Eorlingas!: "… deal combat damage to one or more players" — once for the lot ("one or more" batches)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to one or more players(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
