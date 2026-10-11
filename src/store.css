@@ -264,6 +264,11 @@ html[data-play="1"] .shard-chip { display: none; }
 .po-tags { position: absolute; left: 0; right: 0; bottom: -11px; z-index: 2; display: flex; justify-content: center; gap: 4px; pointer-events: none;
   opacity: 0; transform: translateY(4px); transition: opacity .3s .45s, transform .3s .45s; }
 .po-card.flipped .po-tags { opacity: 1; transform: none; }
+/* a card filled into a haul after it was laid out: it drops into its place; one counted up again, a nudge */
+.po-grid .po-card.late { animation: poLate .38s cubic-bezier(.2, .85, .25, 1.1); }
+@keyframes poLate { from { opacity: 0; transform: translateY(-14px) scale(.7); } }
+.po-card.bump .po-tags { animation: poBump .35s ease-out; }
+@keyframes poBump { 40% { transform: scale(1.25); } }
 /* its price, near mint, over it */
 .po-price { position: absolute; left: 50%; top: -12px; z-index: 2; transform: translate(-50%, -4px); pointer-events: none; white-space: nowrap;
   padding: 1px 8px; border-radius: 99px; font: 700 11px/1.55 var(--font); font-variant-numeric: tabular-nums; color: #cfe8d2;
