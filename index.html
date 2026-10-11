@@ -5012,6 +5012,10 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .tl-text { grid-template-columns: minmax(0, 1fr); gap: 1px; min-width: 0; }
 .tl-name, .tl-text > b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ranked-chooser .ladder { padding: 14px 16px; }
+.home-credit { top: auto; bottom: 7px; }
+:root .home .home-hero .home-hero-inner { padding-bottom: 26px; }
+/* a phone: the credit on its own line across the top of the painting, the quick game under it */
+:root[data-phone] .home .home-hero .home-hero-inner { padding-top: 32px; padding-bottom: 14px; }
 /* ============================================================
    limited.css - sealed and Jumpstart (src/13b-ui-sealed.js)
    Both live on the draft screen and borrow its head, its pool strips and
@@ -95724,11 +95728,8 @@ Sideboard
     });
 
     const inner = el('div', { class: 'home-hero-inner' });
-    inner.appendChild(el('div', { class: 'home-brand' }, [
-      el('div', { class: 'eyebrow', text: 'MTG Table' }),
-      el('h1', { class: 'home-title', text: 'Shuffle up.' }),
-      el('p', { class: 'home-tag', text: 'Real cards, real art and the real rules — against bots, or with friends over a direct connection.' }),
-    ]));
+    // no words over the painting: the quick game leads; the page keeps a heading for a screen reader
+    inner.appendChild(el('h1', { class: 'sr-only', text: 'Home' }));
     /* the quick game, and beside it today's things: quests, the week,
        rewards waiting, packs to open, your rank; each goes where it says */
     const strip = todayStrip();
