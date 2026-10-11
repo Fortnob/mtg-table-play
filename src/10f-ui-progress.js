@@ -62,29 +62,71 @@
       mark: '<path d="M32 19 C35 28 43 31 41.5 41.5 C40.5 48.5 36.5 52.5 32 53 C27.5 52.5 23.5 48.5 22.5 41.5 C21.8 35 26.5 31.5 27.5 25.5 C29.5 29.5 30.8 31.5 33 33 C34.2 28 33.4 23 32 19 Z" stroke="none"/>' },
   };
   let emblemSeq = 0;
+  /* The Commander ladder's badges are medallions in a laurel wreath, the
+     tier's mark at the heart and the division on a ribbon; Standard's are
+     the tier's own shield. Both are lit the same way: a bevel round the
+     edge, a sheen across the top, a shade at the foot. From Platinum up
+     a Standard badge grows wings; Mythic glows. */
+  const WREATH = (() => {
+    let out = '';
+    // seven leaves up each side, along the rim from the foot to near the top, leaning outward
+    const leaf = (x, y, rot) => `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5.6" ry="2.4" transform="rotate(${rot.toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+    for (let i = 0; i < 7; i++) {
+      const deg = 128 + i * 17, t = deg * Math.PI / 180;
+      const x = 32 + 30 * Math.cos(t), y = 35 - 30 * Math.sin(t);
+      const rot = -(deg + 90) - 22;
+      out += leaf(x, y, rot) + leaf(64 - x, y, 180 - rot);
+    }
+    return out;
+  })();
+  const WINGS = '<path d="M9 24 C1 19 -6 25 -6 33 C-2 30 2 30 5 31 C-1 34 -3 41 -1 46 C2 41 6 39 9 39 C5 43 5 48 7 51 C9 46 12 44 14 44 Z"/>' +
+    '<path d="M55 24 C63 19 70 25 70 33 C66 30 62 30 59 31 C65 34 67 41 65 46 C62 41 58 39 55 39 C59 43 59 48 57 51 C55 46 52 44 50 44 Z"/>';
   /**
-   * A rank's symbol. `opts.size` is its width in pixels; `opts.div` adds the
-   * division as a small seal at its foot.
+   * A rank's badge. `opts.size` is its width in pixels; `opts.div` puts the
+   * division at its foot; `opts.ladder` is 'standard' (a shield, the
+   * default) or 'commander' (a medallion in a wreath).
    */
   UI.rankEmblem = function (tier, opts) {
     opts = opts || {};
     const e = EMBLEMS[tier] || EMBLEMS.Bronze;
+    const ti = (P().TIERS || []).indexOf(tier);
+    const cmd = opts.ladder === 'commander';
     const id = 'rem' + (++emblemSeq);
     const w = opts.size || 48, h = Math.round(w * 74 / 64);
     const facet = tier === 'Diamond' ? e.b : e.ink;
-    const seal = opts.div ? `<circle cx="32" cy="64" r="8.5" fill="#12151c" stroke="${e.rim}" stroke-width="2"/><text x="32" y="67.6" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">${opts.div}</text>` : '';
+    const shape = cmd ? 'M32 9 A26 26 0 1 1 31.99 9 Z' : e.shape;
+    // the mark, smaller inside a medallion, with a shadow under it
+    const markAt = cmd ? 'translate(32 35) scale(.74) translate(-32 -37)' : '';
+    const mark = `<g transform="${markAt}"><g transform="translate(0 1.4)" fill="rgba(0,0,0,.35)" stroke="rgba(0,0,0,.35)">${e.mark}</g>` +
+      `<g fill="${e.ink}" stroke="${e.ink}" style="--facet:${facet}">${e.mark}</g></g>`;
+    const seal = !opts.div ? '' : cmd
+      ? `<path d="M13 58 H51 L47.5 63.5 L51 69 H13 L16.5 63.5 Z" fill="url(#${id})" stroke="${e.rim}" stroke-width="1.6" stroke-linejoin="round"/>` +
+        `<text x="32" y="66.6" text-anchor="middle" font-size="9" font-weight="800" fill="${e.ink}" font-family="system-ui, sans-serif" letter-spacing=".5">${opts.div}</text>`
+      : `<circle cx="32" cy="64" r="8.5" fill="#12151c" stroke="${e.rim}" stroke-width="2"/>` +
+        `<text x="32" y="67.6" text-anchor="middle" font-size="10.5" font-weight="800" fill="#fff" font-family="system-ui, sans-serif">${opts.div}</text>`;
+    const behind = cmd
+      ? `<g fill="${e.rim}" opacity=".9">${WREATH}</g><g fill="${e.b}" opacity=".45" transform="translate(0 .8)">${WREATH}</g>`
+      : ti >= 3 ? `<g fill="url(#${id}w)" stroke="${e.rim}" stroke-width=".8" opacity=".95">${WINGS}</g>` : '';
     const svg = `<svg viewBox="0 0 64 74" width="${w}" height="${h}" aria-hidden="true" focusable="false">
       <defs>
         <linearGradient id="${id}" x1="0" y1="0" x2=".35" y2="1"><stop offset="0" stop-color="${e.a}"/><stop offset="1" stop-color="${e.b}"/></linearGradient>
-        <radialGradient id="${id}s" cx=".34" cy=".2" r=".62"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="${id}w" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${e.a}"/><stop offset="1" stop-color="${e.b}" stop-opacity=".7"/></linearGradient>
+        <radialGradient id="${id}s" cx=".34" cy=".16" r=".62"><stop offset="0" stop-color="#fff" stop-opacity=".6"/><stop offset=".55" stop-color="#fff" stop-opacity=".08"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+        <linearGradient id="${id}d" x1="0" y1="0" x2="0" y2="1"><stop offset=".5" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".32"/></linearGradient>
       </defs>
-      <path d="${e.shape}" fill="url(#${id})" stroke="${e.rim}" stroke-width="2.4" stroke-linejoin="round"/>
-      <path d="${e.shape}" fill="url(#${id}s)"/>
-      <g transform="translate(0 1.4)" fill="rgba(0,0,0,.32)" stroke="rgba(0,0,0,.32)">${e.mark}</g>
-      <g fill="${e.ink}" stroke="${e.ink}" style="--facet:${facet}">${e.mark}</g>
+      ${behind}
+      <path d="${shape}" fill="url(#${id})" stroke="${e.rim}" stroke-width="2.6" stroke-linejoin="round"/>
+      <path d="${shape}" fill="url(#${id}d)"/>
+      <path d="${shape}" fill="none" stroke="rgba(0,0,0,.28)" stroke-width="1.2" transform="translate(32 36) scale(.84) translate(-32 -36)"/>
+      <path d="${shape}" fill="none" stroke="rgba(255,255,255,.4)" stroke-width=".9" transform="translate(32 36) scale(.8) translate(-32 -36)"/>
+      <path d="${shape}" fill="url(#${id}s)"/>
+      ${mark}
       ${seal}
     </svg>`;
-    return el('span', { class: 'rank-emblem re-' + String(tier).toLowerCase() + (opts.cls ? ' ' + opts.cls : ''), html: svg, 'aria-label': tier + (opts.div ? ' ' + opts.div : '') });
+    return el('span', {
+      class: 'rank-emblem re-' + String(tier).toLowerCase() + (cmd ? ' re-cmd' : '') + (opts.cls ? ' ' + opts.cls : ''), html: svg,
+      'aria-label': (cmd ? 'Commander ' : '') + tier + (opts.div ? ' ' + opts.div : ''),
+    });
   };
 
   /** One ladder's standing: its symbol, rank, steps, the next rank, and a button to play it. */
@@ -95,7 +137,7 @@
     const next = P().nextRank(r);
     const steps = el('div', { class: 'rank-steps' }, Array.from({ length: P().STEPS }, (_, i) => el('i', { class: i < r.step ? 'on' : '' })));
     return el('section', { class: 'panel ladder ladder-' + L.id + (opts.cls ? ' ' + opts.cls : '') }, [
-      UI.rankEmblem(r.tier, { size: opts.size || 96, div: r.tier === 'Mythic' ? null : r.div }),
+      UI.rankEmblem(r.tier, { size: opts.size || 96, div: r.tier === 'Mythic' ? null : r.div, ladder: L.id }),
       el('div', { class: 'ladder-body' }, [
         el('span', { class: 'ladder-name', text: `${L.name} ranked` }),
         el('h3', { text: P().rankLabel(r) }),
@@ -415,7 +457,8 @@
     const ti = Math.max(...P().LADDERS.map(L => P().TIERS.indexOf(P().ladder(L.id).tier)));
     body.appendChild(el('section', { class: 'panel' }, [el('h3', { text: 'Season rewards' }), el('p', { class: 'dim', text: 'Paid at the end of the month for the tier you finish in, on each ladder.' }),
       el('div', { class: 'rank-rewards' }, P().TIERS.map((t, i) => el('div', { class: 'rr' + (i <= ti ? ' got' : '') }, [
-        UI.rankEmblem(t, { size: 54 }), el('b', { class: 'rr-name', text: t }), rewardChips(P().RANK_REWARD[t]),
+        el('span', { class: 'rr-badges' }, [UI.rankEmblem(t, { size: 46 }), UI.rankEmblem(t, { size: 46, ladder: 'commander' })]),
+        el('b', { class: 'rr-name', text: t }), rewardChips(P().RANK_REWARD[t]),
       ])))]));
   }
 

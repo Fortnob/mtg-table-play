@@ -1137,7 +1137,7 @@
       el('span', { class: 'ti-ladders' }, PR.LADDERS.map(L => {
         const r = PR.ladder(L.id);
         return el('span', { class: 'ti-ladder' }, [
-          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30 }) : null,
+          UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 30, ladder: L.id }) : null,
           el('span', { class: 'tl-text' }, [
             el('span', { class: 'tl-name', text: L.name }),
             el('b', { text: PR.rankLabel(r) }),
@@ -1572,7 +1572,7 @@
     inner.appendChild(el('div', { class: 'event-grid' }, [
       // two ladders: the tile asks which
       evCard('ev-ranked', 'Ranked', 'Two ladders, Standard and Commander, each from Bronze to Mythic against bots that get stronger as you rise.',
-        P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15 }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
+        P.LADDERS.map(L => { const r = P.ladder(L.id); return `<span>${UI.rankEmblem ? UI.rankEmblem(r.tier, { size: 15, ladder: L.id }).outerHTML : ''}${L.name} · ${P.rankLabel(r)}</span>`; }).join('') +
         '<span>Free · season rewards</span>', () => UI.rankedChooser((id) => App.playRanked(id))),
       evCard('ev-draft', 'Draft event', `Draft the newest set with seven bots, keep your cards, then play until ${App.EVENTS.draft.wins} wins or ${App.EVENTS.draft.losses} losses.`,
         `<span>Entry ${shardHtml(App.EVENTS.draft.entry)}</span><span>Up to 5 packs and 12,500 Shards</span>`, () => App.startDraftEvent()),

@@ -563,6 +563,27 @@
     visual, el('div', { class: 'sc-title', text: title }), sub ? el('div', { class: 'sc-sub dim', html: sub }) : null,
   ].filter(Boolean));
 
+  /**
+   * A list in the day's own order: the same all day, a new one tomorrow.
+   * `salt` names the shelf, so each shelf is stirred its own way.
+   */
+  function dailyShuffle(list, salt) {
+    const d = new Date();
+    let h = 2166136261;
+    for (const ch of `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}|${salt}`) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+    const rnd = () => {
+      h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909);
+      return ((h ^= h >>> 16) >>> 0) / 4294967296;
+    };
+    const out = list.slice();
+    for (let i = out.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)); [out[i], out[j]] = [out[j], out[i]]; }
+    return out;
+  }
+
+  /* The featured page. The new set, the bundles, the recent sets, the
+     day's deals and the wildcards are what they are; the Commander decks,
+     sleeves and frames come in a new order each day, so the page shows
+     something different every time you come back to it. */
   async function featured(body, opts) {
     const go = opts.go || (() => {});
     const [sets, onSale] = await Promise.all([MTG.scry.draftableSets().catch(() => []), MTG.scry.packSets().catch(() => [])]);
@@ -596,7 +617,7 @@
     const decks = oneRow('mini', [], () => null, 170, 16);
     body.appendChild(shelf('Commander decks', 'precons', go, decks));
     preconList().then((list) => {
-      const row = oneRow('mini', list.slice(0, 10), (p) => {
+      const row = oneRow('mini', dailyShuffle(list, 'decks').slice(0, 10), (p) => {
         const art = el('div', { class: 'mini-art' });
         const had = artReg.by['deck:' + p.file];
         if (had) art.style.backgroundImage = 'url("' + had.url + '")';
@@ -622,13 +643,13 @@
     }).catch(() => dealRow.replaceWith(el('p', { class: 'dim', text: 'No deals could be found today.' })));
 
     const art = S.sleeves().art || {};
-    const sleeves = S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id]));
+    const sleeves = dailyShuffle(S.SLEEVES.filter(sl => !S.sleeves().owned.includes(sl.id) && (sl.kind !== 'art' || art[sl.id])), 'sleeves');
     body.appendChild(shelf('Sleeves', 'sleeves', go, oneRow('mini', sleeves, (sl) =>
       miniTile(go, 'sleeves', sl.name + ' sleeve', sleeveFace(sl, art[sl.id]), sl.name,
         shardSvg() + ' ' + fmtN(sl.kind === 'custom' ? S.PRICES.sleeveCustom : S.PRICES.sleeve)), 170, 16)));
 
     const me = (MTG.app && MTG.app.myName) || 'You';
-    const frames = S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id));
+    const frames = dailyShuffle(S.FRAMES.filter(fr => !S.state.frames.owned.includes(fr.id)), 'frames');
     body.appendChild(shelf('Frames', 'frames', go, oneRow('mini', frames, (fr) =>
       miniTile(go, 'frames', fr.name + ' frame', el('div', { class: 'mini-portrait' }, [UI.portrait(me, null, { size: 'lg', avatar: MTG.settings.avatar, frame: fr.id })]),
         fr.name, shardSvg() + ' ' + fmtN(fr.price)), 170, 16)));

@@ -766,7 +766,7 @@
           el('span', { class: 'op-xp', text: `+${this._progress.xp} XP` }),
           ...(this._progress.quests || []).map(q => el('span', { class: 'op-quest', text: `Quest done: ${MTG.progress.questText(q)}` })),
           this._progress.ranked ? el('span', { class: 'op-rank' }, [
-            UI.rankEmblem ? UI.rankEmblem(this._progress.ranked.after.tier, { size: 18 }) : null,
+            UI.rankEmblem ? UI.rankEmblem(this._progress.ranked.after.tier, { size: 18, ladder: this._progress.ranked.ladder }) : null,
             el('span', { text: `${this._progress.ranked.ladderName || 'Ranked'}: ${MTG.progress.rankLabel(this._progress.ranked.before)} \u2192 ${MTG.progress.rankLabel(this._progress.ranked.after)}` }),
           ].filter(Boolean)) : null,
           this._progress.weekly ? el('span', { class: 'op-weekly', text: `Weekly win ${this._progress.weekly.wins} of 15` }) : null,
