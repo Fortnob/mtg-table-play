@@ -23328,4 +23328,40 @@ module.exports = (test) => {
     t.ok(ok('Hill Giant') && ok('Endless One'), 'Helga: her mana for Hill Giant and Endless One');
     t.ok(!ok('Grizzly Bears') && !ok('Lightning Bolt') && !ok('Fireball'), 'Helga: not for Grizzly Bears, Lightning Bolt or Fireball');
   });
+
+  test('Commanders: Oviya, Automech Artisan', (mk, t) => {
+    t.auto('Oviya, Automech Artisan');
+    // (Martial Impetus's "each other creature that's attacking one of your opponents" is other than the enchanted one: left to a person)
+    t.no(mk().MTG.oracle.analyze(require('../harness').card('Martial Impetus')).fullyAutomated, 'Martial Impetus stays with a person');
+    // a creature attacking one of A's opponents has trample; one at home doesn't
+    const O = mk({ library: Array(20).fill('Forest') });
+    O.toMain('A');
+    O.bf('A', 'Oviya, Automech Artisan');
+    const atk = O.bf('A', 'Grizzly Bears'); atk.summoningSick = false;
+    const home = O.bf('A', 'Grizzly Bears');
+    O.answer('declareAttackers', () => [{ attackerId: atk.id, defenderId: 'B' }]);
+    O.toMain('A', 'declareBlockers');
+    t.ok(O.g.hasKw(atk, 'trample') && !O.g.hasKw(home, 'trample'), 'Oviya: the attacking Bears have trample, the others not');
+    // {G}, {T}: a creature or Vehicle from hand; an artifact gets two +1/+1 counters
+    const P = mk({ library: Array(20).fill('Forest') });
+    P.toMain('A');
+    const ov = P.bf('A', 'Oviya, Automech Artisan'); ov.summoningSick = false;
+    const orn = P.hand('A', 'Ornithopter');
+    P.answer('may', true);
+    P.answer('choose', (ch) => ({ picks: [orn.id] }));
+    P.mana('A', 'G');
+    P.activate('A', ov, 0); P.resolve();
+    t.zone(orn, 'battlefield', 'Oviya: the Ornithopter is put onto the battlefield');
+    t.eq(Number(orn.counters['+1/+1']) || 0, 2, 'Oviya: an artifact, two counters');
+    const Q = mk({ library: Array(20).fill('Forest') });
+    Q.toMain('A');
+    const ov2 = Q.bf('A', 'Oviya, Automech Artisan'); ov2.summoningSick = false;
+    const gb = Q.hand('A', 'Grizzly Bears');
+    Q.answer('may', true);
+    Q.answer('choose', (ch) => ({ picks: [gb.id] }));
+    Q.mana('A', 'G');
+    Q.activate('A', ov2, 0); Q.resolve();
+    t.zone(gb, 'battlefield', 'Oviya: the Bears are put onto the battlefield');
+    t.eq(Number(gb.counters['+1/+1']) || 0, 0, 'Oviya: not an artifact, no counters');
+  });
 };

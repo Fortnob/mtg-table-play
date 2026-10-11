@@ -10433,6 +10433,12 @@
           .reduce((t, o) => t + Math.max(0, this.toughnessOf(o)), 0) >= (cond.n || 0);
         /* "if it's a creature card": what was targeted, else the card just
            revealed, milled, exiled or put somewhere */
+        // Oviya, Automech Artisan: "if you put an artifact onto the battlefield this way" — only what this effect put (putThisWayIs)
+        case 'putThisWayIs': {
+          const tgP = ((ctx && ctx.resolvedTargets) || []).find(t => t && t.kind === 'object');
+          const itP = tgP && this.obj(tgP.id);
+          return !!itP && itP.zone === 'battlefield' && this._cardFitsWords(itP, cond.what);
+        }
         case 'itIs': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const milled = (this._lastMilled || []).slice(-1)[0];

@@ -2469,6 +2469,10 @@
     { re: /^Gain control of (that (?:artifact|creature|permanent|land)|it|target (?:creature|permanent|artifact)(?: an opponent controls| you don'?t control)?) until the end of your next turn\.?$/i,
       make: (m) => Object.assign({ op: 'gainControl', until: 'endNextTurn' },
         /^target/i.test(m[1]) ? { targets: [targetSpec(m[1])] } : /^that/i.test(m[1]) ? { scope: 'triggerObject' } : {}) },
+    // Oviya, Automech Artisan: "If you put an artifact onto the battlefield this way, put two +1/+1 counters on it." (putThisWayIs)
+    { re: /^If you put an? (artifact|creature|land|enchantment) onto the battlefield this way, put (a|an|one|two|three) \+1\/\+1 counters? on it\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'putThisWayIs', what: m[1].toLowerCase() },
+        then: [{ op: 'counters', kind: '+1/+1', n: num(m[2].replace(/^an?$/i, 'one')), scope: 'lastTarget' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -13072,6 +13076,9 @@
       sc.thatIs = [mm0[1], mm0[2]].filter(Boolean).join(' or ').toLowerCase();
       rest = rest.slice(0, mm0.index);
     }
+    // Oviya, Automech Artisan: "Each creature that's attacking one of your opponents" (attackingYourOppScope)
+    // (not Martial Impetus's "each other creature": other than the enchanted one, which this can't say)
+    if (!/^(?:each |all )?other /i.test(raw) && (mm0 = rest.match(/ that(?:'s| is| are) attacking (?:one of )?your opponents$/i))) { sc.attacking = true; sc.attackingYourOpponents = true; rest = rest.slice(0, mm0.index); }
     // Eriette of the Charmed Apple: "Each creature that's enchanted by an Aura you control" (enchantedByYours)
     if ((mm0 = rest.match(/ that(?:'s| is| are) enchanted by an Aura you control$/i))) { sc.enchantedByYours = true; rest = rest.slice(0, mm0.index); }
     /* "Creatures you control of the chosen type": whatever this permanent
