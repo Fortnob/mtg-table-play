@@ -605,6 +605,7 @@
         const tile = miniTile(go, 'precons', p.name, art, p.name, p.date ? p.date.slice(0, 4) : '');
         tile.onclick = () => inspectPrecon(p);
         tile.title = 'Look through ' + p.name;
+        preconMiniMeta(tile, p, art);
         return tile;
       }, 170, 16);
       decks.replaceWith(row);
@@ -715,6 +716,61 @@
     }
     return deckFiles.get(p.file);
   }
+  /* ---- who leads a printed deck, what it leans on, how popular it is ----
+     Read ahead for the decks printed so far (src/10d4-precons.js, by
+     tools/precons.js); a deck printed since is read here from its list
+     the first time it is fetched, and remembered on this device. Each is
+     [EDHREC rank or 0, [[commander, Scryfall id], ...], [tag, ...]]. */
+  const readMetas = () => MTG.store.get('preconmeta', {}) || {};
+  function preconMeta(p) {
+    const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
+    const fresh = ahead && MTG.preconIndex.v === MTG.themes.VERSION;
+    const here = readMetas()[p.file];
+    const row = fresh ? ahead : here && here.v === MTG.themes.VERSION ? here.m : ahead || (here && here.m);
+    return row ? { rank: row[0] || 0, cmd: row[1] || [], tags: row[2] || [] } : null;
+  }
+  const metaCurrent = (p) => {
+    const ahead = MTG.preconIndex && MTG.preconIndex.decks[p.file];
+    if (ahead && MTG.preconIndex.v === MTG.themes.VERSION) return true;
+    const here = readMetas()[p.file];
+    return !!(here && here.v === MTG.themes.VERSION);
+  };
+  /** A deck's list read for its commander, rank and themes (src/15b-themes.js), and kept. */
+  function rememberMeta(p, d) {
+    const commanders = d.commander || [];
+    const deck = { commanders, main: (d.mainBoard || []).map(c => ({ card: c, qty: Math.max(1, c.count || 1) })) };
+    const rank = MTG.themes.rank(commanders);
+    const row = [Number.isFinite(rank) ? rank : 0,
+      commanders.map(c => [c.faceName || U.frontName(c.name), (c.identifiers && c.identifiers.scryfallId) || null]),
+      MTG.themes.tags(deck)];
+    const all = readMetas();
+    all[p.file] = { v: MTG.themes.VERSION, m: row };
+    MTG.store.set('preconmeta', all);
+  }
+  /* most popular first: the lowest rank, a deck with none known after the rest, newest first among equals */
+  const rankOf = (p) => (preconMeta(p) || {}).rank || Infinity;
+  const PRECON_SORTS = [
+    ['popular', 'Most popular', (a, b) => rankOf(a) - rankOf(b) || b.date.localeCompare(a.date)],
+    ['newest', 'Newest', (a, b) => b.date.localeCompare(a.date) || a.name.localeCompare(b.name)],
+    ['name', 'Name (A\u2013Z)', (a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })],
+  ];
+  /** A tile's commander and themes, once they are known; its picture previews the commander. */
+  function showMeta(p, names, themes, art) {
+    const m = preconMeta(p);
+    if (!m || names._shown) return !!m;
+    names._shown = true;
+    const cards = m.cmd.map(([n, id]) => UI.commanderStub(n, id));
+    names.replaceChildren(UI.commanderNames(cards));
+    themes.replaceChildren(UI.themeLine(m.tags));
+    if (art && cards[0]) UI.commanderPreview(art, cards[0]);
+    return true;
+  }
+  /* the Featured page's small deck tiles: the same, under the deck's name */
+  function preconMiniMeta(tile, p, art) {
+    const names = el('div', { class: 'sc-sub mini-cmd' }), themes = el('div', { class: 'mini-themes' });
+    tile.append(names, themes);
+    if (!showMeta(p, names, themes, art)) preconInfo(p).then(() => showMeta(p, names, themes, art)).catch(() => {});
+  }
   /** A deck's cards as its list gives them: name, rarity and how many, enough to price it. */
   const preconRows = (d) => [].concat(d.commander || [], d.mainBoard || [])
     .map(c => ({ name: c.name, rarity: c.rarity, qty: Math.max(1, c.count || 1) }));
@@ -733,6 +789,7 @@
       return id ? { url: `https://cards.scryfall.io/art_crop/front/${id[0]}/${id[1]}/${id}.jpg`, name: c.name, ill: c.identifiers.scryfallIllustrationId || null } : null;
     });
     const art = claimArt('deck:' + p.file, pick);
+    if (!metaCurrent(p)) rememberMeta(p, d);
     return { art: art ? art.url : null, rows: preconRows(d) };
   }
   /** A deck's cards, as Scryfall prints them: the commanders, the rest, and all of it with counts. */
@@ -760,10 +817,25 @@
     let list;
     try { list = await preconList(); }
     catch (e) { lead.textContent = 'The deck lists could not be loaded. Check the connection.'; return; }
-    lead.textContent = 'Every Commander deck as printed. A deck costs less than the wildcards for its cards would, and the cards you already own come off the price. Its cards go into your collection, and you can save it as a deck ready to play.';
+    const blurb = 'Every Commander deck as printed, the most popular commanders first. A deck costs less than the wildcards for its cards would, and the cards you already own come off the price. Its cards go into your collection, and you can save it as a deck ready to play.';
+    lead.textContent = blurb;
     const sets = await MTG.scry.sets().catch(() => []);
     const setName = (c) => (sets.find(s => s.code === c) || {}).name || c.toUpperCase();
-    const search = el('input', { type: 'search', placeholder: 'Find a deck or a set…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
+    /* a deck printed since the decks were read ahead has no rank yet: the
+       newest few are read now, so they take their places in the order */
+    const unread = list.filter(p => !preconMeta(p)).slice(0, 12);
+    if (unread.length) {
+      lead.textContent = 'Reading the newest decks…';
+      let at = 0;
+      const next = async () => { while (at < unread.length) { const p = unread[at++]; await preconInfo(p).catch(() => {}); } };
+      await Promise.all([next(), next(), next(), next()]);
+      lead.textContent = blurb;
+    }
+    let sortKey = PRECON_SORTS.some(x => x[0] === MTG.settings.preconSort) ? MTG.settings.preconSort : 'popular';
+    const sortSel = el('select', { 'aria-label': 'Sort Commander decks by' },
+      PRECON_SORTS.map(([k, label]) => el('option', { value: k, text: label, selected: k === sortKey })));
+    sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('preconSort', sortKey); draw(); });
+    const search = el('input', { type: 'search', placeholder: 'Find a deck, a commander or a theme…', class: 'store-search', 'aria-label': 'Find a Commander deck' });
     const grid = el('div', { class: 'store-grid precons' });
     /* each tile's commander and price, fetched as it comes into view, a few at a time */
     let busy = 0;
@@ -775,6 +847,7 @@
         preconInfo(tile._precon.p).then((info) => {
           if (info.art) tile._precon.art.style.backgroundImage = 'url("' + info.art + '")';
           tile._precon.art.classList.add('face');
+          tile._showMeta();
           tile._rows = info.rows;
           tile._reprice();
         }).catch(() => {}).finally(() => { busy--; pump(); });
@@ -796,7 +869,10 @@
     const draw = () => {
       const q = search.value.trim().toLowerCase();
       grid.innerHTML = '';
-      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q);
+      // by name, set, commander or theme
+      const about = (p) => { const m = preconMeta(p); return m ? (m.cmd.map(c => c[0]).join(' ') + ' ' + m.tags.join(' ')).toLowerCase() : ''; };
+      const hits = list.filter(p => !q || p.name.toLowerCase().includes(q) || setName(p.code).toLowerCase().includes(q) || p.code === q || about(p).includes(q))
+        .sort((PRECON_SORTS.find(x => x[0] === sortKey) || PRECON_SORTS[0])[2]);
       for (const p of hits.slice(0, 48)) {
         const tile = preconTile(p, setName(p.code));
         tile._precon = { p, art: tile.querySelector('.precon-art') };
@@ -806,7 +882,8 @@
       if (!hits.length) grid.appendChild(el('p', { class: 'dim', text: 'No deck by that name.' }));
     };
     search.addEventListener('input', draw);
-    body.append(search, grid);
+    body.append(el('div', { class: 'precon-tools' }, [search,
+      el('label', { class: 'sort-field' }, [el('span', { text: 'Sort' }), sortSel])]), grid);
     draw();
   }
   function preconTile(p, setName) {
@@ -816,12 +893,16 @@
     if (had) art.style.backgroundImage = 'url("' + had.url + '")';
     const btn = el('button', { type: 'button', class: 'btn primary buy', html: shardSvg() + ' \u2026', 'aria-label': 'Buy ' + p.name });
     const owns = el('div', { class: 'precon-owns dim' });
+    const names = el('div', { class: 'precon-cmd' }), themes = el('div', { class: 'precon-themes' });
     btn.addEventListener('click', (e) => { e.stopPropagation(); buyPrecon(p, btn); });
     const tile = el('div', { class: 'store-card precon-tile', role: 'button', tabindex: '0',
       title: `Look through ${p.name}`, 'aria-label': `${p.name}: look through the deck` }, [
       art,
       el('div', { class: 'sc-title', text: p.name }),
       el('div', { class: 'sc-sub dim', text: `${setName}${p.date ? ' · ' + p.date.slice(0, 4) : ''}` }),
+      // who leads it and what it leans on, the commander previewed over its name and its picture
+      names,
+      themes,
       owns,
       el('div', { class: 'precon-buy' }, [btn]),
     ]);
@@ -830,6 +911,8 @@
     tile.addEventListener('keydown', (e) => {
       if ((e.key === 'Enter' || e.key === ' ') && e.target === tile) { e.preventDefault(); inspectPrecon(p); }
     });
+    tile._showMeta = () => showMeta(p, names, themes, art);
+    tile._showMeta();
     // its price for you, and what you have of it already, once its list is in
     tile._reprice = () => {
       if (!tile._rows) return;
@@ -976,6 +1059,7 @@
           UI.bracketPill ? UI.bracketPill(built) : null,
           ident.length ? el('span', { class: 'dv-ident', html: MTG.mana.html(WUBRG.filter(x => ident.includes(x)).map(x => `{${x}}`).join('')) }) : el('span', { class: 'tiny dim', text: 'Colourless' }),
         ].filter(Boolean)),
+        UI.themeLine(MTG.themes.tags(built), 'dv-themes'),
         el('div', { class: 'tiny dim', text: `${U.sum(deck.all.map(e => e.qty))} cards \u00b7 ${lands} lands \u00b7 ${setName}${p.date ? ', ' + p.date.slice(0, 4) : ''}` }),
         el('div', { class: 'dv-curve', title: 'Mana curve: spells by mana value' }, curve.map((v, i) => el('div', { class: 'dv-bar' }, [
           el('i', { style: { height: Math.round(v / top * 100) + '%' } }),

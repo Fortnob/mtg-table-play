@@ -1594,7 +1594,10 @@
       return k(a).localeCompare(k(b)) || b.updatedAt - a.updatedAt;
     }],
     ['attention', 'Needs attention', (a, b) => (deckLegalSize(a) ? 1 : 0) - (deckLegalSize(b) ? 1 : 0) || b.updatedAt - a.updatedAt],
+    // the commanders most decks run first (EDHREC's rank, src/15b-themes.js); decks with no commander after them
+    ['popularity', 'Popularity', (a, b) => deckRank(a) - deckRank(b) || b.updatedAt - a.updatedAt],
   ];
+  const deckRank = (d) => (d.themes && d.themes.rank) || (d.commander ? 1e7 : 1e8);
   const fmtName = (id) => { const f = MTG.formats.get(id); return (f && f.name) || String(id); };
   function deckLegalSize(d) {
     const fmt = MTG.formats.get(d.format);
@@ -1684,6 +1687,13 @@
     if (shelf) inner.appendChild(shelf);
     s.appendChild(el('div', { class: 'menu-wrap' }, inner));
     draw();
+    /* sorted by popularity, a deck saved before decks knew their commander's
+       rank is read in the background, and the list put in order again once */
+    const unread = all.filter(d => d.commander && !(d.themes && d.themes.v === MTG.themes.VERSION));
+    if (unread.length) {
+      Promise.all(unread.map(d => MTG.decks.ensureThemes(d.id).then((t) => { d.themes = t; }).catch(() => {})))
+        .then(() => { if (sortKey === 'popularity' && host.isConnected) draw(); });
+    }
 
     function draw() {
       const sorter = (DECK_SORTS.find(x => x[0] === sortKey) || DECK_SORTS[0])[2];
@@ -1692,6 +1702,8 @@
         list = list.filter(d =>
           String(d.name).toLowerCase().includes(query) ||
           String(d.commander || '').toLowerCase().includes(query) ||
+          // what a Commander deck leans on: "tokens", "lifegain"
+          (d.themes && d.themes.tags || []).join(' ').toLowerCase().includes(query) ||
           fmtName(d.format).toLowerCase().includes(query));
       }
       list.sort(sorter);
@@ -1730,20 +1742,23 @@
     const fmt = MTG.formats.get(d.format);
     const art = el('div', { class: 'deck-art', 'aria-hidden': 'true' });
     deckArt(art, d);
+    const open = el('button', { class: 'deck-open', 'aria-label': 'Open ' + d.name, onclick: () => openDeck(d.id) });
+    // a Commander deck says who leads it and what it leans on; its box previews the commander
+    const cmd = UI.deckCommander(d, { art: open, plain: true, cls: 'on-art' });
     const sizeTip = legalSize ? 'A legal size' : `Not a legal size for ${fmtName(d.format)}` +
       (fmt ? ` (${fmt.exactSize ? 'exactly ' + fmt.deckMin : 'at least ' + (fmt.deckMin || 0)})` : '');
+    open.append(art, el('div', { class: 'deck-face' }, [
+      UI.pips(d.identity, 'deck-pips'),
+      el('div', { class: 'deck-card-name', text: d.name }),
+      el('div', { class: 'deck-sub' }, d.commander ? [cmd.names, ' · ' + timeAgo(d.updatedAt)]
+        : (d.source === 'draft' ? 'Drafted' : fmtName(d.format)) + ' · ' + timeAgo(d.updatedAt)),
+      cmd.tags,
+      UI.deckAutoPill(d, 'on-art'),
+      // how it has done so far (src/10h-ui-history.js)
+      UI.deckRecordPill ? UI.deckRecordPill(d, 'on-art') : null,
+    ].filter(Boolean)));
     return el('article', { class: 'deck-card' + (legalSize ? '' : ' needs-work') }, [
-      el('button', { class: 'deck-open', 'aria-label': 'Open ' + d.name, onclick: () => openDeck(d.id) }, [
-        art,
-        el('div', { class: 'deck-face' }, [
-          UI.pips(d.identity, 'deck-pips'),
-          el('div', { class: 'deck-card-name', text: d.name }),
-          el('div', { class: 'deck-sub', text: (d.commander || (d.source === 'draft' ? 'Drafted' : fmtName(d.format))) + ' · ' + timeAgo(d.updatedAt) }),
-          UI.deckAutoPill(d, 'on-art'),
-          // how it has done so far (src/10h-ui-history.js)
-          UI.deckRecordPill ? UI.deckRecordPill(d, 'on-art') : null,
-        ]),
-      ]),
+      open,
       el('div', { class: 'deck-foot' }, [
         el('span', { class: 'pill', text: fmtName(d.format) }),
         el('span', { class: 'pill ' + (legalSize ? 'good' : 'bad'), title: sizeTip, text: d.size + ' cards' }),
