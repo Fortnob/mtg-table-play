@@ -12241,7 +12241,9 @@
           if (ab.notYourTurn && ((data.playerId || (this.activePlayer || {}).id) === o.controller)) continue;
           // "whenever you're dealt damage"
           if (ab.youOnly && data.player !== o.controller) continue;
-          if (controllerId && !ab.self && !ab.ofEnchanted && o.controller !== controllerId) continue;
+          // Shay Cormac: the target is another player's, the spell or ability this one's controller's (targetedByYou)
+          if (ab.targetedByYou && (event !== 'becomesTarget' || data.playerId !== o.controller)) continue;
+          if (controllerId && !ab.self && !ab.ofEnchanted && !ab.targetedByYou && o.controller !== controllerId) continue;
           if (data.except && o.id === data.except) continue;
           if (data.except && o.controller === data.except) continue;
           // an intervening "if" clause is checked before the trigger is even

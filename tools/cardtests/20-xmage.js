@@ -23011,4 +23011,36 @@ module.exports = (test) => {
     L2.toMain('A', 'end'); L2.resolve();
     t.eq(Number(g2.counters['+1/+1']) || 0, 0, 'Lathiel: no life gained, nothing');
   });
+
+  test('Commanders: Shay Cormac', (mk, t) => {
+    t.auto('Shay Cormac');
+    // A's Shock at B's Bears: a bounty counter on the Bears, and when they die two +1/+1 counters on Shay
+    const S = mk({ library: Array(10).fill('Mountain') });
+    S.toMain('A');
+    const sh = S.bf('A', 'Shay Cormac'), bb = S.bf('B', 'Grizzly Bears'), mine = S.bf('A', 'Grizzly Bears');
+    S.mana('A', 'R');
+    const big = S.bf('B', 'Hill Giant');
+    S.mana('A', 'G');
+    S.cast('A', S.hand('A', 'Giant Growth'), { targets: [{ kind: 'object', id: big.id }] }); S.resolve();
+    t.eq(Number(big.counters.bounty) || 0, 1, "Shay Cormac: B's Giant targeted by A's Giant Growth, a bounty counter");
+    t.eq(Number(sh.counters['+1/+1']) || 0, 0, 'Shay Cormac: nothing has died yet');
+    S.cast('A', S.hand('A', 'Shock'), { targets: [{ kind: 'object', id: bb.id }] });
+    S.resolve();
+    t.zone(bb, 'graveyard', 'the Bears die');
+    t.eq(Number(sh.counters['+1/+1']) || 0, 2, 'Shay Cormac: a creature with a bounty counter died, two counters');
+    // A's own creature, and B's spells, are not his business
+    S.mana('A', 'G');
+    S.cast('A', S.hand('A', 'Giant Growth'), { targets: [{ kind: 'object', id: mine.id }] }); S.resolve();
+    t.eq(Number(mine.counters.bounty) || 0, 0, "Shay Cormac: A's own Bears, no bounty");
+    // ... nor is B himself as a target
+    S.mana('A', 'R');
+    S.cast('A', S.hand('A', 'Shock'), { targets: [{ kind: 'player', id: 'B' }], resolve: false });
+    t.eq(S.g.stack.length + S.g.pendingTriggers.length, 1, 'Shay Cormac: B targeted, no trigger');
+    S.resolve();
+    S.toMain('B');
+    const b2 = S.bf('B', 'Grizzly Bears');
+    S.mana('B', 'G');
+    S.cast('B', S.hand('B', 'Giant Growth'), { targets: [{ kind: 'object', id: b2.id }] }); S.resolve();
+    t.eq(Number(b2.counters.bounty) || 0, 0, "Shay Cormac: B's spell on B's Bears, no bounty");
+  });
 };

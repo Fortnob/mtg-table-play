@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10375,
+  "needed": 10374,
   "gainedCards": 949,
-  "linesNeeded": 11012,
+  "linesNeeded": 11011,
   "linesGained": 1110,
   "gained": {
    "all": 949,
@@ -4479,17 +4479,6 @@
    ]
   },
   {
-   "what": "becomes the target, under anyone",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Shay Cormac",
-    "Willbreaker",
-    "Horobi, Death's Wail",
-    "Cowardice"
-   ]
-  },
-  {
    "what": "LoseAllAbilitiesTargetEffect",
    "score": 4,
    "lines": 4,
@@ -5801,6 +5790,16 @@
     "Battle at the Helvault",
     "The Horus Heresy",
     "Vault 13: Dweller's Journey"
+   ]
+  },
+  {
+   "what": "becomes the target, under anyone",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Willbreaker",
+    "Horobi, Death's Wail",
+    "Cowardice"
    ]
   },
   {
@@ -9256,17 +9255,6 @@
    ]
   },
   {
-   "what": "becomes the target, under anyone",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Shay Cormac",
-    "Willbreaker",
-    "Horobi, Death's Wail",
-    "Cowardice"
-   ]
-  },
-  {
    "what": "ConditionalAnyColorManaAbility shape",
    "score": 4,
    "cards": 4,
@@ -10071,6 +10059,16 @@
     "Abyssal Harvester",
     "Reenact the Crime",
     "Night Nurse, Healer of Heroes"
+   ]
+  },
+  {
+   "what": "ExileAndReturnSourceEffect",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Clive, Ifrit's Dominant // Ifrit, Warden of Inferno",
+    "Jecht, Reluctant Guardian // Braska's Final Aeon",
+    "Crystal Fragments // Summon: Alexander"
    ]
   }
  ]

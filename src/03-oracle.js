@@ -10216,6 +10216,9 @@
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1].toLowerCase() + ' permanent you control'), extra: { byOpponent: true, orYou: true } },
     { re: /^Whenever you become the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', extra: { byOpponent: true, orYou: true, youTargetedOnly: true } },
+    // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
+    { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
+      event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },
     // (Opaline Sliver's granted "this permanent")
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
