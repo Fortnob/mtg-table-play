@@ -23200,4 +23200,23 @@ module.exports = (test) => {
     G.toMain('A', 'end'); G.resolve();
     t.eq(G.life('A'), 26, 'Astarion, Friends: A gained 3 this turn, then 3 more');
   });
+
+  test('Commanders: Cayth, Famed Mechanist — other nontoken creatures have fabricate 1', (mk, t) => {
+    t.auto('Cayth, Famed Mechanist');
+    const C = mk({ library: Array(10).fill('Plains') });
+    C.toMain('A');
+    C.bf('A', 'Cayth, Famed Mechanist');
+    C.answer('mode', { modes: [0] });
+    C.mana('A', '1G');
+    const gb = C.hand('A', 'Grizzly Bears');
+    C.cast('A', gb); C.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, 'Cayth: the Bears enter with fabricate 1, a counter');
+    C.answer('mode', { modes: [1] });
+    C.mana('A', '1G');
+    C.cast('A', C.hand('A', 'Grizzly Bears')); C.resolve();
+    t.eq(C.bfOf('A').filter(o => o.isToken && /Servo/.test(o.name)).length, 1, 'Cayth: or a Servo');
+    // a token has no fabricate from Cayth
+    C.g._runEffects([{ op: 'createToken', n: 1, pt: '2/2', colorWords: ['green'], subtypes: 'Wolf', keywords: [], addTypes: [] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] }); C.resolve();
+    t.eq(C.bfOf('A').filter(o => o.isToken && /Servo/.test(o.name)).length, 1, 'Cayth: a Wolf token, no fabricate');
+  });
 };

@@ -89,7 +89,8 @@
     const w = String(k || '').trim();
     if (PRINTED_ONLY.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return false;
     // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
-    if (/^(?:toxic|firebending|annihilator|afflict) \d+$/i.test(w)) return true;
+    // (Cayth, Famed Mechanist: "have fabricate 1" — fabricate is read off the keyword as it enters: grantFabricate)
+    if (/^(?:toxic|firebending|annihilator|afflict|fabricate) \d+$/i.test(w)) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
