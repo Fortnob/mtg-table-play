@@ -43,6 +43,8 @@
         art: UI.artUrl(UI.keyCard(deck)) || null,
         // and how much of it the game runs by itself, for the same reason
         auto: autoMeta(deck),
+        // and, for a Commander deck, what it leans on and how popular its commander is
+        themes: themeMeta(deck),
         createdAt: (i >= 0 && idx[i].createdAt) || deck.createdAt || slim.updatedAt,
         updatedAt: slim.updatedAt,
       };
@@ -101,6 +103,30 @@
       return meta;
     },
 
+    /**
+     * What a Commander deck leans on, as {v, tags, rank, cmd}, the same way:
+     * the index remembers it, and a deck saved before it did, or read by an
+     * older version of the themes (src/15b-themes.js), is loaded once and
+     * read again. A deck with no commander has none, and is never loaded for it.
+     * Asked twice at once (its box and the list's sort), it is loaded once.
+     */
+    ensureThemes(id) {
+      const have = decks.index().find(d => d.id === id);
+      if (!have || !have.commander) return Promise.resolve(null);
+      if (have.themes && have.themes.v === MTG.themes.VERSION) return Promise.resolve(have.themes);
+      if (!themesAsked.has(id)) {
+        themesAsked.set(id, decks.load(id).then((full) => {
+          if (!full) return null;
+          const meta = themeMeta(full);
+          const idx = decks.index();
+          const at = idx.find(d => d.id === id);
+          if (at) { at.themes = meta; decks._writeIndex(idx); }
+          return meta;
+        }).finally(() => themesAsked.delete(id)));
+      }
+      return themesAsked.get(id);
+    },
+
     remove(id) {
       MTG.store.del('deck.' + id);
       decks._writeIndex(decks.index().filter(d => d.id !== id));
@@ -114,6 +140,46 @@
         return false;
       }).sort((a, b) => b.updatedAt - a.updatedAt);
     },
+  };
+
+  const themesAsked = new Map();
+  /* A Commander deck's themes, its commander's EDHREC rank (0 for none
+     known) and its commanders by name and id, enough to show and preview them. */
+  function themeMeta(deck) {
+    const cmds = (deck.commanders || []).filter(Boolean);
+    if (!cmds.length || !MTG.themes) return null;
+    const rank = MTG.themes.rank(cmds);
+    return { v: MTG.themes.VERSION, tags: MTG.themes.tags(deck), rank: Number.isFinite(rank) ? rank : 0,
+      cmd: cmds.map(c => [c.name, c.id || null]) };
+  }
+
+  /**
+   * A Commander deck's commanders, each previewed on hover, and what it
+   * leans on, for a list: from the index when it is current and worked out
+   * in the background when it is not. `d` is an index entry; `opts.art`, a
+   * picture of the deck that should preview its commander too; `opts.cls`, a
+   * class for the themes' line. Returns { names, tags }: two elements to
+   * place, the names holding the plain names until the cards are known.
+   * `opts.plain`: names without a preview of their own, where the whole
+   * box around them previews the commander already.
+   */
+  UI.deckCommander = function (d, opts) {
+    opts = opts || {};
+    const names = el('span', { class: 'cmd-slot', text: d.commander ? d.commander.split(' + ').map(U.frontName).join(' + ') : '' });
+    const tags = el('span', { class: 'theme-slot' });
+    let shown = null;
+    const put = (t) => {
+      if (!t || t === shown) return;
+      shown = t;
+      const cards = (t.cmd || []).map(([n, id]) => UI.commanderStub(n, id));
+      names.replaceChildren(opts.plain ? cards.map(c => U.frontName(c.name)).join(' + ') : UI.commanderNames(cards));
+      tags.replaceChildren(UI.themeLine(t.tags, opts.cls));
+      if (opts.art && cards[0] && !opts.art._cmdPreview) { opts.art._cmdPreview = true; UI.commanderPreview(opts.art, cards[0]); }
+    };
+    if (!d.commander) return { names, tags };
+    if (d.themes) put(d.themes);
+    if (!d.themes || d.themes.v !== MTG.themes.VERSION) decks.ensureThemes(d.id).then(put).catch(() => {});
+    return { names, tags };
   };
 
   function autoMeta(deck) {
@@ -2065,13 +2131,17 @@ Sideboard
         const art = el('div', { class: 'pick-deck-art', 'aria-hidden': 'true' });
         if (d.art) UI.setArt(art, d.art);
         else MTG.decks.ensureArt(d.id).then((url) => { if (url) UI.setArt(art, url); }).catch(() => {});
+        // a Commander deck: who leads it, previewed on hover, and what it leans on
+        const cmd = UI.deckCommander(d);
         const row = el('div', { class: 'pick-deck' }, [
           art,
           el('button', { type: 'button', class: 'pick-deck-main', onclick: use, 'aria-label': 'Use ' + d.name }, [
             UI.pips(d.identity),
             el('div', { class: 'grow' }, [
               el('div', { class: 'pick-deck-name', text: d.name }),
-              el('div', { class: 'tiny dim', text: `${d.size} cards · ${MTG.formats.get(d.format) ? MTG.formats.get(d.format).name : d.format}${d.commander ? ' · ' + d.commander : ''}` }),
+              el('div', { class: 'tiny dim' }, [`${d.size} cards · ${MTG.formats.get(d.format) ? MTG.formats.get(d.format).name : d.format}`,
+                d.commander ? ' · ' : null, d.commander ? cmd.names : null]),
+              cmd.tags,
             ]),
             UI.deckAutoPill(d),
           ]),

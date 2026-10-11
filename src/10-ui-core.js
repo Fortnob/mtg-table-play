@@ -811,6 +811,54 @@
     node.addEventListener('click', hide);
   };
 
+  /* ---------------- a deck's commander, and what the deck leans on ---------------- */
+
+  /**
+   * A commander known only by name and Scryfall id (a printed deck's, or
+   * one a deck list remembers) as a card enough to preview: its picture
+   * straight from the id. UI.commanderPreview fills in the rest.
+   */
+  UI.commanderStub = function (name, id) {
+    const pic = (size) => `https://cards.scryfall.io/${size}/front/${id[0]}/${id[1]}/${id}.jpg`;
+    return { name, id: id || null,
+      image_uris: id ? { small: pic('small'), normal: pic('normal'), large: pic('large'), art_crop: pic('art_crop') } : undefined };
+  };
+
+  /**
+   * Hover `node` to see `card`, as attachPreview does anywhere else. A
+   * stand-in card (commanderStub) is made whole from the card cache the
+   * first time a pointer comes over it, so its words and its back face
+   * show too. A finger is left alone, to tap what it was tapping.
+   */
+  UI.commanderPreview = function (node, card) {
+    if (!node || !card) return node;
+    let asked = false;
+    node.addEventListener('pointerenter', (e) => {
+      if (e.pointerType === 'touch' || asked || !card.id || card.oracle_text != null || card.card_faces) return;
+      asked = true;
+      MTG.scry.byId(card.id, { low: true, quiet: true }).then((full) => { if (full) Object.assign(card, full); }).catch(() => {});
+    });
+    UI.attachPreview(node, card, 0);
+    return node;
+  };
+
+  /** A deck's commanders by name, "Rin and Seri + Atraxa", each one previewed on hover. */
+  UI.commanderNames = function (cards, cls) {
+    const out = el('span', { class: 'cmd-names' + (cls ? ' ' + cls : '') });
+    (cards || []).filter(Boolean).forEach((c, i) => {
+      if (i) out.appendChild(document.createTextNode(' + '));
+      out.appendChild(UI.commanderPreview(el('span', { class: 'cmd-name', text: U.frontName(c.name) }), c));
+    });
+    return out;
+  };
+
+  /** What a deck leans on (src/15b-themes.js), as one short line: "Tokens · Lifegain · Sacrifice". */
+  UI.themeLine = function (tags, cls) {
+    const list = (tags || []).filter(Boolean);
+    return el('div', { class: 'theme-line' + (cls ? ' ' + cls : ''), text: list.join(' · '),
+      title: list.length ? 'What the deck leans on: ' + list.join(', ') : '', hidden: !list.length });
+  };
+
   /* ---------------- art picker ---------------- */
 
   /**

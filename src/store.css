@@ -626,6 +626,17 @@ html[data-play="1"] .hoard-chip { display: none; }
 .precon-tile .sc-title { font-size: 15px; }
 .precon-tile { cursor: pointer; }
 .precon-tile:focus-visible { outline: 2px solid var(--gold-mid); outline-offset: 2px; }
+/* who leads it, and what it leans on: one line each, never pushing the price down the tile */
+.precon-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.precon-tools .store-search { margin-bottom: 0; flex: 1 1 220px; }
+.precon-cmd { font-size: 12.5px; color: #e6dcc0; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.precon-themes { min-height: 1.4em; }
+.precon-themes .theme-line, .mini-themes .theme-line { color: #9fb4cf; }
+.store-grid.mini > .store-card { min-width: 0; }
+.mini-cmd { color: #e6dcc0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini-themes { max-width: 100%; }
+.mini-themes .theme-line { font-size: 11.5px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.dv-themes { font-size: 12.5px; color: #c9d3e2; white-space: normal; }
 
 /* ---------- a Commander deck looked through: built, as it sits on a table ---------- */
 .deck-view-modal .modal-body { padding-top: 14px; }
