@@ -1112,8 +1112,11 @@
     }
     if ((deck.commanders || []).length) return deck.commanders[0];
     const RANK = { mythic: 4, rare: 3, uncommon: 2, common: 1 };
+    // a legendary creature's picture says Commander: a deck without one is shown by its other cards, while it has any
+    const legend = (c) => /\bLegendary\b/.test(c.type_line || '') && /\bCreature\b/.test(c.type_line || '');
+    const pool = all.some(c => !legend(c) && !/\bLand\b/.test(c.type_line || '') && UI.artUrl(c)) ? all.filter(c => !legend(c)) : all;
     let best = null, bestScore = -1;
-    for (const c of all) {
+    for (const c of pool) {
       if (/\bLand\b/.test(c.type_line || '') || !UI.artUrl(c)) continue;
       const score = (RANK[c.rarity] || 1) * 10 + Math.min(9, c.cmc || 0) +
         (/\b(Creature|Planeswalker)\b/.test(c.type_line || '') ? 3 : 0);

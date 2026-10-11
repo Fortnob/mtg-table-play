@@ -1707,3 +1707,113 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 :root .home .home-hero .home-hero-inner { padding-bottom: 26px; }
 /* a phone: the credit on its own line across the top of the painting, the quick game under it */
 :root[data-phone] .home .home-hero .home-hero-inner { padding-top: 32px; padding-bottom: 14px; }
+
+/* ---------- the quick game, dressed ---------- */
+/* the chosen format's painting behind the right of the panel, melting into
+   the glass on the left; gold filigree in two corners */
+.quick { position: relative; overflow: hidden; isolation: isolate;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr); align-items: stretch; align-content: stretch; }
+.quick-art { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: 50% 25%; opacity: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 30%, rgba(0,0,0,.6) 62%, #000 92%); mask-image: linear-gradient(90deg, transparent 30%, rgba(0,0,0,.6) 62%, #000 92%);
+  transition: opacity .7s var(--ease); pointer-events: none; }
+.quick-art.art-on { opacity: .34; }
+.quick::before, .quick::after { content: ''; position: absolute; width: 74px; height: 74px; pointer-events: none; z-index: 0; opacity: .55;
+  background: no-repeat center / contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 74 74' fill='none' stroke='%23d4af47' stroke-width='1.2'%3E%3Cpath d='M3 40V10a7 7 0 0 1 7-7h30'/%3E%3Cpath d='M9 30V14a5 5 0 0 1 5-5h16' opacity='.6'/%3E%3Cpath d='M10 10c8 2 13 7 15 15M10 10c2 8 7 13 15 15' opacity='.7'/%3E%3Ccircle cx='10' cy='10' r='2.2' fill='%23d4af47'/%3E%3Cpath d='M40 3l4 0M3 40l0 4' stroke-linecap='round'/%3E%3C/svg%3E"); }
+.quick::before { top: 6px; left: 6px; }
+.quick::after { bottom: 6px; right: 6px; transform: rotate(180deg); }
+.quick > * { position: relative; z-index: 1; }
+.quick > .quick-art { position: absolute; z-index: -1; }
+/* the heading, with a gold rule fading out under it */
+.quick > .quick-head { padding-bottom: 9px; margin-bottom: 2px;
+  background: linear-gradient(90deg, rgba(212,175,71,.55), rgba(212,175,71,.12) 55%, transparent) bottom / 100% 1px no-repeat; }
+.quick-head h2 { background: linear-gradient(176deg, #fff6d8 8%, var(--gold-hi) 45%, var(--gold-mid) 90%); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+/* the two columns: what to play, who against; each spreads to the panel's height */
+.quick > .q-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.quick > .q-who { justify-content: space-between; }
+.q-col > .quick-pair { display: flex; flex-direction: column; align-items: stretch; gap: 14px; }
+.q-col .quick-pair > .qfield { flex: none; }
+.q-col select { min-width: 0; width: 100%; }
+.qlabel { display: inline-flex; align-items: center; gap: 7px; }
+.qlabel::before { content: ''; width: 5px; height: 5px; transform: rotate(45deg); background: var(--gold-mid); box-shadow: 0 0 6px rgba(212,175,71,.6); flex: none; }
+/* the formats: small painted tiles, grey until chosen or pointed at, filling what room there is */
+.q-what > .qfield:has(.fmt-chips) { flex: 1 1 auto; }
+.quick .seg.fmt-chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); grid-auto-rows: minmax(34px, 1fr);
+  gap: 6px; flex: 1 1 auto; padding: 0; background: none; border: 0; box-shadow: none; overflow: visible; }
+.quick .fmt-chips .seg-btn { position: relative; overflow: hidden; isolation: isolate; border-radius: 9px; min-height: 34px; padding: 6px 8px;
+  border: 1px solid rgba(255,255,255,.1); background: #0d1017; color: #e9edf4; font-weight: 700; text-shadow: 0 1px 4px rgba(0,0,0,.95);
+  transition: border-color var(--fast) var(--ease), transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.fmt-chip-art { position: absolute; inset: 0; z-index: -1; background-size: cover; background-position: 50% 30%; opacity: 0;
+  filter: grayscale(1) brightness(.6); transition: filter .3s var(--ease), opacity .4s var(--ease); }
+.fmt-chip-art.art-on { opacity: 1; }
+.fmt-chip-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(8,10,14,.75), rgba(8,10,14,.15)); }
+.quick .fmt-chips .seg-btn:hover { transform: translateY(-1px); border-color: rgba(246,220,140,.35); background: #0d1017; }
+.quick .fmt-chips .seg-btn:hover .fmt-chip-art { filter: grayscale(.1) brightness(.62); }
+.quick .fmt-chips .seg-btn.on { color: #fff8e4; background: #0d1017; border-color: var(--gold-hi);
+  box-shadow: 0 0 0 1px rgba(246,220,140,.35), 0 0 16px rgba(212,175,71,.35), inset 0 -2px 0 var(--gold-mid); }
+.quick .fmt-chips .seg-btn.on .fmt-chip-art { filter: none; }
+/* difficulty: the stepper, and ten notches under it */
+.diff-wrap { display: grid; gap: 6px; justify-items: start; }
+.diff-meter { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; width: 100%; max-width: 230px; }
+.diff-meter i { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); }
+.diff-meter i.on { background: linear-gradient(90deg, #7fd38a, #f0d070 50%, #e2564a); background-size: 1000% 100%; }
+.diff-meter i.on:nth-child(1) { background-position: 0 0; } .diff-meter i.on:nth-child(2) { background-position: 11% 0; }
+.diff-meter i.on:nth-child(3) { background-position: 22% 0; } .diff-meter i.on:nth-child(4) { background-position: 33% 0; }
+.diff-meter i.on:nth-child(5) { background-position: 44% 0; } .diff-meter i.on:nth-child(6) { background-position: 55% 0; }
+.diff-meter i.on:nth-child(7) { background-position: 66% 0; } .diff-meter i.on:nth-child(8) { background-position: 77% 0; }
+.diff-meter i.on:nth-child(9) { background-position: 88% 0; } .diff-meter i.on:nth-child(10) { background-position: 100% 0; }
+/* beside the choices: the life you start on in a gold seal, the format, the seats, and the button */
+.quick > .quick-go { grid-row: 2; justify-content: center; gap: 14px; }
+.quick-summary { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.qs-seal { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; align-content: center; gap: 1px;
+  background: radial-gradient(circle at 35% 28%, #3a3020, #14110b 70%);
+  box-shadow: 0 0 0 2px var(--gold-mid), 0 0 0 5px rgba(212,175,71,.18), 0 0 22px rgba(212,175,71,.3), inset 0 2px 6px rgba(0,0,0,.6); }
+.qs-seal b { font: 700 28px/1 var(--serif); color: var(--gold-hi); }
+.qs-seal i { font: 700 9px/1 var(--font); letter-spacing: .18em; text-transform: uppercase; font-style: normal; color: #c9b98a; }
+.qs-fmt { font: 600 17px/1.15 var(--serif); color: #fff8e4; text-shadow: 0 1px 6px rgba(0,0,0,.8); }
+.qs-seats { display: inline-flex; gap: 4px; flex-wrap: wrap; justify-content: center; max-width: 190px; }
+.qs-seats i { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.22); box-shadow: inset 0 0 0 1px rgba(255,255,255,.25); }
+.qs-seats i.you { background: var(--gold-hi); box-shadow: 0 0 6px rgba(246,220,140,.6); }
+.quick-summary .quick-note { max-width: 190px; }
+@media (prefers-reduced-motion: reduce) { .quick-art, .fmt-chip-art { transition: none; } }
+/* a phone: one column, the formats three across, the summary in a row over the button */
+:root[data-phone] .quick > .q-col, :root[data-phone] .quick > .quick-go { grid-column: 1 / -1; grid-row: auto; }
+:root[data-phone] .quick .seg.fmt-chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:root[data-phone] .quick-summary { grid-template-columns: auto 1fr; justify-items: start; text-align: left; column-gap: 12px; }
+:root[data-phone] .qs-seal { grid-row: 1 / span 3; width: 60px; height: 60px; }
+:root[data-phone] .quick::after { display: none; }
+
+/* ---------- the deck to play: a picker with the decks' art ---------- */
+.deck-pick, .qdp-item { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; overflow: hidden; isolation: isolate;
+  text-align: left; cursor: pointer; color: #f1ead8; font: inherit; }
+.deck-pick { min-height: 52px; padding: 8px 40px 8px 14px; border-radius: 12px; border: 1px solid rgba(246,220,140,.28); background: #0c0f15;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 4px 14px rgba(0,0,0,.35); transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease); }
+.deck-pick:hover, .deck-pick[aria-expanded="true"] { border-color: var(--gold-hi); box-shadow: 0 0 0 1px rgba(246,220,140,.3), 0 0 16px rgba(212,175,71,.25); }
+.deck-pick:disabled { cursor: default; opacity: .85; }
+.qdp-art { position: absolute; inset: 0; z-index: -1; background: #10131a 50% 24% / cover no-repeat; opacity: 0; transition: opacity .4s var(--ease), transform .5s var(--ease); }
+.qdp-art.art-on { opacity: 1; }
+.qdp-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(8,10,14,.86) 0%, rgba(8,10,14,.45) 50%, rgba(8,10,14,.06) 100%); }
+.qdp-art.none { opacity: 1; background: radial-gradient(ellipse at 80% 50%, rgba(212,175,71,.18), transparent 60%), #0c0f15; }
+.qdp-text { display: grid; gap: 2px; min-width: 0; text-shadow: 0 1px 4px rgba(0,0,0,.9); }
+.qdp-text b { font: 600 15px/1.2 var(--serif); color: #fff8e4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.qdp-text span { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: #c9bf9f; }
+.qdp-chev { position: absolute; right: 14px; top: 50%; width: 9px; height: 9px; margin-top: -7px; border-right: 2px solid var(--gold-hi); border-bottom: 2px solid var(--gold-hi); transform: rotate(45deg); transition: transform var(--fast) var(--ease); }
+.deck-pick[aria-expanded="true"] .qdp-chev { transform: rotate(225deg); margin-top: -2px; }
+.deck-menu { position: fixed; z-index: 950; display: grid; gap: 5px; align-content: start; padding: 8px; overflow-y: auto; overscroll-behavior: contain;
+  border-radius: 14px; background: rgba(12, 14, 20, .97); border: 1px solid rgba(246,220,140,.3);
+  box-shadow: 0 18px 50px rgba(0,0,0,.65), 0 0 0 1px rgba(0,0,0,.4); backdrop-filter: blur(12px); animation: qdpIn .16s var(--ease) both; }
+@keyframes qdpIn { from { opacity: 0; transform: translateY(-4px); } }
+.qdp-group { padding: 6px 6px 2px; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: #a79f8c; }
+.qdp-item { min-height: 50px; padding: 8px 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08); background: #0c0f15; flex: none; }
+.qdp-item:hover .qdp-art, .qdp-item:focus-visible .qdp-art { transform: scale(1.04); }
+.qdp-item:hover, .qdp-item:focus-visible { border-color: rgba(246,220,140,.5); outline: none; }
+.qdp-item.on { border-color: var(--gold-hi); box-shadow: inset 0 0 0 1px rgba(246,220,140,.35); }
+.qdp-item.on::after { content: ''; position: absolute; right: 14px; top: 50%; width: 6px; height: 11px; margin-top: -8px; border-right: 2px solid var(--gold-hi); border-bottom: 2px solid var(--gold-hi); transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .deck-menu { animation: none; } .qdp-art { transition: none; } }
+/* the button under the deck, as wide as the column */
+.quick-play { margin-top: auto; padding-top: 4px; }
+.quick-play .hero-btn { width: 100%; }
+/* a phone: what you will sit down to comes before the seats and the button */
+:root[data-phone] .quick > .q-what { order: 1; }
+:root[data-phone] .quick > .quick-go { order: 2; }
+:root[data-phone] .quick > .q-who { order: 3; justify-content: flex-start; }
+:root[data-phone] .quick .fmt-chips .seg-btn { font-size: 11.5px; padding: 6px 4px; white-space: normal; line-height: 1.1; }

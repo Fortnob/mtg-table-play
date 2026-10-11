@@ -10,6 +10,8 @@
 
   /* ---------------- storage ---------------- */
   const decks = MTG.decks = {
+    /** How a deck's picture is chosen (UI.keyCard); a picture worked out the old way is worked out again. 2: no legendary creature for a deck with no commander. */
+    ART_V: 2,
     index() { return MTG.store.get('deckindex', []); },
     _writeIndex(idx) { MTG.store.set('deckindex', idx); },
 
@@ -40,7 +42,7 @@
         identity: MTG.mana.COLORS.filter(c => idColors.has(c)),
         source: slim.source,
         // the deck box shows its key card's art without loading the deck
-        art: UI.artUrl(UI.keyCard(deck)) || null,
+        art: UI.artUrl(UI.keyCard(deck)) || null, artV: decks.ART_V,
         // and how much of it the game runs by itself, for the same reason
         auto: autoMeta(deck),
         // and, for a Commander deck, what it leans on and how popular its commander is
@@ -76,13 +78,13 @@
      */
     async ensureArt(id) {
       const have = decks.index().find(d => d.id === id);
-      if (have && have.art) return have.art;
+      if (have && have.art && have.artV === decks.ART_V) return have.art;
       const full = await decks.load(id);
       const url = full ? UI.artUrl(UI.keyCard(full)) : '';
       if (!url) return null;
       const idx = decks.index();
       const at = idx.find(d => d.id === id);
-      if (at) { at.art = url; decks._writeIndex(idx); }
+      if (at) { at.art = url; at.artV = decks.ART_V; decks._writeIndex(idx); }
       return url;
     },
 
@@ -2129,7 +2131,7 @@ Sideboard
         };
         // a deck to choose is shown the way the deck list shows it: its art first
         const art = el('div', { class: 'pick-deck-art', 'aria-hidden': 'true' });
-        if (d.art) UI.setArt(art, d.art);
+        if (d.art && d.artV === MTG.decks.ART_V) UI.setArt(art, d.art);
         else MTG.decks.ensureArt(d.id).then((url) => { if (url) UI.setArt(art, url); }).catch(() => {});
         // a Commander deck: who leads it, previewed on hover, and what it leans on
         const cmd = UI.deckCommander(d);

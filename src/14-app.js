@@ -1282,9 +1282,13 @@
     const q = quickPrefs();
     const panel = el('section', { class: 'quick', 'aria-labelledby': 'quickTitle' });
     const maxOpp = () => Math.min(7, (MTG.formats.get(q.formatId).maxPlayers || 8) - 1);
+    // the chosen format's painting behind the panel, kept across redraws so a change of seats does not flash it
+    const art = el('div', { class: 'quick-art', 'aria-hidden': 'true' });
 
     const draw = () => {
       panel.innerHTML = '';
+      panel.appendChild(art);
+      if (art._fmt !== q.formatId) { art._fmt = q.formatId; decorArt(art, FORMAT_ART[q.formatId]); }
       q.opponents = U.clamp(q.opponents, 1, maxOpp());
       const fmt = MTG.formats.get(q.formatId);
       panel.appendChild(el('div', { class: 'quick-head' }, [
@@ -1292,12 +1296,16 @@
         el('span', { class: 'quick-sub', text: quickKindOf(q.formatId).id === 'limited'
           ? ({ sealed: 'Straight to your packs. The other seats are bots.', jumpstart: 'Straight to your half-decks. The other seats are bots.' }[fmt.draft.style]
             || 'Straight to the first pack. The other seats are bots.')
-          : 'Straight to the table. A deck is built for you.' }),
+          : 'Straight to the table, against bots.' }),
       ]));
 
+      /* two columns under the heading: what to play (the kind of game and
+         its format), and who against (the seats, how good they are, your
+         deck); the button and what you will get beside them */
+      const colA = el('div', { class: 'q-col q-what' }), colB = el('div', { class: 'q-col q-who' });
       // the format
       const kind = quickKindOf(q.formatId);
-      panel.appendChild(field('Game', segmented(QUICK_KINDS.map(k => [k.id, k.label]), kind.id, (v) => {
+      colA.appendChild(field('Game', segmented(QUICK_KINDS.map(k => [k.id, k.label]), kind.id, (v) => {
         const next = QUICK_KINDS.find(k => k.id === v);
         if (!next || next.id === kind.id) return;
         q.lastByKind[kind.id] = q.formatId;
@@ -1307,10 +1315,12 @@
       const fmtRow = segmented(kind.formats.map(([id, label]) => [id, label]), q.formatId, (v) => {
         q.formatId = v; q.lastByKind[kind.id] = v; q.deckId = ''; saveQuick(q); draw();
       }, 'Format');
-      fmtRow.classList.add('seg-wrap');
+      // each format a small tile with its painting, in colour when chosen or pointed at
+      fmtRow.classList.add('seg-wrap', 'fmt-chips');
+      [...fmtRow.children].forEach((b, i) => b.prepend(decorArt(el('span', { class: 'fmt-chip-art', 'aria-hidden': 'true' }), FORMAT_ART[kind.formats[i][0]])));
       const fmtNow = MTG.formats.get ? MTG.formats.get(q.formatId) : null;
-      panel.appendChild(field('Format', fmtRow));
-      if (fmtNow && fmtNow.blurb) panel.appendChild(el('p', { class: 'quick-blurb small muted', text: fmtNow.blurb }));
+      colA.appendChild(field('Format', fmtRow));
+      if (fmtNow && fmtNow.blurb) colA.appendChild(el('p', { class: 'quick-blurb small muted', text: fmtNow.blurb }));
       const limited = kind.id === 'limited';
 
       // how many, and how good
@@ -1328,10 +1338,11 @@
         el('button', { type: 'button', class: 'step-btn', 'aria-label': 'Harder', text: '+', disabled: q.difficulty >= 10,
           onclick: () => { q.difficulty = Math.min(10, q.difficulty + 1); saveQuick(q); draw(); } }),
       ]);
-      panel.appendChild(el('div', { class: 'quick-pair' }, [
-        field(q.opponents > 1 ? `${q.opponents} opponents` : '1 opponent', opp),
-        field('Difficulty', stepper),
-      ]));
+      // ten notches under the number, as many lit as the bots are good
+      const meter = el('span', { class: 'diff-meter', 'aria-hidden': 'true' },
+        Array.from({ length: 10 }, (x, i) => el('i', { class: i < q.difficulty ? 'on' : '' })));
+      colB.appendChild(field(q.opponents > 1 ? `${q.opponents} opponents` : '1 opponent', opp));
+      colB.appendChild(field('Difficulty', el('div', { class: 'diff-wrap' }, [stepper, meter])));
 
       // your deck: one of yours, or a fresh one in the colours you pick
       const mine = MTG.decks.forFormat(q.formatId);
@@ -1340,27 +1351,9 @@
       const isStarter = (v) => String(v || '').startsWith('starter:');
       if (q.deckId && !mine.some(d => d.id === q.deckId) &&
           !(isStarter(q.deckId) && starters.some(s => 'starter:' + s.id === q.deckId))) q.deckId = '';
-      const deckSel = el('select', { 'aria-label': 'Your deck' }, [
-        el('option', { value: '', text: 'Build me a fresh deck' }),
-        starters.length ? el('optgroup', { label: 'Starter decks' }, starters.map(s =>
-          el('option', { value: 'starter:' + s.id, text: s.name, selected: 'starter:' + s.id === q.deckId }))) : null,
-        mine.length ? el('optgroup', { label: 'Your decks' }, mine.map(d =>
-          el('option', { value: d.id, text: d.name, selected: d.id === q.deckId }))) : null,
-      ]);
-      deckSel.addEventListener('change', () => { q.deckId = deckSel.value; saveQuick(q); draw(); });
-      const colours = el('div', { class: 'colour-picks', role: 'group', 'aria-label': 'Your colours, up to two' },
-        ['W', 'U', 'B', 'R', 'G'].map(c => el('button', {
-          type: 'button', class: 'colour-pick' + (q.colors.includes(c) ? ' on' : ''),
-          'aria-pressed': q.colors.includes(c) ? 'true' : 'false',
-          title: MTG.mana.COLOR_NAMES[c],
-          html: `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
-          onclick: () => {
-            const i = q.colors.indexOf(c);
-            if (i >= 0) q.colors.splice(i, 1);
-            else { q.colors.push(c); if (q.colors.length > 2) q.colors.shift(); }
-            saveQuick(q); draw();
-          },
-        })));
+      // none chosen yet, or the one chosen gone: your newest deck for the format, else its first starter
+      if (!q.deckId) q.deckId = mine[0] ? mine[0].id : starters[0] ? 'starter:' + starters[0].id : '';
+      const deckPick = deckPicker(q.deckId, mine, starters, fmt, (v) => { q.deckId = v; saveQuick(q); draw(); });
       // house rules of your own for this format: by the book, or one of them
       const presets = MTG.formats.presets.forFormat(q.formatId);
       if (q.preset && !presets.some(p => p.name === q.preset)) q.preset = '';
@@ -1368,13 +1361,10 @@
         const pSel = el('select', { 'aria-label': 'House rules' }, [el('option', { value: '', text: 'By the book' })]
           .concat(presets.map(p => el('option', { value: p.name, text: p.name, selected: p.name === q.preset }))));
         pSel.addEventListener('change', () => { q.preset = pSel.value; saveQuick(q); draw(); });
-        panel.appendChild(field('House rules', pSel));
+        colB.appendChild(field('House rules', pSel));
       }
       if (!limited) {
-        panel.appendChild(el('div', { class: 'quick-pair' }, [
-          mine.length || starters.length ? field('Your deck', deckSel) : null,
-          q.deckId ? null : field(q.colors.length ? 'Your colours' : 'Your colours · any', colours),
-        ].filter(Boolean)));
+        colB.appendChild(field('Deck', deckPick));
       } else {
         /* A draft needs something to draft from: a set for boosters, a cube
            for a cube, and nothing at all for chaos, which picks its own. */
@@ -1386,7 +1376,7 @@
           const kinds = field('Boosters', segmented([['play', 'Play boosters'], ['collector', 'Collector boosters']],
             q.collector ? 'collector' : 'play', (v) => { q.collector = v === 'collector'; saveQuick(q); draw(); }, 'Kind of booster'));
           kinds.hidden = true;
-          panel.appendChild(kinds);
+          colB.appendChild(kinds);
           MTG.scry.draftableSets().then((sets) => {
             const s = q.setCode ? sets.find(x => x.code === q.setCode) : sets[0];
             const ok = !!s && MTG.economy.hasCollector(s);
@@ -1425,8 +1415,8 @@
         } else if (style === 'chaos') {
           source = field('Sets', chaosSetsSelect(q.chaosPool, (pool) => { q.chaosPool = pool; saveQuick(q); draw(); }));
         }
-        panel.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
-        if (openField) panel.appendChild(openField);
+        colB.appendChild(el('div', { class: 'quick-pair' }, [source, packsField].filter(Boolean)));
+        if (openField) colB.appendChild(openField);
       }
 
       const go = el('button', {
@@ -1446,7 +1436,7 @@
           }
           App.quickGame({
             formatId: q.formatId, difficulty: q.difficulty, opponents: q.opponents,
-            colors: q.colors.length ? q.colors.slice() : null, deck: deck || undefined,
+            colors: null, deck: deck || undefined,
             setCode: q.setCode || '', cubeId: q.cubeId || 'modern', chaosPool: q.chaosPool || null,
             collector: !!q.collector, packs: fmt.draft && fmt.draft.style === 'sealed' ? (q.sealedPacks || 6) : (q.packs || 3),
             allAtOnce: !!q.allAtOnce, jumpstart: q.jumpstart || null,
@@ -1454,18 +1444,102 @@
           });
         },
       });
-      panel.appendChild(el('div', { class: 'quick-go' }, [
-        go,
-        el('span', { class: 'quick-note', text: (() => {
-          // as the chosen house rules have it
-          const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
-          const f = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
-          return `${f.name} · ${MTG.formats.lifeFor(f, q.opponents + 1)} life · ${q.opponents + 1} players` + (pr ? ` · ${pr.name}` : '');
-        })() }),
+      // what you will sit down to, as the chosen house rules have it: the life you start on, the format, the seats
+      const pr = q.preset ? presets.find(p => p.name === q.preset) : null;
+      const fx = pr ? MTG.formats.effective(q.formatId, pr.rules) : fmt;
+      const players = q.opponents + 1;
+      // the button under the choices it acts on; the summary in the painted column beside them
+      colB.appendChild(el('div', { class: 'quick-play' }, [go]));
+      panel.append(colA, colB, el('div', { class: 'quick-go' }, [
+        el('div', { class: 'quick-summary' }, [
+          el('div', { class: 'qs-seal', 'aria-hidden': 'true' }, [el('b', { text: String(MTG.formats.lifeFor(fx, players)) }), el('i', { text: 'life' })]),
+          el('b', { class: 'qs-fmt', text: fx.name }),
+          el('span', { class: 'qs-seats', 'aria-hidden': 'true' }, Array.from({ length: players }, (x, i) => el('i', { class: i ? 'bot' : 'you' }))),
+          el('span', { class: 'quick-note', text: `${MTG.formats.lifeFor(fx, players)} life · ${players} players · ${diff.label} bots` + (pr ? ` · ${pr.name}` : '') }),
+        ]),
       ]));
     };
     draw();
     return panel;
+  }
+
+  /** A starter deck's picture: its cover card's art. */
+  function starterArt(node, st) {
+    // the card kept with it, so its face can be found by illustration without asking again
+    if (st.cover) MTG.scry.byName(st.cover).then((c) => { if (c) { node._artCard = c; UI.setArt(node, c); } }).catch(() => {});
+    return node;
+  }
+
+  /**
+   * The deck to play, from a list drawn with each deck's art behind its name
+   * rather than the system's own menu: your decks for the format, then its
+   * starter decks. With none at all, one is built for you, and it says so.
+   * The list opens over the page (the panel clips what leaves it), below the
+   * button or above it when there is more room there; the arrow keys move
+   * along it, Escape or a click elsewhere closes it.
+   */
+  function deckPicker(current, mine, starters, fmt, onPick) {
+    const items = [].concat(
+      mine.map(d => ({ value: d.id, name: d.name, sub: 'Your deck', mine: true, art: (n) => deckArt(n, d) })),
+      starters.map(s => ({ value: 'starter:' + s.id, name: s.name, sub: 'Starter deck', art: (n) => starterArt(n, s) })));
+    const cur = items.find(i => i.value === current) || null;
+    const face = (it) => [
+      // the painting across the whole row, its face's eyes in the middle; a deck of your own looked at here if need be
+      it ? UI.focusFace(it.art(el('span', { class: 'qdp-art', 'aria-hidden': 'true' })), null, { scan: it.mine }) : el('span', { class: 'qdp-art none', 'aria-hidden': 'true' }),
+      el('span', { class: 'qdp-text' }, [
+        el('b', { text: it ? it.name : 'A deck built for you' }),
+        el('span', { text: it ? it.sub : `No ${fmt.name} decks yet` }),
+      ]),
+    ];
+    const btn = el('button', { type: 'button', class: 'deck-pick', 'aria-haspopup': 'listbox', 'aria-expanded': 'false', 'aria-label': `Deck: ${cur ? cur.name : 'a deck built for you'}` },
+      [...face(cur), items.length ? el('span', { class: 'qdp-chev', 'aria-hidden': 'true' }) : null].filter(Boolean));
+    if (!items.length) { btn.disabled = true; return btn; }
+    let menu = null;
+    const close = () => {
+      if (!menu) return;
+      menu.remove(); menu = null;
+      btn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', onKey, true);
+      document.removeEventListener('scroll', onScroll, true);
+      window.removeEventListener('resize', close);
+    };
+    const outside = (e) => { if (menu && !menu.contains(e.target) && !btn.contains(e.target)) close(); };
+    const onScroll = (e) => { if (menu && !menu.contains(e.target)) close(); };
+    const onKey = (e) => {
+      if (!menu) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); close(); btn.focus(); return; }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const opts = [...menu.querySelectorAll('.qdp-item')];
+      const i = opts.indexOf(document.activeElement);
+      const next = opts[(i + (e.key === 'ArrowDown' ? 1 : -1) + opts.length) % opts.length];
+      if (next) next.focus();
+    };
+    btn.addEventListener('click', () => {
+      if (menu) { close(); return; }
+      const group = (title, list) => !list.length ? [] : [el('div', { class: 'qdp-group', text: title })].concat(list.map(it => el('button', {
+        type: 'button', class: 'qdp-item' + (it.value === current ? ' on' : ''), role: 'option', 'aria-selected': String(it.value === current),
+        onclick: () => { close(); MTG.sfx('click'); onPick(it.value); },
+      }, face(it))));
+      menu = el('div', { class: 'deck-menu', role: 'listbox', 'aria-label': 'Deck' },
+        group('Your decks', items.filter(i => i.mine)).concat(group('Starter decks', items.filter(i => !i.mine))));
+      document.body.appendChild(menu);
+      const r = U.rect(btn), vh = U.viewH(), vw = U.viewW();
+      const below = vh - r.bottom - 12, above = r.top - 12;
+      const up = below < 260 && above > below;
+      const w = Math.min(vw - 16, Math.max(r.width, 280));
+      Object.assign(menu.style, { left: Math.max(8, Math.min(r.left, vw - w - 8)) + 'px', width: w + 'px',
+        maxHeight: Math.max(160, Math.min(440, up ? above : below)) + 'px' });
+      if (up) menu.style.bottom = (vh - r.top + 6) + 'px'; else menu.style.top = (r.bottom + 6) + 'px';
+      btn.setAttribute('aria-expanded', 'true');
+      document.addEventListener('pointerdown', outside, true);
+      document.addEventListener('keydown', onKey, true);
+      document.addEventListener('scroll', onScroll, true);
+      window.addEventListener('resize', close);
+      setTimeout(() => { const f = menu && (menu.querySelector('.qdp-item.on') || menu.querySelector('.qdp-item')); if (f) f.focus(); }, 0);
+    });
+    return btn;
   }
 
   /** A labelled control, as the quick game and the options lay them out. */
@@ -1509,7 +1583,7 @@
 
   /** A deck's own art on a node: from the index if it has it, else from the deck. */
   function deckArt(node, d) {
-    if (d.art) { UI.setArt(node, d.art); return node; }
+    if (d.art && d.artV === MTG.decks.ART_V) { UI.setArt(node, d.art); return node; }
     MTG.decks.ensureArt(d.id).then((url) => { if (url) UI.setArt(node, url); }).catch(() => {});
     return node;
   }

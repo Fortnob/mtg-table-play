@@ -19,7 +19,7 @@
   const LIST = [
     /* ---------------- one colour ---------------- */
     {
-      id: 'w-cats', name: 'Pride of Cats', colors: ['W'], format: 'standard', cover: 'Arahbo, the First Fang',
+      id: 'w-cats', name: 'Pride of Cats', colors: ['W'], format: 'standard', cover: 'Regal Caracal',
       blurb: 'Cats that make each other bigger and gain you life. Go wide, then pounce.',
       cards: [[4, 'Savannah Lions'], [2, 'Basri, Tomorrow\'s Champion'], [2, 'Joust Through'],
         [4, 'Ajani\'s Pridemate'], [3, 'Gloryheath Lynx'], [4, 'Leonin Skyhunter'], [2, 'Helpful Hunter'], [2, 'Get Lost'],
@@ -28,7 +28,7 @@
         [24, 'Plains']],
     },
     {
-      id: 'r-goblins', name: 'Goblin Mob', colors: ['R'], format: 'standard', cover: 'Krenko, Mob Boss',
+      id: 'r-goblins', name: 'Goblin Mob', colors: ['R'], format: 'standard', cover: 'Searslicer Goblin',
       blurb: 'Cheap goblins and burn. Hit hard and early, before they can set up.',
       cards: [[4, 'Reckless Lackey'], [3, 'Fanatical Firebrand'], [4, 'Shock'],
         [4, 'Searslicer Goblin'], [4, 'Draconautics Engineer'], [3, 'Hexing Squelcher'], [4, 'Lightning Strike'],
@@ -132,7 +132,7 @@
         [4, 'Wastewood Verge'], [3, 'Jungle Hollow'], [9, 'Forest'], [8, 'Swamp']],
     },
     {
-      id: 'rw-charge', name: 'Boros Charge', colors: ['R', 'W'], format: 'standard', cover: 'Basri, Tomorrow\'s Champion',
+      id: 'rw-charge', name: 'Boros Charge', colors: ['R', 'W'], format: 'standard', cover: 'Lightning Helix',
       blurb: 'Cheap attackers and burn. Attack every turn and finish them with Lightning Helix.',
       cards: [[3, 'Basri, Tomorrow\'s Champion'], [4, 'Savannah Lions'], [3, 'Shock'],
         [3, 'Viashino Pyromancer'], [3, 'Dog Walker'], [2, 'Sun-Blessed Healer'], [2, 'Tyrox, Saurid Tyrant'],
