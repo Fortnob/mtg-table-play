@@ -1958,8 +1958,10 @@ module.exports = (test) => {
   test('Audit: generated readings that dropped a mana value or nontoken limit are left to a person', (mk, t) => {
     const { card } = require('../harness');
     const T = mk();
-    for (const n of ['Starfield Shepherd', 'Szarel, Genesis Shepherd'])
-      t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
+    t.no(T.MTG.oracle.analyze(card('Starfield Shepherd')).fullyAutomated, 'Starfield Shepherd');
+    // (Szarel, Genesis Shepherd now reads its trigger itself, the nontoken limit kept — sacAnotherYourTurn)
+    const sz = T.MTG.oracle.analyze(card('Szarel, Genesis Shepherd')).abilities.find(a => a.event === 'youSacrifice');
+    t.ok(sz && sz.objFilter && sz.objFilter.nontoken && sz.objFilter.other, 'Szarel, Genesis Shepherd: another nontoken permanent');
   });
 
   test('Audit: Rabid Gnaw: the targeted creature deals its own power, with its lifelink and deathtouch', (mk, t) => {

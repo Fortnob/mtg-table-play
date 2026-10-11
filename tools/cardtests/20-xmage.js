@@ -22872,4 +22872,49 @@ module.exports = (test) => {
     V.g.dealDamageToObject(vic, 2, mv, false); V.g.checkStateBasedActions(); V.resolve();
     t.ok(V.bfOf('A').some(o => /Clue/.test(o.name)) && V.bfOf('A').some(o => /Food/.test(o.name)), 'Madame Vastra: a Clue and a Food');
   });
+
+  test("Commanders: Szarel, Genesis Shepherd, Eriette of the Charmed Apple, Jenova, Ancient Calamity; Galuf's Final Act", (mk, t) => {
+    for (const n of ['Szarel, Genesis Shepherd', 'Eriette of the Charmed Apple', "Galuf's Final Act"]) t.auto(n);
+    // Szarel: sacrificing another nontoken permanent on your turn, its power in counters on up to one other creature
+    const S = mk({ library: Array(10).fill('Forest') });
+    S.toMain('A');
+    const sz = S.bf('A', 'Szarel, Genesis Shepherd'), gb = S.bf('A', 'Grizzly Bears');
+    const pw = S.g.powerOf(sz);
+    S.answer('pickTarget', { targets: [{ kind: 'object', id: gb.id }] });
+    S.g._sacrificeNow('A', [S.bf('A', 'Forest')]); S.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, pw, "Szarel: a Forest sacrificed on A's turn, Szarel's power in counters");
+    S.g._sacrificeNow('A', [S.bf('A', 'Treasure')]); S.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, pw, 'Szarel: a token, nothing');
+    const S2 = mk({ library: Array(10).fill('Forest') });
+    S2.toMain('B');
+    S2.bf('A', 'Szarel, Genesis Shepherd'); const g2 = S2.bf('A', 'Grizzly Bears');
+    S2.answer('pickTarget', { targets: [{ kind: 'object', id: g2.id }] });
+    S2.g._sacrificeNow('A', [S2.bf('A', 'Forest')]); S2.resolve();
+    t.eq(Number(g2.counters['+1/+1']) || 0, 0, "Szarel: on B's turn, nothing");
+    // Eriette: a creature enchanted by one of A's Auras can't attack A
+    const E = mk({ library: Array(10).fill('Plains') });
+    E.bf('A', 'Eriette of the Charmed Apple');
+    const bb = E.bf('B', 'Grizzly Bears'), other = E.bf('B', 'Grizzly Bears');
+    const au = E.bf('A', 'Pacifism'); au.attachedTo = bb.id; bb.attachments = [au.id];
+    const au2 = E.bf('B', 'Rancor'); au2.attachedTo = other.id; other.attachments = [au2.id];
+    E.g.bumpBoard();
+    t.ok(!!E.g._cantAttackYou(bb, 'A') && !E.g._cantAttackYou(other, 'A'), "Eriette: under A's Aura it can't attack A; under B's own Aura it can");
+    // Jenova: at the beginning of combat, her power in counters on up to one other creature, which becomes a Mutant
+    const J = mk({ library: Array(10).fill('Forest') });
+    J.toMain('A');
+    const jn = J.bf('A', 'Jenova, Ancient Calamity'), jb = J.bf('A', 'Grizzly Bears');
+    J.answer('pickTarget', { targets: [{ kind: 'object', id: jb.id }] });
+    J.toMain('A', 'beginCombat'); J.resolve();
+    t.eq(Number(jb.counters['+1/+1']) || 0, J.g.powerOf(jn), 'Jenova: her power in counters on the Bears');
+    t.ok(J.g._cardFitsWords(jb, 'Mutant'), 'Jenova: the Bears are a Mutant');
+    // Galuf's Final Act: when the creature dies, its power in counters on up to one creature
+    const G = mk({ library: Array(10).fill('Forest') });
+    G.toMain('A');
+    const vic = G.bf('A', 'Hill Giant'), heir = G.bf('A', 'Grizzly Bears');
+    G.mana('A', 'GG');
+    G.cast('A', G.hand('A', "Galuf's Final Act"), { targets: [{ kind: 'object', id: vic.id }] }); G.resolve();
+    G.answer('pickTarget', { targets: [{ kind: 'object', id: heir.id }] });
+    G.g.dealDamageToObject(vic, 5, heir, false); G.g.checkStateBasedActions(); G.resolve();
+    t.eq(Number(heir.counters['+1/+1']) || 0, 4, "Galuf's Final Act: the 4/3 Giant dies, four counters on the Bears");
+  });
 };

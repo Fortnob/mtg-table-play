@@ -21790,6 +21790,8 @@
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
       // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
       if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
+      // Eriette of the Charmed Apple: "enchanted by an Aura you control" (enchantedByYours)
+      if (sc.enchantedByYours && !(o.attachments || []).some(id => { const at = this.obj(id); return at && at.controller === pid && this._auraNow(at); })) return false;
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;

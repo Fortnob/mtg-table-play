@@ -680,7 +680,10 @@
         if (!aboutOther && (targeted || own)) {
           // Hunter's Bow: "That creature deals damage equal to its power" is the creature just equipped
           if (e.op === 'damage' && e.fromTrigger) { if (targeted && /^That creature\b/i.test(e.text || '')) parsed.auto = false; }
-          else for (const k of ['n', 'p', 't']) if (e[k] && e[k].ofTrigger) e[k] = prior(e[k]);
+          /* Galuf's Final Act: "put a number of +1/+1 counters equal to its power on up to one target
+             creature" — an "its" said before the effect's own target is still the dying creature (itsBeforeTarget) */
+          else if (!(own && !targeted && /\bequal to its [a-z ]+? on (?:up to one )?(?:other |another )?target\b/i.test(e.text || '')))
+            for (const k of ['n', 'p', 't']) if (e[k] && e[k].ofTrigger) e[k] = prior(e[k]);
         }
         if (own) targeted = true;
         walk(e.list); walk(e.then); walk(e.otherwise);
@@ -2762,6 +2765,13 @@
     /* Aerith Gainsborough, Halana and Alena */
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on each ([a-z ]+?), where X is the number of (\+1\/\+1|[a-z]+) counters on (?:CARDNAME|this creature|it)\.?$/i,
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'counters', kind: m[1].toLowerCase(), n: { countersOnSelf: m[3].toLowerCase() }, scope: sc } : null; } },
+    // Szarel, Genesis Shepherd: "put a number of +1/+1 counters equal to CARDNAME's power on up to one other target creature" (countersEqualTo)
+    { re: /^Put a number of (\+1\/\+1|[a-z]+) counters equal to (.+?) on (up to one )?(other |another )?(target creature(?: you control)?)\.?$/i,
+      make: (m) => {
+        const n = amountOf(m[2]), sp = targetSpec(m[5]);
+        if (n == null || n === false || !sp) return null;
+        return { op: 'counters', kind: m[1].toLowerCase(), n, targets: [Object.assign(sp, m[3] ? { upTo: true } : {}, m[4] ? { another: true } : {})] };
+      } },
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on ((?:another )?target creature(?: you control)?), where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, targets: [targetSpec(m[2])] }) },
     // Hulk, Strongest There Is: "double the number of +1/+1 counters on each Gamma creature you control" (doubleCountersType)
@@ -10334,6 +10344,9 @@
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
     { re: /^When(?:ever)? you sacrifice an? ([A-Z][a-z]+) or ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase() }) },
+    // Szarel, Genesis Shepherd: "Whenever you sacrifice another nontoken permanent during your turn" (sacAnotherYourTurn)
+    { re: /^When(?:ever)? you sacrifice (another (?:nontoken )?(?:permanent|creature|artifact|enchantment|land))( during your turn)?,? /i, event: 'youSacrifice',
+      filt: (m) => subjectFilter(m[1]), extraOf: (m) => (m[2] ? { yourTurnOnly: true } : {}) },
     { re: /^When(?:ever)? you sacrifice an? ([A-Za-z]+)(?:,| )/i, event: 'youSacrifice',
       filt: (m) => (/^permanent$/i.test(m[1]) ? { words: 'permanent' } : subjectFilter('a ' + m[1])) },
     { re: /^When(?:ever)? a player casts a spell(?: with (?:mana value|converted mana cost) \d+ or less)?(?:,| )/i, event: 'anyCastSpell' },
@@ -12989,6 +13002,8 @@
       sc.thatIs = [mm0[1], mm0[2]].filter(Boolean).join(' or ').toLowerCase();
       rest = rest.slice(0, mm0.index);
     }
+    // Eriette of the Charmed Apple: "Each creature that's enchanted by an Aura you control" (enchantedByYours)
+    if ((mm0 = rest.match(/ that(?:'s| is| are) enchanted by an Aura you control$/i))) { sc.enchantedByYours = true; rest = rest.slice(0, mm0.index); }
     /* "Creatures you control of the chosen type": whatever this permanent
        was told as it entered */
     // Crippling Fear: "Creatures that aren't of the chosen type"
