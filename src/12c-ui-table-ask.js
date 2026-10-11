@@ -135,7 +135,15 @@
       let want = null;     // {key, build}
       // (the rewards, once settled, redraw it: _overStamp)
       if (v.over) want = { key: 'over:' + (v.winners || []).join(',') + ':' + JSON.stringify(v.match || {}) + ':' + (this._overStamp || 0), build: () => this.gameOverPanel() };
-      else if (v.mulliganPhase && this.me && !this.me.keptHand) want = { key: 'mull:' + this.me.mulligansTaken, build: () => this.mulliganPanel(), live: true };
+      else if (v.mulliganPhase && this.me && !this.me.keptHand) {
+        /* drawn again only when what it shows changes — this hand, how many go to the bottom, which are
+           chosen, who plays first — not when somebody else keeps or mulligans; a pick changed is drawn
+           again in place, without coming in afresh (the same base) */
+        const me = this.me, hand = me.hand.map(o => o.id).join(',');
+        const base = 'mull:' + me.mulligansTaken + ':' + hand;
+        want = { key: base + ':' + (me.mulliganBottom != null ? me.mulliganBottom : '') + ':' + this.mulliganBottom.join(',') + ':' + ((v.turnOrder || [])[0] || ''),
+          base, build: () => this.mulliganPanel() };
+      }
       else if (v.mulliganPhase && this.me) want = { key: 'mullwait', build: () => this.waitPanel('Waiting for the other players to keep their hands…') };
       else if (this.asking) want = { key: 'ask:' + this.asking.key, base: 'ask:' + (this.asking.base || this.asking.key), build: () => this.asking.build() };
       else {
