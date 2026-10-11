@@ -19306,6 +19306,21 @@
           let taken = [];
           // Muxus, Goblin Grandee: "Put all … from among them" — no choosing (takeAll)
           if (legal.length && e.all) taken = legal.slice();
+          /* Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed
+             cards into your hand" — one pick of any number, each card standing for a different one of its card
+             types (a card of two types takes up only one of them) */
+          else if (e.perCardType) {
+            const typed = legal.filter(o => this._cardTypesOf(o).length);
+            if (typed.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'perCardType', kind: 'objects', zone: 'library',
+                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: this._cardTypesOf(this.obj(it.id)) })),
+                min: 0, max: typed.length, optional: true,
+                constraints: [{ kind: 'distinctTypes', key: 'types', label: 'card type' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}for each card type, you may put a card of that type from among the revealed cards into your hand. Each card you choose stands for one of its card types, no two for the same type.` }, 'perType');
+              if (got === SUSPEND) return SUSPEND;
+              taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
+            }
+          }
           else if (legal.length) {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),

@@ -28098,4 +28098,64 @@ module.exports = (test) => {
     t.eq(M.g.battlefield.filter(o => o.name === 'Treasure' && o.controller === 'A').length, 2, 'Hazel: one copy of a Treasure');
     t.eq(M.g.battlefield.filter(o => o.isToken && o.controller === 'A' && M.g._hasCreatureType(o, 'Squirrel')).length, 3, 'Hazel: no more Squirrels');
   });
+
+  test('Commanders: Atraxa, Grand Unifier — the top ten revealed, a card of each card type into hand, the rest to the bottom', (mk, t) => {
+    t.auto('Atraxa, Grand Unifier');
+    const M = mk({ library: Array(30).fill('Island') });
+    const lib = M.zone('A', 'library');
+    const names = ['Grizzly Bears', 'Ornithopter', 'Sol Ring', 'Lightning Bolt', 'Divination', 'Forest', 'Pacifism', 'Dryad Arbor', 'Llanowar Elves'];
+    const objs = {};
+    for (const nm of names.slice().reverse()) objs[nm] = M.top('A', nm);
+    const depth = lib.length;
+    const atraxa = M.hand('A', 'Atraxa, Grand Unifier');
+    let offered = null, bad = [];
+    const C = M.MTG.choice;
+    M.answer('choose', (ch) => {
+      offered = ch;
+      // two creatures for "creature", or four cards over three types: not allowed
+      bad.push(C.check(ch, { picks: [objs['Grizzly Bears'].id, objs['Llanowar Elves'].id] }).ok);
+      bad.push(C.check(ch, { picks: [objs['Ornithopter'].id, objs['Grizzly Bears'].id, objs['Sol Ring'].id] }).ok);
+      bad.push(C.check(ch, { picks: [objs['Ornithopter'].id, objs['Grizzly Bears'].id, objs['Dryad Arbor'].id, objs['Forest'].id] }).ok);
+      // an artifact creature for "artifact" and Grizzly Bears for "creature" is fine
+      t.ok(C.check(ch, { picks: [objs['Ornithopter'].id, objs['Grizzly Bears'].id] }).ok, 'Atraxa: Ornithopter as the artifact, Grizzly Bears as the creature');
+      return { picks: ['Ornithopter', 'Grizzly Bears', 'Lightning Bolt', 'Divination', 'Dryad Arbor', 'Pacifism'].map(k => objs[k].id) };
+    });
+    M.mana('A', '3GWUB');
+    M.cast('A', atraxa);
+    t.ok(offered, 'Atraxa: asked');
+    t.eq(offered.purpose, 'perCardType');
+    t.eq(offered.items.length, 10, 'Atraxa: all ten revealed cards offered');
+    t.eq(bad.join(','), 'false,false,false', 'Atraxa: at most one card per card type; a two-type card counts for one');
+    t.ok(M.g.log.some(l => /reveals .*Grizzly Bears/.test(l.text)), 'Atraxa: the ten are revealed');
+    const hand = M.names(M.zone('A', 'hand')).sort().join(',');
+    t.eq(hand, 'Divination,Dryad Arbor,Grizzly Bears,Lightning Bolt,Ornithopter,Pacifism', 'Atraxa: six cards, six card types');
+    t.eq(lib.length, depth - 6, 'Atraxa: the other four stay in the library');
+    for (const nm of ['Sol Ring', 'Forest', 'Llanowar Elves']) t.ok(lib.indexOf(objs[nm]) >= lib.length - 4, 'Atraxa: ' + nm + ' to the bottom');
+    t.eq(lib[0].name, 'Island', 'Atraxa: the top is what was under the ten');
+  });
+  test('Commanders: Atraxa, Grand Unifier — taking none; an empty library asks nothing; a bot takes one per type', (mk, t) => {
+    let M = mk({ library: Array(30).fill('Island') });
+    M.top('A', 'Grizzly Bears');
+    M.answer('choose', { picks: [] });
+    M.mana('A', '3GWUB');
+    M.cast('A', M.hand('A', 'Atraxa, Grand Unifier'));
+    t.eq(M.zone('A', 'hand').length, 0, 'Atraxa: "you may" — none taken');
+    t.eq(M.zone('A', 'library').slice(-10).filter(o => o.name === 'Grizzly Bears').length, 1, 'Atraxa: all ten to the bottom');
+    M = mk({ library: ['Island'], libraryEach: 1 });
+    M.g.zones.A.library.length = 0;
+    const a0 = M.asked.length;
+    M.mana('A', '3GWUB');
+    M.cast('A', M.hand('A', 'Atraxa, Grand Unifier'));
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'choose'), 'Atraxa: nothing revealed, nothing asked');
+    // the bots' answer: as many as fit, one card for each type
+    M = mk({ library: Array(30).fill('Island') });
+    for (const nm of ['Grizzly Bears', 'Llanowar Elves', 'Ornithopter', 'Forest']) M.top('A', nm);
+    const bot = new M.MTG.bots.BotPlayer(M.g, 'A', 8);
+    let got = null;
+    M.answer('choose', (ch) => { got = bot.chooseGeneric(ch); return got; });
+    M.mana('A', '3GWUB');
+    M.cast('A', M.hand('A', 'Atraxa, Grand Unifier'));
+    t.ok(got && M.MTG.choice.check(M.asked.find(ch => ch.purpose === 'perCardType'), got).ok, 'Atraxa: the bot answers legally');
+    t.ok(M.zone('A', 'hand').length >= 3, 'Atraxa: the bot takes a creature, an artifact and a land at least');
+  });
 };

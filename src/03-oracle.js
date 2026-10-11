@@ -4843,6 +4843,9 @@
     // Overmaster: "The next instant or sorcery spell you cast this turn can't be countered."
     { re: /^The next (instant or sorcery|creature|noncreature) spell you cast this turn can'?t be countered\.?$/i,
       make: (m) => ({ op: 'nextSpellUncounterable', words: m[1].toLowerCase() }) },
+    // Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed cards into your hand."
+    { re: /^For each card type, you may put a card of that type from among (?:the revealed cards|them) into your hand\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 99, filter: 'any', to: 'hand', optional: true, rest: 'keep', perCardType: true }) },
     // Malevolent Rumble: "You may put a permanent card from among them into your hand."
     { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },

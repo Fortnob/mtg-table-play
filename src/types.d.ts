@@ -349,6 +349,7 @@ declare namespace MTG {
   /** A constraint on what the picks of a 'choose' question add up to. */
   type ChooseConstraint =
     | { kind: 'distinct'; key?: string; reason?: string; label?: string }
+    | { kind: 'distinctTypes'; key?: string; reason?: string; label?: string }
     | { kind: 'sum'; key: string; min?: number; max?: number; reason?: string; label?: string }
     | { kind: 'shareColour'; with?: string[]; reason?: string; label?: string }
     | { kind: 'mana'; key?: string; base?: string; reason?: string; label?: string };

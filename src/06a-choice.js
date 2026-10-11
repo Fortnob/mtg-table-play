@@ -92,6 +92,26 @@
           }
           break;
         }
+        /* Atraxa, Grand Unifier: "For each card type, you may put a card of that type" — each pick
+           stands for one of its types (`key`, a list), no two for the same one; a card of two types
+           counts for only one of them, so the picks need a type each, all different */
+        case 'distinctTypes': {
+          const key = c.key || 'types';
+          const lists = entries.map(e => (e && Array.isArray(e[key]) ? e[key] : []));
+          const owner = new Map();
+          const place = (i, seen) => {
+            for (const t of lists[i]) {
+              if (seen.has(t)) continue;
+              seen.add(t);
+              if (!owner.has(t) || place(owner.get(t), seen)) { owner.set(t, i); return true; }
+            }
+            return false;
+          };
+          for (let i = 0; i < lists.length; i++) {
+            if (!place(i, new Set())) return c.reason || `Each one has to stand for a different ${label || 'type'}.`;
+          }
+          break;
+        }
         case 'sum': {
           const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
           if (c.max != null && total > c.max) return c.reason || `That is ${total} ${label}; the most is ${c.max}.`;

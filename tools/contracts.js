@@ -176,7 +176,7 @@ const ChooseItem = obj({ id, name: opt(maybe(str)), card: opt(maybe(Card)) });
 /* ids and cards: a pile of cards an option stands for (Fact or Fiction's piles), cards in the same order as ids */
 const ChooseOption = obj({ label: str, i: opt(int), cost: opt(maybe(str)), weight: opt(num), ids: opt(arr(id)), cards: opt(arr(maybe(Card))) });
 const ChooseNumber = obj({ min: int, max: int, step: opt(int) });
-const ChooseConstraint = obj({ kind: lit('distinct', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
+const ChooseConstraint = obj({ kind: lit('distinct', 'distinctTypes', 'sum', 'shareColour', 'mana'), key: opt(str), min: opt(num), max: opt(num),
   with: opt(arr(str)), base: opt(str), reason: opt(str), label: opt(str) });
 const ChooseAnswer = obj({ picks: opt(arr(either('an id or an option index', S.id, S.int))), number: opt(num),
   order: opt(arr(either('an id or an option index', S.id, S.int))) }, { closed: true });
