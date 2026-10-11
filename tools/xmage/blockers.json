@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10419,
+  "needed": 10412,
   "gainedCards": 952,
-  "linesNeeded": 11061,
+  "linesNeeded": 11053,
   "linesGained": 1114,
   "gained": {
    "all": 952,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 4003,
-   "lines": 3760,
+   "score": 4002,
+   "lines": 3759,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -165,8 +165,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 104,
-   "lines": 95,
+   "score": 102,
+   "lines": 93,
    "cards": [
     "Ulamog, the Defiler",
     "Imposter Mech",
@@ -1251,24 +1251,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 11,
-   "lines": 11,
-   "cards": [
-    "Rampant Frogantua",
-    "Coram, the Undertaker",
-    "Umbris, Fear Manifest",
-    "Carrion Grub",
-    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
-    "Anya, Merciless Angel",
-    "Skanos Dragonheart",
-    "Greven, Predator Captain",
-    "Lumbering Battlement",
-    "Dark Matter Manipulator",
-    "Enemy of Enlightenment"
-   ]
-  },
-  {
    "what": "DoIfCostPaid not optional",
    "score": 11,
    "lines": 11,
@@ -1425,6 +1407,23 @@
     "Veteran Bodyguard",
     "Orim's Touch",
     "Martyrs of Korlis"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 10,
+   "lines": 10,
+   "cards": [
+    "Rampant Frogantua",
+    "Coram, the Undertaker",
+    "Umbris, Fear Manifest",
+    "Carrion Grub",
+    "Alrund, God of the Cosmos // Hakka, Whispering Raven",
+    "Anya, Merciless Angel",
+    "Skanos Dragonheart",
+    "Lumbering Battlement",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {
@@ -2416,20 +2415,6 @@
     "Rex, Cyber-Hound",
     "Consulate Surveillance",
     "Voltstorm Angel"
-   ]
-  },
-  {
-   "what": "AttachToSourceTargetEffect",
-   "score": 7,
-   "lines": 7,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Armory Automaton",
-    "Amy Rose",
-    "Sokka, Swordmaster",
-    "Kazuul's Toll Collector",
-    "Frodo, Determined Hero",
-    "Shagrat, Loot Bearer"
    ]
   },
   {
@@ -4774,6 +4759,17 @@
    ]
   },
   {
+   "what": "AttachToSourceTargetEffect",
+   "score": 4,
+   "lines": 4,
+   "cards": [
+    "Armory Automaton",
+    "Amy Rose",
+    "Frodo, Determined Hero",
+    "Shagrat, Loot Bearer"
+   ]
+  },
+  {
    "what": "HalfValue",
    "score": 4,
    "lines": 4,
@@ -6458,8 +6454,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3351,
-   "cards": 3189,
+   "score": 3350,
+   "cards": 3188,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6536,8 +6532,8 @@
   },
   {
    "what": "EntersBattlefieldAbility",
-   "score": 64,
-   "cards": 64,
+   "score": 62,
+   "cards": 62,
    "names": [
     "Imposter Mech",
     "Echoing Deeps",
@@ -8223,19 +8219,6 @@
    ]
   },
   {
-   "what": "AttachToSourceTargetEffect",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Armory Automaton",
-    "Amy Rose",
-    "Sokka, Swordmaster",
-    "Kazuul's Toll Collector",
-    "Frodo, Determined Hero",
-    "Shagrat, Loot Bearer"
-   ]
-  },
-  {
    "what": "BeginningOfUpkeepTriggeredAbility for ENCHANTED",
    "score": 6,
    "cards": 6,
@@ -8855,18 +8838,6 @@
    ]
   },
   {
-   "what": "BoostSourceEffect p/t",
-   "score": 5,
-   "cards": 5,
-   "names": [
-    "Carrion Grub",
-    "Skanos Dragonheart",
-    "Greven, Predator Captain",
-    "Dark Matter Manipulator",
-    "Enemy of Enlightenment"
-   ]
-  },
-  {
    "what": "RemoveCounterSourceEffect",
    "score": 5,
    "cards": 5,
@@ -9460,6 +9431,17 @@
    ]
   },
   {
+   "what": "AttachToSourceTargetEffect",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Armory Automaton",
+    "Amy Rose",
+    "Frodo, Determined Hero",
+    "Shagrat, Loot Bearer"
+   ]
+  },
+  {
    "what": "comparison EQUAL_TO",
    "score": 4,
    "cards": 4,
@@ -9666,6 +9648,17 @@
     "Forsaken Wastes",
     "Lava Runner",
     "Retromancer"
+   ]
+  },
+  {
+   "what": "BoostSourceEffect p/t",
+   "score": 4,
+   "cards": 4,
+   "names": [
+    "Carrion Grub",
+    "Skanos Dragonheart",
+    "Dark Matter Manipulator",
+    "Enemy of Enlightenment"
    ]
   },
   {

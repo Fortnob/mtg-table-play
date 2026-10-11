@@ -3547,8 +3547,10 @@
       }
       // Steel Golem: "You can't cast creature spells." — its controller only
       for (const s1 of this.battlefield) {
-        if (s1.phasedOut || s1.controller !== playerId) continue;
+        if (s1.phasedOut) continue;
         const yc = this._staticOp(s1, 'youCantCast');
+        // (Llawan, Cephalid Empress: the opponents of its controller — opponentsCantCastKind)
+        if (!yc || (yc.who === 'opponents' ? s1.controller === playerId : s1.controller !== playerId)) continue;
         if (yc && this._cardFitsWords(o, yc.words)) return { ok: false, reason: `${s1.name}: you can't cast ${yc.words} spells.` };
       }
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."

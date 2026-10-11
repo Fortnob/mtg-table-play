@@ -1330,6 +1330,9 @@
     // Najeela, the Blade-Blossom: "you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking" (itsControllerCreates)
     { re: /^(?:You may )?[Hh]ave its controller (create .+? tokens?(?: that'?s| that are)? tapped and attacking)\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
+    // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
+    { re: /^Attach (up to one )?target Equipment you control to (?:CARDNAME|it|this creature)\.?$/i,
+      make: (m) => ({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -6253,6 +6256,8 @@
     if (/^the number of (?:creatures|permanents) (?:destroyed|exiled) this way$/i.test(p)) return done('lastSweep');
     // Celestine: "the amount of life you gained this turn"; Elenda and Azor: "the number of cards you've drawn this turn"
     if (/^the amount of life you(?:'ve)? gained this turn$/i.test(p)) return done({ playerStat: 'lifeGainedThisTurn' });
+    // Greven, Predator Captain: "the amount of life you've lost this turn" (lifeLostYou)
+    if (/^the amount of life you(?:'ve)? lost this turn$/i.test(p)) return done({ playerStat: 'lifeLostThisTurn' });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
@@ -12337,10 +12342,12 @@
     const eqs = text.match(/enters(?: the battlefield)? with a number of ([+\-0-9/a-z]+) counters on it equal to the amount of mana spent to cast it/i);
     if (eqs && !out.entersWithCounters) out.entersWithCounters = { kind: eqs[1], n: { manaSpent: true } };
     // Diregraf Colossus: "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
-    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each ([^.]+?)\./i);
-    if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[2])) {
-      const c = countOf(etbEach[2]);
-      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[1], n: { count: c } };
+    // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two +1/+1 counters on it for each …" — etbEachMore)
+    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
+    if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
+      const c = countOf(etbEach[3]);
+      const k = /^an?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
+      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     // Prime Speaker Zegana: "enters with X +1/+1 counters on it, where X is the greatest power among other creatures you control"
@@ -14759,7 +14766,8 @@
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
-      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with an? [+\-0-9/a-z]+ counter on it for each ([^.]+?)\.?$/i,
+      // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two … counters on it for each" — etbEachMore)
+      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
@@ -14999,6 +15007,9 @@
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by ([A-Z][a-z]+s)\.?$/,
         make: (m) => { const spec = targetSpec('target ' + U.titleCase(singularType(m[1]))); if (!spec || spec.unknown || !(spec.subtypes || []).length) return null; delete spec.filter; return { op: 'evasion', notBy: spec }; }, auto: true },
       // Steel Golem: "You can't cast creature spells."
+      // Llawan, Cephalid Empress: "Your opponents can't cast blue creature spells." (opponentsCantCastKind)
+      { re: /^Your opponents can'?t cast ((?:white|blue|black|red|green) (?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
+        make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase(), who: 'opponents' }), auto: true },
       { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
@@ -15046,6 +15057,9 @@
       { re: /^If you would copy a spell one or more times, instead copy it that many times plus an additional time\.(?: You may choose new targets for the additional copy\.)?$/i,
         eff: { op: 'copyPlusOne' }, auto: true },
       // Knight of Grace: "Hexproof from black"; Knight of Autumn's cousins: "Hexproof from white and from black"
+      // Nevinyrral, Urborg Tyrant: "Hexproof from artifacts, creatures, and enchantments" (hexproofFromList)
+      { re: /^Hexproof from ((?:artifacts|creatures|enchantments|planeswalkers)(?:, (?:artifacts|creatures|enchantments|planeswalkers))*,? and (?:artifacts|creatures|enchantments|planeswalkers))$/i,
+        make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and |, /) }), auto: true },
       { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
       // Dragonfire Blade: "Equipped creature gets +2/+2 and has hexproof from monocolored."

@@ -22602,4 +22602,48 @@ module.exports = (test) => {
     D.grave('A', 'Island'); D.g.bumpBoard();
     t.eq(D.g.powerOf(dk), 8, 'Doc Ock: eight cards, 8/8');
   });
+
+  test("Commanders: Sokka, Swordmaster, Llawan, Nevinyrral, Greven, Michelangelo, On the Scene; Hamlet Vanguard, Kazuul's Toll Collector", (mk, t) => {
+    for (const n of ['Sokka, Swordmaster', 'Llawan, Cephalid Empress', 'Nevinyrral, Urborg Tyrant', 'Greven, Predator Captain', 'Michelangelo, On the Scene',
+      'Hamlet Vanguard', "Kazuul's Toll Collector"]) t.auto(n);
+    // Sokka, Swordmaster: an Equipment onto him at the beginning of combat
+    const S = mk({ library: Array(10).fill('Plains') });
+    S.toMain('A');
+    const sk = S.bf('A', 'Sokka, Swordmaster'), bs = S.bf('A', 'Bonesplitter');
+    S.answer('pickTarget', { targets: [{ kind: 'object', id: bs.id }] });
+    S.toMain('A', 'beginCombat'); S.resolve();
+    t.eq(bs.attachedTo, sk.id, 'Sokka: Bonesplitter attached to him');
+    // Llawan: opponents can't cast blue creature spells; other spells are fine
+    const L = mk({ library: Array(10).fill('Island') });
+    L.toMain('A');
+    L.bf('B', 'Llawan, Cephalid Empress');
+    L.mana('A', 'UUUU');
+    t.ok(!L.g.castSpell('A', L.hand('A', 'Merfolk Looter').id, { auto: true, targets: [] }), 'Llawan: a blue creature spell refused');
+    L.cast('A', L.hand('A', 'Opt'));
+    // Nevinyrral: hexproof from creatures — an opponent's creature's ability can't target it, a spell can
+    const N = mk({ library: Array(10).fill('Swamp') });
+    const nv = N.bf('A', 'Nevinyrral, Urborg Tyrant');
+    const tim = N.bf('B', 'Prodigal Sorcerer');
+    const from = (src) => N.g._legalTargetsFor({ type: 'any', filter: 'any target', zone: 'battlefield' }, 'B', src.id).map(x => x.id);
+    t.ok(!from(tim).includes(nv.id) && from(N.hand('B', 'Lightning Bolt')).includes(nv.id), 'Nevinyrral: not by a creature, yes by a spell');
+    // Greven: +X/+0 for the life you've lost this turn
+    const G = mk({ library: Array(10).fill('Swamp') });
+    G.toMain('A');
+    const gv = G.bf('A', 'Greven, Predator Captain');
+    const p0 = G.g.powerOf(gv);
+    G.g.changeLife(G.player('A'), -3, 'card');
+    t.eq(G.g.powerOf(gv), p0 + 3, 'Greven: 3 life lost, +3/+0');
+    // Michelangelo: a +1/+1 counter for each land you control; Hamlet Vanguard: two for each other nontoken Human
+    const M = mk({ library: Array(10).fill('Forest') });
+    M.toMain('A');
+    for (let k = 0; k < 4; k++) M.bf('A', 'Forest');
+    const mi = M.put('A', 'Michelangelo, On the Scene', 'battlefield', { etb: true }); M.resolve();
+    t.eq(Number(mi.counters['+1/+1']) || 0, 4, 'Michelangelo: four lands, four counters');
+    M.bf('A', 'Isamaru, Hound of Konda');
+    const hv = M.put('A', 'Hamlet Vanguard', 'battlefield', { etb: true }); M.resolve();
+    t.eq(Number(hv.counters['+1/+1']) || 0, 0, 'Hamlet Vanguard: no other Human, no counters');
+    M.bf('A', 'Elite Vanguard');
+    const hv2 = M.put('A', 'Hamlet Vanguard', 'battlefield', { etb: true }); M.resolve();
+    t.eq(Number(hv2.counters['+1/+1']) || 0, 4, 'Hamlet Vanguard: two other Humans, four counters');
+  });
 };
