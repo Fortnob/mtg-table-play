@@ -19398,6 +19398,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // (Death's Presence: "the power of the creature that died")
     if ((m = p.match(/^the (power|toughness|mana value) of (?:that spell|that creature|it|the creature that died)$/i))) return done({ ofTrigger: STAT[m[1].toLowerCase()] });
     if ((m = p.match(/^(?:CARDNAME's|this creature's) (power|toughness)$/i))) return done({ ofSelf: m[1].toLowerCase() });
+    // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
+    if (/^that Saga'?s mana value$/i.test(p)) return done({ ofTrigger: 'mv' });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
     if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
@@ -23067,6 +23069,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
+    { re: /^Whenever the final chapter ability of a Saga you control resolves,? /i, event: 'finalChapterResolved' },
     // Faldorn, Dread Wolf Herald: "Whenever a land you control enters from exile" (enteredFromExile)
     { re: /^Whenever (an? (?:land|creature|artifact|enchantment|permanent|nontoken creature)(?: you control)?) enters from exile,? /i, event: 'permEnters',
       filt: (m) => subjectFilter(m[1]), extra: { fromExileEnter: true } },
@@ -32474,6 +32478,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
 
     _afterResolve(item) {
+      // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
+      if (item.finalChapter && item.obj) this._fire('finalChapterResolved', item.controller, { object: item.obj, objController: item.controller });
       // Time Stop, Sundial of the Infinite: the turn ends as this finishes resolving
       if (this._endTheTurn === this.turn) { this._endTheTurnNow(item); return; }
       // spells that are not permanents go to the graveyard
@@ -42289,6 +42295,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const after = before + Number(evL.n);
       o.counters.lore = after;
       this.bumpBoard();
+      // (Narci, Fable Singer: the final chapter's ability is known as such when it resolves — finalChapterResolved)
+      const lastCh = Math.max(0, ...a.abilities.filter(x => x.kind === 'chapter').flatMap(x => x.chapters || []));
       for (const ab of a.abilities) {
         if (ab.kind !== 'chapter') continue;
         for (const c of (ab.chapters || [])) {
@@ -42297,6 +42305,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
             controller: o.controller, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`,
             effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
+            finalChapter: c === lastCh || undefined,   // (finalChapterResolved)
           });
         }
       }
@@ -42851,7 +42860,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!r) return;
       while (r.index < r.effects.length) {
         const e = r.effects[r.index];
-        if (e.op === 'manual') { r.manual.push(e); r.index++; continue; }
+        if (e.op === 'manual') {
+          // done by hand by its controller, who the rest of the card waits for (_byHand)
+          const done = this._byHand(r.ctx, e.text || '');
+          if (done === SUSPEND) return;
+          if (done == null) r.manual.push(e);
+          r.index++;
+          continue;
+        }
         // a sequence is just more of this list: splice it in and carry on, so
         // anything inside it can suspend exactly like a top-level effect
         if (e.op === 'sequence') {
@@ -42877,8 +42893,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         try { this._putBy = ctxNow.controller; out = this._runEffect(e, ctxNow); }
         catch (err) {
           console.warn('[effect]', e, err);
-          r.manual.push({ op: 'manual', text: e.text || JSON.stringify(e) });
-          r.index++;
+          // what went wrong is done by hand, in its place, before the rest of the card
+          r.effects.splice(r.index, 1, { op: 'manual', text: e.text || JSON.stringify(e) });
           continue;
         }
         finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null; }
@@ -42886,6 +42902,27 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         r.index++;
       }
       this._finishResolution();
+    }
+
+    /**
+     * A part of a card the engine cannot do, done by hand by the card's
+     * controller: the card waits for them, the rest of it not happening
+     * until they say it is done, and they can move cards, tap, count and
+     * so on in the meantime (manual). Returns SUSPEND while it waits, true
+     * once done, or null when nobody is waited for (a bot, a player who has
+     * left, or nothing resolving), in which case it is only said.
+     */
+    _byHand(ctx, text) {
+      const r = this.resolving;
+      const p = this.player(ctx && ctx.controller);
+      if (!r || !p || p.isBot || p.hasLost) return null;
+      if (!Object.prototype.hasOwnProperty.call(r.answers, r.index + ':hand')) {
+        this.logEvent('manual', `${(ctx && ctx.name) || 'Effect'}: "${text}" — resolve this by hand.`);
+        this.emit('manual', { ctx, text, controller: p.id });
+      }
+      const got = this._ask({ type: 'byHand', playerId: p.id, text: String(text || ''),
+        prompt: 'Do this by hand, then press Done.' }, 'hand');
+      return got === SUSPEND ? SUSPEND : true;
     }
 
     _finishResolution() {
@@ -52228,9 +52265,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'etbTapped': case 'cantBlock': case 'cantAttack': case 'mustAttack':
         case 'anthem': case 'equipBonus': case 'auraBonus': case 'enchant': case 'equip':
           break;   // static, handled where they matter
-        default:
+        default: {
+          // the effect being resolved: its controller does it by hand, and the rest of the card waits
+          const r = this.resolving;
+          if (r && r.effects[r.index] === e) {
+            const done = this._byHand(ctx, e.text || e.op);
+            if (done === SUSPEND) return SUSPEND;
+            if (done) break;
+          }
           this.logEvent('manual', `Unhandled effect "${e.op}" - resolve by hand.`);
           this.emit('manual', { ctx, text: e.text || e.op, controller: ctx.controller });
+        }
       }
     }
 
@@ -93137,6 +93182,13 @@ Sideboard
             { label: 'Let it be countered', fn: () => send({ pay: false }) },
             { html: 'Pay ' + MTG.mana.html(ch.cost || ''), cls: 'primary', fn: () => send({ pay: true }) },
           ], { card });
+        /* A part of the card the engine cannot do: it waits while you do it
+           with the table (drag cards, tap them, right-click for counters and
+           the rest), and goes on when you say it is done. */
+        case 'byHand':
+          return () => this.panel(escapeHtml(ch.sourceName || 'Resolve this by hand'),
+            `<b>By hand:</b> ${MTG.mana.textHtml(ch.text || '')}<br><span class="dim">Do it on the table (drag cards, tap them, right-click for counters and more), then press Done.</span>`,
+            null, [{ label: 'Done', cls: 'primary', fn: () => send({ done: true }) }], { card });
         case 'riot':
           return () => this.panel(...head('Riot', 'It enters with your choice of a +1/+1 counter or haste.'), null, [
             { label: 'Haste', fn: () => send({ haste: true }) },
