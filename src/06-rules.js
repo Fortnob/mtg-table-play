@@ -10725,11 +10725,16 @@
           const tdP = (ctx && ctx.triggerData) || {};
           const xP = tdP.objectId && this.obj(tdP.objectId);
           if (!xP) return false;
-          const nowP = xP.zone === 'battlefield' ? this.powerOf(xP) : xP._lastPower;
-          return nowP != null && nowP !== (parseInt((xP.card || {}).power, 10) || 0);
+          // (its base power as the layers leave it, a "*" or a copy included: basePowerLayers)
+          const onP = xP.zone === 'battlefield', nowP = onP ? this.powerOf(xP) : xP._lastPower;
+          const baseP = onP ? (this.characteristics(xP) || {}).basePower : xP._lastBasePower;
+          return nowP != null && baseP != null && nowP !== baseP;
         }
         // Barrin, Tolarian Archmage: "a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
         case 'bouncedToYourHand': return !!me && !!(((this.turnHistory || {}).bouncedTo || {})[me.id]);
+        // Anje Falkenrath: "if it has madness" (triggerHasKeyword)
+        case 'triggerHasKeyword': { const tdK = (ctx && ctx.triggerData) || {}; const xK = tdK.objectId && this.obj(tdK.objectId);
+          return !!xK; }
         // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
         case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
@@ -11621,6 +11626,7 @@
         // its power as it last existed, for "equal to its power" after it has gone
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
+        o._lastBasePower = lc ? lc.basePower : 0;
         // Barrin, Tolarian Archmage: a permanent put into its owner's hand this turn (bouncedToHand)
         if (toZone === 'hand') {
           const hB = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });

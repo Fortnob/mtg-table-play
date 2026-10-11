@@ -6520,4 +6520,20 @@ module.exports = (test) => {
       t.eq(soldiers(T), how === 'pumped' ? 1 : 0, how + ': a Soldier only when one is bigger than its base');
     }
   });
+
+  test('Audit: "its power was different from its base power" as the creature last was, a "*" one counted at its own size (Jason Bright, Glowing Prophet)', (mk, t) => {
+    t.auto('Jason Bright, Glowing Prophet');
+    for (const how of ['Korlash', 'pumped', 'plain']) {
+      const T = mk(); T.toMain('A');
+      const j = T.bf('A', 'Jason Bright, Glowing Prophet');
+      if (how === 'Korlash') { T.bf('A', 'Swamp'); T.bf('A', 'Swamp'); }
+      const z = T.bf('A', how === 'Korlash' ? 'Korlash, Heir to Blackblade' : 'Gravecrawler');
+      if (how === 'pumped') z.counters['+1/+1'] = 1;
+      const h = T.g.zones.A.hand.length;
+      T.mana('A', 'C2'); T.answer('sacrifice', { cardIds: [z.id] });
+      T.activate('A', j, 0, { targets: [j.id] });
+      t.zone(z, 'graveyard');
+      t.eq(T.g.zones.A.hand.length - h, how === 'pumped' ? 1 : 0, how + ': a card only when it died bigger than its base');
+    }
+  });
 };
