@@ -116,7 +116,7 @@
 
 /* ---------- the charge ---------- */
 /* an attacker lunges at what it is attacking and comes back */
-.cv.feel-lunge { animation: feelLunge .58s cubic-bezier(.3,.1,.3,1); }
+.cv.feel-lunge { animation: feelLunge .58s cubic-bezier(.3,.1,.3,1) var(--feel-lag, 0ms) both; }
 @keyframes feelLunge {
   0% { translate: 0 0; }
   22% { translate: calc(var(--feel-lx) * -.25) calc(var(--feel-ly) * -.25); }

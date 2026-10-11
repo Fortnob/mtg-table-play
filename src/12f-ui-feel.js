@@ -594,6 +594,8 @@
 
       /* The charge: each attacker lunges at what it is attacking, and what
          it is attacking flinches. */
+      // one after another down the line, a rolling charge, not all at once
+      let wave = 0;
       for (const a of info.attacks.slice(0, 12)) {
         const n = card(a.objId);
         const tg = targetOf(a.defender);
@@ -601,7 +603,8 @@
         if (motion && tg) {
           const s = this._at(t, MTG.util.rect(n)), d = this._at(t, MTG.util.rect(tg));
           const dx = d.x - s.x, dy = d.y - s.y, len = Math.hypot(dx, dy) || 1, reach = Math.min(46, len * 0.22);
-          mark(n, 'feel-lunge', 620, { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px' });
+          const lag = 75 * wave++;
+          mark(n, 'feel-lunge', 620 + lag, { '--feel-lx': (dx / len * reach).toFixed(1) + 'px', '--feel-ly': (dy / len * reach).toFixed(1) + 'px', '--feel-lag': lag + 'ms' });
         }
         if (tg) mark(tg, motion ? 'feel-threat' : 'feel-threat-still', 900);
       }
@@ -617,7 +620,7 @@
         const n = card(b.objId), foe = card(b.attackers[0]);
         if (!n || !foe || !motion) continue;
         const v = toward(n, foe, 40, 0.3);
-        mark(n, 'feel-lunge', 620, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'] });
+        mark(n, 'feel-lunge', 620, { '--feel-lx': v['--feel-lx'], '--feel-ly': v['--feel-ly'], '--feel-lag': '0ms' });
         const back = toward(foe, n, 14, 0.12);
         mark(foe, 'feel-recoil', 520, { '--feel-lx': back['--feel-lx'], '--feel-ly': back['--feel-ly'] });
         spawn(t, 'feel-clang', { left: v.mid.x + 'px', top: v.mid.y + 'px', animationDelay: '260ms' }, 800);
