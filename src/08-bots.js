@@ -1543,6 +1543,21 @@
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Mantle of the Ancients: everything comes back */
     returnAttached(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    /* Ardenn, Intrepid Archaeologist: onto a creature of ours, the Equipment and the Auras that help; onto an
+       opponent or theirs, the Auras that hurt. Nothing comes off an opponent's creature it is holding down. */
+    attachAnyTo(s) {
+      const g = this.game;
+      const host = g.obj(s.hostId);
+      const ours = host ? host.controller === this.pid : s.hostId === this.pid;
+      const picks = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).filter(x => {
+        const was = x.attachedTo && (g.obj(x.attachedTo) || g.player(x.attachedTo));
+        const wasTheirs = !!was && (was.controller != null ? was.controller : was.id) !== this.pid;
+        const hostile = /can't attack|can't block|doesn't untap|enchanted (?:creature|permanent) gets -|loses all abilities|enchanted permanent doesn't|enchanted player/i
+          .test(String((x.analysis() || {}).oracleText || ''));
+        return ours ? !hostile && !wasTheirs : hostile && !wasTheirs;
+      });
+      return { picks: picks.map(x => x.id) };
+    },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Stonehewer Giant: the Equipment goes on the strongest creature */
@@ -2929,7 +2944,8 @@
       // back from an adventure: the creature, cast from exile like a card in hand
       for (const o of z.exile) if (o.adventureBy === this.pid) consider(o, null);
       // flashback and its friends: a card in the graveyard is a card in hand for these
-      for (const o of z.graveyard.concat(z.exile)) {
+      // (The Great Work: and an opponent's instant or sorcery, from their graveyard)
+      for (const o of z.graveyard.concat(z.exile, g._borrowedGraveyard(this.pid))) {
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
           if (use.kind !== 'cast') continue;
           consider(o, use);
@@ -3664,6 +3680,12 @@
         if (effect.op === 'pump' || effect.op === 'grantKeyword') {
           const fighting = mine.filter(o => o.attacking || (o.blocking && o.blocking.length));
           if (fighting.length) pool = fighting;
+        }
+        // Ardenn, Intrepid Archaeologist: the Equipment goes on a creature, one that can attack this turn
+        if (effect.op === 'attachAnyTo') {
+          const ready = mine.filter(o => this._isCreature(o) && (!o.summoningSick || g.hasKw(o, 'haste')));
+          const any = mine.filter(o => this._isCreature(o));
+          if (ready.length || any.length) pool = ready.length ? ready : any;
         }
         pool = pool.slice().sort((x, y) => this.threatValue(y) - this.threatValue(x));
         return { kind: 'object', id: pool[0].id };

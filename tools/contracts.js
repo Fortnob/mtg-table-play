@@ -269,7 +269,7 @@ const INTENTS = {
   fullControl: closed({ on: bool, sticky: opt(bool) }),
   yield: closed({ mode: maybe(lit('turn', 'response')) }),
   keep: closed({ bottom: opt(ids) }),
-  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
+  playLand: closed({ objId: id, face: opt(nat) }), cycle: closed({ objId: id, channel: opt(bool), targets: opt(arr(Target)), x: opt(nat) }), plot: onObj, suspend: closed({ objId: id, x: opt(nat) }), transmute: onObj, encore: onObj, turnFaceUp: onObj,
   // the companion's {3} into hand (CR 702.139)
   companion: onObj,
   cast: closed({

@@ -2069,6 +2069,8 @@
       if (loc.zone === 'exile' && loc.player === this.meId && (live.playable || []).includes(id)) {
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
       }
+      // flashback and the like, or The Great Work's leave into any graveyard: the ways to cast it from there
+      if (loc.zone === 'graveyard' && (live.playable || []).includes(id) && ((live.uses || {})[id] || []).length) return this.cardMenu(id, e);
       if (loc.zone === 'command' && loc.player === this.meId) {
         // a companion: {3} to put it into your hand, when that can be done now (CR 702.139)
         if (loc.o.companion) return (live.playable || []).includes(id) ? this.useCompanion(loc.o) : this.showCard(id);
@@ -2578,11 +2580,23 @@
      * ability that points at something asks for that first.
      * @this {MTG.TableInstance}
      */
-    _cycleUse(o, a, use) {
+    _cycleUse(o, a, use, x) {
       if (!use.channel) return this.send({ kind: 'cycle', objId: o.id, channel: false });
       const eff = use.forecast ? ((a.forecast || {}).effects) : ((a.channel || {}).effects);
-      const specs = this._effectTargets(eff);
-      const send = (targets) => this.send({ kind: 'cycle', objId: o.id, channel: true, targets });
+      let specs = this._effectTargets(eff);
+      /* Shigeki, Jukai Visionary: "Channel — {X}{X}{G}{G}": X first, as much as can be paid for each {X} (and,
+         for "X target cards", no more than there are), then that many targets (channelX) */
+      const xs = use.forecast ? 0 : (String(use.cost || '').match(/\{X\}/g) || []).length;
+      if (xs && x == null) {
+        const fixed = MTG.mana.cmc(String(use.cost).replace(/\{X\}/g, ''));
+        let max = Math.max(0, Math.floor((this.manaHere() - fixed) / xs));
+        const many = specs.find(s => s.multi && s.multi.count === 'X');
+        if (many) max = Math.min(max, this._countLegal(Object.assign({}, many, { multi: null })));
+        return this._askNumber(`${escapeHtml(o.card.name)}: choose X`, `X is paid ${xs === 1 ? 'once' : xs + ' times'}. You can afford up to ${max}.`, 0, max, max,
+          (n) => this._cycleUse(o, a, use, n), o.card);
+      }
+      specs = specs.flatMap(s => (s.multi && s.multi.count === 'X' ? Array.from({ length: x || 0 }, () => Object.assign({}, s, { multi: null })) : [s]));
+      const send = (targets) => this.send(Object.assign({ kind: 'cycle', objId: o.id, channel: true, targets }, xs ? { x: x || 0 } : {}));
       if (!specs.length) return send([]);
       this.startTargeting({
         need: specs.length, specs, source: o.id, cardName: o.card.name,
@@ -3041,7 +3055,9 @@
           else if (use.kind === 'cast' && use.via === 'morph') items.push([use.label, () => this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })]);
           else if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
         }
-      } else if ((loc.zone === 'graveyard' || loc.zone === 'exile') && mine) {
+      } else if ((loc.zone === 'graveyard' || loc.zone === 'exile') && (mine ||
+          // The Great Work: an opponent's instant or sorcery you may cast from their graveyard
+          (loc.zone === 'graveyard' && ((live.uses || {})[o.id] || []).length))) {
         if (loc.zone === 'exile' && (live.playable || []).includes(o.id) && !((live.uses || {})[o.id] || []).length) {
           items.push([a && a.isLand ? 'Play this land' : 'Cast it', () => this.playFromHand(o)]);
         }
@@ -3147,13 +3163,14 @@
       const live = this.live || this.view;
       const grid = el('div', { class: 'zone-grid' });
       for (const o of objs.slice().reverse()) {
-        const uses = mine ? ((live.uses || {})[o.id] || []) : [];
+        // (The Great Work: an opponent's graveyard holds cards you may cast too)
+        const uses = mine || zone === 'graveyard' ? ((live.uses || {})[o.id] || []) : [];
         const tile = el('button', { type: 'button', class: 'zone-tile' + (uses.length ? ' usable' : ''), title: o.card.name }, [
           el('div', { class: 'zt-img', style: { backgroundImage: 'url("' + (MTG.scry.imageUrl(o.card, 'normal', o.face || 0) || '').replace(/"/g, '%22') + '")' } }),
           uses.length ? el('span', { class: 'zt-use', text: uses[0].label }) : null,
         ].filter(Boolean));
         tile.addEventListener('click', (e) => {
-          if (mine) { m.close(); this.cardMenu(o.id, e); } else { this.showCard(o.id); }
+          if (mine || uses.length) { m.close(); this.cardMenu(o.id, e); } else { this.showCard(o.id); }
         });
         UI.attachPreview(tile, o.card, o.face || 0);
         grid.appendChild(tile);

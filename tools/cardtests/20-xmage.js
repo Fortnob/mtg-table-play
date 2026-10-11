@@ -24653,4 +24653,213 @@ module.exports = (test) => {
     t.eq(acts.length, 1, "Robaran: one ability, Captain Sisay's");
     t.ok(/legendary card/.test(acts[0]), "Robaran: Captain Sisay's tutor, not the Sorcerer's ping");
   });
+
+  test('Commanders: Ardenn, Intrepid Archaeologist — Auras and Equipment onto a permanent or a player', (mk, t) => {
+    t.auto('Ardenn, Intrepid Archaeologist');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    M.toMain('A');
+    M.bf('A', 'Ardenn, Intrepid Archaeologist');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const elf = M.bf('A', 'Llanowar Elves');
+    const sword = M.bf('A', 'Bonesplitter');
+    const rancor = M.bf('A', 'Rancor'); rancor.attachedTo = elf.id; elf.attachments = [rancor.id];
+    const curse = M.bf('A', 'Curse of Opulence'); curse.attachedTo = 'B';
+    M.g.bumpBoard();
+    let offered = null;
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: bears.id }] });
+    M.answer('choose', (ch) => { offered = (ch.items || []).map(x => x.name).sort(); return { picks: ch.items.map(x => x.id) }; });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.eq(JSON.stringify(offered), JSON.stringify(['Bonesplitter', 'Rancor']), 'Ardenn: onto the Bears, the Equipment and the creature Aura, not the Curse');
+    t.eq(sword.attachedTo, bears.id, 'Ardenn: Bonesplitter on the Bears');
+    t.eq(rancor.attachedTo, bears.id, 'Ardenn: Rancor moved from the Elves to the Bears');
+    t.ok(!(elf.attachments || []).includes(rancor.id), 'Ardenn: off the Elves');
+    t.eq(M.g.powerOf(bears), 2 + 2 + 2, 'Ardenn: the Bears get +2/+0 twice');
+    t.eq(curse.attachedTo, 'B', 'Ardenn: the Curse stays on B');
+    // next turn: a player — only the Curse can enchant one
+    M.nextTurn('A');
+    offered = null;
+    M.answer('pickTarget', { targets: [{ kind: 'player', id: 'C' }] });
+    M.answer('choose', (ch) => { offered = (ch.items || []).map(x => x.name); return { picks: ch.items.map(x => x.id) }; });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.eq(JSON.stringify(offered), JSON.stringify(['Curse of Opulence']), 'Ardenn: onto a player, only the Curse');
+    t.eq(curse.attachedTo, 'C', 'Ardenn: the Curse now enchants C');
+    t.eq(sword.attachedTo, bears.id, 'Ardenn: Bonesplitter stays on the Bears');
+    // a land: nothing can go there, nothing is asked
+    M.nextTurn('A');
+    const land = M.bf('A', 'Plains');
+    const before = M.asked.filter(c => c.type === 'choose').length;
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: land.id }] });
+    M.toMain('A', 'beginCombat'); M.resolve();
+    t.eq(M.asked.filter(c => c.type === 'choose').length, before, 'Ardenn: a land, nothing to attach, no question');
+    t.eq(sword.attachedTo, bears.id, 'Ardenn: Bonesplitter is not moved to a land');
+    t.no(M.asked.some(c => c.type === 'confirm' && /Ardenn/.test(c.sourceName || '')), 'Ardenn: "you may" is not asked on its own');
+    // a bot: its Equipment onto its best creature; the Pacifism it has on B's creature stays there
+    const B = mk({ library: Array(20).fill('Plains') });
+    B.toMain('A');
+    B.player('A').isBot = true;
+    const bot = new B.MTG.bots.BotPlayer(B.g, 'A', 8);
+    B.bf('A', 'Ardenn, Intrepid Archaeologist');
+    const wurm = B.bf('A', 'Craw Wurm');
+    const eq = B.bf('A', 'Bonesplitter');
+    const theirs = B.bf('B', 'Grizzly Bears');
+    const pac = B.bf('A', 'Pacifism'); pac.attachedTo = theirs.id; theirs.attachments = [pac.id];
+    B.g.bumpBoard();
+    for (let i = 0; i < 60 && !(B.g.step === 'beginCombat' && !B.g.stack.length && !B.g.pendingChoice && !B.g.pendingTriggers.length); i++) {
+      const ch = B.g.pendingChoice;
+      if (ch && ch.playerId === 'A') bot.doChoice(ch);
+      else if (ch) B.settle();
+      else B.g.passPriority(B.g.priorityPlayer.id, true);
+    }
+    t.eq(eq.attachedTo, wurm.id, 'Ardenn (bot): Bonesplitter onto the Craw Wurm');
+    t.eq(pac.attachedTo, theirs.id, 'Ardenn (bot): Pacifism stays on B\'s Bears');
+  });
+
+  test('Commanders: Breena, the Demagogue — an attack on an opponent who is not the lowest', (mk, t) => {
+    t.auto('Breena, the Demagogue');
+    const M = mk({ players: ['A', 'B', 'C', 'D'], library: Array(20).fill('Plains') });
+    M.toMain('A');
+    M.player('B').life = 20; M.player('C').life = 15; M.player('D').life = 25;
+    M.bf('A', 'Breena, the Demagogue');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const elf = M.bf('A', 'Llanowar Elves');
+    const counters = () => M.bfOf('A').reduce((k, o) => k + (Number(o.counters['+1/+1']) || 0), 0);
+    // A attacks B (20, more than C's 15) and D (25) at once: two triggers, a card and two counters each
+    const h0 = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }, { attackerId: elf.id, defenderId: 'D' }]);
+    M.toMain('A', 'declareBlockers'); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'Breena: B and D attacked, both above C — two cards');
+    t.eq(counters(), 4, 'Breena: two +1/+1 counters for each');
+    // next turn A attacks C, the lowest of A's opponents: nothing
+    M.nextTurn('A');
+    const h1 = M.zone('A', 'hand').length, c1 = counters();
+    M.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'C' }]);
+    M.toMain('A', 'declareBlockers'); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h1, 0, 'Breena: C has the least life, no card');
+    t.eq(counters(), c1, 'Breena: and no counters');
+    // B attacks D: B draws, A's creature gets the counters
+    M.nextTurn('B');
+    const ogre = M.bf('B', 'Hill Giant');
+    const hb = M.zone('B', 'hand').length, ha = M.zone('A', 'hand').length, c2 = counters();
+    M.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'D' }]);
+    M.toMain('B', 'declareBlockers'); M.resolve();
+    t.eq(M.zone('B', 'hand').length - hb, 1, 'Breena: B attacked D, B draws');
+    t.eq(M.zone('A', 'hand').length - ha, 0, 'Breena: A does not');
+    t.eq(counters(), c2 + 2, 'Breena: A puts two counters on a creature of A\'s');
+    t.eq(Number(ogre.counters['+1/+1']) || 0, 0, 'Breena: not on the attacker');
+    // C attacks A: A is no opponent of A's, nothing
+    M.nextTurn('C');
+    const gob = M.bf('C', 'Hill Giant');
+    const hc = M.zone('C', 'hand').length, c3 = counters();
+    M.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'A' }]);
+    M.answer('declareBlockers', () => []);
+    M.toMain('C', 'declareBlockers'); M.resolve();
+    t.eq(M.zone('C', 'hand').length - hc, 0, 'Breena: C attacked A, no card');
+    t.eq(counters(), c3, 'Breena: and no counters');
+  });
+
+  test('Commanders: Urabrask // The Great Work — the Saga, from chapter I to casting out of any graveyard', (mk, t) => {
+    t.auto('Urabrask');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    M.toMain('A');
+    M.player('B').life = 40;
+    const ura = M.bf('A', 'Urabrask');
+    const giant = M.bf('B', 'Hill Giant');
+    const bolts = [M.hand('A', 'Lightning Bolt'), M.hand('A', 'Lightning Bolt'), M.hand('A', 'Lightning Bolt')];
+    for (const b of bolts) { M.mana('A', 'R'); M.cast('A', b, { targets: ['B'] }); }
+    t.eq(M.life('B'), 40 - 3 * 3 - 3, 'Urabrask: three Bolts and a ping for each');
+    // the {R} it added three times pays for the transformation
+    M.activate('A', ura, 0);
+    t.eq(ura.face, 1, 'Urabrask: back as The Great Work');
+    t.eq(M.life('B'), 40 - 12 - 3, 'The Great Work I: 3 damage to B');
+    t.zone(giant, 'graveyard', 'The Great Work I: and to each creature B controls');
+    M.nextTurn('A');
+    t.eq(M.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 3, 'The Great Work II: three Treasures');
+    const div = M.grave('B', 'Divination');
+    const bears = M.grave('B', 'Grizzly Bears');
+    const mine = M.zone('A', 'graveyard').find(o => o.name === 'Lightning Bolt');
+    M.nextTurn('A');
+    t.eq(ura.zone, 'battlefield', 'The Great Work III: exiled and back');
+    t.eq(ura.face || 0, 0, 'The Great Work III: front face up, Urabrask again');
+    const uses = (o) => M.g.altUsesFor('A', o.id).map(u => u.via);
+    t.ok(uses(div).includes('graveGrant'), "The Great Work III: B's Divination may be cast from B's graveyard");
+    t.no(uses(bears).includes('graveGrant'), 'The Great Work III: not a creature card');
+    const h0 = M.zone('A', 'hand').length;
+    M.mana('A', '2U');
+    t.ok(M.g.playableNow('A').some(x => x.objId === div.id && x.via === 'graveGrant'), 'The Great Work III: offered among what A can do now');
+    M.cast('A', div, { via: 'graveGrant' });
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'The Great Work III: Divination draws A two');
+    t.zone(div, 'exile', 'The Great Work III: and is exiled rather than put into a graveyard');
+    t.ok(M.zone('B', 'exile').includes(div), "The Great Work III: in its owner's exile");
+    const b0 = M.life('B');
+    M.mana('A', 'R'); M.cast('A', mine, { via: 'graveGrant', targets: ['B'] });
+    t.eq(M.life('B'), b0 - 3 - 1, 'The Great Work III: A\'s own Bolt again, and Urabrask pings');
+    t.zone(mine, 'exile', 'The Great Work III: exiled too');
+    const div2 = M.grave('B', 'Divination');
+    M.nextTurn('A');
+    t.no(uses(div2).includes('graveGrant'), 'The Great Work III: only until end of turn');
+    // a bot with the leave casts an opponent's sorcery out of their graveyard
+    const B = mk({ library: Array(30).fill('Island') });
+    B.toMain('A');
+    B.player('A').isBot = true;
+    const bot = new B.MTG.bots.BotPlayer(B.g, 'A', 8);
+    B.g.player('A').graveCastGrants = [{ turn: B.g.turn, filter: 'instant or sorcery', any: true, exileAfter: true }];
+    const div3 = B.grave('B', 'Divination');
+    B.bf('A', 'Island'); B.bf('A', 'Island'); B.bf('A', 'Island');
+    t.ok(bot.castFromPlan('main1'), 'The Great Work (bot): casts something');
+    B.resolve();
+    t.zone(div3, 'exile', "The Great Work (bot): B's Divination, cast and exiled");
+  });
+
+  test('Commanders: Shigeki, Jukai Visionary — channel for X, paid twice, returns X cards', (mk, t) => {
+    t.auto('Shigeki, Jukai Visionary');
+    t.auto('Ghost-Lit Drifter');
+    const M = mk({ library: Array(20).fill('Forest') });
+    M.toMain('A');
+    const sh = M.hand('A', 'Shigeki, Jukai Visionary');
+    const bolt = M.grave('A', 'Lightning Bolt');
+    const bears = M.grave('A', 'Grizzly Bears');
+    const elf = M.grave('A', 'Llanowar Elves');
+    const legend = M.grave('A', 'Isamaru, Hound of Konda');
+    // X = 2: {2}{2}{G}{G}, six mana in all
+    M.mana('A', 'GG3');
+    t.no(M.g.cycleCard('A', sh.id, { channel: true, x: 2, auto: false, fromPool: true }), 'Shigeki: X = 2 costs six, five is not enough');
+    M.mana('A', '1');
+    t.ok(M.g.cycleCard('A', sh.id, { channel: true, x: 2, targets: [{ kind: 'object', id: bolt.id }, { kind: 'object', id: bears.id }] }), 'Shigeki: channeled for X = 2');
+    M.resolve();
+    t.zone(sh, 'graveyard', 'Shigeki: discarded');
+    t.zone(bolt, 'hand', 'Shigeki: Lightning Bolt returned');
+    t.zone(bears, 'hand', 'Shigeki: Grizzly Bears returned');
+    t.zone(elf, 'graveyard', 'Shigeki: only X of them');
+    t.eq(['W', 'U', 'B', 'R', 'G', 'C'].reduce((k, c) => k + (M.player('A').pool[c] || 0), 0), 0, 'Shigeki: all six spent');
+    // a legendary card is no target, and X can't be more than the targets there are
+    const sh2 = M.hand('A', 'Shigeki, Jukai Visionary');
+    M.mana('A', 'GG2222');
+    t.no(M.g.cycleCard('A', sh2.id, { channel: true, x: 3, targets: [{ kind: 'object', id: elf.id }, { kind: 'object', id: legend.id }, { kind: 'object', id: sh.id }] }), 'Shigeki: Isamaru and Shigeki are legendary');
+    t.no(M.g.cycleCard('A', sh2.id, { channel: true, x: 2, targets: [{ kind: 'object', id: elf.id }] }), 'Shigeki: X = 2 needs two targets');
+    // no targets given: X of them asked for as it resolves
+    M.answer('pickTarget', (ch) => ({ targets: ch.options.map(l => l[0]) }));
+    t.ok(M.g.cycleCard('A', sh2.id, { channel: true, x: 1 }), 'Shigeki: X = 1, the target chosen later');
+    M.resolve();
+    t.zone(elf, 'hand', 'Shigeki: the one nonlegendary card left comes back');
+    t.zone(legend, 'graveyard', 'Shigeki: Isamaru stays');
+    // Jiwari: the X it was channeled for is the damage
+    const J = mk({ library: Array(20).fill('Mountain') });
+    J.toMain('A');
+    const ji = J.hand('A', 'Jiwari, the Earth Aflame');
+    const giant = J.bf('B', 'Hill Giant');
+    J.mana('A', 'RRR3');
+    t.ok(J.g.cycleCard('A', ji.id, { channel: true, x: 3 }), 'Jiwari: channeled for X = 3');
+    J.resolve();
+    t.zone(giant, 'graveyard', 'Jiwari: 3 damage to the Hill Giant');
+    // Ghost-Lit Drifter: "X target creatures gain flying" — X of them
+    const G = mk({ library: Array(20).fill('Island') });
+    G.toMain('A');
+    const gd = G.hand('A', 'Ghost-Lit Drifter');
+    const c1 = G.bf('A', 'Grizzly Bears'), c2 = G.bf('A', 'Hill Giant'), c3 = G.bf('A', 'Llanowar Elves');
+    G.mana('A', 'U2');
+    t.ok(G.g.cycleCard('A', gd.id, { channel: true, x: 2, targets: [{ kind: 'object', id: c1.id }, { kind: 'object', id: c2.id }] }), 'Ghost-Lit Drifter: channeled for X = 2');
+    G.resolve();
+    t.ok(G.g.hasKw(c1, 'flying') && G.g.hasKw(c2, 'flying'), 'Ghost-Lit Drifter: the two chosen fly');
+    t.no(G.g.hasKw(c3, 'flying'), 'Ghost-Lit Drifter: the third does not');
+  });
 };

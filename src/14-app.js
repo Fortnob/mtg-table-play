@@ -4843,8 +4843,9 @@
           choices: intent.choices && typeof intent.choices === 'object' ? intent.choices : null,
           x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;
         // cycling, or channel and forecast (the same door), with what a channel ability aims at
+        // (Shigeki, Jukai Visionary: the X of a channel cost with {X} in it)
         case 'cycle': g.cycleCard(actorId, intent.objId, { auto: true, channel: intent.channel === true ? true : intent.channel === false ? false : undefined,
-          targets: Array.isArray(intent.targets) ? intent.targets : [] }); break;
+          targets: Array.isArray(intent.targets) ? intent.targets : [], x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;
         case 'plot': g.plotCard(actorId, intent.objId, { auto: true }); break;
         // Suspend X: the time counters, and the X paid
         case 'suspend': g.suspendCard(actorId, intent.objId, { auto: true,

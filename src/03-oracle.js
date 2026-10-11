@@ -1363,6 +1363,14 @@
     // Brass Squire: "Attach target Equipment you control to target creature you control."
     { re: /^Attach target Equipment you control to target creature you control\.?$/i,
       make: () => ({ op: 'attachEquipment', targets: [{ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, { type: 'creature', controller: 'you' }] }) },
+    /* Ardenn, Intrepid Archaeologist: "attach any number of Auras and Equipment you control to target permanent or
+       player" — which ones, picked as it resolves, from those that can go there (attachAnyTo) */
+    { re: /^Attach any number of Auras and Equipment you control to target permanent or player\.?$/i,
+      make: () => ({ op: 'attachAnyTo', targets: [{ type: 'any', filter: 'permanent or player', zone: 'battlefield', anyOf: ['permanent'] }] }) },
+    // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
+    { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
+      make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
+        return rest && rest.op === 'counters' && rest.chooseFrom ? [{ op: 'draw', who: 'triggerPlayer', n: 1, text: 'That attacking player draws a card.' }, rest] : null; } },
     // Beacon of Immortality: "Double target player's life total."
     { re: /^Double target player'?s life total\.?$/i, make: () => ({ op: 'doubleLife', targets: [{ type: 'player' }] }) },
     // Revival // Revenge: "Double your life total."; Celestial Mantle: "double its controller's life total" (the enchanted creature's)
@@ -5245,9 +5253,10 @@
     /* Bonfire of the Damned, the Chandras: "deals N damage to target player
        (or planeswalker) and each creature that player (or that planeswalker's
        controller) controls" */
-    { re: /^(?:CARDNAME|It) deals (\d+|X) damage to (target player(?: or planeswalker)?) and each (creature(?: and planeswalker)?) (?:that player|they)(?: or that planeswalker'?s controller)? controls?\.?$/i,
+    // (The Great Work: "This Saga deals 3 damage to target opponent and each creature they control" — damageOppAndTheirs)
+    { re: /^(?:CARDNAME|It|This Saga) deals (\d+|X) damage to (target player(?: or planeswalker)?|target opponent) and each (creature(?: and planeswalker)?) (?:that player|they)(?: or that planeswalker'?s controller)? controls?\.?$/i,
       make: (m) => ({ op: 'damageAndTheirs', n: num(m[1]), andPlaneswalkers: /planeswalker/i.test(m[3]),
-        targets: [/planeswalker/i.test(m[2]) ? targetSpec('target player or planeswalker') : { type: 'player' }] }) },
+        targets: [/planeswalker/i.test(m[2]) ? targetSpec('target player or planeswalker') : /opponent/i.test(m[2]) ? { type: 'player', opponent: true } : { type: 'player' }] }) },
     // Tezzeret the Seeker, The Antiquities War: every artifact a 5/5 creature for the turn
     // Start Your Engines, The Thanos-Copter: "Vehicles you control become artifact creatures until end of turn." — as if crewed
     { re: /^Vehicles you control become artifact creatures until end of turn\.?$/i,
@@ -7852,6 +7861,19 @@
         }
         return out;
       } },
+    /* The Great Work: "Until end of turn, you may cast instant and sorcery spells from any graveyard. If a spell
+       cast this way would be put into a graveyard, exile it instead." — anyone's, cast as from a hand and paid for,
+       and what is then left of the chapter after it (castFromGraveyardsTurn) */
+    { re: /^Until end of turn, you may cast instant and sorcery spells from (any|your) graveyard\.( If a spell cast this way would be put into (?:a|your) graveyard, exile it instead\.)?(?:\s+(.+))?$/i,
+      make: (m) => {
+        const out = [{ op: 'castFromGraveyardsTurn', filter: 'instant or sorcery', anyGraveyard: /^any$/i.test(m[1]), exileAfter: !!m[2] }];
+        if (m[3]) {
+          const rest = parseEffects(m[3]);
+          if (!rest.auto) return null;
+          out.push(...rest.effects);
+        }
+        return out;
+      } },
     /* Goblin Dark-Dwellers, Memory Plunder: "you may cast target instant or
        sorcery card with mana value 3 or less from your graveyard without
        paying its mana cost. If that spell would be put into your graveyard,
@@ -9624,6 +9646,8 @@
     [/^it'?s the (second|third) creature spell you(?:'ve)? cast this turn$/i, (m) => ({ kind: 'nthCreatureSpell', n: /second/i.test(m[1]) ? 2 : 3 })],
     // the Backgrounds: "if no opponent has more life than that player"
     [/^no opponent has more life than that player$/i, () => ({ kind: 'attackedMostLife' })],
+    // Breena, the Demagogue: "if that opponent has more life than another of your opponents" — the one attacked (attackedNotLeastLife)
+    [/^that opponent has more life than another of your opponents$/i, () => ({ kind: 'attackedNotLeastLife' })],
     // Bridge from Below: "if this card is in your graveyard" — where it works from
     [/^(?:this card|CARDNAME) is in your graveyard$/i, () => ({ kind: 'selfInGraveyard' })],
     // Jace, Wielder of Mysteries: "if your library has no cards in it"
@@ -10889,6 +10913,9 @@
     // Ezuri, Stalker of Spheres: "Whenever you proliferate"
     { re: /^Whenever you proliferate,? /i, event: 'youProliferate' },
     { re: /^Whenever a player attacks with (two|three|four|five|six|\d+) or more creatures,? /i, event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackers: num(m[1]) }) },
+    /* Breena, the Demagogue: "Whenever a player attacks one of your opponents" — once for each of them the player's
+       creatures attack (attacksOneOfYourOpponents) */
+    { re: /^Whenever a player attacks one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackedIsYourOpponent: true } },
     // Jolene, the Plunder Queen: "Whenever a player attacks one or more of your opponents" — anyone, at someone you're against
     { re: /^Whenever a player attacks one or more of your opponents,? /i, event: 'anyPlayerAttacks', extra: { attacksYourOpponents: true } },
     /* Norn's Decree, Suppressor Skyguard, Trouble in Pairs: "Whenever a player
@@ -11896,8 +11923,11 @@
           if (inner && inner.op === 'countersDivided') { parsed.effects = [Object.assign(inner, { text: parsed.effects[0].text })]; parsed.auto = true; }
         }
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
+        /* Ardenn, Intrepid Archaeologist: "you may attach any number of …" — none of them is the "no", so the "may"
+           is not asked on its own (mayIsAnyNumber) */
+        const anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'attachAnyTo';
         out.abilities.push({
-          kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional,
+          kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional: optional && !anyNumber,
           ...(trig.also2 ? { also2: trig.also2 } : {}),
           text: line, effects: parsed.effects, auto: parsed.auto, condition,
           atLevel: lvlHit ? +lvlHit[1] : undefined,
@@ -12434,7 +12464,9 @@
         walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, true); } };
       walk(ab.effects, false);
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
-      const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || ''));
+      const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || '')) ||
+        // (Shigeki, Jukai Visionary: a channel cost with {X} in it, X chosen as it is channeled — channelX)
+        (ab.kind === 'castModifier' && ab.keyword === 'Channel' && !!out.channel && /\{X\}/.test(out.channel.cost || ''));
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
       const countedOk = (mm) => ab.kind === 'triggered' && mm.count === 'triggerAmount';
       if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||

@@ -432,7 +432,7 @@ declare namespace MTG {
     | { kind: 'mulligan' }
     | { kind: 'keep'; bottom?: Id[] }
     | { kind: 'playLand'; objId: Id; face?: number }
-    | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[] }
+    | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[]; x?: number }
     | { kind: 'suspend'; objId: Id; x?: number }
     | { kind: 'plot' | 'transmute' | 'encore' | 'turnFaceUp' | 'companion'; objId: Id }
     | {

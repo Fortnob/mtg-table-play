@@ -1367,7 +1367,8 @@
         out.push({ kind: 'cast', objId: o.id, via: 'prepared' });
       }
       const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell'));
-      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop)) {
+      // (The Great Work: the instants and sorceries in other players' graveyards too)
+      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, this._borrowedGraveyard(playerId))) {
         /* Cycling and flashback are things you can do with this card that
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
@@ -4344,6 +4345,12 @@
           out.push({ kind: 'cast', via: 'selfGrave', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
       }
+      // The Great Work: an instant or sorcery card in any graveyard, cast for its mana cost this turn (castFromGraveyardsTurn)
+      if (o.zone === 'graveyard' && !a.isLand && !out.some(u => u.via === 'granted')) {
+        const gg = this._graveGrant(playerId, o);
+        const whose = o.owner === playerId ? 'your' : (this.player(o.owner) ? this.player(o.owner).name + "'s" : 'their');
+        if (gg) out.push({ kind: 'cast', via: 'graveGrant', cost: a.manaCost || '', exileAfter: gg.exileAfter, label: `Cast it from ${whose} graveyard` });
+      }
       if (o.zone === 'exile' && o.owner === playerId && o.airbent && !a.isLand) {
         out.push({ kind: 'cast', via: 'airbend', cost: '{2}', label: 'Cast it for {2} (airbent)' });
       }
@@ -4440,6 +4447,25 @@
         if (o.warpExiled) {
           out.push({ kind: 'cast', via: 'warpExile', cost: a.manaCost || '', label: 'Cast (warped)' });
         }
+      }
+      return out;
+    }
+
+    /** The Great Work: this turn's leave for this player to cast this card from the graveyard it is in, if any. */
+    _graveGrant(playerId, o) {
+      const p = this.player(playerId);
+      if (!p || !o || o.zone !== 'graveyard' || !(p.graveCastGrants || []).length) return null;
+      return p.graveCastGrants.find(g => g.turn === this.turn && (g.any || o.owner === playerId) &&
+        (!g.filter || this._cardFitsWords(o, g.filter))) || null;
+    }
+    /** The cards in other players' graveyards this player may cast this turn (The Great Work). */
+    _borrowedGraveyard(playerId) {
+      const p = this.player(playerId);
+      if (!p || !(p.graveCastGrants || []).some(g => g.turn === this.turn && g.any)) return [];
+      const out = [];
+      for (const q of this.players) {
+        if (q.id === playerId) continue;
+        for (const o of ((this.zones[q.id] || {}).graveyard || [])) if (this._graveGrant(playerId, o)) out.push(o);
       }
       return out;
     }
@@ -4814,6 +4840,30 @@
      */
     _channel(playerId, o, use, opts) {
       const a = o.analysis();
+      /* Shigeki, Jukai Visionary: "Channel — {X}{X}{G}{G}, Discard this card: Return X target nonlegendary cards
+         from your graveyard to your hand." X is chosen as it is channeled, and paid once for each {X}; there have
+         to be X things to point at, and any targets chosen now are exactly X of them (channelX) */
+      const xs = use.forecast ? 0 : (String(use.cost || '').match(/\{X\}/g) || []).length;
+      const x = xs ? Math.max(0, Math.floor(+opts.x || 0)) : 0;
+      if (xs) {
+        const specs = effectSpecs(a.channel.effects);
+        const mi = specs.findIndex(sp => sp && sp.multi && sp.multi.count === 'X');
+        if (mi >= 0) {
+          const plain = Object.assign({}, specs[mi], { multi: null });
+          const legalN = this._legalTargetsFor(plain, playerId, o.id).length;
+          if (x > legalN) return this.fail(`X can't be greater than the number of targets there are for ${o.name} (${legalN}).`);
+          const tg = (opts.targets || []).map(normTarget).filter(Boolean);
+          if (tg.length) {
+            if (tg.length !== x + specs.length - 1) return this.fail(`Choose exactly ${x} target${x === 1 ? '' : 's'} (X is ${x}).`);
+            if (tg.some((t, i) => tg.findIndex(u => u.kind === t.kind && u.id === t.id) !== i)) return this.fail('Each target is a different card.');
+            this._specX = x;
+            const bad = this._illegalTargets(specs, tg, playerId, o);
+            this._specX = null;
+            if (bad) return this.fail(bad);
+          }
+        }
+        opts = Object.assign({}, opts, { x });
+      }
       if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts))) {
         return this.fail(`Not enough mana to ${use.forecast ? 'forecast' : 'channel'} (${use.cost}).`);
       }
@@ -4846,11 +4896,15 @@
         this.moveObject(o, 'graveyard');
         this._afterDiscard(playerId, o);
       }
+      // (and not the X of some earlier cast of the card, which "X" would otherwise fall back on)
+      if (xs) o.chosenX = x;
       const item = {
         id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
         controller: playerId, name: `${o.name} \u2014 ${a.channel.keep ? 'from the hand' : 'channel'}`,
         targets: (opts.targets || []).map(normTarget),
         effects: a.channel.effects, auto: true, abilityText: 'Channel',
+        // (Shigeki: the X it was channeled for, which says how many targets — channelX)
+        x,
       };
       this.stack.push(item);
       this.logEvent('ability', `${this.player(playerId).name} channels ${o.name}.`);
@@ -5714,6 +5768,8 @@
           }
         }
       }
+      // The Great Work: "If a spell cast this way would be put into a graveyard, exile it instead."
+      if (via && via.via === 'graveGrant' && via.exileAfter) o._exileFromStack = true;
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';
@@ -6296,6 +6352,11 @@
       }
       this._fire('youAttack', pid, { attackers });
       this._fire('anyPlayerAttacks', null, { attackers, playerId: pid });
+      /* Breena, the Demagogue: "Whenever a player attacks one of your opponents" — once for each player attacked,
+         by creatures attacking that player (not their planeswalkers or battles) */
+      const attackedPlayers = [];
+      for (const x of attackers) if (x && this.player(x.attacking) && !attackedPlayers.includes(x.attacking)) attackedPlayers.push(x.attacking);
+      for (const d of attackedPlayers) this._fire('anyPlayerAttacksPlayer', null, { attackers: attackers.filter(x => x && x.attacking === d), playerId: pid, attackedPlayer: d });
       this._fire('yourCreatureAttacks', pid, { attackers });
       /* "Whenever a creature you control attacks alone" (exalted's cousins):
          the only creature declared as an attacker this combat */
@@ -10300,6 +10361,13 @@
           if (!p || !me) return false;
           return !this.opponentsOf(me.id).some(q => !q.hasLost && q.life > p.life);
         }
+        // Breena, the Demagogue: "if that opponent has more life than another of your opponents" (attackedNotLeastLife)
+        case 'attackedNotLeastLife': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.attackedPlayer);
+          if (!p || p.hasLost || !me) return false;
+          return this.opponentsOf(me.id).some(q => q.id !== p.id && !q.hasLost && q.life < p.life);
+        }
         case 'nthCreatureSpell': {
           if (!me) return false;
           const list = (me.spellObjsThisTurn || []).filter(x => (x.analysis() || {}).isCreature);
@@ -12406,6 +12474,8 @@
         toZone: data.toZone,
         // the Ring: who was named Ring-bearer as it tempted
         bearerId: data.bearerId,
+        // Breena, the Demagogue: the player attacked, as against the one attacking (attacksOneOfYourOpponents)
+        attackedPlayer: data.attackedPlayer,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -12666,6 +12736,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
+          if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
           // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
@@ -20439,6 +20511,16 @@
           this.bumpBoard();
           break;
         }
+        /* The Great Work: "Until end of turn, you may cast instant and sorcery spells from any graveyard. If a
+           spell cast this way would be put into a graveyard, exile it instead." — offered among each such card's
+           ways to be cast, wherever its graveyard is (castFromGraveyardsTurn) */
+        case 'castFromGraveyardsTurn': {
+          me.graveCastGrants = (me.graveCastGrants || []).filter(g => g.turn === this.turn)
+            .concat([{ turn: this.turn, filter: e.filter || null, any: !!e.anyGraveyard, exileAfter: !!e.exileAfter }]);
+          this.logEvent('rules', `${me.name} may cast ${e.filter ? e.filter.replace(/ or /, ' and ') + ' spells' : 'spells'} from ${e.anyGraveyard ? 'any graveyard' : 'their graveyard'} this turn.`);
+          this.bumpBoard();
+          break;
+        }
         // "…this turn, exile that card instead": a replacement that lasts until the turn ends
         case 'floatingReplace': {
           (this._floatingReps = this._floatingReps || []).push({ turn: this.turn, ef: e.ef,
@@ -20952,6 +21034,40 @@
           host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
           this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
           this.bumpBoard();
+          break;
+        }
+        /* Ardenn, Intrepid Archaeologist: "attach any number of Auras and Equipment you control to target permanent or
+           player". Only what could legally be attached there is offered: one that can't stays where it is (CR 701.3b),
+           and one already on it is not attached again (701.3c). (attachAnyTo) */
+        case 'attachAnyTo': {
+          const t = targets[0];
+          const hostO = t && t.kind === 'object' ? this.obj(t.id) : null;
+          const hostP = t && t.kind === 'player' ? this.player(t.id) : null;
+          if (!(hostO && hostO.zone === 'battlefield') && !(hostP && !hostP.hasLost)) break;
+          const hostId = hostO ? hostO.id : hostP.id;
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && x.attachedTo !== hostId &&
+            this._attachableTo(x, hostO, hostP));
+          if (!pool.length) break;
+          const hostName = hostO ? hostO.name : hostP.name;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'attachAnyTo', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true, hostId,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}attach any number of your Auras and Equipment to ${hostName}.` }, 'aat');
+          if (got === SUSPEND) return SUSPEND;
+          const moved = [];
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || !pool.includes(x) || x.zone !== 'battlefield' || !this._attachableTo(x, hostO, hostP)) continue;
+            const old = x.attachedTo && this.obj(x.attachedTo);
+            if (old) old.attachments = (old.attachments || []).filter(y => y !== x.id);
+            x.attachedTo = hostId;
+            x.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+            if (hostO) hostO.attachments = (hostO.attachments || []).filter(y => y !== x.id).concat(x.id);
+            moved.push(x.name);
+          }
+          if (moved.length) {
+            this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${hostName}.`);
+            this.bumpBoard();
+          }
           break;
         }
         // Beacon of Immortality
@@ -23494,6 +23610,32 @@
       return !this._protectedFrom(host, o);
     }
 
+    /**
+     * Could this Aura or Equipment be attached to that permanent or player now (Ardenn, Intrepid Archaeologist)?
+     * An Aura to what it could enchant ("Enchant player" to a player, "Enchant opponent" to an opponent of its
+     * controller); Equipment only to a creature, and not while it is a creature itself unless it has reconfigure
+     * (CR 301.5c); nothing to itself, nor to a permanent or player with protection from it.
+     */
+    _attachableTo(x, hostO, hostP) {
+      const a = x.analysis() || {};
+      const c = this.characteristics(x) || a;
+      const aura = this._auraNow(x) || !!c.isAura || (c.subtypes || []).includes('Aura');
+      const equip = !aura && (!!a.isEquipment || (c.subtypes || []).includes('Equipment'));
+      if (!aura && !equip) return false;
+      const spec = aura && !x.bestowed && !x.licid ? a.auraSpec : null;
+      const toPlayer = !!spec && (spec.type === 'player' || spec.type === 'opponent');
+      if (hostP) {
+        if (!toPlayer || hostP.hasLost || this._protected(hostP)) return false;
+        if ((spec.type === 'opponent' || spec.opponent) && hostP.id === x.controller) return false;
+        return !this._protCardTypes(hostP.id).some(t => this._cardTypesOf(x).includes(t));
+      }
+      if (!hostO || hostO === x || toPlayer) return false;
+      if (equip && c.isCreature && !this.hasKw(x, 'reconfigure')) return false;
+      if ((x.bestowed || x.licid) && !(this.characteristics(hostO) || {}).isCreature) return false;
+      if (spec && !spec.unknown && !MTG.oracle.matchesSpec(spec, hostO, hostO.analysis(), x.controller, this._specCtx())) return false;
+      return this._attachLegal(x, a, hostO);
+    }
+
     playerLoses(p, reason) {
       if (p.hasLost) return;
       // Platinum Angel: "You can't lose the game and your opponents can't win the game."
@@ -25264,7 +25406,8 @@
           if (!z) return out;
           const prepared = this.battlefield.filter(o => o.controller === playerId && o.prepared);
           // (the command zone too: Yuriko's commander ninjutsu)
-          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), prepared, z.command || [])) {
+          // (The Great Work: an opponent's instant or sorcery card that may be cast from their graveyard)
+          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), this._borrowedGraveyard(playerId), prepared, z.command || [])) {
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
