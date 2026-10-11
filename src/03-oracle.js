@@ -9772,6 +9772,8 @@
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
     [/^that spell was all colou?rs$/i, () => ({ kind: 'spellAllColors' })],
+    // Baird, Argivian Recruiter: "if you control a creature with power greater than its base power" (controlPumped)
+    [/^you control a creature with power greater than its base power$/i, () => ({ kind: 'controlPumped' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
     [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
       const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
@@ -10010,6 +10012,8 @@
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
       // Athreos, God of Passage: "another creature you own" — whoever controls it
       if (/ you own$/.test(q)) { f.owned = true; return q.replace(/ you own$/, ''); }
+      // Kothophed, Soul Hoarder: "a permanent owned by another player" — whoever controls it (ownedByOther)
+      if (/ owned by another player$/.test(q)) { f.notOwned = true; return q.replace(/ owned by another player$/, ''); }
       // the Curses: "a creature enchanted player controls"
       if (/ enchanted (?:player|opponent) controls$/.test(q)) { f.who = 'enchantedPlayer'; return q.replace(/ enchanted (?:player|opponent) controls$/, ''); }
       if (/ (?:an opponent controls|your opponents control|you don'?t control)$/.test(q)) {
@@ -10047,6 +10051,9 @@
         // The Swarmlord: "a creature you control with a counter on it" — of any kind
         f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
+        f.withCounter = m[1]; p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
+        // Haliya, Ascendant Cadet: "one or more creatures you control with +1/+1 counters on them" (countersOnThem)
         f.withCounter = m[1]; p = p.slice(0, m.index);
       }
     }
@@ -14105,6 +14112,9 @@
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) (creature|permanent|artifact|artifact or creature) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'cntPlus1', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1' },
         / or /.test(m[1]) ? { whatAny: ['artifact', 'creature'] } : { what: m[1].toLowerCase() }) },
+    // Mowu, Loyal Companion: "If one or more +1/+1 counters would be put on Mowu, that many plus one … on it instead." (selfCountersPlus)
+    { re: /^If one or more \+1\/\+1 counters would be put on (?:CARDNAME|this creature), that many plus one \+1\/\+1 counters are put on it instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'cntPlus1Self', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1', selfOnly: true }) },
     // Mauhúr, Uruk-hai Captain: "… on an Army, Goblin, or Orc you control, that many plus one …" — creature types, any one of them
     { re: /^If one or more \+1\/\+1 counters would be put on (?:a|an) ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) you control, that many plus one \+1\/\+1 counters are put on (?:it|that \w+) instead\.?$/,
       make: (m) => ({ op: 'replace', id: 'cntPlus1Types', event: 'counters', who: 'you', how: 'add', n: 1, counter: '+1/+1',
@@ -14125,7 +14135,8 @@
     // (Queen Allenal of Ruadach: "those tokens plus a 1/1 white Soldier creature token are created instead" — tokensPlusA)
     { re: /^If (?:one or more (artifact |creature )?tokens would be created under your control|you would create one or more (?:(Treasure|Food|Clue) )?tokens), (?:instead create )?those tokens plus (an additional|that many|an?) ([^.]+?) tokens?( with [a-z ]+?)?(?: are created)?(?: instead)?\.?$/i,
       make: (m) => {
-        const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map)$/i);
+        // (Donatello, the Brains: "plus a Mutagen token" — tokensPlusMutagen)
+        const named = m[4].match(/^(Treasure|Food|Clue|Blood|Map|Mutagen)$/i);
         let extra = null;
         if (named) extra = { named: U.titleCase(named[1]) };
         else {
@@ -15063,6 +15074,9 @@
       // Challenger Troll, Flopsie: "Each creature you control with power 4 or greater can't be blocked by more than one creature." — its power as blockers are declared
       { re: /^Each creature you control with power (\d+) or greater can'?t be blocked by more than one creature\.?$/i,
         make: (m) => ({ op: 'oneBlockerPower', n: +m[1] }), auto: true },
+      // Michelangelo, Mutant BFF: "Each creature you control with a counter on it can't be blocked by more than one creature." (oneBlockerWith)
+      { re: /^Each creature you control (with (?:a|one or more) counters? on it) can'?t be blocked by more than one creature\.?$/i,
+        make: (m) => { const sc = scopeOf('creatures you control ' + m[1].replace(/counter on it/, 'counters on them')); return sc && sc.withAnyCounter ? { op: 'continuous', layer: 6, scope: sc, flag: 'oneBlocker' } : null; }, auto: true },
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },

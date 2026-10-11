@@ -9471,6 +9471,8 @@
       if (ef.onYours && ev.controller !== src.controller) return false;
       // Benevolent Hydra: "another creature"
       if (ef.notSelf && ev.object && ev.object.id === src.id) return false;
+      // Mowu, Loyal Companion: only counters on this one (selfCountersPlus)
+      if (ef.selfOnly && !(ev.object && ev.object.id === src.id)) return false;
       // Gond Gate: "Gates you control" — the words, as a card reads them
       if (ef.words && ev.object && !this._cardFitsWords(ev.object, ef.words)) return false;
       // Winding Constrictor: counters on you, not on your permanents
@@ -10723,6 +10725,9 @@
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
         case 'spellAllColors': { const tdA = (ctx && ctx.triggerData) || {}; const xA = tdA.objectId && this.obj(tdA.objectId);
           return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
+        // Baird, Argivian Recruiter: "a creature with power greater than its base power" (controlPumped)
+        case 'controlPumped': return !!me && this.battlefield.some(x => x.controller === me.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature &&
+          this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0));
         // Tom Bombadil: "four or more lore counters among Sagas you control" (countersAmongAtLeast)
         case 'countersAmongAtLeast': return this._countValue({ countersAmong: cond.scope, kind: cond.counter, mult: 1 }, ctx.controller, src) >= (cond.n || 0);
         // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
@@ -23936,6 +23941,8 @@
       if (f.who === 'enchantedPlayer' && !(src && src.attachedTo && owner === src.attachedTo)) return false;
       // Athreos, God of Passage: "another creature you own"
       if (f.owned && src && x.owner !== src.controller) return false;
+      // Kothophed, Soul Hoarder: "owned by another player" (ownedByOther)
+      if (f.notOwned && src && x.owner === src.controller) return false;
       if (f.nontoken && x.isToken) return false;
       if (f.token && !x.isToken) return false;
       /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"

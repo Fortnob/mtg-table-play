@@ -23665,4 +23665,61 @@ module.exports = (test) => {
     J.mana('A', 'WUBRG'); J.cast('A', J.hand('A', 'Sliver Queen')); J.resolve();
     t.eq(J.bfOf('A').filter(o => o.isToken && /Angel/.test(o.name)).length, 1, 'Jenson: all five, an Angel');
   });
+
+  test('Commanders: Michelangelo, Mutant BFF, Mowu, Haliya, Baird, Kothophed, Donatello, the Brains', (mk, t) => {
+    for (const n of ['Michelangelo, Mutant BFF', 'Mowu, Loyal Companion', 'Haliya, Ascendant Cadet', 'Baird, Argivian Recruiter', 'Kothophed, Soul Hoarder', 'Donatello, the Brains']) t.auto(n);
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Michelangelo: a creature of A's with a counter can't be blocked by more than one
+    const M = mk({ library: Array(20).fill('Forest') });
+    M.bf('A', 'Michelangelo, Mutant BFF');
+    const c1 = M.bf('A', 'Grizzly Bears'); c1.counters['+1/+1'] = 1;
+    const c2 = M.bf('A', 'Grizzly Bears');
+    M.g.bumpBoard();
+    t.ok(M.g._hasFlag(c1, 'oneBlocker') && !M.g._hasFlag(c2, 'oneBlocker'), 'Michelangelo: the Bears with a counter, not the others');
+    // Mowu: counters on Mowu come one more; on another creature, not
+    const W = mk({ library: Array(20).fill('Forest') });
+    const mw = W.bf('A', 'Mowu, Loyal Companion'), wb = W.bf('A', 'Grizzly Bears');
+    const before = Number(mw.counters['+1/+1']) || 0;
+    W.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 2, scope: 'self' }], Object.assign({}, ctx, { obj: mw }));
+    W.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 2, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: wb.id }] }));
+    t.ok((Number(mw.counters['+1/+1']) || 0) - before === 3 && (Number(wb.counters['+1/+1']) || 0) === 2, 'Mowu: three on Mowu, two on the Bears');
+    // Haliya: creatures with +1/+1 counters dealing combat damage draw; without, not
+    const H = mk({ library: Array(20).fill('Plains') });
+    H.toMain('A');
+    H.bf('A', 'Haliya, Ascendant Cadet');
+    const hb = H.bf('A', 'Grizzly Bears'), hn = H.bf('A', 'Grizzly Bears'); hb.counters['+1/+1'] = 1;
+    const h0 = H.zone('A', 'hand').length;
+    H.g._fire('permCombatDamage', 'A', { object: hn, objController: 'A', source: hn, amount: 2, player: 'B', batch: true, batchIds: [hn.id] }); H.resolve();
+    t.eq(H.zone('A', 'hand').length - h0, 0, 'Haliya: no counters on the attacker, nothing');
+    H.g._fire('permCombatDamage', 'A', { object: hb, objController: 'A', source: hb, amount: 3, player: 'B', batch: true, batchIds: [hb.id] }); H.resolve();
+    t.eq(H.zone('A', 'hand').length - h0, 1, 'Haliya: the Bears with a counter, a card');
+    // Baird: a pumped creature at the end step makes a Soldier
+    const B = mk({ library: Array(20).fill('Plains') });
+    B.toMain('A');
+    B.bf('A', 'Baird, Argivian Recruiter');
+    const bb = B.bf('A', 'Grizzly Bears');
+    B.toMain('A', 'end'); B.resolve();
+    t.eq(B.bfOf('A').filter(o => o.isToken).length, 0, 'Baird: nothing bigger than printed, nothing');
+    const B2 = mk({ library: Array(20).fill('Plains') });
+    B2.toMain('A');
+    B2.bf('A', 'Baird, Argivian Recruiter');
+    const b2 = B2.bf('A', 'Grizzly Bears'); b2.counters['+1/+1'] = 1; B2.g.bumpBoard();
+    B2.toMain('A', 'end'); B2.resolve();
+    t.eq(B2.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 1, 'Baird: the Bears are bigger than printed, a Soldier');
+    // Kothophed: B's permanent dies, A draws and loses 1; A's own, nothing
+    const K = mk({ library: Array(20).fill('Swamp') });
+    K.toMain('A');
+    K.bf('A', 'Kothophed, Soul Hoarder');
+    const kill = (T, o) => { T.g.dealDamageToObject(o, 9, null, false); T.g.checkStateBasedActions(); T.resolve(); };
+    const k0 = K.zone('A', 'hand').length;
+    kill(K, K.bf('B', 'Grizzly Bears'));
+    t.ok(K.zone('A', 'hand').length - k0 === 1 && K.life('A') === 19, "Kothophed: B's Bears died, a card and a life");
+    kill(K, K.bf('A', 'Grizzly Bears'));
+    t.eq(K.zone('A', 'hand').length - k0, 1, "Kothophed: A's own Bears, nothing");
+    // Donatello: tokens plus a Mutagen
+    const D = mk({ library: Array(20).fill('Island') });
+    D.bf('A', 'Donatello, the Brains');
+    D.g._runEffects([{ op: 'createNamedToken', n: 1, token: 'Treasure' }], ctx); D.resolve();
+    t.ok(D.bfOf('A').some(o => /Treasure/.test(o.name)) && D.bfOf('A').filter(o => /Mutagen/.test(o.name)).length === 1, 'Donatello: a Treasure, and a Mutagen');
+  });
 };
