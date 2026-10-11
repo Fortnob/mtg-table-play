@@ -273,7 +273,18 @@ async function rulingsChecks() {
   check((await MTG.scry.rulings(bolt, { force: true })).length === 2, 'no connection but a copy kept: the copy');
 }
 
+/* An imported deck left without a name is called after its commander. */
+function importNameChecks() {
+  const D = MTG.decklist;
+  check(D.nameFromCommanders([card('Hakbal of the Surging Soul')]) === 'Hakbal of the Surging Soul', 'a commander names the deck');
+  check(D.nameFromCommanders([card('Thrasios, Triton Hero'), card('Tymna the Weaver')]) === 'Thrasios, Triton Hero & Tymna the Weaver', 'partners: both, joined with &');
+  check(D.nameFromCommanders([card('Esika, God of the Tree')]) === 'Esika, God of the Tree', 'a double-faced commander: its front face');
+  check(D.nameFromCommanders([card('Wrenn and Seven'), card('Lightning Bolt')]) === 'Wrenn and Seven', 'Oathbreaker: the planeswalker, not the signature spell');
+  check(D.nameFromCommanders([]) === '', 'no commander: no name, so "Imported deck"');
+}
+
 (async () => {
+  importNameChecks();
   await practiceChecks();
   await rulingsChecks();
   console.log(`${passes} passed, ${fails} failed`);

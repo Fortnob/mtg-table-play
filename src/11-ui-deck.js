@@ -341,7 +341,7 @@
   /* ---------------- import dialog ---------------- */
   UI.importDeck = function (formatId, onDone) {
     const ta = el('textarea', { rows: 16, placeholder: PLACEHOLDER, spellcheck: 'false' });
-    const nameInput = el('input', { type: 'text', placeholder: 'Deck name (optional)' });
+    const nameInput = el('input', { type: 'text', placeholder: 'Optional: the commander’s name if left empty' });
     const fmtSelect = el('select', null, MTG.formats.deckFormats().map(f =>
       el('option', { value: f.id, text: f.name, selected: f.id === formatId })));
     const setInput = el('input', { type: 'text', placeholder: 'e.g. MH3 - leave blank to keep each list’s printing' });

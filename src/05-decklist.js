@@ -259,6 +259,16 @@
   }
 
   /** One call: text in, validated deck out. */
+  /* A deck with no name of its own is called after its commander:
+     "Hakbal of the Surging Soul", the front face of a double-faced one,
+     partners joined with "&", and an Oathbreaker's planeswalker, not its
+     signature spell. Nothing when there is no commander. */
+  function nameFromCommanders(commanders) {
+    const all = (commanders || []).filter(Boolean);
+    const leaders = all.filter(c => !(MTG.formats.isSignatureSpell && MTG.formats.isSignatureSpell(c)));
+    return (leaders.length ? leaders : all).map(c => U.frontName(c.name || '')).filter(Boolean).join(' & ');
+  }
+
   async function importDeck(text, formatId, opts) {
     opts = opts || {};
     const fmt = MTG.formats.get(formatId);
@@ -268,7 +278,8 @@
 
     const deck = {
       id: MTG.uid('deck'),
-      name: parsed.name || opts.name || 'Imported deck',
+      // (the name box left empty: the commander's, Hakbal of the Surging Soul's deck being "Hakbal of the Surging Soul")
+      name: parsed.name || opts.name || nameFromCommanders(resolved.commanders.map(e => e.card)) || 'Imported deck',
       format: formatId,
       main: resolved.main.map(e => ({ card: e.card, qty: e.qty })),
       sideboard: resolved.sideboard.map(e => ({ card: e.card, qty: e.qty })),
@@ -369,7 +380,7 @@
     return rows.filter(r => r.some(x => x.trim()));
   }
 
-  MTG.decklist = { parse, resolve, importDeck, seatCommanders, toText, importCube, parseCsv, LINE_RE };
+  MTG.decklist = { parse, resolve, importDeck, nameFromCommanders, seatCommanders, toText, importCube, parseCsv, LINE_RE };
 })(window.MTG);
 
 
