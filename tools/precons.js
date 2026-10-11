@@ -106,7 +106,8 @@ async function edhrecRanks(wanted) {
 
 (async () => {
   const list = (await getJson(MTGJSON + 'DeckList.json', path.join(CACHE, 'DeckList.json'), 864e5, 150)).data
-    .filter(x => /commander deck/i.test(x.type || ''));
+    // a Collector's Edition is its deck again, in foil and borderless: the store lists the deck
+    .filter(x => /commander deck/i.test(x.type || '') && !/collector'?s?\s*edition/i.test(x.name || ''));
   const files = [];
   for (const x of list) {
     try { files.push({ x, d: (await getJson(MTGJSON + 'decks/' + encodeURIComponent(x.fileName) + '.json', path.join(CACHE, x.fileName + '.json'), Infinity, 150)).data }); }

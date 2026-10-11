@@ -718,9 +718,12 @@
   const MTGJSON = 'https://mtgjson.com/api/v5/';
   /* A deck printed again (Commander Anthology's reprints of older decks)
      is listed once, as its latest printing: one name, one deck
-     (MTG.themes.distinct). Done to the list itself, so the tab's count,
-     order and search all see one. */
-  const onceEach = (list) => MTG.themes.distinct(list);
+     (MTG.themes.distinct), and a Collector's Edition (the same deck in
+     foil and borderless) not at all: the deck it dresses up is there.
+     Done to the list itself, so the tab's count, order and search all see
+     one. */
+  const isCollectors = (p) => /collector'?s?\s*edition/i.test(p.name || '') || /CollectorSEdition/.test(p.file || '');
+  const onceEach = (list) => MTG.themes.distinct(list.filter(p => !isCollectors(p)));
   async function preconList() {
     const hit = MTG.store.get('precons', null);
     if (hit && Date.now() - hit.t < 7 * 864e5 && (hit.list || []).length) return onceEach(hit.list);
