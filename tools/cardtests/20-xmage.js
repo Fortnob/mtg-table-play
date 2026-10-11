@@ -28319,4 +28319,53 @@ module.exports = (test) => {
     t.eq(M.bfOf('A').filter(o => (o.analysis() || {}).isLand).length, 0, 'Bonny Pall: declined, no land put');
     t.eq(M.zone('A', 'hand').length, 1, 'Bonny Pall: the Island drawn stays in hand');
   });
+
+  test('Commanders: Florian, Voldaren Scion — postcombat, the top X cards for the life opponents lost; one exiled and playable this turn', (mk, t) => {
+    t.auto('Florian, Voldaren Scion');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const flo = M.bf('A', 'Florian, Voldaren Scion');
+    const g = M.g;
+    const toMain2 = () => {
+      for (let i = 0; i < 60; i++) {
+        M.settle();
+        if (g.phase.id === 'postcombat' && g.step === 'main' && !g.stack.length && g.priorityPlayer.id === g.activePlayer.id) return;
+        g.passPriority(g.priorityPlayer.id, true);
+      }
+    };
+    // nothing lost yet this turn: nothing looked at, nothing asked
+    const a0 = M.asked.length;
+    toMain2();
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard'), 'Florian: no life lost, nothing to exile');
+    t.eq(g.zones.A.exile.length, 0);
+    // next turn: B takes 3 from Florian, C loses 1 — the top four looked at
+    M.nextTurn('A');
+    const bear = M.top('A', 'Grizzly Bears');
+    const bolt = M.top('A', 'Lightning Bolt');
+    const opt = M.top('A', 'Opt');
+    const mtn = M.top('A', 'Mountain');
+    g.changeLife(g.player('C'), -1);
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [bolt.id] }; });
+    M.answer('declareAttackers', () => [{ attackerId: flo.id, defenderId: 'B' }]);
+    toMain2();
+    t.eq(M.life('B'), 17, 'Florian: 3 first-strike damage');
+    t.ok(offered, 'Florian: asked which to exile');
+    t.eq(offered.cards.length, 4, 'Florian: X is 3 + 1');
+    t.no(offered.optional, 'Florian: one has to be exiled');
+    t.zone(bolt, 'exile', 'Florian: Lightning Bolt exiled');
+    t.eq(bolt.impulseBy, 'A', 'Florian: and A may play it');
+    t.eq(bolt.impulseUntil, g.turn, 'Florian: this turn');
+    const lib = g.zones.A.library;
+    t.ok([mtn, opt, bear].every(o => lib.indexOf(o) >= lib.length - 3), 'Florian: the rest on the bottom');
+    t.ok(lib[0] && lib[0].name === 'Island', 'Florian: the top is what was under them');
+    M.mana('A', 'R');
+    M.cast('A', bolt, { targets: ['B'] });
+    t.eq(M.life('B'), 14, 'Florian: Lightning Bolt cast from exile');
+    // B's postcombat main: not Florian's
+    const a1 = M.asked.length;
+    M.nextTurn('B');
+    g.changeLife(g.player('C'), -2);
+    toMain2();
+    t.no(M.asked.slice(a1).some(ch => ch.type === 'pickCard'), "Florian: not on B's turn");
+  });
 };

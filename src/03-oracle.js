@@ -3872,6 +3872,13 @@
     // (Ureni of the Unwritten: "look at the top eight cards of your library")
     { re: /^Look at the top (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0 }) },
+    // Florian, Voldaren Scion: "look at the top X cards of your library, where X is the total amount of life your opponents lost this turn"
+    { re: /^Look at the top X cards of your library, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'lookAt', n: k, keep: 0 } : null; } },
+    /* Florian, Voldaren Scion: "Exile one of those cards and put the rest on the bottom of your library in a random
+       order." — one has to go (the play permission is the next sentence's) */
+    { re: /^Exile one of (?:those cards|them) and put the rest on the bottom of your library in a random order\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', mustTake: true, rest: 'bottomRandom', prompt: 'Exile one of those cards.' }) },
     /* Gishath, Sun's Avatar, Ojer Kaslem: "Whenever … deals combat damage to a player, reveal that many cards
        from the top of your library" — as many as the damage the trigger is about (thatManyTop) */
     { re: /^(Reveal|Look at) that many cards from the top of your library\.?$/i,
@@ -6718,6 +6725,8 @@
     if (/^the amount of life you(?:'ve)? gained this turn$/i.test(p)) return done({ playerStat: 'lifeGainedThisTurn' });
     // Greven, Predator Captain: "the amount of life you've lost this turn" (lifeLostYou)
     if (/^the amount of life you(?:'ve)? lost this turn$/i.test(p)) return done({ playerStat: 'lifeLostThisTurn' });
+    // Florian, Voldaren Scion: "the total amount of life your opponents lost this turn" (opponentsLifeLost)
+    if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });

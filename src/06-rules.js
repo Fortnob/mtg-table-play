@@ -14013,7 +14013,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -19341,6 +19341,8 @@
             taken = (picked || []).slice(0, want).map(id => this.obj(id)).filter(Boolean);
           }
           const z = this.zones[ctx.controller];
+          // Florian, Voldaren Scion: "You may play the exiled card this turn" — the card this exiled, for what follows
+          if (e.to === 'exile') { this._lastExiledList = taken.map(o => o.id); this._lastExiled = taken.length ? taken[taken.length - 1].id : null; }
           for (const o of taken) {
             this._removeFromZone(o);
             if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true; }
