@@ -6386,4 +6386,18 @@ module.exports = (test) => {
       t.eq(T.life('B'), 20 - lost, `${n}${x ? ' for X=' + x : ''}: ${lost} life`);
     }
   });
+
+  test('Audit: a spell cast this turn counts at its mana value as cast, X included: Rhino, Barreling Brute after Blaze for X=3', (mk, t) => {
+    t.auto('Rhino, Barreling Brute');
+    for (const [x, drew] of [[3, 1], [2, 0]]) {
+      const T = mk(); T.toMain('A');
+      const r = T.bf('A', 'Rhino, Barreling Brute'); r.summoningSick = false;
+      T.mana('A', 'R' + x); T.cast('A', T.hand('A', 'Blaze'), { targets: ['B'], x });
+      T.answer('declareAttackers', () => [{ attackerId: r.id, defenderId: 'B' }]);
+      T.answer('declareBlockers', () => []);
+      const h = T.g.zones.A.hand.length;
+      T.toMain('A', 'declareBlockers'); T.settle(); T.resolve();
+      t.eq(T.g.zones.A.hand.length - h, drew, `Blaze for X=${x} (mana value ${x + 1}): ${drew ? 'a card' : 'no card'}`);
+    }
+  });
 };

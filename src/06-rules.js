@@ -3087,7 +3087,7 @@
         for (const x of ((this.player(pid) || {}).spellObjsThisTurn || [])) {
           if (v.other && x === src) continue;
           const mc = String((x.card && x.card.mana_cost) || '');
-          k += ((x.card && x.card.cmc) || 0) + (x.chosenX || 0) * ((mc.match(/\{X\}/g) || []).length);
+          k += x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0) + (x.chosenX || 0) * ((mc.match(/\{X\}/g) || []).length);
         }
         return k * mult;
       }
@@ -5703,6 +5703,8 @@
       o._castFromHand = item.fromZone === 'hand';
       // Approach of the Second Sun: the names this player has cast this game, countered or not
       if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
+      // (its mana value as it was cast, X included: Rhino, Barreling Brute — castMvNoted)
+      o._castMv = (((o.analysis() || {}).mv) || 0) + this._xMv(item);
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -21985,6 +21987,8 @@
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
+      // (its mana value as it was cast, X included — castMvNoted)
+      o._castMv = (((o.analysis() || {}).mv) || 0) + this._xMv(item);
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
