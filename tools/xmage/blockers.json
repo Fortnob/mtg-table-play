@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10358,
+  "needed": 10355,
   "gainedCards": 949,
-  "linesNeeded": 10989,
+  "linesNeeded": 10987,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -32,8 +32,8 @@
  "blockers": [
   {
    "what": "custom effect",
-   "score": 3985,
-   "lines": 3748,
+   "score": 3986,
+   "lines": 3749,
    "cards": [
     "Marvin, Murderous Mimic",
     "The Darkness Crystal",
@@ -590,25 +590,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 16,
-   "lines": 16,
-   "cards": [
-    "Conformer Shuriken",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "The Motherlode, Excavator",
-    "Sensational Spider-Man",
-    "Coastline Marauders",
-    "Fear of the Dark",
-    "Spring Splasher",
-    "Fear of Falling",
-    "Coveted Peacock",
-    "Goblin Racketeer"
-   ]
-  },
-  {
    "what": "Ability.setCostAdjuster",
    "score": 16,
    "lines": 16,
@@ -663,6 +644,25 @@
     "Staff of the Flame Magus",
     "Staff of the Wild Magus",
     "Staff of the Mind Magus"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 15,
+   "lines": 15,
+   "cards": [
+    "Conformer Shuriken",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "The Motherlode, Excavator",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark",
+    "Spring Splasher",
+    "Fear of Falling",
+    "Coveted Peacock",
+    "Goblin Racketeer",
+    "Radha's Firebrand"
    ]
   },
   {
@@ -4463,17 +4463,6 @@
    ]
   },
   {
-   "what": "EquippedPredicate.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Cloud, Ex-SOLDIER",
-    "Nahiri, Forged in Fury",
-    "Dáin Ironfoot",
-    "Hemlock Vial"
-   ]
-  },
-  {
    "what": "UntapAllDuringEachOtherPlayersUntapStepEffect",
    "score": 4,
    "lines": 4,
@@ -5657,6 +5646,16 @@
    ]
   },
   {
+   "what": "EquippedPredicate.instance",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Nahiri, Forged in Fury",
+    "Dáin Ironfoot",
+    "Hemlock Vial"
+   ]
+  },
+  {
    "what": "OneOrMoreCountersAddedTriggeredAbility",
    "score": 3,
    "lines": 3,
@@ -6438,8 +6437,8 @@
  "sole": [
   {
    "what": "custom effect",
-   "score": 3337,
-   "cards": 3181,
+   "score": 3338,
+   "cards": 3182,
    "names": [
     "Marvin, Murderous Mimic",
     "Wheel of Misfortune",
@@ -6693,19 +6692,6 @@
    ]
   },
   {
-   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
-   "score": 15,
-   "cards": 15,
-   "names": [
-    "Conformer Shuriken",
-    "The Tarrasque",
-    "Armix, Filigree Thrasher",
-    "Warkite Marauder",
-    "Sensational Spider-Man",
-    "Coastline Marauders"
-   ]
-  },
-  {
    "what": "ConditionalAsThoughEffect",
    "score": 15,
    "cards": 15,
@@ -6716,6 +6702,19 @@
     "Captain Mar-Vell, Space-Born",
     "Demon Wall",
     "Quicksilver, Speedster"
+   ]
+  },
+  {
+   "what": "DefendingPlayerControlsSourceAttackingPredicate.instance",
+   "score": 14,
+   "cards": 14,
+   "names": [
+    "Conformer Shuriken",
+    "Armix, Filigree Thrasher",
+    "Warkite Marauder",
+    "Sensational Spider-Man",
+    "Coastline Marauders",
+    "Fear of the Dark"
    ]
   },
   {

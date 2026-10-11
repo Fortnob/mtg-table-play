@@ -23364,4 +23364,45 @@ module.exports = (test) => {
     t.zone(gb, 'battlefield', 'Oviya: the Bears are put onto the battlefield');
     t.eq(Number(gb.counters['+1/+1']) || 0, 0, 'Oviya: not an artifact, no counters');
   });
+
+  test('Commanders: The Tarrasque, Troyan, Gutsy Explorer, Cloud, Ex-SOLDIER', (mk, t) => {
+    for (const n of ['The Tarrasque', 'Troyan, Gutsy Explorer', 'Cloud, Ex-SOLDIER']) t.auto(n);
+    // (Donatello, the Brains: "those tokens plus a Mutagen token" is read for a person, not left unreadable)
+    t.no(mk().MTG.oracle.analyze(require('../harness').card('Donatello, the Brains')).unreadable, 'Donatello, the Brains can be read');
+    // The Tarrasque: attacking, it fights a creature the defending player controls
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    const tq = T.bf('A', 'The Tarrasque'); tq.summoningSick = false;
+    const foe = T.bf('B', 'Hill Giant');
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: foe.id }] });
+    T.answer('declareAttackers', () => [{ attackerId: tq.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.resolve();
+    t.zone(foe, 'graveyard', 'The Tarrasque: it fought the Giant');
+    // Troyan: its mana for spells of mana value 5 or more, or with {X}
+    const R = mk({ library: Array(20).fill('Island') });
+    const tr = R.bf('A', 'Troyan, Gutsy Explorer');
+    const so = R.MTG.oracle.analyze(tr.card).abilities.concat(R.MTG.oracle.analyze(tr.card).manaAbilities || []).find(a => a.spendOnly).spendOnly;
+    const ok = (n) => R.g._spendAllowed(so, R.hand('A', n), tr);
+    t.ok(ok('Shivan Dragon') && ok('Fireball') && ok('Endless One'), 'Troyan: Shivan Dragon, Fireball and Endless One');
+    t.ok(!ok('Grizzly Bears') && !ok('Lightning Bolt'), 'Troyan: not Grizzly Bears or Lightning Bolt');
+    // Cloud: a card for each equipped attacker, and two Treasures when he has power 7 or more
+    const C = mk({ library: Array(20).fill('Plains') });
+    C.toMain('A');
+    const cl = C.bf('A', 'Cloud, Ex-SOLDIER'); cl.summoningSick = false;
+    const bs = C.bf('A', 'Bonesplitter'); bs.attachedTo = cl.id; cl.attachments = [bs.id];
+    C.g.bumpBoard();
+    const h0 = C.zone('A', 'hand').length;
+    C.answer('declareAttackers', () => [{ attackerId: cl.id, defenderId: 'B' }]);
+    C.toMain('A', 'declareBlockers'); C.resolve();
+    const tre = () => C.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length;
+    t.eq(C.zone('A', 'hand').length - h0, 1, 'Cloud: one equipped attacker, a card');
+    t.eq(tre(), C.g.powerOf(cl) >= 7 ? 2 : 0, 'Cloud: Treasures only at power 7 or more');
+    const D = mk({ library: Array(20).fill('Plains') });
+    D.toMain('A');
+    const cd = D.bf('A', 'Cloud, Ex-SOLDIER'); cd.summoningSick = false; cd.counters['+1/+1'] = 6;
+    D.g.bumpBoard();
+    D.answer('declareAttackers', () => [{ attackerId: cd.id, defenderId: 'B' }]);
+    D.toMain('A', 'declareBlockers'); D.resolve();
+    t.eq(D.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name)).length, 2, 'Cloud: power 7 or more, two Treasures');
+  });
 };
