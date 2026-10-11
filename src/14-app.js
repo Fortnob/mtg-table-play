@@ -298,11 +298,25 @@
     if (p) UI.showEmote(p.id, id);
   };
 
+  /**
+   * Your name, picture, sleeve or frame changed: everyone at your table is
+   * told, not only those who join after. A guest sends it to the host,
+   * which keeps it with the seat and passes it on; the host passes on its
+   * own. Either way the table is drawn again.
+   */
+  App.profileChanged = function () {
+    if (net.online && net.isClient) {
+      net.intent({ kind: 'profile', name: App.myName, avatar: MTG.settings.avatar || null,
+        sleeve: MTG.economy.sleeveWorn(), frame: MTG.economy.frameWorn() });
+    } else if (App.session && App.session.broadcastLobby) App.session.broadcastLobby();
+    if (App.table && App.table.view) App.table.render();
+  };
+  MTG.bus.on('economy:changed', (ev) => { if (ev && (ev.why === 'sleeve' || ev.why === 'frame')) App.profileChanged(); });
+
   /** Your name and profile picture, and telling whoever needs to know. */
   App.chooseAvatar = function (after) {
     const told = () => {
-      if (App.session && App.session.broadcastLobby) App.session.broadcastLobby();
-      if (App.table) App.table.render();
+      App.profileChanged();
       /* and the screen you are on is drawn again, so the new picture is
          there at once (Profile, the Store's frames, Home); the lobby and
          Options are redrawn by whoever asked */
@@ -314,6 +328,7 @@
       onSave: (data) => { MTG.setSetting('avatar', data || null); told(); },
       name: App.myName,
       onName: (name) => {
+        if (!MTG.names.ok(name)) { UI.error('That name can’t be used. Pick another.'); return false; }
         App.myName = name;
         MTG.setSetting('playerName', name);
         // your seat, and the game in progress, if this browser runs it
@@ -2547,9 +2562,11 @@
     /* -- player -- */
     const nameInput = el('input', { type: 'text', value: App.myName, id: 'opt-name', 'aria-label': 'Display name', maxlength: '28' });
     nameInput.addEventListener('change', () => {
+      if (!MTG.names.ok(nameInput.value)) { UI.error('That name can’t be used. Pick another.'); nameInput.value = App.myName; return; }
       App.myName = nameInput.value.trim() || randomName();
       nameInput.value = App.myName;
       MTG.setSetting('playerName', App.myName);
+      App.profileChanged();
     });
     sections.push(group('you', 'You', null, [
       el('div', { class: 'opt-row you-row' }, [
@@ -3914,7 +3931,7 @@
   }
 
   function renderClientLobbyData(payload) {
-    App.lobbyMembers = (payload && payload.members) || [];
+    App.lobbyMembers = ((payload && payload.members) || []).map(m => (m && typeof m.name === 'string' && !MTG.names.ok(m.name) ? Object.assign({}, m, { name: 'Player' }) : m));
     App.clientYou = (payload && payload.you) || null;
     if (!App.clientLobbyBox) return;
     const box = App.clientLobbyBox;
@@ -5083,7 +5100,7 @@
     net.on('hello', (peerId, payload) => {
       const sess = App.session;
       if (!sess) { net.send(peerId, { t: 'error', payload: 'The host is not in a lobby.' }); return; }
-      const seat = sess.addRemote(peerId, (payload && payload.name) || 'Player', payload && payload.token);
+      const seat = sess.addRemote(peerId, MTG.names.fit(String((payload && payload.name) || '').slice(0, 28).trim() || 'Player'), payload && payload.token);
       // kept with the seat, because the game they are for may not exist yet
       if (payload && payload.autoPass && seat) seat.autoPass = payload.autoPass;
       // their profile picture, if it is one (a small image, nothing else)
@@ -5102,12 +5119,27 @@
       if (!sess) return;
       const r = peerId === 'host' ? sess.seat('me') : sess.seatByPeer(peerId);
       if (!r) return;
+      if (payload.kind === 'profile') {
+        const name = MTG.names.fit(String(payload.name || '').slice(0, 28).trim(), '') || r.name;
+        r.name = name;
+        r.avatar = UI.isAvatar(payload.avatar) ? payload.avatar : null;
+        r.sleeve = App.cleanSleeve(payload.sleeve);
+        if (r.sleeve && r.sleeve.ref) askGif(r.sleeve.ref.h);
+        r.frame = typeof payload.frame === 'string' && MTG.economy.frameById(payload.frame) ? payload.frame : null;
+        const p = sess.game && sess.game.player(r.id);
+        if (p) p.name = name;
+        sess.broadcastLobby();
+        if (sess.game) sess.pushState();
+        if (App.table && App.table.view) App.table.render();
+        renderLobbySoon();
+        return;
+      }
       if (payload.kind === 'setDeck') {
         try {
           r.deck = await fatDeckFromWire(payload.deck);
           r.art = (payload.deck && payload.deck.art) || null;
           r.deckValid = MTG.formats.validate(r.deck, sess.fmt);
-          if (payload.name) r.name = payload.name;
+          if (payload.name) r.name = MTG.names.fit(String(payload.name).slice(0, 28).trim(), '') || r.name;
           sess.broadcastLobby();
           renderLobbySoon();
         } catch (e) { net.send(peerId, { t: 'error', payload: 'Your deck could not be loaded: ' + e.message }); }
@@ -5115,7 +5147,11 @@
       }
       sess.handleIntent(r.id, payload);
     });
-    net.on('lobby', (payload) => { askSeatGifs(payload && payload.members); renderClientLobbyData(payload); });
+    net.on('lobby', (payload) => {
+      askSeatGifs(payload && payload.members);
+      renderClientLobbyData(payload);
+      if (App.table && App.table.view) App.table.render();
+    });
     const showView = (view) => {
       // a game while this guest was still building after a draft: the host stopped waiting, and dealt a deck built from the picks
       if (App._buildingPool) {

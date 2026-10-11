@@ -454,6 +454,55 @@ MTG.applyLayoutMode = function () {
   MTG.applyLayoutMode();
 })();
 
+/* ---------- names fit for the table ----------
+   A name with a slur or an obscenity in it is not shown. Yours is refused
+   when you choose it (a player's name or a deck's); anyone else's is shown
+   as a plain stand-in. The words are kept rot13'd, out of plain sight. A
+   name is read the way people get round a filter: case and accents,
+   digits and symbols for letters (0 for o, 1 for i, $ for s, @ for a),
+   letters doubled, and spaces, dots or capitals between the letters. Some
+   words are only words on their own (so Cockatrice, Dickens and Cassandra
+   are fine), and a few innocent words that hold a worse one are let be
+   (Scunthorpe, shiitake). */
+MTG.names = (function () {
+  const rot = (s) => s.replace(/[a-z]/g, c => String.fromCharCode((c.charCodeAt(0) - 84) % 26 + 97));
+  // anywhere in the name, letters run together
+  const ANY = ('avttre avttn avttnu avtthu snttbg sntbg xvxr puvax jrgonpx ornare tbbx enturnq gbjryurnq genaal ergneq phag shpx fuvg ' +
+    'juber fyhg ovgpu uvgyre gjng jnax nffubyr wvmm crqbcuvyr cnrqbcuvyr zbyrfgre fcnfgvp').split(' ').map(rot);
+  // only as a word of the name
+  const WORD = ('snt sntf fcvp fcvpx pbba qlxr cnxv wnc arteb pbpx qvpx chffl encr encvfg anmv phz nff nefr gvgf crqb xxx qvyqb obare cbea')
+    .split(' ').map(rot);
+  const SAFE = ['scunthorpe', 'shiitake', 'shitake', 'snigger', 'niggard', 'swank', 'retardant', 'cockatrice'];
+  const LEET = { '0': 'o', '1': 'i', '!': 'i', '|': 'i', '3': 'e', '4': 'a', '@': 'a', '5': 's', '$': 's', '7': 't', '+': 't', '8': 'b', '9': 'g', '(': 'c' };
+  // a word as a pattern: each run of a letter at least as long as it is, and as long again as anyone likes
+  const pat = (w) => w.replace(/(.)\1*/g, (m, c) => c + (m.length > 1 ? `{${m.length},}` : '+'));
+  const anyRe = new RegExp(ANY.map(pat).join('|'));
+  const wordRe = new RegExp('^(?:' + WORD.map(pat).join('|') + ')(?:e?r?s|z|e?r)?$');
+  const fold = (s) => String(s || '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/([a-z])([A-Z])/g, '$1 $2').toLowerCase().replace(/[^a-z]/g, c => LEET[c] || ' ');
+  /** Whether a name is fit to be shown. */
+  function ok(name) {
+    const f = fold(name);
+    let run = f.replace(/ /g, '');
+    for (const w of SAFE) run = run.split(w).join(' ');
+    if (anyRe.test(run.replace(/ /g, '|'))) return false;
+    // the words of it, letters spelled out one by one counted as one word
+    const words = [];
+    let spelled = '';
+    for (const w of f.split(/ +/).filter(Boolean)) {
+      if (w.length === 1) { spelled += w; continue; }
+      if (spelled) { words.push(spelled); spelled = ''; }
+      words.push(w);
+    }
+    if (spelled) words.push(spelled);
+    words.push(f.replace(/ /g, ''));
+    return !words.some(w => wordRe.test(w));
+  }
+  /** The name, or the stand-in when it is not fit to be shown. */
+  const fit = (name, standIn) => (ok(name) ? name : (standIn == null ? 'Player' : standIn));
+  return { ok, fit };
+})();
+
 /* ---------- generic namespaced localStorage store (decks, cubes) ---------- */
 MTG.store = {
   get(key, fallback) {

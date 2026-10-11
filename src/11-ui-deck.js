@@ -527,6 +527,8 @@ Sideboard
 
     function cleanName() {
       deck.name = String(deck.name || '').trim() || untitled;
+      // a name not fit to be shown is not kept (MTG.names)
+      if (!MTG.names.ok(deck.name)) { UI.error('That deck name can’t be used, so it is saved as ' + untitled + '.'); deck.name = untitled; }
       return deck.name;
     }
 

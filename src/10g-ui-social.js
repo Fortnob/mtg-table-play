@@ -248,6 +248,7 @@
     if (MTG.settings.playerName) return true;
     const name = await UI.prompt('What should the other players call you?', A().myName || '', 'Your name', { placeholder: 'Your name' });
     if (name == null) return false;
+    if (!MTG.names.ok(name)) { UI.error('That name can’t be used. Pick another.'); return haveName(); }
     const n = F.cleanName(name) || A().myName || 'Player';
     MTG.app.myName = n;
     MTG.setSetting('playerName', n);

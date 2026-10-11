@@ -225,7 +225,9 @@
   const cleanName = (v) => {
     if (typeof v !== 'string') return '';
     // eslint-disable-next-line no-control-regex
-    return v.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);
+    const name = v.replace(/[\u0000-\u001f\u007f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '').replace(/\s+/g, ' ').trim().slice(0, 28);
+    // a name not fit to be shown is no name: whoever shows it falls back on its own stand-in (MTG.names)
+    return MTG.names.fit(name, '');
   };
   /* A picture is drawn as a CSS url("…"), so a friend's must be nothing
      but base64 after its header: no quote or bracket could end it early. */

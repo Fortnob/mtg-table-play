@@ -84,7 +84,8 @@
     let nameBox = null;
     if (opts.onName) {
       nameBox = el('input', { type: 'text', value: opts.name || '', maxlength: '28', class: 'av-name', 'aria-label': 'Your name' });
-      const keep = () => { const v = nameBox.value.trim(); if (v && v !== opts.name) { opts.name = v; opts.onName(v); } };
+      // a name refused (MTG.names) puts the box back as it was
+      const keep = () => { const v = nameBox.value.trim(); if (v && v !== opts.name) { if (opts.onName(v) === false) nameBox.value = opts.name || ''; else opts.name = v; } };
       nameBox.addEventListener('change', keep);
       nameBox.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); keep(); nameBox.blur(); } });
     }
