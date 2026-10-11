@@ -1938,7 +1938,7 @@
 
     /* ---- right-click: the card held up to the light ---- */
     let inspecting = null;
-    let earlyHurry = false;   // a click while a pack tears: its cards come hurried
+    let earlyHurry = false;   // a click while a pack tears: straight on to its cards, turned over as they always are
     const inspect = (card) => {
       if (!card) return;
       closeInspect();
@@ -2049,7 +2049,7 @@
       const open = async () => {
         if (opening) return;
         opening = true;
-        // a click from here on hurries the opening and the dealing (the next tick: this click is still going up)
+        // a click from here on skips the rest of the tearing, straight to the cards (the next tick: this click is still going up)
         earlyHurry = false;
         setTimeout(() => { stage.onclick = () => { earlyHurry = true; wrap.classList.add('hurry'); }; }, 0);
         const pause = async (ms) => { for (let t = 0; t < ms && !earlyHurry; t += 30) await sleep(30); };
@@ -2242,7 +2242,8 @@
       const flip = flipper(tiles, refresh);
       for (const t of tiles) t.addEventListener('click', () => flip(t));
       stage.onclick = (e) => { if (!(e.target.closest && e.target.closest('.po-card'))) hurry(); };
-      if (earlyHurry) { earlyHurry = false; hurry(); }
+      // the tearing skipped: the cards are still dealt and turned over at their own pace, the unveiling being the point
+      earlyHurry = false;
       let revealing = false;
       const revealAll = async () => {
         if (revealing) return hurry();
@@ -2312,11 +2313,12 @@
       for (let k = 0; k < DEPTH; k++) comeUp(k);
       restack();
       stage.appendChild(fan);
-      /* Clicking again (or Enter, or Space) skips the show: the rest of the
-         packs open at once, with no flash, and the cards come up already
-         turned over. The same during the wave of cards turning over. */
+      /* Clicking again (or Enter, or Space) while the packs tear skips the
+         tearing: the rest open at once, with no flash, and on to the cards,
+         which are unveiled as they always are. A click while they turn
+         over turns them all over at once. */
       let skip = false, revealNow = null;
-      const skipAll = () => { if (skip) return; skip = true; if (revealNow) revealNow(); };
+      const skipAll = () => { if (revealNow) { revealNow(); return; } skip = true; };
       const onSkip = (e) => { if (e.target && e.target.closest && e.target.closest('.po-x, .po-foot button')) return; skipAll(); };
       // from the next click on: the one that pressed Open all is still on its way up through the overlay
       setTimeout(() => { if (!revealNow || !skip) overlay.addEventListener('click', onSkip); }, 0);
@@ -2404,8 +2406,7 @@
         MTG.sfx(has('mythic') ? 'reveal_mythic' : has('rare') ? 'reveal_rare' : 'card_flip');
         requestAnimationFrame(() => requestAnimationFrame(() => grid.classList.remove('instant')));
       };
-      if (skip) revealNow();
-      else {
+      {
         // the whole haul from the top, wherever the list of packs was scrolled to
         requestAnimationFrame(() => requestAnimationFrame(() => { grid.classList.add('dealt'); stage.scrollTop = 0; }));
         setTimeout(() => grid.classList.add('settled'), 600 + tiles.length * 12);
