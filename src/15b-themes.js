@@ -249,5 +249,22 @@
     return ['W', 'U', 'B', 'R', 'G'].filter(x => got.has(x)).join('');
   }
 
-  MTG.themes = { VERSION, THEMES, facts, themes, tags, rank, identity, plural };
+  /**
+   * Printed decks, each name once. A deck printed again (Commander
+   * Anthology Volume II reprinting Commander 2014's Built From Scratch) is
+   * shown as its latest printing, with that printing's set and art; decks
+   * are the same when their names are, whatever the case of the letters.
+   * `list`: [{ name, date }] in any order, which is kept.
+   */
+  function distinct(list) {
+    const latest = new Map();
+    const keyOf = (d) => String(d.name || '').toLowerCase().trim();
+    for (const d of list) {
+      const k = keyOf(d);
+      if (!latest.has(k) || String(d.date || '') > String(latest.get(k).date || '')) latest.set(k, d);
+    }
+    return list.filter(d => latest.get(keyOf(d)) === d);
+  }
+
+  MTG.themes = { VERSION, THEMES, facts, themes, tags, rank, identity, plural, distinct };
 })(window.MTG);

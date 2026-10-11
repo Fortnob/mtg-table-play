@@ -18,7 +18,12 @@
    Written to src/10d4-precons.js as MTG.preconIndex, by deck file:
 
      [EDHREC commander rank or 0, [[commander name, Scryfall id], ...], [tag, ...],
-      colour identity ("WUB", "" for colourless), Scryfall rank or 0]
+      colour identity ("WUB", "" for colourless), Scryfall rank or 0, deck name, release date]
+
+   The name and date are there so a deck printed twice (Commander Anthology
+   reprinting a Commander deck) can be shown once, as its latest printing
+   (MTG.themes.distinct, checked by tools/themetest.js); the run says which
+   it folds.
 
    A deck printed after this last ran is read in the browser when its
    tile first shows (src/10d-ui-store.js), the same way but for EDHREC's
@@ -122,7 +127,7 @@ async function edhrecRanks(wanted) {
     const scry = MTG.themes.rank(commanders);
     out[x.fileName] = [ranks.length ? Math.min(...ranks) : 0,
       commanders.map(c => [nameOf(c), (c.identifiers && c.identifiers.scryfallId) || '']),
-      MTG.themes.tags(deck), MTG.themes.identity(commanders), Number.isFinite(scry) ? scry : 0];
+      MTG.themes.tags(deck), MTG.themes.identity(commanders), Number.isFinite(scry) ? scry : 0, x.name, x.releaseDate || ''];
   }
   const keys = Object.keys(out).sort();
   if (show) {
@@ -132,6 +137,13 @@ async function edhrecRanks(wanted) {
       console.log(`${String(out[k][0] || '-').padStart(5)} ${String(out[k][4] || '-').padStart(6)}  ${named.get(k)} (${out[k][1].map(c => c[0]).join(' + ')}; ${out[k][3] || 'C'}): ${out[k][2].join(' · ')}`);
   }
   console.log(`${keys.filter(k => out[k][0]).length} of ${keys.length} decks have a commander on EDHREC's list`);
+  // the reprints the Store shows once
+  const rows = keys.map(k => ({ file: k, name: out[k][5], date: out[k][6], cmd: out[k][1].map(c => c[0]) }));
+  const kept = new Set(MTG.themes.distinct(rows));
+  for (const r of rows.filter(r => !kept.has(r))) {
+    const shown = [...kept].find(o => o.name.toLowerCase() === r.name.toLowerCase());
+    console.log(`folded: ${r.name} ${r.file} (${r.date}) into ${shown ? shown.file + ' (' + shown.date + ')' : '?'}`);
+  }
   const body = keys.map(k => '    ' + JSON.stringify(k) + ': ' + JSON.stringify(out[k])).join(',\n');
   fs.writeFileSync(OUT, `/* ============================================================
    10d4-precons.js - the Store's printed Commander decks, read ahead
@@ -140,7 +152,8 @@ async function edhrecRanks(wanted) {
    place on EDHREC's list of commanders (the better of two; 0 for one not
    on it), [[commander, Scryfall id], ...], [what the deck leans on, as
    src/15b-themes.js reads it], its colour identity, Scryfall's EDHREC
-   rank of the commander (0 for none)]. Read with themes version ${MTG.themes.VERSION}.
+   rank of the commander (0 for none), the deck's name, its release date].
+   Read with themes version ${MTG.themes.VERSION}.
    Run it again when the themes change or new decks come out; a deck
    missing here is read in the browser.
    ============================================================ */

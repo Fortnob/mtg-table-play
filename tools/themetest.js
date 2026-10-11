@@ -118,6 +118,17 @@ check(decks.every(([, r]) => Array.isArray(r[1]) && r[1].length && r[1].every(c 
 check(decks.filter(([, r]) => r[2].length).length >= decks.length * 0.95, 'nearly every printed deck has a theme');
 check(decks.every(([, r]) => typeof r[3] === 'string' && /^W?U?B?R?G?$/.test(r[3])), 'every printed deck has its colour identity, in WUBRG order');
 check(decks.filter(([, r]) => r[0] > 0).length >= decks.length * 0.9, 'nearly every printed deck has its commander\'s place on EDHREC\'s list');
+// a deck printed again is shown once, as its latest printing
+const listed = decks.map(([file, r]) => ({ file, name: r[5], date: r[6] }));
+check(listed.every(d => d.name && /^\d{4}-\d\d-\d\d$/.test(d.date || '')), 'every printed deck has its name and release date');
+const once = T.distinct(listed);
+check(new Set(once.map(d => d.name.toLowerCase())).size === once.length, 'no two decks listed share a name');
+const shown = new Set(once.map(d => d.file));
+check(shown.has('BuiltFromScratch_CM2') && !shown.has('BuiltFromScratch_C14') && shown.has('BreedLethality_CM2') && !shown.has('BreedLethality_C16'),
+  'Built From Scratch and Breed Lethality: the Anthology printings kept, the first printings folded');
+check(shown.has('GuidedByNature_CMA') && !shown.has('GuidedByNature_C14'), 'names the same but for the case of a letter are one deck');
+const twins = T.distinct([{ name: 'Same', date: '2019-01-01' }, { name: 'Same', date: '2020-01-01' }, { name: 'Other', date: '2026-01-01' }]);
+check(twins.length === 2 && twins[0].date === '2020-01-01', 'the latest printing kept, in the order the list had');
 const tagsOf = (file) => ((P && P.decks[file]) || [0, [], []])[2];
 for (const [file, tag] of [['DraconicDomination_C17', 'Dragons'], ['TramplesaurusRex_FDC', 'Dinosaurs'], ['ElvenEmpire_KHC', 'Elves'],
   ['ArcaneWizardry_C17', 'Instants & sorceries'], ['VampiricBloodlust_C17', 'Vampires']])
