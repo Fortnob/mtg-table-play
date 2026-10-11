@@ -10727,7 +10727,7 @@
           return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
         // Baird, Argivian Recruiter: "a creature with power greater than its base power" (controlPumped)
         case 'controlPumped': return !!me && this.battlefield.some(x => x.controller === me.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature &&
-          this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0));
+          this.powerOf(x) > (this.characteristics(x) || {}).basePower);
         // Tom Bombadil: "four or more lore counters among Sagas you control" (countersAmongAtLeast)
         case 'countersAmongAtLeast': return this._countValue({ countersAmong: cond.scope, kind: cond.counter, mult: 1 }, ctx.controller, src) >= (cond.n || 0);
         // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
@@ -10981,7 +10981,7 @@
       let p = parseInt(a.power, 10); if (isNaN(p)) p = 0;
       let t = parseInt(a.toughness, 10); if (isNaN(t)) t = 0;
       const plus = Number((o.counters || {})['+1/+1']) || 0, minus = Number((o.counters || {})['-1/-1']) || 0;
-      return { power: p + plus - minus, toughness: t + plus - minus, keywords: new Set(a.keywordSet || []), flags: new Set(),
+      return { power: p + plus - minus, toughness: t + plus - minus, basePower: p, baseToughness: t, keywords: new Set(a.keywordSet || []), flags: new Set(),
         addSubtypes: [], setSubtypes: null, setMana: null, grantMana: [], addTypes: [], abilitiesLost: false, isCreature: !!a.isCreature };
     }
     _characteristics(o) {
@@ -11053,6 +11053,8 @@
       };
       if (defining.length) { defining.sort((x, y) => x.ts - y.ts); defining.forEach(setTo); }
       if (setting.length) { setting.sort((x, y) => x.ts - y.ts); setting.forEach(setTo); }
+      // its base power and toughness: what 7a and 7b make it, before anything modifies it (Baird: basePowerLayers)
+      const baseP = p, baseT = t;
       // layer 7c: effects that modify, and counters
       for (const m of modifying) {
         if (m.p) p += this._contValue(m.p, o, m.src);
@@ -11083,6 +11085,7 @@
       }
 
       const res = { power: Number.isFinite(p) ? p : 0, toughness: Number.isFinite(t) ? t : 0,
+        basePower: Number.isFinite(baseP) ? baseP : 0, baseToughness: Number.isFinite(baseT) ? baseT : 0,
         keywords: kw, flags, addSubtypes, setSubtypes, setMana, grantMana,
         // card types the layers gave it beyond its own (an animated land is a creature)
         addTypes: s && s.changed ? (a.types || []).filter(x => !(s.base.types || []).includes(x)) : [],

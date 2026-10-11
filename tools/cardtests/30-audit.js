@@ -6507,4 +6507,17 @@ module.exports = (test) => {
     T.toMain('A', 'endCombat');
     t.no(r, 'C\u2019s creature can\u2019t block an attacker coming at B'); t.eq(T.life('B'), 18);
   });
+
+  test('Audit: "power greater than its base power" reads the base after what sets it, not the printed "*" (Baird, Argivian Recruiter)', (mk, t) => {
+    t.auto('Baird, Argivian Recruiter');
+    const soldiers = (T) => T.g.battlefield.filter(x => x.controller === 'A' && x.isToken).length;
+    for (const how of ['Tarmogoyf', 'pumped', 'none']) {
+      const T = mk(); T.toMain('A');
+      T.bf('A', 'Baird, Argivian Recruiter');
+      if (how === 'Tarmogoyf') { const g = T.bf('A', 'Tarmogoyf'); T.grave('B', 'Lightning Bolt'); T.grave('B', 'Grizzly Bears'); t.eq(T.g.powerOf(g), 2); }
+      if (how === 'pumped') { const b = T.bf('A', 'Grizzly Bears'); T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [b.id] }); }
+      T.toMain('B');
+      t.eq(soldiers(T), how === 'pumped' ? 1 : 0, how + ': a Soldier only when one is bigger than its base');
+    }
+  });
 };
