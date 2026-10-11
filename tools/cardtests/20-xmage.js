@@ -23838,4 +23838,27 @@ module.exports = (test) => {
     C.g.dealDamageToObject(bare, 9, null, false); C.g.checkStateBasedActions(); C.resolve();
     t.eq(C.life('A'), l1, 'Cleopatra: a legendary creature without counters, nothing');
   });
+
+  test('Commanders: Madame Null, Power Broker, Yorvo, Lord of Garenbrig', (mk, t) => {
+    t.auto('Madame Null, Power Broker'); t.auto('Yorvo, Lord of Garenbrig');
+    // Madame Null: a 3/3 enters, pay 3 life, three counters on it
+    const M = mk({ library: Array(20).fill('Swamp') });
+    M.toMain('A');
+    M.bf('A', 'Madame Null, Power Broker');
+    M.answer('confirm', { yes: true });
+    const gi = M.hand('A', 'Hill Giant');
+    M.mana('A', '3R'); M.cast('A', gi); M.resolve();
+    t.ok(M.life('A') === 17 && (Number(gi.counters['+1/+1']) || 0) === 3, 'Madame Null: 3 life paid, three counters on the Giant');
+    // Yorvo: a green creature enters; another counter only if it is the bigger
+    const Y = mk({ library: Array(20).fill('Forest') });
+    Y.toMain('A');
+    const yv = Y.bf('A', 'Yorvo, Lord of Garenbrig'); yv.counters['+1/+1'] = 3; Y.g.bumpBoard();   // (as he enters)
+    const c0 = Number(yv.counters['+1/+1']) || 0;
+    Y.mana('A', '1G'); Y.cast('A', Y.hand('A', 'Grizzly Bears')); Y.resolve();
+    t.eq((Number(yv.counters['+1/+1']) || 0) - c0, 1, 'Yorvo: the smaller Bears, one counter');
+    const big = Y.hand('A', 'Craw Wurm');
+    const c1 = Number(yv.counters['+1/+1']) || 0;
+    Y.mana('A', '4GG'); Y.cast('A', big); Y.resolve();
+    t.eq((Number(yv.counters['+1/+1']) || 0) - c1, 2, 'Yorvo: the 6/4 Wurm is bigger than his 5, another counter');
+  });
 };

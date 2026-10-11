@@ -2499,6 +2499,9 @@
       make: (m) => (kwKnown(m[1]) ? { op: 'grantKeyword', keywords: [U.titleCase(m[1])], duration: 'eot', scope: { who: 'you', what: 'creature', powerBelowSrc: true } } : null) },
     // Cleopatra, Exiled Pharaoh: "draw a card for each counter on it" — the one that died, as it went (countersOnItAny)
     { re: /^Draw a card for each counter on it\.?$/i, make: () => ({ op: 'draw', who: 'you', n: { countersOnTrigger: true, mult: 1 } }) },
+    // Yorvo, Lord of Garenbrig: "Then if that creature's power is greater than Yorvo's power, put another +1/+1 counter on Yorvo." (triggerPowerAboveSelf)
+    { re: /^(?:Then )?if that creature'?s power is greater than (?:CARDNAME|this creature)'?s power, put another \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerAboveSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -11753,6 +11756,16 @@
         }
         // Sawblade Skinripper: "if you sacrificed one or more permanents this turn, … deals that much damage" — that many (sacrificedThisTurn)
         if (condition && condition.kind === 'sacrificedThisTurn') for (const e of parsed.effects) if (e && e.n === 'triggerAmount') e.n = { sacrificedThisTurn: condition.what };
+        /* Madame Null, Power Broker: "you may pay life equal to its power. If you do, put that many +1/+1 counters on
+           it" — a payment of life, and "that many" is the power paid (payLifePower) */
+        if (parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'may') {
+          const thn = parsed.effects[0].then || [];
+          if (thn.length === 2 && thn[0] && thn[0].op === 'manual' && /^Pay life equal to its power\.?$/i.test(thn[0].text || '') &&
+              thn[1] && thn[1].op === 'counters' && thn[1].n === 'triggerAmount' && thn[1].scope === 'triggerObject') {
+            parsed.effects = [{ op: 'mayPay', pay: { life: { ofTrigger: 'power' } }, then: [Object.assign({}, thn[1], { n: { ofTrigger: 'power' } })], text: parsed.effects[0].text }];
+            parsed.auto = true;
+          }
+        }
         /* Varina, Lich Queen: "Whenever you attack with one or more Zombies, draw that many cards, then discard that many
            cards. You gain that much life." — as many as the Zombies attacking (attackingOfTypeCount) */
         if (trig.event === 'youAttack' && (trig.extraOf || trig.extra) && parsed.effects.length === 2 && parsed.effects[0] && parsed.effects[0].op === 'manual' &&

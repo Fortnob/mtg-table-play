@@ -10714,6 +10714,12 @@
           const pS = parseInt(((this.characteristics(xS) || {}).power), 10) || 0;
           return pS >= (cond.n || 0);
         }
+        // Yorvo, Lord of Garenbrig: "if that creature's power is greater than Yorvo's power" (triggerPowerAboveSelf)
+        case 'triggerPowerAboveSelf': {
+          const tdV = (ctx && ctx.triggerData) || {};
+          const xV = tdV.objectId && this.obj(tdV.objectId);
+          return !!xV && !!src && xV.zone === 'battlefield' && this.powerOf(xV) > this.powerOf(src);
+        }
         // Shelinda, Yevon Acolyte: "if its power is less than Shelinda's power" (triggerPowerBelowSelf)
         case 'triggerPowerBelowSelf': {
           const tdB = (ctx && ctx.triggerData) || {};
