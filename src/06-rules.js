@@ -31,7 +31,7 @@
   const SUSPEND = Symbol('suspend');
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
-  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent']);
+  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy']);
 
   // Plain-English names for the combat restrictions an effect can impose.
   // the counters that are keywords (CR 122.1b)
@@ -880,7 +880,7 @@
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
       for (const p of this.players) { p.pool.clear(); p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
       for (const o of this.battlefield) o._afflicted = false;
-      this.phaseIndex = 0; this.stepIndex = 0;
+      this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
       this.emit('sfx', 'turn_start');
       this.emit('turn:begin', ap);
@@ -919,6 +919,16 @@
         p.manaRiders = [];
         p.poolKeepUntil = null;
       }
+      /* Y'shtola Rhul: "there is an additional end step after this step" — the
+         same step again, before the turn moves on */
+      const again = (this._extraSteps || []).findIndex(x => x.turn === this.turn && x.step === this.step);
+      if (again >= 0) {
+        this._extraSteps.splice(again, 1);
+        this._stepAgain = (this._stepAgain || 0) + 1;
+        this._enterStep();
+        return;
+      }
+      this._stepAgain = 0;
       this.stepIndex++;
       if (this.stepIndex >= this.phase.steps.length) {
         this.phaseIndex = this._nextPhaseIndex(); this.stepIndex = 0;
@@ -949,7 +959,7 @@
 
     _endTurn() {
       const ap = this.activePlayer;
-      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = [];
+      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = [];
       this._checkDayNight();          // day/night flips between turns
       this.spellsThisTurn = 0;
       // cleanup already ran as a step
@@ -1029,6 +1039,8 @@
            so an ability used in this step still finds them. */
         case 'endCombat': this._fire('endOfCombat', null, {}); this._atEndOfCombat(); break;
         case 'end': {
+          // Y'shtola Rhul: "if it's the first end step of the turn" — how many have begun
+          this._endSteps = { turn: this.turn, n: (this._endSteps && this._endSteps.turn === this.turn ? this._endSteps.n : 0) + 1 };
           // the monarch draws a card at the beginning of their end step (CR 720.3a)
           const king = this.players.find(p => p.monarch && !p.hasLost);
           if (king && this.activePlayer && king.id === this.activePlayer.id) {
@@ -1879,7 +1891,8 @@
       this._maybeAutoPass();
     }
 
-    _stepKey() { return this.turn + ':' + this.phaseIndex + ':' + this.stepIndex; }
+    // (an additional end step is a step of its own: Y'shtola Rhul)
+    _stepKey() { return this.turn + ':' + this.phaseIndex + ':' + this.stepIndex + (this._stepAgain ? '+' + this._stepAgain : ''); }
 
     /** One step's worth of full control is over when that step is. */
     _expireFullControl() {
@@ -1997,7 +2010,7 @@
     }
 
     _priorityFingerprint() {
-      return [this.turn, this.phaseIndex, this.stepIndex, this.priorityIndex, this.stack.length].join(':');
+      return [this.turn, this.phaseIndex, this.stepIndex, this._stepAgain || 0, this.priorityIndex, this.stack.length].join(':');
     }
 
     /** "Wait, I want to act here" — keep priority until this step is over. */
@@ -2207,6 +2220,7 @@
       }
       this._phaseQueue = null; this._resumePhase = null;
       this._extraPhases = (this._extraPhases || []).filter(x => x.turn !== this.turn);
+      this._extraSteps = (this._extraSteps || []).filter(x => x.turn !== this.turn);
       this.logEvent('rules', 'The turn ends.');
       this.checkStateBasedActions();
       if (this.over) return;
@@ -2563,7 +2577,7 @@
 
     /** Count something happening within one step; true once it has happened more than `most` times. */
     _loopTick(kind, most) {
-      const key = this.turn + ':' + this.phaseIndex + ':' + this.stepIndex;
+      const key = this._stepKey();
       this._loops = this._loops || {};
       const c = this._loops[kind];
       if (!c || c.key !== key) this._loops[kind] = { key, n: 0 };
@@ -11949,6 +11963,8 @@
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
         o._lastBasePower = lc ? lc.basePower : 0;
+        // Sarkhan, Soul Aflame: "become a copy of it" after it has gone — its copiable values as it last was
+        o._lkiCard = { card: o.card, face: o.face || 0 };
         // Barrin, Tolarian Archmage: a permanent put into its owner's hand this turn (bouncedToHand)
         if (toZone === 'hand') {
           const hB = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
@@ -12043,7 +12059,7 @@
         /* Stonecoil Serpent, Hangarback Walker, Gatekeeper of Malakir: put onto the battlefield
            other than as a spell resolving, X is 0 and it wasn't kicked (CR 107.3m, 702.33d) */
         if (!opts.fromStack) { o.chosenX = 0; o.kickedTimes = 0; o.wasKicked = false; }
-        o._lkiAnalysis = null;
+        o._lkiAnalysis = null; o._lkiCard = null;
         if (o._impendingN) { o.counters.time = o._impendingN; o._impendingN = 0; }
         /* A daybound permanent makes it day if it is neither, and arrives
            as its night side if it is night (CR 702.145d). */
@@ -13158,6 +13174,69 @@
       if (r.marks[k]) return true;
       r.marks[k] = true;
       return false;
+    }
+
+    /**
+     * A copy with its exceptions (CR 707.9): `card` as copied, changed the
+     * way the words `e` marked say — those changes are part of the copy, so
+     * anything that copies it later copies them too. `own` is the card whose
+     * words made it a copy: its name, and its lines.
+     */
+    _copyExcept(card, own, e) {
+      own = own || {};
+      /* "except it's an artifact in addition", "except it isn't legendary" */
+      if ((e.addTypes || []).length || e.nonLegendary) {
+        let line = String(card.type_line || '');
+        if (e.nonLegendary) line = line.replace(/\bLegendary\s+/g, '');
+        for (const t of (e.addTypes || [])) {
+          if (new RegExp('\\b' + t + '\\b').test(line)) continue;
+          // a card type goes in front; a creature type ("Illusion") after the dash
+          if (/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle)$/.test(t)) line = t + ' ' + line;
+          else line = /—/.test(line) ? line + ' ' + t : line + ' — ' + t;
+        }
+        card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+      }
+      /* "except it has flying", "except it has 'When this creature
+         becomes the target of a spell or ability, sacrifice it'": the
+         copy's words, with that added */
+      if ((e.addText || []).length) {
+        const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
+        card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+      }
+      /* "except it has CARDNAME's other abilities": the printed card's own
+         lines, all but the one that made it a copy */
+      if (e.keepOwn) {
+        const lines = String(own.oracle_text || '').split('\n').filter(l => l.trim() && !/enter as a copy of/i.test(l))
+          .map(l => l.split(own.name || '\u0000').join('this creature'));
+        if (lines.length) {
+          const text = String(card.oracle_text || '') + '\n' + lines.join('\n');
+          card = Object.assign({}, card, { id: card.id + ':own:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+        }
+      }
+      /* Thespian's Stage, Irma, Part-Time Mutant: "except it (she) has this
+         ability" — the line that made it a copy, in the copy's words; under
+         another name, it says that name */
+      if (e.keepThis) {
+        const short = String(own.name || '').split(',')[0];
+        const lines = String(own.oracle_text || '').split('\n')
+          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has this ability\b/i.test(l))
+          .map(l => (e.keepName || !own.name ? l : l.split(own.name).join(card.name).split(short).join(card.name)));
+        if (lines.length) {
+          const text = String(card.oracle_text || '') + '\n' + lines.join('\n');
+          card = Object.assign({}, card, { id: card.id + ':this:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
+        }
+      }
+      /* "except its name is CARDNAME" (and "it's legendary"): the copy
+         keeps this card's name, and its words say that name */
+      if (e.keepName || e.addLegendary) {
+        const was = card.name;
+        const nm = e.keepName && own.name ? own.name : was;
+        let line = String(card.type_line || '');
+        if (e.addLegendary && !/\bLegendary\b/.test(line)) line = 'Legendary ' + line;
+        const text = String(card.oracle_text || '').split(was).join(nm);
+        card = Object.assign({}, card, { id: card.id + ':named:' + U.hash(nm + line), name: nm, type_line: line, oracle_text: text, card_faces: null });
+      }
+      return card;
     }
 
     _runEffect(e, ctx) {
@@ -19157,6 +19236,16 @@
           this.logEvent('rules', `There ${phases.length > 1 ? 'are' : 'is'} an additional combat phase${e.withMain ? ' and main phase' : ''} this turn.`);
           break;
         }
+        /* Y'shtola Rhul: "Then if it's the first end step of the turn, there is an
+           additional end step after this step." — in the second, it isn't */
+        case 'extraEndStep': {
+          if (!this.phase || this.step !== 'end') break;
+          const begun = this._endSteps && this._endSteps.turn === this.turn ? this._endSteps.n : 0;
+          if (e.ifFirst && begun !== 1) break;
+          (this._extraSteps = this._extraSteps || []).push({ turn: this.turn, step: 'end' });
+          this.logEvent('rules', 'There is an additional end step after this one.');
+          break;
+        }
         case 'untapAttacking':
           for (const id of (this.combat.attackers || [])) {
             const o = this.obj(id);
@@ -19565,48 +19654,7 @@
           if (!pick) { pick = pool[0]; for (const o of pool) if (worth(o) > worth(pick)) pick = o; }
           src.printedCard = src.printedCard || src.card;
           src.copyOf = pick.card;
-          let card = pick.card;
-          /* "except it's an artifact in addition", "except it isn't legendary" */
-          if ((e.addTypes || []).length || e.nonLegendary) {
-            let line = String(card.type_line || '');
-            if (e.nonLegendary) line = line.replace(/\bLegendary\s+/g, '');
-            for (const t of (e.addTypes || [])) {
-              if (new RegExp('\\b' + t + '\\b').test(line)) continue;
-              // a card type goes in front; a creature type ("Illusion") after the dash
-              if (/^(?:Artifact|Creature|Enchantment|Land|Planeswalker|Battle)$/.test(t)) line = t + ' ' + line;
-              else line = /—/.test(line) ? line + ' ' + t : line + ' — ' + t;
-            }
-            card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
-          }
-          /* "except it has flying", "except it has 'When this creature
-             becomes the target of a spell or ability, sacrifice it'": the
-             copy's words, with that added */
-          if ((e.addText || []).length) {
-            const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
-            card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
-          }
-          /* "except it has CARDNAME's other abilities": the printed card's own
-             lines, all but the one that made it a copy */
-          if (e.keepOwn) {
-            const printed = src.printedCard || {};
-            const own = String(printed.oracle_text || '').split('\n').filter(l => l.trim() && !/enter as a copy of/i.test(l))
-              .map(l => l.split(printed.name || '\u0000').join('this creature'));
-            if (own.length) {
-              const text = String(card.oracle_text || '') + '\n' + own.join('\n');
-              card = Object.assign({}, card, { id: card.id + ':own:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
-            }
-          }
-          /* "except its name is CARDNAME" (and "it's legendary"): the copy
-             keeps this card's name, and its words say that name */
-          if (e.keepName || e.addLegendary) {
-            const printed = src.printedCard || {};
-            const was = card.name;
-            const nm = e.keepName && printed.name ? printed.name : was;
-            let line = String(card.type_line || '');
-            if (e.addLegendary && !/\bLegendary\b/.test(line)) line = 'Legendary ' + line;
-            const text = String(card.oracle_text || '').split(was).join(nm);
-            card = Object.assign({}, card, { id: card.id + ':named:' + U.hash(nm + line), name: nm, type_line: line, oracle_text: text, card_faces: null });
-          }
+          const card = this._copyExcept(pick.card, src.printedCard, e);
           src.card = card;
           src.face = pick.face || 0;
           src._chr = null;
@@ -19624,24 +19672,35 @@
           this.logEvent('rules', `${(src.printedCard && src.printedCard.name) || src.name} enters as a copy of ${pick.name}${e.eot ? ' until end of turn' : ''}.`);
           break;
         }
-        /* Shifting Woodland: a copy of a card in your graveyard, for the turn */
+        /* Shifting Woodland: a copy of a card in your graveyard, for the turn.
+           Sarkhan, Soul Aflame: of the Dragon that entered; Gogo, Irma: "except
+           her name is CARDNAME (and she has this ability)" — the exceptions are
+           part of the copy (CR 707.9b), written into its card. */
         case 'becomeCopy': {
-          const t = firstObj();
-          if (!src || src.zone !== 'battlefield' || !t) break;
+          let t = firstObj();
+          // (the Dragon gone before the trigger resolves: not a target, so as it last existed)
+          if (!t && e.scope === 'triggerObject') {
+            const x = this.obj((ctx.triggerData || {}).objectId);
+            if (x && x.zone !== 'battlefield' && x._lkiCard) t = { card: x._lkiCard.card, face: x._lkiCard.face, name: x._lkiCard.card.name, zone: 'battlefield' };
+          }
+          if (!src || src.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard')) break;
+          const was = src.card, wasName = src.name;
+          /* a copy until end of turn over one that lasts: what it was comes back after
+             (Mirrorweave's way); a lasting copy outlives one that was to end */
+          if (e.eot && src.copyUntilTurn == null && src.printedCard) src.copyBefore = { card: src.card, face: src.face || 0, copyOf: src.copyOf || null };
+          if (!e.eot) src.copyBefore = null;
           src.printedCard = src.printedCard || src.card;
           src.copyOf = t.card;
-          src.card = t.card;
+          src.card = this._copyExcept(t.card, was, e);
           src.face = t.face || 0;
-          if (e.eot) src.copyUntilTurn = this.turn;
-          // "except it has this ability": the line that made it a copy stays with it
+          src.copyUntilTurn = e.eot ? this.turn : null;
+          // (a line kept the old way, by a game saved before: the card carries it now)
           src.effects = (src.effects || []).filter(x => !x.keepsCopyLine);
-          if (e.keepThis) {
-            const keep = (O.analyze(src.printedCard) || { abilities: [] }).abilities.filter(ab => JSON.stringify(ab.effects || []).includes('"keepThis":true'));
-            if (keep.length) src.effects.push({ grantAbilities: keep, until: e.eot ? 'eot' : null, keepsCopyLine: true });
-          }
           src._chr = null;
           this.bumpBoard();
-          this.logEvent('rules', `${src.printedCard.name} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : ''}.`);
+          this.logEvent('rules', `${wasName} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : ''}.`);
+          // Gogo: "If you do, …"
+          if ((e.then || []).length) this._spliceNext(e.then);
           break;
         }
         /* Mox Diamond: a land card discarded, or the Mox goes to the graveyard */
@@ -22462,10 +22521,24 @@
            nonlegendary creature until end of turn." A copy effect (layer 1):
            what each was is kept, and comes back as the turn ends. */
         case 'becomeCopyAll': {
-          const model = firstObj();
+          /* Brudiclad, Telchor Engineer: "you may choose a token you control. If you do,
+             each other token you control becomes a copy of that token" — one question,
+             left unanswered to change nothing (chosenTokenCopies) */
+          let model = null;
+          const yourTokens = () => this.battlefield.filter(o => o.isToken && !o.phasedOut && o.controller === ctx.controller);
+          if (e.of === 'chosenToken') {
+            const pool = yourTokens();
+            if (pool.length < 2) break;            // no other token: nothing would change
+            const got = this._choose({ playerId: ctx.controller, purpose: 'tokenToCopy', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a token; each other token you control becomes a copy of it.` }, 'tokcopy');
+            if (got === SUSPEND) return SUSPEND;
+            model = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          } else model = firstObj();
           if (!model || model.zone !== 'battlefield') break;
           const card = model.card, face = model.face || 0;
-          const others = this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
+          const others = e.of === 'chosenToken' ? yourTokens().filter(o => o !== model)
+            : this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
           for (const o of others) {
             if (o.copyUntilTurn == null) o.copyBefore = { card: o.card, face: o.face || 0, copyOf: o.copyOf || null };
             o.printedCard = o.printedCard || o.card;
@@ -22475,7 +22548,8 @@
             o._chr = null;
           }
           this.bumpBoard();
-          this.logEvent('rules', `${others.length} creature${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : ' until end of turn'}.`);
+          const what = e.of === 'chosenToken' ? 'token' : 'creature';
+          this.logEvent('rules', `${others.length} ${what}${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : ' until end of turn'}.`);
           break;
         }
         case 'extraLand': me.maxLands += (e.n || 1); break;
@@ -25024,6 +25098,8 @@
         combat: JSON.parse(JSON.stringify(this.combat)),
         turnOrder: this.turnOrder.slice(), mulliganPhase: this.mulliganPhase,
         extraTurnsQueue: this.extraTurnsQueue.slice(), stormCount: this.stormCount, isExtraTurn: !!this.isExtraTurn,
+        // Y'shtola Rhul: an additional end step to come, and which end step this is
+        extraSteps: (this._extraSteps || []).map(x => Object.assign({}, x)), endSteps: this._endSteps ? Object.assign({}, this._endSteps) : null, stepAgain: this._stepAgain || 0,
         prevention: this.prevention.slice(),
         delayedTriggers: JSON.parse(JSON.stringify(this.delayedTriggers || [])),
         resolving: this.resolving ? {
@@ -25094,6 +25170,9 @@
       this.turnOrder = (snap.turnOrder || []).slice();
       this.mulliganPhase = !!snap.mulliganPhase;
       this.extraTurnsQueue = (snap.extraTurnsQueue || []).slice();
+      this._extraSteps = (snap.extraSteps || []).map(x => Object.assign({}, x));
+      this._endSteps = snap.endSteps ? Object.assign({}, snap.endSteps) : null;
+      this._stepAgain = snap.stepAgain || 0;
       this.isExtraTurn = !!snap.isExtraTurn;
       this.stormCount = snap.stormCount || 0;
       this.prevention = (snap.prevention || []).slice();

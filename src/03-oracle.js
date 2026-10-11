@@ -664,6 +664,34 @@
     return null;
   }
 
+  /* A copy's "except …" (CR 707.9): one or more clauses joined by "and" —
+     a type added, legendary taken away, a name kept, or something it has
+     ("it has flying", "it has '…'", "she has this ability"), which the copy
+     carries as words of its own. Marks them on `e`; false for a clause the
+     table can't honour, which is left for a person rather than quietly
+     dropped. */
+  function copyExceptions(words, e) {
+    let ex = String(words).trim();
+    while (ex) {
+      let c;
+      if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
+      else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+      // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
+      else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
+      else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
+      // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
+      else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
+      // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
+      else if ((c = ex.match(/^(?:it|she|he) has this ability/i))) e.keepThis = true;
+      else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
+      else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
+        (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
+      else return false;
+      ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
+    }
+    return true;
+  }
+
   /** Point a target-less trigger's "it" at what the trigger is about. */
   /* After a target, "that creature" and "its" in a trigger about this
      permanent are the target: Sister Hospitaller's "return target creature
@@ -798,7 +826,7 @@
     if (targeted) return;
     // (Oketra's Avenger: "prevent all combat damage that would be dealt to it this turn" — flagEot)
     const ops = ['pump', 'grantKeyword', 'counters', 'tap', 'untap', 'restrict', 'doublePower', 'noRegen', 'flagEot']
-      .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent'] : []);
+      .concat(scope === 'triggerObject' ? ['destroy', 'exile', 'bounce', 'noUntap', 'copyPermanent', 'becomeCopy'] : []);
     walk(effects, (e) => { if (e.scope === 'lastTarget' && ops.includes(e.op)) e.scope = scope; });
     // Revenge of Ravens: "that creature's controller loses 1 life" — the one the trigger is about
     if (scope === 'triggerObject') walk(effects, (e) => { if (e.op === 'loseLife' && e.who === 'targetController') e.who = 'triggerObjController'; });
@@ -2276,6 +2304,21 @@
         const pump = { op: 'pump', p: pmNum(m[4]), t: pmNum(m[5]), duration: 'eot',
           targets: Array.from({ length: num(m[2]) }, () => Object.assign(targetSpec('target ' + m[3]), m[1] ? { upTo: true } : {})) };
         return kws.length ? { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastGroup' }] } : pump;
+      } },
+    /* Gogo, Mysterious Mime: "CARDNAME and that creature each get +2/+0 and
+       gain haste until end of turn and attack this turn if able" — this one,
+       and the one the sentence before was about */
+    { re: /^(?:CARDNAME|This creature) and that creature each get ([+-]\d+)\/([+-]\d+)(?: and gain ([a-z ,]+?))? until end of turn( and attack this turn if able)?\.?$/i,
+      make: (m) => {
+        const kws = m[3] ? keywordList(m[3]) : [];
+        if (m[3] && (!kws.length || !kws.every(kwKnown))) return null;
+        const list = [];
+        for (const scope of ['self', 'lastTarget']) {
+          list.push({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope });
+          if (kws.length) list.push({ op: 'grantKeyword', keywords: kws, duration: 'eot', scope });
+          if (m[4]) list.push({ op: 'restrict', flag: 'mustAttackEot', scope });
+        }
+        return { op: 'sequence', list };
       } },
     /* Melt Terrain, Ionize: "… deals 2 damage to that land's controller" */
     { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|spell|Aura|Equipment)|It) deals (\d+|X) damage to that (?:spell|land|artifact|creature|permanent|enchantment|planeswalker)'s controller\.?$/i,
@@ -4207,6 +4250,9 @@
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
     { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
+    // Y'shtola Rhul: "Then if it's the first end step of the turn, there is an additional end step after this step."
+    { re: /^(?:Then )?if it'?s the first end step of the turn, there is an additional end step after this step\.?$/i,
+      make: () => ({ op: 'extraEndStep', ifFirst: true }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: num(m[1]), withMain: !!m[2] }) },
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
@@ -4766,15 +4812,31 @@
     /* Thespian's Stage, Mirage Mirror, Protean Thaumaturge, Artisan of
        Forms: "This land becomes a copy of target land, except it has this
        ability"; "(you may have) this creature become a copy of another
-       target creature (until end of turn)" */
-    { re: /^(You may have |Have )?(?:This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of ((?:up to one )?(?:another )?target [a-z ,]+?)(, except it has this ability)?( until end of turn)?\.?$/i,
+       target creature (until end of turn)". Sarkhan, Soul Aflame: "have
+       CARDNAME become a copy of it until end of turn, except its name is
+       CARDNAME and it's legendary in addition to its other types" — "it",
+       the Dragon that entered; Gogo, Mysterious Mime, Irma, Part-Time
+       Mutant: "except her name is CARDNAME and she has this ability" */
+    { re: /^(You may have |Have )?(This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of (it|(?:up to one )?(?:another |other )?target [a-z ,]+?)( until end of turn)?(?:, except (.+?))?( until end of turn)?\.?$/i,
       make: (m) => {
         // "become" after "have", "becomes" on its own
         if (/ become a copy/i.test(m[0]) !== !!m[1]) return null;
-        const spec = targetSpec(m[2].replace(/^up to one /i, ''));
-        if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
-        if (/^up to one/i.test(m[2])) spec.upTo = true;
-        const e = Object.assign({ op: 'becomeCopy', targets: [spec] }, m[4] ? { eot: true } : {}, m[3] ? { keepThis: true } : {});
+        /* Fleeting Reflection: "it becomes a copy of up to one other target creature" — "other"
+           than a target named before, which "it" is too: not this permanent, nor the spell */
+        if (/^it$/i.test(m[2]) && !m[1] && /^(?:up to one )?other target/i.test(m[3])) return null;
+        const e = { op: 'becomeCopy' };
+        if (/^it$/i.test(m[3])) {
+          if (/^it$/i.test(m[2])) return null;
+          e.scope = 'lastTarget';
+        } else {
+          const spec = targetSpec(m[3].replace(/^up to one /i, ''));
+          if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
+          if (/^up to one/i.test(m[3])) spec.upTo = true;
+          e.targets = [spec];
+        }
+        if (m[4] || m[6]) e.eot = true;
+        // (Sakashima of a Thousand Faces' "other abilities" are for one entering as a copy)
+        if (m[5] && (!copyExceptions(m[5], e) || e.keepOwn)) return null;
         return /^you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
       } },
     /* Shifting Woodland: "This land becomes a copy of target permanent card
@@ -4800,27 +4862,7 @@
         /* the exceptions the table can honour; anything else ("it has
            haste", "it has 'when this becomes the target …'") is left for a
            person rather than quietly dropped */
-        if (m[4]) {
-          /* one or more clauses joined by "and": a type added, legendary
-             taken away, or something it has ("it has flying", "it has
-             '…'"), which the copy carries as words of its own */
-          let ex = m[4].trim();
-          while (ex) {
-            let c;
-            if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
-            else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
-            // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
-            else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
-            else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
-            // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
-            else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
-            else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
-            else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
-              (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
-            else return null;
-            ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
-          }
-        }
+        if (m[4] && (!copyExceptions(m[4], e) || e.keepThis)) return null;
         return e;
       } },
     { re: /^(?:CARDNAME|This creature|This permanent|This artifact) is indestructible\.?$/i,
@@ -8803,6 +8845,17 @@
         }
       }
 
+      /* Brudiclad, Telchor Engineer: "Then you may choose a token you
+         control. If you do, each other token you control becomes a copy of
+         that token." One question, which may go unanswered; then a copy
+         effect on every other token, for good (chosenTokenCopies) */
+      if (/^(?:Then )?you may choose a token you control\.$/i.test(s) &&
+        /^If you do, each other token you control becomes a copy of that token\.?$/i.test(next)) {
+        effects.push({ op: 'becomeCopyAll', of: 'chosenToken', duration: 'permanent', text: s + ' ' + next });
+        i++;
+        continue;
+      }
+
       /* Promise of Bunrei, Standstill: "sacrifice this enchantment. If you
          do, create four 1/1 Spirit tokens" — only if it was still there to go */
       const sacSelf = s.match(/^(?:Then )?sacrifice (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.$/i);
@@ -8916,6 +8969,18 @@
         if (tp && tp.auto && tp.effects.length &&
           !/"X"|"X\/|\/X"/.test(JSON.stringify(tp.effects, (k2, v) => (k2 === 'text' || (k2 === 'pt' && /^X\/X$/i.test(String(v)))) ? undefined : v))) {
           effects.push({ op: 'mayPay', pay: { life: k }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
+      /* Gogo, Mysterious Mime: "you may have CARDNAME become a copy of … If you do, …" — what
+         follows only once it has (gone before it resolves, it doesn't) */
+      if (may && ifDo && /^have (?:CARDNAME|this creature) become a copy of /i.test(may[1])) {
+        const first = parseSentenceList(['H' + may[1].slice(1) + '.']);
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        const cp = first.effects.length === 1 && first.effects[0];
+        if (first.auto && tp.auto && cp && cp.op === 'becomeCopy') {
+          effects.push({ op: 'may', text: s + ' ' + next, then: [Object.assign(cp, { then: tp.effects })] });
           i++;
           continue;
         }

@@ -1591,6 +1591,21 @@
       const o = t0 && g.obj(t0.id);
       return { picks: [o && o.controller === this.pid ? 0 : 1] };
     },
+    /* Brudiclad, Telchor Engineer: the token that makes the rest worth most
+       as copies of it — never a legendary one, which the legend rule would
+       take back down to one; none when no choice gains anything */
+    tokenToCopy(s) {
+      const g = this.game;
+      const toks = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const worth = new Map(toks.map(o => [o.id, this.permanentValue(o)]));
+      let best = null, bestGain = 0;
+      for (const m of toks) {
+        if (/\bLegendary\b/.test((m.card && m.card.type_line) || '')) continue;
+        const gain = toks.reduce((k, o) => k + (o === m ? 0 : worth.get(m.id) - worth.get(o.id)), 0);
+        if (gain > bestGain) { best = m; bestGain = gain; }
+      }
+      return { picks: best ? [best.id] : [] };
+    },
     /* Cultivator Colossus: always another land */
     putFromHand(s) { return { picks: (s.items || []).slice(0, 1).map(x => x.id) }; },
     /* Eerie Ultimatum: one of each name */

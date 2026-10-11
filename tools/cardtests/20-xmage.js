@@ -24986,4 +24986,203 @@ module.exports = (test) => {
     t.no(opts.some(o => o.id === em.id), 'Emrakul is not one: Flametongue Kavu was cast this turn');
     t.eq(em.damage || 0, 1, 'no more damage');
   });
+
+  test('Commanders: Sarkhan, Soul Aflame — a copy of the Dragon until end of turn, still Sarkhan and legendary', (mk, t) => {
+    t.auto('Sarkhan, Soul Aflame');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    const s = T.bf('A', 'Sarkhan, Soul Aflame');
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'Sarkhan: a Bear is no Dragon, nothing asked');
+    t.eq(s.name, 'Sarkhan, Soul Aflame');
+    // Shivan Dragon is {4}{R}{R}: for {3}{R}{R} with Sarkhan out
+    T.mana('A', '3RR'); T.cast('A', T.hand('A', 'Shivan Dragon'));
+    t.eq(s.name, 'Sarkhan, Soul Aflame', 'Sarkhan: its name is still Sarkhan, Soul Aflame');
+    t.eq(s.card.type_line, 'Legendary Creature — Dragon', 'Sarkhan: a legendary Dragon');
+    t.eq(T.g.powerOf(s), 5, 'Sarkhan: 5/5');
+    t.ok(T.g.hasKw(s, 'flying'), 'Sarkhan: with flying');
+    t.ok(s.analysis().abilities.some(ab => ab.kind === 'activated'), "Sarkhan: and the Dragon's firebreathing");
+    t.no(s.analysis().abilities.some(ab => /a copy of/i.test(ab.text || '')), 'Sarkhan: none of its own words');
+    T.toMain('B');
+    t.eq(s.name, 'Sarkhan, Soul Aflame', 'Sarkhan: itself again');
+    t.eq(s.card.type_line, 'Legendary Creature — Human Shaman', 'Sarkhan: a Human Shaman after the turn');
+    t.eq(T.g.powerOf(s), 2, 'Sarkhan: 2/4 again');
+    // the copy is a "may": said no to, nothing changes
+    const N = mk({ library: Array(20).fill('Mountain') });
+    N.toMain('A');
+    const s2 = N.bf('A', 'Sarkhan, Soul Aflame');
+    N.answer('confirm', { yes: false });
+    N.mana('A', '3RR'); N.cast('A', N.hand('A', 'Shivan Dragon'));
+    t.eq(N.g.powerOf(s2), 2, 'Sarkhan: declined, still 2/4');
+    t.eq(s2.card.type_line, 'Legendary Creature — Human Shaman');
+    // "it" is no target: a Dragon gone before the trigger resolves is copied as it last existed
+    const L = mk({ library: Array(20).fill('Mountain') });
+    L.toMain('A');
+    const s3 = L.bf('A', 'Sarkhan, Soul Aflame');
+    const sd = L.put('A', 'Shivan Dragon', 'battlefield', { etb: true });
+    L.g.moveObject(sd, 'graveyard');
+    L.resolve();
+    t.eq(s3.card.type_line, 'Legendary Creature — Dragon', 'Sarkhan: a copy of the Dragon that already died');
+    t.eq(L.g.powerOf(s3), 5);
+  });
+
+  test('Commanders: Gogo, Mysterious Mime — a copy of another creature for the turn; both +2/+0, haste, and attack', (mk, t) => {
+    t.auto('Gogo, Mysterious Mime');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    const gg = T.bf('A', 'Gogo, Mysterious Mime');
+    const w = T.bf('A', 'Craw Wurm', { sick: true });
+    T.toMain('A', 'beginCombat');
+    t.eq(gg.name, 'Gogo, Mysterious Mime', 'Gogo: still named Gogo');
+    t.eq(gg.card.type_line, 'Creature — Wurm', 'Gogo: a Wurm, and not legendary');
+    t.eq(T.g.powerOf(gg), 8, 'Gogo: a 6/4 Craw Wurm, +2/+0');
+    t.eq(T.g.toughnessOf(gg), 4);
+    t.eq(T.g.powerOf(w), 8, 'Gogo: the Wurm gets +2/+0 too');
+    t.ok(T.g.hasKw(gg, 'haste') && T.g.hasKw(w, 'haste'), 'Gogo: both have haste');
+    t.ok(T.g.mustAttack(gg) && T.g.mustAttack(w), 'Gogo: both attack if able');
+    T.toMain('A', 'declareBlockers');
+    t.ok(gg.attacking && w.attacking, 'Gogo: and both attack, the summoning-sick Wurm too');
+    T.toMain('B');
+    t.eq(gg.card.type_line, 'Legendary Creature — Wizard', 'Gogo: itself again after the turn');
+    t.eq(T.g.powerOf(gg), 2, 'Gogo: 2/2');
+    t.eq(T.g.powerOf(w), 6, 'Gogo: the Wurm 6/4');
+    t.no(T.g.hasKw(gg, 'haste'), 'Gogo: no haste');
+    // declined: neither changes, and nothing has to attack
+    const N = mk({ library: Array(20).fill('Mountain') });
+    N.toMain('A');
+    const g2 = N.bf('A', 'Gogo, Mysterious Mime');
+    const w2 = N.bf('A', 'Craw Wurm');
+    N.answer('confirm', { yes: false });
+    N.toMain('A', 'beginCombat');
+    t.eq(N.g.powerOf(g2), 2, 'Gogo: declined, a 2/2');
+    t.eq(N.g.powerOf(w2), 6);
+    t.no(N.g.mustAttack(g2) || N.g.mustAttack(w2), 'Gogo: declined, no attack required');
+    // gone before the trigger resolves: no copy, so no "if you do"
+    const G = mk({ library: Array(20).fill('Mountain') });
+    G.toMain('A');
+    const g3 = G.bf('A', 'Gogo, Mysterious Mime');
+    const w3 = G.bf('A', 'Craw Wurm');
+    for (let k = 0; k < 20 && !G.g.stack.length; k++) { G.settle(); G.g.passPriority(G.g.priorityPlayer.id, true); }
+    G.settle();
+    t.ok(G.g.stack.length, 'Gogo: the trigger is on the stack');
+    G.g.moveObject(g3, 'graveyard');
+    G.resolve();
+    t.eq(G.g.powerOf(w3), 6, 'Gogo: gone, the Wurm gets nothing');
+    t.no(G.g.mustAttack(w3), 'Gogo: and need not attack');
+  });
+
+  test('Commanders: Brudiclad, Telchor Engineer — a Myr, then each other token a copy of the one chosen, for good', (mk, t) => {
+    t.auto('Brudiclad, Telchor Engineer');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Brudiclad, Telchor Engineer');
+    T.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    T.g._createToken('A', { n: 1, pt: '4/4', subtypes: 'Angel', colorWords: ['white'], keywords: ['Flying'] });
+    T.g._createToken('B', { n: 1, pt: '1/1', subtypes: 'Goblin', colorWords: ['red'], keywords: [] });
+    const angel = T.bfOf('A').find(o => o.isToken && /Angel/.test(o.card.type_line || ''));
+    const goblin = T.bfOf('B').find(o => o.isToken);
+    T.answer('choose', { picks: [angel.id] });
+    T.toMain('A', 'beginCombat');
+    const toks = T.bfOf('A').filter(o => o.isToken);
+    t.eq(toks.length, 3, 'Brudiclad: the Treasure, the Angel and a new Myr');
+    t.ok(toks.every(o => o.name === angel.name && T.g.powerOf(o) === 4 && T.g.hasKw(o, 'flying')), 'Brudiclad: every one a 4/4 flying Angel');
+    t.ok(toks.every(o => T.g.hasKw(o, 'haste')), 'Brudiclad: creature tokens have haste');
+    t.eq(goblin.name, 'Goblin', "Brudiclad: B's token is not A's to change");
+    t.eq(T.asked.filter(ch => ch.purpose === 'tokenToCopy').length, 1, 'Brudiclad: one question');
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'Brudiclad: and no "do you want to" before it');
+    T.nextTurn('A');
+    t.ok(toks.every(o => o.name === angel.name), 'Brudiclad: copies for good, not for the turn');
+    // left unanswered: the new Myr stays a Myr
+    T.toMain('A', 'beginCombat');
+    const myr = T.bfOf('A').filter(o => o.isToken).find(o => /Myr/.test(o.card.type_line || ''));
+    t.ok(myr && T.g.powerOf(myr) === 2, 'Brudiclad: nothing chosen, a 2/1 Myr');
+    t.eq(T.bfOf('A').filter(o => o.isToken && o.name === angel.name).length, 3, 'Brudiclad: and the Angels stay Angels');
+  });
+
+  test("Commanders: Y'shtola Rhul — a creature flickered at the end step, and one more end step, only one", (mk, t) => {
+    t.auto("Y'shtola Rhul");
+    const T = mk({ library: Array(30).fill('Island') });
+    T.toMain('A');
+    T.bf('A', "Y'shtola Rhul");
+    T.bf('A', 'Elvish Visionary');
+    const pickVisionary = (ch, g) => ({ targets: [(ch.options[0] || []).find(x => (g.obj(x.id) || {}).name === 'Elvish Visionary')] });
+    T.answer('pickTarget', pickVisionary); T.answer('pickTarget', pickVisionary);
+    let ends = 0;
+    T.g.on('step:begin', (ph, st) => { if (st === 'end') ends++; });
+    const h0 = T.zone('A', 'hand').length;
+    T.toMain('B');
+    t.eq(ends, 2, "Y'shtola: two end steps on A's turn, not one, not more");
+    t.eq(T.zone('A', 'hand').length - h0, 2, "Y'shtola: the Visionary came back twice, two cards");
+    t.ok(T.g.battlefield.some(o => o.name === 'Elvish Visionary' && o.controller === 'A'), "Y'shtola: and is on the battlefield");
+    t.eq(T.g.activePlayer.id, 'B', "Y'shtola: and the turn moved on");
+    // B's end step is not A's: one, and nothing flickers
+    ends = 0;
+    T.nextTurn('A');
+    t.eq(ends, 1, "Y'shtola: one end step on B's turn");
+  });
+
+  test('Commanders: Irma, Part-Time Mutant — a copy that keeps her name and this ability, and a counter each combat', (mk, t) => {
+    t.auto('Irma, Part-Time Mutant');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const irma = T.bf('A', 'Irma, Part-Time Mutant');
+    T.bf('A', 'Craw Wurm');
+    T.toMain('A', 'beginCombat');
+    t.eq(irma.name, 'Irma, Part-Time Mutant', 'Irma: her name is Irma');
+    t.eq(irma.card.type_line, 'Creature — Wurm', 'Irma: a Wurm');
+    t.eq(T.g.powerOf(irma), 7, 'Irma: a 6/4 with a +1/+1 counter');
+    t.ok(irma.analysis().abilities.some(ab => ab.kind === 'triggered' && /a copy of/i.test(ab.text || '')), 'Irma: and she has this ability');
+    T.nextTurn('A');
+    t.eq(irma.name, 'Irma, Part-Time Mutant', 'Irma: still a copy on the next turn');
+    t.eq(T.g.powerOf(irma), 7, 'Irma: for good, not for the turn');
+    T.toMain('A', 'beginCombat');
+    t.eq(irma.counters['+1/+1'], 2, 'Irma: the ability she kept triggered again: a second counter');
+    t.eq(T.g.powerOf(irma), 8);
+    // up to one: with nothing to copy, only the counter
+    const N = mk({ library: Array(20).fill('Island') });
+    N.toMain('A');
+    const i2 = N.bf('A', 'Irma, Part-Time Mutant');
+    N.toMain('A', 'beginCombat');
+    t.eq(i2.card.type_line, 'Legendary Creature — Human Mutant Shapeshifter', 'Irma: alone, still herself');
+    t.eq(N.g.powerOf(i2), 2, 'Irma: with a counter, 2/2');
+    // no target chosen of the one there is: the counter alone, and not asked again as it resolves
+    const Z = mk({ library: Array(20).fill('Island') });
+    Z.toMain('A');
+    const i3 = Z.bf('A', 'Irma, Part-Time Mutant');
+    Z.bf('A', 'Craw Wurm');
+    Z.answer('pickTarget', { targets: [] });
+    Z.toMain('A', 'beginCombat');
+    t.eq(Z.asked.filter(ch => ch.type === 'pickTarget').length, 1, 'Irma: asked once');
+    t.eq(i3.card.type_line, 'Legendary Creature — Human Mutant Shapeshifter', 'Irma: none chosen, still herself');
+    t.eq(Z.g.powerOf(i3), 2, 'Irma: and the counter');
+  });
+
+  test('Commanders: Impossible Man; Sunfrill Imitator — copies that keep their names', (mk, t) => {
+    t.auto('Impossible Man'); t.auto('Sunfrill Imitator');
+    // Impossible Man: "becomes a copy of another target permanent until end of turn, except his name is Impossible Man"
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    const im = T.bf('A', 'Impossible Man');
+    const dragon = T.bf('B', 'Shivan Dragon');
+    T.mana('A', '2U');
+    T.activate('A', im, 0, { targets: [dragon] });
+    t.eq(im.name, 'Impossible Man', 'Impossible Man: his name kept');
+    t.eq(im.card.type_line, 'Creature — Dragon', 'Impossible Man: a Dragon, not legendary');
+    t.eq(T.g.powerOf(im), 5);
+    T.toMain('B');
+    t.eq(im.card.type_line, 'Legendary Creature — Alien Shapeshifter', 'Impossible Man: himself after the turn');
+    // Sunfrill Imitator: "you may have it become a copy of another target Dinosaur you control, except its name is Sunfrill Imitator and it has this ability" — for good
+    const S = mk({ library: Array(20).fill('Forest') });
+    S.toMain('A');
+    const sun = S.bf('A', 'Sunfrill Imitator');
+    S.bf('A', 'Colossal Dreadmaw');
+    S.answer('declareAttackers', () => [{ attackerId: sun.id, defenderId: 'B' }]);
+    S.toMain('A', 'declareBlockers'); S.resolve();
+    t.eq(sun.name, 'Sunfrill Imitator', 'Sunfrill Imitator: its name kept');
+    t.eq(S.g.powerOf(sun), 6, 'Sunfrill Imitator: a 6/6 Colossal Dreadmaw');
+    t.ok(S.g.hasKw(sun, 'trample'), 'Sunfrill Imitator: with trample');
+    t.ok(sun.analysis().abilities.some(ab => ab.kind === 'triggered' && /a copy of/i.test(ab.text || '')), 'Sunfrill Imitator: and this ability');
+    S.toMain('B');
+    t.eq(S.g.powerOf(sun), 6, 'Sunfrill Imitator: still, after the turn');
+  });
 };
