@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10344,
+  "needed": 10343,
   "gainedCards": 949,
-  "linesNeeded": 10976,
+  "linesNeeded": 10975,
   "linesGained": 1109,
   "gained": {
    "all": 949,
@@ -70,8 +70,8 @@
   },
   {
    "what": "custom ability",
-   "score": 652,
-   "lines": 598,
+   "score": 651,
+   "lines": 597,
    "cards": [
     "Coveted Jewel",
     "Carpet of Flowers",
@@ -6450,8 +6450,8 @@
   },
   {
    "what": "custom ability",
-   "score": 499,
-   "cards": 460,
+   "score": 498,
+   "cards": 459,
    "names": [
     "Coveted Jewel",
     "Carpet of Flowers",

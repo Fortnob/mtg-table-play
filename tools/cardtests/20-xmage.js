@@ -23482,4 +23482,22 @@ module.exports = (test) => {
     t.ok(S.g.couldBlock(bear, gi, 'B'), "Sidar Kondo: B's Bears can block the 3-power Giant");
     t.ok(S.g.couldBlock(mine, foeElf, 'A'), "Sidar Kondo: A's own Bears are not held back");
   });
+
+  test("Commanders: Katilda, Dawnhart Prime — a Human taps for one of its own colours", (mk, t) => {
+    t.auto('Katilda, Dawnhart Prime');
+    const K = mk({ library: Array(20).fill('Plains') });
+    K.toMain('A');
+    K.bf('A', 'Katilda, Dawnhart Prime');
+    const hu = K.bf('A', 'Elite Vanguard'); hu.summoningSick = false;
+    const bear = K.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    K.g.bumpBoard();
+    t.ok(K.g.manaAbilitiesOf(hu).length >= 1, 'Katilda: the Human has the mana ability');
+    t.eq(K.g.manaAbilitiesOf(bear).length, 0, 'Katilda: the Bears (not Human) do not');
+    const ab = K.g.manaAbilitiesOf(hu).length - 1;
+    K.g.tapForMana('A', hu.id, ab, 'W');
+    const pool = K.g.player('A').pool;
+    t.ok(pool.total() === 1 && pool.snapshot().W === 1, 'Katilda: white mana from the white Elite Vanguard');
+    const opts = K.g._manaAmong({ from: 'selfColors' }, hu, 'A');
+    t.eq(JSON.stringify(opts), JSON.stringify(['W']), "Katilda: only the Vanguard's own colour");
+  });
 };

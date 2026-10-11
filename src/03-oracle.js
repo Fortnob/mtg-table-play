@@ -1288,6 +1288,9 @@
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', amount: 1 }) },
     { re: /^Add one mana of any colou?r among legendary permanents you control\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'yourLegends', anyLegend: true, amount: 1 }) },
+    // Katilda, Dawnhart Prime: "{T}: Add one mana of any of this creature's colors." (selfColorsMana)
+    { re: /^Add one mana of any of (?:this creature|CARDNAME)'?s colou?rs\.?$/i,
+      make: () => ({ op: 'addManaAmong', from: 'selfColors', amount: 1 }) },
     { re: /^Add one mana of any of the exiled card'?s colors\.?$/i,
       make: () => ({ op: 'addManaAmong', from: 'exiledCard', amount: 1 }) },
     { re: /^For each color among permanents you control, add one mana of that color\.?$/i,

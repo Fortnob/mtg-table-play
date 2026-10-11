@@ -1619,6 +1619,12 @@
       const from = e.from || 'opponentLands';
       // Paliano, the High City: the colours chosen as it was drafted
       if (from === 'noted') return (this._draftNote(pid, e.noted).colors || []).slice();
+      // Katilda, Dawnhart Prime: the colours of the creature tapped for it, as it is now (selfColorsMana)
+      if (from === 'selfColors') {
+        if (!o) return [];
+        const cS = (this.characteristics(o) || {}).colors;
+        return ((cS && cS.length) ? cS : ((o.analysis() || {}).colors || (o.card && o.card.colors) || [])).slice();
+      }
       if (from === 'exiledCard') {
         const x = o && o.imprinted && this.obj(o.imprinted);
         for (const c of ((x && x.card.colors) || [])) out.add(c);
