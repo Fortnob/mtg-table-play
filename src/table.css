@@ -1121,3 +1121,31 @@
 /* a creature chosen to attack rises a little, red-lit, ready to go */
 .cv.declared-atk .cv-body { box-shadow: 0 0 0 2px rgba(255, 90, 70, .9), 0 0 22px rgba(255, 70, 50, .55), 0 10px 18px rgba(0,0,0,.5); }
 @media (prefers-reduced-motion: reduce) { .arrow.atk:not(.dashed), .atk-target { animation: none; } }
+
+/* ---------- priority: the timer, and an opponent's spell to answer ---------- */
+.bb-timer { position: absolute; left: 14%; right: 14%; bottom: 6px; height: 3px; border-radius: 2px; pointer-events: none;
+  background: rgba(255,255,255,.75); transform-origin: left center; transform: scaleX(0); opacity: 0; }
+.big-btn.timing .bb-timer { opacity: 1; animation: bbTimer var(--t, 15s) linear forwards; }
+@keyframes bbTimer { 0% { transform: scaleX(1); background: rgba(255,255,255,.75); } 75% { background: rgba(255,255,255,.75); } 100% { transform: scaleX(0); background: #ff8a70; } }
+/* someone else's spell: the button warms and breathes, asking */
+.big-btn.respond { background: linear-gradient(180deg, #8a4a2e, #4a2416); animation: bbAsk 1.6s ease-in-out infinite; }
+@keyframes bbAsk { 50% { box-shadow: 0 0 0 2px rgba(255, 160, 110, .55), 0 0 26px rgba(255, 120, 70, .5), 0 10px 26px rgba(0,0,0,.6); } }
+.dock-respond { display: grid; gap: 7px; padding: 10px; border-radius: 14px; background: rgba(14, 16, 22, .92); border: 1px solid rgba(255, 150, 100, .45);
+  box-shadow: 0 10px 30px rgba(0,0,0,.6), 0 0 22px rgba(255, 110, 60, .18); animation: drIn .32s cubic-bezier(.2,.8,.2,1) both; }
+.dock-respond[hidden] { display: none; }
+@keyframes drIn { from { opacity: 0; transform: translateX(26px); } }
+.dr-head { display: flex; gap: 10px; align-items: center; min-width: 0; cursor: help; }
+.dr-art { width: 54px; height: 40px; flex: none; border-radius: 7px; background: #1b1f28 center 30% / cover no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
+.dr-text { display: grid; gap: 1px; min-width: 0; }
+.dr-who { font-size: 11px; color: #c9b8a8; }
+.dr-name { font: 600 14px/1.15 var(--serif); color: #fff1dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-aim { font-size: 11.5px; color: #ffb39c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dr-could { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #9aa4b6; }
+.dr-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.dr-opt { position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 3px; border-radius: 99px; cursor: pointer;
+  border: 1px solid rgba(156, 199, 255, .45); background: rgba(30, 42, 64, .85); color: #e7eefb; font: 600 12px/1.1 var(--font); transition: transform .12s, border-color .15s; }
+.dr-opt:hover { transform: translateY(-1px); border-color: #9cc7ff; box-shadow: 0 0 12px rgba(120, 170, 255, .4); }
+.dr-opt-art { width: 22px; height: 22px; border-radius: 50%; background: #1b1f28 center 30% / cover no-repeat; flex: none; }
+.dr-opt-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 130px; }
+@media (prefers-reduced-motion: reduce) { .big-btn.respond, .dock-respond { animation: none; } }
+:root[data-reduce-motion] .big-btn.respond, :root[data-reduce-motion] .dock-respond { animation: none; }

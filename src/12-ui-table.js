@@ -1416,13 +1416,21 @@
         d._strip = el('div', { class: 'phase-strip', role: 'list', 'aria-label': 'Steps of the turn' });
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
+          // the priority timer, running out along the button's foot
+          el('span', { class: 'bb-timer', 'aria-hidden': 'true' }),
         ]);
+        // an opponent's spell to answer: what it is, what it is aimed at, and what you could answer with
+        d._respond = el('div', { class: 'dock-respond', hidden: true, role: 'status', 'aria-live': 'polite' });
+        // anything you do at the table starts the timer again
+        const bump = () => { if (d._timerKey) this._startPriorityTimer(d._timerSecs, d._timerKey); };
+        this.arena.addEventListener('pointerdown', bump, true);
+        this.arena.addEventListener('keydown', bump, true);
         // a second choice as big as the first, above it ("All attack" over "No attacks")
         d._above = el('button', { type: 'button', class: 'big-btn above', hidden: true, onclick: () => { if (d._above._fn) d._above._fn(); } }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
         ]);
         d._row = el('div', { class: 'dock-row' });
-        d.append(d._turn, d._strip, d._above, d._main, d._row);
+        d.append(d._turn, d._strip, d._respond, d._above, d._main, d._row);
       }
       const ap = v.players.find(p => p.id === v.activePlayer);
       const mine = v.activePlayer === this.meId;
@@ -1437,11 +1445,26 @@
       }
       this.renderStrip(d._strip);
       const act = this.primaryInfo();
-      d._main.className = 'big-btn ' + (act.cls || '');
+      d._main.className = 'big-btn ' + (act.cls || '') + (d._timerKey ? ' timing' : '');
       d._main.disabled = !!act.disabled;
       d._main.querySelector('.bb-label').textContent = act.label;
       d._main.querySelector('.bb-sub').textContent = act.sub || '';
       d._main.title = act.title || '';
+      this._renderRespond(d);
+      /* The priority timer: only where passing is the natural thing to do
+         and nothing is being chosen (an opponent's spell to answer or not, a
+         step of their turn), never on your own main phases. A new moment
+         starts it afresh. */
+      const live0 = this.live || v;
+      const secs = MTG.settings.priorityTimer == null ? 15 : +MTG.settings.priorityTimer;
+      const want = act.timer && !act.disabled && secs > 0 && !v.replay && !v.spectating && !this.targeting && !this.paying;
+      const key = want ? [live0.turn, live0.phase, live0.step, (live0.stack || []).map(s => s.id).join(','), live0.priorityPlayer].join('|') : null;
+      if (key !== d._timerKey) {
+        clearTimeout(d._timerT);
+        d._timerKey = key;
+        d._main.classList.remove('timing');
+        if (key) this._startPriorityTimer(secs, key);
+      }
       d._above.hidden = !act.above;
       if (act.above) {
         d._above.className = 'big-btn above ' + (act.above.cls || '');
@@ -1462,6 +1485,77 @@
       if (live.yielding) {
         d._row.appendChild(small(live.yielding === 'turn' ? 'Passing to end of turn' : 'Passing until a response', 'Click to take priority back',
           () => this.send({ kind: 'yield', mode: null }), 'flagged'));
+      }
+    }
+
+    /** The priority timer, from the top: the bar runs out over `secs`, and then the button presses itself. */
+    _startPriorityTimer(secs, key) {
+      const d = this.dock;
+      if (!d || !d._main) return;
+      clearTimeout(d._timerT);
+      d._timerSecs = secs;
+      d._main.style.setProperty('--t', secs + 's');
+      d._main.classList.remove('timing');
+      void d._main.offsetWidth;   // the bar starts again from full
+      d._main.classList.add('timing');
+      d._timerT = setTimeout(() => {
+        if (d._timerKey !== key || this.targeting || this.paying || d._main.disabled) return;
+        d._timerKey = null;
+        d._main.classList.remove('timing');
+        this.primaryAction();
+      }, secs * 1000);
+    }
+
+    /**
+     * An opponent's spell or ability waiting on you: it slides in over the
+     * button, the card, who it is from and what it is aimed at, and under it
+     * whatever you could answer it with, each a click to cast or use.
+     */
+    _renderRespond(d) {
+      const v = this.view, live = this.live || v;
+      const top = (live.stack || [])[(live.stack || []).length - 1];
+      const ch = live.pendingChoice;
+      const show = !!top && top.controller !== this.meId && live.priorityPlayer === this.meId && !ch && !this.targeting && !this.paying && !v.replay;
+      const playable = show ? (live.playable || []).filter(id => {
+        const o = this.objIn(id);
+        return o && !/\bLand\b/.test((o.card && o.card.type_line) || '') && (o.zone === 'hand' || o.zone === 'battlefield' || o.zone === 'command' || o.zone === 'graveyard' || o.zone === 'exile');
+      }) : [];
+      const sig = show ? top.id + '|' + playable.join(',') : '';
+      if (d._respond._sig === sig) return;
+      d._respond._sig = sig;
+      d._respond.hidden = !show;
+      d._respond.innerHTML = '';
+      if (!show) return;
+      const who = v.players.find(p => p.id === top.controller);
+      const card = top.card || ((this.objIn(top.objId) || {}).card) || null;
+      const aims = (top.targets || []).map(tg => tg.kind === 'player'
+        ? (tg.id === this.meId ? 'you' : ((v.players.find(p => p.id === tg.id) || {}).name || 'a player'))
+        : tg.kind === 'object' ? (((this.objIn(tg.id) || {}).card || {}).name || 'a permanent') : 'a spell');
+      const art = el('span', { class: 'dr-art', 'aria-hidden': 'true' });
+      if (card && UI.setArt) UI.setArt(art, card);
+      const head = el('div', { class: 'dr-head' }, [
+        art,
+        el('div', { class: 'dr-text' }, [
+          el('span', { class: 'dr-who', text: `${who ? who.name : 'An opponent'} ${top.kind === 'spell' || !top.kind ? 'casts' : 'uses'}` }),
+          el('b', { class: 'dr-name', text: top.name || (card && card.name) || 'something' }),
+          aims.length ? el('span', { class: 'dr-aim', text: '\u2192 ' + aims.join(', ') }) : null,
+        ].filter(Boolean)),
+      ]);
+      if (card) UI.attachPreview(head, card, 0);
+      d._respond.appendChild(head);
+      if (playable.length) {
+        d._respond.appendChild(el('div', { class: 'dr-could', text: 'You could respond with' }));
+        d._respond.appendChild(el('div', { class: 'dr-row' }, playable.slice(0, 6).map((id) => {
+          const o = this.objIn(id);
+          const b = el('button', { type: 'button', class: 'dr-opt', title: o.card.name, onclick: (e) => {
+            e.stopPropagation();
+            const node = this.els && this.els.get(id);
+            this.onCardClick(id, e, node || null);
+          } }, [el('span', { class: 'dr-opt-art', 'aria-hidden': 'true' }), el('span', { class: 'dr-opt-name', text: o.card.name })]);
+          if (UI.setArt) UI.setArt(b.firstChild, o.card);
+          UI.attachPreview(b, o.card, 0);
+          return b;
+        })));
       }
     }
 
@@ -1578,7 +1672,8 @@
       if ((live.stack || []).length) {
         const top = live.stack[live.stack.length - 1];
         const mine = top.controller === this.meId;
-        return { label: 'Resolve', cls: mine ? 'go' : 'pass', sub: top.name,
+        // someone else's spell: you are being asked whether to answer it
+        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: top.name, timer: !mine,
           title: 'Let the top of the stack resolve (Space)',
           secondary: { label: 'Pass until response', title: 'Keep passing until somebody adds to the stack (Enter)', fn: () => this.send({ kind: 'yield', mode: 'response' }) } };
       }
@@ -1591,7 +1686,7 @@
           : { label: 'End turn', cls: 'go', sub: 'nothing can attack', yieldTurn: true };
       }
       if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', sub: 'pass to the next player' };
-      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: STEP_WORDS[k] || '',
+      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: (STEP_WORDS[k] || '') + (STEP_WORDS[k] ? ' \u00b7 ' : '') + 'let them carry on', timer: true,
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
       return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
     }

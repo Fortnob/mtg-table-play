@@ -260,6 +260,7 @@ const defaultSettings = {
   suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
+  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
   botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
