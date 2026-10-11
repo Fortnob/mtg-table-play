@@ -2558,6 +2558,12 @@
         const need = this.colorNeeds();
         return cards.sort((x, y) => this.landValue(y, need) - this.landValue(x, need)).slice(0, 1).map(o => o.id);
       }
+      // Hakbal of the Surging Soul: a land, or what the card says instead (a card drawn) once there are lands enough
+      if (ch.purpose === 'landOrElse') {
+        if (this.landsInPlay() >= 7) return [];
+        const need = this.colorNeeds();
+        return cards.sort((x, y) => this.landValue(y, need) - this.landValue(x, need)).slice(0, 1).map(o => o.id);
+      }
       const value = (o) => {
         const a = o.analysis();
         if (!a) return 0;

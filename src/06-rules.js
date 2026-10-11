@@ -14426,12 +14426,22 @@
           if (!z || !z.library.length) break;
           // "target creature you control explores" (a Map): that one, not the source
           const t0 = e.targets && e.targets.length ? targets.find(t => t.kind === 'object') : null;
-          const who = t0 ? this.obj(t0.id) : src;
-          if (t0 && !(who && who.zone === 'battlefield')) break;
+          // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
+          const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
+          if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
           // Wildgrowth Walker: "whenever a creature you control explores"
           if (who) this._fire('youExplore', who.controller, { object: who, objController: who.controller });
           const top = z.library[0];
           const ta = top.analysis();
+          /* Hakbal of the Surging Soul: a nonland already left on top by an
+             explore of the same trigger is that player's answer again — the
+             counter, and no second reveal or question (exploreEach) */
+          const r = this.resolving;
+          if (e.batch && r && r.exploreKept && r.exploreKept[e.batch] === top.id) {
+            if (who && who.zone === 'battlefield') this.addCounters(who, '+1/+1', 1);
+            this.logEvent('rules', `${who ? who.name : me.name} explores: ${top.name} stays on top.`);
+            break;
+          }
           if (!this._doneHere('exploreReveal')) this.logEvent('rules', `${who ? who.name : me.name} explores: ${top.name}.`);
           if (ta && ta.isLand) {
             z.library.shift();
@@ -14446,7 +14456,16 @@
           if (!keep) {
             z.library.shift();
             this.moveObject(top, 'graveyard', { controller: ctx.controller });
-          }
+          } else if (e.batch && r) (r.exploreKept = r.exploreKept || {})[e.batch] = top.id;
+          break;
+        }
+        /* Hakbal of the Surging Soul: "each Merfolk creature you control
+           explores" — each in turn, the next revealing what the last left */
+        case 'exploreEach': {
+          const list = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut &&
+            (this.characteristics(x) || {}).isCreature && this._cardFitsWords(x, e.filter || 'creature'));
+          const batch = 'ex' + ((this.resolving && this.resolving.index) || 0);
+          this._spliceNext(list.map(x => ({ op: 'explore', n: 1, objId: x.id, batch })));
           break;
         }
         case 'monstrosity': {
@@ -19620,6 +19639,22 @@
 
         case 'landFromHand': {
           const lands = this.zones[ctx.controller].hand.filter(o => { const a = o.analysis(); return a && a.isLand; });
+          /* Hakbal of the Surging Soul: "You may put a land card from your hand
+             onto the battlefield. If you don't, draw a card." — asked even of
+             one land, and none put (or none to put) is the other branch */
+          if (e.optional) {
+            if (!lands.length) { this._spliceNext(e.otherwise); break; }
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, purpose: 'landOrElse', optional: true,
+              cards: lands.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put a land from your hand onto the battlefield?` +
+                truncate(((e.text || '').match(/ If you don'?t,.*$/i) || [''])[0], 90) }, 'lfh');
+            if (got === SUSPEND) return SUSPEND;
+            const o = (got || []).map(id => this.obj(id)).find(x => x && lands.includes(x) && x.zone === 'hand');
+            if (!o) { this._spliceNext(e.otherwise); break; }
+            this.moveObject(o, 'battlefield', { controller: ctx.controller });
+            this.logEvent('land', `${me.name} puts ${o.name} onto the battlefield.`);
+            break;
+          }
           if (!lands.length) { this.logEvent('rules', `${me.name} has no land in hand.`); break; }
           if (lands.length === 1) { this.moveObject(lands[0], 'battlefield', { controller: ctx.controller }); break; }
           this.queueChoice({ type: 'pickCard', playerId: ctx.controller, count: 1, purpose: 'landFromHand',

@@ -24118,4 +24118,67 @@ module.exports = (test) => {
     L.toMain('A', 'declareBlockers'); L.resolve();
     t.eq(L.g.powerOf(km), p0 + 2, 'Killmonger: B has two artifacts, +2/+0');
   });
+
+  test('Commanders: Hakbal of the Surging Soul — each Merfolk explores at the beginning of combat', (mk, t) => {
+    t.auto('Hakbal of the Surging Soul');
+    const M = mk({ library: Array(10).fill('Hill Giant') });
+    const hak = M.bf('A', 'Hakbal of the Surging Soul');
+    const fish = M.bf('A', 'Coral Merfolk');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const theirs = M.bf('B', 'Coral Merfolk');
+    const forest = M.top('A', 'Forest');
+    const giant = M.top('A', 'Hill Giant');
+    // Hakbal reveals the Hill Giant and puts it in the graveyard; the Coral Merfolk then reveals the Forest
+    M.answer('confirm', { yes: false });
+    M.answer('declareAttackers', () => []);
+    M.toMain('A', 'endCombat');
+    t.eq(Number(hak.counters['+1/+1']) || 0, 1, 'Hakbal: a nonland revealed, a counter');
+    t.zone(giant, 'graveyard', 'Hakbal: the Hill Giant put into the graveyard');
+    t.no(Number(fish.counters['+1/+1']) || 0, 'Coral Merfolk: a land revealed, no counter');
+    t.zone(forest, 'hand', 'Coral Merfolk: the Forest goes to hand');
+    t.no(Number(bear.counters['+1/+1']) || 0, 'not a Merfolk');
+    t.no(Number(theirs.counters['+1/+1']) || 0, 'not one you control');
+  });
+
+  test('Commanders: Hakbal of the Surging Soul — a nonland left on top is not asked about again', (mk, t) => {
+    const M = mk({ library: Array(10).fill('Hill Giant') });
+    const hak = M.bf('A', 'Hakbal of the Surging Soul');
+    const fish = M.bf('A', 'Coral Merfolk');
+    const fish2 = M.bf('A', 'Coral Merfolk');
+    const giant = M.top('A', 'Hill Giant');
+    M.answer('declareAttackers', () => []);
+    M.toMain('A', 'endCombat');
+    for (const o of [hak, fish, fish2]) t.eq(Number(o.counters['+1/+1']) || 0, 1, o.name + ': a counter');
+    t.eq(M.zone('A', 'library')[0], giant, 'the Hill Giant still on top');
+    t.eq(M.asked.filter(ch => ch.type === 'confirm' && /on top of your library/i.test(ch.prompt || '')).length, 1, 'asked once, not three times');
+  });
+
+  test('Commanders: Hakbal of the Surging Soul attacks — a land from hand, or a card drawn', (mk, t) => {
+    // a land put onto the battlefield: no card drawn
+    let M = mk({ library: Array(10).fill('Hill Giant') });
+    let hak = M.bf('A', 'Hakbal of the Surging Soul');
+    let forest = M.hand('A', 'Forest');
+    M.answer('pickCard', (ch) => ({ cardIds: [forest.id] }));
+    M.answer('declareAttackers', () => [{ attackerId: hak.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.zone(forest, 'battlefield', 'Hakbal: the Forest put onto the battlefield');
+    t.eq(M.zone('A', 'hand').length, 0, 'Hakbal: put a land, drew nothing');
+    // declined: the land stays in hand and a card is drawn
+    M = mk({ library: Array(10).fill('Hill Giant') });
+    hak = M.bf('A', 'Hakbal of the Surging Soul');
+    forest = M.hand('A', 'Forest');
+    M.answer('pickCard', { cardIds: [] });
+    M.answer('declareAttackers', () => [{ attackerId: hak.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.zone(forest, 'hand', 'Hakbal declined: the Forest stays in hand');
+    t.eq(M.zone('A', 'hand').length, 2, 'Hakbal declined: a card drawn');
+    // no land in hand: a card is drawn and nobody is asked
+    M = mk({ library: Array(10).fill('Hill Giant') });
+    hak = M.bf('A', 'Hakbal of the Surging Soul');
+    M.hand('A', 'Grizzly Bears');
+    M.answer('declareAttackers', () => [{ attackerId: hak.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.zone('A', 'hand').length, 2, 'Hakbal, no land in hand: a card drawn');
+    t.no(M.asked.some(ch => ch.purpose === 'landOrElse'), 'Hakbal, no land in hand: not asked');
+  });
 };

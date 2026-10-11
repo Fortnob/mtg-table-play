@@ -4417,6 +4417,9 @@
     { re: /^(?:It|CARDNAME|This creature) explores, then it explores again\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'explore', n: 1 }, { op: 'explore', n: 1 }] }) },
     { re: /^(Target creature you control) explores\.?$/i, make: (m) => ({ op: 'explore', n: 1, targets: [targetSpec(m[1])] }) },
+    // Hakbal of the Surging Soul: "each Merfolk creature you control explores" — one after another (exploreEach)
+    { re: /^[Ee]ach ((?:[A-Z][a-z]+ )?creature) you control explores\.?$/,
+      make: (m) => ({ op: 'exploreEach', filter: m[1].toLowerCase() }) },
     { re: /^Choose a color\.?$/i, make: () => ({ op: 'chooseColor' }) },
     { re: /^Add one mana of the chosen color\.?$/i, make: () => ({ op: 'addManaChosen', n: 1 }) },
     // the Thriving lands: their own colour, or the one chosen as they entered
@@ -8916,6 +8919,15 @@
             i++;
             continue;
           }
+        }
+        /* Hakbal of the Surging Soul: "you may put a land card from your hand
+           onto the battlefield. If you don't, draw a card." — none in hand
+           is a land not put, too */
+        if (/^put a land card from your hand onto the battlefield$/i.test(may[1])) {
+          effects.push({ op: 'landFromHand', n: 1, optional: true, otherwise: elsePart.effects, text: s + ' ' + next });
+          if (!elsePart.auto) auto = false;
+          i++;
+          continue;
         }
         /* Chandra, Torch of Defiance: "You may cast that card. If you don't,
            CARDNAME deals 2 damage to each opponent." */
