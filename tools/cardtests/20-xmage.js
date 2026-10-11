@@ -23930,4 +23930,25 @@ module.exports = (test) => {
     E2.toMain('A', 'beginCombat'); E2.resolve();
     t.eq(Number(ek2.counters['+1/+1']) || 0, 0, 'Eshki Dragonclaw: only a creature spell, nothing');
   });
+
+  test('Commanders: Miles "Tails" Prower, Kemba, Kha Enduring, Sokka and Suki', (mk, t) => {
+    for (const n of ['Miles "Tails" Prower', 'Kemba, Kha Enduring', 'Sokka and Suki']) t.auto(n);
+    // Miles: a Vehicle with flying enters, a card; one without, a flying counter on it
+    const M = mk({ library: Array(20).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'Miles "Tails" Prower');
+    const h0 = M.zone('A', 'hand').length;
+    const fl = M.put('A', "Smuggler's Copter", 'hand'); M.g.moveObject(fl, 'battlefield'); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 1, "Miles: Smuggler's Copter flies, a card");
+    const gr = M.put('A', 'Untethered Express', 'hand'); M.g.moveObject(gr, 'battlefield'); M.resolve();
+    t.eq(Number(gr.counters.flying) || 0, 1, 'Miles: Untethered Express gets a flying counter');
+    // Kemba: a Cat of A's enters, up to one Equipment of A's attached to it
+    const K = mk({ library: Array(20).fill('Plains') });
+    K.toMain('A');
+    K.bf('A', 'Kemba, Kha Enduring');
+    const bs = K.bf('A', 'Bonesplitter');
+    K.answer('pickTarget', { targets: [{ kind: 'object', id: bs.id }] });
+    const cat = K.put('A', 'Savannah Lions', 'hand'); K.g.moveObject(cat, 'battlefield'); K.resolve();
+    t.eq(bs.attachedTo, cat.id, 'Kemba: the Bonesplitter is attached to the Lions');
+  });
 };

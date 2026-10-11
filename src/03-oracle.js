@@ -1350,6 +1350,9 @@
     // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
     { re: /^Attach (up to one )?target Equipment you control to (?:CARDNAME|it|this creature)\.?$/i,
       make: (m) => ({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
+    // Kemba, Kha Enduring: "attach up to one target Equipment you control to that creature" — the one that entered (attachToThat)
+    { re: /^Attach (up to one )?target Equipment you control to that creature\.?$/i,
+      make: (m) => ({ op: 'attachTargetToSelf', toTrigger: true, targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -2505,6 +2508,9 @@
     // Shaile, Dean of Radiance: "Put a +1/+1 counter on each creature that entered the battlefield under your control this turn." (enteredUnderYou)
     { re: /^Put an? \+1\/\+1 counter on each creature that entered the battlefield under your control this turn\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', enteredThisTurn: true } }) },
+    // Miles "Tails" Prower: "Otherwise, put a flying counter on it." — the Vehicle that entered (triggerHasFlying)
+    { re: /^Otherwise, put an? (flying|first strike|deathtouch|lifelink|trample|vigilance|menace|reach|haste) counter on it\.?$/i,
+      make: (m) => ({ op: 'noop', otherwiseOf: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerObject' }] }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -9789,7 +9795,7 @@
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
     [/^a permanent was put into your hand from the battlefield this turn$/i, () => ({ kind: 'bouncedToYourHand' })],
     // Anje Falkenrath: "if it has madness" — the card the trigger is about (triggerHasKeyword)
-    [/^it has (madness|flashback|cycling|kicker)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],
+    [/^it has (madness|flashback|cycling|kicker|flying)$/i, (m) => ({ kind: 'triggerHasKeyword', keyword: m[1].toLowerCase() })],   // (Miles "Tails" Prower: flying — triggerHasFlying)
     // ED-E, Lonesome Eyebot: "if the number of attacking creatures is greater than the number of quest counters on ED-E" (attackersOverCounters)
     [/^the number of attacking creatures is greater than the number of ([a-z]+) counters on (?:CARDNAME|this creature|it)$/i, (m) => ({ kind: 'attackersOverCounters', counter: m[1].toLowerCase() })],
     // Eshki Dragonclaw: "if you've cast both a creature spell and a noncreature spell this turn" (castBothKinds)

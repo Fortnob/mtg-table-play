@@ -10742,6 +10742,8 @@
         case 'bouncedToYourHand': return !!me && !!(((this.turnHistory || {}).bouncedTo || {})[me.id]);
         // Anje Falkenrath: "if it has madness" (triggerHasKeyword)
         case 'triggerHasKeyword': { const tdK = (ctx && ctx.triggerData) || {}; const xK = tdK.objectId && this.obj(tdK.objectId);
+          // (Miles "Tails" Prower: a permanent's keywords as it is now — triggerHasFlying)
+          if (xK && xK.zone === 'battlefield') return this.hasKw(xK, cond.keyword);
           return !!xK && !!(((xK.analysis() || {}).keywordSet) || new Set()).has(cond.keyword); }   // (triggerHasKeyword)
         // ED-E, Lonesome Eyebot: more attackers than its quest counters (attackersOverCounters)
         case 'attackersOverCounters': return !!src && ((this.combat && this.combat.attackers) || []).length > (Number((src.counters || {})[cond.counter]) || 0);
@@ -19038,15 +19040,17 @@
            goes onto this creature */
         case 'attachTargetToSelf': {
           const eq = firstObj();
-          if (!eq || eq.zone !== 'battlefield' || !src || src.zone !== 'battlefield' || eq === src) break;
+          // Kemba, Kha Enduring: "to that creature" — the one the trigger is about (attachToThat)
+          const hostA = e.toTrigger ? (((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || null) : src;
+          if (!eq || eq.zone !== 'battlefield' || !hostA || hostA.zone !== 'battlefield' || eq === hostA) break;
           if (e.onlyEquipment && !(eq.analysis() || {}).isEquipment) break;
-          if (eq.controller !== ctx.controller || !(src.analysis() || {}).isCreature) break;
+          if (eq.controller !== ctx.controller || !(hostA.analysis() || {}).isCreature) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
-          eq.attachedTo = src.id;
+          eq.attachedTo = hostA.id;
           eq.ts = this._stampNew();
-          src.attachments.push(eq.id);
+          hostA.attachments.push(eq.id);
           this.bumpBoard();
-          this.logEvent('rules', `${eq.name} is attached to ${src.name}.`);
+          this.logEvent('rules', `${eq.name} is attached to ${hostA.name}.`);
           break;
         }
         case 'attachThat': {
