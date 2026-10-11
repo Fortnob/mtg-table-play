@@ -2514,6 +2514,8 @@
     // The Fifth Doctor: "put a +1/+1 counter on each creature you control that didn't attack or enter this turn" (idleOrNew)
     { re: /^Put an? \+1\/\+1 counter on each creature you control that didn'?t attack or enter this turn\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: { who: 'you', what: 'creature', notAttackedOrEntered: true } }) },
+    // Ghired, Conclave Exile: "Populate. The token enters tapped and attacking." (populateAttacking)
+    { re: /^The token enters tapped and attacking\.?$/i, make: () => ({ op: 'lastCopyAttacking' }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -10152,6 +10154,8 @@
   const TRIGGER_PATTERNS = [
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
+    { re: /^Whenever you cast a spell with (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell', filt: (m) => ({ words: 'spell', keyword: m[1].toLowerCase() }) },
     // Evin, Waterdeep Opportunist: "Whenever one or more players sacrifice one or more creatures" (anySacrificeCreature)
     { re: /^Whenever one or more players sacrifice one or more creatures,? /i, event: 'anySacrifice', filt: () => ({ words: 'creature' }) },
     // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)

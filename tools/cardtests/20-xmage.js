@@ -24019,4 +24019,27 @@ module.exports = (test) => {
     G.toMain('A', 'declareBlockers'); G.resolve();
     t.ok(G.g.powerOf(hist) === 3 && G.g.hasKw(hist, 'indestructible'), 'Tegan: Isamaru is 3/3 and indestructible');
   });
+
+  test('Commanders: Ghired, Conclave Exile, The First Doctor; Aurora Phoenix', (mk, t) => {
+    for (const n of ['Ghired, Conclave Exile', 'The First Doctor', 'Aurora Phoenix']) t.auto(n);
+    // Ghired: populate as it attacks, the copy tapped and attacking
+    const G = mk({ library: Array(20).fill('Forest') });
+    G.toMain('A');
+    const gh = G.bf('A', 'Ghired, Conclave Exile'); gh.summoningSick = false;
+    G.g._runEffects([{ op: 'createToken', n: 1, pt: '4/4', colorWords: ['green'], subtypes: 'Rhino', keywords: ['Trample'], addTypes: [] }], { controller: 'A', name: 'Test', kind: 'spell', targets: [] });
+    G.answer('declareAttackers', () => [{ attackerId: gh.id, defenderId: 'B' }]);
+    G.toMain('A', 'declareBlockers'); G.resolve();
+    const rh = G.bfOf('A').filter(o => o.isToken && /Rhino/.test(o.name));
+    t.ok(rh.length === 2 && rh.some(o => o.tapped && o.attacking === 'B'), 'Ghired: a second Rhino, tapped and attacking B');
+    // The First Doctor: a spell with cascade, a +1/+1 counter on target artifact or creature
+    const D = mk({ library: Array(20).fill('Forest') });
+    D.toMain('A');
+    D.bf('A', 'The First Doctor');
+    const gb = D.bf('A', 'Grizzly Bears');
+    D.answer('pickTarget', { targets: [{ kind: 'object', id: gb.id }] });
+    D.mana('A', '2RG'); D.cast('A', D.hand('A', 'Bloodbraid Elf')); D.resolve();
+    t.eq(Number(gb.counters['+1/+1']) || 0, 1, 'The First Doctor: Bloodbraid Elf has cascade, a counter on the Bears');
+    D.mana('A', '1G'); D.cast('A', D.hand('A', 'Grizzly Bears')); D.resolve();
+    t.eq(D.bfOf('A').reduce((k, o) => k + (Number(o.counters['+1/+1']) || 0), 0), 1, 'The First Doctor: Grizzly Bears has no cascade, no counter anywhere');
+  });
 };

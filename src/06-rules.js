@@ -18391,6 +18391,18 @@
           break;
         }
 
+        /* Ghired, Conclave Exile: "The token enters tapped and attacking" — the copy just made, at whoever
+           the creature that made it attacks (populateAttacking) */
+        case 'lastCopyAttacking': {
+          const cp = this._lastCopy;
+          if (!cp || cp.zone !== 'battlefield') break;
+          cp.tapped = true;
+          if (this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+            const def = (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
+            if (def && !this.combat.attackers.includes(cp.id)) { cp.attacking = def; this.combat.attackers.push(cp.id); }
+          }
+          break;
+        }
         case 'exileFromGraveyard': {
           const cnt = n(e.n) || 1;
           const from = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players;
