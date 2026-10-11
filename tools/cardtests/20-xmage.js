@@ -23599,4 +23599,70 @@ module.exports = (test) => {
     K.toMain('B', 'end'); K.resolve();
     t.eq(K.life('B'), 19, "Kratos: at B's end step, one of B's two creatures didn't attack, 1 damage to B");
   });
+
+  test('Commanders: Spider-Man India, Mikey & Leo, Arnyn, Aveline de Grandpré, Gau, Jenson Carthalion', (mk, t) => {
+    for (const n of ['Spider-Man India', 'Mikey & Leo, Chaos & Order', 'Arnyn, Deathbloom Botanist', 'Aveline de Grandpré', 'Gau, Feral Youth', 'Jenson Carthalion, Druid Exile']) t.auto(n);
+    const ctx = { controller: 'A', name: 'Test', kind: 'spell', targets: [] };
+    // Spider-Man India: a creature spell, a counter on a creature of A's, and it flies
+    const S = mk({ library: Array(20).fill('Forest') });
+    S.toMain('A');
+    S.bf('A', 'Spider-Man India');
+    const gb = S.bf('A', 'Grizzly Bears');
+    S.answer('pickTarget', { targets: [{ kind: 'object', id: gb.id }] });
+    S.mana('A', 'G'); S.cast('A', S.hand('A', 'Llanowar Elves')); S.resolve();
+    t.ok((Number(gb.counters['+1/+1']) || 0) === 1 && S.g.hasKw(gb, 'flying'), 'Spider-Man India: a counter on the Bears, and flying');
+    // Mikey & Leo: a counter put on a creature of A's draws, once each turn
+    const M = mk({ library: Array(20).fill('Forest') });
+    M.toMain('A');
+    M.bf('A', 'Mikey & Leo, Chaos & Order');
+    const mb = M.bf('A', 'Grizzly Bears');
+    const h0 = M.zone('A', 'hand').length;
+    M.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: mb.id }] })); M.resolve();
+    M.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: mb.id }] })); M.resolve();
+    t.eq(M.zone('A', 'hand').length - h0, 1, 'Mikey & Leo: two counters put, one card (once each turn)');
+    const M2 = mk({ library: Array(20).fill('Forest') });
+    M2.toMain('A');
+    M2.bf('A', 'Mikey & Leo, Chaos & Order');
+    const ob = M2.bf('B', 'Grizzly Bears');
+    const h2 = M2.zone('A', 'hand').length;
+    M2.g._runEffects([{ op: 'counters', kind: '+1/+1', n: 1, targets: [{ type: 'creature' }] }], Object.assign({}, ctx, { targets: [{ kind: 'object', id: ob.id }] })); M2.resolve();
+    t.eq(M2.zone('A', 'hand').length - h2, 0, "Mikey & Leo: a counter on B's Bears, nothing");
+    // Arnyn: a 1/1 of A's dies, B loses 2 and A gains 2; a 2/2, nothing
+    const R = mk({ library: Array(20).fill('Forest') });
+    R.toMain('A');
+    R.bf('A', 'Arnyn, Deathbloom Botanist');
+    const kill = (T, o) => { T.g.dealDamageToObject(o, 9, null, false); T.g.checkStateBasedActions(); T.resolve(); };
+    R.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    kill(R, R.bf('A', 'Llanowar Elves'));
+    t.ok(R.life('B') === 18 && R.life('A') === 22, 'Arnyn: the 1/1 Elves died, a drain of 2');
+    kill(R, R.bf('A', 'Grizzly Bears'));
+    t.eq(R.life('B'), 18, 'Arnyn: the 2/2 Bears, nothing');
+    // Aveline: a deathtouch creature hits for 1, one counter on it
+    const V = mk({ library: Array(20).fill('Plains') });
+    V.toMain('A');
+    V.bf('A', 'Aveline de Grandpré');
+    const dt = V.bf('A', 'Typhoid Rats');
+    V.g._fire('permCombatDamage', 'A', { object: dt, objController: 'A', source: dt, amount: 1, player: 'B' }); V.resolve();
+    t.eq(Number(dt.counters['+1/+1']) || 0, 1, 'Aveline: that many counters on the Rats');
+    // Gau: at an end step after a card left A's graveyard, its power to each opponent
+    const G = mk({ library: Array(20).fill('Mountain') });
+    G.toMain('A');
+    const ga = G.bf('A', 'Gau, Feral Youth');
+    G.toMain('A', 'end'); G.resolve();
+    t.eq(G.life('B'), 20, 'Gau: nothing left the graveyard, nothing');
+    const G2 = mk({ library: Array(20).fill('Mountain') });
+    G2.toMain('A');
+    const ga2 = G2.bf('A', 'Gau, Feral Youth');
+    const gc = G2.put('A', 'Grizzly Bears', 'graveyard'); G2.g.moveObject(gc, 'hand');
+    G2.toMain('A', 'end'); G2.resolve();
+    t.eq(G2.life('B'), 20 - G2.g.powerOf(ga2), "Gau: a card left A's graveyard, his power to B");
+    // Jenson: a multicolored spell scries; an all-colour one makes an Angel too
+    const J = mk({ library: Array(20).fill('Forest') });
+    J.toMain('A');
+    J.bf('A', 'Jenson Carthalion, Druid Exile');
+    J.mana('A', 'GW'); J.cast('A', J.hand('A', 'Watchwolf')); J.resolve();
+    t.eq(J.bfOf('A').filter(o => o.isToken && /Angel/.test(o.name)).length, 0, 'Jenson: two colours, no Angel');
+    J.mana('A', 'WUBRG'); J.cast('A', J.hand('A', 'Sliver Queen')); J.resolve();
+    t.eq(J.bfOf('A').filter(o => o.isToken && /Angel/.test(o.name)).length, 1, 'Jenson: all five, an Angel');
+  });
 };

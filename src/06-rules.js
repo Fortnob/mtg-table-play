@@ -10718,6 +10718,11 @@
           const xB = tdB.objectId && this.obj(tdB.objectId);
           return !!xB && !!src && xB.zone === 'battlefield' && this.powerOf(xB) < this.powerOf(src);
         }
+        // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
+        case 'cardLeftYourGraveyard': return !!me && !!(((this.turnHistory || {}).leftGraveyard || {})[me.id]);
+        // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
+        case 'spellAllColors': { const tdA = (ctx && ctx.triggerData) || {}; const xA = tdA.objectId && this.obj(tdA.objectId);
+          return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
         // Tom Bombadil: "four or more lore counters among Sagas you control" (countersAmongAtLeast)
         case 'countersAmongAtLeast': return this._countValue({ countersAmong: cond.scope, kind: cond.counter, mult: 1 }, ctx.controller, src) >= (cond.n || 0);
         // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
@@ -12114,6 +12119,11 @@
         // It That Betrays, Mortician Beetle: what was sacrificed, when there is one (sacrificedAny)
         const one = data.object && (Number(data.count) || 1) === 1 ? { object: data.object, objController: controllerId } : {};
         for (let k = 0; k < Math.max(1, Number(data.count) || 1); k++) this._fire('anySacrifice', null, Object.assign({ playerId: controllerId }, one));
+      }
+      // Gau, Feral Youth: whose graveyard a card left this turn (cardLeftGraveyard)
+      if (event === 'leftGraveyard' && data.objController) {
+        const hL = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        (hL.leftGraveyard = hL.leftGraveyard || {})[data.objController] = true;
       }
       // Thalisse: "the number of tokens you created this turn" — kept as they are made
       if (event === 'youCreateToken' && controllerId) {
@@ -23943,6 +23953,8 @@
       const pw = () => (gone ? x._lastPower : this.powerOf(x)), tg = () => (gone ? x._lastToughness : this.toughnessOf(x));
       if (f.minPower != null && pw() < f.minPower) return false;
       if (f.maxPower != null && pw() > f.maxPower) return false;
+      // Arnyn, Deathbloom Botanist: "with power or toughness 1 or less" (powerOrToughnessMax)
+      if (f.maxPowerOrToughness != null && pw() > f.maxPowerOrToughness && tg() > f.maxPowerOrToughness) return false;
       if (f.minToughness != null && tg() < f.minToughness) return false;
       if (f.maxToughness != null && tg() > f.maxToughness) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;

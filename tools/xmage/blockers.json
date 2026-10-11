@@ -4,9 +4,9 @@
   "cards": 32661,
   "withClass": 31834,
   "skippedLayout": 21,
-  "needed": 10335,
+  "needed": 10323,
   "gainedCards": 949,
-  "linesNeeded": 10965,
+  "linesNeeded": 10955,
   "linesGained": 1108,
   "gained": {
    "all": 949,
@@ -51,8 +51,8 @@
   },
   {
    "what": "(no XMage class)",
-   "score": 655,
-   "lines": 655,
+   "score": 653,
+   "lines": 653,
    "cards": [
     "Deadpool, Trading Card",
     "Cyber Conversion",
@@ -62,10 +62,10 @@
     "Raph & Mikey, Troublemakers",
     "Psychic Paper",
     "Zinnia, Valley's Voice",
-    "Mikey & Leo, Chaos & Order",
     "Immortal Obligation",
     "Lorehold, the Historian",
-    "Secret of Bloodbending"
+    "Secret of Bloodbending",
+    "Desert Warfare"
    ]
   },
   {
@@ -108,8 +108,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 171,
-   "lines": 156,
+   "score": 170,
+   "lines": 155,
    "cards": [
     "Throne of Eldraine",
     "Case of the Locked Hothouse",
@@ -146,8 +146,8 @@
   },
   {
    "what": "custom condition",
-   "score": 149,
-   "lines": 137,
+   "score": 148,
+   "lines": 136,
    "cards": [
     "Ojer Axonil, Deepest Might // Temple of Power",
     "Sting, the Glinting Dagger",
@@ -792,25 +792,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 14,
-   "lines": 14,
-   "cards": [
-    "Flow State",
-    "Sword of the Paruns",
-    "Tomb Tyrant",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity",
-    "Emergent Haunting",
-    "Trade Caravan",
-    "Arcum's Sleigh",
-    "Inventive Wingsmith",
-    "Kongming's Contraptions"
-   ]
-  },
-  {
    "what": "BecomesColorTargetEffect",
    "score": 14,
    "lines": 14,
@@ -895,6 +876,25 @@
     "Monstrous War-Leech",
     "Mwonvuli Ooze",
     "Umbra Stalker"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 13,
+   "lines": 13,
+   "cards": [
+    "Flow State",
+    "Sword of the Paruns",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity",
+    "Emergent Haunting",
+    "Trade Caravan",
+    "Arcum's Sleigh",
+    "Inventive Wingsmith",
+    "Kongming's Contraptions",
+    "Kjeldoran Guard"
    ]
   },
   {
@@ -1960,21 +1960,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 8,
-   "lines": 8,
-   "cards": [
-    "Rikku, Resourceful Guardian",
-    "Earth Kingdom General",
-    "Omarthis, Ghostfire Initiate",
-    "The Great Goblin",
-    "Kros, Defense Contractor",
-    "Kate Stewart",
-    "Ant-Man, Colony Commander",
-    "Inspired Tethermage"
-   ]
-  },
-  {
    "what": "AddCardTypeTargetEffect",
    "score": 8,
    "lines": 8,
@@ -2369,6 +2354,20 @@
     "Focus Fire",
     "Collision Course",
     "Battle of Frost and Fire"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 7,
+   "lines": 7,
+   "cards": [
+    "Rikku, Resourceful Guardian",
+    "Earth Kingdom General",
+    "Omarthis, Ghostfire Initiate",
+    "The Great Goblin",
+    "Kros, Defense Contractor",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
    ]
   },
   {
@@ -4755,17 +4754,6 @@
    ]
   },
   {
-   "what": "CardLeftYourGraveyardThisTurnCondition.instance",
-   "score": 4,
-   "lines": 4,
-   "cards": [
-    "Gau, Feral Youth",
-    "Relic Retriever",
-    "Primary Research",
-    "Living History"
-   ]
-  },
-  {
    "what": "TargetsPermanentPredicate",
    "score": 4,
    "lines": 4,
@@ -6430,6 +6418,16 @@
     "Kotose, the Silent Spider",
     "Extirpate"
    ]
+  },
+  {
+   "what": "DealtDamageAttachedAndDiedTriggeredAbility",
+   "score": 3,
+   "lines": 3,
+   "cards": [
+    "Scythe of the Wretched",
+    "Unscythe, Killer of Kings",
+    "Vampiric Embrace"
+   ]
   }
  ],
  "sole": [
@@ -6487,8 +6485,8 @@
   },
   {
    "what": "custom condition",
-   "score": 116,
-   "cards": 113,
+   "score": 115,
+   "cards": 112,
    "names": [
     "Sting, the Glinting Dagger",
     "Blitzball",
@@ -6500,8 +6498,8 @@
   },
   {
    "what": "(line not matched to XMage code)",
-   "score": 100,
-   "cards": 97,
+   "score": 99,
+   "cards": 96,
    "names": [
     "March of Swirling Mist",
     "Alchemist's Talent",
@@ -6896,19 +6894,6 @@
    ]
   },
   {
-   "what": "CompoundCondition",
-   "score": 12,
-   "cards": 12,
-   "names": [
-    "Flow State",
-    "Tomb Tyrant",
-    "Deathbringer Regent",
-    "Essence Anchor",
-    "Karai, Future of the Foot",
-    "Defenders of Humanity"
-   ]
-  },
-  {
    "what": "Ability.setRuleAtTheTop",
    "score": 12,
    "cards": 12,
@@ -6967,6 +6952,19 @@
     "Nimble Hobbit",
     "Thrull Wizard",
     "Bullseye, Death Dealer"
+   ]
+  },
+  {
+   "what": "CompoundCondition",
+   "score": 11,
+   "cards": 11,
+   "names": [
+    "Flow State",
+    "Tomb Tyrant",
+    "Deathbringer Regent",
+    "Karai, Future of the Foot",
+    "Defenders of Humanity",
+    "Emergent Haunting"
    ]
   },
   {
@@ -8135,19 +8133,6 @@
    ]
   },
   {
-   "what": "PutCounterOnPermanentTriggeredAbility",
-   "score": 6,
-   "cards": 6,
-   "names": [
-    "Earth Kingdom General",
-    "The Great Goblin",
-    "Kros, Defense Contractor",
-    "Kate Stewart",
-    "Ant-Man, Colony Commander",
-    "Inspired Tethermage"
-   ]
-  },
-  {
    "what": "CastAsThoughItHadFlashIfConditionAbility",
    "score": 6,
    "cards": 6,
@@ -8550,6 +8535,18 @@
     "Vernal Equinox",
     "Cherished Hatchling",
     "Rootwater Shaman"
+   ]
+  },
+  {
+   "what": "PutCounterOnPermanentTriggeredAbility",
+   "score": 5,
+   "cards": 5,
+   "names": [
+    "Earth Kingdom General",
+    "The Great Goblin",
+    "Kros, Defense Contractor",
+    "Ant-Man, Colony Commander",
+    "Inspired Tethermage"
    ]
   },
   {
@@ -9463,17 +9460,6 @@
    ]
   },
   {
-   "what": "CardLeftYourGraveyardThisTurnCondition.instance",
-   "score": 4,
-   "cards": 4,
-   "names": [
-    "Gau, Feral Youth",
-    "Relic Retriever",
-    "Primary Research",
-    "Living History"
-   ]
-  },
-  {
    "what": "TimeTravelEffect",
    "score": 4,
    "cards": 4,
@@ -10056,6 +10042,16 @@
     "Eye of Nidhogg",
     "Sinister Strength",
     "Grave Servitude"
+   ]
+  },
+  {
+   "what": "AllianceAbility",
+   "score": 3,
+   "cards": 3,
+   "names": [
+    "Rose Room Treasurer",
+    "Sizzling Soloist",
+    "Elegant Entourage"
    ]
   }
  ]

@@ -2492,6 +2492,8 @@
     // Burakos, Party Leader: "defending player loses X life and you create X Treasure tokens, where X is …" (defendingLosesX)
     { re: /^defending player loses X life and you create X (Treasure|Food|Clue) tokens, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? [{ op: 'loseLife', n: k, who: 'defending' }, { op: 'createNamedToken', n: k, token: m[1] }] : null; } },
+    // Aveline de Grandpré: "put that many +1/+1 counters on that creature" — the one that dealt the damage (thatManyOnThat)
+    { re: /^Put that many (\+1\/\+1|[a-z]+) counters on that creature\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'triggerObject' }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -9098,7 +9100,8 @@
     // (Company Commander: "Bring it Down! — …")
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
     // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z][A-Za-z.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -9765,6 +9768,10 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Gau, Feral Youth: "if a card left your graveyard this turn" (cardLeftGraveyard)
+    [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
+    // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
+    [/^that spell was all colou?rs$/i, () => ({ kind: 'spellAllColors' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
     [/^there are (\w+) or more (\+1\/\+1|[a-z]+) counters among ([A-Za-z]+?s) you control$/i, (m) => {
       const sc = scopeOf(m[3] + ' you control'), n = num(m[1]);
@@ -10015,6 +10022,10 @@
       p = who(p);
       if ((m = p.match(/ with power (\d+) or (greater|more|less)$/))) {
         if (/less/.test(m[2])) f.maxPower = +m[1]; else f.minPower = +m[1];
+        p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with power or toughness (\d+) or less$/))) {
+        // Arnyn, Deathbloom Botanist: "a creature you control with power or toughness 1 or less" (powerOrToughnessMax)
+        f.maxPowerOrToughness = +m[1];
         p = p.slice(0, m.index);
       } else if ((m = p.match(/ with toughness (\d+) or (greater|more|less)$/))) {
         // Ulvenwald Observer: "a creature you control with toughness 4 or greater"
@@ -10711,9 +10722,10 @@
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
     /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
        a creature"; Generous Patron: "counters on a creature you don't control" */
-    { re: /^Whenever you put one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters on (a|another) (creature|permanent|Goblin)( you don'?t control)?, /i,
+    // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
+    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) (creature|permanent|Goblin)( you don'?t control| you control)?, /i,
       event: 'countersPut', aboutObject: true,
-      filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? 'opponent' : undefined }),
+      filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
