@@ -5354,6 +5354,12 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 :root[data-phone] .js-art { height: 104px; }
 :root[data-phone] .js-lead { font-size: 14px; }
 :root[data-phone] .js-cards { --card-w: 100px; --card-h: 140px; gap: 8px; }
+
+/* ---------- a pick made, waiting on the others ---------- */
+/* it stays lit, green and ticked, until the packs move or it is switched for another */
+.pick-card.picked { outline: 3px solid #6fd38a; outline-offset: 2px; box-shadow: 0 0 22px rgba(111, 211, 138, .5); transform: translateY(-6px); }
+.pick-card.picked.chosen { outline-color: var(--gold-hi, #f6dc8c); }
+.pick-flag.kept { background: linear-gradient(180deg, #8de39a, #3f9d58); color: #0c1f12; }
 /* ============================================================
    store.css - Shards, the Store, the Collection and opening packs
    (src/10c-economy.js, src/10d-ui-store.js)
@@ -57602,34 +57608,41 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       opts = opts || {};
       const s = this._seat(seatId);
       if (!s || !this.started || this.finished || this.broker || this._holding) return false;
-      if (this.pendingPicks.has(s.index)) return false;
+      /* A pick already made can be changed while the others are still
+         picking: nothing is taken until every seat has picked, so the new
+         one simply stands in its place (and the old one stays, if the new
+         one will not do). */
+      const was = this.pendingPicks.get(s.index);
+      if (was && (was.pass || !was.ids)) return false;
+      if (was) this.pendingPicks.delete(s.index);
+      const done = (ok) => { if (!ok && was) this.pendingPicks.set(s.index, was); return ok; };
       const pack = this._packFor(s);
-      if (!pack.length) return false;
+      if (!pack.length) return done(false);
       const usable = this.availableAbilities(seatId);
       let ability = null;
       if (opts.ability) {
         ability = usable.find(a => a.cardId === opts.ability && (a.kind === 'extraPick' || a.kind === 'wholePack'));
-        if (!ability) return false;
+        if (!ability) return done(false);
       }
       const mods = [];
       for (const id of (opts.mods || [])) {
         const m = usable.find(a => a.cardId === id && a.mod);
-        if (!m) return false;
+        if (!m) return done(false);
         if (!mods.includes(m)) mods.push(m);
       }
-      if (mods.filter(m => m.kind === 'remove').length > 1) return false;
+      if (mods.filter(m => m.kind === 'remove').length > 1) return done(false);
       let ids;
       if (ability && ability.kind === 'wholePack') ids = pack.map(c => c.id);
       else {
         const want = Math.min(this.cfg.picksPerTurn + (ability ? 1 : 0), pack.length);
         ids = (cardIds || []).slice(0, want);
-        if (ids.length !== want) return false;
-        if (new Set(ids).size !== ids.length) return false;
-        if (!ids.every(id => pack.some(c => c.id === id))) return false;
+        if (ids.length !== want) return done(false);
+        if (new Set(ids).size !== ids.length) return done(false);
+        if (!ids.every(id => pack.some(c => c.id === id))) return done(false);
       }
       // noting a creature's name or types needs a creature
       const first = pack.find(c => c.id === ids[0]);
-      if (mods.some(m => m.creature) && !isCreatureCard(first)) return false;
+      if (mods.some(m => m.creature) && !isCreatureCard(first)) return done(false);
       this.pendingPicks.set(s.index, { ids, ability, mods, guess: opts.guess || null });
       MTG.sfx('pick');
       this._maybeAdvance();
@@ -58378,6 +58391,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         seen: s ? s.seen : [],
         abilityLog: (this.abilityLog || []).slice(-8),
         waitingOn: this.broker ? [] : this.seats.filter(x => !this.pendingPicks.has(x.index)).map(x => x.name),
+        // the pick made and waiting on the others: shown kept, and still to be changed until the packs move
+        myPick: s && this.pendingPicks.get(s.index) && !this.pendingPicks.get(s.index).pass ? (this.pendingPicks.get(s.index).ids || []).slice() : [],
         seats: this.seats.map(x => ({
           id: x.id, name: x.name, isBot: x.isBot, poolSize: x.pool.length,
           picked: this.cfg.faceUp ? x.picked : undefined,
@@ -91665,7 +91680,14 @@ Sideboard
       const line = told.length ? told[told.length - 1] : null;
       if (line && !(beat.spot && (line.kind === 'cast' || line.kind === 'ability' || line.kind === 'trigger'))) this.say(line.text, line.kind);
       // anything the engine could not do itself is said loudly, once
-      const fresh = (next.log || []).slice(-(Math.max(0, (next.log || []).length - (prev.log || []).length) || 0));
+      /* the entries after the last one the table had seen: the view carries only the last 200, so once
+         it is full a count of new lines comes to nothing — and slice(-0) is the whole log, which said
+         every "resolve this by hand" again on every tap (Yusri, Fortune's Flame) */
+      const pl = prev.log || [], nl = next.log || [];
+      const lastSeen = pl[pl.length - 1];
+      let at = -1;
+      if (lastSeen) for (let i = nl.length - 1; i >= 0; i--) { const x = nl[i]; if (x.t === lastSeen.t && x.type === lastSeen.type && x.text === lastSeen.text) { at = i; break; } }
+      const fresh = lastSeen ? nl.slice(at + 1) : nl;
       for (const e of fresh) if (e.type === 'manual') this.say(e.text, 'manual', 6000);
       // a board wipe is worth feeling
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
@@ -97098,7 +97120,8 @@ Sideboard
         class: 'btn primary hero-btn draft-go',
         text: v.broker ? 'Trading' : v.blind ? 'At random'
           : this.ability && need === 0 ? 'Take the whole pack'
-          : (this.chosen.length === need ? `Confirm pick${need > 1 ? 's' : ''}` : `Pick ${this.chosen.length}/${need}`),
+          : (v.myPick || []).length && !this.chosen.length ? 'Picked \u2713'
+          : (this.chosen.length === need ? ((v.myPick || []).length ? `Switch pick${need > 1 ? 's' : ''}` : `Confirm pick${need > 1 ? 's' : ''}`) : `Pick ${this.chosen.length}/${need}`),
         disabled: (need > 0 && this.chosen.length !== need) || !v.pack.length || v.sittingOut || !!v.blind || !!v.broker,
         onclick: () => { this.confirmPick(); },
       });
@@ -97127,7 +97150,8 @@ Sideboard
         ].filter(Boolean)),
         el('span', { class: 'grow' }),
         el('div', { class: 'draft-act' }, [
-          el('span', { class: 'wait-note', text: v.waitingOn.length ? 'Waiting on ' + v.waitingOn.join(', ') : 'All picks in…' }),
+          el('span', { class: 'wait-note', text: (v.waitingOn.length ? 'Waiting on ' + v.waitingOn.join(', ') : 'All picks in…') +
+            ((v.myPick || []).length && v.waitingOn.length ? ' \u00b7 choose another card to switch your pick' : '') }),
           confirm,
         ]),
       );
@@ -97159,10 +97183,13 @@ Sideboard
         rows.forEach(r => grid.appendChild(r));
         const rowOf = (i) => { let k = i; for (let r = 0; r < fit.rows.length; r++) { if (k < fit.rows[r]) return rows[r]; k -= fit.rows[r]; } return rows[rows.length - 1]; };
         // rarest first, left to right and down the rows
+        // the pick sent and waiting on the others stays lit, until it is switched for another
+        const kept = v.myPick || [];
         order.forEach((c, i) => {
           const chosen = this.chosen.includes(c.id);
+          const picked = kept.includes(c.id);
           const slot = UI.cardSlot(c, {}, {
-            class: 'pick-card' + (chosen ? ' chosen' : '') + ' r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
+            class: 'pick-card' + (chosen ? ' chosen' : '') + (picked ? ' picked' : '') + ' r-' + (c.rarity || 'common') + (c._foil ? ' foil' : ''),
             onClick: () => { this._toggle(c); MTG.sfx('click'); this.render(); },
             onDblClick: () => this._confirmCard(c),
             // Enter picks the card up, Space sends the pick; the slot's own
@@ -97180,7 +97207,8 @@ Sideboard
           slot.style.setProperty('--i', String(i));
           slot.appendChild(el('span', { class: 'rar ' + c.rarity, text: (c.rarity || '')[0].toUpperCase() }));
           slot.appendChild(UI.autoBadge(c, { corner: true }));
-          if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : 'Your pick' }));
+          if (chosen) slot.appendChild(el('span', { class: 'pick-flag', text: need > 1 ? `Pick ${this.chosen.indexOf(c.id) + 1}` : (kept.length ? 'Switch to this' : 'Your pick') }));
+          else if (picked) slot.appendChild(el('span', { class: 'pick-flag kept', text: '\u2713 Your pick' }));
           rowOf(i).appendChild(slot);
         });
         // a new pack deals itself out; a re-render of the same pack does not
