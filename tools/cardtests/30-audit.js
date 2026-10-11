@@ -6536,4 +6536,19 @@ module.exports = (test) => {
       t.eq(T.g.zones.A.hand.length - h, how === 'pumped' ? 1 : 0, how + ': a card only when it died bigger than its base');
     }
   });
+
+  test('Audit: "if that creature\u2019s power is greater than Yorvo\u2019s" reads the creature as it last was when it is gone (Yorvo, Lord of Garenbrig)', (mk, t) => {
+    t.auto('Yorvo, Lord of Garenbrig');
+    for (const kill of [0, 1]) {
+      const T = mk(); T.toMain('A');
+      const y = T.bf('A', 'Yorvo, Lord of Garenbrig'); y.counters['+1/+1'] = 4;
+      const c = T.hand('A', 'Craw Wurm'); T.mana('A', 'GG4'); T.cast('A', c, { resolve: false });
+      const g = T.g;
+      for (let i = 0; i < 40 && !(g.stack.length && c.zone === 'battlefield'); i++) { T.settle(); g.passPriority(g.priorityPlayer.id, true); T.settle(); }
+      t.zone(c, 'battlefield', 'the Wurm is in, its trigger waiting');
+      if (kill) g.moveObject(c, 'graveyard');
+      T.resolve();
+      t.eq(y.counters['+1/+1'], 6, kill ? 'the Wurm gone: its last power 6 is still greater than 5' : 'the Wurm there: 6 is greater than 5');
+    }
+  });
 };

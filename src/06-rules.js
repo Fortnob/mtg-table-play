@@ -10718,7 +10718,9 @@
         case 'triggerPowerAboveSelf': {
           const tdV = (ctx && ctx.triggerData) || {};
           const xV = tdV.objectId && this.obj(tdV.objectId);
-          return !!xV && !!src && xV.zone === 'battlefield' && this.powerOf(xV) > this.powerOf(src);
+          // (gone before it resolves, as it last was: powerAboveSelfLki)
+          const pV = xV && (xV.zone === 'battlefield' ? this.powerOf(xV) : xV._lastPower);
+          return !!xV && !!src && pV != null && pV > this.powerOf(src);
         }
         // Shelinda, Yevon Acolyte: "if its power is less than Shelinda's power" (triggerPowerBelowSelf)
         case 'triggerPowerBelowSelf': {
