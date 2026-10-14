@@ -7750,6 +7750,7 @@
     }
     _blightOn(o, n, pid) {
       if (!o) return;
+      this._lastBlighted = o.id;           // (Grub, Notorious Auntie: "the blighted creature" — copyBlighted)
       this.addCounters(o, '-1/-1', n);
       this.logEvent('counters', `${(this.player(pid) || {}).name || 'A player'} blights ${n}: ${o.name}.`);
       this.bumpBoard();
@@ -7767,6 +7768,13 @@
       }
       this._blightOn(x, n, pid);
       return true;
+    }
+    /** Whose a chosen target is: the player, or the permanent's controller (Ravager of the Fells: "that player or that planeswalker's controller"). */
+    _targetsController(t) {
+      if (!t) return null;
+      if (t.kind === 'player') return t.id;
+      const o = t.kind === 'object' ? this.obj(t.id) : null;
+      return o ? o.controller : null;
     }
     /**
      * Every chosen target against what it was chosen for (CR 601.2c, 602.2b),
@@ -7797,8 +7805,8 @@
         if (sp.distinct && tg.slice(0, i).some(same)) return `${what} isn't a legal target for ${name}.`;
         // Bioshift: "another target creature with the same controller"
         if (sp.sameControllerAsPrev && i > 0) {
-          const a0 = tg[i - 1].kind === 'object' && this.obj(tg[i - 1].id), b0 = t.kind === 'object' && this.obj(t.id);
-          if (!a0 || !b0 || b0.controller !== a0.controller) return `${what} doesn't have the same controller as the first target.`;
+          const b0 = t.kind === 'object' && this.obj(t.id);
+          if (!b0 || b0.controller !== this._targetsController(tg[i - 1])) return `${what} doesn't have the same controller as the first target.`;
         }
         // Goblin Welder: "target artifact card in that player's graveyard"
         if (sp.ownedByPrevController && i > 0) {
@@ -14705,6 +14713,12 @@
             const seenCtl = new Set();
             targets = targets.filter(t => { if (t.kind !== 'object') return true; const c = (this.obj(t.id) || {}).controller; if (seenCtl.has(c)) return false; seenCtl.add(c); return true; });
           }
+          /* Ravager of the Fells: "a creature that player or that planeswalker's controller controls" — one under
+             anybody else isn't a target (sameControllerAsPrev) */
+          if (e.targets.some((sp, i) => i > 0 && sp && sp.sameControllerAsPrev) && targets.length === e.targets.length) {
+            targets = targets.filter((t, i) => !(i > 0 && e.targets[i] && e.targets[i].sameControllerAsPrev &&
+              (t.kind !== 'object' || (this.obj(t.id) || {}).controller !== this._targetsController(targets[i - 1]))));
+          }
           ctx.resolvedTargets = targets;
           ctx._askedSpecs = JSON.stringify(e.targets);
           if (e.targets.some(sp => sp && sp.distinctModePlayer)) {
@@ -17901,7 +17915,8 @@
             if (e.basicType && !(ca && (ca.subtypes || []).some(t => MANA.COLOR_OF_BASIC[t]))) return false;
             if (e.manaCostIn && !e.manaCostIn.includes(String((c.card && c.card.mana_cost) || ''))) return false;
             if (e.mvOfSacrificedPlus != null) {
-              const sac = (ctx.sacrificed || [])[0];
+              // (Iron Man, Titan of Innovation: "you may sacrifice … If you do, … 1 plus the sacrificed artifact's mana value" — sacThen)
+              const sac = (ctx.sacrificed || this._lastSacrificed || [])[0];
               if (!sac || mvOf(c) !== sac.mv + e.mvOfSacrificedPlus) return false;
             }
             // Shield-Wall Sentinel, Isperia: "a creature card with defender (flying)" (tutorKeyword)
@@ -19064,6 +19079,8 @@
           let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
           // Cleaver Skaab: "copies of the sacrificed creature", as it last was
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
+          // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
+          if (e.of === 'blighted') source = this._lastBlighted ? this.obj(this._lastBlighted) : null;
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
           if (!source && e.scope === 'lastTarget') {
             const ex = (this._resExiled || []).slice(-1)[0] || (!e.orTrigger && this._lastExiled);
@@ -27703,7 +27720,9 @@
         if (zone === 'battlefield' && sourceId && this._oppAbilityCantTarget(o, this.obj(sourceId), controllerId)) continue;
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
-      if (spec.type === 'any') out.push(...players().filter(t => !spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn));
+      // (Ravager of the Fells: "target opponent or planeswalker" — not its controller: opponentOrWalker)
+      if (spec.type === 'any') out.push(...players().filter(t => (!spec.damagedThisTurn || (this.player(t.id) || {}).damagedTurn === this.turn) &&
+        !(spec.opponent && t.id === controllerId)));
       return out;
     }
 

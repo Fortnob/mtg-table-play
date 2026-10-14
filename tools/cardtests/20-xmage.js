@@ -32859,4 +32859,194 @@ module.exports = (test) => {
     toMain2(M);
     t.eq(M.zone('B', 'exile').length, ex0, 'Thada Adel: no artifact left, nothing exiled');
   });
+
+  test('Commanders: back faces — Ulrich, Uncontested Alpha, Grub, Notorious Auntie, Trystan, Penitent Culler, Goldbug, Scrappy Scout, Ravager of the Fells', (mk, t) => {
+    for (const n of ['Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha', 'Grub, Storied Matriarch // Grub, Notorious Auntie',
+      'Trystan, Callous Cultivator // Trystan, Penitent Culler', "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout", 'Huntmaster of the Fells // Ravager of the Fells']) {
+      t.auto(n);
+      const back = engine().oracle.analyze(card(n), 1);
+      t.ok(back.fullyAutomated && back.abilities.every(x => x.auto), n + ': the back face is read too');
+    }
+  });
+
+  test('Commanders: Ulrich, Uncontested Alpha — "you may have it fight target non-Werewolf creature you don\'t control", and back', (mk, t) => {
+    const U = mk({ library: Array(20).fill('Island') });
+    const ul = U.bf('A', 'Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha');
+    const bears = U.bf('B', 'Grizzly Bears'), wolf = U.bf('B', 'Gatstaf Shepherd // Gatstaf Howler'), mine = U.bf('A', 'Elite Vanguard');
+    let opts = null;
+    U.answer('confirm', { yes: true });
+    U.answer('pickTarget', (ch) => { opts = (ch.options || [])[0] || []; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    U.nextTurn('B');            // no spells in A's turn: Ulrich transforms at B's upkeep
+    t.eq(ul.face, 1, 'Ulrich: no spells last turn, Ulrich, Uncontested Alpha');
+    t.ok(opts && opts.some(x => x.id === bears.id) && !opts.some(x => x.id === wolf.id) && !opts.some(x => x.id === mine.id),
+      "Ulrich: a non-Werewolf creature I don't control — not the Werewolf, not my own");
+    t.zone(bears, 'graveyard', 'Ulrich: the Bears fought a 6/6');
+    t.eq(ul.damage, 2, 'Ulrich: and dealt it 2');
+    // B casts two spells: Ulrich of the Krallenhorde again at A's upkeep, and a creature gets +4/+4
+    U.mana('B', 'UU'); U.cast('B', U.hand('B', 'Opt')); U.resolve(); U.cast('B', U.hand('B', 'Opt')); U.resolve();
+    U.answer('pickTarget', { targets: [{ kind: 'object', id: mine.id }] });
+    U.nextTurn('A');
+    t.eq(ul.face, 0, 'Ulrich: two spells last turn, Ulrich of the Krallenhorde');
+    t.eq(U.g.powerOf(mine), 6, 'Ulrich: the front face\'s +4/+4 as it transforms back');
+    // declined: nothing fights
+    const V = mk({ library: Array(20).fill('Island') });
+    const ul2 = V.bf('A', 'Ulrich of the Krallenhorde // Ulrich, Uncontested Alpha');
+    const bears2 = V.bf('B', 'Grizzly Bears');
+    V.answer('confirm', { yes: false });
+    V.nextTurn('B');
+    t.eq(ul2.face, 1);
+    t.zone(bears2, 'battlefield', 'Ulrich: declined, no fight');
+    t.eq(ul2.damage || 0, 0);
+  });
+
+  test('Commanders: Ravager of the Fells — 2 to an opponent and 2 to up to one creature that player controls; Huntmaster again', (mk, t) => {
+    const H = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    const hm = H.bf('A', 'Huntmaster of the Fells // Ravager of the Fells');
+    const bb = H.bf('B', 'Grizzly Bears'), cb = H.bf('C', 'Grizzly Bears');
+    let opts = null;
+    // a creature of C's with B as the player: not a target
+    H.answer('pickTarget', (ch) => { opts = ch.options; return { targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: cb.id }] }; });
+    H.nextTurn('B');
+    t.eq(hm.face, 1, 'Ravager of the Fells');
+    t.ok(opts && opts.length === 2, 'Ravager: two targets asked for');
+    t.eq(H.life('B'), 18, 'Ravager: 2 to B');
+    t.zone(cb, 'battlefield', "Ravager: C's Bears are not B's — untouched");
+    t.eq(cb.damage || 0, 0);
+    // B casts two spells: Huntmaster again at C's upkeep, a Wolf and 2 life
+    H.mana('B', 'UU'); H.cast('B', H.hand('B', 'Opt')); H.resolve(); H.cast('B', H.hand('B', 'Opt')); H.resolve();
+    H.nextTurn('C');
+    t.eq(hm.face, 0, 'Huntmaster again');
+    t.eq(H.bfOf('A').filter(o => o.isToken && /Wolf/.test(o.name)).length, 1, 'Huntmaster: a Wolf');
+    t.eq(H.life('A'), 22, 'and 2 life');
+    // nothing cast in C's turn: Ravager at A's upkeep, this time B and B's Bears
+    H.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: bb.id }] });
+    H.nextTurn('A');
+    t.eq(hm.face, 1, 'Ravager again');
+    t.eq(H.life('B'), 16, 'Ravager: 2 more to B');
+    t.zone(bb, 'graveyard', "Ravager: B's Bears, 2 damage");
+    // a bot: a creature of the player it aims at, and no other's
+    const R = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    R.player('A').isBot = true;
+    const bot = new R.MTG.bots.BotPlayer(R.g, 'A', 8);
+    const rv = R.bf('A', 'Huntmaster of the Fells // Ravager of the Fells');
+    rv.face = 1; rv._chr = null; R.g.bumpBoard();
+    const b2 = R.bf('B', 'Grizzly Bears'), c2 = R.bf('C', 'Grizzly Bears');
+    const ab = rv.analysis().abilities.find(x => x.event === 'transforms');
+    R.g._runEffects(ab.effects, { controller: 'A', name: 'Ravager of the Fells', kind: 'ability', targets: [], obj: rv });
+    for (let i = 0; i < 10 && R.g.pendingChoice; i++) bot.doChoice(R.g.pendingChoice);
+    const hitB = R.life('B') === 18, hitC = R.life('C') === 18;
+    t.ok(hitB !== hitC, 'Ravager (bot): 2 to one opponent');
+    t.ok(hitB ? b2.zone === 'graveyard' && c2.zone === 'battlefield' : c2.zone === 'graveyard' && b2.zone === 'battlefield',
+      "Ravager (bot): and that player's Bears, not the other's");
+  });
+
+  test('Commanders: Grub, Notorious Auntie — "you may blight 1. If you do, …a copy of the blighted creature"; and back', (mk, t) => {
+    const G = mk({ library: Array(20).fill('Island') });
+    const gr = G.bf('A', 'Grub, Storied Matriarch // Grub, Notorious Auntie');
+    G.bf('A', 'Mountain'); G.bf('A', 'Swamp');
+    const giant = G.bf('A', 'Hill Giant');
+    const gob = G.grave('A', 'Raging Goblin');
+    G.nextTurn('B'); G.nextTurn('A');      // pays {R} at A's first main phase
+    t.eq(gr.face, 1, 'Grub: {R} paid, Grub, Notorious Auntie');
+    t.zone(gob, 'graveyard', 'Grub: transforming into the Auntie returns nothing');
+    G.answer('confirm', { yes: true });
+    G.answer('choose', { picks: [giant.id] });
+    G.answer('declareAttackers', () => [{ attackerId: gr.id, defenderId: 'B' }]);
+    G.toMain('A', 'declareBlockers');
+    const tok = G.bfOf('A').find(o => o.isToken && o.name === 'Hill Giant');
+    t.eq(Number(giant.counters['-1/-1']) || 0, 1, 'Grub: the Hill Giant blighted');
+    t.ok(tok && tok.tapped && tok.attacking === 'B', 'Grub: a tapped and attacking copy of the Hill Giant');
+    toMain2(G);
+    t.eq(G.life('B'), 15, 'Grub: 2 from Grub, 3 from the copy');
+    G.toMain('A', 'end'); G.resolve();
+    t.ok(!G.g.battlefield.includes(tok), 'Grub: the copy is sacrificed at the end step');
+    // {B} at the next first main phase: Grub, Storied Matriarch, and a Goblin back
+    G.nextTurn('B'); G.nextTurn('A');
+    t.eq(gr.face, 0, 'Grub: {B} paid, Grub, Storied Matriarch');
+    t.zone(gob, 'hand', 'Grub: transforming into the Matriarch returns the Goblin');
+    // declined: no blight, no copy
+    const D = mk({ library: Array(20).fill('Island') });
+    const gr2 = D.bf('A', 'Grub, Storied Matriarch // Grub, Notorious Auntie');
+    gr2.face = 1; gr2._chr = null; D.g.bumpBoard();
+    const giant2 = D.bf('A', 'Hill Giant');
+    D.answer('confirm', { yes: false });
+    D.answer('declareAttackers', () => [{ attackerId: gr2.id, defenderId: 'B' }]);
+    D.toMain('A', 'declareBlockers');
+    t.ok(!D.bfOf('A').some(o => o.isToken), 'Grub: declined, no copy');
+    t.eq(Number(giant2.counters['-1/-1']) || 0, 0, 'Grub: and no counter');
+  });
+
+  test('Commanders: Trystan, Penitent Culler — "mill three cards, then you may exile an Elf card … each opponent loses 2 life"; and back', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Llanowar Elves') });
+    const tr = T.bf('A', 'Trystan, Callous Cultivator // Trystan, Penitent Culler');
+    T.bf('A', 'Swamp'); T.bf('A', 'Forest');
+    const gy0 = T.zone('A', 'graveyard').length;
+    T.nextTurn('B'); T.nextTurn('A');       // pays {B}
+    t.eq(tr.face, 1, 'Trystan: {B} paid, Trystan, Penitent Culler');
+    t.eq(T.zone('A', 'graveyard').length - gy0, 2, 'Trystan: three milled, one Elf of them exiled');
+    t.eq(T.zone('A', 'exile').filter(o => o.name === 'Llanowar Elves').length, 1, 'Trystan: an Elf exiled');
+    t.eq(T.life('B'), 18, 'Trystan: each opponent loses 2');
+    T.nextTurn('B'); T.nextTurn('A');       // pays {G}
+    t.eq(tr.face, 0, 'Trystan: {G} paid, Trystan, Callous Cultivator');
+    t.eq(T.life('A'), 22, 'Trystan: three more milled, an Elf among them, 2 life');
+    // no Elf to exile: nothing asked, nobody loses life
+    const N = mk({ library: Array(30).fill('Island') });
+    const tr2 = N.bf('A', 'Trystan, Callous Cultivator // Trystan, Penitent Culler');
+    N.bf('A', 'Swamp');
+    N.nextTurn('B'); N.nextTurn('A');
+    t.eq(tr2.face, 1);
+    t.eq(N.life('B'), 20, 'Trystan: no Elf card, no life lost');
+    t.ok(!N.asked.some(ch => ch.type === 'confirm' && /exile an Elf/i.test(ch.prompt || '')), 'Trystan: and no question');
+  });
+
+  test('Commanders: Goldbug, Scrappy Scout — "Whenever Goldbug and at least one Human attack, draw a card and convert Goldbug"', (mk, t) => {
+    const G = mk({ library: Array(20).fill('Island') });
+    const gb = G.bf('A', "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout");
+    const hu = G.bf('A', 'Elite Vanguard'), be = G.bf('A', 'Grizzly Bears');
+    G.mana('A', 'UU'); G.cast('A', G.hand('A', 'Opt')); G.resolve(); G.cast('A', G.hand('A', 'Opt')); G.resolve();
+    t.eq(gb.face, 1, 'Goldbug: the second spell, Goldbug, Scrappy Scout');
+    const h0 = G.zone('A', 'hand').length;
+    G.answer('declareAttackers', () => [{ attackerId: gb.id, defenderId: 'B' }, { attackerId: hu.id, defenderId: 'B' }]);
+    G.toMain('A', 'declareBlockers');
+    t.eq(G.zone('A', 'hand').length - h0, 1, 'Goldbug: a Human attacks with it, a card');
+    t.eq(gb.face, 0, "Goldbug: and Goldbug, Humanity's Ally again");
+    // with no Human: nothing
+    const N = mk({ library: Array(20).fill('Island') });
+    const gb2 = N.bf('A', "Goldbug, Humanity's Ally // Goldbug, Scrappy Scout");
+    gb2.face = 1; gb2._chr = null; N.g.bumpBoard();
+    const be2 = N.bf('A', 'Grizzly Bears');
+    const h1 = N.zone('A', 'hand').length;
+    N.answer('declareAttackers', () => [{ attackerId: gb2.id, defenderId: 'B' }, { attackerId: be2.id, defenderId: 'B' }]);
+    N.toMain('A', 'declareBlockers');
+    t.eq(N.zone('A', 'hand').length, h1, 'Goldbug: no Human attacking, no card');
+    t.eq(gb2.face, 1, 'Goldbug: and no convert');
+    t.ok(be, 'set up');
+  });
+
+  test('Soul of Shandalar: "3 damage to target player or planeswalker and 3 damage to up to one target creature that player … controls"', (mk, t) => {
+    t.auto('Soul of Shandalar');
+    const S = mk({ library: Array(20).fill('Mountain'), players: ['A', 'B', 'C'] });
+    const so = S.bf('A', 'Soul of Shandalar');
+    const bb = S.bf('B', 'Grizzly Bears'), cb = S.bf('C', 'Grizzly Bears');
+    S.mana('A', '3RR');
+    t.no(S.g.activateAbility('A', so.id, 0, { auto: true, targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: cb.id }] }),
+      "Soul of Shandalar: B, and C's Bears — not that player's");
+    S.activate('A', so, 0, { targets: ['B', bb] });
+    t.eq(S.life('B'), 17, 'Soul of Shandalar: 3 to B');
+    t.zone(bb, 'graveyard', "Soul of Shandalar: and 3 to B's Bears");
+    t.zone(cb, 'battlefield');
+  });
+
+  test('Iron Man, Titan of Innovation: "create a Treasure token, then you may sacrifice a noncreature artifact. If you do, search …"', (mk, t) => {
+    t.auto('Iron Man, Titan of Innovation');
+    const I = mk({ library: Array(20).fill('Island') });
+    const im = I.bf('A', 'Iron Man, Titan of Innovation');
+    const ring = I.top('A', 'Sol Ring');
+    I.answer('sacrifice', (ch, g) => ({ cardIds: g.battlefield.filter(o => o.controller === 'A' && /Treasure/.test(o.name)).map(o => o.id).slice(0, 1) }));
+    I.answer('declareAttackers', () => [{ attackerId: im.id, defenderId: 'B' }]);
+    I.toMain('A', 'declareBlockers');
+    t.ok(!I.bfOf('A').some(o => o.isToken && /Treasure/.test(o.name)), 'Iron Man: the Treasure sacrificed');
+    t.zone(ring, 'battlefield', 'Iron Man: a mana value 1 artifact for the mana value 0 Treasure');
+    t.ok(ring.tapped, 'Iron Man: tapped');
+  });
 };

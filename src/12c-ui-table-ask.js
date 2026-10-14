@@ -290,7 +290,7 @@
             const legal = new Set();
             for (const list of (ch.options || [])) for (const t of list) legal.add(t.kind + ':' + t.id);
             this.targeting = {
-              need: ch.count || (ch.specs || []).length || 1, specs: ch.specs || [], chosen: [], legal,
+              need: ch.count || (ch.specs || []).length || 1, specs: ch.specs || [], chosen: [], legal, slots: ch.options || null,
               label: ch.prompt || 'Choose a target', source: ch.objId || null,
               onDone: (targets) => { this.targeting = null; send({ targets }); },
             };

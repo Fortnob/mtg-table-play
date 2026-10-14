@@ -2735,7 +2735,8 @@
 
     // --- fight, control, counters on many things ---
     // (The Tarrasque: "it fights target creature defending player controls" — fightDefending)
-    { re: /^(?:It|CARDNAME|This creature) fights (up to one )?(target creature(?: you don'?t control| an opponent controls| defending player controls)?|another target creature)\.?$/i,
+    // (Ulrich, Uncontested Alpha: "target non-Werewolf creature you don't control" — fightNonType)
+    { re: /^(?:It|CARDNAME|This creature) fights (up to one )?(target (?:non-[A-Z][a-z]+ )?creature(?: you don'?t control| an opponent controls| defending player controls)?|another target creature)\.?$/i,
       make: (m) => ({ op: 'fightSelf', targets: [Object.assign(targetSpec(m[2]), m[1] ? { upTo: true } : {})] }) },
     // Savage Stomp: "Put a +1/+1 counter on target creature you control. Then that creature fights target creature you don't control."
     { re: /^(?:Then )?that creature fights (up to one )?(target creature(?: you don'?t control| an opponent controls)?)\.?$/i,
@@ -3450,7 +3451,8 @@
       make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
     // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
     { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.?$/i,
-      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]), prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }) },
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]),
+        prompt: 'Search your library for ' + (/^[aeiou]/i.test(m[1]) ? 'an ' : 'a ') + m[1].toLowerCase() + ' card.' }) },
     // Nykthos Paragon: "put that many +1/+1 counters on each creature you control"
     { re: /^Put that many \+1\/\+1 counters on each creature you control\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 'triggerAmount', scope: 'yourCreatures' }) },
@@ -6093,6 +6095,11 @@
     // Lunge: "2 damage to target creature and 2 damage to target player or planeswalker"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (target [a-z ]+?)\.?$/i,
       make: (m) => { const a = tgt(m[2]), b = tgt(m[4]); return a && b ? { op: 'damageSplit', amounts: [+m[1], +m[3]], targets: [a, b] } : null; } },
+    /* Ravager of the Fells: "it deals 2 damage to target opponent or planeswalker and 2 damage to up to one target
+       creature that player or that planeswalker's controller controls" — the second under the first's (sameControllerAsPrev) */
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target (?:opponent|player)(?: or planeswalker)?) and (\d+) damage to (up to one )?target creature that player or that planeswalker'?s controller controls\.?$/i,
+      make: (m) => { const a = tgt(m[2]); return a ? { op: 'damageSplit', amounts: [+m[1], +m[3]],
+        targets: [a, Object.assign({ type: 'creature', filter: 'creature', zone: 'battlefield', sameControllerAsPrev: true }, m[4] ? { upTo: true } : {})] } : null; } },
     // Chandra's Outrage: "…to target creature and 2 damage to that creature's controller"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to (target [a-z ]+?) and (\d+) damage to (?:that (?:creature|permanent|planeswalker|artifact)'s|its) controller\.?$/i,
       make: (m) => { const a = tgt(m[2]); return a ? [{ op: 'damage', n: +m[1], targets: [a] }, { op: 'damage', n: +m[3], toAffectedController: true }] : null; } },
@@ -6400,9 +6407,10 @@
     /* Delina, Wild Mage: "Create a tapped and attacking token that's a copy of that creature, except it's not
        legendary and it has "At end of combat, exile this token."" — "that creature" the one chosen as the
        target; the quoted ability the token's own words (copyHasText) */
-    { re: /^Create a (tapped and attacking )?token that'?s a copy of that creature, except (it'?s not legendary and )?it has "([^"]+)"\.?$/i,
-      make: (m) => (grantableText(m[3]) ? Object.assign({ op: 'copyPermanent', n: 1, grant: [], addText: [m[3]] },
-        m[1] ? { tapped: true, attacking: true } : {}, m[2] ? { nonLegendary: true } : {}) : null) },
+    // (Grub, Notorious Auntie: "a copy of the blighted creature" — the one just blighted: copyBlighted)
+    { re: /^Create a (tapped and attacking )?token that'?s a copy of (that|the blighted) creature, except (it'?s not legendary and )?it has "([^"]+)"\.?$/i,
+      make: (m) => (grantableText(m[4]) ? Object.assign({ op: 'copyPermanent', n: 1, grant: [], addText: [m[4]] },
+        m[1] ? { tapped: true, attacking: true } : {}, m[3] ? { nonLegendary: true } : {}, /blighted/i.test(m[2]) ? { of: 'blighted' } : {}) : null) },
     // Firion, Wild Rose Warrior: "create a token that's a copy of it, except it has "…"" — the Equipment the trigger is about
     { re: /^Create a token that'?s a copy of it, except it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[1]) ? { op: 'copyPermanent', n: 1, grant: [], addText: [m[1]], scope: 'triggerObject' } : null) },
@@ -7923,10 +7931,11 @@
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && fillX(inner, { xTimes: k })) { inner.text = s; return inner; }
     }
     // Laccolith Whelp: "have it deal damage equal to its power to target creature"
-    const hi = !depth && s.match(/^Have (it|CARDNAME|this creature) (deal|gain|fight) (.+)$/i);
+    // (Ulrich, Uncontested Alpha: "you may have it fight target non-Werewolf creature you don't control" — mayHaveIt)
+    const hi = !depth && s.match(/^(You may )?Have (it|CARDNAME|this creature) (deal|gain|fight) (.+)$/i);
     if (hi) {
-      const inner = parseEffectSentence((/^it$/i.test(hi[1]) ? 'It' : 'CARDNAME') + ' ' + hi[2].toLowerCase() + 's ' + hi[3], 1);
-      if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return inner; }
+      const inner = parseEffectSentence((/^it$/i.test(hi[2]) ? 'It' : 'CARDNAME') + ' ' + hi[3].toLowerCase() + 's ' + hi[4], 1);
+      if (inner && inner.op !== 'manual' && !hasManualStep(inner)) { inner.text = s; return hi[1] ? { op: 'may', then: [inner], text: s } : inner; }
     }
     // Duelist's Heritage: "have target attacking creature gain double strike"; "have target player mill two cards"
     // (Faerie Tauntings: "have each opponent lose 1 life"; Dreamspoiler Witches: "have target creature get -1/-1")
@@ -9497,6 +9506,8 @@
     /\s+and\s+(?=(?:CARDNAME|this (?:creature|enchantment|artifact|spell|land|permanent)) deals\b)/i,
     // Combat Celebrant: "…and after this phase, there is an additional combat phase"
     /\s+and\s+(?=after this phase\b)/i,
+    // (Goldbug, Scrappy Scout: "draw a card and convert Goldbug")
+    /\s+and\s+(?=(?:transform|convert) (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent))\b)/,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
   ];
   const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|You)\b/i;
@@ -9787,11 +9798,20 @@
 
       // "You may X. If you do, Y."
       // Ripples of Undeath: "Then you may pay {1} and 3 life. If you do, …"
-      const may = s.match(/^(?:Then )?You may (.+?)\.$/i);
+      let may = s.match(/^(?:Then )?You may (.+?)\.$/i);
       /* "When you do" (a reflexive trigger, CR 603.12) is read as "if you
          do": what follows happens once the choice is made and paid for */
       // (not "If you don't", which is its own sentence)
       const ifDo = next.match(/^(?:If|When) you do(?![a-z'’]),?\s*(.+)$/i);
+      /* Trystan, Penitent Culler: "mill three cards, then you may exile an Elf card from your graveyard. If you do, …"
+         — the first part done, then the choice and what hangs on it (thenMayIfDo) */
+      const thenMay = !may && ifDo && s.match(/^([^,]+), then you may (.+?)\.$/i);
+      if (thenMay) {
+        const pre = parseSentenceList([U.titleCase(thenMay[1].charAt(0)) + thenMay[1].slice(1) + '.']);
+        // (only when the choice and what hangs on it are read too — not half a card done and half by hand)
+        const rest = pre.auto && pre.effects.length && parseSentenceList(['You may ' + thenMay[2] + '.', next]);
+        if (rest && rest.auto) { effects.push(...pre.effects); may = [s, thenMay[2]]; }
+      }
       /* "You may sacrifice another creature. If you do, you gain X life and
          draw X cards, where X is that creature's power." The sacrifice is
          asked for as the ability resolves, and X is read off what went. */
@@ -9921,7 +9941,7 @@
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
         if (cost) {
-          effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: s + ' ' + next });
+          effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: (thenMay && may[0] === s ? 'You may ' + thenMay[2] + '.' : s) + ' ' + next });
           if (!thenPart.auto) auto = false;
           // Rent Is Due: "… If you do, draw a card. Otherwise, sacrifice this enchantment."
           const other = (sentences[i + 2] || '').match(/^Otherwise,\s*(.+)$/i);
@@ -12126,6 +12146,8 @@
         m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
     // Merry, Esquire of Rohan: "Whenever you attack with Merry and another legendary creature" (withSelfAnd)
     { re: /^Whenever you attack with (?:CARDNAME|this creature) and another ([a-z ]+?), /i, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
+    // Goldbug, Scrappy Scout: "Whenever CARDNAME and at least one Human attack" — the same thing said the other way (withSelfAnd)
+    { re: /^Whenever (?:CARDNAME|this (?:creature|Vehicle)) and at least one ([A-Z][a-z]+) attack, /, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
     /* Horizon Explorer, Karazikar, the Eye Tyrant: "Whenever you attack a player" — once for each player attacked,
        "that player" the one attacked (attackerIsYou) */
     { re: /^Whenever you attack a player,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsYou: true } },

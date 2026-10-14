@@ -1515,7 +1515,9 @@
     'cantBlock', 'cantAttack', 'restrict', 'drain', 'discardChosen', 'exileChosen', 'handAttack', 'damageDivided',
     'revealHand', 'tapAll', 'noUntap', 'stealAll',
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library"
-    'exileTop']);
+    'exileTop',
+    // Ulrich, Uncontested Alpha: "have it fight target …"; Ravager of the Fells: "2 damage to … and 2 damage to …"
+    'fightSelf', 'damageSplit']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -2523,8 +2525,10 @@
           const e = this._resolvingEffect() || { op: ch.op || 'damage' };
           const out = [];
           (ch.options || []).forEach((list, i) => {
-            if (!list.length) return;
             const spec = specs[i] || {};
+            // Ravager of the Fells: "a creature that player or that planeswalker's controller controls" (sameControllerAsPrev)
+            if (spec.sameControllerAsPrev && i > 0) { const who = out[i - 1] && g._targetsController(out[i - 1]); list = list.filter(x => x.kind === 'object' && (g.obj(x.id) || {}).controller === who); }
+            if (!list.length) return;
             const best = this.pickTarget(spec, e, ch.sourceId ? g.obj(ch.sourceId) : null, { options: list, taken: out });
             const ok = best && list.some(x => x.kind === best.kind && x.id === best.id);
             out.push(ok ? best : this._leastBad(list, e));
@@ -3939,7 +3943,12 @@
       const g = this.game;
       const legal = opts.options || g._legalTargetsFor(spec, this.pid);
       const taken = opts.taken || [];
-      const free = legal.filter(t => !taken.some(x => x.kind === t.kind && x.id === t.id));
+      let free = legal.filter(t => !taken.some(x => x.kind === t.kind && x.id === t.id));
+      // Searing Blaze, Soul of Shandalar: "a creature that player or that planeswalker's controller controls" (sameControllerAsPrev)
+      if (spec && spec.sameControllerAsPrev && taken.length) {
+        const who = g._targetsController(taken[taken.length - 1]);
+        free = free.filter(t => t.kind === 'object' && (g.obj(t.id) || {}).controller === who);
+      }
       if (!free.length) return null;
       // Halvar, God of Battle (Codsworth, Brass Squire): what to move, and onto which creature (attachPlan)
       if (effect && effect.op === 'attachEquipment' && (effect.targets || []).length === 2) {

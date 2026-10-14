@@ -2381,11 +2381,15 @@
     isTargetablePlayer(p) {
       const t = this.targeting;
       if (!t || !p || p.hasLost) return false;
+      // (Ravager of the Fells: the targets in order — a player only where the words want one)
+      if (t.legal && t.slots && (t.specs || []).some(s => s && s.sameControllerAsPrev)) return (t.slots[t.chosen.length] || []).some(x => x.kind === 'player' && x.id === p.id);
       if (t.legal) return t.legal.has('player:' + p.id);
       const spec = t.specs[t.chosen.length] || {};
       if (t.chosen.some(c => c.kind === 'player' && c.id === p.id)) return false;
       if (spec.type === 'player' || spec.type === 'any') {
         if (spec.controller === 'opponent' && p.id === this.meId) return false;
+        // ("target opponent or planeswalker": not you — opponentOrWalker)
+        if (spec.type === 'any' && spec.opponent && p.id === this.meId) return false;
         if (spec.controller === 'you' && p.id !== this.meId) return false;
         return true;
       }
@@ -2469,6 +2473,15 @@
     isTargetable(o) {
       const t = this.targeting;
       if (!t) return false;
+      // Ravager of the Fells: "a creature that player or that planeswalker's controller controls" — in order, under the first one's
+      if (t.legal && t.slots && (t.specs || []).some(s => s && s.sameControllerAsPrev)) {
+        const sp = t.specs[t.chosen.length];
+        if (!(t.slots[t.chosen.length] || []).some(x => x.kind === 'object' && x.id === o.id)) return false;
+        const prev = t.chosen[t.chosen.length - 1];
+        if (!sp || !sp.sameControllerAsPrev || !prev) return true;
+        const p = prev.kind === 'object' ? this.objIn(prev.id) : null;
+        return o.controller === (prev.kind === 'player' ? prev.id : p && p.controller);
+      }
       if (t.legal) return t.legal.has('object:' + o.id);
       const spec = t.specs[t.chosen.length];
       if (!spec) return false;
@@ -2491,6 +2504,8 @@
         const p = prev && prev.kind === 'object' ? this.objIn(prev.id) : null;
         if (p && spec.ownedByPrevController && o.owner !== p.controller) return false;
         if (p && spec.sameControllerAsPrev && o.controller !== p.controller) return false;
+        // (Ravager of the Fells: "that player" — the player chosen first)
+        if (prev && prev.kind === 'player' && spec.sameControllerAsPrev && o.controller !== prev.id) return false;
       }
       // Gaea's Blessing, Dwell on the Past: cards from the graveyard of the player already chosen
       if (spec.ownedByTargetPlayer) {
