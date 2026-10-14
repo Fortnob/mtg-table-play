@@ -53,6 +53,10 @@
           (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
           (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
       }
+      if (this.convoking) {
+        const b2 = this.convokeBanner();
+        return set(b2.cls, b2.title, b2.sub, b2.extra);
+      }
       if (this.paying) {
         const p = this.paying;
         const pool = this.me && this.me.pool ? ['W', 'U', 'B', 'R', 'G', 'C'].map(c => `{${c}}`.repeat(this.me.pool[c] || 0)).join('') : '';
@@ -99,7 +103,7 @@
         if (ch.type === 'sacrifice')
           return set('ask', escapeHtml(ch.prompt || (ch.exileInstead ? 'Exile' : 'Sacrifice')), (ch.count || 1) > 1 ? `Choose ${ch.count} of your permanents.` : `${press()} one of your permanents.`);
         // a generic question answered on the board alone: what to click, and how the picks stand
-        if (ch.type === 'choose') {
+        if (this.chooseHere(ch)) {
           const s = this.chooseSpec(ch);
           const board = this.chooseBoardIds(s);
           if (s.kind === 'players' || (s.kind === 'objects' && s.items.length && s.items.every(x => board.has(x.id)))) {
@@ -310,7 +314,31 @@
     chooseSpec(ch) {
       if (!ch || ch.waiting) return null;
       if (ch.type === 'choose') return MTG.choice.normalize(ch);
-      return MTG.choice.fromLegacy(ch);
+      const s = MTG.choice.fromLegacy(ch);
+      return s && ch.type === 'pickCard' && ch.purpose === 'tapCost' ? this._tapCostSpec(ch, s) : s;
+    },
+    /**
+     * Creatures tapped to pay a cost (crew, "Tap two untapped creatures you
+     * control") are clicked where they stand rather than picked from a row
+     * of tiles. Crew wants power enough, not a count: any that add up, or
+     * none and the game picks (it tops up what is short).
+     */
+    _tapCostSpec(ch, s) {
+      const bf = (this.live || this.view).battlefield || [];
+      const items = (s.items || []).map(it => {
+        const o = bf.find(x => x.id === it.id);
+        return Object.assign({}, it, { power: o && o.power != null ? o.power : 0 });
+      });
+      const more = { items, panel: false };
+      if (ch.totalPower != null) {
+        Object.assign(more, { min: 0, max: items.length, noneLabel: 'Let the game choose', confirmLabel: 'Tap these',
+          constraints: [{ kind: 'sum', key: 'power', min: ch.totalPower, label: 'power' }] });
+      }
+      return MTG.choice.normalize(Object.assign({}, s, more));
+    },
+    /** Whether the board and the big button answer this question: a generic one, or creatures tapped for a cost. */
+    chooseHere(ch) {
+      return !!ch && (ch.type === 'choose' || (ch.type === 'pickCard' && ch.purpose === 'tapCost'));
     },
     /** What has been picked so far, kept for as long as the same question stands. */
     chooseSel(s) {
@@ -828,6 +856,7 @@
       const live = this.live || this.view;
       // another spell chosen while one waited for mana: that one goes back to waiting in your hand
       this.paying = null;
+      this.convoking = null;
       const all = (live.extras || {})[o.id] || [];
       // convoke, improvise and delve are not extra costs to toggle: they are what pays, asked about last
       const PAYS = ['convoke', 'improvise', 'delve'];
@@ -862,6 +891,8 @@
      * coming out of your mana. Two of them on one card share one limit.
      */
     askAltPay(steps, pays, next) {
+      // tapping creatures and artifacts is done on the board, where they stand (boardPay)
+      if (!pays.some(p => p.kind === 'delve')) return this.boardPay(steps, pays, next);
       const max = Math.max(...pays.map(p => p.max || 0));
       const sel = new Map(pays.map(p => [p.kind, []]));
       const total = () => [...sel.values()].reduce((n, l) => n + l.length, 0);
@@ -902,6 +933,143 @@
         ], { card: steps.o.card });
       } };
       this.render();
+    },
+
+    /**
+     * Convoke and improvise, paid on the board: what could tap for it
+     * glows where it stands, a click taps it for the spell and another
+     * takes it back, and the banner keeps count of what is paid. A
+     * creature pays a coloured symbol of its colour while one is still
+     * owed, else {1}, as the engine works it out (_convokeColors). Done
+     * casts with exactly those; leave it to the game and it picks.
+     */
+    boardPay(steps, pays, next) {
+      const cand = new Map();
+      // (an artifact creature that could do either convokes: it can pay a colour)
+      for (const kind of ['convoke', 'improvise']) {
+        const p = pays.find(x => x.kind === kind);
+        if (p) for (const id of p.candidates) if (!cand.has(id)) cand.set(id, kind);
+      }
+      const live = this.live || this.view;
+      const loc = this.locate(steps.o.id, live);
+      this.convoking = { steps, pays, next, cand, picks: [], max: Math.max(...pays.map(p => p.max || 0)),
+        zone: loc ? loc.zone : null, at: payMoment(live) };
+      MTG.sfx('click');
+      this.render();
+    },
+
+    /**
+     * Where a board payment stands: the cost, what each pick pays, what is
+     * left for mana, and how much of the generic part the picks may take.
+     */
+    convokeSums(c) {
+      c = c || this.convoking;
+      const live = this.live || this.view;
+      const offered = (live.extras || {})[c.steps.o.id] || [];
+      const syms = MTG.mana.parse(this._castCost(c.steps, offered));
+      const x = c.steps.x || 0;
+      let generic = 0;
+      const colored = [], other = [];
+      for (const s of syms) {
+        if (/^\d+$/.test(s)) generic += parseInt(s, 10);
+        else if (s === 'X') generic += x;
+        else if (/^[WUBRG]$/.test(s)) colored.push(s);
+        else other.push(s);
+      }
+      const colorsOf = (id) => {
+        const o = this.objIn(id);
+        const card = o && o.card;
+        if (!card) return [];
+        const face = card.card_faces && card.card_faces[o.face || 0];
+        return (face && face.colors) || card.colors || [];
+      };
+      /* which creature pays which coloured symbol: as many as their colours
+         cover between them, each creature once (a matching, as the engine's) */
+      const match = (ids) => {
+        const owner = new Map();
+        const can = colored.map(s => ids.filter(id => c.cand.get(id) === 'convoke' && colorsOf(id).includes(s)));
+        const tryAt = (i, seen) => {
+          for (const id of can[i]) {
+            if (seen.has(id)) continue;
+            seen.add(id);
+            const j = owner.get(id);
+            if (j == null || tryAt(j, seen)) { owner.set(id, i); return true; }
+          }
+          return false;
+        };
+        for (let i = 0; i < colored.length; i++) tryAt(i, new Set());
+        return owner;
+      };
+      const owner = match(c.picks);
+      const pays = new Map(c.picks.map(id => [id, owner.has(id) ? colored[owner.get(id)] : '1']));
+      const paidGeneric = c.picks.length - owner.size;
+      // the generic part the picks may take: what the offer allows past the colours the candidates could pay
+      const room = Math.max(0, c.max - match([...c.cand.keys()]).size);
+      const left = colored.filter((s, i) => ![...owner.values()].includes(i));
+      const restGeneric = Math.max(0, generic - paidGeneric);
+      const rest = (restGeneric ? `{${restGeneric}}` : '') + left.concat(other).map(s => `{${s}}`).join('');
+      const shown = (generic ? `{${generic}}` : '') + colored.concat(other).map(s => `{${s}}`).join('');
+      return { pays, paidGeneric, room, rest, cost: shown };
+    },
+
+    /** Tap a permanent for the spell, or take it back. */
+    convokeToggle(id) {
+      const c = this.convoking;
+      if (!c || !c.cand.has(id)) return false;
+      const at = c.picks.indexOf(id);
+      if (at >= 0) c.picks.splice(at, 1);
+      else {
+        if (c.picks.length >= c.max) { UI.error(`No more than ${c.max} of its cost can be paid this way.`); return true; }
+        const after = this.convokeSums(Object.assign({}, c, { picks: c.picks.concat([id]) }));
+        if (after.paidGeneric > after.room) { UI.error('Only a creature of the right colour can pay what is left this way.'); return true; }
+        c.picks.push(id);
+      }
+      MTG.sfx('click');
+      this.render();
+      return true;
+    },
+
+    /** Done: cast with what was chosen, or (`auto`, or nothing chosen) with what the game picks. */
+    convokeDone(auto) {
+      const c = this.convoking;
+      if (!c) return;
+      this.convoking = null;
+      if (auto || !c.picks.length) c.steps.altPay = null;
+      else {
+        c.steps.altPay = {};
+        for (const p of c.pays) c.steps.altPay[p.kind + 'Ids'] = c.picks.filter(id => c.cand.get(id) === p.kind);
+      }
+      c.next();
+      this.render();
+    },
+
+    convokeCancel() {
+      if (!this.convoking) return;
+      this.convoking = null;
+      this.render();
+    },
+
+    /** The banner while creatures are tapped for a spell. */
+    convokeBanner() {
+      const c = this.convoking;
+      const sums = this.convokeSums();
+      const n = c.picks.length;
+      const kinds = c.pays.map(p => p.kind);
+      const what = kinds.length > 1 ? 'Convoke and improvise' : kinds[0] === 'improvise' ? 'Improvise' : 'Convoke';
+      const noun = kinds.length > 1 ? 'creatures and artifacts' : kinds[0] === 'improvise' ? 'artifacts' : 'creatures';
+      const title = `${escapeHtml(c.steps.o.card.name)} — ${what}: ${n} of ${MTG.mana.html(sums.cost)} paid by ${noun}`;
+      const paid = c.picks.map(id => {
+        const o = this.objIn(id);
+        return `${escapeHtml(o && o.card ? o.card.name : 'it')} ${MTG.mana.html('{' + sums.pays.get(id) + '}')}`;
+      });
+      const sub = `${press()} your glowing ${noun} to tap them for it (up to ${c.max}).` +
+        (n ? ` ${paid.join(', ')}. ` + (sums.rest ? `The rest, ${MTG.mana.html(sums.rest)}, comes from your mana.` : 'Nothing is left to pay in mana.') : '');
+      const row = el('div', { class: 'ab-chips convoke-row' }, [
+        el('button', { type: 'button', class: 'btn sm', text: 'Cancel', title: 'Leave the spell in your hand (Esc)', onclick: () => this.convokeCancel() }),
+        el('button', { type: 'button', class: 'btn sm' + (n ? '' : ' primary'), text: 'Let the game choose', onclick: () => this.convokeDone(true) }),
+        el('button', { type: 'button', class: 'btn sm primary', text: 'Done', disabled: !n, title: 'Cast it, tapping these (Space)', onclick: () => this.convokeDone(false) }),
+      ]);
+      return { cls: 'ask convoke', title, sub, extra: { node: row, sig: c.picks.join(',') } };
     },
 
     /** Roughly how much mana you could make right now: untapped sources and the pool. */
@@ -1260,9 +1428,17 @@
 
     /** Before a render: a spell whose moment has passed is put back, and one that has gone through is done with. */
     _payStale() {
+      const live = this.live;
+      // creatures being chosen to convoke: put down with the moment, as a spell waiting for mana is
+      const c = this.convoking;
+      if (c) {
+        const loc = live ? this.locate(c.steps.o.id, live) : null;
+        if (!live || live.over || live.priorityPlayer !== this.meId || live.pendingChoice || payMoment(live) !== c.at || !loc || loc.zone !== c.zone) this.convoking = null;
+        // (one tapped or gone meanwhile pays nothing)
+        else c.picks = c.picks.filter(id => { const o = (live.battlefield || []).find(x => x.id === id); return o && !o.tapped; });
+      }
       const p = this.paying;
       if (!p) return;
-      const live = this.live;
       const loc = live ? this.locate(p.objId, live) : null;
       // (and once the game taps lands for you again, it is yours to choose again, paid that way)
       if (!live || live.over || this.autoTap() || live.priorityPlayer !== this.meId || live.pendingChoice || payMoment(live) !== p.at ||

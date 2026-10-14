@@ -168,6 +168,17 @@ const none = { querySelectorAll: () => [], querySelector: () => null, classList:
   mine.cls.delete('candidate'); mine.cls.add('chosen');
   T.accessLabels.call(t);
   check('a chosen attacker says how to hold it back', mine.getAttribute('aria-label').endsWith('. attacking, press Enter to hold it back'), mine.getAttribute('aria-label'));
+  // creatures tapped to convoke: what can tap, and what one tapping pays
+  v.pendingChoice = null;
+  t.convoking = { steps: { o: { id: 'h1' } } };
+  mine._convokeTag = { _sym: 'G' };
+  T.accessLabels.call(t);
+  check('a creature tapping to convoke says what it pays', /\. tapping to pay green, press Enter to take it back$/.test(mine.getAttribute('aria-label')), mine.getAttribute('aria-label'));
+  mine.cls.delete('chosen'); mine.cls.add('candidate');
+  T.accessLabels.call(t);
+  check('a creature that could convoke says so', mine.getAttribute('aria-label').endsWith('. can be tapped to pay for it'), mine.getAttribute('aria-label'));
+  t.decision = none; t.targeting = null;
+  check('convoking is a question', T.accessQuestion.call(t) === 'convoke:h1', T.accessQuestion.call(t));
 }
 
 /* ---- which keys the table takes ---- */

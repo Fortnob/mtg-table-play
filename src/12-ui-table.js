@@ -173,6 +173,7 @@
       this.seats = new Map();        // player id -> that seat's elements
       this.targeting = null;         // {need, specs, chosen:[], onDone, label, source}
       this.paying = null;            // a spell or ability held until you have tapped lands for it (12c)
+      this.convoking = null;         // creatures (or artifacts) being chosen on the board to pay for a spell (12c)
       this.tapOverride = null;       // the first-game walkthrough's say on tapping lands, for that game only
       this.attackPlan = null;        // {declarations:[], defenderId}
       this.blockPlan = null;         // {declarations:[], pendingBlocker}
@@ -288,6 +289,7 @@
         } else if (e.key === 'Escape') {
           if (this.preview.classList.contains('on')) this.hidePreview();
           if (this.paying) { this.cancelPay(); return; }
+          if (this.convoking) { this.convokeCancel(); return; }
           if (this.targeting && !this.targeting.legal) { this.cancelTargeting(); this.render(); return; }
           if (this._popover) { this.closePopover(); return; }
           if (this.drawerOpen) { this.toggleDrawer(false); return; }
@@ -1663,6 +1665,12 @@
         return { label: 'Choose a target', disabled: true, cls: 'idle', sub: t.label,
           secondary: t.legal ? null : { label: 'Cancel', fn: () => { this.cancelTargeting(); this.render(); } } };
       }
+      // creatures tapped to convoke: done, or the game picks them
+      if (this.convoking) {
+        const n = this.convoking.picks.length;
+        return { label: 'Done', cls: 'go', sub: n ? `${n} tapping for it` : 'the game picks what taps', title: 'Cast it (Space)',
+          secondary: { label: 'Cancel', title: 'Leave it in your hand (Esc)', fn: () => this.convokeCancel() } };
+      }
       // a spell waiting for you to tap lands: or the game taps the rest
       if (this.paying) return { label: 'Pay for me', cls: 'go', sub: 'tap the lands it needs',
         title: 'Let the game tap lands for the rest of the cost (Space)',
@@ -1690,7 +1698,7 @@
           const need = ch.count || 1;
           return { label: 'Discard', sub: `${this.discardSel.length}/${need} chosen`, cls: 'go', disabled: this.discardSel.length !== need };
         }
-        if (ch.type === 'choose') return this.choosePrimary(ch);
+        if (this.chooseHere(ch)) return this.choosePrimary(ch);
         if (ch.type === 'sacrifice') {
           const need = ch.count || 1;
           return { label: ch.exileInstead ? 'Exile' : 'Sacrifice', sub: `${this.sacSel.length}/${need} chosen`, cls: 'go', disabled: this.sacSel.length !== need };
@@ -1737,6 +1745,7 @@
         if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
         return;
       }
+      if (this.convoking) { this.convokeDone(false); return; }
       if (this.paying) { this.payForMe(); return; }
       const ch = live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
@@ -1755,7 +1764,7 @@
           this.discardSel = [];
           return;
         }
-        if (ch.type === 'choose') { this.chooseConfirm(ch); return; }
+        if (this.chooseHere(ch)) { this.chooseConfirm(ch); return; }
         if (ch.type === 'sacrifice' && this.sacSel.length === (ch.count || 1)) {
           this.send({ kind: 'choice', data: { cardIds: this.sacSel.slice() } });
           this.sacSel = [];
@@ -1807,10 +1816,12 @@
       const blk = this.blockPlan ? new Set(this.blockPlan.declarations.map(d => d.blockerId)) : null;
       // a spell waiting for mana: it is marked, and what could tap to pay for it glows
       const paySrc = this.paying && ready ? new Set(this.manaSources().map(o => o.id)) : null;
+      // creatures tapped to convoke: what each pays, on the card
+      const conv = this.convoking ? this.convokeSums() : null;
       for (const [id, n] of this.els) {
         const loc = n.parentElement;
         const inHand = !!(loc && loc.classList.contains('hslot'));
-        n.classList.toggle('playable', playable.has(id) && !this.targeting && !ch && !this.paying);
+        n.classList.toggle('playable', playable.has(id) && !this.targeting && !ch && !this.paying && !this.convoking);
         n.classList.toggle('pay-source', !!(paySrc && paySrc.has(id)));
         n.classList.toggle('paying', !!(this.paying && this.paying.objId === id));
         let target = false, cand = false, chosen = false;
@@ -1819,6 +1830,9 @@
           target = !!(o && o.zone === 'battlefield' && this.isTargetable(o));
           if (!o) { const loc = this.locate(id); if (loc && loc.zone === 'stack' && loc.item) target = this.isTargetableStack(loc.item); }
           if (this.targeting.chosen.some(t => t.id === id)) chosen = true;
+        } else if (conv) {
+          cand = this.convoking.cand.has(id) && !!this.objIn(id);
+          chosen = conv.pays.has(id);
         } else if (ch) {
           if (ch.type === 'declareAttackers') { cand = (ch.candidates || []).includes(id); chosen = !!(atk && atk.has(id)); }
           else if (ch.type === 'declareBlockers') {
@@ -1830,13 +1844,14 @@
             chosen = this.sacSel.includes(id);
           } else if (ch.type === 'discard' || ch.type === 'discardToHandSize') {
             cand = inHand; chosen = this.discardSel.includes(id);
-          } else if (ch.type === 'choose') {
+          } else if (this.chooseHere(ch)) {
             ({ cand, chosen } = this.chooseMark(ch, id));
           }
         }
         n.classList.toggle('targetable', target);
         n.classList.toggle('candidate', cand && !chosen);
         n.classList.toggle('chosen', chosen);
+        this._convokeMark(n, conv && chosen ? conv.pays.get(id) : null);
         n.classList.toggle('declared-atk', !!(atk && atk.has(id)));
         n.classList.toggle('declared-blk', !!(blk && blk.has(id)));
       }
@@ -1849,6 +1864,16 @@
       }
       this.handHost.classList.toggle('choosing', !!(ch && (ch.type === 'discard' || ch.type === 'discardToHandSize')));
       this.markCombat();
+    }
+
+    /** The symbol a creature tapped to convoke pays, on its card ({G}, or {1}); null takes it off. */
+    _convokeMark(n, sym) {
+      let tag = n._convokeTag;
+      if (!sym) { if (tag) { tag.remove(); n._convokeTag = null; } n.classList.remove('convoking'); return; }
+      if (!tag) { tag = n._convokeTag = el('div', { class: 'cv-convoke', 'aria-hidden': 'true' }); }
+      if (tag._sym !== sym) { tag._sym = sym; tag.innerHTML = MTG.mana.html('{' + sym + '}'); }
+      if (tag.parentElement !== n) n.appendChild(tag);
+      n.classList.add('convoking');
     }
 
     /* ---------------- input ---------------- */
@@ -2027,6 +2052,13 @@
         }
         return this.render();
       }
+      // tapping creatures for a spell: they are clicked where they stand; the spell clicked again goes back
+      if (this.convoking) {
+        if (this.convokeToggle(id)) return;
+        if (id === this.convoking.steps.o.id) return this.convokeCancel();
+        if (loc.zone === 'battlefield') UI.error('That cannot be tapped to pay for it.');
+        return;
+      }
       if (!this._ready()) return;
       const ch = live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
@@ -2035,7 +2067,7 @@
           toggleIn(this.discardSel, id, ch.count);
           return this.render();
         }
-        if (ch.type === 'choose' && this.chooseClick(ch, id)) return;
+        if (this.chooseHere(ch) && this.chooseClick(ch, id)) return;
         if (ch.type === 'sacrifice' && loc.zone === 'battlefield' && loc.o.controller === this.meId) {
           if ((ch.count || 1) === 1) { this.sacSel = []; return this.send({ kind: 'choice', data: { cardIds: [id] } }); }
           toggleIn(this.sacSel, id, ch.count);

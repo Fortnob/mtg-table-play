@@ -88,6 +88,7 @@
       [['Enter'], 'Attacking: on each creature to send in, again to hold it back; then Space'],
       [['Enter'], 'Blocking: on your creature, then on the attacker it blocks; two can block one; then Space'],
       [['N', 'Enter'], 'A target: N to the next thing that can be chosen, Enter to choose it'],
+      [['N', 'Enter'], 'Convoke: on each creature to tap for the spell, again to take it back; then Space'],
       [['Tab'], 'A question in the middle of the table takes the focus; Tab goes between its answers'],
     ]],
   ];
@@ -231,6 +232,7 @@
       const host = this.decision;
       if (host.classList.contains('on') && host.firstChild) return 'panel:' + (host._base || host._key || '');
       if (this.targeting) return 'aim:' + (this.targeting.cardName || this.targeting.label || '');
+      if (this.convoking) return 'convoke:' + this.convoking.steps.o.id;
       const ch = live && live.pendingChoice;
       if (ch && ch.playerId === this.meId && !ch.waiting) {
         if (ch.type === 'declareBlockers' && this.blockPlan && this.blockPlan.pendingBlocker) return 'blk:' + this.blockPlan.pendingBlocker;
@@ -378,12 +380,16 @@
         if (n.classList.contains('paying')) bits.push('waiting for its mana');
         if (n.classList.contains('pay-source')) bits.push('can be tapped for mana');
         if (n.classList.contains('targetable')) bits.push('can be chosen as the target');
-        if (n.classList.contains('candidate')) {
+        // tapping creatures to convoke: what can tap, and what each one tapping pays
+        const conv = this.convoking;
+        if (conv && n.classList.contains('candidate')) bits.push('can be tapped to pay for it');
+        else if (conv && n.classList.contains('chosen')) bits.push(`tapping to pay ${n._convokeTag ? spoken('{' + n._convokeTag._sym + '}') : 'for it'}, press Enter to take it back`);
+        else if (n.classList.contains('candidate')) {
           bits.push(!ch ? 'can be chosen' : ch.type === 'declareAttackers' ? 'can attack'
             : ch.type === 'declareBlockers' ? (pending && pending !== id ? 'press Enter to block it' : 'can block')
             : /discard/.test(ch.type) ? 'can be discarded' : ch.type === 'sacrifice' ? 'can be sacrificed' : 'can be chosen');
         }
-        if (n.classList.contains('chosen')) {
+        if (n.classList.contains('chosen') && !conv) {
           bits.push(ch && ch.type === 'declareAttackers' ? 'attacking, press Enter to hold it back'
             : ch && ch.type === 'declareBlockers' ? (pending === id ? 'blocking: now choose the attacker' : 'blocking') : 'chosen');
         } else if (n.classList.contains('declared-blk')) bits.push('blocking');

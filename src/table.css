@@ -155,6 +155,14 @@
 .cv.pay-source { cursor: pointer; }
 .cv.pay-source .cv-body { box-shadow: 0 0 0 2px var(--play), 0 0 16px 3px rgba(99,211,255,.5), 0 6px 14px rgba(0,0,0,.5);
   animation: playGlow 1.4s ease-in-out infinite; }
+/* convoke and improvise paid on the board: what could tap glows; what is tapping leans over, the symbol it pays on it */
+.cv.convoking:not(.tapped) .cv-body { rotate: 22deg; }
+.cv-convoke { position: absolute; left: 50%; top: 50%; translate: -50% -50%; z-index: 7; pointer-events: none;
+  padding: 4px; border-radius: 99px; background: rgba(12,14,20,.88); box-shadow: 0 0 0 2px var(--aim), 0 4px 10px rgba(0,0,0,.6); line-height: 0; }
+.cv-convoke .pip { width: max(16px, calc(var(--w) * .26)); height: max(16px, calc(var(--w) * .26)); font-size: max(10px, calc(var(--w) * .15)); margin: 0; }
+.arena-banner.convoke { border-color: rgba(255,201,77,.75); }
+.arena-banner .ab-sub .pip { width: 15px; height: 15px; font-size: 9.5px; vertical-align: -3px; }
+.convoke-row .btn { min-width: 74px; }
 .cv.attacking .cv-body, .cv.declared-atk .cv-body {
   box-shadow: 0 0 0 2px var(--atk), 0 0 22px 5px rgba(255,91,69,.55), 0 10px 20px rgba(0,0,0,.6); }
 .cv.blocking .cv-body, .cv.declared-blk .cv-body {
