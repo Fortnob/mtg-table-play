@@ -3242,7 +3242,7 @@
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c === o || c.impulseGroup !== o.impulseGroup) continue;
-          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null;
+          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null; c.impulseLess = null;
           if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; }
         }
       }
@@ -3598,6 +3598,8 @@
         if (c.words && c.words !== 'spell' && !this._cardFitsWords(o, c.words)) continue;
         d += c.amount;
       }
+      // Urianger Augurelt: a card it lets you play from exile, "{2} less" (impulseLess)
+      if (o.impulseLess && o.zone === 'exile' && o.impulseBy === pid && this._impulseOpen(o, pid)) d -= o.impulseLess;
       for (const sc of (a.selfCost || [])) {
         let k = 0;
         if (sc.per) k = this._countValue(sc.per, pid, o);
@@ -7560,6 +7562,9 @@
         const g = this._staticOp(src, 'grantCastKeyword');
         if (!g || g.keyword !== 'cascade') continue;
         if (g.minMv != null && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) < g.minMv) continue;
+        // Abaddon the Despoiler: during your turn, mana value no more than the life your opponents lost this turn (yourTurn, maxMvOppLifeLost)
+        if (g.yourTurn && !(this.activePlayer && this.activePlayer.id === item.controller)) continue;
+        if (g.maxMvOppLifeLost && ((item.obj.card && item.obj.card.cmc) || 0) + this._xMv(item) > this._countValue({ opponentsLifeLost: true }, item.controller, src)) continue;
         // Wild-Magic Sorcerer: the first spell cast from exile this turn, and no other
         if (g.fromZones && !g.fromZones.includes(item.fromZone)) continue;
         if (g.firstFromExile) { const ec = (this.player(item.controller) || {}).exileCastsTurn; if (!ec || ec.turn !== this.turn || ec.n !== 1) continue; }
@@ -14436,7 +14441,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null; o.impulseLess = null;
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
       }
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
@@ -14456,6 +14461,11 @@
       if (o._exileFromStack) {
         if (from === 'stack' && toZone === 'graveyard') toZone = 'exile';
         if (toZone !== 'stack') o._exileFromStack = false;
+      }
+      // Quintorius, Loremaster: "If that spell would be put into a graveyard, put it on the bottom of its owner's library instead."
+      if (o._bottomFromStack) {
+        if (from === 'stack' && toZone === 'graveyard') { toZone = 'library'; opts = Object.assign({}, opts, { toBottom: true }); }
+        if (toZone !== 'stack') o._bottomFromStack = false;
       }
       // "if a card would be put into a graveyard, exile it instead" and friends
       let markCounter = null;
@@ -15117,7 +15127,7 @@
       return em.length ? list.concat(em) : list;
     }
 
-    _fireDelayed(event, activePlayerId, controllerId) {
+    _fireDelayed(event, activePlayerId, controllerId, data) {
       if (!this.delayedTriggers.length) return;
       const keep = [];
       for (const d of this.delayedTriggers) {
@@ -15128,6 +15138,10 @@
           if (!x || x.zone !== 'exile' || x.exileStamp !== d.whileExiled) continue;
         }
         if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
+        // (Kelsien, the Plague: "this turn" over, gone; only that creature dying, as the one it was — watchObj)
+        if (d.untilTurn != null && this.turn !== d.untilTurn) continue;
+        if (d.watchObj && !(d.event === event && data && data.object && data.object.id === d.watchObj &&
+          (data.object._leftSeq || null) === d.watchLeftSeq)) { keep.push(d); continue; }
         const mine = d.event === event &&
           (d.controller == null || d.forPlayer == null || d.forPlayer === activePlayerId) &&
           // "your next end step" must not be the one we are already in
@@ -15172,7 +15186,7 @@
         const cp = this.player(controllerId);
         if (cp) { if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 }; cp.tokensCreated.n++; }
       }
-      this._fireDelayed(event, this.activePlayer && this.activePlayer.id, controllerId);
+      this._fireDelayed(event, this.activePlayer && this.activePlayer.id, controllerId, data);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
       const tData = {
         event, drawer: data.drawer, deadController: data.deadController,
@@ -15583,6 +15597,11 @@
           /* Firkraag, Cunning Instigator; Meriadoc Brandybuck; Gornog, the Red Reaper: "one or more Dragons you control attack an
              opponent" — among those at that one (attackersOfTypeHere) */
           if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
+          // Mila, Crafty Companion: an attack on at least one of this player's planeswalkers (attacksYourPlaneswalkers)
+          if (ab.attacksYourPlaneswalkers && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => {
+            const d = x && x.attacking && this.obj(x.attacking);
+            return !!d && d.zone === 'battlefield' && d.controller === o.controller && !!(d.analysis() || {}).isPlaneswalker;
+          })) continue;
           // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
@@ -20121,8 +20140,11 @@
         case 'reanimateChosen': {
           // (Nethroi, Apex of Death: "with total power 10 or less" — totalPower)
           const pw = (c) => Math.max(0, this.powerOf(c) || 0);
+          // (Orcus, Prince of Undeath: "up to X … with total mana value X or less" — the X paid)
+          const tmv = e.totalMv == null ? null : e.totalMv === 'X' ? Math.max(0, Number(n('X')) || 0) : e.totalMv;
+          if (e.n === 'X' && !(Number(n('X')) > 0)) break;
           const pool = this.zones[ctx.controller].graveyard.filter(c => (e.byWords ? this._cardFitsWords(c, e.what) : this._matchesCategory(c, e.what)) &&
-            (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv) && (e.totalPower == null || pw(c) <= e.totalPower));
+            (tmv == null || ((c.card && c.card.cmc) || 0) <= tmv) && (e.totalPower == null || pw(c) <= e.totalPower));
           if (!pool.length) break;
           /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
              that card to the battlefield with an additional +1/+1 counter on it. The creature is a Vampire …" — one card,
@@ -20148,20 +20170,23 @@
           const anyR = e.n === 'any';
           const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
             items: this._chooseItems(pool), min: 0, max: anyR ? pool.length : Math.min(n(e.n) || 1, pool.length),
-            prompt: `Return ${anyR ? 'any number of' : 'up to ' + n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') +
+            prompt: `Return ${anyR ? 'any number of' : 'up to ' + n(e.n)} ${e.what} cards` + (tmv != null ? ` with total mana value ${tmv} or less` : '') +
               (e.totalPower != null ? ` with total power ${e.totalPower} or less` : '') + ' to the battlefield.' },
-            e.totalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'mana value' }] }
+            tmv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: tmv, label: 'mana value' }] }
               : e.totalPower != null ? { constraints: [{ kind: 'sum', key: 'power', max: e.totalPower, label: 'power' }] } : {}), 'pick');
           if (got === SUSPEND) return SUSPEND;
           let total = 0;
+          this._lastGroup = [];
           for (const id of (got && got.picks) || []) {
             const x = this.obj(id);
             if (!x || !pool.includes(x) || x.zone !== 'graveyard') continue;
             const mv = e.totalPower != null ? pw(x) : (x.card && x.card.cmc) || 0;
-            if ((e.totalPower != null ? e.totalPower : e.totalMv) != null && total + mv > (e.totalPower != null ? e.totalPower : e.totalMv)) continue;
+            if ((e.totalPower != null ? e.totalPower : tmv) != null && total + mv > (e.totalPower != null ? e.totalPower : tmv)) continue;
             total += mv;
             this.moveObject(x, 'battlefield', { controller: ctx.controller });
             this.logEvent('reanimate', `${me.name} returns ${x.name} to the battlefield.`);
+            // ("They gain haste until end of turn": the ones back)
+            if (x.zone === 'battlefield') this._lastGroup.push(x.id);
           }
           break;
         }
@@ -20725,7 +20750,8 @@
           if (chosen.length < need) { this._spliceNext(e.otherwise); break; }
           // (a sacrifice and a discard like any other: Tergrid sees what went — sacOrDiscardAny)
           if (pay.sacrifice) this._sacrificeNow(ctx.controller, chosen);
-          else this._discardNow(ctx.controller, chosen);
+          // (Lukka, Wayward Bonder: "If a creature card was discarded this way" — didThisWay)
+          else { this._discardNow(ctx.controller, chosen); this._lastDiscarded = chosen.map(o => o.id); }
           this._spliceNext(e.then);
           break;
         }
@@ -23106,6 +23132,15 @@
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
           // Faramir, Prince of Ithilien: "that player's next end step" — the opponent chosen (forPlayer chosen)
           if (e.forPlayer === 'chosen' && !ctx.chosenPlayer) break;
+          /* Kelsien, the Plague: "When that creature dies this turn" — this one, should it die before the turn is
+             out and not having left in between (watchDeath: watchObj, watchLeftSeq, untilTurn) */
+          if (e.watchDeath) {
+            const w = objId && this.obj(objId);
+            if (!w || w.zone !== 'battlefield') break;
+            this.scheduleDelayed({ event: 'dies', controller: ctx.controller, objId: w.id, watchObj: w.id, watchLeftSeq: w._leftSeq || null,
+              untilTurn: this.turn, name: e.name || 'When that creature dies this turn', effects: e.effects || [] });
+            break;
+          }
           this.scheduleDelayed({
             event: e.event || 'eachEndStep',
             controller: ctx.controller,
@@ -23278,6 +23313,8 @@
               this.moveObject(o, e.to);
               // "You may play the exiled card this turn"
               if (e.to === 'exile' && e.playable) { o.impulseBy = ctx.controller; o.impulseUntil = this.turn; }
+              // (Urianger Augurelt: "You may exile it face down" — for its controller to look at)
+              if (e.faceDown && o.zone === 'exile') { o.faceDownExile = true; o.lookableBy = ctx.controller; }
             }
             else { o.zone = 'library'; this.moveObject(o, 'hand'); if (o.zone === 'hand') this._lookedToHand++; }
           }
@@ -23587,7 +23624,8 @@
         case 'mayPlayExiled': {
           // (Stolen Goods: "that card" — the card the digging stopped at, not every card it went past: thatCard)
           // (Lobelia, Defender of Bag End: "a card exiled with Lobelia" — whichever it turns out to be: exiledWith)
-          const ids = (e.exiledWith ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
+          // (Quintorius, Loremaster: "Choose target card exiled with Quintorius. You may cast that card …" — ofTarget)
+          const ids = (e.ofTarget ? targets.filter(t => t && t.kind === 'object').map(t => t.id) : e.exiledWith ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
             : e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
             : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
@@ -23628,10 +23666,13 @@
             if (e.payLife) c.impulsePayLife = pid;
             // Chiss-Goria, Forge Tyrant: "If you do, it has affinity for artifacts."
             if (e.affinity) c.impulseAffinity = e.affinity;
+            // Urianger Augurelt: "Spells you cast this way cost {2} less to cast." (impulseLess)
+            c.impulseLess = e.less || null;
             // the player who may play a face-down card may look at it
             if (c.faceDownExile) c.lookableBy = pid;
             if (e.faceUpForThem) c.faceDownExile = false;
             if (e.exileAfter) c._exileFromStack = true;
+            if (e.bottomAfter) c._bottomFromStack = true;
           }
           break;
         }
@@ -30960,6 +31001,11 @@
       }
       // Ground Seal: cards in graveyards can't be targeted
       if ((spec.zone === 'graveyard') && this.battlefield.some(o => !o.phasedOut && this._staticOp(o, 'graveyardUntargetable'))) return [];
+      // Quintorius, Loremaster: "target card exiled with Quintorius" (exiledWithSource)
+      if (spec.exiledWithSource) {
+        return this._legalTargetsFor(Object.assign({}, spec, { exiledWithSource: false }), controllerId, sourceId)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && !!sourceId && x.exiledWithId === sourceId; });
+      }
       // Callidus Assassin: "with the same name as this creature"
       if (spec.sameNameAsSource && sourceId) {
         const s0 = this.obj(sourceId);

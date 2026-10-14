@@ -1951,6 +1951,9 @@
     // Narset, Enlightened Exile: "Exile target noncreature, nonland card with mana value less than Narset's power from a graveyard" (maxMvBelowSourcePower)
     { re: /^Exile (target [a-z, ]+? card) with mana value less than (?:CARDNAME|this creature)'?s power from a graveyard\.?$/i,
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', maxMvBelowSourcePower: true })] } : null; } },
+    // Quintorius, Loremaster: "exile target noncreature, nonland card from your graveyard" — both at once
+    { re: /^Exile (target non[a-z]+, non[a-z]+ card) from your graveyard\.?$/i,
+      make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     { re: /^Exile (target [a-z ]+?) card with mana value (\d+|X) from your graveyard\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
@@ -5435,6 +5438,9 @@
        graveyard to the battlefield." — picked as it resolves, as "any number of target" is here (anyNumber) */
     { re: /^Return any number of target ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: 'any', what: m[1].toLowerCase(), totalMv: +m[2] }) },
+    // Orcus, Prince of Undeath: "Return up to X target creature cards with total mana value X or less …" — X as paid
+    { re: /^Return up to X target ([a-z]+) cards with total mana value X or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimateChosen', n: 'X', what: m[1].toLowerCase(), totalMv: 'X' }) },
     // Nethroi, Apex of Death: "return any number of target creature cards with total power 10 or less from your graveyard to the battlefield" (totalPower)
     { re: /^Return any number of target creature cards with total power (\d+) or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: 'any', what: 'creature', totalPower: +m[1] }) },
@@ -6470,6 +6476,10 @@
     { re: /^Transform CARDNAME at the beginning of the next upkeep\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, subject: 'self', name: 'Transform it at the next upkeep',
         effects: [{ op: 'transform', self: true, sinceNow: true }] }) },
+    // Lukka, Wayward Bonder: "Exile it at the beginning of your next upkeep."
+    { re: /^Exile (?:it|that (?:creature|token|permanent)) at the beginning of your next upkeep\.?$/i,
+      make: () => ({ op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
+        name: 'Exile it at your next upkeep', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
@@ -6502,6 +6512,14 @@
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
+    /* Kelsien, the Plague: "When that creature dies this turn, you get an experience counter." — the one aimed at,
+       watched for the rest of the turn (watchDeath) */
+    { re: /^When (?:that creature|it) dies this turn, (.+?)\.?$/i,
+      make: (m) => {
+        const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.'));
+        return pe.auto && pe.effects.length ? { op: 'delayed', event: 'dies', subject: 'lastTarget', watchDeath: true,
+          name: 'When that creature dies this turn', effects: pe.effects } : null;
+      } },
     { re: /^At the beginning of the next end step, sacrifice (it|that (?:creature|token|permanent))\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
@@ -10271,6 +10289,21 @@
       make: (m) => [{ op: 'exile', targets: [{ type: 'card', filter: `${m[1]} card or card with ${m[2]}`, zone: 'graveyard', controller: 'you', upTo: true,
         subtypeOrKeyword: { subtype: m[1].toLowerCase(), keyword: m[2].toLowerCase() } }] },
         { op: 'castCopy', of: 'last', pay: true, fromRes: true }] },
+    /* Quintorius, Loremaster: "Choose target card exiled with Quintorius. You may cast that card this turn without paying
+       its mana cost. If that spell would be put into a graveyard, put it on the bottom of its owner's library instead."
+       (exiledWithSource, ofTarget, bottomAfter) */
+    { re: /^Choose target card exiled with CARDNAME\. You may cast that card this turn without paying its mana cost\. If that spell would be put into a graveyard, put it on the bottom of its owner'?s library instead\.?$/i,
+      make: () => [{ op: 'mayPlayExiled', ofTarget: true, castOnly: true, free: true, duration: 'eot', bottomAfter: true,
+        targets: [{ type: 'card', filter: 'card', zone: 'exile', exiledWithSource: true }] }] },
+    /* Urianger Augurelt: "Look at the top card of your library. You may exile it face down." — exiled with Urianger,
+       for its "Play Arcanum" (faceDown) */
+    { re: /^Look at the top card of your library\. You may exile (?:it|that card) face down\.?$/i,
+      make: () => [{ op: 'lookAt', n: 1 }, { op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', optional: true, rest: 'keep', faceDown: true,
+        prompt: 'You may exile it face down.' }] },
+    /* Urianger Augurelt: "Until end of turn, you may play cards exiled with Urianger Augurelt. Spells you cast this way
+       cost {2} less to cast." (exiledWith, less) */
+    { re: /^Until end of turn, you may play cards exiled with CARDNAME\. Spells you cast this way cost \{(\d+)\} less to cast\.?$/i,
+      make: (m) => [{ op: 'mayPlayExiled', exiledWith: true, duration: 'eot', less: +m[1] }] },
     /* Tasigur, the Golden Fang: "Mill two cards, then return a nonland card of an opponent's choice from your graveyard
        to your hand." (returnOpponentsChoice) */
     { re: /^Mill (\w+) cards?, then return an? (nonland )?card of an opponent'?s choice from your graveyard to your hand\.?$/i,
@@ -11834,10 +11867,19 @@
       }
       if (e && e.insteadRider) {
         let found = false;
+        // (Lukka, Wayward Bonder: "You may discard a card. If you do, draw a card. If a creature card was discarded this
+        // way, draw two cards instead." — the draw inside the "if you do")
+        const hostIn = (x) => {
+          if (!x) return null;
+          if (x.op === e.insteadRider.op) return x;
+          for (const y of (x.then || []).slice().reverse()) { const h = hostIn(y); if (h) return h; }
+          return null;
+        };
         for (let i = out.length - 1; i >= 0 && !found; i--) {
-          if (out[i].op === e.insteadRider.op) {
-            const was = out[i].n;
-            out[i].n = { ifCond: e.insteadRider.cond, then: e.insteadRider.n, otherwise: was };
+          const host = hostIn(out[i]);
+          if (host) {
+            const was = host.n;
+            host.n = { ifCond: e.insteadRider.cond, then: e.insteadRider.n, otherwise: was };
             found = true;
           }
         }
@@ -13747,6 +13789,8 @@
        you with two or more creatures" */
     // Elesh Norn: "Whenever a source an opponent controls deals damage to you or a permanent you control"
     { re: /^Whenever a source an opponent controls deals damage to you or a permanent you control,? /i, event: 'damagedByOpponentSource' },
+    // Mila, Crafty Companion: "Whenever an opponent attacks one or more planeswalkers you control" (attacksYourPlaneswalkers)
+    { re: /^Whenever an opponent attacks one or more planeswalkers you control,? /i, event: 'anyPlayerAttacks', extra: { attackerIsOpponent: true, attacksYourPlaneswalkers: true } },
     // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
     { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
@@ -15432,7 +15476,9 @@
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
       const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || '')) ||
         // (Shigeki, Jukai Visionary: a channel cost with {X} in it, X chosen as it is channeled — channelX)
-        (ab.kind === 'castModifier' && ab.keyword === 'Channel' && !!out.channel && /\{X\}/.test(out.channel.cost || ''));
+        (ab.kind === 'castModifier' && ab.keyword === 'Channel' && !!out.channel && /\{X\}/.test(out.channel.cost || '')) ||
+        // (Orcus, Prince of Undeath: "When Orcus enters, …" — the X paid for it, which the permanent remembers)
+        (ab.kind === 'triggered' && ab.event === 'etb' && ab.self && /\{X\}/.test(out.manaCost || ''));
       // (a trigger counts its X as it resolves, when the targets are asked for: countedTargets)
       const countedOk = (mm) => ab.kind === 'triggered' && mm.count === 'triggerAmount';
       if (multi.some(mm => mm.count === 'X' ? !xPaid : mm.count !== 'any' && !countedOk(mm)) ||
@@ -18256,6 +18302,10 @@
       // Thrumming Stone: "Spells you cast have ripple 4."
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
+      /* Abaddon the Despoiler: "During your turn, spells you cast from your hand with mana value X or less have cascade,
+         where X is the total amount of life your opponents have lost this turn." (yourTurn, maxMvOppLifeLost) */
+      { re: /^(?:[A-Z][A-Za-z' ]+ \u2014 )?During your turn, spells you cast from your hand with mana value X or less have cascade, where X is the total amount of life your opponents have lost this turn\.?$/,
+        eff: { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['hand'], yourTurn: true, maxMvOppLifeLost: true }, auto: true },
       // Imoti, Celebrant of Bounty: "Spells you cast with mana value 6 or greater have cascade."
       // (Wildsear, Scouring Maw: "Enchantment spells you cast from your hand have cascade.")
       // (Zhulodok, Void Gorger: "Colorless spells you cast from your hand with mana value 7 or greater have "Cascade, cascade."" — two)
