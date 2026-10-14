@@ -32183,4 +32183,132 @@ module.exports = (test) => {
     M3.cast('A', M3.hand('A', 'Dragonlord Atarka'));
     t.no(M3.asked.some(ch => ch.type === 'choose'), 'no targets, no question');
   });
+
+  test('Commanders: Jeska, Thrice Reborn — loyalty for each commander cast, triple combat damage to opponents until A\'s next turn', (mk, t) => {
+    t.auto('Jeska, Thrice Reborn');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    const g = M.g;
+    const jeska = M.put('A', 'Jeska, Thrice Reborn', 'command');
+    jeska.isCommander = true;
+    g.player('A').commanderCasts[jeska.id] = 1;
+    // cast from the command zone the second time: two loyalty counters
+    M.mana('A', 'R4');
+    M.cast('A', jeska);
+    t.zone(jeska, 'battlefield');
+    t.eq(jeska.counters.loyalty, 2, 'cast from the command zone twice this game');
+    // 0: the Bears deal triple combat damage to B
+    const bears = M.bf('A', 'Grizzly Bears');
+    M.activate('A', jeska, 0, { targets: [bears.id] });
+    t.eq(jeska.counters.loyalty, 2);
+    M.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 14, 'Grizzly Bears: 6 to B');
+    // B's turn: still in force (until A's next turn) — but only Grizzly Bears, and only to A's opponents
+    M.nextTurn('B');
+    const ogre = M.bf('B', 'Gray Ogre');
+    M.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'A' }]);
+    M.toMain('B', 'endCombat');
+    t.eq(M.life('A'), 18, 'Gray Ogre: 2, not tripled');
+    // A's next turn: over
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 12, 'Grizzly Bears: 2 again');
+    // a Jeska never cast from the command zone: no loyalty, gone at once
+    const M2 = mk({ library: Array(30).fill('Mountain') });
+    M2.mana('A', 'R2');
+    const j2 = M2.hand('A', 'Jeska, Thrice Reborn');
+    M2.cast('A', j2);
+    t.zone(j2, 'graveyard', 'no commander cast: 0 loyalty');
+  });
+
+  test('Commanders: Sokrates, Athenian Teacher — combat damage to a player prevented, both draw half, this turn only', (mk, t) => {
+    t.auto('Sokrates, Athenian Teacher');
+    const M = mk({ library: Array(30).fill('Island') });
+    const sok = M.bf('A', 'Sokrates, Athenian Teacher');
+    const giant = M.bf('A', 'Hill Giant');
+    const handA = M.zone('A', 'hand').length, handB = M.zone('B', 'hand').length;
+    M.activate('A', sok, 0, { targets: [giant.id] });
+    t.ok(sok.tapped);
+    M.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 20, 'the 3 damage prevented');
+    t.eq(M.zone('A', 'hand').length, handA + 1, 'A draws half of 3, rounded down');
+    t.eq(M.zone('B', 'hand').length, handB + 1, 'and so does B');
+    // the next turn: gone
+    M.nextTurn('A');
+    const a2 = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: giant.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 17, 'until end of turn only');
+    t.eq(M.zone('A', 'hand').length, a2);
+    // hexproof while untapped
+    t.ok(M.g.hasKw(sok, 'hexproof'), 'untapped: hexproof');
+    sok.tapped = true; M.g.bumpBoard();
+    t.no(M.g.hasKw(sok, 'hexproof'), 'tapped: none');
+  });
+
+  test('Commanders: Garnet, Princess of Alexandria — lore counters off any number of Sagas, a +1/+1 counter for each', (mk, t) => {
+    t.auto('Garnet, Princess of Alexandria');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const gar = M.bf('A', 'Garnet, Princess of Alexandria');
+    const s1 = M.bf('A', 'History of Benalia', { counters: { lore: 2 } });
+    const s2 = M.bf('A', 'The Eldest Reborn', { counters: { lore: 1 } });
+    const s3 = M.bf('A', 'History of Benalia', { counters: { lore: 1 } });
+    const theirs = M.bf('B', 'The Eldest Reborn', { counters: { lore: 1 } });
+    M.answer('declareAttackers', () => [{ attackerId: gar.id, defenderId: 'B' }]);
+    M.answer('choose', (ch) => {
+      t.eq(ch.purpose, 'removeCountersChosen');
+      t.ok(ch.optional, 'any number: none too');
+      t.eq(ch.items.length, 3, 'A\'s three Sagas, not B\'s');
+      return { picks: [s1.id, s2.id] };
+    });
+    M.toMain('A', 'endCombat');
+    t.eq(s1.counters.lore, 1, 'one lore counter off History of Benalia');
+    t.eq(s2.counters.lore || 0, 0);
+    t.eq(s3.counters.lore, 1, 'not chosen');
+    t.eq(theirs.counters.lore, 1);
+    t.eq(gar.counters['+1/+1'], 2, 'two removed: two +1/+1 counters');
+    t.eq(M.life('B'), 16, 'a 4/4 lifelinker');
+    t.eq(M.life('A'), 24);
+    // none chosen: no counters
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: gar.id, defenderId: 'B' }]);
+    M.answer('choose', () => ({ picks: [] }));
+    M.toMain('A', 'endCombat');
+    t.eq(gar.counters['+1/+1'], 2, 'none removed, none put');
+  });
+
+  test('Commanders: Frodo, Adventurous Hobbit — 3 life gained: the Ring tempts; Ring-bearer tempted twice: a card', (mk, t) => {
+    t.auto('Frodo, Adventurous Hobbit');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    const frodo = M.bf('A', 'Frodo, Adventurous Hobbit');
+    const attack = () => { M.answer('declareAttackers', () => [{ attackerId: frodo.id, defenderId: 'B' }]); M.toMain('A', 'endCombat'); };
+    // no life gained: nothing
+    attack();
+    t.eq(g.player('A').ringLevel || 0, 0, 'no life gained: no tempting');
+    // 3 life: tempted once, Frodo the Ring-bearer, no card yet
+    M.nextTurn('A');
+    g.changeLife('A', 3);
+    let hand = M.zone('A', 'hand').length;
+    attack();
+    t.eq(g.player('A').ringLevel, 1);
+    t.eq(g.player('A').ringBearer, frodo.id, 'Frodo is the Ring-bearer');
+    t.eq(M.zone('A', 'hand').length, hand, 'tempted once: no card');
+    // again: the second time, a card
+    M.nextTurn('A');
+    g.changeLife('A', 2); g.changeLife('A', 1);
+    hand = M.zone('A', 'hand').length;
+    attack();
+    t.eq(g.player('A').ringLevel, 2);
+    t.eq(M.zone('A', 'hand').length, hand + 1, 'tempted twice, Frodo the Ring-bearer: a card');
+    // only 2 life: nothing
+    M.nextTurn('A');
+    g.changeLife('A', 2);
+    hand = M.zone('A', 'hand').length;
+    attack();
+    t.eq(g.player('A').ringLevel, 2, '2 life is not enough');
+    t.eq(M.zone('A', 'hand').length, hand);
+  });
 };

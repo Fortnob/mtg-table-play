@@ -10460,6 +10460,8 @@
         if (ef.toOpponent && ev.victimController === src.controller) return false;
         // Lightning, Army of One: "to that player or a permanent that player controls" (staggerDouble)
         if (ef.victimPlayer && ev.victimController !== ef.victimPlayer) return false;
+        // Jeska, Thrice Reborn: "that creature" — the one chosen, while it is still the same object (sourceId)
+        if (ef.sourceId && !(ev.source && ev.source.id === ef.sourceId && ev.source.zone === 'battlefield' && ev.source.ts === ef.sourceTs)) return false;
         // Gisela: "to you or a permanent you control"
         if (ef.toYou && ev.victimController !== src.controller) return false;
         // a prevention is no prevention when damage can't be prevented
@@ -10473,6 +10475,8 @@
         // The Sound of Drums, Inquisitor's Flail: combat damage from (or to) the creature it's attached to
         if (ef.combatOnly && !ev.combat) return false;
         if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
+        // Sokrates, Athenian Teacher: "If this creature would deal combat damage" — the one that has it
+        if (ef.fromSelf && !(ev.source && ev.source.id === src.id)) return false;
         if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;
         // Ojer Axonil: "an amount of noncombat damage less than Ojer Axonil's power" (atLeastSelfPower)
         if (ef.how === 'atLeastSelfPower' && !(src.zone === 'battlefield' && (ev.n || 0) < this.powerOf(src))) return false;
@@ -10535,6 +10539,19 @@
             this.logEvent('mill', `${p.name} mills ${ids.length} (${src.name}).`);
             this._noteMilled(p.id, ids);
           }
+          break;
+        }
+        /* Sokrates, Athenian Teacher: "prevent that damage. This creature's controller and that player each draw half
+           that many cards, rounded down." (preventDrawHalf) */
+        case 'preventDrawHalf': {
+          const k = ev.n || 0;
+          if (!(k > 0)) break;
+          ev.n = 0; ev.cancelled = true;
+          const half = Math.floor(k / 2);
+          if (!half) break;
+          const me = this.player(src.controller), them = this.player(ev.victimController);
+          this.logEvent('damage', `${src.name}: the damage is prevented; ${me ? me.name : 'its controller'} and ${them ? them.name : 'that player'} each draw ${half}.`);
+          for (const p of [me, them]) if (p && !p.hasLost) this._drawCards(p, half);
           break;
         }
         // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
@@ -11726,7 +11743,9 @@
         case 'selfAttachedToCreature': { const h = src && src.attachedTo && this.obj(src.attachedTo); return !!(h && h.zone === 'battlefield' && (this.characteristics(h) || {}).isCreature && (!cond.yours || h.controller === ctx.controller)); }
         case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
         case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
-        case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield');
+        // (Frodo, Adventurous Hobbit: "and the Ring has tempted you two or more times this game" — tempted)
+        case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield') &&
+          !(cond.tempted && !((me.ringLevel || 0) >= cond.tempted));
         case 'castWebSlinging': { const x = ctx.obj; return !!(x && x.webSlung != null && x.webSlung === x.wasCast); }
         case 'anyControlsColor': return this.battlefield.some(o => !o.phasedOut && ((O.analyze(o.card, o.face) || {}).colors || []).includes(cond.color));
         // Veil of Summer: "if an opponent has cast a blue or black spell this turn"
@@ -22087,6 +22106,33 @@
 
         // "Target creature blocks this creature this turn if able."
         // Vampire Hexmage: every counter of every kind comes off
+        /* Garnet, Princess of Alexandria: "remove a lore counter from each of any number of Sagas you control" — one
+           question, any number of them (none too); how many came off is "removed this way" (removeCountersChosen) */
+        case 'removeCountersChosen': {
+          this._lastRemovedCounters = 0;
+          const has = (o) => (e.all ? Object.values(o.counters || {}).some(c => Number(c) > 0) : (Number((o.counters || {})[e.kind]) || 0) > 0);
+          const pool = this.battlefield.filter(o => !o.phasedOut && (e.who !== 'you' || o.controller === ctx.controller) && has(o) &&
+            (e.whatAny ? e.whatAny.some(w => this._cardFitsWords(o, w)) : this._cardFitsWords(o, e.what || 'permanent')));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeCountersChosen', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true, counterKind: e.all ? null : e.kind,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.prompt || `remove a ${e.kind} counter from each of any number of ${e.what || 'permanent'}s you control.`}` }, 'rcc');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          for (const id of ((got && got.picks) || [])) {
+            const o = this.obj(id);
+            if (!o || !pool.includes(o) || o.zone !== 'battlefield') continue;
+            if (e.all) {
+              for (const [kind, c] of Object.entries(o.counters || {})) if (Number(c) > 0) { total += Number(c); this.addCounters(o, kind, -Number(c)); }
+            } else {
+              const k = Math.min(e.n || 1, Number(o.counters[e.kind]) || 0);
+              if (k > 0) { this.addCounters(o, e.kind, -k); total += k; }
+            }
+          }
+          this._lastRemovedCounters = total;
+          if (total) this.logEvent('counters', `${me.name} removes ${total} counter${total === 1 ? '' : 's'}.`);
+          break;
+        }
         case 'removeAllCounters': {
           const x = firstObj();
           if (!x || x.zone !== 'battlefield') break;
@@ -22949,6 +22995,13 @@
             if (!tp) break;
             ef = Object.assign({}, e.ef, { victimPlayer: tp.id });
             this.logEvent('rules', `Until ${me.name}'s next turn, damage to ${tp.name} and permanents ${tp.name} controls is doubled.`);
+          }
+          // Jeska, Thrice Reborn: "if that creature would deal combat damage …" — the one chosen, as this object (sourceLastTarget)
+          if (e.sourceLastTarget) {
+            const x = firstObj();
+            if (!x || x.zone !== 'battlefield') break;
+            ef = Object.assign({}, e.ef, { sourceId: x.id, sourceTs: x.ts });
+            this.logEvent('rules', `Until ${me.name}'s next turn, combat damage ${x.name} would deal to ${me.name}'s opponents is ${e.ef.how}d.`);
           }
           (this._floatingReps = this._floatingReps || []).push({ turn: this.turn, ef, until: e.until || null, taken: me.turnsTaken || 0,
             src: { id: this._uid('rep'), controller: ctx.controller, owner: ctx.controller, name: (src && src.name) || ctx.name || 'An effect' } });

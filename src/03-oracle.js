@@ -2078,6 +2078,12 @@
       } },
     // Aetheric Amplifier: "Double the number of each kind of counter you have."
     { re: /^Double the number of each kind of counter you have\.?$/i, make: () => ({ op: 'doublePlayerCounters' }) },
+    // Garnet, Princess of Alexandria: "Put a +1/+1 counter on Garnet for each lore counter removed this way."
+    { re: /^Put (a|an|one|two|three) ([+-]\d+\/[+-]\d+|[a-z]+) counters? on (?:CARDNAME|this creature) for each ([^.]+?)\.?$/i,
+      make: (m) => { const c = countOf(m[3], typeof num(m[1]) === 'number' ? num(m[1]) : 1); return c ? { op: 'counters', kind: m[2].toLowerCase(), n: c, scope: 'self' } : null; } },
+    // Garnet, Princess of Alexandria: "you may remove a lore counter from each of any number of Sagas you control" (removeCountersChosen)
+    { re: /^(?:You may )?remove an? ([a-z+\-0-9/]+) counter from each of any number of ([A-Z][a-z]+)s you control\.?$/i,
+      make: (m) => ({ op: 'removeCountersChosen', kind: m[1].toLowerCase(), n: 1, what: m[2], who: 'you' }) },
     // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
     { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
@@ -4546,6 +4552,11 @@
     { re: /^Until your next turn, if a source would deal damage to that player or a permanent that player controls, it deals double that damage (?:to that player or permanent )?instead\.?$/i,
       make: () => ({ op: 'floatingReplace', until: 'yourNextTurn', victimTriggerPlayer: true,
         ef: { op: 'replace', id: 'dmgStagger', event: 'damage', who: 'any', how: 'double' } }) },
+    /* Jeska, Thrice Reborn: "Until your next turn, if that creature would deal combat damage to one of your opponents,
+       it deals triple that damage to that player instead." — the creature chosen, for as long as it stays (sourceLastTarget) */
+    { re: /^Until your next turn, if that creature would deal combat damage to one of your opponents, it deals (double|triple) that damage to that player instead\.?$/i,
+      make: (m) => ({ op: 'floatingReplace', until: 'yourNextTurn', sourceLastTarget: true,
+        ef: { op: 'replace', id: 'dmgThatCreature', event: 'damage', who: 'any', how: m[1].toLowerCase(), combatOnly: true, toOpponent: true, toPlayerOnly: true } }) },
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
@@ -9978,6 +9989,8 @@
         }
         /* Kastral, the Windcrested: "You may put a Bird creature card from your hand or graveyard onto the
            battlefield" — the pick is the choice, one that can be passed up; with none, nothing is asked */
+        // (Garnet, Princess of Alexandria: "you may remove a lore counter from each of any number of Sagas" — any number is none too)
+        if (one && one.op === 'removeCountersChosen') { effects.push(Object.assign({}, one, { text: s })); continue; }
         if (one && one.op === 'permanentFromHand' && one.optional === false && (one.n == null || one.n === 1)) {
           const o = Object.assign({}, one, { text: s });
           delete o.optional;
@@ -10967,6 +10980,10 @@
     [/^you don'?t control a Ring-bearer$/i, () => ({ kind: 'noRingBearer' })],
     // Frodo: "if CARDNAME is your Ring-bearer"
     [/^(?:CARDNAME|this creature) is your Ring-bearer$/i, () => ({ kind: 'selfRingBearer' })],
+    /* Frodo, Adventurous Hobbit: "if Frodo is your Ring-bearer and the Ring has tempted you two or more times this
+       game" — the Ring's level is how many times, up to four (tempted) */
+    [/^(?:CARDNAME|this creature) is your Ring-bearer and the Ring has tempted you (two|three|four) or more times this game$/i,
+      (m) => ({ kind: 'selfRingBearer', tempted: num(m[1]) })],
     // The Reality Chip, The Aetherspark: "CARDNAME is attached to a creature"
     [/^(?:CARDNAME|this Equipment|this Aura) is attached to a creature$/i, () => ({ kind: 'selfAttachedToCreature' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
@@ -13901,7 +13918,8 @@
     if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
       const c = countOf(etbEach[3]);
       const k = /^an?(?: additional)?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
-      if (c && (plainCount(c) || c.spellsCastWords)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
+      // (Jeska, Thrice Reborn: "a loyalty counter on her for each time you've cast a commander from the command zone this game")
+      if (c && (plainCount(c) || c.spellsCastWords || c.commanderCasts)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     // Ulamog, the Defiler: "enters with a number of +1/+1 counters on it equal to the greatest mana value among cards in exile" (etbEqualTo)
@@ -15565,6 +15583,10 @@
        instead"; "If another creature would deal combat damage to equipped creature" */
     { re: /^If (enchanted|equipped) creature would deal combat damage(?: to a permanent or player)?, it deals double that damage instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgAttachedDouble', event: 'damage', who: 'any', how: 'double', fromAttached: true, combatOnly: true }) },
+    /* Sokrates, Athenian Teacher (the ability it hands out): "If this creature would deal combat damage to a player,
+       prevent that damage. This creature's controller and that player each draw half that many cards, rounded down." */
+    { re: /^If (?:this creature|CARDNAME) would deal combat damage to a player, prevent that damage\. (?:This creature|CARDNAME)'s controller and that player each draw half that many cards, rounded down\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgPreventDrawHalf', event: 'damage', who: 'any', how: 'preventDrawHalf', fromSelf: true, combatOnly: true, toPlayerOnly: true, prevention: true }) },
     { re: /^If another creature would deal combat damage to (enchanted|equipped) creature, it deals double that damage to (?:enchanted|equipped) creature instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgToAttachedDouble', event: 'damage', who: 'any', how: 'double', toAttached: true, combatOnly: true, sourceWords: 'creature' }) },
     /* Furnace of Rath, Dictate of the Twin Gods: any source, any victim;
@@ -16484,7 +16506,7 @@
          so counts as read rather than as a line nobody could parse. */
       // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two … counters on it for each" — etbEachMore)
       { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|an additional|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
-        make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
+        make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || (countOf(m[1]) || {}).commanderCasts || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
