@@ -1077,6 +1077,11 @@
     if ((q = s.match(/^ with mana value less than (?:CARDNAME|this creature)'?s power/i))) { e.mvBelowSelfPower = true; s = s.slice(q[0].length); }
     // Tiamat: "up to five Dragon cards not named Tiamat that each have different names" (notNamedSelf)
     if ((q = s.match(/^ not named CARDNAME/))) { e.notNamedSelf = true; s = s.slice(q[0].length); }
+    // Yisan, the Wanderer Bard: "with mana value equal to the number of verse counters on Yisan" (mv countersOnSelf)
+    let mvSaid = '';
+    if ((q = s.match(/^ with mana value equal to the number of ([a-z+\-0-9/]+) counters on (?:CARDNAME|this creature|this artifact|this enchantment)/i))) {
+      e.mv = { countersOnSelf: q[1].toLowerCase(), mult: 1 }; mvSaid = q[0]; s = s.slice(q[0].length);
+    }
     /* Light-Paws, Emperor's Voice: "an Aura card with mana value less than or equal to that Aura and with a different
        name than each Aura you control" — the Aura the trigger is about (maxMvTrigger), and none of your Auras' names */
     if ((q = s.match(/^ with mana value less than or equal to that ([a-z]+)( and with a different name than each ([a-z]+) you control)?/i))) {
@@ -1139,7 +1144,7 @@
       // (Tiamat: "not named Tiamat that each have different names" — the whole of what it asks for)
       (e.notNamedSelf ? ' not named CARDNAME' : '') + (e.differentNames ? (/that each have different names/i.test(sentence) ? ' that each have different names' : ' with different names') : '') +
       (e.maxMvTrigger ? (String(sentence).match(/ with mana value less than or equal to that [a-z]+(?: and with a different name than each [a-z]+ you control)?/i) || [''])[0] : '') +
-      (e.attachSelf ? ', to put onto the battlefield attached to CARDNAME' : '') + '.';
+      (e.attachSelf ? ', to put onto the battlefield attached to CARDNAME' : '') + mvSaid + '.';
     return after ? { op: 'sequence', list: [e, after] } : e;
   }
 
@@ -10045,6 +10050,18 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Neera, Wild Mage: "you may put it on the bottom of its owner's library. If you do, reveal cards from the top of
+       your library until you reveal a nonland card. You may cast that card without paying its mana cost. Then put all
+       revealed cards not cast this way on the bottom of your library in a random order." — "it" is the spell cast */
+    { re: /^you may put it on the bottom of its owner'?s library\. If you do, reveal cards from the top of your library until you reveal a nonland card\. You may cast that card without paying its mana cost\. Then put all revealed cards not cast this way on the bottom of your library in a random order\.?$/i,
+      make: () => [{ op: 'spellToLibrary', bottom: true, optional: true, then: [
+        { op: 'revealUntil', who: 'you', filter: 'nonland', n: 1, dest: 'stay', rest: 'stay' },
+        { op: 'castFree', from: 'revealed', upTo: 1 },
+        { op: 'revealedToBottom' }] }] },
+    /* Shiko and Narset, Unified: "copy that spell if it targets a permanent or player, and you may choose new targets
+       for the copy. If you don't copy a spell this way, draw a card." */
+    { re: /^copy that spell if it targets a permanent or player, and you may choose new targets for the copy\. If you don'?t copy a spell this way, draw a card\.?$/i,
+      make: () => [{ op: 'ifCond', cond: { kind: 'trigSpellTargetsPermOrPlayer' }, then: [{ op: 'copyThatSpell' }], otherwise: [{ op: 'draw', n: 1, who: 'you' }] }] },
     /* Yidaro, Wandering Monster: "shuffle it into your library from your graveyard. If you've cycled a card named Yidaro,
        Wandering Monster four or more times this game, put it onto the battlefield from your graveyard instead." */
     { re: /^shuffle (?:it|this card) into your library from your graveyard\. If you'?ve cycled a card named CARDNAME (\w+) or more times this game, put it onto the battlefield from your graveyard instead\.?$/i,
@@ -12832,6 +12849,9 @@
     // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
     { re: /^Whenever a creature( with power (\d+) or greater)? attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
       filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}), extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
+    // Neerdiv, Devious Diver: "… or activate an ability of a card in your graveyard" — either (fromGraveyardOnly)
+    { re: /^Whenever you cast a spell from your graveyard or activate an ability of a card in your graveyard,? /i,
+      event: 'youCastSpell', also: 'youActivateAbility', extra: { fromGraveyardOnly: true } },
     // Secrets of the Dead: "Whenever you cast a spell from your graveyard"
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
     // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)

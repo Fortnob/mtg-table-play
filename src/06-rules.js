@@ -8141,6 +8141,8 @@
       if (this._loopTick('activate', 5000)) return this.fail('That has been done too many times this step.');
       const o = this.obj(objId);
       if (!o) return this.fail('No such permanent.');
+      // (Neerdiv, Devious Diver: "an ability of a card in your graveyard" — where it is now, before any cost moves it)
+      const actFrom = o.zone;
       const a = o.analysis();
       if (!a) return this.fail('Unknown card.');
       const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
@@ -8329,7 +8331,7 @@
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || '') });
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -12427,6 +12429,14 @@
         /* Sweep Away, Emeria Shepherd: "if that creature is attacking", "if that land is a Plains" — the
            target the sentence before acted on, else what the trigger is about: the first that is that
            kind of thing (thatObjIs) */
+        /* Shiko and Narset, Unified: "copy that spell if it targets a permanent or player … If you don't copy a spell
+           this way, draw a card." — the spell still there, copiable, aiming at a permanent or a player */
+        case 'trigSpellTargetsPermOrPlayer': {
+          const sid = ctx && ctx.triggerData && ctx.triggerData.stackId;
+          const item = sid && this.stack.find(st => st.id === sid);
+          if (!item || !item.obj || this._uncopyable(item)) return false;
+          return (item.targets || []).some(t => t && (t.kind === 'player' ? !!this.player(t.id) : t.kind === 'object' && (this.obj(t.id) || {}).zone === 'battlefield'));
+        }
         // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro four or more times this game"
         case 'cycledNamedSelf': return !!me && !!src && (((me.cycledNames || {})[src.name]) || 0) >= (cond.n || 1);
         // Scriv, the Obligator's Contract: "if it's attacking one of your opponents" — a player, not their planeswalker
@@ -15225,7 +15235,8 @@
             if (!((myAll && (spTypes.length || spAll)) || (spAll && mine.length) || mine.some(x => spTypes.includes(x)))) continue;
           }
           // Secrets of the Dead: "a spell from your graveyard"
-          if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
+          // (Neerdiv, Devious Diver: "or activate an ability of a card in your graveyard" — where it was as it was activated)
+          if (ab.fromGraveyardOnly && !((data.spell && data.spell.fromZone === 'graveyard') || (event === 'youActivateAbility' && data.fromZone === 'graveyard'))) continue;
           // Melek, Izzet Paragon: "an instant or sorcery spell from your library"
           if (ab.castFromLibraryOnly && !(data.spell && data.spell.fromZone === 'library')) continue;
           // Nalfeshnee: "a spell from exile"
@@ -18557,6 +18568,32 @@
         }
 
         /* "…copy that spell." — the one whose casting set this off. */
+        /* Neera, Wild Mage: "you may put it on the bottom of its owner's library. If you do, …" — the spell the trigger is
+           about, while it is still a card on the stack; not asked otherwise */
+        case 'spellToLibrary': {
+          const sid = (ctx.triggerData || {}).stackId;
+          const item = sid && this.stack.find(st => st.id === sid);
+          if (!item || item.kind !== 'spell' || !item.obj || item.isCopy || item.obj.zone !== 'stack') break;
+          if (e.optional) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+              prompt: `Put ${item.name || item.obj.name} on the bottom of its owner's library?` }, 'spellToLib');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes === false) { this.logEvent('rules', `${me.name} declines.`); break; }
+          }
+          const card = item.obj;
+          this.moveObject(card, 'library', { toBottom: !!e.bottom });
+          this.logEvent('zone', `${card.name} goes to the ${e.bottom ? 'bottom' : 'top'} of its owner's library.`);
+          this._spliceNext(e.then);
+          break;
+        }
+        // Neera, Wild Mage: "Then put all revealed cards not cast this way on the bottom of your library in a random order."
+        case 'revealedToBottom': {
+          const rest = (this._revealedUntil || []).map(id => this.obj(id)).filter(c => c && c.zone === 'library');
+          this._revealedUntil = null;
+          for (const c of this.rng.shuffle(rest.slice())) this.moveObject(c, 'library', { toBottom: true });
+          if (rest.length) this.logEvent('zone', `${rest.length} revealed card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
+          break;
+        }
         case 'copyThatSpell': {
           const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
           const r = this.resolving;
@@ -18943,6 +18980,13 @@
             // Madcap Experiment: "the number of cards revealed this way" (revealedCountUntil)
             this._revealedCount = shown.length;
             const rest = shown.filter(c => !found.includes(c));
+            /* Neera, Wild Mage: the cards stay where they are, revealed — the one found to cast from there
+               (castFree revealed), the rest for whatever comes after (revealedToBottom) */
+            if (e.dest === 'stay') {
+              this._lastRevealed = found.length ? found[0].id : null;
+              this._revealedUntil = shown.map(c => c.id);
+              continue;
+            }
             for (const c of found) {
               if (e.dest === 'hand') this.moveObject(c, 'hand');
               else if (e.dest === 'graveyard') this.moveObject(c, 'graveyard');
