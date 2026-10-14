@@ -1711,6 +1711,14 @@
      * Oathbreaker's Signature Spell keeps its tax in the same tally, but it
      * is not a commander, so its casts are left out here.
      */
+    /** Henzie "Toolbox" Torre: "Blitz costs you pay cost {1} less for each time you've cast your commander from the
+        command zone this game." — less generic mana, never less than none (blitzLess) */
+    _blitzCost(pid, cost) {
+      let k = 0;
+      for (const s of this.battlefield) if (s.controller === pid && !s.phasedOut && this._staticOp(s, 'blitzLess')) k += this._commanderCastCount(pid);
+      if (!k) return cost;
+      return String(cost).replace(/\{(\d+)\}/, (w, d) => { const left = Math.max(0, +d - k); return left ? '{' + left + '}' : ''; }) || '{0}';
+    }
     _commanderCastCount(pid) {
       const cc = ((this.player(pid) || {}).commanderCasts) || {};
       let n = 0;
@@ -4877,7 +4885,8 @@
         /* Blitz (CR 702.152): cheap and fast, gone at end of turn, and it
            draws you a card on the way out. */
         if (o.zone === 'hand' && arg && k === 'blitz') {
-          out.push({ kind: 'cast', via: 'blitz', cost: arg, label: 'Blitz ' + arg });
+          const bc = this._blitzCost(playerId, arg);
+          out.push({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + bc });
         }
         /* Mutate (CR 702.140): cast for its mutate cost onto a non-Human
            creature you own, and the two become one. */
@@ -5003,6 +5012,12 @@
         }
         return null;
       };
+      /* Henzie "Toolbox" Torre: "Each creature spell you cast with mana value 4 or greater has blitz. The blitz cost is
+         equal to its mana cost." — offered when the card has no blitz of its own (grantBlitz) */
+      if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'blitz')) {
+        const gb = fbGrant('grantBlitz', e => ((o.card && o.card.cmc) || 0) >= (e.minMv || 0));
+        if (gb) { const bc = this._blitzCost(playerId, a.manaCost); out.push({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + bc }); }
+      }
       /* Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana
          cost." — offered when the card has no emerge of its own (grantEmerge) */
       if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'emerge') && this._anyStaticOf(playerId, 'grantEmerge') &&
@@ -24266,6 +24281,63 @@
           break;
         }
 
+        /* Baral and Kari Zev: "you may cast a spell with lesser mana value that shares a card type with it from your
+           hand without paying its mana cost. If you don't, …" — the spell the trigger is about, as it was cast; one pick
+           that may be left empty (castLesserFromHand) */
+        case 'castLesserFromHand': {
+          const r = this.resolving;
+          r && (r.marks = r.marks || {});
+          const slot = r ? r.index + ':lesser' : null;
+          let st = r && r.marks[slot];
+          if (!st) {
+            const td = ctx.triggerData || {};
+            const sp = td.objectId && this.obj(td.objectId);
+            const mv = sp ? (sp._castMv != null ? sp._castMv : ((sp.card && sp.card.cmc) || 0)) : -1;
+            const kinds = ((sp && sp.analysis()) || {}).types || [];
+            const pool = this.zones[ctx.controller].hand.filter(c => {
+              const ca = c.analysis();
+              return ca && !ca.isLand && ((c.card && c.card.cmc) || 0) < mv && (!e.sharesType || (ca.types || []).some(x => kinds.includes(x)));
+            });
+            st = { pool: pool.map(c => c.id), cast: false };
+            if (r) r.marks[slot] = st;
+          }
+          const pool = st.pool.map(id => this.obj(id)).filter(c => c && c.zone === 'hand');
+          if (pool.length && !st.done) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'castLesserFromHand', kind: 'objects', zone: 'hand', items: this._chooseItems(pool),
+              min: 0, max: 1, prompt: 'You may cast a spell with lesser mana value that shares a card type with it from your hand without paying its mana cost.' }, 'lsr');
+            if (got === SUSPEND) return SUSPEND;
+            const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x));
+            if (c) {
+              const tg = this._askSpellTargets(ctx.controller, c, 'lsrT');
+              if (tg === SUSPEND) return SUSPEND;
+              if (tg !== null) st.cast = !!this.castSpell(ctx.controller, c.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+            }
+            st.done = true;
+          }
+          if (!st.cast && (e.otherwise || []).length) this._spliceNext(e.otherwise);
+          break;
+        }
+        /* Demonlord Belzenlok: exile until a nonland card, that card into your hand; again while it has mana value 4 or
+           more; then 1 damage to you for each card put into your hand (digNonlandRepeat). The lands stay exiled. */
+        case 'digNonlandRepeat': {
+          const lib = this.zones[ctx.controller].library;
+          let got = 0;
+          for (let guard = 0; guard < 500 && lib.length; guard++) {
+            let hit = null;
+            while (lib.length) {
+              const c = lib[0];
+              this.moveObject(c, 'exile');
+              if (!(c.analysis() || {}).isLand) { hit = c; break; }
+            }
+            if (!hit) break;
+            this.moveObject(hit, 'hand');
+            got++;
+            this.logEvent('rules', `${me.name} puts ${hit.name} into their hand.`);
+            if (((hit.card && hit.card.cmc) || 0) < (e.repeatMv || 4)) break;
+          }
+          if (got && e.damageEach) this.dealDamageToPlayer(me, got * e.damageEach, src);
+          break;
+        }
         /* Dauthi Voidwalker: an exiled card of an opponent's with a void
            counter on it, playable this turn for nothing. */
         case 'playExiledFree': {

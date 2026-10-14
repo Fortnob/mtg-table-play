@@ -239,6 +239,8 @@
         /* "Escape—{2}{B}, …" hangs its cost off a dash rather than a
            space; the dash is punctuation, not part of the cost. */
         const arg = c.slice(m[1].length).replace(/^\s*\u2014\s*/, '').trim();
+        // (Henzie "Toolbox" Torre: "Blitz costs you pay cost {1} less …" is a sentence about the keyword, not the keyword)
+        if (/^costs? you pay\b/i.test(arg)) continue;
         return { keyword: base, arg: arg || null, text: c };
       }
     }
@@ -5117,6 +5119,14 @@
     // Aether Vial: "You may put a creature card with mana value equal to the number of charge counters on this artifact from your hand onto the battlefield."
     { re: /^You may put an? (creature|artifact|enchantment|permanent) card with mana value equal to the number of ([a-z]+) counters on (?:this artifact|this enchantment|CARDNAME) from your hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase() === 'permanent' ? 'any' : m[1].toLowerCase(), who: 'you', exactMv: { countersOnSelf: m[2].toLowerCase(), mult: 1 } }) },
+    /* Paladin Elizabeth Taggerdy: "draw a card, then you may put a creature card with mana value X or less from your hand
+       onto the battlefield tapped and attacking, where X is Paladin Elizabeth Taggerdy's power." — X as it resolves (maxMv) */
+    { re: /^Draw a card, then you may put an? ([a-z]+) card with mana value X or less from your hand onto the battlefield tapped and attacking, where X is (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        return k == null ? null : [{ op: 'draw', n: 1, who: 'you' },
+          { op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: k, tapped: true, attacking: true }];
+      } },
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
     // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
@@ -8507,6 +8517,19 @@
       make: (m) => {
         const rest = m[1] ? parseSentenceList(splitSentences(m[1])) : { auto: true, effects: [] };
         return rest.auto ? [{ op: 'eachMayRummage' }].concat(rest.effects) : null;
+      } },
+    /* Demonlord Belzenlok: "exile cards from the top of your library until you exile a nonland card, then put that card
+       into your hand. If the card's mana value is 4 or greater, repeat this process. Demonlord Belzenlok deals 1 damage
+       to you for each card put into your hand this way." (digNonlandRepeat) */
+    { re: /^[Ee]xile cards from the top of your library until you exile a nonland card, then put that card into your hand\. If the card'?s mana value is (\d+) or greater, repeat this process\. CARDNAME deals (\d+) damage to you for each card put into your hand this way\.?$/,
+      make: (m) => [{ op: 'digNonlandRepeat', repeatMv: +m[1], damageEach: +m[2] }] },
+    /* Baral and Kari Zev: "you may cast a spell with lesser mana value that shares a card type with it from your hand
+       without paying its mana cost. If you don't, create First Mate Ragavan, …. It gains haste until end of turn." —
+       one pick from the hand that may be left empty, and what follows if nothing was cast (castLesserFromHand) */
+    { re: /^[Yy]ou may cast a spell with lesser mana value that shares a card type with it from your hand without paying its mana cost\. If you don'?t, (.+)$/,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
+        return rest.auto && rest.effects.length ? [{ op: 'castLesserFromHand', sharesType: true, otherwise: rest.effects }] : null;
       } },
     /* Vendilion Clique: "look at target player's hand. You may choose a nonland card from it. If you do, that player
        reveals the chosen card, puts it on the bottom of their library, then draws a card." — one pick that may be
@@ -17866,6 +17889,12 @@
       // Lier, Disciple of the Drowned: "Spells can't be countered."
       { re: /^Spells can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all' }, auto: true },
       // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."
+      // Henzie "Toolbox" Torre: "Each creature spell you cast with mana value 4 or greater has blitz. The blitz cost is equal to its mana cost." (grantBlitz)
+      { re: /^Each creature spell you cast with mana value (\d+) or greater has blitz\. The blitz cost is equal to its mana cost\.?$/i,
+        make: (m) => ({ op: 'grantBlitz', minMv: +m[1] }), auto: true },
+      // Henzie "Toolbox" Torre: "Blitz costs you pay cost {1} less for each time you've cast your commander from the command zone this game." (blitzLess)
+      { re: /^Blitz costs you pay cost \{1\} less for each time you'?ve cast your commander from the command zone this game\.?$/i,
+        eff: { op: 'blitzLess', perCommanderCast: true }, auto: true },
       // Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana cost." (grantEmerge)
       { re: /^Each creature spell you cast has emerge\. The emerge cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmerge' }, auto: true },
       // Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value." (grantEncoreMv)
