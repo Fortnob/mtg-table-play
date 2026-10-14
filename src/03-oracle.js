@@ -871,7 +871,7 @@
     const probe = analyze({ id: 'emblemprobe:' + U.hash(text), name: 'Emblem', type_line: 'Emblem',
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc'];
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
@@ -901,6 +901,9 @@
       return Object.assign(e, { dest: 'graveyard', rest: 'graveyard' });
     }
     if (m[4] !== '.') return null;
+    // Old Stickfingers: "Put all creature cards revealed this way into your graveyard, then put the rest on the bottom of your library in a random order."
+    if (/^Put all [a-z ]+? cards revealed this way into (?:your|their) graveyard, then put the rest on the bottom of (?:your|their) library in a random order\.?$/i.test(rest))
+      return Object.assign(e, { dest: 'graveyard', rest: 'bottom' });
     const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
     if (!put) return null;
     e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
@@ -2077,7 +2080,8 @@
     // the subject may be the card's own name, "it", "this creature", etc.
     { re: new RegExp("^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\\u2019. ]){0,44}?\\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\\d+|X) damage to (" + TGT + ")\\.?$", 'i'),
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'damage', n: num(m[1]), targets: [t] } : null; } },
-    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control|creature and planeswalker your opponents control|creature and planeswalker)\.?$/i,
+    // (Omnath, Locus of Creation: "to each opponent and each planeswalker you don't control")
+    { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) damage to each (creature your opponents control|creature you control|creature|opponent|player|creature and each planeswalker|creature and each player|creature, planeswalker, and player|opponent and each creature they control|creature and planeswalker your opponents control|creature and planeswalker|opponent and each planeswalker you don'?t control)\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), each: m[2].toLowerCase() }) },
 
     // --- counters ---
@@ -16260,6 +16264,12 @@
       // Leonin Shikari, Forge Anew: "(During your turn,) you may activate equip abilities any time you could cast an instant."
       { re: /^(During your turn, )?you may activate equip abilities any time you could cast an instant\.?$/i,
         make: (m) => ({ op: 'instantEquip', yourTurn: !!m[1] }), auto: true },
+      // Tivit, Seller of Secrets: "While voting, you may vote an additional time."; Brago's Representative: "you get an additional vote"
+      { re: /^While voting, you (may vote an additional time|get an additional vote)\.?$/i,
+        make: (m) => ({ op: 'extraVote', optional: /may/i.test(m[1]) }), auto: true },
+      // Teferi, Temporal Archmage's emblem: loyalty abilities at instant speed, on anyone's turn
+      { re: /^You may activate loyalty abilities of planeswalkers you control on any player'?s turn any time you could cast an instant\.?$/i,
+        eff: { op: 'instantLoyalty' }, auto: true },
       // Moraug, Fury of Akoum: "Each creature you control gets +1/+0 for each time it has attacked this turn."
       { re: /^Each creature you control gets \+(\d+)\/\+(\d+) for each time it has attacked this turn\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' },

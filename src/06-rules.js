@@ -7301,7 +7301,7 @@
       if (!isMana && (!this.priorityPlayer || this.priorityPlayer.id !== playerId))
         return this.fail('You do not have priority.');
       if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab)) || ab.kind === 'loyalty') {
-        if (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty)
+        if (!this._equipAnyTime(playerId, ab) && (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty))
           return this.fail('That ability is sorcery speed only.');
         if (ab.kind === 'loyalty' && this._loyaltyUsedUp(o)) return this.fail(this._staticOp(o, 'loyaltyTwice') ? 'Two loyalty abilities per turn.' : 'One loyalty ability per turn.');
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
@@ -8262,6 +8262,9 @@
 
     /** Leonin Shikari, Forge Anew: equip at instant speed (during your turn, for Forge Anew). */
     _equipAnyTime(playerId, ab) {
+      // Teferi, Temporal Archmage's emblem: "You may activate loyalty abilities of planeswalkers you control on any
+      // player's turn any time you could cast an instant." (instantLoyalty)
+      if (ab && ab.kind === 'loyalty') return !!this._anyStaticOf(playerId, 'instantLoyalty');
       if (!ab || !/^Equip\b/i.test(ab.text || '')) return false;
       const s = this._anyStaticOf(playerId, 'instantEquip');
       if (!s) return false;
@@ -15008,6 +15011,8 @@
               if (!(a && a.isPlaneswalker) || (a.isCreature && /creature/.test(e.each))) continue;   // (dealt to once)
               if (/planeswalkers? (?:your opponents|they) control/.test(e.each) && o.controller === ctx.controller) continue;
               if (/planeswalkers? you control/.test(e.each) && o.controller !== ctx.controller) continue;
+              // Omnath, Locus of Creation: "each planeswalker you don't control"
+              if (/planeswalkers? you don'?t control/.test(e.each) && o.controller === ctx.controller) continue;
               this.dealDamageToObject(o, cnt, dsrc);
             }
           } else if (e.scope && typeof e.scope === 'object') {
@@ -16527,6 +16532,8 @@
             : e.who === 'targetController' ? [tgtOwner()].filter(Boolean)
             : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(Boolean) : [me];
           const want = Math.max(1, n(e.n == null ? 1 : e.n) || 0);
+          // Old Stickfingers cast for X = 0: until no creature card is revealed — none
+          if (e.n === 'X' && !(n(e.n) > 0)) break;
           for (const p of who) {
             const lib = this.zones[p.id].library;
             const found = [];
@@ -22203,6 +22210,22 @@
             const pick = got && got.picks.length ? got.picks[0] : 0;
             counts[pick]++;
             if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${e.choices[pick]}.`);
+            /* Tivit, Seller of Secrets: "While voting, you may vote an additional time." — another vote, which may be
+               for either choice or left out (a bot always takes it, the same way) */
+            const extra = this._extraVotes(p.id);
+            for (let k = 0; k < extra.length; k++) {
+              let more = pick;
+              if (!p.isBot) {
+                const g2 = this._choose({ playerId: p.id, purpose: 'vote', kind: 'options', min: extra[k].optional ? 0 : 1, max: 1,
+                  options: e.choices.map((c, i) => ({ i, label: U.titleCase(c) })),
+                  prompt: `${src ? src.name + ': ' : ''}${extra[k].optional ? 'you may vote an additional time' : 'your additional vote'}, for ${e.choices[0]} or ${e.choices[1]}.` }, 'vote' + p.id + ':' + k);
+                if (g2 === SUSPEND) return SUSPEND;
+                more = g2 && g2.picks.length ? g2.picks[0] : (extra[k].optional ? null : 0);
+              }
+              if (more == null) continue;
+              counts[more]++;
+              if (!this._doneHere('voted' + p.id + ':' + k)) this.logEvent('rules', `${p.name} votes again, for ${e.choices[more]}.`);
+            }
           }
           const run = [];
           if (e.mode === 'each') {
@@ -22227,6 +22250,20 @@
             votes.set(id, (votes.get(id) || 0) + 1);
             const x = this.obj(id);
             if (!this._doneHere('voted' + p.id)) this.logEvent('rules', `${p.name} votes for ${x ? x.name : 'a permanent'}.`);
+            // (Tivit, Seller of Secrets: an additional vote)
+            const extra = this._extraVotes(p.id);
+            for (let k = 0; k < extra.length; k++) {
+              let more = id;
+              if (!p.isBot) {
+                const g2 = this._choose({ playerId: p.id, purpose: 'voteObject', kind: 'objects', zone: 'battlefield',
+                  items: this._chooseItems(pool), min: extra[k].optional ? 0 : 1, max: 1,
+                  prompt: `${src ? src.name + ': ' : ''}${extra[k].optional ? 'you may vote an additional time' : 'your additional vote'}, for a permanent.` }, 'vo' + p.id + ':' + k);
+                if (g2 === SUSPEND) return SUSPEND;
+                more = g2 && g2.picks.length ? g2.picks[0] : (extra[k].optional ? null : pool[0].id);
+              }
+              if (more == null) continue;
+              votes.set(more, (votes.get(more) || 0) + 1);
+            }
           }
           const top = Math.max(...votes.values());
           for (const [id, k] of votes) {
@@ -24783,6 +24820,16 @@
       for (const p of this.players) for (const c of ((this.zones[p.id] || {}).command || [])) {
         const ca = c && c.analysis && c.analysis();
         if (ca && (ca.abilities || []).some(ab => ab.eminence)) out.push(c);
+      }
+      return out;
+    }
+    /** Tivit, Seller of Secrets, Brago's Representative: the additional votes this player has, each source one ({ optional }). */
+    _extraVotes(playerId) {
+      const out = [];
+      for (const o of this._withEmblems(this.battlefield)) {
+        if (o.controller !== playerId || o.phasedOut) continue;
+        const e = this._staticOp(o, 'extraVote');
+        if (e) out.push({ optional: !!e.optional });
       }
       return out;
     }

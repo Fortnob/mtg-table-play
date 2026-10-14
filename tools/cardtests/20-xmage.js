@@ -29964,4 +29964,111 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield', "Tevesh Szat: A's own commander too");
     t.eq(elfB.controller, 'B', 'Tevesh Szat: not a commander');
   });
+
+  test('Commanders: Teferi, Temporal Archmage — −10: an emblem, loyalty abilities any time A could cast an instant', (mk, t) => {
+    t.auto('Teferi, Temporal Archmage');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const lil = M.bf('A', 'Liliana of the Veil');
+    lil.counters.loyalty = 5;
+    // before the emblem: not on B's turn
+    M.nextTurn('B');
+    g.passPriority('B', true);
+    t.no(g.activateAbility('A', lil.id, 0), 'Teferi: no emblem, sorcery speed');
+    M.nextTurn('A');
+    const tef = M.bf('A', 'Teferi, Temporal Archmage');
+    tef.counters.loyalty = 10;
+    M.activate('A', tef, 2);
+    t.ok(g.zones.A.command.some(o => o.isEmblem || /Emblem/.test(o.name)), 'Teferi: an emblem');
+    // on B's turn, with priority: Liliana's +1
+    M.nextTurn('B');
+    g.passPriority('B', true);
+    M.hand('A', 'Opt'); M.hand('B', 'Opt');
+    t.ok(g.activateAbility('A', lil.id, 0), g.lastError);
+    M.resolve();
+    t.eq(lil.counters.loyalty, 6, 'Teferi: Liliana activated on B\'s turn');
+    // once a turn still
+    if (g.priorityPlayer && g.priorityPlayer.id === 'B') g.passPriority('B', true);
+    t.no(g.activateAbility('A', lil.id, 0), 'Teferi: still one loyalty ability a turn');
+  });
+
+  test('Commanders: Old Stickfingers — cast for X: reveal until X creature cards, those to the graveyard and the rest to the bottom', (mk, t) => {
+    t.auto('Old Stickfingers');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const craw = M.top('A', 'Craw Wurm');
+    const giant = M.top('A', 'Hill Giant');
+    const isl = M.top('A', 'Swamp');
+    const bear = M.top('A', 'Grizzly Bears');
+    const sf = M.hand('A', 'Old Stickfingers');
+    M.mana('A', '2BG');
+    M.cast('A', sf, { x: 2 });
+    t.zone(bear, 'graveyard'); t.zone(giant, 'graveyard', 'Old Stickfingers: two creature cards milled');
+    t.eq(g.zones.A.library[0], craw, 'Old Stickfingers: the third creature stays on top');
+    t.eq(g.zones.A.library[g.zones.A.library.length - 1], isl, 'Old Stickfingers: the rest on the bottom');
+    t.zone(sf, 'battlefield');
+    t.eq(g.powerOf(sf), 2); t.eq(g.toughnessOf(sf), 2, 'Old Stickfingers: two creature cards in the graveyard');
+    // X = 0: nothing revealed
+    const sf2 = M.hand('A', 'Old Stickfingers');
+    const top = g.zones.A.library[0];
+    M.mana('A', 'BG');
+    g.moveObject(sf, 'exile');
+    M.cast('A', sf2, { x: 0 });
+    t.eq(g.zones.A.library[0], top, 'Old Stickfingers: X = 0, nothing revealed');
+  });
+
+  test('Commanders: Omnath, Locus of Creation — landfall: 4 life, then {R}{G}{W}{U}, then 4 damage to each opponent and their planeswalkers', (mk, t) => {
+    t.auto('Omnath, Locus of Creation');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Omnath, Locus of Creation');
+    const mine = M.bf('A', 'Liliana of the Veil'); mine.counters.loyalty = 5;
+    const theirs = M.bf('B', 'Ajani Goldmane'); theirs.counters.loyalty = 4;
+    M.playLand('A', M.hand('A', 'Forest'));
+    t.eq(M.life('A'), 24, 'Omnath: the first time, 4 life');
+    g.moveObject(M.hand('A', 'Plains'), 'battlefield');
+    M.resolve();
+    const pool = M.player('A').pool;
+    t.ok((pool.R || 0) === 1 && (pool.G || 0) === 1 && (pool.W || 0) === 1 && (pool.U || 0) === 1, 'Omnath: the second time, {R}{G}{W}{U}');
+    t.eq(M.life('A'), 24);
+    g.moveObject(M.hand('A', 'Mountain'), 'battlefield');
+    M.resolve();
+    t.eq(M.life('B'), 16, 'Omnath: the third time, 4 to B');
+    t.eq(theirs.zone, 'graveyard', "Omnath: and 4 to B's planeswalker");
+    t.eq(mine.counters.loyalty, 5, "Omnath: not A's own");
+    t.eq(M.life('A'), 24);
+    // a fourth: nothing
+    g.moveObject(M.hand('A', 'Swamp'), 'battlefield');
+    M.resolve();
+    t.eq(M.life('B'), 16, 'Omnath: nothing the fourth time');
+    t.eq(M.life('A'), 24);
+  });
+
+  test('Commanders: Tivit, Seller of Secrets — council\'s dilemma, and A may vote an additional time', (mk, t) => {
+    t.auto('Tivit, Seller of Secrets');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const asked = [];
+    M.answer('choose', (ch) => { asked.push(ch); return { picks: [0] }; });
+    M.answer('choose', (ch) => { asked.push(ch); return { picks: [1] }; });
+    M.answer('choose', (ch) => { asked.push(ch); return { picks: [0] }; });
+    const tv = M.put('A', 'Tivit, Seller of Secrets', 'battlefield', { etb: true });
+    M.resolve();
+    t.eq(asked.map(ch => ch.playerId).join(''), 'AAB', 'Tivit: A votes twice, B once');
+    t.eq(asked[1].min, 0, 'Tivit: the additional vote may be left out');
+    const count = (n) => M.bfOf('A').filter(o => o.name === n).length;
+    t.eq(count('Clue'), 2, 'Tivit: two evidence votes, two Clues');
+    t.eq(count('Treasure'), 1, 'Tivit: one bribery vote, a Treasure');
+    // the additional vote left out
+    g.moveObject(tv, 'exile');
+    const asked2 = [];
+    M.answer('choose', (ch) => { asked2.push(ch); return { picks: [1] }; });
+    M.answer('choose', (ch) => { asked2.push(ch); return { picks: [] }; });
+    M.answer('choose', (ch) => { asked2.push(ch); return { picks: [1] }; });
+    M.put('A', 'Tivit, Seller of Secrets', 'battlefield', { etb: true });
+    M.resolve();
+    t.eq(asked2.length, 3);
+    t.eq(count('Treasure'), 3, 'Tivit: two more bribery votes');
+    t.eq(count('Clue'), 2, 'Tivit: no more Clues');
+  });
 };
