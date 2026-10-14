@@ -456,7 +456,8 @@
       /* each with its symbol, and a picture behind the word: grey until the
          pointer is on it, or it is where you are */
       el('nav', { class: 'topnav', 'aria-label': 'Main' }, NAV.map(([id, label]) => el('button', {
-        type: 'button', class: 'topnav-btn', dataset: { nav: id },
+        // (named for a narrow window, where the tab shows its symbol alone)
+        type: 'button', class: 'topnav-btn', dataset: { nav: id }, title: label, 'aria-label': label,
         onclick: () => navTo(id),
       }, [
         decorArt(el('span', { class: 'topnav-art', 'aria-hidden': 'true' }), TILE_ART[id]),

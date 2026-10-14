@@ -348,6 +348,11 @@ html[data-play="1"] .shard-chip { display: none; }
 .seg.mini { display: inline-flex; border-radius: 9px; overflow: hidden; border: 1px solid rgba(255,255,255,.12); }
 .seg.mini .seg-btn { padding: 5px 10px; border: 0; background: rgba(255,255,255,.04); color: inherit; font: 600 12px var(--font); cursor: pointer; }
 .seg.mini .seg-btn.on { background: var(--gold-mid, #d6a84a); color: #1a1205; }
+/* a phone: the search and the sort share a row, and the rarity and colour
+   chips stretch to the screen's width rather than running off its edge */
+:root[data-phone] .col-filters select, :root[data-phone] .col-filters input { flex: 1 1 140px; min-width: 0; }
+:root[data-phone] .col-filters .seg.mini { display: flex; width: 100%; }
+:root[data-phone] .col-filters .seg.mini .seg-btn { flex: 1 1 auto; min-width: 0; padding-left: 4px; padding-right: 4px; }
 .col-status { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; font-size: 13px; }
 .col-bar { display: inline-block; width: 200px; height: 7px; border-radius: 99px; background: rgba(255,255,255,.1); overflow: hidden; }
 .col-bar i { display: block; height: 100%; background: linear-gradient(90deg, #8a5be8, #d1a9ff); }

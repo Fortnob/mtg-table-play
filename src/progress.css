@@ -215,10 +215,16 @@ html[data-play="1"] .inbox-chip { display: none; }
 @media (max-width: 1100px) { .home-today { grid-template-columns: repeat(3, minmax(0, 1fr)); } .home-tiles.four { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; } }
 @media (max-width: 640px) { .home-today { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
-/* the top bar keeps to one line */
+/* the top bar keeps to one line, and the Sound button and the Shards at its
+   end stay on screen: the name goes first, then the room the tabs take, the
+   solo badge, and on a narrow window the tabs' words (their symbols stay);
+   failing all that, the tabs scroll rather than push the end off the edge */
 .brand-name { white-space: nowrap; }
-@media (max-width: 1240px) { .topbar .brand-name { display: none; } }
-@media (max-width: 1080px) { .topnav-btn { padding-left: 8px !important; padding-right: 8px !important; } .net-badge { display: none !important; } }
+@media (max-width: 1366px) { .topbar .brand-name { display: none; } }
+@media (max-width: 1240px) { .topnav-btn { padding-left: 8px !important; padding-right: 8px !important; } .net-badge { display: none !important; } }
+@media (max-width: 1060px) { :root:not([data-phone]) .topnav-label { display: none; } }
+:root:not([data-phone]) .topnav { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+:root:not([data-phone]) .topnav::-webkit-scrollbar { display: none; }
 
 .rank-play { align-items: center; }
 .rank-play-label { letter-spacing: .1em; text-transform: uppercase; }

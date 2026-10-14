@@ -81,6 +81,10 @@
 
 /* ---------- spacing: the other screens ---------- */
 .store, .collection, .profile { padding-top: 22px; }
+/* as wide as the screen and no wider: centred in the screen's column, the
+   Collection and the Profile would otherwise grow to their widest row and
+   run off the side of a phone */
+.collection, .profile { width: 100%; min-width: 0; }
 .store-tabs { margin-top: 6px; }
 .store-body, .profile-body { padding-top: 4px; }
 .store-grid { gap: 18px; }
