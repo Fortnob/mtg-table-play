@@ -1603,6 +1603,14 @@
       });
       return { picks: picks.map(o => o.id) };
     },
+    /* Yorion, Sky Nomad: what is worth entering again at the end step — a card with an enters ability, never a
+       token (gone for good) */
+    flickerAny(s) {
+      const g = this.game;
+      const picks = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).filter(o => !o.isToken &&
+        ((o.analysis() || {}).abilities || []).some(ab => ab.kind === 'triggered' && ab.event === 'etb' && ab.self));
+      return { picks: picks.map(o => o.id) };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

@@ -31232,4 +31232,123 @@ module.exports = (test) => {
     t.eq(M.life('B'), 10, 'Tinybones: B has no cards in hand');
     t.eq(M.life('C'), 20, 'Tinybones: C has a card');
   });
+
+  test('Commanders: Urza, Prince of Kroog — {6}: a token copy of an artifact, a 1/1 Soldier creature too', (mk, t) => {
+    t.auto('Urza, Prince of Kroog');
+    const M = mk();
+    const urza = M.bf('A', 'Urza, Prince of Kroog');
+    const stone = M.bf('A', 'Mind Stone');
+    const theirs = M.bf('B', 'Mind Stone');
+    const robot = M.bf('A', 'Ornithopter');
+    t.eq(M.g.powerOf(robot), 2, 'Urza: artifact creatures get +2/+2');
+    M.mana('A', '6');
+    t.no(M.g.activateAbility('A', urza.id, 0, { auto: true, targets: [M.tgt(theirs)] }), 'Urza: not an artifact B controls');
+    M.activate('A', urza, 0, { targets: [stone] });
+    const tok = M.bfOf('A').find(o => o.isToken);
+    t.ok(tok && tok.name === 'Mind Stone', 'Urza: a copy of Mind Stone');
+    t.eq(tok.card.type_line, 'Artifact Creature \u2014 Soldier', 'Urza: an artifact creature');
+    t.ok(M.g.characteristics(tok).isCreature, 'Urza: a creature');
+    t.ok(M.g._hasCreatureType(tok, 'Soldier'), 'Urza: a Soldier');
+    t.eq(M.g.powerOf(tok), 3, 'Urza: 1/1, and +2/+2 from Urza');
+    t.eq(M.g.toughnessOf(tok), 3, 'Urza: toughness');
+    t.ok(M.g.manaAbilitiesOf(tok).length, 'Urza: with the copied abilities');
+  });
+
+  test('Commanders: Ajani, Nacatl Pariah — a Cat token, and another Cat dying turns him into the Avenger', (mk, t) => {
+    t.auto('Ajani, Nacatl Pariah // Ajani, Nacatl Avenger');
+    const M = mk();
+    const aj = M.bf('A', 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger', { etb: true });
+    M.resolve();
+    const cat = M.bfOf('A').find(o => o.isToken);
+    t.ok(cat && M.g._hasCreatureType(cat, 'Cat') && M.g.powerOf(cat) === 2, 'Ajani: a 2/1 Cat Warrior');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.g.moveObject(bear, 'graveyard');
+    M.resolve();
+    t.eq(aj.face || 0, 0, 'Ajani: not for a creature that is no Cat');
+    M.g.moveObject(cat, 'graveyard');
+    M.resolve();
+    t.zone(aj, 'battlefield');
+    t.eq(aj.face, 1, 'Ajani: transformed');
+  });
+  test('Commanders: Ajani, Nacatl Avenger — 0: a Cat, then damage only with another red permanent', (mk, t) => {
+    const M = mk();
+    const aj = M.bf('A', 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger');
+    aj.face = 1; aj.counters.loyalty = 3; aj._chr = null; M.g.bumpBoard();
+    M.bf('A', 'Grizzly Bears');
+    M.activate('A', aj, 1, { targets: ['B'] });
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'Ajani: a Cat Warrior token');
+    t.eq(M.life('B'), 20, 'Ajani: no red permanent, no damage');
+    M.bf('A', 'Raging Goblin');
+    M.nextTurn('A');
+    M.activate('A', aj, 1, { targets: ['B'] });
+    // Grizzly Bears, Raging Goblin and two Cats
+    t.eq(M.life('B'), 16, 'Ajani: damage equal to the creatures A controls');
+  });
+  test('Commanders: Ajani, Nacatl Avenger — +2: a +1/+1 counter on each Cat you control', (mk, t) => {
+    const M = mk();
+    const aj = M.bf('A', 'Ajani, Nacatl Pariah // Ajani, Nacatl Avenger');
+    aj.face = 1; aj.counters.loyalty = 3; aj._chr = null; M.g.bumpBoard();
+    const cat = M.bf('A', 'Savannah Lions');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.activate('A', aj, 0);
+    t.eq(cat.counters['+1/+1'], 1, 'Ajani: a Cat');
+    t.no(bear.counters['+1/+1'], 'Ajani: not a Bear');
+    t.eq(aj.counters.loyalty, 5, 'Ajani: +2 loyalty');
+  });
+
+  test('Commanders: Syr Vondam, Sunstar Exemplar — another creature of yours dying or exiled: a counter and 1 life', (mk, t) => {
+    t.auto('Syr Vondam, Sunstar Exemplar');
+    const M = mk();
+    const sv = M.bf('A', 'Syr Vondam, Sunstar Exemplar');
+    const b1 = M.bf('A', 'Grizzly Bears'), b2 = M.bf('A', 'Grizzly Bears'), b3 = M.bf('A', 'Grizzly Bears');
+    const theirs = M.bf('B', 'Grizzly Bears');
+    M.g.moveObject(b1, 'graveyard'); M.resolve();
+    t.eq(sv.counters['+1/+1'], 1, 'Syr Vondam: one died');
+    t.eq(M.life('A'), 21, 'Syr Vondam: 1 life');
+    M.g.moveObject(b2, 'exile'); M.resolve();
+    t.eq(sv.counters['+1/+1'], 2, 'Syr Vondam: one exiled');
+    M.g.moveObject(b3, 'hand'); M.resolve();
+    M.g.moveObject(theirs, 'graveyard'); M.resolve();
+    t.eq(sv.counters['+1/+1'], 2, "Syr Vondam: not one returned to hand, nor B's");
+    t.eq(M.life('A'), 22, 'Syr Vondam: life');
+  });
+  test('Commanders: Syr Vondam, Sunstar Exemplar — leaving with power 4 or greater: destroy up to one nonland permanent', (mk, t) => {
+    const M = mk();
+    const sv = M.bf('A', 'Syr Vondam, Sunstar Exemplar', { counters: { '+1/+1': 2 } });
+    const ring = M.bf('B', 'Sol Ring');
+    const land = M.bf('B', 'Forest');
+    let opts = null;
+    M.answer('pickTarget', (ch) => { opts = ch.options; return { targets: [ring.id] }; });
+    M.g.moveObject(sv, 'exile'); M.resolve();
+    t.ok(opts && !JSON.stringify(opts).includes(land.id), 'Syr Vondam: not a land');
+    t.zone(ring, 'graveyard');
+    const sv2 = M.bf('A', 'Syr Vondam, Sunstar Exemplar', { counters: { '+1/+1': 1 } });
+    const ring2 = M.bf('B', 'Sol Ring');
+    M.g.moveObject(sv2, 'graveyard'); M.resolve();
+    t.zone(ring2, 'battlefield', 'Syr Vondam: power 3, nothing');
+  });
+
+  test('Commanders: Yorion, Sky Nomad — enters: any number of your other nonland permanents away until the end step', (mk, t) => {
+    t.auto('Yorion, Sky Nomad');
+    const M = mk();
+    const elf = M.bf('A', 'Llanowar Elves');
+    const stone = M.bf('A', 'Mind Stone');
+    const forest = M.bf('A', 'Forest');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const tok = M.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    const theirs = M.bf('B', 'Grizzly Bears');
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [elf.id, stone.id, tok.id] }; });
+    const yo = M.bf('A', 'Yorion, Sky Nomad', { etb: true });
+    M.resolve();
+    t.ok(asked, 'Yorion: asked');
+    const offered = asked.items.map(x => x.id);
+    t.ok([elf, stone, bear, tok].every(o => offered.includes(o.id)), 'Yorion: nonland permanents of A');
+    t.no([forest, theirs, yo].some(o => offered.includes(o.id)), 'Yorion: not a land, not B\'s, not itself');
+    t.zone(elf, 'exile'); t.zone(stone, 'exile'); t.zone(bear, 'battlefield');
+    M.toMain('A', 'end'); M.resolve();
+    const back = M.bfOf('A').map(o => o.name);
+    t.ok(back.includes('Llanowar Elves') && back.includes('Mind Stone'), 'Yorion: back at the end step');
+    t.eq(back.filter(n => n === 'Grizzly Bears').length, 1, 'Yorion: the token is gone for good');
+  });
 };

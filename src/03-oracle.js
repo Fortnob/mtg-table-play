@@ -2166,6 +2166,10 @@
        them (exileAnyUntilLeaves) */
     { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you control until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileAnyUntilLeaves', filter: m[1].toLowerCase().replace(/s$/, '') }) },
+    /* Yorion, Sky Nomad: "exile any number of other nonland permanents you own and control" — picked as it
+       resolves, for "Return those cards …" to bring back (exileAnyOwn) */
+    { re: /^Exile any number of other (nonland permanents|creatures|artifacts|enchantments|permanents) you own and control\.?$/i,
+      make: (m) => ({ op: 'exileAnyOwn', filter: m[1].toLowerCase().replace(/s$/, '') }) },
     // Ixalan's Binding's kin, en masse: "exile all artifacts your opponents control until this … leaves"
     { re: /^Exile (all|each) ([a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => {
@@ -3428,7 +3432,8 @@
     // Tidehollow Sculler, the Champions: "return the exiled card to its owner's hand"
     { re: /^Return the exiled cards? to (?:its|their) owners?'?s?'? hands?\.?$/i, make: () => ({ op: 'returnHeld' }) },
     // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
-    { re: /^Return (?:those cards|the exiled cards|them) to the battlefield under (?:their|its) owner'?s'? control at the beginning of the next end step\.?$/i,
+    // (Yorion, Sky Nomad: "Return those cards to the battlefield at the beginning of the next end step." — their owner's, as ever)
+    { re: /^Return (?:those cards|the exiled cards|them) to the battlefield(?: under (?:their|its) owner'?s'? control)? at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return them at end of turn', effects: [{ op: 'returnThat' }] }) },
     { re: /^(Exile|Sacrifice) (?:them|those (?:creatures|tokens)) at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'made', name: m[1] + ' them at end of turn',
@@ -6253,6 +6258,10 @@
     { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
+    // Urza, Prince of Kroog: "…a copy of target artifact you control, except it's a 1/1 Soldier creature in addition to its other types."
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
+        ? { op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], addSubtypes: [m[4]], addTypes: ['Creature'], targets: [spec] } : null; } },
     // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
@@ -10565,6 +10574,8 @@
       const sc = scopeOf((/^another$/i.test(m[1]) ? 'other ' : '') + words + ' you control');
       return sc ? { kind: 'control', scope: sc, n: 1 } : null;
     }],
+    // Ajani, Nacatl Avenger: "if you control a red permanent other than Ajani" — another one
+    [/^you control an? ([a-zA-Z ,'-]+?) other than CARDNAME$/i, (m) => condOf('you control another ' + m[1])],
     // the Scarabs: "an opponent controls a black permanent" — any group the scope words can describe
     [/^an opponent controls (?:an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
       const words = m[1].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)/g, '$1s');
@@ -11355,6 +11366,13 @@
     { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
     { re: /^Whenever an opponent commits a crime,? /i, event: 'opponentCommitCrime' },
+    /* Syr Vondam, Sunstar Exemplar: "Whenever another creature you control dies or is put into exile" — leaving
+       for either (toZoneIn); "When Syr Vondam dies or is put into exile while its power is 4 or greater" — as it
+       last was (selfPower, lki) */
+    { re: /^When(?:ever)? (?:CARDNAME|this creature) dies or is put into exile while its power is (\d+) or greater, /i, event: 'dies', also: 'exiledFromBf', self: true,
+      extraOf: (m) => ({ condition: { kind: 'selfPower', n: +m[1], lki: true } }) },
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die) or (?:is|are) put into exile(?:,| )', 'i'),
+      event: 'permLeaves', extra: { toZoneIn: ['graveyard', 'exile'] }, filt: (m) => subjectFilter(m[1]) },
     // Daxos, Blessed by the Sun: "Whenever another creature you control enters or dies"
     /* Satoru, the Infiltrator: "Whenever Satoru and/or one or more other nontoken creatures you control enter" — once
        for the lot, itself one of them or not (selfOk, batch) */

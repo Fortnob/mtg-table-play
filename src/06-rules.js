@@ -11362,7 +11362,8 @@
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
-        case 'selfPower': return !!src && this.powerOf(src) >= (cond.n || 0);
+        // (Syr Vondam: "while its power is 4 or greater" — as it last was, once it has gone)
+        case 'selfPower': return !!src && (cond.lki && src.zone !== 'battlefield' && src._lastPower != null ? src._lastPower : this.powerOf(src)) >= (cond.n || 0);
         // Amalia Benavides Aguirre: "if its power is exactly 20" (selfPowerIs)
         case 'selfPowerIs': return !!src && this.powerOf(src) === cond.n;
         case 'selfToughnessMax': return !!src && this.toughnessOf(src) <= (cond.n || 0);
@@ -13592,6 +13593,8 @@
           if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
           // Athreos, Shroud-Veiled: "dies or is put into exile" — of its leaving, only for exile (exileLeave)
           if (ab.exileLeave && event === 'permLeaves' && data.toZone !== 'exile') continue;
+          // (Urza, Prince of Kroog and its kin: leaving for these zones only — toZoneIn)
+          if (ab.toZoneIn && !ab.toZoneIn.includes(data.toZone)) continue;
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
           // Double Vision: the first spell of that kind this turn (this one not yet counted)
@@ -18605,7 +18608,9 @@
           // "except it's an artifact in addition to its other types"
           for (const t of (e.addTypes || [])) {
             if (new RegExp('\\b' + t + '\\b').test(String(card.type_line || ''))) continue;
-            const line = t + ' ' + String(card.type_line || '');
+            // (Urza, Prince of Kroog: "a 1/1 Soldier creature" — an artifact's "Artifact Creature — Soldier")
+            const line = t === 'Creature' ? String(card.type_line || '').replace(/^([^\u2014]*?)(\s*\u2014|$)/, '$1 Creature$2')
+              : t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
           }
           /* Delina, Wild Mage: "it has 'At end of combat, exile this token.'" — the copy's own words, so a
@@ -20651,6 +20656,23 @@
           this._leavingTogether = null;
           this._lastSweep = k;
           if (k) this.logEvent('exile', `${me.name} exiles ${k} permanent${k === 1 ? '' : 's'} until ${src.name} leaves the battlefield.`);
+          break;
+        }
+        /* Yorion, Sky Nomad: "exile any number of other nonland permanents you own and control" — one pick, those
+           exiled for "Return those cards …" (exiledNow) */
+        case 'exileAnyOwn': {
+          const pool = this.battlefield.filter(o => o !== src && !o.phasedOut && o.controller === ctx.controller && o.owner === ctx.controller &&
+            this._cardFitsWords(o, e.filter || 'nonland permanent'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'flickerAny', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
+            prompt: `${src ? src.name + ': ' : ''}${whole(e.text || '').replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it')}` }, 'exOwn');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'battlefield');
+          this._leavingTogether = picks;
+          for (const o of picks) this.moveObject(o, 'exile');
+          this._leavingTogether = null;
+          if (picks.length) this.logEvent('exile', `${me.name} exiles ${picks.map(o => o.name).join(', ')}.`);
           break;
         }
         // Oubliette: out of the game while this stays, back when it goes
