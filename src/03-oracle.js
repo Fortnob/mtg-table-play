@@ -372,6 +372,8 @@
       /* Toralf's Hammer, Razor Boomerang: "Equipped creature has '{T}, Unattach Razor Boomerang: …'" — the Equipment
          that hands the ability out, taken off as the price (unattachGranter; granterWords) */
       if (/^Unattach the granting Equipment$/i.test(p)) { cost.unattachGranter = true; continue; }
+      // Captain America, First Avenger: "Unattach an Equipment from Captain America" — one of those on it (unattachEquipment)
+      if (/^Unattach an Equipment from (?:CARDNAME|this creature)$/i.test(p)) { cost.unattachEquipment = true; continue; }
       // Toggo, Goblin Weaponsmith's Rock: "Sacrifice Rock" in the equipped creature's hands (sacGranter)
       if (/^Sacrifice the granting Equipment$/i.test(p)) { cost.sacGranter = true; continue; }
       // "Return this creature to its owner's hand": the permanent itself as the price
@@ -5317,6 +5319,10 @@
           anyFrom: Object.assign(targetSpec('target creature' + (m[2] ? ' or planeswalker' : '') + ' an opponent controls'), { upTo: true }),
           anyPrompt: `choose any number of creatures${m[2] ? ' and/or planeswalkers' : ''} your opponents control to divide ${x ? 'X' : num(m[1])} damage among` };
       } },
+    // Captain America, First Avenger: "He deals damage equal to that Equipment's mana value divided as you choose among one, two, or three targets." (ofUnattached)
+    { re: /^(?:He|She|It|CARDNAME) deals damage equal to that Equipment'?s mana value divided as you choose among one, two, or three targets\.?$/i,
+      make: () => ({ op: 'damageDivided', n: { ofUnattached: 'mv' },
+        targets: [0, 1, 2].map(i => Object.assign({ type: 'any', filter: 'any target', distinct: true }, i ? { upTo: true } : {})) }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
@@ -6855,6 +6861,10 @@
     { re: /^(You may )?search your library and\/or graveyard for (?:a card named ([^.]+?)|an? ([-a-zA-Z ]+?) card)(?:, reveal it,)? and (?:then )?put it (into your hand|onto the battlefield)\.?$/i,
       make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[2] ? 'card' : m[3].toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', alsoGraveyard: true },
         m[2] ? { named: m[2] } : {}, /reveal it/i.test(m[0]) ? { reveal: true } : {}) },
+    // Kassandra, Eagle Bearer: "search your graveyard, hand, and library for a card named The Spear of Leonidas, put it onto the battlefield, then shuffle" (alsoHand)
+    { re: /^Search your graveyard, hand, and library for a card named ([^.]+?), put it onto the battlefield, then shuffle\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: 'card', named: m[1], to: 'battlefield', alsoGraveyard: true, alsoHand: true,
+        prompt: `Search your graveyard, hand, and library for a card named ${m[1]}.` }) },
     /* Waterlogged Teachings: "an instant card or a card with flash" */
     { re: /^Search your library for an instant card or a card with flash, reveal it, put it into your hand, then shuffle\.?$/i,
       make: () => ({ op: 'tutor', n: 1, filter: 'any', instantOrFlash: true, to: 'hand' }) },
@@ -9901,6 +9911,11 @@
         { op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', rest: 'bottom' }] },
     { re: /^Look at the top card of your library\. You may put (?:it|that card) into your graveyard\.?$/i,
       make: () => [{ op: 'surveil', n: 1 }] },
+    /* Chiss-Goria, Forge Tyrant: "You may cast an artifact spell from among them this turn. If you do, it has affinity
+       for artifacts." — one of them, and cheaper for each artifact you control as it is cast (impulseAffinity) */
+    { re: /^Exile the top (\w+) cards of your library\. You may cast an artifact spell from among them this turn\. If you do, it has affinity for artifacts\.?$/i,
+      make: (m) => [{ op: 'impulse', n: num(m[1]), play: false },
+        { op: 'mayPlayExiled', castOnly: true, words: 'artifact', oneOf: true, duration: 'eot', affinity: 'artifacts' }] },
     { re: /^Exile the top (?:(\w+) )?cards? of your library\. Until the end of your next turn, you may play (?:that card|them|those cards)\.?$/i,
       make: (m) => [{ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: true }] },
     { re: /^Exile the top (?:(\w+) )?cards? of your library\. You may play (?:that card|them|those cards) this turn\.?$/i,
@@ -11162,7 +11177,8 @@
     // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
     // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
     // (The Ancient One: "Descend 8 \u2014 \u2026" \u2014 a number after the word)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (Captain America, First Avenger: "... Catch — At the beginning of combat …" — a label that starts with an ellipsis)
+    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -12270,6 +12286,9 @@
       } else if ((m = p.match(/ with an? mana ability$/i))) {
         // Raggadragga, Goreguts Boss: "a creature you control with a mana ability" (withManaAbility)
         f.withManaAbility = true; p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with a legendary Equipment attached to it$/i))) {
+        // Kassandra, Eagle Bearer: "a creature you control with a legendary Equipment attached to it" (legendaryEquipped)
+        f.legendaryEquipped = true; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with toughness greater than its power$/i))) {
         // Fecund Greenshell: "another creature you control with toughness greater than its power"
         f.toughGtPow = true; p = p.slice(0, m.index);
@@ -13251,6 +13270,11 @@
        — each time, to each one (exactAmount) */
     { re: /^When(?:ever)? another source you control deals exactly (\d+) damage to a permanent or player,? /i, event: 'yourSourceDealsDamage',
       extraOf: (m) => ({ exactAmount: +m[1], notSelf: true }) },
+    /* The Red Terror: "Whenever a red source you control deals damage to one or more permanents and/or players" — once
+       for each source each time it deals damage, however many it hits (sourceColor, batchPerSource) */
+    { re: /^When(?:ever)? an? (white|blue|black|red|green) source you control deals damage to one or more permanents and\/or players,? /i,
+      event: 'yourSourceDealsDamage',
+      extraOf: (m) => ({ sourceColor: m[1].toLowerCase(), batch: true, batchPerSource: true }) },
     // Surveillance Monitor: "Whenever you collect evidence"
     { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"
@@ -18783,6 +18807,9 @@
       // Falco Spara, Pactweaver: "… by removing a counter from a creature you control in addition to paying their other costs"
       { re: /^You may cast spells from the top of your library by removing a counter from a creature you control in addition to paying their other costs\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', removeCounterCost: true }), auto: true },
+      // Errant and Giada: "You may cast spells with flash or flying from the top of your library." (keywordAny)
+      { re: /^You may cast spells with (flash|flying|haste|defender|reach|trample) or (flash|flying|haste|defender|reach|trample) from the top of your library\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', keywordAny: [m[1].toLowerCase(), m[2].toLowerCase()] }), auto: true },
       // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
       { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },

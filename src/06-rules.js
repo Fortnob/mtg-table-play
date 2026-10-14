@@ -3200,7 +3200,7 @@
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c === o || c.impulseGroup !== o.impulseGroup) continue;
-          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null;
+          c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null; c.impulseAffinity = null;
           if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; }
         }
       }
@@ -3962,6 +3962,8 @@
       // Archway of Innovation: "The next spell you cast this turn has improvise."
       const nk = (this.player(pid) || {}).nextSpellKeyword;
       if (nk && nk.turn === this.turn && o.zone !== 'stack') { out = Object.assign({}, cr); out[nk.keyword] = true; }
+      // Chiss-Goria, Forge Tyrant: a card it exiled "has affinity for artifacts" as it is cast from there
+      if (o.impulseAffinity && o.zone === 'exile' && o.impulseBy === pid && !out.affinity) { if (out === cr) out = Object.assign({}, cr); out.affinity = o.impulseAffinity; }
       for (const src of this.battlefield) {
         if (src.controller !== pid || src.phasedOut) continue;
         const g = this._staticOp(src, 'grantCastKeyword');
@@ -4710,6 +4712,8 @@
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
             // Banon, the Returners' Leader: "cards … that were put there from anywhere other than the battlefield this turn"
             if (ef.notFromBfThisTurn && o._gyNotBfTurn !== this.turn) continue;
+            // Errant and Giada: "spells with flash or flying"
+            if (ef.keywordAny && !ef.keywordAny.some(k => (((o.analysis() || {}).keywordSet) || EMPTY_SET).has(k))) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
             // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
@@ -8373,6 +8377,9 @@
           key: 'exileIds', need: 1, mvX: true, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
+        // Captain America, First Avenger: which Equipment comes off him, when there is more than one
+        if (c.unattachEquipment && self && this._equipmentOn(self).length > 1) out.push({ kind: 'unattach', label: `Unattach an Equipment from ${self.name}`, key: 'exileIds', need: 1,
+          candidates: this._equipmentOn(self).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
           candidates: this._counterCostPool(pid, c.removeCounterFrom, self).map(x => x.id) });
         if (c.blight) out.push({ kind: 'blight', label: 'Blight ' + c.blight, key: 'blightId', need: 1,
@@ -8732,6 +8739,10 @@
       return this._lifeSacCostBan() ? pool.filter(x => (x.analysis() || {}).isLand) : pool;
     }
     /** Why these card costs cannot be paid right now, or null if they can. */
+    /** The Equipment attached to a permanent. */
+    _equipmentOn(o) {
+      return ((o && o.attachments) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && (x.analysis() || {}).isEquipment);
+    }
     _thingCostBlocked(pid, cost, self, opts) {
       if (!cost) return null;
       const p = this.player(pid);
@@ -8742,6 +8753,8 @@
         const lifeK = cost.life === 'X' ? ((opts && opts.x) || 0) : (Number(cost.life) || 0);
         if (lifeK > 0 || cost.lifePower || cost.lifeFrom) return `${ban.name}: life can't be paid to cast spells or activate abilities.`;
       }
+      // Captain America, First Avenger: "Unattach an Equipment from Captain America" — one has to be on him
+      if (cost.unattachEquipment && !this._equipmentOn(self).length) return `No Equipment attached to ${self ? self.name : 'it'}.`;
       if (cost.sacrifice) {
         const need = this._costCount(cost.sacrifice.n, opts);
         if (this._costSacPool(pid, cost.sacrifice, self, opts).length < need)
@@ -8829,6 +8842,20 @@
           if (host) host._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${eq.name} is unattached${host ? ' from ' + host.name : ''}.`);
+        }
+      }
+      /* Captain America, First Avenger: "Unattach an Equipment from Captain America" — the one named, or the costliest
+         (the damage is its mana value); remembered for "that Equipment's mana value" (unattachedCost) */
+      if (cost.unattachEquipment && self) {
+        const pool = this._equipmentOn(self);
+        const eq = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0] ||
+          pool.slice().sort((a, b) => ((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0))[0];
+        if (eq) {
+          self.attachments = (self.attachments || []).filter(x => x !== eq.id);
+          eq.attachedTo = null; eq._chr = null; self._chr = null;
+          if (item) item.unattachedCost = { id: eq.id, name: eq.name, mv: (eq.card && eq.card.cmc) || 0 };
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is unattached from ${self.name}.`);
         }
       }
       // Toggo, Goblin Weaponsmith's Rock: "Sacrifice Rock" — the Equipment that handed the ability out (sacGranter)
@@ -14123,7 +14150,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null;
         o.faceDownExile = false; o.lookableBy = null;
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
@@ -14855,7 +14882,9 @@
           /* (Rev, Tithe Extractor: "one or more creatures you control deal combat damage to a player" — a
              lot for each player hit: batchPerPlayer) */
           const had = this.pendingTriggers.find(t => t.objId === o.id && t.abilityIndex === i &&
-            (!ab.batchPerPlayer || (t.triggerData || {}).player === tData.player));
+            (!ab.batchPerPlayer || (t.triggerData || {}).player === tData.player) &&
+            // The Red Terror: "a red source … deals damage to one or more permanents and/or players" — a lot for each source (batchPerSource)
+            (!ab.batchPerSource || (t.triggerData || {}).objectId === tData.objectId));
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
@@ -15016,6 +15045,8 @@
           if (ab.noncombatOnly && data.combat) continue;
           // Dragonborn Champion: "deals 5 or more damage" — at once
           if (ab.minAmount != null && !((Number(data.amount) || 0) >= ab.minAmount)) continue;
+          // The Red Terror: "a red source"
+          if (ab.sourceColor && !(data.object && this._cardFitsWords(data.object, ab.sourceColor))) continue;
           // Ghyrson Starn, Kelermorph: "deals exactly 1 damage"
           if (ab.exactAmount != null && (Number(data.amount) || 0) !== ab.exactAmount) continue;
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
@@ -16218,6 +16249,8 @@
         if (v && typeof v === 'object' && v.ofSacrificed) return ((ctx.sacrificed || this._lastSacrificed || [])[0] || {})[v.ofSacrificed] || 0;
         // Food Chain: the creature exiled to pay for it
         if (v && typeof v === 'object' && v.ofExiledCost) return ((ctx.exiledCost || {})[v.ofExiledCost] || 0) + (v.plus || 0);
+        // Captain America, First Avenger: "that Equipment's mana value" — the one unattached to pay
+        if (v && typeof v === 'object' && v.ofUnattached) return (ctx.unattachedCost || {})[v.ofUnattached] || 0;
         if (v && typeof v === 'object' && v.greatestMv) {
           let best = 0;
           for (const o of this._scopeList(v.greatestMv, ctx.controller, src)) best = Math.max(best, (o.card && o.card.cmc) || 0);
@@ -19312,7 +19345,9 @@
             return this._cardFitsWords(c, want);
           };
           const legal0 = z.library.slice(0, this._searchReach(seeker.id)).filter(matches)
-            .concat(e.alsoGraveyard ? z.graveyard.filter(matches) : []);
+            .concat(e.alsoGraveyard ? z.graveyard.filter(matches) : [])
+            // Kassandra, Eagle Bearer: "your graveyard, hand, and library" (alsoHand)
+            .concat(e.alsoHand ? z.hand.filter(matches) : []);
           // Tiamat: "that each have different names" — one card of each name on offer
           const legal = e.differentNames ? legal0.filter((c, i) => legal0.findIndex(x => x.name === c.name) === i) : legal0;
           const want_n = Math.min(n(e.n), legal.length);
@@ -19391,6 +19426,7 @@
           for (const c of taken) {
             const i = z.library.indexOf(c);
             if (i >= 0) z.library.splice(i, 1);
+            if (c.zone === 'hand' && e.alsoHand) { this.moveObject(c, dest === 'battlefield' ? 'battlefield' : 'hand', { controller: seeker.id }); continue; }
             if (c.zone === 'graveyard' && e.alsoGraveyard) { this.moveObject(c, dest === 'battlefield' ? 'battlefield' : 'hand', { controller: seeker.id }); continue; }
             const where = dest === 'handGrave' || dest === 'handOrGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
@@ -23009,6 +23045,8 @@
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             // Nashi: "If you cast a spell this way, pay life equal to its mana value rather than paying its mana cost."
             if (e.payLife) c.impulsePayLife = pid;
+            // Chiss-Goria, Forge Tyrant: "If you do, it has affinity for artifacts."
+            if (e.affinity) c.impulseAffinity = e.affinity;
             // the player who may play a face-down card may look at it
             if (c.faceDownExile) c.lookableBy = pid;
             if (e.faceUpForThem) c.faceDownExile = false;
@@ -29923,6 +29961,8 @@
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       // Reyav, Master Smith: "that's enchanted or equipped" — an Aura or an Equipment on it
       if (f.enchantedOrEquipped && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && (aa.isEquipment || (aa.subtypes || []).includes('Aura')); })) return false;
+      // Kassandra, Eagle Bearer: "with a legendary Equipment attached to it"
+      if (f.legendaryEquipped && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && aa.isEquipment && aa.isLegendary; })) return false;
       // Calix, Guided by Fate: "an enchanted creature" — an Aura on it
       if (f.enchanted && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && (aa.subtypes || []).includes('Aura'); })) return false;
       // Komainu Battle Armor: itself, or the creature it is attached to
