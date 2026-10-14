@@ -7328,6 +7328,21 @@
         values = (rule.types || []).slice().sort((a, b) => (counts.get(b) || 0) - (counts.get(a) || 0));
         labels = values.slice();
       }
+      /* Greymond, Avacyn's Stalwart: "choose two abilities from among first strike, vigilance, and lifelink" — as many
+         as it says, kept as a list (chosenKeywords) */
+      if (rule.what === 'keywords') {
+        const want = Math.min(rule.n || 1, (rule.keywords || []).length);
+        values = (rule.keywords || []).slice();
+        if (!values.length) return;
+        o.chosenKeywords = values.slice(0, want);
+        o._chr = null; this.bumpBoard();
+        this.logEvent('rules', `${o.name}: ${o.chosenKeywords.join(' and ')} chosen.`);
+        if (!p.isBot && values.length > want) {
+          this.queueChoice({ type: 'mode', playerId: p.id, count: want, purpose: 'chooseValue', objId: o.id, field: 'chosenKeywords', values,
+            options: values.map((k, i) => ({ i, label: U.titleCase(k) })), prompt: `${o.name}: choose ${want === 1 ? 'an ability' : want + ' abilities'}.` });
+        }
+        return;
+      }
       if (!values.length) return;
       o[field] = values[0];
       this.bumpBoard();
@@ -11416,6 +11431,11 @@
           const has = x.zone === 'battlefield' ? this.hasKw(x, cond.kw) : !!(xa ? xa.keywordSet && xa.keywordSet.has(cond.kw) : ((x.analysis() || {}).keywordSet || new Set()).has(cond.kw));
           return cond.not ? !has : has;
         }
+        // Sab-Sunen, Luxa Embodied: "an even (odd) number of counters on it" — every kind together; zero is even
+        case 'selfCountersParity': {
+          const k = src ? Object.values(src.counters || {}).reduce((x, v) => x + (Number(v) || 0), 0) : 0;
+          return (k % 2 === 0) === !!cond.even;
+        }
         case 'selfCountersTotal': return !!src && Object.values(src.counters || {}).reduce((k, v) => k + (Number(v) || 0), 0) >= cond.n;
         case 'greatestMvArtifact': {
           const arts = this.battlefield.filter(x => !x.phasedOut && (x.analysis() || {}).isArtifact);
@@ -12430,9 +12450,11 @@
       for (let i = 0; i < statics.length; i++) {
         const entry = statics[i];
         const ef = entry.ef;
-        if (!(ef.grant || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
+        if (!(ef.grant || ef.grantChosen || ef.lose || ef.flag || ef.grantMana || ef.setPt || ef.pt || ef.switchPt)) continue;
         if (!this._contReaches(entry, o, a, lb)) continue;
-        if (ef.grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant: ef.grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
+        // Greymond, Avacyn's Stalwart: "have each of the chosen abilities" — the ones chosen as it entered (grantChosen)
+        const grant = ef.grantChosen ? ((entry.src && entry.src.chosenKeywords) || []) : ef.grant;
+        if (grant || ef.lose || ef.flag || ef.grantMana) six.push({ ts: entry.ts, grant, lose: ef.lose, flag: ef.flag, grantMana: ef.grantMana });
         if (ef.cantHave) for (const k of ef.cantHave) cantHave.add(String(k).toLowerCase());
         if (ef.setPt) (ef.cda ? defining : setting).push({ ts: entry.ts, set: ef.setPt });
         if (ef.pt) modifying.push(Object.assign({ src: entry.src }, ef.pt));
@@ -12594,7 +12616,8 @@
       /* Anti-Venom: "prevent that damage and put that many +1/+1 counters on him"; Phytohydra: "… on it
          instead" — a replacement, so it works where damage can't be prevented (damageToCounters) */
       if (o.zone === 'battlefield') {
-        const dc = this._staticOp(o, 'damageToCounters');
+        // (Gatta and Luzzu: "If damage would be dealt to that creature this turn, prevent that damage and …" — damageToCountersTurn)
+        const dc = this._staticOp(o, 'damageToCounters') || (o.damageToCountersTurn === this.turn ? { prevent: true } : null);
         if (dc && (!dc.prevent || !this._noPrevention(isCombat)) && (!dc.cond || this._condMet(dc.cond, { controller: o.controller, obj: o }))) {
           this.addCounters(o, '+1/+1', amount);
           this.logEvent('damage', `${dc.prevent ? amount + ' damage to ' + o.name + ' is prevented, and' : 'Instead of ' + amount + ' damage,'} ${o.name} gets ${amount === 1 ? 'a +1/+1 counter' : amount + ' +1/+1 counters'}.`);
@@ -13177,6 +13200,8 @@
         o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // Captain N'ghathrod: "that was put there from their library this turn" (fromLibThisTurn)
         o._toGraveFromLib = from === 'library' && toZone === 'graveyard' ? this.turn : null;
+        // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
+        o._milledTurn = null; o.damageToCountersTurn = null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
@@ -13624,10 +13649,17 @@
       return em.length ? list.concat(em) : list;
     }
 
-    _fireDelayed(event, activePlayerId) {
+    _fireDelayed(event, activePlayerId, controllerId) {
       if (!this.delayedTriggers.length) return;
       const keep = [];
       for (const d of this.delayedTriggers) {
+        /* Cosima, God of the Voyage: a trigger it carries in exile, gone once that card is not there (whileExiled);
+           "a land you control" — the controller of the event (eventController) */
+        if (d.whileExiled != null) {
+          const x = d.objId && this.obj(d.objId);
+          if (!x || x.zone !== 'exile' || x.exileStamp !== d.whileExiled) continue;
+        }
+        if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
         const mine = d.event === event &&
           (d.controller == null || d.forPlayer == null || d.forPlayer === activePlayerId) &&
           // "your next end step" must not be the one we are already in
@@ -13672,7 +13704,7 @@
         const cp = this.player(controllerId);
         if (cp) { if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 }; cp.tokensCreated.n++; }
       }
-      this._fireDelayed(event, this.activePlayer && this.activePlayer.id);
+      this._fireDelayed(event, this.activePlayer && this.activePlayer.id, controllerId);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
       const tData = {
         event, drawer: data.drawer, deadController: data.deadController,
@@ -13802,7 +13834,8 @@
           // "whenever equipped creature …" is only the creature this is on
           if (data.attachedIds && !data.attachedIds.includes(o.id)) continue;
           // "their second card each turn", "except the first one they draw in each of their draw steps"
-          if (ab.drawNth != null && data.nth !== ab.drawNth) continue;
+          // (Lady Octopus, Inspired Inventor: "your first or second card each turn" — either)
+          if (ab.drawNth != null && (Array.isArray(ab.drawNth) ? !ab.drawNth.includes(data.nth) : data.nth !== ab.drawNth)) continue;
           // Merry, Esquire of Rohan: this creature and another of that kind among the attackers (withSelfAnd)
           if (ab.withSelfAnd) {
             const at = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(Boolean);
@@ -16926,6 +16959,12 @@
         }
         case 'chooseOpponent': {
           const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          // Vial Smasher the Fierce: "choose an opponent at random" — nobody's choice (random)
+          if (e.random) {
+            const pick = opps.length ? opps[this.rng.int(opps.length)] : null;
+            if (pick) { ctx.chosenPlayer = pick.id; this.logEvent('rules', `${pick.name} is chosen at random.`); }
+            break;
+          }
           const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
             items: this._choosePlayers(opps), min: 1, max: 1, prompt: 'Choose an opponent.' });
           if (got === SUSPEND) return SUSPEND;
@@ -16936,6 +16975,66 @@
             if (src && src.zone === 'battlefield' && ctx.objId === src.id) src.chosenOpponent = pick.id;
             this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
           }
+          break;
+        }
+        /* Cosima, God of the Voyage: "it gains "Whenever a land you control enters, if Cosima is exiled, you may put a
+           voyage counter on it. If you don't, return Cosima to the battlefield with X +1/+1 counters on it and draw X
+           cards, where X is the number of voyage counters on it."" — it watches from exile (voyageFromExile) */
+        // Gatta and Luzzu: "If damage would be dealt to that creature this turn, prevent that damage and put that many +1/+1 counters on it."
+        case 'damageToCountersTurn': {
+          const o = (this._lastAffected && this.obj(this._lastAffected.id)) || firstObj();
+          if (!o || o.zone !== 'battlefield') break;
+          o.damageToCountersTurn = this.turn;
+          this.logEvent('rules', `This turn, damage to ${o.name} becomes +1/+1 counters.`);
+          break;
+        }
+        case 'voyageFromExile': {
+          if (!src || src.zone !== 'exile') break;
+          this.scheduleDelayed({ event: 'landfall', eventController: ctx.controller, once: false, whileExiled: src.exileStamp,
+            controller: ctx.controller, objId: src.id, name: `${src.name} — ${e.counter} counter`,
+            effects: [{ op: 'voyageStep', counter: e.counter, stamp: src.exileStamp }] });
+          break;
+        }
+        case 'voyageStep': {
+          // "if Cosima is exiled": still that card, still there
+          if (!src || src.zone !== 'exile' || src.exileStamp !== e.stamp) break;
+          const kind = e.counter || 'voyage';
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'voyage', count: Number(src.counters[kind]) || 0, prompt: `Put a ${kind} counter on ${src.name}? If you don't, it returns to the battlefield.`,
+            yesLabel: `Put a ${kind} counter`, noLabel: 'Return it' }, 'voy');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes !== false) { src.counters[kind] = (Number(src.counters[kind]) || 0) + 1; this.logEvent('rules', `${src.name} gets a ${kind} counter in exile.`); break; }
+          const x = Number(src.counters[kind]) || 0;
+          this.moveObject(src, 'battlefield', { controller: src.owner });
+          if (src.zone !== 'battlefield') break;
+          if (x > 0) this.addCounters(src, '+1/+1', x);
+          const owner = this.player(ctx.controller);
+          if (x > 0 && owner) this._drawCards(owner, x);
+          this.logEvent('rules', `${src.name} returns to the battlefield with ${x} +1/+1 counter${x === 1 ? '' : 's'}.`);
+          break;
+        }
+        /* Vial Smasher the Fierce: "deals damage equal to that spell's mana value to that player or a planeswalker that
+           player controls" — which, its controller says; with no planeswalker there, the player (damagePlayerOrWalker) */
+        case 'damagePlayerOrWalker': {
+          const q = triggerPlayer();
+          if (!q || q.hasLost) break;
+          const cnt = n(e.n);
+          if (cnt <= 0) break;
+          const walkers = this.battlefield.filter(o => o.controller === q.id && !o.phasedOut && (o.analysis() || {}).isPlaneswalker);
+          let to = null;
+          if (walkers.length) {
+            if (me.isBot) to = walkers.find(w => (Number(w.counters.loyalty) || 0) <= cnt) || null;
+            else {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'damagePlayerOrWalker', kind: 'options', min: 1, max: 1,
+                options: [{ i: 0, label: q.name }].concat(walkers.map((w, i) => ({ i: i + 1, label: w.name, card: w.card }))),
+                prompt: `${src ? src.name : 'It'} deals ${cnt} damage to ${q.name} or a planeswalker ${q.name} controls: choose which.` }, 'dpw');
+              if (got === SUSPEND) return SUSPEND;
+              const k = (got && got.picks && got.picks[0]) || 0;
+              to = k > 0 ? walkers[k - 1] : null;
+            }
+          }
+          if (to && to.zone === 'battlefield') this.dealDamageToObject(to, cnt, src);
+          else this.dealDamageToPlayer(q, cnt, src);
+          this.emit('sfx', 'damage');
           break;
         }
         /* The encoded card's copy, cast for nothing as the cipher trigger
@@ -24793,7 +24892,8 @@
         }
         /* Rishkar's Expertise: a spell from your hand, for nothing */
         case 'castFreeFromHand': {
-          const cap = e.maxMv === 'X' ? n('X') : e.maxMv;
+          // (Lady Octopus, Inspired Inventor: "less than or equal to the number of ingenuity counters on Lady Octopus" — a count)
+          const cap = e.maxMv === 'X' ? n('X') : e.maxMv && typeof e.maxMv === 'object' ? n(e.maxMv) : e.maxMv;
           const pool = this.zones[ctx.controller].hand.filter(c => {
             const ca = c.analysis();
             if (!ca || ca.isLand) return false;
@@ -26129,6 +26229,8 @@
     _noteMilled(pid, ids) {
       for (const id of ids || []) {
         const c = this.obj(id);
+        // (The Master, Transcendent: "that was milled this turn" — milledThisTurn)
+        if (c && c.zone === 'graveyard') c._milledTurn = this.turn;
         if (c) this._fire('cardMilled', null, { object: c, playerId: pid, amount: 1 });
       }
     }
@@ -27013,6 +27115,12 @@
           if (ch.purpose === 'chooseValue') {
             const o = this.obj(ch.objId);
             const idx = ((data && data.modes) || [])[0];
+            // Greymond, Avacyn's Stalwart: several abilities at once (chosenKeywords)
+            if (o && ch.field === 'chosenKeywords') {
+              const got = [...new Set(((data && data.modes) || []).map(i => ch.values[i]).filter(x => x !== undefined))].slice(0, ch.count || 1);
+              if (got.length === (ch.count || 1)) { o.chosenKeywords = got; o._chr = null; this.bumpBoard(); this.logEvent('rules', `${this.player(playerId).name} chooses ${got.join(' and ')} for ${o.name}.`); }
+              break;
+            }
             if (o && idx != null && ch.values[idx] !== undefined) {
               o[ch.field] = ch.values[idx];
               o._chr = null; this.bumpBoard();

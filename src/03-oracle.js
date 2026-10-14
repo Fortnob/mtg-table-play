@@ -5142,6 +5142,9 @@
     /* The Great Synthesis: "You may cast any number of spells from your hand without paying their mana costs." —
        which and in what order, one choice (castFreeHandAny) */
     { re: /^You may cast any number of spells from your hand without paying their mana costs\.?$/i, make: () => ({ op: 'castFreeHandAny' }) },
+    // Lady Octopus, Inspired Inventor: "You may cast an artifact spell from your hand with mana value less than or equal to the number of ingenuity counters on Lady Octopus without paying its mana cost."
+    { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand with mana value less than or equal to (.+?) without paying its mana cost\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? { op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: k } : null; } },
     // Yue, the Moon Spirit: "You may cast a noncreature spell from your hand without paying its mana cost."
     { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: null }) },
@@ -5580,6 +5583,24 @@
     { re: /^Target (opponent|player) reveals their hand\.?$/i, make: (m) => ({ op: 'revealHand', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
     // a generic question about players; "that player" afterwards is the one chosen
     { re: /^Choose an opponent\.?$/i, make: () => ({ op: 'chooseOpponent' }) },
+    // Gatta and Luzzu: "If damage would be dealt to that creature this turn, prevent that damage and put that many +1/+1 counters on it." (damageToCountersTurn)
+    { re: /^If damage would be dealt to (?:that creature|it) this turn, prevent that damage and put that many \+1\/\+1 counters on it\.?$/i,
+      make: () => ({ op: 'damageToCountersTurn' }) },
+    // The Omenkeel: "that player exiles that many cards from the top of their library"
+    { re: /^That player exiles that many cards from the top of their library\.?$/i, make: () => ({ op: 'exileTop', who: 'triggerPlayer', n: 'triggerAmount' }) },
+    // The Omenkeel: "You may play lands from among those cards for as long as they remain exiled."
+    { re: /^You may play lands from among (?:those cards|them) for as long as they remain exiled\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', words: 'land', duration: 'exiled' }) },
+    /* Cosima, God of the Voyage: "it gains "Whenever a land you control enters, if Cosima is exiled, you may put a voyage
+       counter on it. If you don't, return Cosima to the battlefield with X +1/+1 counters on it and draw X cards, where X
+       is the number of voyage counters on it."" — kept as a trigger that watches from exile (voyageFromExile) */
+    { re: /^It gains "Whenever a land you control enters, if CARDNAME is exiled, you may put an? ([a-z]+) counter on it\. If you don'?t, return CARDNAME to the battlefield with X \+1\/\+1 counters on it and draw X cards, where X is the number of \1 counters on it\."$/i,
+      make: (m) => ({ op: 'voyageFromExile', counter: m[1].toLowerCase() }) },
+    // Vial Smasher the Fierce: "choose an opponent at random" — "that player" afterwards is the one it falls on
+    { re: /^Choose an opponent at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true }) },
+    // Vial Smasher the Fierce: "deals damage equal to that spell's mana value to that player or a planeswalker that player controls"
+    { re: /^(?:CARDNAME|This creature|It) deals damage equal to (.+?) to that player or a planeswalker that player controls\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damagePlayerOrWalker', n: k } : null; } },
     // "You and that player each draw three cards": you, and the opponent chosen
     { re: /^You and that player each draw (\w+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
@@ -7613,6 +7634,8 @@
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     // (fromLibThisTurn: a card that went to the graveyard from its library this turn, Captain N'ghathrod)
     if (spec.fromLibThisTurn && !(ctx && obj._toGraveFromLib === ctx.turn)) return false;
+    // (milledThisTurn: a card milled this turn, The Master, Transcendent)
+    if (spec.milledThisTurn && !(ctx && obj._milledTurn === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
@@ -8064,6 +8087,15 @@
     // Vexing Devil, Longhorn Firebeast: "any opponent may have it deal 4 damage to them. If a player does, sacrifice this creature."
     { re: /^Any opponent may have it deal (\d+) damage to them\. If a player does, sacrifice (?:this creature|CARDNAME)\.$/i,
       make: (m) => [{ op: 'opponentMayTakeDamage', n: +m[1] }] },
+    /* The Master, Transcendent: "Put target creature card in a graveyard that was milled this turn onto the battlefield
+       under your control. It's a green Mutant with base power and toughness 3/3." (milledThisTurn) */
+    { re: /^Put target creature card in a graveyard that was milled this turn onto the battlefield under your control\.(?: It'?s an? ((?:(?:white|blue|black|red|green) )*[A-Z][a-z]+ with base power and toughness \d+\/\d+)\.)?$/,
+      make: (m) => {
+        const eff = m[1] ? becomesEff('is a ' + m[1]) : null;
+        if (m[1] && !(eff && eff.setPt)) return null;
+        return [{ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target creature', 'graveyard'), { milledThisTurn: true })] }]
+          .concat(eff ? [{ op: 'becomes', duration: 'permanent', eff, scope: 'lastTarget' }] : []);
+      } },
     /* Othelm, Salvager of Ruin, Samwise, Grim Return: "Choose (up to one) target creature card in
        your graveyard (a graveyard) that was put there from the battlefield this turn. Return it to the
        battlefield tapped (to your hand)." / "Put that card onto the battlefield under your control." */
@@ -10678,6 +10710,8 @@
     // Runaway Steam-Kin: "this creature has fewer than three +1/+1 counters on it"
     [/^(?:this creature|CARDNAME) has fewer than (\w+) ([+\-0-9/a-z]+) counters on it$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfCounters', n: num(m[1]) - 1, cmp: 'atMost', counter: m[2].toLowerCase() } : null)],
+    // Sab-Sunen, Luxa Embodied: "it has an even number of counters on it", "if it has an odd number of counters on it" (selfCountersParity)
+    [/^(?:it|this creature|CARDNAME) has an (even|odd) number of counters on it$/i, (m) => ({ kind: 'selfCountersParity', even: /even/i.test(m[1]) })],
     // Jadar: "you control no creatures with decayed"
     [/^you control no creatures with ([a-z]+)$/i, (m) => { const sc = scopeOf('creatures you control with ' + m[1]); return sc ? { kind: 'control', scope: sc, n: 0, cmp: 'atMost' } : null; }],
     // Boromir, Vexing Bauble: "if no mana was spent to cast it"
@@ -11972,6 +12006,8 @@
       extra: { activatorIsOpponent: true, filterOnlyOn: 'anySacrifice', discardWords: 'permanent' } },
     { re: /^When(?:ever)? you commit a crime(?:,| )/i, event: 'youCommitCrime' },
     { re: /^When(?:ever)? you draw your second card each turn(?:,| )/i, event: 'youDraw', extra: { drawNth: 2 } },
+    // Lady Octopus, Inspired Inventor: "Whenever you draw your first or second card each turn" (drawNth, either)
+    { re: /^When(?:ever)? you draw your first or second card each turn,? /i, event: 'youDraw', extra: { drawNth: [1, 2] } },
     // Fabrication Module, Territorial Gorger: "Whenever you get one or more {E}"
     { re: /^Whenever you get one or more \{E\},? /i, event: 'youGetEnergy' },
     // Alandra, Sky Dreamer: "Whenever you draw your fifth card each turn" (drawNthMore)
@@ -16067,6 +16103,15 @@
             : all.filter(t => ![m[2], m[3]].some(x => x && x.toLowerCase() === t.toLowerCase()));
           return { op: 'chooseOnEnter', what: 'cardType', types };
         }, auto: true },
+      /* Greymond, Avacyn's Stalwart: "As Greymond enters, choose two abilities from among first strike, vigilance, and
+         lifelink." and "Humans you control have each of the chosen abilities." (chosenKeywords) */
+      { re: /^As (?:CARDNAME|this creature) enters(?: the battlefield)?,? choose (one|two|three) abilities from among ((?:[a-z ]+, )+(?:and|or) [a-z ]+)\.?$/i,
+        make: (m) => {
+          const kws = m[2].split(/,\s*(?:and |or )?/).map(x => x.trim().toLowerCase()).filter(Boolean);
+          return kws.length > 1 && kws.every(kwKnown) ? { op: 'chooseOnEnter', what: 'keywords', n: num(m[1]), keywords: kws } : null;
+        }, auto: true },
+      { re: /^((?:Other )?[A-Z][a-z]+s|(?:Other )?creatures) you control have each of the chosen abilities\.?$/,
+        make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, grantChosen: true } : null; }, auto: true },
       // Serra's Emissary: "You and creatures you control have protection from the chosen card type."
       { re: /^You and creatures you control have protection from the chosen card type\.?$/i, eff: { op: 'protChosenCardType' }, auto: true },
       { re: /^Activated abilities of sources with the chosen name can'?t be activated( unless they'?re mana abilities)?\.?$/i,

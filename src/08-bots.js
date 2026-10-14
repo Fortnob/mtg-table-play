@@ -2656,6 +2656,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // Cosima, God of the Voyage: a voyage counter while there are fewer than three, then back with them
+      if (ch.purpose === 'voyage') return (Number(ch.count) || 0) < 3;
       /* the Chain spells: copy back for mana; not for a land or a card. And only with something of an opponent's
          for the copy to hit: two bots copying a free Chain of Smog at each other's empty hands would never stop */
       if (ch.purpose === 'chainCopy') {
