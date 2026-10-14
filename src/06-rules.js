@@ -155,6 +155,8 @@
   const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
     'Background', 'Case', 'Role', 'Shard']);
   const EMPTY_SET = new Set();
+  // Aeve, Progenitor Ooze: each analysis without its "Legendary", by the one with it (notLegendaryIfToken)
+  const NOT_LEGENDARY = new WeakMap();
 
   /* The dungeons (CR 309), room by room as their cards print them: each
      room's ability, and the rooms it leads to. Undercity is entered only
@@ -3370,6 +3372,8 @@
       const playerId = p.id;
       p.landsPlayed++;
       const fromZone = o.zone;
+      // Spider-Man 2099: "played a land … from anywhere other than your hand"
+      if (fromZone !== 'hand') p.landNotFromHandTurn = this.turn;
       this.moveObject(o, 'battlefield', { asLand: true, controller: playerId });
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
@@ -4647,6 +4651,8 @@
     _playFromRule(playerId, o, kind) {
       // Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt" — that one, on the battlefield or gone
       if (this._exiledWithLinkEmblem(playerId, o)) return { op: 'playFrom', zone: 'exiledWith', what: 'any', anyMana: true };
+      // Kethis, the Hidden Hand: a card that gained "You may play this card from your graveyard" this turn (gravePlayBy)
+      if (o && o.zone === 'graveyard' && o.owner === playerId && o.gravePlayBy === playerId && o.gravePlayTurn === this.turn) return { op: 'playFrom', zone: 'graveyard', what: 'any' };
       const z = this.zones[playerId];
       // Xanathar, Guild Kingpin: "you may play the top card of their library, and you may spend mana as though it were mana of any color"
       if (this._oppTopGrant(playerId, o)) return { op: 'playFrom', zone: 'oppTop', what: 'any', anyMana: true };
@@ -6807,6 +6813,8 @@
       if (p.spellsCastThisTurn === 2) this._fire('opponentSecondSpell', null, Object.assign({ except: playerId }, castData));
       // Canyon Crab: "a spell from your hand"
       o._castFromHand = item.fromZone === 'hand';
+      // Spider-Man 2099: "cast a spell this turn from anywhere other than your hand"
+      if (item.fromZone !== 'hand') p.spellNotFromHandTurn = this.turn;
       // Approach of the Second Sun: the names this player has cast this game, countered or not
       if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (its mana value as it was cast, X included: Rhino, Barreling Brute — castMvNoted)
@@ -12520,6 +12528,8 @@
         case 'bargained': return !!(ctx && ctx.bargained) || !!(src && src.bargainedTurn != null && src.bargainedTurn === this.turn);
         /* Starting Town: "your first, second, or third turn of the game" */
         case 'earlyTurn': return !!me && (me.turnsTaken || 0) <= (cond.n || 3) && this.activePlayer === me;
+        // Spider-Man 2099: "if you've played a land or cast a spell this turn from anywhere other than your hand"
+        case 'notFromHandThisTurn': return !!me && (me.landNotFromHandTurn === this.turn || me.spellNotFromHandTurn === this.turn);
         /* Unbreakable Formation's addendum: cast in your main phase */
         case 'castInMain': return !!(ctx && ctx.castInMain) || !!(src && src.zone === 'battlefield' && src.wasCast != null && src.castInMain);
         /* Massacre Girl, Known Killer: "if its toughness was less than 1",
@@ -13056,6 +13066,17 @@
      * ability keeps its place in the list.
      */
     _dynamicAnalysis(o, base) {
+      // Aeve, Progenitor Ooze: "Aeve isn't legendary if it's a token." (notLegendaryIfToken)
+      if (base.notLegendaryIfToken && o.isToken && base.isLegendary) {
+        let nl = NOT_LEGENDARY.get(base);
+        if (!nl) {
+          const sup = (base.supertypes || []).filter(t => t !== 'Legendary');
+          nl = Object.assign({}, base, { supertypes: sup, isLegendary: false,
+            typeLine: String(base.typeLine || '').replace(/\bLegendary\s+/, '') });
+          NOT_LEGENDARY.set(base, nl);
+        }
+        base = nl;
+      }
       if (this._dynBusy) return base;
       const own = (o.effects || []).filter(e => e && (e.grantText || e.grantAbilities));
       const sources = this._grantSources();
@@ -20294,7 +20315,9 @@
         /* Grist, the Plague Swarm: "For each creature card in your graveyard, create a token that's a copy of it,
            except it's a 1/1 black and green Insect." — each card there as this resolves (copyEach) */
         case 'copyEach': {
-          const cards = this.zones[ctx.controller][e.zone || 'graveyard'].filter(c => this._cardFitsWords(c, e.filter || 'creature'));
+          // (Altaïr Ibn-La'Ahad: "each creature card you own in exile with a memory counter on it" — withCounter)
+          const cards = this.zones[ctx.controller][e.zone || 'graveyard'].filter(c => this._cardFitsWords(c, e.filter || 'creature') &&
+            (!e.withCounter || Number((c.counters || {})[e.withCounter]) > 0) && (!e.withCounter || c.owner === ctx.controller));
           const one = Object.assign({}, e, { op: 'copyPermanent', n: 1, grant: [] });
           for (const c of cards) this._runEffect(Object.assign({}, one, { _forced: c }), ctx);
           break;
@@ -24906,6 +24929,18 @@
           }
           this.logEvent('rules', `${me.name}'s ${e.filter || 'card'}s in the graveyard gain flashback until end of turn.`);
           break;
+        /* Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains 'You may play this
+           card from your graveyard.'" — the cards there now (CR 611.2c), not ones that arrive later (gravePlayBy) */
+        case 'gravePlayThisTurn': {
+          let k = 0;
+          for (const c of this.zones[ctx.controller].graveyard) {
+            if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
+            c.gravePlayBy = ctx.controller; c.gravePlayTurn = this.turn; k++;
+          }
+          this.logEvent('rules', `${me.name} may play ${k} ${e.filter ? e.filter + ' ' : ''}card${k === 1 ? '' : 's'} from their graveyard this turn.`);
+          this.bumpBoard();
+          break;
+        }
         // Yawgmoth's Will: play from the graveyard for the rest of the turn
         case 'playFromThisTurn': {
           /* Gwenom, Remorseless, The Belligerent: "until end of turn, you may look at the top card of your library

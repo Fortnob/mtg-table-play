@@ -3524,6 +3524,9 @@
     // Zodiark, Umbral God: "Each player sacrifices half the non-God creatures they control of their choice, rounded down." (halfRoundDown)
     { re: /^Each player sacrifices half the (non-[A-Z][a-z]+ )?creatures they control of their choice, rounded down\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'each', filter: ((m[1] || '') + 'creature').toLowerCase() }) },
+    // Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains "You may play this card from your graveyard."" (gravePlayThisTurn)
+    { re: /^Until end of turn, each ([a-z]+ )?card in your graveyard gains "You may play this card from your graveyard\.?"\.?$/i,
+      make: (m) => ({ op: 'gravePlayThisTurn', filter: m[1] ? m[1].trim().toLowerCase() : null }) },
     // Locke, Treasure Hunter: "Until end of turn, you may cast a spell from among those cards." — the cards just milled (milledOnce)
     { re: /^Until end of turn, you may cast a spell from among those cards\.?$/i, make: () => ({ op: 'castFromGraveyardsTurn', milled: true }) },
     { re: /^Exile a card at random from each opponent'?s graveyard\.?$/i, make: () => ({ op: 'exileRandomFromGraveyards', who: 'opponents' }) },
@@ -5065,6 +5068,8 @@
       } },
     { re: /^(CARDNAME|This creature|It|That creature|Target creature you control) deals damage equal to (.+?) to (any target|any other target|target [a-z' ]+?|each opponent|each other creature|each creature|each other creature and each opponent)\.?$/i,
       make: (m) => {
+        // (Spider-Man 2099: "deals damage equal to his power" — his own, as "its")
+        if (/^CARDNAME$/.test(m[1])) m[2] = m[2].replace(/^(?:his|her) (power|toughness)\b/i, 'its $1');
         const k = amountOf(m[2]);
         if (!k) return null;
         const e = { op: 'damage', n: k };
@@ -8507,6 +8512,17 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Altaïr Ibn-La'Ahad: "exile up to one target Assassin creature card from your graveyard with a memory counter on it.
+       Then for each creature card you own in exile with a memory counter on it, create a tapped and attacking token
+       that's a copy of it. Exile those tokens at end of combat." (copyEach withCounter) */
+    { re: /^[Ee]xile up to one (target [A-Za-z ]+? card) from your graveyard with an? ([a-z]+) counter on it\. Then for each creature card you own in exile with an? \2 counter on it, create a tapped and attacking token that'?s a copy of it\. Exile those tokens at end of combat\.?$/,
+      make: (m) => {
+        const t = targetSpec(m[1], 'graveyard');
+        if (!t || t.unknown) return null;
+        return [{ op: 'exile', counter: m[2], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you', upTo: true })] },
+          { op: 'copyEach', zone: 'exile', filter: 'creature', withCounter: m[2], tapped: true, attacking: true },
+          { op: 'exileMadeEoc' }];
+      } },
     /* Xanathar, Guild Kingpin: "choose target opponent. Until end of turn, that player can't cast spells, you may look
        at the top card of their library any time, you may play the top card of their library, and you may spend mana as
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
@@ -11966,6 +11982,8 @@
     [/^you control (\w+) or more lands with different names$/i, (m) => ({ kind: 'landNames', n: num(m[1]) })],
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
+    // Spider-Man 2099: "if you've played a land or cast a spell this turn from anywhere other than your hand" (notFromHandThisTurn)
+    [/^you'?ve played a land or cast a spell this turn from anywhere other than your hand$/i, () => ({ kind: 'notFromHandThisTurn' })],
     [/^(?:CARDNAME|this creature)'?s power is (\w+) or greater$/i, (m) => ({ kind: 'selfPower', n: num(m[1]) })],
     // (Amalia Benavides Aguirre: "its power is exactly 20" — selfPowerIs)
     [/^(?:CARDNAME|this creature)'?s power is exactly (\d+)$/i, (m) => ({ kind: 'selfPowerIs', n: +m[1] })],
@@ -13735,8 +13753,9 @@
            tapped." An ability that works from the graveyard and nowhere
            else, offered there the way flashback is. */
         if (xOnly) ab.xColor = xOnly.color;
+        // (Kethis, the Hidden Hand: not words in quotation marks — "gains 'You may play this card from your graveyard'")
         if ((cost.exile && cost.exile.fromGraveyard) ||
-            /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2])) ab.fromGraveyard = true;
+            /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
         for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
           ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
             o.perTurn ? { perTurn: o.perTurn } : null);
@@ -14736,6 +14755,7 @@
     /* A god that is only a creature with enough devotion: the engine asks
        each time it looks. */
     for (const ab of out.abilities) {
+      if ((ab.effects || []).some(e => e && e.op === 'notLegendaryIfToken')) out.notLegendaryIfToken = true;
       const nc = (ab.effects || []).find(e => e && e.op === 'notCreatureUnless');
       if (nc) out.notCreatureUnless = nc.graveyard ? { graveyard: true, n: nc.n } : nc.notOwned != null ? { notOwned: nc.notOwned } : { colors: nc.colors, n: nc.n };
     }
@@ -17231,6 +17251,8 @@
       // The Warring Triad: "As long as there are fewer than eight cards in your graveyard, The Warring Triad isn't a creature."
       { re: /^As long as there are fewer than (\w+) cards in your graveyard, (?:CARDNAME|this creature|it) isn'?t a creature\.?$/i,
         make: (m) => ({ op: 'notCreatureUnless', n: num(m[1]), graveyard: true }), auto: true },
+      // Aeve, Progenitor Ooze: "Aeve isn't legendary if it's a token." (notLegendaryIfToken)
+      { re: /^CARDNAME isn'?t legendary if it'?s a token\.?$/i, eff: { op: 'notLegendaryIfToken' }, auto: true },
       // Arvinox, the Mind Flail: "CARDNAME isn't a creature unless you control three or more permanents you don't own." (notOwned)
       { re: /^(?:CARDNAME|This creature) isn'?t a creature unless you control (\w+) or more permanents you don'?t own\.?$/i,
         make: (m) => (typeof num(m[1]) === 'number' ? { op: 'notCreatureUnless', notOwned: num(m[1]) } : null), auto: true },
@@ -17837,6 +17859,9 @@
         make: (m) => ({ op: 'attackRequires', defenderControls: m[1].trim().toLowerCase() }), auto: true },
       { re: /^CARDNAME can'?t be countered\.?$/i, eff: { op: 'cantBeCountered' }, auto: true },
       // a permanent spell's window: "Cast this spell only if a creature died this turn" (Grim Wanderer)
+      // Spider-Man 2099: "You can't cast Spider-Man 2099 during your first, second, or third turns of the game." (earlyTurn)
+      { re: /^You can'?t cast (?:CARDNAME|this spell) during your first, second, or third turns of the game\.?$/i,
+        eff: { op: 'noop', castWindow: { cond: { kind: 'not', cond: { kind: 'earlyTurn', n: 3 } } } }, auto: true },
       // Rakdos, Lord of Riots: "You can't cast CARDNAME unless an opponent lost life this turn." (castUnless)
       { re: /^You can'?t cast (?:CARDNAME|this spell) unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'noop', castWindow: { cond: c } } : null; }, auto: true },
