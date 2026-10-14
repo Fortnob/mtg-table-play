@@ -7913,8 +7913,9 @@
     // Llanowar Greenwidow: "for each basic land type among lands you control" (domain)
     if (/^basic land types? among lands you control$/i.test(p)) return { domain: true, mult: k };
     /* Deepwood Denizen: "for each +1/+1 counter on creatures you control";
-       Maester Seymour: "the number of counters among creatures you control" */
-    if ((m = p.match(/^(?:([+\-0-9/a-z]+) )?counters? (?:on|among) ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments)(?: and (?:creatures|lands|artifacts|permanents|enchantments))? you control)$/i))) {
+       Maester Seymour: "the number of counters among creatures you control"; Ferrafor, Young Yew: "… target player
+       controls" */
+    if ((m = p.match(/^(?:([+\-0-9/a-z]+) )?counters? (?:on|among) ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments)(?: and (?:creatures|lands|artifacts|permanents|enchantments))? (?:you control|target (?:player|opponent) controls))$/i))) {
       const sc = scopeOf(m[2]);
       if (sc && !sc.self && !sc.attached) return { countersAmong: sc, kind: m[1] ? m[1].toLowerCase() : null, mult: k };
     }
@@ -9565,6 +9566,11 @@
         { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
           otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
         { op: 'restToBottom', random: true }] },
+    /* Katsumasa, the Animator: "Until end of turn, target noncreature artifact you control becomes an artifact creature and
+       gains flying. If it's not a Vehicle, it has base power and toughness 1/1 until end of turn." (setPtUnless) */
+    { re: /^Until end of turn, (target [a-z ]+?) becomes an artifact creature and gains ([a-z]+)\. If it'?s not an? ([A-Z][a-z]+), it has base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
+      make: (m) => [{ op: 'becomes', duration: 'eot', targets: [targetSpec(m[1])],
+        eff: { addTypes: ['Artifact', 'Creature'], keywords: [m[2].charAt(0).toUpperCase() + m[2].slice(1)], setPt: { p: +m[4], t: +m[5] }, setPtUnless: m[3] } }] },
     // Blitzwing, Adaptive Assailant: "choose flying or indestructible at random. Blitzwing gains that ability until end of turn." (keywordRandom)
     { re: /^choose ([a-z]+(?: [a-z]+)?) or ([a-z]+(?: [a-z]+)?) at random\. (?:CARDNAME|It|This creature) gains that ability until end of turn\.?$/i,
       make: (m) => [{ op: 'grantKeyword', keywords: [], keywordRandom: [m[1], m[2]].map(k => k.charAt(0).toUpperCase() + k.slice(1).toLowerCase()), duration: 'eot', targets: null, scope: 'self' }] },

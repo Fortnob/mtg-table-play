@@ -16589,6 +16589,14 @@
         if (v && typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
         /* "for each creature you control with a +1/+1 counter on it" — and
            "those creatures" in the next sentence are the ones counted */
+        // Ferrafor, Young Yew: "the number of counters among creatures target player controls" — the player aimed at
+        if (v && typeof v === 'object' && v.countersAmong && v.countersAmong.who === 'target') {
+          let k = 0;
+          for (const o of this._scopeList(v.countersAmong, ctx.controller, src, (firstPlayer() || me).id)) {
+            for (const [kind, c] of Object.entries(o.counters || {})) if (!v.kind || kind === v.kind) k += Number(c) || 0;
+          }
+          return k * (v.mult || 1);
+        }
         if (v && typeof v === 'object' && v.scope) {
           // "for each artifact that player controls": the player the trigger is about
           const tp = v.scope.thatPlayer ? (triggerPlayer() || firstPlayer() || me) : (firstPlayer() || me);
@@ -28297,6 +28305,8 @@
             const one = JSON.parse(JSON.stringify(eff));
             // Karn, Silver Golem: a creature as big as its mana value
             if (one.setPtMv) { const k = (o.card && o.card.cmc) || 0; one.setPt = { p: k, t: k }; delete one.setPtMv; }
+            // Katsumasa, the Animator: "If it's not a Vehicle, it has base power and toughness 1/1" (setPtUnless)
+            if (one.setPtUnless) { if (this._hasSubtype(o, one.setPtUnless)) delete one.setPt; delete one.setPtUnless; }
             /* Vraska, Betrayal's Sting: what it loses goes first, so the
                ability it is handed in the same breath stays */
             const handed = one.loseAll && one.grantText ? { grantText: one.grantText, until } : null;
