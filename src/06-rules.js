@@ -2891,8 +2891,10 @@
       let copy;
       if (item.kind === 'spell' && item.obj) {
         // (The Sixth Doctor: "except the copy isn't legendary" — part of what the copy is, CR 707.9b)
+        // (Tawnos, the Toymaker: "except the copy is an artifact in addition to its other types" — addTypes)
         const legend = except && except.nonLegendary && /\bLegendary\b/.test(String(item.obj.card.type_line || ''));
-        const dup = this._register(new GObj(legend ? this._copyExcept(item.obj.card, null, { nonLegendary: true }) : item.obj.card, controller, 'stack'));
+        const added = except && (except.addTypes || []).length ? except.addTypes : null;
+        const dup = this._register(new GObj(legend || added ? this._copyExcept(item.obj.card, null, Object.assign({}, legend ? { nonLegendary: true } : {}, added ? { addTypes: added } : {})) : item.obj.card, controller, 'stack'));
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
         // (a copy of a kicked spell is kicked too — Gatekeeper of Malakir copied by Double Major, CR 707.10)
         dup.kickedTimes = item.obj.kickedTimes || 0; dup.wasKicked = !!item.obj.wasKicked;
@@ -6930,6 +6932,8 @@
         const big = ((a && a.abilities) || []).filter(ab => ab.kind === 'spell').flatMap(ab => ab.effects || []).find(ef => ef && ef.bigX);
         if (big && (opts.x || 0) >= big.bigX) { item.uncounterable = true; item.noPrevent = true; }
       }
+      // (Kaza, Roil Chaser: "The next instant or sorcery spell you cast this turn costs {X} less" — used up by it: next)
+      if ((p.turnCostMods || []).some(x => x.next)) p.turnCostMods = p.turnCostMods.filter(x => !(x.next && x.turn === this.turn && (!x.words || x.words === 'spell' || this._cardFitsWords(o, x.words))));
       // (Overmaster: only the next instant or sorcery spell)
       if (p.nextSpellUncounterable === this.turn && (!p.nextSpellUncounterableWords || this._cardFitsWords(o, p.nextSpellUncounterableWords))) {
         item.uncounterable = true; p.nextSpellUncounterable = null;
@@ -19085,7 +19089,7 @@
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
             if (times <= 0) break;
-            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary ? { nonLegendary: true } : null).id);
+            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [] } : null).id);
             if (r) r.marks[slot] = made;
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');

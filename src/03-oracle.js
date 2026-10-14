@@ -413,8 +413,9 @@
       if (/^Put a -1\/-1 counter on a creature you control$/i.test(p)) { cost.blight = (cost.blight || 0) + 1; continue; }
       // Fain, the Broker: "Remove a counter from a creature you control"
       // (O'aka, Traveling Merchant: "… from a nonland permanent you control" — counterFromNonland)
-      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from an? (creature|permanent|artifact|nonland permanent) you control$/i))) {
-        cost.removeCounterFrom = { filter: m[2].toLowerCase(), kind: m[1] ? '+1/+1' : null };
+      // (Xavier Sal, Infested Captain: "Remove a counter from another permanent you control" — other)
+      if ((m = p.match(/^Remove an? (\+1\/\+1 )?counter from (an?|another) (creature|permanent|artifact|nonland permanent) you control$/i))) {
+        cost.removeCounterFrom = Object.assign({ filter: m[3].toLowerCase(), kind: m[1] ? '+1/+1' : null }, /^another$/i.test(m[2]) ? { other: true } : {});
         continue;
       }
       // Tekuthal: "Remove three counters from among other artifacts, creatures, and planeswalkers you control"
@@ -4968,6 +4969,14 @@
         if (!probe || !probe.fullyAutomated) return null;
         return { op: 'createNamedToken', n: num(m[1]), token: m[2], def: { type: 'Token Artifact — Equipment', text } };
       } },
+    // Mabel, Heir to Cragflame: "create Cragflame, a legendary colorless Equipment artifact token with "…" and equip {2}"
+    { re: /^(?:You )?[Cc]reate ([A-Z][A-Za-z' -]*?), a legendary colorless Equipment artifact token with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
+      make: (m) => {
+        const text = m[2].replace(/([^."])$/, '$1.') + '\nEquip ' + m[3];
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Legendary Artifact — Equipment', oracle_text: text, keywords: [], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text } };
+      } },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
     { re: /^Destroy (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.?$/i, make: () => ({ op: 'destroy', scope: 'self' }) },
@@ -5697,6 +5706,10 @@
        being attacked" — X counted as it resolves (costModTurn, lessX, fromZones) */
     { re: /^Spells you cast from exile this turn cost \{X\} less to cast, where X is (.+?)\.?$/i,
       make: (m) => { const a = amountOf(m[1]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: 'spell', amount: 0, fromZones: ['exile'] }, lessX: a }; } },
+    /* Kaza, Roil Chaser: "The next instant or sorcery spell you cast this turn costs {X} less to cast, where X is the
+       number of Wizards you control as this ability resolves." — X counted now, gone with that spell (costModTurn, next) */
+    { re: /^The next (instant or sorcery|instant|sorcery|creature|noncreature) spell you cast this turn costs \{X\} less to cast, where X is (.+?)(?: as this ability resolves)?\.?$/i,
+      make: (m) => { const a = amountOf(m[2]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: m[1].toLowerCase(), amount: 0, next: true }, lessX: a }; } },
     // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast." (costModTurn)
     { re: /^(.+? spells you cast) this turn cost (\{\d+\}) less to cast\.?$/i,
       make: (m) => {
@@ -7425,6 +7438,9 @@
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
     { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
+    // Tawnos, the Toymaker: "copy it, except the copy is an artifact in addition to its other types"
+    { re: /^Copy it, except the copy is an? (artifact|enchantment) in addition to its other types\.?$/i,
+      make: (m) => ({ op: 'copyThatSpell', addTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] }) },
     // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
     { re: /^Copy (?:it|this spell) for each time you'?ve cast your commander from the command zone this game\.?$/i,
       make: () => ({ op: 'copyThatSpell', n: { commanderCasts: true } }) },
