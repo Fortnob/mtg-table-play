@@ -4838,6 +4838,10 @@
             !(o._silenceAfterCast && ((this.player(playerId) || {}).spellsCastThisTurn || 0) > 0)) {
           out.push({ kind: 'cast', via: 'granted', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
+        // Squee, Dubious Monarch: "by paying {3}{R} and exiling four other cards from your graveyard" (graveAltCost)
+        const gac = this._staticOp(o, 'graveAltCost');
+        if (gac) out.push({ kind: 'cast', via: 'graveAlt', cost: gac.cost, after: null, exileGrave: gac.exileGrave,
+          label: `Cast it from your graveyard (${gac.cost}, exile ${gac.exileGrave} other cards)` });
         const self = (a.abilities || []).find(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && !x.exileOnly));
         const rule = self && self.effects.find(x => x.op === 'castSelfFromGraveyard' && !x.exileOnly);
         if (rule && (!rule.cond || this._condMet(rule.cond, { controller: playerId, obj: o })) && !out.some(u => u.via === 'granted')) {
@@ -6615,6 +6619,9 @@
         const m = String(k).match(/^ward\s*(?:\u2014|-)?\s*(\S.*)$/i);
         if (m) out.push(m[1]);
       }
+      // Minthara, Merciless Soul: "ward {X}, where X is the number of experience counters you have" — as it is now
+      const wx = this._staticOp(o, 'wardX');
+      if (wx) { const k = this._countValue(wx.n, o.controller, o, true); if (k > 0) out.push('{' + k + '}'); }
       return out;
     }
 
@@ -15225,7 +15232,10 @@
           /* Imp's Mischief: with no trigger, "that spell" is the spell it targets */
           /* Sister Hospitaller: after a target, "its mana value" in a trigger
              about this permanent is the target's, not this one's */
-          const tdo = v.ofPrior ? null : (ctx.triggerData || {}).objectId;
+          /* (The Pride of Hull Clade's "Whenever this creature deals combat damage to a player, draw cards equal to its
+             toughness": that event names no object — "its" is the creature itself) */
+          const tdC = ctx.triggerData || {};
+          const tdo = v.ofPrior ? null : (tdC.objectId || (tdC.event === 'combatDamageToPlayer' && src && !targets.length ? src.id : null));
           const st = !tdo && targets.find(t => t.kind === 'stack');
           const stItem = st && this.stack.find(x => x.id === st.id);
           // with neither, "its mana value" is what the effect acted on: the target, or what was just exiled or put
@@ -21163,9 +21173,12 @@
         /* ===== looking at the top of a library ===== */
         case 'lookAt': {
           const cnt = n(e.n);
-          this._looked = this.zones[ctx.controller].library.slice(0, cnt).map(o => o.id);
+          // Lonis, Cryptozoologist: "Target opponent reveals the top X cards of their library" (libOf target)
+          const lookP = e.libOf === 'target' ? firstPlayer() : me;
+          if (!lookP) break;
+          this._looked = this.zones[lookP.id].library.slice(0, cnt).map(o => o.id);
           // Gishath, Sun's Avatar: "reveal that many cards" — what everybody sees
-          if (e.reveal) this.logEvent('reveal', `${me.name} reveals ${this._looked.map(id => this.obj(id).name).join(', ') || 'nothing'}.`);
+          if (e.reveal) this.logEvent('reveal', `${lookP.name} reveals ${this._looked.map(id => this.obj(id).name).join(', ') || 'nothing'}.`);
           else this.logEvent('look', `${me.name} looks at the top ${cnt}.`);
           break;
         }
@@ -21234,7 +21247,6 @@
             if (picked === SUSPEND) return SUSPEND;
             taken = (picked || []).slice(0, want).map(id => this.obj(id)).filter(Boolean);
           }
-          const z = this.zones[ctx.controller];
           // Florian, Voldaren Scion: "You may play the exiled card this turn" — the card this exiled, for what follows
           if (e.to === 'exile') { this._lastExiledList = taken.map(o => o.id); this._lastExiled = taken.length ? taken[taken.length - 1].id : null; }
           // Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way" (attachOneOfTaken)
@@ -21254,7 +21266,7 @@
                 this._noteLastAffected([{ kind: 'object', id: o.id }]);
               }
             }
-            else if (e.to === 'top') { o.zone = 'library'; z.library.unshift(o); }
+            else if (e.to === 'top') { o.zone = 'library'; this.zones[o.owner].library.unshift(o); }
             else if (e.to === 'exile' || e.to === 'graveyard') {
               o.zone = 'library';
               this.moveObject(o, e.to);
@@ -21276,7 +21288,8 @@
           }
           else if (rest.length) {
             const order = e.rest === 'bottomRandom' ? this.rng.shuffle(rest.slice()) : rest;
-            for (const o of order) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+            // (Lonis, Cryptozoologist: "That player puts the rest on the bottom of their library" — each its owner's)
+            for (const o of order) { this._removeFromZone(o); o.zone = 'library'; this.zones[o.owner].library.push(o); }
           }
           this._looked = null;
           this.logEvent('look', `${me.name} takes ${taken.length}.`);
@@ -23219,7 +23232,8 @@
         }
         /* Airbend: exiled, and its owner may cast it for {2} while it is there */
         case 'airbend':
-          for (const t of targets) {
+          // (Monk Gyatso: "airbend that creature" — the creature the trigger is about: triggerObj)
+          for (const t of (e.triggerObj ? [{ kind: 'object', id: (ctx.triggerData || {}).objectId }] : targets)) {
             const x = t.kind === 'object' && this.obj(t.id);
             if (!x || x.zone !== 'battlefield') continue;
             this.moveObject(x, 'exile');

@@ -3223,6 +3223,8 @@
     // (Aang, Airbending Master: "airbend another target creature" — airbendAnother)
     { re: /^[Aa]irbend (up to one )?(other |another )?(target [a-z ]+?)\.?$/,
       make: (m) => { const t = tgt(m[3]); return t ? { op: 'airbend', targets: [Object.assign(t, m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] } : null; } },
+    // Monk Gyatso: "you may airbend that creature" — the one the trigger is about
+    { re: /^[Aa]irbend that creature\.?$/, make: () => ({ op: 'airbend', triggerObj: true }) },
     { re: /^[Mm]anifest dread\.?$/, make: () => ({ op: 'manifestDread' }) },
     // They Came from the Pipes: "manifest dread twice" — once, then again
     { re: /^[Mm]anifest dread (twice|three times)\.?$/, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'manifestDread' })) }) },
@@ -3514,6 +3516,18 @@
       make: (m) => { const t = tgt(m[1]); const kws = keywordList(m[3]); if (!t || !kws.every(k => kwKnown(k))) return null;
         return { op: 'sequence', list: [{ op: 'becomes', duration: 'eot', eff: { setColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[2].toLowerCase()]] }, targets: [t] },
           { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] }; } },
+    /* The Pride of Hull Clade: "Until end of turn, target creature you control gets +1/+0, gains "Whenever this
+       creature deals combat damage to a player, draw cards equal to its toughness," and can attack as though it
+       didn't have defender." */
+    { re: /^Until end of turn, (target creature(?: you control)?) gets ([+-]\d+)\/([+-]\d+), gains "([^"]+?),?" and can attack as though it didn'?t have defender\.?$/i,
+      make: (m) => {
+        const t = tgt(m[1]);
+        const ab = m[4].replace(/,$/, '') + '.';
+        if (!t || !grantableText(ab)) return null;
+        return { op: 'sequence', list: [{ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', targets: [t] },
+          { op: 'grantAbility', ability: ab, duration: 'eot', scope: 'lastTarget' },
+          { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', scope: 'lastTarget' }] };
+      } },
     // Assault Formation: "Target creature with defender can attack this turn as though it didn't have defender."
     { re: /^(Target creature(?: with defender)?) can attack this turn as though it didn'?t have defender\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'restrict', flag: 'attackDespiteDefender', duration: 'eot', targets: [t] } : null; } },
@@ -8360,6 +8374,13 @@
         const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
         return b && !b.unknown && then.auto ? [{ op: 'moveCountersAny', fromSelf: true, minOne: true, targets: [b], then: then.effects }] : null;
       } },
+    /* Lonis, Cryptozoologist: "Target opponent reveals the top X cards of their library. You may put a nonland
+       permanent card with mana value X or less from among them onto the battlefield under your control. That player
+       puts the rest on the bottom of their library in a random order." (lookAt libOf target) */
+    { re: /^Target opponent reveals the top X cards of their library\. You may put an? ([a-z ]+?) card with mana value X or less from among them onto the battlefield under your control\. That player puts the rest on the bottom of their library in a random order\.$/i,
+      make: (m) => [{ op: 'lookAt', n: 'X', reveal: true, libOf: 'target', targets: [{ type: 'player', opponent: true }] },
+        { op: 'takeFromLooked', n: 1, filter: m[1].toLowerCase(), maxMv: 'X', to: 'battlefield', optional: true, rest: 'bottomRandom',
+          prompt: `You may put ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with mana value X or less onto the battlefield under your control.` }] },
     // Sauron, Lord of the Rings: "amass Orcs 5, mill five cards, then return a creature card from your graveyard to the battlefield"
     { re: /^(Amass [A-Z][a-z]+ \d+), (mill [a-z]+ cards), then (return [^.]+)\.$/i,
       make: (m) => {
@@ -11786,6 +11807,9 @@
     // Professor Hojo: "Whenever one or more creatures you control become the target of an activated ability" (byActivated)
     { re: /^Whenever one or more creatures you control become the target of an activated ability,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('a creature you control'), extra: { byActivated: true } },
+    // Monk Gyatso: "Whenever another creature you control becomes the target of a spell or ability" — anyone's
+    { re: /^Whenever another creature you control becomes the target of a spell or ability,? /i,
+      event: 'becomesTarget', filt: () => subjectFilter('another creature you control'), aboutObject: true },
     // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
     { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },
@@ -16500,6 +16524,10 @@
         }, auto: true },
       // Eternal Scourge, Misthollow Griffin: "You may cast this card from exile."
       { re: /^You may cast (?:this card|CARDNAME) from exile\.?$/i, eff: { op: 'castSelfFromGraveyard', exile: true, exileOnly: true }, auto: true },
+      /* Squee, Dubious Monarch: "You may cast this card from your graveyard by paying {3}{R} and exiling four other
+         cards from your graveyard rather than paying its mana cost." — escape by another name (graveAltCost) */
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard by paying ((?:\{[^}]+\})+) and exiling (two|three|four|five|six|seven|eight) other cards from your graveyard rather than paying its mana cost\.?$/i,
+        make: (m) => ({ op: 'graveAltCost', cost: m[1], exileGrave: num(m[2].toLowerCase()) }), auto: true },
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },
@@ -17473,6 +17501,9 @@
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase() + ' creature or ' + m[2].toLowerCase() + ' creature' }), auto: true },
       // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
       { re: /^Players can'?t activate planeswalkers'? loyalty abilities\.?$/i, eff: { op: 'noLoyalty' }, auto: true },
+      // Minthara, Merciless Soul: "Minthara has ward {X}, where X is the number of experience counters you have." (wardX)
+      { re: /^CARDNAME has ward \{X\}, where X is (.+?)\.?$/i,
+        make: (m) => { const v = amountOf(m[1]); return v ? { op: 'wardX', n: v } : null; }, auto: true },
       // Gold-Forged Thopteryx: "Each legendary permanent you control has ward {2}."
       { re: /^Each (legendary permanent|legendary creature|artifact|creature|other creature) you control has ward (\{\d+\})\.?$/i,
         make: (m) => { const scope = scopeOf(m[1] + 's you control'); return scope ? { op: 'continuous', layer: 6, scope, grant: ['Ward ' + m[2]] } : null; }, auto: true },
