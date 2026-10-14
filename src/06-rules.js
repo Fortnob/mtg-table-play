@@ -2336,7 +2336,11 @@
         else if (item.featherBy && !item.countered && !item._fizzled && (!a || !a.isPermanent)) {
           const o = item.obj;
           this.moveObject(o, 'exile');
-          if (o.zone === 'exile') {
+          // Lilah, Undefeated Slickshot: "If you do, it becomes plotted." (featherPlot)
+          if (o.zone === 'exile' && item.featherPlot) {
+            o.plottedTurn = this.turn;
+            this.logEvent('rules', `${item.name} is exiled and becomes plotted.`);
+          } else if (o.zone === 'exile') {
             this.logEvent('rules', `${item.name} is exiled; it returns to its owner's hand at the next end step.`);
             this.scheduleDelayed({ event: 'eachEndStep', controller: item.featherBy, objId: o.id, sameTurnOk: true,
               name: 'Return it to your hand', effects: [{ op: 'returnThatToHand', fromExile: true, stamp: o.exileStamp }] });
@@ -2881,7 +2885,7 @@
       /* Minn, Wily Illusionist: "you may put a permanent card … from your hand onto the battlefield" — one pick that
          may be left empty, not a yes or no and then the pick (ownPick) */
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && only.from === 'handOrGraveyard')) && !once;
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj'))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -15191,7 +15195,8 @@
           }
           p.drewFromEmpty = true; this.logEvent('draw', `${p.name} tried to draw from an empty library.`); break;
         }
-        const o = z.library.shift();
+        // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
+        const o = this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFromBottom')) ? z.library.pop() : z.library.shift();
         o.zone = 'hand';
         // (Sylvan Library: "cards in your hand drawn this turn")
         o.drawnTurn = this.turn;
@@ -16982,6 +16987,8 @@
         }
         // Crypt Incursion: "for each card exiled this way"
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
+        // Balin, Loremaster: "the number of cards discarded this way" — by this player, as this resolves (discardedThisRes)
+        if (v && typeof v === 'object' && v.discardedThisRes) return (((this.resolving || {})._discBy) || []).filter(d => d.pid === ctx.controller).length * (v.mult || 1);
         // Tymaret, Chosen from Death: "for each creature card exiled this way" (exiledMatching)
         if (v && typeof v === 'object' && v.exiledMatching) {
           const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
@@ -22568,7 +22575,7 @@
         case 'featherSpell': {
           const sid = (ctx.triggerData || {}).stackId;
           const it = sid && this.stack.find(x => x.id === sid);
-          if (it && it.kind === 'spell' && !it.isCopy) it.featherBy = ctx.controller;
+          if (it && it.kind === 'spell' && !it.isCopy) { it.featherBy = ctx.controller; if (e.plot) it.featherPlot = true; }
           break;
         }
         /* Akroma, Vision of Ixidor: each other creature you control, +1/+1 until end of turn for each of the
@@ -24784,6 +24791,13 @@
           /* Jodah, the Unifier: "Put the rest on the bottom of your library in a random order."; Gríma, Saruman's
              Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their
              library in a random order." — what the digging exiled and is still there, to its owner's library (exileUntil) */
+          // Sanwell, Avenger Ace: the cards just exiled that weren't cast, to the bottom (ofExiled)
+          if (e.op === 'restToBottom' && e.ofExiled) {
+            const rest = (this._lastExiledList || []).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+            for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
+            if (rest.length) this.logEvent('rules', `${rest.length} exiled card${rest.length === 1 ? ' goes' : 's go'} to the bottom of the library.`);
+            break;
+          }
           if (!pool.length && e.op === 'restToBottom' && this._exileUntil) {
             const rest = this._exileUntil.ids.map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
             this._exileUntil = null;
@@ -25854,6 +25868,8 @@
               : e.from === 'revealed' ? [this._lastRevealed].filter(id => id && (this.obj(id) || {}).zone === 'library')
               // Tasha, the Witch Queen: "from among cards in exile with page counters on them" — anybody's, one picked (exiledCounter)
               : e.from === 'exiledCounter' ? this._freeFromExiledCounter(e, ctx)
+              // Oskar, Rubbish Reclaimer: "you may cast it from your graveyard" — the card discarded, still there (triggerObj)
+              : e.from === 'triggerObj' ? [(ctx.triggerData || {}).objectId].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
@@ -25864,11 +25880,13 @@
           if (e.pickOne && Array.isArray(pool) && !(r && r.marks[slot + 'picked'])) {
             const mv1 = e.maxMv == null ? null : n(e.maxMv);
             const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && !(c.analysis() || {}).isLand &&
-              (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1));
+              (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1) &&
+              // (Sanwell, Avenger Ace: paying its costs — only what could be paid for)
+              (!e.pay || this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
             let picks = [];
             if (able.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'library', items: this._chooseItems(able),
-                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among them without paying its mana cost.` }, 'cfp');
+                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among them${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
             }
@@ -25908,6 +25926,8 @@
             if (r && r.marks[slot + 'done' + k]) continue;
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
+            // (Oskar: paying its costs — what can't be paid for is not asked about)
+            if (e.from === 'triggerObj' && e.pay && !this.couldPay(ctx.controller, String(this.castCost(c, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
             const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
@@ -30768,6 +30788,8 @@
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
           // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
           this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId, amount: looked.length });
+          // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
+          this._fire('opponentScrySurveil', null, { except: playerId, player: playerId, playerId });
           break;
         }
         case 'sacrifice': {

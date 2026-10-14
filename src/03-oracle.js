@@ -4338,6 +4338,8 @@
         /revealed/i.test(m[0]) ? { from: 'looked' } : {}) },
     // Malcolm, Alluring Scoundrel: "you may cast the discarded card without paying its mana cost" — the card just discarded (castDiscarded)
     { re: /^(?:You may )?cast the discarded card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'discarded', upTo: 1 }) },
+    // Oskar, Rubbish Reclaimer: "Whenever you discard a nonland card, you may cast it from your graveyard." — paying its costs (triggerObj)
+    { re: /^(?:You may )?cast it from your graveyard\.?$/i, make: () => ({ op: 'castFree', from: 'triggerObj', pay: true, upTo: 1 }) },
     { re: /^Each player discards their hand,? then draws seven cards\.?$/i, make: () => ({ op: 'wheel', n: 7 }) },
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
@@ -5157,6 +5159,9 @@
     // Combustible Gearhulk: "this creature deals damage to that player equal to the total mana value of those cards" (the ones just milled)
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the total mana value of those cards\.?$/i,
       make: () => ({ op: 'damage', n: { milledMv: true }, toTriggerPlayer: true }) },
+    // River Song: "Then River Song deals damage to that player equal to its power." (ofSelf)
+    { re: /^(?:Then )?(?:CARDNAME|This creature|It) deals damage to that player equal to its power\.?$/i,
+      make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerPlayer: true }) },
     { re: /^(?:CARDNAME|This (?:creature|Equipment|artifact|enchantment)) deals damage to that player equal to the number of cards in their hand\.?$/i,
       make: () => ({ op: 'damage', n: { cardsInHand: 'triggerPlayer' }, toTriggerPlayer: true }) },
     { re: /^(?:They|That player) mills? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
@@ -8057,8 +8062,9 @@
        Fandaniel, Telophoroi Ascian: "for each instant and sorcery card in your graveyard" — either one */
     if ((m = p.match(/^([a-z]+) (?:and\/or|or|and) ([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
     // Eris, Roar of the Storm: "for each different mana value among instant and sorcery cards in your graveyard" (graveMvDistinct)
-    if ((m = p.match(/^different mana value among (?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) cards in your graveyard$/i)))
-      return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
+    // (Oskar, Rubbish Reclaimer: "among cards in your graveyard" — any card)
+    if ((m = p.match(/^different mana value among (?:(?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) )?cards in your graveyard$/i)))
+      return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1] ? m[1].toLowerCase() + ' or ' + m[2].toLowerCase() : 'card', mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
@@ -9580,6 +9586,25 @@
        return it to your hand at the beginning of the next end step." — a mark on the spell (featherSpell) */
     { re: /^Exile that card instead of putting it into your graveyard as it resolves\. If you do, return it to your hand at the beginning of the next end step\.$/i,
       make: () => [{ op: 'featherSpell' }] },
+    /* Balin, Loremaster: "you may discard your hand. Draw X cards, where X is the number of cards discarded this way. If
+       you have an enduring story, Balin deals X damage to each opponent." — X the cards this discarded (discardedThisRes);
+       an empty hand is not asked about */
+    { re: /^(?:you may )?discard your hand\. Draw X cards, where X is the number of cards discarded this way\. If you have an enduring story, CARDNAME deals X damage to each opponent\.$/i,
+      make: () => [{ op: 'ifCond', cond: { kind: 'hand', n: 1, cmp: 'atLeast' }, then: [
+        { op: 'may', prompt: 'Discard your hand? Draw X cards, where X is the number of cards discarded this way. If you have an enduring story, CARDNAME deals X damage to each opponent.',
+          then: [{ op: 'discard', n: 'all', who: 'you' }] },
+        { op: 'draw', who: 'you', n: { discardedThisRes: true } },
+        { op: 'ifCond', cond: { kind: 'enduringStory' }, then: [{ op: 'damage', n: { discardedThisRes: true }, each: 'opponent' }] }] }] },
+    /* Sanwell, Avenger Ace: "exile the top six cards of your library. You may cast a Vehicle or artifact creature spell
+       from among them. Then put the rest on the bottom of your library in a random order." — one pick among those it
+       could pay for, paying its costs (castFree pay), the rest of the exiled cards to the bottom (ofExiled) */
+    { re: /^Exile the top (two|three|four|five|six|seven|eight|nine|ten) cards of your library\. You may cast an? ([A-Za-z]+(?: or [a-z]+)?(?: creature)?) spell from among them\. Then put the rest on the bottom of your library in a random order\.$/i,
+      make: (m) => [{ op: 'impulse', n: num(m[1]), play: false }, { op: 'castFree', upTo: 1, pickOne: true, pay: true, filter: m[2].toLowerCase() },
+        { op: 'restToBottom', random: true, ofExiled: true }] },
+    /* Lilah, Undefeated Slickshot: "exile that spell instead of putting it into your graveyard as it resolves. If you
+       do, it becomes plotted." — the same mark, plotted instead (featherSpell plot) */
+    { re: /^Exile that spell instead of putting it into your graveyard as it resolves\. If you do, it becomes plotted\.$/i,
+      make: () => [{ op: 'featherSpell', plot: true }] },
     // Sauron, Lord of the Rings: "amass Orcs 5, mill five cards, then return a creature card from your graveyard to the battlefield"
     { re: /^(Amass [A-Z][a-z]+ \d+), (mill [a-z]+ cards), then (return [^.]+)\.$/i,
       make: (m) => {
@@ -12563,6 +12588,8 @@
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
     [/^(?:enchanted|equipped) (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
     [/^(?:equipped|enchanted) creature is attacking$/i, () => ({ kind: 'attachedIs', attacking: true })],
+    // Sanwell, Avenger Ace: "an artifact creature you control is attacking" — one of that group attacking (control, scope)
+    [/^an? ([a-z ]*?creature) you control is attacking$/i, (m) => { const sc = scopeOf('attacking ' + m[1] + 's you control'); return sc && !sc.self && sc.attacking ? { kind: 'control', scope: sc, n: 1 } : null; }],
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
     [/^it'?s the first combat phase of the turn$/i, () => ({ kind: 'firstCombat' })],
     [/^it(?:'?s not| isn'?t) your turn$/i, () => ({ kind: 'notYourTurn' })],
@@ -13349,7 +13376,8 @@
       extraOf: (m) => Object.assign(/your/i.test(m[3]) ? { yourTurnOnly: true } : { notYourTurnOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}, m[2] ? { fromHandOnly: true } : {}) },
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
     // (Ojer Pakpatiq: "an instant spell", "a sorcery spell"; Jodah, the Unifier: "a legendary spell")
-    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
+    // (Lilah, Undefeated Slickshot: "a multicolored instant or sorcery spell from your hand")
+    { re: /^Whenever you cast an? (multicolored instant or sorcery |instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     /* Alania, Divergent Storm: "Whenever you cast a spell, if it's the first instant spell, the first sorcery spell, or
        the first Otter spell other than Alania you've cast this turn," — first of any of those kinds (firstOfKinds) */
@@ -14064,6 +14092,8 @@
     // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter
     { re: /^Whenever you put a lore counter on a Saga you control, /i, event: 'countersPut', aboutObject: true,
       filt: () => ({ words: 'saga', who: 'you' }), extra: { counterKind: 'lore', putByYou: true, perAmount: true } },
+    // River Song: "Whenever an opponent scries, surveils, or searches their library" (opponentScrySurveil)
+    { re: /^Whenever an opponent scries, surveils, or searches their library,? /i, event: 'opponentSearches', also: 'opponentScrySurveil' },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each opponent'?s upkeep(?:,| )/i, event: 'opponentUpkeep' },
@@ -19028,6 +19058,11 @@
       // Doc Ock, Sinister Scientist: "As long as there are eight or more cards in your graveyard, CARDNAME has base power and toughness 8/8." (basePtWhile)
       { re: /^As long as (.+?), (?:CARDNAME|this creature) has base power and toughness (\d+)\/(\d+)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'continuous', layer: 7, scope: { self: true, what: 'creature' }, cond: c, setPt: { p: +m[2], t: +m[3] } } : null; }, auto: true },
+      // Sanwell, Avenger Ace: "As long as an artifact creature you control is attacking, prevent all damage that would be dealt to Sanwell."
+      { re: /^As long as (.+?), prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'sequence', list: [
+          { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken', cond: c },
+          { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noNoncombatTaken', cond: c }] } : null; }, auto: true },
       { re: /^Prevent all damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         make: () => ({ op: 'sequence', list: [
           { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'noDamageTaken' },
@@ -19723,6 +19758,8 @@
          library face down instead." (drawExilesInstead) */
       { re: /^If you would draw a card, exile the top (card|two cards|three cards) of your library( face down)? instead\.(?: (You may play those cards this turn)\.)?$/i,
         make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
+      // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
+      { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
       /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off */
