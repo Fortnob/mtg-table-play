@@ -2486,6 +2486,11 @@
       // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard)
       if (e.fromGraveyard) return this.players.filter(q => !q.hasLost).flatMap(q => (this.zones[q.id] || {}).graveyard || [])
         .filter(o => o !== src && (o.analysis() || {}).isCreature);
+      // The Mimeoplasm: "two creature cards from graveyards" — none to choose with fewer than two (fromGraves)
+      if (e.fromGraves) {
+        const gy = [].concat(...this.players.map(q => this.zones[q.id].graveyard)).filter(o => o !== src && this._cardFitsWords(o, what + ' card'));
+        return gy.length >= e.fromGraves ? gy : [];
+      }
       return this.battlefield.filter(o => o !== src && !o.phasedOut && this._cardFitsWords(o, what) &&
         (!e.yours || o.controller === controller) &&
         // Mockingbird: no more mana value than the mana spent to cast it
@@ -2509,7 +2514,9 @@
       this.queueChoice({ type: 'pickCard', playerId: item.controller, purpose: 'cloneChoice', count: 1, optional: true,
         objId: o.id, candidates: pool.map(x => x.id), cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
         sourceId: o.id, sourceName: o.name, sourceCard: o.card,
-        prompt: `${o.name}: choose what it enters as a copy of. Choose nothing and it enters as itself.` });
+        prompt: ef.fromGraves
+          ? `${o.name}: you may exile two creature cards from graveyards. Choose the one it enters as a copy of — the other's power in +1/+1 counters comes next. Choose nothing and it enters as itself.`
+          : `${o.name}: choose what it enters as a copy of. Choose nothing and it enters as itself.` });
       return true;
     }
 
@@ -3184,11 +3191,13 @@
      * of those cards", so the rest of its lot can no longer be played that way.
      */
     _impulseUsed(o, playerId) {
-      if (!o || o.zone !== 'exile' || !o.impulseGroup || o.impulseBy !== playerId) return;
+      // (Lobelia, Defender of Bag End: "a card … without paying its mana cost" — a free one uses the lot's leave too)
+      if (!o || o.zone !== 'exile' || !o.impulseGroup || (o.impulseBy !== playerId && o.freeCastBy !== playerId)) return;
       for (const q of this.players) {
         for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c === o || c.impulseGroup !== o.impulseGroup) continue;
           c.impulseBy = null; c.impulseUntil = null; c.impulseGroup = null; c.impulsePayLife = null; c.impulseAnyMana = null;
+          if (c.freeCastBy === playerId) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; }
         }
       }
     }
@@ -4610,6 +4619,11 @@
         // Radagast of Rhosgobel: "The first creature spell you cast each turn … can be cast as though it had flash"
         if (e && e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
         if (e && (!e.filter || this._cardFitsWords(o, e.filter))) return true;
+      }
+      // Azula, Cunning Usurper: "you may cast cards exiled with Azula and you may cast them as though they had flash" (playFrom flash)
+      if (o && o.zone === 'exile' && o.exiledWithId) {
+        const r = this._playFromRule(playerId, o, 'spell');
+        if (r && r.flash) return true;
       }
       /* Elsha of the Infinite: "If you cast a spell this way, you may cast it as though it had flash." — the top card
          of your library, cast by that leave (playFrom flash) */
@@ -11260,6 +11274,8 @@
         if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
         // Neriv, Heart of the Storm: "a creature you control that entered this turn"
         if (ef.sourceEnteredThisTurn && !(ev.source && ev.source.zone === 'battlefield' && ev.source.entered === this.turn)) return false;
+        // Raphael, the Muscle: "creatures you control with counters on them" (sourceCountered)
+        if (ef.sourceCountered && !(ev.source && Object.values(ev.source.counters || {}).some(v => Number(v) > 0))) return false;
         // Sokrates, Athenian Teacher: "If this creature would deal combat damage" — the one that has it
         if (ef.fromSelf && !(ev.source && ev.source.id === src.id)) return false;
         if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;
@@ -16483,20 +16499,22 @@
             // (a player already done is not asked again when this resumes for the next one)
             const rr = this.resolving, doneKey = rr ? rr.index + ':xhd' + p.id : null;
             if (rr && rr.marks && rr.marks[doneKey]) continue;
-            const hand = this.zones[p.id].hand.slice();
+            // (Azula, Cunning Usurper: "then they exile a nonland card from their graveyard" — from, filter)
+            const zn = e.from || 'hand';
+            const hand = this.zones[p.id][zn].filter(c => !e.filter || this._cardFitsWords(c, e.filter));
             if (!hand.length) continue;
             let picks;
             if (p.isBot || hand.length <= cnt) picks = this._cheapestFirst(hand).slice(0, cnt).map(c => c.id);
             else {
               const got = this._ask({ type: 'pickCard', playerId: p.id, count: cnt, cards: hand.map(c => ({ id: c.id, name: c.name, card: c.card })),
-                prompt: `Exile ${cnt === 1 ? 'a card' : cnt + ' cards'} from your hand.` }, 'xh' + p.id);
+                prompt: `Exile ${cnt === 1 ? (e.filter ? (/^[aeiou]/i.test(e.filter) ? 'an ' : 'a ') + e.filter + ' card' : 'a card') : cnt + ' ' + (e.filter ? e.filter + ' ' : '') + 'cards'} from your ${zn}.` }, 'xh' + p.id);
               if (got === SUSPEND) return SUSPEND;
               picks = (got || []).filter(id => hand.some(c => c.id === id)).slice(0, cnt);
               if (picks.length < cnt) picks = this._cheapestFirst(hand).slice(0, cnt).map(c => c.id);
             }
-            const gone = picks.map(id => this.obj(id)).filter(c => c && c.zone === 'hand');
+            const gone = picks.map(id => this.obj(id)).filter(c => c && c.zone === zn);
             for (const c of gone) this.moveObject(c, 'exile');
-            if (gone.length) this.logEvent('exile', `${p.name} exiles ${gone.map(c => c.name).join(', ')} from their hand.`);
+            if (gone.length) this.logEvent('exile', `${p.name} exiles ${gone.map(c => c.name).join(', ')} from their ${zn}.`);
             if (rr) { rr.marks = rr.marks || {}; rr.marks[doneKey] = true; }
           }
           break;
@@ -22656,11 +22674,13 @@
            resolution exiled, playable for as long as it says */
         case 'mayPlayExiled': {
           // (Stolen Goods: "that card" — the card the digging stopped at, not every card it went past: thatCard)
-          const ids = (e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
+          // (Lobelia, Defender of Bag End: "a card exiled with Lobelia" — whichever it turns out to be: exiledWith)
+          const ids = (e.exiledWith ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
+            : e.thatCard && this._exileUntil ? this._exileUntil.hits.slice(-1)
             : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i);
           // Mission Briefing: "choose an instant or sorcery card in your graveyard. You may cast it this turn."
-          const gy = !ids.length && this._lastAffected && this.obj(this._lastAffected.id);
+          const gy = !ids.length && !e.exiledWith && this._lastAffected && this.obj(this._lastAffected.id);
           if (gy && gy.zone === 'graveyard') {
             gy.graveCastBy = ctx.controller; gy.graveCastTurn = this.turn;
             if (e.exileAfter) gy._exileFromStack = true;
@@ -23572,6 +23592,15 @@
           let pick = chosen ? pool.find(o => o.id === chosen) : null;
           const worth = (o) => this.powerOf(o) + ((o.card && o.card.cmc) || 0) / 2 + (o.controller === ctx.controller ? 0.5 : 0);
           if (!pick) { pick = pool[0]; for (const o of pool) if (worth(o) > worth(pick)) pick = o; }
+          /* The Mimeoplasm: both cards exiled, the copy with the other's power in +1/+1 counters (fromGraves) — the
+             one asked for, or else the strongest left */
+          let other = null;
+          if (e.fromGraves) {
+            const oc = src._cloneOther; src._cloneOther = null;
+            const rest = pool.filter(o => o !== pick);
+            other = rest.find(o => o.id === oc) || rest.slice().sort((x, y) => this.powerOf(y) - this.powerOf(x))[0] || null;
+            if (!other) break;
+          }
           src.printedCard = src.printedCard || src.card;
           src.copyOf = pick.card;
           const card = this._copyExcept(pick.card, src.printedCard, e);
@@ -23586,6 +23615,12 @@
           } else if ((src.analysis() || {}).isPlaneswalker) src.counters.loyalty = parseInt(src.analysis().loyalty, 10) || 0;
           // Moritte of the Frost: "if it's a creature, it enters with two additional +1/+1 counters on it" (creatureCounters)
           if (e.creatureCounters && (src.analysis() || {}).isCreature) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + e.creatureCounters;
+          if (other) {
+            const pw = Math.max(0, this.powerOf(other));
+            this.moveObject(pick, 'exile'); this.moveObject(other, 'exile');
+            this.logEvent('exile', `${me.name} exiles ${pick.name} and ${other.name} from graveyards.`);
+            if (pw > 0) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + pw;
+          }
           // Cursed Mirror: a copy until the end of the turn, with haste
           if (e.eot) src.copyUntilTurn = this.turn;
           if (e.haste) src.effects.push({ keywords: ['Haste'], until: 'eot' });
@@ -28826,6 +28861,34 @@
             const o = this.obj(ch.objId);
             const pick = ids.find(id => (ch.candidates || []).includes(id));
             if (o) o._cloneChoice = pick || 'none';
+            this.pendingChoice = null;
+            /* The Mimeoplasm: the card copied is one of two exiled — the other, whose power is its counters, asked
+               next (cloneOther) */
+            const two = pick && o && ((o.analysis() || {}).abilities || []).some(ab => (ab.effects || []).some(x => x && x.op === 'etbAsCopy' && x.fromGraves));
+            if (two) {
+              const rest = (ch.candidates || []).filter(id => id !== pick).map(id => this.obj(id)).filter(x => x && x.zone === 'graveyard');
+              if (rest.length > 1) {
+                this._cloneWait = item;
+                this.queueChoice({ type: 'pickCard', playerId: ch.playerId, purpose: 'cloneOther', count: 1,
+                  objId: o.id, candidates: rest.map(x => x.id), cards: rest.map(x => ({ id: x.id, name: x.name, card: x.card })),
+                  sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+                  prompt: `${o.name}: choose the other creature card to exile. It enters with +1/+1 counters equal to that card's power.` });
+                if (!this.pendingChoice) this._nextChoice();
+                return true;
+              }
+              o._cloneOther = rest.length ? rest[0].id : null;
+            }
+            if (item && o && o.zone === 'stack') this._resolveSpell(item);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
+          // The Mimeoplasm: the second card picked — the clone resolves now
+          if (ch.purpose === 'cloneOther') {
+            const item = this._cloneWait;
+            this._cloneWait = null;
+            const o = this.obj(ch.objId);
+            if (o) o._cloneOther = ids.find(id => (ch.candidates || []).includes(id)) || (ch.candidates || [])[0] || null;
             this.pendingChoice = null;
             if (item && o && o.zone === 'stack') this._resolveSpell(item);
             if (!this.pendingChoice) this._nextChoice();

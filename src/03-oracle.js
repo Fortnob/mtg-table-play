@@ -6912,6 +6912,17 @@
     /* Arvinox, the Mind Flail: "exile the bottom card of each opponent's library face down. For as long as those
        cards remain exiled, you may look at them, you may cast permanent spells from among them, and you may spend mana
        as though it were mana of any color to cast those spells." (exileBottomEach, impulseFilter) */
+    // Azula, Cunning Usurper: "target opponent exiles a nontoken creature they control, then they exile a nonland card from their graveyard"
+    { re: /^Target opponent exiles an? ([a-z ]+?) they control, then they exile an? ([a-z]+) card from their graveyard\.?$/i,
+      make: (m) => [{ op: 'sacrificeChoice', n: 1, who: 'target', filter: m[1].toLowerCase(), exile: true, targets: [{ type: 'player', opponent: true }] },
+        { op: 'exileFromHandChoice', n: 1, who: 'target', from: 'graveyard', filter: m[2].toLowerCase() }] },
+    // Lobelia, Defender of Bag End: "look at the top card of each opponent's library and exile those cards face down"
+    { re: /^Look at the top card of each opponent'?s library and exile those cards face down\.?$/i,
+      make: () => ({ op: 'exileBottomEach', who: 'opponents', faceDown: true, top: true }) },
+    /* Lobelia, Defender of Bag End: "Until end of turn, you may play a card exiled with Lobelia without paying its mana
+       cost." — one of them, and then none of the rest (mayPlayExiled exiledWith, oneOf) */
+    { re: /^Until end of turn, you may play a card exiled with CARDNAME without paying its mana cost\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', exiledWith: true, oneOf: true, free: true, duration: 'eot' }) },
     { re: /^Exile the bottom card of each opponent'?s library( face down)?\.?$/i,
       make: (m) => ({ op: 'exileBottomEach', who: 'opponents', faceDown: !!m[1] }) },
     { re: /^For as long as those cards remain exiled, you may look at them, you may cast (permanent |creature |)spells from among them, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
@@ -16648,6 +16659,9 @@
        instead"; "If another creature would deal combat damage to equipped creature" */
     { re: /^If (enchanted|equipped) creature would deal combat damage(?: to a permanent or player)?, it deals double that damage instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgAttachedDouble', event: 'damage', who: 'any', how: 'double', fromAttached: true, combatOnly: true }) },
+    // Raphael, the Muscle: "Double all damage that creatures you control with counters on them would deal." (sourceCountered)
+    { re: /^Double all damage that creatures you control with counters on them would deal\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgDoubleCountered', event: 'damage', who: 'you', how: 'double', sourceWords: 'creature', sourceCountered: true }) },
     // Neriv, Heart of the Storm: "If a creature you control that entered this turn would deal damage, it deals twice that much damage instead."
     { re: /^If a creature you control that entered this turn would deal damage, it deals (twice|three times) that much damage instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgEnteredDouble', event: 'damage', who: 'you', how: /twice/i.test(m[1]) ? 'double' : 'triple', sourceWords: 'creature', sourceEnteredThisTurn: true }) },
@@ -17086,6 +17100,11 @@
         make: (m) => ({ op: 'etbTappedUnlessLife', life: +m[1] }), auto: true },
       { re: /^(?:CARDNAME|This land) enters(?: the battlefield)? tapped unless you have two or more opponents\.?$/i,
         make: () => ({ op: 'etbTappedUnlessOpponents', n: 2 }), auto: true },
+      /* The Mimeoplasm: "As The Mimeoplasm enters, you may exile two creature cards from graveyards. If you do, it enters
+         as a copy of one of those cards with a number of additional +1/+1 counters on it equal to the power of the other
+         card." (etbAsCopy fromGraves) */
+      { re: /^As CARDNAME enters, you may exile two creature cards from graveyards\. If you do, it enters as a copy of one of those cards with a number of additional \+1\/\+1 counters on it equal to the power of the other card\.?$/i,
+        eff: { op: 'etbAsCopy', what: 'creature', fromGraves: 2 }, auto: true },
       // the shockland question
       { re: /^As (?:CARDNAME|this land) enters(?: the battlefield)?,? you may pay (\d+) life\. If you don'?t, (?:it|CARDNAME|this land) enters(?: the battlefield)? tapped\.?$/i,
         make: (m) => ({ op: 'etbTappedUnlessPay', life: +m[1] }), auto: true },
@@ -18506,6 +18525,10 @@
          a spell this way, pay life equal to its mana value rather than pay its mana cost." (exiledWith) */
       { re: /^During your turn, you may play cards exiled with CARDNAME\. If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?$/,
         eff: { op: 'playFrom', zone: 'exiledWith', what: 'any', duringYourTurn: true, payLife: true }, auto: true },
+      /* Azula, Cunning Usurper: "During your turn, you may cast cards exiled with Azula and you may cast them as though
+         they had flash. Mana of any type can be spent to cast those spells." (exiledWith, flash, anyMana) */
+      { re: /^During your turn, you may cast cards exiled with CARDNAME and you may cast them as though they had flash\. Mana of any type can be spent to cast those spells\.?$/,
+        eff: { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, flash: true, anyMana: true }, auto: true },
       /* Tinybones, Bauble Burglar: "During your turn, you may play cards you don't own with stash counters on them
          from exile, and mana of any type can be spent to cast those spells." (exiledCounter) */
       { re: /^During your turn, you may play cards you don'?t own with ([a-z]+) counters on them from exile, and mana of any type can be spent to cast those spells\.?$/i,
