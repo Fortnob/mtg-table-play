@@ -329,6 +329,11 @@
       // (Gix, Yawgmoth Praetor: "Discard X cards" — the X chosen as it is activated)
       if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) { cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : /^X$/.test(m[1]) ? 'X' : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' }; continue; }
       if ((m = p.match(/^Pay (\d+) life$/i))) { cost.life = +m[1]; continue; }
+      /* The Capitoline Triad: "Exile any number of historic cards from your graveyard with total mana value 30 or
+         greater" — evidence of one kind (evidenceFilter) */
+      if ((m = p.match(/^Exile any number of ([a-z]+) cards from your graveyard with total mana value (\d+) or greater$/i))) {
+        cost.evidence = +m[2]; cost.evidenceFilter = m[1].toLowerCase(); continue;
+      }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
            asking, or a few cards out of the graveyard. Anything else stays
@@ -2185,6 +2190,11 @@
     // Traumatize, Cut Your Losses: "mills half their library, rounded down"
     { re: /^Target (player|opponent) mills half their library, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Arna Kennerüd, Skycaptain: "double the number of each kind of counter on it. Then for each nontoken permanent
+       attached to it, create a token that's a copy of that permanent attached to that creature." (copyAttached) */
+    { re: /^Double the number of each kind of counter on it\.?$/i, make: () => ({ op: 'doubleCounters', allKinds: true, scope: 'triggerObject' }) },
+    { re: /^(?:Then )?for each nontoken permanent attached to it, create a token that'?s a copy of that permanent attached to that creature\.?$/i,
+      make: () => ({ op: 'copyAttached', scope: 'triggerObject' }) },
     // Gilder Bairn: "Double the number of each kind of counter on target permanent."
     { re: /^Double the number of each kind of counter on (target [a-z ,]+?)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', allKinds: true, targets: [targetSpec(m[1])] }) },
@@ -8298,6 +8308,13 @@
        lands you control to their owner's hand": the sentence read for one
        target, and the picking done as it resolves — any number of the
        things it could have targeted. */
+    /* Kairi, the Swirling Sky: "Return any number of target nonland permanents with total mana value 6 or less to
+       their owners' hands" — the same, the picks adding up to no more than that (anyTotalMv) */
+    const tmv = !depth && s.match(/^(.*\bany number of target [a-z ]+?) with total mana value (\d+) or less\b(.*)$/i);
+    if (tmv) {
+      const inner = parseEffectSentence(tmv[1] + tmv[3], 0);
+      if (inner && inner.anyFrom && inner.op !== 'manual' && !hasManualStep(inner)) { inner.anyTotalMv = +tmv[2]; inner.text = s; return inner; }
+    }
     const anyN = !depth && s.match(/\bany number of (other )?target ((?:[a-z]+ )*?)(creatures|artifacts|enchantments|lands|permanents|planeswalkers|players|cards)( [^,.]*)?/i);
     if (anyN && !/divided|damage/i.test(s)) {
       const one = s.replace(anyN[0], (anyN[1] ? 'another ' : '') + 'target ' + anyN[2] + anyN[3].replace(/s$/, '') + (anyN[4] || '').replace(/\bthey control\b/, 'it controls').replace(/\btheir owners?'?s?\b/, "its owner's"))
@@ -17141,6 +17158,9 @@
         make: (m) => Object.assign({ op: 'discardToBattlefield' }, m[1] ? { counters: num(m[2]) } : {}), auto: true },
       // Thousand-Year Elixir: "You may activate abilities of creatures you control as though those creatures had haste."
       { re: /^You may activate abilities of creatures you control as though those creatures had haste\.?$/i, eff: { op: 'activateAsHaste' }, auto: true },
+      // Nissa, Worldsoul Speaker: "You may pay eight {E} rather than pay the mana cost for permanent spells you cast."
+      { re: /^You may pay (\w+) \{E\} rather than pay the mana cost for (permanent |creature |artifact )?spells you cast\.?$/i,
+        make: (m) => (typeof num(m[1]) === 'number' ? Object.assign({ op: 'grantAltCost', mana: '', energy: num(m[1]) }, m[2] ? { words: m[2].trim().toLowerCase() } : {}) : null), auto: true },
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
       { re: /^You may pay ((?:\{[WUBRG]\})+) rather than pay the mana cost for spells (?:that )?you cast\.?$/i,
         make: (m) => ({ op: 'grantAltCost', mana: m[1] }), auto: true },
@@ -17903,6 +17923,13 @@
         make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
           effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
             legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      // Rune-Tail, Kitsune Ascendant: "When you have 30 or more life, flip Rune-Tail." — the same kind of state trigger (minLife)
+      { re: /^When you have (\w+) or more life, (.+)$/i,
+        make: (m) => {
+          const k = num(m[1].toLowerCase());
+          const p = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+          return typeof k === 'number' && k > 0 && p.auto && p.effects.length ? { op: 'stateTrigger', minLife: k, label: k + ' or more life', effects: p.effects } : null;
+        }, auto: true },
       /* Olivia, Crimson Bride: "When you don't control a legendary Vampire, exile this creature." — the same kind
          of state trigger, on what you control (noControl) */
       { re: /^When you don'?t control an? (legendary [A-Z][a-z]+), exile (?:CARDNAME|this creature)\.?$/,

@@ -5069,11 +5069,20 @@
          mana cost for spells you cast" — one more price for any spell from the
          hand or the command zone (a commander's tax still on top) (grantAltCost) */
       if ((o.zone === 'hand' || o.zone === 'command') && !a.isLand) {
-        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost'));
+        const gs = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && this._staticOp(s0, 'grantAltCost') && !this._staticOp(s0, 'grantAltCost').energy);
         if (gs) {
           const mana = this._staticOp(gs, 'grantAltCost').mana;
           const tax = this._commanderTax(o).mana;
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
+        }
+        /* Nissa, Worldsoul Speaker: "You may pay eight {E} rather than pay the mana cost for permanent spells you cast."
+           — energy for the price, offered while there is that much (grantAltCost energy) */
+        const ge = this.battlefield.find(s0 => s0.controller === playerId && !s0.phasedOut && (this._staticOp(s0, 'grantAltCost') || {}).energy);
+        const geOp = ge && this._staticOp(ge, 'grantAltCost');
+        if (geOp && (!geOp.words || this._cardFitsWords(o, geOp.words)) && ((this.player(playerId) || {}).energy || 0) >= geOp.energy) {
+          const tax = this._commanderTax(o).mana;
+          const lab = `Pay ${geOp.energy} {E}`;
+          out.push({ kind: 'cast', via: 'grantAltE', cost: tax ? this._addGeneric('', tax) : '', alt: { mana: '', energy: geOp.energy, label: lab }, label: `${lab} instead (${ge.name})` });
         }
       }
       /* Amazing Spider-Man: "Each legendary spell you cast that's one or more colors has web-slinging {G}{W}{U}." —
@@ -6646,6 +6655,8 @@
       if (via && via.alt) {
         const alt = via.alt;
         if (alt.life) this.changeLife(playerId, -alt.life, 'cost');
+        // Nissa, Worldsoul Speaker: "pay eight {E}"
+        if (alt.energy) { p.energy = Math.max(0, (p.energy || 0) - alt.energy); this.logEvent('counters', `${p.name} pays ${alt.energy} energy (${p.energy} left).`); }
         if (alt.exileFromHand) {
           const pool = this._discardPool(playerId, alt.exileFromHand, o);
           const need = Math.min(pool.length, alt.exileFromHand.n || 1);
@@ -8114,12 +8125,13 @@
         (spec.kind ? Number(x.counters[spec.kind]) > 0 : Object.values(x.counters || {}).some(v => Number(v) > 0))));
     }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
-    _evidenceTotal(pid, self) {
-      return this.zones[pid].graveyard.filter(c => c !== self).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
+    // (The Capitoline Triad: "historic cards" only — filter)
+    _evidenceTotal(pid, self, filter) {
+      return this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
     }
     /** Exile cards with total mana value N or more: the biggest first, so as few go as can. */
-    _collectEvidence(pid, need, self, ids) {
-      const pool = this.zones[pid].graveyard.filter(c => c !== self).sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
+    _collectEvidence(pid, need, self, ids, filter) {
+      const pool = this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
       const mv = (c) => (c.card && c.card.cmc) || 0;
       let k = 0;
       let picks = [];
@@ -8129,7 +8141,9 @@
       else for (const c of pool) { if (k >= need) break; picks.push(c); k += mv(c); }
       if (k < need) return false;
       for (const c of picks) this.moveObject(c, 'exile');
-      this.logEvent('exile', `${this.player(pid).name} collects evidence ${need}: ${picks.map(c => c.name).join(', ')}.`);
+      // (The Capitoline Triad: an exile of that much, not evidence collected)
+      if (filter) { this.logEvent('exile', `${this.player(pid).name} exiles ${picks.map(c => c.name).join(', ')} from their graveyard.`); return true; }
+      this.logEvent('exile', `${this.player(pid).name} collects evidence ${need}:${picks.map(c => c.name).join(', ')}.`);
       this._fire('youCollectEvidence', pid, { playerId: pid });
       return true;
     }
@@ -8140,8 +8154,9 @@
       const choices = cost.choice ? cost.choice : [cost];
       for (const c of choices) {
         if (!c) continue;
-        if (c.evidence) out.push({ kind: 'evidence', label: 'Collect evidence ' + c.evidence, key: 'evidenceIds', need: c.evidence,
-          candidates: this.zones[pid].graveyard.filter(x => x !== self).map(x => x.id) });
+        if (c.evidence) out.push({ kind: 'evidence', label: c.evidenceFilter ? `Exile ${c.evidenceFilter} cards with total mana value ${c.evidence} or greater` : 'Collect evidence ' + c.evidence,
+          key: 'evidenceIds', need: c.evidence,
+          candidates: this.zones[pid].graveyard.filter(x => x !== self && (!c.evidenceFilter || this._cardFitsWords(x, c.evidenceFilter))).map(x => x.id) });
         if (c.forage) out.push({ kind: 'forage', label: 'Forage', key: 'forageExileIds', need: 3, foodKey: 'forageFoodId',
           candidates: this.zones[pid].graveyard.filter(x => x !== self).map(x => x.id),
           foods: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._hasSubtype(x, 'Food')).map(x => x.id) });
@@ -8548,7 +8563,7 @@
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
       if (cost.forage && !this._canForage(pid, self)) return 'Nothing to forage: no Food, and fewer than three cards in your graveyard.';
-      if (cost.evidence && this._evidenceTotal(pid, self) < cost.evidence) return `Not enough evidence: cards with total mana value ${cost.evidence} are needed in your graveyard.`;
+      if (cost.evidence && this._evidenceTotal(pid, self, cost.evidenceFilter) < cost.evidence) return `Not enough evidence: ${cost.evidenceFilter ? cost.evidenceFilter + ' ' : ''}cards with total mana value ${cost.evidence} are needed in your graveyard.`;
       if (cost.revealHand) {
         const need = this._costCount(cost.revealHand.n, opts);
         if (this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).length < need) return `Not enough ${cost.revealHand.filter} cards in your hand to reveal.`;
@@ -8703,7 +8718,7 @@
       // Forage: a Food if there is one, or three cards out of the graveyard
       if (cost.forage) this._forageAuto(pid, self, opts);
       // Collect evidence: the fewest cards that add up
-      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self, opts.evidenceIds);
+      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self, opts.evidenceIds, cost.evidenceFilter);
       // the Martyrs: shown, and kept
       if (cost.revealHand) {
         const need = this._costCount(cost.revealHand.n, opts);
@@ -15460,21 +15475,27 @@
       /* "Tap any number of target creatures": any number of the things it
          could target, picked as it resolves */
       if (e.anyFrom && !(e.targets && e.targets.length)) {
+        const mvOf = (o) => (o.card && o.card.cmc) || 0;
+        // (Kairi, the Swirling Sky: "with total mana value 6 or less" — anyTotalMv)
         const pool = this._legalTargetsFor(e.anyFrom, ctx.controller, src ? src.id : null)
-          .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+          .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)
+          .filter(o => e.anyTotalMv == null || mvOf(o) <= e.anyTotalMv);
         if (!pool.length) return null;
         // (Dragonlord Atarka: "5 damage divided as you choose among any number of …" — no more of them than there is damage, CR 601.2d)
         // (Ureni, the Song Unending: "X damage …, where X is the number of lands you control" — counted now)
         const dmgN = e.op !== 'damageDivided' ? null : typeof e.n === 'number' ? e.n : e.n && e.n.scope ? this._countValue(e.n, ctx.controller, src || null) : null;
         const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
         if (cap <= 0) return null;
-        const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
-          items: this._chooseItems(pool), min: 0, max: cap, optional: true,
+        const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
+          items: e.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
           harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
-          prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}.` }, 'anyt');
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}${e.anyTotalMv != null ? ` with total mana value ${e.anyTotalMv} or less` : ''}.` },
+        e.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.anyTotalMv, label: 'total mana value' }] } : {}), 'anyt');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
-        targets = got.picks.map(id => ({ kind: 'object', id }));
+        let picks = got.picks;
+        if (e.anyTotalMv != null) { let sum = 0; picks = picks.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > e.anyTotalMv) return false; sum += v; return true; }); }
+        targets = picks.map(id => ({ kind: 'object', id }));
         const warded = this._wardOnResolve(ctx, targets, 'anyt');
         if (warded === SUSPEND) return SUSPEND;
         if (warded) return null;
@@ -26374,6 +26395,26 @@
           break;
         }
 
+        /* Arna Kennerüd, Skycaptain: "for each nontoken permanent attached to it, create a token that's a copy of that
+           permanent attached to that creature" — those attached as this resolves, each copy arriving on it */
+        case 'copyAttached': {
+          const td = ctx.triggerData || {};
+          const host = e.scope === 'self' ? src : td.objectId && this.obj(td.objectId);
+          if (!host || host.zone !== 'battlefield') break;
+          const atts = (host.attachments || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && !x.isToken && x.attachedTo === host.id);
+          for (const x of atts) {
+            this._lastCopy = null;
+            this._runEffect({ op: 'copyPermanent', n: 1, _forced: x }, ctx);
+            const copy = this._lastCopy;
+            if (!copy || copy.zone !== 'battlefield' || host.zone !== 'battlefield') continue;
+            copy._needsHost = false;
+            copy.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(id => id !== copy.id).concat(copy.id);
+            this.logEvent('rules', `${copy.name} enters attached to ${host.name}.`);
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'damageByPower': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const shooter = objs[0];
@@ -28047,7 +28088,9 @@
           const sttOn = stt && (stt.noCounter ? !(Number(o.counters[stt.noCounter]) > 0)
             : stt.minCounter ? (Number(o.counters[stt.minCounter.kind]) || 0) >= stt.minCounter.n
             // (Olivia, Crimson Bride: "When you don't control a legendary Vampire" — noControl)
-            : stt.noControl ? !this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, stt.noControl)) : false);
+            : stt.noControl ? !this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, stt.noControl))
+            // (Rune-Tail, Kitsune Ascendant: "When you have 30 or more life" — minLife)
+            : stt.minLife ? ((this.player(o.controller) || {}).life || 0) >= stt.minLife : false);
           if (sttOn && o.zone === 'battlefield' &&
               !this.pendingTriggers.concat(this.stack).some(x => x && x.objId === o.id && x.stateTrigger)) {
             this.pendingTriggers.push({
