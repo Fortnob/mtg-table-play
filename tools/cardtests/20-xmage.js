@@ -29523,4 +29523,114 @@ module.exports = (test) => {
     M.toMain('A', 'end'); M.resolve();
     t.eq(M.life('B'), lifeB, 'Kefka: an empty graveyard, nothing');
   });
+
+  test('Commanders: Firion, Wild Rose Warrior — an Equipment entering: a copy that equips for {2} less, sacrificed at the next upkeep', (mk, t) => {
+    t.auto('Firion, Wild Rose Warrior');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Firion, Wild Rose Warrior');
+    const bears = M.bf('A', 'Grizzly Bears', { sick: true });
+    M.mana('A', '3');
+    const ham = M.hand('A', 'Loxodon Warhammer');
+    M.cast('A', ham);
+    const copies = () => M.bfOf('A').filter(o => o.isToken && o.name === 'Loxodon Warhammer');
+    t.eq(copies().length, 1, 'Firion: a token copy');
+    const tok = copies()[0];
+    const idx = (o) => o.analysis().abilities.findIndex(ab => /^Equip/i.test(ab.text || ''));
+    // the copy: equip {3} for {1}
+    M.mana('A', '1');
+    M.activate('A', tok, idx(tok), { targets: [bears] });
+    t.eq(tok.attachedTo, bears.id, 'Firion: the copy equipped for {1}');
+    t.ok(M.g.hasKw(bears, 'haste') || M.g.hasKw(bears, 'Haste'), 'Firion: an equipped creature has haste');
+    // the original: full price
+    M.mana('A', '1');
+    t.no(M.g.activateAbility('A', ham.id, idx(ham), { auto: true, targets: [{ kind: 'object', id: bears.id }] }), 'Firion: the original still costs {3}');
+    t.eq(copies().length, 1, 'Firion: the token copy entering made no copy of its own');
+    // the next upkeep: the copy goes
+    M.nextTurn('B');
+    t.no(M.g.battlefield.includes(tok), 'Firion: sacrificed at the next upkeep');
+    t.zone(ham, 'battlefield', 'Firion: the original stays');
+  });
+
+  test('Commanders: Locke, Treasure Hunter — Mug: each player mills, a Treasure for a land, and one spell from among them this turn', (mk, t) => {
+    t.auto('Locke, Treasure Hunter');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(10).fill('Island') });
+    const locke = M.bf('A', 'Locke, Treasure Hunter');
+    const bears = M.top('A', 'Grizzly Bears');
+    const bolt = M.top('B', 'Lightning Bolt');
+    const forest = M.top('C', 'Forest');
+    M.answer('declareAttackers', () => [{ attackerId: locke.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    [bolt, bears, forest].forEach(o => t.zone(o, 'graveyard', 'Locke: each player milled'));
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length, 1, 'Locke: a land milled, a Treasure');
+    t.ok(M.g.altUsesFor('A', bears.id).some(u => u.via === 'graveGrant'), "Locke: A's own Bears among them");
+    t.no(M.g.altUsesFor('A', forest.id).some(u => u.via === 'graveGrant'), 'Locke: not a land');
+    const lifeC = M.life('C');
+    M.mana('A', 'R');
+    t.ok(M.g.castSpell('A', bolt.id, { auto: true, via: 'graveGrant', targets: [{ kind: 'player', id: 'C' }] }), "Locke: B's Bolt from B's graveyard: " + M.g.lastError);
+    M.resolve();
+    t.eq(M.life('C'), lifeC - 3, 'Locke: A cast it');
+    t.no(M.g.altUsesFor('A', bears.id).some(u => u.via === 'graveGrant'), 'Locke: only one spell from among them');
+    // a card in a graveyard not milled this way: no
+    const old = M.grave('B', 'Shock');
+    t.no(M.g.altUsesFor('A', old.id).some(u => u.via === 'graveGrant'), 'Locke: not a card already there');
+  });
+  test('Commanders: Locke, Treasure Hunter — no land milled: no Treasure; the leave ends with the turn', (mk, t) => {
+    const M = mk({ library: Array(10).fill('Grizzly Bears') });
+    const locke = M.bf('A', 'Locke, Treasure Hunter');
+    const bolt = M.top('A', 'Lightning Bolt');
+    M.answer('declareAttackers', () => [{ attackerId: locke.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 0, 'Locke: no land, no Treasure');
+    M.nextTurn('B');
+    M.nextTurn('A');
+    M.mana('A', 'R');
+    t.no(M.g.altUsesFor('A', bolt.id).some(u => u.via === 'graveGrant'), 'Locke: until end of turn only');
+  });
+
+  test('Commanders: Baeloth Barrityl, Entertainer — weaker creatures of opponents are goaded; a goaded one dying in combat makes a Treasure', (mk, t) => {
+    t.auto('Baeloth Barrityl, Entertainer');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const bae = M.bf('A', 'Baeloth Barrityl, Entertainer');
+    const elves = M.bf('B', 'Llanowar Elves');
+    const bears = M.bf('B', 'Grizzly Bears');
+    const giant = M.bf('C', 'Hill Giant');
+    const g = M.g;
+    t.ok(g.mustAttack(elves), 'Baeloth: power 1 is less than 2, goaded');
+    t.no(g.mustAttack(bears), 'Baeloth: power 2 is not less');
+    t.no(g.mustAttack(giant), "Baeloth: C's Giant, power 3");
+    t.no(g.mustAttack(bae), 'Baeloth: not its own');
+    M.nextTurn('B');
+    M.toMain('B', 'beginCombat');
+    for (let i = 0; i < 20 && !(g.pendingChoice && g.pendingChoice.type === 'declareAttackers'); i++) g.passPriority(g.priorityPlayer.id, true);
+    t.no(g.declareAttackers('B', []), 'Baeloth: the goaded Elves must attack');
+    t.no(g.declareAttackers('B', [{ attackerId: elves.id, defenderId: 'A' }]), 'Baeloth: not at A, who goads it');
+    t.ok(g.declareAttackers('B', [{ attackerId: elves.id, defenderId: 'C' }]), 'Baeloth: at C: ' + g.lastError);
+    M.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [elves.id] }]);
+    M.toMain('B', 'endCombat');
+    t.zone(elves, 'graveyard', 'Baeloth: the Elves blocked and killed');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length, 1, 'Baeloth: a goaded attacker died, a Treasure for A');
+    // a creature that is not goaded dying: nothing
+    M.nextTurn('A');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [bears] });
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Treasure').length, 1, 'Baeloth: not in combat, nothing');
+  });
+
+  test('Commanders: Zodiark, Umbral God — each player sacrifices half their non-God creatures; each sacrifice grows it', (mk, t) => {
+    t.auto('Zodiark, Umbral God');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    for (let i = 0; i < 3; i++) M.bf('A', 'Grizzly Bears');
+    M.bf('B', 'Llanowar Elves');
+    for (let i = 0; i < 5; i++) M.bf('C', 'Hill Giant');
+    const z = M.bf('A', 'Zodiark, Umbral God', { etb: true });
+    M.resolve();
+    const count = (p, nm) => M.bfOf(p).filter(o => o.name === nm).length;
+    t.eq(count('A', 'Grizzly Bears'), 2, 'Zodiark: A, three non-Gods, sacrifices one');
+    t.eq(count('B', 'Llanowar Elves'), 1, 'Zodiark: B, one, sacrifices none');
+    t.eq(count('C', 'Hill Giant'), 3, 'Zodiark: C, five, sacrifices two');
+    t.zone(z, 'battlefield', 'Zodiark: not itself, a God');
+    t.eq(z.counters['+1/+1'], 3, 'Zodiark: a counter for each creature sacrificed');
+    t.no(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'B'), 'Zodiark: B is not asked');
+    t.ok(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'C' && ch.count === 2), 'Zodiark: C picks two');
+  });
 };

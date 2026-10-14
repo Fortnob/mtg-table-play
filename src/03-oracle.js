@@ -3147,6 +3147,11 @@
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'eachTarget' }) },
     /* Kefka, Dancing Mad: "exile a card at random from each opponent's graveyard"; "Then each player who owns a
        spell you cast this way loses life equal to its mana value." (castOwnersLoseMv) */
+    // Zodiark, Umbral God: "Each player sacrifices half the non-God creatures they control of their choice, rounded down." (halfRoundDown)
+    { re: /^Each player sacrifices half the (non-[A-Z][a-z]+ )?creatures they control of their choice, rounded down\.?$/,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'each', filter: ((m[1] || '') + 'creature').toLowerCase() }) },
+    // Locke, Treasure Hunter: "Until end of turn, you may cast a spell from among those cards." — the cards just milled (milledOnce)
+    { re: /^Until end of turn, you may cast a spell from among those cards\.?$/i, make: () => ({ op: 'castFromGraveyardsTurn', milled: true }) },
     { re: /^Exile a card at random from each opponent'?s graveyard\.?$/i, make: () => ({ op: 'exileRandomFromGraveyards', who: 'opponents' }) },
     { re: /^Then each player who owns a spell you cast this way loses life equal to its mana value\.?$/i, make: () => ({ op: 'castOwnersLoseMv' }) },
     // Haunted Fengraf: "Return a creature card at random from your graveyard to your hand."
@@ -5461,9 +5466,10 @@
 
     /* ===== notes left for later (CR 603.7) ===== */
     // (Pyric Salamander, Dragon Whelp: "this creature" is itself — subject 'self' — not the last thing aimed at)
-    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of the next end step\.?$/i,
-      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
-        name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
+    // (Firion, Wild Rose Warrior: "Sacrifice that token at the beginning of the next upkeep")
+    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of the next (end step|upkeep)\.?$/i,
+      make: (m) => ({ op: 'delayed', event: /upkeep/i.test(m[2]) ? 'eachUpkeep' : 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
+        name: /upkeep/i.test(m[2]) ? 'Sacrifice it at the next upkeep' : 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
@@ -6115,6 +6121,9 @@
     { re: /^Create a (tapped and attacking )?token that'?s a copy of that creature, except (it'?s not legendary and )?it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[3]) ? Object.assign({ op: 'copyPermanent', n: 1, grant: [], addText: [m[3]] },
         m[1] ? { tapped: true, attacking: true } : {}, m[2] ? { nonLegendary: true } : {}) : null) },
+    // Firion, Wild Rose Warrior: "create a token that's a copy of it, except it has "…"" — the Equipment the trigger is about
+    { re: /^Create a token that'?s a copy of it, except it has "([^"]+)"\.?$/i,
+      make: (m) => (grantableText(m[1]) ? { op: 'copyPermanent', n: 1, grant: [], addText: [m[1]], scope: 'triggerObject' } : null) },
     // Delina, Wild Mage: "You may roll again." — the die just rolled, its results read afresh (rollAgain)
     { re: /^You may roll again\.?$/i, make: () => ({ op: 'may', yesLabel: 'Roll again', noLabel: 'Stop', then: [{ op: 'rollAgain' }] }) },
     // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life and you draw a card." — "you" activated it (selfController)
@@ -10894,6 +10903,8 @@
     // Mazzy, Truesword Paladin: "Whenever an enchanted creature attacks one of your opponents" — anyone's (attacksYourOppFit)
     { re: /^Whenever an? (enchanted|equipped|modified) creature attacks one of your opponents,? /i, event: 'permAttacks', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() + ' creature' }), extra: { attacksYourOpp: true } },
+    // Baeloth Barrityl, Entertainer: "Whenever a goaded attacking or blocking creature dies" — as it went (wasGoaded, wasInCombat)
+    { re: /^Whenever a goaded attacking or blocking creature dies,? /i, event: 'permDies', filt: () => ({ words: 'creature', wasGoaded: true, wasInCombat: true }) },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
@@ -15759,6 +15770,11 @@
       // Zirda: "Abilities you activate that aren't mana abilities cost {2} less to activate."
       { re: /^Abilities you activate that aren'?t mana abilities cost \{(\d+)\} less to activate\.(?: This effect can'?t reduce the mana in that cost to less than one mana\.)?$/i,
         make: (m) => ({ op: 'abilityCostMod', who: 'you', amount: -(+m[1]), nonMana: true, minOne: /less than one mana/i.test(m[0]) }), auto: true },
+      // Firion, Wild Rose Warrior's copies: "This Equipment's equip abilities cost {2} less to activate." — its own (selfOnly)
+      { re: /^This Equipment'?s equip abilities cost \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', equip: true, selfOnly: true, amount: -(+m[1]) }), auto: true },
+      // Baeloth Barrityl, Entertainer: "Creatures your opponents control with power less than Baeloth Barrityl's power are goaded."
+      { re: /^Creatures your opponents control with power less than CARDNAME'?s power are goaded\.?$/i, eff: { op: 'goadWeaker' }, auto: true },
       // Fighter Class, Arms Scavenger: "Equip abilities you activate cost {1} less to activate."
       { re: /^Equip abilities you activate cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', who: 'you', equip: true, amount: -(+m[1]) }), auto: true },

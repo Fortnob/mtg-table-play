@@ -4798,6 +4798,8 @@
       const p = this.player(playerId);
       if (!p || !o || o.zone !== 'graveyard' || !(p.graveCastGrants || []).length) return null;
       return p.graveCastGrants.find(g => g.turn === this.turn && (g.any || o.owner === playerId) &&
+        // Locke, Treasure Hunter: "from among those cards" — the cards milled, still where they went (ids)
+        (!g.ids || g.ids.includes(o.id)) &&
         (!g.filter || this._cardFitsWords(o, g.filter))) || null;
     }
     /** The cards in other players' graveyards this player may cast this turn (The Great Work). */
@@ -6148,6 +6150,11 @@
       }
       // The Great Work: "If a spell cast this way would be put into a graveyard, exile it instead."
       if (via && via.via === 'graveGrant' && via.exileAfter) o._exileFromStack = true;
+      // Locke, Treasure Hunter: "a spell from among those cards" — one, and the leave is used (once)
+      if (via && via.via === 'graveGrant') {
+        const gg = this._graveGrant(playerId, o), pp = this.player(playerId);
+        if (gg && gg.once && pp) pp.graveCastGrants = (pp.graveCastGrants || []).filter(g => g !== gg);
+      }
       // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
       const fromZone = o.zone;
@@ -8161,6 +8168,8 @@
               if (!e || e.op !== 'abilityCostMod') continue;
               if (e.nonMana && ab.kind === 'mana') continue;
               if (e.equip && !/^Equip\b/i.test(ab.text || '')) continue;
+              // (Firion, Wild Rose Warrior's copies: "This Equipment's equip abilities" — selfOnly)
+              if (e.selfOnly && src.id !== o.id) continue;
               if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
               // Puresteel Paladin: equip {0}
               if (e.setZero && (e.who !== 'you' || o.controller === src.controller)) return '';
@@ -8986,6 +8995,22 @@
      * declare — a plan that leaves a compelled creature at home is refused,
      * and something has to know that before sending it.
      */
+    /**
+     * Who goads this creature: the player who goaded it, and Baeloth Barrityl, Entertainer's controller while it
+     * is weaker ("Creatures your opponents control with power less than Baeloth Barrityl's power are goaded.")
+     */
+    _goaders(o, leaving) {
+      const out = [];
+      if (!o) return out;
+      if (o.goadedBy != null) out.push(o.goadedBy);
+      if ((o.zone !== 'battlefield' && !leaving) || !(this.characteristics(o) || {}).isCreature) return out;
+      for (const s of this.battlefield) {
+        if (s.phasedOut || s.controller === o.controller || out.includes(s.controller)) continue;
+        if (!this._staticOp(s, 'goadWeaker')) continue;
+        if (this.powerOf(o) < this.powerOf(s)) out.push(s.controller);
+      }
+      return out;
+    }
     mustAttack(o) {
       if (!o) return false;
       const a = o.analysis();
@@ -8993,7 +9018,7 @@
       return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack')) ||
         // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
         !!this._staticOp(o, 'mustAttack') ||
-        this._hasFlag(o, 'mustAttackEot') || o.goadedBy != null || o.mustAttackPlayer != null ||
+        this._hasFlag(o, 'mustAttackEot') || this._goaders(o).length > 0 || o.mustAttackPlayer != null ||
         // Psychic Impetus: an Aura that keeps it goaded
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
@@ -9093,15 +9118,16 @@
              (Alexios, Deimos of Kosmos at two players, away from its owner) */
           const must = this.mustAttack(o) && ch.defenders.some(x => !this._cantAttackYou(o, x.id));
           if (must && !declarations.some(d => d.attackerId === id))
-            return this.fail(`${o.name} ${o.goadedBy != null ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
+            return this.fail(`${o.name} ${this._goaders(o).length ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
           /* goaded: it attacks a player other than the one who goaded it, if it can (CR 701.15b) — a bot's
-             declaration is turned that way, a person is told */
-          if (o && o.goadedBy != null) {
+             declaration is turned that way, a person is told (each goader, Baeloth Barrityl's controller too) */
+          const goaders = o ? this._goaders(o) : [];
+          if (o && goaders.length) {
             const d = declarations.find(x => x.attackerId === id);
-            const others = this.opponentsOf(playerId).filter(q => !q.hasLost && q.id !== o.goadedBy && !this._cantAttackYou(o, q.id));
+            const others = this.opponentsOf(playerId).filter(q => !q.hasLost && !goaders.includes(q.id) && !this._cantAttackYou(o, q.id));
             if (d && others.length && !others.some(q => q.id === d.defenderId)) {
               if ((this.player(playerId) || {}).isBot) d.defenderId = others[0].id;
-              else return this.fail(`${o.name} is goaded: it attacks a player other than ${(this.player(o.goadedBy) || {}).name || 'the one who goaded it'} if it can.`);
+              else return this.fail(`${o.name} is goaded: it attacks a player other than ${goaders.map(g => (this.player(g) || {}).name || 'the one who goaded it').join(' or ')} if it can.`);
             }
           }
           /* An encore token was made to go after one player in particular. */
@@ -9130,7 +9156,7 @@
       for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
       // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
-      for (const id of ch.candidates) { const o = this.obj(id); if (o && o.goadedBy != null) o._goadedAttack = this.turn; }
+      for (const id of ch.candidates) { const o = this.obj(id); if (o && this._goaders(o).length) o._goadedAttack = this.turn; }
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
@@ -12547,6 +12573,9 @@
         o._diedCounters = Object.assign({}, o.counters);
         // Garna, Desculpting Blast: "if it was attacking", asked after it has gone
         o._wasAttacking = from === 'battlefield' && !!o.attacking;
+        // Baeloth Barrityl, Entertainer: "a goaded attacking or blocking creature dies" — as it left (wasGoaded, wasInCombat)
+        o._wasBlocking = from === 'battlefield' && !!(o.blocking || []).length;
+        o._wasGoaded = from === 'battlefield' && this._goaders(o, true).length > 0;
         // Faith's Reward: "cards in your graveyard that were put there from the battlefield this turn" (fromBfThisTurn)
         o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // what a resolving spell or ability exiles, for "return those cards" after it
@@ -15923,10 +15952,17 @@
               }
               continue;
             }
+            /* Zodiark, Umbral God: "half the non-God creatures they control of their choice, rounded down" — of
+               those they control, counted as it resolves (halfRoundDown) */
+            let howMany = n(e.n);
+            if (e.half) {
+              howMany = Math.floor(this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter))).length / 2);
+              if (howMany <= 0) continue;
+            }
             const q = Object.assign({
-              type: 'sacrifice', playerId: p.id, count: Math.min(n(e.n), pool.length),
+              type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${n(e.n)} ${e.filter || 'permanent'}${n(e.n) === 1 ? '' : 's'}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${howMany} ${e.filter || 'permanent'}${howMany === 1 ? '' : 's'}${e.half ? ' (half, rounded down)' : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -21807,6 +21843,17 @@
            spell cast this way would be put into a graveyard, exile it instead." — offered among each such card's
            ways to be cast, wherever its graveyard is (castFromGraveyardsTurn) */
         case 'castFromGraveyardsTurn': {
+          /* Locke, Treasure Hunter: "Until end of turn, you may cast a spell from among those cards." — the cards
+             just milled, wherever they went, one of them (milledOnce) */
+          if (e.milled) {
+            const ids = (this._lastMilled || []).filter(id => { const c = this.obj(id); return c && c.zone === 'graveyard' && !(c.analysis() || {}).isLand; });
+            if (!ids.length) break;
+            me.graveCastGrants = (me.graveCastGrants || []).filter(g => g.turn === this.turn)
+              .concat([{ turn: this.turn, filter: null, any: true, ids, once: true }]);
+            this.logEvent('rules', `${me.name} may cast a spell from among the milled cards this turn.`);
+            this.bumpBoard();
+            break;
+          }
           me.graveCastGrants = (me.graveCastGrants || []).filter(g => g.turn === this.turn)
             .concat([{ turn: this.turn, filter: e.filter || null, any: !!e.anyGraveyard, exileAfter: !!e.exileAfter }]);
           this.logEvent('rules', `${me.name} may cast ${e.filter ? e.filter.replace(/ or /, ' and ') + ' spells' : 'spells'} from ${e.anyGraveyard ? 'any graveyard' : 'their graveyard'} this turn.`);
@@ -24123,7 +24170,7 @@
       if (sc.enchantedOrEquipped && !(o.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return aa && (aa.isAura || aa.isEquipment); })) return false;
       if (sc.monocolored && (oa.colors || []).length !== 1) return false;
       // Bothersome Quasit: "goaded creatures"
-      if (sc.goaded && o.goadedBy == null) return false;
+      if (sc.goaded && !this._goaders(o).length) return false;
       // Evil Boros Charm: "unblocked attacking creatures", once blockers are declared
       if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
       if (sc.equipped || sc.enchanted || sc.modified) {
@@ -25960,7 +26007,7 @@
         // Wing Shards: "an attacking creature"; Stoneshaker Shaman: "an untapped land"
         if (w === 'attacking') return !!o.attacking;
         // Vengeful Ancestor: "a goaded creature"
-        if (w === 'goaded') return o.goadedBy != null || (!!o.attacking && o._goadedAttack === this.turn);
+        if (w === 'goaded') return this._goaders(o).length > 0 || (!!o.attacking && o._goadedAttack === this.turn);
         if (w === 'blocking') return !!(o.blocking || []).length;
         // Jor Kadeen: "equipped creatures you control"
         if (w === 'equipped') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => { const x = this.obj(id); return !!x && !!(x.analysis() || {}).isEquipment; });
@@ -26030,6 +26077,9 @@
       if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
       // Ares, God of War: "an attacking creature … dies" — attacking as it left (wasAttacking)
       if (f.wasAttacking && !(x.zone === 'battlefield' ? x.attacking : x._wasAttacking)) return false;
+      // Baeloth Barrityl, Entertainer: "a goaded attacking or blocking creature" — as it left
+      if (f.wasGoaded && !(x.zone === 'battlefield' ? this._goaders(x).length : x._wasGoaded)) return false;
+      if (f.wasInCombat && !(x.zone === 'battlefield' ? (x.attacking || (x.blocking || []).length) : (x._wasAttacking || x._wasBlocking))) return false;
       if (f.chosenType && !(src && this._hasCreatureType(x, src.chosenType))) return false;
       if (f.chosenName && !this._chosenNameOf(src, x)) return false;
       // Circle of Affliction: "a source of the chosen color"
