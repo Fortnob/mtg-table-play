@@ -3191,6 +3191,21 @@
       return !!(o && source && controllerId != null && controllerId !== o.controller && source.zone === 'battlefield' && source !== o &&
         this._staticOp(o, 'untargetableByOppAbilities'));
     }
+    /** Tomik, Distinguished Advokist: does an opponent of this player control a permanent with this standing rule? */
+    _tomikAgainst(pid, op) {
+      if (pid == null) return false;
+      // (who holds one, worked out once for each state of the board)
+      if (!this._tomikMemo || this._tomikMemo.key !== this._boardKey) this._tomikMemo = { key: this._boardKey, by: {} };
+      const memo = this._tomikMemo.by;
+      if (!memo[op]) memo[op] = this.battlefield.filter(o => !o.phasedOut && this._staticOp(o, op)).map(o => o.controller);
+      return memo[op].some(c => c !== pid && this.opponentsOf(c).some(q => q.id === pid));
+    }
+    /* Tomik: "Lands on the battlefield and land cards in graveyards can't be the targets of spells or abilities your
+       opponents control" — whoever's lands they are (landsUntargetableByOpps) */
+    _landShielded(o, controllerId) {
+      if (!o || (o.zone !== 'battlefield' && o.zone !== 'graveyard') || !(o.analysis() || {}).isLand) return false;
+      return this._tomikAgainst(controllerId, 'landsUntargetableByOpps');
+    }
     /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
     /* Thrun, Breaker of Silence: "nongreen spells your opponents control or abilities from nongreen sources your
        opponents control" — a source without that colour, controlled by an opponent of its controller (nonColor, opponents) */
@@ -3346,6 +3361,7 @@
         // "another target": never what the ability is on
         if (i != null && item.obj && o.id === item.obj.id && (this._specsOf(item)[i] || {}).another) return false;
         if (t.zone && o.zone !== t.zone) return false;
+        if (this._landShielded(o, item.controller)) return false;
         /* a spell whose words a text-changing effect changed (layer 3, Sleight of Mind on "destroy target
            nonblack creature"): its target is checked against what the words say now (CR 608.2b) */
         if (item.wordsChanged && i != null) {
@@ -4855,6 +4871,8 @@
      * this card from where it is. kind is 'land' or 'spell'.
      */
     _playFromRule(playerId, o, kind) {
+      // Tomik, Distinguished Advokist: "Your opponents can't play land cards from graveyards."
+      if (kind === 'land' && o && o.zone === 'graveyard' && this._tomikAgainst(playerId, 'oppsNoGraveLands')) return null;
       // Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt" — that one, on the battlefield or gone
       if (this._exiledWithLinkEmblem(playerId, o)) return { op: 'playFrom', zone: 'exiledWith', what: 'any', anyMana: true };
       // Kethis, the Hidden Hand: a card that gained "You may play this card from your graveyard" this turn (gravePlayBy)
@@ -21336,6 +21354,8 @@
               picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard').slice(0, want);
             }
             if (picks.length < want) { this._spliceNext(e.otherwise); break; }
+            // (Ultimecia, Time Sorceress: "pay {4}{U}{U}{B}{B} and exile eight cards from your graveyard" — the mana too)
+            if (pay.mana && !this.payMana(ctx.controller, pay.mana, { auto: true })) { this._spliceNext(e.otherwise); break; }
             for (const c of picks) this.moveObject(c, 'exile');
             this._spliceNext(e.then);
             break;
@@ -24883,6 +24903,37 @@
           break;
         }
 
+        /* Leori, Sparktouched Hunter: "choose a planeswalker type" — among the planeswalkers of yours, wherever they are,
+           the commonest first; one of them taken without asking, none and there is nothing to choose (chosenPwType) */
+        case 'choosePwType': {
+          if (!src) break;
+          const zs = this.zones[ctx.controller] || {};
+          const counts = new Map();
+          for (const c of [].concat(zs.library || [], zs.hand || [], zs.command || [], zs.graveyard || [], zs.exile || [],
+            this.battlefield.filter(x => x.controller === ctx.controller))) {
+            const ca = c.analysis();
+            if (ca && ca.isPlaneswalker) for (const st of (ca.subtypes || [])) counts.set(st, (counts.get(st) || 0) + 1);
+          }
+          const kinds = [...counts].sort((a, b) => b[1] - a[1]).map(x => x[0]);
+          if (!kinds.length) { src.chosenPwType = null; this.logEvent('rules', `${me.name} has no planeswalker whose type to choose.`); break; }
+          let pickPw = kinds[0];
+          if (kinds.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'pwType', kind: 'options', min: 1, max: 1,
+              options: kinds.map((t, i) => ({ i, label: t })), prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a planeswalker type.` }, 'pwt');
+            if (got === SUSPEND) return SUSPEND;
+            pickPw = kinds[(got && got.picks.length ? got.picks[0] : 0)] || kinds[0];
+          }
+          src.chosenPwType = pickPw;
+          this.logEvent('rules', `${me.name} chooses ${pickPw}.`);
+          break;
+        }
+        // Leori: "Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability."
+        case 'pwTypeTurn': {
+          const ty = src && src.chosenPwType;
+          if (!ty) break;
+          this._runEffect({ op: 'getEmblem', emblemText: String(e.emblemText).replace('TYPE', ty), thisTurn: true, name: 'Until end of turn' }, ctx);
+          break;
+        }
         /* Polukranos, World Eater: "Each of those creatures deals damage equal to its power to Polukranos." — the
            ones it targeted, or picked as it resolved; those still on the battlefield, at once */
         case 'thoseDamageSelf': {
@@ -30056,6 +30107,15 @@
         } else bp = (this.characteristics(o) || {}).basePower || 0;
         if (bp !== sc.basePower) return false;
       }
+      // (Duskana, the Rage Mother: "with base power and toughness 2/2" — the toughness the same way)
+      if (sc.baseToughness != null) {
+        let bt;
+        if (inLayers) {
+          const sets = (o.effects || []).filter(e => e && e.setPt && typeof e.setPt.t === 'number');
+          bt = sets.length ? sets[sets.length - 1].setPt.t : (parseInt(oa.toughness, 10) || 0);
+        } else bt = (this.characteristics(o) || {}).baseToughness || 0;
+        if (bt !== sc.baseToughness) return false;
+      }
       // Plagon, Lord of the Beach: "with toughness greater than its power"
       if (sc.toughGtPow) {
         const pw = inLayers ? (parseInt(oa.power, 10) || 0) : this.powerOf(o);
@@ -32276,6 +32336,8 @@
       if (f.toughGtPow && !(this.toughnessOf(x) > this.powerOf(x))) return false;
       // Primo, the Unbounded: "with base power 0" — what layers 7a and 7b make it (basePower)
       if (f.basePower != null && ((this.characteristics(x) || {}).basePower || 0) !== f.basePower) return false;
+      // (Duskana, the Rage Mother: "with base power and toughness 2/2")
+      if (f.baseToughness != null && ((this.characteristics(x) || {}).baseToughness || 0) !== f.baseToughness) return false;
       return true;
     }
 
@@ -32457,6 +32519,7 @@
         if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0, controllerId)) continue; }
         if (zone === 'battlefield' && sourceId && this._oppAbilityCantTarget(o, this.obj(sourceId), controllerId)) continue;
+        if ((zone === 'battlefield' || zone === 'graveyard') && this._landShielded(o, controllerId)) continue;
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
       // (Ravager of the Fells: "target opponent or planeswalker" — not its controller: opponentOrWalker)

@@ -5787,6 +5787,11 @@
         for (const x of list) fillX(x, k);
         return { op: 'sequence', list };
       } },
+    /* Leori, Sparktouched Hunter: "choose a planeswalker type. Until end of turn, whenever you activate an ability of a
+       planeswalker of that type, copy that ability." — the type kept on it, and the turn's trigger written with it */
+    { re: /^Choose a planeswalker type\.?$/i, make: () => ({ op: 'choosePwType' }) },
+    { re: /^Until end of turn, whenever you activate an ability of a planeswalker of that type, copy that ability\.?$/i,
+      make: () => ({ op: 'pwTypeTurn', emblemText: 'Whenever you activate an ability of a TYPE planeswalker, copy that ability. You may choose new targets for the copy.' }) },
     /* Polukranos, World Eater, Ravenous Gigantotherium, Living Inferno: "Each of those creatures deals damage equal to
        its power to Polukranos." — the creatures the damage was divided among (thoseDamageSelf) */
     { re: /^Each of those creatures deals damage equal to its power to (?:CARDNAME|this creature)\.?$/i,
@@ -11089,6 +11094,9 @@
       make: (m) => ({ exileGrave: { n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' } }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
+    // Ultimecia, Time Sorceress: "pay {4}{U}{U}{B}{B} and exile eight cards from your graveyard"
+    { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and exile (a|an|one|two|three|four|five|six|seven|eight|nine|ten) ([a-z ]*?)cards? from your graveyard$/i,
+      make: (m) => ({ mana: m[1], exileGrave: { n: num(m[2]), filter: (m[3] || '').trim().toLowerCase() || 'card' } }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and discard a card$/i, make: (m) => ({ mana: m[1], discard: 1, filter: 'card' }) },
     /* Raff, Aziza, Saheeli, Filigree Master: "you may tap two untapped
        creatures you control", "an untapped artifact", "another untapped
@@ -13460,6 +13468,9 @@
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         // Luminous Broodmoth: "a creature you control without flying"
         f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with base power and toughness (\d+)\/(\d+)$/i))) {
+        // Duskana, the Rage Mother: "a creature you control with base power and toughness 2/2" (basePower, baseToughness)
+        f.basePower = +m[1]; f.baseToughness = +m[2]; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with base power (\d+)$/i))) {
         // Primo, the Unbounded: "one or more creatures you control with base power 0" (basePower)
         f.basePower = +m[1]; p = p.slice(0, m.index);
@@ -13672,7 +13683,8 @@
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
     { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
-    { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
+    // (Leori, Sparktouched Hunter's turn: "an ability of a Jace planeswalker" — the type chosen, written in)
+    { re: /^Whenever you activate an ability of an? ((?:[A-Z][a-z]+ )?(?:artifact|creature|artifact or creature|planeswalker))(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
     { re: /^Whenever you activate a loyalty ability(?! of enchanted)(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
       filt: (m) => (m[1] ? { words: m[1].toLowerCase() } : { words: 'permanent' }), extra: { loyaltyOnly: true } },
@@ -17114,6 +17126,8 @@
     }
     // Zinnia, Valley's Voice: "other creatures you control with base power 1" (basePower)
     if ((mm0 = rest.match(/ with base power (\d+)$/i))) { sc.basePower = +mm0[1]; rest = rest.slice(0, mm0.index); }
+    // Duskana, the Rage Mother: "each creature you control with base power and toughness 2/2" (baseToughness too)
+    if ((mm0 = rest.match(/ with base power and toughness (\d+)\/(\d+)$/i))) { sc.basePower = +mm0[1]; sc.baseToughness = +mm0[2]; rest = rest.slice(0, mm0.index); }
     // who controls them
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
@@ -18990,6 +19004,12 @@
           ? [{ who: 'you', what: 'permanent', subtype: 'sliver' }, { who: 'you', what: 'creature', nontoken: true }]
           : [{ who: 'you', what: 'creature' }]).map(scope => ({ op: 'continuous', layer: 4, scope, addChosenType: true }))
           .concat([{ op: 'typeElsewhere', chosen: true }]) }), auto: true },
+      /* Tomik, Distinguished Advokist: "Lands on the battlefield and land cards in graveyards can't be the targets of
+         spells or abilities your opponents control." (landsUntargetableByOpps) "Your opponents can't play land cards
+         from graveyards." (oppsNoGraveLands) */
+      { re: /^Lands on the battlefield and land cards in graveyards can'?t be the targets of spells or abilities your opponents control\.?$/i,
+        eff: { op: 'landsUntargetableByOpps' }, auto: true },
+      { re: /^Your opponents can'?t play land cards from graveyards\.?$/i, eff: { op: 'oppsNoGraveLands' }, auto: true },
       /* Maskwood Nexus: every creature type, on the battlefield and off it */
       { re: /^Creatures you control are every creature type\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
         make: () => ({ op: 'sequence', list: [
