@@ -6860,6 +6860,7 @@
       /* Lurrus, Kess: the once-a-turn leave this cast used up, and where the
          spell goes afterwards */
       o._enterFinality = null;
+      o._enterTappedCast = null;
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
         // Falco Spara, Pactweaver: the counter, removed as the spell is cast (chosen with it)
@@ -6880,6 +6881,8 @@
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
           if (lv.oncePerKind) this._usePlayFromKind(lv.srcId, 'spell');
           if (lv.exileAfter) o._exileFromStack = true;
+          // Edgar, Master Machinist: "that artifact enters tapped" (enterTapped)
+          if (lv.enterTapped) o._enterTappedCast = true;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
           if (lv.perType) {
             const pick = (((opts.choices || {}).permanentType || {}).picks || [])[0];
@@ -7924,6 +7927,8 @@
       if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; if (o.enteredFrom === 'stack') this.addCounters(o, '+1/+1', k); }
       // Noctis, Prince of Lucis: "If you cast a spell this way, that artifact enters with a finality counter on it."
       if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
+      // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
+      if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -12710,9 +12715,11 @@
         }
         /* Grist, Voracious Larva: "if it entered from your graveyard or you cast it from your graveyard" — a card of
            yours, straight from there or by way of the stack */
+        // (Fblthp, the Lost: "if it entered from your library or was cast from your library" — zone library)
         case 'triggerObjFromGraveyard': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
-          return !!x && x.owner === ctx.controller && (x.enteredFrom === 'graveyard' || (x.wasCast === this.turn && x.castFromZone === 'graveyard'));
+          const zf = cond.zone || 'graveyard';
+          return !!x && x.owner === ctx.controller && (x.enteredFrom === zf || (x.wasCast === this.turn && x.castFromZone === zf));
         }
         // Auntie Ool, Cursewretch: "if you control that creature" — now, or as it last was
         case 'triggerObjYours': {
@@ -17900,6 +17907,8 @@
             pick = (got && got.picks.length && this.obj(got.picks[0])) || pick;
           }
           this.addCounters(pick, '+1/+1', n(e.n));
+          // Optimus Prime, Autobot Leader: "The chosen creature …" — the one bolstered (noteChosen)
+          if (e.noteChosen) this._noteLastAffected([{ kind: 'object', id: pick.id }]);
           break;
         }
         /* "You get an emblem with '...'": an object in your command zone
@@ -23246,6 +23255,59 @@
           break;
         }
 
+        /* Atemsis, All-Seeing: "you may reveal your hand. If cards with at least six different mana values are revealed
+           this way, that player loses the game." — asked only when the hand has them; revealing fewer does nothing
+           (revealHandMvLose) */
+        case 'revealHandMvLose': {
+          const tp = triggerPlayer();
+          if (!tp || tp.hasLost) break;
+          const hand = this.zones[ctx.controller].hand;
+          const mvs = new Set(hand.map(c => (c.card && c.card.cmc) || 0));
+          if (mvs.size < (e.n || 6)) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'revealHandMvLose',
+            prompt: `Reveal your hand? It has cards with ${mvs.size} different mana values, so ${tp.name} loses the game.` }, 'rhm');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes === false || (yes && yes.yes === false)) break;
+          this.logEvent('reveal', `${me.name} reveals their hand: ${hand.map(c => c.name).join(', ')}.`);
+          this.playerLoses(tp, `${me.name} revealed cards with ${mvs.size} different mana values`);
+          this.checkStateBasedActions();
+          break;
+        }
+        /* Gollum, Scheming Guide: "choose land or nonland. An opponent guesses whether the top card of your library is
+           the chosen kind. Reveal that card. If they guessed right, … Otherwise, …" — the card revealed either way; with
+           no card there, no guess is right (its ruling) (guessTopKind) */
+        case 'guessTopKind': {
+          const kinds = [{ label: 'Land' }, { label: 'Nonland' }];
+          const q1 = this._choose({ playerId: ctx.controller, purpose: 'guessKindPick', kind: 'options', options: kinds, min: 1, max: 1,
+            prompt: 'Choose land or nonland. An opponent guesses whether the top card of your library is the chosen kind.' }, 'gtkKind');
+          if (q1 === SUSPEND) return SUSPEND;
+          const land = !(q1 && q1.picks && q1.picks[0] === 1);
+          const word = land ? 'land' : 'nonland';
+          if (!this._doneHere('gtkSaid')) this.logEvent('rules', `${me.name} chooses ${word}.`);
+          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          let q = opps[0] || null;
+          if (opps.length > 1) {
+            const who = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players', items: this._choosePlayers(opps), min: 1, max: 1,
+              prompt: `Choose an opponent to guess whether the top card of your library is a ${word} card.` }, 'gtkWho');
+            if (who === SUSPEND) return SUSPEND;
+            q = this.player(who && who.picks && who.picks[0]) || opps[0];
+          }
+          let yes = false;
+          if (q) {
+            const q2 = this._choose({ playerId: q.id, purpose: 'guessTopKind', kind: 'options', forPlayer: ctx.controller, chosenKind: word,
+              options: [{ label: `Yes, it's ${land ? 'a land' : 'a nonland card'}` }, { label: `No, it's ${land ? 'a nonland card' : 'a land'}` }], min: 1, max: 1,
+              prompt: `${me.name} chose ${word}. Is the top card of ${me.name}'s library a ${word} card?` }, 'gtkGuess');
+            if (q2 === SUSPEND) return SUSPEND;
+            yes = !!(q2 && q2.picks && q2.picks[0] === 0);
+            if (!this._doneHere('gtkGuessed')) this.logEvent('rules', `${q.name} guesses ${yes ? 'it is' : 'it is not'} a ${word} card.`);
+          }
+          const top = this.zones[ctx.controller].library[0];
+          if (top) { this._lastRevealed = top.id; this.logEvent('reveal', `${me.name} reveals ${top.name}.`); }
+          const right = !!top && !!q && yes === (!!(top.analysis() || {}).isLand === land);
+          this.logEvent('rules', right ? `${q.name} guessed right.` : `${q ? q.name : 'Nobody'} guessed wrong.`);
+          this._spliceNext((right ? e.right : e.wrong) || []);
+          break;
+        }
         case 'reveal': {
           const from = this.zones[ctx.controller][e.from === 'library' ? 'library' : 'hand'] || [];
           const shown = from.slice(0, n(e.n)).map(o => o.name);
@@ -23400,6 +23462,16 @@
           if (e.forPlayer === 'chosen' && !ctx.chosenPlayer) break;
           /* Kelsien, the Plague: "When that creature dies this turn" — this one, should it die before the turn is
              out and not having left in between (watchDeath: watchObj, watchLeftSeq, untilTurn) */
+          /* Optimus Prime, Autobot Leader: "When that creature deals combat damage to a player this turn, convert
+             Optimus Prime." — the creature just chosen, watched this turn; this permanent the one converted (watchDamage) */
+          if (e.watchDamage) {
+            const w = this._lastAffected && this.obj(this._lastAffected.id);
+            if (!w || w.zone !== 'battlefield') break;
+            this.scheduleDelayed({ event: e.event || 'permCombatDamage', controller: ctx.controller, objId: src ? src.id : null, watchObj: w.id,
+              watchLeftSeq: w._leftSeq || null, untilTurn: this.turn, name: e.name || 'When that creature deals combat damage to a player this turn',
+              effects: (e.effects || []).map(x => (x.sinceNow && src ? Object.assign({}, x, { sinceTs: src.ts, sinceXf: src.xformN || 0 }) : x)) });
+            break;
+          }
           if (e.watchDeath) {
             const w = objId && this.obj(objId);
             if (!w || w.zone !== 'battlefield') break;

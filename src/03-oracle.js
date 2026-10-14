@@ -9213,6 +9213,22 @@
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
     { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if it'?s a spell with lesser mana value\. If you don'?t cast it, put (?:it|that card) into your hand\.?$/i,
       make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, lesserMv: true, elseHand: true }] },
+    /* Gollum, Scheming Guide: "look at the top two cards of your library, put them back in any order, then choose land
+       or nonland. An opponent guesses whether the top card of your library is the chosen kind. Reveal that card. If they
+       guessed right, remove Gollum from combat. Otherwise, you draw a card and Gollum can't be blocked this turn."
+       (guessTopKind: right, wrong) */
+    { re: /^Look at the top two cards of your library, put them back in any order, then choose land or nonland\. An opponent guesses whether the top card of your library is the chosen kind\. Reveal that card\. If they guessed right, (.+?)\. Otherwise, (.+)$/i,
+      make: (m) => {
+        const up = (x) => x.charAt(0).toUpperCase() + x.slice(1);
+        const right = parseSentenceList(splitSentences(up(m[1]) + '.'));
+        const wrong = parseSentenceList(splitSentences(up(m[2]).replace(/^You draw a card and (CARDNAME can'?t be blocked this turn\.?)$/i, 'You draw a card. $1')));
+        if (!right.auto || !wrong.auto || !right.effects.length || !wrong.effects.length) return null;
+        return [{ op: 'arrangeTop', n: 2 }, { op: 'guessTopKind', right: right.effects, wrong: wrong.effects }];
+      } },
+    /* Atemsis, All-Seeing: "you may reveal your hand. If cards with at least six different mana values are revealed this
+       way, that player loses the game." (revealHandMvLose) */
+    { re: /^You may reveal your hand\. If cards with at least (six|seven|five|\d+) different mana values are revealed this way, that player loses the game\.?$/i,
+      make: (m) => [{ op: 'revealHandMvLose', n: num(m[1]) }] },
     // Yennett, Cryptic Sovereign: "reveal the top card of your library. You may cast it without paying its mana cost if its mana value is odd. If you don't cast it, draw a card." (mvOdd, elseDraw)
     { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if its mana value is odd\. If you don'?t cast it, draw a card\.?$/i,
       make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, mvOdd: true, elseDraw: 1 }] },
@@ -10006,6 +10022,14 @@
         abilities: [{ kind: 'triggered', event: 'yourCreatureCombatDamage', also: 'creatureCombatDamageWalker', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', text: 'Whenever the chosen creature deals combat damage to a player or planeswalker, draw that many cards.',
           effects: [{ op: 'draw', n: 'triggerAmount', who: 'you' }] }] }] },
+    /* Optimus Prime, Autobot Leader: "bolster 2. The chosen creature gains trample until end of turn. When that creature
+       deals combat damage to a player this turn, convert Optimus Prime." — the creature bolstered (noteChosen), watched
+       for the turn; this permanent converted, unless it has since (watchDamage) */
+    { re: /^Bolster (\d+)\. The chosen creature gains (flying|trample|haste|vigilance|menace|lifelink|deathtouch) until end of turn\. When that creature deals combat damage to a player this turn, (?:convert|transform) CARDNAME\.?$/i,
+      make: (m) => [{ op: 'bolster', n: +m[1], noteChosen: true },
+        { op: 'grantKeyword', keywords: [m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase()], duration: 'eot', scope: 'lastAffected' },
+        { op: 'delayed', event: 'permCombatDamage', watchDamage: true, name: 'When that creature deals combat damage to a player this turn',
+          effects: [{ op: 'transform', self: true, sinceNow: true }] }] },
     /* Captain Howler, Sea Scourge: "target creature gets +2/+0 until end of turn for each card discarded this way.
        Whenever that creature deals combat damage to a player this turn, you draw a card." — the cards in the
        discard trigger's lot; the creature targeted watched for the rest of the turn (an emblem, as Hunter's Insight) */
@@ -12637,6 +12661,8 @@
     [/^you didn'?t cast it from your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand' })],
     // Grist, Voracious Larva: "if it entered from your graveyard or you cast it from your graveyard"
     [/^it entered from your graveyard or you cast it from your graveyard$/i, () => ({ kind: 'triggerObjFromGraveyard' })],
+    // Fblthp, the Lost: "if it entered from your library or was cast from your library" (zone library)
+    [/^it entered from your library or was cast from your library$/i, () => ({ kind: 'triggerObjFromGraveyard', zone: 'library' })],
     // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
     [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
@@ -19670,12 +19696,13 @@
          turns, you may cast a permanent spell with mana value 2 or less from
          your graveyard." — standing leave, once a turn for each permanent
          that grants it */
-      { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell(?: with mana value (\d+) or less)? from your graveyard\.(?: If a spell cast this way would be put into your graveyard, exile it instead\.)?$/,
+      // (Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped." — enterTapped)
+      { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell(?: with mana value (\d+) or less)? from your graveyard\.(?: If a spell cast this way would be put into your graveyard, exile it instead\.| If you cast a spell this way, that (?:artifact|creature|permanent) enters tapped\.)?$/,
         make: (m) => {
           const filter = (m[1] || '').trim().replace(/\band\/or\b/g, 'or');
           if (filter && !/^(?:(?:permanent|creature|artifact|enchantment|instant|sorcery|Aura|Equipment|[A-Z][a-z]+|or) ?)+$/.test(filter)) return null;
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
-            m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
+            m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {}, /enters tapped/.test(m[0]) ? { enterTapped: true } : {});
         }, auto: true },
       /* Kotis, Sibsig Champion: "Once during each of your turns, you may cast a creature spell from your graveyard by
          exiling three other cards from your graveyard in addition to paying its other costs." (graveCastExile) */

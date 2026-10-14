@@ -1910,6 +1910,10 @@
     },
     /* Read ahead: from the start */
     readAhead() { return { picks: [0] }; },
+    /* Gollum, Scheming Guide: land or nonland — either, so the guess can't be read off us */
+    guessKindPick() { return { picks: [this.rand() < 0.5 ? 0 : 1] }; },
+    /* …and the guess, by the odds of a deck about two-fifths land */
+    guessTopKind(s) { const land = s.chosenKind === 'land'; return { picks: [this.rand() < (land ? 0.4 : 0.6) ? 0 : 1] }; },
     /* Zimone, Mystery Unraveler: turn a face-down permanent of ours face up for nothing — the costliest real card */
     turnFaceUpFree(s) {
       const g = this.game;
@@ -2735,6 +2739,8 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
+      // Atemsis, All-Seeing: revealing a hand of six mana values wins
+      if (ch.purpose === 'revealHandMvLose') return true;
       // Cosima, God of the Voyage: a voyage counter while there are fewer than three, then back with them
       if (ch.purpose === 'voyage') return (Number(ch.count) || 0) < 3;
       /* the Chain spells: copy back for mana; not for a land or a card. And only with something of an opponent's
