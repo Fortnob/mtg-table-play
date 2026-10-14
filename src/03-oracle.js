@@ -439,7 +439,7 @@
       if (e.op === 'noUntap') return e.scope === 'self';
       // Yuna, Grand Summoner: "When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it."
       if (e.op === 'nextCreatureCounter') return true;
-      return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly';
+      return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly' || e.op === 'noGenericMana';
     };
     return effects.every(fits);
   }
@@ -1306,6 +1306,8 @@
     // Steelswarm Operator, Sunken Citadel, Shang-Chi: "Spend this mana only to activate abilities of artifact sources."
     { re: /^Spend this mana only to activate abilities of (artifact|land|creature) sources\.?$/i,
       make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: m[1].toLowerCase() }) },
+    // Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." — only for coloured symbols (noGenericMana)
+    { re: /^This mana can'?t be spent to pay generic mana costs\.?$/i, make: () => ({ op: 'noGenericMana' }) },
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
@@ -3143,6 +3145,10 @@
     // Succumb to the Cold: "Put a stun counter on each of them." — every target just tapped
     { re: /^Put an? ([a-z]+|[+\-]\d+\/[+\-]\d+) counter on each of them\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'eachTarget' }) },
+    /* Kefka, Dancing Mad: "exile a card at random from each opponent's graveyard"; "Then each player who owns a
+       spell you cast this way loses life equal to its mana value." (castOwnersLoseMv) */
+    { re: /^Exile a card at random from each opponent'?s graveyard\.?$/i, make: () => ({ op: 'exileRandomFromGraveyards', who: 'opponents' }) },
+    { re: /^Then each player who owns a spell you cast this way loses life equal to its mana value\.?$/i, make: () => ({ op: 'castOwnersLoseMv' }) },
     // Haunted Fengraf: "Return a creature card at random from your graveyard to your hand."
     { re: /^Return an? ([a-z ]*?)card at random from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'randomFromGraveyard', filter: m[1].trim() || 'card' }) },
@@ -10140,7 +10146,11 @@
       .replace(/\u2212/g, '-');
   }
   /* (Eluge, the Shoreless Sea: "costs {U} (or {1}) less" — a cost in brackets is part of the rule, not a reminder) */
-  function stripReminder(t) { return normalizePunct(t).replace(/ \(or (\{\d+\})\)/g, ' or $1').replace(/\s*\([^()]*\)/g, '').trim(); }
+  function stripReminder(t) {
+    return normalizePunct(t).replace(/ \(or (\{\d+\})\)/g, ' or $1').replace(/\s*\([^()]*\)/g, '')
+      // Baldin, Century Herdmaster: "up to one hundred target creatures" — as good as any number of them
+      .replace(/\b([Uu])p to one hundred target\b/g, (x, u) => (u === 'U' ? 'A' : 'a') + 'ny number of target').trim();
+  }
 
   function splitSentences(t) {
     // keep "{1}, {T}:" style intact; split on period followed by space+capital
@@ -16073,8 +16083,9 @@
       { re: /^Each creature you control with defender assigns combat damage equal to its toughness rather than its power and can attack as though it didn'?t have defender\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'toughnessDamage', who: 'you', keyword: 'defender' },
           { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', keyword: 'defender' }, flag: 'attackDespiteDefender' }] }), auto: true },
-      { re: /^Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
-        make: (m) => ({ op: 'toughnessDamage', who: m[1] ? 'you' : 'all', ifTougher: !!m[2] }), auto: true },
+      // (Baldin, Century Herdmaster: "During your turn, each creature …" — yourTurnOnly)
+      { re: /^(During your turn, )?Each creature( you control)?( with toughness greater than its power)? assigns combat damage equal to its toughness rather than its power\.?$/i,
+        make: (m) => Object.assign({ op: 'toughnessDamage', who: m[2] ? 'you' : 'all', ifTougher: !!m[3] }, m[1] ? { yourTurnOnly: true } : {}), auto: true },
       // Signal Pest: "can't be blocked except by creatures with flying or reach"
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by creatures with (flying|reach)(?: or (flying|reach))?\.?$/i,
         make: (m) => ({ op: 'evasion', onlyBy: [m[1].toLowerCase()].concat(m[2] ? [m[2].toLowerCase()] : []) }), auto: true },
@@ -16645,6 +16656,9 @@
       { re: /^(During your turn, )?you may play ((?:[a-z]+ )?)lands and cast ((?:[A-Za-z]+ )?)spells from the top of your library\.?$/i,
         make: (m) => (m[2] || m[3]) ? { op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
           landFilter: (m[2] || '').trim().toLowerCase() || null, spellFilter: (m[3] || '').trim().toLowerCase() || null } : null, auto: true },
+      // Glarb, Calamity's Augur: "play lands and cast spells with mana value 4 or greater from the top of your library"
+      { re: /^You may play lands and cast spells with mana value (\d+) or greater from the top of your library\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', spellMinMv: +m[1] }), auto: true },
       { re: /^(During your turn, )?you may play lands and cast spells from the top of your library\.?(?: If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?)?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
           payLife: /pay life equal/i.test(m[0]) }), auto: true },

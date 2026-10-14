@@ -637,7 +637,9 @@ const MANA = MTG.mana = {
 /* ---------- a mana pool ---------- */
 class ManaPool {
   constructor() { this.clear(); }
-  clear() { this.W = 0; this.U = 0; this.B = 0; this.R = 0; this.G = 0; this.C = 0; }
+  /* (noGeneric: Jegantha, the Wellspring's "This mana can't be spent to pay generic mana costs" — how much of each
+     colour in the pool can pay only coloured symbols) */
+  clear() { this.W = 0; this.U = 0; this.B = 0; this.R = 0; this.G = 0; this.C = 0; this.noGeneric = null; }
   add(color, n) { this[color] = (this[color] || 0) + (n == null ? 1 : n); }
   total() { return this.W + this.U + this.B + this.R + this.G + this.C; }
   isEmpty() { return this.total() === 0; }
@@ -663,6 +665,10 @@ class ManaPool {
     const syms = MANA.parse(cost);
     const avail = this.snapshot();
     const spend = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
+    // the mana that can't pay generic costs is the first spent on coloured symbols
+    const ng = {};
+    for (const c of Object.keys(this.noGeneric || {})) ng[c] = Math.min(this.noGeneric[c] || 0, avail[c] || 0);
+    const useNg = (c) => { if (ng[c] > 0) ng[c]--; };
     let generic = 0;
     const flexible = [];   // hybrid/phyrexian symbols resolved after strict ones
     for (const s of syms) {
@@ -670,10 +676,10 @@ class ManaPool {
       if (s === 'X') { generic += (opts.x || 0); continue; }
       if (s === 'Y' || s === 'Z') { generic += (opts[s.toLowerCase()] || 0); continue; }
       if (s.length === 1 && MANA.COLORS.includes(s)) {
-        if (avail[s] > 0) { avail[s]--; spend[s]++; } else return null;
+        if (avail[s] > 0) { avail[s]--; spend[s]++; useNg(s); } else return null;
         continue;
       }
-      if (s === 'C') { if (avail.C > 0) { avail.C--; spend.C++; } else return null; continue; }
+      if (s === 'C') { if (avail.C > 0) { avail.C--; spend.C++; useNg('C'); } else return null; continue; }
       if (s === 'S') { flexible.push(['W', 'U', 'B', 'R', 'G', 'C']); continue; } // snow approximated
       flexible.push(s.split('/'));
     }
@@ -683,7 +689,7 @@ class ManaPool {
       const numeric = opts2.find(o => /^\d+$/.test(o));
       const colorOpts = opts2.filter(o => MANA.COLORS.includes(o) || o === 'C');
       colorOpts.sort((a, b) => avail[b] - avail[a]);
-      for (const c of colorOpts) { if (avail[c] > 0) { avail[c]--; spend[c]++; paid = true; break; } }
+      for (const c of colorOpts) { if (avail[c] > 0) { avail[c]--; spend[c]++; useNg(c); paid = true; break; } }
       if (!paid && numeric) { generic += parseInt(numeric, 10); paid = true; }
       if (!paid && opts2.includes('P')) { paid = true; spend.life = (spend.life || 0) + 2; } // phyrexian: pay life
       if (!paid) return null;
@@ -691,17 +697,19 @@ class ManaPool {
     // pay generic with colorless first, then least-needed colors
     const order = ['C', 'W', 'U', 'B', 'R', 'G'];
     for (const c of order) {
-      while (generic > 0 && avail[c] > 0) { avail[c]--; spend[c]++; generic--; }
+      while (generic > 0 && avail[c] > (ng[c] || 0)) { avail[c]--; spend[c]++; generic--; }
     }
     if (generic > 0) return null;
     // Phyrexian mana paid with life: no more than the life that can be paid
     if (spend.life && opts.lifeLimit != null && spend.life > opts.lifeLimit) return null;
+    if (this.noGeneric) Object.defineProperty(spend, 'noGenericLeft', { value: ng, enumerable: false });
     return spend;
   }
   pay(cost, opts) {
     const plan = this.planPayment(cost, opts);
     if (!plan) return null;
     for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) this[c] -= (plan[c] || 0);
+    if (this.noGeneric) this.noGeneric = plan.noGenericLeft || null;
     return plan;
   }
 }

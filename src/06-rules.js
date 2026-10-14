@@ -492,6 +492,8 @@
       return this.battlefield.some(s => {
         const e = !s.phasedOut && this._staticOp(s, 'toughnessDamage');
         if (!e || (e.who === 'you' && s.controller !== o.controller)) return false;
+        // Baldin, Century Herdmaster: "During your turn" — its controller's
+        if (e.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === s.controller)) return false;
         // Treefolk Umbra: only the creature it's attached to (toughnessAttached)
         if (e.who === 'attached' && s.attachedTo !== o.id) return false;
         // Arcades, the Strategist: only those with defender (defenderToughness)
@@ -4429,6 +4431,8 @@
             // Lurrus: once each turn for each permanent that grants it, and only up to a mana value
             if (ef.oncePerTurn && src._playFromTurn === this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
+            // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
+            if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
             // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
             if (ef.perType) {
               const freeTypes = this._playFromTypesLeft(src, o, kind);
@@ -8564,6 +8568,11 @@
       const after = p.pool.snapshot();
       const made = {};
       for (const c of MANA.COLORS.concat('C')) made[c] = Math.max(0, (after[c] || 0) - (before[c] || 0));
+      // Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." (noGenericMana)
+      if ((ab.effects || []).some(e => e && e.op === 'noGenericMana')) {
+        const ng = p.pool.noGeneric || (p.pool.noGeneric = {});
+        for (const c of Object.keys(made)) if (made[c]) ng[c] = (ng[c] || 0) + made[c];
+      }
       /* Inga and Esika: "mana from creatures" — what a creature on the battlefield made, told apart in the pool until
          it is spent or the pool empties (manaFromCreatures) */
       const own = Object.assign({}, made);
@@ -8814,10 +8823,12 @@
       }
       // subtract what is already floating, and keep what is left of it for the generic part
       let floatLeft = 0;
+      // (Jegantha, the Wellspring: floating mana that can't pay generic costs pays the coloured ones first — noGenericMana)
+      const ngF = p.pool.noGeneric || {};
       for (const c of MANA.COLORS.concat('C')) {
         const use = Math.min(need[c], p.pool[c]);
         need[c] -= use;
-        floatLeft += p.pool[c] - use;
+        floatLeft += Math.max(0, p.pool[c] - use - Math.max(0, (ngF[c] || 0) - use));
       }
 
       // describe what each source can make
@@ -8834,6 +8845,8 @@
               ab.cost.exile || ab.cost.removeCounters || (ab.cost.other || []).length)) continue;
           // mana that can only be spent on something else is not for this
           if (ab.spendOnly && !this._spendAllowed(ab.spendOnly, opts.forSpell, o)) continue;
+          // (Jegantha, the Wellspring: mana for coloured symbols only is tapped by hand — noGenericMana)
+          if ((ab.effects || []).some(e => e && e.op === 'noGenericMana')) continue;
           const opt = this._manaOptions(ab, o, playerId);
           // a source that would make nothing right now is no source at all
           if (!opt.any && !opt.produces.size) continue;
@@ -13467,7 +13480,8 @@
      */
     _runEffectsNow(effects, ctx) {
       for (const e of (effects || [])) {
-        if (e.op === 'manual') continue;
+        // (Jegantha, the Wellspring: the mana made is marked once it is all made — noGenericMana)
+        if (e.op === 'manual' || e.op === 'noGenericMana') continue;
         // a mana ability's "If …, add … instead" is decided at once (Ilysian Caryatid)
         if (e.op === 'ifCond') { this._runEffectsNow(this._condMet(e.cond, ctx) ? e.then : e.otherwise, ctx); continue; }
         try { this._runEffect(e, ctx); } catch (err) { console.warn('[mana effect]', e, err); }
@@ -14380,6 +14394,18 @@
         /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
            instant and sorcery spells" after a triggered ability or spell made
            it — that mana is set aside with its restriction (restrictedMana) */
+        /* Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." — the mana just made, marked
+           in the pool for coloured symbols only (noGenericMana) */
+        case 'noGenericMana': {
+          const lm = this._lastAddedMana;
+          if (!lm || lm.pid !== me.id) break;
+          const ng = me.pool.noGeneric || (me.pool.noGeneric = {});
+          for (const c of MANA.COLORS.concat('C')) {
+            const made = Math.max(0, (Number(me.pool[c]) || 0) - (Number(lm.before[c]) || 0));
+            if (made) ng[c] = (ng[c] || 0) + made;
+          }
+          break;
+        }
         case 'spendOnly': {
           const lm = this._lastAddedMana;
           if (!lm || lm.pid !== me.id || e.open) break;
@@ -21209,6 +21235,33 @@
            paying their mana costs" (Etali), "…a spell with mana value X or
            less from among them" (Sunbird's Invocation). Each card is offered
            in turn and cast at once, as the ability resolves (CR 608.2g). */
+        /* Kefka, Dancing Mad: "exile a card at random from each opponent's graveyard" — what went is the pool for
+           the sentence after it */
+        case 'exileRandomFromGraveyards': {
+          const went = [];
+          for (const q of this.opponentsOf(ctx.controller)) {
+            const gy = this.zones[q.id].graveyard;
+            if (!gy.length) continue;
+            const c = gy[this.rng.int(gy.length)];
+            this.moveObject(c, 'exile');
+            if (c.zone === 'exile') { went.push(c.id); this.logEvent('exile', `${c.name} is exiled at random from ${q.name}'s graveyard.`); }
+          }
+          this._lastExiledList = went;
+          this._lastExiled = went.length ? went[went.length - 1] : null;
+          break;
+        }
+        /* Kefka, Dancing Mad: "Then each player who owns a spell you cast this way loses life equal to its mana
+           value." — each spell, for its owner */
+        case 'castOwnersLoseMv': {
+          const r = this.resolving;
+          for (const id of (r && r.castThisWay) || []) {
+            const c = this.obj(id);
+            const q = c && this.player(c.owner);
+            const mv = c ? ((c.card && c.card.cmc) || 0) : 0;
+            if (q && !q.hasLost && mv > 0) this.changeLife(q, -mv);
+          }
+          break;
+        }
         case 'castFree': {
           const r = this.resolving;
           const slot = r ? r.index + ':freePool' : null;
@@ -21274,6 +21327,8 @@
             const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (r) r.marks[slot + 'n']++;
+            // (Kefka, Dancing Mad: "a spell you cast this way" — castOwnersLoseMv)
+            if (r) (r.castThisWay = r.castThisWay || []).push(c.id);
             const it = this.stack.find(st => st.objId === c.id);
             if (it && e.exileAfter) it.viaAfter = 'exile';
           }

@@ -29421,4 +29421,106 @@ module.exports = (test) => {
     M.toMain('A', 'endCombat');
     t.eq(M.zone('A', 'hand').length, hand + 1, 'Tidus: a creature without counters is no cheer (only the turn draw)');
   });
+
+  test("Commanders: Glarb, Calamity's Augur — lands and spells of mana value 4 or more from the top; surveil 2", (mk, t) => {
+    t.auto("Glarb, Calamity's Augur");
+    let M = mk({ library: Array(10).fill('Island') });
+    const glarb = M.bf('A', "Glarb, Calamity's Augur");
+    const giant = M.top('A', 'Hill Giant');
+    M.mana('A', '3R');
+    t.ok(M.g.castSpell('A', giant.id, { auto: true }), 'Glarb: a four-drop from the top: ' + M.g.lastError);
+    M.resolve();
+    t.zone(giant, 'battlefield');
+    const bear = M.top('A', 'Grizzly Bears');
+    M.mana('A', '1G');
+    t.no(M.g.castSpell('A', bear.id, { auto: true }), 'Glarb: not a two-drop');
+    M = mk({ library: Array(10).fill('Island') });
+    const g2 = M.bf('A', "Glarb, Calamity's Augur");
+    const forest = M.top('A', 'Forest');
+    t.ok(M.g.playLand('A', forest.id), 'Glarb: a land from the top: ' + M.g.lastError);
+    t.zone(forest, 'battlefield');
+    // {T}: Surveil 2
+    const a0 = M.asked.length;
+    M.activate('A', g2, 0);
+    t.ok(M.asked.slice(a0).some(ch => ch.type === 'surveil' && ch.cards.length === 2), 'Glarb: surveil 2');
+    t.ok(glarb && g2.tapped, 'Glarb: tapped');
+  });
+
+  test('Commanders: Baldin, Century Herdmaster — on your turn creatures deal damage by toughness; attacking, +0/+X to any number of creatures', (mk, t) => {
+    t.auto('Baldin, Century Herdmaster');
+    const M = mk({ library: Array(30).fill('Island') });
+    const baldin = M.bf('A', 'Baldin, Century Herdmaster');
+    const turtle = M.bf('A', 'Horned Turtle');
+    const bears = M.bf('B', 'Grizzly Bears');
+    for (let i = 0; i < 3; i++) M.hand('A', 'Island');
+    M.answer('choose', (ch) => ({ picks: [baldin.id, turtle.id] }));
+    M.answer('declareAttackers', () => [baldin, turtle].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    M.toMain('A', 'endCombat');
+    t.eq(M.g.toughnessOf(baldin), 10, 'Baldin: +0/+3, three cards in hand');
+    t.eq(M.g.toughnessOf(turtle), 7, 'Baldin: the Turtle too');
+    t.eq(M.g.toughnessOf(bears), 2, "Baldin: B's Bears not picked");
+    t.eq(M.life('B'), 20 - 10 - 7, 'Baldin: damage by toughness on A\'s turn');
+    // B's turn: B's Turtle deals its power
+    const bt = M.bf('B', 'Horned Turtle');
+    M.nextTurn('B');
+    M.answer('declareAttackers', () => [{ attackerId: bt.id, defenderId: 'A' }]);
+    M.toMain('B', 'endCombat');
+    t.eq(M.life('A'), 19, "Baldin: not on B's turn, the Turtle's power");
+  });
+
+  test('Commanders: Jegantha, the Wellspring — WUBRG that pays only coloured symbols, never generic', (mk, t) => {
+    t.auto('Jegantha, the Wellspring');
+    const M = mk({ library: Array(30).fill('Island') });
+    const jeg = M.bf('A', 'Jegantha, the Wellspring');
+    const g = M.g;
+    t.ok(g.tapForMana('A', jeg.id, 0), 'Jegantha: tapped for mana: ' + g.lastError);
+    const pool = M.player('A').pool;
+    t.eq(pool.total(), 5, 'Jegantha: WUBRG');
+    // Hill Giant {3}{R}: the R, but no generic from it
+    const giant = M.hand('A', 'Hill Giant');
+    t.no(g.castSpell('A', giant.id, { auto: true }), 'Jegantha: its mana does not pay {3}');
+    t.zone(giant, 'hand');
+    t.eq(pool.total(), 5, 'Jegantha: nothing spent');
+    // three Mountains tapped for the {3}: the R from Jegantha
+    for (let i = 0; i < 3; i++) M.bf('A', 'Mountain');
+    t.ok(g.castSpell('A', giant.id, { auto: true }), 'Jegantha: the generic from lands: ' + g.lastError);
+    M.resolve();
+    t.zone(giant, 'battlefield');
+    t.eq(pool.R, 0, "Jegantha: its R paid the Giant's {R}");
+    t.eq(pool.total(), 4, 'Jegantha: WUBG left');
+    // Mind Stone's {C} with WUBG floating: a {2} spell can't be paid by WUBG
+    M.mana('A', '1');
+    const ss = M.hand('A', 'Grizzly Bears');
+    t.ok(g.castSpell('A', ss.id, { auto: true }), 'Jegantha: {1}{G} — G from Jegantha, {1} from the colourless: ' + g.lastError);
+    M.resolve();
+    t.eq(pool.G, 0, 'Jegantha: its G spent');
+    t.eq(pool.C || 0, 0, 'Jegantha: the colourless paid the generic');
+    t.eq(pool.total(), 3, 'Jegantha: WUB left');
+  });
+
+  test('Commanders: Kefka, Dancing Mad — a random card from each opponent\'s graveyard, cast free; its owner loses its mana value', (mk, t) => {
+    t.auto('Kefka, Dancing Mad');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const kefka = M.bf('A', 'Kefka, Dancing Mad');
+    const giant = M.grave('B', 'Hill Giant');
+    const div = M.grave('C', 'Divination');
+    const hand0 = M.zone('A', 'hand').length;
+    M.answer('confirm', () => ({ yes: true }));
+    M.answer('confirm', () => ({ yes: false }));
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(giant, 'battlefield', 'Kefka: the Giant cast');
+    t.eq(giant.controller, 'A', 'Kefka: under A');
+    t.zone(div, 'exile', 'Kefka: Divination declined, still exiled');
+    t.eq(M.life('B'), 16, 'Kefka: B owns the Giant, loses 4');
+    t.eq(M.life('C'), 20, "Kefka: C's card wasn't cast, nothing lost");
+    t.eq(M.zone('A', 'hand').length, hand0, 'Kefka: no draw');
+    // an empty graveyard: nothing; indestructible on A's turn only
+    t.ok(M.g.hasKw(kefka, 'Indestructible') || M.g.hasKw(kefka, 'indestructible'), "Kefka: indestructible on A's turn");
+    M.nextTurn('C');
+    t.no(M.g.hasKw(kefka, 'Indestructible') || M.g.hasKw(kefka, 'indestructible'), "Kefka: not on C's turn");
+    const lifeB = M.life('B');
+    M.nextTurn('A');
+    M.toMain('A', 'end'); M.resolve();
+    t.eq(M.life('B'), lifeB, 'Kefka: an empty graveyard, nothing');
+  });
 };
