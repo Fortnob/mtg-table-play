@@ -1375,8 +1375,15 @@
       }
       // Jin-Gitaxias, Core Augur: "each opponent's maximum hand size is reduced by seven"
       // Necrodominance: "your maximum hand size is five"
-      const setTo = this._anyStaticOf(ap.id, 'handSizeSet');
-      const base = setTo ? (Number(this._staticOp(setTo, 'handSizeSet').n) || 0) : ap.maxHandSize;
+      const setTo = this._withEmblems(this.battlefield).find(o => o.controller === ap.id && !(this._staticOp(o, 'handSizeSet') || { who: 1 }).who);
+      let base = setTo ? (Number(this._staticOp(setTo, 'handSizeSet').n) || 0) : ap.maxHandSize;
+      /* Winter, Misanthropic Guide: "each opponent's maximum hand size is equal to seven minus the number of those card
+         types" — while its condition holds; the latest such effect wins (who opponents, cond, minus) */
+      for (const o of this.battlefield.slice().sort((x, y) => (x.ts || 0) - (y.ts || 0))) {
+        const e = !o.phasedOut && o.controller !== ap.id && this._staticOp(o, 'handSizeSet');
+        if (!e || e.who !== 'opponents' || (e.cond && !this._condMet(e.cond, { controller: o.controller, obj: o }))) continue;
+        base = (Number(e.n) || 0) - (e.minus ? this._countValue(e.minus, o.controller, o) : 0);
+      }
       const maxHand = Math.max(0, base + this._handSizeMod(ap.id));
       if (hand.length > maxHand && !ap.isBot) {
         this.pendingChoice = {
@@ -3599,7 +3606,7 @@
       }
       // Urza, Planeswalker's +2: spells of these kinds cost less for the rest of the turn (costModTurn)
       for (const e of ((this.player(pid) || {}).turnCostMods || [])) {
-        if (e.turn !== this.turn) continue;
+        if (e.turn !== this.turn || e.used) continue;
         if (e.words && e.words !== 'spell' && !this._cardFitsWords(o, e.words)) continue;
         // (Commander Liara Portyr: "spells you cast from exile this turn")
         if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
@@ -6952,6 +6959,11 @@
       // (Overmaster: only the next instant or sorcery spell)
       if (p.nextSpellUncounterable === this.turn && (!p.nextSpellUncounterableWords || this._cardFitsWords(o, p.nextSpellUncounterableWords))) {
         item.uncounterable = true; p.nextSpellUncounterable = null;
+      }
+      // Elminster: "the next instant or sorcery spell you cast this turn costs {X} less" — this one, and spent (once)
+      for (const m of (p.turnCostMods || [])) {
+        if (m.once && !m.used && m.turn === this.turn && (!m.words || m.words === 'spell' || this._cardFitsWords(o, m.words)) &&
+          (!m.fromZones || m.fromZones.includes(item.fromZone))) m.used = true;
       }
       // Archway of Innovation: the keyword was for this spell only
       // (Storm, Force of Nature: "the next instant or sorcery spell" waits for one)
@@ -15369,6 +15381,8 @@
           }
           // Ob Nixilis, Captive Kingpin: what each opponent has lost while it waits (lossExactly)
           if (had && ab.lossExactly) { const by = had.triggerData.lossBy; by[data.player] = (by[data.player] || 0) + (Number(data.amount) || 0); }
+          // Spinneret and Spiderling: "deals 4 or more damage" — what it deals at once, added up (minTotal)
+          if (had && ab.minTotal) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(data.amount) || 0);
           // Breeches, Brazen Plunderer: "each of those opponents" — every player the lot hit (batchPlayers)
           if (had && ab.batchPlayers && tData.player && !(had.triggerData.players || []).includes(tData.player)) had.triggerData.players = (had.triggerData.players || []).concat(tData.player);
           if (had) return;
@@ -15402,6 +15416,7 @@
               ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
               ab.batchPlayers && tData.player ? { players: [tData.player] } : {}),
             lossExactly: ab.lossExactly || undefined,
+            minTotal: ab.minTotal || undefined,
             // (Grothama, All-Devouring: "fight Grothama" — the permanent that handed the ability out: grantedBy)
             grantedBy: ab.grantedBy || undefined,
           });
@@ -15864,6 +15879,8 @@
          an opponent together is 3 life lost, and no trigger (lossExactly) */
       this.pendingTriggers = this.pendingTriggers.filter(t => !t.lossExactly ||
         Object.values((t.triggerData || {}).lossBy || {}).some(n => n === t.lossExactly));
+      // Spinneret and Spiderling: "deals 4 or more damage" — less, all told, and it never triggered (minTotal)
+      this.pendingTriggers = this.pendingTriggers.filter(t => !t.minTotal || (Number((t.triggerData || {}).amount) || 0) >= t.minTotal);
       if (!this.pendingTriggers.length) return;
       // APNAP order (CR 603.3b): active player's triggers go on the stack first
       const order = [];
@@ -26781,6 +26798,67 @@
           else if (counts[1] > counts[0] || e.tieB) run.push(...e.thenB);
           this.logEvent('rules', `The vote: ${e.choices[0]} ${counts[0]}, ${e.choices[1]} ${counts[1]}.`);
           if (run.length) this._spliceNext(run);
+          break;
+        }
+        /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed" —
+           nobody's vote told until all are in; each fellowship voter then gives a creature of theirs (one for each such
+           vote; one they have only, no question), which you gain control of for good and which can't attack its owner;
+           then a +1/+1 counter on each creature you control for each aid vote, one at a time (voteFellowshipAid) */
+        case 'voteFellowshipAid': {
+          const voters = this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost);
+          const words = ['fellowship', 'aid'];
+          const opts = words.map((w, i) => ({ i, label: U.titleCase(w) }));
+          const votes = [];
+          for (const p of voters) {
+            const v = this._choose({ playerId: p.id, purpose: 'voteFellowshipAid', kind: 'options', min: 1, max: 1, options: opts, forPlayer: ctx.controller,
+              prompt: `${src ? src.name + ': ' : ''}secretly vote for fellowship or aid.` }, 'fa' + p.id);
+            if (v === SUSPEND) return SUSPEND;
+            const pick = v && v.picks.length ? v.picks[0] : 0;
+            votes.push({ pid: p.id, pick });
+            // (Tivit, Seller of Secrets: an additional vote — a bot always takes it, the same way)
+            const extra = this._extraVotes(p.id);
+            for (let k = 0; k < extra.length; k++) {
+              let more = pick;
+              if (!p.isBot) {
+                const v2 = this._choose({ playerId: p.id, purpose: 'voteFellowshipAid', kind: 'options', min: extra[k].optional ? 0 : 1, max: 1, options: opts, forPlayer: ctx.controller,
+                  prompt: `${src ? src.name + ': ' : ''}${extra[k].optional ? 'you may vote an additional time' : 'your additional vote'}, for fellowship or aid.` }, 'fa' + p.id + ':' + k);
+                if (v2 === SUSPEND) return SUSPEND;
+                more = v2 && v2.picks.length ? v2.picks[0] : (extra[k].optional ? null : pick);
+              }
+              if (more != null) votes.push({ pid: p.id, pick: more });
+            }
+          }
+          if (!this._doneHere('faTold')) for (const v of votes) this.logEvent('rules', `${(this.player(v.pid) || {}).name} voted for ${words[v.pick]}.`);
+          const chosen = [];
+          for (let k = 0; k < votes.length; k++) {
+            if (votes[k].pick !== 0) continue;
+            const p = this.player(votes[k].pid);
+            const pool = this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature && !chosen.includes(x.id));
+            if (!pool.length) continue;
+            let id = pool[0].id;
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: p.id, purpose: 'fellowshipCreature', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+                min: 1, max: 1, harmful: p.id !== ctx.controller, forPlayer: ctx.controller,
+                prompt: `${src ? src.name + ': ' : ''}choose a creature you control. ${me.name} gains control of it, and it gains "This creature can't attack its owner."` }, 'fac' + k);
+              if (got === SUSPEND) return SUSPEND;
+              id = ((got && got.picks) || []).find(x => pool.some(o => o.id === x)) || id;
+            }
+            chosen.push(id);
+          }
+          if (!this._doneHere('faGain')) {
+            for (const id of chosen) {
+              const x = this.obj(id);
+              if (!x || x.zone !== 'battlefield') continue;
+              x.effects.push({ control: ctx.controller, until: null, ts: this._stampNew() });
+              x.effects.push({ grantText: "This creature can't attack its owner.", until: null });
+              x._chr = null;
+              this.logEvent('control', `${me.name} gains control of ${x.name}, which can't attack its owner.`);
+            }
+            this._refreshControl();
+            this.bumpBoard();
+          }
+          const aid = votes.filter(v => v.pick === 1).length;
+          if (aid) this._spliceNext(Array.from({ length: aid }, () => ({ op: 'counters', kind: '+1/+1', n: 1, scope: 'yourCreatures' })));
           break;
         }
         /* Círdan the Shipwright: "each player secretly votes for a player, then those votes are revealed" — nobody's vote

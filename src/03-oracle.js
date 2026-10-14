@@ -5713,6 +5713,10 @@
        amount of life you gained this turn." — X counted once, as it resolves (costModTurn, lessX) */
     { re: /^Spells you cast this turn that are (white|blue|black|red|green) and\/or (white|blue|black|red|green) cost \{X\} less to cast, where X is (.+?)\.?$/i,
       make: (m) => { const a = amountOf(m[3]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), amount: 0 }, lessX: a }; } },
+    /* Elminster: "the next instant or sorcery spell you cast this turn costs {X} less to cast, where X is the number of
+       cards looked at while scrying this way" — X counted as it resolves, for one spell (costModTurn, lessX, once) */
+    { re: /^The next (instant or sorcery |instant |sorcery |creature |noncreature )?spell you cast this turn costs \{X\} less to cast, where X is (.+?)\.?$/i,
+      make: (m) => { const a = amountOf(m[2]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: (m[1] || 'spell').trim().toLowerCase(), amount: 0, once: true }, lessX: a }; } },
     /* Commander Liara Portyr: "spells you cast from exile this turn cost {X} less to cast, where X is the number of players
        being attacked" — X counted as it resolves (costModTurn, lessX, fromZones) */
     { re: /^Spells you cast from exile this turn cost \{X\} less to cast, where X is (.+?)\.?$/i,
@@ -10251,6 +10255,17 @@
         }
         return [{ op: 'vote', choices: [m[1], m[2]], mode: 'count', thenA: thens[0], thenB: thens[1] }];
       } },
+    /* Daxos the Returned: "Create a white and black Spirit enchantment creature token. It has "This creature's power and
+       toughness are each equal to the number of experience counters you have."" — a token with no size printed, the
+       words a sentence later giving it one (as "with" in the same sentence would) */
+    { re: /^(Create (?:a|an) (?![\dX*]+\/)[^.]*?creature token)\. It has "([^"]+?)"\.?$/,
+      make: (m) => { const e = parseTokenSentence(m[1] + ' with "' + m[2] + '"'); return e ? [e] : null; } },
+    /* Elrond of the White Council: "each player secretly votes for fellowship or aid, then those votes are revealed. For
+       each fellowship vote, the voter chooses a creature they control. You gain control of each creature chosen this way,
+       and they gain "This creature can't attack its owner." Then for each aid vote, put a +1/+1 counter on each creature
+       you control." (voteFellowshipAid) */
+    { re: /^Each player secretly votes for fellowship or aid, then those votes are revealed\. For each fellowship vote, the voter chooses a creature they control\. You gain control of each creature chosen this way, and they gain "This creature can'?t attack its owner\.?"\.? Then for each aid vote, put a \+1\/\+1 counter on each creature you control\.?$/i,
+      make: () => [{ op: 'voteFellowshipAid' }] },
     /* Círdan the Shipwright: "Secret council — … each player secretly votes for a player, then those votes are revealed.
        Each player draws a card for each vote they received. Each player who received no votes may put a permanent card
        from their hand onto the battlefield." (votePlayers) */
@@ -14066,6 +14081,10 @@
     // Goblin Lackey, Hypnotic Specter: "Whenever this creature deals damage to a player (an opponent)" — any damage, combat or not
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage to (a player|an opponent),? /i, event: 'dealsDamage', self: true,
       extraOf: (m) => Object.assign({ toPlayer: true }, /opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
+    /* Spinneret and Spiderling: "Whenever Spinneret and Spiderling deals 4 or more damage" — all it deals at once, to
+       however many, counted as the trigger waits (minTotal) */
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (\d+) or more damage,? /i, event: 'dealsDamage', self: true,
+      extraOf: (m) => ({ batch: true, minTotal: +m[1] }) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
     /* Breeches, Brazen Plunderer: "Whenever one or more Pirates you control deal damage to your opponents" — one
@@ -17520,6 +17539,9 @@
         const k = { sum: [a, b], mult: 1 };
         return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } };
       } },
+    // Daxos the Returned's Spirit: "This creature's power and toughness are each equal to the number of experience counters you have." (playerStat)
+    { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of experience counters you have\.?$/i,
+      make: () => { const k = { playerStat: 'experience', mult: 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
     // "<name>'s power and toughness are each equal to the number of X you control."
     // ("This token's": a token made with these words, Hallowed Haunting's Spirit Cleric)
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?)(?: you control| on the battlefield)?\.?$/i,
@@ -19031,6 +19053,8 @@
       // Locke, Treasure Hunter, Ant-Man: "CARDNAME can't be blocked by creatures with greater power." — skulk's rule (notByGreaterPower)
       // Shanna, Sisay's Legacy: "can't be the target of abilities your opponents control" (oppAbilitiesCantTarget)
       { re: /^(?:CARDNAME|This creature) can'?t be the target of abilities your opponents control\.?$/i, eff: { op: 'untargetableByOppAbilities' }, auto: true },
+      // Elrond of the White Council: "This creature can't attack its owner." — the player (cantAttackOwner)
+      { re: /^(?:CARDNAME|This creature) can'?t attack its owner\.?$/i, eff: { op: 'cantAttackOwner' }, auto: true },
       // Captain America, Super-Soldier: "As long as …, you and other Heroes you control have hexproof." (youAndOthersHexproof)
       { re: /^As long as (.+?), you and other ([A-Z][a-z]+)s you control have hexproof\.?$/,
         make: (m) => {
@@ -19321,6 +19345,10 @@
         make: (m) => ({ op: 'crewBonus', n: +m[1] }), auto: true },
       // Necrodominance: "Your maximum hand size is five."
       { re: /^Your maximum hand size is (\w+)\.?$/i, make: (m) => (typeof num(m[1]) === 'number' ? { op: 'handSizeSet', n: num(m[1]) } : null), auto: true },
+      /* Winter, Misanthropic Guide: "As long as there are four or more card types among cards in your graveyard, each
+         opponent's maximum hand size is equal to seven minus the number of those card types." (handSizeSet opponents) */
+      { re: /^As long as (there are (?:four|five|\w+) or more card types among cards in your graveyard), each opponent'?s maximum hand size is equal to seven minus the number of those card types\.?$/i,
+        make: (m) => { const c = condOf(m[1]); return c ? { op: 'handSizeSet', who: 'opponents', cond: c, n: 7, minus: { typesInGraveyards: 'you' } } : null; }, auto: true },
       // Phyrexian Unlife, Transcendence: "You don't lose the game for having 0 or less life."
       { re: /^You don'?t lose the game for having 0 or less life\.?$/i, eff: { op: 'noLoseForLife' }, auto: true },
       // Lair of the Hydra: "If you control two or more other lands, this land enters tapped."

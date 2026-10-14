@@ -1910,6 +1910,15 @@
     },
     /* Read ahead: from the start */
     readAhead() { return { picks: [0] }; },
+    /* Elrond of the White Council: aid for our own creatures; against it, fellowship when it costs us nothing or
+       their board is already wide (aid would grow every creature of theirs), else aid */
+    voteFellowshipAid(s) {
+      const g = this.game;
+      if (s.forPlayer === this.pid) return { picks: [1] };
+      const mine = g.battlefield.filter(o => o.controller === this.pid && (g.characteristics(o) || {}).isCreature).length;
+      const theirs = g.battlefield.filter(o => o.controller === s.forPlayer && (g.characteristics(o) || {}).isCreature).length;
+      return { picks: [!mine || theirs >= 3 ? 0 : 1] };
+    },
     /* Gollum, Scheming Guide: land or nonland — either, so the guess can't be read off us */
     guessKindPick() { return { picks: [this.rand() < 0.5 ? 0 : 1] }; },
     /* …and the guess, by the odds of a deck about two-fifths land */
