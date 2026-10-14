@@ -6710,6 +6710,8 @@
     if ((m = p.match(/^(nontoken creatures?|creatures?) (?:you had enter|that entered) (?:the battlefield )?under your control this turn$/i))) {
       return { enteredYours: m[1].toLowerCase().replace(/s$/, ''), mult: k };
     }
+    // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — by the lot the trigger is about (batchPlayers)
+    if ((m = p.match(/^(opponents?|players?) dealt damage$/i))) return { batchPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
     // Apothecary White: "for each player being attacked" (playersBeingAttacked)
     if (/^(?:players?|opponents?) being attacked$/i.test(p)) return { playersBeingAttacked: true, mult: k };
     // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
@@ -11669,6 +11671,10 @@
     // (Night Dealings: "to another player" — the same)
     { re: /^When(?:ever)? a source you control deals (noncombat )?damage to (?:an opponent|another player)(?:,| )/i, event: 'yourSourceDamagesOpponent',
       extraOf: (m) => (m[1] ? { noncombatOnly: true } : {}) },
+    /* Malcolm, Keen-Eyed Navigator: "Whenever one or more Pirates you control deal damage to your opponents" — once for
+       the lot, the opponents hit kept (batchPlayers) */
+    { re: new RegExp('^Whenever ' + SUBJ + ' deal damage to your opponents,? ', 'i'), event: 'yourSourceDamagesOpponent',
+      filt: (m) => (/^one or more /i.test(m[1]) ? subjectFilter(m[1]) : null) },
     // Dragonborn Champion: "Whenever a source you control deals 5 or more damage to a player" — you too (minAmount)
     { re: /^When(?:ever)? a source you control deals (\d+) or more damage to a player,? /i, event: 'yourSourceDamagesPlayer',
       extraOf: (m) => ({ minAmount: +m[1] }) },

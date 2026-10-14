@@ -13144,6 +13144,11 @@
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
+          // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — each player the lot hit (batchPlayers)
+          if (had && tData.player != null) {
+            const bp = had.triggerData.batchPlayers = had.triggerData.batchPlayers || [had.triggerData.player];
+            if (!bp.includes(tData.player)) bp.push(tData.player);
+          }
           if (had) return;
         }
         // the Collectors: "This ability triggers only once." — for as long as this object exists
@@ -14357,6 +14362,12 @@
         }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
+        // Malcolm, Keen-Eyed Navigator: the players the lot of damage the trigger is about hit (batchPlayers)
+        if (v && typeof v === 'object' && v.batchPlayers) {
+          const tdB = ctx.triggerData || {};
+          const hitB = tdB.batchPlayers || (tdB.player != null ? [tdB.player] : []);
+          return hitB.filter(id => v.batchPlayers === 'players' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
+        }
         // Aclazotz: "for each opponent who can't" discard (couldNot)
         if (v && typeof v === 'object' && v.couldNot) return (this._couldNot || []).filter(id => v.couldNot !== 'opponents' || this.opponentsOf(ctx.controller).some(q => q.id === id)).length * (v.mult || 1);
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);

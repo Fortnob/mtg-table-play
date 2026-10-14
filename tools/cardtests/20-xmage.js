@@ -30071,4 +30071,43 @@ module.exports = (test) => {
     t.eq(count('Treasure'), 3, 'Tivit: two more bribery votes');
     t.eq(count('Clue'), 2, 'Tivit: no more Clues');
   });
+
+  test('Commanders: Malcolm, Keen-Eyed Navigator — Pirates hurting opponents: one trigger, a Treasure for each opponent hit', (mk, t) => {
+    t.auto('Malcolm, Keen-Eyed Navigator');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    const mal = M.bf('A', 'Malcolm, Keen-Eyed Navigator');
+    const hoard = M.bf('A', 'Dire Fleet Hoarder');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const treasures = () => M.bfOf('A').filter(o => o.name === 'Treasure').length;
+    const toMain2 = () => {
+      for (let i = 0; i < 60; i++) {
+        M.settle();
+        if (g.phase.id === 'postcombat' && g.step === 'main' && !g.stack.length && g.priorityPlayer.id === g.activePlayer.id) return;
+        g.passPriority(g.priorityPlayer.id, true);
+      }
+    };
+    M.nextTurn('A');
+    // Malcolm at B, the Hoarder at C: one lot, two opponents
+    M.answer('declareAttackers', () => [{ attackerId: mal.id, defenderId: 'B' }, { attackerId: hoard.id, defenderId: 'C' }]);
+    toMain2();
+    t.eq(M.life('B'), 18); t.eq(M.life('C'), 18);
+    t.eq(treasures(), 2, 'Malcolm: a Treasure for each opponent dealt damage');
+    // both at B: one opponent, one Treasure
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: mal.id, defenderId: 'B' }, { attackerId: hoard.id, defenderId: 'B' }]);
+    toMain2();
+    t.eq(M.life('B'), 14);
+    t.eq(treasures(), 3, 'Malcolm: two Pirates at one opponent, one Treasure');
+    // a creature that is not a Pirate: nothing
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    toMain2();
+    t.eq(M.life('B'), 12);
+    t.eq(treasures(), 3, 'Malcolm: Grizzly Bears is no Pirate');
+    // a spell is no Pirate either
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: ['C'] });
+    t.eq(treasures(), 3, 'Malcolm: Shock is no Pirate');
+  });
 };
