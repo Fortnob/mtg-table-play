@@ -628,7 +628,10 @@
       const dmg = new Map();               // creature id -> damage it would take
       const toPlayer = new Map();          // player id -> damage
       const hit = (id, n) => dmg.set(id, (dmg.get(id) || 0) + n);
-      const lethal = (o, src) => Math.max(0, (o.toughness || 0) - (o.damage || 0) - (dmg.get(o.id) || 0)) || (has(src, 'deathtouch') ? 1 : 0);
+      /* the engine's rule (_lethalLeft, _hasLethalDamage): toughness, or power under Zilortha, Strength Incarnate
+         ("Lethal damage dealt to creatures you control is determined by their power"), where a 0-power one dies to any */
+      const stat = (o) => (o.lethalByPower ? o.power : o.toughness) || 0;
+      const lethal = (o, src) => Math.max(o.lethalByPower ? 1 : 0, stat(o) - (o.damage || 0) - (dmg.get(o.id) || 0)) || (has(src, 'deathtouch') ? 1 : 0);
       const dies = new Set();
       const isDead = (o) => dies.has(o.id);
       const strike = (first) => {
@@ -665,7 +668,7 @@
         }
         for (const [id, n] of dmg) {
           const o = byId.get(id);
-          if (o && !has(o, 'indestructible') && n + (o.damage || 0) >= (o.toughness || 0) && (o.toughness || 0) >= 0) dies.add(id);
+          if (o && !has(o, 'indestructible') && n + (o.damage || 0) >= stat(o) && (o.lethalByPower ? n + (o.damage || 0) > 0 : (o.toughness || 0) >= 0)) dies.add(id);
         }
       };
       strike(true);

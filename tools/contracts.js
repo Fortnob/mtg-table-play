@@ -117,6 +117,8 @@ const ObjectView = obj({
   prepared: opt(bool), agenda: opt(bool), chosen: opt(maybe(S.plainObj)), pairedWith: opt(maybe(id)),
   // meld: the two cards a melded permanent is
   melded: opt(arr(str)), power: maybe(num), toughness: maybe(num), keywords: arr(str),
+  // Zilortha, Strength Incarnate: lethal damage to it is by its power
+  lethalByPower: opt(lit(true)),
   // Alchemy: perpetual changes added up, and a card's intensity
   perpetual: opt(maybe(obj({ pt: arr(num), keywords: arr(str), costDelta: num, text: arr(str), basePt: opt(arr(num)),
     lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),

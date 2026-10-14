@@ -116,6 +116,8 @@ declare namespace MTG {
     /** null for anything that is not a creature right now */
     power: number | null;
     toughness: number | null;
+    /** Zilortha, Strength Incarnate: lethal damage to it is determined by its power rather than its toughness */
+    lethalByPower?: true;
     keywords: string[];
     /** Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
     manaExtra?: Array<{ i: number; label: string }> | null;

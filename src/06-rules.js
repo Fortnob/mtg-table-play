@@ -3167,9 +3167,19 @@
         this._staticOp(o, 'untargetableByOppAbilities'));
     }
     /** Suq'Ata Firewalker: no spell or ability from a source of that colour may target it, whoever controls it. */
-    _untargetableHit(o, source) {
+    /* Thrun, Breaker of Silence: "nongreen spells your opponents control or abilities from nongreen sources your
+       opponents control" — a source without that colour, controlled by an opponent of its controller (nonColor, opponents) */
+    _untargetableHit(o, source, controllerId) {
       const e = o && source && this._staticOp(o, 'untargetableBy');
-      return !!e && (e.q || []).some(q => this._matchesProtection(q, source));
+      if (!e) return false;
+      if (e.nonColor) {
+        const who = controllerId != null ? controllerId : source.controller;
+        if (e.opponents && (who == null || who === o.controller)) return false;
+        const col = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[e.nonColor];
+        const cs = (source.analysis() || {}).colors || [];
+        return !cs.includes(col);
+      }
+      return (e.q || []).some(q => this._matchesProtection(q, source));
     }
     _hexproofFromHit(o, source) {
       if (!o || !source) return false;
@@ -3317,7 +3327,7 @@
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
-          if (item.obj && this._untargetableHit(o, item.obj)) return false;
+          if (item.obj && this._untargetableHit(o, item.obj, item.controller)) return false;
           if (item.kind !== 'spell' && item.obj && this._oppAbilityCantTarget(o, item.obj, item.controller)) return false;
           if (this.hasKw(o, 'shroud')) return false;
           // protection from a quality the spell or ability's source has
@@ -4713,6 +4723,8 @@
       if (c.life && p && p.life <= c.life) return { ok: false, reason: 'Not enough life.' };
       if (c.tapCreatures && this._tapCostPool(playerId, c.tapCreatures, o).length < this._costCount(c.tapCreatures.n, null))
         return { ok: false, reason: `Not enough untapped ${c.tapCreatures.filter || 'creature'}s to tap.` };
+      // (Sandman, Shifting Scoundrel: "and target land card" — with nothing to target, it can't be activated, CR 602.2b)
+      if (!this._targetsAvailable(ab.effects || [], playerId)) return { ok: false, reason: 'There is nothing it could target right now.' };
       return { ok: true, cost: c.mana || '', ability: i };
     }
 
@@ -16767,6 +16779,8 @@
           const gone = src.zone !== 'battlefield' && src._lastPower != null;
           if (v.ofSelf === 'power') return gone ? src._lastPower : this.powerOf(src);
           if (v.ofSelf === 'loyalty') return Number((src.counters || {}).loyalty) || 0;
+          // Curie, Emergent Intelligence: "its base power" — as it last existed, once gone
+          if (v.ofSelf === 'basePower') return src.zone !== 'battlefield' && src._lastBasePower != null ? src._lastBasePower : ((this.characteristics(src) || {}).basePower || 0);
           return gone ? src._lastToughness : this.toughnessOf(src);
         }
         if (v && typeof v === 'object' && v.devotion) return this.devotionOf(ctx.controller, v.devotion) * (v.mult || 1);
@@ -24923,6 +24937,13 @@
           /* Scion of the Ur-Dragon: "Search your library for a Dragon permanent card and put it into your graveyard.
              If you do, Scion of the Ur-Dragon becomes a copy of that card" — the card just found (searched) */
           if (e.of === 'searched') t = ((this._lastSearched || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard'))[0] || null;
+          /* Curie, Emergent Intelligence: "a copy of the exiled creature" — the one exiled to pay, by its copiable values as
+             it last was on the battlefield, what it was copying included (exiledCost) */
+          if (e.of === 'exiledCost') {
+            const x = ctx.exiledCost && this.obj(ctx.exiledCost.id);
+            const lk = x && (x._lkiCard || { card: x.card, face: x.face || 0 });
+            t = lk && lk.card ? { card: lk.card, face: lk.face || 0, name: lk.card.name || x.name, zone: 'battlefield' } : null;
+          }
           /* Lazav, Dimir Mastermind: "a copy of that card" — the card put into the graveyard; gone from there, as it
              last was there (its ruling): the printed card, never what it copied on the battlefield */
           if (e.ofTriggerCard) {
@@ -25683,6 +25704,7 @@
           /* Rashmi, Eternities Crafter: "if it's a spell with lesser mana value" — less than the spell the trigger is
              about; with no such spell, nothing is (lesserMv) */
           const below = e.lesserMv ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId) ? n({ triggerSpellMv: true }) : -1) : null;
+          let castHere = 0;
           for (let k = 0; k < pool.length; k++) {
             if (r && r.marks[slot + 'n'] >= most) break;
             const c = this.obj(pool[k]);
@@ -25704,6 +25726,8 @@
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
+            // Yennett, Cryptic Sovereign: "if its mana value is odd" (mvOdd)
+            if (e.mvOdd && ((c.card && c.card.cmc) || 0) % 2 !== 1) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
@@ -25735,6 +25759,7 @@
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
             if (r) r.marks[slot + 'n']++;
+            castHere++;
             // (Kefka, Dancing Mad: "a spell you cast this way" — castOwnersLoseMv)
             if (r) (r.castThisWay = r.castThisWay || []).push(c.id);
             const it = this.stack.find(st => st.objId === c.id);
@@ -25744,6 +25769,8 @@
           // Rashmi, Eternities Crafter: "If you don't cast it, put it into your hand." (elseHand)
           // (Bre of Clan Stoutarm: "Otherwise, put it into your hand." — the card exiled, not cast)
           if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && (c.zone === 'library' || (e.from === 'thatCard' && c.zone === 'exile'))) this.moveObject(c, 'hand'); }
+          // Yennett, Cryptic Sovereign: "If you don't cast it, draw a card." (elseDraw)
+          if (e.elseDraw && !(r ? r.marks[slot + 'n'] : castHere)) this._drawCards(me, e.elseDraw);
           break;
         }
 
@@ -31490,7 +31517,7 @@
         if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && s0 !== o && this._protectedFrom(o, s0)) continue; }
         // hexproof from a quality: not by an opponent's spell or ability with it (CR 702.11d)
         if (zone === 'battlefield' && sourceId && o.controller !== controllerId) { const s0 = this.obj(sourceId); if (s0 && this._hexproofFromHit(o, s0)) continue; }
-        if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0)) continue; }
+        if (zone === 'battlefield' && sourceId) { const s0 = this.obj(sourceId); if (s0 && this._untargetableHit(o, s0, controllerId)) continue; }
         if (zone === 'battlefield' && sourceId && this._oppAbilityCantTarget(o, this.obj(sourceId), controllerId)) continue;
         out.push({ kind: 'object', id: o.id, name: o.name });
       }
@@ -32371,6 +32398,8 @@
         melded: o.meld && o.zone === 'battlefield' && !secret(o) ? [o.meld.card.name].concat(this.obj(o.meld.partner) ? [this.obj(o.meld.partner).name] : []) : undefined,
         power: (() => { const a = !blank(o) && o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
         toughness: (() => { const a = !blank(o) && o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
+        // Zilortha, Strength Incarnate: lethal damage to it goes by its power, for the table's combat preview
+        lethalByPower: o.zone === 'battlefield' && this._lethalByPower(o) ? true : undefined,
         /* what it has right now, granted keywords included, so the table can
            tell which permanents a spell is allowed to point at */
         keywords: blank(o) ? [] : this._viewKeywords(o),

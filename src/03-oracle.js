@@ -2344,9 +2344,10 @@
     { re: /^Double the number of each kind of counter on each ([A-Z][a-z]+) and legendary creature you control\.?$/,
       make: (m) => ({ op: 'doubleCounters', allKinds: true, scope: { who: 'you', what: 'creature', thatIs: m[1] + ' or legendary' } }) },
     // Mu Yanling, Wind Rider: "create a 3/2 colorless Vehicle artifact token with crew 1" — an artifact, no creature until crewed
-    { re: /^Create an? (\d+)\/(\d+) colorless Vehicle artifact token with crew (\d+)\.?$/i,
+    // (Lita, Mechanical Engineer: "a 5/5 colorless Vehicle artifact token named Zeppelin with flying and crew 3")
+    { re: /^Create an? (\d+)\/(\d+) colorless Vehicle artifact token(?: named ([A-Z][A-Za-z' -]+?))? with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/i,
       make: (m) => ({ op: 'createToken', n: 1, pt: m[1] + '/' + m[2], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
-        noncreature: true, keywords: [], grantedText: 'Crew ' + m[3] }) },
+        noncreature: true, keywords: m[4] ? [U.titleCase(m[4])] : [], grantedText: 'Crew ' + m[5], name: m[3] || undefined }) },
     // Aetheric Amplifier: "Double the number of each kind of counter you have."
     { re: /^Double the number of each kind of counter you have\.?$/i, make: () => ({ op: 'doublePlayerCounters' }) },
     // Garnet, Princess of Alexandria: "Put a +1/+1 counter on Garnet for each lore counter removed this way."
@@ -3310,6 +3311,9 @@
        battlefield." — together (withSelf) */
     { re: /^Return (?:this card|CARDNAME) and up to one other target creature card from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'reanimate', withSelf: true, targets: [{ type: 'creature', zone: 'graveyard', controller: 'you', upTo: true, another: true }] }) },
+    // Sandman, Shifting Scoundrel: "Return this card and target land card from your graveyard to the battlefield tapped." (withSelf)
+    { re: /^Return (?:this card|CARDNAME) and target land card from your graveyard to the battlefield tapped\.?$/i,
+      make: () => ({ op: 'reanimate', withSelf: true, tapped: true, targets: [{ type: 'land', filter: 'land card', zone: 'graveyard', controller: 'you', another: true }] }) },
     { re: /^Return target creature card from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
     // Olivia, Crimson Bride: "… to the battlefield tapped and attacking" — beside the creature attacking
@@ -6157,6 +6161,14 @@
         if (m[5] && (!copyExceptions(m[5], e) || e.keepOwn)) return null;
         return /^(?:then )?you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
       } },
+    /* Curie, Emergent Intelligence: "{1}{U}, Exile another nontoken artifact creature you control: Curie becomes a copy
+       of the exiled creature, except it has …" — the creature exiled to pay, as it last was (exiledCost) */
+    { re: /^CARDNAME becomes a copy of the exiled creature(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const e = { op: 'becomeCopy', of: 'exiledCost' };
+        if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
+        return e;
+      } },
     /* Taskmaster, Mercenary Mimic: "until your next turn, Taskmaster becomes a copy of up to one target creature on
        the battlefield or creature card in a graveyard, except …" — either zone (orGraveyardCard), until its
        controller's next turn (untilNextTurn) */
@@ -8134,6 +8146,8 @@
     // Jaws of Defeat: "the difference between that creature's power and its toughness" (ofTrigger 'ptDiff')
     // (Doran, Besieged by Time: "the difference between its power and toughness")
     if (/^the difference between (?:that creature|its)'?s? power and (?:its )?toughness$/i.test(p)) return done({ ofTrigger: 'ptDiff' });
+    // Curie, Emergent Intelligence: "draw cards equal to its base power" — its own, as the layers set it (ofSelf basePower)
+    if (/^(?:its|CARDNAME'?s) base power$/i.test(p)) return done({ ofSelf: 'basePower' });
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
@@ -9199,6 +9213,9 @@
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
     { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if it'?s a spell with lesser mana value\. If you don'?t cast it, put (?:it|that card) into your hand\.?$/i,
       make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, lesserMv: true, elseHand: true }] },
+    // Yennett, Cryptic Sovereign: "reveal the top card of your library. You may cast it without paying its mana cost if its mana value is odd. If you don't cast it, draw a card." (mvOdd, elseDraw)
+    { re: /^Reveal the top card of your library\. You may cast it without paying its mana cost if its mana value is odd\. If you don'?t cast it, draw a card\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, mvOdd: true, elseDraw: 1 }] },
     /* Gluntch, the Bestower: "choose a player. They put two +1/+1 counters on a creature they control. Choose a
        second player to draw a card. Then choose a third player to create two Treasure tokens." — three different
        players, any one of them you; the first chooses the creature; with no player left to choose, that part
@@ -14707,7 +14724,7 @@
         if (xOnly) ab.xColor = xOnly.color;
         // (Kethis, the Hidden Hand: not words in quotation marks — "gains 'You may play this card from your graveyard'")
         if ((cost.exile && cost.exile.fromGraveyard) ||
-            /\b(?:this card|CARDNAME)(?: and up to one other target creature card)? from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
+            /\b(?:this card|CARDNAME)(?: and up to one other target creature card| and target land card)? from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
         for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
           ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
             o.perTurn ? { perTurn: o.perTurn } : null);
@@ -18954,6 +18971,9 @@
       // Suq'Ata Firewalker: "can't be the target of red spells or abilities from red sources" — anyone's
       { re: /^(?:CARDNAME|This creature) can'?t be the target of (white|blue|black|red|green) spells or abilities from (white|blue|black|red|green) sources\.?$/i,
         make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', q: [m[1].toLowerCase()] } : null), auto: true },
+      // Thrun, Breaker of Silence: "can't be the target of nongreen spells your opponents control or abilities from nongreen sources your opponents control" (nonColor, opponents)
+      { re: /^(?:CARDNAME|This creature) can'?t be the target of non(white|blue|black|red|green) spells your opponents control or abilities from non(white|blue|black|red|green) sources your opponents control\.?$/i,
+        make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', nonColor: m[1].toLowerCase(), opponents: true } : null), auto: true },
       // Goblin Goon, Monstrous Hound: "can't attack unless you control more creatures than defending player"
       { re: /^(?:CARDNAME|This creature) can'?t attack unless you control more (creature|land)s than defending player\.?$/i,
         make: (m) => ({ op: 'attackRequires', moreThanDefender: m[1].toLowerCase() }), auto: true },
