@@ -11398,6 +11398,10 @@
         if (ef.sourceCountered && !(ev.source && Object.values(ev.source.counters || {}).some(v => Number(v) > 0))) return false;
         // Sokrates, Athenian Teacher: "If this creature would deal combat damage" — the one that has it
         if (ef.fromSelf && !(ev.source && ev.source.id === src.id)) return false;
+        // Rem Karolus, Stalwart Slayer: "If a spell would deal damage" — an instant or sorcery as it resolves (spellSource)
+        if (ef.spellSource && !(ev.source && ev.source.zone === 'stack')) return false;
+        // ("to you or another permanent you control" — not to itself: notSelfVictim)
+        if (ef.notSelfVictim && ev.victimId && ev.victimId === src.id) return false;
         if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;
         // Ojer Axonil: "an amount of noncombat damage less than Ojer Axonil's power" (atLeastSelfPower)
         if (ef.how === 'atLeastSelfPower' && !(src.zone === 'battlefield' && (ev.n || 0) < this.powerOf(src))) return false;
@@ -11415,6 +11419,8 @@
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
+        // Rem Karolus, Stalwart Slayer: "prevent that damage"
+        case 'prevent': ev.n = 0; ev.cancelled = true; break;
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
@@ -12708,6 +12714,8 @@
         case 'selfTransformed': return !!(src && src.zone === 'battlefield' && (src.face || 0) === 1);
         case 'selfAttachedToCreature': { const h = src && src.attachedTo && this.obj(src.attachedTo); return !!(h && h.zone === 'battlefield' && (this.characteristics(h) || {}).isCreature && (!cond.yours || h.controller === ctx.controller)); }
         case 'ringBearerNotSelf': { const td = ctx.triggerData || {}; return !!td.bearerId && !!ctx.obj && td.bearerId !== ctx.obj.id; }
+        // Frodo, Sauron's Bane: "if the Ring has tempted you four or more times this game" — the Ring's level, up to four
+        case 'ringTempted': return (((me && me.ringLevel) || 0) >= (cond.n || 1));
         case 'noRingBearer': { const rb = me && this.obj(me.ringBearer); return !(rb && rb.zone === 'battlefield' && rb.controller === me.id); }
         // (Frodo, Adventurous Hobbit: "and the Ring has tempted you two or more times this game" — tempted)
         case 'selfRingBearer': return !!(me && ctx.obj && me.ringBearer === ctx.obj.id && ctx.obj.zone === 'battlefield') &&
@@ -15044,6 +15052,12 @@
           if (ab.duringYourUntap && !(this.step === 'untap' && this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // "attacks a player": not a planeswalker or a battle
           if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
+          // Dragonlord Kolaghan: "a … spell with the same name as a card in their graveyard" (sameNameInGraveyard)
+          if (ab.sameNameInGraveyard) {
+            const sp = data.object;
+            const who = sp && (sp.controller || sp.owner);
+            if (!sp || !who || !this.zones[who] || !this.zones[who].graveyard.some(c => c !== sp && c.name === sp.name)) continue;
+          }
           // Talion: the chosen number among the spell's mana value, power and toughness
           if (ab.chosenNumberHit) {
             const c = data.object && data.object.card;
@@ -25290,21 +25304,23 @@
           for (; st.step < total && st.step < 2000; st.step++) {
             const p = opps[st.step % opps.length];
             if (!p || p.hasLost) continue;
-            const perms = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && !(o.analysis() || {}).isLand && this._canSacrifice(o));
+            // Zoyowa Lava-Tongue: "discard a card or sacrifice a permanent", or take the damage (anyPermanent, damage)
+            const perms = this.battlefield.filter(o => o.controller === p.id && !o.phasedOut && (e.anyPermanent || !(o.analysis() || {}).isLand) && this._canSacrifice(o));
             const hand = this.zones[p.id].hand;
-            const opts = [{ label: `Lose ${e.life} life`, key: 'life' }];
-            if (perms.length) opts.push({ label: 'Sacrifice a nonland permanent', key: 'sac' });
+            const what = e.anyPermanent ? 'permanent' : 'nonland permanent';
+            const opts = [{ label: e.damage ? `Take ${e.life} damage` : `Lose ${e.life} life`, key: 'life' }];
+            if (perms.length) opts.push({ label: `Sacrifice a ${what}`, key: 'sac' });
             if (hand.length) opts.push({ label: 'Discard a card', key: 'discard' });
             let pick = opts[0];
             if (opts.length > 1) {
               const got = this._choose({ playerId: p.id, purpose: 'torment', kind: 'options', min: 1, max: 1, compact: true, options: opts,
-                life: p.life, n: e.life, prompt: `${src ? src.name : 'Torment'}: lose ${e.life} life, sacrifice a nonland permanent, or discard a card?` }, slot + 'c' + st.step);
+                life: p.life, n: e.life, prompt: `${src ? src.name : 'Torment'}: ${e.damage ? `take ${e.life} damage` : `lose ${e.life} life`}, sacrifice a ${what}, or discard a card?` }, slot + 'c' + st.step);
               if (got === SUSPEND) return SUSPEND;
               pick = opts[(got && got.picks && got.picks[0]) || 0] || opts[0];
             }
             if (pick.key === 'sac') {
               const got = perms.length === 1 ? { picks: [perms[0].id] } : this._choose({ playerId: p.id, purpose: 'sacrifice', kind: 'objects',
-                items: this._chooseItems(perms), min: 1, max: 1, prefer: 'worst', prompt: 'Sacrifice a nonland permanent.' }, slot + 's' + st.step);
+                items: this._chooseItems(perms), min: 1, max: 1, prefer: 'worst', prompt: `Sacrifice a ${what}.` }, slot + 's' + st.step);
               if (got === SUSPEND) return SUSPEND;
               const o = this.obj(((got && got.picks) || [])[0]) || perms[0];
               this._sacrificeNow(p.id, [o]);
@@ -25314,6 +25330,8 @@
               if (got === SUSPEND) return SUSPEND;
               const c = this.obj(((got && got.picks) || [])[0]) || hand[0];
               if (c && c.zone === 'hand') { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); this.logEvent('discard', `${p.name} discards ${c.name}.`); }
+            } else if (e.damage) {
+              this.dealDamageToPlayer(p, e.life, src, false);
             } else {
               this.changeLife(p, -e.life, 'effect');
             }

@@ -3087,6 +3087,13 @@
       } },
     /* Oko: "Target artifact or creature loses all abilities and becomes a
        green Elk creature with base power and toughness 3/3." — for good */
+    /* Frodo, Sauron's Bane: "If Frodo is a Citizen, it becomes a Halfling Scout with base power and toughness 2/3 and
+       lifelink." — for good, its creature types the new ones */
+    { re: /^If CARDNAME is an? ([A-Z][a-z]+), (?:it|CARDNAME) (becomes an? [A-Z].+?)\.?$/,
+      make: (m) => {
+        const eff = becomesEff(m[2]);
+        return eff && eff.setCreatureTypes ? { op: 'ifCond', cond: { kind: 'selfSubtype', type: m[1] }, then: [{ op: 'becomes', duration: 'permanent', eff, scope: 'self' }] } : null;
+      } },
     { re: /^((?:[Aa]nother )?[Tt]arget [a-z ]+?) (loses all abilities and becomes an? [a-z]+ [A-Z][a-z]+ creature with base power and toughness \d+\/\d+)\.?$/,
       make: (m) => {
         const eff = becomesEff(m[2]);
@@ -3414,7 +3421,8 @@
       make: (m) => { const inner = parseEffectSentence('Destroy all other creatures.', 1); return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] }, then: [inner] } : null; } },
     // (Vincent, Vengeful Atoner: "it deals that much damage to each other opponent if Vincent's power is 7 or greater" — eachOtherIf)
     // (Davros, Dalek Creator: "create a 3/3 black Dalek artifact creature token with menace if an opponent lost 3 or more life this turn")
-    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?(?: with [a-z]+(?:(?:,| and|, and) [a-z]+)*)?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent) if (.+?)\.?$/,
+    // (Frodo, Sauron's Bane: "that player loses the game if the Ring has tempted you four or more times this game")
+    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?(?: with [a-z]+(?:(?:,| and|, and) [a-z]+)*)?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent|That player loses the game) if (.+?)\.?$/,
       make: (m) => {
         const cond = condOf(m[2]);
         const inner = cond && parseEffectSentence(m[1] + '.', 1);
@@ -3467,8 +3475,9 @@
     { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent)) card with mana value less than or equal to (?:CARDNAME|this creature)'?s power from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true }, m[1] ? { upTo: true } : {})] }) },
     // Betor, Ancestor's Voice: "Return up to one target creature card with mana value less than or equal to the amount of life you lost this turn from your graveyard to the battlefield." (maxMvCount)
-    { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent)) card with mana value less than or equal to (the amount of life you(?:'ve)? (?:lost|gained) this turn) from your graveyard to the battlefield\.?$/i,
-      make: (m) => { const k = amountOf(m[3]); return k ? { op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvCount: k }, m[1] ? { upTo: true } : {})] } : null; } },
+    // (Ratchet, Field Medic: "return target artifact card with mana value … from your graveyard to the battlefield tapped")
+    { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent|artifact)) card with mana value less than or equal to (the amount of life you(?:'ve)? (?:lost|gained) this turn) from your graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => { const k = amountOf(m[3]); return k ? Object.assign({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvCount: k }, m[1] ? { upTo: true } : {})] }, m[4] ? { tapped: true } : {}) : null; } },
     /* Liquimetal Torque and friends: one more card type for the turn */
     { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], duration: 'eot', targets: [t] } : null; } },
@@ -9475,6 +9484,10 @@
         const k = /^x$/i.test(m[1]) ? 'X' : num(m[1]);
         return k == null ? null : [{ op: 'tormentRepeat', n: k, life: +m[2] }];
       } },
+    /* Zoyowa Lava-Tongue: "each opponent may discard a card or sacrifice a permanent of their choice. Zoyowa deals 3
+       damage to each opponent who didn't." — the same choice once, damage for the price (tormentRepeat damage) */
+    { re: /^Each opponent may discard a card or sacrifice a permanent of their choice\. CARDNAME deals (\d+) damage to each opponent who didn'?t\.?$/i,
+      make: (m) => [{ op: 'tormentRepeat', n: 1, life: +m[1], damage: true, anyPermanent: true }] },
     // Commandeer: "Gain control of target noncreature spell. You may choose new targets for it."
     { re: /^Gain control of (target (?:noncreature |instant or sorcery |creature )?spell)\.(?: You may choose new targets for it\.)?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? [{ op: 'stealSpell', newTargets: /new targets/i.test(m[0]), targets: [spec] }] : null; } },
@@ -11997,6 +12010,8 @@
        game" — the Ring's level is how many times, up to four (tempted) */
     [/^(?:CARDNAME|this creature) is your Ring-bearer and the Ring has tempted you (two|three|four) or more times this game$/i,
       (m) => ({ kind: 'selfRingBearer', tempted: num(m[1]) })],
+    // Frodo, Sauron's Bane: "if the Ring has tempted you four or more times this game" (ringTempted)
+    [/^the Ring has tempted you (two|three|four) or more times this game$/i, (m) => ({ kind: 'ringTempted', n: num(m[1]) })],
     // The Reality Chip, The Aetherspark: "CARDNAME is attached to a creature"
     [/^(?:CARDNAME|this Equipment|this Aura) is attached to a creature$/i, () => ({ kind: 'selfAttachedToCreature' })],
     [/^any player controls an? (white|blue|black|red|green) permanent$/i, (m) => ({ kind: 'anyControlsColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] })],
@@ -12772,6 +12787,9 @@
     { re: /^Whenever you copy a spell,? /i, event: 'youCopySpell' },
     { re: /^When(?:ever)? you cast or copy (?:a|an) ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', also: 'youCopySpell', filt: (m) => spellFilter(m[1]) },
+    // Dragonlord Kolaghan: "Whenever an opponent casts a creature or planeswalker spell with the same name as a card in their graveyard" (sameNameInGraveyard)
+    { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell with the same name as a card in their graveyard, /i,
+      event: 'opponentCastSpell', filt: (m) => spellFilter(m[1]), extra: { sameNameInGraveyard: true } },
     { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
       event: 'opponentCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? a player casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
@@ -16025,8 +16043,21 @@
       }
       // "becomes a blue Frog with base power and toughness 1/1", "is an Insect artifact creature with base power and toughness 0/1"
       // (Ensoul Artifact: "is a creature with base power and toughness 5/5 in addition to its other types")
-      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types)?$/))) {
+      // (Frodo, Sauron's Bane: "becomes a Halfling Scout with base power and toughness 2/3 and lifelink")
+      if ((m = p.match(/^(?:becomes?|is|are) an? ((?:(?:white|blue|black|red|green|colorless) )*)([A-Za-z' -]+?) with base power and toughness (\d+)\/(\d+)(?: in addition to its other types| and ([a-z]+(?:(?:,|,? and) [a-z]+)*))?$/))) {
         if (!typed(m[1], m[2], [m[3], m[4]])) return null;
+        if (m[5]) {
+          const kws = keywordList(m[5]);
+          if (!kws.length || !kws.every(kwKnown)) return null;
+          eff.keywords = (eff.keywords || []).concat(kws);
+        }
+        continue;
+      }
+      // Frodo, Sauron's Bane: "becomes a Halfling Rogue with "Whenever this creature deals combat damage …"" — its creature types and the ability
+      if ((m = p.match(/^becomes an? ((?:[A-Z][a-z'-]+ )*[A-Z][a-z'-]+) with "([^"]+)"$/))) {
+        if (!typed('', m[1], null) || !eff.setCreatureTypes || eff.addTypes) return null;
+        if (!grantableText(m[2])) return null;
+        eff.grantText = m[2];
         continue;
       }
       return null;
@@ -16781,6 +16812,13 @@
         })(m0);
         return other ? Object.assign(r, { otherSource: true }) : r;
       } },
+    /* Rem Karolus, Stalwart Slayer: "If a spell would deal damage to you or another permanent you control, prevent that
+       damage." "If a spell would deal damage to an opponent or a permanent an opponent controls, it deals that much damage
+       plus 1 instead." — anyone's spell (spellSource) */
+    { re: /^If a spell would deal damage to you or another permanent you control, prevent that damage\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgSpellPrevent', event: 'damage', who: 'any', how: 'prevent', spellSource: true, toYou: true, notSelfVictim: true, prevention: true }) },
+    { re: /^If a spell would deal damage to an opponent or a permanent an opponent controls, it deals that much damage plus (one|two|three|\d+) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgSpellPlus', event: 'damage', who: 'any', how: 'add', n: num(m[1]), spellSource: true, toOpponent: true }) },
     /* Ojer Axonil, Deepest Might: "If a red source you control would deal an
        amount of noncombat damage less than Ojer Axonil's power to an
        opponent, that source deals damage equal to Ojer Axonil's power
