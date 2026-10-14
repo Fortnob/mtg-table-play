@@ -4537,7 +4537,15 @@
       /* Krark's Thumb: "If you would flip a coin, instead flip two coins and ignore one" — and two
          Thumbs four coins (CR 705.3): a win kept when there is one */
       const n = Math.min(8, 2 ** this._luckRules(p.id, 'flipTwoIgnoreOne'));
-      const flips = Array.from({ length: n }, () => this.rng.chance(0.5));
+      /* Edgar, King of Figaro: "The first time you flip one or more coins each turn, those coins come up heads
+         and you win those flips" — the turn's first flip, and the coins flipped with it at once (opts.batch) */
+      const batch = (opts && opts.batch) || null;
+      let rigged;
+      if (p.firstFlipTurn !== this.turn) {
+        rigged = this._luckRules(p.id, 'firstFlipsHeads') > 0;
+        p.firstFlipTurn = this.turn; p.firstFlipBatch = batch; p.firstFlipHeads = rigged;
+      } else rigged = !!(batch && p.firstFlipBatch === batch && p.firstFlipHeads);
+      const flips = Array.from({ length: n }, () => rigged || this.rng.chance(0.5));
       const keep = Math.max(0, flips.indexOf(true));
       const won = flips[keep];
       const src = this._luckSource(opts);
@@ -10414,14 +10422,15 @@
       }
       /* "creatures can't attack you unless their controller pays {2} for
          each" — and Baird's {1}, and planeswalkers of yours where it says so */
-      const symTax = new Map();
+      const symTax = new Map(), lifeTax = new Map();
       const taxFor = (d) => {
         let def = this.player(d.defenderId), walker = false;
         if (!def) { const pw = this.obj(d.defenderId); def = pw && this.player(pw.controller); walker = true; }
         if (!def) return 0;
         let k = 0;
-        symTax.set(d, '');
-        for (const o of this.battlefield) {
+        symTax.set(d, ''); lifeTax.set(d, 0);
+        // (Sivitri, Dragon Master: "Until your next turn, …" — an emblem's)
+        for (const o of this._withEmblems(this.battlefield)) {
           if (o.controller !== def.id || o.phasedOut) continue;
           for (const ab of ((o.analysis() || { abilities: [] }).abilities || [])) for (const ef of (ab.effects || [])) {
             if (!ef || ef.op !== 'attackTax' || (walker && !ef.walkers)) continue;
@@ -10431,6 +10440,8 @@
             if (ef.scope) { const at = this.obj(d.attackerId); if (!at || !this._scopeHit(ef.scope, at, at.analysis() || {}, o.controller, o)) continue; }
             // Norn's Annex: a Phyrexian symbol, paid as itself (mana or 2 life)
             if (/^\{[WUBRG]\/P\}$/.test(String(ef.amount || ''))) { symTax.set(d, symTax.get(d) + ef.amount); k += 1; continue; }
+            // Sivitri, Dragon Master: "unless their controller pays 2 life for each of those creatures" (life)
+            if (ef.life) { lifeTax.set(d, lifeTax.get(d) + ef.life); continue; }
             // Nils, Discipline Enforcer: "{X}, where X is the number of counters on that creature" (countersOnAttacker)
             if (ef.countersOnAttacker) { const at = this.obj(d.attackerId); k += at ? Object.values(at.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0; continue; }
             k += ef.per != null ? Math.max(0, Number(this._countValue(ef.per, o.controller, o)) || 0)
@@ -10439,14 +10450,18 @@
         }
         return k;
       };
-      const taxed = declarations.filter(d => taxFor(d) > 0);
+      const taxed = declarations.filter(d => taxFor(d) > 0 || lifeTax.get(d) > 0);
       if (taxed.length && this.config.rulesEnforcement === 'full') {
-        let generic = 0, syms = '';
-        for (const d of taxed) { const k = taxFor(d); const s = symTax.get(d) || ''; syms += s; generic += k - (s.match(/\{/g) || []).length; }
+        let generic = 0, syms = '', life = 0;
+        for (const d of taxed) { const k = taxFor(d); const s = symTax.get(d) || ''; syms += s; generic += k - (s.match(/\{/g) || []).length; life += lifeTax.get(d) || 0; }
         const bill = (generic > 0 || !syms ? '{' + generic + '}' : '') + syms;
-        if (!this.payMana(playerId, bill, { auto: true }))
+        const payer = this.player(playerId);
+        // (life is paid only out of what there is, CR 119.4)
+        if (life && (payer.life < life || this._lifeFrozen(payer))) return this.fail(`Attacking costs ${life} life and you cannot pay it.`);
+        if ((generic > 0 || syms) && !this.payMana(playerId, bill, { auto: true }))
           return this.fail(`Attacking costs ${bill} and you cannot pay it.`);
-        this.logEvent('rules', `${this.player(playerId).name} pays ${bill} to attack.`);
+        if (generic > 0 || syms) this.logEvent('rules', `${payer.name} pays ${bill} to attack.`);
+        if (life) { this.changeLife(payer, -life, 'cost'); this.logEvent('rules', `${payer.name} pays ${life} life to attack.`); }
       }
 
       // must-attack creatures
@@ -14413,6 +14428,7 @@
         // Stone Haven Outfitter: "whenever an equipped creature you control dies" — what it had on it as it went
         o._lastAttachments = o.attachments.slice();
         o.attachments = [];
+        o._attSeen = null;
         if (o.attachedTo) {
           const host = this.obj(o.attachedTo);
           if (host) host.attachments = host.attachments.filter(x => x !== o.id);
@@ -14437,6 +14453,13 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      /* Kunoros, Hound of Athreos, Grafdigger's Cage: "Creature cards in graveyards can't enter the battlefield." —
+         it stays where it is */
+      if (from === 'graveyard' && toZone === 'battlefield' && (this._anyStatic('graveCreaturesStay') || this._anyStatic('cageGraveyards')) &&
+          (o.analysis() || {}).isCreature) {
+        this.logEvent('rules', `${o.name} can't enter the battlefield from a graveyard.`);
+        return o;
+      }
       // The Master, Multiplied: "Triggered abilities you control can't cause you to … exile creature tokens you control."
       if (from === 'battlefield' && toZone === 'exile' && this._spareFromTrigger(o)) {
         this.logEvent('rules', `${o.name} stays: a triggered ability of its controller can't exile it.`);
@@ -20361,11 +20384,11 @@
         /* Rakdos, the Showstopper: a coin for each creature that isn't one of those
            types; the tails are destroyed by the next sentence (coinEachCreature) */
         case 'coinEachCreature': {
-          const tails = [];
+          const tails = [], batch = this._flipBatch = (this._flipBatch || 0) + 1;
           for (const x of this.battlefield.slice()) {
             if (x.phasedOut || !(this.characteristics(x) || {}).isCreature) continue;
             if ((e.exceptTypes || []).some(t => this._hasCreatureType(x, t))) continue;
-            if (!this._flipOne(me)) tails.push(x.id);
+            if (!this._flipOne(me, { batch })) tails.push(x.id);
           }
           if (this.resolving) this.resolving._coinTails = tails;
           break;
@@ -23280,6 +23303,23 @@
               taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
             }
           }
+          /* Niv-Mizzet Reborn: "For each color pair, choose a card that's exactly those colors from among them" —
+             one pick, a card for every pair there is, each standing for its own pair, no two for the same one */
+          else if (e.perColorPair) {
+            const pairOf = (o) => { const cs = ((o.analysis() || {}).colors || []); return cs.length === 2 ? MANA.COLORS.filter(c => cs.includes(c)).join('') : null; };
+            const typed = legal.filter(o => pairOf(o));
+            const pairs = new Set(typed.map(pairOf));
+            if (typed.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'perColorPair', kind: 'objects', zone: 'library',
+                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: [pairOf(this.obj(it.id))] })),
+                min: pairs.size, max: pairs.size,
+                constraints: [{ kind: 'distinctTypes', key: 'types', label: 'color pair' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}for each color pair, choose a card that's exactly those colors from among them.` }, 'perPair');
+              if (got === SUSPEND) return SUSPEND;
+              const seen = new Set();
+              taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o) && !seen.has(pairOf(o)) && seen.add(pairOf(o)));
+            }
+          }
           /* Ao, the Dawn Sky: "any number of nonland permanent cards with total mana value 4 or less" — one pick,
              the mana values adding up to no more than that (totalMv) */
           else if (e.totalMv != null) {
@@ -24014,6 +24054,7 @@
         case 'attackTax':
         case 'untapOnEveryUntapStep':
         case 'cageGraveyards':
+        case 'graveCreaturesStay':
         case 'playFromTop':
         case 'playFrom':
           break;
@@ -27556,9 +27597,10 @@
           let wins = 0, flips = 0;
           if (e.untilLose) { for (let k = 0; k < 50; k++) { flips++; if (!this._flipOne(me)) break; wins++; } }
           else {
+            const batch = this._flipBatch = (this._flipBatch || 0) + 1;
             // (Yusri: "that many", the number just chosen — flipChosen)
             const cnt = e.n === 'chosenNumber' ? Math.max(0, ctx.chosenNumber || 0) : (n(e.n) || 1);
-            for (let k = 0; k < cnt; k++) { flips++; if (this._flipOne(me)) wins++; }
+            for (let k = 0; k < cnt; k++) { flips++; if (this._flipOne(me, { batch })) wins++; }
           }
           this._flipsWon = wins;
           this._flipsLost = flips - wins;
@@ -29820,6 +29862,15 @@
             }
           }
         }
+      }
+
+      /* Siona, Captain of the Pyleas: "Whenever an Aura you control becomes attached to a creature you control" —
+         an Aura on something new since last looked (entering attached, or moved), each its own trigger */
+      for (const o of this.battlefield) {
+        if (o.attachedTo === (o._attSeen || null)) continue;
+        o._attSeen = o.attachedTo || null;
+        const host = o.attachedTo && this.obj(o.attachedTo);
+        if (host && host.zone === 'battlefield' && (o.analysis() || {}).isAura) this._fire('auraAttached', o.controller, { object: host, source: o, objController: host.controller });
       }
 
       // win condition

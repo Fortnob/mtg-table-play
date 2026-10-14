@@ -44280,4 +44280,200 @@ module.exports = (test) => {
     t.no(M2.asked.some(c => c.type === 'confirm' || c.type === 'pickCard'), 'Venom: nothing else to sacrifice — nothing asked');
     t.zone(thop, 'hand', 'Venom: and nothing put down');
   });
+
+  test('Commanders: Niv-Mizzet Reborn — the top ten revealed, one card of each color pair into hand, the rest to the bottom', (mk, t) => {
+    t.auto('Niv-Mizzet Reborn');
+    let M = mk({ library: Array(30).fill('Island') });
+    const lib = M.zone('A', 'library');
+    const names = ['Azorius Charm', 'Lightning Helix', 'Boros Charm', 'Terminate', 'Putrefy', 'Esper Charm', 'Grizzly Bears', 'Izzet Charm', 'Forest', 'Sol Ring'];
+    const objs = {};
+    for (const nm of names.slice().reverse()) objs[nm] = M.top('A', nm);
+    const depth = lib.length;
+    let offered = null, bad = [];
+    const C = M.MTG.choice;
+    M.answer('choose', (ch) => {
+      offered = ch;
+      // two Boros cards, or one pair short: not allowed
+      bad.push(C.check(ch, { picks: ['Azorius Charm', 'Lightning Helix', 'Boros Charm', 'Terminate', 'Putrefy'].map(k => objs[k].id) }).ok);
+      bad.push(C.check(ch, { picks: ['Azorius Charm', 'Lightning Helix', 'Terminate', 'Putrefy'].map(k => objs[k].id) }).ok);
+      return { picks: ['Azorius Charm', 'Boros Charm', 'Terminate', 'Putrefy', 'Izzet Charm'].map(k => objs[k].id) };
+    });
+    M.mana('A', 'WUBRG');
+    M.cast('A', M.hand('A', 'Niv-Mizzet Reborn'));
+    M.resolve();
+    t.ok(offered, 'Niv-Mizzet: asked');
+    t.eq(offered.purpose, 'perColorPair');
+    t.eq(offered.items.length, 6, 'Niv-Mizzet: only the cards of exactly two colors offered');
+    t.eq(bad.join(','), 'false,false', 'Niv-Mizzet: one card per pair, and every pair there is');
+    t.ok(M.g.log.some(l => /reveals .*Esper Charm/.test(l.text)), 'Niv-Mizzet: the ten are revealed');
+    t.eq(M.names(M.zone('A', 'hand')).sort().join(','), 'Azorius Charm,Boros Charm,Izzet Charm,Putrefy,Terminate');
+    t.eq(lib.length, depth - 5, 'Niv-Mizzet: the other five stay in the library');
+    for (const nm of ['Lightning Helix', 'Esper Charm', 'Grizzly Bears', 'Forest', 'Sol Ring']) t.ok(lib.indexOf(objs[nm]) >= lib.length - 5, 'Niv-Mizzet: ' + nm + ' to the bottom');
+    t.eq(M.manualLines().length, 0);
+    // no gold pair among the ten: nothing asked, all ten to the bottom
+    M = mk({ library: Array(30).fill('Island') });
+    M.top('A', 'Esper Charm');
+    const a0 = M.asked.length;
+    M.mana('A', 'WUBRG');
+    M.cast('A', M.hand('A', 'Niv-Mizzet Reborn'));
+    M.resolve();
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'choose'), 'Niv-Mizzet: no two-color card, nothing asked');
+    t.eq(M.zone('A', 'library').slice(-10).filter(o => o.name === 'Esper Charm').length, 1, 'Niv-Mizzet: all ten to the bottom');
+    // the bots' answer: one per pair
+    M = mk({ library: Array(30).fill('Island') });
+    for (const nm of ['Terminate', 'Lightning Helix', 'Boros Charm', 'Grizzly Bears']) M.top('A', nm);
+    const bot = new M.MTG.bots.BotPlayer(M.g, 'A', 8);
+    let got = null;
+    M.answer('choose', (ch) => { got = bot.chooseGeneric(ch); return got; });
+    M.mana('A', 'WUBRG');
+    M.cast('A', M.hand('A', 'Niv-Mizzet Reborn'));
+    M.resolve();
+    t.ok(got && M.MTG.choice.check(M.asked.find(ch => ch.purpose === 'perColorPair'), got).ok, 'Niv-Mizzet: the bot answers legally');
+    t.eq(M.zone('A', 'hand').length, 2, 'Niv-Mizzet: the bot takes a Boros card and Terminate');
+  });
+  test('Commanders: Edgar, King of Figaro — a card for each artifact; the turn\'s first coins come up heads, all of them, later ones as they fall', (mk, t) => {
+    t.auto('Edgar, King of Figaro');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'Sol Ring'); M.bf('A', 'Ornithopter');
+    M.mana('A', '4UU');
+    M.cast('A', M.hand('A', 'Edgar, King of Figaro'));
+    t.eq(M.zone('A', 'hand').length, 2, 'Edgar: two artifacts, two cards');
+    const gob = M.bf('A', 'Goblin Traprunner'); gob.summoningSick = false;
+    M.g.rng.chance = () => false;
+    const coins = []; M.g.on('coin', (c) => coins.push(c.result));
+    M.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => []);
+    M.toMain('A', 'combatDamage');
+    t.eq(coins.join(','), 'heads,heads,heads', 'Edgar: the three coins flipped together all heads');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Goblin').length, 3, 'Edgar: three won flips, three Goblins');
+    for (let i = 0; i < 30 && !(M.g.phase.id === 'postcombat' && !M.g.stack.length); i++) { M.g.passPriority(M.g.priorityPlayer.id, true); M.settle(); }
+    const turns = M.g.turn;
+    M.mana('A', '1UR');
+    M.cast('A', M.hand('A', 'Stitch in Time'));
+    t.eq(coins[3], 'tails', 'Edgar: a later flip that turn is not rigged');
+    M.nextTurn('B');
+    t.eq(M.g.turn, turns + 1, 'Edgar: Stitch in Time lost, no extra turn');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Edgar, King of Figaro — the next turn\'s first flip is heads again; not for a player without Edgar', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.toMain('A');
+    M.bf('A', 'Edgar, King of Figaro');
+    M.g.rng.chance = () => false;
+    M.mana('A', '1UR');
+    M.cast('A', M.hand('A', 'Stitch in Time'));
+    const t0 = M.g.turn;
+    M.nextTurn('A');
+    t.eq(M.g.turn, t0 + 1, 'Edgar: won the flip, the extra turn is A\'s');
+    t.eq(M.g.activePlayer.id, 'A');
+    // B has no Edgar: B's flip falls as it falls
+    M.nextTurn('B');
+    M.mana('B', '1UR');
+    M.cast('B', M.hand('B', 'Stitch in Time'));
+    const t1 = M.g.turn;
+    M.nextTurn('A');
+    t.eq(M.g.turn, t1 + 1, 'Edgar: not B\'s flips');
+  });
+  test('Commanders: Siona, Captain of the Pyleas — an Aura from the top seven; an Aura of yours on a creature of yours makes a Soldier', (mk, t) => {
+    t.auto('Siona, Captain of the Pyleas');
+    const M = mk({ library: Array(30).fill('Plains') });
+    M.toMain('A');
+    const rancor = M.top('A', 'Rancor');
+    M.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Rancor').id] }));
+    M.mana('A', '1GW');
+    const siona = M.hand('A', 'Siona, Captain of the Pyleas');
+    M.cast('A', siona);
+    t.zone(rancor, 'hand', 'Siona: Rancor revealed and taken');
+    t.eq(M.zone('A', 'library').slice(-6).every(o => o.name === 'Plains'), true, 'Siona: the rest to the bottom');
+    const soldiers = () => M.bfOf('A').filter(o => o.isToken && /Human Soldier/.test(o.card.type_line || '')).length;
+    t.eq(soldiers(), 0);
+    M.mana('A', 'G');
+    M.cast('A', rancor, { targets: [siona] });
+    t.eq(rancor.attachedTo, siona.id);
+    t.eq(soldiers(), 1, 'Siona: Rancor on Siona, a Soldier');
+    // an Aura on an opponent's creature: no
+    const bear = M.bf('B', 'Grizzly Bears');
+    M.mana('A', '1W');
+    M.cast('A', M.hand('A', 'Pacifism'), { targets: [bear] });
+    t.eq(soldiers(), 1, "Siona: not on an opponent's creature");
+    // Equipment: no
+    const sword = M.bf('A', 'Bonesplitter');
+    M.mana('A', '1');
+    M.activate('A', sword, 0, { targets: [siona] });
+    t.eq(sword.attachedTo, siona.id);
+    t.eq(soldiers(), 1, 'Siona: Equipment is no Aura');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Kunoros, Hound of Athreos — creature cards stay in graveyards; no spells cast from graveyards', (mk, t) => {
+    t.auto('Kunoros, Hound of Athreos');
+    const M = mk({ library: Array(30).fill('Swamp') });
+    M.toMain('A');
+    const bear = M.grave('A', 'Grizzly Bears');
+    const tt = M.grave('A', 'Think Twice');
+    const before = M.g.canCast('A', tt.id, 'flashback');
+    M.bf('B', 'Kunoros, Hound of Athreos');
+    const after = M.g.canCast('A', tt.id, 'flashback');
+    t.ok(before && before.ok, 'Kunoros: Think Twice could be flashed back before');
+    t.ok(after && !after.ok, 'Kunoros: not with Kunoros out');
+    M.mana('A', '3B');
+    M.cast('A', M.hand('A', 'Zombify'), { targets: [bear] });
+    t.zone(bear, 'graveyard', 'Kunoros: the Bears stay in the graveyard');
+    // a noncreature card may still come back; a creature from a hand may still enter
+    const ring = M.grave('A', 'Sol Ring');
+    M.g.moveObject(ring, 'battlefield', { controller: 'A' });
+    t.zone(ring, 'battlefield', 'Kunoros: only creature cards are kept');
+    const elf = M.hand('A', 'Llanowar Elves');
+    M.mana('A', 'G');
+    M.cast('A', elf);
+    t.zone(elf, 'battlefield');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Sivitri, Dragon Master — +1: attackers at you or your planeswalkers cost 2 life each until your next turn', (mk, t) => {
+    t.auto('Sivitri, Dragon Master');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.toMain('A');
+    const siv = M.bf('A', 'Sivitri, Dragon Master');
+    M.activate('A', siv, 0);
+    t.eq(M.zone('A', 'command').filter(o => /Until your next turn/.test(o.name)).length, 1, 'Sivitri: the rule is kept as an emblem');
+    const b1 = M.bf('B', 'Grizzly Bears'), b2 = M.bf('B', 'Grizzly Bears');
+    b1.summoningSick = false; b2.summoningSick = false;
+    M.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }, { attackerId: b2.id, defenderId: siv.id }]);
+    M.answer('declareBlockers', () => []);
+    const lifeB = M.life('B');
+    M.toMain('B', 'combatDamage');
+    t.eq(M.life('B'), lifeB - 4, 'Sivitri: two attackers, one at Sivitri, 4 life');
+    t.ok(b1.attacking && b2.attacking, 'Sivitri: both attack');
+    // B with 1 life can't pay: the declaration is refused
+    M.nextTurn('A');
+    t.eq(M.zone('A', 'command').filter(o => /Until your next turn/.test(o.name)).length, 0, 'Sivitri: gone as A\'s turn begins');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Sivitri, Dragon Master — not enough life, no attack; −3 finds a Dragon; −7 destroys the rest', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.toMain('A');
+    const siv = M.bf('A', 'Sivitri, Dragon Master');
+    M.activate('A', siv, 0);
+    const bear = M.bf('B', 'Grizzly Bears'); bear.summoningSick = false;
+    M.player('B').life = 1;
+    M.nextTurn('B');
+    M.g.passPriority('B', true); M.settle();
+    for (let i = 0; i < 10 && !(M.g.pendingChoice && M.g.pendingChoice.type === 'declareAttackers'); i++) { M.g.passPriority(M.g.priorityPlayer.id, true); }
+    const ok = M.g.declareAttackers('B', [{ attackerId: bear.id, defenderId: 'A' }]);
+    t.no(ok, 'Sivitri: 1 life can\'t pay 2');
+    t.eq(M.life('B'), 1);
+    M.g.declareAttackers('B', []);
+    M.nextTurn('A');
+    const dragon = M.top('A', 'Shivan Dragon');
+    siv.counters.loyalty = 9;
+    M.answer('pickCard', (ch) => ({ cardIds: [ch.cards.find(c => c.name === 'Shivan Dragon').id] }));
+    M.activate('A', siv, 1);
+    t.zone(dragon, 'hand', 'Sivitri: −3 found the Dragon');
+    M.nextTurn('A');
+    const myDragon = M.bf('A', 'Shivan Dragon');
+    siv.counters.loyalty = 9;
+    M.activate('A', siv, 2);
+    t.zone(myDragon, 'battlefield', 'Sivitri: Dragons stay');
+    t.zone(bear, 'graveyard', 'Sivitri: the rest are destroyed');
+  });
 };

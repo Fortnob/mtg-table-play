@@ -5140,6 +5140,10 @@
     // Balefire Dragon: "it deals that much damage to each creature that player controls"
     { re: /^(?:It|CARDNAME|This creature) deals (that much|\d+) damage to each creature that player controls\.?$/i,
       make: (m) => ({ op: 'damage', n: /that much/i.test(m[1]) ? 'triggerAmount' : +m[1], scope: { who: 'target', thatPlayer: true, what: 'creature' } }) },
+    /* Sivitri, Dragon Master: "Until your next turn, creatures can't attack you or planeswalkers you control unless their
+       controller pays 2 life for each of those creatures." — a standing rule kept as an emblem, gone as that turn begins */
+    { re: /^Until your next turn, (creatures can'?t attack you(?: or planeswalkers you control)? unless their controller pays (?:\w+ life|\{\d+\}) for each of those creatures\.?)$/i,
+      make: (m) => ({ op: 'getEmblem', emblemText: m[1].charAt(0).toUpperCase() + m[1].slice(1).replace(/\.?$/, '.'), nextTurn: true, name: 'Until your next turn' }) },
     // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
     { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
       make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
@@ -5836,6 +5840,12 @@
     // Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed cards into your hand."
     { re: /^For each card type, you may put a card of that type from among (?:the revealed cards|them) into your hand\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 99, filter: 'any', to: 'hand', optional: true, rest: 'keep', perCardType: true }) },
+    /* Niv-Mizzet Reborn: "For each color pair, choose a card that's exactly those colors from among them. Put the
+       chosen cards into your hand and the rest on the bottom of your library in a random order." */
+    { re: /^For each color pair, choose a card that'?s exactly those colors from among them\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 10, filter: 'any', to: 'hand', rest: 'keep', perColorPair: true }) },
+    { re: /^Put the chosen cards into your hand and the rest on the bottom of your library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true }) },
     // Choco, Seeker of Paradise: "You may put one of them into your hand."
     { re: /^You may put one of them into your hand\.?$/i, make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', optional: true, rest: 'keep',
       prompt: 'You may put one of them into your hand.' }) },
@@ -13585,6 +13595,9 @@
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
     // Grafted Exoskeleton: "Whenever this Equipment becomes unattached from a permanent, sacrifice that permanent."
     { re: /^Whenever (?:this Equipment|CARDNAME) becomes unattached from a permanent,/i, event: 'unattachedFrom', self: true },
+    // Siona, Captain of the Pyleas: "Whenever an Aura you control becomes attached to a creature you control," (auraAttached)
+    { re: /^Whenever an Aura you control becomes attached to an? (creature|permanent) you control,? /i, event: 'auraAttached',
+      filt: (m) => ({ who: 'you', words: m[1].toLowerCase() }) },
     // Zendikons: "When enchanted land dies, return that card to its owner's hand."
     // Tezzeret's Touch: "When enchanted artifact is put into a graveyard, return that card to its owner's hand."
     { re: /^When(?:ever)? enchanted artifact is put into a graveyard,/i, event: 'equippedDies' },
@@ -18428,6 +18441,9 @@
       // Ghostly Prison, Baird: any generic amount, and planeswalkers as well
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+|[WUBRG]\/P)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => ({ op: 'attackTax', amount: '{' + m[2].toUpperCase() + '}', walkers: !!m[1] }), auto: true },
+      // Sivitri, Dragon Master's emblem: "… unless their controller pays 2 life for each of those creatures." (life)
+      { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays (\w+) life for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
+        make: (m) => (num(m[2]) > 0 ? { op: 'attackTax', amount: '{0}', life: num(m[2]), walkers: !!m[1] } : null), auto: true },
       // Sphere of Safety: "… pays {X} for each of those creatures, where X is the number of enchantments you control."
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{X\} for each (?:creature they control that'?s attacking you|of those creatures), where X is (.+?)\.?$/i,
         make: (m) => { const per = amountOf(m[2]); return per != null && typeof per === 'object' ? { op: 'attackTax', amount: '{0}', per, walkers: !!m[1] } : null; }, auto: true },
@@ -18625,6 +18641,12 @@
       { re: /^If an opponent would gain life, that player loses that much life instead\.?$/i, eff: { op: 'gainBecomesLoss' }, auto: true },
       // Krark's Thumb: one coin of two kept (flipTwoIgnoreOne)
       { re: /^If you would flip a coin, instead flip two coins and ignore one\.?$/i, eff: { op: 'flipTwoIgnoreOne' }, auto: true },
+      // Kunoros, Hound of Athreos: "Creature cards in graveyards can't enter the battlefield." (graveCreaturesStay)
+      { re: /^Creature cards in graveyards can'?t enter the battlefield\.?$/i, eff: { op: 'graveCreaturesStay' }, auto: true },
+      // Kunoros, Hound of Athreos: "Players can't cast spells from graveyards." — Grafdigger's Cage's (cageGraveyards)
+      { re: /^Players can'?t cast spells from graveyards\.?$/i, eff: { op: 'cageGraveyards' }, auto: true },
+      // Edgar, King of Figaro: "The first time you flip one or more coins each turn, those coins come up heads and you win those flips." (firstFlipsHeads)
+      { re: /^The first time you flip one or more coins each turn, those coins come up heads and you win those flips\.?$/i, eff: { op: 'firstFlipsHeads' }, auto: true },
       // Wyll, Pixie Guide, Barbarian Class: a die more, the lowest ignored (rollExtraIgnoreLowest)
       { re: /^If you would roll one or more dice, instead roll that many dice plus one and ignore the lowest roll\.?$/i, eff: { op: 'rollExtraIgnoreLowest' }, auto: true },
       // Stranglehold, Ugin's Nexus: "If a player (an opponent) would begin an extra turn, that player skips that turn instead."
