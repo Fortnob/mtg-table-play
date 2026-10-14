@@ -14946,6 +14946,8 @@
         // Captain N'ghathrod: "that was put there from their library this turn" (fromLibThisTurn)
         o._toGraveFromLib = from === 'library' && toZone === 'graveyard' ? this.turn : null;
         o._toGraveDiscarded = null;
+        // Garna, the Bloodflame: "cards in your graveyard that were put there from anywhere this turn" (toGraveThisTurn)
+        o._toGraveTurn = toZone === 'graveyard' ? this.turn : null;
         // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
         o._milledTurn = null; o.damageToCountersTurn = null;
         // what a resolving spell or ability exiles, for "return those cards" after it
@@ -18671,6 +18673,45 @@
             for (let i = 0; i < many; i++) { const o = this.zones[p.id].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); this._lastMilled.push(o.id); }
             this.logEvent('mill', `${p.name} mills ${many}.`);
             this._noteMilled(p.id, this._lastMilled.slice(before));
+          }
+          break;
+        }
+        /* Sivriss, Nightmare Speaker: "For each opponent, you mill a card, then return that card from your graveyard
+           to your hand unless that player pays 3 life." — one opponent at a time; a card that has left the graveyard
+           first stays where it is, and a player who can't pay life isn't asked */
+        case 'millEachOpponentUnless': {
+          const rr = this.resolving;
+          if (rr) rr.marks = rr.marks || {};
+          const life = e.life || 3;
+          for (const q of this.opponentsOf(ctx.controller)) {
+            if (q.hasLost) continue;
+            const key = (rr ? rr.index : 0) + ':meou' + q.id;
+            let mk = rr ? rr.marks[key] : null;
+            if (mk === 'done') continue;
+            if (!mk) {
+              const ids = [];
+              const evM = this._replace({ kind: 'mill', n: 1, controller: ctx.controller });
+              if (!evM.cancelled) {
+                for (let i = 0; i < evM.n; i++) { const o = this.zones[ctx.controller].library.shift(); if (!o) break; this.moveObject(o, 'graveyard'); ids.push(o.id); }
+                this.logEvent('mill', `${me.name} mills ${ids.length}.`);
+                this._noteMilled(ctx.controller, ids);
+              }
+              mk = { ids };
+              if (rr) rr.marks[key] = mk;
+            }
+            const cards = mk.ids.map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller);
+            if (cards.length) {
+              const names = cards.map(c => c.name).join(', ');
+              let paid = false;
+              if (q.life >= life && !this._lifeFrozen(q)) {
+                paid = this._ask({ type: 'payOrDont', playerId: q.id, cost: { life },
+                  prompt: `Pay ${life} life? If you don't, ${me.name} returns ${names} from their graveyard to their hand.` }, 'meou' + q.id);
+                if (paid === SUSPEND) return SUSPEND;
+              }
+              if (paid) { this.changeLife(q, -life, 'cost'); this.logEvent('rules', `${q.name} pays ${life} life.`); }
+              else for (const c of cards) { this.moveObject(c, 'hand'); this.logEvent('rules', `${me.name} returns ${c.name} to their hand.`); }
+            }
+            if (rr) rr.marks[key] = 'done';
           }
           break;
         }
@@ -27627,6 +27668,7 @@
             if (!this._cardFitsWords(c, e.filter)) continue;
             // Gleancrawler: only what went there from the battlefield this turn (fromBfThisTurn)
             if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
+            if (e.toGraveThisTurn && c._toGraveTurn !== this.turn) continue;
             // Dawn: "with power 2 or less"
             if (e.maxPower != null && !((parseInt((c.card || {}).power, 10) || 0) <= e.maxPower)) continue;
             this.moveObject(c, 'hand');

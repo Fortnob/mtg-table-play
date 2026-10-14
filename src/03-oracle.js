@@ -1005,6 +1005,8 @@
     // (Tibalt, Cosmic Impostor: "You may play cards exiled with Tibalt …" — playExiledWithLink)
     const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
+      // Ob Nixilis of the Black Oath: "an emblem with '{1}{B}, Sacrifice a creature: …'" — worked from the command zone
+      (ab.kind === 'activated' && ab.fromCommandZone) ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
         (e.op === 'grantCastKeyword' && (e.keyword === 'storm' || e.keyword === 'cascade')) ||
@@ -1771,9 +1773,10 @@
       make: (m) => Object.assign({ op: 'exileFromHandChoice', n: num(m[2]), who: /^each/i.test(m[1]) ? 'opponents' : 'target' },
         /^target/i.test(m[1]) ? { targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] } : {}) },
     // Verdant Outrider, Cavern Stomper: "This creature can't be blocked by creatures with power 2 or less this turn."
-    { re: /^(This creature|CARDNAME|Target creature|It) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
+    // (Bright-Palm, Soul Awakener: "That creature can't be blocked …" — the one just targeted)
+    { re: /^(This creature|CARDNAME|Target creature|It|That creature) can'?t be blocked by creatures with power (\d+) or less this turn\.?$/i,
       make: (m) => Object.assign({ op: 'evasionEot', minBlockerPower: +m[2] + 1 },
-        /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^it$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
+        /^target/i.test(m[1]) ? { targets: [targetSpec('target creature')] } : /^(?:it|that creature)$/i.test(m[1]) ? { scope: 'lastTarget' } : { scope: 'self' }) },
     // Roalesk, Apex Hybrid: "proliferate, then proliferate again"
     { re: /^Proliferate, then proliferate again\.?$/i, make: () => [{ op: 'proliferate' }, { op: 'proliferate' }] },
     // Lay Down Arms: "Exile target creature with mana value less than or equal to the number of Plains you control."
@@ -1924,7 +1927,8 @@
     { re: /^(?:You may )?[Cc]ast an? ([a-z]+) spell from your hand or graveyard by paying life equal to its mana value rather than paying its mana cost\.?$/,
       make: (m) => [{ op: 'castFree', from: 'handOrGraveyard', filter: m[1].toLowerCase(), upTo: 1, payLifeMv: true }] },
     // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
-    { re: /^You may cast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
+    // (Heiko Yamazaki, the General: "…, you may cast target artifact card …" — read with its "may" taken off)
+    { re: /^(?:You may )?[Cc]ast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
       make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? { op: 'mayCastFromGraveyard', targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // The Last Agni Kai: "Until end of turn, you don't lose unspent red mana as steps and phases end."
     { re: /^Until end of turn, you don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
@@ -2908,6 +2912,10 @@
           each ? {} : { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] });
       } },
     { re: /^Each opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'opponents' }) },
+    /* Sivriss, Nightmare Speaker: "For each opponent, you mill a card, then return that card from your graveyard to
+       your hand unless that player pays 3 life." — one opponent at a time (millEachOpponentUnless) */
+    { re: /^For each opponent, you mill a card, then return that card from your graveyard to your hand unless that player pays (\d+) life\.?$/i,
+      make: (m) => ({ op: 'millEachOpponentUnless', life: +m[1] }) },
     /* "You may put a creature card from among the milled cards into your
        hand": one of what the mill just put in the graveyard */
     { re: /^(?:Then )?(you may )?(?:put|return) (?:a|an|one|up to one) ([a-z, ]*?)card from among (?:the milled cards|the cards milled this way|those cards) (?:into|to) your hand\.?$/i,
@@ -4427,8 +4435,9 @@
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/,? and |, /g, ' or '), yours: false, fromBfThisTurn: true }) },
     { re: /^Put onto the battlefield under your control all creature cards in (all graveyards|your opponents'? graveyards) that were put there from the battlefield this turn\.?$/i,
       make: (m) => ({ op: 'massReanimate', filter: 'creature', yours: false, mine: true, fromBfThisTurn: true, opponentsOnly: /opponents/i.test(m[1]) }) },
-    { re: /^Return (?:to your hand )?all creature cards in your graveyard that were put there from the battlefield this turn(?: to your hand)?\.?$/i,
-      make: () => ({ op: 'regrowthAll', filter: 'creature', fromBfThisTurn: true }) },
+    // Garna, the Bloodflame: "… that were put there from anywhere this turn" (toGraveThisTurn)
+    { re: /^Return (?:to your hand )?all creature cards in your graveyard that were put there from (the battlefield|anywhere) this turn(?: to your hand)?\.?$/i,
+      make: (m) => (/anywhere/i.test(m[1]) ? { op: 'regrowthAll', filter: 'creature', toGraveThisTurn: true } : { op: 'regrowthAll', filter: 'creature', fromBfThisTurn: true }) },
     // Moira, Urborg Haunt: "return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn"
     { re: /^Return to the battlefield (target creature card in your graveyard that was put there from the battlefield this turn)\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', fromBfThisTurn: true }] }) },
@@ -11874,7 +11883,9 @@
       }
 
       // "... unless <someone> pays <cost>."
-      const unless = s.match(/^(.+?) unless (its controller|that player|they|you|target player|target opponent|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
+      // (Sivriss, Nightmare Speaker: "For each opponent, you mill a card, then return that card … unless that player pays 3 life" — read whole)
+      const unless = /^For each opponent, you mill a card, then return that card from your graveyard to your hand unless that player pays \d+ life\.?$/i.test(s) ? null :
+        s.match(/^(.+?) unless (its controller|that player|they|you|target player|target opponent|this creature's controller|that creature's controller) pays? (\{[^}]+\}(?:\{[^}]+\})*|\d+ life)\.?$/i) ||
         // Painful Quandary: "…unless they discard a card"
         s.match(/^(.+?) unless (that player|they|target player) (discards?) a card\.?$/i) ||
         // Perplex: "…unless its controller discards their hand"
@@ -11928,6 +11939,10 @@
         /* (Malcolm, Alluring Scoundrel: "you may cast the discarded card without paying its mana cost" —
            the cast asks for itself, card by card; a "may" before it would ask twice: castDiscarded) */
         if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'castFree' && !inner.effects[0].must) {
+          effects.push(Object.assign(inner.effects[0], { text: s })); continue;
+        }
+        // (Zul Ashur, Vohar: "You may cast target … card from your graveyard this turn" — the "may" is the permission itself)
+        if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'mayCastFromGraveyard') {
           effects.push(Object.assign(inner.effects[0], { text: s })); continue;
         }
         /* Ureni of the Unwritten, Web of Life and Destiny: "You may put a Dragon creature card from among
@@ -15414,6 +15429,9 @@
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'tutor' && parsed.effects[0].attachSelf) {
           parsed.effects[0].mayPick = true; anyNumber = true;
         }
+        /* Heiko Yamazaki, the General: "you may cast target artifact card from your graveyard this turn" — the "may" is
+           the permission itself, used or not later; nothing to ask as it resolves */
+        if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'mayCastFromGraveyard') anyNumber = true;
         /* Shadrix Silverquill: "you may choose two" — the modes, or none of them, is the one question (mayModes) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'modal' && !parsed.effects[0].min && !parsed.effects[0].max &&
           /^you may choose (?:one|two|three)\b/i.test(body)) { parsed.effects[0].optional = true; anyNumber = true; }
@@ -16738,6 +16756,8 @@
     }
     // (fromCommandZone: Derevi's ability works from the command zone, and only there)
     for (const ab of out.abilities) if (ab.kind === 'activated' && (ab.effects || []).some(e => e && e.op === 'selfFromCommandZone')) ab.fromCommandZone = true;
+    // an emblem's activated ability works where the emblem is (Ob Nixilis of the Black Oath's)
+    if (card.layout === 'emblem') for (const ab of out.abilities) if (ab.kind === 'activated') ab.fromCommandZone = true;
     /* Kitnap, Ray of Frost: an Aura's or Equipment's "tap it", "put three stun counters on it" once the
        ability has named "enchanted creature" — the creature it is on, not the Aura (attachedIt). Not after
        the creature has died or left: then "it" is no longer anything this is attached to. */
