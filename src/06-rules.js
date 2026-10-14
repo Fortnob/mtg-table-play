@@ -902,7 +902,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -937,7 +937,7 @@
         if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
         if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool.symbols()}).`); }
         p.pool.clear();
-        p.creatureMana = null;
+        p.creatureMana = null; p.treasureMana = null;
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
         // (Klauth, Unrivaled Ancient: what was set aside to be kept until end of turn — keepMana)
@@ -4146,21 +4146,23 @@
       if (plan && plan.life > 0) this.changeLife(p, -plan.life, 'cost');
       /* Inga and Esika: "if three or more mana from creatures was spent to cast it" — which mana is spent is its
          controller's to say: what creatures made goes first on a creature spell, last on anything else
-         (manaFromCreatures) */
-      if (plan && p && p.creatureMana) {
+         (manaFromCreatures); Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" the
+         same way (manaFromTreasure) */
+      for (const [tag, acc] of [['creatureMana', 'creature'], ['treasureMana', 'treasure']]) {
+        if (!(plan && p && p[tag])) continue;
         const lentBy = this._lentNow && this._lentNow.pid === p.id ? this._lentNow.by : {};
         const forCreature = !!(this._payingFor && (this._payingFor.analysis() || {}).isCreature);
         let fromC = 0;
         for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) {
           const k = Number(plan[c]) || 0;
           const unres = Math.max(0, (Number(p.pool[c]) || 0) + k - (lentBy[c] || 0));
-          const have = Math.min(p.creatureMana[c] || 0, unres);
+          const have = Math.min(p[tag][c] || 0, unres);
           const spent = Math.min(k, unres);
           const take = forCreature ? Math.min(spent, have) : Math.max(0, spent - (unres - have));
-          p.creatureMana[c] = have - take;
+          p[tag][c] = have - take;
           fromC += take;
         }
-        if (fromC && this._spentAcc) this._spentAcc.creature = (this._spentAcc.creature || 0) + fromC;
+        if (fromC && this._spentAcc) this._spentAcc[acc] = (this._spentAcc[acc] || 0) + fromC;
       }
       // expend: the fourth (eighth) total mana spent this turn
       if (plan && p) {
@@ -4425,6 +4427,8 @@
         if (src.controller !== playerId && !(e && e.anyPlayer)) continue;
         // Teferi, Mage of Zhalfir: "Creature cards you own …"
         if (e && e.ownedOnly && o.owner !== src.controller) continue;
+        // Radagast of Rhosgobel: "The first creature spell you cast each turn … can be cast as though it had flash"
+        if (e && e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
         if (e && (!e.filter || this._cardFitsWords(o, e.filter))) return true;
       }
       return false;
@@ -6104,6 +6108,8 @@
         o.manaSpentBy = Object.assign({}, this._spentAcc);
         // Inga and Esika: how much of it creatures made (manaFromCreatures)
         o.manaFromCreatures = this._spentAcc.creature || 0;
+        // Kalain, Reclusive Painter: and how much Treasures made (manaFromTreasure)
+        o.manaFromTreasure = this._spentAcc.treasure || 0;
         o._phyLife = this._spentAcc.life || 0;
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
@@ -6981,6 +6987,8 @@
         if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
         // Gev, Scaled Scorch, Gorma: "for each opponent who lost life this turn" (perCount)
         else if (ex.perCount) k = Math.max(0, this._countValue(ex.perCount, s0.controller, s0));
+        // Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" — cast, and just now
+        else if (ex.perTreasureMana) k = o.enteredFrom === 'stack' ? (o.manaFromTreasure || 0) : 0;
         else if (ex.per) {
           k = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, ex.per)).length;
         }
@@ -8658,10 +8666,14 @@
          it is spent or the pool empties (manaFromCreatures) */
       const own = Object.assign({}, made);
       const fromCreature = !!o && o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
+      // Kalain, Reclusive Painter: "mana from a Treasure" — sacrificed to pay for it, the Treasure as it last was (manaFromTreasure)
+      const fromTreasure = !!o && this._hasSubtype(o, 'Treasure');
       const tagPool = () => {
-        if (!fromCreature) return;
-        const cm = p.creatureMana || (p.creatureMana = {});
-        for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
+        for (const [yes, tag] of [[fromCreature, 'creatureMana'], [fromTreasure, 'treasureMana']]) {
+          if (!yes) continue;
+          const cm = p[tag] || (p[tag] = {});
+          for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
+        }
       };
       if (ab.cost && ab.cost.tap) {
         this._extraManaOnTap(playerId, o, made);
@@ -12893,6 +12905,8 @@
         o._wasGoaded = from === 'battlefield' && this._goaders(o, true).length > 0;
         // Faith's Reward: "cards in your graveyard that were put there from the battlefield this turn" (fromBfThisTurn)
         o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
+        // Captain N'ghathrod: "that was put there from their library this turn" (fromLibThisTurn)
+        o._toGraveFromLib = from === 'library' && toZone === 'graveyard' ? this.turn : null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
@@ -13407,6 +13421,8 @@
             const bp = had.triggerData.batchPlayers = had.triggerData.batchPlayers || [had.triggerData.player];
             if (!bp.includes(tData.player)) bp.push(tData.player);
           }
+          // Ob Nixilis, Captive Kingpin: what each opponent has lost while it waits (lossExactly)
+          if (had && ab.lossExactly) { const by = had.triggerData.lossBy; by[data.player] = (by[data.player] || 0) + (Number(data.amount) || 0); }
           if (had) return;
         }
         // the Collectors: "This ability triggers only once." — for as long as this object exists
@@ -13434,7 +13450,9 @@
             // (a trigger for a lot of them, which "that many" counts: batchCount)
             triggerData: Object.assign({}, tData, ((ab.objFilter && ab.objFilter.batch) || ab.batch) ? { batch: true } : {},
               // Blightwing Bandit: "that player" — the opponent whose turn it is (thatPlayerActive)
-              ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {}),
+              ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {},
+              ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {}),
+            lossExactly: ab.lossExactly || undefined,
           });
         }
         // "When you next cast …": the turn's emblem goes once it has triggered
@@ -13786,6 +13804,11 @@
     }
 
     _putTriggersOnStack() {
+      if (!this.pendingTriggers.length) return;
+      /* Ob Nixilis, Captive Kingpin: "one or more opponents each lose exactly 1 life" — three 1/1s hitting
+         an opponent together is 3 life lost, and no trigger (lossExactly) */
+      this.pendingTriggers = this.pendingTriggers.filter(t => !t.lossExactly ||
+        Object.values((t.triggerData || {}).lossBy || {}).some(n => n === t.lossExactly));
       if (!this.pendingTriggers.length) return;
       // APNAP order (CR 603.3b): active player's triggers go on the stack first
       const order = [];

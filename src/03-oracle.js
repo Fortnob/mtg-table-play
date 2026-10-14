@@ -7416,6 +7416,8 @@
     if (spec.hasTapAbility && !((analysis.abilities || []).concat(analysis.manaAbilities || []).some(ab => ab && ab.kind !== 'triggered' && ab.kind !== 'static' && ab.cost && ab.cost.tap))) return false;
     // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
+    // (fromLibThisTurn: a card that went to the graveyard from its library this turn, Captain N'ghathrod)
+    if (spec.fromLibThisTurn && !(ctx && obj._toGraveFromLib === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
     if (spec.maxPtSum != null && pow() + tou() > spec.maxPtSum) return false;
     if (spec.maxPowerOrToughness != null && pow() > spec.maxPowerOrToughness && tou() > spec.maxPowerOrToughness) return false;
@@ -7859,6 +7861,10 @@
         if (/hand/i.test(m[4] || '')) return [{ op: 'regrowth', targets: [spec] }].concat(ring);
         return [Object.assign({ op: 'reanimate', targets: [spec] }, m[5] ? { tapped: true } : {}, /your graveyard/i.test(m[3]) ? {} : { mine: true })].concat(ring);
       } },
+    /* Captain N'ghathrod: "choose target artifact or creature card in an opponent's graveyard that was
+       put there from their library this turn. Put it onto the battlefield under your control." (fromLibThisTurn) */
+    { re: /^Choose target ([a-z ]+?) card in an opponent'?s graveyard that was put there from their library this turn\. Put it onto the battlefield under your control\.?$/i,
+      make: (m) => [{ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target ' + m[1].toLowerCase(), 'graveyard'), { controller: 'opponent', fromLibThisTurn: true })] }] },
     /* Goblin Guide: "defending player reveals the top card of their library.
        If it's a land card, that player puts it into their hand." */
     { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
@@ -11429,6 +11435,10 @@
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
     // Emet-Selch of the Third Seat: "Whenever one or more opponents lose life" — once for what is lost together
     { re: /^When(?:ever)? one or more opponents lose life,? /i, event: 'opponentLosesLife', extra: { batch: true } },
+    /* Ob Nixilis, Captive Kingpin: "Whenever one or more opponents each lose exactly 1 life" — what each
+       loses at once, combat damage in total, is 1 (lossExactly, counted as the trigger waits) */
+    { re: /^When(?:ever)? one or more opponents each lose exactly (\d+) life,? /i, event: 'opponentLosesLife',
+      extraOf: (m) => ({ batch: true, lossExactly: +m[1] }) },
     // The Theorist, Jace Beleren: "At the beginning of each opponent's draw step,"
     { re: /^At the beginning of each opponent'?s draw step, /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     // Well of Ideas: "At the beginning of each other player's draw step," — everyone's but yours
@@ -15645,6 +15655,11 @@
     }
     const rep = parseReplacement(line);
     if (rep) return rep;
+    /* Radagast of Rhosgobel: "The first creature spell you cast each turn costs {2} less to cast and can be
+       cast as though it had flash." — the price, and the timing of that same spell (flashGrant nthEachTurn) */
+    const nthFlash = line.match(/^(The first ((?:[a-z]+ )*?)spell you cast each turn) costs (\{\d+\}) less to cast and can be cast as though it had flash\.?$/i);
+    const nthCm = nthFlash && parseCostMod(nthFlash[1] + ' costs ' + nthFlash[3] + ' less to cast');
+    if (nthCm) return { kind: 'static', text: line, auto: true, effects: [nthCm, { op: 'flashGrant', filter: nthFlash[2].trim().toLowerCase() || null, nthEachTurn: 1 }] };
     const cm = parseCostMod(line);
     if (cm) return { kind: 'static', text: line, auto: true, effects: [cm] };
     const cont = parseContinuous(line);
@@ -16741,6 +16756,9 @@
       // Arwen: "Each other creature you control enters with a number of additional +1/+1 counters on it equal to CARDNAME's toughness."
       { re: /^Each other creature you control enters with a number of additional \+1\/\+1 counters on it equal to (?:CARDNAME|this creature)'?s toughness\.?$/i,
         eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', bySourceToughness: true }, auto: true },
+      // Kalain, Reclusive Painter: "Other creatures you control enter with an additional +1/+1 counter on them for each mana from a Treasure spent to cast them." (perTreasureMana)
+      { re: /^Other creatures you control enter with an additional \+1\/\+1 counter on them for each mana from a Treasure spent to cast them\.?$/i,
+        eff: { op: 'entersExtra', what: 'creature', other: true, counter: '+1/+1', perTreasureMana: true }, auto: true },
       // Gorma, the Gullet: "Nontoken creatures you control enter with an additional +1/+1 counter on them for each creature that died under your control this turn." (perCount)
       { re: /^Nontoken creatures you control enter with an additional \+1\/\+1 counter on them(?: for each ([a-z ]+ this turn))?\.?$/,
         make: (m) => { const pc = m[1] ? countOf(m[1]) : null; return m[1] && !pc ? null : Object.assign({ op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', nontoken: true }, pc ? { perCount: pc } : {}); }, auto: true },
