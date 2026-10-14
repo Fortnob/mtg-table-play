@@ -3695,6 +3695,8 @@
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
       // (The Balrog, Durin's Bane: "each permanent sacrificed this turn" — every player's: byAnyone)
       if (v.sacrificedThisTurn && v.byAnyone) return Object.values(((this.turnHistory || {}).sacrificedBy) || {}).reduce((k, l) => k + (l || []).length, 0) * mult;
+      // The Master of Lake-town: "each graveyard with seven or more cards in it" (graveyardsWithAtLeast)
+      if (v.graveyardsWithAtLeast) return this.players.filter(q => !q.hasLost && (((this.zones[q.id] || {}).graveyard || []).length >= v.graveyardsWithAtLeast)).length * mult;
       // (Dargo, the Shipwrecker: "artifact or creature" — either one)
       if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || String(v.sacrificedThisTurn).split(' or ').some(t => w.includes(t))).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
@@ -11289,7 +11291,7 @@
             let left = power;
             for (const b of blockers) {
               if (left <= 0) break;
-              const lethal = this.hasKw(o, 'deathtouch') ? 1 : Math.max(0, this.toughnessOf(b) - b.damage);
+              const lethal = this.hasKw(o, 'deathtouch') ? 1 : this._lethalLeft(b);
               const give = (b === blockers[blockers.length - 1] && this.hasKw(o, 'trample')) ? Math.min(left, lethal) : Math.min(left, Math.max(lethal, 0) || left);
               const amount = Math.min(left, Math.max(1, lethal || left));
               assignments.push({ source: o, targetKind: 'object', targetId: b.id, amount, a });
@@ -11310,10 +11312,10 @@
           } else if (targets.length > 1 && targets.some(x => x.bandId)) {
             // blocking a band without banding: as many of them as the damage kills, one after another
             let left = power;
-            const order = targets.slice().sort((x, y) => (this.toughnessOf(x) - x.damage) - (this.toughnessOf(y) - y.damage));
+            const order = targets.slice().sort((x, y) => this._lethalLeft(x) - this._lethalLeft(y));
             for (const x of order) {
               if (left <= 0) break;
-              const need = this.hasKw(o, 'deathtouch') ? 1 : Math.max(1, this.toughnessOf(x) - x.damage);
+              const need = this.hasKw(o, 'deathtouch') ? 1 : Math.max(1, this._lethalLeft(x));
               const give = x === order[order.length - 1] ? left : Math.min(left, need);
               assignments.push({ source: o, targetKind: 'object', targetId: x.id, amount: give, a });
               left -= give;
@@ -14101,12 +14103,23 @@
       this.changeLife(source.controller, amount, 'lifelink');
     }
 
+    /* Zilortha, Strength Incarnate: "Lethal damage dealt to creatures you control is determined by their power rather
+       than their toughness" (lethalByPower) — and one with 0 power only once it has some damage marked */
+    _lethalByPower(o) {
+      return !!o && this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'lethalByPower'));
+    }
+    _lethalStat(o) { return this._lethalByPower(o) ? this.powerOf(o) : this.toughnessOf(o); }
+    /** Has this creature lethal damage marked on it (CR 704.5g)? */
+    _hasLethalDamage(o) {
+      if (!this._lethalByPower(o)) return o.damage >= this.toughnessOf(o);
+      return o.damage > 0 && o.damage >= this.powerOf(o);
+    }
     /** How much more damage would be lethal (CR 120.4a): toughness less damage already marked, 1 from a deathtouch source, loyalty or defence for a planeswalker or battle. */
     _lethalLeft(o, source) {
       const a = this.characteristics(o) || o.analysis() || {};
       if (a.isPlaneswalker) return Math.max(0, Number(o.counters.loyalty) || 0);
       if (a.isBattle) return Math.max(0, Number(o.counters.defense) || 0);
-      const left = Math.max(0, this.toughnessOf(o) - (o.damage || 0));
+      const left = Math.max(this._lethalByPower(o) ? 1 : 0, this._lethalStat(o) - (o.damage || 0));
       return source && this.hasKw(source, 'deathtouch') ? Math.min(1, left) : left;
     }
 
@@ -14216,6 +14229,8 @@
       }
       // (the life lost, as youLoseLife has it: none past Platinum Emperion — Kefka, Ruler of Ruin's "that many")
       if (lost > 0) this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount: lost });
+      // The Master of Lake-town: "Whenever a player loses life" — anyone's permanents (anyLosesLife)
+      if (lost > 0) this._fire('anyLosesLife', null, { player: p.id, amount: lost });
       this._fire('youLoseLife', p.id, { player: p.id, amount: lost });
       this._fire('playerDealtDamage', null, { player: p.id, amount, combat: !!combat });
       // counted only where it can decide a game: Brawl and Oathbreaker have no commander damage
@@ -14276,6 +14291,7 @@
         this._lastLifeLost = (this._lastLifeLost || 0) + (-delta);
         p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + (-delta);
         this._fire('opponentLosesLife', null, { except: p.id, player: p.id, amount: -delta });
+        this._fire('anyLosesLife', null, { player: p.id, amount: -delta });
         this._fire('youLoseLife', p.id, { player: p.id, amount: -delta });
       } else p.lifeGainedThisTurn = (p.lifeGainedThisTurn || 0) + delta;
       this.logEvent('life', `${p.name} ${delta > 0 ? 'gains' : 'loses'} ${Math.abs(delta)} life (${p.life}).`);
@@ -16743,7 +16759,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -20519,6 +20535,11 @@
         case 'may': {
           // Ral, Monsoon Mage: "you may exile Ral" — nothing to ask once he has left (selfHere)
           if (e.selfHere && !(src && src.zone === 'battlefield')) break;
+          /* Venom, Lethal Protector: "you may sacrifice another creature. If you do, …" — with nothing to sacrifice there
+             is nothing to ask, and nothing that follows */
+          const s0 = (e.then || [])[0];
+          if (s0 && s0.op === 'sacrificeChoice' && s0.who === 'you' && !this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut &&
+            this._canSacrifice(x) && !(s0.other && src && x.id === src.id) && (!s0.filter || s0.filter === 'permanent' || this._cardFitsWords(x, s0.filter)))) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
           // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
@@ -29615,7 +29636,7 @@
           const a = o.analysis();
           if (!a || !a.isCreature) return false;
           const t = this.toughnessOf(o);
-          return t <= 0 || ((o.damage >= t || (o.dealtDeathtouch && o.damage > 0)) && !this.hasKw(o, 'indestructible'));
+          return t <= 0 || ((this._hasLethalDamage(o) || (o.dealtDeathtouch && o.damage > 0)) && !this.hasKw(o, 'indestructible'));
         });
         if (!this._leavingTogether.length) this._leavingTogether = null;
 
@@ -29626,13 +29647,14 @@
           if (a.isCreature) {
             const t = this.toughnessOf(o);
             if (t <= 0) { this.logEvent('sba', `${o.name} is put into the graveyard (toughness ${t}).`); this.moveObject(o, 'graveyard'); repeat = true; continue; }
-            const lethal = o.damage >= t;
+            // (Zilortha, Strength Incarnate: by its power — _hasLethalDamage)
+            const lethal = this._hasLethalDamage(o);
             const dt = o.dealtDeathtouch && o.damage > 0;
             if ((lethal || dt) && !this.hasKw(o, 'indestructible')) {
               if (this._totemArmor(o)) { repeat = true; continue; }
               if (this._regenerated(o)) { repeat = true; continue; }
               const exiled = this._exileOnDeath && this._exileOnDeath.has(o.id);
-              this.logEvent('sba', `${o.name} is ${exiled ? 'exiled' : 'destroyed'} (${o.damage} damage, ${t} toughness).`);
+              this.logEvent('sba', `${o.name} is ${exiled ? 'exiled' : 'destroyed'} (${o.damage} damage, ${this._lethalByPower(o) ? this.powerOf(o) + ' power' : t + ' toughness'}).`);
               this.moveObject(o, exiled ? 'exile' : 'graveyard'); repeat = true; continue;
             }
           }

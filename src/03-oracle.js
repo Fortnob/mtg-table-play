@@ -3074,6 +3074,8 @@
       make: (m) => (kwKnown(m[1]) ? { op: 'grantKeyword', keywords: [U.titleCase(m[1])], duration: 'eot', scope: { who: 'you', what: 'creature', powerBelowSrc: true } } : null) },
     // Cleopatra, Exiled Pharaoh: "draw a card for each counter on it" — the one that died, as it went (countersOnItAny)
     { re: /^Draw a card for each counter on it\.?$/i, make: () => ({ op: 'draw', who: 'you', n: { countersOnTrigger: true, mult: 1 } }) },
+    // Spider-Man Noir: "Then surveil X, where X is the number of counters on it." — the creature the trigger is about
+    { re: /^(?:Then )?surveil X, where X is the number of counters on (?:it|that creature)\.?$/i, make: () => ({ op: 'surveil', n: { countersOnTrigger: true, mult: 1 } }) },
     // Yorvo, Lord of Garenbrig: "Then if that creature's power is greater than Yorvo's power, put another +1/+1 counter on Yorvo." (triggerPowerAboveSelf)
     { re: /^(?:Then )?if that creature'?s power is greater than (?:CARDNAME|this creature)'?s power, put another \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'ifCond', cond: { kind: 'triggerPowerAboveSelf' }, then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] }) },
@@ -6536,6 +6538,10 @@
     { re: /^Shuffle (any number of target cards|target card|up to (?:one|two|three) target cards?) from your graveyard into your library\.?$/i,
       make: (m) => ({ op: 'shuffleFromGraveyard',
         max: /any number/i.test(m[1]) ? 99 : /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1 }) },
+    /* Venom, Lethal Protector: "draw X cards, then you may put a permanent card with mana value X or less from your hand
+       onto the battlefield, where X is the sacrificed creature's mana value" (ofSacrificed) */
+    { re: /^Draw X cards, then you may put a permanent card with mana value X or less from your hand onto the battlefield, where X is the sacrificed creature'?s mana value\.?$/i,
+      make: () => [{ op: 'draw', who: 'you', n: { ofSacrificed: 'mv' } }, { op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: { ofSacrificed: 'mv' } }] },
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
     { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z' ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
@@ -7834,6 +7840,8 @@
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // The Balrog, Durin's Bane: "for each permanent sacrificed this turn" — by anyone (sacrificedThisTurn, byAnyone)
     if (/^permanents? sacrificed this turn$/i.test(p)) return { sacrificedThisTurn: 'permanent', byAnyone: true, mult: k };
+    // The Master of Lake-town: "for each graveyard with seven or more cards in it" (graveyardsWithAtLeast)
+    if ((m = p.match(/^graveyards? with (\w+) or more cards in it$/i)) && typeof num(m[1]) === 'number') return { graveyardsWithAtLeast: num(m[1]), mult: k };
     /* Gingerbehemoth: "for each Food you've sacrificed this turn"; Dargo, the Shipwrecker: "for each other artifact
        or creature you've sacrificed this turn" (sacrificedThisTurn: the type words, any one of them) */
     if ((m = p.match(/^(?:other )?([A-Za-z]+(?: or [A-Za-z]+)?) you'?ve sacrificed this turn$/i)))
@@ -13408,6 +13416,8 @@
     // Kefka, Ruler of Ruin: "Whenever an opponent loses life during your turn"
     { re: /^When(?:ever)? an opponent loses life during your turn,? /i, event: 'opponentLosesLife', extra: { yourTurnOnly: true } },
     { re: /^When(?:ever)? an opponent loses life(?:,| )/i, event: 'opponentLosesLife' },
+    // The Master of Lake-town: "Whenever a player loses life" — you too (anyLosesLife)
+    { re: /^When(?:ever)? a player loses life, /i, event: 'anyLosesLife' },
     // Emet-Selch of the Third Seat: "Whenever one or more opponents lose life" — once for what is lost together
     { re: /^When(?:ever)? one or more opponents lose life,? /i, event: 'opponentLosesLife', extra: { batch: true } },
     /* Ob Nixilis, Captive Kingpin: "Whenever one or more opponents each lose exactly 1 life" — what each
@@ -18669,6 +18679,9 @@
       // Iron Golem: "attacks or blocks each combat if able"
       { re: /^(?:CARDNAME|This creature) attacks or blocks each combat if able\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'mustAttack' }, { op: 'mustBlock' }] }), auto: true },
+      // Zilortha, Strength Incarnate: "Lethal damage dealt to creatures you control is determined by their power rather than their toughness." (lethalByPower)
+      { re: /^Lethal damage dealt to creatures you control is determined by their power rather than their toughness\.?$/i,
+        eff: { op: 'lethalByPower' }, auto: true },
       // Treefolk Umbra, Gauntlets of Light: "Enchanted creature gets +0/+2 and assigns combat damage equal to its toughness rather than its power." (toughnessAttached)
       { re: /^(Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+) and assigns combat damage equal to its toughness rather than its power\.?$/i,
         make: (m) => ({ op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[2], t: +m[3] } },
