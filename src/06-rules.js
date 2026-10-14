@@ -5690,6 +5690,8 @@
     /** Somebody discarded a card: the rules may not be finished with it. */
     _afterDiscard(playerId, o) {
       o.discardedTurn = this.turn;          // mayhem asks
+      // Ghost of Ramirez DePietro: "a card in a graveyard that was discarded … this turn" — moving on forgets it (discardedOrLibThisTurn)
+      if (o.zone === 'graveyard') o._toGraveDiscarded = this.turn;
       // Kroxa: who discarded what as this resolves (lifeUnlessDiscarded)
       if (this.resolving) (this.resolving._discBy = this.resolving._discBy || []).push({ pid: playerId, id: o.id });
       // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
@@ -14812,6 +14814,7 @@
         o._toGraveFromBf = from === 'battlefield' && toZone === 'graveyard' ? this.turn : null;
         // Captain N'ghathrod: "that was put there from their library this turn" (fromLibThisTurn)
         o._toGraveFromLib = from === 'library' && toZone === 'graveyard' ? this.turn : null;
+        o._toGraveDiscarded = null;
         // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
         o._milledTurn = null; o.damageToCountersTurn = null;
         // what a resolving spell or ability exiles, for "return those cards" after it
@@ -25422,6 +25425,19 @@
           this.logEvent('rules', `Damage that ${item.obj.name} would deal this turn is prevented.`);
           break;
         }
+        /* Ria Ivor, Bane of Bladehold: "the next time target creature would deal combat damage to one or more
+           players this combat, prevent that damage. If damage is prevented this way, create that many …" —
+           once, from that creature, this combat only (preventCombatOnce) */
+        case 'preventCombatOnce': {
+          for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            if (!o || o.zone !== 'battlefield') continue;
+            this.prevention.push({ combatOnly: true, to: e.to || 'players', who: ctx.controller, sourceId: o.id, once: true, until: 'eot',
+              combatNo: this.combatsThisTurn || 1, tokenPer: e.tokenPer || null });
+            this.logEvent('rules', `The next combat damage ${o.name} would deal to a player this combat is prevented.`);
+          }
+          break;
+        }
         case 'preventDamage':
           this.prevention.push({ combatOnly: !!e.combatOnly, to: e.to || null, who: ctx.controller, until: 'eot',
             fromOpponentCreatures: !!e.fromOpponentCreatures, fromNotSubtype: e.fromNotSubtype || null,
@@ -30002,6 +30018,8 @@
       if (!isCombat && target && target.zone === 'battlefield' && this._hasFlag(target, 'noNoncombatTaken')) return true;
       for (const pv of this.prevention) {
         if (pv.combatOnly && !isCombat) continue;
+        // Ria Ivor, Bane of Bladehold: "this combat" — not a later combat phase of the turn
+        if (pv.combatNo != null && (pv.combatNo !== (this.combatsThisTurn || 1) || !(this.phase && this.phase.id === 'combat'))) continue;
         if (pv.to === 'you' && !(target && target.id === pv.who)) continue;
         if (pv.toObj && !(target && target.id === pv.toObj)) continue;
         // Ethereal Haze and its kin: by creatures, by attackers, to creatures, to yours

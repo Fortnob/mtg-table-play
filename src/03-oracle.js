@@ -2002,8 +2002,9 @@
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (equipped|enchanted) creature if it'?s (white|blue|black|red|green|an? [A-Z][a-z]+)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'attached', ifHost: m[3].replace(/^an? /i, '').toLowerCase() }) },
     // Sacrifice: "Add an amount of {B} equal to the sacrificed creature's mana value."
-    { re: /^Add an amount of (\{[WUBRGC]\}) equal to the sacrificed (?:creature|artifact|permanent)'s mana value\.?$/i,
-      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { ofSacrificed: 'mv' } }) },
+    // (Fire Lord Ozai: "add an amount of {R} equal to the sacrificed creature's power")
+    { re: /^Add an amount of (\{[WUBRGC]\}) equal to the sacrificed (?:creature|artifact|permanent)'s (mana value|power)\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { ofSacrificed: /power/i.test(m[2]) ? 'power' : 'mv' } }) },
     // Bile Blight: "Target creature and all other creatures with the same name as that creature get -3/-3 until end of turn."
     { re: /^(Target creature) and all other creatures with the same name as that creature get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pumpSameName', p: pmNum(m[2]), t: pmNum(m[3]), targets: [targetSpec(m[1])] }) },
@@ -7482,6 +7483,9 @@
       make: () => ({ op: 'mayPlayExiled', exiledWith: true, oneOf: true, free: true, duration: 'eot' }) },
     { re: /^Exile the bottom card of each opponent'?s library( face down)?\.?$/i,
       make: (m) => ({ op: 'exileBottomEach', who: 'opponents', faceDown: !!m[1] }) },
+    // Fire Lord Ozai: "Exile the top card of each opponent's library." (exileBottomEach top)
+    { re: /^Exile the top card of each opponent'?s library\.?$/i,
+      make: () => ({ op: 'exileBottomEach', who: 'opponents', top: true }) },
     { re: /^For as long as those cards remain exiled, you may look at them, you may cast (permanent |creature |)spells from among them, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
       make: (m) => Object.assign({ op: 'mayPlayExiled', castOnly: true, anyMana: true, duration: 'exiled' }, m[1].trim() ? { filter: m[1].trim().toLowerCase() } : {}) },
     /* Ixhel, Scion of Atraxa: "each opponent who has three or more poison counters exiles the top card of their
@@ -8477,8 +8481,8 @@
     if (mg) spec.minMv = +mg[1];
     const tm = p.match(/with toughness (\d+) or (?:greater|more)/);
     if (tm) spec.minToughness = +tm[1];
-    /* "target creature with flying", "target creature without flying" */
-    const KW = 'flying|first strike|double strike|deathtouch|lifelink|menace|reach|trample|vigilance|haste|defender|indestructible|hexproof|shroud|flash|infect|wither|shadow|fear|intimidate|horsemanship|skulk|changeling|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk';
+    /* "target creature with flying", "target creature without flying" (Otrimi, the Ever-Playful: "creature card with mutate") */
+    const KW = 'flying|first strike|double strike|deathtouch|lifelink|menace|reach|trample|vigilance|haste|defender|indestructible|hexproof|shroud|flash|infect|wither|shadow|fear|intimidate|horsemanship|skulk|changeling|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk|mutate';
     // Minsc & Boo, Timeless Heroes: "target creature with trample or haste" — either one (withKeywordAny)
     const wk2 = p.match(new RegExp('with (' + KW + ') or (' + KW + ')\\b'));
     const wk = !wk2 && p.match(new RegExp('with (?:' + KW + ')\\b'));
@@ -8739,6 +8743,8 @@
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
     // (fromLibThisTurn: a card that went to the graveyard from its library this turn, Captain N'ghathrod)
     if (spec.fromLibThisTurn && !(ctx && obj._toGraveFromLib === ctx.turn)) return false;
+    // (discardedOrLibThisTurn: either that, or discarded this turn, Ghost of Ramirez DePietro)
+    if (spec.discardedOrLibThisTurn && !(ctx && (obj._toGraveFromLib === ctx.turn || obj._toGraveDiscarded === ctx.turn))) return false;
     // (milledThisTurn: a card milled this turn, The Master, Transcendent)
     if (spec.milledThisTurn && !(ctx && obj._milledTurn === ctx.turn)) return false;
     if (spec.maxPower != null && xv(spec.maxPower) != null && pow() > xv(spec.maxPower)) return false;
@@ -9419,6 +9425,10 @@
        put there from their library this turn. Put it onto the battlefield under your control." (fromLibThisTurn) */
     { re: /^Choose target ([a-z ]+?) card in an opponent'?s graveyard that was put there from their library this turn\. Put it onto the battlefield under your control\.?$/i,
       make: (m) => [{ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target ' + m[1].toLowerCase(), 'graveyard'), { controller: 'opponent', fromLibThisTurn: true })] }] },
+    /* Ghost of Ramirez DePietro: "choose up to one target card in a graveyard that was discarded or put there
+       from a library this turn. Put that card into its owner's hand." (discardedOrLibThisTurn) */
+    { re: /^Choose up to one target card in a graveyard that was discarded or put there from a library this turn\. Put that card into its owner'?s hand\.?$/i,
+      make: () => [{ op: 'regrowth', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard', upTo: true, discardedOrLibThisTurn: true }] }] },
     /* Goblin Guide: "defending player reveals the top card of their library.
        If it's a land card, that player puts it into their hand." */
     { re: /^Defending player reveals the top card of their library\. If it'?s an? ([a-z]+) card, that player puts it into their hand\.?$/i,
@@ -9969,6 +9979,16 @@
         if (!tok.auto || tok.effects.length !== 1 || tok.effects[0].op !== 'createToken') return null;
         const per = Object.assign({}, tok.effects[0]); delete per.op; delete per.text;
         return [{ op: 'preventDamage', combatOnly: true, to: 'you', tokenPer: per }];
+      } },
+    /* Ria Ivor, Bane of Bladehold: "the next time target creature would deal combat damage to one or more players
+       this combat, prevent that damage. If damage is prevented this way, create that many 1/1 colorless Phyrexian
+       Mite artifact creature tokens with …" (preventCombatOnce, tokenPer) */
+    { re: /^The next time target creature would deal combat damage to one or more players this combat, prevent that damage\. If damage is prevented this way, create that many ([\s\S]+? tokens?[\s\S]*?)\.?$/i,
+      make: (m) => {
+        const tok = parseSentenceList(splitSentences('Create two ' + m[1] + (/[."]$/.test(m[1]) ? '' : '.')));
+        if (!tok.auto || tok.effects.length !== 1 || tok.effects[0].op !== 'createToken') return null;
+        const per = Object.assign({}, tok.effects[0]); delete per.op; delete per.text; delete per.n;
+        return [{ op: 'preventCombatOnce', to: 'players', tokenPer: per, targets: [targetSpec('target creature')] }];
       } },
     /* Comet Storm: "Choose any target, then choose another target for each
        time this spell was kicked. CARDNAME deals X damage to each of them." */
@@ -18632,12 +18652,12 @@
       { re: /^Creatures can'?t attack you unless their controller pays \{2\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         eff: { op: 'attackTax', amount: '{2}' }, auto: true },
       /* Soulfire Grand Master, Pestilent Spirit: "Instant and sorcery spells you
-         control have lifelink (deathtouch)"; Firesong and Sunspeaker: "Red instant and …" */
+         control have lifelink (deathtouch)"; Firesong and Sunspeaker: "Red instant and …"; Samut, Tyrant of Naktamun: "… have split second" */
       // Lo and Li, Twin Tutors: "Noble creatures you control and Lesson spells you control have lifelink." (creaturesAndSpellsKeyword)
       { re: /^([A-Z][a-z]+) creatures you control and ([A-Z][a-z]+) spells you control have (lifelink|deathtouch)\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' creatures you control'); return sc ? { op: 'sequence', list: [{ op: 'continuous', layer: 6, scope: sc, grant: [U.titleCase(m[3])] },
           { op: 'spellKeyword', keyword: m[3].toLowerCase(), words: m[2].toLowerCase() }] } : null; }, auto: true },
-      { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
+      { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch|split second)\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
           words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },
       /* Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt, Cosmic Impostor, and you may spend mana
