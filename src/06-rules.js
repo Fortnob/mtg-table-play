@@ -269,6 +269,31 @@
     battlefield() { return this.game.battlefield.filter(o => o.controller === this.id); }
   }
 
+  /* What a snapshot leaves out of an object, a player and the game: what it already writes its own way,
+     what is worked out again (the _chr, _dyn, _borrow caches and the epochs they are checked against), and,
+     for a player, the deck it sat down with (not game state, and large). */
+  const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis)/;
+  const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
+  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring)$/;
+  const NOT_PLAIN = Symbol('not plain data');
+  /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
+  function _plainData(v, depth) {
+    if (v == null || typeof v !== 'object') return typeof v === 'function' || typeof v === 'symbol' ? NOT_PLAIN : v;
+    if (depth > 12) return NOT_PLAIN;
+    if (Array.isArray(v)) {
+      const out = [];
+      for (const x of v) { const c = _plainData(x, depth + 1); if (c === NOT_PLAIN) return NOT_PLAIN; out.push(c); }
+      return out;
+    }
+    const proto = Object.getPrototypeOf(v);
+    if (proto !== Object.prototype && proto !== null) return NOT_PLAIN;
+    // (a card: read-only to the engine, and the largest thing in the game)
+    if (v.oracle_id !== undefined || v.type_line !== undefined) return v;
+    const out = {};
+    for (const k of Object.keys(v)) { const c = _plainData(v[k], depth + 1); if (c === NOT_PLAIN) return NOT_PLAIN; out[k] = c; }
+    return out;
+  }
+
   /* ============================================================
      Game
      ============================================================ */
@@ -27428,6 +27453,27 @@
        survives a round trip through JSON. Cards are stored whole because a
        token has no printing to look up and a cache can be cleared. */
 
+    /* Everything else an object, a player or the game carries as plain data goes along too: what was chosen as
+       it entered (Morophon's creature type), monstrous, bestowed, paired, kicked, what this turn has seen
+       (spells cast, life lost, "once each turn" uses). Caches are rebuilt, not saved; a value holding a game
+       object, a set or a function is not plain data and stays out (_plainData). */
+    _snapExtras(src, rec, skip, also) {
+      const keys = [];
+      for (const k in src) {
+        if (k in rec || (also && k in also) || !Object.prototype.hasOwnProperty.call(src, k)) continue;
+        const v = src[k];
+        if (v === undefined || v === null || v === false || typeof v === 'function' || skip.test(k)) continue;
+        keys.push(k);
+      }
+      // (in name order: the same state written the same way, however it came about — a replay compares them)
+      keys.sort();
+      for (const k of keys) {
+        const c = _plainData(src[k], 0);
+        if (c !== NOT_PLAIN) rec[k] = c;
+      }
+      return rec;
+    }
+
     snapshot() {
       const objs = [];
       for (const o of this.objects.values()) {
@@ -27479,8 +27525,9 @@
           // the loyalty abilities it has activated this turn (Urza, Planeswalker may twice)
           activatedLoyaltyThisTurn: Number(o.activatedLoyaltyThisTurn) || 0,
         });
+        this._snapExtras(o, objs[objs.length - 1], SNAP_SKIP_OBJ);
       }
-      return {
+      const snap = {
         v: 1,
         config: JSON.parse(JSON.stringify(this.config)),
         rngState: this.rng.s,   // so undoing a shuffle really rewinds it
@@ -27511,7 +27558,9 @@
           companionUsed: !!p.companionUsed,
           // Urza, Planeswalker's +2: what costs less for the rest of the turn
           turnCostMods: p.turnCostMods ? JSON.parse(JSON.stringify(p.turnCostMods)) : null,
-        })),
+          // the spells cast this turn ("your second spell each turn"), by id
+          spellObjIds: (p.spellObjsThisTurn || []).map(x => x && x.id).filter(Boolean),
+        })).map((rec, i) => this._snapExtras(this.players[i], rec, SNAP_SKIP_PLAYER)),
         zones: Object.fromEntries(Object.entries(this.zones).map(([pid, z]) =>
           [pid, Object.fromEntries(Object.entries(z).map(([k, list]) => [k, list.map(o => o.id)]))])),
         battlefield: this.battlefield.map(o => o.id),
@@ -27552,6 +27601,9 @@
         // the meld results the decks can make (Brisela, Voice of Nightmares), and two melded cards waiting to be ordered in a library
         meldCards: this.meldCards ? Object.assign({}, this.meldCards) : null, meldOrderAsk: this._meldOrderAsk || null,
       };
+      // what this turn has seen ("if a creature died this turn", spells cast last turn, combats), and the rest plain
+      snap.extra = this._snapExtras(this, {}, SNAP_SKIP_GAME, snap);
+      return snap;
     }
 
     restore(snap) {
@@ -27588,6 +27640,19 @@
       for (const [pid, z] of Object.entries(snap.zones)) {
         this.zones[pid] = {};
         for (const [k, ids] of Object.entries(z)) this.zones[pid][k] = ids.map(byId).filter(Boolean);
+      }
+      for (const p of this.players) {
+        if (p.spellObjIds) p.spellObjsThisTurn = p.spellObjIds.map(byId).filter(Boolean);
+        delete p.spellObjIds;
+      }
+      /* the game's own plain data: what the snapshot had comes back, and what it didn't have (set since) goes
+         (_snapExtras) */
+      if (snap.extra) {
+        for (const k of Object.keys(this)) {
+          if (k in snap.extra || SNAP_SKIP_GAME.test(k) || this[k] === undefined || typeof this[k] === 'function') continue;
+          if (_plainData(this[k], 0) !== NOT_PLAIN) delete this[k];
+        }
+        Object.assign(this, _plainData(snap.extra, 0));
       }
       this.battlefield = snap.battlefield.map(byId).filter(Boolean);
       this.stack = snap.stack.map(it => Object.assign({}, it, { obj: byId(it.objId) }));

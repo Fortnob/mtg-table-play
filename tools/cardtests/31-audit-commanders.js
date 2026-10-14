@@ -74,6 +74,43 @@ module.exports = (test) => {
     t.ok(run(2), 'A has cards: copy it back');
   });
 
+  /* ---- undo and saved games: the snapshot listed its fields one by one, and everything else was lost ---- */
+
+  test('Audit: undo keeps what was chosen as a permanent entered (Morophon\'s creature type)', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    T.answer('mode', (ch) => ({ modes: [ch.types.indexOf('Elf')] }));
+    const mo = T.put('A', 'Morophon, the Boundless', 'battlefield', { etb: true });
+    t.eq(mo.chosenType, 'Elf');
+    T.g.pushUndo('a land', 'A');
+    T.playLand('A', T.hand('A', 'Forest'));
+    t.ok(T.g.undo('A'), 'undone');
+    const mo2 = T.g.obj(mo.id);
+    t.eq(mo2.chosenType, 'Elf', 'still an Elf after the undo');
+    t.eq(T.g.castCost(T.hand('A', 'Llanowar Elves')), '', 'and Elves still cost less');
+  });
+
+  test('Audit: a saved game keeps what this turn has seen (spells cast, a creature died, once-each-turn)', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    T.toMain('A');
+    T.bf('A', 'Mikey & Leo, Chaos & Order');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [T.bf('B', 'Grizzly Bears')] });
+    T.g.addCounters(bear, '+1/+1', 1, { by: 'A' }); T.resolve();
+    const hand = T.zone('A', 'hand').length;
+    const snap = JSON.parse(JSON.stringify(T.g.snapshot()));
+    const g2 = new T.MTG.rules.Game(snap.config);
+    t.ok(g2.restore(snap), 'restored');
+    t.eq(g2.player('A').spellsCastThisTurn, 1, 'one spell cast this turn');
+    t.eq((g2.player('A').spellObjsThisTurn || []).map(o => o.name).join(), 'Lightning Bolt', 'and which');
+    t.eq((g2.turnHistory || {}).creaturesDied, 1, 'a creature died this turn');
+    // Mikey & Leo: "This ability triggers only once each turn" — already used
+    g2.addCounters(g2.obj(bear.id), '+1/+1', 1, { by: 'A' });
+    for (let i = 0; i < 20 && (g2.stack.length || g2.pendingTriggers.length); i++) g2.passPriority(g2.priorityPlayer.id, true);
+    t.eq(g2.zones.A.hand.length, hand, 'Mikey & Leo does not draw a second time this turn');
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {
