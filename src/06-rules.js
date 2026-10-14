@@ -1144,6 +1144,7 @@
             this._drawCards(king, 1);
             this.logEvent('monarch', `${king.name} draws for being the monarch.`);
           }
+          this._sacrificeBlitzed();
           this._fire('yourEndStep', this.activePlayer.id); this._fire('eachEndStep', null, { playerId: this.activePlayer.id });
           break;
         }
@@ -1292,8 +1293,7 @@
       this._fire('eachDrawStep', null, { playerId: ap.id });
     }
 
-    /** Anything that dashed in goes home when the turn ends (CR 702.109a),
-        and anything blitzed in is sacrificed and replaces itself. */
+    /** Anything that dashed in goes home when the turn ends (CR 702.109a). */
     _returnDashed() {
       for (const o of this.battlefield.slice()) {
         if (o.sacAtEndOfTurn === this.turn) {
@@ -1317,13 +1317,20 @@
           this.moveObject(o, 'hand');
           continue;
         }
-        if (o.blitzedTurn === this.turn) {
-          o.blitzedTurn = null;
-          this.logEvent('rules', `${o.name} was blitzed: it is sacrificed.`);
-          const who = o.controller;
-          this.moveObject(o, 'graveyard');
-          this._drawCards(this.player(who), 1);
-        }
+      }
+    }
+
+    /** Blitz (CR 702.152a): "Sacrifice it at the beginning of the next end step." — whoever's end step comes next;
+        the card it draws is its own dies trigger's (moveObject: blitzed) */
+    _sacrificeBlitzed() {
+      for (const o of this.battlefield.slice()) {
+        if (o.blitzedTurn == null) continue;
+        o.blitzedTurn = null;
+        if (!this._canSacrifice(o) || this._spareFromTrigger(o, true)) continue;
+        this.logEvent('rules', `${o.name} was blitzed: it is sacrificed.`);
+        const who = o.controller;
+        this.moveObject(o, 'graveyard');
+        this._fire('youSacrifice', who, { count: 1, object: o, objController: who });
       }
     }
 
@@ -2420,7 +2427,7 @@
           this.logEvent('rules', `${item.name} dashes in.`);
         } else if (item.via === 'blitz') {
           o.effects.push({ keywords: ['Haste'], until: null });
-          o.blitzedTurn = this.turn;
+          o.blitzedTurn = this.turn; o.blitzed = true;
           this.logEvent('rules', `${item.name} blitzes in.`);
         } else if (item.via === 'sneak') {
           // "It enters tapped and attacking."
@@ -3429,6 +3436,16 @@
       return mana;
     }
 
+    /** The reduction an {X} spell's generic mana could not take, before X was chosen: the rest comes off the X once it is. */
+    _xLeftoverReduction(o, pid) {
+      const a = o && o.analysis();
+      const base = (a && a.manaCost) || '';
+      if (!/\{X\}/.test(base)) return 0;
+      const g0 = MANA.parse(base).filter(s => /^\d+$/.test(s)).reduce((k, s) => k + parseInt(s, 10), 0) + this._commanderTax(o).mana;
+      const d = this._costDelta(o, pid, []) + (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
+      return Math.max(0, -d - g0);
+    }
+
     /**
      * What a spell cast without paying its mana cost still costs (CR
      * 601.2f): "without paying its mana cost" is a cost of nothing, and the
@@ -3490,6 +3507,11 @@
                 (!e.notCreatureType || !this._hasCreatureType(x, e.notCreatureType))))).length !== e.nthEachTurn - 1) continue;
             // Momo, Friendly Flier: "non-Lemur"
             if (e.notCreatureType && this._hasCreatureType(o, e.notCreatureType)) continue;
+            // Zimone, Infinite Analyst: "The first spell you cast with {X} in its mana cost each turn" (firstXSpell)
+            if (e.firstXSpell) {
+              const hasX = (x) => /\{X\}/.test(((x && x.card) || {}).mana_cost || '');
+              if (!/\{X\}/.test(a.manaCost || '') || ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && hasX(x))) continue;
+            }
             // Goreclaw: "with power 4 or greater", as printed on the card being cast
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Krosan Drover: "with mana value 6 or greater"; Warden of Evos Isle: "with flying"
@@ -3715,6 +3737,8 @@
       // Heliod, the Warped Eclipse: "each card your opponents have drawn this turn"
       if (v.drawnThisTurn === 'opponents') return this.opponentsOf(pid).reduce((k, q) => k + (q.drawnThisTurn || 0), 0) * mult;
       if (v.drawnThisTurn) return (((this.player(pid) || {}).drawnThisTurn) || 0) * mult;
+      // Green Goblin, Revenant: "for each card you've discarded this turn"
+      if (v.discardedThisTurn) return ((((this.turnHistory || {}).discardsBy) || {})[pid] || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
       // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
@@ -5027,6 +5051,19 @@
         const gac = this._staticOp(o, 'graveAltCost');
         if (gac) out.push({ kind: 'cast', via: 'graveAlt', cost: gac.cost, after: null, exileGrave: gac.exileGrave,
           label: `Cast it from your graveyard (${gac.cost}, exile ${gac.exileGrave} other cards)` });
+        /* Kotis, Sibsig Champion: "Once during each of your turns, you may cast a creature spell from your graveyard by
+           exiling three other cards from your graveyard in addition to paying its other costs." — its mana cost, once a
+           turn for each Kotis (graveCastExile) */
+        if (o.owner === playerId && a.manaCost != null && this.activePlayer && this.activePlayer.id === playerId) {
+          for (const src of this.battlefield) {
+            if (src.controller !== playerId || src.phasedOut || src._graveExileTurn === this.turn) continue;
+            const gx = this._staticOp(src, 'graveCastExile');
+            if (!gx || (gx.filter && !this._cardFitsWords(o, gx.filter))) continue;
+            out.push({ kind: 'cast', via: 'graveExile', cost: a.manaCost || '', after: null, exileGrave: gx.exileGrave, srcId: src.id,
+              label: `Cast it from your graveyard (${src.name}: exile ${gx.exileGrave} other cards)` });
+            break;
+          }
+        }
         const self = (a.abilities || []).find(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && !x.exileOnly));
         const rule = self && self.effects.find(x => x.op === 'castSelfFromGraveyard' && !x.exileOnly);
         if (rule && (!rule.cond || this._condMet(rule.cond, { controller: playerId, obj: o })) && !out.some(u => u.via === 'granted')) {
@@ -5971,6 +6008,16 @@
             list.map(x => `Sacrifice ${x.name} (mana value ${mv(x)})`), list.map(x => x.id));
         }
       }
+      /* Kotis, Sibsig Champion: "by exiling three other cards from your graveyard" — which three, asked with the
+         cast when there are more than that (exileGrave) */
+      if (opts.via === 'graveExile' && !(opts.choices && opts.choices.exileGrave)) {
+        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === 'graveExile');
+        const pool = ((this.zones[playerId] || {}).graveyard || []).filter(c => c.id !== o.id);
+        const n = gv ? gv.exileGrave : 0;
+        if (gv && pool.length > n && this._castChoose(playerId, o, opts, { purpose: 'exileGrave', kind: 'objects', zone: 'graveyard',
+          items: this._chooseItems(pool), min: n, max: n, prefer: 'worst',
+          prompt: `${o.name}: exile which ${n} other cards from your graveyard?` }) === 'asked') return 'asked';
+      }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
       if (a && this._readAheadOf(o, playerId) > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
         const opts2 = Array.from({ length: this._readAheadOf(o, playerId) }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
@@ -6310,6 +6357,15 @@
       // (the price before Trinisphere's floor, which is settled below with the rest of it)
       const chkBase = chk.baseCost != null ? chk.baseCost : chk.cost;
       let cost = opts.costOverride != null ? opts.costOverride : chkBase;
+      /* A reduction is taken from the total once X is chosen (CR 601.2f): what the rest of the generic mana could not
+         absorb comes off the X (Zimone, Infinite Analyst: "{1} less … for each +1/+1 counter" on a Blaze) */
+      if (!opts.free && opts.costOverride == null && !opts.via && !opts.alternative && opts.x > 0 && /\{X\}/.test(cost || '')) {
+        const left = this._xLeftoverReduction(o, playerId);
+        if (left > 0) {
+          const xs = (String(cost).match(/\{X\}/g) || []).length;
+          cost = this._addGeneric(String(cost).replace(/\{X\}/g, ''), opts.x * xs - Math.min(left, opts.x * xs));
+        }
+      }
       // fused: the right half's cost as well
       const fused = !!(opts.fuse && this._fusable(o) && o.zone === 'hand');
       if (fused && !opts.free) cost = (cost || '') + (((o.card.card_faces[1] || {}).mana_cost) || '');
@@ -6336,6 +6392,8 @@
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         // Maralen, Fae Ascendant: "Once each turn" — used up
         if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
+        // Kotis, Sibsig Champion: "Once during each of your turns" — used up (graveCastExile)
+        if (via && via.via === 'graveExile') { const kx = this.obj(via.srcId); if (kx) kx._graveExileTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
         if (via && via.via === 'granted' && o._silenceAfterCast) { p.silencedTurn = this.turn; o._silenceAfterCast = false; }
         if (!via) return this.fail('That card cannot be cast that way from here.');
@@ -6386,8 +6444,10 @@
       if (via && via.exileGrave) {
         const yard = ((this.zones[playerId] || {}).graveyard || []).filter(c => c.id !== o.id);
         if (yard.length < via.exileGrave)
-          return this.fail(`Escape needs ${via.exileGrave} other cards in your graveyard.`);
-        toExile = yard.slice(0, via.exileGrave);
+          return this.fail(`${via.via === 'escape' ? 'Escape needs' : 'That needs'} ${via.exileGrave} other cards in your graveyard.`);
+        // (Kotis, Sibsig Champion: the cards chosen with the cast — exileGrave)
+        const picked = (((opts.choices || {}).exileGrave || {}).picks || []).map(id => yard.find(c => c.id === id)).filter(Boolean);
+        toExile = picked.length === via.exileGrave ? picked : yard.slice(0, via.exileGrave);
       }
 
       /* Retrace and jump-start also ask for a card off the top of your
@@ -6623,7 +6683,7 @@
 
       for (const c of toExile) this.moveObject(c, 'exile');
       if (toExile.length) {
-        this.logEvent('rules', `${p.name} exiles ${toExile.length} card${toExile.length === 1 ? '' : 's'} to escape.`);
+        this.logEvent('rules', `${p.name} exiles ${toExile.length} card${toExile.length === 1 ? '' : 's'} ${via.via === 'escape' ? 'to escape' : 'to cast ' + o.name}.`);
       }
 
       if (chose.casualty) {
@@ -12670,6 +12730,8 @@
           return (ta.subtypes || []).some(t => this._hasCreatureType(src, t) && this._isCreatureType(t)) || (sa.keywordSet && sa.keywordSet.has('changeling') && (ta.subtypes || []).some(t => this._isCreatureType(t)));
         }
         // Sanguine Spy: how many different mana values the graveyard holds
+        // Ketramose, the New Dawn: "there are seven or more cards in exile" — everybody's
+        case 'exileTotal': return this.players.reduce((k, q) => k + (((this.zones[q.id] || {}).exile || []).length), 0) >= (cond.n || 1);
         case 'graveMvDistinct': return !!me && new Set(this.zones[me.id].graveyard.map(c => (c.card && c.card.cmc) || 0)).size >= (cond.n || 1);
         case 'controlsGreatestPower': {
           if (!me) return false;
@@ -14292,6 +14354,10 @@
       const lastCtrl = o.controller;
       // (Gandalf the White, leaving with others, is still its controller's: _leftController)
       if (from === 'battlefield' && toZone !== 'battlefield') o._leftController = lastCtrl;
+      /* Blitz (CR 702.152a): "When this creature dies, draw a card" is the blitzed permanent's own, however it dies;
+         a new object (CR 400.7) has neither that nor the sacrifice at end of turn */
+      const wasBlitzed = from === 'battlefield' && !!o.blitzed;
+      if (from === 'battlefield' && toZone !== 'battlefield') { o.blitzed = false; o.blitzedTurn = null; }
       /* A token that leaves the battlefield still dies, or still leaves —
          everything watching for that sees it go — and then ceases to exist
          (CR 111.7), so it is never filed in the zone it was sent to. */
@@ -14438,6 +14504,11 @@
           this._onDeath(o, o);
           this._fire('dies', lastCtrl, { object: o, source: o });
           const a = o.analysis();
+          if (wasBlitzed && a && a.isCreature) {
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
+              name: `${o.name} \u2014 draw a card (blitz)`, auto: true, abilityText: 'When this creature dies, draw a card.',
+              effects: [{ op: 'draw', n: 1 }] });
+          }
           if (a && a.isCreature) {
             this._fire('anyCreatureDies', null, { object: o });
             this._fire('yourCreatureDies', lastCtrl, { object: o });
@@ -14497,6 +14568,8 @@
       if (toZone === 'graveyard') o._gyNotBfTurn = from !== 'battlefield' ? this.turn : null;
       // The Gitrog Monster: a card into a graveyard from anywhere, the battlefield as well
       if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
+      // Ketramose, the New Dawn: cards (not tokens) exiled from graveyards and/or the battlefield, one trigger for the lot
+      if (toZone === 'exile' && (from === 'graveyard' || from === 'battlefield') && !o.isToken) this._fire('cardExiledGyBf', null, { object: o, objController: o.owner, fromZone: from });
       // Laelia: cards exiled from a library or graveyard, one trigger for the lot
       if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
       // "if you descended this turn": a permanent card went to your graveyard
@@ -16112,6 +16185,8 @@
         // (Search for Blex: "for each card you put into your hand this way")
         if (v && typeof v === 'object' && v.lookedToHand) return (this._lookedToHand || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
+        // Green Goblin, Revenant: "for each card you've discarded this turn"
+        if (v && typeof v === 'object' && v.discardedThisTurn) return this._countValue(v, ctx.controller, src);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
         // "the highest number you noted for cards named Garbage Fire"

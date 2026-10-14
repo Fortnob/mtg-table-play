@@ -6363,6 +6363,9 @@
       make: (m) => ({ op: 'loseLife', who: 'opponents', n: countSpec(m[2], num(m[1])) }) },
     { re: /^Draw a card for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
+    // Green Goblin, Revenant: "Then draw a card for each card you've discarded this turn." (discardedThisTurn)
+    { re: /^Draw a card for each (card you'?ve (?:discarded|drawn) this turn)\.?$/i,
+      make: (m) => { const k = countOf(m[1]); return k ? { op: 'draw', who: 'you', n: k } : null; } },
     // Sage's Reverie: "Draw a card for each Aura you control that's attached to a creature."
     { re: /^Draw a card for each ((?:Aura|Equipment) you control that'?s attached to a creature)\.?$/i,
       make: (m) => { const k = countOf(m[1]); return k ? { op: 'draw', who: 'you', n: k } : null; } },
@@ -7634,6 +7637,8 @@
     // Search for Blex: "for each card you put into your hand this way" — the cards taken from among those looked at
     if (/^card you put into your hand this way$/i.test(p)) return { lookedToHand: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
+    // Green Goblin, Revenant: "for each card you've discarded this turn" (discardedThisTurn)
+    if (/^card you'?ve discarded this turn$/i.test(p)) return { discardedThisTurn: 'you', mult: k };
     // Heliod, the Warped Eclipse: "for each card your opponents have drawn this turn"
     if (/^card your opponents have drawn this turn$/i.test(p)) return { drawnThisTurn: 'opponents', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
@@ -10196,6 +10201,13 @@
       if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
       return { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+nth[3]), nthEachTurn: /second/i.test(nth[1]) ? 2 : 1 };
     }
+    /* Zimone, Infinite Analyst: "The first spell you cast with {X} in its mana cost each turn costs {1} less to cast for each
+       +1/+1 counter on Zimone." (firstXSpell) */
+    const nthX = s.match(/^The first spell you cast with \{X\} in its mana cost each turn costs \{(\d+)\} less to cast for each (.+)$/i);
+    if (nthX) {
+      const per = countOf(nthX[2]);
+      return per ? { op: 'costMod', who: 'you', words: 'spell', chosenType: false, amount: -(+nthX[1]), per, firstXSpell: true } : null;
+    }
     // Momo, Friendly Flier: "The first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast"
     const nthFly = s.match(/^The first non-([A-Z][a-z]+) creature spell with flying you cast during each of your turns costs \{(\d+)\} less to cast$/);
     if (nthFly) {
@@ -11888,6 +11900,8 @@
       () => ({ kind: 'controlNamed', name: 'CARDNAME', other: true, n: 1 })],
     // the graveyard
     [/^there are (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
+    // Ketramose, the New Dawn: "unless there are seven or more cards in exile" — everybody's (exileTotal)
+    [/^there are (\w+) or more cards in exile$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'exileTotal', n: num(m[1]) } : null)],
     [/^(\w+) or more cards are in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     [/^you have (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
@@ -13097,6 +13111,10 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
+    /* Ketramose, the New Dawn: "Whenever one or more cards are put into exile from graveyards and/or the battlefield during
+       your turn," — anybody's cards, one trigger for the lot (cardExiledGyBf) */
+    { re: /^Whenever one or more cards are put into exile from graveyards and\/or the battlefield( during your turn)?,? /i,
+      event: 'cardExiledGyBf', extraOf: (m) => Object.assign({ batch: true }, m[1] ? { yourTurnOnly: true } : {}) },
     // Laelia, the Blade Reforged: "Whenever one or more cards are put into exile from your library and/or your graveyard"
     { re: /^Whenever one or more cards are put into exile from your library and\/or your graveyard,? /i, event: 'youExileFromLibGy', extra: { batch: true } },
     // Kishla Skimmer, Along the Crooked Way: "Whenever a (creature) card leaves your graveyard (during your turn)," (leftGraveyard)
@@ -18801,6 +18819,10 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
         }, auto: true },
+      /* Kotis, Sibsig Champion: "Once during each of your turns, you may cast a creature spell from your graveyard by
+         exiling three other cards from your graveyard in addition to paying its other costs." (graveCastExile) */
+      { re: /^Once during each of your turns, you may cast an? ([a-z]+) spell from your graveyard by exiling (\w+) other cards from your graveyard in addition to paying its other costs\.?$/i,
+        make: (m) => ({ op: 'graveCastExile', filter: m[1].toLowerCase(), exileGrave: num(m[2].toLowerCase()) }), auto: true },
       /* Kagha, Shadow Archdruid: "Once during each of your turns, you may play a land or cast a permanent spell from among
          cards in your graveyard that were put there from your library this turn." — one leave for either (fromLibThisTurn) */
       { re: /^Once during each of your turns, you may play a land or cast a permanent spell from among cards in your graveyard that were put there from your library this turn\.?$/,
