@@ -943,7 +943,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; p.descendedThisTurn = 0; }
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -4583,6 +4583,8 @@
             if (ef.duringYourTurn && (!this.activePlayer || this.activePlayer.id !== playerId)) continue;
             // Lurrus: once each turn for each permanent that grants it, and only up to a mana value
             if (ef.oncePerTurn && src._playFromTurn === this.turn) continue;
+            // Raul, Trouble Shooter: "from among cards in your graveyard that were milled this turn"
+            if (ef.milledThisTurn && o._milledTurn !== this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
@@ -9987,6 +9989,11 @@
         const se = !s.phasedOut && this._staticOp(s, 'subtypeEvasion');
         if (se && this._hasCreatureType(attacker, se.subtype) && !this._hasCreatureType(blocker, se.subtype)) return false;
       }
+      // Gornog, the Red Reaper: "Cowards can't block Warriors." (typeCantBlockType)
+      for (const s of this.battlefield) {
+        const tc = !s.phasedOut && this._staticOp(s, 'typeCantBlockType');
+        if (tc && this._hasCreatureType(blocker, tc.blocker) && this._hasCreatureType(attacker, tc.attacker)) return false;
+      }
       // Sidar Kondo of Jamuraa: an opponent's blocker without flying or reach, against a creature with power 2 or less (smallUnblockable)
       for (const s of this.battlefield) {
         const ck = !s.phasedOut && blocker.controller !== s.controller && this._staticOp(s, 'oppCantBlockSmall');
@@ -13907,6 +13914,8 @@
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
         if (own) own.descendedTurn = this.turn;
+        // (The Mycotyrant: "the number of times you descended this turn" — descendedThisTurn)
+        if (own) own.descendedThisTurn = (own.descendedThisTurn || 0) + 1;
       }
       // Cloakwood Hermit: "if a creature card was put into your graveyard from anywhere this turn"
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isCreature) {
@@ -14567,7 +14576,8 @@
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
-          // Firkraag, Cunning Instigator: "one or more Dragons you control attack an opponent" — among those at that one (attackersOfTypeHere)
+          /* Firkraag, Cunning Instigator; Meriadoc Brandybuck; Gornog, the Red Reaper: "one or more Dragons you control attack an
+             opponent" — among those at that one (attackersOfTypeHere) */
           if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
@@ -22486,7 +22496,8 @@
           if (e.fromGrave && x.zone !== 'graveyard') break;
           // Yedora, Grave Gardener: "face down … It's a Forest land." — it enters as one, landfall and all (faceDownLand)
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
-          this.moveObject(x, 'battlefield', { controller: e.yours ? ctx.controller : x.owner });
+          // (Vraska, the Silencer: "It's a Treasure artifact …" — what it is as it enters: enterEff)
+          this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
           if (x.zone !== 'battlefield') break;
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           if (e.tapped) x.tapped = true;

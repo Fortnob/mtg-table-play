@@ -2043,6 +2043,10 @@
        just returned enters, folded into that return (enterRider) */
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
+    /* Vraska, the Silencer: "It's a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color,"
+       and it loses all other card types." — only a Treasure artifact as it enters, its supertypes and abilities kept (enterRider) */
+    { re: /^It'?s a Treasure artifact with "\{T\}, Sacrifice this artifact: Add one mana of any color,?" and it loses all other card types\.?$/,
+      make: () => ({ op: 'manual', enterRider: { setTypes: ['Artifact'], addSubtypes: ['Treasure'], grantText: '{T}, Sacrifice this artifact: Add one mana of any color.' } }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -2911,6 +2915,10 @@
         if (ptX) out.ptX = ptX;
         return out;
       } },
+    /* Gornog, the Red Reaper: "target creature that player controls becomes a Coward." — that creature type in place
+       of its others (layer 4), for good; Boldwyr Intimidator's "… until end of turn" for the turn */
+    { re: /^((?:[Tt]arget|[Aa]nother target) creature(?: that player controls| an opponent controls| you control)?) becomes an? ([A-Z][a-z]+)( until end of turn)?\.?$/,
+      make: (m) => (/^(?:Creature|Artifact|Enchantment|Land|Planeswalker|Copy)$/.test(m[2]) ? null : becomesSubject(m[1], { setCreatureTypes: [m[2]] }, m[3] ? 'eot' : 'permanent')) },
     { re: /^(?:They'?re|It'?s) still (?:a land|lands)\.?$/i, make: () => ({ op: 'noop' }) },
     // Wakeroot Elemental: "Untap target land you control. It becomes a 5/5 Elemental creature with haste."
     { re: /^(It|That land|That creature|That artifact) becomes an? (\d+\/\d+ [A-Za-z ]*?creature(?: with [a-z, ]+?)?)(?: that'?s still an? (?:land|artifact))?( until end of turn)?\.?$/,
@@ -4271,8 +4279,9 @@
     // (Farsight Ritual: "… the rest on the bottom of your library in a random order" — random, not in the order they were)
     { re: /^Put (one|two|three) of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', rest: /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
-    { re: /^Put one of them into your hand and the other on the bottom of your library\.?$/i,
-      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'bottom' }) },
+    // (Nymris, Oona's Trickster: "Put one of those cards into your hand and the other into your graveyard.")
+    { re: /^Put one of (?:them|those cards) into your hand and the other (on the bottom of your library|into your graveyard)\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: /graveyard/i.test(m[1]) ? 'graveyard' : 'bottom' }) },
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
     { re: /^Put one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, to: 'top', rest: 'bottomRandom' }) },
@@ -7349,6 +7358,8 @@
     // Florian, Voldaren Scion: "the total amount of life your opponents lost this turn" (opponentsLifeLost)
     if (/^the total amount of life your opponents (?:have )?lost this turn$/i.test(p)) return done({ opponentsLifeLost: true, mult: 1 });
     if (/^the number of cards you'?ve drawn this turn$/i.test(p)) return done({ playerStat: 'drawnThisTurn' });
+    // The Mycotyrant: "the number of times you descended this turn"
+    if (/^the number of times you descended this turn$/i.test(p)) return done({ playerStat: 'descendedThisTurn' });
     if (/^the number of experience counters you have$/i.test(p)) return done({ playerStat: 'experience' });
     if (/^your speed$/i.test(p)) return done({ playerStat: 'speed' });
     // Open the Way: "the number of players in the game"
@@ -10640,6 +10651,9 @@
       // Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — as the card returned enters (enterRider)
       if (e && e.enterRider) {
         if (prevE && prevE.op === 'reanimate' && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
+        const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
+        if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
@@ -11732,7 +11746,10 @@
     { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
     // (Attuma, Atlantean Warlord: "one or more Merfolk" — a plural with no s: attackersOfTypeMerfolk)
-    { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    /* Once for each player attacked by one of them, not for a planeswalker or battle (Meriadoc's ruling);
+       Gornog, the Red Reaper: "target creature that player controls" — the one attacked (attackersOfTypeHere) */
+    { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'anyPlayerAttacksPlayer',
+      extraOf: (m) => ({ attackerIsYou: true, attackersOfTypeHere: singularType(m[1]) }) },
     // Zurzoth, Chaos Rider: "Whenever one or more Devils you control attack one or more players" (attackersOfType, at a player)
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack one or more players,? /, event: 'youAttack',
       extraOf: (m) => ({ attackersOfType: singularType(m[1]), attackersOfTypeAtPlayer: true }) },
@@ -15509,12 +15526,13 @@
         return { op: 'sequence', list: [{ op: 'continuous', layer: 7, scope: a, pt }, { op: 'continuous', layer: 7, scope: b, pt: Object.assign({}, pt) }] };
       } },
     // Knowledge Is Power: "Creatures you control get +X/+X, where X is the number of cards you've drawn this turn."
-    { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+X, where X is (.+?)\.?$/,
+    // (Gornog, the Red Reaper: "Attacking Warriors you control get +X/+0, where X is the number of Cowards your opponents control.")
+    { re: /^((?:Other )?[A-Za-z ]+? you control) get \+X\/\+(X|0), where X is (.+?)\.?$/,
       make: (m) => {
         const scope = scopeOf(m[1]);
-        const k = amountOf(m[2]);
+        const k = amountOf(m[3]);
         if (!scope || scope.self || scope.attached || !k || typeof k !== 'object' || !(k.scope || k.playerStat || k.commanderCasts || k.domain || k.cardsInHand || k.cardsInGraveyard || k.enteredYours)) return null;
-        return { op: 'continuous', layer: 7, scope, pt: { p: k, t: k } };
+        return { op: 'continuous', layer: 7, scope, pt: { p: k, t: m[2] === 'X' ? k : 0 } };
       } },
     /* Ragost, Deft Gastronaut: "Artifacts you control are Foods in addition
        to their other types and have '{2}, {T}, Sacrifice this artifact: You
@@ -17688,6 +17706,9 @@
       // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
       { re: /^(?:Creatures with (flying|reach|defender|horsemanship)|(white|blue|black|red|green|artifact) creatures) can'?t block creatures you control\.?$/i,
         make: (m) => (m[1] ? { op: 'cantBlockYours', keyword: m[1].toLowerCase() } : { op: 'cantBlockYours', words: m[2].toLowerCase() + ' creature' }), auto: true },
+      // Gornog, the Red Reaper, Boldwyr Intimidator: "Cowards can't block Warriors." — whoever controls either (typeCantBlockType)
+      { re: /^([A-Z][a-z]+)s can'?t block ([A-Z][a-z]+)s\.?$/,
+        make: (m) => ({ op: 'typeCantBlockType', blocker: singularType(m[1]), attacker: singularType(m[2]) }), auto: true },
       // Champion of Lambholt: "Creatures with power less than this creature's power can't block creatures you control."
       { re: /^Creatures with power less than (?:this creature|CARDNAME)'?s power can'?t block creatures you control\.?$/i,
         eff: { op: 'smallCantBlock' }, auto: true },
@@ -17798,6 +17819,9 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
         }, auto: true },
+      // Raul, Trouble Shooter: "Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn." (milledThisTurn)
+      { re: /^Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn\.?$/,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: null, milledThisTurn: true }, auto: true },
       /* Muldrotha, the Gravetide: "During each of your turns, you may play a land and cast a permanent
          spell of each permanent type from your graveyard." — once a turn for each type (perType), a card
          of more than one using up the type chosen as it is cast */
