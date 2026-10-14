@@ -1812,6 +1812,14 @@
         return { op: 'sequence', list: [{ op: 'grantLast', keywords: kws, until: null, plural: false },
           { op: 'grantAbility', ability: m[2], duration: 'permanent', scope: 'lastAffected' }] };
       } },
+    /* Strago and Relm: "If you cast a creature spell this way, it gains haste and "At the beginning of the end step,
+       sacrifice this creature."" — the spell, and the permanent it becomes (castThisWayGains) */
+    { re: /^If you cast a creature spell this way, it gains ([a-z ]+?) and "([^"]+)"\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(k => kwKnown(k)) || !grantableText(m[2])) return null;
+        return { op: 'castThisWayGains', filter: 'creature', keywords: kws, ability: m[2] };
+      } },
     // Katara, Ruthless Technomancer: "X can't be 0." — said of an ability's X; nothing to do as it resolves
     { re: /^X can'?t be 0\.?$/i, make: () => ({ op: 'noop' }) },
     /* Gogo, Master of Mimicry: "This ability can't be copied and X can't be 0." — X of 1 or more is
@@ -3221,6 +3229,10 @@
         targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
 
     // --- library and graveyard ---
+    /* Slimefoot and Squee: "Return this card and up to one other target creature card from your graveyard to the
+       battlefield." — together (withSelf) */
+    { re: /^Return (?:this card|CARDNAME) and up to one other target creature card from your graveyard to the battlefield\.?$/i,
+      make: () => ({ op: 'reanimate', withSelf: true, targets: [{ type: 'creature', zone: 'graveyard', controller: 'you', upTo: true, another: true }] }) },
     { re: /^Return target creature card from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
     // Olivia, Crimson Bride: "… to the battlefield tapped and attacking" — beside the creature attacking
@@ -9026,6 +9038,14 @@
         if (!md || !md.auto) return null;
         return [{ op: 'sacThen', optional: true, filter: m[2].toLowerCase(), other: /another/i.test(m[1]), then: md.effects }];
       } },
+    /* Gorbag of Minas Morgul: "you may sacrifice it. When you do, choose one — …" — "it" the creature the trigger is
+       about; that sacrifice the one question, the mode after it (sacThen triggerObject) */
+    { re: /^You may sacrifice it\. When you do, (choose (?:one|two|three)\s*[-—][\s\S]+)$/i,
+      make: (m) => {
+        const md = parseModal(m[1].charAt(0).toUpperCase() + m[1].slice(1));
+        if (!md || !md.auto) return null;
+        return [{ op: 'sacThen', optional: true, triggerObject: true, filter: 'permanent', then: md.effects }];
+      } },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
       make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],
@@ -14258,7 +14278,7 @@
         if (xOnly) ab.xColor = xOnly.color;
         // (Kethis, the Hidden Hand: not words in quotation marks — "gains 'You may play this card from your graveyard'")
         if ((cost.exile && cost.exile.fromGraveyard) ||
-            /\b(?:this card|CARDNAME) from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
+            /\b(?:this card|CARDNAME)(?: and up to one other target creature card)? from your graveyard\b/i.test(m[2].replace(/"[^"]*"/g, ''))) ab.fromGraveyard = true;
         for (const o of only.concat(onceFirst ? [onceFirst] : [])) {
           ab.only = Object.assign({}, ab.only, o.when ? { when: o.when } : null, o.cond ? { cond: o.cond } : null, o.once ? { once: true } : null,
             o.perTurn ? { perTurn: o.perTurn } : null);
@@ -17213,6 +17233,10 @@
         })(m0);
         return other ? Object.assign(r, { otherSource: true }) : r;
       } },
+    /* Hawkeye, Young Avenger: "If a source you control would deal noncombat damage to an opponent or a permanent an
+       opponent controls, instead it deals that much damage plus X, where X is Hawkeye's power." (addSelfPower) */
+    { re: /^If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, instead it deals that much damage plus X, where X is (?:CARDNAME|this creature)'s power\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgPlusPower', event: 'damage', who: 'you', toOpponent: true, sourceWords: null, noncombat: true, how: 'addSelfPower' }) },
     /* Rem Karolus, Stalwart Slayer: "If a spell would deal damage to you or another permanent you control, prevent that
        damage." "If a spell would deal damage to an opponent or a permanent an opponent controls, it deals that much damage
        plus 1 instead." — anyone's spell (spellSource) */
@@ -18991,6 +19015,8 @@
         }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
+      // Frodo Baggins: "As long as Frodo Baggins is your Ring-bearer, it must be blocked if able." (ringBearerOnly)
+      { re: /^As long as (?:CARDNAME|this creature) is your Ring-bearer, (?:it|CARDNAME) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked', ringBearerOnly: true }, auto: true },
       // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
       { re: /^(?:Creatures with (flying|reach|defender|horsemanship)|(white|blue|black|red|green|artifact) creatures) can'?t block creatures you control\.?$/i,
         make: (m) => (m[1] ? { op: 'cantBlockYours', keyword: m[1].toLowerCase() } : { op: 'cantBlockYours', words: m[2].toLowerCase() + ' creature' }), auto: true },

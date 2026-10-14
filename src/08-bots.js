@@ -4777,7 +4777,7 @@
       // "must be blocked if able": the least of our creatures that can
       for (const aid of ch.attackers) {
         const at = g.obj(aid);
-        if (!at || !g._staticOp(at, 'mustBeBlocked') || out.some(d => d.attackerIds.includes(aid))) continue;
+        if (!at || !g._mustBeBlocked(at) || out.some(d => d.attackerIds.includes(aid))) continue;
         const free = ch.candidates.map(id => g.obj(id)).filter(b => b && !out.some(d => d.blockerId === b.id) && g.canBlock(b, at))
           .sort((x, y) => this.permanentValue(x) - this.permanentValue(y));
         if (free.length) out.push({ blockerId: free[0].id, attackerIds: [aid] });

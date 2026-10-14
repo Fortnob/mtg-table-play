@@ -11057,9 +11057,7 @@
            when one could that isn't blocking anything else */
         for (const aid of this.combat.attackers) {
           const at = this.obj(aid);
-          // (Neyith of the Dire Hunt: "must be blocked this combat if able" — this one only, mustBeBlockedCombat)
-          const thisCombat = (at && at.effects || []).some(x => x && x.flag === 'mustBeBlockedCombat' && x.combatNo === this.combatsThisTurn);
-          if (!at || !(this._staticOp(at, 'mustBeBlocked') || this._hasFlag(at, 'mustBeBlockedTurn') || thisCombat)) continue;
+          if (!this._mustBeBlocked(at)) continue;
           if (declarations.some(d => d.attackerIds.includes(aid))) continue;
           const free = this.battlefield.filter(o => o.controller === blockerPid && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
           if (free.length) return this.fail(`${at.name} must be blocked if able.`);
@@ -11604,6 +11602,8 @@
         // Rem Karolus, Stalwart Slayer: "prevent that damage"
         case 'prevent': ev.n = 0; ev.cancelled = true; break;
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
+        // Hawkeye, Young Avenger: "that much damage plus X, where X is Hawkeye's power"
+        case 'addSelfPower': ev.n = Math.max(0, (ev.n || 0) + (src.zone === 'battlefield' ? this.powerOf(src) : 0)); break;
         case 'toZone': ev.zone = ef.zone; if (ef.withCounter) ev.withCounter = ef.withCounter;
           // Valgavoth, Terror Eater: a card exiled this way is "exiled with" it
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
@@ -19930,6 +19930,8 @@
             const first = targets.map(t => t.kind === 'object' && this.obj(t.id)).find(x => x && x.zone === 'graveyard');
             if (first) targets = targets.concat(this.zones[ctx.controller].graveyard.filter(c => c !== first && c.name === first.name).map(c => ({ kind: 'object', id: c.id })));
           }
+          // Slimefoot and Squee: "Return this card and up to one other target creature card" — itself too, if still there (withSelf)
+          if (e.withSelf && src && src.zone === 'graveyard') targets = [{ kind: 'object', id: src.id }].concat(targets);
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
@@ -25055,6 +25057,20 @@
           }
           break;
         }
+        /* Strago and Relm: "If you cast a creature spell this way, it gains haste and "…"" — the spell, for good: the
+           permanent it becomes keeps them */
+        case 'castThisWayGains': {
+          const r = this.resolving;
+          for (const id of (r && r.castThisWay) || []) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'stack' || (e.filter && !this._cardFitsWords(c, e.filter))) continue;
+            if ((e.keywords || []).length) c.effects.push({ keywords: e.keywords.slice(), until: null });
+            if (e.ability) c.effects.push({ grantText: e.ability, until: null });
+            c._chr = null;
+            this.logEvent('keyword', `${c.name} gains ${(e.keywords || []).map(k => k.toLowerCase()).join(', ')}${e.ability ? ' and "' + truncate(e.ability, 80) + '"' : ''}.`);
+          }
+          break;
+        }
         case 'castFree': {
           const r = this.resolving;
           const slot = r ? r.index + ':freePool' : null;
@@ -27837,6 +27853,8 @@
         /* Victimize: sacrifice, and only if you did, the rest happens */
         case 'sacThen': {
           let pool = this._sacrificePool(ctx.controller, { filter: e.filter || 'creature', another: !!e.other }, src);
+          // Gorbag of Minas Morgul: "you may sacrifice it" — the creature the trigger is about, nothing else (triggerObject)
+          if (e.triggerObject) { const tdS = ctx.triggerData || {}; pool = pool.filter(o => o.id === tdS.objectId); }
           // The Gitrog, Ravenous Ride: "a creature that saddled it this turn" (saddledSelf)
           const sb = e.saddledSelf && src && src.saddledBy && src.saddledBy.turn === this.turn ? src.saddledBy.ids : null;
           if (e.saddledSelf) pool = pool.filter(o => (sb || []).includes(o.id));
@@ -27849,7 +27867,7 @@
             const tm = String(e.text || '').match(/\b(When|If) you do, ([^\n]+)/i), tail = tm && tm[2];
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true, filter: e.filter || 'creature',
               candidates: pool.map(o => o.id), purpose: 'sacrificeForReward',
-              prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.saddledSelf ? 'a creature that saddled it this turn' : e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.triggerObject && pool[0] ? pool[0].name : e.saddledSelf ? 'a creature that saddled it this turn' : e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
                 (tail ? ' ' + tm[1] + ' you do, ' + tail.replace(/\s*[-—]+\s*$/, '.') : '') }, 'osac');
             if (got === SUSPEND) return SUSPEND;
             const madeIt = (this._sacCount || 0) > ctx._sacBefore;
@@ -28900,6 +28918,17 @@
       const n = Number(o && o.activatedLoyaltyThisTurn) || 0;
       return n > 0 && n >= (this._staticOp(o, 'loyaltyTwice') ? 2 : 1);
     }
+    /** "This creature must be blocked if able" — always, this turn, or this combat. */
+    _mustBeBlocked(at) {
+      if (!at) return false;
+      // (Neyith of the Dire Hunt: "must be blocked this combat if able" — this one only, mustBeBlockedCombat)
+      if ((at.effects || []).some(x => x && x.flag === 'mustBeBlockedCombat' && x.combatNo === this.combatsThisTurn)) return true;
+      if (this._hasFlag(at, 'mustBeBlockedTurn')) return true;
+      // (Frodo Baggins: "as long as Frodo Baggins is your Ring-bearer" — ringBearerOnly)
+      const st = this._staticOp(at, 'mustBeBlocked');
+      return !!st && (!st.ringBearerOnly || (this.player(at.controller) || {}).ringBearer === at.id);
+    }
+
     _staticOp(o, op) {
       const a = o && o.analysis();
       if (!a) return null;
