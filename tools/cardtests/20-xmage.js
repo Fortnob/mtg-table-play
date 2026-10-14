@@ -31731,4 +31731,194 @@ module.exports = (test) => {
     M.nextTurn('A');
     t.ok(M.g.altUsesFor('A', giant.id).some(u => u.via === 'warpExile'), 'warp: cast from exile later');
   });
+
+  test('Commanders: Khârn the Betrayer — damage prevented and it changes hands; the one who lost it draws two', (mk, t) => {
+    t.auto('Khârn the Betrayer');
+    const M = mk({ library: Array(20).fill('Island') });
+    const k = M.bf('A', 'Khârn the Betrayer');
+    const hand0 = M.zone('A', 'hand').length;
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [k.id] });
+    t.zone(k, 'battlefield', 'Khârn: the damage prevented');
+    t.eq(k.damage || 0, 0);
+    t.eq(k.controller, 'B', 'Khârn: the one opponent gains control of it');
+    t.eq(M.zone('A', 'hand').length, hand0 + 2, 'Khârn: A lost control and draws two');
+    t.no(M.asked.some(ch => ch.purpose === 'giveControl'), 'Khârn: one opponent, nothing asked');
+  });
+  test('Commanders: Khârn the Betrayer — an opponent of your choice; and it leaving is losing control too', (mk, t) => {
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const k = M.bf('A', 'Khârn the Betrayer');
+    const a0 = M.zone('A', 'hand').length;
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: ['C'] }; });
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [k.id] });
+    t.ok(asked && asked.purpose === 'giveControl', 'Khârn: A chooses the opponent');
+    t.eq(asked.items.map(x => x.id).sort().join(), 'B,C', 'Khârn: among A\'s opponents');
+    t.eq(k.controller, 'C', 'Khârn: C gains control of it');
+    t.eq(M.zone('A', 'hand').length, a0 + 2, 'Khârn: A draws two');
+    // C controls it now: it dies, and C draws two
+    const c0 = M.zone('C', 'hand').length;
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [k.id] });
+    t.zone(k, 'graveyard');
+    t.eq(M.zone('C', 'hand').length, c0 + 2, 'Khârn: leaving C\'s control, C draws two');
+  });
+  test('Commanders: Khârn the Betrayer — combat damage to it is prevented as well', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const k = M.bf('A', 'Khârn the Betrayer');
+    const wall = M.bf('B', 'Hill Giant');
+    M.answer('declareAttackers', () => [{ attackerId: k.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [k.id] }]);
+    M.toMain('A', 'endCombat');
+    t.zone(k, 'battlefield', 'Khârn: survives the Giant');
+    t.eq(k.controller, 'B');
+    t.zone(wall, 'graveyard', 'Khârn: its own 5 damage dealt all the same');
+  });
+
+  test('Commanders: Grist, Voracious Larva — a creature of yours back from your graveyard: pay {G}, Grist returns transformed', (mk, t) => {
+    t.auto('Grist, Voracious Larva // Grist, the Plague Swarm');
+    const M = mk({ library: Array(20).fill('Island') });
+    const grist = M.bf('A', 'Grist, Voracious Larva // Grist, the Plague Swarm');
+    M.bf('A', 'Forest');
+    // cast from the hand: nothing
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Grist: a creature cast from the hand is not asked about');
+    const bear = M.grave('A', 'Grizzly Bears');
+    M.mana('A', '3B');
+    M.answer('confirm', { yes: true });
+    M.cast('A', M.hand('A', 'Zombify'), { targets: [bear.id] });
+    t.zone(bear, 'battlefield');
+    t.eq(grist.zone, 'battlefield');
+    t.eq(grist.face, 1, 'Grist: back as Grist, the Plague Swarm');
+    t.ok((grist.analysis() || {}).isPlaneswalker, 'Grist: a planeswalker');
+    t.ok(M.player('A').pool.total ? M.player('A').pool.total() === 0 : true);
+  });
+  test('Commanders: Grist, Voracious Larva — not for an opponent\'s card reanimated, nor declined', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const grist = M.bf('A', 'Grist, Voracious Larva // Grist, the Plague Swarm');
+    M.bf('A', 'Forest');
+    const theirs = M.grave('B', 'Grizzly Bears');
+    M.mana('A', 'BB');
+    M.cast('A', M.hand('A', 'Reanimate'), { targets: [theirs.id] });
+    t.zone(theirs, 'battlefield');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), "Grist: B's card from B's graveyard");
+    const mine = M.grave('A', 'Grizzly Bears');
+    M.mana('A', '3B');
+    M.answer('confirm', { yes: false });
+    M.cast('A', M.hand('A', 'Zombify'), { targets: [mine.id] });
+    t.eq(grist.face || 0, 0, 'Grist: declined, still the Larva');
+  });
+  test('Commanders: Grist, the Plague Swarm — +1 deathtouch counter for a black card milled; −6 Insect copies of creature cards', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const grist = M.bf('A', 'Grist, Voracious Larva // Grist, the Plague Swarm');
+    grist.face = 1; grist.counters.loyalty = 7; M.g.bumpBoard();
+    M.top('A', 'Doom Blade'); M.top('A', 'Island');
+    M.activate('A', grist, 0);
+    let ins = M.bfOf('A').filter(o => o.isToken);
+    t.eq(ins.length, 1, 'Grist +1: an Insect');
+    t.eq(ins[0].counters.deathtouch, 1, 'Grist +1: Doom Blade was milled, a deathtouch counter');
+    M.nextTurn('B'); M.nextTurn('A');
+    M.top('A', 'Island'); M.top('A', 'Grizzly Bears');
+    M.activate('A', grist, 0);
+    ins = M.bfOf('A').filter(o => o.isToken);
+    t.eq(ins.length, 2);
+    t.no(ins[1].counters.deathtouch, 'Grist +1: no black card milled');
+    // −6: the creature cards in the graveyard (Grizzly Bears, and Serra Angel added), not Doom Blade
+    M.nextTurn('B'); M.nextTurn('A');
+    M.grave('A', 'Serra Angel');
+    grist.counters.loyalty = 6;
+    M.activate('A', grist, 2);
+    const copies = M.bfOf('A').filter(o => o.isToken && /Grizzly Bears|Serra Angel/.test(o.name));
+    t.eq(copies.length, 2, 'Grist −6: a copy of each creature card');
+    const angel = copies.find(o => o.name === 'Serra Angel');
+    t.eq(M.g.powerOf(angel), 1); t.eq(M.g.toughnessOf(angel), 1);
+    t.ok(M.g.hasKw(angel, 'flying'), 'Grist −6: still a Serra Angel, with flying');
+    t.ok(angel.analysis().subtypes.includes('Insect') && !angel.analysis().subtypes.includes('Angel'), 'Grist −6: an Insect');
+    t.ok(M.g._cardFitsWords(angel, 'black') && M.g._cardFitsWords(angel, 'green') && !M.g._cardFitsWords(angel, 'white'), 'Grist −6: black and green');
+    t.no(M.bfOf('A').some(o => o.isToken && o.name === 'Doom Blade'), 'Grist −6: not an instant');
+  });
+
+  test('Commanders: Norman Osborn // Green Goblin — transformed: each nonland card discarded this turn has mayhem for its mana cost, {2} less', (mk, t) => {
+    t.auto('Norman Osborn // Green Goblin');
+    const M = mk({ library: Array(20).fill('Island') });
+    const nor = M.bf('A', 'Norman Osborn // Green Goblin');
+    for (const c of ['Island', 'Swamp', 'Mountain', 'Island']) M.bf('A', c);
+    M.activate('A', nor, 0);
+    t.eq(nor.face, 1, 'Norman Osborn: transforms into Green Goblin');
+    const giant = M.hand('A', 'Hill Giant'), bolt = M.hand('A', 'Lightning Bolt'), forest = M.hand('A', 'Forest');
+    const old = M.grave('A', 'Grizzly Bears');
+    M.g._discardNow('A', [giant, bolt, forest]);
+    const may = (o) => M.g.altUsesFor('A', o.id).find(u => u.via === 'mayhem');
+    t.eq((may(giant) || {}).cost, '{3}{R}', 'Green Goblin: mayhem for its mana cost');
+    t.ok(may(bolt), 'Green Goblin: an instant too');
+    t.no(may(forest), 'Green Goblin: not a land');
+    t.no(may(old), 'Green Goblin: not a card that was not discarded this turn');
+    M.mana('A', '1R');
+    M.cast('A', giant, { via: 'mayhem' });
+    t.zone(giant, 'battlefield', 'Green Goblin: cast from the graveyard for {1}{R}, {2} less');
+    M.nextTurn('B'); M.nextTurn('A');
+    t.no(may(bolt), 'mayhem: only the turn it was discarded');
+  });
+
+  test('Commanders: Zenos yae Galvus — enters: all but Zenos and the chosen creature get -2/-2; the chosen one leaving transforms it', (mk, t) => {
+    t.auto('Zenos yae Galvus // Shinryu, Transcendent Rival');
+    const M = mk({ library: Array(20).fill('Island') });
+    const mine = M.bf('A', 'Grizzly Bears');
+    const giant = M.bf('B', 'Hill Giant'), elves = M.bf('B', 'Llanowar Elves'), angel = M.bf('B', 'Serra Angel');
+    let asked = null;
+    M.answer('choose', (ch) => { if (ch.purpose === 'effectObject') { asked = ch; return { picks: [angel.id] }; } return null; });
+    const z = M.bf('A', 'Zenos yae Galvus // Shinryu, Transcendent Rival', { etb: true });
+    M.resolve();
+    t.ok(asked, 'Zenos: asked to choose');
+    t.eq(asked.items.map(x => x.id).sort().join(), [giant.id, elves.id, angel.id].sort().join(), "Zenos: B's creatures");
+    t.zone(mine, 'graveyard', 'Zenos: A\'s own Grizzly Bears get -2/-2 too');
+    t.zone(elves, 'graveyard');
+    t.eq(M.g.powerOf(giant), 1, 'Zenos: Hill Giant 1/1');
+    t.eq(M.g.powerOf(angel), 4, 'Zenos: not the chosen creature');
+    t.eq(M.g.powerOf(z), 4, 'Zenos: not Zenos');
+    // another creature leaving does nothing; the chosen one transforms Zenos
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [giant.id] });
+    t.eq(z.face || 0, 0, 'Zenos: not for another creature');
+    M.answer('choose', (ch) => (ch.purpose === 'chooseOpponent' ? { picks: ['B'] } : null));
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [angel.id] });
+    t.eq(z.face, 1, 'Zenos: the chosen creature left — Shinryu');
+    t.eq(z.chosenOpponent, 'B', 'Shinryu: B chosen');
+  });
+  test('Commanders: Shinryu, Transcendent Rival — the chosen player loses: you win', (mk, t) => {
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const z = M.bf('A', 'Zenos yae Galvus // Shinryu, Transcendent Rival');
+    z.face = 1; z.chosenOpponent = 'C'; M.g.bumpBoard();
+    M.g.playerLoses(M.player('B'), 'life');
+    M.resolve();
+    t.no(M.player('A').hasWon, 'Shinryu: not for another opponent');
+    t.no(M.player('C').hasLost);
+    M.g.playerLoses(M.player('C'), 'life');
+    M.resolve();
+    t.ok(M.player('A').hasWon, 'Shinryu: C lost, A wins');
+  });
+
+  test('Commanders: Nemata, Primeval Warden — an opponent\'s creature that would die is exiled, and a Saproling for it', (mk, t) => {
+    t.auto('Nemata, Primeval Warden');
+    const M = mk({ library: Array(20).fill('Island') });
+    const nem = M.bf('A', 'Nemata, Primeval Warden');
+    const giant = M.bf('B', 'Hill Giant'), bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [giant.id] });
+    t.zone(giant, 'exile', 'Nemata: exiled instead');
+    const saps = () => M.bfOf('A').filter(o => o.isToken && o.name.includes('Saproling'));
+    t.eq(saps().length, 1, 'Nemata: a Saproling');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [bear.id] });
+    t.zone(bear, 'graveyard', 'Nemata: not A\'s own creature');
+    t.eq(saps().length, 1);
+    // "{G}, Sacrifice a Saproling: Nemata gets +2/+2"; "{1}{B}, Sacrifice two Saprolings: Draw a card."
+    M.mana('A', 'G');
+    M.activate('A', nem, 0);
+    t.eq(M.g.powerOf(nem), 5, 'Nemata: +2/+2');
+    t.eq(saps().length, 0, 'Nemata: the Saproling sacrificed');
+  });
 };

@@ -1973,6 +1973,9 @@
     // Senu, Keen-Eyed Protector: "if this card is exiled, put it onto the battlefield attacking" — beside the one that set it off
     { re: /^if this card is exiled, put it onto the battlefield attacking\.?$/i,
       make: () => ({ op: 'returnSelfFromGrave', fromZone: 'exile', attacking: true, besideTrigger: true }) },
+    // Grist, the Plague Swarm: "Put a deathtouch counter on the token if a black card was milled this way." — the token just made
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on the token if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -6272,6 +6275,10 @@
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[3] + '/' + m[4], setColor: m[5], setType: m[6] },
         /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }, /^that card$/i.test(m[2]) ? { orTrigger: true } : {},
         m[1] ? { tapped: true } : {}) },
+    /* Grist, the Plague Swarm: "For each creature card in your graveyard, create a token that's a copy of it, except
+       it's a 1/1 black and green Insect." (copyEach) */
+    { re: /^For each (creature|artifact|permanent) card in your graveyard, create a token that'?s a copy of it, except it'?s an? (\d+)\/(\d+) ((?:white|blue|black|red|green)(?: and (?:white|blue|black|red|green))?) ([A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'copyEach', zone: 'graveyard', filter: m[1], setPt: m[2] + '/' + m[3], setColors: m[4].split(' and '), setType: m[5] }) },
     /* Ratadrabik of Urborg: "… a copy of that creature, except it's not legendary and it's a 2/2 black Zombie in
        addition to its other colors and types"; The Jolly Balloon Man: "… a 1/1 red Balloon creature in addition to
        its other colors and types and it has flying and haste" (copyPlusKind) */
@@ -6462,6 +6469,13 @@
       make: (m) => ({ op: 'grantKeyword', duration: 'eot',
         keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         scope: /you control/i.test(m[1]) ? 'yourCreatures' : 'opponentCreatures' }) },
+    /* Zenos yae Galvus: "choose a creature an opponent controls. Until end of turn, creatures other than Zenos and the
+       chosen creature get -2/-2." — chosen, not targeted, and remembered for "the chosen creature" (chooseLinked) */
+    { re: /^Choose a creature an opponent controls\.?$/i,
+      make: () => { const spec = targetSpec('target creature an opponent controls'); if (!spec || spec.unknown) return null; delete spec.upTo;
+        return { op: 'chooseLinked', chooseFrom: spec, choosePrompt: 'choose a creature an opponent controls.' }; } },
+    { re: /^Until end of turn, creatures other than CARDNAME and the chosen creature get ([+-]\d+)\/([+-]\d+)\.?$/i,
+      make: (m) => ({ op: 'pumpOthersThanChosen', p: +m[1], t: +m[2] }) },
     { re: /^Creatures your opponents control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'opponentCreatures' }) },
 
@@ -10769,6 +10783,8 @@
     [/^(?:this spell'?s|its) surge cost was paid$/i, () => ({ kind: 'surgePaid' })],
     // Chainer, Nightmare Adept: "if you didn't cast it from your hand" — the permanent the trigger is about
     [/^you didn'?t cast it from your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand' })],
+    // Grist, Voracious Larva: "if it entered from your graveyard or you cast it from your graveyard"
+    [/^it entered from your graveyard or you cast it from your graveyard$/i, () => ({ kind: 'triggerObjFromGraveyard' })],
     // Kazuul, Tyrant of the Cliffs: "if you're the defending player" — the attacker the trigger is about attacks you
     [/^you'?re the defending player$/i, () => ({ kind: 'youDefend' })],
     // Tezzeret, Cruel Captain: "If it's not a creature" — what was just targeted, revealed or put
@@ -10865,8 +10881,9 @@
     [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
-    // (Old Rutstein: "a noncreature, nonland card is milled this way" — both at once)
-    [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)|, non(?:land|creature|artifact|enchantment))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
+    // (Old Rutstein: "a noncreature, nonland card is milled this way" — both at once; Grist, the Plague Swarm:
+    // "if a black card was milled this way" — a colour too)
+    [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent|white|blue|black|red|green|colorless|multicolored)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)|, non(?:land|creature|artifact|enchantment))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
     // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
     [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],
@@ -11792,6 +11809,13 @@
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
     { re: /^When(?:ever)? (?:this permanent|this creature|~|CARDNAME) leaves the battlefield(?:,| )/i, event: 'ltb', self: true },
+    // Zenos yae Galvus: "When the chosen creature leaves the battlefield, transform Zenos." (chosenObjOnly)
+    { re: /^When(?:ever)? the chosen creature leaves the battlefield,? /i, event: 'permLeaves', extra: { chosenObjOnly: true } },
+    // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game." (chosenPlayerLoses)
+    { re: /^When(?:ever)? the chosen player loses the game,? /i, event: 'chosenPlayerLoses' },
+    /* Khârn the Betrayer: "When you lose control of Khârn the Betrayer, draw two cards." — it leaves, or another player
+       gains control of it; the trigger is the one who lost it's (lostControl) */
+    { re: /^When(?:ever)? you lose control of (?:this permanent|this creature|~|CARDNAME),? /i, event: 'lostControl', self: true },
     { re: /^When(?:ever)? another creature enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'otherCreatureEtb' },
     { re: /^When(?:ever)? a creature enters(?: the battlefield)?(?: under your control)?(?:,| )/i, event: 'anyCreatureEtb' },
     { re: /^When(?:ever)? a(?:nother)? creature you control dies(?:,| )/i, event: 'yourCreatureDies' },
@@ -15514,6 +15538,16 @@
         return Object.assign({ op: 'replace', id: 'dieExileOppToken', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
           how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], alsoToken: Object.assign({}, tok, { n: 1 }) }, m[1] ? { nontoken: true } : {});
       } },
+    /* Nemata, Primeval Warden: "If a creature an opponent controls would die, exile it instead. When you do, create a
+       1/1 green Saproling creature token." — the token by a reflexive trigger, on the stack (reflexToken) */
+    { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\. When you do, (create an? .+? token)\.?$/i,
+      make: (m) => {
+        const tok = parseTokenSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
+        if (!tok || tok.op !== 'createToken') return null;
+        return Object.assign({ op: 'replace', id: 'dieExileOppReflex', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+          how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], reflexToken: Object.assign({}, tok, { n: 1 }),
+          reflexText: m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.' }, m[1] ? { nontoken: true } : {});
+      } },
     // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
@@ -16526,6 +16560,9 @@
       // Rakdos, Lord of Riots: "You can't cast CARDNAME unless an opponent lost life this turn." (castUnless)
       { re: /^You can'?t cast (?:CARDNAME|this spell) unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'noop', castWindow: { cond: c } } : null; }, auto: true },
+      // Khârn the Betrayer: "If damage would be dealt to CARDNAME, prevent that damage and an opponent of your choice gains control of it."
+      { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage and an opponent of your choice gains control of (?:it|him|her)\.?$/i,
+        eff: { op: 'damageGivesControl' }, auto: true },
       /* Anti-Venom: "If damage would be dealt to CARDNAME, prevent that damage and put that many +1/+1
          counters on him"; Phytohydra: "… put that many +1/+1 counters on it instead"; Jared Carthalion:
          "… while you're the monarch, …" (damageToCounters) */
@@ -16620,6 +16657,8 @@
       // Tannuk, Steadfast Second: "Artifact cards and red creature cards in your hand have warp {2}{R}." (grantWarp)
       { re: /^([a-z]+(?: [a-z]+)?) cards(?: and ([a-z]+(?: [a-z]+)?) cards)? in your hand have warp ((?:\{[^}]+\})+)\.?$/i,
         make: (m) => ({ op: 'grantWarp', words: [m[1], m[2]].filter(Boolean).map(w => w.toLowerCase()), cost: m[3] }), auto: true },
+      // Green Goblin: "Each nonland card in your graveyard has mayhem. The mayhem cost is equal to its mana cost." (grantMayhem)
+      { re: /^Each nonland card in your graveyard has mayhem\. The mayhem cost is equal to its mana cost\.?$/i, eff: { op: 'grantMayhem' }, auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality

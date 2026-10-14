@@ -1664,6 +1664,13 @@
       (s.options || []).forEach((o, i) => { const k = gy.filter(c => g._hasCreatureType(c, o.label)).length; if (k > bestN) { best = i; bestN = k; } });
       return { picks: [best] };
     },
+    /* Khârn the Betrayer: to the opponent with least on the table */
+    giveControl(s) {
+      const g = this.game;
+      const n = (pid) => g.battlefield.filter(x => x.controller === pid).length;
+      const ids = (s.items || []).map(x => x.id).sort((p, q) => n(p) - n(q));
+      return ids.length ? { picks: [ids[0]] } : null;
+    },
     /* Aminatou, the Fateshifter: the direction whose next player has the most worth taking */
     chooseDirection(s) {
       const g = this.game;

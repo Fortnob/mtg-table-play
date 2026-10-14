@@ -2998,6 +2998,9 @@
         if (x === 'card' || !x) return true;
         if (x === 'permanent') return types.some(t => ['artifact', 'creature', 'enchantment', 'land', 'planeswalker', 'battle'].includes(t));
         if (x === 'legendary' || x === 'basic') return sup.includes(x);
+        // (Grist, the Plague Swarm: "a black card" — its colour)
+        const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+        if (COL[x]) return ((o.card && (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].colors || o.card.colors)) || []).includes(COL[x]);
         if (x.startsWith('non')) return !types.includes(x.slice(3)) && !sup.includes(x.slice(3));
         return types.includes(x);
       });
@@ -4761,6 +4764,11 @@
           /* Harmonize: from the graveyard, exiled afterwards; a creature may be tapped to help */
           if (k === 'harmonize' && ab.arg) out.push({ kind: 'cast', via: 'harmonize', cost: ab.arg, after: 'exile', harmonize: true, label: 'Harmonize ' + ab.arg });
         }
+        /* Green Goblin: "Each nonland card in your graveyard has mayhem. The mayhem cost is equal to its mana cost."
+           — the turn you discarded it (grantMayhem) */
+        if (o.discardedTurn === this.turn && a.manaCost && !out.some(u => u.via === 'mayhem') && this._anyStaticOf(playerId, 'grantMayhem')) {
+          out.push({ kind: 'cast', via: 'mayhem', cost: a.manaCost, after: null, label: 'Mayhem ' + a.manaCost });
+        }
         if (o.graveCastBy === playerId && o.graveCastTurn === this.turn &&
             // Conduit of Worlds: only while no spell has been cast this turn
             !(o._silenceAfterCast && ((this.player(playerId) || {}).spellsCastThisTurn || 0) > 0)) {
@@ -5911,6 +5919,15 @@
         if (via && via.via === 'granted' && o._silenceAfterCast) { p.silencedTurn = this.turn; o._silenceAfterCast = false; }
         if (!via) return this.fail('That card cannot be cast that way from here.');
         if (opts.costOverride == null) cost = via.cost;
+        /* Another cost is still raised and cut like the mana cost (CR 601.2f): Green Goblin's "Spells you cast from
+           your graveyard cost {2} less" on a mayhem cost, a Thalia's tax on a flashback cost */
+        if (opts.costOverride == null && cost && !opts.free) {
+          const less = [];
+          const d = this._costDelta(o, playerId, less);
+          if (d) cost = this._addGeneric(cost, d);
+          cost += this._costExtraSymbols(o, playerId);
+          if (less.length) cost = this._lessColored(cost, less);
+        }
         // Emerge: the sacrificed creature's mana value off the emerge cost
         if (via.via === 'emerge') {
           const sac = opts.emergeWith && this.obj(opts.emergeWith);
@@ -10463,6 +10480,12 @@
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
+          // Nemata, Primeval Warden: "When you do, create a 1/1 green Saproling creature token." — a reflexive trigger
+          if (ef.reflexToken && src && src.controller != null) {
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: src, objId: src.id, controller: src.controller,
+              name: `${src.name} \u2014 ${truncate(ef.reflexText || 'create a token', 50)}`, effects: [Object.assign({ text: ef.reflexText }, ef.reflexToken)],
+              auto: true, abilityText: ef.reflexText || '', optional: false, triggerData: { event: 'reflexive' } });
+          }
           break;
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
@@ -10632,11 +10655,46 @@
           o.blocking = [];
           o._chr = null;
           changed = true;
+          if (from != null) this._lostControl(o, from);
           if (who == null && from != null) this.logEvent('control', `${o.name} goes back to ${(this.player(to) || {}).name || to}.`);
         }
       }
       if (changed) this.bumpBoard();
       return changed;
+    }
+
+    /* Khârn the Betrayer: "an opponent of your choice gains control of it" — with one opponent, that one; a bot
+       picks the one with least on the table; a person is asked, and it changes hands on the answer */
+    _giveToAnOpponent(o) {
+      const from = o.controller;
+      const opps = this.opponentsOf(from).filter(p => !p.hasLost);
+      if (!opps.length) return;
+      const me = this.player(from);
+      if (opps.length === 1 || (me && me.isBot)) {
+        const weakest = opps.slice().sort((p, q) => this.battlefield.filter(x => x.controller === p.id).length - this.battlefield.filter(x => x.controller === q.id).length)[0];
+        this._giveControl(o, weakest.id);
+        return;
+      }
+      this.queueChoice(MTG.choice.normalize({ type: 'choose', playerId: from, purpose: 'giveControl', kind: 'players', objId: o.id,
+        items: this._choosePlayers(opps), min: 1, max: 1, prompt: `${o.name}: choose an opponent. They gain control of ${o.name}.` }));
+    }
+    _giveControl(o, to) {
+      if (!o || o.zone !== 'battlefield' || !this.player(to) || o.controller === to) return;
+      o.effects.push({ control: to, until: null, ts: this._stampNew() });
+      this.logEvent('control', `${this.player(to).name} gains control of ${o.name}.`);
+      this._refreshControl();
+    }
+    /* Khârn the Betrayer: "When you lose control of Khârn" — another player gained it (_refreshControl) or it left
+       the battlefield (moveObject); the one who had it controls the trigger */
+    _lostControl(o, from) {
+      const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
+      if (!a || !this.player(from) || this.player(from).hasLost) return;
+      a.abilities.forEach((ab, i) => {
+        if (ab.kind !== 'triggered' || ab.event !== 'lostControl') return;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i, controller: from,
+          name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`, effects: ab.effects, auto: !!ab.auto,
+          abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional, triggerData: { event: 'lostControl', player: from } });
+      });
     }
 
     /** The continuous effects currently on the battlefield, oldest first. */
@@ -11278,6 +11336,12 @@
           const asWas = (x) => (cond.was && x && x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x);
           const it = ids.map(id => asWas(this.obj(id))).find(x => x && (!noun || noun === 'spell' || this._cardFitsWords(x, noun)));
           return !!it && this._cardFitsWords(it, cond.words);
+        }
+        /* Grist, Voracious Larva: "if it entered from your graveyard or you cast it from your graveyard" — a card of
+           yours, straight from there or by way of the stack */
+        case 'triggerObjFromGraveyard': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          return !!x && x.owner === ctx.controller && (x.enteredFrom === 'graveyard' || (x.wasCast === this.turn && x.castFromZone === 'graveyard'));
         }
         case 'triggerObjNotCastFromHand': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
@@ -12476,6 +12540,15 @@
           return 0;
         }
       }
+      /* Khârn the Betrayer: "If damage would be dealt to Khârn, prevent that damage and an opponent of your choice
+         gains control of it." — the control change is part of the replacement, so it happens even where the damage
+         can't be prevented (CR 615.12) (damageGivesControl) */
+      if (o.zone === 'battlefield' && this._staticOp(o, 'damageGivesControl')) {
+        const prevent = !this._noPrevention(isCombat);
+        if (prevent) this.logEvent('damage', `${amount} damage to ${o.name} is prevented.`);
+        this._giveToAnOpponent(o);
+        if (prevent) return 0;
+      }
       // the Phantoms: "prevent that damage. Remove a +1/+1 counter from this creature."
       if (o.zone === 'battlefield' && this._hasFlag(o, 'phantom') && !this._noPrevention(isCombat)) {
         if (Number(o.counters['+1/+1']) > 0) {
@@ -13198,6 +13271,7 @@
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
         o._playFromTurn = null; o.playFromTypes = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
+        if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
         this._lastLeft = o.id;
@@ -13633,6 +13707,9 @@
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
           if (!!ab.fromExile !== (o.zone === 'exile')) continue;
+          // Zenos yae Galvus: "When the chosen creature leaves the battlefield"; Shinryu: "When the chosen player loses the game"
+          if (ab.chosenObjOnly && !(data.object && o.chosenObjId && data.object.id === o.chosenObjId)) continue;
+          if (ab.event === 'chosenPlayerLoses' && !(o.chosenOpponent && data.player === o.chosenOpponent)) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
           if (ab.self && !data.source) continue;
           // "When this Class becomes level 3" is only that level
@@ -16721,6 +16798,28 @@
           this.logEvent('control', `Each player gains control of the nonland permanents of the next player to the ${ctx.chosenDirection || 'left'}.`);
           break;
         }
+        /* Zenos yae Galvus: "choose a creature an opponent controls" — the pick (chooseFrom) is "the chosen creature"
+           for as long as this permanent stays */
+        case 'chooseLinked': {
+          const t0 = targets.find(t => t.kind === 'object');
+          ctx.chosenObj = t0 ? t0.id : null;
+          if (src) src.chosenObjId = ctx.chosenObj;
+          const x = t0 && this.obj(t0.id);
+          if (x) this.logEvent('rules', `${me.name} chooses ${x.name}.`);
+          break;
+        }
+        /* Zenos yae Galvus: "Until end of turn, creatures other than Zenos and the chosen creature get -2/-2." — the
+           creatures there as it resolves */
+        case 'pumpOthersThanChosen': {
+          const keep = ctx.chosenObj || null;
+          if (src && !ctx.chosenObj) src.chosenObjId = null;
+          for (const x of this.battlefield) {
+            if (x.phasedOut || (src && x.id === src.id) || x.id === keep || !(x.analysis() || {}).isCreature) continue;
+            x.effects.push({ p: e.p, t: e.t, until: 'eot' });
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'chooseOpponent': {
           const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
           const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
@@ -16729,6 +16828,8 @@
           const pick = got && got.picks.length ? this.player(got.picks[0]) : null;
           if (pick) {
             ctx.chosenPlayer = pick.id;
+            // (Shinryu, Transcendent Rival: "the chosen player", as long as this permanent stays)
+            if (src && src.zone === 'battlefield' && ctx.objId === src.id) src.chosenOpponent = pick.id;
             this.logEvent('rules', `${me.name} chooses ${pick.name}.`);
           }
           break;
@@ -18737,6 +18838,14 @@
           break;
         }
 
+        /* Grist, the Plague Swarm: "For each creature card in your graveyard, create a token that's a copy of it,
+           except it's a 1/1 black and green Insect." — each card there as this resolves (copyEach) */
+        case 'copyEach': {
+          const cards = this.zones[ctx.controller][e.zone || 'graveyard'].filter(c => this._cardFitsWords(c, e.filter || 'creature'));
+          const one = Object.assign({}, e, { op: 'copyPermanent', n: 1, grant: [] });
+          for (const c of cards) this._runEffect(Object.assign({}, one, { _forced: c }), ctx);
+          break;
+        }
         case 'copyPermanent': {
           let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
           // Cleaver Skaab: "copies of the sacrificed creature", as it last was
@@ -18775,7 +18884,7 @@
             }
             /* any other change (a size, a colour, a type): the face up is what is copied (CR 707.8), read as a
                card of its own, that face's words and types, not the two joined (copyFaceUp) */
-            const other = e.setPt || e.setColor || e.setType || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
+            const other = e.setPt || e.setColor || e.setColors || e.setType || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
             if (other) {
               const f = card.card_faces[faceUp] || card.card_faces[0];
               card = Object.assign({}, card, f, { id: card.id + ':face' + faceUp, card_faces: null, layout: 'normal' });
@@ -18788,11 +18897,12 @@
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null, wasLegendary: true });
           }
           // The Scarab God: "except it's a 4/4 black Zombie" — that size, that colour, and that creature type instead of its own
-          if (e.setPt || e.setColor || e.setType) {
+          if (e.setPt || e.setColor || e.setColors || e.setType) {
             let line = String(card.type_line || '');
             if (e.setType) line = line.replace(/\s*\u2014.*$/, '') + ' \u2014 ' + e.setType;
             const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
-            let cols = e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
+            // (Grist, the Plague Swarm: "a 1/1 black and green Insect" — setColors)
+            let cols = e.setColors ? e.setColors.map(w => COL[w]).filter(Boolean) : e.setColor ? (COL[e.setColor] ? [COL[e.setColor]] : []) : (card.colors || []);
             // Ratadrabik of Urborg: "a 2/2 black Zombie in addition to its other colors" (copyPlusKind)
             if (e.addColor && COL[e.addColor] && !cols.includes(COL[e.addColor])) cols = cols.concat([COL[e.addColor]]);
             const [pw, tg] = e.setPt ? e.setPt.split('/') : [card.power, card.toughness];
@@ -26278,6 +26388,8 @@
           if (x && x.zone === 'merged') { x.mergedInto = null; x.zone = null; leave(x); }
         }
       };
+      // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game."
+      this._fire('chosenPlayerLoses', null, { player: p.id });
       for (const o of this.battlefield.slice()) if (o.owner === p.id) leave(o);
       for (const it of this.stack.slice()) {
         if (it.kind === 'spell' && it.obj && !it.isCopy && it.obj.owner === p.id) leave(it.obj);
@@ -26400,6 +26512,7 @@
             if (o && x) this._exchangeText(o, x);
             break;
           }
+          if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
           // asked while casting: the cast starts again with the answer
           if (ch.then && ch.then.kind === 'cast') {
             const again = Object.assign({}, ch.then.opts);
