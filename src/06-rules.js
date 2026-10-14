@@ -7745,6 +7745,15 @@
         const sp = it && this.obj(it.objId);
         if (sp) opts = Object.assign({}, opts, { x: (sp.card && sp.card.cmc) || 0 });
       }
+      /* Sidisi, Regent of the Mire: "Sacrifice a creature you control with mana value X …: Return target creature
+         card with mana value X plus 1" — X is the target's mana value less one (mvXPlus) */
+      if (opts.x == null && ab.cost && ab.cost.sacrifice && /\bmana value X\b/i.test(ab.cost.sacrifice.filter || '') && !/\{X\}/.test(ab.cost.mana || '')) {
+        const specsX = effectSpecs(ab.effects);
+        const ix = specsX.findIndex(sp => sp && sp.mvXPlus != null);
+        const tx = ix >= 0 && (opts.targets || [])[ix];
+        const card = tx && tx.kind !== 'player' && this.obj(tx.id);
+        if (card) opts = Object.assign({}, opts, { x: ((card.card && card.card.cmc) || 0) - specsX[ix].mvXPlus });
+      }
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
@@ -8228,10 +8237,18 @@
        starts. */
 
     /** What this player could sacrifice to "Sacrifice a creature" and its relatives. */
-    _sacrificePool(pid, spec, self) {
-      const filter = String((spec && spec.filter) || 'permanent').replace(/^(?:another|other)\s+/i, '');
+    _sacrificePool(pid, spec, self, opts) {
+      let filter = String((spec && spec.filter) || 'permanent').replace(/^(?:another|other)\s+/i, '');
+      /* Sidisi, Regent of the Mire: "a creature you control with mana value X other than Sidisi" — X as worked out
+         from the target (any, while it isn't known), and not this one */
+      const notSelf = / other than CARDNAME$/.test(filter);
+      if (notSelf) filter = filter.replace(/ other than CARDNAME$/, '');
+      const mvX = / with mana value X$/.test(filter);
+      if (mvX) filter = filter.replace(/ with mana value X$/, '').replace(/ you control$/, '');
+      const xWant = mvX && opts && opts.x != null ? opts.x : null;
       return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._canSacrifice(x) &&
-        !(spec && spec.another && self && x.id === self.id) &&
+        !(spec && (spec.another || notSelf) && self && x.id === self.id) &&
+        (xWant == null || ((x.card && x.card.cmc) || 0) === xWant) &&
         (/^(?:permanent|permanents)$/i.test(filter) || this._cardFitsWords(x, filter)));
     }
     /** Alexios, Deimos of Kosmos, Hithlain Rope: "can't be sacrificed" — not a choice, and not gone if picked anyway. */
@@ -8317,8 +8334,8 @@
       return this.battlefield.find(o => !o.phasedOut && this._staticOp(o, 'noLifeSacCosts')) || null;
     }
     /** What a cost's "Sacrifice a …" may take: under Yasharn, lands only. */
-    _costSacPool(pid, spec, self) {
-      const pool = this._sacrificePool(pid, spec, self);
+    _costSacPool(pid, spec, self, opts) {
+      const pool = this._sacrificePool(pid, spec, self, opts);
       return this._lifeSacCostBan() ? pool.filter(x => (x.analysis() || {}).isLand) : pool;
     }
     /** Why these card costs cannot be paid right now, or null if they can. */
@@ -8334,7 +8351,7 @@
       }
       if (cost.sacrifice) {
         const need = this._costCount(cost.sacrifice.n, opts);
-        if (this._costSacPool(pid, cost.sacrifice, self).length < need)
+        if (this._costSacPool(pid, cost.sacrifice, self, opts).length < need)
           return `Nothing to sacrifice (${cost.sacrifice.filter || 'permanent'}).`;
       }
       /* Viscerid Drone: "Sacrifice a creature and a Swamp" — enough of each, and
@@ -8429,7 +8446,7 @@
         playerId: pid, purpose: 'cost', stackId: item ? item.id : null, sourceId: self ? self.id : null,
       }, choice));
       if (cost.sacrifice) {
-        let pool = this._costSacPool(pid, cost.sacrifice, self);
+        let pool = this._costSacPool(pid, cost.sacrifice, self, opts);
         /* Viscerid Drone: the first part never takes what the second part
            needs — only what leaves enough for it (sacrificeAlso) */
         const also = cost.sacrificeAlso ? this._costSacPool(pid, cost.sacrificeAlso, self) : null;
@@ -18704,7 +18721,7 @@
               this.moveObject(x, 'battlefield', Object.assign({ controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (e.tapped) x.tapped = true;
-              /* Olivia, Crimson Bride: "tapped and attacking" — at whoever the creature that set it off attacks,
+              /* Olivia, Crimson Bride; Alesha, Who Smiles at Death: "tapped and attacking" — at whoever the creature that set it off attacks,
                  during combat; never declared */
               if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
                 const by = this.obj((ctx.triggerData || {}).objectId) || src;

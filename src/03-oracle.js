@@ -1800,8 +1800,13 @@
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Ruthless Technomancer: "Return target creature card with power X or less from your graveyard to the battlefield.
-    { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
-      make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    /* Sidisi, Regent of the Mire: "Return target creature card with mana value X plus 1 from your graveyard to the
+       battlefield." — X the mana value of the creature sacrificed to pay for it, worked out from the target (mvXPlus) */
+    { re: /^Return (target [a-z ]+?) card with mana value X plus (\d+) from your graveyard to the battlefield\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'reanimate', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you', mvXPlus: +m[2] })] } : null; } },
+    // (Alesha, Who Smiles at Death: "… to the battlefield tapped and attacking" — at whoever it attacks: attacking)
+    { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? Object.assign({ op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] }, m[4] ? { attacking: true } : {}) : null; } },
     // Lazotep Quarry: "Exile target creature card with mana value X from your graveyard."
     // Narset, Enlightened Exile: "Exile target noncreature, nonland card with mana value less than Narset's power from a graveyard" (maxMvBelowSourcePower)
     { re: /^Exile (target [a-z, ]+? card) with mana value less than (?:CARDNAME|this creature)'?s power from a graveyard\.?$/i,
@@ -3233,6 +3238,11 @@
     // Lozhan, Dragons' Legacy: "deals damage equal to that spell's mana value to any target that isn't a commander" (notCommanderTarget)
     { re: /^(?:CARDNAME|It|This creature) deals damage equal to that spell'?s mana value to any target that isn'?t a commander\.?$/i,
       make: () => ({ op: 'damage', n: { ofTrigger: 'mv' }, targets: [Object.assign(targetSpec('any target'), { notCommander: true })] }) },
+    /* Inferno of the Star Mounts: "When its power becomes 20 this way, it deals 20 damage to any target." — the +1/+0
+       just given made it exactly 20; a trigger of its own, its target chosen then (reflexive, selfPowerIs) */
+    { re: /^When its power becomes (\d+) this way, (?:it|CARDNAME) deals (\d+) damage to any target\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] },
+        then: [{ op: 'reflexive', effects: [{ op: 'damage', n: +m[2], targets: [targetSpec('any target')] }], text: m[0] }] }) },
     // Amalia Benavides Aguirre: "Then destroy all other creatures if its power is exactly 20." (selfPowerIs)
     { re: /^(?:Then )?destroy all other creatures if its power is exactly (\d+)\.?$/i,
       make: (m) => { const inner = parseEffectSentence('Destroy all other creatures.', 1); return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] }, then: [inner] } : null; } },
@@ -5317,6 +5327,13 @@
     // Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed cards into your hand."
     { re: /^For each card type, you may put a card of that type from among (?:the revealed cards|them) into your hand\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 99, filter: 'any', to: 'hand', optional: true, rest: 'keep', perCardType: true }) },
+    // Choco, Seeker of Paradise: "You may put one of them into your hand."
+    { re: /^You may put one of them into your hand\.?$/i, make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', optional: true, rest: 'keep',
+      prompt: 'You may put one of them into your hand.' }) },
+    // Choco, Seeker of Paradise: "Then put any number of land cards from among them onto the battlefield tapped and the rest into your graveyard."
+    { re: /^(?:Then )?put any number of (land|creature|artifact|permanent) cards from among them onto the battlefield( tapped)? and the rest into your graveyard\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[2], optional: true, rest: 'graveyard',
+        prompt: `Put any number of ${m[1].toLowerCase()} cards from among them onto the battlefield${m[2] ? ' tapped' : ''}. The rest go into your graveyard.` }) },
     // Malevolent Rumble: "You may put a permanent card from among them into your hand."
     { re: /^You may put an? ([-a-z ]*?)card from among them into your hand\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'keep' }) },
@@ -7823,6 +7840,8 @@
     if (mvMax != null && (obj.card.cmc || 0) > mvMax) return false;
     if (mvMin != null && (obj.card.cmc || 0) < mvMin) return false;
     if (mvIs != null && (obj.card.cmc || 0) !== mvIs) return false;
+    // Sidisi, Regent of the Mire: "with mana value X plus 1" (mvXPlus)
+    if (spec.mvXPlus != null && ctx && ctx.x != null && (obj.card.cmc || 0) !== ctx.x + spec.mvXPlus) return false;
     if (spec.attacking && !obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
@@ -9021,6 +9040,11 @@
         }
         return out;
       } },
+    /* Horde of Notions: "You may play target Elemental card from your graveyard without paying its mana cost." — a card
+       of that creature type, kindred spells too (no land is an Elemental, so "play" is casting it), now (castFree) */
+    { re: /^You may (?:play|cast) target ([A-Z][a-z]+) card from your graveyard without paying its mana cost\.?$/,
+      make: (m) => [{ op: 'castFree', from: 'targets', upTo: 1, exileAfter: false,
+        targets: [{ type: 'card', filter: m[1] + ' card', zone: 'graveyard', controller: 'you', subtypes: [m[1].toLowerCase()] }] }] },
     /* Goblin Dark-Dwellers, Memory Plunder: "you may cast target instant or
        sorcery card with mana value 3 or less from your graveyard without
        paying its mana cost. If that spell would be put into your graveyard,
