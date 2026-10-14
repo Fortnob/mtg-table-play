@@ -864,6 +864,8 @@
       const ap = this.activePlayer;
       ap.landsPlayed = 0;
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
+      // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
+      if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
@@ -18578,7 +18580,8 @@
           const order = this.players.filter(q => !q.hasLost);
           const yes = [];
           for (const q of order) {
-            const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}`;
+            const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}` +
+              (e.noAttackNext && q.id !== ctx.controller ? ` (if you do, you can't attack ${me.name} or permanents ${me.name} controls during your next turn)` : '');
             const got = this._ask({ type: 'confirm', playerId: q.id, purpose: 'eachMay', prompt: `${ctx.name ? ctx.name + ': ' : ''}${what}?` }, 'em:' + q.id);
             if (got === SUSPEND) return SUSPEND;
             if (got) yes.push(q);
@@ -18587,6 +18590,9 @@
             if (e.discardHand) this._discardNow(q.id, this.zones[q.id].hand.slice());
             this._drawCards(q, e.draw || 1);
             if (e.gain) this.changeLife(q, e.gain);
+            /* The Second Doctor: "Each opponent who does can't attack you or permanents you control during their
+               next turn." — set now, live from that player's next turn beginning to its end (noAttackOn) */
+            if (e.noAttackNext && q.id !== ctx.controller) (q.noAttackOn = q.noAttackOn || []).push({ who: ctx.controller, on: null });
           }
           break;
         }
@@ -24817,6 +24823,10 @@
       // (Xantcha, Sleeper Agent: "or planeswalkers its owner controls" — walkers)
       const ownerRule = def.id === o.owner && this._staticOp(o, 'cantAttackOwner');
       if (ownerRule && (!walker || ownerRule.walkers)) return { src: o, who: walker ? 'planeswalkers ' + def.name + ', its owner, controls' : def.name + ', its owner' };
+      // The Second Doctor: "can't attack you or permanents you control during their next turn" (noAttackOn)
+      const atkP = this.player(o.controller);
+      const civil = atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id);
+      if (civil) return { src: o, who: walker ? 'permanents ' + def.name + ' controls' : def.name };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();

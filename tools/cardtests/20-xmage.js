@@ -30182,4 +30182,36 @@ module.exports = (test) => {
     M.nextTurn('A');
     t.ok(g.canAttack(bear), 'Bumi: only that combat');
   });
+
+  test('Commanders: The Second Doctor — at your end step each player may draw; an opponent who does can\'t attack you or yours next turn', (mk, t) => {
+    t.auto('The Second Doctor');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    M.bf('A', 'The Second Doctor');
+    const walker = M.bf('A', 'Ajani Goldmane');
+    const bearB = M.bf('B', 'Grizzly Bears');
+    const bearC = M.bf('C', 'Grizzly Bears');
+    const hands = () => ['A', 'B', 'C'].map(p => M.zone(p, 'hand').length);
+    const before = hands();
+    const prompts = {};
+    for (let i = 0; i < 3; i++) M.answer('confirm', (ch) => { prompts[ch.playerId] = ch.prompt; return { yes: ch.playerId !== 'C' }; });
+    M.nextTurn('B');
+    const after = hands();
+    t.eq(after[0], before[0] + 1, 'The Second Doctor: A drew');
+    t.eq(after[1], before[1] + 2, 'The Second Doctor: B drew, and drew for the turn');
+    t.eq(after[2], before[2], 'The Second Doctor: C did not');
+    t.ok(/can't attack A/.test(prompts.B || ''), 'The Second Doctor: B is told what drawing costs');
+    t.no(/can't attack/.test(prompts.A || ''), 'The Second Doctor: not A');
+    // B's turn: not at A, nor A's planeswalker; at C is fine
+    t.ok(g._cantAttackYou(bearB, 'A'), "The Second Doctor: B can't attack A");
+    t.ok(g._cantAttackYou(bearB, walker.id), "The Second Doctor: nor A's planeswalker");
+    t.no(g._cantAttackYou(bearB, 'C'), 'The Second Doctor: B may attack C');
+    // C didn't draw: free to attack A on its turn
+    M.nextTurn('C');
+    t.no(g._cantAttackYou(bearC, 'A'), "The Second Doctor: C didn't draw");
+    // A's next end step: everyone declines; B's next turn is free
+    for (let i = 0; i < 3; i++) M.answer('confirm', () => ({ yes: false }));
+    M.nextTurn('B');
+    t.no(g._cantAttackYou(bearB, 'A'), 'The Second Doctor: only during that next turn');
+  });
 };

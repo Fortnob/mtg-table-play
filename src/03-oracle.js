@@ -8070,6 +8070,10 @@
     // Kwain: "Each player may draw a card, then each player who drew a card this way gains 1 life."
     { re: /^Each player may draw a card, then each player who drew a card this way gains (\d+) life\.$/i,
       make: (m) => [{ op: 'eachMay', draw: 1, gain: +m[1] }] },
+    /* The Second Doctor: "Each player may draw a card. Each opponent who does can't attack you or permanents you control
+       during their next turn." (noAttackNext) */
+    { re: /^Each player may draw a card\. Each opponent who does can'?t attack you or permanents you control during their next turn\.?$/i,
+      make: () => [{ op: 'eachMay', draw: 1, noAttackNext: true }] },
     // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
     { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
       make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
