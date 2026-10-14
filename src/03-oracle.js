@@ -1668,6 +1668,11 @@
        player" — which ones, picked as it resolves, from those that can go there (attachAnyTo) */
     { re: /^Attach any number of Auras and Equipment you control to target permanent or player\.?$/i,
       make: () => ({ op: 'attachAnyTo', targets: [{ type: 'any', filter: 'permanent or player', zone: 'battlefield', anyOf: ['permanent'] }] }) },
+    /* Bruna, Light of Alabaster: "you may attach to it any number of Auras on the battlefield and you may put onto the
+       battlefield attached to it any number of Aura cards that could enchant it from your graveyard and/or hand" — both
+       picked in one go (attachAurasToSelf) */
+    { re: /^(?:you may )?attach to (?:it|CARDNAME) any number of Auras on the battlefield and you may put onto the battlefield attached to (?:it|CARDNAME) any number of Aura cards that could enchant it from your graveyard and\/or hand\.?$/i,
+      make: () => ({ op: 'attachAurasToSelf', from: ['graveyard', 'hand'] }) },
     // Beatrix, Loyal General: "attach any number of Equipment you control to target creature you control" (attachAnyTo onlyEquipment)
     // (Thorin, Mountain-king: "attach any number of target Equipment you control to target creature you control" — picked as it resolves)
     { re: /^Attach any number of (?:target )?Equipment you control to (target creature you control)\.?$/i,
@@ -4755,6 +4760,9 @@
       make: (m) => Object.assign({ op: 'impulse', n: (m[1] || m[2]) ? num(m[1] || m[2]) : 1, play: false, faceDown: true }, /^Look/i.test(m[0]) ? { look: true } : {}) },
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
+    // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
+    { re: /^For as long as (?:that card|it) remains exiled, its owner may play it\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', who: 'owner' }) },
     // Gandalf, Goblins' Bane (Flameshape): "For as long as they remain exiled, you may play them if you control a Wizard." (ifControl)
     { re: /^For as long as (?:they|it|those cards|that card) remains? exiled, you may play (?:them|it) if you control an? ([A-Z][a-z]+)\.?$/,
       make: (m) => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', ifControl: m[1] }) },
@@ -5035,10 +5043,13 @@
        as its own card's would be, and only if they read whole (namedTokenDef) */
     // (Svella, Ice Shaper: "a colorless snow artifact token named Icy Manalith" — snow too;
     //  Kibo, Uktabi Prince: "Each player creates a colorless artifact token named Banana with …" — each)
-    { re: /^(?:You create|Create|create|(Each player) creates) (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
+    // (Farid, Enterprising Salvager: "create a colorless artifact token named Scrap." — nothing more to it)
+    { re: /^(?:You create|Create|create|(Each player) creates) (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?)(?: with "([^"]+)"(?: and "([^"]+)")?)?\.?$/,
       make: (m0) => {
         const m = [m0[0]].concat(m0.slice(2));
         const snow = / colorless snow artifact /.test(m[0]);
+        if (!m[4] && /\s[a-z]/.test(m[3])) return null;
+        if (!m[4]) return Object.assign({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: snow ? 'Token Snow Artifact' : 'Token Artifact', text: '' } }, m0[1] ? { who: 'each' } : {});
         // (each ability a sentence of its own, and the token calling itself a token, as printed)
         const text = [m[4], m[5]].filter(Boolean).map(x => x.replace(/\bthis creature\b/g, 'this token').replace(/([^.])$/, '$1.')).join('\n');
         const probe = analyze({ id: 'tokentext:' + U.hash(m[3] + text), name: m[3], type_line: 'Token Artifact', oracle_text: text, keywords: [], layout: 'token' });
@@ -13424,6 +13435,8 @@
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
     // Don Andres, the Renegade: "Whenever you cast a noncreature spell you don't own"
     { re: /^Whenever you cast an? ([a-z]+) spell you don'?t own,? /i, event: 'youCastSpell', extraOf: (m) => ({ notOwnedSpell: true, spellFilter: m[1].toLowerCase() }) },
+    // Prowl, Stoic Strategist: "Whenever a player plays a card exiled with Prowl" — cast or played as a land (playedExiledWithSelf)
+    { re: /^Whenever a player plays a card exiled with (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', also: 'anyPlayLand', extra: { playedExiledWithSelf: true } },
     // Ivy, Gleeful Spellthief: "Whenever a player casts a spell that targets only a single creature other than Ivy" (targetsOneOtherCreature)
     { re: /^Whenever a player casts a spell that targets only a single creature other than (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', extra: { targetsOneOtherCreature: true } },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
@@ -13477,6 +13490,11 @@
     { re: /^Whenever you cast a spell with \{X\} in its mana cost or activate an ability with \{X\} in its activation cost,? /i,
       event: 'youCastSpell', also: 'youActivateAbility', extra: { xSpell: true } },
     { re: /^Whenever you cast a spell with \{X\} in its mana cost,? /i, event: 'youCastSpell', extra: { xSpell: true } },
+    /* Namor the Sub-Mariner: "Whenever you cast a noncreature spell with one or more blue mana symbols in its mana cost"
+       (symbolSpell: a symbol with that colour in it, hybrid and Phyrexian too) */
+    { re: /^Whenever you cast an? (noncreature |instant or sorcery |creature )?spell with one or more (white|blue|black|red|green) mana symbols in its mana cost,? /i,
+      event: 'youCastSpell', filt: (m) => (m[1] ? spellFilter(m[1]) : null),
+      extraOf: (m) => ({ symbolSpell: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()] }) },
     // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
     // (Blightwing Bandit: "that player" is the opponent whose turn it is — thatPlayerActive)
     { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true, thatPlayerActive: true } },
@@ -15459,7 +15477,8 @@
         const lvlHit = trig.atLevel ? line.match(trig.re) : null;
         /* Ardenn, Intrepid Archaeologist: "you may attach any number of …" — none of them is the "no", so the "may"
            is not asked on its own (mayIsAnyNumber) */
-        let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'attachAnyTo';
+        // (Bruna, Light of Alabaster: "you may attach to it any number of Auras …" — attachAurasToSelf)
+        let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && (parsed.effects[0].op === 'attachAnyTo' || parsed.effects[0].op === 'attachAurasToSelf');
         /* Light-Paws, Emperor's Voice: "you may search your library for an Aura card …" — finding none is the "no", one
            optional pick (mayPick) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'tutor' && parsed.effects[0].attachSelf) {
@@ -15491,6 +15510,9 @@
           ...(trig.extra || {}), ...(trig.extraOf ? trig.extraOf(line.match(trig.re)) : {}),
           intervening: !condition && /if |unless /i.test(body.split('.')[0] || ''),
         });
+        // Namor the Sub-Mariner: "create that many" — the spell's symbols of that colour (triggerSpellSymbols)
+        { const ab0 = out.abilities[out.abilities.length - 1];
+          if (ab0.symbolSpell) for (const e of ab0.effects || []) if (e && e.n === 'triggerAmount') e.n = { triggerSpellSymbols: ab0.symbolSpell }; }
         if (parsed.auto) autoLines++;
         continue;
       }
@@ -15780,6 +15802,14 @@
       if (defiler) {
         out.abilities.push({ kind: 'static', text: line, auto: true,
           effects: [{ op: 'defilerCost', words: defiler[1].toLowerCase() + ' permanent', life: +defiler[2], symbol: defiler[3].toUpperCase() }] });
+        autoLines++;
+        continue;
+      }
+      /* Hogaak, Arisen Necropolis: "You can't spend mana to cast this spell." — convoke, delve and the
+         like pay all of it, or it isn't cast (noManaSpend) */
+      if (/^You can't spend mana to cast this spell\.?$/i.test(line)) {
+        out.noManaSpend = true;
+        out.abilities.push({ kind: 'castModifier', text: line, auto: true, effects: [] });
         autoLines++;
         continue;
       }

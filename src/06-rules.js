@@ -4016,11 +4016,12 @@
     _convokeColors(pid, o, among) {
       if (!o || !this._costRed(o, pid).convoke) return [];
       const a = o.analysis();
-      const syms = MANA.parse(((a && a.manaCost) || '') + this._costExtraSymbols(o, pid)).filter(s => /^[WUBRG]$/.test(s));
+      // (a hybrid symbol, Hogaak's {B/G}: a creature of either colour — CR 702.51a, 107.4e)
+      const syms = MANA.parse(((a && a.manaCost) || '') + this._costExtraSymbols(o, pid)).filter(s => /^[WUBRG](\/[WUBRG])?$/.test(s));
       if (!syms.length) return [];
       const list = (among || this._reductionCandidates(pid, o, 'convoke')).slice().sort((x, y) => this._cardValue(x) - this._cardValue(y));
       const colorsOf = (x) => (this.characteristics(x) || {}).colors || (x.card && x.card.colors) || [];
-      const can = syms.map(s => list.filter(x => colorsOf(x).includes(s)));
+      const can = syms.map(s => list.filter(x => s.split('/').some(c => colorsOf(x).includes(c))));
       const owner = new Map();   // creature id -> the symbol it pays
       const tryAt = (i, seen) => {
         for (const x of can[i]) {
@@ -4068,8 +4069,10 @@
       /* "costs {1} less for each…" and the permanents that discount spells
          are counted in _costDelta, from the same reading of the text. */
       // a cost can never be reduced below its coloured requirements
-      const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x))
+      let generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x))
         .reduce((acc, x) => acc + parseInt(x, 10), 0);
+      // (what a tax adds is generic mana too, commander tax among it: convoke and delve pay it — CR 601.2f)
+      if (cut > generic) generic += this._commanderTax(o).mana + Math.max(0, this._costDelta(o, pid, []));
       return U.clamp(cut, 0, generic);
     }
 
@@ -4112,7 +4115,7 @@
       const cr = this._costRed(o, pid);
       if (!cr.convoke && !cr.improvise && !cr.delve) return null;
       const generic = MANA.parse(a.manaCost || '').filter(x => /^\d+$/.test(x)).reduce((acc, x) => acc + parseInt(x, 10), 0);
-      const room = Math.max(0, generic + this._costDelta(o, pid));
+      const room = Math.max(0, generic + this._commanderTax(o).mana + this._costDelta(o, pid));
       let left = Math.min(this.costReductionFor(o), room);
       if (cr.affinity) {
         const f = cr.affinity;
@@ -4451,6 +4454,9 @@
          as the cast will have it; the cast itself starts from baseCost and
          raises it once its own additions are in (an {X} is chosen then) */
       const fl = !opts && !/\{X\}/.test(plainCost) ? this._floorCost(playerId, o, plainCost, 0, true) : null;
+      // Hogaak, Arisen Necropolis: "You can't spend mana to cast this spell." — what convoke and delve leave unpaid stops it
+      if (a.noManaSpend && MANA.parse(fl && fl.fl ? fl.cost : plainCost).some(x => x !== '0'))
+        return { ok: false, reason: `You can't spend mana to cast ${o.name}, and convoke and delve can't pay all of it.` };
       return fl && fl.fl ? { ok: true, cost: fl.cost, baseCost: plainCost } : { ok: true, cost: plainCost };
     }
 
@@ -6590,10 +6596,12 @@
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
         if (via && via.via === 'granted' && o._silenceAfterCast) { p.silencedTurn = this.turn; o._silenceAfterCast = false; }
         if (!via) return this.fail('That card cannot be cast that way from here.');
-        if (opts.costOverride == null) cost = via.cost;
+        /* "You may cast this card from your graveyard" (selfGrave): its mana cost, priced as from the hand,
+           convoke and delve included (Hogaak, Arisen Necropolis) */
+        if (opts.costOverride == null) cost = via.via === 'selfGrave' ? chkBase : via.cost;
         /* Another cost is still raised and cut like the mana cost (CR 601.2f): Green Goblin's "Spells you cast from
            your graveyard cost {2} less" on a mayhem cost, a Thalia's tax on a flashback cost */
-        if (opts.costOverride == null && cost && !opts.free) {
+        if (opts.costOverride == null && cost && !opts.free && via.via !== 'selfGrave') {
           const less = [];
           const d = this._costDelta(o, playerId, less);
           if (d) cost = this._addGeneric(cost, d);
@@ -6814,7 +6822,7 @@
         const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
         /* convoke, improvise and delve pay for the spell rather than make it
            cheaper (CR 702.51b), so what they would pay is still in its price */
-        const paidOther = floor && !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId)
+        const paidOther = floor && !opts.free && (!via || via.via === 'selfGrave') && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId)
           ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
         const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}')) + paidOther;
         if (floor && total < floor) {
@@ -6839,13 +6847,16 @@
          player chose (checked before any mana goes), or the cheapest there
          is. Whatever they chose not to use is paid in mana. */
       // (only when the cost is the one with the discount in it: not Omniscience's nothing)
-      const reduces = !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId);
+      const reduces = !opts.free && (!via || via.via === 'selfGrave') && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId);
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
       if (plan && plan.recolor) cost = plan.recolor(cost);
       // convoke's coloured symbols, paid by the creatures of their colours (the cheapest), when the player chose none
       const ccHeld = reduces && !plan ? this._convokeColors(playerId, o).map(x => x.obj) : [];
+      // Hogaak, Arisen Necropolis: "You can't spend mana to cast this spell." (noManaSpend)
+      if (a && a.noManaSpend && MANA.parse(cost || '').some(x => x !== '0'))
+        return this.fail(`You can't spend mana to cast ${o.name}: convoke and delve have to pay all of it (${cost} is left).`);
       o._phyLife = 0;
       if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
@@ -6992,6 +7003,8 @@
       // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
       const fromZone = o.zone;
+      // (Prowl, Stoic Strategist: "a card exiled with Prowl", cast — _leftExileWith)
+      o._leftExileWith = fromZone === 'exile' ? (o.exiledWithId || null) : null;
       this._removeFromZone(o);
       o.zone = 'stack';
       o.adventureBy = null;
@@ -14785,6 +14798,8 @@
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
       o.drawnTurn = null;
       // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
+      // (Prowl, Stoic Strategist: "a card exiled with Prowl" is still known as it is played — _leftExileWith)
+      o._leftExileWith = from === 'exile' && toZone !== 'exile' ? (o.exiledWithId || null) : null;
       if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
@@ -15876,6 +15891,10 @@
               : ((xo && xo.analysis && (xo.analysis() || {}).manaCost) || ((xo && xo.card) || {}).mana_cost || '');
             if (!/\{X\}/.test(mc)) continue;
           }
+          // Prowl, Stoic Strategist: "Whenever a player plays a card exiled with Prowl" (playedExiledWithSelf)
+          if (ab.playedExiledWithSelf && !(data.object && data.object._leftExileWith === o.id)) continue;
+          // Namor the Sub-Mariner: "with one or more blue mana symbols in its mana cost" (symbolSpell)
+          if (ab.symbolSpell && !this._triggerSpellSymbols(data, ab.symbolSpell)) continue;
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
           // Geralf, the Fleshwright: "other than your first spell that turn" (notFirstSpell)
           if (ab.notFirstSpell && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) < 2) continue;
@@ -17079,6 +17098,8 @@
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
         // (Runadi, Behemoth Caller: "its mana value minus 4" — minus)
         if (v && typeof v === 'object' && v.triggerSpellMv) return Math.max(0, this._triggerSpellMv(ctx.triggerData) - (v.minus || 0));
+        // Namor the Sub-Mariner: "create that many" — the triggering spell's mana symbols of a colour (triggerSpellSymbols)
+        if (v && typeof v === 'object' && v.triggerSpellSymbols) return this._triggerSpellSymbols(ctx.triggerData, v.triggerSpellSymbols);
         // Amzu, Swarm's Hunger: "the greatest mana value among those cards" — the lot the trigger is about (batchMaxMv)
         if (v && typeof v === 'object' && v.batchMaxMv) {
           const td = ctx.triggerData || {};
@@ -27780,6 +27801,50 @@
           }
           break;
         }
+        /* Bruna, Light of Alabaster: "you may attach to it any number of Auras on the battlefield and you may put onto
+           the battlefield attached to it any number of Aura cards that could enchant it from your graveyard and/or
+           hand" — anybody's Auras that could legally go on it (CR 701.3b), and the cards that could enchant it, in
+           one pick; an Aura moved keeps its controller (attachAurasToSelf) */
+        case 'attachAurasToSelf': {
+          const hostB = src && src.zone === 'battlefield' ? src : null;
+          if (!hostB) break;
+          const onBf = this.battlefield.filter(x => x !== hostB && !x.phasedOut && x.attachedTo !== hostB.id && this._auraNow(x) && this._attachableTo(x, hostB, null));
+          const cards = [];
+          for (const zn of (e.from || ['hand'])) for (const c of (this.zones[ctx.controller][zn] || [])) {
+            const ca = c.analysis() || {};
+            if (ca.isAura && this._attachLegal(c, ca, hostB)) cards.push(c);
+          }
+          const pool = onBf.concat(cards);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'attachAnyTo', kind: 'objects', items: this._chooseItems(pool), min: 0, max: pool.length,
+            optional: true, hostId: hostB.id,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}attach any number of Auras on the battlefield to ${hostB.name}, and put any number of Aura cards from your graveyard and hand onto the battlefield attached to it.` }, 'aas');
+          if (got === SUSPEND) return SUSPEND;
+          const moved = [];
+          for (const id of (got && got.picks) || []) {
+            const x = this.obj(id);
+            if (!x || !pool.includes(x) || hostB.zone !== 'battlefield') continue;
+            if (onBf.includes(x)) {
+              if (x.zone !== 'battlefield' || !this._attachableTo(x, hostB, null)) continue;
+              const old = x.attachedTo && (this.obj(x.attachedTo));
+              if (old) old.attachments = (old.attachments || []).filter(y => y !== x.id);
+              x.attachedTo = hostB.id;
+              x.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+              hostB.attachments = (hostB.attachments || []).filter(y => y !== x.id).concat(x.id);
+              moved.push(x.name);
+              continue;
+            }
+            if (!(e.from || ['hand']).includes(x.zone) || x.owner !== ctx.controller) continue;
+            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+            if (x.zone !== 'battlefield') continue;
+            x.attachedTo = hostB.id;
+            hostB.attachments = (hostB.attachments || []).filter(y => y !== x.id).concat(x.id);
+            this.logEvent('attach', `${x.name} enters attached to ${hostB.name}.`);
+          }
+          if (moved.length) this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${hostB.name}.`);
+          this.bumpBoard();
+          break;
+        }
         /* Zack Fair: "attach an Equipment that was attached to Zack Fair to that creature" — one that was on it as it
            left and is still on the battlefield, chosen when there are more; one that couldn't legally go there stays
            where it is (CR 701.3b) (attachLeftEquipment) */
@@ -29911,6 +29976,7 @@
         o.manaSpent = price ? MANA.cmc(price) : 0;
       }
       const fromZone = o.zone;
+      o._leftExileWith = fromZone === 'exile' ? (o.exiledWithId || null) : null;
       this._removeFromZone(o);
       o.zone = 'stack';
       o.controller = playerId;
@@ -30880,6 +30946,8 @@
       const ha = host.analysis();
       if (!ha) return false;
       if (a.isAura) {
+        // (Bruna, Light of Alabaster: a Curse — "Enchant player" — enchants no permanent)
+        if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return false;
         const en = this._staticOp(o, 'enchant') || ((O.analyze(o.card, o.face) || {}).abilities || [])
           .map(ab => (ab.effects || []).find(e => e && e.op === 'enchant')).find(Boolean);
         const filter = String((en && en.filter) || '').toLowerCase().trim();
@@ -32239,6 +32307,17 @@
       const st = this.stack.find(s2 => s2.kind === 'spell' && (s2.id === td.stackId || s2.objId === x.id));
       const xa = x.analysis() || {};
       return (st && xa.mv != null ? xa.mv : ((x.card && x.card.cmc) || 0)) + (st ? this._xMv(st) : 0);
+    }
+    /** Namor the Sub-Mariner: how many mana symbols of a colour the triggering spell's mana cost has — hybrid and Phyrexian ones too
+        (the face cast: a split card's half, both halves fused) */
+    _triggerSpellSymbols(td, color) {
+      td = td || {};
+      const xo = td.object || (td.objectId && this.obj(td.objectId));
+      if (!xo) return 0;
+      const xItem = td.stackId ? this.stack.find(st => st.id === td.stackId) : null;
+      const mc = xItem && xItem.fused && xo.card && xo.card.card_faces ? xo.card.card_faces.map(f => f.mana_cost || '').join('')
+        : ((xo.analysis && (xo.analysis() || {}).manaCost) || (xo.card || {}).mana_cost || '');
+      return MANA.parse(mc).filter(s => s.split('/').includes(color)).length;
     }
     /** Krile Baldesion: "target creature card with mana value equal to that spell's mana value" (mvEqTrigger) */
     _mvEqTriggerSpec(spec, td) {
