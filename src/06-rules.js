@@ -3696,6 +3696,8 @@
       if (v.playersLostLife) return this.players.filter(q => !q.hasLost && (q.lifeLostThisTurn || 0) > 0).length * mult;
       // Rakdos, Lord of Riots: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
       if (v.opponentsLifeLost) return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0) * mult;
+      // Indoraptor, the Perfect Hybrid: "Bloodthirst X" — the damage dealt to your opponents this turn (opponentsDamaged)
+      if (v.opponentsDamaged) return this.opponentsOf(pid).reduce((k, q) => k + (q.damageTaken && q.damageTaken.turn === this.turn ? q.damageTaken.n : 0), 0) * mult;
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
       // (The Balrog, Durin's Bane: "each permanent sacrificed this turn" — every player's: byAnyone)
       if (v.sacrificedThisTurn && v.byAnyone) return Object.values(((this.turnHistory || {}).sacrificedBy) || {}).reduce((k, l) => k + (l || []).length, 0) * mult;
@@ -12933,6 +12935,8 @@
         case 'returnedType': return (this._returnedNow || []).some(r => (!cond.other || !r.self) && r.subtypes.includes(cond.type));
         case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
         case 'lostLifeThisTurn': return !!me && (me.lifeLostThisTurn || 0) > 0;
+        // Bloodthirst N: "If an opponent was dealt damage this turn" (opponentDamagedThisTurn)
+        case 'opponentDamagedThisTurn': return !!me && this.opponentsOf(me.id).some(q => q.damageTaken && q.damageTaken.turn === this.turn && q.damageTaken.n > 0);
         // Blowfly Infestation: the creature that died had that counter as it went
         // Koll, the Forgemaster: "if it was enchanted or equipped" — what it had on it as it left (_lastAttachments)
         case 'triggerObjWas': {
@@ -14258,6 +14262,9 @@
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
+      // Bloodthirst (CR 702.54): the damage a player has been dealt this turn, infect or not (damageTaken)
+      if (!p.damageTaken || p.damageTaken.turn !== this.turn) p.damageTaken = { turn: this.turn, n: 0 };
+      p.damageTaken.n += amount;
       this._noteNoncombatDamage(source, amount, combat);
       this._lifelinkFrom(source, amount, combat);
       // toxic (CR 702.164): combat damage to a player gives poison counters as well
@@ -20696,6 +20703,7 @@
           const able = (!pay.mana || this.couldPay(ctx.controller, pay.mana, this.manaSources(ctx.controller))) &&
             (pay.life == null || me.life > pay.life || this.config.rulesEnforcement !== 'full') &&
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
+            (!pay.removeEach || this._counterCostPool(ctx.controller, pay.removeEach, null).length >= pay.removeEach.n) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
@@ -20708,7 +20716,7 @@
             (!pay.tapUntapped || this._tapCostPool(ctx.controller, pay.tapUntapped, src, false).length >= (pay.tapUntapped.n || 1)) &&
             // Timothar, Baron of Bats: "pay {1} and exile it" — not when the card that died has left the graveyard (exileTriggerCard)
             (!pay.exileTriggerCard || ((c0) => !!(c0 && c0.zone === 'graveyard'))(this.obj((ctx.triggerData || {}).objectId)));
-          if (!able && (pay.exileTriggerCard || pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          if (!able && (pay.exileTriggerCard || pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")
@@ -20736,6 +20744,28 @@
             if (picks.length < want) { this._spliceNext(e.otherwise); break; }
             for (const o of picks) this._markTapped(o);
             this.logEvent('rules', `${me.name} taps ${picks.map(o => o.name).join(', ')}.`);
+            this._spliceNext(e.then);
+            break;
+          }
+          /* Dyadrine, Synthesis Amalgam: "you may remove a +1/+1 counter from each of two creatures you control. If you
+             do, …" — which two asked only when there are more (removeEach) */
+          if (pay.removeEach) {
+            const pool = this._counterCostPool(ctx.controller, pay.removeEach, null);
+            const want = pay.removeEach.n, k = pay.removeEach.kind;
+            let picks = pool.slice(0, want);
+            if (pool.length > want && !me.isBot) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'removeCounterEach', kind: 'objects', items: this._chooseItems(pool), min: want, max: want,
+                prompt: `Remove a ${k} counter from each of ${['', 'one', 'two', 'three'][want] || want} of these.` }, 're');
+              if (got === SUSPEND) return SUSPEND;
+              picks = ((got && got.picks) || []).map(id => this.obj(id)).filter((o, i, l) => o && pool.includes(o) && l.indexOf(o) === i).slice(0, want);
+            }
+            if (picks.length < want || picks.some(o => !(Number(o.counters[k]) > 0))) { this._spliceNext(e.otherwise); break; }
+            for (const o of picks) {
+              o.counters[k] -= 1; if (o.counters[k] <= 0) delete o.counters[k];
+              o._chr = null;
+              this.logEvent('counters', `A ${k} counter is removed from ${o.name}.`);
+            }
+            this.bumpBoard();
             this._spliceNext(e.then);
             break;
           }
@@ -24032,6 +24062,14 @@
               if (e.tapped) o.tapped = true;
               // Kastral: "with a finality counter on it"
               if (e.counter && o.zone === 'battlefield') this.addCounters(o, e.counter, 1);
+              // The Invincible Iron Man: "If it's an Equipment, attach it to The Invincible Iron Man." (equipToSelf)
+              if (e.equipToSelf && o.zone === 'battlefield' && (o.analysis() || {}).isEquipment && src && src.zone === 'battlefield' &&
+                  (src.analysis() || {}).isCreature && !o.attachedTo) {
+                o.attachedTo = src.id; o.ts = this._stampNew();
+                src.attachments.push(o.id);
+                this.bumpBoard();
+                this.logEvent('rules', `${o.name} is attached to ${src.name}.`);
+              }
               if (putBy && o.zone === 'battlefield' && !putBy.includes(p.id)) putBy.push(p.id);
               // Incandescent Soulstoke: "That creature gains haste" — the one just put, as reanimateTop does
               if (o.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: o.id }];

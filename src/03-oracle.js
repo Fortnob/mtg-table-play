@@ -181,6 +181,8 @@
   const KEYWORD_PATTERNS = [
     // Famished Worldsire, Feasting Hobbit, Caprichrome: "Devour land 3", "Devour Food 3" — devouring a kind (devourWhat)
     /^(Devour) (?:artifact|land|Food) \d+$/i,
+    // Indoraptor, the Perfect Hybrid: "Bloodthirst X"
+    /^(Bloodthirst) X$/i,
     // simple flags, matched as whole comma-separated clauses
     /^(Increment|Undaunted|Paradigm|Flying|First strike|Double strike|Deathtouch|Lifelink|Menace|Reach|Trample|Vigilance|Haste|Defender|Indestructible|Hexproof|Shroud|Flash|Fear|Intimidate|Skulk|Horsemanship|Shadow|Changeling|Devoid|Exalted|Battle cry|Melee|Myriad|Undying|Persist|Infect|Wither|Ingest|Prowess|Extort|Cascade|Storm|Conspire|Delirium|Landfall|Riot|Afterlife|Mentor|Afflict|Amass|Boast|Daybound|Nightbound|Decayed|Disturb|Training|Compleated|Toxic|Backup|Bargain|Craft|Delve|Convoke|Improvise|Annihilator|Banding|Soulbond|Soulshift|Rampage|Provoke|Renown|Rebound|Recover|Replicate|Ripple|Scavenge|Soulbond|Sunburst|Totem armor|Vanishing|Fading|Graft|Modular|Sunburst|Echo|Haunt|Hideaway|Absorb|Bushido|Flanking|Bloodthirst|Champion|Devour|Evolve|Extort|Fabricate|Ferocious|Formidable|Frenzy|Gravestorm|Kinship|Living weapon|Poisonous|Reinforce|Tribute|Unleash|Vigilance|Wither|Enrage|Mutate|Companion|Encore|Demonstrate|Squad|Read ahead|Ravenous|Prototype|Toxic|Corrupted|For Mirrodin!|Bargain|Valiant|Saddle|Station|Mobilize|Job select|Max speed|Start your engines!|Exhaust|Harmonize|Eerie|Manifest dread|Survival|Threshold|Hellbent|Metalcraft|Morbid|Revolt|Spell mastery|Fateful hour|Will of the council|Council's dilemma|Melee|Partner|Friends forever|Choose a Background|Doctor's companion|Eternalize|Embalm|Foretell|Boast|Cleave|Casualty|Blitz|Connive|Enlist|Hideaway|Alliance|Celebration|Descend|Fathomless descent|Corrupted|Coven|Blood|Investigate|Clue|Food|Treasure|Incubate|Map|Junk|Offspring|Impending|Manifest|Flurry|Living metal|Umbra armor|Retrace|Jump-start|Split second|Spaceflight|Phasing|Cipher|Spree|Assist|Dethrone)$/i,
     // parameterised keywords with a number
@@ -4632,6 +4634,8 @@
         const per = (k) => (k ? { scope: { who: 'all', what: 'creature', attacking: true }, mult: k, plus: -k, floorZero: true } : 0);
         return { op: 'pump', p: per(+m[1]), t: per(+m[2]), duration: 'eot', scope: { who: 'you', what: 'creature', attacking: true } };
       } },
+    // Indoraptor, the Perfect Hybrid: "Indoraptor deals damage equal to its power to that player" — the one chosen at random
+    { re: /^CARDNAME deals damage equal to its power to that player\.?$/i, make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerPlayer: true }) },
     // Hit // Run: "CARDNAME deals damage to that player equal to that permanent's mana value."
     { re: /^CARDNAME deals damage to that player equal to (that [a-z ]+'s (?:power|toughness|mana value))\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' ? { op: 'damage', n: k, toTriggerPlayer: true } : null; } },
@@ -9455,6 +9459,10 @@
         const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
         return b && !b.unknown && then.auto ? [{ op: 'moveCountersAny', fromSelf: true, minOne: true, targets: [b], then: then.effects }] : null;
       } },
+    /* The Invincible Iron Man: "you may put an artifact card from your hand onto the battlefield. If it's an Equipment,
+       attach it to The Invincible Iron Man." — the pick is the choice (equipToSelf) */
+    { re: /^(?:You may )?put an artifact card from your hand onto the battlefield\. If it'?s an Equipment, attach it to CARDNAME\.$/i,
+      make: () => [{ op: 'permanentFromHand', filter: 'artifact', who: 'you', equipToSelf: true }] },
     /* Black Panther, Wakandan King: "Move all +1/+1 counters from target land you control onto target creature. If one
        or more +1/+1 counters are moved this way, you gain that much life and draw a card." (gainMoved) */
     { re: /^Move all \+1\/\+1 counters from (target [a-z ]+?) onto (target [a-z ]+?)\. If one or more \+1\/\+1 counters are moved this way, you gain that much life and draw a card\.$/i,
@@ -10661,6 +10669,9 @@
       } },
     { re: /^remove (a|an|one|two|three|\d+) ([+\-0-9/a-z]+) counters? from (?:it|this creature|CARDNAME|this artifact|this enchantment|this permanent)$/i,
       make: (m) => ({ removeCounter: { n: num(m[1]), kind: m[2].toLowerCase() } }) },
+    // Dyadrine, Synthesis Amalgam: "remove a +1/+1 counter from each of two creatures you control" (removeEach)
+    { re: /^remove an? ([+\-0-9/a-z]+) counter from each of (two|three) creatures you control$/i,
+      make: (m) => ({ removeEach: { n: num(m[2]), kind: m[1].toLowerCase(), filter: 'creature' } }) },
   ];
 
   function asCost(phrase) {
@@ -16022,6 +16033,11 @@
     // Devour N: how many counters for each creature it eats
     const devourN = out.keywords.some(k => k.keyword === 'Devour') && text.split('\n').map(l => l.match(/^Devour (?:(artifact|land|Food) )?(\d+)/i)).find(Boolean);
     if (devourN) { out.devour = +devourN[2]; if (devourN[1]) out.devourWhat = devourN[1].toLowerCase(); }
+    /* Bloodthirst N (CR 702.54): N +1/+1 counters as it enters if an opponent was dealt damage this turn; Bloodthirst X
+       (Indoraptor, the Perfect Hybrid): as many as the damage dealt to your opponents this turn */
+    const bloodthirst = text.split('\n').map(l => l.match(/^Bloodthirst (\d+|X)\b/i)).find(Boolean);
+    if (bloodthirst) out.entersWithCounters = /^x$/i.test(bloodthirst[1]) ? { kind: '+1/+1', n: { count: { opponentsDamaged: true } } }
+      : { kind: '+1/+1', n: +bloodthirst[1], cond: { kind: 'opponentDamagedThisTurn' } };
     const modular = out.keywords.find(k => k.keyword === 'Modular');
     if (modular && modular.arg) out.entersWithCounters = { kind: '+1/+1', n: parseInt(modular.arg, 10) || 0 };
 
@@ -16624,7 +16640,8 @@
         rest = rest.slice(0, m.index);
       /* Henrika, Infernal Seer: "Each creature you control with flying, deathtouch, and/or lifelink" — any of them
          (keywordAny) */
-      } else if ((m = rest.match(/ with ((?:(?:flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach),? )+)(?:and\/or|or) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach)$/i))) {
+      // (Sonic the Hedgehog: "each creature you control with flash or haste")
+      } else if ((m = rest.match(/ with ((?:(?:flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|flash),? )+)(?:and\/or|or) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|flash)$/i))) {
         sc.keywordAny = m[1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean).concat(m[2].toLowerCase());
         rest = rest.slice(0, m.index);
       // (Skrelv's Hive: "creatures you control with toxic")
