@@ -1964,6 +1964,10 @@
     { re: /^Detain (target [a-z ]+?)\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'sequence', list: [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', targets: [t] },
         { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: 'lastTarget' }] } : null; } },
+    // Lavinia of the Tenth: "detain each nonland permanent your opponents control with mana value 4 or less"
+    { re: /^Detain (each [a-z ]+? (?:your opponents|an opponent) controls?(?: with mana value \d+ or less)?)\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1]); return sc && sc.who === 'opponents' ? { op: 'sequence', list: [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', scope: sc },
+        { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: Object.assign({}, sc) }] } : null; } },
     // Mobile Fort: "gets +3/-1 until end of turn and can attack this turn as though it didn't have defender"
     { re: /^(?:CARDNAME|This creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and can attack this turn as though it didn'?t have defender\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' },
@@ -7248,6 +7252,9 @@
     { re: /^As you cast spells from your hand this turn, they gain cascade\.?$/i, make: () => ({ op: 'cascadeHandTurn' }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
+    // Saheeli, the Gifted: "The next spell you cast this turn has affinity for artifacts."
+    { re: /^The next spell you cast this turn has affinity for (artifacts|creatures|lands|enchantments)\.?$/i,
+      make: (m) => ({ op: 'nextSpellKeyword', keyword: 'affinity', affinityFor: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
     { re: /^The next (instant or sorcery |instant |sorcery )?spell you cast this turn has storm\.?$/i,
       make: (m) => Object.assign({ op: 'nextSpellKeyword', keyword: 'storm' }, m[1] ? { words: m[1].trim().toLowerCase() } : {}) },
@@ -7569,6 +7576,9 @@
     // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
     { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
     // Tawnos, the Toymaker: "copy it, except the copy is an artifact in addition to its other types"
+    // Donal, Herald of Wings: "copy it, except the copy is a 1/1 Spirit in addition to its other types" (copyPt, addTypes)
+    { re: /^Copy it, except the copy is an? (\d+)\/(\d+) ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => ({ op: 'copyThatSpell', addTypes: [m[3]], copyPt: m[1] + '/' + m[2] }) },
     { re: /^Copy it, except the copy is an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => ({ op: 'copyThatSpell', addTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] }) },
     // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
@@ -7947,6 +7957,9 @@
     // Clone Legion: "For each creature target player controls, create a token that's a copy of that creature."
     { re: /^For each creature target player controls, create a token that'?s a copy of that creature\.?$/i,
       make: () => ({ op: 'copyEachToken', ofTargetPlayer: true, filter: 'creature', targets: [{ type: 'player' }] }) },
+    // Saheeli, the Gifted: "For each artifact you control, create a token that's a copy of it." — tokens or not (all)
+    { re: /^For each (artifact|creature|enchantment|land|nonland permanent) you control, create a token that'?s a copy of (?:it|that (?:artifact|creature|enchantment|land|permanent))\.?$/i,
+      make: (m) => ({ op: 'copyEachToken', filter: m[1].toLowerCase(), all: true }) },
     // Rhys the Redeemed: "For each creature token you control, create a token that's a copy of that creature."
     { re: /^For each creature token you control, create a token that'?s a copy of that creature\.?$/i,
       make: () => ({ op: 'copyEachToken', filter: 'creature' }) },
@@ -13395,8 +13408,9 @@
     { re: /^Whenever a player casts a spell they don'?t own,? /i, event: 'anyCastSpell', extra: { notOwnedByCaster: true } },
     // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
     // (Saint Traft and Rem Karolus: "a spell that has convoke"; Kasla, the Broken Halo: "another spell that has convoke" — castThatHas)
-    { re: /^Whenever you cast (a|another) spell (?:with|that has) (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell',
-      filt: (m) => Object.assign({ words: 'spell', keyword: m[2].toLowerCase() }, /another/i.test(m[1]) ? { other: true } : {}) },
+    // (Donal, Herald of Wings: "a nonlegendary creature spell with flying" — of a kind)
+    { re: /^Whenever you cast (a|another) ((?:non[a-z]+ )?(?:creature |artifact |enchantment |instant |sorcery )?)spell (?:with|that has) (cascade|flash|flying|convoke|storm|delve|affinity),? /i, event: 'youCastSpell',
+      filt: (m) => Object.assign({ words: m[2].trim().toLowerCase() || 'spell', keyword: m[3].toLowerCase() }, /another/i.test(m[1]) ? { other: true } : {}) },
     // Evin, Waterdeep Opportunist: "Whenever one or more players sacrifice one or more creatures" (anySacrificeCreature)
     { re: /^Whenever one or more players sacrifice one or more creatures,? /i, event: 'anySacrifice', filt: () => ({ words: 'creature' }) },
     // Narci, Fable Singer: "Whenever the final chapter ability of a Saga you control resolves" (finalChapterResolved)
@@ -18941,6 +18955,9 @@
          Familiar: "Spells your opponents cast that target one or more commanders you control cost {3} more" (targetCostMod) */
       { re: /^Spells you cast that target an? (creature|permanent|artifact|enchantment|planeswalker|land) cost \{(\d+)\} less to cast\.?$/i,
         make: (m) => ({ op: 'targetCostMod', who: 'you', filter: m[1].toLowerCase(), amount: -m[2] }), auto: true },
+      // Hinata, Dawn-Crowned: "Spells you cast cost {1} less to cast for each target." / "Spells your opponents cast cost {1} more …" (perTargetCostMod)
+      { re: /^Spells (you|your opponents) cast cost \{(\d+)\} (less|more) to cast for each target\.?$/i,
+        make: (m) => ({ op: 'perTargetCostMod', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', amount: /less/i.test(m[3]) ? -m[2] : +m[2] }), auto: true },
       { re: /^Spells your opponents cast that target one or more commanders you control cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetCostMod', who: 'opponents', commanderYours: true, amount: +m[1] }), auto: true },
       /* Kopala, Warden of Waves: "Spells your opponents cast that target a Merfolk you control cost {2} more to
@@ -20004,6 +20021,9 @@
       // Delney: "Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater."
       { re: /^Creatures you control with power (\d+) or less can'?t be blocked by creatures with power (\d+) or greater\.?$/i,
         make: (m) => ({ op: 'groupEvasion', maxPower: +m[1], maxBlockerPower: +m[2] - 1 }), auto: true },
+      // Bifur, Melodic Rider: "As long as you have an enduring story, if a triggered ability of a Dwarf you control triggers, …" (needStory)
+      { re: /^As long as you have an enduring story, if a triggered ability of an? ([A-Z][a-z]+) you control triggers, that ability triggers an additional time\.?$/,
+        make: (m) => ({ op: 'triggerDouble', cause: 'source', what: m[1].toLowerCase(), needStory: true }), auto: true },
       { re: /^If a triggered ability of an? ((?:another )?[A-Za-z]+(?: (?:or (?:another )?)?[A-Za-z]+)*) you control triggers, that ability triggers an additional time\.?$/i,
         make: (m) => {
           const w = m[1].trim();

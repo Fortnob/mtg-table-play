@@ -2915,7 +2915,9 @@
         // (Tawnos, the Toymaker: "except the copy is an artifact in addition to its other types" — addTypes)
         const legend = except && except.nonLegendary && /\bLegendary\b/.test(String(item.obj.card.type_line || ''));
         const added = except && (except.addTypes || []).length ? except.addTypes : null;
-        const dup = this._register(new GObj(legend || added ? this._copyExcept(item.obj.card, null, Object.assign({}, legend ? { nonLegendary: true } : {}, added ? { addTypes: added } : {})) : item.obj.card, controller, 'stack'));
+        // (Donal, Herald of Wings: "a 1/1 Spirit in addition to its other types" — copyPt)
+        const pt = except && except.copyPt && (item.obj.analysis() || {}).isCreature ? except.copyPt : null;
+        const dup = this._register(new GObj(legend || added || pt ? this._copyExcept(item.obj.card, null, Object.assign({}, legend ? { nonLegendary: true } : {}, added ? { addTypes: added } : {}, pt ? { copyPt: pt } : {})) : item.obj.card, controller, 'stack'));
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
         // (a copy of a kicked spell is kicked too — Gatekeeper of Malakir copied by Double Major, CR 707.10)
         dup.kickedTimes = item.obj.kickedTimes || 0; dup.wasKicked = !!item.obj.wasKicked;
@@ -4081,7 +4083,11 @@
       let out = cr;
       // Archway of Innovation: "The next spell you cast this turn has improvise."
       const nk = (this.player(pid) || {}).nextSpellKeyword;
-      if (nk && nk.turn === this.turn && o.zone !== 'stack') { out = Object.assign({}, cr); out[nk.keyword] = true; }
+      if (nk && nk.turn === this.turn && o.zone !== 'stack') {
+        out = Object.assign({}, cr);
+        // Saheeli, the Gifted: "has affinity for artifacts" — unless the card has an affinity of its own
+        if (nk.keyword === 'affinity') { if (!out.affinity) out.affinity = nk.affinityFor || 'artifacts'; } else out[nk.keyword] = true;
+      }
       // Chiss-Goria, Forge Tyrant: a card it exiled "has affinity for artifacts" as it is cast from there
       if (o.impulseAffinity && o.zone === 'exile' && o.impulseBy === pid && !out.affinity) { if (out === cr) out = Object.assign({}, cr); out.affinity = o.impulseAffinity; }
       for (const src of this.battlefield) {
@@ -6774,6 +6780,16 @@
             return ef.commanderYours ? !!x.isCommander && x.controller === s0.controller : this._matchesCategory(x, ef.filter);
           });
           if (hit) d += ef.amount || 0;
+        }
+        /* Hinata, Dawn-Crowned: "Spells you cast cost {1} less to cast for each target. Spells your opponents cast
+           cost {1} more to cast for each target." — every target chosen, the same one twice counted twice */
+        const nT = (opts.targets || []).filter(Boolean).length;
+        if (nT) for (const s0 of this.battlefield) {
+          if (s0.phasedOut) continue;
+          for (const ef of this._staticOpsAll(s0, 'perTargetCostMod')) {
+            if (ef.who === 'you' ? s0.controller !== playerId : !this.opponentsOf(s0.controller).some(q => q.id === playerId)) continue;
+            d += (ef.amount || 0) * nT;
+          }
         }
         if (d) cost = this._addGeneric(cost || '', d);
       }
@@ -19377,7 +19393,7 @@
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
             if (times <= 0) break;
-            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [] } : null).id);
+            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [], copyPt: e.copyPt || null } : null).id);
             if (r) r.marks[slot] = made;
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');
@@ -23267,7 +23283,7 @@
           this.logEvent('rules', `This turn, spells ${me.name} casts from their hand have cascade.`);
           break;
         }
-        case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
+        case 'nextSpellKeyword': me.nextSpellKeyword = Object.assign({ turn: this.turn, keyword: e.keyword, words: e.words || null }, e.affinityFor ? { affinityFor: e.affinityFor } : {}); break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
         case 'copyTokensEnteredThisTurn': {
           const toks = this.battlefield.filter(x => x.isToken && x.controller === ctx.controller && x.entered === this.turn);
@@ -27140,7 +27156,8 @@
           // Clone Legion: every creature the targeted player controls, tokens or not
           const tp = e.ofTargetPlayer ? firstPlayer() : null;
           if (e.ofTargetPlayer && !tp) break;
-          const toks = this.battlefield.filter(o => o.controller === (tp ? tp.id : ctx.controller) && (tp || o.isToken) && !o.phasedOut &&
+          // (Saheeli, the Gifted: "For each artifact you control" — tokens or not: all)
+          const toks = this.battlefield.filter(o => o.controller === (tp ? tp.id : ctx.controller) && (tp || e.all || o.isToken) && !o.phasedOut &&
             (!e.filter || this._cardFitsWords(o, e.filter)));   // Rhys the Redeemed: creature tokens only
           for (const t of toks) this._runEffect({ op: 'copyPermanent', _forced: t }, ctx);
           break;
@@ -29991,6 +30008,8 @@
           continue;
         }
         if (src.controller !== o.controller) continue;
+        // (Bifur, Melodic Rider: "As long as you have an enduring story" — needStory)
+        if (e.needStory && !(this.player(src.controller) || {}).enduringStory) continue;
         if (e.cause === 'enterOrLeave') { if (gandalf) extra++; }
         else if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent') &&
           !(e.yours && data.object.controller !== src.controller)) extra++;
