@@ -28744,4 +28744,24 @@ module.exports = (test) => {
     M.nextTurn('A');
     t.eq(boos().length, 1, 'Minsc & Boo: Boo at the beginning of the upkeep');
   });
+
+  test('Commanders: Zur, Eternal Schemer — a non-Aura enchantment becomes a creature as big as its mana value, for good, and gets Zur\'s keywords', (mk, t) => {
+    t.auto('Zur, Eternal Schemer');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const zur = M.bf('A', 'Zur, Eternal Schemer');
+    const tithe = M.bf('A', 'Smothering Tithe');
+    const theirs = M.bf('B', 'Phyrexian Arena');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', '1W');
+    t.no(g.activateAbility('A', zur.id, 0, { auto: true, targets: [{ kind: 'object', id: theirs.id }] }), "Zur: not B's enchantment");
+    t.no(g.activateAbility('A', zur.id, 0, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'Zur: not a creature');
+    M.activate('A', zur, 0, { targets: [tithe.id] });
+    const c = g.characteristics(tithe);
+    t.ok(c.isCreature && c.power === 4 && c.toughness === 4, 'Zur: a 4/4');
+    t.ok(g.hasKw(tithe, 'deathtouch') && g.hasKw(tithe, 'lifelink') && g.hasKw(tithe, 'hexproof'), 'Zur: an enchantment creature with deathtouch, lifelink and hexproof');
+    t.no(g.hasKw(bear, 'deathtouch'), 'Zur: not a creature that is not an enchantment');
+    M.nextTurn('A');
+    t.ok(g.characteristics(tithe).isCreature, 'Zur: for good');
+  });
 };

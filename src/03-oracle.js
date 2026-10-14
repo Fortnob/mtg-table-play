@@ -3184,6 +3184,10 @@
     // Karn, Silver Golem: "power and toughness each equal to its mana value"
     { re: /^(Target (?:noncreature )?artifact) becomes an artifact creature with (?:base )?power and toughness each equal to its mana value until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: 'eot', eff: { addTypes: ['Artifact', 'Creature'], setPtMv: true }, targets: [t] } : null; } },
+    /* Zur, Eternal Schemer: "Target non-Aura enchantment you control becomes a creature in addition to its other
+       types and has base power and base toughness each equal to its mana value." — for good */
+    { re: /^(Target [a-zA-Z -]+?) becomes a creature in addition to its other types and has base power and base toughness each equal to its mana value( until end of turn)?\.?$/,
+      make: (m) => { const t = tgt(m[1]); return t ? { op: 'becomes', duration: m[2] ? 'eot' : 'permanent', eff: { addTypes: ['Creature'], setPtMv: true }, targets: [t] } : null; } },
     // Mistform Wall: "This creature becomes the creature type of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME|This permanent) becomes the creature type of your choice( in addition to its other types)? until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeChosenType', add: !!m[1] }) },
