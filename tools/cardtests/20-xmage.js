@@ -31351,4 +31351,113 @@ module.exports = (test) => {
     t.ok(back.includes('Llanowar Elves') && back.includes('Mind Stone'), 'Yorion: back at the end step');
     t.eq(back.filter(n => n === 'Grizzly Bears').length, 1, 'Yorion: the token is gone for good');
   });
+
+  test('Commanders: Freya Crescent — her {R} pays for an Equipment spell or an equip ability, nothing else', (mk, t) => {
+    t.auto('Freya Crescent');
+    const M = mk();
+    const freya = M.bf('A', 'Freya Crescent');
+    const forest = M.bf('A', 'Forest');
+    const bear = M.hand('A', 'Grizzly Bears');
+    t.no(M.g.castSpell('A', bear.id, { auto: true, targets: [] }), 'Freya: not a creature spell');
+    t.zone(bear, 'hand');
+    M.g.moveObject(forest, 'graveyard');
+    const bs = M.hand('A', 'Bonesplitter');
+    M.cast('A', bs);
+    t.zone(bs, 'battlefield', 'Freya: an Equipment spell');
+    t.ok(freya.tapped, 'Freya: tapped for it');
+    M.nextTurn('A');
+    const ally = M.bf('A', 'Grizzly Bears');
+    M.activate('A', bs, 0, { targets: [ally] });
+    t.eq(bs.attachedTo, ally.id, 'Freya: an equip ability');
+    t.ok(freya.tapped, 'Freya: tapped for the equip');
+  });
+  test('Commanders: Freya Crescent — Jump: flying during your turn', (mk, t) => {
+    const M = mk();
+    const freya = M.bf('A', 'Freya Crescent');
+    t.ok(M.g.hasKw(freya, 'Flying'), 'Freya: flying on her turn');
+    M.nextTurn('B');
+    t.no(M.g.hasKw(freya, 'Flying'), "Freya: not on B's turn");
+  });
+
+  test('Commanders: Breeches, Brazen Plunderer — Pirates hitting opponents: the top card of each one hit, to play this turn with any mana', (mk, t) => {
+    t.auto('Breeches, Brazen Plunderer');
+    const M = mk({ players: ['A', 'B', 'C'] });
+    const br = M.bf('A', 'Breeches, Brazen Plunderer');
+    const fb = M.bf('A', 'Kitesail Freebooter');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const topB = M.top('B', 'Grizzly Bears');
+    const topC = M.top('C', 'Forest');
+    M.answer('declareAttackers', () => [{ attackerId: br.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }, { attackerId: fb.id, defenderId: 'C' }]);
+    M.toMain('A', 'endCombat');
+    M.resolve();
+    t.eq(M.life('B'), 15, 'B hit'); t.eq(M.life('C'), 19, 'C hit');
+    t.zone(topB, 'exile'); t.zone(topC, 'exile');
+    t.eq(M.zone('B', 'exile').length + M.zone('C', 'exile').length, 2, 'Breeches: one trigger, one card from each');
+    t.eq(topB.impulseBy, 'A', 'Breeches: A may play it');
+    t.ok(topB.impulseAnyMana, 'Breeches: with mana of any colour');
+    const g = M.g;
+    for (let i = 0; i < 40 && !(g.phase.id === 'postcombat' && !g.stack.length && !g.pendingChoice); i++) { M.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    M.mana('A', 'RR');
+    t.ok(M.g.castSpell('A', topB.id, { auto: true }), M.g.lastError);
+    M.resolve();
+    t.eq(topB.zone, 'battlefield', "Breeches: B's Grizzly Bears cast with red mana");
+    t.eq(topB.controller, 'A');
+  });
+  test('Commanders: Breeches, Brazen Plunderer — a creature that is no Pirate does nothing', (mk, t) => {
+    const M = mk();
+    M.bf('A', 'Breeches, Brazen Plunderer');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const topB = M.top('B', 'Grizzly Bears');
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    M.resolve();
+    t.eq(M.life('B'), 18, 'B hit');
+    t.zone(topB, 'library', 'Breeches: nothing exiled');
+  });
+
+  test('Commanders: Faramir, Prince of Ithilien — at the chosen opponent\'s end step: a card, or three Soldiers if they attacked you', (mk, t) => {
+    t.auto('Faramir, Prince of Ithilien');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(10).fill('Island') });
+    M.bf('A', 'Faramir, Prince of Ithilien');
+    const bb = M.bf('B', 'Grizzly Bears');
+    let asked = 0;
+    M.answer('choose', (ch) => { asked++; return { picks: ['B'] }; });
+    const hand0 = M.zone('A', 'hand').length;
+    M.nextTurn('B');
+    t.eq(asked, 1, 'Faramir: A chose an opponent');
+    t.eq(M.zone('A', 'hand').length, hand0, 'Faramir: nothing at A\'s own end step');
+    // B attacks C, not A
+    M.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'C' }]);
+    M.nextTurn('C');
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Faramir: B didn\'t attack A — A draws');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 0, 'Faramir: no Soldiers');
+    // A's next end step: B again; B attacks A
+    M.answer('choose', () => ({ picks: ['B'] }));
+    M.nextTurn('B');
+    M.answer('declareAttackers', () => [{ attackerId: bb.id, defenderId: 'A' }]);
+    const hand1 = M.zone('A', 'hand').length;
+    M.nextTurn('C');
+    const soldiers = M.bfOf('A').filter(o => o.isToken);
+    t.eq(soldiers.length, 3, 'Faramir: B attacked A — three Soldiers');
+    t.ok(soldiers.every(o => M.g._hasCreatureType(o, 'Soldier') && M.g._hasCreatureType(o, 'Human')), 'Faramir: Human Soldiers');
+    t.eq(M.zone('A', 'hand').length, hand1, 'Faramir: and no card');
+  });
+
+  test('Commanders: Taigam, Master Opportunist — the second spell: a copy, and the spell itself suspended with four time counters', (mk, t) => {
+    t.auto('Taigam, Master Opportunist');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Taigam, Master Opportunist');
+    const b1 = M.hand('A', 'Lightning Bolt'), b2 = M.hand('A', 'Lightning Bolt');
+    M.mana('A', 'RR');
+    M.cast('A', b1, { targets: ['B'] });
+    t.eq(M.life('B'), 17, 'Taigam: the first spell, alone');
+    t.zone(b1, 'graveyard');
+    M.cast('A', b2, { targets: ['B'] });
+    t.eq(M.life('B'), 14, 'Taigam: the copy resolves');
+    t.zone(b2, 'exile', 'Taigam: the spell cast is exiled, not resolved');
+    t.eq(b2.counters.time, 4, 'Taigam: four time counters');
+    t.eq(b2.suspendedBy, 'A', 'Taigam: suspended');
+    M.nextTurn('A');
+    t.eq(b2.counters.time, 3, 'Taigam: one off at the upkeep');
+  });
 };

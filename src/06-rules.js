@@ -8371,7 +8371,7 @@
            for mana to pay the rest of it (Mind Stone's "{1}, {T}"). */
         const wasTapped = o.tapped;
         if (cost.tap) o.tapped = true;
-        const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o }, ab.xColor ? { xColor: ab.xColor } : {}));
+        const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o, forAbilityAb: ab }, ab.xColor ? { xColor: ab.xColor } : {}));
         if (cost.tap) o.tapped = wasTapped;
         // (what it costs now, with every change to the price: Kopala's {2} more)
         if (!paid) return this.fail(`Not enough mana (${abMana}).`);
@@ -8548,9 +8548,11 @@
       /* Mana that may only be spent on certain spells waits apart from the
          pool; it is lent to a payment it is allowed to pay for, and what is
          not used goes back to waiting. */
-      const wasFor = this._payingFor;
+      const wasFor = this._payingFor, wasForAb = this._payingForAb;
       this._payingFor = opts.forSpell || null;
-      const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
+      // (Freya Crescent: the ability being paid for, for mana that may only pay for some — spendForAbility)
+      this._payingForAb = !opts.forSpell && opts.forAbility ? { obj: opts.forAbility, ab: opts.forAbilityAb || null } : null;
+      const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility, opts.forAbilityAb);
       // (Inga and Esika: what of the pool is lent, spent last — manaFromCreatures)
       const wasLent = this._lentNow;
       this._lentNow = { pid: p.id, by: lent.reduce((acc, r) => { acc[r.color] = (acc[r.color] || 0) + 1; return acc; }, {}) };
@@ -8559,7 +8561,7 @@
       } finally {
         this._lentNow = wasLent;
         this._returnLent(p, lent);
-        this._payingFor = wasFor;
+        this._payingFor = wasFor; this._payingForAb = wasForAb;
       }
     }
 
@@ -8586,7 +8588,7 @@
       }
       const wasFor = this._payingFor;
       this._payingFor = opts.forSpell || null;
-      const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility);
+      const lent = this._lendRestricted(p, opts.forSpell, opts.forAbility, opts.forAbilityAb);
       try {
         const need = opts.x ? cost.replace(/\{X\}/g, '{' + opts.x + '}') : cost;
         if (p.pool.canPay(need, opts)) return true;
@@ -8702,6 +8704,8 @@
         } else (p.manaRiders = p.manaRiders || []).push(ab.spendOnly.rider);
         return tagPool();
       }
+      // (Freya Crescent: tapped while an equip ability is being paid for — spendForAbility)
+      if (!paying && this._payingForAb && this._spendForAbility(ab.spendOnly, this._payingForAb.obj, this._payingForAb.ab, o)) return tagPool();
       if (paying && this._spendAllowed(ab.spendOnly, paying, o)) {
         this._payFlags = this._payFlags || {};
         if (ab.spendOnly.uncounterable) this._payFlags.uncounterable = true;
@@ -8769,17 +8773,25 @@
       return true;
     }
 
+    /** May mana with this restriction pay for an ability of that permanent? (abilityOf; ab, the ability itself) */
+    _spendForAbility(spendOnly, abilityOf, ab, src) {
+      if (!spendOnly || !abilityOf) return false;
+      if (spendOnly.open && !spendOnly.words) return true;
+      /* "…or activate abilities of creatures": an ability of the right
+         kind of permanent may borrow it as well. */
+      if (spendOnly.abilitiesOf && this._cardFitsWords(abilityOf, spendOnly.abilitiesOf) &&
+        (!spendOnly.abilitiesChosenType || this._hasCreatureType(abilityOf, (src || {}).chosenType))) return true;
+      // Freya Crescent: "or activate an equip ability"
+      return !!(spendOnly.equipAbility && ab && /^Equip\b/i.test(ab.text || ''));
+    }
+
     /** Put the waiting mana this spell may use into the pool, for the length of one payment. */
-    _lendRestricted(p, spell, abilityOf) {
+    _lendRestricted(p, spell, abilityOf, ab) {
       const lent = [];
       if (!p.restricted || !p.restricted.length || (!spell && !abilityOf)) return lent;
       const keep = [];
       for (const r of p.restricted) {
-        /* "…or activate abilities of creatures": an ability of the right
-           kind of permanent may borrow it as well. */
-        const forAbility = abilityOf && r.spendOnly && r.spendOnly.open && !r.spendOnly.words ? true : abilityOf && r.spendOnly && r.spendOnly.abilitiesOf &&
-          this._cardFitsWords(abilityOf, r.spendOnly.abilitiesOf) &&
-          (!r.spendOnly.abilitiesChosenType || this._hasCreatureType(abilityOf, (this.obj(r.srcId) || {}).chosenType));
+        const forAbility = !spell && this._spendForAbility(r.spendOnly, abilityOf, ab, this.obj(r.srcId));
         if (forAbility || (spell && this._spendAllowed(r.spendOnly, spell, this.obj(r.srcId)))) { lent.push(r); p.pool.add(r.color); }
         else keep.push(r);
       }
@@ -8947,7 +8959,8 @@
           if (ab.cost && (ab.cost.sacSelf || ab.cost.sacrifice || ab.cost.discard || ab.cost.mill ||
               ab.cost.exile || ab.cost.removeCounters || (ab.cost.other || []).length)) continue;
           // mana that can only be spent on something else is not for this
-          if (ab.spendOnly && !this._spendAllowed(ab.spendOnly, opts.forSpell, o)) continue;
+          if (ab.spendOnly && !this._spendAllowed(ab.spendOnly, opts.forSpell, o) &&
+            !(!opts.forSpell && this._spendForAbility(ab.spendOnly, opts.forAbility, opts.forAbilityAb, o))) continue;
           // (Jegantha, the Wellspring: mana for coloured symbols only is tapped by hand — noGenericMana)
           if ((ab.effects || []).some(e => e && e.op === 'noGenericMana')) continue;
           const opt = this._manaOptions(ab, o, playerId);
@@ -11362,6 +11375,8 @@
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
+        // Faramir, Prince of Ithilien: "if they didn't attack you that turn" — that player, this turn (playerAttackedYou)
+        case 'playerAttackedYou': return !!me && (((h.attackedPlayersBy || {})[cond.pid]) || []).includes(me.id);
         // (Syr Vondam: "while its power is 4 or greater" — as it last was, once it has gone)
         case 'selfPower': return !!src && (cond.lki && src.zone !== 'battlefield' && src._lastPower != null ? src._lastPower : this.powerOf(src)) >= (cond.n || 0);
         // Amalia Benavides Aguirre: "if its power is exactly 20" (selfPowerIs)
@@ -13450,6 +13465,8 @@
           }
           // Ob Nixilis, Captive Kingpin: what each opponent has lost while it waits (lossExactly)
           if (had && ab.lossExactly) { const by = had.triggerData.lossBy; by[data.player] = (by[data.player] || 0) + (Number(data.amount) || 0); }
+          // Breeches, Brazen Plunderer: "each of those opponents" — every player the lot hit (batchPlayers)
+          if (had && ab.batchPlayers && tData.player && !(had.triggerData.players || []).includes(tData.player)) had.triggerData.players = (had.triggerData.players || []).concat(tData.player);
           if (had) return;
         }
         // the Collectors: "This ability triggers only once." — for as long as this object exists
@@ -13478,7 +13495,8 @@
             triggerData: Object.assign({}, tData, ((ab.objFilter && ab.objFilter.batch) || ab.batch) ? { batch: true } : {},
               // Blightwing Bandit: "that player" — the opponent whose turn it is (thatPlayerActive)
               ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {},
-              ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {}),
+              ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
+              ab.batchPlayers && tData.player ? { players: [tData.player] } : {}),
             lossExactly: ab.lossExactly || undefined,
           });
         }
@@ -20141,10 +20159,12 @@
               this._lastPut || this._lastExiled ||
               (ctx.triggerData || {}).objectId)
             : e.subject === 'self' ? (src && src.id) : (firstObj() || {}).id;
+          // Faramir, Prince of Ithilien: "that player's next end step" — the opponent chosen (forPlayer chosen)
+          if (e.forPlayer === 'chosen' && !ctx.chosenPlayer) break;
           this.scheduleDelayed({
             event: e.event || 'eachEndStep',
             controller: ctx.controller,
-            forPlayer: e.forPlayer === 'you' ? ctx.controller : null,
+            forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : null,
             notBefore: e.nextTurn ? this.turn : null,
             sameTurnOk: !e.nextTurn,
             objId: objId || null,
@@ -20164,6 +20184,8 @@
               }
               // Phelia: the counter goes on the creature that set this up
               if (x.op === 'returnThatCounterSource') return Object.assign({}, x, { srcId: src ? src.id : null });
+              // (Faramir: "they" — the player chosen now)
+              if (e.forPlayer === 'chosen' && x.op === 'ifCond') return JSON.parse(JSON.stringify(x).replace(/"pid":"chosen"/g, '"pid":' + JSON.stringify(ctx.chosenPlayer)));
               /* Dragonhawk, Fate's Tempest: "those cards" are the ones just exiled, each as it is in exile
                  now — counted later only while it stays there (heldExiled) */
               if (e.heldExiled && x.n && typeof x.n === 'object' && x.n.stillExiled) {
@@ -21818,7 +21840,9 @@
             // Ulamog: "defending player exiles the top twenty cards"
             : e.who === 'defending' ? [triggerPlayer()].filter(Boolean)
             : e.who === 'target' ? [firstPlayer() || me]
-            : e.who === 'triggerPlayer' ? [triggerPlayer() || me] : [me];
+            : e.who === 'triggerPlayer' ? [triggerPlayer() || me]
+            // Breeches, Brazen Plunderer: "each of those opponents" (batchPlayers)
+            : e.who === 'batchPlayers' ? ((ctx.triggerData || {}).players || []).map(id => this.player(id)).filter(x => x && !x.hasLost) : [me];
           const out = [], hits = [];
           /* Jodah, the Unifier: "until you exile a legendary nonland card with lesser mana value" — lesser
              than the spell the trigger is about; with no such spell there is nothing to compare (untilWords) */
@@ -23500,6 +23524,21 @@
             x.suspendedBy = x.owner;
             this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}, suspended.`);
           }
+          break;
+        }
+        /* Taigam, Master Opportunist: "exile the spell you cast with four time counters on it. If it doesn't have
+           suspend, it gains suspend." — the card itself, never a copy; a commander goes home instead */
+        case 'suspendThatSpell': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const item = id ? this.stack.find(st => st.id === id) : null;
+          if (!item || item.kind !== 'spell' || !item.obj || item.isCopy || item.obj.zone !== 'stack') { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+          const x = item.obj;
+          if (x.isCommander && MTG.settings.commanderToZone !== false) { this.moveObject(x, 'command'); break; }
+          this.moveObject(x, 'exile');
+          if (x.zone !== 'exile') break;
+          x.counters.time = n(e.timeCounters);
+          x.suspendedBy = x.owner;
+          this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counters, suspended.`);
           break;
         }
         case 'exileSuspend': {

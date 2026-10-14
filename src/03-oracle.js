@@ -1329,6 +1329,9 @@
         }
         return out;
       } },
+    // Freya Crescent: "Spend this mana only to cast an Equipment spell or activate an equip ability."
+    { re: /^Spend this mana only to cast an? (Equipment|artifact) spell or activate an equip ability\.?$/i,
+      make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
     { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
@@ -3616,6 +3619,8 @@
       make: (m) => { const sc = scopeOf(m[2].replace(/\bcreature\b/, 'creatures')); return sc ? { op: 'doublePT', toughness: !!m[1], scope: sc } : null; } },
     { re: /^Double CARDNAME'?s? power( and toughness)? until end of turn\.?$/i,
       make: (m) => ({ op: 'doublePT', toughness: !!m[1], scope: 'self' }) },
+    // Breeches, Brazen Plunderer: "exile the top card of each of those opponents' libraries" — each one hit (batchPlayers)
+    { re: /^Exile the top card of each of those (?:opponents|players)'? libraries\.?$/i, make: () => ({ op: 'exileTop', who: 'batchPlayers', n: 1 }) },
     /* Etali, Villainous Wealth, Improvisation Capstone: cards exiled off
        the top of a library, and then cast from there for nothing. */
     { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library\.?$/i,
@@ -7812,6 +7817,17 @@
     { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
       make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
         { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
+    /* Faramir, Prince of Ithilien: "choose an opponent. At the beginning of that player's next end step, you draw a
+       card if they didn't attack you that turn. Otherwise, create three …" — their end step, not yours (forPlayer
+       chosen); attacking a planeswalker of yours is not attacking you (playerAttackedYou) */
+    { re: /^Choose an opponent\. At the beginning of that player'?s next end step, you draw a card if they didn'?t attack you that turn\. Otherwise, (.+)$/i,
+      make: (m) => {
+        const other = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
+        if (!other.auto || !other.effects.length) return null;
+        return [{ op: 'chooseOpponent' }, { op: 'delayed', event: 'eachEndStep', forPlayer: 'chosen', nextTurn: true, name: 'Draw a card unless they attacked you',
+          effects: [{ op: 'ifCond', cond: { kind: 'not', cond: { kind: 'playerAttackedYou', pid: 'chosen' } },
+            then: [{ op: 'draw', n: 1, who: 'you' }], otherwise: other.effects }] }];
+      } },
     /* Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it without paying its mana cost
        if it's a spell with lesser mana value. If you don't cast it, put it into your hand." — the card revealed, lesser
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
@@ -8424,6 +8440,10 @@
        instead of putting it into its owner's graveyard. If it doesn't have suspend, it gains suspend." */
     { re: /^Counter target spell\. If the spell is countered this way, exile it with (two|three|four|five) time counters on it instead of putting it into its owner'?s graveyard\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'counterSpell', counterTo: 'suspend', timeCounters: num(m[1]), targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }] },
+    /* Taigam, Master Opportunist: "copy it, then exile the spell you cast with four time counters on it. If it
+       doesn't have suspend, it gains suspend." — the spell the trigger is about, off the stack uncast (suspendThatSpell) */
+    { re: /^Copy it, then exile the spell you cast with (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'copyThatSpell' }, { op: 'suspendThatSpell', timeCounters: num(m[1]) }] },
     /* Doom's Time Platform: "exile target nonland card from your graveyard with two time counters on it.
        If it doesn't have suspend, it gains suspend." */
     { re: /^Exile target (nonland )?card from your graveyard with (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
@@ -11853,6 +11873,10 @@
       extraOf: (m) => Object.assign({ toPlayer: true }, /opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals damage(?:,| )/i, event: 'dealsDamage', self: true },
     { re: /^When(?:ever)? you sacrifice (?:a|another) (?:permanent|creature)(?:,| )/i, event: 'youSacrifice' },
+    /* Breeches, Brazen Plunderer: "Whenever one or more Pirates you control deal damage to your opponents" — one
+       trigger for the lot, knowing every opponent hit (batchPlayers) */
+    { re: new RegExp('^Whenever (one or more [A-Za-z ]+?) deal damage to your opponents,? ', 'i'), event: 'yourSourceDamagesOpponent',
+      filt: (m) => subjectFilter(m[1]), extra: { batchPlayers: true } },
     // Niv-Mizzet, Visionary: "Whenever a source you control deals noncombat damage to an opponent"
     // (Night Dealings: "to another player" — the same)
     { re: /^When(?:ever)? a source you control deals (noncombat )?damage to (?:an opponent|another player)(?:,| )/i, event: 'yourSourceDamagesOpponent',
