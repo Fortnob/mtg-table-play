@@ -1618,6 +1618,21 @@
         .sort((a, b) => this.permanentValue(b) - this.permanentValue(a));
       return { picks: theirs.length ? [theirs[0].id] : [] };
     },
+    /* Indominus Rex, Alpha: each card that brings a keyword not yet had is a counter and a card drawn for it — the
+       weakest first, and none that brings nothing new */
+    discardForKwCounters(s) {
+      const g = this.game;
+      const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => this.rating(a) - this.rating(b));
+      const have = new Set(), picks = [];
+      for (const c of cards) {
+        const ks = (c.analysis() || {}).keywordSet;
+        const fresh = (s.keywords || []).filter(k => ks && ks.has(k) && !have.has(k));
+        if (!fresh.length) continue;
+        fresh.forEach(k => have.add(k));
+        picks.push(c.id);
+      }
+      return { picks };
+    },
     /* Koh, the Face Stealer: the abilities worth having are the best card's */
     chooseExiledWith(s) {
       const g = this.game;

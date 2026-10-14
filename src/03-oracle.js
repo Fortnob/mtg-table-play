@@ -797,7 +797,8 @@
         e.keepThis = true;
       }
       else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
-      else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
+      // (Muddle, the Ever-Changing: "except it has myriad")
+      else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible|myriad)(?=,? and |$)/i)))
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
       else return false;
       ex = ex.slice(c[0].length).replace(/^,?\s*(?:and\s+)?/, '').trim();
@@ -2575,6 +2576,14 @@
     // Solitude: "Exile up to one other target creature."
     { re: /^(Exile|Destroy) up to one (other |another )?target ([a-z0-9 '-]+?)\.?$/i,
       make: (m) => ({ op: m[1].toLowerCase(), targets: [Object.assign(targetSpec('target ' + m[3]), { upTo: true }, m[2] ? { another: true } : {})] }) },
+    // Elrond, Moon-Reader: "Exile up to two other target nonland permanents you control."
+    { re: /^(Exile|Destroy) up to (two|three) (other )?target ([a-z '-]+?)s( you control| an opponent controls| you don't control)\.?$/i,
+      make: (m) => {
+        const spec = targetSpec('target ' + m[4] + m[5]);
+        if (!spec || spec.unknown) return null;
+        const one = Object.assign(spec, { upTo: true }, m[3] ? { another: true } : {});
+        return { op: m[1].toLowerCase(), targets: Array.from({ length: num(m[2]) }, () => Object.assign({}, one)) };
+      } },
     // Bottomless Pool: "Return up to one target creature to its owner's hand."
     { re: /^Return up to one (other )?target ([a-z ]+?) to its owner'?s hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [Object.assign(targetSpec('target ' + m[2]), { upTo: true }, m[1] ? { another: true } : {})] }) },
@@ -3631,8 +3640,8 @@
         return inner && inner.op !== 'manual' ? { op: 'ifCond', cond, then: [inner] } : null;
       } },
     /* Davros, Dalek Creator: "Then each opponent who lost 3 or more life this turn faces a villainous choice — You draw
-       a card, or that player discards a card." — each of them picks one, in turn order, and then what they picked is
-       done, "that player" being the one who picked it (villainousChoice, CR 701.56) */
+       a card, or that player discards a card." — each of them picks one, in turn order, what one picked done before
+       the next picks, "that player" being the one who picked it (villainousChoice, CR 701.55) */
     { re: /^(?:Then )?(each opponent(?: who lost (\w+) or more life this turn)?|target opponent|that player|defending player) faces a villainous choice — (.+?), or (.+?)\.?$/i,
       make: (m) => {
         const k = m[2] ? num(m[2].toLowerCase()) : null;
@@ -4988,6 +4997,17 @@
         if (!probe || !probe.fullyAutomated) return null;
         return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text } };
       } },
+    /* Volo, Itinerant Scholar: "create Volo's Journal, a legendary colorless Book artifact token with hexproof and
+       "Whenever you cast a creature spell, note one of its creature types that hasn't been noted for Volo's Journal."" —
+       the notes kept on the token (noteCreatureType, notedTypes) */
+    { re: /^[Cc]reate CARDNAME's Journal, a legendary colorless Book artifact token with hexproof and "Whenever you cast a creature spell, note one of its creature types that hasn't been noted for CARDNAME's Journal\.?"\.?$/,
+      make: () => ({ op: 'createNamedToken', n: 1, token: "Volo's Journal", def: { type: 'Legendary Token Artifact — Book',
+        text: "Hexproof\nWhenever you cast a creature spell, note one of its creature types that hasn't been noted for this artifact." } }) },
+    { re: /^[Nn]ote one of its creature types that hasn't been noted for (?:this artifact|CARDNAME)\.?$/, make: () => ({ op: 'noteCreatureType' }) },
+    // (Volo: "Draw a card for each creature type noted for target permanent you control named Volo's Journal.")
+    { re: /^Draw a card for each creature type noted for target permanent you control named CARDNAME's Journal\.?$/,
+      make: () => ({ op: 'draw', n: { notedTypes: true }, who: 'you',
+        targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you', name: "Volo's Journal" }] }) },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
     { re: /^Destroy (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.?$/i, make: () => ({ op: 'destroy', scope: 'self' }) },
@@ -5851,6 +5871,8 @@
       make: (m) => {
         const cond = condOf(m[1]);
         if (!cond) return null;
+        // (Karai, Future of the Foot: "instead return that card to the battlefield" — the card the sentence before targeted)
+        if (/^return that (?:permanent |creature )?card to the battlefield$/i.test(m[2])) return { op: 'noop', insteadOf: { cond, effects: [{ op: 'reanimate', sameAsPrevTarget: true }] } };
         const parsed = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
         if (!parsed.auto || !parsed.effects.length) return null;
         return { op: 'noop', insteadOf: { cond, effects: parsed.effects } };
@@ -12380,7 +12402,8 @@
     // Queen Marchesa: "if an opponent is the monarch"
     [/^an opponent is the monarch$/i, () => ({ kind: 'opponentMonarch' })],
     // Sneak: "if this creature's sneak cost was paid"
-    [/^(?:this creature|this spell|CARDNAME)'?s sneak cost was paid$/i, () => ({ kind: 'sneaked' })],
+    // (Karai, Future of the Foot: "if her sneak cost was paid this turn")
+    [/^(?:(?:this creature|this spell|CARDNAME)'?s|her|his|its) sneak cost was paid(?: this turn)?$/i, () => ({ kind: 'sneaked' })],
     // Triskaidekaphile: "if you have exactly thirteen cards in your hand"
     [/^you have exactly (\w+) cards in your hand$/i, (m) => (typeof num(m[1]) === 'number'
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
@@ -13266,6 +13289,8 @@
     // Ertha Jo, Frontier Mentor: "Whenever you activate an ability that targets a creature or player" (abTargetsCreatureOrPlayer)
     { re: /^Whenever you activate an ability that targets a creature or player,? /i, event: 'youActivateAbility', extra: { abTargetsCreatureOrPlayer: true } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
+    // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
+    { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
     { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
     { re: /^Whenever you activate a loyalty ability(?! of enchanted)(?: of an? ([A-Z][a-z]+) planeswalker)?,? /, event: 'youActivateAbility',
@@ -13553,6 +13578,9 @@
       event: 'permLeaves', extra: { notDying: true }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) exiled from the battlefield(?:,| )', 'i'),
       event: 'permLeaves', extra: { toZoneOnly: 'exile' }, filt: (m) => subjectFilter(m[1]) },
+    // Tameshi, Reality Architect: "Whenever one or more noncreature permanents are returned to hand" (toZoneOnly)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) returned to (?:its owner\'s |their owners\' )?hand(?:,| )', 'i'),
+      event: 'permLeaves', extra: { toZoneOnly: 'hand' }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' leaves? the battlefield(?:,| )', 'i'),
       event: 'permLeaves', filt: (m) => subjectFilter(m[1]) },
     // Dollmaker's Shop: "Whenever one or more non-Toy creatures you control attack a player" (read as Anim Pakal's)
@@ -16054,7 +16082,8 @@
     // (Loch Mare, Moonlit Lamenter: "-1/-1 counters" as well as named ones)
     // (Astral Cornucopia, Lightning Serpent: "X charge counters", "X +1/+0 counters" — the X paid)
     etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (-1\/-1|\+1\/\+0|[a-z ]+?) counters?/i);
-    if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
+    // (not Indominus Rex, Alpha's "a flying counter on it if a card discarded this way has flying": discardForKwCounters)
+    if (etbm && !out.entersWithCounters && !/counter on it if a card discarded this way has/i.test(noReminder)) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
        one to each other creature as that creature enters */
     const graftN = out.keywords.some(k => k.keyword === 'Graft') && text.match(/(?:^|\n)Graft (\d+)/);
@@ -18298,6 +18327,14 @@
         make: (m) => {
           const kws = m[2].split(/,\s*(?:and |or )?/).map(x => x.trim().toLowerCase()).filter(Boolean);
           return kws.length > 1 && kws.every(kwKnown) ? { op: 'chooseOnEnter', what: 'keywords', n: num(m[1]), keywords: kws } : null;
+        }, auto: true },
+      /* Indominus Rex, Alpha: "As Indominus Rex enters, discard any number of creature cards. It enters with a flying
+         counter on it if a card discarded this way has flying. The same is true for first strike, …, and vigilance."
+         (discardForKwCounters) */
+      { re: /^As (?:CARDNAME|this creature) enters, discard any number of creature cards\. It enters with an? ([a-z ]+?) counter on it if a card discarded this way has \1\. The same is true for ((?:[a-z ]+, )+and [a-z ]+)\.?$/i,
+        make: (m) => {
+          const kws = [m[1]].concat(m[2].split(/,\s*(?:and )?/)).map(x => x.trim().toLowerCase()).filter(Boolean);
+          return kws.every(kwKnown) ? { op: 'discardForKwCounters', keywords: kws } : null;
         }, auto: true },
       { re: /^((?:Other )?[A-Z][a-z]+s|(?:Other )?creatures) you control have each of the chosen abilities\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, grantChosen: true } : null; }, auto: true },

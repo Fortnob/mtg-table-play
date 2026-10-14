@@ -7920,6 +7920,8 @@
       if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
       // Deadpool, Trading Card: "you may exchange his text box and another creature's" (layer 3)
       if (this._staticOp(o, 'exchangeTextOnEnter')) this._exchangeOnEnter(o);
+      // Indominus Rex, Alpha: "As Indominus Rex enters, discard any number of creature cards." (discardForKwCounters)
+      if (this._staticOp(o, 'discardForKwCounters')) this._discardForKwCountersOnEnter(o, this._staticOp(o, 'discardForKwCounters'));
       /* Devour: the creatures chosen as it was cast, sacrificed as it enters,
          and N +1/+1 counters for each */
       if (a.devour && o._devourPicks) {
@@ -9948,6 +9950,8 @@
       if (o && o.zone === 'battlefield' && fromCreature) {
         const amount = Object.values(made).reduce((k, v) => k + (Number(v) || 0), 0);
         this._fire('manaAbilityResolves', o.controller, { source: o, object: o, objController: o.controller, amount, playerId });
+        // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — a mana ability too (youActivateManaAbility)
+        if (ab.cost) this._fire('youActivateManaAbility', playerId, { object: o, objController: o.controller, playerId });
       }
       if (ab.cost && ab.cost.tap) {
         this._extraManaOnTap(playerId, o, made);
@@ -12300,6 +12304,31 @@
         return;
       }
       this.queueChoice(spec);
+    }
+
+    /* Indominus Rex, Alpha: "discard any number of creature cards. It enters with a flying counter on it if a card
+       discarded this way has flying. The same is true for first strike, …" — one counter of each kind any of them had */
+    _discardForKwCountersOnEnter(o, rule) {
+      const p = this.player(o.controller);
+      const cards = p ? this.zones[p.id].hand.filter(c => (c.analysis() || {}).isCreature) : [];
+      if (!cards.length) return;
+      const spec = MTG.choice.normalize({ playerId: p.id, purpose: 'discardForKwCounters', kind: 'objects', zone: 'hand',
+        items: this._chooseItems(cards), min: 0, max: cards.length, objId: o.id, keywords: (rule.keywords || []).slice(),
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card, confirmLabel: 'Discard',
+        prompt: `${o.name}: discard any number of creature cards. It enters with a counter for each of ${(rule.keywords || []).join(', ')} that a card discarded this way has.` });
+      if (p.isBot) { const got = this._decideChoose(p.id, spec); this._kwCountersFromDiscard(o, (got && got.picks) || [], spec.keywords); return; }
+      this.queueChoice(spec);
+    }
+    _kwCountersFromDiscard(o, ids, keywords) {
+      const list = (ids || []).map(id => this.obj(id)).filter(c => c && c.zone === 'hand' && c.owner === o.controller);
+      if (!list.length) return;
+      // what each had as it was discarded
+      const has = new Set();
+      for (const c of list) { const ks = (c.analysis() || {}).keywordSet; for (const k of keywords || []) if (ks && ks.has(k)) has.add(k); }
+      this._discardNow(o.controller, list, null);
+      if (o.zone !== 'battlefield') return;
+      for (const k of keywords || []) if (has.has(k)) this.addCounters(o, k, 1);
+      if (has.size) this.logEvent('counter', `${o.name} gets ${[...has].join(', ')} counters.`);
     }
 
     /** The words of each kind (color, land, creature) a spell or permanent's text uses now, commonest first. */
@@ -16941,6 +16970,8 @@
         // Kaya's Wrath: the ones of yours the sweep just took
         if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
         // Wojek Investigator: the opponents holding more cards than you
+        // Volo, Itinerant Scholar: "for each creature type noted for target permanent … named Volo's Journal" (notedTypes)
+        if (v && typeof v === 'object' && v.notedTypes) { const t = targets.find(x => x.kind === 'object'), o = t && this.obj(t.id); return ((o && o.notedTypes) || []).length; }
         if (v && typeof v === 'object' && v.opponentsMoreHand) return this.opponentsOf(ctx.controller).filter(p => this.zones[p.id].hand.length > this.zones[ctx.controller].hand.length).length;
         // Oona, Queen of the Fae: "For each card of the chosen color exiled this way"
         if (v && typeof v === 'object' && v.exiledChosenColor) {
@@ -19721,6 +19752,24 @@
           this.logEvent('rules', `${src.name} becomes ${/^[AEIOU]/.test(ty) ? 'an' : 'a'} ${ty}.`);
           break;
         }
+        /* Volo's Journal: "Whenever you cast a creature spell, note one of its creature types that hasn't been noted for
+           Volo's Journal." — kept on the Journal (notedTypes), each type once; a changeling spell has them all */
+        case 'noteCreatureType': {
+          if (!src) break;
+          const d = ctx.triggerData || {};
+          const sp = (d.objectId && this.obj(d.objectId)) || (d.object && this.obj(d.object.id)) || null;
+          if (!sp) break;
+          const noted = src.notedTypes || [];
+          const types = this._creatureTypeChoices(ctx.controller).filter(ty => !noted.includes(ty) && this._hasCreatureType(sp, ty));
+          if (!types.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'creatureType', kind: 'options', min: 1, max: 1,
+            options: types.map((t, i) => ({ i, label: t })), prompt: `${src.name}: note one of ${sp.name}'s creature types that hasn't been noted.` }, 'note');
+          if (got === SUSPEND) return SUSPEND;
+          const ty = types[(got && got.picks.length ? got.picks[0] : 0)] || types[0];
+          src.notedTypes = noted.concat(ty);
+          this.logEvent('rules', `${src.name}: ${ty} noted (${src.notedTypes.length}).`);
+          break;
+        }
         /* "Choose a creature type." as an effect: asked now, remembered on
            the spell or permanent for "of the chosen type" after it */
         case 'chooseTypeNow': {
@@ -21644,8 +21693,8 @@
         // Scheming Symmetry: each target player does it, as that player, in turn (forEachTargetPlayer)
         // Veteran Explorer: "Each player may search their library …" — as each player in turn, starting with you
         /* Davros, Dalek Creator: "each opponent who lost 3 or more life this turn faces a villainous choice — You draw
-           a card, or that player discards a card." Each picks in turn order, then what they picked is done, all of
-           it, "that player" being the one who picked it (CR 701.56) */
+           a card, or that player discards a card." Each picks in turn order, and what one picked is done before the
+           next picks, "that player" being the one who picked it (CR 701.55) */
         /* Garth One-Eye: a name not yet chosen for this Garth (forgotten once it leaves the battlefield: _leftSeq), a
            copy of that card made, and cast if its controller likes, paying its costs, as this resolves (castNamedCopy) */
         case 'castNamedCopy': {
@@ -21698,30 +21747,41 @@
           this._fire('chaosEnsues', ctx.controller, { playerId: ctx.controller });
           break;
         case 'villainousChoice': {
-          let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
-            : e.who === 'triggerPlayer' ? [triggerPlayer()]
-            : e.who === 'defending' ? [(src && this._defenderOf(src)) || triggerPlayer()]
-            : this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller && this.opponentsOf(ctx.controller).includes(q));
-          who = who.filter(q => q && !q.hasLost && (e.lostLife == null || (q.lifeLostThisTurn || 0) >= e.lostLife));
-          const opts = e.options || [];
-          const run = [];
-          for (const q of who) {
-            /* The Valeyard: "If an opponent would face a villainous choice, they face that choice an additional
-               time." — once more for each Valeyard an opponent of theirs controls (villainousExtra) */
-            const extra = this.battlefield.filter(x => !x.phasedOut && x.controller !== q.id &&
-              this.opponentsOf(x.controller).includes(q) && this._staticOp(x, 'villainousExtra')).length;
-            for (let r = 0; r <= extra; r++) {
-              const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
-                options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
-                prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice${r ? ' again' : ''}. Choose one.` }, 'vc:' + q.id + (r ? ':' + r : ''));
-              if (got === SUSPEND) return SUSPEND;
-              const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
-              const o = opts[k] || opts[0];
-              if (!o) continue;
-              this.logEvent('rules', `${q.name} chooses: ${o.label}.`);
-              for (const f of o.effects || []) run.push(Object.assign(JSON.parse(JSON.stringify(f)), { _tp: q.id }));
+          /* Each opponent in turn order faces it, and what they chose is done before the next one chooses, so a later
+             choice sees what an earlier one did (CR 701.55): the ones still to choose wait in _vq, after the choice */
+          let queue = e._vq;
+          if (!queue) {
+            let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
+              : e.who === 'triggerPlayer' ? [triggerPlayer()]
+              : e.who === 'defending' ? [(src && this._defenderOf(src)) || triggerPlayer()]
+              : this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller && this.opponentsOf(ctx.controller).includes(q));
+            who = who.filter(q => q && !q.hasLost && (e.lostLife == null || (q.lifeLostThisTurn || 0) >= e.lostLife));
+            queue = [];
+            for (const q of who) {
+              /* The Valeyard: "If an opponent would face a villainous choice, they face that choice an additional
+                 time." — once more for each Valeyard an opponent of theirs controls (villainousExtra) */
+              const extra = this.battlefield.filter(x => !x.phasedOut && x.controller !== q.id &&
+                this.opponentsOf(x.controller).includes(q) && this._staticOp(x, 'villainousExtra')).length;
+              for (let r = 0; r <= extra; r++) queue.push({ p: q.id, r });
             }
           }
+          const opts = e.options || [];
+          let head = null;
+          while (queue.length && !head) { const x = queue[0]; queue = queue.slice(1); const q = this.player(x.p); if (q && !q.hasLost) head = { q, r: x.r }; }
+          if (!head) break;
+          const q = head.q, r = head.r;
+          const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
+            options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice${r ? ' again' : ''}. Choose one.` }, 'vc:' + q.id + (r ? ':' + r : ''));
+          if (got === SUSPEND) return SUSPEND;
+          const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
+          const o = opts[k] || opts[0];
+          const run = [];
+          if (o) {
+            this.logEvent('rules', `${q.name} chooses: ${o.label}.`);
+            for (const f of o.effects || []) run.push(Object.assign(JSON.parse(JSON.stringify(f)), { _tp: q.id }));
+          }
+          if (queue.length) { const more = Object.assign({}, e, { _vq: queue }); delete more.targets; delete more._tp; run.push(more); }
           this._spliceNext(run);
           break;
         }
@@ -30613,6 +30673,7 @@
             if (o && x) this._exchangeText(o, x);
             break;
           }
+          if (ch.purpose === 'discardForKwCounters') { const o = this.obj(ch.objId); if (o) this._kwCountersFromDiscard(o, got.picks, ch.keywords); break; }
           if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
           // Ruxa, Patient Professor: the ones that deal their damage as though unblocked, then the damage (asUnblocked)
           if (ch.purpose === 'asUnblocked') {
