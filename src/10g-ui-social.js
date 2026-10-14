@@ -262,6 +262,8 @@
   async function leaveForJoin(name, o) {
     o = o || {};
     const app = A();
+    // a deck being built with changes not saved: kept, or let go of, first
+    if (!await UI.canLeave()) return false;
     if (app.screen === 'table' || app.screen === 'draft') {
       await app.exitToMenu();
       return !(app.screen === 'table' || app.screen === 'draft');

@@ -12,7 +12,11 @@
      its hand, never casts, attacks or blocks, runs out of cards without
      losing, and is killed on a turn the tally can name;
    - rulings (src/10g-rulings.js): asked for once and kept, oldest first,
-     dated the British way, and nothing asked for a card that has none.
+     dated the British way, and nothing asked for a card that has none;
+   - the builder (src/11-ui-deck.js) on a pretend DOM: leaving it with
+     changes not saved, by every way out, asks "Leave without saving?",
+     and stay, discard and save each do what they say; no question when
+     nothing changed, and the tab's own "leave this page?" while changed.
 
    node tools/decktoolstest.js            A failure exits non-zero.
    Run by tools/check.py ('decktools'). */
@@ -32,7 +36,7 @@ for (const m of ['05a-decklink.js', '16a-playtest.js', '10g-rulings.js']) {
 }
 
 let fails = 0, passes = 0;
-const check = (ok, what) => { if (ok) passes++; else { fails++; console.log('FAIL ' + what); } };
+const check = (ok, what, detail) => { if (ok) passes++; else { fails++; console.log('FAIL ' + what + (detail != null ? ': ' + detail : '')); } };
 const near = (a, b, eps) => Math.abs(a - b) <= (eps || 1e-6);
 
 /* ================= deck links ================= */
@@ -283,10 +287,174 @@ function importNameChecks() {
   check(D.nameFromCommanders([]) === '', 'no commander: no name, so "Imported deck"');
 }
 
+/* ================= the builder: leaving with changes not saved =================
+   The real builder (src/11-ui-deck.js) on a pretend DOM (tools/fakedom.js),
+   in a page of its own: closed every way there is, with and without
+   changes, and the three answers to "Leave without saving?". */
+async function leaveChecks() {
+  const { Document, makeEvent } = require('./fakedom');
+  const doc = new Document();
+  const store = new Map();
+  const onWindow = {};
+  const page = {
+    console: { log: console.log, error: () => {}, warn: () => {}, info: () => {} },
+    setTimeout, clearTimeout, setInterval, clearInterval, queueMicrotask, performance, TextEncoder, TextDecoder, URL, URLSearchParams,
+    crypto: require('crypto').webcrypto, document: doc, navigator: { maxTouchPoints: 0 }, innerWidth: 1440, innerHeight: 900, devicePixelRatio: 1,
+    localStorage: {
+      getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)),
+      removeItem: (k) => store.delete(k), key: (i) => Array.from(store.keys())[i], get length() { return store.size; },
+    },
+    location: { search: '', href: 'http://localhost/', pathname: '/', hash: '' },
+    CSS: { escape: (s) => String(s) },
+    requestAnimationFrame: (f) => setTimeout(f, 0), cancelAnimationFrame: clearTimeout,
+    addEventListener(k, f) { (onWindow[k] = onWindow[k] || []).push(f); }, removeEventListener() {},
+    fetch: async () => { throw new Error('offline'); },
+    IntersectionObserver: class { observe() {} unobserve() {} disconnect() {} },
+    // a picture never loads here
+    Image: class { set src(v) { setTimeout(() => this.onerror && this.onerror(), 0); } },
+  };
+  page.window = page;
+  vm.createContext(page);
+  for (const f of ['00-core.js', '01-audio.js', '02-scryfall.js', '02a-carddb.js', '18-scripts.js', '19-cardlib.js', '03-oracle.js',
+    '04-formats.js', '05-decklist.js', '05a-decklink.js', '06-rules.js', '15-combos.js', '15a-brackets.js', '15b-themes.js', '16-advisor.js',
+    '10-ui-core.js', '10c-economy.js', '11-ui-deck.js', '17-ui-advisor.js']) {
+    vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src', f), 'utf8'), page, { filename: f });
+  }
+  const P = page.MTG, UI = P.ui;
+  P.sfx = () => {};
+  UI.toast = () => {};
+  UI.ok = UI.toast;
+  UI.error = UI.toast;
+  const tick = (ms) => new Promise(r => setTimeout(r, ms || 10));
+  const windows = () => doc.querySelectorAll('.modal');
+  const asking = () => windows().find(m => m.classList.contains('leave-modal')) || null;
+  const builders = () => windows().filter(m => m.classList.contains('deck-modal'));
+  const button = (host, label) => (host ? host.querySelectorAll('button').find(b => b.textContent === label) : null);
+  const answer = async (label) => { const b = button(asking(), label); if (b) b.click(); await tick(); return !!b; };
+  const key = (k) => doc.dispatchEvent(makeEvent('keydown', { key: k }));
+  const unload = () => { let stopped = false; for (const f of onWindow.beforeunload || []) f({ preventDefault() { stopped = true; }, set returnValue(v) { stopped = true; } }); return stopped; };
+
+  const forest = card('Forest'), bears = card('Grizzly Bears');
+  const deckOfBears = () => ({ id: 'bears', name: 'Bears', format: 'standard', main: [{ card: forest, qty: 20 }, { card: bears, qty: 4 }],
+    sideboard: [], commanders: [], companion: null });
+  P.decks.save(deckOfBears());
+  const saved = () => page.MTG.store.get('deck.bears', null);
+  const savedBears = () => (saved().main.find(e => e.id === bears.id) || {}).q;
+  const more = (b) => b.querySelectorAll('button').find(x => x.getAttribute('aria-label') === 'One more Grizzly Bears');
+  const fewer = (b) => b.querySelectorAll('button').find(x => x.getAttribute('aria-label') === 'One fewer Grizzly Bears');
+
+  // what counts as a change
+  const S = UI.deckSnapshot;
+  const base = deckOfBears();
+  check(S(base) === S(Object.assign(deckOfBears(), { main: deckOfBears().main.slice().reverse() })), 'snapshot: the order cards sit in is no change');
+  check(S(base) !== S(Object.assign(deckOfBears(), { name: 'Cubs' })), 'snapshot: the name');
+  check(S(base) !== S(Object.assign(deckOfBears(), { format: 'pioneer' })), 'snapshot: the format');
+  check(S(base) !== S(Object.assign(deckOfBears(), { main: [{ card: forest, qty: 20 }, { card: bears, qty: 3 }] })), 'snapshot: a count');
+  check(S(base) !== S(Object.assign(deckOfBears(), { main: [{ card: forest, qty: 20 }, { card: Object.assign({}, bears, { id: 'another-printing' }), qty: 4 }] })), 'snapshot: a printing');
+  check(S(base) !== S(Object.assign(deckOfBears(), { sideboard: [{ card: bears, qty: 1 }] })), 'snapshot: the sideboard');
+  check(S(base) !== S(Object.assign(deckOfBears(), { commanders: [bears] })), 'snapshot: the commanders');
+  check(S(base) !== S(Object.assign(deckOfBears(), { companion: bears })), 'snapshot: the companion');
+  check(S(base) !== S(Object.assign(deckOfBears(), { maybeboard: [{ card: bears, qty: 1 }] })), 'snapshot: a maybeboard');
+
+  // nothing changed: Close closes, no question
+  UI.deckBuilder(deckOfBears(), {});
+  check(builders().length === 1, 'the builder opens');
+  check(!unload(), 'nothing changed: closing the tab is not stopped');
+  button(builders()[0], 'Close').click(); await tick();
+  check(!builders().length && !asking(), 'nothing changed: Close just closes');
+
+  // a change, and Close asks
+  UI.deckBuilder(deckOfBears(), {});
+  let b = builders()[0];
+  more(b).click(); await tick();
+  check(unload(), 'with a change, closing or reloading the tab asks first');
+  button(b, 'Close').click(); await tick();
+  const q = asking();
+  check(!!q && /Leave without saving\?/.test(q.textContent), 'with a change, Close asks “Leave without saving?”', q && q.textContent);
+  const labels = q ? q.querySelectorAll('.modal-foot button').map(x => x.textContent) : [];
+  check(JSON.stringify(labels) === JSON.stringify(['Discard and leave', 'Save and leave', 'Stay and keep editing']), 'its three answers', JSON.stringify(labels));
+  check(!!q && button(q, 'Discard and leave').classList.contains('danger') && button(q, 'Stay and keep editing').classList.contains('primary'), 'discarding looks destructive; staying is the main button');
+  await tick(20);
+  check(doc.activeElement === button(q, 'Stay and keep editing'), 'staying has the focus', doc.activeElement && (doc.activeElement.tagName + ' ' + doc.activeElement.className + ' ' + doc.activeElement.textContent.slice(0, 40)));
+  await answer('Stay and keep editing');
+  check(builders().length === 1 && !asking(), 'stay: the builder is still open');
+  check(UI.unsavedWork() && unload(), 'and the change is still there, still not saved');
+  // Escape asks the same, and Escape on the question stays
+  key('Escape'); await tick();
+  check(!!asking(), 'Escape asks too');
+  key('Escape'); await tick();
+  check(builders().length === 1 && !asking(), 'Escape on the question stays');
+  // the X in the corner
+  b.querySelector('.modal-x').click(); await tick();
+  check(!!asking(), 'the X asks too');
+  await answer('Discard and leave');
+  check(!builders().length, 'discard: the builder closes');
+  check(savedBears() === 4, 'and the saved deck is as it was', savedBears());
+
+  // a change taken back again is no change
+  UI.deckBuilder(deckOfBears(), {});
+  b = builders()[0];
+  more(b).click(); await tick();
+  fewer(b).click(); await tick();
+  button(b, 'Close').click(); await tick();
+  check(!builders().length && !asking(), 'a change undone by hand: nothing to ask about');
+
+  // somewhere else in the app (the top navigation asks UI.canLeave): save and leave
+  UI.deckBuilder(deckOfBears(), {});
+  b = builders()[0];
+  more(b).click(); await tick();
+  let left = null;
+  UI.canLeave().then(v => { left = v; });
+  await tick();
+  check(!!asking() && left === null, 'leaving for elsewhere asks first, and waits');
+  await answer('Save and leave');
+  check(left === true && !builders().length, 'save and leave: the builder closes, and the way is clear');
+  check(savedBears() === 5, 'and the deck is saved with the change', savedBears());
+  // staying keeps you where you are
+  UI.deckBuilder(Object.assign(deckOfBears(), { main: [{ card: forest, qty: 20 }, { card: bears, qty: 5 }] }), {});
+  b = builders()[0];
+  fewer(b).click(); await tick();
+  left = null;
+  UI.canLeave().then(v => { left = v; });
+  await tick();
+  await answer('Stay and keep editing');
+  check(left === false && builders().length === 1, 'stay: the way out is refused, the builder still open');
+
+  // another deck opened over this one asks first; staying opens nothing
+  UI.deckBuilder(deckOfBears(), {});
+  await tick();
+  check(!!asking(), 'opening another deck over changes not saved asks first');
+  await answer('Stay and keep editing');
+  check(builders().length === 1, 'stay: the other deck is not opened');
+  UI.deckBuilder(deckOfBears(), {});
+  await tick();
+  await answer('Discard and leave');
+  await tick();
+  check(builders().length === 1 && !asking(), 'discard: this one closes and the other opens');
+  button(builders()[0], 'Close').click(); await tick();
+  check(!builders().length, 'and closes without asking, unchanged');
+
+  // a new deck: never saved but with cards in it is worth asking about; an empty one is not
+  UI.deckBuilder({ id: 'fresh', name: '', format: 'standard', main: [], sideboard: [], commanders: [], companion: null }, { untitled: 'New Deck' });
+  b = builders()[0];
+  check(!unload(), 'a new, empty deck: nothing to lose');
+  button(b, 'Close').click(); await tick();
+  check(!builders().length && !asking(), 'a new, empty deck closes without asking');
+  UI.deckBuilder({ id: 'imported', name: 'Imported', format: 'standard', main: [{ card: forest, qty: 20 }], sideboard: [], commanders: [], companion: null }, {});
+  b = builders()[0];
+  check(unload(), 'a deck never saved, with cards (an import, say): closing the tab asks');
+  button(b, 'Close').click(); await tick();
+  check(!!asking() && /has not been saved yet/.test(asking().textContent), 'and Close says it has never been saved', asking() && asking().textContent);
+  await answer('Save and leave');
+  check(!builders().length && !!page.MTG.store.get('deck.imported', null), 'save and leave keeps it');
+  check(!unload(), 'nothing open, nothing to lose');
+}
+
 (async () => {
   importNameChecks();
   await practiceChecks();
   await rulingsChecks();
+  await leaveChecks();
   console.log(`${passes} passed, ${fails} failed`);
   process.exit(fails ? 1 : 0);
 })().catch((e) => { console.log('FAIL ' + (e && e.stack || e)); process.exit(1); });

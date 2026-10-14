@@ -138,10 +138,19 @@
           el('button', {
             type: 'button', class: 'btn primary sm', text: 'Practice game', disabled: !size,
             title: size ? 'Start a solo game with this deck' : 'Put some cards in the deck first',
-            onclick: () => {
+            onclick: async () => {
               const d = deck(), o = api.opts || {};
-              api.close();
-              UI.practiceGame(d, { onDraw, back: () => UI.deckBuilder(d, o) });
+              /* the game plays the deck as it is now, saved or not; changes
+                 not saved come back with "Back to the deck", still unsaved,
+                 but leaving the game any other way loses them, so say so */
+              const left = await api.leave({
+                title: 'Practise without saving?',
+                message: 'Your changes are not saved. The practice game plays the deck as it is now, and “Back to the deck” brings the changes back, but leaving the game any other way loses them.',
+                discard: 'Practise without saving', save: 'Save and practise',
+              });
+              if (!left) return;
+              const base = api.baseline();
+              UI.practiceGame(d, { onDraw, back: () => UI.deckBuilder(d, Object.assign({}, o, { baseline: base })) });
             },
           }),
         ]),

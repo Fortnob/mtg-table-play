@@ -88,6 +88,8 @@
     // at a table the game stays where it is; anywhere else, the deck is shown
     const App = MTG.app;
     if (!App || ['table', 'draft', 'lobby'].includes(App.screen)) return;
+    // over a deck with changes not saved: that one is kept, or let go of, first
+    if (!await UI.canLeave()) return;
     App.showScreen('decks');
     UI.deckBuilder(deck, { missing, onSave: () => { if (App.screen === 'decks') App.showScreen('decks'); } });
   }

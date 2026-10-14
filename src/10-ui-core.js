@@ -133,7 +133,7 @@
       opts.closable === false ? null : el('button', {
         class: 'btn ghost sm modal-x', 'aria-label': 'Close', title: 'Close',
         html: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
-        onclick: () => api.close(),
+        onclick: () => api.dismiss(),
       }),
     ]);
     if (opts.art) UI.artBehind(head, opts.art);
@@ -163,6 +163,22 @@
         }
         if (api._onClose) api._onClose(val);
       },
+      /* Closed the way a person closes a window (its X, Escape, a click
+         beside it, its own Close): `opts.beforeClose` may keep it open, as
+         the deck builder does with work not yet saved. Resolves whether it
+         closed. */
+      async dismiss() {
+        if (api._closed) return true;
+        if (api._asking) return false;
+        if (opts.beforeClose) {
+          api._asking = true;
+          let go = false;
+          try { go = await opts.beforeClose(api); } finally { api._asking = false; }
+          if (!go) return false;
+        }
+        api.close();
+        return true;
+      },
       setTitle(t) { head.querySelector('h2').textContent = t; },
       button(label, fn, cls) {
         const b = el('button', { class: 'btn ' + (cls || ''), text: label, onclick: () => fn(api) });
@@ -174,7 +190,7 @@
     if (!foot.childNodes.length) foot.classList.add('empty');
     const onKey = (e) => {
       if (openModals[openModals.length - 1] !== api) return;
-      if (e.key === 'Escape' && opts.closable !== false) { e.preventDefault(); api.close(); return; }
+      if (e.key === 'Escape' && opts.closable !== false) { e.preventDefault(); api.dismiss(); return; }
       if (e.key === 'Enter' && opts.onEnter) opts.onEnter(api);
       // Tab goes round the window rather than out into the page behind it
       if (e.key === 'Tab') {
@@ -190,7 +206,7 @@
     if (opts.closable !== false) back.addEventListener('mousedown', (e) => { if (e.target === back) back._downOnBack = true; });
     if (opts.closable !== false) back.addEventListener('click', (e) => {
       // a drag that starts in a field and ends outside the window is not a dismissal
-      if (e.target === back && back._downOnBack) api.close();
+      if (e.target === back && back._downOnBack) api.dismiss();
       back._downOnBack = false;
     });
     openModals.push(api);
@@ -201,7 +217,8 @@
     // reads its title, and the next Tab lands on the first control inside
     modal.setAttribute('tabindex', '-1');
     setTimeout(() => {
-      if (api._closed || modal.contains(document.activeElement)) return;
+      // (nor from a window opened over it meanwhile, which has the focus now)
+      if (api._closed || modal.contains(document.activeElement) || openModals[openModals.length - 1] !== api) return;
       try { modal.focus({ preventScroll: true }); } catch (e) {}
     }, 40);
     return api;
@@ -226,6 +243,62 @@
         ],
       });
       m._onClose = () => settle(false);
+    });
+  };
+
+  /* ---------------- work not yet saved ----------------
+     A window holding work that is not kept yet (the deck builder) registers
+     a guard: { dirty() -> bool, ask() -> Promise<bool> }. Whatever would
+     take the person away from it (the top navigation, joining a friend,
+     opening another deck) asks UI.canLeave() first, and closing or
+     reloading the tab gets the browser's own "leave this page?" while any
+     guard is dirty. */
+  const leaveGuards = [];
+  UI.guardLeave = function (g) {
+    leaveGuards.push(g);
+    return () => { const i = leaveGuards.indexOf(g); if (i >= 0) leaveGuards.splice(i, 1); };
+  };
+  const isDirty = (g) => { try { return !!g.dirty(); } catch (e) { return false; } };
+  UI.unsavedWork = () => leaveGuards.some(isDirty);
+  /** Resolves true when it is fine to go: nothing unsaved, or each guard let go of its work. */
+  UI.canLeave = async function () {
+    for (const g of leaveGuards.slice().reverse()) {
+      if (isDirty(g) && !await g.ask()) return false;
+    }
+    return true;
+  };
+  if (typeof window !== 'undefined' && window.addEventListener) {
+    window.addEventListener('beforeunload', (e) => {
+      if (!UI.unsavedWork()) return;
+      e.preventDefault();
+      e.returnValue = '';   // older browsers ask only when something is set here
+    });
+  }
+
+  /**
+   * "Leave without saving?": staying is the default and has the focus, so
+   * Enter or Escape keeps the work. Resolves 'stay', 'discard', or 'save'
+   * (offered when `opts.canSave`).
+   */
+  UI.askLeave = function (opts) {
+    opts = opts || {};
+    return new Promise(res => {
+      let done = false;
+      const settle = (v) => { if (!done) { done = true; res(v); } };
+      const m = UI.modal({
+        title: opts.title || 'Leave without saving?',
+        className: 'leave-modal', width: '560px',
+        content: el('p', { text: opts.message || 'Your changes are not saved. If you leave now, they are lost.', style: { margin: 0 } }),
+        buttons: [
+          { label: opts.discardLabel || 'Discard and leave', class: 'danger', onClick: () => { settle('discard'); m.close(); } },
+          opts.canSave ? { label: opts.saveLabel || 'Save and leave', onClick: () => { settle('save'); m.close(); } } : null,
+          { label: 'Stay and keep editing', class: 'primary', onClick: () => { settle('stay'); m.close(); } },
+        ].filter(Boolean),
+      });
+      m._onClose = () => settle('stay');
+      const stay = m.foot.lastChild;
+      stay.dataset.default = '1';
+      setTimeout(() => { if (stay.isConnected) try { stay.focus({ preventScroll: true }); } catch (e) { /* not focusable yet */ } }, 0);
     });
   };
 

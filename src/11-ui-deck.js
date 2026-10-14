@@ -428,8 +428,36 @@ Sideboard
 
   /* ---------------- deck builder ---------------- */
 
+  /**
+   * What the builder counts as the deck, to tell an edit from none: its
+   * name, format, picture, and every list by printing and count. The order
+   * cards sit in is not part of it, so a card taken out and put back again
+   * leaves the deck as it was.
+   */
+  UI.deckSnapshot = function (deck) {
+    const counts = (list) => {
+      const n = new Map();
+      for (const e of (list || [])) if (e && e.card) n.set(e.card.id, (n.get(e.card.id) || 0) + (e.qty || 0));
+      return Array.from(n.entries()).filter(([, q]) => q > 0).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    };
+    return JSON.stringify({
+      name: String(deck.name || '').trim(), format: deck.format || '',
+      main: counts(deck.main), side: counts(deck.sideboard),
+      cmd: (deck.commanders || []).map(c => c && c.id),
+      comp: deck.companion ? deck.companion.id : null,
+      maybe: counts(deck.maybeboard),
+      cover: deck.cover || null,
+    });
+  };
+
   UI.deckBuilder = function (deck, opts) {
     opts = opts || {};
+    /* Another deck opened over one with changes not saved: that one is let
+       go of first (or kept, and this one not opened). */
+    if (!opts.finish && UI.unsavedWork()) {
+      UI.canLeave().then(ok => { if (ok) UI.deckBuilder(deck, opts); });
+      return null;
+    }
     /* Work on a copy so Close can throw the edits away. Only the structure
        is copied: the cards themselves are shared, read-only Scryfall data,
        and deep-copying a hundred of them on every open is pure waste. */
@@ -438,6 +466,14 @@ Sideboard
       sideboard: (deck.sideboard || []).map(e => ({ card: e.card, qty: e.qty })),
       commanders: (deck.commanders || []).slice(),
     });
+    /* The deck as it was opened or last saved, to tell whether leaving
+       would lose anything. A deck back from a practice game keeps the
+       snapshot it went with, so its edits still count as unsaved. */
+    let baseline = opts.baseline || UI.deckSnapshot(deck);
+    const isSaved = () => MTG.decks.index().some(x => x.id === deck.id);
+    const hasCards = () => !!(deck.main.length || deck.sideboard.length || deck.commanders.length);
+    // a draft's builder is a step on the way to a game, finished rather than left
+    const dirty = () => !opts.finish && (UI.deckSnapshot(deck) !== baseline || (!isSaved() && hasCards()));
     let validation = opts.validation || MTG.formats.validate(deck, deck.format);
     /* A deck built from a draft is built from what was drafted: cards move
        between the deck and the pool (the sideboard), basic lands are free,
@@ -458,7 +494,15 @@ Sideboard
        and refresh(), the latter called on every redraw. */
     const extra = (UI.deckPanes || []).map(p => Object.assign({ host: el('div', { class: 'deck-pane pane-' + p.id }), live: null }, p));
     for (const p of extra) panes[p.id] = p.host;
-    const paneApi = { deck: () => deck, opts, close: () => m.close() };
+    const paneApi = {
+      deck: () => deck, opts, close: () => m.close(),
+      /* Leave for somewhere that takes the deck along (a practice game):
+         asked first when it has changes not saved; resolves whether it left.
+         `words` names the way out: { title, message, discard, save }. */
+      leave: async (words) => { if (!await letGo(words)) return false; m.close(); return true; },
+      // the snapshot the deck is measured against (UI.deckSnapshot), to carry along with it
+      baseline: () => baseline,
+    };
     // an empty deck opens on the search, since adding cards is the whole of the next step
     const empty = !(deck.main || []).length && !(deck.commanders || []).length;
     let activePane = !drafted && empty ? 'add' : 'overview';
@@ -503,7 +547,7 @@ Sideboard
       buttons.push({ label: 'Save to my decks', onClick: () => saveOnly() });
       buttons.push({ label: opts.finish.label || 'Continue', class: 'primary', onClick: () => finish() });
     } else {
-      buttons.push({ label: 'Close', onClick: () => m.close() });
+      buttons.push({ label: 'Close', onClick: () => m.dismiss() });
       buttons.push({ label: 'Save deck', class: 'primary', onClick: () => save() });
     }
 
@@ -520,7 +564,37 @@ Sideboard
       content: wrap,
       closable: !opts.finish,
       buttons,
+      // its X, Escape and a click beside it ask before throwing changes away
+      beforeClose: () => letGo(),
     });
+    /* Anything else that would take you away (the top navigation, joining
+       a friend's table, another deck, closing the tab) asks the same. */
+    const unguard = UI.guardLeave({
+      dirty: () => !m._closed && dirty(),
+      ask: async () => { if (!await letGo()) return false; m.close(); return true; },
+    });
+    m._onClose = () => unguard();
+
+    /**
+     * Whether the builder may be left: at once when nothing would be lost,
+     * otherwise as the person says. "Save and leave" saves (and closes) on
+     * the spot.
+     */
+    async function letGo(words) {
+      if (!dirty()) return true;
+      words = words || {};
+      const shown = String(deck.name || '').trim() || untitled;
+      const answer = await UI.askLeave({
+        title: words.title,
+        message: words.message || (isSaved()
+          ? `Your changes to “${shown}” are not saved. If you leave now, they are lost.`
+          : `“${shown}” has not been saved yet. If you leave now, it is lost.`),
+        canSave: true, saveLabel: words.save, discardLabel: words.discard,
+      });
+      if (answer === 'stay') return false;
+      if (answer === 'save') save();
+      return true;
+    }
     // the deck's key card heads the window, and changes when the commander does
     const headArt = UI.artBehind(m.head, null);
     let headArtFor = null;
@@ -535,6 +609,7 @@ Sideboard
     function save() {
       cleanName();
       MTG.decks.save(deck);
+      baseline = UI.deckSnapshot(deck);
       UI.ok('Deck saved.');
       m.close();
       if (opts.onSave) opts.onSave(deck);
@@ -545,6 +620,7 @@ Sideboard
     function saveOnly() {
       cleanName();
       MTG.decks.save(deck);
+      baseline = UI.deckSnapshot(deck);
       savedOnce = true;
       m.setTitle('Deck — ' + deck.name);
       UI.ok(`"${deck.name}" is in your decks.`);

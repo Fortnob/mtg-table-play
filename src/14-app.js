@@ -915,6 +915,8 @@
 
   /** Go to one of the top-level screens, leaving a table properly on the way. */
   async function navTo(name) {
+    // a deck being built with changes not saved is let go of first, or stayed with
+    if (!await UI.canLeave()) return;
     if (name !== App.screen) MTG.sfx('nav');
     if (name === 'home') return goHome();
     if (App.screen === 'table' || App.screen === 'draft') {
@@ -931,6 +933,7 @@
   }
 
   async function goHome() {
+    if (!await UI.canLeave()) return;
     if (App.screen === 'table' || App.screen === 'draft') return App.exitToMenu();
     if (App.session || net.online) {
       if (!await UI.confirm('Leave this table?')) return;
