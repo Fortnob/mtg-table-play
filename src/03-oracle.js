@@ -4041,6 +4041,12 @@
     // Crypt Incursion: "Exile all creature cards from target player's graveyard."
     { re: /^Exile all ([a-z]+) cards from target player'?s graveyard\.?$/i,
       make: (m) => ({ op: 'exileGraveyard', who: 'target', filter: m[1].toLowerCase(), targets: [{ type: 'player' }] }) },
+    // Oona, Queen of the Fae: "For each card of the chosen color exiled this way, create a 1/1 … token with flying." (exiledChosenColor)
+    { re: /^For each card of the chosen colou?r exiled this way, (create .+)$/i,
+      make: (m) => {
+        const inner = parseTokenSentence('C' + m[1].slice(1));
+        return inner && inner.op === 'createToken' && inner.n === 1 ? Object.assign(inner, { n: { exiledChosenColor: true } }) : null;
+      } },
     { re: /^You gain (one|two|three|four|\d+) life for each card exiled this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastExiledCount: true, mult: num(m[1]) } }) },
     { re: /^Exile (?:all|each) (?:player'?s|players'?) graveyards?\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
@@ -5788,6 +5794,10 @@
     // Yuna, Grand Summoner: "… that creature enters with two additional +1/+1 counters on it."
     { re: /^When you next cast a creature spell this turn, that creature enters with (an|two|three) additional \+1\/\+1 counters? on it\.?$/i,
       make: (m) => ({ op: 'nextCreatureCounter', n: /^an$/i.test(m[1]) ? 1 : num(m[1]) }) },
+    /* Torgal, A Fine Hound: "that creature enters with an additional +1/+1 counter on it for each Dog and/or Wolf
+       you control" — the spell the trigger is about, counted as this resolves (spellEntersCounters) */
+    { re: /^(?:That creature|It) enters with an additional \+1\/\+1 counter on it for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? { op: 'spellEntersCounters', n: c } : null; } },
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
@@ -6411,6 +6421,13 @@
     { re: /^Create a (tapped and attacking )?token that'?s a copy of (that|the blighted) creature, except (it'?s not legendary and )?it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[4]) ? Object.assign({ op: 'copyPermanent', n: 1, grant: [], addText: [m[4]] },
         m[1] ? { tapped: true, attacking: true } : {}, m[3] ? { nonLegendary: true } : {}, /blighted/i.test(m[2]) ? { of: 'blighted' } : {}) : null) },
+    /* Shelob, Child of Ungoliant: "create a token that's a copy of that creature, except it's a Food artifact with
+       "{2}, {T}, Sacrifice this token: You gain 3 life," and it loses all other card types." — the creature the
+       trigger is about, as it last was; its supertypes and abilities kept (setCardTypes) */
+    { re: /^Create a token that'?s a copy of that creature, except it'?s an? ([A-Z][a-z]+) (artifact|enchantment) with "([^"]+?),?" and it loses all other card types\.?$/,
+      make: (m) => { const text = m[3].replace(/[.,]?$/, '.');
+        return grantableText(text) ? { op: 'copyPermanent', n: 1, grant: [], scope: 'triggerObject',
+          setCardTypes: U.titleCase(m[2]) + ' \u2014 ' + m[1], addText: [text] } : null; } },
     // Firion, Wild Rose Warrior: "create a token that's a copy of it, except it has "…"" — the Equipment the trigger is about
     { re: /^Create a token that'?s a copy of it, except it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[1]) ? { op: 'copyPermanent', n: 1, grant: [], addText: [m[1]], scope: 'triggerObject' } : null) },
@@ -6439,7 +6456,8 @@
         /exile/i.test(m[2]) ? { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }
           : { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }] },
     /* Molten Duplication, Vaultborn Tyrant: "...except it's an artifact in addition to its other types" */
-    { re: /^Create a token that'?s a copy of (target (?:artifact or creature|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
+    // (Saheeli, the Sun's Brilliance: "another target creature or artifact you control")
+    { re: /^Create a token that'?s a copy of ((?:another )?target (?:artifact or creature|creature or artifact|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
     // Urza, Prince of Kroog: "…a copy of target artifact you control, except it's a 1/1 Soldier creature in addition to its other types."
@@ -8793,6 +8811,12 @@
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
       } },
+    /* Gale, Waterdeep Prodigy: "you may cast up to one target card of the other type from your graveyard. If a
+       spell cast from your graveyard this way would be put into your graveyard, exile it instead." — the other of
+       instant and sorcery than the spell the trigger is about, paying for it; the pick may be left empty (otherSpellType) */
+    { re: /^(?:You may )?cast up to one target card of the other type from your graveyard\. If a spell cast from your graveyard this way would be put into your graveyard, exile it instead\.?$/i,
+      make: () => [{ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: true, exileAfter: true,
+        targets: [Object.assign(targetSpec('target instant or sorcery card', 'graveyard'), { zone: 'graveyard', controller: 'you', upTo: true, otherSpellType: true })] }] },
     // Singularity Rupture: "Destroy all creatures, then any number of target players each mill half their library, rounded down."
     { re: /^Destroy all creatures, then any number of target players each mill half their library, rounded (down|up)\.?$/i,
       make: (m) => [{ op: 'destroyAll', what: 'creature' },
@@ -11910,6 +11934,9 @@
       } },
     { re: /^When(?:ever)? a creature dealt damage by (?:this creature|~|CARDNAME) this turn dies,? /i, event: 'permDies',
       filt: () => ({ words: 'creature' }), extra: { damagedByMe: true } },
+    // Shelob, Child of Ungoliant: "Whenever another creature dealt damage this turn by a Spider you controlled dies" (damagedByTypeOfYours)
+    { re: /^When(?:ever)? another creature dealt damage this turn by an? ([A-Z][a-z]+) you controlled dies,? /, event: 'permDies',
+      filt: () => ({ words: 'creature', other: true }), extraOf: (m) => ({ damagedByTypeOfYours: m[1] }) },
     { re: /^When(?:ever)? a player cycles a card,? /i, event: 'anyCycle' },
     // Waste Not: "Whenever an opponent discards a creature card"
     { re: /^When(?:ever)? an opponent discards an? (creature|land|noncreature, nonland|artifact|instant or sorcery) card,? /i,

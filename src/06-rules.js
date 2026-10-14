@@ -7217,7 +7217,8 @@
         }
       }
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
-      if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; this.addCounters(o, '+1/+1', k); }
+      // (Torgal, A Fine Hound: only as the spell they were promised to resolves — not a countered card brought back later)
+      if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; if (o.enteredFrom === 'stack') this.addCounters(o, '+1/+1', k); }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -12848,6 +12849,10 @@
       if (source) {
         if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
         if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
+        // Shelob, Child of Ungoliant: "by a Spider you controlled" — what the source was, and whose, as it dealt it
+        const sa = source.analysis() || {};
+        (o._damagedBy.kinds = o._damagedBy.kinds || []).push({ pid: source.controller,
+          types: (sa.subtypes || []).map(x => String(x).toLowerCase()), every: this.hasKw(source, 'changeling') || undefined });
       }
       // "a creature dealt damage this way", for the sentence after
       (this._dealtThisWay = this._dealtThisWay || []).push(o.id);
@@ -14230,6 +14235,9 @@
           // "a creature dealt damage by this creature this turn dies"
           if (ab.damagedByMe && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
             data.object._damagedBy.ids.includes(o.id))) continue;
+          // Shelob, Child of Ungoliant: "dealt damage this turn by a Spider you controlled" (damagedByTypeOfYours)
+          if (ab.damagedByTypeOfYours && !(data.object && data.object._damagedBy && data.object._damagedBy.turn === this.turn &&
+            (data.object._damagedBy.kinds || []).some(k => k.pid === o.controller && (k.every || k.types.includes(String(ab.damagedByTypeOfYours).toLowerCase()))))) continue;
           // "each opponent's end step", "combat on each opponent's turn"
           if (ab.notYourTurn && ((data.playerId || (this.activePlayer || {}).id) === o.controller)) continue;
           // "whenever you're dealt damage"
@@ -14836,6 +14844,14 @@
             if (!spec || !spec.mvBelowTrigger) return spec;
             const it = td.objectId && this.obj(td.objectId);
             return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
+          })
+          // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
+          .map(spec => {
+            if (!spec || !spec.otherSpellType) return spec;
+            const it = td.objectId && this.obj(td.objectId);
+            const ty = ((it && it.analysis()) || {}).types || [];
+            const other = ['instant', 'sorcery'].filter(k => !ty.some(x => String(x).toLowerCase() === k));
+            return Object.assign({}, spec, { otherSpellType: false, filter: other.join(' or ') + ' card', cardTypes: other.length ? other : ['none'] });
           });
         /* Heliod's Intervention: "Destroy X target artifacts" inside a mode —
            X of them (as many as there are), asked for now */
@@ -15233,6 +15249,11 @@
         if (v === 'lastSweptYours') return (this._lastAffectedAll || []).filter(g => g.controller === ctx.controller && (this.obj(g.id) || {}).zone !== 'battlefield').length;
         // Wojek Investigator: the opponents holding more cards than you
         if (v && typeof v === 'object' && v.opponentsMoreHand) return this.opponentsOf(ctx.controller).filter(p => this.zones[p.id].hand.length > this.zones[ctx.controller].hand.length).length;
+        // Oona, Queen of the Fae: "For each card of the chosen color exiled this way"
+        if (v && typeof v === 'object' && v.exiledChosenColor) {
+          const col = ctx.chosenColor || (src && src.chosenColor);
+          return col ? (this._lastExiledList || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile' && ((c.analysis() || {}).colors || []).includes(col)).length : 0;
+        }
         // Crypt Incursion: "for each card exiled this way"
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
         // Sunfall: how many the sweep just before took
@@ -19251,7 +19272,7 @@
             }
             /* any other change (a size, a colour, a type): the face up is what is copied (CR 707.8), read as a
                card of its own, that face's words and types, not the two joined (copyFaceUp) */
-            const other = e.setPt || e.setColor || e.setColors || e.setType || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
+            const other = e.setPt || e.setColor || e.setColors || e.setType || e.setCardTypes || (e.addLegendary && !legend0) || (e.addSubtypes || []).length || (e.addTypes || []).length;
             if (other) {
               const f = card.card_faces[faceUp] || card.card_faces[0];
               card = Object.assign({}, card, f, { id: card.id + ':face' + faceUp, card_faces: null, layout: 'normal' });
@@ -19295,6 +19316,13 @@
             const line = t === 'Creature' ? String(card.type_line || '').replace(/^([^\u2014]*?)(\s*\u2014|$)/, '$1 Creature$2')
               : t + ' ' + String(card.type_line || '');
             card = Object.assign({}, card, { id: card.id + ':copy:' + U.hash(line), type_line: line, card_faces: null });
+          }
+          /* Shelob, Child of Ungoliant: "except it's a Food artifact … and it loses all other card types" — its
+             supertypes kept, no creature types or size left with the creature (setCardTypes) */
+          if (e.setCardTypes) {
+            const sup = String(card.type_line || '').match(/\b(?:Legendary|Basic|Snow|World)\b/g) || [];
+            const line = sup.concat([e.setCardTypes]).join(' ');
+            card = Object.assign({}, card, { id: card.id + ':kind:' + U.hash(line), type_line: line, power: null, toughness: null, card_faces: null });
           }
           /* Delina, Wild Mage: "it has 'At end of combat, exile this token.'" — the copy's own words, so a
              copy of the token has them too (CR 707.9b) */
@@ -19606,6 +19634,16 @@
           break;
         }
         // Summon: Fenrir: the next creature spell this turn enters with a counter more
+        /* Torgal, A Fine Hound: "that creature enters with an additional +1/+1 counter on it for each Dog and/or
+           Wolf you control" — the spell still on the stack, counted now; nothing if it is gone (spellEntersCounters) */
+        case 'spellEntersCounters': {
+          const sp = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          const k = n(e.n);
+          if (!sp || sp.zone !== 'stack' || !(k > 0)) break;
+          sp._enterPlusCounters = (sp._enterPlusCounters || 0) + k;
+          this.logEvent('rules', `${sp.name} will enter with ${k} additional +1/+1 counter${k === 1 ? '' : 's'}.`);
+          break;
+        }
         case 'nextCreatureCounter': me.nextCreatureCounter = { turn: this.turn, n: (me.nextCreatureCounter && me.nextCreatureCounter.turn === this.turn ? me.nextCreatureCounter.n : 0) + (Number(e.n) || 1) }; break;
         // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
         case 'eachMay': {
