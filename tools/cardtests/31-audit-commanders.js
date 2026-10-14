@@ -136,6 +136,11 @@ module.exports = (test) => {
     t.eq(top.filter(o => o.zone === 'hand').length, 2, 'two into the hand');
     const lib = T.zone('A', 'library');
     t.eq(lib.slice(-2).filter(o => top.includes(o)).length, 2, 'the other two at the bottom');
+    // the same words in the older readings ("Look at the top N cards … the rest on the bottom … in a random order")
+    const rest = (txt) => (JSON.stringify(T.MTG.oracle.parseEffects(txt)).match(/"rest":"(\w+)"/) || [])[1];
+    t.eq(rest('Look at the top four cards of your library. Put two of them into your hand and the rest on the bottom of your library in a random order.'), 'bottomRandom');
+    t.eq(rest('Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in a random order.'), 'bottomRandom');
+    t.eq(rest('Look at the top three cards of your library. Put one of them into your hand and the rest on the bottom of your library in any order.'), 'bottom');
   });
 
   test('Audit: Prototype X-8 sacrifices the creature that entered, not itself, and conjures its duplicate', (mk, t) => {

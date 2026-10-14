@@ -8846,7 +8846,7 @@
       make: (m) => [{ op: 'discardUpToDraw', n: num(m[1]) }] },
     /* Dig Through Time, Stock Up */
     { re: /^Look at the top (\w+) cards of your library\. Put (two|three) of them into your hand and the rest on the bottom of your library in (?:any|a random) order\.?$/i,
-      make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: 'bottom' }] },
+      make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 }, { op: 'takeFromLooked', n: num(m[2]), filter: 'any', to: 'hand', rest: /random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }] },
     { re: /^Each player sacrifices an? (creature or planeswalker|creature|artifact or creature) of their choice\. Each player who can'?t discards a card\.?$/i,
       make: (m) => [{ op: 'sacrificeChoice', who: 'each', n: 1, filter: m[1].toLowerCase(), orDiscard: true }] },
     /* Dauthi Voidwalker */
@@ -8899,7 +8899,7 @@
     /* look at a few, keep one, bury the rest */
     { re: /^Look at the top (\w+) cards? of your library\. Put one of them into your hand and the (?:rest|other) on the bottom of your library(?: in any order| in a random order)?\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 },
-        { op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'bottom' }] },
+        { op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: /random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }] },
     { re: /^Look at the top (\w+) cards? of your library\. Put one of them into your hand, (?:put )?one of them on the bottom of your library, and exile one of them\.?$/i,
       make: (m) => [{ op: 'lookAt', n: num(m[1]), keep: 0 },
         { op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'keep' },
