@@ -738,7 +738,8 @@
      table can't honour, which is left for a person rather than quietly
      dropped. */
   function copyExceptions(words, e) {
-    let ex = String(words).trim();
+    // (Lazav, Dimir Mastermind: "it has hexproof and this ability" — two things it has)
+    let ex = String(words).trim().replace(/\bit has ([a-z ]+?) and this ability$/i, 'it has $1, and it has this ability');
     while (ex) {
       let c;
       if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
@@ -5544,6 +5545,10 @@
       } },
     // Genesis Wave: "Then put all cards revealed this way that weren't put onto the battlefield into your graveyard."
     { re: /^(?:Then )?put all (?:other )?cards revealed this way that weren'?t put onto the battlefield into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
+    /* Kaalia, Zenith Seeker: "You may reveal an Angel card, a Demon card, and/or a Dragon card from among them and put
+       them into your hand." — one pick, one card for each kind at most (oneEach) */
+    { re: /^You may reveal an? ([A-Z][a-z]+) card, an? ([A-Z][a-z]+) card, and\/or an? ([A-Z][a-z]+) card from among them and put them into your hand\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', n: 3, filter: 'any', to: 'hand', optional: true, rest: 'keep', oneEach: [m[1], m[2], m[3]] }) },
     /* Ojer Kaslem, Deepest Growth: "You may put a creature card and/or a land card from among them onto the
        battlefield." — one of each kind at most, a choice of each (In the Presence of Ages' way) */
     { re: /^You may put an? ([a-z]+) card and\/or an? ([a-z]+) card from among them onto the battlefield( tapped)?\.?$/i,
@@ -5624,7 +5629,8 @@
        the Dragon that entered; Gogo, Mysterious Mime, Irma, Part-Time
        Mutant: "except her name is CARDNAME and she has this ability" */
     // (Kimahri, Valiant Guardian: "Then you may have Kimahri become a copy of that creature" — the one just targeted)
-    { re: /^((?:Then )?[Yy]ou may have |Have )?(This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of (it|that creature|(?:up to one )?(?:another |other )?target [a-z ,]+?)( until end of turn)?(?:, except (.+?))?( until end of turn)?\.?$/i,
+    // (Lazav, Dimir Mastermind: "a copy of that card" — the creature card the trigger is about, as it last was there: ofTriggerCard)
+    { re: /^((?:Then )?[Yy]ou may have |Have )?(This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of (it|that creature|that card|(?:up to one )?(?:another |other )?target [a-z ,]+?)( until end of turn)?(?:, except (.+?))?( until end of turn)?\.?$/i,
       make: (m) => {
         // "become" after "have", "becomes" on its own
         if (/ become a copy/i.test(m[0]) !== !!m[1]) return null;
@@ -5632,7 +5638,10 @@
            than a target named before, which "it" is too: not this permanent, nor the spell */
         if (/^it$/i.test(m[2]) && !m[1] && /^(?:up to one )?other target/i.test(m[3])) return null;
         const e = { op: 'becomeCopy' };
-        if (/^it$/i.test(m[3])) {
+        if (/^that card$/i.test(m[3])) {
+          if (/^it$/i.test(m[2])) return null;
+          e.ofTriggerCard = true;
+        } else if (/^it$/i.test(m[3])) {
           if (/^it$/i.test(m[2])) return null;
           e.scope = 'lastTarget';
         } else if (/^that creature$/i.test(m[3])) {
@@ -12734,6 +12743,9 @@
     // Alandra, Sky Dreamer: "Whenever you draw your fifth card each turn" (drawNthMore)
     { re: /^When(?:ever)? you draw your (fourth|fifth|sixth|seventh) card each turn,? /i, event: 'youDraw',
       extraOf: (m) => ({ drawNth: { fourth: 4, fifth: 5, sixth: 6, seventh: 7 }[m[1].toLowerCase()] }) },
+    // Keranos, God of Storms: the first card drawn on each of your turns, revealed — a land or not (its line, split)
+    { re: /^Whenever you reveal the first card you draw on each of your turns and it'?s a (land|nonland) card,? /i, event: 'youDraw',
+      filt: (m) => ({ words: m[1].toLowerCase() }), extra: { drawNth: 1, yourTurnOnly: true, revealDrawn: true } },
     // Tamiyo, Inquisitive Student: "When you draw your third card in a turn"
     { re: /^When(?:ever)? you draw your third card (?:each|in a) turn,? /i, event: 'youDraw', extra: { drawNth: 3 } },
     /* The Council of Four: "Whenever a player draws their second card during their turn", "casts their
@@ -12863,6 +12875,9 @@
        the lot, the opponents hit kept (batchPlayers) */
     { re: new RegExp('^Whenever ' + SUBJ + ' deal damage to your opponents,? ', 'i'), event: 'yourSourceDamagesOpponent',
       filt: (m) => (/^one or more /i.test(m[1]) ? subjectFilter(m[1]) : null) },
+    // Francisco, Fowl Marauder: "Whenever one or more Pirates you control deal damage to a player" — a lot for each player hit (batchPerPlayer)
+    { re: new RegExp('^Whenever (one or more [A-Za-z ]+? you control) deal damage to a player,? ', 'i'), event: 'yourSourceDamagesPlayer',
+      filt: (m) => subjectFilter(m[1]), extra: { batchPerPlayer: true } },
     // Dragonborn Champion: "Whenever a source you control deals 5 or more damage to a player" — you too (minAmount)
     { re: /^When(?:ever)? a source you control deals (\d+) or more damage to a player,? /i, event: 'yourSourceDamagesPlayer',
       extraOf: (m) => ({ minAmount: +m[1] }) },
@@ -13203,6 +13218,16 @@
       lines[i] = cm[1] + ', ' + cm[2];
       // (by its place among the lines: Oloro prints the same words again for the battlefield)
       commandOnly.add(i);
+    }
+    /* Keranos, God of Storms: "Reveal the first card you draw on each of your turns. Whenever you reveal a land card
+       this way, draw a card. Whenever you reveal a nonland card this way, …" — two triggers on that draw, read as
+       two lines (revealFirstDraw) */
+    for (let i = 0; i < lines.length; i++) {
+      const kr = lines[i].match(/^Reveal the first card you draw on each of your turns\. Whenever you reveal a land card this way, ([^"]+?)\.? Whenever you reveal a nonland card this way, ([^"]+)$/);
+      if (!kr) continue;
+      lines.splice(i, 1, 'Whenever you reveal the first card you draw on each of your turns and it\'s a land card, ' + kr[1].replace(/\.?$/, '.'),
+        'Whenever you reveal the first card you draw on each of your turns and it\'s a nonland card, ' + kr[2]);
+      i++;
     }
     /* Up the Beanstalk: "When this enchantment enters and whenever you cast
        a spell with mana value 5 or greater, draw a card." Two triggers that

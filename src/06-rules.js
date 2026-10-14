@@ -14498,6 +14498,8 @@
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
+        // Keranos, God of Storms: "Reveal the first card you draw on each of your turns."
+        if (ab.revealDrawn && data.object) this.logEvent('reveal', `${(this.player(o.controller) || {}).name} reveals ${data.object.name}.`);
         /* "One or more creatures die" is one trigger for the lot of them,
            however many went at once. */
         if (((ab.objFilter && ab.objFilter.batch) || ab.batch)) {
@@ -15288,12 +15290,12 @@
       }
       /* Thespian's Stage, Irma, Part-Time Mutant: "except it (she) has this
          ability" — the line that made it a copy, in the copy's words; under
-         another name, it says that name */
+         another name, it says that name (Lazav, Dimir Mastermind: "it has hexproof and this ability") */
       if (e.keepThis) {
         const short = String(own.name || '').split(',')[0];
         const lines = String(own.oracle_text || '').split('\n')
           // (Kimahri, Valiant Guardian: "it has vigilance and this ability")
-          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has (?:[a-z]+ and )?this ability\b/i.test(l))
+          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has (?:[a-z ]+ and )?this ability\b/i.test(l))
           /* (Kimahri, Valiant Guardian: its name kept, its short name made whole — a copy of a creature that isn't
              legendary doesn't go by a short name) */
           .map(l => (!own.name ? l : e.keepName ? l.split(own.name).join('\u0000').split(short).join(own.name).split('\u0000').join(own.name)
@@ -21974,6 +21976,22 @@
           let taken = [];
           // Muxus, Goblin Grandee: "Put all … from among them" — no choosing (takeAll)
           if (legal.length && e.all) taken = legal.slice();
+          /* Kaalia, Zenith Seeker: "You may reveal an Angel card, a Demon card, and/or a Dragon card from among them" —
+             one pick, each card standing for a different one of the kinds it is (oneEach) */
+          else if (e.oneEach) {
+            const kindsOf = (o) => e.oneEach.filter(k => this._hasCreatureType(o, k));
+            const typed = legal.filter(o => kindsOf(o).length);
+            if (typed.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'oneEachKind', kind: 'objects', zone: 'library',
+                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: kindsOf(this.obj(it.id)) })),
+                min: 0, max: Math.min(typed.length, e.oneEach.length), optional: true,
+                constraints: [{ kind: 'distinctTypes', key: 'types', label: 'kind' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}you may reveal ${e.oneEach.map((k, i) => (i === e.oneEach.length - 1 ? 'and/or ' : '') + (/^[AEIOU]/.test(k) ? 'an ' : 'a ') + k + ' card').join(', ')} from among them and put them into your hand.` }, 'oneEach');
+              if (got === SUSPEND) return SUSPEND;
+              taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
+              if (taken.length) this.logEvent('reveal', `${me.name} reveals ${taken.map(o => o.name).join(', ')}.`);
+            }
+          }
           /* Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed
              cards into your hand" — one pick of any number, each card standing for a different one of its card
              types (a card of two types takes up only one of them) */
@@ -23267,6 +23285,13 @@
           /* Scion of the Ur-Dragon: "Search your library for a Dragon permanent card and put it into your graveyard.
              If you do, Scion of the Ur-Dragon becomes a copy of that card" — the card just found (searched) */
           if (e.of === 'searched') t = ((this._lastSearched || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard'))[0] || null;
+          /* Lazav, Dimir Mastermind: "a copy of that card" — the card put into the graveyard; gone from there, as it
+             last was there (its ruling): the printed card, never what it copied on the battlefield */
+          if (e.ofTriggerCard) {
+            const x = this.obj((ctx.triggerData || {}).objectId);
+            const c = x && (x.printedCard || x.card);
+            t = x && c && !x.isToken ? { card: c, face: 0, name: c.name || x.name, zone: 'graveyard' } : null;
+          }
           // (the Dragon gone before the trigger resolves: not a target, so as it last existed)
           if (!t && e.scope === 'triggerObject') {
             const x = this.obj((ctx.triggerData || {}).objectId);
