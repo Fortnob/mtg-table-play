@@ -24546,8 +24546,11 @@
           this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
           break;
         }
+        // Dáin Ironfoot: "create … an Equipment artifact token named Axe … attach it to target creature you control" — the token made (attachMade)
+        case 'attachMade':
         case 'attachThat': {
-          const eq = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+          const eq = e.op === 'attachMade' ? this.obj((this._madeThisResolution || []).slice(-1)[0])
+            : (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           const host = firstObj();
           if (!eq || eq.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || eq === host) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
@@ -27950,6 +27953,18 @@
           this.bumpBoard();
           break;
 
+        /* Denry Klin, Editor in Chief: "put the same number of each kind of counter on that creature" — as many of each
+           kind as this permanent has now, on the creature the trigger is about (sameCountersAsSelf) */
+        case 'sameCountersAsSelf': {
+          const to = this.obj((ctx.triggerData || {}).objectId);
+          if (!src || src.zone !== 'battlefield' || !to || to.zone !== 'battlefield') break;
+          const have = Object.entries(src.counters || {}).filter(([, v]) => Number(v) > 0);
+          for (const [k, v] of have) this.addCounters(to, k, Number(v), { by: ctx.controller });
+          if (have.length) this.logEvent('counters', `${to.name} gets ${have.map(([k, v]) => v + ' ' + k).join(', ')} counter${have.length === 1 && Number(have[0][1]) === 1 ? '' : 's'}.`);
+          this.bumpBoard();
+          break;
+        }
+
         case 'doubleCounters': {
           const kind = e.kind || '+1/+1';
           const dbl = (o) => {
@@ -29666,6 +29681,7 @@
         this.battlefield.push(o);
         this.bumpBoard();
         this._lastToken = o.id;
+        (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
         this._fireEnters(o);
         this._fire('youCreateToken', controller, { object: o });
       }

@@ -761,6 +761,13 @@
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to (?:its|his|her) other types/))) {
         e.copyPt = c[1] + '/' + c[2]; e.addTypes = c[3].split(' ');
       }
+      /* Brenard, Ginger Sculptor: "it's a 1/1 Food Golem artifact creature in addition to its other types" — that size,
+         those subtypes and the artifact type added (addCardTypes) */
+      else if ((c = ex.match(/^it'?s an? (\d+)\/(\d+) ((?:[A-Z][a-z]+ )+)((?:artifact |enchantment )+)creature in addition to its other types/))) {
+        e.setPt = c[1] + '/' + c[2];
+        e.addSubtypes = (e.addSubtypes || []).concat(c[3].trim().split(' '));
+        e.addCardTypes = c[4].trim().split(' ').map(x => x.charAt(0).toUpperCase() + x.slice(1));
+      }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
       // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
       else if ((c = ex.match(/^(?:it|he|she)'?s an? (legendary )?((?:[A-Z][a-z]+ )+)creature(?! in addition)/))) {
@@ -802,11 +809,14 @@
      not the Hospitaller. In a trigger about another permanent "attach it" is
      that one (Sigarda's Aid). */
   function thatIsTheTarget(parsed, aboutOther) {
-    let targeted = false;
+    let targeted = false, made = false;
     const prior = (v) => (v && typeof v === 'object' && v.ofTrigger ? Object.assign({}, v, { ofPrior: true }) : v);
     const walk = (list) => {
       for (const e of list || []) {
         if (!e) continue;
+        if (e.op === 'createToken' || e.op === 'createNamedToken') made = true;
+        // Dáin Ironfoot: "create … an Equipment artifact token named Axe … When you do, attach it to target creature you control" — the token (attachMade)
+        if (e.op === 'attachSelf' && e.attachIt && made) e.op = 'attachMade';
         if (e.op === 'attachSelf' && e.attachIt && aboutOther) e.op = 'attachThat';
         delete e.attachIt;
         const own = (e.targets || []).some(t => t && t.type !== 'player');
@@ -2300,6 +2310,8 @@
     { re: /^Double the number of each kind of counter on it\.?$/i, make: () => ({ op: 'doubleCounters', allKinds: true, scope: 'triggerObject' }) },
     { re: /^(?:Then )?for each nontoken permanent attached to it, create a token that'?s a copy of that permanent attached to that creature\.?$/i,
       make: () => ({ op: 'copyAttached', scope: 'triggerObject' }) },
+    // Denry Klin, Editor in Chief: "put the same number of each kind of counter on that creature" — as this has (sameCountersAsSelf)
+    { re: /^Put the same number of each kind of counter on that creature\.?$/i, make: () => ({ op: 'sameCountersAsSelf' }) },
     // Gilder Bairn: "Double the number of each kind of counter on target permanent."
     { re: /^Double the number of each kind of counter on (target [a-z ,]+?)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', allKinds: true, targets: [targetSpec(m[1])] }) },
@@ -3046,7 +3058,8 @@
         : { op: 'bite', toPlayer: true, targets: [{ type: 'creature', controller: 'you' }, { type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // (Captivating Crew: "target creature an opponent controls")
     // (Sliver Overlord: "Gain control of target Sliver.")
-    { re: /^Gain control of target (creature|permanent|artifact|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
+    // (Empress Galina: "Gain control of target legendary permanent.")
+    { re: /^Gain control of target ((?:legendary )?(?:creature|permanent|artifact)|[A-Z][a-z]+)( an opponent controls| you don'?t control)?(?: until end of turn)?\.?$/,
       make: (m) => ({ op: 'gainControl', until: /until end of turn/i.test(m[0]) ? 'eot' : null, targets: [targetSpec('target ' + m[1] + (m[2] || ''))] }) },
     /* Treasure Nabber: "gain control of that artifact until the end of your next turn" — what the trigger
        is about; Power of Persuasion: "Gain control of it …" — the target (endNextTurn) */
@@ -3357,6 +3370,13 @@
         const kws = keywordList(m[2]);
         if (!kws.length || !kws.every(kwKnown)) return null;
         return { op: 'sequence', list: [pump, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] };
+      } },
+    // Dáin Ironfoot: "each equipped attacking creature gains double strike until end of turn" — whoever's
+    { re: /^Each ((?:(?:equipped|enchanted|attacking|blocking|tapped|untapped|modified) )+)creature gains ([a-z ,]+?) until end of turn\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[2]);
+        const sc = scopeOf(m[1].toLowerCase() + 'creatures');
+        return kws.length && kws.every(kwKnown) && sc ? { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: sc } : null;
       } },
     /* "Those creatures gain flying until your next turn" */
     // For the Common Good: "Then tokens you control gain indestructible until your next turn."
@@ -9239,13 +9259,17 @@
     /* Hofri Ghostforge: "exile it. If you do, create a token that's a copy of that creature, except it's a Spirit in
        addition to its other types and it has 'When this token leaves the battlefield, return the exiled card to its
        owner's graveyard.'" — the copy only once the card was exiled (ifExiled), and it holds that card (holdExiled) */
-    { re: /^[Ee]xile it\. If you do, create a token that'?s a copy of that creature, except (.+?)\.?$/,
+    /* (Brenard, Ginger Sculptor: "you may exile it. If you do, create a token that's a copy of that creature, except it's
+       a 1/1 Food Golem artifact creature in addition to its other types and it has '{2}, {T}, Sacrifice this token: You
+       gain 3 life.'" — a "may") */
+    { re: /^([Yy]ou may e|[Ee])xile it\. If you do, create a token that'?s a copy of that creature, except (.+?)\.?$/,
       make: (m) => {
         const e = { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, grant: [] };
-        if (!copyExceptions(m[1].replace(/\bthis (?:token|creature)\b/g, 'CARDNAME'), e) || e.keepOwn || e.keepThis || e.keepName) return null;
-        if (e.addTypes) { e.addSubtypes = e.addTypes; delete e.addTypes; }
+        if (!copyExceptions(m[2].replace(/\bthis (?:token|creature)\b/g, 'CARDNAME'), e) || e.keepOwn || e.keepThis || e.keepName) return null;
+        if (e.addTypes) { e.addSubtypes = (e.addSubtypes || []).concat(e.addTypes); delete e.addTypes; }
+        if (e.addCardTypes) { e.addTypes = e.addCardTypes; delete e.addCardTypes; }
         if ((e.addText || []).some(x => /\bthe exiled card\b/i.test(x))) e.holdExiled = true;
-        return [{ op: 'exileTriggerCard' }, e];
+        return /^you may/i.test(m[1]) ? [{ op: 'may', then: [{ op: 'exileTriggerCard' }, e] }] : [{ op: 'exileTriggerCard' }, e];
       } },
     /* Liliana, Heretical Healer: "exile Liliana, then return her to the
        battlefield transformed under her owner's control. If you do, create a
@@ -15769,6 +15793,10 @@
     const etbPick = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ([a-z ]+?) counter or an? ([a-z ]+?) counter on it\./i);
     if (etbPick && !out.entersWithCounters && [etbPick[1], etbPick[2]].every(k => kwKnown(k)))
       out.entersWithCounters = { kind: etbPick[1].toLowerCase(), n: 1, choice: [etbPick[1].toLowerCase(), etbPick[2].toLowerCase()] };
+    // Denry Klin, Editor in Chief: "enters with your choice of a +1/+1, first strike, or vigilance counter on it"
+    const etbPick3 = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ((?:[+\-0-9/a-z ]+?, )+)or ([a-z ]+?) counter on it\./i);
+    const pick3 = etbPick3 && etbPick3[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(etbPick3[2].toLowerCase());
+    if (pick3 && !out.entersWithCounters && pick3.every(k => k === '+1/+1' || kwKnown(k))) out.entersWithCounters = { kind: pick3[0], n: 1, choice: pick3 };
     // Sautekh Immortal: "enters with a +1/+1 counter on it for each creature that died this turn"
     const etbDied = text.match(/(?:CARDNAME|This creature) enters(?: the battlefield)? with an? ([+\-0-9/a-z]+) counter on it for each creature that died this turn\./i);
     if (etbDied && !out.entersWithCounters) out.entersWithCounters = { kind: etbDied[1], n: { count: { diedThisTurn: true } } };
@@ -18643,6 +18671,9 @@
         eff: { op: 'noop' }, auto: true },
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ([a-z ]+?) counter or an? ([a-z ]+?) counter on it\.?$/i,
         make: (m) => ([m[1], m[2]].every(k => kwKnown(k)) ? { op: 'noop' } : null), auto: true },
+      // Denry Klin, Editor in Chief: "… your choice of a +1/+1, first strike, or vigilance counter on it." (read with the card's counters)
+      { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with your choice of an? ((?:[+\-0-9/a-z ]+?, )+)or ([a-z ]+?) counter on it\.?$/i,
+        make: (m) => (m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].toLowerCase()).every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This creature) can'?t be blocked by creatures with power (\d+) or less\.?$/i,
         make: (m) => ({ op: 'evasion', minBlockerPower: +m[1] + 1 }), auto: true },
       // Narfi, Betrayer King: "Other snow and Zombie creatures you control get +1/+1." — snow ones and Zombies, each once (snowOrType)
