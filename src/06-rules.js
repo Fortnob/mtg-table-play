@@ -12200,6 +12200,12 @@
         case 'gainedLifeThisTurn': return !!me && (me.lifeGainedThisTurn || 0) > 0;
         case 'lostLifeThisTurn': return !!me && (me.lifeLostThisTurn || 0) > 0;
         // Blowfly Infestation: the creature that died had that counter as it went
+        // Koll, the Forgemaster: "if it was enchanted or equipped" — what it had on it as it left (_lastAttachments)
+        case 'triggerObjWas': {
+          const td = (ctx && ctx.triggerData) || {};
+          const x = td.objectId && this.obj(td.objectId);
+          return !!x && String(cond.words || '').split(' or ').some(w => this._cardFitsWords(x, w.trim()));
+        }
         case 'triggerObjHadCounter': {
           const td = (ctx && ctx.triggerData) || {};
           const x = td.objectId && this.obj(td.objectId);
@@ -22312,7 +22318,9 @@
 
         case 'permanentFromHand': {
           // (Braids, Conjurer Adept: "that player" — whose upkeep it is, triggerPlayer)
-          const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
+          const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
+          // Kynaios and Tiro of Meletis: who put one, kept across the questions (notePut)
+          const putBy = e.notePut && this.resolving ? ((this.resolving.marks = this.resolving.marks || {}).putBy = this.resolving.marks.putBy || []) : null;
           for (const p of who) {
             // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
@@ -22345,6 +22353,7 @@
               if (e.tapped) o.tapped = true;
               // Kastral: "with a finality counter on it"
               if (e.counter && o.zone === 'battlefield') this.addCounters(o, e.counter, 1);
+              if (putBy && o.zone === 'battlefield' && !putBy.includes(p.id)) putBy.push(p.id);
               // Incandescent Soulstoke: "That creature gains haste" — the one just put, as reanimateTop does
               if (o.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: o.id }];
               /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
@@ -22355,6 +22364,15 @@
               }
               this._lastPut = o.id;
             }
+          }
+          break;
+        }
+        // Kynaios and Tiro of Meletis: "then each opponent who didn't draws a card"
+        case 'drawUnlessPut': {
+          const putBy = ((this.resolving || {}).marks || {}).putBy || [];
+          for (const q of this._turnOrderFrom(ctx.controller)) {
+            if (q.hasLost || q.id === ctx.controller || putBy.includes(q.id)) continue;
+            this._drawCards(q, 1);
           }
           break;
         }
@@ -23990,7 +24008,9 @@
           if (!c || !c.card) break;
           const ca = c.analysis();
           if (!ca || ca.isLand) break;
-          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name} without paying its mana cost?` }, 'ccopy');
+          // (Kaervek, the Punisher: paying its mana cost — pay; not offered when it can't be paid for)
+          if (e.pay && !this.couldPay(ctx.controller, (c.card && c.card.mana_cost) || '', this.manaSources(ctx.controller))) break;
+          const yes =this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name}${e.pay ? ', paying its mana cost' : ' without paying its mana cost'}?` }, 'ccopy');
           if (yes === SUSPEND) return SUSPEND;
           if (yes === false) break;
           const tg = this._askSpellTargets(ctx.controller, c, 'ccopyT');
@@ -24000,10 +24020,13 @@
           dup.isCopy = true;
           if (ca.isPermanent) dup.isToken = true;
           this.zones[ctx.controller].exile.push(dup);
-          const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+          const ok = this.castSpell(ctx.controller, dup.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
           const st = this.stack.find(x => x.objId === dup.id);
-          if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`); }
-          else { this._removeFromZone(dup); dup.zone = null; }
+          if (ok && st) {
+            st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`);
+            // Kaervek, the Punisher: "If you do, you lose 2 life."
+            if (e.lifeIfCast) this.changeLife(me, -e.lifeIfCast);
+          } else { this._removeFromZone(dup); dup.zone = null; }
           break;
         }
         /* Fact or Fiction: the top cards revealed, one player splits them

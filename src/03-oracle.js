@@ -5047,6 +5047,9 @@
     // Moonsnare Prototype: "The owner of target nonland permanent puts it on their choice of the top or bottom of their library."
     { re: /^The owner of (target [a-z ]+?) puts it on (?:their choice of )?the top or bottom of their library\.?$/i,
       make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
+    // Kynaios and Tiro of Meletis: "Each player may put a land card from their hand onto the battlefield, then each opponent who didn't draws a card." (notePut, drawUnlessPut)
+    { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield, then each opponent who didn'?t draws a card\.?$/i,
+      make: (m) => [{ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each', notePut: true }, { op: 'drawUnlessPut' }] },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
     // Nahiri, Forged in Fury: "You may cast Equipment spells this way without paying their mana costs." (freeIfFits)
@@ -10192,8 +10195,10 @@
          Crucible; Isochron Scepter's "You may copy the exiled card. If you
          do, you may cast the copy without paying its mana cost." */
       const copyIt = s.match(/^(?:(.+?)(?:,| and) )?(?:you may )?copy (it|that card|the exiled card|a card exiled with (?:this artifact|this creature|CARDNAME))\.$/i);
-      const castCopy = copyIt && next.match(/^(?:If you do, )?you may cast the copy without paying its mana cost\.$/i);
-      if (castCopy) {
+      // (Kaervek, the Punisher: "You may cast the copy. If you do, you lose 2 life." — paying for it: pay, lifeIfCast)
+      const castCopy = copyIt && next.match(/^(?:If you do, )?you may cast the copy( without paying its mana cost)?\.$/i);
+      const paidLife = castCopy && !castCopy[1] && String(sentences[i + 2] || '').match(/^If you do, you lose (\w+) life\.$/i);
+      if (castCopy && (castCopy[1] || (paidLife && typeof num(paidLife[1]) === 'number'))) {
         if (copyIt[1]) {
           const pre = parseSentenceList(splitSentences(U.titleCase(copyIt[1].charAt(0)) + copyIt[1].slice(1) + '.'));
           if (!pre.auto) auto = false;
@@ -10201,7 +10206,8 @@
         }
         effects.push({ op: 'castCopy', of: /exiled/i.test(copyIt[2]) ? 'exiled' : 'last', text: s + ' ' + next });
         if (/^you may copy a card exiled/i.test(s)) effects[effects.length - 1].pickExiled = true;
-        i++;
+        if (paidLife) Object.assign(effects[effects.length - 1], { pay: true, lifeIfCast: num(paidLife[1]), text: s + ' ' + next + ' ' + sentences[i + 2] });
+        i += paidLife ? 2 : 1;
         continue;
       }
 
@@ -11132,6 +11138,8 @@
     // Elenda, Saint of Dusk: "your life total is greater than your starting life total", "… is at least 10 greater than …"
     [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
     [/^your life total is at least (\w+) greater than your starting life total$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lifeAboveStart', n: num(m[1]) } : null)],
+    // Koll, the Forgemaster: "it was enchanted or equipped" — the creature that died, with what was on it as it went
+    [/^it was (enchanted or equipped|enchanted|equipped)$/i, (m) => ({ kind: 'triggerObjWas', words: m[1].toLowerCase() })],
     // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
     // Visions of Beyond: "a graveyard has twenty or more cards in it"
@@ -13624,6 +13632,11 @@
         }
         // Ashnod's Intervention: "return it to its owner's hand" after dying or being exiled — from either (exiledFromBf)
         if (trig.also === 'exiledFromBf') for (const e of parsed.effects) if (e && e.op === 'selfFromGraveyard') e.orExile = true;
+        // Koll, the Forgemaster: "Whenever another nontoken creature you control dies, … return it to its owner's hand" — the card that died
+        if (trig.event === 'permDies' && parsed.effects.length === 1 && parsed.effects[0].op === 'bounce' && parsed.effects[0].scope === 'triggerObject' &&
+            /^return it to its owner'?s hand\.?$/i.test(parsed.effects[0].text || '')) {
+          parsed.effects = [{ op: 'returnItToHand', ownerHand: true, text: parsed.effects[0].text }];
+        }
         if (trig.event === 'equippedDies') {
           for (const e of parsed.effects) if (e && e.op === 'returnExiled' && /under your control/i.test(e.text || line)) { e.op = 'returnTriggerCard'; e.yours = true; e.triggerOnly = true; }
           // Zendikons: "return that card to its owner's hand" — the land that died
@@ -17838,6 +17851,9 @@
       { re: /^Creatures you don'?t control get -1\/-1 for each ([a-z]+) counter on them\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'opponents', what: 'creature' },
           pt: { p: { countersOnIt: m[1].toLowerCase(), mult: -1 }, t: { countersOnIt: m[1].toLowerCase(), mult: -1 } } }), auto: true },
+      // Koll, the Forgemaster: "Creature tokens you control that are enchanted or equipped get +1/+1."
+      { re: /^Creature tokens you control that are enchanted or equipped get \+(\d+)\/\+(\d+)\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', token: true, enchantedOrEquipped: true }, pt: { p: +m[1], t: +m[2] } }), auto: true },
       // Halvar, God of Battle: "Creatures you control that are enchanted or equipped have double strike."
       { re: /^Creatures you control that are enchanted or equipped have ([a-z ]+)\.?$/i,
         make: (m) => {
