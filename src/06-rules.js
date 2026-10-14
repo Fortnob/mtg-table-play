@@ -9056,7 +9056,7 @@
       // Captain America, First Avenger: "Unattach an Equipment from Captain America" — one has to be on him
       if (cost.unattachEquipment && !this._equipmentOn(self).length) return `No Equipment attached to ${self ? self.name : 'it'}.`;
       if (cost.sacrifice) {
-        const need = this._costCount(cost.sacrifice.n, opts);
+        const need = cost.sacrifice.upTo ? 0 : this._costCount(cost.sacrifice.n, opts);
         if (this._costSacPool(pid, cost.sacrifice, self, opts).length < need)
           return `Nothing to sacrifice (${cost.sacrifice.filter || 'permanent'}).`;
       }
@@ -9182,7 +9182,25 @@
         if (also) pool = pool.filter(x => also.filter(y => y !== x).length >= n2);
         const need = Math.min(pool.length, this._costCount(cost.sacrifice.n, opts));
         let pick = (opts.sacrificeIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
-        if (need > 0 && pick.length < need) {
+        /* Baba Lysaga, Night Witch: "Sacrifice up to three permanents" — what was picked as it was activated; asked
+           otherwise, none at all allowed; by itself, one of each card type, cheapest first, and only a full set (upTo) */
+        if (cost.sacrifice.upTo && need > 0 && !opts.sacrificeIds) {
+          if (auto) {
+            const kinds = new Set();
+            pick = [];
+            for (const x of this._cheapestFirst(pool.filter(y => y !== self)).concat(pool.filter(y => y === self))) {
+              const ts = ((x.analysis() || {}).types || []).map(t => String(t).toLowerCase());
+              if (pick.length < need && ts.some(t => !kinds.has(t))) { pick.push(x); ts.forEach(t => kinds.add(t)); }
+            }
+            if (kinds.size < need) pick = [];
+          } else {
+            pick = null;
+            ask({ type: 'sacrifice', count: need, optional: true, filter: cost.sacrifice.filter || 'permanent',
+              candidates: pool.map(x => x.id),
+              prompt: `Sacrifice up to ${need} ${(cost.sacrifice.filter || 'permanent') + (need === 1 ? '' : 's')} to pay the cost.` });
+          }
+        } else if (cost.sacrifice.upTo) pick = pick || [];
+        else if (need > 0 && pick.length < need) {
           // (the ones the second part can't use go first)
           if (auto || pool.length === need) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
           else {
@@ -12893,6 +12911,13 @@
           return d.life >= top;
         }
         case 'selfIsToken': return !!src && (!!src.isToken) !== !!cond.not;
+        // Baba Lysaga, Night Witch: "three or more card types among the sacrificed permanents" (sacrificedTypes)
+        case 'sacrificedTypes': {
+          const all = (ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || [];
+          const kinds = new Set();
+          for (const sn of all) for (const t of sn.types || []) kinds.add(String(t).toLowerCase());
+          return kinds.size >= (cond.n || 1);
+        }
         case 'sacrificedWas': {
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
@@ -15500,7 +15525,9 @@
               // Blightwing Bandit: "that player" — the opponent whose turn it is (thatPlayerActive)
               ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {},
               ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
-              ab.batchPlayers && tData.player ? { players: [tData.player] } : {}),
+              ab.batchPlayers && tData.player ? { players: [tData.player] } : {},
+              // Cecil, Dark Knight: how many times it had transformed as this triggered (CR 701.28f; sinceTrigger)
+              o.xformN ? { srcXf: o.xformN } : {}),
             lossExactly: ab.lossExactly || undefined,
             minTotal: ab.minTotal || undefined,
             // (Grothama, All-Devouring: "fight Grothama" — the permanent that handed the ability out: grantedBy)
@@ -16515,9 +16542,10 @@
         for (const opp of (spec.everyPlayer ? this.players.filter(q => !q.hasLost) : this.opponentsOf(ctx.controller))) {
           const theirs = pool.filter(x => whose(x) === opp.id);
           if (!theirs.length) continue;
+          // Vaevictis Asmadi, the Dire: "choose target permanent that player controls" — one of each, not up to one (mandatory)
           const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: spec.zone || 'battlefield',
-            items: this._chooseItems(theirs), min: 0, max: 1, optional: true, harmful: true,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose up to one ${spec.filter || 'target'} of ${opp.name}'s.` }, 'perOpp:' + opp.id);
+            items: this._chooseItems(theirs), min: spec.mandatory ? 1 : 0, max: 1, optional: !spec.mandatory, harmful: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose ${spec.mandatory ? 'a' : 'up to one'} ${spec.filter || 'target'} of ${opp.name}'s.` }, 'perOpp:' + opp.id);
           if (got === SUSPEND) return SUSPEND;
           if (got && got.picks.length) picks.push(...got.picks);
         }
@@ -21487,6 +21515,8 @@
         }
         case 'transformSelf': {
           const x = src || (ctx.objId && this.obj(ctx.objId));
+          // Cecil, Dark Knight: not if it has transformed since the ability triggered (CR 701.28f; sinceTrigger)
+          if (e.sinceTrigger && x && (x.xformN || 0) !== Number((ctx.triggerData || {}).srcXf || 0)) break;
           if (x && x.card && x.card.card_faces && x.card.card_faces.length > 1) {
             x.face = (x.face + 1) % x.card.card_faces.length;
             x.xformN = (x.xformN || 0) + 1;
@@ -21523,7 +21553,8 @@
             }
             break;
           }
-          let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
+          // (Sin, Spira's Punishment: the card exiled at random, by its id — _forcedId)
+          let source = e._forced || (e._forcedId && this.obj(e._forcedId)) || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
           /* Orvar, the All-Form: "a copy of one of those permanents" — the other permanents of yours the spell
              targets, still yours; which one, when there is more than one (spellTargets) */
           if (e.of === 'spellTargets') {
@@ -23149,12 +23180,25 @@
         /* Arcum Dagsson: "Target artifact creature's controller sacrifices it. That player may search …" — a
            sacrifice by its controller, who is "that player" afterwards (_lastAffected) */
         case 'sacrificeTargeted': {
+          const sacBy = [];
           for (const x of targets.filter(t => t.kind === 'object').map(t => this.obj(t.id))) {
             if (!x || x.zone !== 'battlefield') continue;
             const pid = x.controller;
             this._lastAffected = { id: x.id, controller: pid, owner: x.owner, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
               mv: (x.card && x.card.cmc) || 0 };
+            const before = this._sacCount || 0;
             this._sacrificeNow(pid, [x]);
+            if ((this._sacCount || 0) > before && !sacBy.includes(pid)) sacBy.push(pid);
+          }
+          /* Vaevictis Asmadi, the Dire: "Each player who sacrificed a permanent this way reveals the top card of their
+             library, then puts it onto the battlefield if it's a permanent card." (revealPutPermanent) */
+          if (e.revealPutPermanent) {
+            for (const q of this.players.filter(q => sacBy.includes(q.id))) {
+              const top = this.zones[q.id].library[0];
+              if (!top) continue;
+              this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
+              if (this._cardFitsWords(top, 'permanent')) this.moveObject(top, 'battlefield', { controller: q.id });
+            }
           }
           break;
         }
@@ -23227,6 +23271,12 @@
               this.moveObject(c, 'exile');
               this._lastExiled = c.id; this._lastExiledList = [c.id];
               this.logEvent('exile', `${me.name} exiles ${c.name} at random from their graveyard.`);
+              /* Sin, Spira's Punishment: "then create a tapped token that's a copy of that card. If the exiled card is a
+                 land card, repeat this process." — the copy next, and the whole again after it for a land (copyTapped) */
+              if (e.copyTapped) {
+                const isLand = this._cardFitsWords(c, 'land');
+                this._spliceNext([{ op: 'copyPermanent', _forcedId: c.id, n: 1, tapped: true, grant: [] }].concat(isLand && e.repeatIfLand ? [Object.assign({}, e)] : []));
+              }
               continue;
             }
             // Tariel: "Put that card onto the battlefield under your control."

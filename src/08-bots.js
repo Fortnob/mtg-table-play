@@ -3913,7 +3913,14 @@
         v -= mana * 0.25;
         if (cost.sacSelf) v -= this.permanentValue(o);
         if (cost.life) v -= cost.life * 0.15;
-        if (cost.sacrifice) {
+        /* Baba Lysaga, Night Witch: "Sacrifice up to three permanents" — the engine picks one of each card type, cheapest
+           first, so only worth it with that many types besides it (upTo) */
+        if (cost.sacrifice && cost.sacrifice.upTo) {
+          const kinds = new Set();
+          for (const x of g.battlefield) if (x !== o && x.controller === this.pid) for (const t of ((x.analysis() || {}).types || [])) kinds.add(String(t).toLowerCase());
+          if (kinds.size < (Number(cost.sacrifice.n) || 1)) return null;
+          v -= 2;
+        } else if (cost.sacrifice) {
           const fodder = this._fodder(cost.sacrifice);
           if (!fodder) return null;
           v -= this.permanentValue(fodder);

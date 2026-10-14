@@ -325,6 +325,11 @@
         else cost.sacSelf = true;
         continue;
       }
+      // Baba Lysaga, Night Witch: "Sacrifice up to three permanents" — none at all is a price paid too (upTo)
+      if ((m = p.match(/^Sacrifice up to (one|two|three|four|five) (other )?(.+)$/i))) {
+        cost.sacrifice = { n: WORDN(m[1].toLowerCase()) || 1, filter: m[3].replace(/s\b/g, '').trim(), another: !!m[2], upTo: true };
+        continue;
+      }
       if ((m = p.match(/^Sacrifice (a|an|another|one|two|three|four|five|six|ten|\d+|X) (other )?(.+)$/i))) {
         const word = m[1].toLowerCase();
         cost.sacrifice = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word) || 1,
@@ -2053,6 +2058,9 @@
     // Open the Vaults: from every graveyard, under their owners' control
     { re: /^Return all ([a-z]+(?: and [a-z]+)?) cards from all graveyards to the battlefield under their owners'? control\.?$/i,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ and /, ' or '), yours: false }) },
+    // Balthor the Defiled: "Each player returns all black and all red creature cards from their graveyard to the battlefield."
+    { re: /^Each player returns all (white|blue|black|red|green) and all (white|blue|black|red|green) creature cards from their graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'massReanimate', filter: `${m[1].toLowerCase()} creature or ${m[2].toLowerCase()} creature`, yours: false }) },
     // Hexplate Wallbreaker: "Untap each attacking creature."
     { re: /^Untap each attacking creature\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }) },
     // Tori D'Avenant, Fury Rider: "Untap each other white attacking creature you control." (untapEachYours)
@@ -2139,6 +2147,8 @@
     { re: /^That player gains (one|two|three|four|five|six|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', who: 'triggerPlayer', n: num(m[1]) }) },
     // Ragged Veins: "its controller loses that much life" — the creature the trigger is about
     { re: /^Its controller loses that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'triggerObjController', n: 'triggerAmount' }) },
+    // Cecil, Dark Knight: "Whenever Cecil deals damage, you lose that much life."
+    { re: /^You lose that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'you', n: 'triggerAmount' }) },
     /* Auntie Ool, Cursewretch: "draw a card if you control that creature. If you don't control it, its controller
        loses 1 life." (triggerObjYours) */
     { re: /^[Dd]raw a card if you control that creature\.?$/,
@@ -2720,6 +2730,10 @@
       make: () => ({ op: 'exileSelf' }) },
     { re: /^Transform (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|~)\.?$/i,
       make: () => ({ op: 'transformSelf' }) },
+    /* Cecil, Dark Knight: "untap Cecil and transform it" — only the face it triggered as turns over, so a second
+       damage trigger does not turn it back (CR 701.28f, sinceTrigger) */
+    { re: /^Untap CARDNAME and transform it\.?$/i,
+      make: () => [{ op: 'untap', scope: 'self' }, { op: 'transformSelf', sinceTrigger: true }] },
     // Optimus Prime: "return it to the battlefield converted under its owner's control"
     { re: /^Return (?:it|CARDNAME|this card) to the battlefield (?:transformed|converted) under (?:its owner'?s|your) control\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'battlefield', transformed: true }) },
@@ -9112,6 +9126,24 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Baba Lysaga, Night Witch: "If there were three or more card types among the sacrificed permanents, each opponent
+       loses 3 life, you gain 3 life, and you draw three cards." — each clause read on its own */
+    { re: /^If (there were \w+ or more card types among the sacrificed permanents), ([^,.]+), ([^,.]+), and ([^,.]+)\.$/i,
+      make: (m) => {
+        const c = condOf(m[1]);
+        const then = [m[2], m[3], m[4]].map(x => parseEffectSentence(x.charAt(0).toUpperCase() + x.slice(1) + '.', 1));
+        return c && then.every(x => x && x.op !== 'manual' && !hasManualStep(x)) ? [{ op: 'ifCond', cond: c, then }] : null;
+      } },
+    /* Sin, Spira's Punishment: "exile a permanent card from your graveyard at random, then create a tapped token that's a
+       copy of that card. If the exiled card is a land card, repeat this process." (copyTapped, repeatIfLand) */
+    { re: /^exile an? ([a-z ]*?)card from your graveyard at random, then create a tapped token that'?s a copy of that card\. If the exiled card is a land card, repeat this process\.?$/i,
+      make: (m) => [{ op: 'randomFromGraveyard', filter: m[1].trim() || 'card', to: 'exile', copyTapped: true, repeatIfLand: true }] },
+    /* Vaevictis Asmadi, the Dire: "for each player, choose target permanent that player controls. Those players sacrifice
+       those permanents. Each player who sacrificed a permanent this way reveals the top card of their library, then puts
+       it onto the battlefield if it's a permanent card." — one of each player's, picked as it resolves (mandatory) */
+    { re: /^for each player, choose target permanent that player controls\. Those players sacrifice those permanents\. Each player who sacrificed a permanent this way reveals the top card of their library, then puts it onto the battlefield if it'?s a permanent card\.?$/i,
+      make: () => [{ op: 'sacrificeTargeted', revealPutPermanent: true,
+        perOpponentFrom: { type: 'permanent', filter: 'permanent', zone: 'battlefield', everyPlayer: true, mandatory: true } }] },
     /* Zimone and Dina: "Draw a card. You may put a land card from your hand onto the battlefield tapped. If you control
        eight or more lands, repeat this process once." — the condition looked at once the first time is done (repeatOnceIf) */
     { re: /^(.+?\.) If (you control [^,.]+), repeat this process once\.$/i,
@@ -12625,6 +12657,8 @@
     // Nasty End: "the sacrificed creature was legendary"
     // (Falkenrath Aristocrat, Evereth, Hellish Sideswipe: "was a Human", "was a Treasure", "was a Vehicle" — sacrificedSubtype)
     // (Tevesh Szat, Doom of Fools: "the sacrificed permanent was a commander")
+    // Baba Lysaga, Night Witch: "there were three or more card types among the sacrificed permanents" (sacrificedTypes)
+    [/^there were (\w+) or more card types among the sacrificed permanents$/i, (m) => { const k = num(m[1]); return typeof k === 'number' ? { kind: 'sacrificedTypes', n: k } : null; }],
     [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment|commander)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
     [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
@@ -15968,6 +16002,10 @@
     for (const k of (card.keywords || [])) {
       // Knight of Grace: "Hexproof from black" is not hexproof
       if (/^hexproof from$/i.test(k) || (onlyFrom && /^hexproof$/i.test(k))) continue;
+      /* Cecil, Dark Knight: the list is the whole card's — Redeemed Paladin's lifelink is not the Dark Knight's.
+         A face has only what its own words name. */
+      if (card.card_faces && card.card_faces.length > 1 && face.oracle_text != null &&
+          !new RegExp('\\b' + escapeRe(k) + '\\b', 'i').test(normalizePunct(face.oracle_text))) continue;
       if (!out.keywords.some(x => x.keyword.toLowerCase() === k.toLowerCase()))
         out.keywords.push({ keyword: U.titleCase(k), arg: null, text: k });
     }
