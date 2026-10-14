@@ -4452,7 +4452,8 @@
       // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
       if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
         return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
-      const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || this._flashFor(playerId, o)));
+      // (an offering is cast any time you could cast an instant — CR 702.48a)
+      const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || opts === 'offering' || this._flashFor(playerId, o)));
       // Saproling Symbiosis: flash, for {2} more
       let flashTax = '';
       if (!instantSpeed) {
@@ -4838,6 +4839,10 @@
     /** Teferi, Time Raveler: an opponent of this player lets them cast spells only as sorceries. */
     _sorceryOnly(playerId) {
       return this.opponentsOf(playerId).some(q => this._anyStaticOf(q.id, 'opponentsSorcerySpeed'));
+    }
+    /** Offering (CR 702.48): the permanents of that type this player could sacrifice for it. */
+    _offeringPool(playerId, o, a) {
+      return this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && x !== o && this._hasCreatureType(x, a.offering));
     }
     _flashFor(playerId, o) {
       const p = this.player(playerId);
@@ -5331,6 +5336,10 @@
       if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'emerge') && this._anyStaticOf(playerId, 'grantEmerge') &&
           this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
         out.push({ kind: 'cast', via: 'emerge', cost: a.manaCost, label: 'Emerge ' + a.manaCost });
+      }
+      // Patron of the Moon: "Moonfolk offering" — with a Moonfolk of yours to sacrifice (offering)
+      if (o.zone === 'hand' && a.offering && a.manaCost && this._offeringPool(playerId, o, a).length) {
+        out.push({ kind: 'cast', via: 'offering', cost: a.manaCost, label: a.offering + ' offering' });
       }
       // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
       if (o.zone === 'graveyard' && o.owner === playerId) {
@@ -6270,6 +6279,18 @@
             list.map(x => `Sacrifice ${x.name} (mana value ${mv(x)})`), list.map(x => x.id));
         }
       }
+      /* Offering: which permanent of that type is sacrificed, chosen with the cast (emergeWith, as emerge's) */
+      if (opts.via === 'offering' && opts.emergeWith === undefined) {
+        const pool = this._offeringPool(playerId, o, a);
+        if (!pool.length) return `${a.offering} offering needs a ${a.offering} of yours to sacrifice.`;
+        const mv = (x) => (x.card && x.card.cmc) || 0;
+        if (decides || pool.length === 1) opts.emergeWith = pool.slice().sort((x, y) => mv(y) - mv(x) || this._cardValue(x) - this._cardValue(y))[0].id;
+        else {
+          const list = pool.slice().sort((x, y) => mv(y) - mv(x)).slice(0, 12);
+          return ask('emergeWith', `${o.name}: ${a.offering} offering — which ${a.offering} will you sacrifice?`,
+            list.map(x => `Sacrifice ${x.name} (${(x.card && x.card.mana_cost) || 'no mana cost'})`), list.map(x => x.id));
+        }
+      }
       /* Kotis, Sibsig Champion: "by exiling three other cards from your graveyard" — which three, asked with the
          cast when there are more than that (exileGrave). So too escape ("Exile N other cards from your graveyard")
          and Squee, Dubious Monarch ("exiling four other cards from your graveyard"); a bot exiles its least useful. */
@@ -6686,6 +6707,18 @@
           if (opts.costOverride == null) cost = this._addGeneric(cost, -((sac.card && sac.card.cmc) || 0));
           emergeSac = sac;
         }
+        /* Offering: the sacrificed permanent's mana cost off the total, colours included — a coloured symbol the
+           cost does not have comes off the generic part (CR 702.48c, 601.2f) */
+        if (via.via === 'offering') {
+          const sac = opts.emergeWith && this.obj(opts.emergeWith);
+          if (!sac || sac.zone !== 'battlefield' || sac.controller !== playerId || !this._hasCreatureType(sac, a.offering)) return this.fail(`${a.offering} offering needs a ${a.offering} of yours to sacrifice.`);
+          if (opts.costOverride == null) {
+            const syms = MANA.parse((sac.card && sac.card.mana_cost) || '');
+            const gen = syms.filter(x => /^\d+$/.test(x)).reduce((t, x) => t + +x, 0);
+            cost = this._lessColored(this._addGeneric(cost || '', -gen), syms.filter(x => !/^\d+$/.test(x) && x !== 'X').map(x => x + '|1'));
+          }
+          emergeSac = sac;
+        }
         /* Harmonize: tap a creature you control to take its power off the
            generic part, when the mana alone will not do. */
         if (via.harmonize && opts.costOverride == null) {
@@ -7010,7 +7043,7 @@
       // Emerge: the creature goes as the spell is cast
       if (emergeSac && emergeSac.zone === 'battlefield') {
         this._sacrificeNow(playerId, [emergeSac], null);
-        this.logEvent('rules', `${p.name} sacrifices ${emergeSac.name} to emerge ${o.name}.`);
+        this.logEvent('rules', via && via.via === 'offering' ? `${p.name} sacrifices ${emergeSac.name} as an offering for ${o.name}.` : `${p.name} sacrifices ${emergeSac.name} to emerge ${o.name}.`);
       }
       // the bargain is paid as the spell is cast
       let bargained = false;
@@ -16109,6 +16142,8 @@
             return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
           // Anim Pakal: at least one attacker that isn't a Gnome
           if (ab.attackersNotOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && !this._hasCreatureType(x, ab.attackersNotOfType); })) continue;
+          // Donna Noble: itself, or the creature it is paired with (selfOrPaired)
+          if (ab.selfOrPaired && !(data.object && (data.object.id === o.id || ((this._pairOf(o) || {}).id === data.object.id)))) continue;
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
@@ -18048,6 +18083,11 @@
             const list = this.creaturesOf(ctx.controller, 'yourCreatures');
             this._lastGroup = list.map(o => o.id);
             for (const o of list) this.addCounters(o, e.kind, cnt);
+          }
+          // Galadriel, Elven-Queen: "put a +1/+1 counter on your Ring-bearer" (ringBearer)
+          else if (e.scope === 'ringBearer') {
+            const rb = me && this.obj(me.ringBearer);
+            if (rb && rb.zone === 'battlefield' && rb.controller === me.id) this.addCounters(rb, e.kind, cnt);
           }
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });

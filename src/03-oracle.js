@@ -3909,6 +3909,12 @@
     // Cauldron Haze: "Choose any number of target creatures. Each of those creatures gains persist until end of turn."
     { re: /^Each of those creatures gains ([a-z ,]+?) until end of turn\.?$/i,
       make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'eachTarget' } : null; } },
+    /* Olivia, Mobilized for War: "put a +1/+1 counter on that creature, it gains haste until end of turn, and it becomes
+       a Vampire in addition to its other types" — the creature that entered, for good */
+    { re: /^Put an? (\+1\/\+1) counter on that creature, it gains ([a-z ]+?) until end of turn, and it becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => { const kws = keywordList(m[2]); return kws.length && kws.every(kwKnown) && !/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[3])
+        ? [{ op: 'counters', kind: m[1], n: 1, scope: 'triggerObject' }, { op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'triggerObject' },
+          { op: 'addTypes', subtypes: [m[3]], scope: 'triggerObject' }] : null; } },
     // Guide of Souls: "It becomes an Angel in addition to its other types."
     { re: /^(?:It|That creature) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => (/^(?:Artifact|Enchantment|Creature|Land)$/.test(m[1]) ? { op: 'addTypes', types: [m[1]], scope: 'lastTarget' }
@@ -5938,6 +5944,10 @@
     /* The Ring tempts you (CR 701.52): the emblem gains a level and you
        name a Ring-bearer. */
     { re: /^The Ring tempts you\.?$/i, make: () => ({ op: 'ringTempts' }) },
+    /* Galadriel, Elven-Queen: "the Ring tempts you, then you put a +1/+1 counter on your Ring-bearer" — the one just
+       chosen (scope ringBearer) */
+    { re: /^(The Ring tempts you, then you p|P)ut an? (\+1\/\+1|[a-z]+) counter on your Ring-bearer\.?$/i,
+      make: (m) => (/tempts/i.test(m[1]) ? [{ op: 'ringTempts' }] : []).concat([{ op: 'counters', kind: m[2].toLowerCase(), n: 1, scope: 'ringBearer' }]) },
     /* Meld (CR 701.42): the two cards of a meld pair exiled and put back as one permanent. Hanweir
        Battlements, Urza, Lord Protector: "If you both own and control this land and a creature named
        Hanweir Garrison, exile them, then meld them into Hanweir, the Writhing Township." */
@@ -14330,6 +14340,8 @@
     { re: /^Whenever enchanted (?:player|opponent) is dealt damage,? /i, event: 'playerDealtDamage', extra: { enchantedPlayer: true } },
     { re: /^At the beginning of each player's end step,? /i, event: 'eachEndStep' },
     { re: /^At the beginning of (?:your second main phase|each of your postcombat main phases|your postcombat main phase),? /i, event: 'yourMain2' },
+    // Donna Noble: "Whenever Donna Noble or a creature it's paired with is dealt damage" (selfOrPaired)
+    { re: /^Whenever (?:CARDNAME|this creature) or a creature it'?s paired with is dealt damage,? /i, event: 'anyDealtDamage', extra: { selfOrPaired: true } },
     // Wrathful Raptors: "Whenever a Dinosaur you control is dealt damage"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' is dealt damage,? ', 'i'), event: 'anyDealtDamage', filt: (m) => subjectFilter(m[1]) },
     // Phyrexian Obliterator: "Whenever a source deals damage to this creature" — that source's controller is "that player"
@@ -15252,6 +15264,15 @@
       if (hpb) {
         out.channel = { cost: hpb[1], keep: true, effects: [{ op: 'selfFromGraveyard', from: 'hand', to: 'battlefield', tapped: !!hpb[2] }] };
         out.abilities.push({ kind: 'castModifier', keyword: 'Put onto the battlefield', arg: hpb[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
+      /* Offering (CR 702.48): Patron of the Moon, "Moonfolk offering" — cast any time you could cast an instant by
+         sacrificing a Moonfolk, for the difference in mana costs, colours and all (offering) */
+      const offr = stripReminder(line).trim().match(/^([A-Z][a-z]+) offering$/);
+      if (offr) {
+        out.offering = offr[1];
+        out.abilities.push({ kind: 'castModifier', keyword: 'Offering', arg: offr[1], text: line, auto: true, effects: [] });
         autoLines++;
         continue;
       }
