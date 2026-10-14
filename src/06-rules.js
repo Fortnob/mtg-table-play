@@ -9349,6 +9349,8 @@
       // Emrakul, the Promised End: "protection from instants"
       const TYPE_WORDS = { instants: 'isInstant', sorceries: 'isSorcery', enchantments: 'isEnchantment', planeswalkers: 'isPlaneswalker' };
       if (TYPE_WORDS[s]) return !!a[TYPE_WORDS[s]];
+      // Lord of the Nazgûl: "protection from Ring-bearers"
+      if (s === 'ring-bearers') return this._isRingBearer(o);
       // Pippin, Guard of the Citadel: protection from lands, battles or kindred, as they are now
       const MORE_TYPES = { lands: 'Land', battles: 'Battle', kindred: 'Kindred' };
       if (MORE_TYPES[s]) return this._cardTypesOf(o).includes(MORE_TYPES[s]);

@@ -28492,4 +28492,48 @@ module.exports = (test) => {
     M.cast('B', M.hand('B', 'Lightning Bolt'), { targets: [bear.id] });
     t.zone(bear, 'graveyard', 'Pippin: until end of turn');
   });
+
+  test('Commanders: Lord of the Nazgûl — Wraiths with protection from Ring-bearers; instants and sorceries make Wraiths, nine of them 9/9', (mk, t) => {
+    t.auto('Lord of the Nazgûl');
+    const M = mk({ library: Array(30).fill('Island') });
+    const lord = M.bf('A', 'Lord of the Nazgûl');
+    const bear = M.bf('A', 'Grizzly Bears');
+    // an instant: a 3/3 black Wraith with menace
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Opt'));
+    const wraiths = () => M.bfOf('A').filter(o => o.isToken && /Wraith/.test(o.card.type_line || ''));
+    t.eq(wraiths().length, 1, 'Lord: a Wraith token');
+    const w = wraiths()[0];
+    t.eq(M.g.characteristics(w).power, 3);
+    t.ok(M.g.hasKw(w, 'menace'));
+    // two Wraiths, not nine: no 9/9
+    t.eq(M.g.characteristics(lord).power, 4, 'Lord: fewer than nine Wraiths');
+    // B's Ring-bearer: can't block a Wraith, but can block the Grizzly Bears; its damage to a Wraith is prevented
+    const rb = M.bf('B', 'Hill Giant');
+    M.player('B').ringBearer = rb.id;
+    t.no(M.g._protectedFrom(bear, rb), 'Lord: only Wraiths');
+    t.ok(M.g._protectedFrom(lord, rb) && M.g._protectedFrom(w, rb), 'Lord: Wraiths have protection from the Ring-bearer');
+    t.ok(M.g._viewKeywords(w).includes('protection from ring-bearers'));
+    const giant = M.bf('B', 'Hill Giant');
+    t.no(M.g._protectedFrom(w, giant), 'Lord: not from a creature that is not a Ring-bearer');
+    // A's own Ring-bearer too
+    M.player('A').ringBearer = bear.id;
+    t.ok(M.g._protectedFrom(w, bear), "Lord: A's own Ring-bearer as well");
+    // nine Wraiths: all 9/9 until end of turn
+    for (let i = 0; i < 6; i++) M.bf('A', 'Nazgûl');
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Opt'));
+    const all = M.bfOf('A').filter(o => M.g._hasCreatureType(o, 'Wraith'));
+    t.eq(all.length, 9);
+    t.ok(all.every(o => M.g.characteristics(o).power === 9 && M.g.characteristics(o).toughness === 9), 'Lord: nine Wraiths, 9/9');
+    t.eq(M.g.characteristics(bear).power, 2, 'Lord: Wraiths only');
+    M.nextTurn('B');
+    t.eq(M.g.characteristics(w).power, 3, 'Lord: until end of turn');
+    // a creature spell: nothing
+    M.nextTurn('A');
+    const n0 = wraiths().length;
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.eq(wraiths().length, n0, 'Lord: instants and sorceries only');
+  });
 };

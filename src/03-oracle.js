@@ -4845,6 +4845,9 @@
     // Katara, Water Tribe's Hope: "Creatures you control have base power and toughness X/X until end of turn."
     { re: /^Creatures you control have base power and toughness (X|\d+)\/(X|\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2] }) },
+    // Lord of the Nazgûl: "Wraiths you control have base power and toughness 9/9 until end of turn."
+    { re: /^([A-Z][a-z]+) you control have base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
+      make: (m) => (m[1] === 'Creatures' ? null : { op: 'setBaseAll', p: +m[2], t: +m[3], subtype: U.titleCase(singularType(m[1])) }) },
     /* Malakir Rebirth: a creature that comes back once */
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },
@@ -13503,7 +13506,7 @@
        "trample as long as …", "becomes blue" and other words that slipped
        into a keyword list are not keywords, and the line goes back to a
        person rather than granting nothing. */
-    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|colorless or from the colou?r of your choice|the chosen colou?r|the card type of your choice|[a-z]+s)$/i;
+    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|colorless or from the colou?r of your choice|the chosen colou?r|the card type of your choice|ring-bearers|[a-z]+s)$/i;
     const kwOk = (k) => {
       const w = String(k || '').trim();
       if (kwKnown(w)) return true;
@@ -14073,7 +14076,8 @@
     const out = [];
     // Commander's Plate: "protection from each color that's not in your commander's color identity"
     str = String(str).replace(/protection from each colou?r that'?s not in your commander'?s colou?r identity/i, () => { out.push('Protection From Commander Off Colors'); return ''; });
-    const rest = String(str).replace(/protection from [a-z]+(?:(?:,|,? and) from [a-z]+)*/gi, (m0) => {
+    // (Lord of the Nazgûl: "protection from Ring-bearers")
+    const rest = String(str).replace(/protection from ring-bearers|protection from [a-z]+(?:(?:,|,? and) from [a-z]+)*/gi, (m0) => {
       out.push(U.titleCase(m0)); return '';
     });
     // the protection taken out of the middle leaves a dangling "and" behind
@@ -14586,13 +14590,14 @@
           grant: m[4] ? keywordList(m[4]) : null };
       } },
     // "<scope> have flying and vigilance."
-    { re: /^(.+?) (?:has|have) ([a-z, '{}0-9]+?)\.?$/i,
+    // (Lord of the Nazgûl: "Wraiths you control have protection from Ring-bearers.")
+    { re: /^(.+?) (?:has|have) ([a-z, '{}0-9]+?|protection from ring-bearers)\.?$/i,
       make: (m) => {
         const scope = scopeOf(m[1]);
         if (!scope) return null;
         const kws = keywordList(m[2]);
         // Akroma's Memorial: a long list, ending in protection from two colours
-        if (!kws.length || !kws.every(k => kwKnown(k) || /^protection from [a-z]+(?: and from [a-z]+)*$/i.test(k))) return null;
+        if (!kws.length || !kws.every(k => kwKnown(k) || /^protection from [a-z]+(?: and from [a-z]+)*$/i.test(k) || /^protection from ring-bearers$/i.test(k))) return null;
         return { op: 'continuous', layer: 6, scope, grant: kws };
       } },
     { re: /^During your turn, (?:CARDNAME|this creature) has ([a-z ,']+?)\.?$/i,
