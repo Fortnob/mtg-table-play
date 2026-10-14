@@ -516,7 +516,8 @@
        — a token with a name of its own, said first (not one named after the
        card making it: "CARDNAME Twin" is left to a person) */
     // (Tolsimir, Friend to Wolves: "Create Voja, Friend to Elves, a legendary …" — a name with an epithet: namedTokenEpithet)
-    const named = s.match(/^Create ([A-Z][A-Za-z' -]*?(?:, [A-Z][A-Za-z' -]*?)?), an? (legendary )?(.+)$/);
+    // (Nissa, Sage Animist: "Create Ashaya, the Awoken World, a legendary …" — an epithet with "the")
+    const named = s.match(/^Create ([A-Z][A-Za-z' -]*?(?:, (?:the )?[A-Z][A-Za-z' -]*?)?), an? (legendary )?(.+)$/);
     if (named && !/CARDNAME/.test(named[1])) {
       const e = parseTokenSentence('Create a ' + named[3], named[1].trim());
       if (!e) return null;
@@ -2448,7 +2449,8 @@
         if (!one() || typeof k !== 'number') return null;
         return { op: 'tap', targets: Array.from({ length: k }, (x, i) => Object.assign(one(), /one or two/i.test(m[1]) && !i ? {} : { upTo: true }, { distinct: true })) };
       } },
-    { re: /^Untap up to (one|two|three|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
+    // (Nissa, Sage Animist: "Untap up to six target lands.")
+    { re: /^Untap up to (one|two|three|four|five|six|seven|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
       make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2]), { upTo: true })) }) },
     { re: /^Return up to (one|two|three|\d+) target ([a-z][a-z '-]*?) cards? from your graveyard to your hand\.?$/i,
@@ -3207,6 +3209,8 @@
     { re: /^(?:Those creatures|They) don'?t untap during that player'?s next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
     { re: /^(?:This land|This creature|This artifact|CARDNAME) doesn'?t untap during your next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'self' }) },
     { re: /^They'?re still lands\.?$/i, make: () => ({ op: 'noop' }) },
+    // Nissa, Sage Animist: "They become 6/6 Elemental creatures." — the lands just untapped, for good (which targets)
+    { re: /^They become (\d+)\/(\d+) ([A-Z][a-z]+) creatures\.?$/, make: (m) => ({ op: 'animate', which: 'targets', pt: m[1] + '/' + m[2], subtypes: m[3], duration: 'permanent' }) },
     { re: /^Activate only as a sorcery\.?"?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Activate (?:this ability )?only once\.?$/i, make: () => ({ op: 'activateOnly', once: true }) },
     /* Lathril: "create that many 1/1 green Elf Warrior creature tokens" */
@@ -4539,15 +4543,17 @@
     /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
        it deals 2 damage to any target" and "{T}: Add one mana of any color."" — a token of its own, its words read
        as its own card's would be, and only if they read whole (namedTokenDef) */
-    // (Svella, Ice Shaper: "a colorless snow artifact token named Icy Manalith" — snow too)
-    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
-      make: (m) => {
+    // (Svella, Ice Shaper: "a colorless snow artifact token named Icy Manalith" — snow too;
+    //  Kibo, Uktabi Prince: "Each player creates a colorless artifact token named Banana with …" — each)
+    { re: /^(?:You create|Create|create|(Each player) creates) (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
+      make: (m0) => {
+        const m = [m0[0]].concat(m0.slice(2));
         const snow = / colorless snow artifact /.test(m[0]);
         // (each ability a sentence of its own, and the token calling itself a token, as printed)
         const text = [m[4], m[5]].filter(Boolean).map(x => x.replace(/\bthis creature\b/g, 'this token').replace(/([^.])$/, '$1.')).join('\n');
         const probe = analyze({ id: 'tokentext:' + U.hash(m[3] + text), name: m[3], type_line: 'Token Artifact', oracle_text: text, keywords: [], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
-        return { op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: snow ? 'Token Snow Artifact' : 'Token Artifact', text } };
+        return Object.assign({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: snow ? 'Token Snow Artifact' : 'Token Artifact', text } }, m0[1] ? { who: 'each' } : {});
       } },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
@@ -8317,6 +8323,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Sapling of Colfenor: "reveal the top card of your library. If it's a creature card, you gain life equal to that
+       card's toughness, lose life equal to its power, then put it into your hand." (topCreatureLife) */
+    { re: /^reveal the top card of your library\. If it'?s a creature card, you gain life equal to that card'?s toughness, lose life equal to its power, then put it into your hand\.?$/i,
+      make: () => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'topCreatureLife' }] },
     /* Calamity, Galloping Inferno: "choose a nonlegendary creature that saddled it this turn and create a tapped and
        attacking token that's a copy of it. Sacrifice that token at the beginning of the next end step. Repeat this
        process once." — a creature tapped to saddle it, still on the battlefield, chosen each time (the same one or
@@ -8431,6 +8441,14 @@
         const tp = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
         if (!tp.auto || !tp.effects.length) return null;
         return [{ op: 'removeExiledCounter', kind: m[1].toLowerCase(), owner: 'triggerPlayer', then: tp.effects }];
+      } },
+    /* Hylda of the Icy Crown: "you may pay {1}. When you do, choose one — …" — the payment the only question until it
+       is made; the mode after it */
+    { re: /^you may pay ((?:\{[0-9WUBRGC]\})+)\. When you do, (choose (?:one|two|three)\s*[-—][\s\S]+)$/i,
+      make: (m) => {
+        const md = parseModal(m[2].charAt(0).toUpperCase() + m[2].slice(1));
+        if (!md || !md.auto) return null;
+        return [{ op: 'mayPay', pay: { mana: m[1] }, then: md.effects }];
       } },
     /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, choose two — …" — the sacrifice
        is the only question until it is made (an optional sacThen); the modes follow it */

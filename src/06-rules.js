@@ -22112,7 +22112,16 @@
         /* ===== a land that gets up and attacks ===== */
         case 'animate': {
           // (Ultron, Artificial Malevolence: "it becomes a 2/2 Robot Villain creature" — the token just made: lastCopy)
-          const who = e.which === 'lastCopy' ? (this._lastCopy && this._lastCopy.zone === 'battlefield' ? this._lastCopy : null) : src;
+          // (Nissa, Sage Animist: "They become 6/6 Elemental creatures" — each of the targets: which targets)
+          if (e.which === 'targets') {
+            for (const t of targets) {
+              const x = t.kind === 'object' && this.obj(t.id);
+              if (x && x.zone === 'battlefield') this._runEffect(Object.assign({}, e, { which: 'fixed', fixedId: x.id }), ctx);
+            }
+            break;
+          }
+          const who = e.which === 'fixed' ? this.obj(e.fixedId)
+            : e.which === 'lastCopy' ? (this._lastCopy && this._lastCopy.zone === 'battlefield' ? this._lastCopy : null) : src;
           if (!who) break;
           const [p, t] = String(e.pt || '1/1').split('/');
           // Testament of Faith: "becomes an X/X Wall creature" — the X paid
@@ -26060,6 +26069,17 @@
           const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Put ${top.name} into your graveyard?` }, 'lookGy');
           if (yes === SUSPEND) return SUSPEND;
           if (yes) { this.moveObject(top, 'graveyard'); this.logEvent('zone', `${me.name} puts ${top.name} into their graveyard.`); }
+          break;
+        }
+        /* Sapling of Colfenor: "If it's a creature card, you gain life equal to that card's toughness, lose life equal
+           to its power, then put it into your hand." — the card just revealed, still on top (topCreatureLife) */
+        case 'topCreatureLife': {
+          const top = this.zones[ctx.controller].library[0];
+          if (!top || !this._cardFitsWords(top, 'creature card')) break;
+          this.changeLife(me, Math.max(0, this.toughnessOf(top)));
+          this.changeLife(me, -Math.max(0, this.powerOf(top)));
+          this.moveObject(top, 'hand');
+          this.logEvent('rules', `${me.name} puts ${top.name} into their hand.`);
           break;
         }
         case 'topIfToHand': {
