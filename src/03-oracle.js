@@ -2487,6 +2487,14 @@
         t0.mvBelowTrigger = true;
         return inner;
       } },
+    /* Colfenor, the Last Yew: "return up to one other target creature card with lesser toughness from your graveyard
+       to your hand" — other than the one that died, lesser than its toughness (toughBelowTrigger) */
+    { re: /^Return up to one other (target creature card) with lesser toughness from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'),
+        { controller: 'you', upTo: true, notTriggerObject: true, toughBelowTrigger: true })] }) },
+    // Krile Baldesion: "return target creature card with mana value equal to that spell's mana value from your graveyard to your hand"
+    { re: /^Return (target [a-z ]+? card) with mana value equal to that spell's mana value from your graveyard to your hand\.?$/i,
+      make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you', mvEqTrigger: true })] }) },
     { re: /^Return to your hand (target [a-z]+ card) in your graveyard with lesser mana value\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you', mvBelowTrigger: true })] }) },
     { re: /^Return (target [a-z0-9 '-]+?) from your graveyard to your hand\.?$/i,
@@ -9690,6 +9698,16 @@
     /* Dauthi Voidwalker */
     { re: /^Choose an exiled card an opponent owns with an? ([a-z]+) counter on it\. You may play it this turn without paying its mana cost\.?$/i,
       make: (m) => [{ op: 'playExiledFree', counter: m[1].toLowerCase() }] },
+    /* Mr. Foxglove: "draw cards equal to the number of cards in defending player's hand minus the number of cards in
+       your hand. If you didn't draw cards this way, you may put a creature card from your hand onto the battlefield." —
+       none to draw is the one way not to draw (defenderMoreHand) */
+    { re: /^Draw cards equal to the number of cards in defending player's hand minus the number of cards in your hand\. If you didn'?t draw cards this way, you may put an? ([a-z]+) card from your hand onto the battlefield\.?$/i,
+      make: (m) => [{ op: 'ifCond', cond: { kind: 'defenderMoreHand' }, then: [{ op: 'draw', who: 'you', n: { handDiff: true, defending: true } }],
+        otherwise: [{ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you' }] }] },
+    // Galadriel of Lothlórien: "you may reveal the top card of your library. If a land card is revealed this way, put it onto the battlefield tapped."
+    { re: /^You may reveal the top card of your library\. If a land card is revealed this way, put it onto the battlefield( tapped)?\.?$/i,
+      make: (m) => [{ op: 'may', prompt: 'Reveal the top card of your library? A land card goes onto the battlefield' + (m[1] ? ' tapped' : '') + '.',
+        then: [{ op: 'topLand', tapped: !!m[1], reveal: true }] }] },
     /* Coiling Oracle, Risen Reef, Explorer's Scope: the top card, onto the
        battlefield if it is a land, and perhaps into the hand if not */
     { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s a land card, (you may )?put it onto the battlefield( tapped)?\.(?: (If you don'?t put the card onto the battlefield|Otherwise), put (?:it|that card) into your hand\.)?$/i,
@@ -9967,6 +9985,12 @@
       const words = nth[2].trim().toLowerCase();
       if (words && !/^(?:creature|artifact|enchantment|instant|sorcery|instant or sorcery|legendary creature|noncreature|planeswalker|land)$/.test(words)) return null;
       return { op: 'costMod', who: 'you', words: words || 'spell', chosenType: false, amount: -(+nth[3]), nthEachTurn: /second/i.test(nth[1]) ? 2 : 1 };
+    }
+    // Momo, Friendly Flier: "The first non-Lemur creature spell with flying you cast during each of your turns costs {1} less to cast"
+    const nthFly = s.match(/^The first non-([A-Z][a-z]+) creature spell with flying you cast during each of your turns costs \{(\d+)\} less to cast$/);
+    if (nthFly) {
+      return { op: 'costMod', who: 'you', words: 'creature', chosenType: false, amount: -(+nthFly[2]), nthEachTurn: 1, nthKw: true,
+        withKeyword: 'flying', notCreatureType: nthFly[1], yourTurn: true };
     }
     /* Eluge, the Shoreless Sea: "The first instant or sorcery spell you cast each turn costs {U} (or {1}) less to
        cast for each land you control with a flood counter on it" — each {U} of its cost first, then {1}s (lessOrGeneric) */

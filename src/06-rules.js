@@ -2822,7 +2822,7 @@
            trigger without the targets it needs does nothing (CR 603.3d) (noTargetNoMay) */
         (item.optional && only && !(item.targets || []).length && (only.targets || []).length &&
           (only.targets || []).some(sp => sp && !sp.upTo && !sp.multi && !sp.controllerId && sp.controller !== 'triggerPlayer' && !sp.notTriggerPlayer && !sp.defending && !sp.mvBelowTrigger &&
-            !this._legalTargetsFor(sp, item.controller, item.objId || null).length));
+            !this._legalTargetsFor(sp.mvEqTrigger ? this._mvEqTriggerSpec(sp, item.triggerData) : sp, item.controller, item.objId || null).length));
       // (Emet-Selch of the Third Seat: "Do this only once each turn" — a second trigger waiting on the stack finds it taken: mayOncePerTurn)
       const ab0 = item.obj && item.abilityIndex != null && item.abilityIndex >= 0 && !item.activated ? ((item.obj.analysis() || {}).abilities || [])[item.abilityIndex] : null;
       const once = ab0 && ab0.mayOncePerTurn ? { objId: item.obj.id, i: item.abilityIndex } : null;
@@ -3467,7 +3467,12 @@
             if (e.chosenName && !this._chosenNameOf(src, o)) continue;
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
             // Monk Class: the second spell this turn (counting the ones already cast)
-            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words))).length !== e.nthEachTurn - 1) continue;
+            // (Momo, Friendly Flier: "the first non-Lemur creature spell with flying" — the earlier ones counted by all of it: nthKw)
+            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words)) &&
+              (!e.nthKw || ((!e.withKeyword || (((x.analysis() || {}).keywordSet) || new Set()).has(e.withKeyword)) &&
+                (!e.notCreatureType || !this._hasCreatureType(x, e.notCreatureType))))).length !== e.nthEachTurn - 1) continue;
+            // Momo, Friendly Flier: "non-Lemur"
+            if (e.notCreatureType && this._hasCreatureType(o, e.notCreatureType)) continue;
             // Goreclaw: "with power 4 or greater", as printed on the card being cast
             if (e.minPower != null && !(parseInt((o.card && o.card.power) || '0', 10) >= e.minPower)) continue;
             // Krosan Drover: "with mana value 6 or greater"; Warden of Evos Isle: "with flying"
@@ -12665,6 +12670,11 @@
           const sb = ((h.sacrificedBy || {})[me && me.id]) || [];
           return sb.filter(w => cond.what === 'permanent' || w.includes(cond.what)).length >= (cond.n || 1);
         }
+        // Mr. Foxglove: the defending player has more cards in hand than you — "draw cards equal to the difference" draws some
+        case 'defenderMoreHand': {
+          const dp = this._defenderOf(src);
+          return !!me && !!dp && this.zones[dp.id].hand.length > this.zones[me.id].hand.length;
+        }
         case 'thatPlayerHand': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -15656,6 +15666,16 @@
             const it = td.objectId && this.obj(td.objectId);
             return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
           })
+          /* Colfenor, the Last Yew: "with lesser toughness" than the creature that died, as it last was
+             (toughBelowTrigger) */
+          .map(spec => {
+            if (!spec || !spec.toughBelowTrigger) return spec;
+            const it = td.objectId && this.obj(td.objectId);
+            const tg = it ? (it._lastToughness != null ? it._lastToughness : this.toughnessOf(it)) : 0;
+            return Object.assign({}, spec, { toughBelowTrigger: false, maxToughness: tg - 1 });
+          })
+          // Krile Baldesion: "with mana value equal to that spell's mana value" (mvEqTrigger)
+          .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
           // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
           .map(spec => {
             if (!spec || !spec.otherSpellType) return spec;
@@ -15865,7 +15885,8 @@
         if (v && typeof v === 'object' && v.handTo != null) return Math.max(0, v.handTo - ((me && this.zones[me.id].hand.length) || 0));
         // Sandstone Oracle: "If that player has more cards in hand than you, draw cards equal to the difference"
         if (v && typeof v === 'object' && v.handDiff) {
-          const them = this.player(ctx.chosenPlayer) || triggerPlayer() || firstPlayer();
+          // (Mr. Foxglove: "the number of cards in defending player's hand minus the number of cards in your hand" — defending)
+          const them = v.defending ? this._defenderOf(src) : this.player(ctx.chosenPlayer) || triggerPlayer() || firstPlayer();
           return them && me ? Math.max(0, this.zones[them.id].hand.length - this.zones[me.id].hand.length) : 0;
         }
         // Generous Plunderer: "equal to the number of artifacts they control" — the defending player's
@@ -16016,14 +16037,7 @@
         }
         // Nev: the X the triggering spell was cast with (firstXSpell)
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
-        if (v && typeof v === 'object' && v.triggerSpellMv) {
-          const td = ctx.triggerData || {}; const x = td.objectId && this.obj(td.objectId);
-          if (!x) return 0;
-          // (on the stack, its mana value counts the X it was cast with, and a split card's half is that half: spellMvNow)
-          const st = this.stack.find(s2 => s2.kind === 'spell' && (s2.id === td.stackId || s2.objId === x.id));
-          const xa = x.analysis() || {};
-          return (st && xa.mv != null ? xa.mv : ((x.card && x.card.cmc) || 0)) + (st ? this._xMv(st) : 0);
-        }
+        if (v && typeof v === 'object' && v.triggerSpellMv) return this._triggerSpellMv(ctx.triggerData);
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         // Malcolm, Keen-Eyed Navigator: the players the lot of damage the trigger is about hit (batchPlayers)
@@ -23095,6 +23109,8 @@
             put = yes !== false;
           }
           if (top.zone !== 'library') break;
+          // Galadriel of Lothlórien: "reveal the top card of your library" — shown whatever it is (reveal)
+          if (e.reveal) this.logEvent('zone', `${me.name} reveals ${top.name} from the top of their library.`);
           if (put) {
             this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) });
             if (e.tapped && top.zone === 'battlefield') top.tapped = true;
@@ -29759,6 +29775,20 @@
     }
     /* An Aura on something: an Aura card, or a bestowed creature or a licid
        while it is attached (Kestia, the Cultivator on a creature) */
+    /** The Frightful Four: the mana value of the spell a trigger is about (triggerSpellMv) */
+    _triggerSpellMv(td) {
+      td = td || {}; const x = td.objectId && this.obj(td.objectId);
+      if (!x) return 0;
+      // (on the stack, its mana value counts the X it was cast with, and a split card's half is that half: spellMvNow)
+      const st = this.stack.find(s2 => s2.kind === 'spell' && (s2.id === td.stackId || s2.objId === x.id));
+      const xa = x.analysis() || {};
+      return (st && xa.mv != null ? xa.mv : ((x.card && x.card.cmc) || 0)) + (st ? this._xMv(st) : 0);
+    }
+    /** Krile Baldesion: "target creature card with mana value equal to that spell's mana value" (mvEqTrigger) */
+    _mvEqTriggerSpec(spec, td) {
+      const v = this._triggerSpellMv(td);
+      return Object.assign({}, spec, { mvEqTrigger: false, minMv: v, maxMv: v });
+    }
     _auraNow(x) {
       if (!x) return false;
       const a = x.analysis() || {};
