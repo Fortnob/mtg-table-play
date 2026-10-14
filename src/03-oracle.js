@@ -5554,6 +5554,14 @@
     { re: /^(?:You|you) takes? the initiative\.?$/i, make: () => ({ op: 'takeInitiative' }) },
     { re: /^(?:You|you) gets? ((?:\{E\})+)\.?$/i,
       make: (m) => ({ op: 'energy', n: (m[1].match(/\{E\}/g) || []).length }) },
+    // The Motherlode, Excavator: "You get an amount of {E} equal to the number of nonbasic lands that player controls."
+    { re: /^You get an amount of \{E\} equal to the number of ([^.]+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? { op: 'energy', n: c } : null; } },
+    /* The Motherlode, Excavator: "destroy target nonbasic land defending player controls, and creatures that player
+       controls without flying can't block this turn." */
+    { re: /^Destroy (target [a-z ]+?) defending player controls, and creatures that player controls without ([a-z]+) can'?t block this turn\.?$/i,
+      make: (m) => [{ op: 'destroy', targets: [targetSpec(m[1] + ' defending player controls')] },
+        { op: 'restrict', flag: 'cantBlock', scope: { who: 'opponents', defending: true, withoutKeyword: m[2].toLowerCase(), what: 'creature' } }] },
     { re: /^Look at the top (a|an|one|two|three|four|five|six|seven|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookTop', n: num(m[1]) }) },
     { re: /^Look at the top card of your library\.?$/i, make: () => ({ op: 'lookTop', n: 1 }) },
@@ -9545,6 +9553,11 @@
         { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
           otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
         { op: 'restToBottom', random: true }] },
+    /* The Cyber-Controller: "Put all creature cards milled this way onto the battlefield face down under your control.
+       They're 2/2 Cyberman artifact creatures." — every one, whoever's (all, faceDownAs) */
+    { re: /^Each opponent mills (X|\w+) cards\. Put all ([a-z]+) cards milled this way onto the battlefield face down under your control\. They'?re 2\/2 ([A-Z][a-z]+) artifact creatures\.?$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'opponents' },
+        { op: 'takeFromMilled', all: true, n: 1, filter: m[2].toLowerCase(), anyOwner: true, to: 'battlefield', faceDownAs: 'Artifact Creature — ' + m[3] }] },
     /* Nine-Fingers Keene: "look at the top nine cards of your library. You may put a Gate card from among them onto the
        battlefield. Then if you control nine or more Gates, put the rest into your hand. Otherwise, put the rest on the
        bottom of your library in a random order." (restToHand) */
@@ -13390,6 +13403,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is dealt (combat |noncombat )?damage,? /i, event: 'isDealtDamage', self: true,
       extraOf: (m) => (/noncombat/i.test(m[0]) ? { noncombatOnly: true } : /combat/i.test(m[0]) ? { combatOnly: true } : {}) },
     { re: /^When (?:this creature|~|CARDNAME) exploits a creature,? /i, event: 'exploits', self: true },
+    // Colonel Autumn: "Whenever a creature you control exploits a creature," — any of yours
+    { re: /^Whenever a creature you control exploits a creature,? /i, event: 'exploits' },
     /* an Aura or Equipment watching the creature it is on */
     { re: /^When(?:ever)? (?:enchanted|equipped) (?:creature|land|permanent|artifact) (becomes tapped|deals combat damage|deals damage|is dealt damage|becomes blocked),? /i,
       event: 'becomesTapped', aboutObject: true,
@@ -18603,6 +18618,8 @@
       { re: /^Cast (?:CARDNAME|this spell) only (?!from )(.+?)\.?$/i,
         make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; }, auto: true },
       { re: /^Exploit$/i, eff: { op: 'exploit' }, auto: true },
+      // Colonel Autumn: "Other legendary creatures you control have exploit." (grantExploit)
+      { re: /^Other ([a-z ]*?)creatures you control have exploit\.?$/i, make: (m) => ({ op: 'grantExploit', filter: (m[1] + 'creature').trim().toLowerCase() }), auto: true },
       { re: /^Starting intensity \d+$/i, eff: { op: 'noop' }, auto: true },
       // Endrek Sahr: "When you control seven or more Thrulls, sacrifice CARDNAME."
       { re: /^When you control (\w+) or more ([A-Z][a-z]+)s, sacrifice (?:CARDNAME|this creature)\.?$/,
@@ -18649,6 +18666,9 @@
       // Tivit, Seller of Secrets: "While voting, you may vote an additional time."; Brago's Representative: "you get an additional vote"
       { re: /^While voting, you (may vote an additional time|get an additional vote)\.?$/i,
         make: (m) => ({ op: 'extraVote', optional: /may/i.test(m[1]) }), auto: true },
+      // The Valeyard: "If an opponent would face a villainous choice, they face that choice an additional time." (villainousExtra)
+      { re: /^If an opponent would face a villainous choice, they face that choice an additional time\.?$/i,
+        eff: { op: 'villainousExtra' }, auto: true },
       // Teferi, Temporal Archmage's emblem: loyalty abilities at instant speed, on anyone's turn
       { re: /^You may activate loyalty abilities of planeswalkers you control on any player'?s turn any time you could cast an instant\.?$/i,
         eff: { op: 'instantLoyalty' }, auto: true },
@@ -19576,8 +19596,13 @@
   const CLOAKED_CARD = Object.assign({}, FACE_DOWN_CARD, { id: '__cloaked__', oracle_id: '__cloaked__', oracle_text: 'Ward {2}', keywords: ['Ward'] });
   function faceDownAnalysis(land, cloaked) {
     if (!land) return analyze(cloaked ? CLOAKED_CARD : FACE_DOWN_CARD);
+    /* The Cyber-Controller: "They're 2/2 Cyberman artifact creatures." — a face-down 2/2 with those types, given as
+       a whole type line ('Artifact Creature — Cyberman') */
+    const asCreature = /\bCreature\b/.test(land);
+    const key = land.toLowerCase().replace(/[^a-z]+/g, '_');
     const card = FACE_DOWN_LANDS[land] || (FACE_DOWN_LANDS[land] = Object.assign({}, FACE_DOWN_CARD,
-      { id: '__facedown_' + land.toLowerCase() + '__', oracle_id: '__facedown_' + land.toLowerCase() + '__', type_line: 'Land — ' + land, power: undefined, toughness: undefined }));
+      { id: '__facedown_' + key + '__', oracle_id: '__facedown_' + key + '__', type_line: asCreature ? land : 'Land — ' + land },
+      asCreature ? {} : { power: undefined, toughness: undefined }));
     return analyze(card);
   }
 

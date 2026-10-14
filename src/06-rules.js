@@ -5574,11 +5574,17 @@
     /** Exploit (CR 702.131): as it enters, you may sacrifice a creature. */
     _exploitOnEnter(o) {
       const a = o.analysis();
-      if (!a || !(a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'exploit'))) return;
+      if (!a) return;
+      /* Colonel Autumn: "Other legendary creatures you control have exploit." — an instance for each one handing it
+         out, each its own chance (grantExploit) */
+      const granted = this.battlefield.filter(x => x !== o && x.controller === o.controller && !x.phasedOut &&
+        this._staticOp(x, 'grantExploit') && this._cardFitsWords(o, this._staticOp(x, 'grantExploit').filter)).length;
+      const times = ((a.abilities || []).some(ab => (ab.effects || []).some(e => e.op === 'exploit')) ? 1 : 0) + granted;
+      if (!times) return;
       const pool = this.battlefield.filter(x => x.controller === o.controller &&
         (x.analysis() || {}).isCreature && this._canSacrifice(x));
       if (!pool.length) return;
-      this.queueChoice({
+      for (let i = 0; i < times; i++) this.queueChoice({
         type: 'sacrifice', playerId: o.controller, count: 1, optional: true,
         filter: 'creature', purpose: 'exploit', sourceId: o.id,
         prompt: `${o.name} exploits: sacrifice a creature?`,
@@ -18184,18 +18190,22 @@
           if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
           const want = Math.min(n(e.n) || 1, pool.length);
           // (Gyruda: a put that must happen, with only as many to put as there are, asks nothing)
-          let picked = e.optional === false && pool.length <= want ? pool.map(o => o.id) : this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
+          // (The Cyber-Controller: "Put all creature cards milled this way …" — every one, nothing asked: all)
+          let picked = e.all ? pool.map(o => o.id) : e.optional === false && pool.length <= want ? pool.map(o => o.id) : this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
             cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
             optional: e.optional !== false, prompt: e.prompt || `Choose ${want === 1 ? 'a card' : want + ' cards'} to put into your hand.` });
           if (picked === SUSPEND) return SUSPEND;
           if (e.optional === false && !(picked || []).some(id => pool.some(o => o.id === id))) picked = pool.slice(0, want).map(o => o.id);
           let took = 0;
-          for (const id of (picked || []).slice(0, want)) {
+          for (const id of (picked || []).slice(0, e.all ? pool.length : want)) {
             const o = this.obj(id);
             if (!o || !pool.includes(o) || o.zone !== 'graveyard') continue;
             // The Grand Evolution: "onto the battlefield" — under the one who put them there
             if (e.to === 'battlefield') {
+              // The Cyber-Controller: "face down … They're 2/2 Cyberman artifact creatures." (faceDownAs)
+              if (e.faceDownAs) { o.faceDown = true; o.faceDownLand = e.faceDownAs; }
               this.moveObject(o, 'battlefield', { controller: ctx.controller });
+              if (e.faceDownAs && o.zone === 'battlefield') { o.faceDown = true; o.faceDownLand = e.faceDownAs; o._chr = null; }
               if (o.zone === 'battlefield' && e.tapped) o.tapped = true;
               took++; this.logEvent('rules', `${me.name} puts ${o.name} onto the battlefield.`);
               continue;
@@ -21278,15 +21288,21 @@
           const opts = e.options || [];
           const run = [];
           for (const q of who) {
-            const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
-              options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
-              prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice. Choose one.` }, 'vc:' + q.id);
-            if (got === SUSPEND) return SUSPEND;
-            const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
-            const o = opts[k] || opts[0];
-            if (!o) continue;
-            this.logEvent('rules', `${q.name} chooses: ${o.label}.`);
-            for (const f of o.effects || []) run.push(Object.assign(JSON.parse(JSON.stringify(f)), { _tp: q.id }));
+            /* The Valeyard: "If an opponent would face a villainous choice, they face that choice an additional
+               time." — once more for each Valeyard an opponent of theirs controls (villainousExtra) */
+            const extra = this.battlefield.filter(x => !x.phasedOut && x.controller !== q.id &&
+              this.opponentsOf(x.controller).includes(q) && this._staticOp(x, 'villainousExtra')).length;
+            for (let r = 0; r <= extra; r++) {
+              const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
+                options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice${r ? ' again' : ''}. Choose one.` }, 'vc:' + q.id + (r ? ':' + r : ''));
+              if (got === SUSPEND) return SUSPEND;
+              const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
+              const o = opts[k] || opts[0];
+              if (!o) continue;
+              this.logEvent('rules', `${q.name} chooses: ${o.label}.`);
+              for (const f of o.effects || []) run.push(Object.assign(JSON.parse(JSON.stringify(f)), { _tp: q.id }));
+            }
           }
           this._spliceNext(run);
           break;
