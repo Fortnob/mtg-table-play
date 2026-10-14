@@ -8576,6 +8576,11 @@
           this.logEvent('rules', `${eq.name} is unattached${host ? ' from ' + host.name : ''}.`);
         }
       }
+      // Toggo, Goblin Weaponsmith's Rock: "Sacrifice Rock" — the Equipment that handed the ability out (sacGranter)
+      if (cost.sacGranter && item && item.grantedBy) {
+        const eq = this.obj(item.grantedBy);
+        if (eq && eq.zone === 'battlefield' && eq.controller === pid) this._sacrificeNow(pid, [eq], item);
+      }
       // "Pay {E}{E}"
       if (cost.energy) {
         const pe = this.player(pid);
@@ -9004,10 +9009,14 @@
       if (!ab || !/^Equip\b/i.test(ab.text || '')) return false;
       const p = this.player(playerId);
       if (!p || p.freeEquipTurn === this.turn) return false;
-      const s = this._anyStaticOf(playerId, 'firstEquipFree');
-      if (!s) return false;
-      const e = this._staticOp(s, 'firstEquipFree');
-      return !(e && e.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId));
+      // (Kíli the Resourceful: "As long as you have an enduring story, …" — cond)
+      return this._withEmblems(this.battlefield).some(s => {
+        if (s.controller !== playerId) return false;
+        const e = this._staticOp(s, 'firstEquipFree');
+        if (!e) return false;
+        if (e.cond && !this._condMet(e.cond, { controller: s.controller, obj: s })) return false;
+        return !(e.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId));
+      });
     }
 
     _payAbilityCost(playerId, o, ab, opts) {
@@ -12958,8 +12967,9 @@
              "Creature tokens you control get +2/+2"): read as its own, so
              the layers count them from it */
           // (Toralf's Hammer: "the granting Equipment" is that Equipment, by its name — grantedBy)
-          const by = /the granting Equipment/.test(t) && froms[i] ? this.obj(froms[i]) : null;
-          const mark = (ab) => (by ? { grantedBy: by.id, text: String(ab.text || '').replace(/the granting Equipment/g, by.name) } : {});
+          // (Grothama, All-Devouring: "fight Grothama, All-Devouring" — "the granting creature")
+          const by = /the granting (?:Equipment|creature)/.test(t) && froms[i] ? this.obj(froms[i]) : null;
+          const mark = (ab) => (by ? { grantedBy: by.id, text: String(ab.text || '').replace(/the granting (?:Equipment|creature)/g, by.name) } : {});
           for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static' || (loyal && ab.kind === 'loyalty')) extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }, mark(ab)));
           // a mana ability handed over: "has '{T}: Add one mana of any color'"
           for (const ab of ((ga && ga.manaAbilities) || [])) extraMana.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
@@ -13393,8 +13403,9 @@
         if (source !== o && (this.characteristics(o) || {}).isCreature) source._hurtCreatureTurn = this.turn;
         // Shelob, Child of Ungoliant: "by a Spider you controlled" — what the source was, and whose, as it dealt it
         const sa = source.analysis() || {};
+        // (Grothama, All-Devouring: "the amount of damage dealt to Grothama this turn by sources they controlled" — n)
         (o._damagedBy.kinds = o._damagedBy.kinds || []).push({ pid: source.controller,
-          types: (sa.subtypes || []).map(x => String(x).toLowerCase()), every: this.hasKw(source, 'changeling') || undefined });
+          types: (sa.subtypes || []).map(x => String(x).toLowerCase()), every: this.hasKw(source, 'changeling') || undefined, n: amount });
       }
       // "a creature dealt damage this way", for the sentence after
       (this._dealtThisWay = this._dealtThisWay || []).push(o.id);
@@ -14539,6 +14550,8 @@
               ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
               ab.batchPlayers && tData.player ? { players: [tData.player] } : {}),
             lossExactly: ab.lossExactly || undefined,
+            // (Grothama, All-Devouring: "fight Grothama" — the permanent that handed the ability out: grantedBy)
+            grantedBy: ab.grantedBy || undefined,
           });
         }
         // "When you next cast …": the turn's emblem goes once it has triggered
@@ -16923,7 +16936,9 @@
         }
         // (Éomer, King of Rohan: "target player becomes the monarch")
         case 'becomeMonarch': this.setMonarch(e.who === 'opponent'
-          ? (this.opponentsOf(ctx.controller)[0] || me).id : e.who === 'target' ? ((firstPlayer() || me).id) : ctx.controller, 'a card'); break;
+          ? (this.opponentsOf(ctx.controller)[0] || me).id : e.who === 'target' ? ((firstPlayer() || me).id)
+          // Starscream, Seeker Leader: "that player becomes the monarch" (triggerPlayer)
+          : e.who === 'triggerPlayer' ? ((triggerPlayer() || me).id) : ctx.controller, 'a card'); break;
         case 'takeInitiative': this.takeInitiative(ctx.controller, 'a card'); break;
         /* Venture into the dungeon (CR 701.46): into the first room of a
            dungeon of your choice, or on to the next room of the one you are
@@ -18128,6 +18143,29 @@
           this.logEvent('fight', `${src.name} fights ${y.name}.`);
           this._noteFight(src, y);
           this.emit('sfx', 'damage');
+          break;
+        }
+        // Grothama, All-Devouring: "Whenever this creature attacks, you may have it fight Grothama" — the creature that handed it out
+        case 'fightGranter': {
+          const y = ctx.grantedBy && this.obj(ctx.grantedBy);
+          if (!src || src.zone !== 'battlefield' || !y || y.zone !== 'battlefield' || y === src) break;
+          if (!(this.characteristics(y) || {}).isCreature || !(this.characteristics(src) || {}).isCreature) break;
+          this.dealDamageToObject(y, this.powerOf(src), src);
+          this.dealDamageToObject(src, this.powerOf(y), y);
+          this.logEvent('fight', `${src.name} fights ${y.name}.`);
+          this._noteFight(src, y);
+          this.emit('sfx', 'damage');
+          break;
+        }
+        /* Grothama, All-Devouring: "each player draws cards equal to the amount of damage dealt to Grothama this turn
+           by sources they controlled" — as the sources were controlled when they dealt it */
+        case 'drawDamageToSelfBy': {
+          const db = src && src._damagedBy && src._damagedBy.turn === this.turn ? (src._damagedBy.kinds || []) : [];
+          for (const p of this.players) {
+            if (p.hasLost || this._doneHere('ddsb:' + p.id)) continue;
+            const k = db.filter(d => d.pid === p.id).reduce((t, d) => t + (Number(d.n) || 0), 0);
+            if (k > 0) this._drawCards(p, k);
+          }
           break;
         }
         case 'gainControl': {

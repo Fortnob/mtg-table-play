@@ -360,6 +360,8 @@
       /* Toralf's Hammer, Razor Boomerang: "Equipped creature has '{T}, Unattach Razor Boomerang: …'" — the Equipment
          that hands the ability out, taken off as the price (unattachGranter; granterWords) */
       if (/^Unattach the granting Equipment$/i.test(p)) { cost.unattachGranter = true; continue; }
+      // Toggo, Goblin Weaponsmith's Rock: "Sacrifice Rock" in the equipped creature's hands (sacGranter)
+      if (/^Sacrifice the granting Equipment$/i.test(p)) { cost.sacGranter = true; continue; }
       // "Return this creature to its owner's hand": the permanent itself as the price
       if (/^Return (?:this (?:creature|artifact|enchantment|permanent|Aura|land)|CARDNAME) to its owner'?s hand$/i.test(p)) { cost.returnSelf = true; continue; }
       /* "Return a land you control to its owner's hand", "Return two Islands
@@ -661,7 +663,10 @@
      target. Return Razor Boomerang to its owner's hand.'" — in the creature's hands, the Equipment's own name is
      the Equipment, not the creature: "the granting Equipment" (the table shows its name) */
   function granterWords(scope, text) {
-    if (!scope || !scope.attached || !/\bUnattach CARDNAME\b/.test(text || '')) return text;
+    // (Grothama, All-Devouring: 'Other creatures have "… you may have it fight Grothama, All-Devouring."' — the granter)
+    if (scope && !scope.attached && /\bfight CARDNAME\.?$/.test(text || '')) return String(text).replace(/\bfight CARDNAME\b/, 'fight the granting creature');
+    // (Toggo, Goblin Weaponsmith's Rock: "{1}, {T}, Sacrifice Rock: …")
+    if (!scope || !scope.attached || !/\b(?:Unattach|Sacrifice) CARDNAME\b/.test(text || '')) return text;
     return String(text).replace(/\bCARDNAME\b/g, 'the granting Equipment');
   }
 
@@ -2068,6 +2073,11 @@
        excess the trigger counted; not the permanent dealt it (notTriggerObject) */
     { re: /^CARDNAME deals damage equal to the excess to any target other than that permanent\.?$/i,
       make: () => ({ op: 'damage', n: 'triggerAmount', targets: [Object.assign(targetSpec('any target'), { notTriggerObject: true })] }) },
+    // Grothama, All-Devouring: "each player draws cards equal to the amount of damage dealt to Grothama this turn by sources they controlled."
+    { re: /^Each player draws cards equal to the amount of damage dealt to (?:CARDNAME|this creature) this turn by sources they controlled\.?$/i,
+      make: () => ({ op: 'drawDamageToSelfBy' }) },
+    // Grothama, All-Devouring (handed out): "you may have it fight Grothama, All-Devouring" — the granter (fightGranter)
+    { re: /^(?:It|This creature|CARDNAME) fights the granting creature\.?$/i, make: () => ({ op: 'fightGranter' }) },
     // The Tenth Doctor: "Time travel three times." (timeTravel)
     { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
     // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — folded into the tokens' creation (goadTokensRider)
@@ -4577,6 +4587,16 @@
         if (!probe || !probe.fullyAutomated) return null;
         return Object.assign({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: snow ? 'Token Snow Artifact' : 'Token Artifact', text } }, m0[1] ? { who: 'each' } : {});
       } },
+    /* Toggo, Goblin Weaponsmith: "create a colorless Equipment artifact token named Rock with "Equipped creature has
+       '{1}, {T}, Sacrifice Rock: This creature deals 2 damage to any target'" and equip {1}." — the inner quotes
+       made double, as on a card of its own (namedTokenDef) */
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) colorless Equipment artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
+      make: (m) => {
+        const text = m[3].replace(/'([^']+)'/g, (q, inner) => '"' + inner.replace(/([^.])$/, '$1.') + '"').replace(/([^."])$/, '$1.') + '\nEquip ' + m[4];
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[2] + text), name: m[2], type_line: 'Token Artifact — Equipment', oracle_text: text, keywords: [], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return { op: 'createNamedToken', n: num(m[1]), token: m[2], def: { type: 'Token Artifact — Equipment', text } };
+      } },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
     { re: /^Destroy (?:this (?:enchantment|artifact|creature|permanent|land)|CARDNAME)\.?$/i, make: () => ({ op: 'destroy', scope: 'self' }) },
@@ -5189,6 +5209,8 @@
 
     /* ===== crowns, counters and looking at your own library ===== */
     { re: /^(?:You|you) becomes? the monarch\.?$/i, make: () => ({ op: 'becomeMonarch' }) },
+    // Starscream, Seeker Leader: "that player becomes the monarch" — the player the trigger is about
+    { re: /^That player becomes the monarch\.?$/i, make: () => ({ op: 'becomeMonarch', who: 'triggerPlayer' }) },
     // Éomer, King of Rohan: "Target player becomes the monarch."
     { re: /^Target (player|opponent) becomes the monarch\.?$/i, make: (m) => ({ op: 'becomeMonarch', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) || undefined }] }) },
     { re: /^(?:You|you) takes? the initiative\.?$/i, make: () => ({ op: 'takeInitiative' }) },
@@ -6711,6 +6733,13 @@
       make: (m) => { const text = m[3].replace(/[.,]?$/, '.');
         return grantableText(text) ? { op: 'copyPermanent', n: 1, grant: [], scope: 'triggerObject',
           setCardTypes: U.titleCase(m[2]) + ' \u2014 ' + m[1], addText: [text] } : null; } },
+    /* Shaun, Father of Synths: "create a tapped and attacking token that's a copy of target attacking legendary creature
+       you control other than Shaun, except it's not legendary and it's a Synth artifact creature in addition to its
+       other types." */
+    { re: /^Create a tapped and attacking token that'?s a copy of (target [a-zA-Z ]+?), except it'?s not legendary and it'?s an? ([A-Z][a-z]+) artifact creature in addition to its other types\.?$/,
+      // ("other than Shaun" is "another")
+      make: (m) => { const spec = targetSpec(m[1].replace(/^target (.+?) other than (?:CARDNAME|this creature)$/, 'another target $1')); return spec && !spec.unknown
+        ? { op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, nonLegendary: true, addSubtypes: [m[2]], addTypes: ['Artifact', 'Creature'], targets: [spec] } : null; } },
     // Firion, Wild Rose Warrior: "create a token that's a copy of it, except it has "…"" — the Equipment the trigger is about
     { re: /^Create a token that'?s a copy of it, except it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[1]) ? { op: 'copyPermanent', n: 1, grant: [], addText: [m[1]], scope: 'triggerObject' } : null) },
@@ -12038,6 +12067,8 @@
       event: 'youCastSpell', filt: () => ({ words: 'instant or sorcery', mvAboveExperience: true }) },
     // Mr. House, President and CEO: "Whenever you roll a 4 or higher" — each die that comes up so (minRoll)
     { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
+    // Starscream, Seeker Leader: "Whenever you become the monarch"
+    { re: /^Whenever you become the monarch,? /i, event: 'becomesMonarch' },
     // Brazen Dwarf: "Whenever you roll one or more dice"
     { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
@@ -16746,6 +16777,16 @@
       const c = condOf(alUntap[1]);
       const inner = c && parseStatic(alUntap[2].charAt(0).toUpperCase() + alUntap[2].slice(1), ctx);
       if (inner && inner.auto && (inner.effects || []).length === 1 && inner.effects[0].op === 'untapOnEveryUntapStep') {
+        inner.effects[0].cond = c;
+        return Object.assign({}, inner, { text: line });
+      }
+    }
+    // Kíli the Resourceful: "As long as you have an enduring story, you may pay {0} rather than pay the equip cost of …"
+    const alEquip = String(line).match(/^As long as ([^,]+), (you may pay \{0\} rather than pay the equip cost .+)$/i);
+    if (alEquip) {
+      const c = condOf(alEquip[1]);
+      const inner = c && parseStatic(alEquip[2].charAt(0).toUpperCase() + alEquip[2].slice(1), ctx);
+      if (inner && inner.auto && (inner.effects || []).length === 1 && inner.effects[0].op === 'firstEquipFree') {
         inner.effects[0].cond = c;
         return Object.assign({}, inner, { text: line });
       }
