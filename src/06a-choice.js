@@ -112,6 +112,16 @@
           }
           break;
         }
+        /* Winter, Cynical Opportunist: "any number of cards from your graveyard with four or more card types among
+           them" — the values of all the picks' lists together, at least `min` different ones (unionAtLeast) */
+        case 'unionAtLeast': {
+          if (!final || !entries.length) break;
+          const key = c.key || 'types';
+          const all = new Set();
+          for (const e of entries) for (const v of (e && Array.isArray(e[key]) ? e[key] : [])) all.add(v);
+          if (all.size < (c.min || 0)) return c.reason || `That is ${all.size} ${label || 'type'}${all.size === 1 ? '' : 's'} among them; it needs ${c.min}.`;
+          break;
+        }
         case 'sum': {
           const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
           if (c.max != null && total > c.max) return c.reason || `That is ${total} ${label}; the most is ${c.max}.`;

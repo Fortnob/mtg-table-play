@@ -2330,6 +2330,8 @@
     /** An alternative cast: a use that names a face (aftermath's other half) is cast as that face. @this {MTG.TableInstance} */
     castUse(o, a, use) {
       if (use.face != null) return this.beginCast(o, MTG.oracle.analyze(o.card, use.face) || a, use.via, use.face);
+      // Unearth: an ability of the card, not a spell — no targets or X of the card's to ask about
+      if (use.via === 'unearth') return this.send({ kind: 'cast', objId: o.id, targets: [], via: 'unearth' });
       /* Sneak: an unblocked attacker goes back to hand. With more than one,
          which one is yours to say. */
       if (use.via === 'sneak') {

@@ -93,6 +93,9 @@
     // toxic N handed out: the engine adds every instance up (and so for these, Cyberman Patrol's afflict 3)
     // (Cayth, Famed Mechanist: "have fabricate 1" — fabricate is read off the keyword as it enters: grantFabricate)
     if (/^(?:toxic|firebending|annihilator|afflict|fabricate) \d+$/i.test(w)) return true;
+    // (Mishra, Tamer of Mak Fawa: 'have "Ward\u2014Sacrifice a permanent."' \u2014 any price the ward trigger can ask)
+    const wardM = w.match(/^ward\s*(?:\u2014|-)\s*(.+)$/i);
+    if (wardM && wardPrice(wardM[1])) return true;
     return IMPLEMENTED_LOWER.has(w.toLowerCase()) || /^ward\s*(?:(?:\{[^}]+\})+|(?:\u2014|-)\s*pay \d+ life)$/i.test(w) ||
       /^(?:plains|island|swamp|mountain|forest|nonbasic land|desert)walk$/i.test(w);
   }
@@ -4870,6 +4873,13 @@
       make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), scope: { who: 'you', what: 'permanent', anyOf: [m[3], m[4].toLowerCase()] } }) },
     /* "a -1/-1 counter on each creature your opponents control", "on each
        other creature": any group the table can name */
+    /* Slurrk, All-Ingesting: "put a +1/+1 counter on each creature you control that has a +1/+1 counter on it" — those
+       with one already (withCounter) */
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on each ([a-z ]+?) (?:with|that has) an? ([+\-]\d\/[+\-]\d|[a-z]+) counter on it\.?$/i,
+      make: (m) => {
+        const sc = massScopeOf('each ' + m[3] + ' with a ' + m[4] + ' counter on it');
+        return sc && sc.withCounter ? { op: 'counters', kind: m[2].trim(), n: num(m[1]), scope: sc } : null;
+      } },
     { re: /^Put (a|an|one|two|three|\d+|X) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on (each [-a-zA-Z' ]+?)\.?$/i,
       make: (m) => {
         const sc = massScopeOf(m[3]);
@@ -5254,6 +5264,10 @@
        player this turn, it deals that much damage plus X instead." — for the turn, X as paid (addX) */
     { re: /^If a source you control would deal noncombat damage to a permanent or player this turn, it deals that much damage plus X instead\.?$/i,
       make: () => ({ op: 'floatingReplace', addX: true, ef: { op: 'replace', id: 'dmgPlusXTurn', event: 'damage', who: 'you', noncombat: true, how: 'add' } }) },
+    /* Rankle and Torbran: "If a source would deal damage to a player or battle this turn, it deals that much damage plus 2
+       instead." — anyone's source, for the turn (toPlayerOrBattle) */
+    { re: /^If a source would deal damage to a player or battle this turn, it deals that much damage plus (one|two|three|\d+) instead\.?$/i,
+      make: (m) => ({ op: 'floatingReplace', ef: { op: 'replace', id: 'dmgPlusPlayersTurn', event: 'damage', who: 'any', how: 'add', n: num(m[1]), toPlayerOrBattle: true } }) },
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
@@ -9126,6 +9140,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Winter, Cynical Opportunist: "you may exile any number of cards from your graveyard with four or more card types
+       among them. If you do, put a permanent card from among them onto the battlefield with a finality counter on it."
+       — one optional pick, the "may" in it (exileGraveTypesPut) */
+    { re: /^you may exile any number of cards from your graveyard with (\w+) or more card types among them\. If you do, put a permanent card from among them onto the battlefield( with a finality counter on it)?\.?$/i,
+      make: (m) => { const k = num(m[1]); return typeof k === 'number' ? [{ op: 'exileGraveTypesPut', types: k, counter: m[2] ? 'finality' : null }] : null; } },
     /* Baba Lysaga, Night Witch: "If there were three or more card types among the sacrificed permanents, each opponent
        loses 3 life, you gain 3 life, and you draw three cards." — each clause read on its own */
     { re: /^If (there were \w+ or more card types among the sacrificed permanents), ([^,.]+), ([^,.]+), and ([^,.]+)\.$/i,
@@ -14034,7 +14053,7 @@
     { re: /^Whenever this (?:land|Vehicle|artifact) attacks,? /i, event: 'attacks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) blocks(?:,| )/i, event: 'blocks', self: true },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player or planeswalker,? /i, event: 'combatDamageToPlayer', also: 'combatDamageToPlaneswalker', self: true },
-    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?: or battle)?(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     // Zagras, Thief of Heartbeats: "Whenever a creature you control deals combat damage to a planeswalker," (creatureCombatDamageWalker)
@@ -19352,6 +19371,9 @@
         eff: { op: 'blitzLess', perCommanderCast: true }, auto: true },
       // Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana cost." (grantEmerge)
       { re: /^Each creature spell you cast has emerge\. The emerge cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmerge' }, auto: true },
+      // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
+      { re: /^Each ([a-z]+) card in your graveyard has unearth ((?:\{[^}]+\})+)\.?$/i,
+        make: (m) => ({ op: 'grantUnearth', words: m[1].toLowerCase(), cost: m[2] }), auto: true },
       // Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value." (grantEncoreMv)
       { re: /^Each ([A-Z][a-z]+) creature card in your graveyard has encore \{X\}, where X is its mana value\.?$/,
         make: (m) => ({ op: 'grantEncoreMv', words: m[1].toLowerCase() + ' creature' }), auto: true },

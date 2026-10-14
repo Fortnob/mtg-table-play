@@ -1329,6 +1329,12 @@
           this.moveObject(o, 'graveyard');
           continue;
         }
+        if (o.unearthedTurn === this.turn) {
+          o.unearthedTurn = null;
+          this.logEvent('rules', `${o.name} was unearthed: it is exiled.`);
+          this.moveObject(o, 'exile');
+          continue;
+        }
         if (o.warpedTurn === this.turn) {
           o.warpedTurn = null;
           this.logEvent('rules', `${o.name} was warped in: it is exiled.`);
@@ -4248,6 +4254,15 @@
         const use = this.altUsesFor(playerId, objId).find(u => u.via === 'sneak');
         return use ? { ok: true, cost: use.cost } : { ok: false, reason: 'No sneak.' };
       }
+      /* Unearth (CR 702.84a): an activated ability of the card in the graveyard, not a spell — only as a sorcery
+         (Mishra, Tamer of Mak Fawa: one it has been given, grantUnearth) */
+      if (opts === 'unearth') {
+        if (o.zone !== 'graveyard' || o.owner !== playerId) return { ok: false, reason: 'That is not in your graveyard.' };
+        const why = this._sorcerySpeedBlock(playerId);
+        if (why) return { ok: false, reason: why };
+        const use = this.altUsesFor(playerId, objId).find(u => u.via === 'unearth');
+        return use ? { ok: true, cost: use.cost } : { ok: false, reason: 'No unearth.' };
+      }
       if (opts === 'ninjutsu') {
         if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
         if (!this._unblockedAttackers(playerId).length) return { ok: false, reason: 'Ninjutsu needs an unblocked attacker of yours.' };
@@ -5237,6 +5252,11 @@
           this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
         out.push({ kind: 'cast', via: 'emerge', cost: a.manaCost, label: 'Emerge ' + a.manaCost });
       }
+      // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
+      if (o.zone === 'graveyard' && o.owner === playerId) {
+        const gu = fbGrant('grantUnearth', e => this._cardFitsWords(o, e.words));
+        if (gu && !out.some(u => u.via === 'unearth' && u.cost === gu.cost)) out.push({ kind: 'cast', via: 'unearth', cost: gu.cost, after: null, label: 'Unearth ' + gu.cost });
+      }
       /* Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value."
          — offered when the card has no encore of its own (grantEncoreMv) */
       if (o.zone === 'graveyard' && o.owner === playerId && !out.some(u => u.kind === 'encore')) {
@@ -5421,6 +5441,29 @@
       this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: s, objId: s.id, controller: s.controller,
         name: `${s.name} — ${truncate(leave.reflexText || '', 50)}`, effects: JSON.parse(JSON.stringify(leave.reflexEffects)),
         auto: true, abilityText: leave.reflexText || '', optional: false, triggerData: { event: 'reflexive' } });
+    }
+
+    /**
+     * Unearth (CR 702.84a): "[Cost]: Return this card from your graveyard to the battlefield. It gains haste. Exile it
+     * at the beginning of the next end step. If it would leave the battlefield, exile it instead of putting it anywhere
+     * else. Activate only as a sorcery." — an ability on the stack, the card staying where it is until it resolves.
+     */
+    _unearth(playerId, objId, opts) {
+      const chk = this.canCast(playerId, objId, 'unearth');
+      if (!chk.ok) return this.fail(chk.reason);
+      const o = this.obj(objId);
+      if (!this.payMana(playerId, chk.cost, Object.assign({ auto: true }, opts || {}))) return this.fail(`Not enough mana for unearth (${chk.cost}).`);
+      const item = {
+        id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, activated: true,
+        controller: playerId, name: `${o.name} \u2014 unearth`, targets: [],
+        effects: [{ op: 'unearthReturn' }], auto: true, abilityText: 'Unearth',
+      };
+      this.stack.push(item);
+      this.logEvent('ability', `${this.player(playerId).name} unearths ${o.name} (${chk.cost}).`);
+      this.emit('sfx', 'cast');
+      this.emit('stack:add', item);
+      this._resetPriority();
+      return true;
     }
 
     /**
@@ -6426,6 +6469,7 @@
         }
         return true;
       }
+      if (opts.via === 'unearth') return this._unearth(playerId, objId, opts);
       if (opts.via && /^ability:\d+$/.test(opts.via)) {
         const chk0 = this.canCast(playerId, objId, opts.via);
         if (!chk0.ok) return this.fail(chk0.reason);
@@ -11809,6 +11853,8 @@
         if (ef.prevention && this._noPrevention(ev.combat)) return false;
         // Fiendish Duo: "to an opponent" — the player, not their permanents
         if (ef.toPlayerOnly && !ev.toPlayer) return false;
+        // Rankle and Torbran: "to a player or battle" (toPlayerOrBattle)
+        if (ef.toPlayerOrBattle && !ev.toPlayer && !(ev.victimId && ((this.obj(ev.victimId) || { analysis: () => null }).analysis() || {}).isBattle)) return false;
         if (ef.noncombat && ev.combat) return false;
         // Tor Wauki the Younger: "another source you control" — not itself (otherSource)
         if (ef.otherSource && ev.source && ev.source.id === src.id) return false;
@@ -14906,7 +14952,7 @@
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
         o.chosenExiled = null;           // Koh, the Face Stealer: "the last chosen card" was chosen by the old object
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
-        o.leaveExile = false;
+        o.leaveExile = false; o.unearthedTurn = null;
         if (vanishes) this.emit('object:gone', o);
       }
 
@@ -23256,6 +23302,43 @@
           break;
         }
         // Haunted Fengraf: a card at random, from your graveyard to your hand
+        /* Winter, Cynical Opportunist: "you may exile any number of cards from your graveyard with four or more card
+           types among them. If you do, put a permanent card from among them onto the battlefield with a finality counter
+           on it." — not asked when the graveyard hasn't the types (exileGraveTypesPut) */
+        case 'exileGraveTypesPut': {
+          const gy = this.zones[ctx.controller].graveyard.slice();
+          const kinds = new Set();
+          for (const c of gy) for (const t of this._cardTypesOf(c)) kinds.add(t);
+          if (kinds.size < (e.types || 1)) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'exileGraveTypes', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(gy).map(it => Object.assign(it, { types: this._cardTypesOf(this.obj(it.id)) })),
+            min: 0, max: gy.length, optional: true,
+            constraints: [{ kind: 'unionAtLeast', key: 'types', min: e.types || 1, label: 'card type' }],
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may exile any number of cards from your graveyard with ${e.types} or more card types among them. If you do, put a permanent card from among them onto the battlefield${e.counter ? ' with a ' + e.counter + ' counter on it' : ''}.` }, 'gyTypes');
+          if (got === SUSPEND) return SUSPEND;
+          const picked = ((got && got.picks) || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && c.owner === ctx.controller);
+          if (!picked.length) break;
+          for (const c of picked) this.moveObject(c, 'exile');
+          this.logEvent('exile', `${me.name} exiles ${picked.map(c => c.name).join(', ')} from their graveyard.`);
+          // the cards just exiled, for the pick that follows (ids, so a snapshot keeps them)
+          this._spliceNext([{ op: 'exileGraveTypesPick', ids: picked.map(c => c.id), counter: e.counter || null }]);
+          break;
+        }
+        case 'exileGraveTypesPick': {
+          const pool = (e.ids || []).map(id => this.obj(id)).filter(c => c && c.zone === 'exile' && this._cardFitsWords(c, 'permanent'));
+          if (!pool.length) break;
+          let c = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'putFromExiled', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put a permanent card from among them onto the battlefield${e.counter ? ' with a ' + e.counter + ' counter on it' : ''}.` }, 'gyTypesPut');
+            if (got === SUSPEND) return SUSPEND;
+            c = pool.find(x => x.id === ((got && got.picks) || [])[0]) || c;
+          }
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
+          break;
+        }
         case 'randomFromGraveyard': {
           // (Tariel, Reckoner of Souls: "from target opponent's graveyard" — ofTarget)
           const gyOf = e.ofTarget ? firstPlayer() : me;
@@ -25447,6 +25530,18 @@
           break;
         }
 
+        // Unearth: back with haste, exiled at the next end step, and exiled wherever else it would go (unearthedTurn)
+        case 'unearthReturn': {
+          const x = src || (ctx.objId && this.obj(ctx.objId));
+          if (!x || x.zone !== 'graveyard') break;
+          this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          if (x.zone !== 'battlefield') break;
+          x.effects.push({ keywords: ['Haste'], until: null });
+          x.leaveExile = true;
+          x.unearthedTurn = this.turn;
+          this.logEvent('reanimate', `${x.name} returns to the battlefield (unearth).`);
+          break;
+        }
         /* Unearth and its cousins: the card brings itself back. */
         case 'returnSelfFromGrave': {
           const x = src || (ctx.objId && this.obj(ctx.objId));

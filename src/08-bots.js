@@ -1558,6 +1558,21 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Winter, Cynical Opportunist: the best permanent card first, then the least of the rest that bring a card type the
+       picks haven't got, until there are enough types among them */
+    exileGraveTypes(s) {
+      const need = ((s.constraints || []).find(c => c.kind === 'unionAtLeast') || {}).min || 0;
+      const items = (s.items || []).map(it => ({ it, v: it.card ? rateCard(it.card, { prior: 0 }) : 0 }));
+      const perm = (it) => (it.types || []).some(t => !/^(?:Instant|Sorcery|Kindred|Tribal)$/.test(t));
+      const best = items.filter(x => perm(x.it)).sort((a, b) => b.v - a.v)[0];
+      if (!best) return { picks: [] };
+      const picks = [best.it.id], have = new Set(best.it.types || []);
+      for (const x of items.filter(y => y !== best).sort((a, b) => a.v - b.v)) {
+        if (have.size >= need) break;
+        if ((x.it.types || []).some(t => !have.has(t))) { picks.push(x.it.id); (x.it.types || []).forEach(t => have.add(t)); }
+      }
+      return have.size >= need ? { picks } : { picks: [] };
+    },
     /* Marina Vendrell: unlock a shut door (its words and its trigger) rather than lock an open one */
     roomDoor(s) {
       const i = (s.options || []).findIndex(o => o && o.unlock);
