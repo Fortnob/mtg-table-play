@@ -460,6 +460,10 @@ function checkView(view, viewer, game) {
   for (const [oid, seen] of all) for (const { o, where } of seen) {
     if (o.faceDown && o.card && o.card.id !== '__facedown__' && o.controller !== viewer && o.owner !== viewer)
       bad('view.privacy', `${where} ${oid}`, `face down, but ${viewer}'s view carries the card (${o.card.name})`);
+    // (nor what the card underneath is like: an exiled face-down card's power, keywords or effects name it)
+    if (o.faceDown && o.card && o.card.id === '__facedown__' && o.zone !== 'battlefield' && o.zone !== 'stack' &&
+        (o.power != null || o.toughness != null || (o.keywords || []).length || (o.effects || []).length))
+      bad('view.privacy', `${where} ${oid}`, `face down in ${o.zone}, but ${viewer}'s view says what it is like (${o.power}/${o.toughness} ${(o.keywords || []).join(' ')})`);
     // (and what it costs to turn face up says what it is)
     if (o.upCost != null && o.controller !== viewer) bad('view.privacy', `${where} ${oid}`, `${viewer}'s view says what turning another player's face-down card up costs`);
   }

@@ -27945,6 +27945,9 @@
            whose hideaway holds it (CR 406.3) — Gonti, Lord of Luxury's opponent included */
         (o.zone === 'exile' && !!o.faceDownExile && o.lookableBy !== playerId && o.impulseBy !== playerId && o.freeCastBy !== playerId &&
           !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
+      /* a card face down off the battlefield (exiled face down: Gonti, hideaway, foretell) says nothing of itself to
+         those who may not see it: no power, toughness, keywords or effects read off the card underneath */
+      const blank = (o) => o.zone !== 'battlefield' && o.zone !== 'stack' && secret(o);
       const ser = (o, hidden) => hidden ? { id: o.id, hidden: true, owner: o.owner, zone: o.zone } : {
         id: o.id, cardId: secret(o) ? FACE_DOWN_VIEW.id : o.card.id, card: secret(o) ? FACE_DOWN_VIEW : o.card,
         owner: o.owner, controller: o.controller,
@@ -27966,7 +27969,7 @@
         attacking: o.attacking, blocking: o.blocking, blockedBy: o.blockedBy, blockOrder: o.blockOrder,
         // Curtain of Light: blocked with nothing blocking it, for the target picker's "unblocked"
         blockedNoBlocker: !!o.blockedNoBlocker,
-        effects: o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
+        effects: blank(o) ? [] : o.effects, isCommander: !!o.isCommander, note: secret(o) ? '' : o.note, entered: o.entered,
         prepared: !!o.prepared,
         // Oathbreaker: the Signature Spell waiting in the command zone (said only of that one card)
         isSignature: o.isSignature ? true : undefined,
@@ -27999,11 +28002,11 @@
         pairedWith: o.zone === 'battlefield' ? ((this._pairOf(o) || {}).id || null) : null,
         // meld: the two cards a melded permanent is (said only of one)
         melded: o.meld && o.zone === 'battlefield' && !secret(o) ? [o.meld.card.name].concat(this.obj(o.meld.partner) ? [this.obj(o.meld.partner).name] : []) : undefined,
-        power: (() => { const a = o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
-        toughness: (() => { const a = o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
+        power: (() => { const a = !blank(o) && o.analysis(); return a && a.isCreature ? this.powerOf(o) : null; })(),
+        toughness: (() => { const a = !blank(o) && o.analysis(); return a && a.isCreature ? this.toughnessOf(o) : null; })(),
         /* what it has right now, granted keywords included, so the table can
            tell which permanents a spell is allowed to point at */
-        keywords: this._viewKeywords(o),
+        keywords: blank(o) ? [] : this._viewKeywords(o),
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
         // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use

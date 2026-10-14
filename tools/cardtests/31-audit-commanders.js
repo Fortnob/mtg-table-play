@@ -154,6 +154,25 @@ module.exports = (test) => {
     t.no(T.g._hasCreatureType(bear, 'Robot'), 'the sacrificed card is not');
   });
 
+  test('Audit: a card exiled face down shows nobody else its power or keywords (Gonti, Lord of Luxury)', (mk, t) => {
+    t.auto('Gonti, Lord of Luxury');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Plains') });
+    T.toMain('A');
+    for (let i = 0; i < 4; i++) T.top('B', i ? 'Island' : 'Serra Angel');
+    T.answer('pickCard', (ch) => ({ cardIds: ch.cards.filter(c => c.name === 'Serra Angel').map(c => c.id) }));
+    T.put('A', 'Gonti, Lord of Luxury', 'battlefield', { etb: true });
+    T.resolve();
+    const angel = T.g.zones.B.exile.find(o => o.name === 'Serra Angel');
+    t.ok(angel && angel.faceDownExile, 'the Angel is exiled face down');
+    const find = (v) => [].concat(...v.players.map(p => p.exile || [])).find(o => o.id === angel.id);
+    const a = find(T.g.viewFor('A'));
+    t.eq(a.card.name, 'Serra Angel', 'A, who may look at it, sees it');
+    for (const who of ['B', 'C', '__watching']) {
+      const x = find(T.g.viewFor(who));
+      t.eq(JSON.stringify([x.card.name, x.power, x.toughness, x.keywords]), '["Face-down card",null,null,[]]', who + ' sees only its back');
+    }
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {
