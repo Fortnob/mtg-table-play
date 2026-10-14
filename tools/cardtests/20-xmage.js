@@ -28567,4 +28567,41 @@ module.exports = (test) => {
     t.no(ch(lotus).isCreature, "Bello: only during A's turn");
     t.no(ch(tithe).isCreature);
   });
+
+  test('Commanders: The Wise Mothman — rad counters for everybody; nonland cards milled, that many creatures get a counter', (mk, t) => {
+    t.auto('The Wise Mothman');
+    const M = mk({ library: Array(30).fill('Island') });
+    const moth = M.put('A', 'The Wise Mothman', 'battlefield', { etb: true });
+    M.resolve();
+    t.eq(M.player('A').rad, 1, 'Mothman: A gets a rad counter');
+    t.eq(M.player('B').rad, 1, 'Mothman: B too');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const mill = M.bf('A', 'Millstone');
+    // B mills Lightning Bolt and Grizzly Bears: two nonland cards, up to two creatures
+    M.top('B', 'Lightning Bolt'); M.top('B', 'Grizzly Bears');
+    let asked = null;
+    M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: moth.id }, { kind: 'object', id: bear.id }] }; });
+    M.mana('A', '2');
+    M.activate('A', mill, 0, { targets: ['B'] });
+    t.ok(asked && asked.count === 2, 'Mothman: X is 2');
+    t.eq(moth.counters['+1/+1'], 1, 'Mothman: a counter on the Mothman');
+    t.eq(bear.counters['+1/+1'], 1, 'Mothman: and on the Grizzly Bears');
+    // a land and a nonland: one
+    M.nextTurn('A');
+    M.top('B', 'Island'); M.top('B', 'Opt');
+    let asked2 = null;
+    M.answer('pickTarget', (ch) => { asked2 = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    M.mana('A', '2');
+    M.activate('A', mill, 0, { targets: ['B'] });
+    t.ok(asked2 && asked2.count === 1, 'Mothman: one nonland card, one creature');
+    t.eq(bear.counters['+1/+1'], 2);
+    // two lands: no trigger
+    M.nextTurn('A');
+    M.top('B', 'Island'); M.top('B', 'Island');
+    const a0 = M.asked.length;
+    M.mana('A', '2');
+    M.activate('A', mill, 0, { targets: ['B'] });
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Mothman: lands only, nothing');
+    t.eq(bear.counters['+1/+1'], 2);
+  });
 };

@@ -6681,6 +6681,8 @@
     let p = String(phrase || '').trim().replace(/\.$/, '');
     // Elvish Mariner, Elrond: "the number of cards looked at while scrying this way" — what the trigger saw (countedTargets)
     if (/^the number of cards looked at while scrying this way$/i.test(p)) return 'triggerAmount';
+    // The Wise Mothman: "the number of nonland cards milled this way" — the lot the trigger counted
+    if (/^the number of (?:nonland |creature |artifact |land )?cards milled this way$/i.test(p)) return 'triggerAmount';
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     // Thraben Charm: "twice the number of creatures you control"
