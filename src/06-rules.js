@@ -3962,7 +3962,8 @@
         for (const src of this._withEmblems(this.battlefield)) {
           if (src.controller !== who || src.phasedOut || src === o) continue;
           const te = this._staticOp(src, 'typeElsewhere');
-          if (te && String(te.type).toLowerCase() === t) return true;
+          // (Rukarumel, Biologist: the type chosen as it entered — chosen)
+          if (te && String(te.chosen ? src.chosenType || '' : te.type).toLowerCase() === t) return true;
         }
       }
       return (a.subtypes || []).some(x => x.toLowerCase() === t);
@@ -11562,6 +11563,9 @@
               left -= amount;
             }
             if (left > 0 && trample) toDefender(left, { trample: true });
+            /* without trample all of it is still assigned among the blockers (CR 510.1c): the rest to the last of
+               them — excess damage (Maarika, Brutal Gladiator), and lifelink's whole amount */
+            else if (left > 0 && assignments.length && assignments[assignments.length - 1].source === o) assignments[assignments.length - 1].amount += left;
           }
         } else if (o.blocking.length) {
           const targets = o.blocking.map(aid => this.obj(aid)).filter(x => x && x.zone === 'battlefield');
@@ -12231,9 +12235,18 @@
             if (ef.op === 'sequence' && Array.isArray(ef.list)) effs.push(...ef.list);
             else effs.push(ef);
           }
+          /* (Rukarumel, Biologist: "Slivers you control and nontoken creatures you control are …" — two effects, each
+             with what it reaches of its own, not one set fixed by whichever applied first) */
+          const scopeKeys = [];
           for (const ef of effs) {
             if (ef.op === 'continuous' && ef.fromGraveyard) continue;
-            if (ef.op === 'continuous') { list.push({ ef, src, ts, group, layer: ef.layer || 6 }); continue; }
+            if (ef.op === 'continuous') {
+              const sk = JSON.stringify(ef.scope || null);
+              if (!scopeKeys.includes(sk)) scopeKeys.push(sk);
+              const gi = scopeKeys.indexOf(sk);
+              list.push({ ef, src, ts, group: gi ? group + ':' + gi : group, layer: ef.layer || 6 });
+              continue;
+            }
             // the older, narrower shapes say the same thing
             if (ef.op === 'anthem') {
               list.push({ layer: 7, ts, src, group, ef: { pt: { p: ef.p, t: ef.t },
@@ -13413,6 +13426,11 @@
           const h = x && x._hadToAttack;
           return !!h && h.turn === this.turn && h.combat === (this.combatsThisTurn || 1);
         }
+        // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — as it last was, if it has died since
+        case 'triggerObjExcess': {
+          const tdX = (ctx && ctx.triggerData) || {}; const x = tdX.objectId && this.obj(tdX.objectId);
+          return x && x.zone === 'battlefield' ? x._excessTurn === this.turn : !!tdX.hitExcess;
+        }
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
         // (Fall from Favor, a standing rule: "that player" is the enchanted creature's controller)
@@ -14408,7 +14426,7 @@
       if (source && this.hasKw(source, 'deathtouch')) o.dealtDeathtouch = true;
       if (source && source.zone === 'battlefield') this._fire('dealsDamage', source.controller, { source, object: source, amount, combat: !!isCombat });
       // "whenever this creature deals damage to a creature": the creature it hit is what the trigger is about
-      if (source && source.zone === 'battlefield' && a && a.isCreature) this._fire('dealsDamageToCreature', source.controller, { source, object: o, amount, combat: !!isCombat });
+      if (source && source.zone === 'battlefield' && a && a.isCreature) this._fire('dealsDamageToCreature', source.controller, { source, object: o, amount, combat: !!isCombat, hitController: o.controller, hitExcess: o._excessTurn === this.turn });
       // "Whenever this creature is dealt damage" (enrage): the creature's own trigger
       this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat,
         // Phyrexian Obliterator: whoever controls what dealt it
@@ -15588,6 +15606,8 @@
         attackedPlayer: data.attackedPlayer,
         // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
         victimId: data.victimId,
+        // Maarika, Brutal Gladiator: the creature it dealt damage to — whose it was, and whether it was dealt excess damage
+        hitController: data.hitController, hitExcess: data.hitExcess,
         // Orvar, the All-Form: what the spell cast targets, as it was cast (spellTargets)
         spellTargets: data.spell && data.spell.targets ? data.spell.targets.map(t => ({ kind: t.kind, id: t.id })) : undefined,
       };
@@ -19008,6 +19028,9 @@
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
             // Bane of Bala Ged: "defending player exiles two permanents they control"
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean)
+            // Maarika, Brutal Gladiator: "that creature's controller" — as it last was, if it has died since
+            : e.who === 'triggerObjController' ? [ctx.triggerData ? this.player(ctx.triggerData.hitController || ctx.triggerData.objController) ||
+              this.player((this.obj(ctx.triggerData.objectId) || {}).controller) : this.player((firstObj() || {}).controller)].filter(p => p && !p.hasLost)
             : [firstPlayer()].filter(Boolean);
           for (const p of who) {
             const pool = this.battlefield.filter(x => {
@@ -19471,6 +19494,14 @@
             if (times <= 0) break;
             for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary || e.addTypes ? { nonLegendary: !!e.nonLegendary, addTypes: e.addTypes || [], copyPt: e.copyPt || null } : null).id);
             if (r) r.marks[slot] = made;
+            // (Mizzix, Replica Rider: "If the copy is a permanent spell, it gains haste and …" — the permanent it becomes keeps them)
+            if (e.permGrant) for (const sid of made) {
+              const c = this.stack.find(x => x.id === sid);
+              if (!c || !c.obj || !(c.obj.analysis() || {}).isPermanent) continue;
+              c.obj.effects.push({ keywords: e.permGrant.keywords.slice(), until: null });
+              if (e.permGrant.text) c.obj.effects.push({ grantText: e.permGrant.text, until: null });
+              c.obj._chr = null;
+            }
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');
           }
@@ -21142,7 +21173,28 @@
             (!pay.tapUntapped || this._tapCostPool(ctx.controller, pay.tapUntapped, src, false).length >= (pay.tapUntapped.n || 1)) &&
             // Timothar, Baron of Bats: "pay {1} and exile it" — not when the card that died has left the graveyard (exileTriggerCard)
             (!pay.exileTriggerCard || ((c0) => !!(c0 && c0.zone === 'graveyard'))(this.obj((ctx.triggerData || {}).objectId)));
-          if (!able && (pay.exileTriggerCard || pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          /* Depala, Pilot Exemplar, Stark's Ingenuity: "you may pay {X}. If you do, …" — one question, how much X,
+             with nothing for no; X is that for the rest (mayPayX) */
+          if (pay.mana && /\{X\}/i.test(pay.mana) && !e.noAsk && pay.life == null && !pay.discard && !pay.sacrifice && !pay.energy &&
+              !pay.tapUntapped && !pay.removeCounter && !pay.removeEach && !pay.exileTriggerCard) {
+            const restCost = String(pay.mana).replace(/\{X\}/gi, '');
+            const srcsX = this.manaSources(ctx.controller);
+            let capX = 0;
+            // (Mortarion, Daemon Primarch: "X can't be greater than the amount of life you lost this turn" — xCap)
+            const mostX = ((triggerAbility().effects || []).filter(x => x && x.op === 'xCap').map(x => Math.max(0, n(x.n) || 0)).concat([60])).reduce((a, b) => Math.min(a, b));
+            for (let k = 1; k <= mostX && this.couldPay(ctx.controller, '{' + k + '}' + restCost, srcsX); k++) capX = k;
+            if (!capX) { this._spliceNext(e.otherwise); break; }
+            const gotX = this._choose({ playerId: ctx.controller, purpose: 'mayPayX', kind: 'number', number: { min: 0, max: capX },
+              prompt: `${(src && src.name) || ctx.name || 'Effect'}: ${whole(String(e.text || 'pay {X}').replace(/^./, c => c.toUpperCase()), 110)} Choose X (0 pays nothing).` }, 'q');
+            if (gotX === SUSPEND) return SUSPEND;
+            const xPaid = Math.min(capX, Math.max(0, Number(gotX && gotX.number) || 0));
+            if (!xPaid || !this.payMana(ctx.controller, '{' + xPaid + '}' + restCost, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            ctx.x = xPaid;
+            this.logEvent('rules', `${me.name} pays X = ${xPaid}.`);
+            this._spliceNext(e.then);
+            break;
+          }
+          if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")

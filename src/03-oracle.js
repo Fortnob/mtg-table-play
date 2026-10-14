@@ -3091,6 +3091,10 @@
     { re: /^If you search(?:ed)? your library this way, shuffle(?: it)?\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
+    /* Maarika, Brutal Gladiator: "that creature's controller sacrifices a noncreature, nonland permanent" — the one it
+       dealt damage to ("that creature's controller" reads as "its controller" here) */
+    { re: /^Its controller sacrifices (a|one|two|\d+) (noncreature, nonland permanent|nonland permanent|creature|permanent|artifact|enchantment|land)s?(?: of their choice)?\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'triggerObjController', filter: m[2].toLowerCase() }) },
     { re: /^Target player sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s? of their choice\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'target', filter: m[2].toLowerCase(), targets: [{ type: 'player' }] }) },
     /* Veteran Explorer, Jungle Wayfinder, New Frontiers: "Each player may search their library for up to two basic land
@@ -4827,6 +4831,15 @@
     // (Marina Vendrell: "Put all enchantment cards from among them into your hand and the rest …")
     { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them (onto the battlefield|into your hand) and the rest on the bottom of your library in a random order\.?$/,
       make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: /hand/.test(m[3]) ? 'hand' : 'battlefield', rest: 'bottomRandom' }) },
+    /* Depala, Pilot Exemplar: "reveal the top X cards of your library, put all Dwarf and Vehicle cards from among them
+       into your hand, then put the rest on the bottom of your library in a random order" — the reveal, then every one
+       that is either */
+    { re: /^Reveal the top (X|\w+) cards of your library, put all ([A-Z][a-z]+) and ([A-Z][a-z]+) cards from among them into your hand, then put the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => {
+        const look = parseEffectSentence(`Reveal the top ${m[1]} cards of your library.`, 1);
+        const take = parseEffectSentence(`Put all ${m[2]} or ${m[3]} cards from among them into your hand and the rest on the bottom of your library in a random order.`, 1);
+        return look && take && look.op === 'lookAt' && take.op === 'takeFromLooked' ? { op: 'sequence', list: [look, take] } : null;
+      } },
     // (Gishath, Sun's Avatar: "Put any number of Dinosaur creature cards from among them onto the battlefield and the rest …")
     { re: /^Put (?:up to )?(a|one|two|three|\d+|any number of) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
@@ -5939,6 +5952,9 @@
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature', upTo: true, filter: 'creature' }] }) },
     { re: /^Target creature can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature' }] }) },
+    // Alora, Merry Thief: "up to one target attacking creature can't be blocked this turn"
+    { re: /^(Up to one )?Target attacking creature can'?t be blocked this turn\.?$/i,
+      make: (m) => ({ op: 'restrict', flag: 'unblockable', targets: [Object.assign(targetSpec('target attacking creature'), m[1] ? { upTo: true } : {})] }) },
     // Evie Frye: "target creature you control can't be blocked this turn"
     { re: /^Target creature you control can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [targetSpec('target creature you control')] }) },
@@ -12491,7 +12507,17 @@
         out.push({ op: 'mayPlayExiled', castOnly: /^They may cast/i.test(e.text), who: 'objController', duration: 'exiled', text: e.text });
         continue;
       }
-      // Ivy, Gleeful Spellthief: "copy that spell. The copy targets Ivy." — no copy if Ivy couldn't be its target (toSelf)
+      /* Mizzix, Replica Rider: "copy that spell … If the copy is a permanent spell, it gains haste and "At the beginning
+         of your end step, sacrifice this permanent."" — on the copy just made (permGrant) */
+      const permG = e && e.op === 'manual' && /^If the copy is a permanent spell, it gains haste(?: and "([^"]+)")?\.?$/i.exec(e.text || '');
+      if (permG) {
+        const last = out[out.length - 1];
+        const host = last && last.op === 'copyThatSpell' ? last : last && (last.then || []).find(x => x && x.op === 'copyThatSpell');
+        if (!host) { unrideable(); continue; }
+        host.permGrant = { keywords: ['Haste'], text: permG[1] || null };
+        continue;
+      }
+      // Ivy, Gleeful Spellthief: "copy that spell. The copy targets Ivy."— no copy if Ivy couldn't be its target (toSelf)
       if (e && e.op === 'manual' && /^The copy targets (?:CARDNAME|this creature)\.?$/i.test(e.text || '') && out.length && out[out.length - 1].op === 'copyThatSpell') {
         out[out.length - 1] = { op: 'copySpellEachOther', toSelf: true, text: (out[out.length - 1].text || '') + ' ' + e.text };
         continue;
@@ -13080,6 +13106,8 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — the one the trigger is about (triggerObjExcess)
+    [/^that creature was dealt excess damage this turn$/i, () => ({ kind: 'triggerObjExcess' })],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
     [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
@@ -18597,6 +18625,16 @@
     // (Toralf's Hammer: "Equipped creature gets +3/+0 as long as it's legendary" — "it" is the equipped creature)
     const its = tail && tail[1].match(/^(Equipped|Enchanted) creature\b/i) && tail[2].match(/^it'?s (an? )?(legendary|artifact|land|enchantment)$/i);
     if (its) tail[2] = tail[1].split(' ')[0].toLowerCase() + ' creature is ' + (its[1] || '') + its[2];
+    /* Depala, Pilot Exemplar: "Each Vehicle you control gets +1/+1 as long as it's a creature" — "it" is each of
+       them: those that are creatures now, not a condition of the source's */
+    const itsEach = tail && /^(?:Each |Other )?[A-Z][a-z]+ you control /.test(tail[1]) && tail[2].match(/^it'?s an? (creature|artifact|enchantment|land)$/i);
+    if (itsEach) {
+      const inner = parseStatic(tail[1] + '.', ctx);
+      if (inner && inner.auto && (inner.effects || []).length && inner.effects.every(e => e && e.op === 'continuous' && !e.cond && e.scope && !e.scope.self && e.scope.what === 'permanent')) {
+        for (const e of inner.effects) e.scope = Object.assign({}, e.scope, { what: itsEach[1].toLowerCase() });
+        return Object.assign({}, inner, { text: line });
+      }
+    }
     if (tail && condOf(tail[2])) {
       const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });
@@ -18916,6 +18954,14 @@
         make: (m) => { const ty = U.titleCase(singularType(m[1])); return { op: 'sequence', list: [
           { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature', other: true }, addSubtypes: [ty] },
           { op: 'typeElsewhere', type: ty }] }; }, auto: true },
+      /* Rukarumel, Biologist: "Slivers you control and nontoken creatures you control are the chosen type in addition to
+         their other creature types. The same is true for creature spells you control and creature cards you own that
+         aren't on the battlefield."; Arcane Adaptation: "Creatures you control …" — the type chosen as it entered (typeElsewhere) */
+      { re: /^(Slivers you control and nontoken creatures you control|Creatures you control) are the chosen type in addition to their other (?:creature )?types\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
+        make: (m) => ({ op: 'sequence', list: (/^Slivers/i.test(m[1])
+          ? [{ who: 'you', what: 'permanent', subtype: 'sliver' }, { who: 'you', what: 'creature', nontoken: true }]
+          : [{ who: 'you', what: 'creature' }]).map(scope => ({ op: 'continuous', layer: 4, scope, addChosenType: true }))
+          .concat([{ op: 'typeElsewhere', chosen: true }]) }), auto: true },
       /* Maskwood Nexus: every creature type, on the battlefield and off it */
       { re: /^Creatures you control are every creature type\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
         make: () => ({ op: 'sequence', list: [
