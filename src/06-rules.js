@@ -2193,6 +2193,7 @@
         const legal = item.targets.filter((t, i) => this._targetStillLegal(t, item, i));
         if (!legal.length) {
           this.logEvent('stack', `${item.name} is countered on resolution (no legal targets).`);
+          item._fizzled = true;
           this._afterResolve(item);
           return;
         }
@@ -2241,6 +2242,17 @@
           // flashback and friends exile the card instead (CR 702.33a)
           this.moveObject(item.obj, 'exile');
           this.logEvent('rules', `${item.name} is exiled (${item.via}).`);
+        }
+        /* Feather, the Redeemed: "exile that card instead of putting it into your graveyard as it resolves. If you
+           do, return it to your hand at the beginning of the next end step." — resolved, not countered (featherBy) */
+        else if (item.featherBy && !item.countered && !item._fizzled && (!a || !a.isPermanent)) {
+          const o = item.obj;
+          this.moveObject(o, 'exile');
+          if (o.zone === 'exile') {
+            this.logEvent('rules', `${item.name} is exiled; it returns to its owner's hand at the next end step.`);
+            this.scheduleDelayed({ event: 'eachEndStep', controller: item.featherBy, objId: o.id, sameTurnOk: true,
+              name: 'Return it to your hand', effects: [{ op: 'returnThatToHand', fromExile: true, stamp: o.exileStamp }] });
+          }
         }
         else if (item.returnsToHand && !item.countered && (!a || !a.isPermanent)) {
           this.moveObject(item.obj, 'hand');
@@ -4952,6 +4964,16 @@
       if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
         out.push({ kind: 'cast', via: 'free', cost: '', label: 'Cast it for free' });
       }
+      /* Maralen, Fae Ascendant: once each turn, a card it exiled this turn with mana value up to the Elves and
+         Faeries you control, for nothing — while it is still on the battlefield, still yours (castExiledWithFree) */
+      if (o.zone === 'exile' && o.exiledBySrc && o.exiledBySrcTurn === this.turn && !a.isLand) {
+        const mx = this.obj(o.exiledBySrc);
+        const rule = mx && mx.zone === 'battlefield' && mx.ts === o.exiledBySrcTs && mx.controller === playerId && !mx.phasedOut && this._staticOp(mx, 'castExiledWithFree');
+        if (rule && mx._castExiledTurn !== this.turn) {
+          const k = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut && rule.types.some(ty => this._hasCreatureType(x, ty))).length;
+          if (((o.card && o.card.cmc) || 0) <= k) out.push({ kind: 'cast', via: 'exiledWithFree', cost: '', srcId: mx.id, label: `Cast it for free (${mx.name})` });
+        }
+      }
       /* Cards waiting in exile: plotted, or put there by warp. */
       if (o.zone === 'exile' && o.owner === playerId) {
         if (o.plottedTurn != null && o.plottedTurn < this.turn) {
@@ -5999,6 +6021,8 @@
         if (via && via.via === 'surge') o._surged = true;
         // Chainer: that was the one
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
+        // Maralen, Fae Ascendant: "Once each turn" — used up
+        if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
         if (via && via.via === 'granted' && o._silenceAfterCast) { p.silencedTurn = this.turn; o._silenceAfterCast = false; }
         if (!via) return this.fail('That card cannot be cast that way from here.');
@@ -8696,8 +8720,10 @@
               }
               if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
               else if (e.scope && (o.zone !== 'battlefield' || !this._scopeHit(e.scope, o, oa, src.controller, src))) continue;
-              d += Number(e.amount) || 0;
-              if (e.minOne && e.amount < 0) minOne = true;
+              // (Agatha of the Vile Cauldron: "{X} less …, where X is Agatha's power" — as it is now: lessSrcPower)
+              const amt = e.lessSrcPower ? -Math.max(0, this.powerOf(src) || 0) : Number(e.amount) || 0;
+              d += amt;
+              if (e.minOne && amt < 0) minOne = true;
             }
           }
         }
@@ -13361,7 +13387,7 @@
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
       o.drawnTurn = null;
       // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
-      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; }
+      if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
       if (o._exileFromStack) {
@@ -14272,6 +14298,11 @@
           }
           // Heroic: "whenever you cast a spell that targets this creature"
           if (ab.targetsSelf && !((data.spell && data.spell.targets) || []).some(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Feather, the Redeemed: "that targets a creature you control"
+          if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
+            const x = t.kind === 'object' && this.obj(t.id);
+            return !!x && x.zone === 'battlefield' && x.controller === o.controller && !!(x.analysis() || {}).isCreature;
+          })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
           if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
           // Black Vise: only the upkeep of the player chosen as it entered
@@ -15679,15 +15710,18 @@
             if (!this.resolving) {
               let second = ctx.manaSplit != null ? Math.max(0, Math.min(k, Number(ctx.manaSplit) || 0))
                 : (ctx.manaChoice && b0[0] === ctx.manaChoice ? k : 0);
+              // (Brigid, Doun's Mind: "X {G} or X {W}" — all of the one colour: oneColor)
+              if (e.oneColor) second = second > 0 ? k : 0;
               for (let j = 0; j < k; j++) me.pool.add(j < k - second ? a0[0] : b0[0]);
               break;
             }
             const opts = [];
-            for (let i = 0; i <= Math.min(k, 20); i++) opts.push({ i, label: `{${a0[0]}}×${k - i}, {${b0[0]}}×${i}` });
+            for (let i = 0; i <= Math.min(k, 20); i++) if (!e.oneColor || i === 0 || i === k) opts.push({ i, label: `{${a0[0]}}×${k - i}, {${b0[0]}}×${i}` });
             const got = this._choose({ playerId: ctx.controller, purpose: 'manaSplit', kind: 'options', min: 1, max: 1,
               options: opts, prompt: `Add ${k} mana: how much of each?` }, 'msplit');
             if (got === SUSPEND) return SUSPEND;
-            const i = Math.min(k, (got && got.picks.length ? got.picks[0] : 0));
+            const pk = got && got.picks.length ? got.picks[0] : 0;
+            const i = Math.min(k, (opts[pk] ? opts[pk].i : 0));
             for (let j = 0; j < k; j++) me.pool.add(j < k - i ? a0[0] : b0[0]);
             this.logEvent('mana', `${me.name} adds ${k} mana.`);
             break;
@@ -20359,6 +20393,13 @@
         /* Resourceful Defense, Fate Transfer, Bioshift: counters moved from
            one target to the other, all of them or as many of each kind as
            its controller likes */
+        // Feather, the Redeemed: the spell that set it off, exiled as it resolves and back to hand at the next end step
+        case 'featherSpell': {
+          const sid = (ctx.triggerData || {}).stackId;
+          const it = sid && this.stack.find(x => x.id === sid);
+          if (it && it.kind === 'spell' && !it.isCopy) it.featherBy = ctx.controller;
+          break;
+        }
         /* Akroma, Vision of Ixidor: each other creature you control, +1/+1 until end of turn for each of the
            keywords it has as this resolves — one for a keyword however many times or kinds ("hexproof from",
            "partner with" are hexproof and partner) */
@@ -20790,6 +20831,8 @@
         case 'returnThatToHand': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone === 'battlefield') { this.moveObject(x, 'hand'); this.logEvent('zone', `${x.name} returns to its owner's hand.`); }
+          // Feather, the Redeemed: the card it exiled, while it is still that card in exile (fromExile)
+          else if (x && e.fromExile && x.zone === 'exile' && x.exileStamp === e.stamp) { this.moveObject(x, 'hand'); this.logEvent('zone', `${x.name} returns to its owner's hand.`); }
           break;
         }
         case 'sacrificeThat': {
@@ -22974,6 +23017,8 @@
               const c = lib[0];
               this.moveObject(c, 'exile');
               out.push(c.id);
+              // Maralen, Fae Ascendant: "cards exiled with Maralen this turn" — which, and when (exiledBySrc)
+              if (src && c.zone === 'exile' && this._staticOp(src, 'castExiledWithFree')) { c.exiledBySrc = src.id; c.exiledBySrcTurn = this.turn; c.exiledBySrcTs = src.ts; }
               const ca = c.analysis() || {};
               total += (c.card && c.card.cmc) || 0;
               if (e.untilNonland && !ca.isLand) { hits.push(c.id); break; }

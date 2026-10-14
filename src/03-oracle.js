@@ -4048,6 +4048,9 @@
     // anything else counted: "for each card named CARDNAME in each graveyard"
     { re: /^Add (\{[WUBRGC]\}) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: c } : null; } },
+    // Brigid, Doun's Mind: "Add X {G} or X {W}, where X is the number of other creatures you control." — all of one (oneColor)
+    { re: /^Add X (\{[WUBRGC]\}) or X (\{[WUBRGC]\}), where X is (.+?)\.?$/i,
+      make: (m) => { const c = amountOf(m[3]); return c ? { op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])], n: c, oneColor: true } : null; } },
     // Culling Ritual: "Add {B} or {G} for each permanent destroyed this way."
     { re: /^Add (\{[WUBRGC]\}) or (\{[WUBRGC]\}) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])], n: c } : null; } },
@@ -8392,6 +8395,10 @@
     { re: /^For each other opponent, create a token that'?s a copy of CARDNAME tapped and attacking that player, except it isn'?t legendary\. Sacrifice those tokens at end of combat\.$/i,
       make: () => [{ op: 'copyPermanent', self: true, n: 1, tapped: true, attacking: true, nonLegendary: true, eachOtherOpponent: true, grant: [] },
         { op: 'delayed', event: 'endOfCombat', subject: 'made', name: 'Sacrifice those tokens at end of combat', effects: [{ op: 'sacrificeThat' }] }] },
+    /* Feather, the Redeemed: "exile that card instead of putting it into your graveyard as it resolves. If you do,
+       return it to your hand at the beginning of the next end step." — a mark on the spell (featherSpell) */
+    { re: /^Exile that card instead of putting it into your graveyard as it resolves\. If you do, return it to your hand at the beginning of the next end step\.$/i,
+      make: () => [{ op: 'featherSpell' }] },
     // Sauron, Lord of the Rings: "amass Orcs 5, mill five cards, then return a creature card from your graveyard to the battlefield"
     { re: /^(Amass [A-Z][a-z]+ \d+), (mill [a-z]+ cards), then (return [^.]+)\.$/i,
       make: (m) => {
@@ -11730,6 +11737,9 @@
     { re: /^Whenever a player wins a coin flip,? /i, event: 'anyWinFlip' },
     // Talion: "with mana value, power, or toughness equal to the chosen number"
     { re: /^Whenever an opponent casts a spell with mana value, power, or toughness equal to the chosen number,? /i, event: 'opponentCastSpell', extra: { chosenNumberHit: true } },
+    // Feather, the Redeemed: "Whenever you cast an instant or sorcery spell that targets a creature you control" (targetsYourCreature)
+    { re: /^Whenever you cast an instant or sorcery spell that targets a creature you control,? /i, event: 'youCastSpell',
+      extra: { spellFilter: 'instant or sorcery', targetsYourCreature: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
     // Zada, Hedron Grinder: "Whenever you cast an instant or sorcery spell that targets only Zada"
@@ -16643,6 +16653,9 @@
       /* Training Grounds, Suppression Field, Power Artifact: what activated
          abilities cost, a few mana either way. "Can't reduce the mana in that
          cost to less than one mana" keeps one. */
+      // Agatha of the Vile Cauldron: "cost {X} less to activate, where X is Agatha's power" (lessSrcPower)
+      { re: /^Activated abilities of ([a-z ]+?) cost \{X\} less to activate, where X is CARDNAME'?s power\. This effect can'?t reduce the mana in that cost to less than one mana\.$/i,
+        make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'abilityCostMod', scope, amount: 0, lessSrcPower: true, minOne: true } : null; }, auto: true },
       { re: /^(?:Each )?activated abilities of ([a-z ]+?) cost \{(\d+)\} (less|more) to activate( unless they'?re mana abilities)?\.(?: This effect can'?t reduce the mana in that cost to less than one mana\.)?$/i,
         make: (m) => {
           if (/graveyard|chosen name/i.test(m[1])) return null;
@@ -17528,6 +17541,11 @@
       // Aminatou, Veil Piercer: "Each enchantment card in your hand has miracle. Its miracle cost is equal to its mana cost reduced by {4}." (grantMiracle)
       { re: /^Each ([a-z]+) card in your hand has miracle\. Its miracle cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
         make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase(), less: +m[2] }), auto: true },
+      /* Maralen, Fae Ascendant: "Once each turn, you may cast a spell with mana value less than or equal to the number
+         of Elves and Faeries you control from among cards exiled with Maralen this turn without paying its mana
+         cost." (castExiledWithFree) */
+      { re: /^Once each turn, you may cast a spell with mana value less than or equal to the number of ([A-Z][a-z]+) and ([A-Z][a-z]+) you control from among cards exiled with CARDNAME this turn without paying its mana cost\.?$/,
+        make: (m) => ({ op: 'castExiledWithFree', types: [U.titleCase(singularType(m[1])), U.titleCase(singularType(m[2]))] }), auto: true },
       // Minthara, Merciless Soul: "Minthara has ward {X}, where X is the number of experience counters you have." (wardX)
       { re: /^CARDNAME has ward \{X\}, where X is (.+?)\.?$/i,
         make: (m) => { const v = amountOf(m[1]); return v ? { op: 'wardX', n: v } : null; }, auto: true },
