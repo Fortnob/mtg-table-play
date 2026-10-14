@@ -2371,10 +2371,11 @@
     { re: /^Gain control of all artifacts that player controls\.?$/i, make: () => ({ op: 'stealAllArtifacts' }) },
     // Wound Reflection: "each opponent loses life equal to the life they lost this turn"
     { re: /^Each opponent loses life equal to the life they lost this turn\.?$/i, make: () => ({ op: 'woundReflection' }) },
-    /* "Exile two target permanents", "destroy up to three target
+    /* (Lord Windgrace: "Destroy up to six target nonland permanents")
+       "Exile two target permanents", "destroy up to three target
        artifacts", "return up to two target creatures to their owners'
        hands": the same effect pointed at a list. */
-    { re: /^(Destroy|Exile|Return) (up to )?(two|three|four|five) target ([a-z][a-z '-]*?)s(?: and\/or ([a-z]+?)s)?( to their owners'? hands?)?\.?$/i,
+    { re: /^(Destroy|Exile|Return) (up to )?(two|three|four|five|six|seven|eight) target ([a-z][a-z '-]*?)s(?: and\/or ([a-z]+?)s)?( to their owners'? hands?)?\.?$/i,
       make: (m) => {
         const verb = m[1].toLowerCase();
         if ((verb === 'return') !== !!m[6]) return null;
@@ -2638,7 +2639,7 @@
     // Mahadi: "Create a Treasure token for each creature that died this turn."
     { re: /^Create (?:a|an|one) (tapped )?(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Gold|Shard) token for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? Object.assign({ op: 'createNamedToken', n: c, token: m[2] }, m[1] ? { tapped: true } : {}) : null; } },
-    { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker) tokens?\.?$/i,
+    { re: /^Create (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) (Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Mutagen) tokens?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[2] }) },
 
     // --- sentences that need no action from the engine ---
@@ -2873,6 +2874,11 @@
     // Akiri, Fearless Voyager: "unattach an Equipment from a creature you control" — that creature is "that creature" after (unattachFromYours)
     { re: /^(?:You may )?[Uu]nattach an Equipment from a creature you control\.?$/, make: () => ({ op: 'unattachFromYours' }) },
     // Archmage's Charm: "...with mana value 1 or less"
+    /* Admiral Beckett Brass: "gain control of target nonland permanent controlled by a player who was dealt combat
+       damage by three or more Pirates this turn." — for good (controllerHitBy) */
+    { re: /^Gain control of target nonland permanent controlled by a player who was dealt combat damage by (two|three|four|five) or more ([A-Z][a-z]+?)s? this turn\.?$/,
+      make: (m) => ({ op: 'gainControl', until: null,
+        targets: [Object.assign(targetSpec('target nonland permanent'), { controllerHitBy: { type: singularType(m[2]), n: num(m[1]) } })] }) },
     { re: /^Gain control of (target (?:nonland )?(?:creature|permanent|artifact) with mana value (?:\d+|X) or less)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: null, targets: [targetSpec(m[1])] }) },
     /* Threaten: "Untap target creature and gain control of it until end of turn." */
@@ -3739,6 +3745,14 @@
       } },
     /* the d20 Dragons */
     { re: /^[Rr]oll a d(4|6|8|10|12|20)\.?$/, make: (m) => ({ op: 'rollDie', sides: +m[1] }) },
+    /* Mr. House, President and CEO: "Roll a six-sided die plus an additional six-sided die for each mana from
+       Treasures spent to activate this ability." (perTreasureSpent) */
+    { re: /^Roll a six-sided die plus an additional six-sided die for each mana from Treasures spent to activate this ability\.?$/,
+      make: () => ({ op: 'rollDie', sides: 6, perTreasureSpent: true }) },
+    /* Mr. House: "If you rolled 6 or higher, instead create that token and a Treasure token." — the token made
+       already, and the Treasure besides (rolledAtLeast) */
+    { re: /^If you rolled (\d+) or higher, instead create that token and an? (Treasure|Food|Clue|Blood|Map) token\.?$/,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'rolledAtLeast', n: +m[1] }, then: [{ op: 'createNamedToken', token: m[2], n: 1 }] }) },
     // coins: several at once, or until one is lost, counting the wins
     { re: /^Flip (two|three|four|five|\d+) coins\.?$/i, make: (m) => ({ op: 'flipCoins', n: num(m[1]) }) },
     { re: /^Flip a coin until you lose a flip\.?$/i, make: () => ({ op: 'flipCoins', untilLose: true }) },
@@ -7856,6 +7870,8 @@
     // one particular player's ("that player controls"), settled as the effect resolves
     if (spec.controllerId && obj.controller !== spec.controllerId) return false;
     if (spec.controller === 'opponent' && obj.controller === me) return false;
+    // Admiral Beckett Brass: "controlled by a player who was dealt combat damage by three or more Pirates this turn"
+    if (spec.controllerHitBy && !(ctx && ctx.hitByType && ctx.hitByType(obj.controller, spec.controllerHitBy.type) >= spec.controllerHitBy.n)) return false;
     // X: the one this was cast with, when it is known yet; any, until then
     const xv = (v) => (v === 'X' ? (ctx && ctx.x != null ? ctx.x : null) : v);
     const mvMax = xv(spec.maxMv), mvMin = xv(spec.minMv), mvIs = xv(spec.mv);
@@ -11783,6 +11799,8 @@
     { re: /^Whenever (?:this creature|CARDNAME) deals combat damage, /i, event: 'dealsDamage', self: true, extra: { combatOnly: true } },
     // Crystallization, Illusionary Armor: "When enchanted creature becomes the target of a spell or ability"
     { re: /^When(?:ever)? enchanted creature becomes the target of a spell or ability,? /i, event: 'becomesTarget', extra: { ofEnchanted: true } },
+    // Mr. House, President and CEO: "Whenever you roll a 4 or higher" — each die that comes up so (minRoll)
+    { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
     // Brazen Dwarf: "Whenever you roll one or more dice"
     { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"

@@ -7822,7 +7822,12 @@
         if (rc.n === 'X' && (opts.x || 0) > have) return this.fail(`${o.name} does not have that many counters.`);
         opts = Object.assign({}, opts, { x: Math.min(have, opts.x != null ? opts.x : have) });
       }
+      // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
+      const accWas = this._spentAcc;
+      this._spentAcc = {};
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
+      const fromTreasure = this._spentAcc.treasure || 0;
+      this._spentAcc = accWas;
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
       if (used === 'boast') { o._boastUses = (o._boastTurn === this.turn ? (o._boastUses || 0) : 0) + 1; o._boastTurn = this.turn; }
@@ -7882,6 +7887,7 @@
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
         x: opts.x || 0,
       };
+      if (fromTreasure) item.manaFromTreasure = fromTreasure;
       // Toralf's Hammer: the Equipment that handed this ability out (unattachGranter, bounceGranter)
       if (ab.grantedBy) item.grantedBy = ab.grantedBy;
       this.stack.push(item);
@@ -10717,6 +10723,17 @@
           // Gollum, Obsessed Stalker: the names of the creatures that dealt this player combat damage this game (hitByNamed)
           { const hp = this.player(as.targetId), nm = as.source.name;
             if (hp && nm && !(hp.combatHitByNames || []).includes(nm)) hp.combatHitByNames = (hp.combatHitByNames || []).concat(nm); }
+          /* Admiral Beckett Brass: "dealt combat damage by three or more Pirates this turn" — each creature once,
+             with the creature types it had as it dealt it (combatHitThisTurn) */
+          { const hp = this.player(as.targetId);
+            if (hp) {
+              if (!hp.combatHitThisTurn || hp.combatHitThisTurn.turn !== this.turn) hp.combatHitThisTurn = { turn: this.turn, by: [] };
+              if (!hp.combatHitThisTurn.by.some(x => x.id === as.source.id)) {
+                const sa = as.source.analysis() || {};
+                const every = this.hasKw(as.source, 'changeling');
+                hp.combatHitThisTurn.by.push({ id: as.source.id, types: every ? ['*'] : (sa.subtypes || []).map(x => String(x).toLowerCase()) });
+              }
+            } }
           this._fire('combatDamageToPlayer', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId });
           this._cipherHits(as.source);
           this._fire('yourCreatureCombatDamage', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId, object: as.source });
@@ -11835,6 +11852,8 @@
           return !!me && yours(src) && this.battlefield.some(x => x !== src && yours(x) && U.normName(x.name) === U.normName(cond.name) &&
             (!cond.type || this._cardFitsWords(x, cond.type)));
         }
+        // Mr. House, President and CEO: "If you rolled 6 or higher" — the roll the trigger is about (rolledAtLeast)
+        case 'rolledAtLeast': return Number(((ctx && ctx.triggerData) || {}).amount) >= (cond.n || 0);
         case 'cityBlessing': return !!me && !!me.cityBlessing;
         case 'enduringStory': return !!me && !!me.enduringStory;
         case 'distinctNames': return !!me && new Set(this.battlefield.filter(x => x.controller === me.id && !x.phasedOut && this._hasSubtype(x, cond.subtype)).map(x => x.name)).size >= (cond.n || 1);
@@ -14596,6 +14615,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Mr. House, President and CEO: "Whenever you roll a 4 or higher" (minRoll)
+          if (ab.minRoll != null && !(Number(data.amount) >= ab.minRoll)) continue;
           // Karazikar, the Eye Tyrant: "Whenever you attack a player" (attackerIsYou)
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
@@ -16043,6 +16064,8 @@
                 gone.push(pool.splice(k, 1)[0]);
               }
               for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              // (Lord Windgrace: "If a land card is discarded this way" — the one card in hand, discarded with no question)
+              this._lastDiscarded = gone.map(c => c.id);
               if (gone.length) this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}${e.random ? ' at random' : ''}.`);
               continue;
             }
@@ -25363,6 +25386,9 @@
         /* "Roll a d20." The result is kept for the sentence after it. */
         case 'rollDie': {
           const sides = n(e.sides) || 20;
+          // Mr. House, President and CEO: one more die for each mana from Treasures spent on the ability (perTreasureSpent)
+          const extraDice = e.perTreasureSpent ? Math.max(0, Number(ctx.manaFromTreasure) || 0) : 0;
+          for (let k = 0; k < extraDice; k++) this._fire('youRoll', ctx.controller, { amount: this._rollDie(me, sides), playerId: ctx.controller });
           this._lastRoll = this._rollDie(me, sides);
           this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
           // the results printed under the roll
@@ -28673,6 +28699,13 @@
 
     /* Power, toughness and keywords a target spec asks about are the ones
        the permanent has right now, so the matcher borrows the game's. */
+    /** Admiral Beckett Brass: how many creatures of that type (as they were) dealt this player combat damage this turn. */
+    _combatHitByType(pid, type) {
+      const h = (this.player(pid) || {}).combatHitThisTurn;
+      if (!h || h.turn !== this.turn) return 0;
+      const t = String(type || '').toLowerCase();
+      return (h.by || []).filter(x => (x.types || []).includes('*') || (x.types || []).includes(t)).length;
+    }
     _specCtx() {
       const game = this;
       if (!this.__specCtx) this.__specCtx = {
@@ -28684,6 +28717,8 @@
         // (Halvar, God of Battle: "attached to a creature you control" — attachedToYourCreature)
         hostOf: (o) => (o && o.attachedTo ? this.obj(o.attachedTo) : null),
         isCreature: (o) => !!(this.characteristics(o) || {}).isCreature,
+        // (Admiral Beckett Brass: the creatures of a type that dealt that player combat damage this turn — controllerHitBy)
+        hitByType: (pid, type) => this._combatHitByType(pid, type),
         // (Yenna, Redtooth Regent: "the same name as another permanent you control" — uniqueName)
         sharesName: (o) => this.battlefield.some(x => x !== o && !x.phasedOut && x.controller === o.controller && x.name === o.name),
         // "with mana value X": the X of the spell or ability being cast, while it is checked
