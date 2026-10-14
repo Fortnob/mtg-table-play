@@ -1376,6 +1376,9 @@
     // Esper Terra: "Add {W}{W}, {U}{U}, {B}{B}, {R}{R}, and {G}{G}." — all of it
     { re: /^Add ((?:\{[WUBRGC]\})+(?:, (?:\{[WUBRGC]\})+)*,? and (?:\{[WUBRGC]\})+)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1].replace(/,|\band\b|\s/g, '')) }) },
+    // Belbe, Corrupted Observer: "the active player adds {C}{C} for each of your opponents who lost life this turn" (who 'active', times)
+    { re: /^The active player adds ((?:\{[WUBRGC]\})+) for each (?:of your opponents|opponent) who lost life this turn\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'active', times: { opponentsLostLife: true } }) },
     // Magus of the Vineyard, Eladamri's Vineyard: "that player adds {G}{G}" — into the pool of the player whose main phase it is
     { re: /^That player adds ((?:\{[WUBRGC]\})+)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'triggerPlayer' }) },
@@ -1609,6 +1612,9 @@
        player" — which ones, picked as it resolves, from those that can go there (attachAnyTo) */
     { re: /^Attach any number of Auras and Equipment you control to target permanent or player\.?$/i,
       make: () => ({ op: 'attachAnyTo', targets: [{ type: 'any', filter: 'permanent or player', zone: 'battlefield', anyOf: ['permanent'] }] }) },
+    // Beatrix, Loyal General: "attach any number of Equipment you control to target creature you control" (attachAnyTo onlyEquipment)
+    { re: /^Attach any number of Equipment you control to (target creature you control)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'attachAnyTo', onlyEquipment: true, targets: [sp] } : null; } },
     // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
     { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
       make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
@@ -3661,8 +3667,9 @@
     { re: /^(?:This creature|CARDNAME|This permanent) becomes the creature type of your choice( in addition to its other types)? until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeChosenType', add: !!m[1] }) },
     // Purelace, Chaoslace: "Target spell or permanent becomes white."
-    { re: /^Target spell or permanent becomes (white|blue|black|red|green|colorless)\.?$/i,
-      make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { setColors: /colorless/i.test(m[1]) ? [] : [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] },
+    // (Eight-and-a-Half-Tails: "… becomes white until end of turn.")
+    { re: /^Target spell or permanent becomes (white|blue|black|red|green|colorless)( until end of turn)?\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: m[2] ? 'eot' : 'permanent', eff: { setColors: /colorless/i.test(m[1]) ? [] : [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]] },
         targets: [{ type: 'spellOrPermanent' }], spellsToo: true }) },
     // Dwarven Song: "One or more target creatures become red until end of turn."
     { re: /^(?:One or more|Any number of) target creatures become (white|blue|black|red|green) until end of turn\.?$/i,
@@ -9927,6 +9934,12 @@
         { op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', rest: 'bottom' }] },
     { re: /^Look at the top card of your library\. You may put (?:it|that card) into your graveyard\.?$/i,
       make: () => [{ op: 'surveil', n: 1 }] },
+    /* Geth, Lord of the Vault: "Put target artifact or creature card with mana value X from an opponent's graveyard onto
+       the battlefield tapped under your control. Then that player mills X cards." — the card's owner (mill targetOwner) */
+    { re: /^Put target (artifact or creature|creature|artifact) card with mana value X from an opponent'?s graveyard onto the battlefield tapped under your control\. Then that player mills X cards\.?$/i,
+      make: (m) => { const sp = targetSpec('target ' + m[1].toLowerCase() + ' with mana value X');
+        return sp && !sp.unknown ? [{ op: 'reanimate', mine: true, tapped: true, targets: [Object.assign(sp, { zone: 'graveyard', controller: 'opponent' })] },
+          { op: 'mill', n: 'X', who: 'targetOwner' }] : null; } },
     /* Jacob Frye: "exile up to one target Assassin card or card with freerunning from your graveyard. If you do, copy it.
        You may cast the copy." — paying for it, and only a card this exiled (subtypeOrKeyword; castCopy fromRes) */
     { re: /^[Ee]xile up to one target ([A-Z][a-z]+) card or card with ([a-z]+) from your graveyard\. If you do, copy it\. You may cast the copy\.?$/,
@@ -13035,6 +13048,8 @@
     { re: /^When(?:ever)? you(?:'re| are) dealt damage,? /i, event: 'playerDealtDamage', extra: { youOnly: true } },
     { re: /^When(?:ever)? you lose life,? /i, event: 'youLoseLife' },
     { re: /^At the beginning of each player's (?:first|precombat) main phase,? /i, event: 'eachMain1' },
+    // Belbe, Corrupted Observer: "At the beginning of each postcombat main phase"
+    { re: /^At the beginning of each postcombat main phase,? /i, event: 'eachMain2' },
     /* "Whenever this creature deals combat damage to a creature, destroy
        that creature": "that creature" is the one it hit */
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals (combat )?damage to a creature,? /i, event: 'dealsDamageToCreature', self: true,
@@ -18679,6 +18694,9 @@
         make: (m) => ({ op: 'handSizeMod', who: /opponent/i.test(m[1]) ? 'opponents' : 'you', n: (/reduced/i.test(m[2]) ? -1 : 1) * num(m[3]) }), auto: true },
       { re: /^You may look at the top card of your library any time\.?$/i,
         eff: { op: 'peekTop' }, auto: true },
+      // Radha, Heart of Keld: "You may look at the top card of your library any time, and you may play lands from the top of your library." — both
+      { re: /^You may look at the top card of your library any time, and you may play lands from the top of your library\.?$/i,
+        make: () => [{ op: 'peekTop' }, { op: 'playFrom', zone: 'top', what: 'land' }], auto: true },
       { re: /^(?:CARDNAME|This land) enters tapped\. As it enters, choose a colou?r(?: other than (white|blue|black|red|green))?\.?$/i,
         make: (m) => ({ op: 'chooseColorOnEnter', except: m[1] ? { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] : null }), auto: true },
       /* Leyline of Anticipation, Vedalken Orrery, Sigarda's Aid */
@@ -18949,7 +18967,8 @@
           effects: [{ op: 'attachSelf', targets: [spec] }],
         };
       }
-      return { kind: 'static', text: line, auto: !!r.auto && eff.op !== 'manual', effects: [eff] };
+      // (a line that says two things: both standing rules)
+      return { kind: 'static', text: line, auto: !!r.auto && eff.op !== 'manual', effects: Array.isArray(eff) ? eff : [eff] };
     }
     return null;
   }

@@ -1110,6 +1110,8 @@
           if (this.phase.id === 'precombat') this._fire('eachMain1', null, { playerId: this.activePlayer.id });
           // "at the beginning of your second main phase"
           if (this.phase.id === 'postcombat') this._fire('yourMain2', this.activePlayer.id);
+          // Belbe, Corrupted Observer: "At the beginning of each postcombat main phase"
+          if (this.phase.id === 'postcombat') this._fire('eachMain2', null, { playerId: this.activePlayer.id });
           break;
         case 'beginCombat':
           // "if it's the first combat phase of the turn"
@@ -16469,13 +16471,16 @@
         }
         case 'addMana': {
           // Magus of the Vineyard: "that player adds {G}{G}" (who 'triggerPlayer')
-          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
-          for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
+          // (Belbe, Corrupted Observer: "the active player adds {C}{C} for each of your opponents who lost life this turn" — who 'active', times)
+          const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me) : me;
+          const times = e.times ? Math.max(0, n(e.times) || 0) : 1;
+          if (!times) break;
+          for (let k = 0; k < times; k++) for (const s of (e.tron && this._tronAssembled(ctx.controller, e.tron) ? e.tron.symbols : e.symbols)) {
             if (/^\d+$/.test(s)) { for (let i = 0; i < +s; i++) into.pool.add('C'); continue; }
             const c = MANA.COLORS.concat('C').find(x => s.includes(x));
             into.pool.add(c || 'C');
           }
-          if (into !== me) this.logEvent('mana', `${into.name} adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
+          if (into !== me || times > 1) this.logEvent('mana', `${into.name} adds ${Array(times).fill(e.symbols.map(x => '{' + x + '}').join('')).join('')}.`);
           break;
         }
         case 'addManaAny': {
@@ -17815,6 +17820,8 @@
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             // Singularity Rupture: each player aimed at
             : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(Boolean))]
+            // Geth, Lord of the Vault: "Then that player mills X cards." — the owner of the card it took
+            : e.who === 'targetOwner' ? [(() => { const x = firstObj(); return x ? this.player(x.owner) : null; })()]
             : (e.who === 'target' ? [firstPlayer()] : [me]);
           // "…from among the milled cards": what this mill put there
           this._lastMilled = [];
@@ -26014,13 +26021,14 @@
           const hostP = t && t.kind === 'player' ? this.player(t.id) : null;
           if (!(hostO && hostO.zone === 'battlefield') && !(hostP && !hostP.hasLost)) break;
           const hostId = hostO ? hostO.id : hostP.id;
+          // (Beatrix, Loyal General: "any number of Equipment you control" — no Auras: onlyEquipment)
           const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && x.attachedTo !== hostId &&
-            this._attachableTo(x, hostO, hostP));
+            (!e.onlyEquipment || (x.analysis() || {}).isEquipment) && this._attachableTo(x, hostO, hostP));
           if (!pool.length) break;
           const hostName = hostO ? hostO.name : hostP.name;
           const got = this._choose({ playerId: ctx.controller, purpose: 'attachAnyTo', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 0, max: pool.length, optional: true, hostId,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}attach any number of your Auras and Equipment to ${hostName}.` }, 'aat');
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}attach any number of your ${e.onlyEquipment ? 'Equipment' : 'Auras and Equipment'} to ${hostName}.` }, 'aat');
           if (got === SUSPEND) return SUSPEND;
           const moved = [];
           for (const id of (got && got.picks) || []) {
