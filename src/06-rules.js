@@ -14978,6 +14978,9 @@
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
           if (ab.attackersMinPower != null && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && x.controller === o.controller && this.player(x.attacking) && this.powerOf(x) >= ab.attackersMinPower; })) continue;
+          // Killian, Decisive Mentor: an attacker, whoever's, enchanted by an Aura this one's controller controls (attackersAuraYours)
+          if (ab.attackersAuraYours && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
+            return x && (x.attachments || []).some(aid => { const au = this.obj(aid); return au && au.zone === 'battlefield' && au.controller === o.controller && !!(au.analysis() || {}).isAura; }); })) continue;
           // Akiri, Fearless Voyager: one of this player's attackers is equipped (and attacking a player) (attackersFit)
           if (ab.attackersFit && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id);
             return x && x.controller === o.controller && (!ab.attackPlayerOnly || !!this.player(x.attacking)) && this._cardFitsWords(x, ab.attackersFit); })) continue;
@@ -20197,6 +20200,21 @@
         }
 
         // Elesh Norn // The Argent Etchings: "transform all Incubator tokens you control"
+        /* Tovolar, Dire Overlord: "transform any number of Human Werewolves you control" — those that can, one pick
+           that may be left empty; nothing asked when none can (transformChosen) */
+        case 'transformChosen': {
+          const pool = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && !x.meld &&
+            x.card && x.card.layout === 'transform' && (x.card.card_faces || []).length > 1 && (e.subtypes || []).every(st => this._hasCreatureType(x, st)));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'transformChosen', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: pool.length,
+            prompt: `Transform any number of ${(e.subtypes || []).map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}s you control.` }, 'xfc');
+          if (got === SUSPEND) return SUSPEND;
+          for (const x of ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x))) {
+            this._runEffect({ op: 'transform', self: true }, Object.assign({}, ctx, { obj: x }));
+          }
+          break;
+        }
         case 'transformAll': {
           for (const x of this._scopeList(e.scope, ctx.controller, src)) {
             if (!x.card || !x.card.card_faces || x.card.card_faces.length < 2) continue;
@@ -23343,11 +23361,24 @@
           });
           // (the hand was revealed, cards named, by the sentence before)
           if (!hand.length) break;
-          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+          // (Vendilion Clique: "You may choose a nonland card from it." — one pick that may be left empty: optional)
+          const picked = this._ask(Object.assign({ type: 'pickCard', playerId: ctx.controller, count: 1,
             cards: hand.map(o => ({ id: o.id, name: o.name, card: o.card })),
-            prompt: `Choose a card from ${victim.name}'s hand.` });
+            prompt: e.optional ? `You may choose a ${words === 'any' ? '' : words + ' '}card from ${victim.name}'s hand.` : `Choose a card from ${victim.name}'s hand.` },
+            e.optional ? { optional: true } : {}));
           if (picked === SUSPEND) return SUSPEND;
           this._chosenCard = (picked || [])[0] || null;
+          break;
+        }
+        /* Vendilion Clique: "that player reveals the chosen card, puts it on the bottom of their library, then draws a card" */
+        case 'chosenToBottomDraw': {
+          const o = this._chosenCard && this.obj(this._chosenCard);
+          this._chosenCard = null;
+          if (!o || o.zone !== 'hand') break;
+          const owner = this.player(o.owner);
+          this.logEvent('reveal', `${owner.name} reveals ${o.name} and puts it on the bottom of their library.`);
+          this.moveObject(o, 'library', { toBottom: true });
+          this._drawCards(owner, 1);
           break;
         }
         case 'discardChosen': case 'exileChosen': {

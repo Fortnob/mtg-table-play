@@ -4532,10 +4532,12 @@
        target, from whichever graveyard, as the spell or ability is put on
        the stack */
     // (Anikthea, Hand of Erebos: "up to one target non-Aura enchantment card")
-    { re: /^Exile (up to one )?target ((?:[a-z-]+ )*?)card from (a|your|an opponent's) graveyard\.?$/i,
+    // (Lobelia Sackville-Baggins: "… from an opponent's graveyard that was put there from the battlefield this turn" — fromBfThisTurn)
+    { re: /^Exile (up to one )?target ((?:[a-z-]+ )*?)card from (a|your|an opponent's) graveyard( that was put there from the battlefield this turn)?\.?$/i,
       make: (m) => {
         const spec = m[2].trim() ? targetSpec('target ' + m[2].trim(), 'graveyard') : { type: 'permanent', filter: 'card', zone: 'graveyard' };
         if (spec.unknown) return null;
+        if (m[4]) spec.fromBfThisTurn = true;
         if (/your/i.test(m[3])) spec.controller = 'you';
         if (/opponent/i.test(m[3])) spec.controller = 'opponent';
         if (m[1]) spec.upTo = true;
@@ -4902,6 +4904,9 @@
     // The Celestus: "If it's night, it becomes day. Otherwise, it becomes night."
     { re: /^If it'?s night, it becomes day\. Otherwise, it becomes night\.?$/i, make: () => ({ op: 'flipDayNight' }) },
     { re: /^It becomes (day|night)\.?$/i, make: (m) => ({ op: 'setDayNight', day: /day/i.test(m[1]) }) },
+    // Tovolar, Dire Overlord: "Then transform any number of Human Werewolves you control." — one pick of any number (transformChosen)
+    { re: /^(?:Then )?transform any number of ([A-Z][a-z]+) ([A-Z][a-z]+?)s? you control\.?$/,
+      make: (m) => ({ op: 'transformChosen', subtypes: [m[1].toLowerCase(), singularType(m[2] + 's')] }) },
     // Veil of Summer: "Spells you control can't be countered this turn."
     { re: /^Spells you control can'?t be countered this turn\.?$/i, make: () => ({ op: 'uncounterableTurn' }) },
     // Vexing Shusher: "Target spell can't be countered."
@@ -7651,7 +7656,8 @@
     // Narci, Fable Singer: "that Saga's mana value" — the Saga the trigger is about (finalChapterResolved)
     if (/^that Saga'?s mana value$/i.test(p)) return done({ ofTrigger: 'mv' });
     // Twilight Prophet: "that card's mana value" — the card just revealed and taken
-    if ((m = p.match(/^(?:that card's|the revealed card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
+    // (Lobelia Sackville-Baggins: "where X is the exiled card's power")
+    if ((m = p.match(/^(?:that card's|the revealed card's|the exiled card's|that artifact's|that enchantment's) (power|toughness|mana value)$/i))) return done({ ofLast: STAT[m[1].toLowerCase()] });
     if (/^the number of cards in your hand$/i.test(p)) return done({ cardsInHand: 'you', mult: 1 });
     // Rackling: "3 minus the number of cards in their hand"
     if ((m = p.match(/^(\d+) minus the number of cards in (?:their|that player'?s) hand$/i))) return done({ minusHand: +m[1] });
@@ -8502,6 +8508,12 @@
         const rest = m[1] ? parseSentenceList(splitSentences(m[1])) : { auto: true, effects: [] };
         return rest.auto ? [{ op: 'eachMayRummage' }].concat(rest.effects) : null;
       } },
+    /* Vendilion Clique: "look at target player's hand. You may choose a nonland card from it. If you do, that player
+       reveals the chosen card, puts it on the bottom of their library, then draws a card." — one pick that may be
+       left empty (optional), then the card to the bottom and a draw (chosenToBottomDraw) */
+    { re: /^Look at target player'?s hand\. You may choose an? (nonland )?card from it\. If you do, that player reveals the chosen card, puts it on the bottom of their library, then draws a card\.?$/i,
+      make: (m) => [{ op: 'revealHand', look: true, targets: [{ type: 'player' }] },
+        { op: 'chooseFromHand', filter: m[1] ? 'nonland' : 'any', optional: true }, { op: 'chosenToBottomDraw' }] },
     /* Superior Spider-Man: "You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except
        his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do,
        exile that card." — a card in any graveyard (fromGraveyard), exiled by a reflexive trigger (exileCopied) */
@@ -11553,7 +11565,9 @@
     // Scab-Clan Berserker: "if this creature is renowned"
     [/^(?:this creature|CARDNAME) is renowned$/i, () => ({ kind: 'selfRenowned' })],
     // counting the board
-    [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
+    // (Tovolar, Dire Overlord: "three or more Wolves and/or Werewolves" — either, by each one's own singular)
+    [/^you control (\w+) or more ([a-z]+ and\/or [a-z]+)$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) })],
+    [/^you control (\w+) or more ([a-z]+?)s$/i, (m) => ({ kind: 'control', what: singularType(m[2] + 's'), n: num(m[1]) })],
     // Valakut: "if you control at least five other Mountains" (the one that entered among them)
     [/^you control at least (\w+) other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2].toLowerCase(), n: num(m[1]) + 1 })],
     // the Turbulent lands: "unless your opponents control eight or more lands"
@@ -12173,6 +12187,8 @@
     // Zurzoth, Chaos Rider: "Whenever one or more Devils you control attack one or more players" (attackersOfType, at a player)
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack one or more players,? /, event: 'youAttack',
       extraOf: (m) => ({ attackersOfType: singularType(m[1]), attackersOfTypeAtPlayer: true }) },
+    // Killian, Decisive Mentor: "Whenever one or more creatures that are enchanted by an Aura you control attack" — anyone's (attackersAuraYours)
+    { re: /^Whenever one or more creatures that are enchanted by an Aura you control attack,? /i, event: 'anyPlayerAttacks', extra: { attackersAuraYours: true } },
     // Neyali, Suns' Vanguard: "Whenever one or more tokens you control attack a player" (attackersFit)
     { re: /^Whenever one or more tokens you control attack a player,? /i, event: 'youAttack', extra: { attackersFit: 'token', attackPlayerOnly: true } },
     // Geralf, the Fleshwright: "Whenever you cast a spell during your turn other than your first spell that turn" (notFirstSpell)
