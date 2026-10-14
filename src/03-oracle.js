@@ -3419,6 +3419,12 @@
     /* Second Harvest */
     { re: /^For each token you control, create a token that'?s a copy of that permanent\.?$/i,
       make: () => ({ op: 'copyEachToken' }) },
+    /* Sorin, Ravenous Neonate: "Put a lifelink counter on it if you control a white permanent other than that
+       creature or Sorin." — the creature just taken, and a permanent besides it and this one (controlExcept) */
+    { re: /^Put an? ([a-z+\-0-9/]+) counter on it if you control an? (white|blue|black|red|green) permanent other than that creature or CARDNAME\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'controlExcept', scope: { who: 'you', what: 'permanent',
+        color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[2].toLowerCase()] } },
+      then: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget' }] }) },
     /* Nesting Grounds */
     { re: /^Move a counter from (target permanent you control) onto a second target permanent\.?$/i,
       make: () => ({ op: 'moveCounter', targets: [{ type: 'permanent', controller: 'you', filter: 'permanent you control' }, { type: 'permanent', filter: 'permanent' }] }) },

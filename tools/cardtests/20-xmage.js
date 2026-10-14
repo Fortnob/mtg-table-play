@@ -28669,4 +28669,45 @@ module.exports = (test) => {
     t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'Yes Man: one Soldier, for A');
     t.eq(M.bfOf('B').filter(o => o.isToken).length, 0);
   });
+
+  test('Commanders: Sorin of House Markov — 3 life gained this turn: Sorin, Ravenous Neonate in the second main phase', (mk, t) => {
+    t.auto('Sorin of House Markov // Sorin, Ravenous Neonate');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const sorin = M.bf('A', 'Sorin of House Markov');
+    // 2 life: not enough
+    M.g.changeLife('A', 2);
+    toMain2(M);
+    t.eq(sorin.face || 0, 0, 'Sorin: fewer than 3 life gained, no transform');
+    // next turn, 3 life: transformed
+    M.nextTurn('A');
+    M.mana('A', '1W');
+    M.cast('A', M.hand('A', 'Revitalize'));
+    M.g.changeLife('A', 3);
+    toMain2(M);
+    const now = M.bfOf('A').find(o => /Sorin/.test(o.name));
+    t.ok(now && now.face === 1, 'Sorin: returned transformed');
+    t.ok(now.analysis().isPlaneswalker, 'Sorin: a planeswalker');
+    // −1: damage equal to the life gained this turn (6)
+    M.activate('A', now, 1, { targets: ['B'] });
+    t.eq(M.life('B'), 14, 'Sorin: 6 damage, the life gained this turn');
+  });
+  test('Commanders: Sorin, Ravenous Neonate — −6: take a creature, a Vampire, with a lifelink counter if another white permanent is yours', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    const sorin = M.bf('A', 'Sorin of House Markov');
+    sorin.face = 1; sorin._chr = null; sorin.counters.loyalty = 12;
+    const giant = M.bf('B', 'Hill Giant');
+    // no other white permanent: no counter
+    M.activate('A', sorin, 2, { targets: [giant.id] });
+    t.eq(giant.controller, 'A', 'Sorin: gains control');
+    t.ok(g._hasCreatureType(giant, 'Vampire'), 'Sorin: a Vampire');
+    t.no(giant.counters.lifelink, 'Sorin: no white permanent besides it and Sorin');
+    // with Savannah Lions: a lifelink counter
+    M.nextTurn('A');
+    M.bf('A', 'Savannah Lions');
+    const giant2 = M.bf('B', 'Hill Giant');
+    M.activate('A', sorin, 2, { targets: [giant2.id] });
+    t.eq(giant2.counters.lifelink, 1, 'Sorin: a lifelink counter');
+    t.ok(g.hasKw(giant2, 'lifelink'));
+  });
 };

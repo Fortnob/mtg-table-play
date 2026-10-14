@@ -17131,7 +17131,12 @@
         /* "If you control three or more artifacts, draw a card." The check is
            made as the effect resolves, on the state at that moment. */
         case 'ifCond': {
-          if (this._condMet(e.cond, ctx)) this._spliceNext(e.then);
+          /* Sorin, Ravenous Neonate: "if you control a white permanent other than that creature or Sorin" —
+             besides the one targeted and this one (controlExcept) */
+          const exc = e.cond && e.cond.kind === 'controlExcept' ? firstObj() : null;
+          if (e.cond && e.cond.kind === 'controlExcept'
+            ? this._scopeList(e.cond.scope, ctx.controller, src).some(o => o !== exc && o !== src)
+            : this._condMet(e.cond, ctx)) this._spliceNext(e.then);
           else if (e.otherwise && e.otherwise.length) this._spliceNext(e.otherwise);
           break;
         }
