@@ -843,8 +843,10 @@
     /* ---------- turn flow ---------- */
     get activePlayer() { return this.player(this.turnOrder[this.activeIndex]) || this.players[0]; }
     get priorityPlayer() { return this.player(this.turnOrder[this.priorityIndex]); }
-    get phase() { return PHASES[this.phaseIndex]; }
-    get step() { return this.phase.steps[this.stepIndex]; }
+    /* (between the last step of a turn and the next turn's untap, as day becomes night, the turn is still in its
+       ending phase: a listener that asks then is told so rather than thrown at) */
+    get phase() { return PHASES[this.phaseIndex] || PHASES[PHASES.length - 1]; }
+    get step() { const ph = PHASES[this.phaseIndex]; return ph ? ph.steps[this.stepIndex] : 'cleanup'; }
     get stepName() { return STEP_NAMES[this.step] || this.step; }
     get isMain() { return this.step === 'main'; }
     get stackEmpty() { return this.stack.length === 0; }

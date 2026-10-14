@@ -111,6 +111,17 @@ module.exports = (test) => {
     t.eq(g2.zones.A.hand.length, hand, 'Mikey & Leo does not draw a second time this turn');
   });
 
+  test('Audit: day turning to night between turns does not throw at whoever is listening', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.nextTurn('B');
+    T.g.setDayNight(true, 'test');
+    const errs = [];
+    T.g.on('state', () => { try { void T.g.step; void T.g.phase.id; } catch (e) { errs.push(e.message); } });
+    T.nextTurn('A');
+    t.eq(T.g.isDay, false, 'no spells cast: it became night');
+    t.eq(errs.join(' / '), '', 'the step and phase could be read throughout');
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {
