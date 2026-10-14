@@ -1664,6 +1664,16 @@
       (s.options || []).forEach((o, i) => { const k = gy.filter(c => g._hasCreatureType(c, o.label)).length; if (k > bestN) { best = i; bestN = k; } });
       return { picks: [best] };
     },
+    /* Aminatou, the Fateshifter: the direction whose next player has the most worth taking */
+    chooseDirection(s) {
+      const g = this.game;
+      const worth = (pid) => g.battlefield.filter(x => x.controller === pid && !(x.analysis() || {}).isLand)
+        .reduce((t, x) => t + this.permanentValue(x), 0);
+      const opts = s.options || [];
+      let best = 0;
+      opts.forEach((o, i) => { if (worth(o.playerId) > worth((opts[best] || {}).playerId)) best = i; });
+      return { picks: [best] };
+    },
     /* Liliana of the Dark Realms: shrink theirs, grow ours */
     pumpEitherWay(s) {
       const g = this.game, c = g && g.resolving && g.resolving.ctx;

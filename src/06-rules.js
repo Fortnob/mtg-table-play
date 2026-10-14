@@ -4812,6 +4812,16 @@
           !out.some(u => u.via === 'graveCreature')) {
         out.push({ kind: 'cast', via: 'graveCreature', cost: a.manaCost || '', after: null, label: 'Cast from your graveyard (Chainer)' });
       }
+      /* Tannuk, Steadfast Second: "Artifact cards and red creature cards in your hand have warp {2}{R}." — cast
+         for that, exiled at the next end step and castable from exile later, as printed warp is (grantWarp) */
+      if (o.zone === 'hand' && o.owner === playerId && !a.isLand) {
+        for (const x of this.battlefield) {
+          if (x.controller !== playerId || x.phasedOut) continue;
+          const gw = this._staticOp(x, 'grantWarp');
+          if (!gw || !(gw.words || []).some(w => this._cardFitsWords(o, w))) continue;
+          if (!out.some(u => u.via === 'warp' && u.cost === gw.cost)) out.push({ kind: 'cast', via: 'warp', cost: gw.cost, label: 'Warp ' + gw.cost });
+        }
+      }
       // Wrenn and Six's emblem: instant and sorcery cards in your graveyard have retrace
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) &&
           this._anyStaticOf(playerId, 'grantRetraceInstSorc') && !out.some(u => u.via === 'retrace')) {
@@ -13334,6 +13344,20 @@
           try { this._drawCards(this.player(thief.controller), 1, silent); } finally { this._stealDepth--; }
           continue;
         }
+        /* Urabrask, Heretic Praetor: the next draw this turn exiles the top card instead, and they may play it
+           this turn (nextDrawExiles) */
+        if (p.drawExiles) p.drawExiles = p.drawExiles.filter(x => x.turn === this.turn);
+        if (p.drawExiles && p.drawExiles.length) {
+          const r = p.drawExiles.shift();
+          left--;
+          const c = z.library[0];
+          if (c) {
+            this.moveObject(c, 'exile');
+            if (r.play) { c.impulseBy = p.id; c.impulseUntil = this.turn; }
+            this.logEvent('exile', `${r.source}: instead of drawing, ${p.name} exiles ${c.name}${r.play ? ' and may play it this turn' : ''}.`);
+          }
+          continue;
+        }
         left--;
         if (extras > 0) extras--;
         else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
@@ -13590,6 +13614,8 @@
       // with the cards whose triggered abilities work from a graveyard (Nether Traitor)
       const graveOnes = [];
       for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) { const ca = c.analysis(); if (ca && ca.graveTriggers) graveOnes.push(c); }
+      // (Senu, Keen-Eyed Protector: and the ones that work from exile)
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).exile || [])) { if (c.faceDown) continue; const ca = c.analysis(); if (ca && ca.exileTriggers) graveOnes.push(c); }
       // (and eminence: Edgar Markov's trigger from the command zone)
       const eminent = this._eminent();
       for (const o of this._withEmblems(this.battlefield).concat(graveOnes, eminent)) {
@@ -13606,6 +13632,7 @@
           if (ab.infinity && !o.harnessed) continue;          // an Infinity Stone's ∞ ability, not yet harnessed
           // a graveyard ability works from there and nowhere else
           if (!!ab.fromGraveyard !== (o.zone === 'graveyard')) continue;
+          if (!!ab.fromExile !== (o.zone === 'exile')) continue;
           if (ab.self && data.source && data.source.id !== o.id) continue;
           if (ab.self && !data.source) continue;
           // "When this Class becomes level 3" is only that level
@@ -16660,6 +16687,40 @@
         }
         /* "Choose an opponent." Not a target: a generic question about
            players, and "that player" afterwards is the one chosen. */
+        /* Aminatou, the Fateshifter: "Choose left or right." — the next player to the left is the next in turn
+           order. With two players left and right are the same one, and nothing is asked. */
+        case 'chooseDirection': {
+          const order = this.turnOrder.filter(id => !this.player(id).hasLost);
+          let dir = 'left';
+          if (order.length > 2) {
+            const i = order.indexOf(ctx.controller);
+            const left = this.player(order[(i + 1) % order.length]), right = this.player(order[(i - 1 + order.length) % order.length]);
+            const got = this._choose({ playerId: ctx.controller, purpose: 'chooseDirection', kind: 'options', min: 1, max: 1, compact: true,
+              options: [{ i: 0, label: `Left (${left.name})`, playerId: left.id }, { i: 1, label: `Right (${right.name})`, playerId: right.id }],
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose left or right.` }, 'dir');
+            if (got === SUSPEND) return SUSPEND;
+            dir = ((got && got.picks) || [0])[0] === 1 ? 'right' : 'left';
+          }
+          ctx.chosenDirection = dir;
+          this.logEvent('rules', `${me.name} chooses ${dir}.`);
+          break;
+        }
+        /* Aminatou, the Fateshifter: "Each player gains control of all nonland permanents other than Aminatou
+           controlled by the next player in the chosen direction." — all at once, from where they stood */
+        case 'passPermanents': {
+          const order = this.turnOrder.filter(id => !this.player(id).hasLost);
+          if (order.length < 2) break;
+          const step = ctx.chosenDirection === 'right' ? -1 : 1;
+          // the permanents of the next player in that direction go to this one: Q's go to the one before Q
+          const takerOf = (q) => { const j = order.indexOf(q); return j < 0 ? null : order[(j - step + order.length) % order.length]; };
+          const moves = this.battlefield.filter(x => !x.phasedOut && !(e.exceptSelf && src && x.id === src.id) &&
+            this._cardFitsWords(x, e.what || 'nonland permanent')).map(x => [x, takerOf(x.controller)]).filter(m => m[1] && m[1] !== m[0].controller);
+          const ts = this._stampNew();
+          for (const [x, to] of moves) x.effects.push({ control: to, until: null, ts });
+          this._refreshControl();
+          this.logEvent('control', `Each player gains control of the nonland permanents of the next player to the ${ctx.chosenDirection || 'left'}.`);
+          break;
+        }
         case 'chooseOpponent': {
           const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
           const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
@@ -17859,7 +17920,8 @@
         // Yenna, Redtooth Regent: "If the token is an Aura, untap Yenna, then scry 2." — the copy just made (ifCopyIs)
         case 'ifCopyIs': {
           const made = this._lastCopy && (this._madeThisResolution || []).includes(this._lastCopy.id) ? this._lastCopy : null;
-          if (made && this._cardFitsWords(made, e.what)) this._spliceNext(e.then || []);
+          // (Ultron, Artificial Malevolence: "If the token isn't a creature" — not)
+          if (made && this._cardFitsWords(made, e.what) === !e.not) this._spliceNext(e.then || []);
           break;
         }
         /* Eluge, Ultima, Origin of Oblivion: "for as long as it has a flood (blight) counter on it" — an effect on
@@ -20625,11 +20687,13 @@
 
         /* ===== a land that gets up and attacks ===== */
         case 'animate': {
-          if (!src) break;
+          // (Ultron, Artificial Malevolence: "it becomes a 2/2 Robot Villain creature" — the token just made: lastCopy)
+          const who = e.which === 'lastCopy' ? (this._lastCopy && this._lastCopy.zone === 'battlefield' ? this._lastCopy : null) : src;
+          if (!who) break;
           const [p, t] = String(e.pt || '1/1').split('/');
           // Testament of Faith: "becomes an X/X Wall creature" — the X paid
           const ptOf = (v) => (v === 'X' ? (n('X') || 0) : parseInt(v, 10) || 0);
-          src.effects.push({
+          who.effects.push({
             until: e.duration === 'eot' ? 'eot' : null,
             setPt: { p: ptOf(p), t: ptOf(t) },
             addTypes: ['Creature'].concat(e.addTypes || []),
@@ -20639,7 +20703,7 @@
             ...((e.colorWords || []).length ? { setColors: e.colorWords.map(w => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[String(w).toLowerCase()]).filter(Boolean) } : {}),
           });
           this.bumpBoard();
-          this.logEvent('rules', `${src.name} becomes a ${e.pt} creature${e.duration === 'eot' ? ' until end of turn' : ''}.`);
+          this.logEvent('rules', `${who.name} becomes a ${e.pt} creature${e.duration === 'eot' ? ' until end of turn' : ''}.`);
           break;
         }
 
@@ -21714,14 +21778,17 @@
         /* Unearth and its cousins: the card brings itself back. */
         case 'returnSelfFromGrave': {
           const x = src || (ctx.objId && this.obj(ctx.objId));
-          if (!x || x.zone !== 'graveyard') break;
+          // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile: fromZone)
+          if (!x || x.zone !== (e.fromZone || 'graveyard')) break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
           this.moveObject(x, 'battlefield', { controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) });
           if (e.tapped) x.tapped = true;
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
           if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
-            const first = this.obj(this.combat.attackers[0]);
+            // (Senu: whoever the creature that set it off is attacking — besideTrigger)
+            const by = e.besideTrigger && this.obj((ctx.triggerData || {}).objectId);
+            const first = by && by.attacking ? by : this.obj(this.combat.attackers[0]);
             const def = (first && first.attacking) || (this.opponentsOf(x.controller)[0] || {}).id;
             if (def) { x.attacking = def; this.combat.attackers.push(x.id); }
           }
@@ -21955,6 +22022,15 @@
           break;
         }
 
+        /* Urabrask, Heretic Praetor: "the next time they would draw a card this turn, instead they exile the top
+           card of their library. They may play it this turn." — one draw this turn, waiting on the player (_drawCards) */
+        case 'nextDrawExiles': {
+          const who = triggerPlayer() || this.activePlayer;
+          if (!who || who.hasLost) break;
+          (who.drawExiles = who.drawExiles || []).push({ turn: this.turn, play: !!e.play, source: src ? src.name : ctx.name });
+          this.logEvent('rules', `${ctx.name || (src && src.name) || 'An effect'}: the next card ${who.name} would draw this turn is exiled instead.`);
+          break;
+        }
         case 'impulse': {
           const cnt = nVar(e.n);
           if (!cnt) break;

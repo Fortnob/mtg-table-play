@@ -31567,4 +31567,168 @@ module.exports = (test) => {
     t.eq(tokens('Blood'), 1, 'Old Rutstein: an instant milled, a Blood');
     t.eq(M.bfOf('A').filter(o => o.isToken).length, 3, 'Old Rutstein: one token each time');
   });
+
+  test('Commanders: Urabrask, Heretic Praetor — an opponent\'s next draw exiles instead, and they may play it', (mk, t) => {
+    t.auto('Urabrask, Heretic Praetor');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Urabrask, Heretic Praetor');
+    const bolt = M.top('B', 'Lightning Bolt');
+    M.nextTurn('B');
+    t.zone(bolt, 'exile');
+    t.eq(bolt.impulseBy, 'B', 'Urabrask: B may play it');
+    t.eq(bolt.impulseUntil, M.g.turn, 'Urabrask: this turn');
+    t.eq(M.zone('B', 'hand').length, 0, 'Urabrask: the draw-step draw was replaced');
+    // only the next draw: the one after is a draw
+    const elves = M.top('B', 'Llanowar Elves');
+    M.g.drawCards('B', 1);
+    t.zone(elves, 'hand');
+    // the turn after, the replacement is gone
+    M.player('B').drawExiles = [{ turn: M.g.turn - 1, play: true, source: 'x' }];
+    const giant = M.top('B', 'Hill Giant');
+    M.g.drawCards('B', 1);
+    t.zone(giant, 'hand');
+  });
+  test('Commanders: Urabrask, Heretic Praetor — your upkeep: exile the top card, play it this turn', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Urabrask, Heretic Praetor');
+    M.nextTurn('B');
+    const bolt = M.top('A', 'Lightning Bolt');
+    M.nextTurn('A');
+    t.zone(bolt, 'exile');
+    t.eq(bolt.impulseBy, 'A', 'Urabrask: A may play it');
+    t.no((M.player('A').drawExiles || []).length, 'Urabrask: A\'s own draws untouched');
+  });
+
+  test('Commanders: Senu, Keen-Eyed Protector — from exile, onto the battlefield attacking beside an unblocked legend', (mk, t) => {
+    t.auto('Senu, Keen-Eyed Protector');
+    const M = mk({ library: Array(20).fill('Island') });
+    const senu = M.bf('A', 'Senu, Keen-Eyed Protector');
+    // "{T}, Exile Senu: You gain 2 life and scry 2."
+    M.activate('A', senu, 0);
+    t.zone(senu, 'exile');
+    t.eq(M.life('A'), 22, 'Senu: 2 life');
+    const isamaru = M.bf('A', 'Isamaru, Hound of Konda');
+    M.answer('declareAttackers', () => [{ attackerId: isamaru.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.zone(senu, 'battlefield');
+    t.eq(M.life('B'), 20 - 2 - 2, 'Senu: attacking B beside Isamaru');
+  });
+  test('Commanders: Senu, Keen-Eyed Protector — not for a nonlegendary creature, nor a blocked legend, nor from the graveyard', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const senu = M.put('A', 'Senu, Keen-Eyed Protector', 'exile');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.zone(senu, 'exile', 'Senu: a nonlegendary attacker');
+    M.nextTurn('A');
+    const isamaru = M.bf('A', 'Isamaru, Hound of Konda');
+    const wall = M.bf('B', 'Wall of Stone');
+    M.answer('declareAttackers', () => [{ attackerId: isamaru.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [isamaru.id] }]);
+    M.toMain('A', 'endCombat');
+    t.zone(senu, 'exile', 'Senu: Isamaru was blocked');
+    M.nextTurn('A');
+    const grave = M.grave('A', 'Senu, Keen-Eyed Protector');
+    M.answer('declareAttackers', () => [{ attackerId: isamaru.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => []);
+    M.toMain('A', 'endCombat');
+    t.zone(grave, 'graveyard', 'Senu: not from the graveyard');
+    t.zone(senu, 'battlefield', 'Senu: the exiled one comes');
+  });
+
+  test('Commanders: Aminatou, the Fateshifter — −6: each player takes the nonland permanents of the next player in the chosen direction', (mk, t) => {
+    t.auto('Aminatou, the Fateshifter');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const ami = M.bf('A', 'Aminatou, the Fateshifter', { counters: { loyalty: 7 } });
+    const stone = M.bf('A', 'Mind Stone'), forestA = M.bf('A', 'Forest');
+    const bear = M.bf('B', 'Grizzly Bears'), giant = M.bf('C', 'Hill Giant'), forestC = M.bf('C', 'Forest');
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [1] }; });
+    M.activate('A', ami, 2);
+    t.ok(asked && asked.purpose === 'chooseDirection', 'Aminatou: left or right asked');
+    // turn order A → B → C: to the right of A is C, so A takes C's, C takes B's, B takes A's
+    t.eq(giant.controller, 'A', 'Aminatou: A takes C\'s Hill Giant');
+    t.eq(bear.controller, 'C', 'Aminatou: C takes B\'s Grizzly Bears');
+    t.eq(stone.controller, 'B', 'Aminatou: B takes A\'s Mind Stone');
+    t.eq(ami.controller, 'A', 'Aminatou: not Aminatou herself');
+    t.eq(forestA.controller, 'A', 'Aminatou: not a land'); t.eq(forestC.controller, 'C', 'Aminatou: not a land');
+    t.eq(ami.counters.loyalty, 1);
+  });
+  test('Commanders: Aminatou, the Fateshifter — −6 with two players: no direction asked, the permanents swap', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const ami = M.bf('A', 'Aminatou, the Fateshifter', { counters: { loyalty: 6 } });
+    const stone = M.bf('A', 'Mind Stone'), bear = M.bf('B', 'Grizzly Bears');
+    M.activate('A', ami, 2);
+    t.no(M.asked.some(ch => ch.purpose === 'chooseDirection'), 'Aminatou: left and right are the same player');
+    t.eq(bear.controller, 'A'); t.eq(stone.controller, 'B');
+  });
+  test('Commanders: Aminatou, the Fateshifter — bot picks the direction with the most to take', (mk, t) => {
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const ami = M.bf('A', 'Aminatou, the Fateshifter', { counters: { loyalty: 6 } });
+    const bear = M.bf('B', 'Grizzly Bears');
+    const giant = M.bf('C', 'Hill Giant'), angel = M.bf('C', 'Serra Angel');
+    const bot = new M.MTG.bots.BotPlayer(M.g, 'A', 8);
+    M.answer('choose', (ch) => bot.chooseGeneric(ch));
+    M.activate('A', ami, 2);
+    t.eq(giant.controller, 'A', 'bot: right, to C'); t.eq(angel.controller, 'A');
+    t.eq(bear.controller, 'C');
+  });
+
+  test('Commanders: Ultron, Artificial Malevolence — pay {2}: a token copy, a 2/2 Robot Villain creature when it is not one', (mk, t) => {
+    t.auto('Ultron, Artificial Malevolence');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Ultron, Artificial Malevolence');
+    for (let i = 0; i < 6; i++) M.bf('A', 'Wastes');
+    M.answer('confirm', { yes: true });
+    M.cast('A', M.hand('A', 'Mind Stone'));
+    const toks = M.bfOf('A').filter(o => o.isToken && o.name === 'Mind Stone');
+    t.eq(toks.length, 1, 'Ultron: a token copy of Mind Stone');
+    const tok = toks[0], a = tok.analysis();
+    t.ok(a.isCreature && a.isArtifact, 'Ultron: an artifact creature');
+    t.ok(a.subtypes.includes('Robot') && a.subtypes.includes('Villain'), 'Ultron: Robot Villain');
+    t.eq(M.g.powerOf(tok), 2); t.eq(M.g.toughnessOf(tok), 2);
+    // an artifact creature's copy stays as it is
+    M.answer('confirm', { yes: true });
+    M.cast('A', M.hand('A', 'Ornithopter'));
+    const birds = M.bfOf('A').filter(o => o.isToken && o.name === 'Ornithopter');
+    t.eq(birds.length, 1, 'Ultron: a token copy of Ornithopter');
+    t.eq(M.g.powerOf(birds[0]), 0, 'Ultron: still 0/2'); t.no(birds[0].analysis().subtypes.includes('Villain'));
+  });
+  test('Commanders: Ultron, Artificial Malevolence — not for a token, nor itself, nor when declined', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Ultron, Artificial Malevolence');
+    for (let i = 0; i < 4; i++) M.bf('A', 'Wastes');
+    M.answer('confirm', { yes: false });
+    M.cast('A', M.hand('A', 'Mind Stone'));
+    t.no(M.bfOf('A').some(o => o.isToken), 'Ultron: declined, no token');
+    M.mana('A', '2');
+    M.cast('A', M.hand('A', 'Ornithopter'));
+    const n0 = M.bfOf('A').filter(o => o.isToken).length;
+    M.g._createNamedToken('A', { token: 'Treasure', n: 1 });
+    M.resolve();
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name !== 'Treasure').length, n0, 'Ultron: a token artifact does not set it off');
+  });
+
+  test('Commanders: Tannuk, Steadfast Second — artifact and red creature cards in hand have warp {2}{R}', (mk, t) => {
+    t.auto('Tannuk, Steadfast Second');
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', 'Tannuk, Steadfast Second');
+    const giant = M.hand('A', 'Hill Giant'), stone = M.hand('A', 'Mind Stone');
+    const bear = M.hand('A', 'Grizzly Bears'), bolt = M.hand('A', 'Lightning Bolt');
+    const warp = (o) => M.g.altUsesFor('A', o.id).find(u => u.via === 'warp');
+    t.eq((warp(giant) || {}).cost, '{2}{R}', 'Tannuk: a red creature card');
+    t.eq((warp(stone) || {}).cost, '{2}{R}', 'Tannuk: an artifact card');
+    t.no(warp(bear), 'Tannuk: not a green creature card');
+    t.no(warp(bolt), 'Tannuk: not a red instant');
+    t.no(M.g.altUsesFor('B', M.hand('B', 'Hill Giant').id).some(u => u.via === 'warp'), "Tannuk: not B's hand");
+    // warped in: haste from Tannuk, exiled at the end step, castable from exile on a later turn
+    M.mana('A', '2R');
+    M.cast('A', giant, { via: 'warp' });
+    t.zone(giant, 'battlefield');
+    t.ok(M.g.hasKw(giant, 'haste'), 'Tannuk: other creatures have haste');
+    M.nextTurn('B');
+    t.zone(giant, 'exile', 'warp: exiled as the turn ends');
+    M.nextTurn('A');
+    t.ok(M.g.altUsesFor('A', giant.id).some(u => u.via === 'warpExile'), 'warp: cast from exile later');
+  });
 };

@@ -1970,6 +1970,9 @@
     // Warcry Phoenix: "return this card from your graveyard to the battlefield tapped and attacking"
     { re: /^Return (?:this card|CARDNAME) from your graveyard to the battlefield tapped and attacking\.?$/i,
       make: () => ({ op: 'returnSelfFromGrave', tapped: true, attacking: true }) },
+    // Senu, Keen-Eyed Protector: "if this card is exiled, put it onto the battlefield attacking" — beside the one that set it off
+    { re: /^if this card is exiled, put it onto the battlefield attacking\.?$/i,
+      make: () => ({ op: 'returnSelfFromGrave', fromZone: 'exile', attacking: true, besideTrigger: true }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -3026,9 +3029,18 @@
     { re: /^(?:It|CARDNAME) deals X damage to (any target|target [a-z ]+?), where X is the number of ([A-Za-z ]+?) you control\.?$/,
       make: (m) => { const t = tgt(m[1]); const c = countOf(m[2] + ' you control'); return t && c ? { op: 'damage', n: c, targets: [t] } : null; } },
     { re: /^You may play (?:that card|it|those cards|them|the exiled cards?) this turn\.?$/i, make: () => ({ op: 'impulseLast', duration: 'eot' }) },
+    /* Urabrask, Heretic Praetor: "the next time they would draw a card this turn, instead they exile the top card
+       of their library." — a draw replaced, for the player the upkeep is theirs (the next sentence lets them play it) */
+    { re: /^the next time they would draw a card this turn, instead they exile the top card of their library\.?$/i,
+      make: () => ({ op: 'nextDrawExiles', who: 'triggerPlayer' }) },
     { re: /^Choose (?:one of them|one of those cards|one of the exiled cards|a card exiled this way)\.?$/i, make: () => ({ op: 'chooseExiled' }) },
     // Time Stop, Sundial of the Infinite, Ultima (CR 723)
     { re: /^End the turn\.?$/i, make: () => ({ op: 'endTheTurn' }) },
+    /* Aminatou, the Fateshifter: "Choose left or right. Each player gains control of all nonland permanents other
+       than Aminatou controlled by the next player in the chosen direction." */
+    { re: /^Choose left or right\.?$/i, make: () => ({ op: 'chooseDirection' }) },
+    { re: /^Each player gains control of all nonland permanents other than CARDNAME controlled by the next player in the chosen direction\.?$/i,
+      make: () => ({ op: 'passPermanents', what: 'nonland permanent', exceptSelf: true }) },
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
     // Neyali, Suns' Vanguard: "During any turn you attacked with a token, you may play that card." — while it stays exiled
@@ -6287,6 +6299,11 @@
     // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life and you draw a card." — "you" activated it (selfController)
     { re: /^(?:CARDNAME|this creature)'s controller loses (\w+) life and you draw (a card|two cards)\.?$/i,
       make: (m) => [{ op: 'loseLife', who: 'selfController', n: num(m[1]) }, { op: 'draw', who: 'you', n: /two/i.test(m[2]) ? 2 : 1 }] },
+    /* Ultron, Artificial Malevolence: "If the token isn't a creature, it becomes a 2/2 Robot Villain creature in
+       addition to its other types." — the copy just made, for good (ifCopyIs, not) */
+    { re: /^If the token isn'?t a creature, it becomes an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature in addition to its other types\.?$/,
+      make: (m) => ({ op: 'ifCopyIs', what: 'creature', not: true,
+        then: [{ op: 'animate', which: 'lastCopy', pt: m[1] + '/' + m[2], subtypes: m[3], duration: 'permanent' }] }) },
     // Yenna, Redtooth Regent: "If the token is an Aura, untap Yenna, then scry 2." — the copy just made (ifCopyIs)
     { re: /^If the token is an? (Aura|Equipment|creature|artifact|enchantment|land), (.+)$/,
       make: (m) => { const inner = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
@@ -10150,6 +10167,10 @@
          end of your next turn." — the second sentence belongs to each of
          those triggers, not to the spell */
       const prevE = out[out.length - 1];
+      // Urabrask, Heretic Praetor: "They may play it this turn." — the card the replaced draw exiles
+      if (e && e.op === 'manual' && prevE && prevE.op === 'nextDrawExiles' && /^They may play it this turn\.?$/i.test(String(e.text || ''))) {
+        prevE.play = true; continue;
+      }
       if (e && prevE && prevE.op === 'getEmblem' && prevE.thisTurn && !prevE.once &&
           /^You may (?:play|cast) (?:it|that card|those cards|them)\b/i.test(String(e.text || ''))) {
         const joined = String(prevE.emblemText || '').replace(/\.?$/, '. ') + String(e.text).trim().replace(/\.?$/, '.');
@@ -11163,6 +11184,10 @@
   }
 
   const TRIGGER_PATTERNS = [
+    /* Senu, Keen-Eyed Protector: "When a legendary creature you control attacks and isn't blocked, if this card is
+       exiled, put it onto the battlefield attacking." — a trigger that works from exile, and only there (fromExile) */
+    { re: /^When(?:ever)? (an? [a-z ]+? you control) attacks and isn'?t blocked,? (?=if this card is exiled,)/i, event: 'attacksUnblocked',
+      filt: (m) => subjectFilter(m[1]), extra: { fromExile: true } },
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
@@ -14281,6 +14306,8 @@
       if (ab.kind !== 'triggered' || !ab.text) continue;
       // (Orvar: discarded by an opponent's effect — the trigger says so itself)
       if (ab.fromGraveyard) { out.graveTriggers = true; continue; }
+      // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile only)
+      if (ab.fromExile) { out.exileTriggers = true; continue; }
       if (/^When(?:ever)? (?:this creature|CARDNAME|this card) (?:dies|is put into)/i.test(ab.text)) continue;
       if (/\b(?:return|exile) (?:this card|CARDNAME) from your graveyard\b|\b(?:if|while) (?:this card|CARDNAME) is in your graveyard\b/i.test(ab.text)) {
         ab.fromGraveyard = true;
@@ -16590,6 +16617,9 @@
       // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."
       { re: /^Each instant and sorcery card in your graveyard has flashback\. The flashback cost is equal to that card'?s mana cost\.?$/i,
         eff: { op: 'grantFlashbackInstSorc' }, auto: true },
+      // Tannuk, Steadfast Second: "Artifact cards and red creature cards in your hand have warp {2}{R}." (grantWarp)
+      { re: /^([a-z]+(?: [a-z]+)?) cards(?: and ([a-z]+(?: [a-z]+)?) cards)? in your hand have warp ((?:\{[^}]+\})+)\.?$/i,
+        make: (m) => ({ op: 'grantWarp', words: [m[1], m[2]].filter(Boolean).map(w => w.toLowerCase()), cost: m[3] }), auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality
