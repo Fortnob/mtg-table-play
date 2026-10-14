@@ -3239,7 +3239,10 @@
     }
     /** Narset, Parter of Veils: may this player draw another card this turn? */
     _drawLimited(p) {
-      if (!p || !((p.drawnThisTurn || 0) >= 1)) return false;
+      if (!p) return false;
+      // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
+      if (this.battlefield.some(x => !x.phasedOut && this._staticOp(x, 'noDraws'))) return true;
+      if (!((p.drawnThisTurn || 0) >= 1)) return false;
       return this.battlefield.some(x => {
         if (x.phasedOut) return false;
         const e = this._staticOp(x, 'drawLimitOne');
@@ -15287,7 +15290,7 @@
       };
       for (let i = 0; left > 0; i++) {
         // Narset, Parter of Veils: no more than one card each turn
-        if (this._drawLimited(p)) { this.logEvent('draw', `${p.name} can't draw more than one card this turn.`); break; }
+        if (this._drawLimited(p)) { this.logEvent('draw', this._anyStatic('noDraws') ? `${p.name} can't draw cards.` : `${p.name} can't draw more than one card this turn.`); break; }
         /* Notion Thief: any draw but the first in their own draw step is skipped, and the
            Thief's controller draws instead (two Thieves facing each other stop somewhere) */
         const firstOfStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
@@ -19442,6 +19445,15 @@
           break;
         }
 
+        /* Jace, Multiverse Architect: "If they don't, creatures they control can't attack Jaces you control this
+           turn." — the player whose turn it is, for this turn (noAttackOn, walkerType) */
+        case 'noAttackWalkersTurn': {
+          const q = triggerPlayer();
+          if (!q || q.id === ctx.controller) break;
+          (q.noAttackOn = q.noAttackOn || []).push({ who: ctx.controller, on: this.turn, walkerType: e.walkerType });
+          this.logEvent('rules', `${q.name}'s creatures can't attack ${e.walkerType.charAt(0).toUpperCase() + e.walkerType.slice(1)}s ${me.name} controls this turn.`);
+          break;
+        }
         /* Krark, the Thumbless: "If you lose the flip, return that spell to its owner's hand." — off the stack,
            uncast, if it is still there */
         case 'bounceThatSpell': {
@@ -20292,7 +20304,9 @@
           const seeker = e.who === 'targetController' ? (diedCtl || this._lastAffectedController() || me)
             : e.who === 'player' ? (this.player(e.pid) || me)
             // Varragoth: "Target player searches their library for a card"
-            : e.who === 'target' ? (firstPlayer() || me) : me;
+            : e.who === 'target' ? (firstPlayer() || me)
+            // Maralen of the Mornsong: "that player … searches their library" — whose draw step it is
+            : e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
           // Stranglehold: no searching for its controller's opponents (the library is still shuffled, as the effect says)
           if (this.battlefield.some(o => !o.phasedOut && o.controller !== seeker.id && this._staticOp(o, 'noSearch'))) {
             this.logEvent('rules', `${seeker.name} can't search libraries.`);
@@ -30241,8 +30255,12 @@
       if (ownerRule && (!walker || ownerRule.walkers)) return { src: o, who: walker ? 'planeswalkers ' + def.name + ', its owner, controls' : def.name + ', its owner' };
       // The Second Doctor: "can't attack you or permanents you control during their next turn" (noAttackOn)
       const atkP = this.player(o.controller);
-      const civil = atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id);
+      const civil = atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id && !r.walkerType);
       if (civil) return { src: o, who: walker ? 'permanents ' + def.name + ' controls' : def.name };
+      // Jace, Multiverse Architect: "creatures they control can't attack Jaces you control this turn" (walkerType)
+      const pwDef = walker ? this.obj(defenderId) : null;
+      const onlyWalker = pwDef && atkP && (atkP.noAttackOn || []).find(r => r.on === this.turn && r.who === def.id && r.walkerType && this._cardFitsWords(pwDef, r.walkerType));
+      if (onlyWalker) return { src: pwDef, who: pwDef.name };
       // Promise of Loyalty: not the vow's maker, for as long as the vow counter stays
       if (o._vowTo === def.id && (Number(o.counters.vow) || 0) > 0) return { src: o, who: walker ? 'planeswalkers ' + def.name + ' controls' : def.name };
       const oa = o.analysis();

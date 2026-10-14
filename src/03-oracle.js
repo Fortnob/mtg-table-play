@@ -1964,6 +1964,9 @@
     { re: /^Detain (target [a-z ]+?)\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'sequence', list: [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', targets: [t] },
         { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: 'lastTarget' }] } : null; } },
+    // Jace, Multiverse Architect: "Creatures they control can't attack Jaces you control this turn." (noAttackWalkersTurn)
+    { re: /^Creatures they control can'?t attack ([A-Z][a-z]+)s you control this turn\.?$/,
+      make: (m) => ({ op: 'noAttackWalkersTurn', walkerType: m[1].toLowerCase() }) },
     // Lavinia of the Tenth: "detain each nonland permanent your opponents control with mana value 4 or less"
     { re: /^Detain (each [a-z ]+? (?:your opponents|an opponent) controls?(?: with mana value \d+ or less)?)\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc && sc.who === 'opponents' ? { op: 'sequence', list: [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', scope: sc },
@@ -2536,7 +2539,8 @@
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
-    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
+    { re: /^Put (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) ([+\-]\d\/[+\-]\d|(?:first|double) strike|[a-z]+) counters? on ((?:another )?target [a-zA-Z ]+(?:don'?t control)?|it|this creature|this (?:enchantment|artifact|permanent|land|Vehicle|Spacecraft)|CARDNAME)\.?$/i,
+      // (Gwafa Hazid, Profiteer: "on target creature you don't control")
       /* (a target is never this permanent: "target creature with flying", "… that entered this turn" hold
          "it" and "this" in their words, which made them read as "on this creature" — Cathedral Acolyte) */
       make: (m) => ({ op: 'counters', kind: m[2], n: /^an$/i.test(m[1]) ? 1 : /^x$/i.test(m[1]) ? 'X' : num(m[1]), targets: /target/.test(m[3]) ? [targetSpec(m[3])] : null, scope: /target/.test(m[3]) ? null : 'self' }) },
@@ -5580,6 +5584,19 @@
         const k = amountOf(m[2]);
         return k == null ? null : [{ op: 'draw', n: 1, who: 'you' },
           { op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: k, tapped: true, attacking: true }];
+      } },
+    /* Maralen of the Mornsong: "that player loses 3 life, searches their library for a card, puts it into their hand,
+       then shuffles." — the player whose draw step it is, and their own choice of card */
+    { re: /^that player loses (\d+) life, searches their library for a card, puts it into their hand, then shuffles\.?$/i,
+      make: (m) => [{ op: 'loseLife', n: +m[1], who: 'triggerPlayer' },
+        { op: 'tutor', n: 1, filter: 'any', to: 'hand', who: 'triggerPlayer', prompt: 'Search your library for a card to put into your hand.' }] },
+    /* Jhoira, Ageless Innovator: "Put two ingenuity counters on Jhoira, then you may put an artifact card with mana value
+       X or less from your hand onto the battlefield, where X is the number of ingenuity counters on Jhoira." (maxMv) */
+    { re: /^Put (a|an|one|two|three) ([a-z]+) counters? on CARDNAME, then you may put an? ([a-z]+) card with mana value X or less from your hand onto the battlefield, where X is (the number of [a-z]+ counters on CARDNAME)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[4]);
+        return k == null ? null : [{ op: 'counters', kind: m[2].toLowerCase(), n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), scope: 'self' },
+          { op: 'permanentFromHand', filter: m[3].toLowerCase(), who: 'you', maxMv: k }];
       } },
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
@@ -9580,6 +9597,11 @@
     { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
       make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
+    /* Myrkul, Lord of Bones: "you may exile it. If you do, create a token that's a copy of that card, except it's an
+       enchantment and loses all other card types." — its supertypes and abilities kept (setCardTypes) */
+    { re: /^([Yy]ou may e|[Ee])xile it\. If you do, create a token that'?s a copy of that (?:creature|card), except it'?s an? (artifact|enchantment) and (?:it )?loses all other card types\.?$/,
+      make: (m) => { const e = { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, grant: [], setCardTypes: U.titleCase(m[2]) };
+        return /^you may/i.test(m[1]) ? [{ op: 'may', then: [{ op: 'exileTriggerCard' }, e] }] : [{ op: 'exileTriggerCard' }, e]; } },
     /* Hofri Ghostforge: "exile it. If you do, create a token that's a copy of that creature, except it's a Spirit in
        addition to its other types and it has 'When this token leaves the battlefield, return the exiled card to its
        owner's graveyard.'" — the copy only once the card was exiled (ifExiled), and it holds that card (holdExiled) */
@@ -18674,6 +18696,8 @@
       // Barbara Wright: "Sagas you control have read ahead." (grantReadAhead)
       { re: /^Sagas you control have read ahead\.?$/i, eff: { op: 'grantReadAhead' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
+      // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
+      { re: /^Players can'?t draw cards\.?$/i, eff: { op: 'noDraws', who: 'each' }, auto: true },
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
       { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
         make: (m) => ({ op: 'drawLimitOne', who: /player/i.test(m[1]) ? 'each' : 'opponents' }), auto: true },
