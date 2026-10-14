@@ -28794,4 +28794,40 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Swords to Plowshares'), { targets: [mer.id] });
     t.zone(mer, 'exile', 'Kopala: only opponents');
   });
+
+  test('Commanders: The Gitrog, Ravenous Ride — combat damage: sacrifice what saddled it, draw X and put up to X lands from hand', (mk, t) => {
+    t.auto('The Gitrog, Ravenous Ride');
+    const M = mk({ library: Array(30).fill('Island') });
+    const gi = M.bf('A', 'The Gitrog, Ravenous Ride');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const other = M.bf('A', 'Hill Giant', { tapped: true });
+    const f1 = M.hand('A', 'Forest'), f2 = M.hand('A', 'Forest'), f3 = M.hand('A', 'Mountain');
+    M.activate('A', gi, 0, { tapped: [{ kind: 'object', id: bear.id }] });
+    t.ok(bear.tapped, 'Gitrog: the Grizzly Bears saddled it');
+    let offered = null, picked = null;
+    M.answer('sacrifice', (ch) => { offered = ch; return { cardIds: [bear.id] }; });
+    M.answer('pickCard', (ch) => { picked = ch; return { cardIds: [f1.id, f3.id] }; });
+    M.answer('declareAttackers', () => [{ attackerId: gi.id, defenderId: 'B' }]);
+    const hand0 = M.zone('A', 'hand').length;
+    toMain2(M);
+    t.eq(M.life('B'), 14, 'Gitrog: 6 combat damage');
+    t.ok(offered && offered.optional && offered.candidates.length === 1 && offered.candidates[0] === bear.id, 'Gitrog: only what saddled it, and you may');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Gitrog: one question, not a yes/no first');
+    t.zone(bear, 'graveyard', 'Gitrog: the Grizzly Bears sacrificed');
+    t.eq(picked && picked.count, 2, 'Gitrog: up to X = 2 lands');
+    t.zone(f1, 'battlefield'); t.zone(f3, 'battlefield'); t.zone(f2, 'hand');
+    t.ok(f1.tapped && f3.tapped, 'Gitrog: tapped');
+    t.eq(M.zone('A', 'hand').length, hand0 + 2 - 2, 'Gitrog: two cards drawn, two lands out');
+    t.zone(other, 'battlefield');
+  });
+  test('Commanders: The Gitrog, Ravenous Ride — not saddled this turn: nothing to sacrifice, nothing asked', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const gi = M.bf('A', 'The Gitrog, Ravenous Ride');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.answer('declareAttackers', () => [{ attackerId: gi.id, defenderId: 'B' }]);
+    toMain2(M);
+    t.eq(M.life('B'), 14);
+    t.no(M.asked.some(ch => ch.type === 'sacrifice'), 'Gitrog: no creature saddled it');
+    t.zone(bear, 'battlefield');
+  });
 };

@@ -19841,6 +19841,8 @@
             const pool = this.zones[p.id].hand.filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
+            // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
+            if (!e.any && e.n != null && typeof e.n === 'object' && !(n(e.n) > 0)) continue;
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
             /* "You may put", "any number", "up to two" are choices; a card that
                says only "put a creature card from your hand onto the battlefield"
@@ -22996,6 +22998,9 @@
         case 'saddled':
           if (!src || src.zone !== 'battlefield') break;
           src.saddledTurn = this.turn;
+          // The Gitrog, Ravenous Ride: "a creature that saddled it this turn" — the ones tapped for it
+          src.saddledBy = { turn: this.turn, ids: ((src.saddledBy && src.saddledBy.turn === this.turn && src.saddledBy.ids) || [])
+            .concat((ctx.tapped || []).map(t => t.id)) };
           this.logEvent('rules', `${src.name} is saddled.`);
           this._fire('becomesSaddled', src.controller, { source: src, object: src });
           break;
@@ -23314,7 +23319,10 @@
         }
         /* Victimize: sacrifice, and only if you did, the rest happens */
         case 'sacThen': {
-          const pool = this._sacrificePool(ctx.controller, { filter: e.filter || 'creature', another: !!e.other }, src);
+          let pool = this._sacrificePool(ctx.controller, { filter: e.filter || 'creature', another: !!e.other }, src);
+          // The Gitrog, Ravenous Ride: "a creature that saddled it this turn" (saddledSelf)
+          const sb = e.saddledSelf && src && src.saddledBy && src.saddledBy.turn === this.turn ? src.saddledBy.ids : null;
+          if (e.saddledSelf) pool = pool.filter(o => (sb || []).includes(o.id));
           /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, …" — which one, or none, is
              the one question (optional); with nothing to sacrifice, none is asked (come back to with the answer, the
              pool may be empty: the last one was what went) */
@@ -23324,7 +23332,7 @@
             const tail = (String(e.text || '').match(/\bWhen you do, ([^\n]+)/i) || [])[1];
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true, filter: e.filter || 'creature',
               candidates: pool.map(o => o.id), purpose: 'sacrificeForReward',
-              prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.saddledSelf ? 'a creature that saddled it this turn' : e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
                 (tail ? ' When you do, ' + tail.replace(/\s*[-—]+\s*$/, '.') : '') }, 'osac');
             if (got === SUSPEND) return SUSPEND;
             const madeIt = (this._sacCount || 0) > ctx._sacBefore;

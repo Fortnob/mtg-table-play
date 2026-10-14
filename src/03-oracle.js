@@ -4584,6 +4584,15 @@
     { re: /^You gain (\d+) life, draw (\w+) cards, then put up to (\w+) permanent cards from your hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'gainLife', who: 'you', n: +m[1] }, { op: 'draw', who: 'you', n: num(m[2]) },
         { op: 'permanentFromHand', n: num(m[3]), filter: 'any', who: 'you' }] }) },
+    /* The Gitrog, Ravenous Ride: "draw X cards, then put up to X land cards from your hand onto the battlefield
+       tapped, where X is the sacrificed creature's power" */
+    { re: /^Draw X cards, then put up to X ([a-z]+ )?cards from your hand onto the battlefield( tapped)?, where X is (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[3]);
+        if (!k || typeof k !== 'object') return null;
+        return { op: 'sequence', list: [{ op: 'draw', who: 'you', n: k },
+          Object.assign({ op: 'permanentFromHand', n: k, filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'you' }, m[2] ? { tapped: true } : {})] };
+      } },
     { re: /^(?:[Yy]ou may )?[Pp]ut up to (two|three|four|five|six|seven) ([-a-z, ]*?)cards from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}) },
     /* Lively Dirge: "Return up to two creature cards with total mana value 4
@@ -9268,6 +9277,17 @@
         const then = parseSentenceList(splitSentences(U.titleCase(theyDo[1].charAt(0)) + theyDo[1].slice(1)));
         if (!then.auto) auto = false;
         effects.push({ op: 'giveSelf', targets: [{ type: 'player', opponent: /opponent/i.test(giveTo[1]) }], then: then.effects, text: s + ' ' + next });
+        i++;
+        continue;
+      }
+
+      /* The Gitrog, Ravenous Ride: "you may sacrifice a creature that saddled it this turn. If you do, …" — one
+         question, among the creatures tapped to saddle it (saddledSelf) */
+      const sadSac = /^(?:Then )?you may sacrifice a creature that saddled (?:it|CARDNAME|this creature) this turn\.$/i.test(s) && next.match(/^If you do,\s*(.+)$/i);
+      if (sadSac) {
+        const then = parseSentenceList(splitSentences(U.titleCase(sadSac[1].charAt(0)) + sadSac[1].slice(1)));
+        if (!then.auto) auto = false;
+        effects.push({ op: 'sacThen', filter: 'creature', saddledSelf: true, optional: true, then: then.effects, text: s + ' ' + next });
         i++;
         continue;
       }
