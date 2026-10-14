@@ -1652,8 +1652,9 @@
     { re: /^Put target (artifact or creature|creature|artifact) card from a graveyard onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard' })] }) },
     // Wrong Turn, Harmless Offering: "Target opponent gains control of target creature (you control)."
-    { re: /^Target (opponent|player) gains control of (target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
-      make: (m) => ({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, targetSpec(m[2])] }) },
+    // (Jon Irenicus, Shattered One: "of up to one target creature you control")
+    { re: /^Target (opponent|player) gains control of (up to one )?(target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
+      make: (m) => ({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, Object.assign(targetSpec(m[3]), m[2] ? { upTo: true } : {})] }) },
     /* Alexios, Deimos of Kosmos: "that player gains control of Alexios, untaps it, and puts a +1/+1 counter
        on it" — the player whose upkeep it is, and Alexios itself (giveControl toTrigger) */
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
@@ -1663,6 +1664,10 @@
        untap Slicer, goad it, and it can't be sacrificed this turn." — whose upkeep it is */
     { re: /^Have that player gain control of CARDNAME until end of turn\.?$/i,
       make: () => ({ op: 'giveControl', to: 'triggerPlayer', self: true, until: 'eot' }) },
+    /* Jon Irenicus, Shattered One: "It's goaded for the rest of the game and it gains "This creature can't be
+       sacrificed."" — the creature just given away, goaded by you for good (goad forever, restrict permanent) */
+    { re: /^It'?s goaded for the rest of the game and it gains "This creature can'?t be sacrificed\."\.?$/i,
+      make: () => [{ op: 'goad', scope: 'lastTarget', forever: true }, { op: 'restrict', flag: 'unsacrificable', scope: 'lastTarget', duration: 'permanent' }] },
     { re: /^Untap CARDNAME, goad it, and it can'?t be sacrificed this turn\.?$/i,
       make: () => [{ op: 'untap', scope: 'self' }, { op: 'goad', scope: 'self' }, { op: 'restrict', flag: 'unsacrificable', scope: 'self' }] },
     // Varchild, Betrayer of Kjeldor: "gain control of all Survivors" — whoever controls them (stealAll, words)
@@ -4119,6 +4124,10 @@
     { re: /^You may cast any number of (?:spells|instant and\/or sorcery spells)( with mana value (X|\d+) or less)? from among (?:them|those cards|the nonland cards exiled this way|cards exiled this way|the exiled cards) without paying their mana costs\.?$/i,
       make: (m) => Object.assign({ op: 'castFree' }, m[2] ? { maxMv: num(m[2]) } : {},
         /instant and\/or sorcery/i.test(m[0]) ? { filter: 'instant or sorcery' } : {}) },
+    /* Velomachus Lorehold: "You may cast an instant or sorcery spell with mana value less than or equal to Velomachus
+       Lorehold's power from among them without paying its mana cost." — the cards looked at, one picked or none (pickOne) */
+    { re: /^You may cast an? (instant or sorcery|instant|sorcery|creature|artifact|enchantment|noncreature|nonland|permanent) spell with mana value less than or equal to (CARDNAME'?s power|CARDNAME'?s toughness) from among them without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'looked', upTo: 1, pickOne: true, filter: m[1].toLowerCase(), maxMv: { ofSelf: /power/i.test(m[2]) ? 'power' : 'toughness' } }) },
     { re: /^You may cast (?:a|up to one) spell( with mana value (X|\d+) or less)? from among (?:them|those cards|the revealed cards|cards revealed this way|the exiled cards|cards exiled this way) without paying its mana cost\.?$/i,
       // (Sunbird's Invocation: cards revealed, not exiled — the ones just looked at)
       make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {},
@@ -11947,6 +11956,8 @@
     [/^you'?ve cast another spell this turn$/i, () => ({ kind: 'castAnotherSpell' })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
+    // Brimaz, Blight of Oreskos: "a Phyrexian died under your control this turn" (diedTypeYours)
+    [/^an? ([A-Z][a-z]+) died under your control this turn$/, (m) => ({ kind: 'diedTypeYours', type: m[1] })],
     // Banishing Slash: "you control an artifact and an enchantment"
     [/^you control an? ([a-z]+) and an? ([a-z]+)$/i, (m) => [{ kind: 'control', what: m[1].toLowerCase(), n: 1 }, { kind: 'control', what: m[2].toLowerCase(), n: 1 }]],
     // Ana Sanctuary: "you control a blue permanent and a black permanent" — each half as a condition of its own (controlBoth)
@@ -12756,6 +12767,8 @@
        We Ride at Dawn, Nakia: "your commander attacks / enters" */
     { re: /^Whenever a commander you control enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: 'control' }) },
     { re: /^Whenever a commander you control attacks,? /i, event: 'permAttacks', filt: () => ({ commander: 'control' }) },
+    // Jon Irenicus, Shattered One: "Whenever a creature you own but don't control attacks," (owned, who opponent)
+    { re: /^Whenever a creature you own but don'?t control attacks,? /i, event: 'permAttacks', filt: () => ({ words: 'creature', owned: true, who: 'opponent' }) },
     { re: /^Whenever a commander you control enters,? /i, event: 'permEnters', filt: () => ({ commander: 'control' }) },
     /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the command zone
        (commanderDies), or into the graveyard when it stays there */
@@ -18732,6 +18745,9 @@
         make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase().replace(' and ', ' or '), cost: m[2] }), auto: true },
       { re: /^Each ([a-z]+) card in your hand has miracle\. Its miracle cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
         make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase(), less: +m[2] }), auto: true },
+      // Molecule Man: "Nonland cards in your hand have miracle {0}." — a cost of its own (grantMiracle cost)
+      { re: /^([A-Za-z]+) cards in your hand have miracle ((?:\{[0-9WUBRGC]\})+)\.?$/,
+        make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase(), cost: m[2] }), auto: true },
       /* Maralen, Fae Ascendant: "Once each turn, you may cast a spell with mana value less than or equal to the number
          of Elves and Faeries you control from among cards exiled with Maralen this turn without paying its mana
          cost." (castExiledWithFree) */

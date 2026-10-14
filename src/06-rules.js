@@ -5492,16 +5492,16 @@
         let s = null;
         for (const x of this.battlefield) {
           const g0 = x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantMiracle');
-          if (g0 && !g0.cost && this._cardFitsWords(o, g0.words)) { s = g0; break; }
+          if (g0 && g0.cost == null && this._cardFitsWords(o, g0.words)) { s = g0; break; }
         }
         if (s) arg = String(a.manaCost || '').replace(/\{(\d+)\}/, (w, k) => (+k > s.less ? '{' + (+k - s.less) + '}' : ''));
       }
-      /* Lorehold, the Historian: "Each instant and sorcery card in your hand has miracle {2}." — a cost of its own;
-         with a miracle printed as well, the cheaper of the two */
+      /* Lorehold, the Historian: "Each instant and sorcery card in your hand has miracle {2}."; Molecule Man: "Nonland
+         cards in your hand have miracle {0}." — a cost of its own; with a miracle printed as well, the cheaper of the two */
       if (a && o.zone === 'hand') {
         for (const x of this.battlefield) {
           const g1 = x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantMiracle');
-          if (!g1 || !g1.cost || !this._cardFitsWords(o, g1.words)) continue;
+          if (!g1 || g1.cost == null || !this._cardFitsWords(o, g1.words)) continue;
           if (arg == null || MANA.cmc(String(arg).replace(/\{X\}/g, '')) > MANA.cmc(g1.cost)) arg = g1.cost;
         }
       }
@@ -13034,6 +13034,8 @@
           }
           return !!by['sub:*'] || (cond.types || []).some(t => (by['sub:' + t] || 0) > 0);
         }
+        // Brimaz, Blight of Oreskos: "a Phyrexian died under your control this turn"
+        case 'diedTypeYours': { const dt = ((((this.turnHistory || {}).diedTypes) || {})[me ? me.id : '']) || []; return dt.includes('*') || dt.includes(cond.type); }
         case 'diedYoursThisTurn': return ((((this.turnHistory || {}).diedBy) || {})[me ? me.id : ''] || 0) >= (cond.n || 1);
         case 'moreLifeThanAnOpponent': return !!me && this.opponentsOf(me.id).some(p => !p.hasLost && p.life < me.life);
         case 'greatestPowerYours': {
@@ -14326,6 +14328,13 @@
           // Ebondeath, Dracolich: "a creature not named …" — the names of the ones that died (morbidOtherName)
           h.diedNames = h.diedNames || [];
           if (!h.diedNames.includes(o.name)) h.diedNames.push(o.name);
+          // Brimaz, Blight of Oreskos: "if a Phyrexian died under your control this turn" — the creature types it died with (diedTypes)
+          const dt = (h.diedTypes = h.diedTypes || {})[o.controller] = (h.diedTypes[o.controller] || []);
+          if (this.hasKw(o, 'changeling')) { if (!dt.includes('*')) dt.push('*'); }
+          else {
+            const dc = this.characteristics(o) || {};
+            for (const st of (dc.setSubtypes || (wasA.subtypes || []).concat(dc.addSubtypes || []))) if (!dt.includes(st)) dt.push(st);
+          }
         }
         // Vren, the Relentless: "creatures that were exiled under your opponents' control this turn" (exiledBy)
         if (wasA && wasA.isCreature && toZone === 'exile') { h.exiledBy = h.exiledBy || {}; h.exiledBy[o.controller] = (h.exiledBy[o.controller] || 0) + 1; }
@@ -24463,13 +24472,16 @@
           break;
         case 'restrict':
           applyToScope(e, (o) => {
-            o.effects.push(e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller } : { flag: e.flag, until: 'eot' });
+            // (Jon Irenicus, Shattered One: "it gains "This creature can't be sacrificed."" — for as long as it stays: permanent)
+            o.effects.push(e.duration === 'nextTurn' ? { flag: e.flag, until: null, untilTurnOf: ctx.controller }
+              : e.duration === 'permanent' ? { flag: e.flag, until: null } : { flag: e.flag, until: 'eot' });
             this.logEvent('rules', `${o.name}: ${FLAG_WORDS[e.flag] || e.flag}.`);
           });
           break;
 
         case 'goad':
-          applyToScope(e, (o) => { o.goadedBy = ctx.controller; this.logEvent('rules', `${o.name} is goaded.`); });
+          // (Jon Irenicus, Shattered One: "goaded for the rest of the game" — forever)
+          applyToScope(e, (o) => { o.goadedBy = ctx.controller; if (e.forever) o.goadForever = ctx.controller; this.logEvent('rules', `${o.name} is goaded${e.forever ? ' for the rest of the game' : ''}.`); });
           break;
 
         case 'noUntap':
@@ -24762,6 +24774,22 @@
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
             if (r) { r.marks[slot] = pool; r.marks[slot + 'n'] = 0; }
           }
+          /* Velomachus Lorehold: "You may cast an instant or sorcery spell … from among them" — one pick among the
+             cards that may be cast, which may be left empty; nothing to pick, nothing asked (pickOne) */
+          if (e.pickOne && Array.isArray(pool) && !(r && r.marks[slot + 'picked'])) {
+            const mv1 = e.maxMv == null ? null : n(e.maxMv);
+            const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && !(c.analysis() || {}).isLand &&
+              (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1));
+            let picks = [];
+            if (able.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'library', items: this._chooseItems(able),
+                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among them without paying its mana cost.` }, 'cfp');
+              if (got === SUSPEND) return SUSPEND;
+              picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
+            }
+            pool = picks;
+            if (r) { r.marks[slot] = pool; r.marks[slot + 'picked'] = true; }
+          }
           if (pool === SUSPEND) { if (r) delete r.marks[slot]; return SUSPEND; }
           const most = e.upTo == null ? Infinity : n(e.upTo);
           const maxMv = e.maxMv == null ? null : n(e.maxMv);
@@ -24794,7 +24822,7 @@
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
-            const yes = e.must || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
                 : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
