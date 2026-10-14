@@ -4160,6 +4160,7 @@
       if ((leave && leave.payLife) || (!opts && o.zone === 'exile' && o.impulsePayLife === playerId && this._impulseOpen(o, playerId))) {
         const mv = MANA.cmc(a.manaCost || '');
         if (p.life < mv || (mv > 0 && this._lifeFrozen(p))) return { ok: false, reason: 'Not enough life.' };
+        if (mv > 0 && this._lifeSacCostBan()) return { ok: false, reason: `${this._lifeSacCostBan().name}: life can't be paid to cast spells.` };
         return { ok: true, cost: '', lifeInstead: mv };
       }
       // Omniscience: without paying the mana cost, which leaves the taxes and Trinisphere's floor (CR 601.2f), shown as the cast will charge them
@@ -4253,6 +4254,8 @@
     _lifePayable(p) {
       if (!p) return 0;
       if (this._lifeFrozen(p)) return 0;
+      // (Yasharn, Implacable Earth: no life for Phyrexian mana either)
+      if (this._lifeSacCostBan()) return 0;
       return Math.max(0, p.life);
     }
     _lifeFrozen(p) {
@@ -4910,7 +4913,7 @@
           if (alt.tapCreatures && this._tapCostPool(playerId, alt.tapCreatures, o).length < (alt.tapCreatures.n || 1)) return;
           if (alt.exileFromHand && this._discardPool(playerId, alt.exileFromHand, o).length < (alt.exileFromHand.n || 1)) return;
           const me = this.player(playerId);
-          if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me))) return;
+          if (alt.life && (!me || me.life < alt.life || this._lifeFrozen(me) || this._lifeSacCostBan())) return;
           out.push({ kind: 'cast', via: 'alt' + i, cost: alt.mana || '', alt, label: alt.label });
         });
       }
@@ -8210,19 +8213,35 @@
       return n == null ? 1 : n;
     }
 
+    /** Yasharn, Implacable Earth: "Players can't pay life or sacrifice nonland permanents to cast spells or activate abilities." — the permanent that says so */
+    _lifeSacCostBan() {
+      return this.battlefield.find(o => !o.phasedOut && this._staticOp(o, 'noLifeSacCosts')) || null;
+    }
+    /** What a cost's "Sacrifice a …" may take: under Yasharn, lands only. */
+    _costSacPool(pid, spec, self) {
+      const pool = this._sacrificePool(pid, spec, self);
+      return this._lifeSacCostBan() ? pool.filter(x => (x.analysis() || {}).isLand) : pool;
+    }
     /** Why these card costs cannot be paid right now, or null if they can. */
     _thingCostBlocked(pid, cost, self, opts) {
       if (!cost) return null;
       const p = this.player(pid);
+      // Yasharn, Implacable Earth: no life, and no nonland permanent sacrificed, to cast spells or activate abilities
+      const ban = (cost.sacSelf || cost.life || cost.lifePower || cost.lifeFrom) && this._lifeSacCostBan();
+      if (ban) {
+        if (cost.sacSelf && self && !(self.analysis() || {}).isLand) return `${ban.name}: nonland permanents can't be sacrificed to cast spells or activate abilities.`;
+        const lifeK = cost.life === 'X' ? ((opts && opts.x) || 0) : (Number(cost.life) || 0);
+        if (lifeK > 0 || cost.lifePower || cost.lifeFrom) return `${ban.name}: life can't be paid to cast spells or activate abilities.`;
+      }
       if (cost.sacrifice) {
         const need = this._costCount(cost.sacrifice.n, opts);
-        if (this._sacrificePool(pid, cost.sacrifice, self).length < need)
+        if (this._costSacPool(pid, cost.sacrifice, self).length < need)
           return `Nothing to sacrifice (${cost.sacrifice.filter || 'permanent'}).`;
       }
       /* Viscerid Drone: "Sacrifice a creature and a Swamp" — enough of each, and
          enough different permanents for both together (sacrificeAlso) */
       if (cost.sacrifice && cost.sacrificeAlso) {
-        const a1 = this._sacrificePool(pid, cost.sacrifice, self), a2 = this._sacrificePool(pid, cost.sacrificeAlso, self);
+        const a1 = this._costSacPool(pid, cost.sacrifice, self), a2 = this._costSacPool(pid, cost.sacrificeAlso, self);
         const n2 = this._costCount(cost.sacrificeAlso.n, opts);
         if (a2.length < n2) return `Nothing to sacrifice (${cost.sacrificeAlso.filter}).`;
         if (new Set(a1.concat(a2)).size < this._costCount(cost.sacrifice.n, opts) + n2)
@@ -8309,10 +8328,10 @@
         playerId: pid, purpose: 'cost', stackId: item ? item.id : null, sourceId: self ? self.id : null,
       }, choice));
       if (cost.sacrifice) {
-        let pool = this._sacrificePool(pid, cost.sacrifice, self);
+        let pool = this._costSacPool(pid, cost.sacrifice, self);
         /* Viscerid Drone: the first part never takes what the second part
            needs — only what leaves enough for it (sacrificeAlso) */
-        const also = cost.sacrificeAlso ? this._sacrificePool(pid, cost.sacrificeAlso, self) : null;
+        const also = cost.sacrificeAlso ? this._costSacPool(pid, cost.sacrificeAlso, self) : null;
         const n2 = also ? this._costCount(cost.sacrificeAlso.n, opts) : 0;
         if (also) pool = pool.filter(x => also.filter(y => y !== x).length >= n2);
         const need = Math.min(pool.length, this._costCount(cost.sacrifice.n, opts));
@@ -8330,7 +8349,7 @@
         if (pick) this._sacrificeNow(pid, pick, item);
         // the second part, from what is left (asked after the first is answered)
         if (also) {
-          const pool2 = this._sacrificePool(pid, cost.sacrificeAlso, self).filter(x => !(pick || []).includes(x));
+          const pool2 = this._costSacPool(pid, cost.sacrificeAlso, self).filter(x => !(pick || []).includes(x));
           const need2 = Math.min(pool2.length, n2);
           let pick2 = (opts.sacrificeAlsoIds || []).map(id => pool2.find(x => x.id === id)).filter(Boolean).slice(0, need2);
           if (need2 > 0 && pick2.length < need2) {
@@ -9285,6 +9304,8 @@
       if (c.untap && !o.tapped) return false;
       const p = this.player(playerId);
       if (c.life && p && p.life <= c.life) return false;
+      // Yasharn, Implacable Earth: no Treasure sacrificed, no life paid, for mana
+      if ((c.sacSelf || c.life) && this._thingCostBlocked(playerId, { sacSelf: c.sacSelf, life: c.life }, o, null)) return false;
       return true;
     }
 
@@ -14320,6 +14341,8 @@
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
+          // Nicanzil, Current Conductor: "explores a land card", "explores a nonland card" (exploreKind)
+          if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
           // Professor Hojo: "become the target of an activated ability"
           if (ab.byActivated && event === 'becomesTarget' && !data.byAbility) continue;
           if (ab.byOpponent && event === 'becomesTarget' && data.playerId === o.controller) continue;
@@ -15489,7 +15512,9 @@
         case 'addManaAny': {
           const amt = n(e.amount);
           /* "any color in your commander's color identity" is only those */
-          const allowed = e.commanderIdentity ? Array.from(this._commanderColors(ctx.controller)) : MANA.COLORS;
+          // (Omnath, Locus of All: "in any combination of its colors" — allowedColors)
+          const allowed = e.allowedColors ? e.allowedColors.filter(c => MANA.COLORS.includes(c))
+            : e.commanderIdentity ? Array.from(this._commanderColors(ctx.controller)) : MANA.COLORS;
           const pool = allowed.length ? allowed : MANA.COLORS;
           /* The Warring Triad: "Target player adds one mana of any color" —
              into that player's pool, in a colour the ability's controller
@@ -16554,10 +16579,10 @@
           // (Hakbal of the Surging Soul: each Merfolk, named by id — exploreEach)
           const who = e.objId ? this.obj(e.objId) : t0 ? this.obj(t0.id) : src;
           if ((t0 || e.objId) && !(who && who.zone === 'battlefield')) break;
-          // Wildgrowth Walker: "whenever a creature you control explores"
-          if (who) this._fire('youExplore', who.controller, { object: who, objController: who.controller });
           const top = z.library[0];
           const ta = top.analysis();
+          // Wildgrowth Walker: "whenever a creature you control explores" (Nicanzil, Current Conductor: "explores a land card" — exploredLand)
+          if (who && !this._doneHere('exploreFire')) this._fire('youExplore', who.controller, { object: who, objController: who.controller, exploredLand: !!(ta && ta.isLand) });
           /* Hakbal of the Surging Soul: a nonland already left on top by an
              explore of the same trigger is that player's answer again — the
              counter, and no second reveal or question (exploreEach) */
@@ -19367,7 +19392,8 @@
           if (e.of === 'blighted') source = this._lastBlighted ? this.obj(this._lastBlighted) : null;
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
           if (!source && e.scope === 'lastTarget') {
-            const ex = (this._resExiled || []).slice(-1)[0] || (!e.orTrigger && this._lastExiled);
+            // (Anikthea, Hand of Erebos: only a card exiled as this resolves — nowOnly)
+            const ex = (this._resExiled || []).slice(-1)[0] || (!e.orTrigger && !e.nowOnly && this._lastExiled);
             source = ex ? this.obj(ex) : null;
           }
           // Hashaton, Scarab's Fist: "a copy of that card" — the card discarded, where it went
@@ -20960,6 +20986,37 @@
         case 'loseGame': this.playerLoses(me, 'a card said so'); break;
 
         /* ===== leave a note for later (CR 603.7) ===== */
+        /* Omnath, Locus of All: the top card looked at; with three or more coloured mana symbols in its cost it may be
+           revealed, for three mana in any combination of its colours; into your hand either way (revealTopForMana) */
+        case 'revealTopForMana': {
+          if (ctx._omTop == null) { const t0 = this.zones[ctx.controller].library[0]; ctx._omTop = t0 ? t0.id : ''; }
+          const top = ctx._omTop && this.obj(ctx._omTop);
+          if (!top || top.zone !== 'library') break;
+          const ta = top.analysis() || {};
+          const pips = MANA.parse(ta.manaCost || '').filter(s => /[WUBRG]/.test(s)).length;
+          const cols = (ta.colors || []).filter(c => MANA.COLORS.includes(c));
+          let reveal = false;
+          if (pips >= (e.pips || 3) && cols.length) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'revealForMana', objId: top.id,
+              prompt: `Reveal ${top.name} for ${e.amount || 3} mana in any combination of its colours?` }, 'rev');
+            if (yes === SUSPEND) return SUSPEND;
+            reveal = !!(yes && (yes.yes || yes === true));
+          }
+          if (reveal) this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
+          this.moveObject(top, 'hand');
+          if (reveal) this._spliceNext([{ op: 'addManaAny', amount: e.amount || 3, allowedColors: cols }]);
+          break;
+        }
+        /* Nahiri, Forged in Fury: "You may cast Equipment spells this way without paying their mana costs." — the
+           cards just exiled to be played this turn, those that are Equipment cast for free too (freeCastBy) */
+        case 'freeIfFits': {
+          for (const id of (this._lastExiledList || [])) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'exile' || c.impulseBy !== ctx.controller || !this._cardFitsWords(c, e.words)) continue;
+            c.freeCastBy = ctx.controller; c.freeCastTurn = c.impulseUntil != null && c.impulseUntil < 99999 ? c.impulseUntil : this.turn;
+          }
+          break;
+        }
         /* Esper Terra: "If it's a Saga, put up to three lore counters on it." — the token copy just made; each
            chapter it reaches triggers (CR 714.2b) */
         case 'loreUpTo': {

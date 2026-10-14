@@ -4302,7 +4302,8 @@
     /* "Exile target card from a graveyard": the card is chosen as a
        target, from whichever graveyard, as the spell or ability is put on
        the stack */
-    { re: /^Exile (up to one )?target ((?:[a-z]+ )*?)card from (a|your|an opponent's) graveyard\.?$/i,
+    // (Anikthea, Hand of Erebos: "up to one target non-Aura enchantment card")
+    { re: /^Exile (up to one )?target ((?:[a-z-]+ )*?)card from (a|your|an opponent's) graveyard\.?$/i,
       make: (m) => {
         const spec = m[2].trim() ? targetSpec('target ' + m[2].trim(), 'graveyard') : { type: 'permanent', filter: 'card', zone: 'graveyard' };
         if (spec.unknown) return null;
@@ -4899,6 +4900,9 @@
       make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
+    // Nahiri, Forged in Fury: "You may cast Equipment spells this way without paying their mana costs." (freeIfFits)
+    { re: /^You may cast (Equipment|Aura|Vehicle|artifact|creature|enchantment) spells this way without paying their mana costs\.?$/i,
+      make: (m) => ({ op: 'freeIfFits', words: m[1].toLowerCase() }) },
     // Braids, Conjurer Adept: "that player may put an artifact, creature, or land card from their hand onto the battlefield" (triggerPlayer)
     { re: /^That player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'triggerPlayer' }) },
@@ -6513,6 +6517,11 @@
     { re: /^Create a token that'?s a copy of ((?:another )?target (?:artifact or creature|creature or artifact|creature|artifact)(?: you control)?|it), except it'?s an? (artifact|enchantment) in addition to its other types\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], addTypes: [U.titleCase(m[2])] },
         /^it$/i.test(m[1]) ? { self: true } : { targets: [targetSpec(m[1])] }) },
+    /* Anikthea, Hand of Erebos: "Create a token that's a copy of that card, except it's a 3/3 black Zombie creature in
+       addition to its other types." — the card just exiled, if one was (nowOnly) */
+    { re: /^Create a token that'?s a copy of that card, except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
+      make: (m) => ({ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', nowOnly: true, setPt: m[1] + '/' + m[2], setColor: m[3],
+        addSubtypes: [m[4]], addTypes: ['Creature'] }) },
     // Urza, Prince of Kroog: "…a copy of target artifact you control, except it's a 1/1 Soldier creature in addition to its other types."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
@@ -8061,7 +8070,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
-    /* Ral, Monsoon Mage: "flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
+    /* Omnath, Locus of All: "look at the top card of your library. You may reveal that card if it has three or more
+       colored mana symbols in its mana cost. If you do, add three mana in any combination of its colors and put it into
+       your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
+    { re: /^look at the top card of your library\. You may reveal that card if it has (three|four|\d+) or more colou?red mana symbols in its mana cost\. If you do, add (three|two|\d+) mana in any combination of its colou?rs and put it into your hand\. If you don'?t reveal it, put it into your hand\.?$/i,
+      make: (m) => [{ op: 'revealTopForMana', pips: num(m[1]), amount: num(m[2]) }] },
+    /* Ral, Monsoon Mage:"flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
        exile Ral. If you do, return him to the battlefield transformed under his owner's control." — not asked once
        he has gone (selfHere) */
     { re: /^Flip a coin\. If you lose the flip, ([^.]+\.) If you win the flip, you may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield transformed under (?:its|his|her) owner'?s control\.?$/i,
@@ -11530,6 +11544,8 @@
     // Brazen Dwarf: "Whenever you roll one or more dice"
     { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
+    // Nicanzil, Current Conductor: "Whenever a creature you control explores a land card" / "a nonland card" (exploreKind)
+    { re: /^Whenever a creature you control explores an? (land|nonland) card,? /i, event: 'youExplore', extraOf: (m) => ({ exploreKind: m[1].toLowerCase() }) },
     { re: /^Whenever a creature you control explores,? /i, event: 'youExplore' },
     // Battlefield Scavenger: "Whenever you exert a creature"
     { re: /^Whenever you exert a creature,? /i, event: 'youExert' },
@@ -17283,6 +17299,8 @@
         }, auto: true },
       // Platinum Emperion: "Your life total can't change."
       { re: /^Your life total can'?t change\.?$/i, eff: { op: 'lifeCantChange' }, auto: true },
+      // Yasharn, Implacable Earth: "Players can't pay life or sacrifice nonland permanents to cast spells or activate abilities."
+      { re: /^Players can'?t pay life or sacrifice nonland permanents to cast spells or activate abilities\.?$/i, eff: { op: 'noLifeSacCosts' }, auto: true },
       // Anara, Wolvid Familiar: "During your turn, commanders you control have indestructible."
       { re: /^During your turn, commanders you control have ([a-z ,]+)\.?$/i,
         make: (m) => {
