@@ -18999,6 +18999,11 @@
           /* Sorin, Ravenous Neonate: "if you control a white permanent other than that creature or Sorin" —
              besides the one targeted and this one (controlExcept) */
           const exc = e.cond && e.cond.kind === 'controlExcept' ? firstObj() : null;
+          // (Sauron, the Necromancer: "Sauron" in a delayed trigger — the permanent that set it up, if it never left: boundSelf)
+          if (e.boundSelf) {
+            const bo = e.boundId ? this.obj(e.boundId) : null;
+            ctx = Object.assign({}, ctx, { obj: bo && bo.zone === 'battlefield' && bo.ts === e.boundTs ? bo : null });
+          }
           if (e.cond && e.cond.kind === 'controlExcept'
             ? this._scopeList(e.cond.scope, ctx.controller, src).some(o => o !== exc && o !== src)
             : this._condMet(e.cond, ctx)) this._spliceNext(e.then);
@@ -21458,6 +21463,9 @@
               if (x.op === 'returnThatCounterSource') return Object.assign({}, x, { srcId: src ? src.id : null });
               // (Aang, at the Crossroads: the permanent as it is now — the same one, not transformed since: sinceNow)
               if (x.sinceNow && src) return Object.assign({}, x, { sinceTs: src.ts, sinceXf: src.xformN || 0 });
+              /* Sauron, the Necromancer: "unless Sauron is your Ring-bearer" — this permanent, while it stays on the
+                 battlefield (boundSelf) */
+              if (x.op === 'ifCond' && x.boundSelf) return Object.assign({}, x, { boundId: src ? src.id : null, boundTs: src ? src.ts : null });
               // (Faramir: "they" — the player chosen now)
               if (e.forPlayer === 'chosen' && x.op === 'ifCond') return JSON.parse(JSON.stringify(x).replace(/"pid":"chosen"/g, '"pid":' + JSON.stringify(ctx.chosenPlayer)));
               /* Dragonhawk, Fate's Tempest: "those cards" are the ones just exiled, each as it is in exile
@@ -22754,26 +22762,33 @@
            part of the copy (CR 707.9b), written into its card. */
         case 'becomeCopy': {
           // (Valki, God of Lies: a card exiled with it, chosen as it resolves — _forcedId)
-          let t = e._forcedId ? this.obj(e._forcedId) : firstObj();
+          let t = e._forcedId ? this.obj(e._forcedId) : firstObj(), who = src;
+          /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you
+             control" — the first target is what changes, the second what it copies (subjectTarget) */
+          if (e.subjectTarget) {
+            const tt = targets.filter(x => x.kind === 'object').map(x => this.obj(x.id));
+            if (tt.length < 2 || !tt[0] || !tt[1] || tt[0] === tt[1]) break;
+            who = tt[0]; t = tt[1];
+          }
           // (the Dragon gone before the trigger resolves: not a target, so as it last existed)
           if (!t && e.scope === 'triggerObject') {
             const x = this.obj((ctx.triggerData || {}).objectId);
             if (x && x.zone !== 'battlefield' && x._lkiCard) t = { card: x._lkiCard.card, face: x._lkiCard.face, name: x._lkiCard.card.name, zone: 'battlefield' };
           }
-          if (!src || src.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !(e._forcedId && t.zone === 'exile'))) break;
-          const was = src.card, wasName = src.name;
+          if (!who || who.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !(e._forcedId && t.zone === 'exile'))) break;
+          const was = who.card, wasName = who.name;
           /* a copy until end of turn over one that lasts: what it was comes back after
              (Mirrorweave's way); a lasting copy outlives one that was to end */
-          if (e.eot && src.copyUntilTurn == null && src.printedCard) src.copyBefore = { card: src.card, face: src.face || 0, copyOf: src.copyOf || null };
-          if (!e.eot) src.copyBefore = null;
-          src.printedCard = src.printedCard || src.card;
-          src.copyOf = t.card;
-          src.card = this._copyExcept(t.card, was, e);
-          src.face = t.face || 0;
-          src.copyUntilTurn = e.eot ? this.turn : null;
+          if (e.eot && who.copyUntilTurn == null && who.printedCard) who.copyBefore = { card: who.card, face: who.face || 0, copyOf: who.copyOf || null };
+          if (!e.eot) who.copyBefore = null;
+          who.printedCard = who.printedCard || who.card;
+          who.copyOf = t.card;
+          who.card = this._copyExcept(t.card, was, e);
+          who.face = t.face || 0;
+          who.copyUntilTurn = e.eot ? this.turn : null;
           // (a line kept the old way, by a game saved before: the card carries it now)
-          src.effects = (src.effects || []).filter(x => !x.keepsCopyLine);
-          src._chr = null;
+          who.effects = (who.effects || []).filter(x => !x.keepsCopyLine);
+          who._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${wasName} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : ''}.`);
           // Gogo: "If you do, …"

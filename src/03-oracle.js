@@ -5494,6 +5494,16 @@
         if (m[5] && (!copyExceptions(m[5], e) || e.keepOwn)) return null;
         return /^you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
       } },
+    /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you control
+       until end of turn, except it isn't legendary." — the first target changes (subjectTarget) */
+    { re: /^(Target [a-z ]+?) becomes a copy of a second (target [a-z ]+?) until end of turn(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const a = targetSpec(m[1].toLowerCase()), b = targetSpec(m[2]);
+        if (!a || !b || a.unknown || b.unknown || a.zone !== 'battlefield' || b.zone !== 'battlefield') return null;
+        const e = { op: 'becomeCopy', subjectTarget: true, eot: true, targets: [a, Object.assign({}, b, { distinct: true })] };
+        if (m[3] && (!copyExceptions(m[3], e) || e.keepOwn || e.keepThis)) return null;
+        return e;
+      } },
     /* Shifting Woodland: "This land becomes a copy of target permanent card
        in your graveyard until end of turn." */
     { re: /^(?:This land|CARDNAME|This permanent) becomes a copy of (target [a-z ]+? card in your graveyard) until end of turn\.?$/i,
@@ -6528,6 +6538,11 @@
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [], setPt: m[3] + '/' + m[4], setColor: m[5], setType: m[6] },
         /^target/i.test(m[2]) ? { targets: [targetSpec(m[2])] } : { scope: 'lastTarget' }, /^that card$/i.test(m[2]) ? { orTrigger: true } : {},
         m[1] ? { tapped: true } : {}) },
+    /* Sauron, the Necromancer: "Create a tapped and attacking token that's a copy of that card, except it's a 3/3
+       black Wraith with menace." — the card just exiled; menace part of what the copy is (nowOnly, addText) */
+    { re: /^Create a tapped and attacking token that'?s a copy of that card, except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green) ([A-Z][a-z]+) with (flying|menace|haste|trample|deathtouch|lifelink)\.?$/,
+      make: (m) => ({ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', nowOnly: true, tapped: true, attacking: true,
+        setPt: m[1] + '/' + m[2], setColor: m[3], setType: m[4], addText: [U.titleCase(m[5])] }) },
     /* Grist, the Plague Swarm: "For each creature card in your graveyard, create a token that's a copy of it, except
        it's a 1/1 black and green Insect." (copyEach) */
     { re: /^For each (creature|artifact|permanent) card in your graveyard, create a token that'?s a copy of it, except it'?s an? (\d+)\/(\d+) ((?:white|blue|black|red|green)(?: and (?:white|blue|black|red|green))?) ([A-Z][a-z]+)\.?$/,
@@ -8084,6 +8099,10 @@
     if (unlessC && !/\bpays?\b|\{/.test(unlessC[2])) {
       const c = condOf(unlessC[2]);
       const inner = c && parseEffectSentence(unlessC[1] + '.', 1);
+      /* Sauron, the Necromancer: "At the beginning of the next end step, exile that token unless Sauron is your
+         Ring-bearer." — asked as the delayed trigger resolves, "Sauron" the permanent that set it up (boundSelf) */
+      if (inner && inner.op === 'delayed' && !hasManualStep(inner))
+        return Object.assign({}, inner, { effects: [{ op: 'ifCond', cond: { kind: 'not', cond: c }, then: inner.effects, boundSelf: true }], text: s });
       if (inner && inner.op !== 'manual' && !hasManualStep(inner)) return { op: 'ifCond', cond: { kind: 'not', cond: c }, then: [inner], text: s };
     }
     /* Cinder Strike: "It deals 4 damage to that creature instead if this
@@ -11661,6 +11680,9 @@
     { re: /^Whenever a goaded attacking or blocking creature dies,? /i, event: 'permDies', filt: () => ({ words: 'creature', wasGoaded: true, wasInCombat: true }) },
     // Ares, God of War: "Whenever an attacking creature you control dies" — attacking as it went (wasAttacking)
     { re: /^Whenever an attacking creature you control dies,? /i, event: 'permDies', filt: () => Object.assign(subjectFilter('a creature you control') || { who: 'you', words: 'creature' }, { wasAttacking: true }) },
+    // Éomer, Marshal of Rohan: "Whenever one or more other attacking legendary creatures you control die" (wasAttacking, batch)
+    { re: /^Whenever (one or more other|one or more|another) attacking ([a-z ]+?creatures?) you control (?:dies|die),? /i, event: 'permDies',
+      filt: (m) => { const f = subjectFilter(m[1] + ' ' + m[2] + ' you control'); return f && Object.assign(f, { wasAttacking: true }); } },
     // Fire Lord Azula: "Whenever you cast a spell while CARDNAME is attacking" (selfAttacking)
     { re: /^Whenever you cast a spell while (?:CARDNAME|this creature) is attacking,? /i, event: 'youCastSpell', extra: { selfAttacking: true } },
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
@@ -12294,6 +12316,8 @@
     { re: /^When(?:ever)? you (?:cast|play) (?:a|an) spell(?:,| )/i, event: 'youCastSpell' },
     { re: /^When(?:ever)? an opponent casts a spell(?:,| )/i, event: 'opponentCastSpell' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
+    // The Watcher in the Water: "Whenever you draw a card during an opponent's turn" (drawOppTurn)
+    { re: /^Whenever you draw a card during an opponent'?s turn,? /i, event: 'youDraw', extra: { notYourTurnOnly: true } },
     { re: /^When(?:ever)? you draw a card(?:,| )/i, event: 'youDraw' },
     // Spiteful Visions: "Whenever a player draws a card"
     { re: /^When(?:ever)? a player draws a card(?:,| )/i, event: 'anyDraw' },
@@ -13375,7 +13399,8 @@
         }
         // It That Betrays: "put that card onto the battlefield under your control" — the card sacrificed (sacrificedAny)
         // (Tergrid, God of Fright: "from a graveyard" — the card sacrificed or discarded, from there only: sacOrDiscardAny)
-        if (trig.event === 'anySacrifice' && parsed.effects.length === 1 && parsed.effects[0].op === 'manual' &&
+        // (The Reaper, King No More: "Whenever a creature an opponent controls … dies, you may put that card onto the battlefield under your control")
+        if ((trig.event === 'anySacrifice' || trig.event === 'permDies') && parsed.effects.length === 1 && parsed.effects[0].op === 'manual' &&
           /^put that card (from a graveyard )?onto the battlefield under your control\.?$/i.test(parsed.effects[0].text || '')) {
           parsed.effects = [Object.assign({ op: 'returnTriggerCard', yours: true, triggerOnly: true, text: parsed.effects[0].text },
             /from a graveyard/i.test(parsed.effects[0].text) ? { fromGrave: true } : {})];
@@ -16991,7 +17016,7 @@
       // Traxos: "CARDNAME enters tapped and doesn't untap during your untap step."
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) enters tapped and doesn'?t untap during your untap step\.?$/i,
         eff: { op: 'sequence', list: [{ op: 'etbTapped' }, { op: 'continuous', layer: 6, scope: { self: true }, flag: 'noUntap' }] }, auto: true },
-      { re: /^(?:CARDNAME|This (?:land|artifact|permanent|creature)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|six|seven|eight|\d+) [a-z]+ counters? on it\.?$/i,
+      { re: /^(?:CARDNAME|This (?:land|artifact|permanent|creature)) enters(?: the battlefield)? tapped with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'etbTapped' }, auto: true },
       // Converge
       { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|enchantment)) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on it for each (?:colou?r of )?mana spent to cast it\.?$/i,
