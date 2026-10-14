@@ -1728,6 +1728,13 @@
     // (Jon Irenicus, Shattered One: "of up to one target creature you control")
     { re: /^Target (opponent|player) gains control of (up to one )?(target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
       make: (m) => ({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }, Object.assign(targetSpec(m[3]), m[2] ? { upTo: true } : {})] }) },
+    // Blim, Comedic Genius: "that player gains control of target permanent you control" — the player it hit (giveControl toTrigger)
+    { re: /^That player gains control of (target (?:nonland )?permanent you control|target (?:creature|artifact) you control)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'giveControl', to: 'triggerPlayer', targets: [sp] } : null; } },
+    /* Blim, Comedic Genius: "Then each player loses life and discards cards equal to the number of permanents they control
+       but don't own." — each counted once, then the life, then the cards (loseDiscardStolen) */
+    { re: /^(?:Then )?each player loses life and discards cards equal to the number of permanents they control but don'?t own\.?$/i,
+      make: () => ({ op: 'loseDiscardStolen' }) },
     /* Alexios, Deimos of Kosmos: "that player gains control of Alexios, untaps it, and puts a +1/+1 counter
        on it" — the player whose upkeep it is, and Alexios itself (giveControl toTrigger) */
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
@@ -7410,8 +7417,9 @@
     { re: /^Until your next turn, creatures your opponents control attack each combat if able and attack a player other than you if able\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // Quantum Misalignment: "...except it isn't legendary"
-    { re: /^Create a token that'?s a copy of (target creature(?: you control)?), except (?:it|the token) isn'?t legendary\.?$/i,
-      make: (m) => ({ op: 'copyPermanent', n: 1, targets: [targetSpec(m[1])], grant: [], nonLegendary: true }) },
+    // (Tempestra, Dame of Games: "of another target creature you control" — not itself)
+    { re: /^Create a token that'?s a copy of ((?:another )?target creature(?: you control)?), except (?:it|the token) isn'?t legendary\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: 1, targets: [Object.assign(targetSpec(m[1].replace(/^another /i, '')), /^another/i.test(m[1]) ? { another: true } : {})], grant: [], nonLegendary: true }) },
     /* Relic of Sauron: "Add two mana in any combination of {U}, {B}, and/or {R}." */
     { re: /^Add (two|three|four) mana in any combination of \{([WUBRGC])\}, \{([WUBRGC])\},? and\/or \{([WUBRGC])\}\.?$/i,
       make: (m) => Array.from({ length: num(m[1]) }, () => ({ op: 'addManaChoice', choices: [[m[2].toUpperCase()], [m[3].toUpperCase()], [m[4].toUpperCase()]] })) },

@@ -27640,6 +27640,35 @@
           if (e.then && x.controller === p.id) this._spliceNext(e.then);
           break;
         }
+        /* Blim, Comedic Genius: "each player loses life and discards cards equal to the number of permanents they control
+           but don't own" — counted once for everybody, the life lost, then each discards in turn (loseDiscardStolen) */
+        case 'loseDiscardStolen': {
+          const r = this.resolving;
+          const key = (r ? r.index : 0) + ':lds';
+          if (r) r.marks = r.marks || {};
+          let counts = r && r.marks[key];
+          if (!counts) {
+            counts = {};
+            for (const p of this.players) if (!p.hasLost) counts[p.id] = this.battlefield.filter(x => !x.phasedOut && x.controller === p.id && x.owner !== p.id).length;
+            if (r) r.marks[key] = counts;
+            for (const p of this.players) if (!p.hasLost && counts[p.id] > 0) this.changeLife(p, -counts[p.id], 'card');
+          }
+          for (const p of this.players) {
+            const k = counts[p.id] || 0;
+            if (!k || p.hasLost || this._doneHere('ldsd' + p.id)) continue;
+            const hand = this.zones[p.id].hand;
+            if (!hand.length) continue;
+            if (k >= hand.length) {
+              const gone = hand.slice();
+              for (const c of gone) { this.moveObject(c, 'graveyard'); this._afterDiscard(p.id, c); }
+              this.logEvent('discard', `${p.name} discards ${gone.map(c => c.name).join(', ')}.`);
+              continue;
+            }
+            const got = this._ask({ type: 'discard', playerId: p.id, count: k, prompt: `Discard ${k === 1 ? 'a card' : k + ' cards'} (one for each permanent you control but don't own).` }, 'ldsq' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
         // Rona, Tolarian Obliterator: "that source's controller exiles a card from their hand at random"
         case 'exileRandomFromHand': {
           const p = e.who === 'triggerPlayer' ? triggerPlayer() : me;
