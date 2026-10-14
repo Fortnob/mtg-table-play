@@ -1845,6 +1845,14 @@
     },
     /* Read ahead: from the start */
     readAhead() { return { picks: [0] }; },
+    /* Zimone, Mystery Unraveler: turn a face-down permanent of ours face up for nothing — the costliest real card */
+    turnFaceUpFree(s) {
+      const g = this.game;
+      const pool = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const mv = (o) => ((o.trueAnalysis ? o.trueAnalysis() : o.analysis()) || {}).cmc || (o.card && o.card.cmc) || 0;
+      pool.sort((a, b) => mv(b) - mv(a));
+      return { picks: pool.length ? [pool[0].id] : [] };
+    },
     /* Muldrotha, the Gravetide: use up the type the rest of the graveyard needs least */
     permanentType(s) {
       const g = this.game;

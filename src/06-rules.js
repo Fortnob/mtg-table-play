@@ -2167,7 +2167,7 @@
       this._returnedNow = [];
       this._lastAffected = null; this._lastAffectedAll = null; this._trigObjCtlId = null;
       this._lastCopy = null;
-      this._lastPut = null;
+      this._lastPut = null; this._lastSearched = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
       this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null;
@@ -4675,7 +4675,7 @@
         out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
       }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
-        escape: null, disturb: 'exile', unearth: 'exile', embalm: 'exile', eternalize: 'exile',
+        escape: null, unearth: 'exile', embalm: 'exile', eternalize: 'exile',
         madness: null };
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword) continue;
@@ -4940,6 +4940,12 @@
       /* The Transformers: cast converted, back face up, for the More Than Meets the Eye cost */
       const mtm = o.zone === 'hand' && o.card.card_faces && o.card.card_faces.length > 1 ? (O.analyze(o.card, 0) || {}).mtmte : null;
       if (mtm) out.push({ kind: 'cast', via: 'mtmte', cost: mtm, face: 1, label: 'More Than Meets the Eye ' + mtm });
+      /* Disturb (CR 702.146): "cast this card from your graveyard transformed for its disturb cost" — back face up,
+         read off the front face (Katilda, Dawnhart Martyr); the back face's own words exile it after */
+      if (o.zone === 'graveyard' && o.owner === playerId && o.card.card_faces && o.card.card_faces.length > 1 && o.card.layout === 'transform') {
+        const dab = ((O.analyze(o.card, 0) || {}).abilities || []).find(x => x.kind === 'castModifier' && String(x.keyword || '').toLowerCase() === 'disturb' && x.arg);
+        if (dab && !out.some(u => u.via === 'disturb')) out.push({ kind: 'cast', via: 'disturb', cost: dab.arg, face: 1, after: null, label: 'Disturb ' + dab.arg });
+      }
       /* Another way to pay, printed on the card itself: a commander on the
          battlefield makes it free, a blue card and a life point pay for
          Force of Will. Offered only when it could actually be paid. */
@@ -5895,9 +5901,10 @@
           return this.fail('Those targets must be controlled by different players.');
       }
       // More Than Meets the Eye: the card cast converted, its back face up
-      if (opts.via === 'mtmte' && !opts._faceSet) {
+      // (Disturb: the same, transformed, from the graveyard)
+      if ((opts.via === 'mtmte' || opts.via === 'disturb') && !opts._faceSet) {
         const so = this.obj(objId);
-        if (!so || !so.card.card_faces) return this.fail('That card cannot be cast converted.');
+        if (!so || !so.card.card_faces) return this.fail(opts.via === 'disturb' ? 'That card cannot be cast transformed.' : 'That card cannot be cast converted.');
         const was = so.face || 0;
         so.face = 1; so._chr = null;
         const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _faceSet: true }));
@@ -9788,6 +9795,8 @@
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
+        // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to attack (hadToAttack)
+        o._hadToAttack = this.mustAttack(o) ? { turn: this.turn, combat: this.combatsThisTurn || 1 } : null;
         o.attacking = d.defenderId;
         // Port Razer: the players it has attacked this turn (noRepeatAttack)
         if (this.player(d.defenderId)) {
@@ -11951,7 +11960,8 @@
         case 'lifeAboveStart': return !!me && me.life >= ((this.config && this.config.startingLife) || 20) + (cond.n || 0);
         // "if it had no counters on it" as it died
         case 'diedNoCounters': return !!src && !Object.values(src._diedCounters || src.counters || {}).some(v => Number(v) > 0);
-        case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).length > 0;
+        // (Acererak the Archlich: "completed Tomb of Annihilation" — that one)
+        case 'completedDungeon': return !!me && (me.dungeonsCompleted || []).some(x => !cond.name || x === cond.name);
         case 'selfIs': {
           if (!src) return false;
           if (cond.what === 'monstrous') return !!src.monstrous;
@@ -12270,6 +12280,13 @@
         // Temple of Power: "red sources you controlled dealt 4 or more noncombat damage this turn" (noncombatByColor)
         case 'colorNoncombatDealt': return !!me && ((((h.noncombatByColor || {})[me.id]) || {})[cond.color] || 0) >= (cond.n || 1);
         // Samut, Vizier of Naktamun: "if that creature entered this turn" (triggerObjEntered)
+        // Firkraag, Cunning Instigator: "if that creature had to attack this combat" (hadToAttack)
+        case 'triggerObjHadToAttack': {
+          const tdH = (ctx && ctx.triggerData) || {};
+          const x = tdH.objectId && this.obj(tdH.objectId);
+          const h = x && x._hadToAttack;
+          return !!h && h.turn === this.turn && h.combat === (this.combatsThisTurn || 1);
+        }
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
         // (Fall from Favor, a standing rule: "that player" is the enchanted creature's controller)
@@ -13559,6 +13576,9 @@
           if (own && own.abilities.some(ab => (ab.effects || []).some(x => x && x.op === 'shuffleInsteadOfGrave'))) {
             toZone = 'library'; o._shuffleIn = true;
           }
+          /* Katilda's Rising Dawn and the other disturbed backs: "If CARDNAME would be put into a graveyard from
+             anywhere, exile it instead." — a spell countered too (selfAnywhere; on the battlefield it is a replacement) */
+          else if (from === 'stack' && own && own.abilities.some(ab => (ab.effects || []).some(x => x && x.op === 'replace' && x.selfAnywhere))) toZone = 'exile';
           /* A finality counter (CR 122.1h): a permanent with one on it that
              would go to the graveyard from the battlefield is exiled. */
           if (from === 'battlefield' && toZone === 'graveyard' && (Number((o.counters || {}).finality) || 0) > 0) toZone = 'exile';
@@ -14530,6 +14550,8 @@
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
+          // Firkraag, Cunning Instigator: "one or more Dragons you control attack an opponent" — among those at that one (attackersOfTypeHere)
+          if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
@@ -19309,7 +19331,8 @@
           /* Nicol Bolas, the Deceiver: "Each opponent loses 3 life unless that
              player sacrifices …" — each opponent answers for themselves; every
              answer is taken before anything happens */
-          const thenEach = (e.then || []).length === 1 && e.then[0] && e.then[0].who === 'opponents';
+          // (Acererak the Archlich: "for each opponent, you create … unless that player sacrifices …" — yours, once for each who didn't: eachOpponent)
+          const thenEach = e.eachOpponent || ((e.then || []).length === 1 && e.then[0] && e.then[0].who === 'opponents');
           if (e.cost && e.cost.sacrifice && thenEach) {
             const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
             const pay = [], hit = [];
@@ -19330,6 +19353,11 @@
               else hit.push(q);
             }
             const list = [];
+            if (e.eachOpponent) {
+              for (let i = 0; i < hit.length; i++) for (const f of e.then || []) list.push(JSON.parse(JSON.stringify(f)));
+              if (list.length) this._spliceNext(list);
+              break;
+            }
             /* Fandaniel, Telophoroi Ascian: "loses 2 life for each instant and sorcery card in your graveyard" —
                counted for the trigger's controller, not for each loser */
             const cnt0 = e.then[0].n && typeof e.then[0].n === 'object' ? n(e.then[0].n) : null;
@@ -22770,6 +22798,9 @@
             if (tt.length < 2 || !tt[0] || !tt[1] || tt[0] === tt[1]) break;
             who = tt[0]; t = tt[1];
           }
+          /* Scion of the Ur-Dragon: "Search your library for a Dragon permanent card and put it into your graveyard.
+             If you do, Scion of the Ur-Dragon becomes a copy of that card" — the card just found (searched) */
+          if (e.of === 'searched') t = ((this._lastSearched || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard'))[0] || null;
           // (the Dragon gone before the trigger resolves: not a target, so as it last existed)
           if (!t && e.scope === 'triggerObject') {
             const x = this.obj((ctx.triggerData || {}).objectId);
@@ -23579,6 +23610,27 @@
           }
           break;
         /* Manifest dread: two from the top, one face down as a 2/2, the other to the graveyard */
+        /* Zimone, Mystery Unraveler: "you may turn a permanent you control face up" — for nothing; an instant or
+           sorcery card stays face down, so it isn't offered (turnFaceUpFree) */
+        case 'turnFaceUpFree': {
+          const pool = this.battlefield.filter(x => {
+            if (x.phasedOut || !x.faceDown || x.controller !== ctx.controller) return false;
+            const real = (x.trueAnalysis ? x.trueAnalysis() : null) || {};
+            return !real.isInstant && !real.isSorcery;
+          });
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'turnFaceUpFree', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, prefer: 'best', prompt: 'You may turn a permanent you control face up.' }, 'tfu');
+          if (got === SUSPEND) return SUSPEND;
+          const x = got && (got.picks || []).length ? this.obj(got.picks[0]) : null;
+          if (!x || !pool.includes(x) || !x.faceDown || x.zone !== 'battlefield') break;
+          x.faceDown = false; x.faceDownLand = null; x._chr = null;
+          this.logEvent('rules', `${me.name} turns ${x.name} face up.`);
+          this.emit('sfx', 'transform');
+          this._fire('turnedFaceUp', ctx.controller, { object: x, source: x });
+          this.bumpBoard();
+          break;
+        }
         case 'manifestDread': {
           // Unwanted Remake: "Its controller manifests dread" (who 'targetController')
           const md = e.who === 'targetController' ? (this._lastAffectedController() || (firstObj() && this.player(firstObj().owner)) || me) : me;

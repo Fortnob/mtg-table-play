@@ -2660,6 +2660,8 @@
       make: (m) => { const w = castWindowOf(m[1]); return w ? { op: 'noop', castWindow: w } : null; } },
     { re: /^You may choose new targets for (?:the|that) cop(?:y|ies)\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^(?:Then )?shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
+    // Scion of the Ur-Dragon: "If you do, Scion of the Ur-Dragon becomes a copy of that card until end of turn." — the card found (searched)
+    { re: /^If you do, CARDNAME becomes a copy of that card until end of turn\.?$/, make: () => ({ op: 'becomeCopy', of: 'searched', eot: true }) },
     { re: /^If you do, .*$/i, make: (m) => ({ op: 'manual', text: m[0] }) },
     /* Restrictions that belong to the ability above them, and that the
        engine can actually keep: a window in the turn, or something you
@@ -3471,6 +3473,12 @@
         const c = condOf(m[2].replace(/^(?:his|her|its|their) power\b/i, "CARDNAME's power"));
         return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'you' }] } : null;
       } },
+    // Zimone, Mystery Unraveler: "manifest dread if this is the first time this ability has resolved this turn" (manifestDreadIf)
+    { re: /^[Mm]anifest dread if (this is the (?:first|second|third) time this ability has resolved this turn)\.?$/,
+      make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'manifestDread' }] } : null; } },
+    /* Zimone, Mystery Unraveler: "you may turn a permanent you control face up" — any face-down one, for nothing;
+       none face down, nothing asked (turnFaceUpFree) */
+    { re: /^You may turn a permanent you control face up\.?$/i, make: () => ({ op: 'turnFaceUpFree' }) },
     // Victor, Valgavoth's Seneschal: "surveil 2 if this is the first time this ability has resolved this turn" (surveilIf)
     { re: /^[Ss]urveil (\d+) if (this is the (?:first|second|third) time this ability has resolved this turn)\.?$/,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'surveil', n: +m[1] }] } : null; } },
@@ -5793,6 +5801,8 @@
     { re: /^Return (it|that creature|that card|that permanent) to (?:your|its owner'?s) hand at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it to its owner\'s hand at end of turn', effects: [{ op: 'returnThatToHand' }] }) },
     { re: /^(?:Then )?[Vv]enture into the dungeon\.?$/, make: () => ({ op: 'venture' }) },
+    // Acererak the Archlich: "return Acererak to its owner's hand and venture into the dungeon"
+    { re: /^Return CARDNAME to its owner'?s hand and venture into the dungeon\.?$/, make: () => [{ op: 'selfFromGraveyard', to: 'hand' }, { op: 'venture' }] },
     { re: /^(?:Then )?[Vv]enture into Undercity\.?$/, make: () => ({ op: 'venture', undercity: true }) },
     { re: /^Each player loses (\d+|X) life\.?$/i, make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'each' }) },
     /* Stifle, Disallow: abilities on the stack as targets */
@@ -7444,7 +7454,10 @@
   }
 
   function countSpec(phrase, mult, who) {
-    const per = String(phrase || '').toLowerCase().trim();
+    let per = String(phrase || '').toLowerCase().trim();
+    // Katilda, Dawnhart Martyr: "permanents you control that are Spirits and/or enchantments" — yours, either kind
+    const thatAre = per.match(/^permanents you control that are ([a-z]+(?: and\/or [a-z]+)+)$/);
+    if (thatAre) { per = thatAre[1]; who = 'you'; }
     /* words the count of permanents can't read: a chosen colour or player,
        one count added to another, colours among some other kind */
     const unread = /\b(?:chosen|plus|the number of)\b|\bcolou?rs? among (?!permanents$)|\bcards?\b/.test(per) &&
@@ -10301,6 +10314,10 @@
            permanent of their choice or discards a card" */
         s.match(/^(.+?) unless (that player|they|target player|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card)?)\.?$/i);
       if (unless) {
+        /* Acererak the Archlich: "for each opponent, you create a 2/2 black Zombie creature token unless that player
+           sacrifices a creature of their choice" — each opponent answers for themselves (eachOpponent) */
+        const perOpp = /^for each opponent, /i.test(unless[1].trim()) && /^sacrifice/i.test(unless[3] || '') && /^that player$/i.test(unless[2]);
+        if (perOpp) unless[1] = unless[1].trim().replace(/^for each opponent, (?:you )?/i, '').replace(/^./, c => c.toUpperCase());
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
         const cost = /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
           : /^discards? (?:their|his or her) hand$/i.test(unless[3]) ? { discardHand: true }
@@ -10311,7 +10328,7 @@
             : /^they$/i.test(unless[2]) && /^that source'?s controller\b/i.test(unless[1].trim()) ? 'triggerPlayer'
             : /^that creature'?s controller$/i.test(unless[2]) ? 'triggerObjController'
             : /that player|target player|target opponent|they/i.test(unless[2]) ? 'target' : 'spellController',
-          cost, then: inner.effects, text: s },
+          cost, then: inner.effects, text: s }, perOpp ? { eachOpponent: true } : {},
           // Athreos: "unless target opponent pays 3 life" — the opponent is a target
           /^target opponent$/i.test(unless[2]) ? { targets: [{ type: 'player', opponent: true }] } : {}));
         if (!inner.auto) auto = false;
@@ -11283,6 +11300,8 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
+    [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
     [/^its power was different from its base power$/i, () => ({ kind: 'triggerPowerChanged' })],
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
@@ -11416,6 +11435,8 @@
     // Maze's End: "you control ten or more Gates with different names"
     [/^you control (\w+) or more ([A-Z][a-z]+)s with different names$/, (m) => (typeof num(m[1]) === 'number' ? { kind: 'distinctNames', subtype: m[2], n: num(m[1]) } : null)],
     [/^you'?ve completed a dungeon$/i, () => ({ kind: 'completedDungeon' })],
+    // Acererak the Archlich: "if you haven't completed Tomb of Annihilation" — that dungeon (completedDungeon name)
+    [/^you haven'?t completed (Tomb of Annihilation|Lost Mine of Phandelver|Dungeon of the Mad Mage|Undercity)$/, (m) => ({ kind: 'not', cond: { kind: 'completedDungeon', name: m[1] } })],
     [/^you control (\w+) or more lands with different names$/i, (m) => ({ kind: 'landNames', n: num(m[1]) })],
     [/^it doesn'?t have the same name as another creature you control or a creature card in your graveyard$/i, () => ({ kind: 'triggerNameUnique' })],
     [/^it'?s your first, second, or third turn of the game$/i, () => ({ kind: 'earlyTurn', n: 3 })],
@@ -12004,6 +12025,9 @@
       event: 'permLeaves', filt: (m) => subjectFilter(m[1]) },
     // Dollmaker's Shop: "Whenever one or more non-Toy creatures you control attack a player" (read as Anim Pakal's)
     { re: /^Whenever one or more non-([A-Z][a-z]+) creatures you control attack(?: a player)?,? /, event: 'youAttack', extraOf: (m) => ({ attackersNotOfType: singularType(m[1]) }) },
+    // Firkraag, Cunning Instigator: "Whenever one or more Dragons you control attack an opponent" — once for each opponent (attackersOfTypeHere)
+    { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack an opponent,? /, event: 'anyPlayerAttacksPlayer',
+      extraOf: (m) => ({ attackerIsYou: true, attackedIsYourOpponent: true, attackersOfTypeHere: singularType(m[1]) }) },
     // "attacks alone": the only attacker this combat (before plain "attacks")
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) attacks alone,? /i, event: 'attacksAlone', self: true },
     // Bilbo's Ring: "Whenever equipped creature attacks alone" — the creature it is attached to
@@ -17503,6 +17527,22 @@
           if (m[1] && !cond) return null;
           return Object.assign({ op: 'lifeFloor' }, cond ? { cond } : {});
         }, auto: true },
+      /* Katilda's Rising Dawn: "Enchanted creature has flying, lifelink, and protection from Vampires, and it gets
+         +X/+X, where X is the number of permanents you control that are Spirits and/or enchantments." */
+      { re: /^(Enchanted|Equipped) creature has (.+?), and it gets \+X\/\+X, where X is the number of ([-a-z/' ]+?)\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[2]);
+          const k = countSpec(m[3], 1);
+          if (!kws.length || !kws.every(x => kwKnown(x) || /^protection from /i.test(x)) || !k || k.unknown) return null;
+          const scope = { attached: true, what: 'creature' };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 6, scope, grant: kws },
+            { op: 'continuous', layer: 7, scope, pt: { p: k, t: k } }] };
+        }, auto: true },
+      /* Katilda's Rising Dawn, the disturbed back faces: "If CARDNAME would be put into a graveyard from anywhere, exile
+         it instead." — on the battlefield, and as a spell (selfAnywhere) */
+      { re: /^If (?:CARDNAME|this (?:creature|permanent|Aura|enchantment)) would be put into a graveyard from anywhere, exile it instead\.?$/i,
+        eff: { op: 'replace', id: 'selfGraveExile', event: 'zoneChange', who: 'all', self: true, selfAnywhere: true, toZone: 'graveyard', how: 'toZone', zone: 'exile' }, auto: true },
       // Bonehoard: "Equipped creature gets +X/+X, where X is the number of creature cards in all graveyards."
       { re: /^Equipped creature gets \+X\/\+X, where X is the number of ([a-z]+) cards in all graveyards\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' },
