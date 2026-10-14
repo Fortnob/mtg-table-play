@@ -15791,6 +15791,14 @@
         if (chooser == null) return null;
         const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
           MTG.oracle.matchesSpec(spec, o, o.analysis(), chooser, this._specCtx()));
+        // Kamiz, Obscura Oculus: "another attacking creature with lesser power" — than the target, as it is now
+        if (e.chooseLesserPower) {
+          const t0 = (ctx.targets || targets || []).find(t => t.kind === 'object');
+          const first = t0 && this.obj(t0.id);
+          const top = first && first.zone === 'battlefield' ? this.powerOf(first) : Infinity;
+          for (let i = pool.length - 1; i >= 0; i--) if (pool[i] === first || !(this.powerOf(pool[i]) < top)) pool.splice(i, 1);
+          if (!pool.length) return null;
+        }
         // (Calix, Guided by Fate: "you may …" — one to pick, or none; nothing to pick, nothing asked: mayPickOnce)
         if (e.mayPick && !pool.length) return null;
         const got = this._choose({ playerId: chooser, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
@@ -17731,8 +17739,11 @@
             this.logEvent('rules', `${me.name} chooses ${ty.toLowerCase()}.`);
           }
           // "That token gains haste." with no end to it is for good
+          // Thancred Waters: "for as long as you control Thancred Waters" (whileControl)
+          if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
           applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'
             ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
+            : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
             : { keywords: kws, until: e.duration === 'permanent' ? null : 'eot' }));
           break;
         }
@@ -23788,7 +23799,8 @@
           const hostA = e.toTrigger ? (((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) || null) : src;
           if (!eq || eq.zone !== 'battlefield' || !hostA || hostA.zone !== 'battlefield' || eq === hostA) break;
           if (e.onlyEquipment && !(eq.analysis() || {}).isEquipment) break;
-          if (eq.controller !== ctx.controller || !(hostA.analysis() || {}).isCreature) break;
+          // (Amy Rose: "attach up to one target Equipment to her" — anybody's, which its controller keeps: anyController)
+          if ((eq.controller !== ctx.controller && !e.anyController) || !(hostA.analysis() || {}).isCreature) break;
           if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
           eq.attachedTo = hostA.id;
           eq.ts = this._stampNew();
@@ -24564,6 +24576,35 @@
         }
         /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way." — the opponent is yours to
            pick (asked only with more than one), and the card theirs; it is the one you can't cast after */
+        /* Tasigur, the Golden Fang: "return a nonland card of an opponent's choice from your graveyard to your hand" — you
+           name the opponent (with more than one), they pick; a single card is no choice at all */
+        case 'returnOpponentsChoice': {
+          const gy = (this.zones[ctx.controller] || {}).graveyard || [];
+          const pool = gy.filter(c => !e.filter || this._cardFitsWords(c, e.filter));
+          if (!pool.length) { this.logEvent('rules', `${me.name} has no ${e.filter ? e.filter + ' ' : ''}card in their graveyard.`); break; }
+          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          let c = pool.length === 1 || !opps.length ? pool[0] : null;
+          if (!c) {
+            let q = opps[0];
+            if (opps.length > 1) {
+              const who = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
+                items: this._choosePlayers(opps), min: 1, max: 1,
+                prompt: `Choose an opponent. They choose ${e.filter ? 'a ' + e.filter : 'a'} card in your graveyard for you to return to your hand.` }, 'rocWho');
+              if (who === SUSPEND) return SUSPEND;
+              q = this.player(who && who.picks && who.picks[0]) || opps[0];
+            }
+            const got = this._choose({ playerId: q.id, purpose: 'opponentsChoice', kind: 'objects', zone: 'graveyard',
+              items: this._chooseItems(pool), min: 1, max: 1, forPlayer: ctx.controller,
+              prompt: `Choose ${e.filter ? 'a ' + e.filter : 'a'} card in ${me.name}'s graveyard. ${me.name} returns it to their hand.` }, 'rocCard');
+            if (got === SUSPEND) return SUSPEND;
+            c = this.obj(got && got.picks && got.picks[0]);
+            if (!c || !pool.includes(c)) c = pool[0];
+            this.logEvent('rules', `${q.name} chooses ${c.name}.`);
+          }
+          this.moveObject(c, 'hand');
+          this.logEvent('zone', `${me.name} returns ${c.name} to their hand.`);
+          break;
+        }
         case 'opponentChoosesExiled': {
           const pool = ((this._lastExiledList || []).map(id => this.obj(id)))
             .filter(c => c && c.zone === 'exile' && (!e.filter || this._cardFitsWords(c, e.filter)));
@@ -25027,8 +25068,9 @@
            the one this permanent keeps in exile), cast now for nothing. A
            copy of a permanent card becomes a token as it resolves. */
         case 'castCopy': {
-          const recent = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
-          let c = this.obj(recent[recent.length - 1] || this._lastExiled);
+          // (Jacob Frye: "If you do, copy it" — only a card this very resolution exiled: fromRes)
+          const recent = e.fromRes ? (this._resExiled || []) : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
+          let c = this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
           if ((!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
             const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
             c = kept[kept.length - 1] || null;

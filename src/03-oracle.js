@@ -1583,8 +1583,14 @@
     { re: /^(?:You may )?[Hh]ave its controller (create .+? tokens?(?: that'?s| that are)? tapped and attacking)\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
     // Sokka, Swordmaster: "attach up to one target Equipment you control to CARDNAME" (attachTargetToSelf)
-    { re: /^Attach (up to one )?target Equipment you control to (?:CARDNAME|it|this creature)\.?$/i,
-      make: (m) => ({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
+    // (Amy Rose: "attach up to one target Equipment to her" — anybody's)
+    { re: /^Attach (up to one )?target Equipment( you control)? to (?:CARDNAME|it|this creature|him|her)\.?$/i,
+      make: (m) => Object.assign({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] },
+        m[2] ? { controller: 'you', filter: 'Equipment you control' } : {}, m[1] ? { upTo: true } : {})] }, m[2] ? {} : { anyController: true }) },
+    // Amy Rose: "Then up to one other target attacking creature gets +X/+0 until end of turn, where X is Amy Rose's power."
+    { re: /^(?:Then )?up to one other target attacking creature gets \+X\/\+0 until end of turn, where X is (?:CARDNAME|this creature)'?s power\.?$/i,
+      make: () => ({ op: 'pump', p: { ofSelf: 'power' }, t: 0, duration: 'eot',
+        targets: [Object.assign(targetSpec('other target attacking creature'), { upTo: true })] }) },
     // Kemba, Kha Enduring: "attach up to one target Equipment you control to that creature" — the one that entered (attachToThat)
     { re: /^Attach (up to one )?target Equipment you control to that creature\.?$/i,
       make: (m) => ({ op: 'attachTargetToSelf', toTrigger: true, targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
@@ -1870,6 +1876,9 @@
     // Yuna, Hope of Spira: "return up to one target enchantment card from your graveyard to the battlefield with a finality counter on it"
     { re: /^Return (up to one )?(target [a-z ]+?) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' }, m[1] ? { upTo: true } : {})] } : null; } },
+    // Mirko, Obsessive Theorist: "return target creature card with power less than Mirko's from your graveyard to the battlefield with a finality counter on it"
+    { re: /^Return (target [a-z ]+?) card with power less than (?:CARDNAME|this creature)'s(?: power)? from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
+      make: (m) => { const t = tgt(m[1] + " with power less than CARDNAME's"); return t && t.lesserPowerThanSource ? { op: 'reanimate', counter: m[2].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Season of the Burrow: "… mana value 3 or less from your graveyard to the battlefield with an indestructible counter on it"
     { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -5918,6 +5927,9 @@
         e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : dur === 'nextEnd' ? 'nextEnd' : 'nextTurn';
         return e;
       } },
+    // Thancred Waters: "another target legendary permanent you control gains indestructible for as long as you control Thancred Waters"
+    { re: /^((?:another )?target [a-z ]+? you control) gains (indestructible|hexproof|shroud|flying|vigilance|trample|lifelink|first strike|deathtouch|haste) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'grantKeyword', keywords: [U.titleCase(m[2].toLowerCase())], duration: 'whileControl', targets: [sp] } : null; } },
     // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
     { re: /^(target [a-z ]+?) gains "([^"]+)" for as long as you control (?:this creature|CARDNAME|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => (grantableText(m[2]) ? { op: 'grantAbility', ability: m[2], duration: 'whileControl', targets: [targetSpec(m[1])] } : null) },
@@ -7930,8 +7942,9 @@
     const greaterPow = /\s+with greater power$/i.test(String(phrase));
     if (greaterPow) phrase = String(phrase).replace(/\s+with greater power$/i, '');
     // Auron, Venerated Guardian: "target creature defending player controls with power less than CARDNAME's power" (lesserPowerThanSource)
-    const lesserPow = /\s+with power less than (?:CARDNAME|this creature)'s power$/i.test(String(phrase));
-    if (lesserPow) phrase = String(phrase).replace(/\s+with power less than (?:CARDNAME|this creature)'s power$/i, '');
+    // (Mirko, Obsessive Theorist: "target creature card with power less than Mirko's" — no "power" after it)
+    const lesserPow = /\s+with power less than (?:CARDNAME|this creature)'s(?: power)?$/i.test(String(phrase));
+    if (lesserPow) phrase = String(phrase).replace(/\s+with power less than (?:CARDNAME|this creature)'s(?: power)?$/i, '');
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
        Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
     const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
@@ -8272,6 +8285,9 @@
     if (spec.minToughness != null && tou() < spec.minToughness) return false;
     if (spec.withKeyword && !kw(spec.withKeyword)) return false;
     if (spec.withKeywordAny && !spec.withKeywordAny.some(kw)) return false;
+    // Jacob Frye: "an Assassin card or card with freerunning" (subtypeOrKeyword)
+    if (spec.subtypeOrKeyword && !((a.subtypes || []).some(t => String(t).toLowerCase() === spec.subtypeOrKeyword.subtype) ||
+      kw(spec.subtypeOrKeyword.keyword) || (a.keywords || []).some(x => String(x).toLowerCase() === spec.subtypeOrKeyword.keyword))) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
@@ -9911,6 +9927,33 @@
         { op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', rest: 'bottom' }] },
     { re: /^Look at the top card of your library\. You may put (?:it|that card) into your graveyard\.?$/i,
       make: () => [{ op: 'surveil', n: 1 }] },
+    /* Jacob Frye: "exile up to one target Assassin card or card with freerunning from your graveyard. If you do, copy it.
+       You may cast the copy." — paying for it, and only a card this exiled (subtypeOrKeyword; castCopy fromRes) */
+    { re: /^[Ee]xile up to one target ([A-Z][a-z]+) card or card with ([a-z]+) from your graveyard\. If you do, copy it\. You may cast the copy\.?$/,
+      make: (m) => [{ op: 'exile', targets: [{ type: 'card', filter: `${m[1]} card or card with ${m[2]}`, zone: 'graveyard', controller: 'you', upTo: true,
+        subtypeOrKeyword: { subtype: m[1].toLowerCase(), keyword: m[2].toLowerCase() } }] },
+        { op: 'castCopy', of: 'last', pay: true, fromRes: true }] },
+    /* Tasigur, the Golden Fang: "Mill two cards, then return a nonland card of an opponent's choice from your graveyard
+       to your hand." (returnOpponentsChoice) */
+    { re: /^Mill (\w+) cards?, then return an? (nonland )?card of an opponent'?s choice from your graveyard to your hand\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'returnOpponentsChoice', filter: m[2] ? 'nonland' : null }] : null) },
+    /* Kain, Traitorous Dragoon: "that player gains control of Kain. If they do, you draw that many cards, create that
+       many tapped Treasure tokens, then lose that much life." — the player hit, and the damage dealt (giveControl then) */
+    { re: /^That player gains control of CARDNAME\. If they do, you draw that many cards, create that many tapped Treasure tokens, then lose that much life\.?$/i,
+      make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true, then: [{ op: 'draw', who: 'you', n: 'triggerAmount' },
+        { op: 'createNamedToken', n: 'triggerAmount', token: 'Treasure', tapped: true }, { op: 'loseLife', who: 'you', n: 'triggerAmount' }] }] },
+    /* Kamiz, Obscura Oculus: "target attacking creature can't be blocked this turn. It connives. Then choose another
+       attacking creature with lesser power. That creature gains double strike until end of turn." — the second one
+       chosen, not targeted, after the conniving (chooseLesserPower) */
+    { re: /^Target attacking creature can'?t be blocked this turn\. It connives\. Then choose another attacking creature with lesser power\. That creature gains double strike until end of turn\.?$/i,
+      make: () => {
+        const spec = targetSpec('target attacking creature');
+        if (!spec || spec.unknown) return null;
+        const pick = Object.assign({}, spec); delete pick.upTo;
+        return [{ op: 'restrict', flag: 'unblockable', targets: [spec] }, { op: 'connive', n: 1 },
+          { op: 'grantKeyword', keywords: ['Double Strike'], duration: 'eot', chooseFrom: pick, chooseLesserPower: true,
+            choosePrompt: 'choose another attacking creature with lesser power. It gains double strike until end of turn.' }];
+      } },
     /* Chiss-Goria, Forge Tyrant: "You may cast an artifact spell from among them this turn. If you do, it has affinity
        for artifacts." — one of them, and cheaper for each artifact you control as it is cast (impulseAffinity) */
     { re: /^Exile the top (\w+) cards of your library\. You may cast an artifact spell from among them this turn\. If you do, it has affinity for artifacts\.?$/i,
