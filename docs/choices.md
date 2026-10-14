@@ -237,4 +237,6 @@ surveil, arranging, ordering triggers, paying) keep their own screens.
 | `pawprint` | options, repeatable, `sum` of `weight` | "Choose up to five {P} worth of modes" (the Season cycle) |
 | `effectObject` | objects (battlefield) | "Put a +1/+1 counter on a creature you control": chosen, not targeted |
 | `chooseOpponent` | players | "Choose an opponent." |
+| `textFrom`, `textTo` | options (`word`, `kind`; `present` on the words its text uses) | a text-changing effect resolving (CR 612): the color word, basic land type or creature type replaced, then what it becomes (Sleight of Mind, Mind Bend, Artificial Evolution). `targetId` is what is changed |
+| `exchangeText` | objects (battlefield), one or none | Deadpool, Trading Card entering: the creature to exchange text boxes with |
 | `confirm`, `vote`, `mode`, `pickCard` | options or objects | the older shapes, through `fromLegacy` |

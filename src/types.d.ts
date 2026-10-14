@@ -100,6 +100,10 @@ declare namespace MTG {
     } | null;
     /** Alchemy: the card's intensity, for a card that has one */
     intensity?: number | null;
+    /** layer 3 (CR 612): its rules text now, when a text-changing effect has changed it (Mind Bend; Deadpool, Trading Card) */
+    textNow?: string | null;
+    /** …and the card as those words make it: the table reads its abilities from this (the engine's indexes) */
+    textCard?: Card | null;
     /** banding: attackers with the same band id attack as one band */
     band?: string | null;
     /** soulbond: the id of the creature it is paired with */
@@ -137,6 +141,8 @@ declare namespace MTG {
     triggered?: boolean;
     /** the face a spell was cast as; null for an ability or a face-down spell */
     face?: number | null;
+    /** a spell whose words a text-changing effect changed: what it says now */
+    textNow?: string | null;
   }
 
   interface ManaPoolView { W: number; U: number; B: number; R: number; G: number; C: number }

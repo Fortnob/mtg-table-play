@@ -1530,10 +1530,61 @@
     return out;
   }
 
+  /* Layer 3, text-changing effects (CR 612): how much of each color, basic
+     land type or creature type these players' permanents (and cards in
+     hand) have — what a changed word would then be about. */
+  function wordWeights(bot, pids, kind) {
+    const g = bot.game, out = new Map();
+    const add = (w, k) => out.set(w, (out.get(w) || 0) + k);
+    const WORD = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+    for (const pid of pids) {
+      const objs = g.battlefield.filter(o => o.controller === pid && !o.phasedOut).concat(((g.zones[pid] || {}).hand) || []);
+      for (const o of objs) {
+        const a = (o.zone === 'battlefield' ? o.analysis() : MTG.oracle.analyze(o.card, o.face || 0)) || {};
+        if (kind === 'color') for (const c of (a.colors || [])) add(WORD[c], o.zone === 'battlefield' ? 2 : 1);
+        if (kind === 'land' && a.isLand) for (const t of (a.subtypes || [])) add(t, 1);
+        if (kind === 'creature' && a.isCreature) for (const t of (a.subtypes || [])) add(t, o.zone === 'battlefield' ? 2 : 1);
+      }
+    }
+    return out;
+  }
+
   /* What a bot makes of the generic questions it knows by name. Each is
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Sleight of Mind, Mind Bend: the word its text uses most is the one worth changing */
+    textFrom(s) {
+      const i = (s.options || []).findIndex(o => o && o.present);
+      return { picks: [i < 0 ? 0 : i] };
+    },
+    /* …and what it becomes: on our own permanent, the color or land type the opponents have most ("protection
+       from black" against a black deck, "swampwalk" against Swamps) or our own commonest creature type (a lord);
+       on theirs, what we have least of (their Circle of Protection guards against a color we don't play), or a
+       creature type they don't have */
+    textTo(s) {
+      const g = this.game, x = g.obj(s.targetId), opts = s.options || [];
+      if (!opts.length) return null;
+      const kind = opts[0].kind;
+      const ours = !x || x.controller === this.pid;
+      const opp = g.opponentsOf(this.pid).map(p => p.id);
+      const weights = kind === 'creature' ? wordWeights(this, ours ? [this.pid] : [x.controller], kind)
+        : wordWeights(this, ours ? opp : [this.pid], kind);
+      let best = 0, bestV = -Infinity;
+      opts.forEach((o, i) => {
+        const v = (weights.get(o.word) || 0) * (ours ? 1 : -1) - i * 1e-4;
+        if (v > bestV) { best = i; bestV = v; }
+      });
+      return { picks: [best] };
+    },
+    /* Deadpool, Trading Card: his upkeep life loss and "each other player draws" go to an opponent's best
+       creature, whose abilities he takes; nothing of ours is worth trading for them */
+    exchangeText(s) {
+      const g = this.game;
+      const theirs = (s.items || []).map(x => g.obj(x.id)).filter(o => o && o.controller !== this.pid)
+        .sort((a, b) => this.permanentValue(b) - this.permanentValue(a));
+      return { picks: theirs.length ? [theirs[0].id] : [] };
+    },
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) {
       // Scapeshift: every land; anything else (Pitiless Carnage): only tokens

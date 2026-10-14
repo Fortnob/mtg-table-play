@@ -326,6 +326,10 @@
   font: 700 calc(var(--w, 90px) * .1)/1.5 var(--font); padding: 0 .5em; border-radius: 99px;
   color: #fff4e0; background: linear-gradient(180deg, #e0773a, #a8441a); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .hslot .cv-intensity { right: auto; left: 4%; top: 24%; }
+/* layer 3: a text-changing effect has changed its words */
+.cv-textnow { position: absolute; left: 6%; top: 12%; z-index: 3; pointer-events: auto; white-space: nowrap;
+  font: 700 calc(var(--w, 90px) * .1)/1.5 var(--font); padding: 0 .5em; border-radius: 99px;
+  color: #eaf6ff; background: linear-gradient(180deg, #3f8fd6, #24609e); box-shadow: 0 2px 6px rgba(0,0,0,.6); }
 .hslot .cv-perpetual { left: 4%; top: 12%; bottom: auto; translate: none; max-width: 40%; font-size: calc(var(--w, 90px) * .1); }
 .cv-chosen { position: absolute; left: 50%; top: 22%; translate: -50% 0; z-index: 3; max-width: 96%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font: 700 calc(var(--w, 90px) * .085)/1.5 var(--font); padding: 0 .6em; border-radius: 99px; pointer-events: auto;
@@ -737,6 +741,8 @@
 .pv-note.info { color: #9cc7ff; }
 .pv-note.warn { color: #ffd27a; }
 .pv-note.dim { color: #8d97a8; }
+.pv-note.pv-textnow { color: #e9edf4; }
+.pv-note.pv-textnow b { color: #9cc7ff; font-weight: 600; }
 .pv-ab { font-size: 12.5px; color: #e9edf4; padding-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,.08); }
 
 .cardview { position: fixed; inset: 0; z-index: 650; display: grid; place-items: center; background: rgba(4,6,10,.78); backdrop-filter: blur(4px);

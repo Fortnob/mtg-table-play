@@ -114,7 +114,7 @@
     analysis() {
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
-      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand) : O.analyze(this.card, this.face);
+      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand) : O.analyze(this.textCard, this.face);
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -125,6 +125,17 @@
     }
     /** What this card really is, whichever side is showing. */
     trueAnalysis() { return O.analyze(this.card, this.face); }
+    /**
+     * The card as its words read now (layer 3, CR 612): its copiable values
+     * (`card`, after any copy effect) with every text-changing effect on it
+     * applied, oldest first. Only a spell or a permanent has its text
+     * changed; `card` itself never is, so a copy of it copies the words as
+     * printed (CR 707.2).
+     */
+    get textCard() {
+      const g = this.game;
+      return g && (this.zone === 'battlefield' || this.zone === 'stack') && !this.faceDown ? g._textCard(this) : this.card;
+    }
   }
 
   /** "three" and "3" both mean 3. */
@@ -3118,6 +3129,12 @@
         // "another target": never what the ability is on
         if (i != null && item.obj && o.id === item.obj.id && (this._specsOf(item)[i] || {}).another) return false;
         if (t.zone && o.zone !== t.zone) return false;
+        /* a spell whose words a text-changing effect changed (layer 3, Sleight of Mind on "destroy target
+           nonblack creature"): its target is checked against what the words say now (CR 608.2b) */
+        if (item.wordsChanged && i != null) {
+          const sp = this._specsOf(item)[i];
+          if (sp && !this._legalTargetsFor(sp, item.controller, item.obj && item.obj.id).some(u => u && u.kind === t.kind && u.id === t.id)) return false;
+        }
         if (o.zone === 'battlefield') {
           if (this.hasKw(o, 'hexproof') && o.controller !== item.controller) return false;
           if (item.obj && o.controller !== item.controller && this._hexproofFromHit(o, item.obj)) return false;
@@ -6893,6 +6910,8 @@
       if (this._staticOp(o, 'chooseColorOnEnter')) this._chooseColorFor(o);
       if (this._staticOp(o, 'chooseOnEnter')) this._chooseValueFor(o, this._staticOp(o, 'chooseOnEnter'));
       if (this._staticOp(o, 'chooseModeOnEnter')) this._chooseEnterMode(o);
+      // Deadpool, Trading Card: "you may exchange his text box and another creature's" (layer 3)
+      if (this._staticOp(o, 'exchangeTextOnEnter')) this._exchangeOnEnter(o);
       /* Devour: the creatures chosen as it was cast, sacrificed as it enters,
          and N +1/+1 counters for each */
       if (a.devour && o._devourPicks) {
@@ -10604,9 +10623,220 @@
         e.addChosenType || e.chosenLandType || e.setColors || e.addColors || e.loseAll));
     }
 
+    /* ---------- layer 3: text (CR 612, 613.1c) ----------
+       A text-changing effect is kept on the spell or permanent it changes,
+       in `o.effects`, like any other effect that lasts: `textChange` (one
+       word for another: Sleight of Mind, Mind Bend, Artificial Evolution)
+       or `textSwap` (a whole text box: Deadpool, Trading Card; Exchange of
+       Words), with its timestamp, its duration and, for "for as long as",
+       its source. Swirl the Mists changes every spell's and permanent's
+       from the battlefield. They apply after copy effects (layer 1: they
+       change `o.card`, the copiable values) and before everything that reads
+       abilities, oldest first, to give the card its words now
+       (`o.textCard`); every ability is read again from those words. */
+
+    /** The card `o` is, with its text changed by every layer-3 effect on it (o.textCard). */
+    _textCard(o) {
+      const card = o.card;
+      if (!card) return card;
+      const glob = this._textGlobal();
+      let own = null;
+      const fx = o.effects;
+      if (fx && fx.length) {
+        for (let i = 0; i < fx.length; i++) {
+          const e = fx[i];
+          if (e && (e.textChange || e.textSwap)) (own = own || []).push({ ts: this._effTs(e, i), e });
+        }
+      }
+      if (!own && !glob.length) return card;
+      const list = (own || []).concat(glob);
+      if (list.length > 1) list.sort((x, y) => x.ts - y.ts);
+      const key = (o.face || 0) + '|' + list.map(x => x.e.textId || JSON.stringify(x.e.textChange || x.e.textSwap)).join(';');
+      if (o._txtKey === key && o._txtFrom === card) return o._txtCard;
+      const out = this._applyText(card, o.face || 0, list.map(x => x.e));
+      Object.defineProperty(o, '_txtCard', { value: out, enumerable: false, writable: true, configurable: true });
+      Object.defineProperty(o, '_txtFrom', { value: card, enumerable: false, writable: true, configurable: true });
+      o._txtKey = key;
+      return out;
+    }
+
+    /** `card` with the text effects `list` applied in order, or `card` itself when they change nothing. */
+    _applyText(card, face, list) {
+      const faces = card.card_faces && card.card_faces.length ? card.card_faces : null;
+      const f = faces ? (faces[face] || faces[0]) : card;
+      const text0 = String(f.oracle_text != null ? f.oracle_text : (card.oracle_text || ''));
+      const type0 = String(f.type_line || card.type_line || '');
+      const kw0 = (card.keywords || []).slice();
+      let text = text0, type = type0, kws = kw0;
+      // its own name is a name: never changed (CR 612.2)
+      const name = String(f.name || card.name || '');
+      const keep = [name, card.name, name.includes(',') ? name.split(',')[0] : null];
+      for (const e of list) {
+        // the words it was handed name it where they named the one they came from (\u0003)
+        if (e.textSwap) { text = String(e.textSwap.text || '').split('\u0003').join(name); kws = (e.textSwap.keywords || []).slice(); continue; }
+        const ch = e.textChange;
+        if (!ch) continue;
+        text = replaceTextWords(text, ch, keep);
+        type = replaceTypeWords(type, ch);
+        kws = kws.map(k => replaceTextWords(k, ch, []));
+      }
+      if (text === text0 && type === type0 && kws.join('|') === kw0.join('|')) return card;
+      const sig = U.hash(face + '|' + type + '|' + text + '|' + kws.join(','));
+      const out = Object.assign({}, card, { id: card.id + ':text:' + sig, keywords: kws, textChanged: true });
+      if (faces) {
+        out.card_faces = faces.map((x, i) => (x === f ? Object.assign({}, x, { oracle_text: text }, x.type_line ? { type_line: type } : {}) : x));
+        if (!f.type_line) out.type_line = type;
+        if (f.oracle_text == null) out.oracle_text = text;
+      } else {
+        out.oracle_text = text;
+        out.type_line = type;
+      }
+      return out;
+    }
+
+    /** Swirl the Mists: "All instances of color words in the text of spells and permanents are changed to the chosen color word." */
+    _textGlobal() {
+      if (this._txtGlob && this._txtGlobKey === this._boardKey) return this._txtGlob;
+      const out = [];
+      for (const x of this.battlefield) {
+        if (x.phasedOut || x.faceDown || !x.chosenColor) continue;
+        const a = O.analyze(x.card, x.face);
+        if (!a || !(a.abilities || []).some(ab => (ab.effects || []).some(e => e && e.op === 'swirlText'))) continue;
+        const to = COLOR_WORD_OF[x.chosenColor];
+        if (to) out.push({ ts: this._tsOf(x), e: { textChange: { kind: 'colorAll', to }, textId: 'swirl:' + x.id + ':' + to } });
+      }
+      this._txtGlob = out;
+      this._txtGlobKey = this._boardKey;
+      return out;
+    }
+
+    /** What a text box says, to be handed to another object: its words now, its own name read as CARDNAME. */
+    _textSnapshot(o) {
+      const card = this._textCard(o);
+      const a = O.analyze(card, o.face || 0) || {};
+      const text = String(a.oracleTextParsed != null ? a.oracleTextParsed : (card.oracle_text || '')).replace(/\bCARDNAME\b/g, '\u0003');
+      return { text, keywords: (card.keywords || []).slice(), from: o.name };
+    }
+
+    /**
+     * Exchange two creatures' text boxes (Deadpool, Trading Card; Exchange
+     * of Words): each has the other's words as they are now, rules text and
+     * keywords, for as long as the effect lasts. Names, costs, types and
+     * power and toughness stay where they were, and the words each one hands
+     * over that named the one it was on now name the one it is on.
+     */
+    _exchangeText(a, b, whileFrom) {
+      if (!a || !b || a === b || a.zone !== 'battlefield' || b.zone !== 'battlefield') return false;
+      const sa = this._textSnapshot(a), sb = this._textSnapshot(b);
+      const ts = this._stampNew();
+      const tag = whileFrom ? { whileFrom } : {};
+      a.effects.push(Object.assign({ textSwap: sb, textId: 'swap:' + ts + ':' + b.id, until: null, ts }, tag));
+      b.effects.push(Object.assign({ textSwap: sa, textId: 'swap:' + ts + ':' + a.id, until: null, ts }, tag));
+      a._chr = null; b._chr = null;
+      this.bumpBoard();
+      this.logEvent('rules', `${a.name} and ${b.name} exchange text boxes.`);
+      return true;
+    }
+
+    /** Deadpool, Trading Card: "As Deadpool enters, you may exchange his text box and another creature's." */
+    _exchangeOnEnter(o) {
+      const p = this.player(o.controller);
+      const others = this.battlefield.filter(x => x !== o && !x.phasedOut && !x.faceDown && (this.characteristics(x) || {}).isCreature);
+      if (!p || !others.length) return;
+      const spec = MTG.choice.normalize({ playerId: p.id, purpose: 'exchangeText', kind: 'objects', zone: 'battlefield',
+        items: this._chooseItems(others), min: 1, max: 1, optional: true, objId: o.id,
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card, noneLabel: 'Don’t exchange', confirmLabel: 'Exchange',
+        prompt: `${o.name}: exchange its text box with another creature's?` });
+      if (p.isBot) {
+        const got = this._decideChoose(p.id, spec);
+        if (got && got.picks.length) this._exchangeText(o, this.obj(got.picks[0]));
+        return;
+      }
+      this.queueChoice(spec);
+    }
+
+    /** The words of each kind (color, land, creature) a spell or permanent's text uses now, commonest first. */
+    _textWordsIn(o, kinds) {
+      const card = o.textCard || o.card;
+      const faces = card.card_faces && card.card_faces.length ? card.card_faces : null;
+      const f = faces ? (faces[o.face || 0] || faces[0]) : card;
+      const name = String(f.name || card.name || '');
+      let text = String(f.oracle_text != null ? f.oracle_text : (card.oracle_text || ''));
+      for (const nm of [name, name.split(',')[0]]) if (nm && nm.length >= 3) text = text.split(nm).join(' ');
+      text = text.replace(/\bnamed ((?:[A-Z][\w'-]*|of|the)(?:,? (?:[A-Z][\w'-]*|of|the))*)/g, ' ');
+      const type = String(f.type_line || card.type_line || '');
+      const subs = type.includes('—') ? type.split('—')[1].split(/\s+/).filter(Boolean) : [];
+      const counts = new Map();
+      const add = (kind, word) => { const k = kind + ':' + word; counts.set(k, (counts.get(k) || 0) + 1); };
+      if (kinds.includes('color')) for (const m of text.matchAll(/\b(?:non-?)?(white|blue|black|red|green)\b/gi)) add('color', m[1].toLowerCase());
+      if (kinds.includes('land')) {
+        for (const m of text.matchAll(/\b(?:non-?)?(Plains|Islands?|Swamps?|Mountains?|Forests?)(?:walk|cycling|home)?\b/gi)) add('land', /^plains$/i.test(m[1]) ? 'Plains' : U.titleCase(m[1].replace(/s$/i, '')));
+        for (const w of subs) if (BASIC_LAND_TYPES.includes(w)) add('land', w);
+      }
+      if (kinds.includes('creature')) {
+        for (const m of text.matchAll(/(?<![\w'-])(?:non-)?([A-Z][a-z'-]+)(?![\w-])/g)) {
+          const w = m[1];
+          const one = CREATURE_TYPES.find(t => t === w || typePlural(t) === w);
+          if (one) add('creature', one);
+        }
+        for (const w of subs) if (CREATURE_TYPES_LOWER.has(w.toLowerCase())) add('creature', w);
+      }
+      return Array.from(counts).sort((x, y) => y[1] - x[1]).map(([k]) => { const i = k.indexOf(':'); return { kind: k.slice(0, i), word: k.slice(i + 1) }; });
+    }
+
+    /**
+     * "Change the text of target spell or permanent by replacing all
+     * instances of one color word with another": which word, and which it
+     * becomes, chosen as it resolves. The words it uses are offered first;
+     * a word can't become itself, and Artificial Evolution's never Wall.
+     * Returns { kind, from, to }, SUSPEND while a person thinks, or null.
+     */
+    _chooseTextWords(e, ctx, x) {
+      const kinds = (e.kinds || ['color']).slice();
+      const label = (k, w) => (k === 'color' ? U.titleCase(w) : w);
+      const every = (k) => (k === 'color' ? COLOR_WORDS : k === 'land' ? BASIC_LAND_TYPES : CREATURE_TYPES);
+      const present = this._textWordsIn(x, kinds);
+      const seen = new Set(present.map(p => p.kind + ':' + p.word));
+      const froms = present.map(p => ({ label: label(p.kind, p.word), kind: p.kind, word: p.word, present: true }));
+      for (const k of kinds) for (const w of every(k)) if (!seen.has(k + ':' + w)) froms.push({ label: label(k, w), kind: k, word: w });
+      const what = kinds.map(k => (k === 'color' ? 'color word' : k === 'land' ? 'basic land type' : 'creature type')).join(' or ');
+      // (Spectral Shift entwined: two changes in one resolution, each asked for itself)
+      const key = 'text:' + x.id + ':' + kinds.join('/') + ':';
+      const q1 = this._choose({ playerId: ctx.controller, purpose: 'textFrom', kind: 'options', options: froms, min: 1, max: 1,
+        targetId: x.id, prompt: `Change the text of ${x.name}: which ${what} is replaced?` }, key + 'from');
+      if (q1 === SUSPEND) return SUSPEND;
+      const from = q1 && q1.picks.length ? froms[q1.picks[0]] : null;
+      if (!from) return null;
+      let to = e.to || null;
+      if (!to) {
+        const tos = every(from.kind).filter(w => w !== from.word && w !== e.notTo).map(w => ({ label: label(from.kind, w), kind: from.kind, word: w }));
+        const q2 = this._choose({ playerId: ctx.controller, purpose: 'textTo', kind: 'options', options: tos, min: 1, max: 1,
+          targetId: x.id, fromWord: from.word, prompt: `Change the text of ${x.name}: replace “${from.label}” with which ${from.kind === 'color' ? 'color word' : from.kind === 'land' ? 'basic land type' : 'creature type'}?` }, key + 'to');
+        if (q2 === SUSPEND) return SUSPEND;
+        to = q2 && q2.picks.length ? (tos[q2.picks[0]] || {}).word : null;
+      }
+      // a word can't be changed to itself (Mind Bend's ruling)
+      if (!to || to === from.word) return null;
+      return { kind: from.kind, from: from.word, to };
+    }
+
+    /** A spell on the stack whose words changed: what it does is read again, if its shape is unchanged (the targets were chosen for it). */
+    _rereadSpell(item) {
+      // (overloaded, cleaved or fused, it was cast as other words than its own: left as it is)
+      if (!item || item.kind !== 'spell' || !item.obj || !item.effects || item.fused || /overload|cleave/i.test(String(item.via || ''))) return;
+      const a = item.obj.analysis();
+      if (!a || a.isPermanent) return;
+      const fresh = this._cardSpellEffects(a);
+      const shape = (list) => JSON.stringify((list || []).map(x => [x && x.op, ((x && x.targets) || []).length]));
+      if (shape(fresh.slice(0, item.effects.length)) === shape(item.effects.slice(0, fresh.length)) && fresh.length <= item.effects.length) {
+        item.effects = fresh.concat(item.effects.slice(fresh.length));
+        item.wordsChanged = true;
+      }
+    }
+
     /** What a permanent printed, and was handed in quotation marks, before the layers. */
     _baseAnalysis(o) {
-      const base = o.faceDown ? O.faceDownAnalysis(o.faceDownLand) : O.analyze(o.card, o.face);
+      const base = o.faceDown ? O.faceDownAnalysis(o.faceDownLand) : O.analyze(o.textCard, o.face);
       if (!base || o.zone !== 'battlefield') return base;
       return this._dynamicAnalysis(o, base);
     }
@@ -11850,7 +12080,7 @@
       // an emblem hands out abilities too (Koth of the Hammer's Mountains)
       for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
-        const a = O.analyze(src.card, src.face);
+        const a = O.analyze(src.textCard || src.card, src.face);
         if (!a || src.faceDown) continue;
         const ts = this._tsOf(src);
         for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
@@ -13951,7 +14181,11 @@
          sentence acts on its own, not on everything the spell pointed at. */
       if (!slotted && e.targets && e.targets.length && (ctx.targets || []).length) {
         const flat = [];
-        for (const x of (ctx.effects || [])) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
+        /* (entwined, Spectral Shift: every mode is spliced in after the choice, each with its own targets,
+           in the order they were chosen as it was cast — entwineSlots) */
+        const r0 = this.resolving;
+        const list0 = ctx.entwined && r0 && r0.effects && !(ctx.effects || []).includes(e) && r0.effects.includes(e) ? r0.effects : (ctx.effects || []);
+        for (const x of list0) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
         const aimed = flat.filter(x => x.targets && x.targets.length && !x.askTargets);
         // a variable-count target takes whatever the fixed ones leave
         const fixedAll = aimed.reduce((k, x) => k + x.targets.filter(sp => !(sp && sp.multi)).length, 0);
@@ -24215,6 +24449,43 @@
           this.bumpBoard();
           break;
         }
+        /* Layer 3 (CR 612): "Change the text of target spell or permanent by
+           replacing all instances of one color word with another" — the words
+           chosen as it resolves, the change kept on what it changed, for the
+           turn or for good. New Blood's "that creature" is the one its first
+           sentence took. A spell on the stack is read again from its new words. */
+        case 'changeText': {
+          const all = (ctx.resolvedTargets || ctx.targets || []);
+          const t0 = e.ref === 'target' ? (targets.find(t => t && t.kind === 'object') || all.find(t => t && t.kind === 'object')) : targets[0];
+          if (!t0) break;
+          const item = t0.kind === 'stack' ? this.stack.find(s => s.id === t0.id) : null;
+          const x = item ? item.obj : this.obj(t0.id);
+          if (!x || !(x.zone === 'battlefield' || x.zone === 'stack')) break;
+          const r = this._chooseTextWords(e, ctx, x);
+          if (r === SUSPEND) return SUSPEND;
+          if (!r) break;
+          const ts = this._stampNew();
+          x.effects = x.effects || [];
+          x.effects.push({ textChange: r, textId: 'tc:' + ts + ':' + r.kind + ':' + r.from + '>' + r.to, until: e.duration === 'eot' ? 'eot' : null, ts });
+          // Balduvian Shaman: 'That enchantment gains "Cumulative upkeep {1}."'
+          if (e.grantText) x.effects.push(Object.assign({ grantText: e.grantText, until: null, ts: this._stampNew() },
+            /^cumulative upkeep\b/i.test(e.grantText) ? { keywords: ['Cumulative upkeep'] } : {}));
+          x._chr = null;
+          this.bumpBoard();
+          if (item) this._rereadSpell(item);
+          const w = (k, v) => (k === 'color' ? String(v).toLowerCase() : v);
+          this.logEvent('rules', `The text of ${x.name} now says “${w(r.kind, r.to)}” where it said “${w(r.kind, r.from)}”${e.duration === 'eot' ? ' until end of turn' : ''}.`);
+          break;
+        }
+        /* Exchange of Words: "For as long as this enchantment remains on the
+           battlefield, exchange the text boxes of those creatures." */
+        case 'exchangeText': {
+          const objs = targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
+          if (objs.length < 2 || objs[0] === objs[1]) break;
+          if (e.whileSource && !(src && src.zone === 'battlefield')) break;
+          this._exchangeText(objs[0], objs[1], e.whileSource && src ? src.id : null);
+          break;
+        }
         /* Mirrorweave: "Each other creature becomes a copy of target
            nonlegendary creature until end of turn." A copy effect (layer 1):
            what each was is kept, and comes back as the turn ends. */
@@ -25664,6 +25935,12 @@
           data = { picks: got.picks, number: got.number, order: got.order };
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
+          // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it
+          if (ch.purpose === 'exchangeText') {
+            const o = this.obj(ch.objId), x = got.picks.length ? this.obj(got.picks[0]) : null;
+            if (o && x) this._exchangeText(o, x);
+            break;
+          }
           // asked while casting: the cast starts again with the answer
           if (ch.then && ch.then.kind === 'cast') {
             const again = Object.assign({}, ch.then.opts);
@@ -26968,7 +27245,7 @@
       this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
       this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
       this._tsSeq = snap.tsSeq || 0; this._exileSeq = snap.exileSeq || 0;
-      this._lb = null; this._contCache = null;
+      this._lb = null; this._contCache = null; this._txtGlob = null;
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
         const p = new Player({ id: d.id, name: d.name, isBot: d.isBot, botDifficulty: d.botDifficulty }, this);
@@ -27251,6 +27528,16 @@
       return out;
     }
 
+    /** A spell's or permanent's rules text now, when a layer-3 effect has changed it (CR 612); undefined otherwise. */
+    _textNowView(o) {
+      if (!o || !(o.zone === 'battlefield' || o.zone === 'stack')) return undefined;
+      const c = o.textCard;
+      if (!c || c === o.card) return undefined;
+      const faces = c.card_faces && c.card_faces.length ? c.card_faces : null;
+      const f = faces ? (faces[o.face || 0] || faces[0]) : c;
+      return String(f.oracle_text != null ? f.oracle_text : (c.oracle_text || '')).replace(/\bCARDNAME\b/g, o.name);
+    }
+
     viewFor(playerId) {
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
@@ -27300,6 +27587,10 @@
         })(),
         // Alchemy: what has been done to the card perpetually, added up for the table
         perpetual: secret(o) ? null : this._perpetualSummary(o),
+        // layer 3 (CR 612): its words now, where an effect has changed them (Mind Bend; Deadpool, Trading Card)
+        textNow: secret(o) ? undefined : this._textNowView(o),
+        // …and the card as those words make it, which the table reads its abilities from (their indexes are the engine's)
+        textCard: secret(o) || o.zone !== 'battlefield' || o.textCard === o.card ? undefined : o.textCard,
         // banding: the band an attacker is in, while it attacks (attackers with the same id are one band)
         band: o.attacking && o.bandId ? o.bandId : null,
         // Alchemy: a card with an intensity shows it
@@ -27420,6 +27711,8 @@
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
           // what a target spec may ask of it: a triggered ability or not, and the face a spell was cast as
           triggered: !!s.triggered, face: s.obj && !secret(s.obj) ? (s.obj.face || 0) : null,
+          // a spell whose words a text-changing effect changed (layer 3): what it says now
+          textNow: s.kind === 'spell' && s.obj && !secret(s.obj) ? this._textNowView(s.obj) : undefined,
         })).map(s => this._namedWords(s, this._nameHint(s.objId))),
         battlefield: this.battlefield.map(o => ser(o, false)),
         players: this.players.map(p => ({
@@ -27516,6 +27809,80 @@
     'Werewolf', 'Whale', 'Wizard', 'Wolf', 'Wolverine', 'Wombat', 'Worm', 'Wraith', 'Wurm', 'Xindi', 'Yeti', 'Zombie', 'Zubera',
   ];
   const CREATURE_TYPES_LOWER = new Set(CREATURE_TYPES.map(t => t.toLowerCase()));
+
+  /* ---------- layer 3: the words a text-changing effect changes (CR 612) ----------
+     Color words, basic land type words and creature type words, each only
+     where it is used as one (CR 612.2): "nonblack", "protection from black",
+     "Islandwalk", "Swamps you control", "Other Goblins", and the subtypes on
+     the type line. A name never changes, its own or one it says ("named …"). */
+  const COLOR_WORDS = ['white', 'blue', 'black', 'red', 'green'];
+  const COLOR_WORD_OF = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+  const BASIC_LAND_TYPES = ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest'];
+  const TYPE_PLURALS = { Elf: 'Elves', Dwarf: 'Dwarves', Wolf: 'Wolves', Werewolf: 'Werewolves', Thief: 'Thieves', Merfolk: 'Merfolk',
+    Kithkin: 'Kithkin', Samurai: 'Samurai', Fungus: 'Fungi', Mouse: 'Mice', Fox: 'Foxes', Sphinx: 'Sphinxes', Fish: 'Fish',
+    Djinn: 'Djinn', Efreet: 'Efreet', Ox: 'Oxen', Pegasus: 'Pegasi', Cyclops: 'Cyclopes', Octopus: 'Octopuses', Moonfolk: 'Moonfolk',
+    Sheep: 'Sheep', Kor: 'Kor', Vedalken: 'Vedalken', Eldrazi: 'Eldrazi', Phyrexian: 'Phyrexians', Hero: 'Heroes', Lamia: 'Lamias' };
+  function typePlural(w) {
+    if (TYPE_PLURALS[w]) return TYPE_PLURALS[w];
+    if (/[^aeiou]y$/.test(w)) return w.slice(0, -1) + 'ies';
+    return /(?:s|x|ch|sh)$/.test(w) ? w + 'es' : w + 's';
+  }
+  const reEsc = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /** The new word in the old one's case: "Black" becomes "White", "black" "white". */
+  const casedLike = (was, w) => (/^[A-Z]/.test(was) ? w.charAt(0).toUpperCase() + w.slice(1) : w.charAt(0).toLowerCase() + w.slice(1));
+  /* "Plains" is its own plural: read as many where the words around it count them */
+  const plainsMany = (before, after) => /\b(?:all|two|three|four|five|six|seven|eight|\d+|X|more|many|other|untapped|tapped|of)\s+$/i.test(before) ||
+    (/^\s+(?:you|they|your opponents|that player|each player|defending player) controls?\b/i.test(after) && !/\b(?:a|an|each|one|another|target|that)\s+$/i.test(before));
+
+  /**
+   * `text` with every instance of one word changed as `ch` says ({ kind:
+   * 'color' | 'land' | 'creature' | 'colorAll', from, to }), except inside
+   * the names in `keep` and any "named …".
+   */
+  function replaceTextWords(text, ch, keep) {
+    if (!text || !ch) return text;
+    const held = [];
+    const hold = (s) => { held.push(s); return '\u0001' + (held.length - 1) + '\u0002'; };
+    let t = String(text);
+    for (const nm of (keep || []).filter(Boolean).sort((a, b) => b.length - a.length)) if (nm.length >= 3) t = t.split(nm).join(hold(nm));
+    t = t.replace(/\bnamed ((?:[A-Z][\w'-]*|of|the)(?:,? (?:[A-Z][\w'-]*|of|the))*)/g, (x, nm) => 'named ' + hold(nm));
+    if (ch.kind === 'color' || ch.kind === 'colorAll') {
+      const from = String(ch.from || '').toLowerCase(), to = String(ch.to || '').toLowerCase();
+      t = t.replace(/\b(non-?)?(white|blue|black|red|green)\b/gi, (x, non, w) =>
+        (ch.kind === 'colorAll' || w.toLowerCase() === from) ? (non || '') + casedLike(w, to) : x);
+    } else if (ch.kind === 'land') {
+      const from = String(ch.from), to = String(ch.to);
+      t = t.replace(/\b(non-?)?(Plains|Islands?|Swamps?|Mountains?|Forests?)(walk|cycling|home)?\b/gi, (x, non, w, suf, off, whole) => {
+        const base = /^plains$/i.test(w) ? 'Plains' : U.titleCase(w.replace(/s$/i, ''));
+        if (base !== from) return x;
+        let many = !/^plains$/i.test(w) && /s$/i.test(w);
+        if (base === 'Plains' && !suf) many = plainsMany(whole.slice(0, off), whole.slice(off + x.length));
+        const word = to === 'Plains' || !many || suf ? to : to + 's';
+        return (non || '') + casedLike(w, word) + (suf || '');
+      });
+      // a basic land's mana is its type's (CR 305.6): the reminder of it says the new one
+      const fc = MANA.COLOR_OF_BASIC[from], tc = MANA.COLOR_OF_BASIC[to];
+      if (fc && tc) t = t.replace(/\(\{T\}: Add [^)]*\)/g, (x) => x.split('{' + fc + '}').join('{' + tc + '}'));
+    } else if (ch.kind === 'creature') {
+      const from = String(ch.from), to = String(ch.to);
+      const forms = [typePlural(from), from].filter((x, i, a) => a.indexOf(x) === i);
+      t = t.replace(new RegExp('(?<![\\w\'-])(non-)?(' + forms.map(reEsc).join('|') + ')(?![\\w-])', 'g'), (x, non, w) =>
+        (non || '') + (w === from ? to : typePlural(to)));
+    }
+    // "an Island" that is now a Swamp is "a Swamp"; "a Goblin" now an Elf, "an Elf"
+    if ((ch.kind === 'land' || ch.kind === 'creature') && ch.to) {
+      t = t.replace(new RegExp('\\b([Aa])n? (' + reEsc(ch.to) + ')(?![\\w-])', 'g'), (x, a, w) => a + (/^[AEIOU]/.test(w) ? 'n ' : ' ') + w);
+    }
+    return t.replace(/\u0001(\d+)\u0002/g, (x, i) => held[+i]);
+  }
+  /** A type line with one subtype changed (a basic land type or a creature type), the rest as it was. */
+  function replaceTypeWords(line, ch) {
+    const s = String(line || '');
+    const at = s.indexOf('—');
+    if (at < 0 || !(ch.kind === 'land' || ch.kind === 'creature')) return s;
+    const subs = s.slice(at + 1).split(/\s+/).filter(Boolean).map(w => (w === ch.from ? ch.to : w));
+    return s.slice(0, at + 1) + ' ' + subs.filter((w, i) => subs.indexOf(w) === i).join(' ');
+  }
 
   /* Jilt, Mind Spiral, Return to Dust: a target inside "if this spell was kicked", "if the gift was
      promised" or "if you cast this spell during your main phase" is one of the spell's targets only

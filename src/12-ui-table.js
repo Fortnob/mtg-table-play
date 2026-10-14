@@ -29,6 +29,19 @@
 (function (MTG) {
   const { el, util: U } = MTG;
   /**
+   * One line under a card being looked at; its words now (textnow) with their mana symbols.
+   * @param {[string, string]} note
+   */
+  function noteNode(note) {
+    const [cls, text] = note;
+    if (cls === 'textnow') {
+      return el('div', { class: 'pv-note info pv-textnow' }, [el('b', { text: 'Its text now: ' }),
+        el('span', { html: MTG.mana.textHtml(String(text)) })]);
+    }
+    return el('div', { class: 'pv-note ' + cls, text });
+  }
+
+  /**
    * A card's perpetual changes (Alchemy) in words: a short badge and the
    * full list for the tooltip.
    * @param {any} p
@@ -409,7 +422,8 @@
     analysis(o) {
       // (Yedora, Grave Gardener: face down as a Forest land, a Forest is all it is — faceDownLand)
       if (o && o.faceDown && o.faceDownLand) return MTG.oracle.faceDownAnalysis(o.faceDownLand);
-      return o && o.card ? MTG.oracle.analyze(o.card, o.face || 0) : null;
+      // (a text-changing effect, layer 3: the abilities its words give it now — textCard)
+      return o && o.card ? MTG.oracle.analyze(o.textCard || o.card, o.face || 0) : null;
     }
 
     /**
@@ -565,7 +579,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0, o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -580,6 +594,8 @@
       }
       // Alchemy: how intense it is now
       if (o.intensity != null) n.appendChild(el('div', { class: 'cv-mark cv-intensity', text: '◆ ' + o.intensity, title: `Intensity ${o.intensity}` }));
+      // layer 3: a text-changing effect has changed its words (Mind Bend; Deadpool, Trading Card)
+      if (o.textNow != null) n.appendChild(el('div', { class: 'cv-mark cv-textnow', text: '✎', title: 'Its text now: ' + o.textNow }));
       if (o.zone !== 'battlefield') return;
       const a = this.analysis(o);
       if (o.power != null && o.toughness != null) {
@@ -2960,7 +2976,7 @@
       let o = null;
       if (node.dataset.id) o = this.objIn(node.dataset.id) || (() => {
         const s = (this.view.stack || []).find(x => x.objId === node.dataset.id);
-        return s ? { id: s.objId, card: s.card } : null;
+        return s ? { id: s.objId, card: s.card, textNow: s.textNow } : null;
       })();
       if (!o && node.dataset.preview) {
         const h = this.history.find(x => x.key === node.dataset.preview);
@@ -2968,7 +2984,7 @@
       }
       if (!o && node.dataset.stack) {
         const s = (this.view.stack || []).find(x => x.id === node.dataset.stack);
-        if (s && s.card) o = { card: s.card, abilityText: s.abilityText };
+        if (s && s.card) o = { card: s.card, abilityText: s.abilityText, textNow: s.kind === 'spell' ? s.textNow : undefined };
       }
       if (!o || !o.card || o.hidden) return;
       const p = this.preview;
@@ -2985,7 +3001,7 @@
       if (notes.length || MTG.settings.alwaysCardText || o.abilityText) {
         main.appendChild(el('div', { class: 'pv-notes' }, [
           o.abilityText ? el('div', { class: 'pv-ab', html: MTG.mana.textHtml(o.abilityText) }) : null,
-          ...notes.map(([cls, text]) => el('div', { class: 'pv-note ' + cls, text })),
+          ...notes.map(noteNode),
           MTG.settings.alwaysCardText ? UI.cardTextBlock(o.card, o.face || 0) : null,
         ].filter(Boolean)));
       }
@@ -3017,6 +3033,9 @@
 
     cardNotes(o) {
       const out = [];
+      /* layer 3 (CR 612): words a text-changing effect has changed (Mind Bend;
+         Deadpool, Trading Card) are what the card says now, not what is printed */
+      if (o.textNow != null) out.push(['textnow', o.textNow]);
       if (o.zone !== 'battlefield' && !this.view.battlefield.some(x => x.id === o.id)) return out;
       const a = this.analysis(o);
       if (o.power != null && a && (String(o.power) !== String(a.power) || String(o.toughness) !== String(a.toughness)))
@@ -3081,7 +3100,7 @@
             el('h3', { text: card.name }),
             el('div', { class: 'cv-type', text: card.type_line || '' }),
             el('div', { class: 'cv-text', html: MTG.mana.textHtml(card.oracle_text || (card.card_faces || []).map(f => f.oracle_text).join('\n\n') || '') }),
-            notes.length ? el('div', { class: 'cv-notes' }, notes.map(([cls, text]) => el('div', { class: 'pv-note ' + cls, text }))) : null,
+            notes.length ? el('div', { class: 'cv-notes' }, notes.map(noteNode)) : null,
             sides.tokens,
             roomy ? null : sides.keywords,
             el('div', { class: 'cv-meta', text: `${card.set_name || ''}${card.artist ? ' · ' + card.artist : ''}` }),

@@ -1116,7 +1116,39 @@
     return null;
   }
 
+  /* Layer 3, text-changing effects (CR 612): "Change the text of target spell
+     or permanent by replacing all instances of one color word with another
+     [or one basic land type with another] [until end of turn]" — Sleight of
+     Mind, Mind Bend, Magical Hack, Artificial Evolution, Crystal Spray, Whim
+     of Volrath, Trait Doctoring, Glamerdye, Alter Reality, Spectral Shift,
+     Balduvian Shaman; New Blood's "of that creature … with Vampire". Which
+     word is replaced, and what it becomes, is chosen as it resolves. */
+  const TEXT_KINDS = { 'color word': 'color', 'basic land type': 'land', 'creature type': 'creature' };
+  const TEXT_CHANGE_RE = /^Change the text of (target [a-z' ]+?|that creature) by replacing all instances of one (color word|basic land type|creature type) with (another|[A-Z][a-z]+)(?: or one (color word|basic land type|creature type) with another)?( until end of turn)?\.?$/i;
+  function textChangeEffect(sentence) {
+    const m = String(sentence).trim().match(TEXT_CHANGE_RE);
+    if (!m) return null;
+    const kinds = [TEXT_KINDS[m[2].toLowerCase()]];
+    if (m[4]) kinds.push(TEXT_KINDS[m[4].toLowerCase()]);
+    const e = { op: 'changeText', kinds, duration: m[5] ? 'eot' : 'indefinite' };
+    if (!/^another$/i.test(m[3])) { if (kinds.length > 1 || kinds[0] !== 'creature') return null; e.to = U.titleCase(m[3]); }
+    if (/^that creature$/i.test(m[1])) { e.ref = 'target'; return e; }
+    // Balduvian Shaman: "target white enchantment you control that doesn't have cumulative upkeep"
+    let phrase = m[1];
+    const lacks = phrase.match(/ that (?:doesn'?t|does not) have ([a-z ]+)$/i);
+    if (lacks) phrase = phrase.slice(0, lacks.index);
+    const spec = targetSpec(phrase);
+    if (!spec || spec.unknown) return null;
+    if (lacks) spec.withoutKeyword = lacks[1].toLowerCase();
+    e.targets = [spec];
+    return e;
+  }
+
   const EFFECT_RULES = [
+    { re: TEXT_CHANGE_RE, make: (m) => textChangeEffect(m[0]) },
+    // Deadpool, Trading Card: "Each other player draws a card."
+    { re: /^Each other player draws (a|one|two|three|\d+) cards?\.?$/i,
+      make: (m) => ({ op: 'draw', n: num(m[1]), who: 'opponents' }) },
     // Baffling Defenses: "Target creature's base power perpetually becomes 0."
     { re: /^(target creature|CARDNAME|it)'?s base power perpetually becomes (\d+)\.?$/i,
       make: (m) => { const sub = perpSubject(m[1]); return sub ? Object.assign({ op: 'perpetual', subject: sub, mod: { setPt: { p: +m[2] } } }, sub.targets ? { targets: sub.targets } : {}) : null; } },
@@ -7728,6 +7760,17 @@
           text: 'You may exile CARDNAME. If you do, return him to the battlefield transformed under his owner\'s control.',
           prompt: 'Exile CARDNAME and return him to the battlefield transformed?', then: [{ op: 'blinkTransformed', ownerControl: true }] }] }];
       } },
+    // Artificial Evolution: "… one creature type with another. The new creature type can't be Wall." (layer 3)
+    { re: /^(Change the text of .+? with another)\. The new creature type can'?t be ([A-Z][a-z]+)\.?$/i,
+      make: (m) => { const e = textChangeEffect(m[1]); return e && e.kinds.includes('creature') ? [Object.assign(e, { notTo: m[2] })] : null; } },
+    // Balduvian Shaman: '… That enchantment gains "Cumulative upkeep {1}."' — for as long as the text change lasts
+    { re: /^(Change the text of .+?)\. That (?:enchantment|permanent|creature) gains "([^"]+?)\.?"\.?$/i,
+      make: (m) => { const e = textChangeEffect(m[1]); return e ? [Object.assign(e, { grantText: m[2] })] : null; } },
+    /* Exchange of Words: "choose two target creatures. For as long as this enchantment remains on the
+       battlefield, exchange the text boxes of those creatures." (layer 3) */
+    { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
+      make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
+        { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
     /* Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it without paying its mana cost
        if it's a spell with lesser mana value. If you don't cast it, put it into your hand." — the card revealed, lesser
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
@@ -13392,10 +13435,12 @@
        written in the same vocabulary, so from here on nothing can tell the
        difference. A hand-written one is deliberate and always wins; a
        generated one only steps in where reading the text fell short. */
-    let script = MTG.scripts && MTG.scripts.scriptFor(name);
+    /* a card whose text a layer-3 effect changed (CR 612) is read from its words: a script written for its
+       printed words would say what it no longer does */
+    let script = !card.textChanged && MTG.scripts && MTG.scripts.scriptFor(name);
     /* A renamed printing of a card with a hand-written script has the same
        words under another name: the script is the same card's */
-    if (!script && MTG.cardlib && MTG.cardlib.scriptByFingerprint && !faceIndex) {
+    if (!script && !card.textChanged && MTG.cardlib && MTG.cardlib.scriptByFingerprint && !faceIndex) {
       const twin = MTG.cardlib.scriptByFingerprint(out.fingerprint);
       if (twin && MTG.scripts.keyFor(twin) !== MTG.scripts.keyFor(name)) { script = MTG.scripts.scriptFor(twin); if (script) out.borrowedFrom = twin; }
     }
@@ -13484,7 +13529,7 @@
         if (!out.borrowedFrom) out.borrowedFrom = found.from;
       }
     }
-    if (!script && gen && gen.abilities && autoLines < totalLines - 0.001) {
+    if (!script && !card.textChanged && gen && gen.abilities && autoLines < totalLines - 0.001) {
       script = gen;
       if (script && !generatedScriptSound(script)) script = null;
       /* A generated script that dropped a condition the card prints — "at
@@ -15635,8 +15680,16 @@
       { re: /^(This land|CARDNAME|Enchanted land) is the chosen type( in addition to its other types)?\.?$/i,
         make: (m) => ({ op: 'continuous', layer: 4, scope: /^enchanted/i.test(m[1]) ? { attached: true, what: 'land' } : { self: true, what: 'land' },
           chosenLandType: true, addOnly: !!m[2] }), auto: true },
-      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a colou?r\.?$/i,
+      { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent|Aura|Equipment)) enters(?: the battlefield)?,? choose a colou?r(?: word)?\.?$/i,
         eff: { op: 'chooseColorOnEnter' }, auto: true },
+      /* Swirl the Mists: "All instances of color words in the text of spells and permanents are changed to
+         the chosen color word." (layer 3, CR 612) */
+      { re: /^All instances of colou?r words in the text of spells and permanents are changed to the chosen colou?r word\.?$/i,
+        eff: { op: 'swirlText' }, auto: true },
+      /* Deadpool, Trading Card: "As Deadpool enters, you may exchange his text box and another creature's."
+         (layer 3, CR 612): decided on the way in */
+      { re: /^As (?:CARDNAME|this creature) enters(?: the battlefield)?,? you may exchange (?:his|her|its|their) text box and another creature'?s\.?$/i,
+        eff: { op: 'exchangeTextOnEnter' }, auto: true },
       // the Gates: "As this land enters, choose a color other than blue."
       { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?,? choose a colou?r other than (white|blue|black|red|green)\.?$/i,
         make: (m) => ({ op: 'chooseColorOnEnter', except: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },

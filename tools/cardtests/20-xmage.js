@@ -30504,4 +30504,239 @@ module.exports = (test) => {
     t.zone(elves, 'battlefield', 'Minn: Llanowar Elves put onto the battlefield');
     t.zone(bears, 'hand');
   });
+
+  /* ---------- layer 3: text-changing effects (CR 612, 613.1c) ---------- */
+  // the option of a text-changing question with this word ("black", "Island", "Goblin")
+  const word = (w) => (ch) => {
+    const i = (ch.options || []).findIndex(o => o.word === w);
+    if (i < 0) throw new Error('no option ' + w + ' in ' + ch.purpose);
+    return { picks: [i] };
+  };
+
+  test('Layer 3: Deadpool, Trading Card exchanges text boxes with another creature', (mk, t) => {
+    t.auto('Deadpool, Trading Card');
+    const T = mk();
+    const angel = T.bf('B', 'Serra Angel');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'exchangeText'); return { picks: [angel.id] }; });
+    const dp = T.put('A', 'Deadpool, Trading Card', 'battlefield', { etb: true });
+    T.resolve();
+    // Deadpool has the Angel's words, and only them; the Angel his
+    t.ok(T.g.hasKw(dp, 'flying') && T.g.hasKw(dp, 'vigilance'), 'Deadpool has flying and vigilance');
+    t.no(T.g.hasKw(angel, 'flying'), 'the Angel has lost flying');
+    t.eq(dp.name, 'Deadpool, Trading Card', 'names never change');
+    t.eq(angel.name, 'Serra Angel');
+    t.eq(T.g.powerOf(angel), 4, 'power and toughness stay where they were');
+    // the words the Angel has now name the Angel
+    const v = T.g.viewFor('A');
+    const av = v.battlefield.find(x => x.id === angel.id);
+    t.ok(/At the beginning of your upkeep, you lose 3 life/.test(av.textNow), 'the view carries its words now');
+    t.ok(/As Serra Angel enters/.test(av.textNow) && !/Deadpool|CARDNAME/.test(av.textNow), 'its text names it');
+    t.ok(av.textCard && av.textCard.oracle_text, 'and the card those words make, for the table');
+    t.no(v.battlefield.find(x => x.id === dp.id).textNow == null, 'Deadpool shows his new words');
+    // the Angel's controller loses 3 life in their upkeep; Deadpool's doesn't
+    T.nextTurn('B');
+    t.eq(T.life('B'), 17, "the Angel's controller loses 3");
+    t.eq(T.life('A'), 20);
+    // "{3}, Sacrifice this creature: Each other player draws a card." is the Angel's now
+    const ab = angel.analysis().abilities.find(x => x.kind === 'activated');
+    t.ok(ab && ab.auto && ab.cost.sacSelf, 'the Angel has the sacrifice ability');
+    T.nextTurn('A');
+    t.eq(T.life('A'), 20, "Deadpool's controller loses nothing");
+    // an undo carries it
+    const snap = T.g.snapshot();
+    T.g.restore(JSON.parse(JSON.stringify(snap)));
+    t.ok(T.g.hasKw(T.g.obj(dp.id), 'flying'), 'a snapshot keeps the exchange');
+  });
+
+  test('Layer 3: Deadpool, Trading Card — declining, or nothing to exchange with', (mk, t) => {
+    const T = mk();
+    const angel = T.bf('B', 'Serra Angel');
+    T.answer('choose', () => ({ picks: [] }));
+    const dp = T.put('A', 'Deadpool, Trading Card', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(T.g.hasKw(angel, 'flying'), 'declined: the Angel keeps its words');
+    t.eq(dp.textCard, dp.card, 'and Deadpool his');
+    T.nextTurn('A');
+    t.eq(T.life('A'), 17, 'Deadpool loses his controller 3 life');
+    // alone, he is asked nothing
+    const T2 = mk();
+    T2.put('A', 'Deadpool, Trading Card', 'battlefield', { etb: true });
+    T2.resolve();
+    t.eq(T2.asked.filter(c => c.purpose === 'exchangeText').length, 0, 'no other creature: no question');
+  });
+
+  test('Layer 3: Mind Bend — Islandwalk to Swampwalk, protection from black to white', (mk, t) => {
+    t.auto('Mind Bend');
+    const T = mk();
+    const lev = T.bf('B', 'Segovian Leviathan');
+    const ds = T.bf('B', 'Death Speakers');
+    T.mana('A', 'U');
+    T.answer('choose', (ch) => { t.eq(ch.purpose, 'textFrom'); t.eq(ch.options[0].word, 'Island', 'the word it uses comes first'); return word('Island')(ch); });
+    T.answer('choose', (ch) => { t.no(ch.options.some(o => o.word === 'Island'), "a word can't become itself"); return word('Swamp')(ch); });
+    T.cast('A', T.hand('A', 'Mind Bend'), { targets: [lev] });
+    t.ok(T.g.hasKw(lev, 'swampwalk'), 'swampwalk');
+    t.no(T.g.hasKw(lev, 'islandwalk'), 'no islandwalk');
+    t.ok(/Swampwalk/.test(lev.textCard.oracle_text) && /a Swamp\b/.test(lev.textCard.oracle_text), 'its words say Swamp');
+    // protection from black, now from white: Doom Blade can reach it, Swords to Plowshares can't
+    T.mana('A', '1B');
+    const blade = T.hand('A', 'Doom Blade');
+    t.no(T.g.castSpell('A', blade.id, { auto: true, targets: [{ kind: 'object', id: ds.id }] }), 'protected from black');
+    T.mana('A', 'U');
+    T.answer('choose', word('black')).answer('choose', word('white'));
+    T.cast('A', T.hand('A', 'Mind Bend'), { targets: [ds] });
+    t.ok(/Protection from white/.test(ds.textCard.oracle_text));
+    T.mana('A', 'W');
+    t.no(T.g.castSpell('A', T.hand('A', 'Swords to Plowshares').id, { auto: true, targets: [{ kind: 'object', id: ds.id }] }), 'protected from white now');
+    T.cast('A', blade, { targets: [ds] });
+    t.zone(ds, 'graveyard', 'no longer protected from black');
+  });
+
+  test('Layer 3: Sleight of Mind turns Circle of Protection: Black against red', (mk, t) => {
+    t.auto('Sleight of Mind');
+    const T = mk();
+    const cop = T.bf('A', 'Circle of Protection: Black');
+    const gob = T.bf('B', 'Raging Goblin');
+    const croc = T.bf('B', 'Dross Crocodile');
+    T.mana('A', 'U');
+    T.answer('choose', word('black')).answer('choose', word('red'));
+    T.cast('A', T.hand('A', 'Sleight of Mind'), { targets: [cop] });
+    t.eq(cop.name, 'Circle of Protection: Black', 'its name is a name, and stays');
+    t.ok(/a red source/.test(cop.textCard.oracle_text));
+    T.mana('A', '1');
+    T.answer('choose', () => ({ picks: [gob.id] }));
+    T.activate('A', cop, 0);
+    T.resolve();
+    T.g.dealDamageToPlayer(T.g.player('A'), 1, croc, true);
+    t.eq(T.life('A'), 19, 'a black source is not stopped');
+    T.g.dealDamageToPlayer(T.g.player('A'), 1, gob, true);
+    t.eq(T.life('A'), 19, 'the red one is');
+  });
+
+  test('Layer 3: Artificial Evolution on a lord; a copy copies the printed words', (mk, t) => {
+    t.auto('Artificial Evolution');
+    const T = mk();
+    const king = T.bf('A', 'Goblin King');
+    const gob = T.bf('A', 'Raging Goblin');
+    const elf = T.bf('A', 'Llanowar Elves');
+    t.eq(T.g.powerOf(gob), 2); t.eq(T.g.powerOf(elf), 1);
+    T.mana('A', 'U');
+    T.answer('choose', word('Goblin'));
+    T.answer('choose', (ch) => { t.no(ch.options.some(o => o.word === 'Wall'), "the new type can't be Wall"); return word('Elf')(ch); });
+    T.cast('A', T.hand('A', 'Artificial Evolution'), { targets: [king] });
+    t.eq(T.g.powerOf(gob), 1, 'Goblins no longer');
+    t.eq(T.g.powerOf(elf), 2, 'Other Elves get +1/+1');
+    t.ok(T.g.hasKw(elf, 'mountainwalk'));
+    t.ok(/Other Elves get/.test(king.textCard.oracle_text), 'the plural changes too');
+    t.eq(king.name, 'Goblin King', 'not its name');
+    // a Clone copies the copiable values: the words as printed (CR 707.2)
+    T.answer('pickCard', () => ({ cardIds: [king.id] }));
+    T.answer('pickTarget', () => ({ targets: [king.id] }));
+    const cl = T.put('A', 'Clone', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(cl.name, 'Goblin King');
+    t.ok(/Other Goblins get/.test(cl.textCard.oracle_text), 'the copy has the printed words');
+    t.eq(T.g.powerOf(gob), 2, 'the copy pumps Goblins');
+    t.eq(T.g.powerOf(elf), 2, 'the changed one still pumps Elves');
+  });
+
+  test('Layer 3: Crystal Spray lasts until end of turn; a word the text lacks changes nothing', (mk, t) => {
+    t.auto('Crystal Spray');
+    const T = mk();
+    const lev = T.bf('B', 'Segovian Leviathan');
+    T.mana('A', '2U');
+    T.answer('choose', word('Island')).answer('choose', word('Forest'));
+    T.cast('A', T.hand('A', 'Crystal Spray'), { targets: [lev] });
+    t.ok(T.g.hasKw(lev, 'forestwalk'), 'forestwalk this turn');
+    t.eq(T.zone('A', 'hand').length, 1, 'and a card drawn');
+    T.nextTurn('B');
+    t.ok(T.g.hasKw(lev, 'islandwalk'), 'islandwalk again');
+    t.eq(lev.textCard, lev.card, 'its own words again');
+    // "red" where there is no red: nothing changes
+    T.mana('B', 'U');
+    T.answer('choose', word('red')).answer('choose', word('green'));
+    T.cast('B', T.hand('B', 'Sleight of Mind'), { targets: [lev] });
+    t.eq(lev.textCard, lev.card, 'nothing to change');
+  });
+
+  test('Layer 3: Sleight of Mind on a spell on the stack', (mk, t) => {
+    const T = mk();
+    const lions = T.bf('B', 'Savannah Lions');
+    T.mana('A', '1B');
+    const blade = T.hand('A', 'Doom Blade');
+    T.cast('A', blade, { targets: [lions], resolve: false });
+    T.mana('B', 'U');
+    T.answer('choose', word('black')).answer('choose', word('white'));
+    T.g.priorityIndex = T.g.players.findIndex(p => p.id === 'B');
+    t.ok(T.g.castSpell('B', T.hand('B', 'Sleight of Mind').id, { auto: true, targets: [T.stackTarget(blade)] }), 'cast on the spell');
+    T.resolve();
+    t.zone(lions, 'battlefield', '"nonwhite creature": the Lions are no longer a legal target');
+    t.zone(blade, 'graveyard');
+  });
+
+  test('Layer 3: Exchange of Words lasts as long as it stays; Swirl the Mists', (mk, t) => {
+    t.auto('Exchange of Words'); t.auto('Swirl the Mists');
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const angel = T.bf('B', 'Serra Angel');
+    T.answer('pickTarget', { targets: [bear.id, angel.id] });
+    const ex = T.put('A', 'Exchange of Words', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(T.g.hasKw(bear, 'flying'), 'the Bears fly');
+    t.no(T.g.hasKw(angel, 'flying'));
+    T.g.moveObject(ex, 'graveyard');
+    T.g.checkStateBasedActions();
+    t.no(T.g.hasKw(bear, 'flying'), 'over once it leaves');
+    t.ok(T.g.hasKw(angel, 'flying'));
+    // Swirl the Mists: every color word is the chosen one
+    const ds = T.bf('B', 'Death Speakers');
+    T.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /green/i.test(o.label))] }));
+    T.put('A', 'Swirl the Mists', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(/Protection from green/.test(ds.textCard.oracle_text), 'protection from green');
+  });
+
+  test('Layer 3: New Blood, Balduvian Shaman, and the bots choose sensibly', (mk, t) => {
+    t.auto('New Blood'); t.auto('Balduvian Shaman');
+    const T = mk();
+    const v = T.bf('A', 'Vampire Nighthawk');
+    const king = T.bf('B', 'Goblin King');
+    T.mana('A', '2BB');
+    T.answer('choose', word('Goblin'));
+    T.cast('A', T.hand('A', 'New Blood'), { targets: [king] });
+    t.eq(king.controller, 'A', 'gained');
+    t.eq(T.g.powerOf(v), 3, 'Other Vampires get +1/+1');
+    t.ok((king.analysis().subtypes || []).includes('Vampire'), 'and it is a Vampire');
+    // Balduvian Shaman: a white enchantment of ours, and it gains cumulative upkeep
+    const cop = T.bf('A', 'Circle of Protection: Black');
+    const sh = T.bf('A', 'Balduvian Shaman');
+    T.answer('choose', word('black')).answer('choose', word('red'));
+    T.activate('A', sh, 0, { targets: [cop] });
+    t.ok(/red source/.test(cop.textCard.oracle_text));
+    t.ok(T.g.hasKw(cop, 'cumulative upkeep'), 'it has cumulative upkeep');
+    // a bot: on its own permanent, the color its opponents play most; on theirs, one it doesn't play
+    const M = T.MTG;
+    T.bf('B', 'Raging Goblin'); T.bf('B', 'Raging Goblin');
+    const spec = (x) => M.choice.normalize({ playerId: 'A', purpose: 'textTo', kind: 'options', targetId: x.id,
+      options: ['white', 'blue', 'red', 'green'].map(w => ({ label: w, kind: 'color', word: w })) });
+    const mine = T.bf('A', 'Death Speakers');
+    const got = M.bots.answerChoose(T.g, 'A', spec(mine));
+    t.eq(spec(mine).options[got.picks[0]].word, 'red', 'protection from the color the opponent plays');
+    const theirs = T.bf('B', 'Circle of Protection: Black');
+    const got2 = M.bots.answerChoose(T.g, 'A', spec(theirs));
+    t.no(['black', 'white'].includes(spec(theirs).options[got2.picks[0]].word), 'their Circle against a color A does not play');
+  });
+
+  test('Layer 3: Spectral Shift entwined — each mode changes its own target', (mk, t) => {
+    t.auto('Spectral Shift');
+    const T = mk();
+    const wraith = T.bf('B', 'Bog Wraith');
+    const ds = T.bf('B', 'Death Speakers');
+    T.mana('A', '3U');
+    T.answer('choose', word('Swamp')).answer('choose', word('Island'));
+    T.answer('choose', word('black')).answer('choose', word('red'));
+    T.cast('A', T.hand('A', 'Spectral Shift'), { targets: [wraith, ds], entwine: true });
+    t.ok(T.g.hasKw(wraith, 'islandwalk') && !T.g.hasKw(wraith, 'swampwalk'), 'the land type on the first target');
+    t.ok(/Protection from red/.test(ds.textCard.oracle_text), 'the color word on the second');
+    t.eq(wraith.textCard.oracle_text.indexOf('red'), -1, 'and not on the first');
+  });
 };

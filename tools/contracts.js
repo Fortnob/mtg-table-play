@@ -121,6 +121,9 @@ const ObjectView = obj({
   perpetual: opt(maybe(obj({ pt: arr(num), keywords: arr(str), costDelta: num, text: arr(str), basePt: opt(arr(num)),
     lose: opt(arr(str)), spendAny: opt(bool), types: opt(arr(str)) }))),
   intensity: opt(maybe(num)),
+  // layer 3 (CR 612): its rules text now, when an effect has changed it
+  textNow: opt(maybe(str)),
+  textCard: opt(maybe(Card)),
   band: opt(maybe(str)),
   /* Yavimaya, Urborg: mana it makes beyond its printed abilities, by the index the mana intent takes */
   manaExtra: opt(maybe(arr(obj({ i: nat, label: str })))),
@@ -132,7 +135,7 @@ const StackItemView = obj({
   id, kind: lit('spell', 'ability', 'trigger'), name: str, controller: id,
   cardId: maybe(str), card: maybe(Card), objId: maybe(id),
   targets: opt(arr(Target)), abilityText: opt(maybe(str)), countered: bool,
-  triggered: opt(bool), face: opt(maybe(int)),
+  triggered: opt(bool), face: opt(maybe(int)), textNow: opt(maybe(str)),
 });
 const ManaPool = obj({ W: num, U: num, B: num, R: num, G: num, C: num });
 const PlayerView = obj({
