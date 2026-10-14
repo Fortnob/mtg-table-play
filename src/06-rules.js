@@ -5696,6 +5696,8 @@
       }
       this.moveObject(o, 'graveyard');
       this.logEvent('cycle', `${this.player(playerId).name} cycles ${o.name}.`);
+      // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro … four or more times this game" — by name (cycledNames)
+      { const cp = this.player(playerId); cp.cycledNames = Object.assign({}, cp.cycledNames); cp.cycledNames[o.name] = (cp.cycledNames[o.name] || 0) + 1; }
       this._fire('youCycle', playerId, { object: o, source: o });
       this._fire('anyCycle', null, { object: o, playerId });
       // cycling is discarding, for "whenever you discard a card"
@@ -11548,9 +11550,11 @@
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
           // Nemata, Primeval Warden: "When you do, create a 1/1 green Saproling creature token." — a reflexive trigger
-          if (ef.reflexToken && src && src.controller != null) {
+          // (Valentin, Dean of the Vein: "you may pay {2}. If you do, create …" — reflexEffects)
+          if ((ef.reflexToken || ef.reflexEffects) && src && src.controller != null) {
             this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: src, objId: src.id, controller: src.controller,
-              name: `${src.name} \u2014 ${truncate(ef.reflexText || 'create a token', 50)}`, effects: [Object.assign({ text: ef.reflexText }, ef.reflexToken)],
+              name: `${src.name} \u2014 ${truncate(ef.reflexText || 'create a token', 50)}`,
+              effects: ef.reflexEffects ? JSON.parse(JSON.stringify(ef.reflexEffects)) : [Object.assign({ text: ef.reflexText }, ef.reflexToken)],
               auto: true, abilityText: ef.reflexText || '', optional: false, triggerData: { event: 'reflexive' } });
           }
           break;
@@ -12423,6 +12427,8 @@
         /* Sweep Away, Emeria Shepherd: "if that creature is attacking", "if that land is a Plains" — the
            target the sentence before acted on, else what the trigger is about: the first that is that
            kind of thing (thatObjIs) */
+        // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro four or more times this game"
+        case 'cycledNamedSelf': return !!me && !!src && (((me.cycledNames || {})[src.name]) || 0) >= (cond.n || 1);
         // Scriv, the Obligator's Contract: "if it's attacking one of your opponents" — a player, not their planeswalker
         case 'trigAttackingYourOpp': {
           const td = (ctx && ctx.triggerData) || {};
@@ -16404,7 +16410,14 @@
         }
         // Nev: the X the triggering spell was cast with (firstXSpell)
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
-        if (v && typeof v === 'object' && v.triggerSpellMv) return this._triggerSpellMv(ctx.triggerData);
+        // (Runadi, Behemoth Caller: "its mana value minus 4" — minus)
+        if (v && typeof v === 'object' && v.triggerSpellMv) return Math.max(0, this._triggerSpellMv(ctx.triggerData) - (v.minus || 0));
+        // Amzu, Swarm's Hunger: "the greatest mana value among those cards" — the lot the trigger is about (batchMaxMv)
+        if (v && typeof v === 'object' && v.batchMaxMv) {
+          const td = ctx.triggerData || {};
+          return (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(Boolean)
+            .reduce((k, c) => Math.max(k, (c.card && c.card.cmc) || 0), 0) * (v.mult || 1);
+        }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
         // Malcolm, Keen-Eyed Navigator: the players the lot of damage the trigger is about hit (batchPlayers)
@@ -23805,6 +23818,13 @@
           if (!src || !(src.zone === (e.from || 'graveyard') || (e.orExile && src.zone === 'exile'))) break;
           // "…converted", "…transformed": its back face up
           if (e.transformed && e.to === 'battlefield' && src.card.card_faces && src.card.card_faces.length > 1) { src.face = 1; src._chr = null; }
+          // Yidaro, Wandering Monster: "shuffle it into your library from your graveyard"
+          if (e.to === 'library') {
+            this.moveObject(src, 'library');
+            this.rng.shuffle(this.zones[src.owner].library);
+            this.logEvent('rules', `${src.name} is shuffled into its owner's library.`);
+            break;
+          }
           this.moveObject(src, e.to === 'battlefield' ? 'battlefield' : 'hand',
             e.to === 'battlefield' ? { controller: ctx.controller } : undefined);
           if (e.tapped && src.zone === 'battlefield') src.tapped = true;
@@ -24892,7 +24912,8 @@
             if (it && e.exileAfter) it.viaAfter = 'exile';
           }
           // Rashmi, Eternities Crafter: "If you don't cast it, put it into your hand." (elseHand)
-          if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && c.zone === 'library') this.moveObject(c, 'hand'); }
+          // (Bre of Clan Stoutarm: "Otherwise, put it into your hand." — the card exiled, not cast)
+          if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && (c.zone === 'library' || (e.from === 'thatCard' && c.zone === 'exile'))) this.moveObject(c, 'hand'); }
           break;
         }
 
@@ -28072,7 +28093,7 @@
       // Roar of Resistance: "creatures attacking your opponents and/or planeswalkers they control"
       if (sc.attackingYourOpponents && !(o.attacking && o.attacking !== pid && ((this.obj(o.attacking) || {}).controller || o.attacking) !== pid)) return false;
       if (sc.blocking && !(o.blocking || []).length) return false;
-      if (sc.withCounter && !(Number(o.counters[sc.withCounter]) > 0)) return false;
+      if (sc.withCounter && !(Number(o.counters[sc.withCounter]) >= (sc.withCounterMin || 1))) return false;
       if (sc.withAnyCounter && !Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
       if (sc.noCounters && Object.values(o.counters || {}).some(v => Number(v) > 0)) return false;
       if (sc.color && !(oa.colors || []).includes(sc.color)) return false;

@@ -6349,6 +6349,9 @@
        you control" — the spell the trigger is about, counted as this resolves (spellEntersCounters) */
     { re: /^(?:That creature|It) enters with an additional \+1\/\+1 counter on it for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[1]); return c ? { op: 'spellEntersCounters', n: c } : null; } },
+    // Runadi, Behemoth Caller: "that creature enters with X additional +1/+1 counters on it, where X is its mana value minus 4"
+    { re: /^That creature enters with X additional \+1\/\+1 counters on it, where X is its mana value minus (\d+)\.?$/i,
+      make: (m) => ({ op: 'spellEntersCounters', n: { triggerSpellMv: true, minus: +m[1] } }) },
     // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control." — read by the cost
     { re: /^This ability costs \{(\d+)\} less to activate for each ([^.]+)\.?$/i,
       make: (m) => { const k = countOf(m[2]); return k ? { op: 'noop', abilityDiscount: { amount: +m[1], per: k } } : null; } },
@@ -7879,6 +7882,8 @@
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
       return done({ countersOnSelf: m[1].toLowerCase(), mult: 1 });
+    // Amzu, Swarm's Hunger: "the greatest mana value among those cards" — the lot the trigger is about (batchMaxMv)
+    if (/^the greatest mana value among those cards$/i.test(p)) return done({ batchMaxMv: true, mult: 1 });
     // Ulamog, the Defiler: "the greatest mana value among cards in exile" — everyone's exile (greatestMvExile)
     if (/^the greatest mana value among cards in exile$/i.test(p)) return done({ greatestMvExile: true, mult: 1 });
     // One with the Machine: "the greatest mana value among artifacts you control"
@@ -10040,6 +10045,20 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Yidaro, Wandering Monster: "shuffle it into your library from your graveyard. If you've cycled a card named Yidaro,
+       Wandering Monster four or more times this game, put it onto the battlefield from your graveyard instead." */
+    { re: /^shuffle (?:it|this card) into your library from your graveyard\. If you'?ve cycled a card named CARDNAME (\w+) or more times this game, put it onto the battlefield from your graveyard instead\.?$/i,
+      make: (m) => (typeof num(m[1].toLowerCase()) === 'number' ? [{ op: 'ifCond', cond: { kind: 'cycledNamedSelf', n: num(m[1].toLowerCase()) },
+        then: [{ op: 'selfFromGraveyard', to: 'battlefield' }], otherwise: [{ op: 'selfFromGraveyard', to: 'library' }] }] : null) },
+    /* Bre of Clan Stoutarm: "exile cards from the top of your library until you exile a nonland card. You may cast
+       that card without paying its mana cost if the spell's mana value is less than or equal to the amount of life you
+       gained this turn. Otherwise, put it into your hand." (castFree maxMv, elseHand from exile) */
+    { re: /^exile cards from the top of your library until you exile a nonland card\. You may cast that card without paying its mana cost if the spell'?s mana value is less than or equal to (.+?)\. Otherwise, put it into your hand\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[1]);
+        return k == null ? null : [{ op: 'exileTop', who: 'you', untilNonland: true },
+          { op: 'castFree', from: 'thatCard', upTo: 1, maxMv: k, elseHand: true }];
+      } },
     /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
        opponent controls. The token has enchant creature and "Whenever enchanted creature attacks, …"" (createAuraToken) */
     { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to (target creature(?: an opponent controls| you control)?)\. The token has enchant creature and "(.+)"\.?$/i,
@@ -10638,7 +10657,8 @@
        (Canopy Gargantuan's "on each other creature … equal to that
        creature's toughness" is a different number for each: not this.) */
     sentences = (sentences || []).map(x => {
-      const m = String(x).match(/^((?:Then )?)([Pp])ut a number of ([+\-0-9/a-z]+) counters on (.+?) equal to (.+?)\.?$/);
+      // (Amzu, Swarm's Hunger: "create a … token, then put a number of +1/+1 counters on it equal to …" — after a comma)
+      const m = String(x).match(/^((?:Then )?|[A-Z][^.]*?, then )([Pp])ut a number of ([+\-0-9/a-z]+) counters on (.+?) equal to (.+?)\.?$/);
       if (!m || (/^each\b/i.test(m[4]) && /\bthat (?:creature|permanent)'?s\b|\bits\b/i.test(m[5]))) return x;
       return m[1] + m[2] + 'ut X ' + m[3] + ' counters on ' + m[4] + ', where X is ' + m[5] + '.';
     });
@@ -15979,6 +15999,10 @@
         sc.noAbilities = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with (?:one or more |a )?counters? on (?:it|them)$/i))) {
         sc.withAnyCounter = true; rest = rest.slice(0, m.index);
+      // Runadi, Behemoth Caller: "Creatures you control with three or more +1/+1 counters on them" (withCounterMin)
+      } else if ((m = rest.match(/ with (two|three|four|five|six|seven|eight|nine|ten) or more ([+\-0-9/a-z]+) counters on them$/i))) {
+        sc.withCounter = m[2]; sc.withCounterMin = num(m[1].toLowerCase());
+        rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||
           (m = rest.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         // Damning Verdict: "with no counters on them" is the opposite of a kind of counter called "no"
@@ -17089,6 +17113,16 @@
         return Object.assign({ op: 'replace', id: 'dieExileOppReflex', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
           how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], reflexToken: Object.assign({}, tok, { n: 1 }),
           reflexText: m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.' }, m[1] ? { nontoken: true } : {});
+      } },
+    /* Valentin, Dean of the Vein: "… exile it instead. When you do, you may pay {2}. If you do, create a 1/1 black and
+       green Pest creature token with "…"" — whatever the reflexive trigger says (reflexEffects) */
+    { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\. When you do, (you may pay .+)$/i,
+      make: (m) => {
+        const said = m[2].charAt(0).toUpperCase() + m[2].slice(1);
+        const r = parseSentenceList(splitSentences(said));
+        if (!r.auto || !r.effects.length) return null;
+        return Object.assign({ op: 'replace', id: 'dieExileOppReflex', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+          how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], reflexEffects: r.effects, reflexText: said }, m[1] ? { nontoken: true } : {});
       } },
     // Liesa, Forgotten Archangel, Gisa, Stone of Erech: "If a creature an opponent controls would die, exile it instead."
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
