@@ -8509,6 +8509,13 @@
         delete spec.upTo;
         return [{ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', chooseFrom: spec }];
       } },
+    // Calix, Guided by Fate: "create a token that's a copy of a nonlegendary enchantment you control" — chosen, not targeted
+    { re: /^Create a token that'?s a copy of an? ((?:non[a-z]+ )?(?:creature|artifact|enchantment|permanent|nonland permanent)) you control\.?$/i,
+      make: (m) => {
+        const spec = targetSpec('target ' + m[1] + ' you control');
+        if (!spec || spec.unknown) return null;
+        return [{ op: 'copyPermanent', n: 1, grant: [], chooseFrom: spec }];
+      } },
     { re: /^Choose an? ((?:[a-z]+ )?(?:creature|artifact|permanent)) you control\. (?:It|That creature) (gains|gets) ([^.]+)\.?$/i,
       make: (m) => {
         const again = parseEffectSentence('Target ' + m[1] + ' you control ' + m[2] + ' ' + m[3] + '.', 1);
@@ -11173,6 +11180,9 @@
        attacks" — the Equipment itself, or what it is on */
     { re: /^Whenever (?:this creature|CARDNAME) or equipped creature deals combat damage to a player,? /i,
       event: 'permCombatDamage', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
+    // Calix, Guided by Fate: "Whenever Calix or an enchanted creature you control deals combat damage to a player"
+    { re: /^Whenever (?:this creature|CARDNAME) or an enchanted creature you control deals combat damage to a player,? /i,
+      event: 'permCombatDamage', filt: () => ({ words: 'creature', who: 'you', selfOk: true, enchanted: true }), aboutObject: true },
     { re: /^Whenever (?:this creature|CARDNAME) or equipped creature attacks,? /i,
       event: 'permAttacks', filt: () => ({ words: 'creature', selfOrEquipped: true }), aboutObject: true },
     // (Thorin, Company's Leader: "to a player or battle" — playerOrBattle)
@@ -12598,8 +12608,15 @@
         /* Shadrix Silverquill: "you may choose two" — the modes, or none of them, is the one question (mayModes) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'modal' && !parsed.effects[0].min && !parsed.effects[0].max &&
           /^you may choose (?:one|two|three)\b/i.test(body)) { parsed.effects[0].optional = true; anyNumber = true; }
+        /* Calix, Guided by Fate: "you may create a token that's a copy of a nonlegendary enchantment you control. Do
+           this only once each turn." — the enchantment picked, or none, is the one question; a pick uses it up
+           (mayPickOnce) */
+        let pickOnce = false;
+        if (doOnce && optional && !anyNumber && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].chooseFrom && !parsed.effects[0].targets) {
+          parsed.effects[0].mayPick = true; parsed.effects[0].markOnce = true; anyNumber = true; pickOnce = true;
+        }
         // (the "may" asked as it resolves is the choice that is used up: mayOncePerTurn)
-        const mayOnce = doOnce && optional && !anyNumber;
+        const mayOnce = (doOnce && optional && !anyNumber) || pickOnce;
         if (doOnce && !mayOnce) oncePerTurn = true;
         out.abilities.push({
           kind: 'triggered', event: trig.event, also: trig.also || null, self: !!trig.self, optional: optional && !anyNumber,

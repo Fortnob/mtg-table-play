@@ -13834,14 +13834,19 @@
         if (chooser == null) return null;
         const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
           MTG.oracle.matchesSpec(spec, o, o.analysis(), chooser, this._specCtx()));
+        // (Calix, Guided by Fate: "you may …" — one to pick, or none; nothing to pick, nothing asked: mayPickOnce)
+        if (e.mayPick && !pool.length) return null;
         const got = this._choose({ playerId: chooser, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
-          items: this._chooseItems(pool), min: 1, max: 1,
+          items: this._chooseItems(pool), min: e.mayPick ? 0 : 1, max: 1, ...(e.mayPick ? { optional: true } : {}),
           prompt: e.choosePrompt ? `${ctx.name ? ctx.name + ': ' : ''}${e.choosePrompt}`
             : `${ctx.name ? ctx.name + ': ' : ''}choose ${/^[aeiou]/i.test(spec.filter || '') ? 'an' : 'a'} ${spec.filter || 'permanent'}.` }, 'pick');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         targets = got.picks.map(id => ({ kind: 'object', id }));
         this._noteLastAffected(targets);          // "it" in the next sentence is the one chosen
+        // ("Do this only once each turn": a pick uses it up for the turn — mayPickOnce)
+        const io = e.markOnce && ctx.obj;
+        if (io && ctx.abilityIndex != null) (io._mayOnce = io._mayOnce || {})[ctx.abilityIndex] = this.turn;
       }
       /* "Tap any number of target creatures": any number of the things it
          could target, picked as it resolves */
@@ -25948,6 +25953,8 @@
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       // Reyav, Master Smith: "that's enchanted or equipped" — an Aura or an Equipment on it
       if (f.enchantedOrEquipped && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && (aa.isEquipment || (aa.subtypes || []).includes('Aura')); })) return false;
+      // Calix, Guided by Fate: "an enchanted creature" — an Aura on it
+      if (f.enchanted && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && (aa.subtypes || []).includes('Aura'); })) return false;
       // Komainu Battle Armor: itself, or the creature it is attached to
       if (f.selfOrEquipped && !(src && (x.id === src.id || src.attachedTo === x.id))) return false;
       /* "you control" is decided by who controlled it at the time, which

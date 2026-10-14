@@ -29337,4 +29337,52 @@ module.exports = (test) => {
     t.no(ids2.includes(tok.id), "Clavileño: a Vampire that's a Demon already is not a target");
     t.ok(M.g._hasSubtype(clav, 'Demon'), 'Clavileño: itself a Demon now');
   });
+
+  test('Commanders: Calix, Guided by Fate — Calix or an enchanted creature hitting a player: a copy of a nonlegendary enchantment, once a turn', (mk, t) => {
+    t.auto('Calix, Guided by Fate');
+    let M = mk({ library: Array(30).fill('Island') });
+    const calix = M.bf('A', 'Calix, Guided by Fate');
+    const bears = M.bf('A', 'Grizzly Bears');
+    const elves = M.bf('A', 'Llanowar Elves');
+    const anthem = M.bf('A', 'Glorious Anthem');
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Holy Strength'), { targets: [bears.id] });
+    // Constellation: the Aura entering put a +1/+1 counter on a creature
+    t.eq([calix, bears, elves].reduce((s, o) => s + (o.counters['+1/+1'] || 0), 0), 1, 'Calix: constellation, one counter');
+    const picks = [];
+    M.answer('choose', (ch) => { picks.push(ch); return { picks: [anthem.id] }; });
+    M.answer('declareAttackers', () => [calix, bears, elves].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    M.toMain('A', 'endCombat');
+    const copies = () => M.bfOf('A').filter(o => o.isToken && o.name === 'Glorious Anthem');
+    t.eq(copies().length, 1, 'Calix: one Anthem copy, only once each turn');
+    t.eq(M.asked.filter(ch => ch.purpose === 'effectObject').length, 1, 'Calix: asked once');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'Calix: the pick is the "may", no yes/no first');
+    // a fresh table: the first pick declined leaves it for the second trigger
+    M = mk({ library: Array(30).fill('Island') });
+    const c2 = M.bf('A', 'Calix, Guided by Fate');
+    const b2 = M.bf('A', 'Grizzly Bears');
+    const an2 = M.bf('A', 'Glorious Anthem');
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Holy Strength'), { targets: [b2.id] });
+    let n = 0;
+    const offered = [];
+    M.answer('choose', (ch) => { offered.push(ch.items.map(it => it.id)); n++; return { picks: n === 1 ? [] : [an2.id] }; });
+    M.answer('choose', (ch) => { offered.push(ch.items.map(it => it.id)); n++; return { picks: n === 1 ? [] : [an2.id] }; });
+    M.answer('declareAttackers', () => [c2, b2].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    M.toMain('A', 'endCombat');
+    t.eq(n, 2, 'Calix: declined, then asked again');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Glorious Anthem').length, 1, 'Calix: the second trigger makes the copy');
+    t.ok(offered[0].includes(an2.id), 'Calix: the Anthem offered');
+    const hs = M.bfOf('A').find(o => o.name === 'Holy Strength');
+    t.ok(offered[0].includes(hs.id), 'Calix: an Aura is a nonlegendary enchantment too');
+    t.no(offered[0].includes(c2.id), 'Calix: not itself, legendary');
+    // no nonlegendary enchantment: nothing asked
+    M = mk({ library: Array(30).fill('Island') });
+    const c3 = M.bf('A', 'Calix, Guided by Fate');
+    const a3 = M.asked.length;
+    M.answer('declareAttackers', () => [{ attackerId: c3.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 18, 'Calix: hit');
+    t.no(M.asked.slice(a3).some(ch => ch.purpose === 'effectObject' || ch.type === 'confirm'), 'Calix: nothing to copy, nothing asked');
+  });
 };
