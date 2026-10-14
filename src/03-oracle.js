@@ -10824,6 +10824,8 @@
     [/^you'?ve lost life this turn$/i, () => ({ kind: 'lostLife', who: 'you', n: 1 })],
     // Luminarch Ascension: "you didn't lose life this turn"
     [/^you didn'?t lose life this turn$/i, () => ({ kind: 'not', cond: { kind: 'lostLife', who: 'you', n: 1 } })],
+    // Rith, Liberated Primeval: "a creature or planeswalker an opponent controlled was dealt excess damage this turn"
+    [/^a creature or planeswalker an opponent controlled was dealt excess damage this turn$/i, () => ({ kind: 'oppExcessThisTurn' })],
     [/^an opponent lost (\w+) or more life this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lostLife', who: 'opponent', n: num(m[1]) } : null)],
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Vengevine: "if it's the second creature spell you cast this turn"
@@ -11695,6 +11697,9 @@
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1].toLowerCase() + ' permanent you control'), extra: { byOpponent: true, orYou: true } },
     { re: /^Whenever you become the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', extra: { byOpponent: true, orYou: true, youTargetedOnly: true } },
+    // Professor Hojo: "Whenever one or more creatures you control become the target of an activated ability" (byActivated)
+    { re: /^Whenever one or more creatures you control become the target of an activated ability,? /i,
+      event: 'becomesTarget', filt: () => subjectFilter('a creature you control'), extra: { byActivated: true } },
     // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
     { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },
@@ -15367,6 +15372,20 @@
         if (!scope) return null;
         return { op: 'continuous', layer: 4, scope, addSubtypes: BASIC_TYPES.slice() };
       } },
+    // Omo, Queen of Vesuva: "Each land with an everything counter on it is every land type in addition to its other types."
+    { re: /^(.+?) (?:is|are) every land type in addition to (?:its|their) other types\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope) return null;
+        return { op: 'continuous', layer: 4, scope, addSubtypes: BASIC_TYPES.concat(['Cave', 'Desert', 'Gate', 'Lair', 'Locus', 'Mine', 'Power-Plant', 'Sphere', 'Tower', 'Town', 'Planet', "Urza's"]) };
+      } },
+    // Omo, Queen of Vesuva: "Each nonland creature with an everything counter on it is every creature type." — as changeling (Maskwood Nexus)
+    { re: /^(Each [^.]+? with an? [a-z+\-\/0-9]+ counters? on it) is every creature type\.?$/i,
+      make: (m) => {
+        const scope = scopeOf(m[1]);
+        if (!scope || !scope.withCounter) return null;
+        return { op: 'continuous', layer: 4, scope, grant: ['Changeling'] };
+      } },
     /* "Lands you control have '{T}: Add one mana of any color.'" — a mana
        ability handed out, which the lands then tap for like their own. */
     /* "Equipped creature gets +1/+0 and has 'Whenever this creature
@@ -15919,6 +15938,15 @@
     if (dyt) {
       const viaAl = parseContinuous("As long as it's your turn, " + dyt[1]);
       if (viaAl) return Object.assign(viaAl, { text: line });
+    }
+    // Zurgo, Thunder's Decree: "During your end step, Warrior tokens you control have …" (yourEndStep)
+    const des = line.match(/^During your end step, (.+)$/i);
+    if (des) {
+      const viaAl = parseContinuous("As long as it's your turn, " + des[1]);
+      if (viaAl && viaAl.effects.every(e => e.op === 'continuous' && e.cond && e.cond.kind === 'yourTurn')) {
+        viaAl.effects.forEach(e => { e.cond = { kind: 'yourEndStep' }; });
+        return Object.assign(viaAl, { text: line });
+      }
     }
     const al = line.match(/^As long as (.+?), (.+)$/i);
     if (al) {
@@ -16520,6 +16548,9 @@
         make: (m) => ({ op: 'targetCostMod', who: 'opponents', filter: m[1].toLowerCase(), yoursOnly: true, amount: +m[2] }), auto: true },
       { re: /^Abilities your opponents activate that target an? ([A-Z][a-z]+|creature|permanent) you control cost \{(\d+)\} more to activate\.?$/,
         make: (m) => ({ op: 'abilityCostMod', who: 'opponents', targetsYour: m[1].toLowerCase(), amount: +m[2] }), auto: true },
+      // Professor Hojo: "The first activated ability you activate during your turn that targets a creature you control costs {2} less to activate." (targetsOwn)
+      { re: /^The first activated ability you activate during your turn that targets a (creature) you control costs \{(\d+)\} less to activate\.?$/i,
+        make: (m) => ({ op: 'abilityCostMod', who: 'you', targetsOwn: m[1].toLowerCase(), amount: -m[2] }), auto: true },
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
@@ -16700,8 +16731,8 @@
          replacement, chosen as it enters (entersUnderOpponent) */
       { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|permanent)) enters under the control of an opponent of your choice\.?$/i,
         eff: { op: 'entersUnderOpponent' }, auto: true },
-      // Hithlain Rope: "This artifact can't be sacrificed."
-      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent)) can'?t be sacrificed\.?$/i, eff: { op: 'unsacrificable' }, auto: true },
+      // Hithlain Rope: "This artifact can't be sacrificed." (Zurgo, Thunder's Decree: "This token")
+      { re: /^(?:CARDNAME|This (?:creature|artifact|permanent|token)) can'?t be sacrificed\.?$/i, eff: { op: 'unsacrificable' }, auto: true },
       { re: /^(?:CARDNAME|This creature) blocks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustBlock' }, auto: true },
       /* The counters are already put on by the enters-with replacement the
          card-level scan found; this rule is here so the sentence that says
@@ -17152,6 +17183,15 @@
       // Troll of Khazad-dûm, Pathrazer of Ulamog
       { re: /^(?:CARDNAME|This creature) can'?t be blocked except by (two|three|four|five) or more creatures\.?$/i,
         make: (m) => ({ op: 'minBlockers', n: num(m[1]) }), auto: true },
+      // Tromokratis: "can't be blocked unless all creatures defending player controls block it" (allMustBlock)
+      { re: /^(?:CARDNAME|This creature) can'?t be blocked unless all creatures defending player controls block it\.?$/i,
+        eff: { op: 'allMustBlock' }, auto: true },
+      // Tromokratis: "has hexproof unless it's attacking or blocking" (selfInCombat)
+      { re: /^(?:CARDNAME|This creature) has ([a-z ]+?) unless it'?s attacking or blocking\.?$/i,
+        make: (m) => {
+          const kws = keywordList(m[1]);
+          return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { self: true }, grant: kws, cond: { kind: 'not', cond: { kind: 'selfInCombat' } } } : null;
+        }, auto: true },
       // Silent Arbiter, Crawlspace, Caverns of Despair
       { re: /^No more than (one|two|three) creatures? can attack( you)? each combat\.?$/i,
         make: (m) => ({ op: 'attackLimit', n: num(m[1]), you: !!m[2] }), auto: true },

@@ -7112,12 +7112,16 @@
           });
           this.logEvent('rules', `${o.name} carries the Ring: draw, then discard.`);
         }
-        /* Mobilize N (CR 702.170): Warriors come along for the ride and
-           are gone once combat is over. */
+        /* Mobilize N (CR 702.181): Warriors come along for the ride, attacking
+           whom it attacks; "Sacrifice them at the beginning of the next end step." */
         const mob = this._kwArg(o, 'mobilize');
         if (mob) {
-          this._createToken(o.controller, { n: mob, pt: '1/1', subtypes: 'Warrior',
-            colorWords: ['red'], keywords: [], tapped: true, attacking: true, temporary: 'combat' });
+          this._createToken(o.controller, { n: mob * twice, pt: '1/1', subtypes: 'Warrior',
+            colorWords: ['red'], keywords: [], tapped: true, attacking: true, attackingId: this.player(o.attacking) ? o.attacking : null });
+          for (const id of (this._lastTokenGroup || []).slice()) {
+            this.scheduleDelayed({ event: 'eachEndStep', controller: o.controller, objId: id,
+              name: 'Sacrifice them at the beginning of the next end step', effects: [{ op: 'sacrificeThat' }] });
+          }
           this.logEvent('keyword', `${o.name} mobilizes ${mob}.`);
         }
         /* Firebending N: red mana for the attack, and it stays through
@@ -7770,6 +7774,9 @@
       if (ab.grantedBy) item.grantedBy = ab.grantedBy;
       this.stack.push(item);
       this._payThingCosts(playerId, ab.cost, o, opts, item);
+      // Professor Hojo: "The first activated ability you activate during your turn that targets a creature you control" — that one is gone now
+      if (this.activePlayer && this.activePlayer.id === playerId && this._targetsOwnOf(playerId, item.targets, 'creature'))
+        this.player(playerId).ownTargetActs = { turn: this.turn };
       for (const t of item.targets || []) {
         const x = t.kind === 'object' && this.obj(t.id);
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
@@ -8577,6 +8584,13 @@
       return this._abilityCostMods(o, ab, mana, targets);
     }
 
+    /** Professor Hojo: do these targets include a creature (or permanent) this player controls? */
+    _targetsOwnOf(pid, targets, words) {
+      return (targets || []).some(t => {
+        const x = t && (t.kind == null || t.kind === 'object') && this.obj(typeof t === 'string' ? t : t.id);
+        return !!x && x.zone === 'battlefield' && x.controller === pid && this._matchesCategory(x, words || 'creature');
+      });
+    }
     /** Training Grounds, Suppression Field: standing changes to what an activated ability costs. */
     _abilityCostMods(o, ab, mana, targets) {
       if (!o || !ab) return mana;
@@ -8634,6 +8648,14 @@
                   return !!x && x.zone === 'battlefield' && x.controller === src.controller && this._matchesCategory(x, e.targetsYour);
                 });
                 if (!hit) continue;
+              }
+              /* Professor Hojo: "The first activated ability you activate during your turn that targets a creature
+                 you control" (targetsOwn) — none such yet this turn (ownTargetActs) */
+              if (e.targetsOwn) {
+                const pl = this.player(src.controller);
+                if (!this.activePlayer || this.activePlayer.id !== src.controller) continue;
+                if (pl && pl.ownTargetActs && pl.ownTargetActs.turn === this.turn) continue;
+                if (!this._targetsOwnOf(src.controller, targets, e.targetsOwn)) continue;
               }
               if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
               else if (e.scope && (o.zone !== 'battlefield' || !this._scopeHit(e.scope, o, oa, src.controller, src))) continue;
@@ -10201,6 +10223,18 @@
           if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked except by ${mb.n} or more creatures.`);
           declarations = declarations.map(d => Object.assign({}, d, { attackerIds: d.attackerIds.filter(x => x !== aid) })).filter(d => d.attackerIds.length);
           this.logEvent('rules', `${at.name} can't be blocked except by ${mb.n} or more creatures.`);
+        }
+        /* Tromokratis: "can't be blocked unless all creatures defending player controls block it" — the tapped
+           ones and those that can't block too, so short of every one it is not blocked at all */
+        for (const aid of cnt.keys()) {
+          const at = this.obj(aid);
+          if (!at || !this._staticOp(at, 'allMustBlock')) continue;
+          const by = new Set(declarations.filter(d => d.attackerIds.includes(aid)).map(d => d.blockerId));
+          const all = this.battlefield.filter(x => x.controller === blockerPid && !x.phasedOut && (this.characteristics(x) || {}).isCreature);
+          if (all.every(x => by.has(x.id))) continue;
+          if (!(this.player(playerId) || {}).isBot) return this.fail(`${at.name} can't be blocked unless all creatures you control block it.`);
+          declarations = declarations.map(d => Object.assign({}, d, { attackerIds: d.attackerIds.filter(x => x !== aid) })).filter(d => d.attackerIds.length);
+          this.logEvent('rules', `${at.name} can't be blocked unless all creatures defending player controls block it.`);
         }
       }
       /* Charging Rhino: "can't be blocked by more than one creature" — a bot's
@@ -11984,7 +12018,13 @@
         case 'selfUntapped': return !!src && !src.tapped;
         case 'selfTapped': return !!src && !!src.tapped;
         case 'selfAttacking': return !!src && !!src.attacking;
+        // Tromokratis: "unless it's attacking or blocking"
+        case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
+        // Zurgo, Thunder's Decree: "During your end step"
+        case 'yourEndStep': return !!me && this.activePlayer && this.activePlayer.id === me.id && this.step === 'end';
+        // Rith, Liberated Primeval: "a creature or planeswalker an opponent controlled was dealt excess damage this turn"
+        case 'oppExcessThisTurn': return !!me && this.opponentsOf(me.id).some(p => p.excessDealtTurn === this.turn);
         // Bonehoard Dracosaur: "if you exiled a land card this way"
         case 'exiledThisWay': return (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
@@ -12879,6 +12919,9 @@
       if (excess > 0) {
         this._lastExcess = (this._lastExcess || 0) + excess; o._excessTurn = this.turn;
         (this._excessOn = this._excessOn || {})[o.id] = (this._excessOn[o.id] || 0) + excess;
+        // Rith, Liberated Primeval: "a creature or planeswalker an opponent controlled was dealt excess damage this turn"
+        const exP = a && (a.isCreature || a.isPlaneswalker) && this.player(o.controller);
+        if (exP) exP.excessDealtTurn = this.turn;
         // Toralf, God of Fury: "is dealt excess noncombat damage" — how much is the trigger's amount
         if (!isCombat && o.zone === 'battlefield') this._fire('excessNoncombat', null, { object: o, objController: o.controller, amount: excess });
       }
@@ -14275,6 +14318,8 @@
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
+          // Professor Hojo: "become the target of an activated ability"
+          if (ab.byActivated && event === 'becomesTarget' && !data.byAbility) continue;
           if (ab.byOpponent && event === 'becomesTarget' && data.playerId === o.controller) continue;
           if (ab.skipFirstDrawStep && data.inDrawStep && data.nth === 1) continue;
           /* "their first noncreature spell each turn": none of that kind
