@@ -3304,7 +3304,8 @@
       if (v.commanderCasts) return this._commanderCastCount(pid) * mult;
       // Vishgraz: the poison counters among your opponents
       if (v.opponentsPoison) return this.opponentsOf(pid).reduce((acc, q) => acc + (Number(q.poison) || 0), 0) * mult;
-      if (v.countersOnSelf) return (src ? Number((src.counters || {})[v.countersOnSelf]) || 0 : 0) * mult;
+      // (Yes Man, Personal Securitron: "for each quest counter on it" as it left the battlefield)
+      if (v.countersOnSelf) return (src ? Number(((src.zone === 'battlefield' ? src.counters : src._diedCounters) || {})[v.countersOnSelf]) || 0 : 0) * mult;
       // Diregraf Rebirth: "for each creature that died this turn"; Inspired Fire: "for each card you've drawn this turn"
       if (v.party) return this._partySize(pid) * mult;
       // Kinbinding: "the number of creatures that entered the battlefield under your control this turn" (enteredTypes)
@@ -15482,7 +15483,9 @@
             // Genesis Chamber: "that creature's controller creates …" — the one that entered
             : e.who === 'triggerObjController' ? (this.player((ctx.triggerData || {}).objController) || me)
             // Rootcast Apprenticeship: "Target player creates …"
-            : e.who === 'target' ? (firstPlayer() || me) : me;
+            : e.who === 'target' ? (firstPlayer() || me)
+            // Yes Man, Funeral Pyre: "Its owner creates …" — the card targeted, else the permanent the ability is on
+            : e.who === 'itsOwner' ? (this.player((firstObj() || src || {}).owner) || me) : me;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "a token for each …" with none of them is no token (not one: _createToken reads 0 as 1)
@@ -16428,6 +16431,8 @@
           src.effects.push({ control: to.id, until: null, ts: this._stampNew() });
           this._refreshControl();
           this.logEvent('control', `${to.name} gains control of ${src.name}.`);
+          // Yes Man, Personal Securitron: "When they do, …" — once it has changed hands
+          if (e.then && e.then.length && src.controller === to.id) this._spliceNext(e.then);
           break;
         }
         /* Switcheroo: "Exchange control of two target creatures." Both

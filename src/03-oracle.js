@@ -3739,6 +3739,14 @@
       make: (m) => ({ op: 'createToken', who: 'targetController', n: num(m[1]), pt: m[2],
         colorWords: (m[3].match(/\b(white|blue|black|red|green|colorless)\b/gi) || []), subtypes: m[4],
         addTypes: m[5] ? ['Artifact'] : [], keywords: m[6] ? keywordList(m[6]) : [] }) },
+    /* Yes Man, Personal Securitron, Funeral Pyre: "Its owner creates …" — the owner of the card it names, or
+       of the permanent the ability is on (itsOwner) */
+    { re: /^Its owner creates (.+)$/i,
+      make: (m) => {
+        const r = parseEffects('Create ' + m[1]);
+        const e = r && r.auto && r.effects.length === 1 ? r.effects[0] : null;
+        return e && e.op === 'createToken' && !e.who ? Object.assign({}, e, { who: 'itsOwner' }) : null;
+      } },
     /* the sentences after a counterspell, about the spell it countered */
     // Cityscape Leveler: "Its controller creates a tapped Powerstone token."
     { re: /^Its controller creates (a|an|one|two|three|four|\d+) tapped (Treasure|Clue|Food|Blood|Map|Gold|Powerstone|Junk|Lander) tokens?\.?$/i,
@@ -9234,6 +9242,18 @@
       if (/^(?:Then )?you may choose a token you control\.$/i.test(s) &&
         /^If you do, each other token you control becomes a copy of that token\.?$/i.test(next)) {
         effects.push({ op: 'becomeCopyAll', of: 'chosenToken', duration: 'permanent', text: s + ' ' + next });
+        i++;
+        continue;
+      }
+
+      /* Yes Man, Personal Securitron: "Target opponent gains control of Yes Man. When they do, you draw two
+         cards and put a quest counter on Yes Man." — the reflexive half once it has changed hands (giveSelfThen) */
+      const giveTo = s.match(/^Target (opponent|player) gains control of (?:this creature|CARDNAME|this artifact|this permanent)\.$/i);
+      const theyDo = giveTo && next.match(/^When they do,\s*(.+)$/i);
+      if (theyDo) {
+        const then = parseSentenceList(splitSentences(U.titleCase(theyDo[1].charAt(0)) + theyDo[1].slice(1)));
+        if (!then.auto) auto = false;
+        effects.push({ op: 'giveSelf', targets: [{ type: 'player', opponent: /opponent/i.test(giveTo[1]) }], then: then.effects, text: s + ' ' + next });
         i++;
         continue;
       }

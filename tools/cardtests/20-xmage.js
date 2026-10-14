@@ -28632,4 +28632,41 @@ module.exports = (test) => {
     M.mana('A', '1');
     t.no(M.g.activateAbility('A', rikku.id, 0, { auto: true, targets: [{ kind: 'object', id: theirs.id }, { kind: 'object', id: bear.id }] }), 'Rikku: only as a sorcery');
   });
+
+  test('Commanders: Yes Man, Personal Securitron — handed to an opponent: two cards and a quest counter; Soldiers for its owner as it leaves', (mk, t) => {
+    t.auto('Yes Man, Personal Securitron');
+    const M = mk({ library: Array(30).fill('Island') });
+    const ym = M.bf('A', 'Yes Man, Personal Securitron');
+    const handA = M.zone('A', 'hand').length;
+    M.activate('A', ym, 0, { targets: ['B'] });
+    t.eq(ym.controller, 'B', 'Yes Man: B gains control of it');
+    t.eq(M.zone('A', 'hand').length, handA + 2, 'Yes Man: A draws two cards');
+    t.eq(ym.counters.quest, 1, 'Yes Man: a quest counter');
+    // only during your turn: B can't hand it back on A's turn
+    M.g.passPriority('A', true);
+    t.no(M.g.activateAbility('B', ym.id, 0, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), "Yes Man: not during an opponent's turn");
+    // B's turn: B hands it back, and B draws
+    M.nextTurn('B');
+    const handB = M.zone('B', 'hand').length;
+    M.activate('B', ym, 0, { targets: ['A'] });
+    t.eq(ym.controller, 'A');
+    t.eq(M.zone('B', 'hand').length, handB + 2, 'Yes Man: B draws two cards');
+    t.eq(ym.counters.quest, 2);
+    // it dies: its owner, A, gets two tapped 1/1 Soldiers
+    M.g.moveObject(ym, 'graveyard');
+    M.resolve();
+    const soldiers = M.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.card.type_line || ''));
+    t.eq(soldiers.length, 2, 'Yes Man: a Soldier for each quest counter');
+    t.ok(soldiers.every(o => o.tapped), 'Yes Man: tapped');
+    t.eq(M.bfOf('B').filter(o => o.isToken).length, 0, "Yes Man: none for B");
+  });
+  test('Commanders: Yes Man, Personal Securitron — leaving under an opponent\'s control, the Soldiers are still its owner\'s', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const ym = M.bf('A', 'Yes Man, Personal Securitron');
+    M.activate('A', ym, 0, { targets: ['B'] });
+    M.g.moveObject(ym, 'exile');
+    M.resolve();
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'Yes Man: one Soldier, for A');
+    t.eq(M.bfOf('B').filter(o => o.isToken).length, 0);
+  });
 };
