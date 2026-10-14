@@ -232,6 +232,7 @@
       this.hasLost = false;
       this.hasWon = false;
       this.lossReason = '';
+      this.lossFrom = null;            // who or what put them out, where known (the commander, for commander damage)
       this.conceded = false;
       this.drewFromEmpty = false;
       this.commanderDamage = {};       // commanderObjId -> damage
@@ -25235,7 +25236,7 @@
           else if (p.drewFromEmpty) { this.playerLoses(p, 'deck'); repeat = true; }
           else if (this.config.commanderDamage) {
             for (const [cid, dmg] of Object.entries(p.commanderDamage)) {
-              if (dmg >= this.config.commanderDamage) { this.playerLoses(p, 'commander'); repeat = true; break; }
+              if (dmg >= this.config.commanderDamage) { this.playerLoses(p, 'commander', this._commanderLabel(cid)); repeat = true; break; }
             }
           }
         }
@@ -25502,7 +25503,16 @@
       return this._attachLegal(x, a, hostO);
     }
 
-    playerLoses(p, reason) {
+    /** "Atraxa (Mira's)": a commander whose damage ended a game, by name and whose it is. */
+    _commanderLabel(cid) {
+      const o = this.obj(cid);
+      if (!o || !o.card) return null;
+      const owner = this.player(o.owner);
+      return owner ? `${o.card.name} (${owner.name})` : o.card.name;
+    }
+
+    /** Out of the game, for `reason` ('life', 'poison', 'deck', 'commander', 'concede'…); `from` says who or what did it, where that is known. */
+    playerLoses(p, reason, from) {
       if (p.hasLost) return;
       // Platinum Angel: "You can't lose the game and your opponents can't win the game."
       if (this._anyStaticOf(p.id, 'cantLose') && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
@@ -25510,12 +25520,13 @@
       if (p.cantLoseTurn === this.turn && reason !== 'concede' && reason !== 'timeout' && reason !== 'time') return;
       p.hasLost = true;
       p.lossReason = reason;
+      p.lossFrom = from || null;
       const words = {
         life: 'has 0 or less life', poison: 'has ten or more poison counters',
         deck: 'tried to draw from an empty library', commander: 'took 21 commander damage',
         concede: 'concedes', timeout: 'left the game', time: 'ran out of time on the clock',
       };
-      this.logEvent('game', `${p.name} loses the game (${words[reason] || reason}).`);
+      this.logEvent('game', `${p.name} loses the game (${words[reason] || reason}${reason === 'commander' && from ? ' from ' + from : ''}).`);
       /* Leaving the game (CR 800.4a): everything they own leaves with them,
          quietly, since leaving the game is no zone change anything can
          see; control effects that gave them anything end; and whatever
@@ -26874,7 +26885,7 @@
           avatarColor: p.avatarColor, life: p.life, poison: p.poison, energy: p.energy,
           preventShield: p.preventShield || 0,
           experience: p.experience, rad: p.rad || 0, pool: p.pool.snapshot(), landsPlayed: p.landsPlayed,
-          maxLands: p.maxLands, hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason,
+          maxLands: p.maxLands, hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null,
           conceded: p.conceded, drewFromEmpty: p.drewFromEmpty,
           commanderDamage: Object.assign({}, p.commanderDamage),
           commanderCasts: Object.assign({}, p.commanderCasts),
@@ -27416,7 +27427,7 @@
           botPersonality: p.botPersonality || null,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
-          hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, connected: p.connected,
+          hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null, connected: p.connected,
           mulligansTaken: p.mulligansTaken, keptHand: p.keptHand,
           mulliganBottom: this.bottomCountFor(p),
           commanderDamage: p.commanderDamage, commanderCasts: p.commanderCasts,

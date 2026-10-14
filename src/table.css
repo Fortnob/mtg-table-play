@@ -814,6 +814,20 @@
 .fx-turn.mine .ft-who { color: #ffeab0; text-shadow: 0 0 30px rgba(246,200,110,.6); }
 .ft-n { font: 600 11px/1 var(--font); letter-spacing: .3em; text-transform: uppercase; color: #8d97a8; }
 @keyframes turnBand { 0% { opacity: 0; scale: 1 .4; } 14% { opacity: 1; scale: 1 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+/* a player out of a game that goes on: a red band above the middle, clear of the turn banner */
+.fx-out { position: absolute; left: 0; right: 0; top: calc(var(--board-top, 6px) + 16%); display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 18px 16px; pointer-events: none; z-index: 2; text-align: center;
+  background: linear-gradient(90deg, transparent, rgba(24,8,8,.88) 22%, rgba(24,8,8,.88) 78%, transparent);
+  animation: outBand 3.6s cubic-bezier(.3,.7,.3,1) forwards; }
+.fo-line { position: absolute; left: 15%; right: 15%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--bad), transparent); }
+.fo-row { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.fo-who { font: 600 32px/1.15 var(--serif); color: #ffd2cc; letter-spacing: .02em; text-shadow: 0 0 24px rgba(255,80,60,.5); }
+.fo-who::before { content: '\2620'; margin-right: .4em; font-size: .8em; color: var(--bad); opacity: .9; }
+.fo-why { font: 600 11px/1.3 var(--font); letter-spacing: .22em; text-transform: uppercase; color: #c9a19c; }
+@keyframes outBand { 0% { opacity: 0; scale: 1 .4; } 8% { opacity: 1; scale: 1 1; } 85% { opacity: 1; } 100% { opacity: 0; } }
+@media (max-width: 640px) { .fo-who { font-size: 22px; } .fo-why { letter-spacing: .14em; } }
+@media (prefers-reduced-motion: reduce) { .fx-out { animation: outFade 3.6s linear forwards; } }
+@keyframes outFade { 0%, 85% { opacity: 1; } 100% { opacity: 0; } }
 
 /* watching rather than playing */
 .arena.watching .action-dock .big-btn { display: none; }

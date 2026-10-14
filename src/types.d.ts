@@ -163,6 +163,8 @@ declare namespace MTG {
     hasLost?: boolean;
     hasWon?: boolean;
     lossReason?: string | null;
+    /** who or what put them out, where known ("Atraxa (Mira)" for commander damage) */
+    lossFrom?: string | null;
     connected?: boolean;
     mulligansTaken: number;
     keptHand: boolean;

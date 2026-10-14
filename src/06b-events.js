@@ -357,7 +357,7 @@
       }
       case 'draw': if (a && a.player) this._ev('draw', { player: a.player.id, count: a.n }); break;
       case 'game:over': this._ev('gameOver', { winners: (a || []).slice() }); break;
-      case 'player:lost': if (a) this._ev('lose', { player: a.id, reason: a.lossReason || '' }); break;
+      case 'player:lost': if (a) this._ev('lose', Object.assign({ player: a.id, reason: a.lossReason || '' }, a.lossFrom ? { from: a.lossFrom } : {})); break;
       /* a die: the result kept, every die rolled and the ones ignored (Pixie Guide, Wyll), for which card;
          a coin: heads or tails, won or lost, ignored (Krark's Thumb's other coin), for which card */
       case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result,
@@ -439,11 +439,32 @@
       case 'attack': return `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? cn(e.attackers[0].objId, 'a creature') : e.attackers.length + ' creatures'}`;
       case 'block': return `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? cn(e.blocks[0].objId, 'a creature') : e.blocks.length + ' creatures'}`;
       case 'gameOver': return (e.winners || []).length ? `${e.winners.map(name).join(', ')} win${e.winners.length === 1 ? s(e.winners[0]) : ''}` : 'The game is a draw';
-      case 'lose': return `${name(e.player)} lose${s(e.player)}${e.reason ? ' — ' + e.reason : ''}`;
+      case 'lose': { const why = lossWords(e.reason, e.from); return `${name(e.player)} lose${s(e.player)}${why ? ' — ' + why.charAt(0).toLowerCase() + why.slice(1) : ''}`; }
       case 'log': return e.text;
       default: return '';
     }
   }
 
-  MTG.events = { redact, sees, describe, PUBLIC, RING };
+  /**
+   * Why a player is out of the game, in a few words for a person: "Life
+   * total reached 0", "Commander damage from Atraxa (Mira)". `reason` is
+   * the engine's (Game#playerLoses); `from`, where known, who or what did
+   * it. A reason the engine wrote out itself ("a card said so") is kept,
+   * with a capital.
+   */
+  function lossWords(reason, from) {
+    switch (reason || '') {
+      case '': return '';
+      case 'life': return 'Life total reached 0';
+      case 'poison': return 'Ten poison counters';
+      case 'deck': return 'Drew from an empty library';
+      case 'commander': return from ? `Commander damage from ${from}` : 'Commander damage';
+      case 'concede': return 'Conceded';
+      case 'timeout': return 'Left the game';
+      case 'time': return 'Ran out of time';
+      default: { const r = String(reason); return r.charAt(0).toUpperCase() + r.slice(1); }
+    }
+  }
+
+  MTG.events = { redact, sees, describe, lossWords, PUBLIC, RING };
 })(window.MTG);

@@ -29,6 +29,15 @@
   const { stepKey, idNum, truncate, possessive, CARD_RATIO } = Table.helpers;
   const EASE = 'cubic-bezier(.22,.8,.24,1)';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  // why a player is out, in words (src/06b-events.js)
+  const lossWords = (reason, from) => (MTG.events && MTG.events.lossWords ? MTG.events.lossWords(reason, from) : String(reason || ''));
+  const lowerFirst = (t) => (t ? t.charAt(0).toLowerCase() + t.slice(1) : t);
+  /** The beat's line for a player out of the game: who, and why where it is known. */
+  const lostEvent = (who, name, me, reason, from) => {
+    const why = lossWords(reason, from);
+    return { kind: 'lost', who, reason: reason || '', from: from || null,
+      text: `${name} ${who === me ? 'lose' : 'loses'}${why ? ' — ' + lowerFirst(why) : ''}` };
+  };
 
   Object.assign(Table.prototype, {
 
@@ -185,7 +194,7 @@
         const q = prev.players.find(x => x.id === p.id);
         if (!q) continue;
         if (q.life !== p.life) hold(Math.abs(p.life - q.life) >= 5 ? 700 : 450);
-        if (!q.hasLost && p.hasLost) { b.events.push({ kind: 'lost', who: p.id, text: `${name(p.id)} ${p.id === me ? 'lose' : 'loses'}${p.lossReason ? ' — ' + p.lossReason : ''}` }); hold(1200); }
+        if (!q.hasLost && p.hasLost) { b.events.push(lostEvent(p.id, name(p.id), me, p.lossReason, p.lossFrom)); hold(1200); }
       }
       // combat damage lands on creatures too
       const dmg = (v) => v.battlefield.reduce((s, o) => s + (o.damage || 0), 0);
@@ -288,7 +297,7 @@
           }
           case 'counters': b.counters.push(e); break;
           case 'lose':
-            b.events.push({ kind: 'lost', who: e.player, text: `${name(e.player)} ${e.player === me ? 'lose' : 'loses'}${e.reason ? ' — ' + e.reason : ''}` });
+            b.events.push(lostEvent(e.player, name(e.player), me, e.reason, e.from));
             hold(1200);
             break;
           default: break;
@@ -339,8 +348,11 @@
       this._boardFloats(prev, next, beat.fromEvents);
       for (const e of beat.events) this.pushHistory(e);
       this._voice(prev, next, beat);
+      // somebody out of a game that goes on without them has a callout of their own
+      const out = this._eliminations(next, beat);
+      if (out.length) this._eliminatedCallout(out);
       // what you did yourself needs no announcing, except where it ended up
-      const told = beat.events.filter(e => e.text &&
+      const told = beat.events.filter(e => e.text && !out.includes(e) &&
         (e.who !== this.meId || ['attack', 'died', 'lost', 'countered', 'noblock'].includes(e.kind)));
       const line = told.length ? told[told.length - 1] : null;
       if (line && !(beat.spot && (line.kind === 'cast' || line.kind === 'ability' || line.kind === 'trigger'))) this.say(line.text, line.kind);
@@ -359,6 +371,41 @@
       const gone = prev.battlefield.filter(o => !next.battlefield.some(x => x.id === o.id) && o.power != null).length;
       if (gone >= 3) this.flash('wipe');
       if (!prev.over && next.over) this._gameOverFx(next);
+    },
+
+    /**
+     * The players another player at the table sees put out of the game in
+     * this beat, for the callout: only in a game of three or more, where
+     * the game goes on without them (with two, the game is simply over),
+     * and not the last one out, whose loss is the end of the game and has
+     * its own screen. Your own loss is on your own seat already.
+     */
+    _eliminations(next, beat) {
+      if (!next || (next.players || []).length < 3 || next.over) return [];
+      return beat.events.filter(e => e.kind === 'lost' && e.who !== this.meId);
+    },
+
+    /** "Mira has been eliminated", and why, across the table for a few seconds; said to a screen reader too. */
+    _eliminatedCallout(out) {
+      const v = this.view;
+      const rows = out.map(e => {
+        const p = (v.players || []).find(x => x.id === e.who);
+        const why = lossWords(e.reason, e.from);
+        return { name: p ? p.name : 'A player', why };
+      });
+      const node = el('div', { class: 'fx-out', 'aria-hidden': 'true' }, [
+        el('div', { class: 'fo-line' }),
+        ...rows.map(r => el('div', { class: 'fo-row' }, [
+          el('div', { class: 'fo-who', text: `${r.name} has been eliminated` }),
+          r.why ? el('div', { class: 'fo-why', text: r.why }) : null,
+        ].filter(Boolean))),
+      ]);
+      if (this._outCallout) this._outCallout.remove();
+      this._outCallout = node;
+      this.fxLayer.appendChild(node);
+      clearTimeout(this._outTimer);
+      this._outTimer = setTimeout(() => { node.remove(); if (this._outCallout === node) this._outCallout = null; }, 3600);
+      if (this.accessSay) this.accessSay(rows.map(r => `${r.name} has been eliminated${r.why ? ': ' + lowerFirst(r.why) : ''}.`).join(' '), true);
     },
 
     /**

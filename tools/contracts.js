@@ -139,7 +139,7 @@ const PlayerView = obj({
   id, name: str, seat: opt(maybe(int)), isBot: opt(maybe(bool)), botDifficulty: opt(maybe(num)), botPersonality: opt(maybe(str)),
   life: num, poison: opt(maybe(num)), energy: opt(maybe(num)), experience: opt(maybe(num)), rad: opt(maybe(num)),
   pool: ManaPool, landsPlayed: nat, maxLands: num,
-  hasLost: opt(maybe(bool)), hasWon: opt(maybe(bool)), lossReason: opt(maybe(str)), connected: opt(maybe(bool)),
+  hasLost: opt(maybe(bool)), hasWon: opt(maybe(bool)), lossReason: opt(maybe(str)), lossFrom: opt(maybe(str)), connected: opt(maybe(bool)),
   mulligansTaken: nat, keptHand: bool, mulliganBottom: nat,
   commanderDamage: opt(maybe(rec(num))), commanderCasts: opt(maybe(rec(num))),
   librarySize: nat, topCard: maybe(ObjectView), handSize: nat, draftNotes: opt(maybe(S.plainObj)),

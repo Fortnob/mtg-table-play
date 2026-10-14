@@ -1,8 +1,10 @@
 /* A player out of a game of three or more, headless: the engine putting
-   them out (their permanents leave with them, CR 800.4a), and the table
-   no longer letting anybody bring their board forward, by any of the
-   ways there are: by choice, the nameplate, the seat number, going round
-   the table, side by side.
+   them out (their permanents leave with them, CR 800.4a, and the reason
+   is kept, with whose commander did it), the table no longer letting
+   anybody bring their board forward, and the callout the others see —
+   for the host from its own view, and for a guest from views sent over
+   the line (src/09b-sync.js). None in a two-player game, and none for
+   the last one out, whose loss is the end of the game.
 
    A real game and a real table (src/12-ui-table.js) on a pretend DOM
    (tools/fakedom.js). Cards come from the bulk file in tools/, so
@@ -122,6 +124,7 @@ function seat(g, me, wire) {
       if (!t.queue.length && t.view === t.live && !t._pumping) { await sleep(20); if (!t.queue.length && t.view === t.live) return; }
     }
   };
+  w.callout = () => { const n = t.fxLayer.querySelector('.fx-out'); return n && n.isConnected ? n.textContent : ''; };
   w.plate = (pid) => (t._plates || new Map()).get(pid);
   w.shown = () => Array.from(t.seats.keys()).filter(id => { const s = t.seats.get(id); return s.root.isConnected && id !== me; });
   w.stop = () => { if (!t._destroyed) t.destroy(); root.remove(); };
@@ -129,6 +132,19 @@ function seat(g, me, wire) {
 }
 
 async function main() {
+  /* ================= the words for why ================= */
+  {
+    const W = MTG.events.lossWords;
+    check(W('life') === 'Life total reached 0', 'life', W('life'));
+    check(W('poison') === 'Ten poison counters', 'poison', W('poison'));
+    check(W('deck') === 'Drew from an empty library', 'decked', W('deck'));
+    check(W('commander', 'Derevi, Empyrial Tactician (Me)') === 'Commander damage from Derevi, Empyrial Tactician (Me)', 'commander damage, from whom', W('commander', 'X'));
+    check(W('commander') === 'Commander damage', 'commander damage, from nobody known');
+    check(W('concede') === 'Conceded' && W('timeout') === 'Left the game' && W('time') === 'Ran out of time', 'conceded, left, out of time');
+    check(W('a card said so') === 'A card said so', 'a reason the engine wrote out is kept, with a capital');
+    check(W('') === '' && W(null) === '', 'no reason, no words');
+  }
+
   /* ================= four players: one out by commander damage ================= */
   {
     const g = game(['me', 'amy', 'bo', 'cy']);
@@ -137,12 +153,14 @@ async function main() {
     g.put('bo', 'Forest');
     g.put('amy', 'Plains');
     const host = seat(g, 'me', false);     // the host, at its own table
-    await host.settle();
+    const guest = seat(g, 'cy', true);     // a guest, over the line
+    await host.settle(); await guest.settle();
 
     // the host is looking at Bo's board, by choice
     host.t.setFocus('bo', true);
     await host.settle();
     check(host.t.focusSeat === 'bo', 'Bo’s board can be brought forward while Bo is playing');
+    check(!host.callout() && !guest.callout(), 'no callout before anybody is out');
 
     // 21 from Derevi, and the state-based actions put Bo out
     g.player('bo').commanderDamage[derevi.id] = 21;
@@ -150,9 +168,24 @@ async function main() {
     g.touch();
     const bo = g.player('bo');
     check(bo.hasLost && bo.lossReason === 'commander', 'Bo is out by commander damage', bo.lossReason);
+    check(bo.lossFrom === 'Derevi, Empyrial Tactician (Me)', 'the loss says whose commander it was', bo.lossFrom);
     check(!g.battlefield.some(o => o.owner === 'bo') && bears.zone !== 'battlefield', 'Bo’s permanents left the game with Bo (CR 800.4a)', bears.zone);
     check(!g.over, 'the game goes on with three');
-    await host.settle();
+    const ev = g.events.filter(e => e.type === 'lose');
+    check(ev.length === 1 && ev[0].player === 'bo' && ev[0].reason === 'commander' && ev[0].from === 'Derevi, Empyrial Tactician (Me)', 'a lose event, with the reason and the commander', JSON.stringify(ev));
+    const pv = g.viewFor('cy').players.find(p => p.id === 'bo');
+    check(pv.hasLost && pv.lossFrom === 'Derevi, Empyrial Tactician (Me)', 'the view carries who put them out', JSON.stringify({ l: pv.hasLost, f: pv.lossFrom }));
+    check(/loses the game \(took 21 commander damage from Derevi/.test(g.log.map(x => x.text).join('\n')), 'the log says from whom');
+    await host.settle(); await guest.settle();
+
+    // the callout, for the host and for the guest over the line
+    for (const [who, w] of [['the host', host], ['a guest', guest]]) {
+      const text = w.callout();
+      check(/Bo has been eliminated/.test(text), `${who} sees “Bo has been eliminated”`, text);
+      check(/Commander damage from Derevi, Empyrial Tactician \(Me\)/.test(text), `${who} sees why`, text);
+      await sleep(60);
+      check(/Bo has been eliminated: commander damage from Derevi/.test(w.t.srNow ? w.t.srNow.textContent : ''), `${who}’s screen reader is told`, w.t.srNow && w.t.srNow.textContent);
+    }
 
     // the board that was being looked at goes back to the table's own choice
     check(host.t.focusSeat !== 'bo', 'the host no longer looks at Bo’s board', host.t.focusSeat);
@@ -180,6 +213,50 @@ async function main() {
     check(!host.shown().includes('bo') && host.shown().includes('amy') && host.shown().includes('cy'), 'side by side: Bo’s board is not among them', JSON.stringify(host.shown()));
     MTG.settings.splitOpponents = false;
 
+    // the last one out is the end of the game, with its own screen: no callout for that
+    host.t.fxLayer.querySelectorAll('.fx-out').forEach(n => n.remove());
+    guest.t.fxLayer.querySelectorAll('.fx-out').forEach(n => n.remove());
+    g.concede('amy');
+    await host.settle(); await guest.settle();
+    check(/Amy has been eliminated/.test(host.callout()) && /Conceded/.test(host.callout()), 'a concession is called out too', host.callout());
+    host.t.fxLayer.querySelectorAll('.fx-out').forEach(n => n.remove());
+    guest.t.fxLayer.querySelectorAll('.fx-out').forEach(n => n.remove());
+    g.player('cy').life = 0;
+    g.checkStateBasedActions(); g.touch();
+    await host.settle(); await guest.settle();
+    check(g.over, 'with one left, the game is over');
+    check(!host.callout(), 'the last one out has no callout: the game is over', host.callout());
+    host.stop(); guest.stop();
+  }
+
+  /* ================= a host's table with no events (an undo, say): from the views alone ================= */
+  {
+    const g = game(['me', 'amy', 'bo']);
+    const root = doc.createElement('div');
+    doc.body.appendChild(root);
+    const t = new UI.Table(root, 'me', () => {});
+    t.paceScale = 0.001;
+    t.update(g.viewFor('me'));
+    await sleep(40);
+    g.player('amy').poison = 10;
+    g.checkStateBasedActions();
+    t.update(g.viewFor('me'));    // no events: the table works it out from the two views
+    for (let i = 0; i < 60 && (t.queue.length || t.view !== t.live); i++) await sleep(10);
+    const n = t.fxLayer.querySelector('.fx-out');
+    check(!!n && /Amy has been eliminated/.test(n.textContent) && /Ten poison counters/.test(n.textContent), 'from the views alone, the callout and the reason', n && n.textContent);
+    t.destroy(); root.remove();
+  }
+
+  /* ================= two players: the game simply ends ================= */
+  {
+    const g = game(['me', 'amy']);
+    const host = seat(g, 'me', false);
+    await host.settle();
+    g.player('amy').life = 0;
+    g.checkStateBasedActions(); g.touch();
+    await host.settle();
+    check(g.over, 'one of two out: the game is over');
+    check(!host.callout(), 'no callout in a two-player game', host.callout());
     host.stop();
   }
 
