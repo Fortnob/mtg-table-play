@@ -2606,6 +2606,13 @@
         const best = options.slice().sort((x, y) => (k[y.label] || 0) - (k[x.label] || 0))[0];
         return [best ? best.i : 0];
       }
+      // Pippin, Guard of the Citadel: protection from the type of what an opponent has on the stack, else creatures
+      if (ch.purpose === 'protectionCardType') {
+        const st = g.stack.slice().reverse().find(x => x.controller !== this.pid && x.obj);
+        const want = (st && g._cardTypesOf(st.obj)[0]) || 'Creature';
+        const hit = options.find(o => o.label === want) || options.find(o => o.label === 'Creature');
+        return [hit ? hit.i : 0];
+      }
       // the colour question asks through the same door
       if (e && e.op === 'chooseColor') {
         const pips = { W: 0, U: 0, B: 0, R: 0, G: 0 };

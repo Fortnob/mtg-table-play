@@ -9257,8 +9257,10 @@
     /** The card types of a card or permanent, capitalised: what it is now on the battlefield, as printed elsewhere. */
     _cardTypesOf(x) {
       if (!x) return [];
-      const c = x.zone === 'battlefield' ? this.characteristics(x) : (x.analysis && x.analysis());
-      if (!c) return [];
+      // (on the battlefield its analysis is what the layers made it; characteristics says whether it is a creature now)
+      const a = x.analysis && x.analysis();
+      if (!a) return [];
+      const c = x.zone === 'battlefield' ? Object.assign({}, a, { isCreature: !!(this.characteristics(x) || {}).isCreature }) : a;
       const out = [];
       if (c.isArtifact) out.push('Artifact');
       if (c.isBattle) out.push('Battle');
@@ -9347,6 +9349,9 @@
       // Emrakul, the Promised End: "protection from instants"
       const TYPE_WORDS = { instants: 'isInstant', sorceries: 'isSorcery', enchantments: 'isEnchantment', planeswalkers: 'isPlaneswalker' };
       if (TYPE_WORDS[s]) return !!a[TYPE_WORDS[s]];
+      // Pippin, Guard of the Citadel: protection from lands, battles or kindred, as they are now
+      const MORE_TYPES = { lands: 'Land', battles: 'Battle', kindred: 'Kindred' };
+      if (MORE_TYPES[s]) return this._cardTypesOf(o).includes(MORE_TYPES[s]);
       const colorMap = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
       for (const [w, c] of Object.entries(colorMap)) if (s.includes(w) && (a.colors || []).includes(c)) return true;
       if (s.includes('artifacts') && a.isArtifact) return true;
@@ -15330,6 +15335,19 @@
             const col = COLORS[idx == null ? 0 : idx] || COLORS[0];
             kws = kws.map(k => (PRO_CHOICE.test(k) ? 'Protection From ' + col : k));
             this.logEvent('rules', `${me.name} chooses ${col.toLowerCase()}.`);
+          }
+          // Pippin, Guard of the Citadel: "gains protection from the card type of your choice"
+          const PRO_TYPE = /^protection from the card type of your choice$/i;
+          if (kws.some(k => PRO_TYPE.test(k))) {
+            const TYPES = ['Artifact', 'Battle', 'Creature', 'Enchantment', 'Instant', 'Kindred', 'Land', 'Planeswalker', 'Sorcery'];
+            const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: 1, purpose: 'protectionCardType',
+              options: TYPES.map((t, i) => ({ i, label: t })), prompt: 'Protection from which card type?' }, 'proty');
+            if (picked === SUSPEND) return SUSPEND;
+            const idx = Array.isArray(picked) ? picked[0] : picked;
+            const ty = TYPES[idx == null ? 0 : idx] || TYPES[0];
+            const PL = { Sorcery: 'Sorceries', Kindred: 'Kindred' };
+            kws = kws.map(k => (PRO_TYPE.test(k) ? 'Protection From ' + (PL[ty] || ty + 's') : k));
+            this.logEvent('rules', `${me.name} chooses ${ty.toLowerCase()}.`);
           }
           // "That token gains haste." with no end to it is for good
           applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'

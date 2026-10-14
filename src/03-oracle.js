@@ -13503,7 +13503,7 @@
        "trample as long as …", "becomes blue" and other words that slipped
        into a keyword list are not keywords, and the line goes back to a
        person rather than granting nothing. */
-    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|colorless or from the colou?r of your choice|the chosen colou?r|[a-z]+s)$/i;
+    const PROT_Q = /^(?:commander off colou?rs|white|blue|black|red|green|everything|artifacts?|creatures?|enchantments?|instants?|sorceries|planeswalkers?|lands?|multicolored|monocolored|colorless|each colou?r|the colou?r of your choice|colorless or from the colou?r of your choice|the chosen colou?r|the card type of your choice|[a-z]+s)$/i;
     const kwOk = (k) => {
       const w = String(k || '').trim();
       if (kwKnown(w)) return true;

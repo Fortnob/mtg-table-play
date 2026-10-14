@@ -28453,4 +28453,43 @@ module.exports = (test) => {
     t.eq(M.life('A'), 19, "Ghyrson: B's source, nothing more");
     t.zone(gh, 'battlefield');
   });
+
+  test('Commanders: Pippin, Guard of the Citadel — another creature of yours gains protection from the card type of your choice', (mk, t) => {
+    t.auto('Pippin, Guard of the Citadel');
+    const M = mk({ library: Array(30).fill('Island') });
+    const pip = M.bf('A', 'Pippin, Guard of the Citadel');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const meg = M.bf('B', 'Keldon Megaliths');
+    // not Pippin itself
+    t.no(M.g.activateAbility('A', pip.id, 0, { auto: true, targets: [{ kind: 'object', id: pip.id }] }), 'Pippin: another creature');
+    let asked = null;
+    M.answer('mode', (ch) => { asked = ch; return { modes: [ch.options.find(o => o.label === 'Instant').i] }; });
+    M.activate('A', pip, 0, { targets: [bear.id] });
+    t.ok(asked && asked.options.length === 9 && /card type/.test(asked.prompt), 'Pippin: the nine card types offered');
+    t.ok(M.g._viewKeywords(bear).includes('protection from instants'), 'Pippin: reads as protection from instants');
+    // B's land can target it; B's Lightning Bolt can't, and goes at A instead
+    M.g.passPriority('A', true);
+    M.mana('B', '1R');
+    M.activate('B', meg, 1, { targets: [bear.id] });
+    t.eq(bear.damage, 1, 'Pippin: a land is not an instant');
+    M.g.passPriority('A', true);
+    const bolt = M.hand('B', 'Lightning Bolt');
+    M.mana('B', 'R');
+    t.no(M.g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'Pippin: protection from instants');
+    M.cast('B', bolt, { targets: ['A'] });
+    // next turn, protection from lands
+    M.nextTurn('A');
+    M.answer('mode', (ch) => ({ modes: [ch.options.find(o => o.label === 'Land').i] }));
+    M.activate('A', pip, 0, { targets: [bear.id] });
+    M.g.passPriority('A', true);
+    M.mana('B', '1R');
+    M.g.zones.B.hand.splice(0);   // hellbent: what B drew put aside
+    t.no(M.g.activateAbility('B', meg.id, 1, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'Pippin: protection from lands');
+    t.ok(/legal target/.test(M.g.lastError));
+    // gone at end of turn: B's Lightning Bolt now kills it
+    M.nextTurn('B');
+    M.mana('B', 'R');
+    M.cast('B', M.hand('B', 'Lightning Bolt'), { targets: [bear.id] });
+    t.zone(bear, 'graveyard', 'Pippin: until end of turn');
+  });
 };
