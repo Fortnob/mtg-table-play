@@ -3695,6 +3695,9 @@
        one that died, as it last was (triggerPowerLki); the tokens the sentence before made (copyPrevN) */
     { re: /^If the creature had power (\w+) or greater, create (two|three|four) of those tokens instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'noop', insteadOf: { cond: { kind: 'triggerPowerLki', n: num(m[1]) }, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null) },
+    // Safana, Calimport Cutthroat: "Create three of those tokens instead if you've completed a dungeon." (read as "If …, create …")
+    { re: /^If (.+?), create (two|three|four) of those tokens instead\.?$/i,
+      make: (m) => { const cond = condOf(m[1]); return cond ? { op: 'noop', insteadOf: { cond, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null; } },
     /* Rite of Replication's kicker */
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
@@ -5607,6 +5610,11 @@
         const n = m[3] ? amountOf(m[3]) : m[2] === 'X' ? 'X' : +m[2];
         return n ? { op: 'amass', n, kind: m[1] ? U.titleCase(singularType(m[1].trim())) : 'Zombie' } : null;
       } },
+    /* Azog, Moria's Ruin: "destroy up to one other target creature. Its controller amasses Goblins X, where X is
+       that creature's power." — the target's controller, and the target's power as it last was */
+    { re: /^Its controller amasses ([A-Za-z]+ )?(X|\d+)(, where X is that creature'?s power)?\.?$/,
+      make: (m) => (m[2] === 'X' && !m[3] ? null : { op: 'amass', who: 'targetController', n: m[3] ? { ofTrigger: 'power', ofPrior: true } : +m[2],
+        kind: m[1] ? U.titleCase(singularType(m[1].trim())) : 'Zombie' }) },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
     /* Recruit (Esgaroth Garrison, Lake-town Lookout, The Queen of Dale): "Draw a card, then discard a
        card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token." */
@@ -5760,13 +5768,29 @@
     { re: /^(?:CARDNAME|It) deals (one|two|three|four|five|six|\d+|X) damage divided as you choose among any number of target creatures( and\/or planeswalkers)? (your opponents control|an opponent controls)(?:, where X is (.+?))?\.?$/i,
       make: (m) => {
         const x = /^X$/i.test(m[1]);
-        if (x !== !!m[4]) return null;
-        const k = x ? amountOf(m[4]) : num(m[1]);
+        if (!x && m[4]) return null;
+        // (Polukranos, World Eater: a bare X — the monstrosity X, or the X it was cast with)
+        const k = x ? (m[4] ? amountOf(m[4]) : 'X') : num(m[1]);
         if (!k) return null;
         return { op: 'damageDivided', n: k,
           anyFrom: Object.assign(targetSpec('target creature' + (m[2] ? ' or planeswalker' : '') + ' an opponent controls'), { upTo: true }),
           anyPrompt: `choose any number of creatures${m[2] ? ' and/or planeswalkers' : ''} your opponents control to divide ${x ? 'X' : num(m[1])} damage among` };
       } },
+    /* Niv-Mizzet, Guildpact: "it deals X damage to any target, target player draws X cards, and you gain X life, where X
+       is …" — three things, one X */
+    { re: /^((?:It|CARDNAME) deals X damage to any target), (target player draws X cards), and (you gain X life), where X is (.+?)\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[4]);
+        if (!k) return null;
+        const list = [m[1], m[2], m[3]].map(x => parseEffectSentence(x.charAt(0).toUpperCase() + x.slice(1) + '.', 1));
+        if (list.some(x => !x || x.op === 'manual' || hasManualStep(x))) return null;
+        for (const x of list) fillX(x, k);
+        return { op: 'sequence', list };
+      } },
+    /* Polukranos, World Eater, Ravenous Gigantotherium, Living Inferno: "Each of those creatures deals damage equal to
+       its power to Polukranos." — the creatures the damage was divided among (thoseDamageSelf) */
+    { re: /^Each of those creatures deals damage equal to its power to (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'thoseDamageSelf' }) },
     // Captain America, First Avenger: "He deals damage equal to that Equipment's mana value divided as you choose among one, two, or three targets." (ofUnattached)
     { re: /^(?:He|She|It|CARDNAME) deals damage equal to that Equipment'?s mana value divided as you choose among one, two, or three targets\.?$/i,
       make: () => ({ op: 'damageDivided', n: { ofUnattached: 'mv' },
@@ -8312,6 +8336,8 @@
     if (/^the amount of mana (?:this creature|it|CARDNAME) produced$/i.test(p)) return 'triggerAmount';
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
+    // Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two colors"
+    if (/^the number of different colou?r pairs among permanents you control that are exactly two colou?rs$/i.test(p)) return { colorPairsYours: true, mult: 1 };
     // Thraben Charm: "twice the number of creatures you control"
     const tw = p.match(/^twice (the number of .+)$/i);
     if (tw) { const k = amountOf(tw[1]); return k && typeof k === 'object' && typeof k.mult === 'number' && !k.plus ? Object.assign({}, k, { mult: k.mult * 2 }) : null; }
@@ -12390,7 +12416,8 @@
           if (x.copyPrevN == null) continue;
           const k = x.copyPrevN;
           delete x.copyPrevN;
-          if (prev && prev.op === 'createToken') Object.assign(x, JSON.parse(JSON.stringify(prev)), { n: k });
+          // (Safana, Calimport Cutthroat: "create three of those tokens instead" — Treasures, createNamedToken)
+          if (prev && (prev.op === 'createToken' || prev.op === 'createNamedToken')) Object.assign(x, JSON.parse(JSON.stringify(prev)), { n: k });
           else x.op = 'manual';
         }
         // (Court of Ardenvale: "return that card to the battlefield instead" — the same target)
@@ -14429,7 +14456,8 @@
     // (Jolene, Plundering Pugilist: "Whenever you attack with one or more creatures with power 4 or greater" — attackWithPower)
     { re: /^Whenever you attack (?:a player )?with one or more creatures with power (\d+) or greater,? /i, event: 'youAttack', extraOf: (m) => ({ attackersMinPower: +m[1] }) },
     // Akiri, Fearless Voyager: "Whenever you attack a player with one or more equipped creatures" (attackersFit)
-    { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified) creatures,? /, event: 'youAttack',
+    // (Interceptor, Shadow's Hound: "with one or more legendary creatures")
+    { re: /^Whenever you attack (a player )?with one or more (equipped|enchanted|modified|legendary) creatures,? /, event: 'youAttack',
       extraOf: (m) => Object.assign({ attackersFit: m[2] + ' creature' }, m[1] ? { attackPlayerOnly: true } : {}) },
     // Rigo, Streetwise Mentor: "a player or planeswalker with one or more creatures with power 1 or less" (attackersSmall)
     { re: /^Whenever you attack a player or planeswalker with one or more creatures with power (\d+) or less,? /, event: 'youAttack',

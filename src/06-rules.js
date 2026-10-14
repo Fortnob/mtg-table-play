@@ -3844,6 +3844,17 @@
       if (v.discardedThisTurn) return ((((this.turnHistory || {}).discardsBy) || {})[pid] || 0) * mult;
       if (v.domain) return this._domainOf(pid) * mult;
       if (v.colorsAmongYours) return this._colorsAmongYours(pid).length * mult;
+      /* Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two
+         colors" (colorPairsYours) */
+      if (v.colorPairsYours) {
+        const pairs = new Set();
+        for (const x of this.battlefield) {
+          if (x.controller !== pid || x.phasedOut) continue;
+          const cs = ((x.analysis() || {}).colors || []);
+          if (cs.length === 2) pairs.add(cs.slice().sort().join(''));
+        }
+        return pairs.size * mult;
+      }
       // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
       if (v.colorsAmongScope) {
         const cols = new Set();
@@ -16643,7 +16654,9 @@
         if (!pool.length) return null;
         // (Dragonlord Atarka: "5 damage divided as you choose among any number of …" — no more of them than there is damage, CR 601.2d)
         // (Ureni, the Song Unending: "X damage …, where X is the number of lands you control" — counted now)
-        const dmgN = e.op !== 'damageDivided' ? null : typeof e.n === 'number' ? e.n : e.n && e.n.scope ? this._countValue(e.n, ctx.controller, src || null) : null;
+        // (Polukranos, World Eater: X, the monstrosity X)
+        const dmgN = e.op !== 'damageDivided' ? null : typeof e.n === 'number' ? e.n : e.n && e.n.scope ? this._countValue(e.n, ctx.controller, src || null)
+          : e.n === 'X' ? (ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0) : null;
         const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
         if (cap <= 0) return null;
         const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
@@ -17176,7 +17189,7 @@
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
-        if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -24463,11 +24476,21 @@
         }
 
         case 'amass': {
+          /* Azog, Moria's Ruin: "Its controller amasses Goblins X" — whoever controls the creature it targeted, or
+             controlled it as it was destroyed; none aimed at, none amassed (targetController) */
+          let amasser = ctx.controller;
+          if (e.who === 'targetController') {
+            const tgA = firstObj();
+            const pA = tgA && (tgA.zone === 'battlefield' ? this.player(tgA.controller)
+              : this._lastAffected && this._lastAffected.id === tgA.id ? this._lastAffectedController() : this.player(tgA.owner));
+            if (!pA || pA.hasLost) break;
+            amasser = pA.id;
+          }
           // one Army grows rather than many arriving (CR 701.44)
-          let army = this.battlefield.find(o => o.controller === ctx.controller &&
+          let army = this.battlefield.find(o => o.controller === amasser &&
             (o.analysis() || {}).subtypes && o.analysis().subtypes.includes('Army'));
           if (!army) {
-            this._createToken(ctx.controller, { n: 1, pt: '0/0', subtypes: (e.kind || 'Zombie') + ' Army', colorWords: ['black'], keywords: [] });
+            this._createToken(amasser, { n: 1, pt: '0/0', subtypes: (e.kind || 'Zombie') + ' Army', colorWords: ['black'], keywords: [] });
             army = this.battlefield[this.battlefield.length - 1];
           }
           if (army) this.addCounters(army, '+1/+1', nVar(e.n));
@@ -24857,6 +24880,19 @@
             else { const o = this.obj(t.id); if (o) this.dealDamageToObject(o, amt, src); }
           }
           this.emit('sfx', 'damage');
+          break;
+        }
+
+        /* Polukranos, World Eater: "Each of those creatures deals damage equal to its power to Polukranos." — the
+           ones it targeted, or picked as it resolved; those still on the battlefield, at once */
+        case 'thoseDamageSelf': {
+          if (!src || src.zone !== 'battlefield') break;
+          const own = targets.filter(t => t.kind === 'object').map(t => t.id);
+          const ids = own.length ? own : (this._lastAffectedAll || []).map(x => x.id);
+          const hits = ids.map(id => this.obj(id)).filter(o => o && o !== src && o.zone === 'battlefield' && this.characteristics(o).isCreature)
+            .map(o => [o, this.powerOf(o)]).filter(h => h[1] > 0);
+          for (const [o, p] of hits) this.dealDamageToObject(src, p, o);
+          if (hits.length) this.emit('sfx', 'damage');
           break;
         }
 
