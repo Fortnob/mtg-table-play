@@ -1359,7 +1359,8 @@ Sideboard
     }
 
     function sizePill(v) {
-      const label = v.exact
+      // (a size with no give, 60 to 60, reads as the one number)
+      const label = v.exact || v.max === v.min
         ? v.size + ' / ' + v.min
         : (v.max != null ? v.size + ' / ' + v.min + '\u2013' + v.max : v.size + ' (min ' + v.min + ')');
       const bad = v.exact ? v.size !== v.min : (v.size < v.min || (v.max != null && v.size > v.max));

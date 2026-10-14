@@ -1972,20 +1972,24 @@
     ].filter(Boolean)));
     return el('article', { class: 'deck-card' + (legalSize ? '' : ' needs-work') }, [
       open,
+      /* the format where the line above does not name it already (a commander's
+         deck, a drafted one); the buttons together at the right, and under the
+         pills when a narrow box has no room for them all, never cut off */
       el('div', { class: 'deck-foot' }, [
-        el('span', { class: 'pill', text: fmtName(d.format) }),
+        d.commander || d.source === 'draft' ? el('span', { class: 'pill deck-fmt', text: fmtName(d.format) }) : null,
         el('span', { class: 'pill ' + (legalSize ? 'good' : 'bad'), title: sizeTip, text: d.size + ' cards' }),
-        el('span', { class: 'grow' }),
-        el('button', { class: 'btn xs ghost danger-ghost', 'aria-label': 'Delete ' + d.name, title: 'Delete',
-          html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
-          onclick: async () => {
-            if (await UI.confirm(`Delete "${d.name}"?`, 'Delete deck')) { MTG.decks.remove(d.id); renderDecks(); }
-          } }),
-        // a solo game against an opponent that does nothing (src/11b-ui-playtest.js)
-        UI.practiceButton ? UI.practiceButton(d) : null,
-        el('button', { class: 'btn xs primary', text: 'Play', title: 'Start a game with this deck',
-          onclick: () => { App.formatId = d.format; startLobby('host'); setTimeout(() => usePreselectedDeck(d.id), 20); } }),
-      ]),
+        el('span', { class: 'deck-acts' }, [
+          el('button', { class: 'btn xs ghost danger-ghost', 'aria-label': 'Delete ' + d.name, title: 'Delete',
+            html: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3"/></svg>',
+            onclick: async () => {
+              if (await UI.confirm(`Delete "${d.name}"?`, 'Delete deck')) { MTG.decks.remove(d.id); renderDecks(); }
+            } }),
+          // a solo game against an opponent that does nothing (src/11b-ui-playtest.js)
+          UI.practiceButton ? UI.practiceButton(d) : null,
+          el('button', { class: 'btn xs primary', text: 'Play', title: 'Start a game with this deck',
+            onclick: () => { App.formatId = d.format; startLobby('host'); setTimeout(() => usePreselectedDeck(d.id), 20); } }),
+        ].filter(Boolean)),
+      ].filter(Boolean)),
     ]);
   }
 
