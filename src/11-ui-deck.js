@@ -1700,6 +1700,10 @@ Sideboard
        the way Commander counts. */
     const COLOURS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']];
     let typeOn = null, costOn = null;
+    // rarity: any of those picked, as the colours are
+    const RARITIES = [['Common', 'common'], ['Uncommon', 'uncommon'], ['Rare', 'rare'], ['Mythic', 'mythic']];
+    const raritiesOn = new Set();
+    const rarityQuery = () => (raritiesOn.size ? '(' + [...raritiesOn].map(r => 'r:' + r).join(' or ') + ')' : '');
     /** @type {Map<string, 'c'|'id'>} each colour picked, as a colour or as a colour identity */
     const coloursOn = new Map();
     const PAIRS = ['wu', 'wb', 'wr', 'wg', 'ub', 'ur', 'ug', 'br', 'bg', 'rg'];
@@ -1752,7 +1756,14 @@ Sideboard
             toggleColour(c, e.shiftKey ? 'id' : (mode === 'id' ? 'id' : 'c'));
           });
           return b;
-        }));
+        }),
+        el('span', { class: 'chip-gap' }),
+        el('span', { class: 'tiny dim', text: 'Rarity' }),
+        ...RARITIES.map(([l, r]) => el('button', {
+          type: 'button', class: 'chip rarity-chip rarity-' + r + (raritiesOn.has(r) ? ' on' : ''), text: l,
+          'aria-pressed': raritiesOn.has(r) ? 'true' : 'false',
+          onclick: () => { if (raritiesOn.has(r)) raritiesOn.delete(r); else raritiesOn.add(r); drawChips(); run(); },
+        })));
     };
     drawChips();
     // with no card database in this browser every search is a trip to
@@ -1817,7 +1828,7 @@ Sideboard
     const run = U.debounce(async () => {
       const q = input.value.trim();
       suggestBox.innerHTML = '';
-      const chips = [typeOn, costOn, colourQuery()].filter(Boolean).join(' ');
+      const chips = [typeOn, costOn, colourQuery(), rarityQuery()].filter(Boolean).join(' ');
       const mine = ++token;
       if (inFlight) inFlight.abort();
       inFlight = null;
@@ -1827,7 +1838,7 @@ Sideboard
       // the end of the list, in it (the list may scroll on its own): reaching it reads in more
       results.appendChild(more);
       // choosing a commander, the legendary creatures are there before anything is typed
-      if (!q && !chips && !only) { status.textContent = 'Start typing, or pick a type, a cost or a colour.'; return; }
+      if (!q && !chips && !only) { status.textContent = 'Start typing, or pick a type, a cost, a colour or a rarity.'; return; }
       status.textContent = 'Searching…';
       results.classList.add('loading');
       // a bare word is a name search; anything with a colon or comparison is a query

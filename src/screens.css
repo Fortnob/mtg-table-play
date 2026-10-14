@@ -1153,6 +1153,13 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .search-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .search-chips .chip { padding: 7px 11px; font-size: 11.5px; }
 .chip-gap { width: 10px; }
+/* rarity chips carry the set symbol's colour as a dot */
+.rarity-chip::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; background: var(--rar, #888); box-shadow: 0 0 0 1px rgba(255,255,255,.4); }
+.rarity-common { --rar: #2b2b2b; }
+.rarity-uncommon { --rar: linear-gradient(135deg, #e3eef3, #8aa4b0); }
+.rarity-rare { --rar: linear-gradient(135deg, #f3dc8a, #b08a2c); }
+.rarity-mythic { --rar: linear-gradient(135deg, #f6a04a, #c4361b); }
+:root[data-theme="light"] .rarity-chip::before { box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
 .search-suggest .suggest-chip { border-radius: 99px; background: rgba(212,175,71,.08); border-color: var(--hair); color: var(--ink); }
 .search-grid {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); --card-w: 140px; --card-h: 195px; gap: 16px 12px; max-height: calc(58 * var(--vh));
