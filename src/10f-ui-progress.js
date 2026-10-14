@@ -301,11 +301,14 @@
     const S = P().state, st = S.stats;
     const rate = (w, g) => g ? Math.round(100 * w / g) + '%' : '–';
     const tile = (label, value, sub) => el('div', { class: 'stat-tile' }, [el('b', { text: value }), el('span', { text: label }), sub ? el('i', { text: sub }) : null].filter(Boolean));
+    // (a win rate once there are games to have one; the cards as the Collection counts them)
+    const col = Object.values(E().collection());
+    const copies = col.reduce((a, e) => a + (e.n || 0), 0);
     body.appendChild(el('div', { class: 'stat-grid' }, [
-      tile('Games', fmtN(st.games)), tile('Wins', fmtN(st.wins), rate(st.wins, st.games) + ' won'),
+      tile('Games', fmtN(st.games)), tile('Wins', fmtN(st.wins), st.games ? rate(st.wins, st.games) + ' of games won' : null),
       tile('Spells cast', fmtN(st.spells)), tile('Damage dealt', fmtN(st.damage)),
       tile('Quests done', fmtN(st.quests)), tile('Packs opened', fmtN(E().state.opened || 0)),
-      tile('Cards owned', fmtN(Object.keys(E().collection()).length), 'different'), tile('Shards earned', fmtN(st.shardsEarned)),
+      tile('Different cards', fmtN(col.length), `${fmtN(copies)} in all`), tile('Shards earned', fmtN(st.shardsEarned)),
     ]));
     // by format and by deck
     const table = (title, rows) => el('section', { class: 'panel stat-table' }, [el('h3', { text: title }),

@@ -405,6 +405,8 @@ html[data-play="1"] .shard-chip { display: none; }
 .col-detail-img { width: 220px; flex: none; aspect-ratio: 63 / 88; border-radius: 4.8% / 3.5%; background: #111 center / cover no-repeat; }
 .miss-list { max-height: calc(36 * var(--vh, 1vh)); overflow: auto; padding-left: 4px; list-style: none; display: grid; gap: 4px; }
 .welcome-gift ul { list-style: none; padding: 0; display: grid; gap: 8px; }
+/* the Shard and wildcard icons on the line of their words, not riding above it */
+.welcome-gift li { display: flex; align-items: center; flex-wrap: wrap; column-gap: .3em; }
 
 /* what a game paid, on the result screen */
 .over-reward { margin-top: 14px; display: grid; justify-items: center; gap: 4px; animation: rewardIn .6s ease-out 1.2s both; }

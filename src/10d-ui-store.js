@@ -2724,7 +2724,9 @@
       // the owned cards, looked up by printing (or name), in batches
       const names = Object.keys(col).filter(n => (col[n].n || 0) > 0);
       const ids = names.map(n => col[n].id ? { id: col[n].id } : { name: n });
-      try { const r = await MTG.scry.collection(ids); cards = (r.cards || []).filter(Boolean); } catch (e) { cards = []; }
+      // (the first visit asks Scryfall in batches: how far it has got, so the wait is not a blank)
+      const progress = (got, all) => { if (all && got < all) status.textContent = `Loading… ${fmtN(got)} of ${fmtN(all)} cards`; };
+      try { const r = await MTG.scry.collection(ids, progress); cards = (r.cards || []).filter(Boolean); } catch (e) { cards = []; }
     }
     const colourOf = (c) => {
       const cs = c.colors || (c.card_faces && c.card_faces[0] && c.card_faces[0].colors) || [];

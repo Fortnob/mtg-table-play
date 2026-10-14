@@ -4377,7 +4377,9 @@
         return { ok: false, reason: 'Nobody is playing. Add a bot, or take a seat yourself.' };
       }
       const missing = this.roster.filter(r => r.kind !== 'bot' && !r.deck);
-      if (missing.length) return { ok: false, reason: `Waiting on a deck from: ${missing.map(r => r.name).join(', ')}.` };
+      // (your own seat is "you": the lobby has just told you to choose a deck)
+      if (missing.length === 1 && missing[0].kind === 'local') return { ok: false, reason: 'Choose a deck for your seat to start.' };
+      if (missing.length) return { ok: false, reason: `Waiting on a deck from: ${missing.map(r => r.kind === 'local' ? 'you' : r.name).join(', ')}.` };
       /* A bot builds what the card pool allows. If that comes out a card or
          two short of legal it is the builder's shortcoming, not something
          for the person at the table to fix, so it is shown on the bot's row

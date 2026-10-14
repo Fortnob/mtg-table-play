@@ -610,7 +610,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
 .three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: start; }
 /* the stacking margin above must not apply to grid cells */
-.two-col > .panel + .panel, .three-col > .panel + .panel { margin-top: 0; }
+.two-col > .panel + .panel, .three-col > .panel + .panel, .stat-tables > .panel + .panel { margin-top: 0; }
 @media (max-width: 860px) { .two-col, .three-col { grid-template-columns: 1fr; } }
 /* ---------- cards ---------- */
 .card-img {
@@ -1384,7 +1384,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .empty-state { text-align: center; padding: 34px 20px; }
 .empty-state .empty-icon { width: 46px; height: 46px; margin: 0 auto 12px; color: var(--ink-3); }
 .empty-state .empty-icon svg { width: 100%; height: 100%; }
-.empty-state h3 { margin: 0 0 6px; font-size: 16px; }
+.empty-state h3 { margin: 0 0 6px; font-size: 16px; justify-content: center; }
 .empty-state p { margin: 0 auto 16px; max-width: 40em; }
 
 /* ============================================================
