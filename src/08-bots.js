@@ -1759,6 +1759,17 @@
     adNauseam(s) { return { picks: [(s.life || 0) > 8 && (s.hand || 0) < 12 ? 0 : 1] }; },
     /* The Defilers: life for mana while life is plentiful */
     defiler(s) { return { picks: [(s.life || 0) > (s.n || 2) + 8 ? 0 : 1] }; },
+    /* A villainous choice (Davros, Dalek Creator): both options are bad for us; take the one that costs least,
+       life counted dearer as it runs low */
+    villainous(s) {
+      const life = this.me.life;
+      const harm = (o) => flatEffects(O.parseEffects(o.label || '').effects).reduce((k, e) =>
+        k + (e.op === 'loseLife' || e.op === 'damage' ? (Number(e.n) || 2) * (life <= (Number(e.n) || 2) * 3 ? 3 : 0.4) : Math.abs(effectWorth(e, 0)) || 1), 0);
+      const opts = s.options || [];
+      let best = 0;
+      opts.forEach((o, i) => { if (harm(o) < harm(opts[best])) best = i; });
+      return { picks: [best] };
+    },
     /* Torment of Hailfire: pay in life while it is plentiful, then in cards, then in permanents */
     torment(s) {
       const opts = s.options || [];
@@ -2718,6 +2729,8 @@
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
+      // Obeka, Brute Chronologist: end our own turn to be rid of an opponent's spell or ability, once combat is over
+      if (ch.purpose === 'endTurn') return g.stack.some(s => s.controller && s.controller !== this.pid) && g.phase && g.phase.id !== 'precombat' && g.phase.id !== 'beginning';
       // Slicer, Hired Muscle: lent out goaded, it has to attack someone else — only with another opponent to attack
       if (ch.purpose === 'lendSelf') return g.opponentsOf(this.pid).filter(q => !q.hasLost).length > 1;
       // Combustion Man: take the damage while there's life to spare and the permanent is worth it

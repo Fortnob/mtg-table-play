@@ -15357,18 +15357,20 @@
         // a sequence is just more of this list: splice it in and carry on, so
         // anything inside it can suspend exactly like a top-level effect
         if (e.op === 'sequence') {
-          r.effects.splice(r.index, 1, ...(e._as ? (e.list || []).map(x => Object.assign({}, x, { _as: e._as })) : (e.list || [])));
+          r.effects.splice(r.index, 1, ...(e._as || e._tp ? (e.list || []).map(x => Object.assign({}, x, e._as ? { _as: e._as } : {}, e._tp ? { _tp: e._tp } : {})) : (e.list || [])));
           continue;
         }
         let out;
         // Tempting offer: what an opponent who took it does, done as that player
-        const ctxNow = e._as ? Object.assign({}, r.ctx, { controller: e._as }) : r.ctx;
+        const ctxNow = e._as || e._tp ? Object.assign({}, r.ctx, e._as ? { controller: e._as } : {}, e._tp ? { chosenPlayer: e._tp } : {}) : r.ctx;
         // who is doing it, for "if you would put one or more counters…"
         // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
         const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
         // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
         this._curAs = e._as || null;
+        // a villainous choice: "that player" is the one who chose it, for what it puts next in line too (_tp)
+        this._curTp = e._tp || null;
         /* One effect is one moment: everything it moves, it moves together
            (Rise of the Dark Realms puts every creature card onto the
            battlefield at once), which a trigger looking back needs to know
@@ -15383,7 +15385,7 @@
           r.effects.splice(r.index, 1, { op: 'manual', text: e.text || JSON.stringify(e) });
           continue;
         }
-        finally { this._putBy = null; this._curAs = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
+        finally { this._putBy = null; this._curAs = null; this._curTp = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
@@ -20350,7 +20352,8 @@
             this.logEvent('rules', `${me.name} chooses: ${chosenO.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
             break;
           }
-          const picked = this._ask({ type: 'mode', playerId: ctx.controller, count: want,
+          // Henrika Domnathi: the last mode that hasn't been chosen is the one there is — nothing to ask
+          const picked = usedModes && usable.length <= least ? usable.slice() : this._ask({ type: 'mode', playerId: ctx.controller, count: want,
             min: least !== want ? least : undefined, max: most !== want ? most : undefined,
             repeatable: !!e.repeatable,
             options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
@@ -20734,6 +20737,31 @@
            controller creates a 3/3 green Elephant creature token." */
         // Scheming Symmetry: each target player does it, as that player, in turn (forEachTargetPlayer)
         // Veteran Explorer: "Each player may search their library …" — as each player in turn, starting with you
+        /* Davros, Dalek Creator: "each opponent who lost 3 or more life this turn faces a villainous choice — You draw
+           a card, or that player discards a card." Each picks in turn order, then what they picked is done, all of
+           it, "that player" being the one who picked it (CR 701.56) */
+        case 'villainousChoice': {
+          let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
+            : e.who === 'triggerPlayer' ? [triggerPlayer()]
+            : e.who === 'defending' ? [(src && this._defenderOf(src)) || triggerPlayer()]
+            : this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller && this.opponentsOf(ctx.controller).includes(q));
+          who = who.filter(q => q && !q.hasLost && (e.lostLife == null || (q.lifeLostThisTurn || 0) >= e.lostLife));
+          const opts = e.options || [];
+          const run = [];
+          for (const q of who) {
+            const got = this._choose({ playerId: q.id, purpose: 'villainous', kind: 'options', min: 1, max: 1,
+              options: opts.map((o, i) => ({ i, label: truncate(o.label || ('Option ' + (i + 1)), 90) })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you face a villainous choice. Choose one.` }, 'vc:' + q.id);
+            if (got === SUSPEND) return SUSPEND;
+            const k = got && got.picks && got.picks.length ? got.picks[0] : 0;
+            const o = opts[k] || opts[0];
+            if (!o) continue;
+            this.logEvent('rules', `${q.name} chooses: ${o.label}.`);
+            for (const f of o.effects || []) run.push(Object.assign(JSON.parse(JSON.stringify(f)), { _tp: q.id }));
+          }
+          this._spliceNext(run);
+          break;
+        }
         case 'forEachPlayer': {
           const list = [];
           for (const p of this._turnOrderFrom(ctx.controller)) for (const f of e.then || []) list.push(Object.assign({}, f, { _as: p.id }));
@@ -22456,6 +22484,15 @@
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
             // Icon of Ancestry: "of the chosen type" — the type chosen for this permanent
             if (e.ofChosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) return false;
+            // Radagast the Brown: "a creature card that doesn't share a creature type with a creature you control" (noSharedType)
+            if (e.noSharedType) {
+              const oa = o.analysis() || {};
+              const types = (oa.subtypes || []).filter(x => this._isCreatureType(x));
+              const all = !!(oa.keywordSet && oa.keywordSet.has('changeling'));
+              const shares = this.battlefield.some(c => c.controller === ctx.controller && !c.phasedOut && this.characteristics(c).isCreature &&
+                (types.some(t => this._hasCreatureType(c, t)) || (all && (this.hasKw(c, 'changeling') || ((c.analysis() || {}).subtypes || []).some(x => this._isCreatureType(x))))));
+              if (shares) return false;
+            }
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
             return this._matchesFilter(o, e.filter);
@@ -25284,9 +25321,20 @@
           break;
         }
         // "End the turn." — once this has finished resolving
-        case 'endTheTurn':
+        case 'endTheTurn': {
+          // Obeka, Brute Chronologist: "The player whose turn it is may end the turn." (activeMay)
+          if (e.activeMay) {
+            const ap = this.activePlayer;
+            if (!ap || ap.hasLost) break;
+            const yes = this._ask({ type: 'confirm', playerId: ap.id, purpose: 'endTurn', yesLabel: 'End the turn', noLabel: 'Keep playing',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}end the turn? Everything on the stack is exiled, and "this turn" effects end.` }, 'endTurn');
+            if (yes === SUSPEND) return SUSPEND;
+            this.logEvent('rules', `${ap.name} ${yes ? 'ends' : 'does not end'} the turn.`);
+            if (!yes) break;
+          }
           this._endTheTurn = this.turn;
           break;
+        }
         /* "Exile the top two cards of your library. Choose one of them." —
            the one chosen is what "that card" means from here on */
         case 'chooseExiled': {
@@ -27726,6 +27774,9 @@
       if (sc.withManaAbility && !this._hasManaAbility(o, oa, inLayers)) return false;
       if (!inLayers && sc.keyword && !this.hasKw(o, sc.keyword)) return false;
       if (!inLayers && sc.withoutKeyword && this.hasKw(o, sc.withoutKeyword)) return false;
+      // Henrika, Infernal Seer: "with flying, deathtouch, and/or lifelink" (keywordAny)
+      if (!inLayers && sc.keywordAny && !sc.keywordAny.some(k => this.hasKw(o, k))) return false;
+      if (inLayers && sc.keywordAny && !sc.keywordAny.some(k => oa.keywordSet && oa.keywordSet.has(k))) return false;
       // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
       if (sc.noAbilities && !this._hasNoAbilities(o)) return false;
       if (inLayers && sc.keyword && !(oa.keywordSet && oa.keywordSet.has(sc.keyword))) return false;
@@ -29459,8 +29510,9 @@
       const r = this.resolving;
       /* Veteran Explorer: "each player may search …" — the "may" done as one
          player puts its search next in line as that same player */
-      const as = this._curAs;
-      r.effects.splice(r.index + 1, 0, ...(as ? list.map(x => (x && x._as == null ? Object.assign({}, x, { _as: as }) : x)) : list));
+      const as = this._curAs, tp = this._curTp;
+      r.effects.splice(r.index + 1, 0, ...(as || tp ? list.map(x => (x && ((as && x._as == null) || (tp && x._tp == null))
+        ? Object.assign({}, x, as && x._as == null ? { _as: as } : {}, tp && x._tp == null ? { _tp: tp } : {}) : x)) : list));
     }
 
     /**

@@ -3282,6 +3282,8 @@
     { re: /^Choose (?:one of them|one of those cards|one of the exiled cards|a card exiled this way)\.?$/i, make: () => ({ op: 'chooseExiled' }) },
     // Time Stop, Sundial of the Infinite, Ultima (CR 723)
     { re: /^End the turn\.?$/i, make: () => ({ op: 'endTheTurn' }) },
+    // Obeka, Brute Chronologist: "The player whose turn it is may end the turn." — theirs to say (activeMayEnd)
+    { re: /^The player whose turn it is may end the turn\.?$/i, make: () => ({ op: 'endTheTurn', activeMay: true }) },
     /* Aminatou, the Fateshifter: "Choose left or right. Each player gains control of all nonland permanents other
        than Aminatou controlled by the next player in the chosen direction." */
     { re: /^Choose left or right\.?$/i, make: () => ({ op: 'chooseDirection' }) },
@@ -3411,11 +3413,28 @@
     { re: /^(?:Then )?destroy all other creatures if its power is exactly (\d+)\.?$/i,
       make: (m) => { const inner = parseEffectSentence('Destroy all other creatures.', 1); return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] }, then: [inner] } : null; } },
     // (Vincent, Vengeful Atoner: "it deals that much damage to each other opponent if Vincent's power is 7 or greater" — eachOtherIf)
-    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent) if (.+?)\.?$/,
+    // (Davros, Dalek Creator: "create a 3/3 black Dalek artifact creature token with menace if an opponent lost 3 or more life this turn")
+    { re: /^(Draw (?:a card|two cards)|Create .+? tokens?(?: with [a-z]+(?:(?:,| and|, and) [a-z]+)*)?|You gain \w+ life|Scry \w+|(?:It|CARDNAME) deals that much damage to each other opponent) if (.+?)\.?$/,
       make: (m) => {
         const cond = condOf(m[2]);
         const inner = cond && parseEffectSentence(m[1] + '.', 1);
         return inner && inner.op !== 'manual' ? { op: 'ifCond', cond, then: [inner] } : null;
+      } },
+    /* Davros, Dalek Creator: "Then each opponent who lost 3 or more life this turn faces a villainous choice — You draw
+       a card, or that player discards a card." — each of them picks one, in turn order, and then what they picked is
+       done, "that player" being the one who picked it (villainousChoice, CR 701.56) */
+    { re: /^(?:Then )?(each opponent(?: who lost (\w+) or more life this turn)?|target opponent|that player|defending player) faces a villainous choice — (.+?), or (.+?)\.?$/i,
+      make: (m) => {
+        const k = m[2] ? num(m[2].toLowerCase()) : null;
+        if (m[2] && typeof k !== 'number') return null;
+        const options = [m[3], m[4]].map(t => {
+          const p = parseEffects(t.charAt(0).toUpperCase() + t.slice(1) + '.');
+          return p.auto && p.effects.length && !p.effects.some(e => e.op === 'manual') ? { label: t.charAt(0).toUpperCase() + t.slice(1), effects: p.effects } : null;
+        });
+        if (options.some(o => !o)) return null;
+        const who = /^target/i.test(m[1]) ? 'target' : /^that/i.test(m[1]) ? 'triggerPlayer' : /^defending/i.test(m[1]) ? 'defending' : 'eachOpponent';
+        return Object.assign({ op: 'villainousChoice', who, options }, k != null ? { lostLife: k } : {},
+          who === 'target' ? { targets: [{ type: 'player', opponent: true }] } : {});
       } },
     /* the newer mechanics, each a word for a small procedure */
     { re: /^Discover (one|two|three|four|five|six|seven|eight|nine|ten|\d+)\.?$/i, make: (m) => ({ op: 'discover', n: num(m[1]) }) },
@@ -3703,6 +3722,9 @@
     // Karametra's Acolyte: "Add an amount of {G} equal to your devotion to green."
     { re: /^Add an amount of \{([WUBRG])\} equal to your devotion to (white|blue|black|red|green)\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: m[1].toUpperCase(), per: { devotion: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[2].toLowerCase()] } }) },
+    // Alena, Kessig Trapper: "Add an amount of {R} equal to the greatest power among creatures you control that entered this turn."
+    { re: /^Add an amount of \{([WUBRGC])\} equal to (the greatest power among .+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' && k.greatestPower ? { op: 'addManaPer', symbol: m[1].toUpperCase(), per: k } : null; } },
     // Lifeblood Hydra: "you gain life and draw cards equal to its power"
     { re: /^You gain life and draw cards equal to its power\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'gainLife', who: 'you', n: { ofTrigger: 'power' } }, { op: 'draw', who: 'you', n: { ofTrigger: 'power' } }] }) },
@@ -5706,6 +5728,10 @@
     { re: /^You may reveal any number of ([A-Za-z]+ )?cards( of the chosen type)? from among them and put (?:the revealed cards|them) into your hand\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any',
         to: 'hand', optional: true, rest: 'keep', prompt: 'Choose any number to put into your hand.' }, m[2] ? { ofChosenType: true } : {}) },
+    /* Radagast the Brown: "You may reveal a creature card that doesn't share a creature type with a creature you control
+       from among those cards and put it into your hand." (noSharedType) */
+    { re: /^You may reveal a creature card that doesn'?t share a creature type with a creature you control from among (?:them|those cards) and put it into your hand\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'creature', to: 'hand', optional: true, rest: 'keep', noSharedType: true }) },
     // (Icon of Ancestry: "a creature card of the chosen type")
     { re: /^You may reveal an? ([-a-z ]*?)card( of the chosen type)? from among them and put it into your hand\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
@@ -7759,7 +7785,8 @@
     }
     // Coram, the Undertaker: "the greatest power among creature cards in all graveyards" (greatestPowerInGraveyards)
     if (/^the greatest power among creature cards in all graveyards$/i.test(p)) return done({ greatestPowerInGraveyards: 'creature' });
-    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
+    // (Alena, Kessig Trapper: "the greatest power among creatures you control that entered this turn")
+    if ((m = p.match(/^the greatest power among ((?:other )?creatures you control(?: that entered this turn)?|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
     }
@@ -13390,8 +13417,8 @@
           if (c.length < 3 || /^(?:The|A|An|King|Queen|Lord|Lady|Sir|General|Captain|Dr\.|Doctor|Professor|Mister|Miss)$/.test(c) || subs.has(c.toLowerCase())) continue;
           text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(c) +
             "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves))\\b)", 'g'), 'CARDNAME');
-          // Zurgo Helmsmasher: "dealt damage by Zurgo this turn", "a +1/+1 counter on Zurgo."
-          text = text.replace(new RegExp('(?<=\\b(?:on|by|to|untap|tap|exile|sacrifice|return|destroy) )' + escapeRe(c) + '(?=[.,]|\\s+this turn\\b)', 'g'), 'CARDNAME');
+          // Zurgo Helmsmasher: "dealt damage by Zurgo this turn", "a +1/+1 counter on Zurgo."; Henrika Domnathi: "Transform Henrika."
+          text = text.replace(new RegExp('(?<=\\b(?:on|by|to|untap|tap|exile|sacrifice|return|destroy|[Tt]ransform) )' + escapeRe(c) + '(?=[.,]|\\s+this turn\\b)', 'g'), 'CARDNAME');
         }
       }
       /* Dáin of the Ancient Halls: "Whenever Dáin attacks, he deals damage …"
@@ -15748,6 +15775,11 @@
           (m = rest.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         // Damning Verdict: "with no counters on them" is the opposite of a kind of counter called "no"
         if (/^no$/i.test(m[1])) sc.noCounters = true; else sc.withCounter = m[1];
+        rest = rest.slice(0, m.index);
+      /* Henrika, Infernal Seer: "Each creature you control with flying, deathtouch, and/or lifelink" — any of them
+         (keywordAny) */
+      } else if ((m = rest.match(/ with ((?:(?:flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach),? )+)(?:and\/or|or) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach)$/i))) {
+        sc.keywordAny = m[1].split(',').map(x => x.trim().toLowerCase()).filter(Boolean).concat(m[2].toLowerCase());
         rest = rest.slice(0, m.index);
       // (Skrelv's Hive: "creatures you control with toxic")
       } else if ((m = rest.match(/ (with|without) (flying|first strike|double strike|deathtouch|lifelink|trample|haste|vigilance|menace|reach|defender|hexproof|indestructible|decayed|toxic|infect|flash|ward)$/i))) {
