@@ -138,6 +138,22 @@ module.exports = (test) => {
     t.eq(lib.slice(-2).filter(o => top.includes(o)).length, 2, 'the other two at the bottom');
   });
 
+  test('Audit: Prototype X-8 sacrifices the creature that entered, not itself, and conjures its duplicate', (mk, t) => {
+    t.auto('Prototype X-8');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.toMain('A');
+    const x8 = T.bf('A', 'Prototype X-8');
+    const bear = T.hand('A', 'Grizzly Bears');
+    T.mana('A', '1G');
+    T.cast('A', bear);
+    t.zone(x8, 'battlefield', 'Prototype X-8 stays');
+    t.zone(bear, 'graveyard', 'the Bears that were cast are sacrificed');
+    const dup = T.bfOf('A').find(o => o.name === 'Grizzly Bears');
+    t.ok(dup && dup !== bear, 'a duplicate conjured onto the battlefield');
+    t.ok(dup && T.g._hasCreatureType(dup, 'Robot'), 'the duplicate is a Robot');
+    t.no(T.g._hasCreatureType(bear, 'Robot'), 'the sacrificed card is not');
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {

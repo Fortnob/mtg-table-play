@@ -21241,6 +21241,8 @@
         case 'sacrificeTriggerObject': {
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           if (x && x.zone === 'battlefield' && x.controller === ctx.controller && this._canSacrifice(x)) {
+            // (Prototype X-8: "Conjure a duplicate of it" — what the next sentence's "it" is)
+            this._noteLastAffected([{ kind: 'object', id: x.id }]);
             this.moveObject(x, 'graveyard');
             this.logEvent('sacrifice', `${me.name} sacrifices ${x.name}.`);
             this._fire('youSacrifice', ctx.controller, { count: 1, object: x, objController: ctx.controller });   // (sacrificedObject)
