@@ -2275,6 +2275,18 @@
     { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
     // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — folded into the tokens' creation (goadTokensRider)
     { re: /^The tokens? (?:are|is) goaded for the rest of the game\.?$/i, make: () => ({ op: 'manual', goadTokensRider: true }) },
+    /* Aragorn, Company Leader: "put your choice of a counter from among first strike, vigilance, deathtouch, and lifelink
+       on Aragorn" — one counter, of the kind picked as it resolves (kindChoice) */
+    { re: /^Put your choice of a counter from among ((?:[+\-0-9/a-z ]+?, )+)and ([+\-0-9/a-z ]+?) on (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => {
+        const kinds = m[1].split(',').map(k => k.trim().toLowerCase()).filter(Boolean).concat(m[2].trim().toLowerCase());
+        return kinds.every(k => k === '+1/+1' || kwKnown(k)) ? { op: 'counters', kind: kinds[0], kindChoice: kinds, n: 1, scope: 'self' } : null;
+      } },
+    /* Aragorn, Company Leader: "put one of each of those kinds of counters on up to one other target creature" — the kinds
+       the trigger is about (kindFromTrigger) */
+    { re: /^Put one of each of those kinds of counters on (up to one other target creature|another target creature|target creature)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1].replace(/^up to one /i, '')); return sp && !sp.unknown ? { op: 'counters', kind: null, kindFromTrigger: true, n: 1,
+        targets: [Object.assign(sp, /^up to one/i.test(m[1]) ? { upTo: true } : {}, /other/i.test(m[1]) ? { another: true } : {})] } : null; } },
     /* Xu-Ifit, Osteoharmonist: "It's a Skeleton in addition to its other types and has no abilities." — how the card
        just returned enters, folded into that return (enterRider) */
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
@@ -3869,6 +3881,10 @@
     // Zodiark, Umbral God: "Each player sacrifices half the non-God creatures they control of their choice, rounded down." (halfRoundDown)
     { re: /^Each player sacrifices half the (non-[A-Z][a-z]+ )?creatures they control of their choice, rounded down\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'each', filter: ((m[1] || '') + 'creature').toLowerCase() }) },
+    // Legate Lanius, Caesar's Ace: "each opponent sacrifices a tenth of the creatures they control of their choice, rounded up" (fraction)
+    { re: /^Each (opponent|player) sacrifices (a third|a quarter|a tenth) of the (creatures|nonland permanents|permanents) they control of their choice, rounded (up|down)\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, fraction: { 'a third': 3, 'a quarter': 4, 'a tenth': 10 }[m[2].toLowerCase()], roundUp: /up/i.test(m[4]),
+        who: /opponent/i.test(m[1]) ? 'opponents' : 'each', filter: singularType(m[3].toLowerCase()) }) },
     // Lord Xander, the Collector: "target opponent sacrifices half the nonland permanents they control of their choice, rounded down"
     { re: /^Target opponent sacrifices half the (nonland permanents|creatures|permanents) they control of their choice, rounded down\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'target', filter: singularType(m[1].toLowerCase()), targets: [{ type: 'player', opponent: true }] }) },
@@ -9435,6 +9451,15 @@
         if (!right.auto || !wrong.auto || !right.effects.length || !wrong.effects.length) return null;
         return [{ op: 'arrangeTop', n: 2 }, { op: 'guessTopKind', right: right.effects, wrong: wrong.effects }];
       } },
+    /* The Seventh Doctor: "choose a card in your hand. Defending player guesses whether that card's mana value is greater
+       than the number of artifacts you control. If they guessed wrong, you may cast it without paying its mana cost. If
+       you don't cast a spell this way, investigate." (guessHandMv: what to count, and what happens otherwise) */
+    { re: /^Choose a card in your hand\. Defending player guesses whether that card'?s mana value is greater than the number of (artifacts|creatures|lands|enchantments) you control\. If they guessed wrong, you may cast it without paying its mana cost\. If you don'?t cast a spell this way, (.+)$/i,
+      make: (m) => {
+        const other = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+        if (!other.auto || !other.effects.length) return null;
+        return [{ op: 'guessHandMv', count: singularType(m[1].toLowerCase()), otherwise: other.effects }];
+      } },
     /* Atemsis, All-Seeing: "you may reveal your hand. If cards with at least six different mana values are revealed this
        way, that player loses the game." (revealHandMvLose) */
     { re: /^You may reveal your hand\. If cards with at least (six|seven|five|\d+) different mana values are revealed this way, that player loses the game\.?$/i,
@@ -14341,6 +14366,8 @@
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
+    // Aragorn, Company Leader: "Whenever you put one or more counters on Aragorn" — of any kind, by you (putByYou)
+    { re: /^Whenever you put one or more counters on (?:CARDNAME|this creature),? /i, event: 'countersPut', self: true, extra: { putByYou: true } },
     // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter
     { re: /^Whenever you put a lore counter on a Saga you control, /i, event: 'countersPut', aboutObject: true,
       filt: () => ({ words: 'saga', who: 'you' }), extra: { counterKind: 'lore', putByYou: true, perAmount: true } },
@@ -20167,6 +20194,11 @@
          from exile, and mana of any type can be spent to cast those spells." (exiledCounter) */
       { re: /^During your turn, you may play cards you don'?t own with ([a-z]+) counters on them from exile, and mana of any type can be spent to cast those spells\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), notOwned: true, what: 'any', duringYourTurn: true, anyMana: true }), auto: true },
+      /* Haldan, Avid Arcanist: "You may play lands and cast noncreature spells from among cards you exiled that have fetch
+         counters on them, and you may spend mana as though it were mana of any color to cast those spells." (exiledByYou) */
+      { re: /^You may play lands and cast (noncreature |creature |)spells from among cards you exiled that have ([a-z]+) counters on them, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
+        make: (m) => Object.assign({ op: 'playFrom', zone: 'exiledCounter', counter: m[2].toLowerCase(), exiledByYou: true, what: 'any', anyMana: true },
+          m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}), auto: true },
       // Grolnok, the Omnivore: "You may play lands and cast spells from among cards you own in exile with croak counters on them." (owned)
       { re: /^You may play lands and cast spells from among cards you own in exile with ([a-z]+) counters on them\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), owned: true, what: 'any' }), auto: true },

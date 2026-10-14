@@ -1951,6 +1951,24 @@
     },
     /* Gollum, Scheming Guide: land or nonland — either, so the guess can't be read off us */
     guessKindPick() { return { picks: [this.rand() < 0.5 ? 0 : 1] }; },
+    /* The Ring tempts you: the Ring-bearer kept, or the strongest (offered first) — unless something of ours wants
+       another creature to bear it (Aragorn, Company Leader: "a creature other than Aragorn") */
+    ringBearer(s) {
+      const g = this.game;
+      const items = (s.items || []).map(x => g.obj(x.id)).filter(Boolean);
+      const shy = (x) => /if you chose a creature other than/i.test(String((x.analysis() || {}).oracleText || ''));
+      const pick = items.find(x => !shy(x)) || items[0];
+      return { picks: pick ? [pick.id] : [] };
+    },
+    /* Aragorn, Company Leader: the counter that does most, in this order */
+    counterKindPick(s) {
+      const pref = ['+1/+1', 'double strike', 'indestructible', 'deathtouch', 'lifelink', 'first strike', 'flying', 'trample', 'hexproof', 'menace', 'vigilance', 'reach'];
+      const kinds = s.kinds || [];
+      const best = kinds.slice().sort((a, b) => ((pref.indexOf(a) + 100) % 100) - ((pref.indexOf(b) + 100) % 100))[0];
+      return { picks: [Math.max(0, kinds.indexOf(best))] };
+    },
+    /* The Seventh Doctor: a hand's cards cost three or so; against few artifacts, guess greater */
+    guessMvGreater(s) { const n = Number(s.than) || 0; return { picks: [this.rand() < (n < 3 ? 0.7 : 0.3) ? 0 : 1] }; },
     /* …and the guess, by the odds of a deck about two-fifths land */
     guessTopKind(s) { const land = s.chosenKind === 'land'; return { picks: [this.rand() < (land ? 0.4 : 0.6) ? 0 : 1] }; },
     /* Zimone, Mystery Unraveler: turn a face-down permanent of ours face up for nothing — the costliest real card */

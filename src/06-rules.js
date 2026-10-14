@@ -561,6 +561,8 @@
       // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
       // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library, too)
       if (o && (o.zone === 'exile' || o.zone === 'library') && o.owner !== pid && (this._playFromRule(pid, o, 'spell') || {}).anyMana) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // (Haldan, Avid Arcanist: the cards you exiled, your own among them — exiledByYou)
+      if (o && o.zone === 'exile' && o.owner === pid && o.exiledByPlayer === pid && (this._playFromRule(pid, o, 'spell') || {}).exiledByYou) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Alchemy: "perpetually gains 'You may spend mana as though it were mana of any color to cast this spell'"
       if (o && (o.effects || []).some(e => e && e.perpetual && e.spendAny)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
@@ -4872,6 +4874,8 @@
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
             if (ef.zone === 'exiledCounter') {
               if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId) || (ef.owned && o.owner !== playerId)) continue;
+              // Haldan, Avid Arcanist: "cards you exiled" (exiledByYou)
+              if (ef.exiledByYou && o.exiledByPlayer !== playerId) continue;
             } else if ((ef.zone || 'top') !== where) continue;
             if (foreignGy && !ef.anyGraveyard) continue;
             if (where === 'exiledWith' && o.exiledWithId !== src.id) continue;
@@ -14951,6 +14955,8 @@
       this.bumpBoard();
       o.zone = toZone;
       // every card a resolution exiles, from anywhere: "you may play that card" points back at them
+      // (Haldan, Avid Arcanist: "cards you exiled" — whose spell or ability exiled it: exiledByPlayer)
+      if (toZone === 'exile' && from !== 'exile') o.exiledByPlayer = (this.resolving && this.resolving.ctx && this.resolving.ctx.controller) || null;
       if (toZone === 'exile' && this.resolving) {
         (this._resExiled = this._resExiled || []).push(o.id);
         // Skyclave Apparition: "the exiled card" is what this permanent's own ability exiled
@@ -15576,6 +15582,8 @@
         toZone: data.toZone,
         // the Ring: who was named Ring-bearer as it tempted
         bearerId: data.bearerId,
+        // Aragorn, Company Leader: the kind of counter put ("those kinds of counters" — countersPut)
+        kind: event === 'countersPut' ? data.kind : undefined,
         // Breena, the Demagogue: the player attacked, as against the one attacking (attacksOneOfYourOpponents)
         attackedPlayer: data.attackedPlayer,
         // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
@@ -17911,6 +17919,21 @@
           break;
         }
         case 'counters': {
+          // Aragorn, Company Leader: "your choice of a counter from among first strike, vigilance, …" (kindChoice)
+          if (e.kindChoice && e.kindChoice.length > 1) {
+            const kc = this._choose({ playerId: ctx.controller, purpose: 'counterKindPick', kind: 'options', min: 1, max: 1,
+              options: e.kindChoice.map(k => ({ label: U.titleCase(k) + ' counter' })), kinds: e.kindChoice.slice(),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a counter to put on ${src ? src.name : 'it'}.` }, 'ckind');
+            if (kc === SUSPEND) return SUSPEND;
+            const ki = kc && kc.picks && kc.picks[0];
+            e = Object.assign({}, e, { kind: e.kindChoice[ki] || e.kindChoice[0], kindChoice: null });
+          }
+          // Aragorn, Company Leader: "one of each of those kinds of counters" — the kind the trigger is about (kindFromTrigger)
+          if (e.kindFromTrigger) {
+            const tk = (ctx.triggerData || {}).kind;
+            if (!tk) break;
+            e = Object.assign({}, e, { kind: tk, kindFromTrigger: false });
+          }
           // (Omega, Heartless Evolution: "on each of those permanents …, where X is the number of nonbasic lands" — the
           // lands counted are not "those")
           const group0 = e.scope === 'lastGroup' ? this._lastGroup : null;
@@ -19018,10 +19041,16 @@
               howMany = Math.floor(this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter))).length / 2);
               if (howMany <= 0) continue;
             }
+            // Legate Lanius, Caesar's Ace: "a tenth of the creatures they control …, rounded up" (fraction, roundUp)
+            if (e.fraction) {
+              const all = this.battlefield.filter(x => x.controller === p.id && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter))).length / e.fraction;
+              howMany = e.roundUp ? Math.ceil(all) : Math.floor(all);
+              if (howMany <= 0) continue;
+            }
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${howMany} ${e.filter || 'permanent'}${howMany === 1 ? '' : 's'}${e.half ? ' (half, rounded down)' : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${howMany} ${e.filter || 'permanent'}${howMany === 1 ? '' : 's'}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -23745,6 +23774,49 @@
           this._spliceNext((right ? e.right : e.wrong) || []);
           break;
         }
+        /* The Seventh Doctor: "choose a card in your hand. Defending player guesses whether that card's mana value is
+           greater than the number of artifacts you control. If they guessed wrong, you may cast it without paying its
+           mana cost. If you don't cast a spell this way, investigate." — the card kept hidden; a land is never cast;
+           with an empty hand there is nothing to guess (guessHandMv) */
+        case 'guessHandMv': {
+          const hand = this.zones[ctx.controller].hand;
+          let castIt = false;
+          if (hand.length) {
+            const count = this.battlefield.filter(x => x.controller === ctx.controller && !x.phasedOut && this._cardFitsWords(x, e.count || 'artifact')).length;
+            const q = this._defenderOf(src) || this.opponentsOf(ctx.controller).find(p => !p.hasLost) || null;
+            const who = q ? q.name : 'Defending player';
+            const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1,
+              cards: hand.map(c => ({ id: c.id, name: c.name, card: c.card })),
+              prompt: `Choose a card in your hand. ${who} guesses whether its mana value is greater than the number of ${e.count || 'artifact'}s you control (${count}).` }, 'ghmCard');
+            if (picked === SUSPEND) return SUSPEND;
+            const c = hand.find(x => x.id === (picked || [])[0]) || hand[0];
+            const mv = (c.card && c.card.cmc) || 0;
+            let saysMore = false;
+            if (q) {
+              const g2 = this._choose({ playerId: q.id, purpose: 'guessMvGreater', kind: 'options', forPlayer: ctx.controller, than: count,
+                options: [{ label: `Greater than ${count}` }, { label: `${count} or less` }], min: 1, max: 1,
+                prompt: `${me.name} chose a card in their hand. Is its mana value greater than ${count}, the number of ${e.count || 'artifact'}s they control?` }, 'ghmGuess');
+              if (g2 === SUSPEND) return SUSPEND;
+              saysMore = !!(g2 && g2.picks && g2.picks[0] === 0);
+            }
+            const right = !!q && saysMore === (mv > count);
+            if (!this._doneHere('ghmSaid')) {
+              if (q) this.logEvent('rules', `${q.name} guesses ${saysMore ? 'greater than' : 'not greater than'} ${count}.`);
+              this.logEvent('rules', right ? `${q.name} guessed right.` : `${q ? q.name : 'Nobody'} guessed wrong.`);
+            }
+            if (!right && c.zone === 'hand' && !(c.analysis() || {}).isLand) {
+              const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast ${c.name} without paying its mana cost?` }, 'ghmCast');
+              if (yes === SUSPEND) return SUSPEND;
+              if ((yes === null || !!yes) && c.zone === 'hand') {
+                this._castingNested = true;
+                const prior = this.priorityIndex;
+                try { castIt = !!this._castFree(ctx.controller, c); } finally { this._castingNested = false; this.priorityIndex = prior; }
+              }
+            }
+          }
+          if (!castIt) this._spliceNext(e.otherwise || []);
+          break;
+        }
         case 'reveal': {
           const from = this.zones[ctx.controller][e.from === 'library' ? 'library' : 'hand'] || [];
           const shown = from.slice(0, n(e.n)).map(o => o.name);
@@ -25597,14 +25669,28 @@
         case 'ringTempts': {
           const p = this.player(ctx.controller);
           if (!p) break;
-          p.ringLevel = Math.min(4, (p.ringLevel || 0) + 1);
           const pool = this.battlefield.filter(x => x.controller === p.id && (x.analysis() || {}).isCreature);
+          let pick = null;
           if (pool.length) {
-            let pick = this.obj(p.ringBearer);
+            pick = this.obj(p.ringBearer);
             if (!pick || pick.zone !== 'battlefield' || pick.controller !== p.id) {
               pick = pool[0];
               for (const x of pool) if (this.powerOf(x) > this.powerOf(pick)) pick = x;
             }
+            /* "choose a creature you control as your Ring-bearer" (CR 701.54a) — the player's pick when there is more
+               than one (Aragorn, Company Leader: "if you chose a creature other than Aragorn"); the one kept or the
+               strongest offered first */
+            if (pool.length > 1) {
+              const items = [pick].concat(pool.filter(x => x !== pick));
+              const rb = this._choose({ playerId: p.id, purpose: 'ringBearer', kind: 'objects', items: this._chooseItems(items), min: 1, max: 1,
+                prompt: 'The Ring tempts you: choose a creature you control as your Ring-bearer.' }, 'ringBearer');
+              if (rb === SUSPEND) return SUSPEND;
+              const got = this.obj(((rb && rb.picks) || [])[0]);
+              if (got && pool.includes(got)) pick = got;
+            }
+          }
+          p.ringLevel = Math.min(4, (p.ringLevel || 0) + 1);
+          if (pick) {
             p.ringBearer = pick.id;
             this.logEvent('rules', `The Ring tempts ${p.name} (level ${p.ringLevel}); ${pick.name} is the Ring-bearer.`);
           } else {
