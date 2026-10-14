@@ -26766,7 +26766,8 @@
     }
     /** You can take back your own last action, not someone else's. */
     canUndo(playerId) {
-      if (!this._undo || !this._undo.length) return false;
+      // a finished game stays finished: its result is already recorded
+      if (this.over || !this._undo || !this._undo.length) return false;
       const top = this._undo[this._undo.length - 1];
       return !playerId || !top.actor || top.actor === playerId;
     }
@@ -26776,6 +26777,7 @@
     }
     undo(playerId) {
       if (!this._undo || !this._undo.length) return this.fail('Nothing to undo.');
+      if (this.over) return this.fail('The game is over.');
       if (!this.canUndo(playerId)) return this.fail('That was someone else\u2019s action.');
       const entry = this._undo.pop();
       const keep = this._undo;

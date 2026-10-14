@@ -386,6 +386,9 @@
   transition: translate .24s cubic-bezier(.3,.7,.3,1), rotate .24s cubic-bezier(.3,.7,.3,1), scale .2s cubic-bezier(.3,.7,.3,1); }
 .hslot > .cv { --w: var(--hand-w); position: absolute; inset: 0; }
 .hslot:hover { translate: calc(var(--x, 0px) - 50%) calc(var(--hand-h) * -.42); rotate: 0deg; scale: 1.28; z-index: 100 !important; }
+/* the card you are reading or dragging rises over the prompt above the hand ("Choose blockers"), not under it */
+@media (hover: hover) { .hand-fan:has(.hslot:hover) { z-index: 61; } }
+.hand-fan:has(.hslot.dragging), .hand-fan:has(.cv:focus-visible) { z-index: 61; }
 .hslot.dragging { translate: calc(var(--x, 0px) - 50% + var(--dx, 0px)) calc(var(--y, 0px) + var(--dy, 0px)); rotate: 0deg; scale: 1.1;
   transition: scale .15s; z-index: 200 !important; }
 .hslot.dragging.will-play > .cv .cv-body { box-shadow: 0 0 0 3px var(--play), 0 0 40px 10px rgba(99,211,255,.6); }

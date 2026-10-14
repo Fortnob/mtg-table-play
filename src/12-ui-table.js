@@ -1500,7 +1500,7 @@
       const small = (text, title, fn, cls) => el('button', { type: 'button', class: 'dock-btn ' + (cls || ''), text, title, onclick: fn });
       const live = this.live || v;
       if (act.secondary) d._row.appendChild(small(act.secondary.label, act.secondary.title || '', act.secondary.fn, 'alt'));
-      if (live.canUndo) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
+      if (live.canUndo && !live.over) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
       if (live.fullControl) {
         d._row.appendChild(small(live.fullControlSticky ? 'Full control • locked' : 'Full control', 'Nothing is passed for you. Ctrl toggles it, Ctrl+Shift locks it.',
           () => this.send({ kind: 'fullControl', on: false }), 'flagged'));
@@ -3218,20 +3218,25 @@
       const nextSort = sorts[(sorts.findIndex(s => s[0] === cur) + 1) % sorts.length];
       /** @type {Partial<MTG.View>} */
       const live = this.live || this.view || {};
+      /* a phone has no keys to press: its menu leaves the shortcuts off (a
+         touch screen with a mouse about, a laptop's, likely has a keyboard too) */
+      const keys = !MTG.isTouch() || !!(window.matchMedia && window.matchMedia('(any-pointer: fine)').matches);
+      const key = (k) => keys ? '  ' + k : '';
       UI.contextMenu(e, [
-        ['Game log  (L)', () => this.toggleDrawer(true, 'log')],
-        UI.keyboardHelp ? ['Keyboard  (?)', () => UI.keyboardHelp()] : null,
+        ['Game log' + key('(L)'), () => this.toggleDrawer(true, 'log')],
+        UI.keyboardHelp && keys ? ['Keyboard  (?)', () => UI.keyboardHelp()] : null,
         MTG.net && MTG.net.online ? ['Chat', () => this.toggleDrawer(true, 'chat')] : null,
         [`Sort hand by ${nextSort[1]}`, () => { MTG.setSetting('handSort', nextSort[0]); this.render(); }],
         [`Pace: ${paceName(MTG.settings.animSpeed)}  → ${paceName(nextPace(MTG.settings.animSpeed))}`,
           () => MTG.setSetting('animSpeed', nextPace(MTG.settings.animSpeed))],
         [`Bots: ${botPaceName(MTG.settings.botSpeed)}  → ${botPaceName(nextBotPace(MTG.settings.botSpeed))}`,
           () => MTG.setSetting('botSpeed', nextBotPace(MTG.settings.botSpeed))],
-        [live.fullControl ? 'Full control: on' : 'Full control: off  (Ctrl)', () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
+        [live.fullControl ? 'Full control: on' : 'Full control: off' + key('(Ctrl)'), () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
         this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
         MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
         '-',
-        this.isReplay ? ['Stop watching', () => MTG.app.leaveGame({ keepSave: true })] : ['Save and leave', () => MTG.app.exitToMenu()],
+        // (a finished game has nothing left to save)
+        this.isReplay ? ['Stop watching', () => MTG.app.leaveGame({ keepSave: true })] : [this.view.over ? 'Leave the game' : 'Save and leave', () => MTG.app.exitToMenu()],
         this.me && !this.view.over && !this.isReplay ? ['Concede', concede] : null,
       ].filter(Boolean), { title: 'Game' });
     }

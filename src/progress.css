@@ -155,7 +155,7 @@ html[data-play="1"] .inbox-chip { display: none; }
 .ach-title { font-size: 11.5px; color: var(--gold-1, #f3dd96); }
 
 /* the result screen: what else the game moved */
-.over-progress { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; animation: rewardIn .6s ease-out 1.6s both; }
+.over-progress { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; margin-top: 10px; animation: rewardIn .6s ease-out 1.6s both; }
 .over-progress > span { padding: 3px 10px; border-radius: 99px; font-size: 12.5px; background: rgba(255,255,255,.07); }
 .op-xp { color: #9fd8ff; }
 .op-quest { color: #b6f58a; }
