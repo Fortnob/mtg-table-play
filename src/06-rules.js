@@ -2711,7 +2711,10 @@
       const once = ab0 && ab0.mayOncePerTurn ? { objId: item.obj.id, i: item.abilityIndex } : null;
       const taken = once && item.obj._mayOnce && item.obj._mayOnce[once.i] === this.turn;
       if (taken) this.logEvent('trigger', `${item.name} does nothing — it has been done once this turn.`);
-      const effects = gone || taken ? [] : item.optional && !item._asked
+      /* Minn, Wily Illusionist: "you may put a permanent card … from your hand onto the battlefield" — one pick that
+         may be left empty, not a yes or no and then the pick (ownPick) */
+      const ownPick = item.optional && !item._asked && only && only.op === 'permanentFromHand' && !once;
+      const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }, once ? { onceMark: once } : {})]
         : (item.effects || []);
       this._runEffects(effects, item, () => this._afterResolve(item), 'afterResolve');
@@ -9823,7 +9826,9 @@
            when one could that isn't blocking anything else */
         for (const aid of this.combat.attackers) {
           const at = this.obj(aid);
-          if (!at || !(this._staticOp(at, 'mustBeBlocked') || this._hasFlag(at, 'mustBeBlockedTurn'))) continue;
+          // (Neyith of the Dire Hunt: "must be blocked this combat if able" — this one only, mustBeBlockedCombat)
+          const thisCombat = (at && at.effects || []).some(x => x && x.flag === 'mustBeBlockedCombat' && x.combatNo === this.combatsThisTurn);
+          if (!at || !(this._staticOp(at, 'mustBeBlocked') || this._hasFlag(at, 'mustBeBlockedTurn') || thisCombat)) continue;
           if (declarations.some(d => d.attackerIds.includes(aid))) continue;
           const free = this.battlefield.filter(o => o.controller === blockerPid && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
           if (free.length) return this.fail(`${at.name} must be blocked if able.`);
@@ -12158,6 +12163,10 @@
       this._fire('isDealtDamage', o.controller, { source: o, object: o, amount, combat: !!isCombat,
         // Phyrexian Obliterator: whoever controls what dealt it
         player: source ? source.controller : undefined });
+      // Elesh Norn: "a source an opponent controls deals damage to you or a permanent you control" (damagedByOpponentSource)
+      if (source && source.controller != null && source.controller !== o.controller) {
+        this._fire('damagedByOpponentSource', o.controller, { object: source, objController: source.controller, amount, combat: !!isCombat, player: source.controller });
+      }
       // Death Pits of Rath, Wrathful Raptors: "whenever a creature (you control) is dealt damage" — anyone's, as the words say
       this._fire('anyDealtDamage', null, { object: o, objController: o.controller, amount, combat: !!isCombat });
       this.logEvent('damage', `${source ? source.name : 'Something'} deals ${amount} to ${o.name}.`);
@@ -12275,6 +12284,10 @@
       // No Mercy: "Whenever a creature deals damage to you" — the damaged player's triggers
       // (Michiko Konda: "that player" is whoever controls the source; "you" are the one hurt)
       if (source) this._fire('youDealtDamage', p.id, { object: source, objController: source.controller, amount, combat: !!combat });
+      // Elesh Norn: "a source an opponent controls deals damage to you" (damagedByOpponentSource)
+      if (source && source.controller != null && source.controller !== p.id) {
+        this._fire('damagedByOpponentSource', p.id, { object: source, objController: source.controller, amount, combat: !!combat, player: source.controller });
+      }
       // Niv-Mizzet, Visionary: a source of yours hurt an opponent
       if (source && source.controller != null && source.controller !== p.id) this._fire('yourSourceDamagesOpponent', source.controller, { object: source, amount, combat: !!combat, player: p.id });
       // Dragonborn Champion: a source of yours hurt a player, you included (minAmount)
@@ -16428,6 +16441,7 @@
           this.dealDamageToObject(y, this.powerOf(x), x);
           this.dealDamageToObject(x, this.powerOf(y), y);
           this.logEvent('fight', `${x.name} fights ${y.name}.`);
+          this._noteFight(x, y);
           this.emit('sfx', 'damage');
           break;
         }
@@ -16447,6 +16461,7 @@
           this.dealDamageToObject(y, this.powerOf(x), x);
           this.dealDamageToObject(x, this.powerOf(y), y);
           this.logEvent('fight', `${x.name} fights ${y.name}.`);
+          this._noteFight(x, y);
           this.emit('sfx', 'damage');
           break;
         }
@@ -16457,6 +16472,7 @@
           this.dealDamageToObject(y, this.powerOf(x), x);
           this.dealDamageToObject(x, this.powerOf(y), y);
           this.logEvent('fight', `${x.name} fights ${y.name}.`);
+          this._noteFight(x, y);
           this.emit('sfx', 'damage');
           break;
         }
@@ -16470,6 +16486,7 @@
           this.dealDamageToObject(y, this.powerOf(src), src);
           this.dealDamageToObject(src, this.powerOf(y), y);
           this.logEvent('fight', `${src.name} fights ${y.name}.`);
+          this._noteFight(src, y);
           this.emit('sfx', 'damage');
           break;
         }
@@ -18185,11 +18202,25 @@
           break;
         }
 
+        // Elesh Norn // The Argent Etchings: "transform all Incubator tokens you control"
+        case 'transformAll': {
+          for (const x of this._scopeList(e.scope, ctx.controller, src)) {
+            if (!x.card || !x.card.card_faces || x.card.card_faces.length < 2) continue;
+            x.face = (x.face + 1) % x.card.card_faces.length;
+            x._chr = null;
+            this.logEvent('rules', `${x.name} transforms.`);
+            this._fire('transforms', x.controller, { object: x, source: x });
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'transformSelf': {
           const x = src || (ctx.objId && this.obj(ctx.objId));
           if (x && x.card && x.card.card_faces && x.card.card_faces.length > 1) {
             x.face = (x.face + 1) % x.card.card_faces.length;
-            x.counters = {};
+            /* "Exile this Saga, then return it transformed" is a new object, with no counters; a permanent that
+               just transforms keeps its own (an Incubator's +1/+1 counters, CR 712.9) */
+            if (e.fresh) x.counters = {};
             this.bumpBoard();
             this.logEvent('rules', `${x.name} transforms.`);
             this._fire('transforms', x.controller, { object: x, source: x });
@@ -22202,7 +22233,8 @@
         /* Maze of Ith: "prevent all combat damage that would be dealt to
            and dealt by that creature this turn" */
         case 'flagEot':
-          applyToScope(e, (o) => { for (const f of (e.flags || [])) o.effects.push({ flag: f, until: 'eot' }); o._chr = null; });
+          // (Neyith of the Dire Hunt: "this combat" — the combat now, thisCombat)
+          applyToScope(e, (o) => { for (const f of (e.flags || [])) o.effects.push(Object.assign({ flag: f, until: 'eot' }, e.thisCombat ? { combatNo: this.combatsThisTurn } : {})); o._chr = null; });
           this.bumpBoard();
           break;
         /* Second Harvest: a copy of each token you control */
@@ -24829,6 +24861,10 @@
     }
 
     /** What, if anything, says this creature can't attack that player or planeswalker. */
+    /** Neyith of the Dire Hunt: "whenever one or more creatures you control fight" — each of the two (creatureFights) */
+    _noteFight(x, y) {
+      for (const f of [x, y]) if (f && f.zone === 'battlefield') this._fire('creatureFights', f.controller, { object: f, objController: f.controller });
+    }
     _cantAttackYou(o, defenderId) {
       if (!o) return null;
       let def = this.player(defenderId), walker = false;
@@ -25141,6 +25177,13 @@
         type_line: d.type, oracle_text: d.text, colors: [], color_identity: [], keywords: [],
         rarity: 'common', set: 'tkn', set_name: 'Token', collector_number: '0', image_uris: null, _isToken: true,
       };
+      /* Incubate (CR 701.53): an Incubator token's back face is a 0/0 colorless Phyrexian artifact creature — it
+         transforms with its counters (Elesh Norn // The Argent Etchings: "transform all Incubator tokens") */
+      if (e.token === 'Incubator' && !e.def) {
+        card.oracle_text = '';
+        card.card_faces = [{ name: 'Incubator', type_line: d.type, oracle_text: d.text, colors: [] },
+          { name: 'Phyrexian Token', type_line: 'Token Artifact Creature — Phyrexian', oracle_text: '', power: '0', toughness: '0', colors: [] }];
+      }
       let n = e.n === 'X' ? 1 : (e.n || 1);
       // Anointed Procession and its kin double Treasures as well
       const ev = e._noRep ? { n } : this._replace({ kind: 'createToken', n, controller, tokenTypes: d.type });

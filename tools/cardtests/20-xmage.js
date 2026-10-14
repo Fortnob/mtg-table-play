@@ -30380,4 +30380,128 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Grizzly Bears'));
     t.no(M.asked.slice(a1).some(ch => ch.type === 'confirm'), 'Alania: Grizzly Bears is no Otter');
   });
+
+  test('Commanders: Elesh Norn // The Argent Etchings — opponents\' damage costs them 2 life or {1}; the Saga incubates, then wipes the board', (mk, t) => {
+    const name = 'Elesh Norn // The Argent Etchings';
+    t.auto(name);
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    const norn = M.bf('A', name);
+    const fodder = [M.bf('A', 'Grizzly Bears'), M.bf('A', 'Grizzly Bears'), M.bf('A', 'Llanowar Elves')];
+    // B's Shock at A, with no mana to spare: B loses 2
+    M.nextTurn('B');
+    M.mana('B', 'R');
+    M.cast('B', M.hand('B', 'Shock'), { targets: ['A'] });
+    t.eq(M.life('A'), 18);
+    t.eq(M.life('B'), 18, "Elesh Norn: B couldn't pay {1}, loses 2");
+    // Shock at a creature of A's, {1} paid
+    let asked = null;
+    M.answer('payOrDont', (ch) => { asked = ch; return { pay: true }; });
+    M.mana('B', 'RC');
+    M.cast('B', M.hand('B', 'Shock'), { targets: [fodder[2].id] });
+    t.ok(asked, 'Elesh Norn: B is asked to pay {1}');
+    t.eq(M.life('B'), 18, 'Elesh Norn: paid, no life lost');
+    t.zone(fodder[2], 'graveyard');
+    // A's Shock at B: not an opponent's source
+    M.nextTurn('A');
+    const elf = M.bf('A', 'Llanowar Elves');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('A'), 18, "Elesh Norn: A's own source, nothing");
+    // {2}{W}, sacrifice three other creatures: The Argent Etchings, chapter I
+    const bearB = M.bf('B', 'Grizzly Bears');
+    const forestB = M.bf('B', 'Forest');
+    const rock = M.bf('B', 'Mind Stone');
+    M.mana('A', '2W');
+    M.activate('A', norn, 0);
+    t.ok(fodder.slice(0, 2).concat([elf]).every(o => o.zone === 'graveyard'), 'Elesh Norn: three creatures sacrificed');
+    t.eq(norn.face, 1, 'Elesh Norn: back as The Argent Etchings');
+    const phy = M.bfOf('A').filter(o => o.isToken);
+    t.eq(phy.length, 5, 'The Argent Etchings: incubate 2 five times');
+    t.ok(phy.every(o => o.name === 'Phyrexian Token' && g.characteristics(o).isCreature && g.powerOf(o) === 2 && g.toughnessOf(o) === 2),
+      'The Argent Etchings: all transformed, 2/2 Phyrexians');
+    t.ok(phy.every(o => g._hasSubtype(o, 'Phyrexian')));
+    // chapter II
+    M.nextTurn('A');
+    t.eq(g.powerOf(phy[0]), 3, 'The Argent Etchings: +1/+1');
+    t.ok(g.hasKw(phy[0], 'double strike'), 'The Argent Etchings: double strike');
+    // chapter III: all but artifacts, lands and Phyrexians
+    M.nextTurn('A');
+    t.zone(bearB, 'graveyard', 'The Argent Etchings: Grizzly Bears destroyed');
+    t.zone(forestB, 'battlefield', 'The Argent Etchings: a land stays');
+    t.zone(rock, 'battlefield', 'The Argent Etchings: an artifact stays');
+    t.ok(phy.every(o => o.zone === 'battlefield'), 'The Argent Etchings: the Phyrexians stay');
+    const back = M.bfOf('A').find(o => (o.card || {}).name === name);
+    t.ok(back && !back.face, 'The Argent Etchings: back as Elesh Norn');
+  });
+
+  test('Commanders: Neyith of the Dire Hunt — fighting or being blocked draws; {2}{R/G} doubles a creature\'s power, and it must be blocked', (mk, t) => {
+    t.auto('Neyith of the Dire Hunt');
+    const M = mk({ library: Array(30).fill('Forest') });
+    const g = M.g;
+    M.bf('A', 'Neyith of the Dire Hunt');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const giant = M.bf('B', 'Hill Giant');
+    // a fight: A draws
+    const h0 = M.zone('A', 'hand').length;
+    const prey = M.hand('A', 'Prey Upon');
+    M.mana('A', 'G');
+    M.cast('A', prey, { targets: [bear.id, giant.id] });
+    t.eq(M.zone('A', 'hand').length, h0 + 1, 'Neyith: Prey Upon cast, a card drawn for the fight');
+    t.zone(bear, 'graveyard');
+    // next turn: pay at the beginning of combat, the Bears' power doubled, and it must be blocked
+    const bear2 = M.bf('A', 'Grizzly Bears');
+    const bear3 = M.bf('B', 'Grizzly Bears');
+    M.nextTurn('A');
+    M.answer('payOrDont', () => ({ pay: true }));
+    M.answer('confirm', () => ({ yes: true }));
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear2.id }] }));
+    for (let i = 0; i < 3; i++) M.bf('A', 'Forest');
+    const h1 = M.zone('A', 'hand').length;
+    const seen = {};
+    M.answer('declareAttackers', () => [{ attackerId: bear2.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', (ch, gg) => {
+      seen.pow = gg.powerOf(bear2);
+      seen.none = gg.declareBlockers('B', []);
+      return [{ blockerId: bear3.id, attackerIds: [bear2.id] }];
+    });
+    M.toMain('A', 'endCombat');
+    t.eq(seen.pow, 4, "Neyith: the Bears' power doubled");
+    t.no(seen.none, 'Neyith: it must be blocked');
+    t.eq(M.zone('A', 'hand').length, h1 + 1, 'Neyith: blocked, a card drawn');
+    t.zone(bear3, 'graveyard');
+  });
+
+  test('Commanders: Minn, Wily Illusionist — the second card drawn makes an Illusion; one dying puts a cheap enough permanent from the hand', (mk, t) => {
+    t.auto('Minn, Wily Illusionist');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Minn, Wily Illusionist');
+    const ills = () => M.bfOf('A').filter(o => o.isToken && g._hasSubtype(o, 'Illusion'));
+    g._drawCards(g.player('A'), 1);
+    M.settle(); M.resolve();
+    t.eq(ills().length, 0, 'Minn: not the first card');
+    g._drawCards(g.player('A'), 1);
+    M.settle(); M.resolve();
+    t.eq(ills().length, 1, 'Minn: the second card, an Illusion');
+    g._drawCards(g.player('A'), 1);
+    M.settle(); M.resolve();
+    t.eq(ills().length, 1, 'Minn: not the third');
+    const ill = ills()[0];
+    t.eq(g.powerOf(ill), 1);
+    // it dies with power 1: a permanent card with mana value 1 or less, offered once and optional
+    const elves = M.hand('A', 'Llanowar Elves');
+    const bears = M.hand('A', 'Grizzly Bears');
+    let offered = null;
+    const a0 = M.asked.length;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [elves.id] }; });
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: [ill.id] });
+    t.ok(offered && offered.optional, 'Minn: a pick that may be left empty');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'confirm'), 'Minn: no yes-or-no first');
+    t.ok(offered && offered.cards.some(c => c.id === elves.id), 'Minn: Llanowar Elves offered (and the Islands drawn)');
+    t.no(offered && offered.cards.some(c => c.id === bears.id), "Minn: Grizzly Bears costs more than the Illusion's power");
+    t.zone(elves, 'battlefield', 'Minn: Llanowar Elves put onto the battlefield');
+    t.zone(bears, 'hand');
+  });
 };

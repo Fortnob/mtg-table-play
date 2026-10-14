@@ -3085,6 +3085,10 @@
     // Gideon: "Prevent all damage that would be dealt to him this turn."
     { re: /^Prevent all damage that would be dealt to (?:him|her|it|CARDNAME|this creature) this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    // Neyith of the Dire Hunt: "That creature must be blocked this combat if able." (mustBeBlockedCombat)
+    { re: /^(Target creature|It|That creature) must be blocked this combat if able\.?$/i,
+      make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', flags: ['mustBeBlockedCombat'], thisCombat: true, targets: [targetSpec(m[1])] }
+        : { op: 'flagEot', scope: 'lastTarget', flags: ['mustBeBlockedCombat'], thisCombat: true }) },
     // Irresistible Prey, Satyr Piper, Enlarge: "(Target creature|It|This creature) must be blocked this turn if able."
     { re: /^(Target creature|It|That creature|CARDNAME|This creature) must be blocked this turn if able\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', flags: ['mustBeBlockedTurn'], targets: [targetSpec(m[1])] }
@@ -3124,6 +3128,9 @@
       make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
         { op: 'becomes', duration: null, eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
     // Turn to Slag: "Destroy all Equipment attached to that creature."
+    // Elesh Norn // The Argent Etchings: "Destroy all other permanents except for artifacts, lands, and Phyrexians."
+    { re: /^Destroy all other permanents except for artifacts, lands, and Phyrexians\.?$/i,
+      make: () => ({ op: 'destroyAll', scope: { who: 'all', what: 'permanent', other: true, notType: ['artifact', 'land'], notSubtypes: ['phyrexian'] }, what: 'permanent', noRegen: false }) },
     // Slash the Ranks: "Destroy all creatures and planeswalkers except for commanders."
     { re: /^Destroy all (creatures|planeswalkers|creatures and planeswalkers) except for commanders\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase().replace(/s\b/g, '').replace(' and ', ' or '), exceptCommanders: true }) },
@@ -4718,7 +4725,7 @@
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'ifCond', cond: { kind: 'selfCounters', n: num(m[1]), counter: 'lore' },
         then: [{ op: 'blinkTransformed', front: true, ownerControl: true }] } : null) },
     { re: /^Exile this Saga, then return it to the battlefield transformed under your control\.?$/i,
-      make: () => ({ op: 'transformSelf' }) },
+      make: () => ({ op: 'transformSelf', fresh: true }) },
 
 
     /* ===== "as this enters" is a choice made on the way in ===== */
@@ -5554,7 +5561,7 @@
       make: (m) => ({ op: 'shuffleFromGraveyard',
         max: /any number/i.test(m[1]) ? 99 : /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1 }) },
     // Anticausal Vestige: "you may put a permanent card with mana value less than or equal to the number of lands you control from your hand onto the battlefield tapped"
-    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
+    { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut a permanent card with mana value less than or equal to ([a-z' ]+?) from your hand onto the battlefield( tapped)?\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k == null ? null : Object.assign({ op: 'permanentFromHand', filter: 'any', who: 'you', maxMv: k }, m[3] ? { tapped: true } : {}, m[1] ? {} : { optional: false }); } },
     // Summon: Fenrir: "When you next cast a creature spell this turn, that creature enters with an additional +1/+1 counter on it."
     // Yuna, Grand Summoner: "… that creature enters with two additional +1/+1 counters on it."
@@ -5782,6 +5789,9 @@
       make: (m) => ({ op: 'restrict', flag: 'mustBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) attacks this turn if able\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'mustAttackEot', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
+    // Elesh Norn: "that source's controller loses 2 life" — the player the trigger is about
+    { re: /^That source'?s controller loses (\d+) life\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: +m[1] }) },
     // Karazikar, the Eye Tyrant: "you and the attacking player each draw a card and lose 1 life"
     { re: /^You and the attacking player each draw a card and lose (\d+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1 }, { op: 'draw', n: 1, who: 'triggerPlayer' }, { op: 'loseLife', who: 'you', n: +m[1] }, { op: 'loseLife', who: 'triggerPlayer', n: +m[1] }] },
@@ -8174,6 +8184,14 @@
        put it into your hand." */
     { re: /^Choose target creature card in your graveyard\. If that card'?s mana value is less than or equal to the number of experience counters you have, return it to the battlefield\. Otherwise, put it into your hand\.$/i,
       make: () => [{ op: 'experienceReturn', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { zone: 'graveyard', controller: 'you' })] }] },
+    // The Argent Etchings: "Incubate 2 five times, then transform all Incubator tokens you control."
+    { re: /^Incubate (one|two|three|four|five|\d+) (two|three|four|five|six|seven|\d+) times, then transform all Incubator tokens you control\.?$/i,
+      make: (m) => {
+        const k = num(m[1]), times = num(m[2]);
+        if (typeof k !== 'number' || typeof times !== 'number') return null;
+        return Array.from({ length: times }, () => ({ op: 'createNamedToken', token: 'Incubator', n: 1, withCounters: k }))
+          .concat([{ op: 'transformAll', scope: { who: 'you', what: 'artifact', token: true, subtype: 'incubator' } }]);
+      } },
     // Elspeth Tirel: "Destroy all other permanents except for lands and tokens."
     { re: /^Destroy all other permanents except for lands and tokens\.?$/i,
       make: () => [{ op: 'destroyAll', scope: { who: 'all', what: 'permanent', other: true, notType: ['land'], nontoken: true }, what: 'permanent', noRegen: false }] },
@@ -9583,6 +9601,10 @@
           while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
             // (Cadric, Soul Kindler: "Sacrifice it …" — declined, nothing of yours is sacrificed)
             /^(?:Exile|Sacrifice) (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+        } else if (/\btarget creature'?s?\b/i.test(thenText)) {
+          /* Neyith of the Dire Hunt: "If you do, double target creature's power until end of turn. That creature must
+             be blocked this combat if able." — what is said of that creature only happens if it was paid for */
+          while (/^That creature /.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         }
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
@@ -9676,6 +9698,8 @@
           : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push(Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
             // Kazuul: "unless that creature's controller pays {3}" — the attacker's
+            // Elesh Norn: "that source's controller loses 2 life unless they pay {1}" — the player the trigger is about
+            : /^they$/i.test(unless[2]) && /^that source'?s controller\b/i.test(unless[1].trim()) ? 'triggerPlayer'
             : /^that creature'?s controller$/i.test(unless[2]) ? 'triggerObjController'
             : /that player|target player|target opponent|they/i.test(unless[2]) ? 'target' : 'spellController',
           cost, then: inner.effects, text: s },
@@ -11497,6 +11521,9 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) and at least (one|two|three|four) other creatures? attack,? /i,
       event: 'attacks', self: true, extraOf: (m) => ({ minAttackers: num(m[1]) + 1 }) },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is put into your graveyard from the battlefield,? /i, event: 'dies', self: true },
+    // Neyith of the Dire Hunt: "Whenever one or more creatures you control fight or become blocked" — once for each lot
+    { re: /^Whenever one or more creatures you control fight or become blocked,? /i, event: 'creatureFights', also: 'becomesBlocked',
+      filt: () => ({ who: 'you', words: 'creature', batch: true }) },
     { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
     { re: /^When(?:ever)? an opponent casts their second spell each turn(?:,| )/i, event: 'opponentSecondSpell' },
     { re: /^At the beginning of your next end step(?:,| )/i, event: 'yourEndStep' },
@@ -11682,6 +11709,8 @@
     /* Norn's Decree, Suppressor Skyguard, Trouble in Pairs: "Whenever a player
        attacks", "Whenever a player attacks you", "Whenever an opponent attacks
        you with two or more creatures" */
+    // Elesh Norn: "Whenever a source an opponent controls deals damage to you or a permanent you control"
+    { re: /^Whenever a source an opponent controls deals damage to you or a permanent you control,? /i, event: 'damagedByOpponentSource' },
     // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
     { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
