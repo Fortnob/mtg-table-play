@@ -1268,9 +1268,10 @@
           title: `${label}: ${n}`, 'aria-label': `${p.name} ${label.toLowerCase()}, ${n} card${n === 1 ? '' : 's'}`,
           onclick: (e) => {
             if (zone !== 'library') return this.openZone(p, zone);
-            /* the top card of your library, when it can be played or plotted from there (Fblthp, Lost on the Range) */
+            /* the top card of your library, when it can be played or plotted from there (Fblthp, Lost on the Range);
+               an opponent's, when you may play it (Xanathar, Guild Kingpin) */
             const live = this.live || this.view;
-            const tc = top && mine && ((live.playable || []).includes(top.id) || ((live.uses || {})[top.id] || []).length) ? top : null;
+            const tc = top && ((live.playable || []).includes(top.id) || ((live.uses || {})[top.id] || []).length) ? top : null;
             if (tc) this.cardMenu(tc.id, e);
           },
         }, [

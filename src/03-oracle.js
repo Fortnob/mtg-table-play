@@ -482,6 +482,9 @@
       if (e.op === 'noUntap') return e.scope === 'self';
       // Yuna, Grand Summoner: "When you next cast a creature spell this turn, that creature enters with two additional +1/+1 counters on it."
       if (e.op === 'nextCreatureCounter') return true;
+      /* Magus Lucea Kane: "When you next cast a spell with {X} in its mana cost or activate an ability with {X} in its
+         activation cost this turn, copy that spell or ability." — a trigger for later, set up with the mana */
+      if (e.op === 'getEmblem') return !!(e.thisTurn && e.once);
       return e.op === 'noop' || e.op === 'chooseColor' || e.op === 'sacrificeSelf' || e.op === 'spendOnly' || e.op === 'noGenericMana';
     };
     return effects.every(fits);
@@ -747,6 +750,11 @@
       else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
       // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
       else if ((c = ex.match(/^(?:it|she|he) has this ability/i))) e.keepThis = true;
+      // Kimahri, Valiant Guardian: "it has vigilance and this ability"
+      else if ((c = ex.match(/^it has (flying|haste|trample|vigilance|deathtouch|lifelink|first strike|menace|reach) and this ability/i))) {
+        (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
+        e.keepThis = true;
+      }
       else if ((c = ex.match(/^it has "([^"]+)"/))) (e.addText = e.addText || []).push(c[1].replace(/\bthis creature\b/g, 'CARDNAME'));
       else if ((c = ex.match(/^it has (flying|haste|hexproof|trample|vigilance|deathtouch|lifelink|first strike|menace|reach|indestructible)(?=,? and |$)/i)))
         (e.addText = e.addText || []).push(c[1][0].toUpperCase() + c[1].slice(1));
@@ -3209,6 +3217,12 @@
     { re: /^(?:Those creatures|They) don'?t untap during that player'?s next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
     { re: /^(?:This land|This creature|This artifact|CARDNAME) doesn'?t untap during your next untap step\.?$/i, make: () => ({ op: 'noUntap', scope: 'self' }) },
     { re: /^They'?re still lands\.?$/i, make: () => ({ op: 'noop' }) },
+    /* Aang, Master of Elements: "you gain 4 life, draw four cards, put four +1/+1 counters on him, and he deals 4 damage
+       to each opponent" */
+    { re: /^You gain (\w+) life, draw (\w+) cards?, put (\w+) \+1\/\+1 counters? on (?:him|her|it|CARDNAME), and (?:he|she|it|CARDNAME) deals (\w+) damage to each opponent\.?$/i,
+      make: (m) => [num(m[1]), num(m[2]), num(m[3]), num(m[4])].every(k => typeof k === 'number')
+        ? [{ op: 'gainLife', who: 'you', n: num(m[1]) }, { op: 'draw', who: 'you', n: num(m[2]) },
+          { op: 'counters', kind: '+1/+1', n: num(m[3]), scope: 'self' }, parseEffectSentence('CARDNAME deals ' + m[4] + ' damage to each opponent.')] : null },
     // Nissa, Sage Animist: "They become 6/6 Elemental creatures." — the lands just untapped, for good (which targets)
     { re: /^They become (\d+)\/(\d+) ([A-Z][a-z]+) creatures\.?$/, make: (m) => ({ op: 'animate', which: 'targets', pt: m[1] + '/' + m[2], subtypes: m[3], duration: 'permanent' }) },
     { re: /^Activate only as a sorcery\.?"?$/i, make: () => ({ op: 'noop' }) },
@@ -4340,7 +4354,8 @@
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'keep', prompt: 'You may put one back on top of your library.' }) },
 
     /* ===== whoever the trigger was about ===== */
-    { re: /^(?:They|That player) loses? (one|two|three|four|five|\d+) life\.?$/i,
+    // (Tomik, Wielder of Law: "that opponent loses 3 life" — the one attacking)
+    { re: /^(?:They|That player|That opponent) loses? (one|two|three|four|five|\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: num(m[1]) }) },
     // Font of Mythos: "that player draws two additional cards"
     { re: /^(?:They|That player) draws? (two|three|\d+) additional cards\.?$/i,
@@ -5579,7 +5594,8 @@
        CARDNAME and it's legendary in addition to its other types" — "it",
        the Dragon that entered; Gogo, Mysterious Mime, Irma, Part-Time
        Mutant: "except her name is CARDNAME and she has this ability" */
-    { re: /^(You may have |Have )?(This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of (it|(?:up to one )?(?:another |other )?target [a-z ,]+?)( until end of turn)?(?:, except (.+?))?( until end of turn)?\.?$/i,
+    // (Kimahri, Valiant Guardian: "Then you may have Kimahri become a copy of that creature" — the one just targeted)
+    { re: /^((?:Then )?[Yy]ou may have |Have )?(This land|This artifact|This creature|This enchantment|This permanent|CARDNAME|it) becomes? a copy of (it|that creature|(?:up to one )?(?:another |other )?target [a-z ,]+?)( until end of turn)?(?:, except (.+?))?( until end of turn)?\.?$/i,
       make: (m) => {
         // "become" after "have", "becomes" on its own
         if (/ become a copy/i.test(m[0]) !== !!m[1]) return null;
@@ -5590,6 +5606,9 @@
         if (/^it$/i.test(m[3])) {
           if (/^it$/i.test(m[2])) return null;
           e.scope = 'lastTarget';
+        } else if (/^that creature$/i.test(m[3])) {
+          // (the target of the sentence before: firstObj)
+          if (/^it$/i.test(m[2])) return null;
         } else {
           const spec = targetSpec(m[3].replace(/^up to one /i, ''));
           if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
@@ -5599,7 +5618,7 @@
         if (m[4] || m[6]) e.eot = true;
         // (Sakashima of a Thousand Faces' "other abilities" are for one entering as a copy)
         if (m[5] && (!copyExceptions(m[5], e) || e.keepOwn)) return null;
-        return /^you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
+        return /^(?:then )?you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
       } },
     /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you control
        until end of turn, except it isn't legendary." — the first target changes (subjectTarget) */
@@ -6750,7 +6769,8 @@
     { re: /^Copy that spell for each other creature you control that the spell could target\.?$/i,
       make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
-    { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // (Magus Lucea Kane: "copy that spell or ability")
+    { re: /^Copy (?:that ability|that spell or ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — the spell the trigger is about (spellGains)
     { re: /^That spell gains (deathtouch|lifelink)(?: and (deathtouch|lifelink))?\.?$/i,
       make: (m) => ({ op: 'spellGains', keywords: [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()) }) },
@@ -8323,6 +8343,11 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Xanathar, Guild Kingpin: "choose target opponent. Until end of turn, that player can't cast spells, you may look
+       at the top card of their library any time, you may play the top card of their library, and you may spend mana as
+       though it were mana of any color to cast spells this way." (oppTopThisTurn) */
+    { re: /^choose target opponent\. Until end of turn, that player can'?t cast spells, you may look at the top card of their library any time, you may play the top card of their library, and you may spend mana as though it were mana of any color to cast spells this way\.?$/i,
+      make: () => [{ op: 'oppTopThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target' }] },
     /* Sapling of Colfenor: "reveal the top card of your library. If it's a creature card, you gain life equal to that
        card's toughness, lose life equal to its power, then put it into your hand." (topCreatureLife) */
     { re: /^reveal the top card of your library\. If it'?s a creature card, you gain life equal to that card'?s toughness, lose life equal to its power, then put it into your hand\.?$/i,
@@ -9757,6 +9782,13 @@
       const inner = parseCostMod(col[1].replace(/^Spells of the chosen type you cast$/i, 'Spells you cast of the chosen type') + ' cost {1} less to cast');
       return inner && inner.amount === -1 && !inner.symbols && !inner.per ? Object.assign(inner, { amount: 0, lessSymbols: col[2].match(/[WUBRG]/g) }) : null;
     }
+    /* Aang, Master of Elements: "Spells you cast cost {W}{U}{B}{R}{G} less to cast. (This can reduce generic costs.)"
+       — each symbol takes one mana of its colour off, or else {1} (lessSymbols 'W|1', as lessOrGeneric) */
+    const colG = s.match(/^(Spells you cast) cost ((?:\{[WUBRG]\}){2,}) less to cast$/i);
+    if (colG) {
+      const inner = parseCostMod(colG[1] + ' cost {1} less to cast');
+      return inner && inner.amount === -1 && !inner.symbols && !inner.per ? Object.assign(inner, { amount: 0, lessSymbols: colG[2].match(/[WUBRG]/g).map(c => c + '|1') }) : null;
+    }
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);
     if (each) {
@@ -9959,7 +9991,8 @@
     /\s+and\s+(?=(?:transform|convert) (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent))\b)/,
     /\s+and\s+(?=(?:create|draw|put|exile|destroy|return|gain|lose|discard|mill|sacrifice|tap|untap|scry|surveil|amass|proliferate|investigate|connive|add|blight)s?\b)/i,
   ];
-  const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|You)\b/i;
+  // (Tomik, Wielder of Law: "that opponent loses 3 life and you draw a card")
+  const SUBJECTS = /^(Target player|Target opponent|Target creature'?s? controller|Each opponent|Each player|That player|That opponent|You)\b/i;
 
   function tidy(part) {
     let t = String(part).trim().replace(/[.,]$/, '');
@@ -11506,6 +11539,8 @@
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
     // Reyhan, Last of the Abzan: "it had one or more +1/+1 counters on it"
     [/^it had one or more ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 1, counter: m[1].toLowerCase() })],
+    // Avatar Aang: "you've done all four this turn" — waterbent, earthbent, firebent and airbent (bentAllFour)
+    [/^you'?ve done all four this turn$/i, () => ({ kind: 'bentAllFour' })],
     // Transpose, Otterball Antics: "this spell was cast from your hand", "…from anywhere other than your hand"
     [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],
     [/^this spell was cast from anywhere other than your hand$/i, () => ({ kind: 'castFromHand', not: true })],
@@ -11951,6 +11986,9 @@
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
     { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
+    // Magus Lucea Kane: "… or activate an ability with {X} in its activation cost" — either (xSpell, of the ability's cost)
+    { re: /^Whenever you cast a spell with \{X\} in its mana cost or activate an ability with \{X\} in its activation cost,? /i,
+      event: 'youCastSpell', also: 'youActivateAbility', extra: { xSpell: true } },
     { re: /^Whenever you cast a spell with \{X\} in its mana cost,? /i, event: 'youCastSpell', extra: { xSpell: true } },
     // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
     // (Blightwing Bandit: "that player" is the opponent whose turn it is — thatPlayerActive)
@@ -12644,6 +12682,8 @@
     /* Solitary Sanctuary, Icewrought Sentry: "Whenever you tap an untapped creature an opponent controls,";
        Sharae of Numbing Depths: "one or more untapped creatures your opponents control" (youTapTheirs) */
     { re: /^Whenever you tap an untapped creature an opponent controls, /i, event: 'youTapOpponentCreature' },
+    // Avatar Aang: "Whenever you waterbend, earthbend, firebend, or airbend" — any of the four (youBend)
+    { re: /^Whenever you waterbend, earthbend, firebend, or airbend,? /i, event: 'youBend' },
     { re: /^Whenever you tap one or more untapped creatures your opponents control, /i, event: 'youTapOpponentCreature', extra: { batch: true } },
     // Captain Ripley Vance: "Whenever you cast your third spell each turn"
     { re: /^When(?:ever)? you cast your third spell each turn,? /i, event: 'youCastSpell', extra: { castNth: 3 } },

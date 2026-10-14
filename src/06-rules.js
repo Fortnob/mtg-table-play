@@ -557,7 +557,8 @@
       // Hostage Taker: "mana of any type can be spent to cast that spell"
       if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
-      if (o && o.zone === 'exile' && o.owner !== pid && (this._playFromRule(pid, o, 'spell') || {}).anyMana) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library, too)
+      if (o && (o.zone === 'exile' || o.zone === 'library') && o.owner !== pid && (this._playFromRule(pid, o, 'spell') || {}).anyMana) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Alchemy: "perpetually gains 'You may spend mana as though it were mana of any color to cast this spell'"
       if (o && (o.effects || []).some(e => e && e.perpetual && e.spendAny)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       const hit = this._conspiracyOps(pid, 'spendAnyColor').some(({ o: src, e }) => {
@@ -1451,7 +1452,7 @@
         (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
-        const elsewhere = z.library.slice(0, 1).concat(z.graveyard)
+        const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId))
           .filter(o => this._playFromRule(playerId, o, 'land'));
         for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
           const a = o.analysis();
@@ -1468,7 +1469,9 @@
       }
       const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell') ||
         // Fblthp, Lost on the Range: plotted from the top of your library (topPlot)
-        this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'topPlot')));
+        this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'topPlot')))
+        // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library)
+        .concat(this._oppTops(playerId).filter(o => this._playFromRule(playerId, o, 'spell')));
       // (The Great Work: the instants and sorceries in other players' graveyards too)
       for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, this._borrowedGraveyard(playerId))) {
         /* Cycling and flashback are things you can do with this card that
@@ -3294,7 +3297,8 @@
       const o = this.obj(objId);
       if (!o) return this.fail('No such card.');
       // (Valgavoth, Terror Eater; Nashi, Gonti, Night Minister: an opponent's land, exiled with it or for you to play, is yours to play)
-      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o)) return this.fail('Not your card.');
+      // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library)
+      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o) && !this._oppTopGrant(playerId, o)) return this.fail('Not your card.');
       const a = o.analysis();
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
       if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
@@ -3307,7 +3311,7 @@
         const z = this.zones[playerId] || {};
         const impulsed = o.zone === 'exile' && !o.impulseCastOnly &&
           (this._impulseOpen(o, playerId) || this._mayPlayFromExile(playerId, o));
-        if (o.zone === 'graveyard' || (o.zone === 'library' && (z.library || [])[0] === o)) leave = this._playFromRule(playerId, o, 'land');
+        if (o.zone === 'graveyard' || (o.zone === 'library' && ((z.library || [])[0] === o || this._oppTopGrant(playerId, o)))) leave = this._playFromRule(playerId, o, 'land');
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
@@ -4584,6 +4588,8 @@
       // Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt" — that one, on the battlefield or gone
       if (this._exiledWithLinkEmblem(playerId, o)) return { op: 'playFrom', zone: 'exiledWith', what: 'any', anyMana: true };
       const z = this.zones[playerId];
+      // Xanathar, Guild Kingpin: "you may play the top card of their library, and you may spend mana as though it were mana of any color"
+      if (this._oppTopGrant(playerId, o)) return { op: 'playFrom', zone: 'oppTop', what: 'any', anyMana: true };
       // Valgavoth, Terror Eater: "cards exiled with Valgavoth" are somebody else's
       const exiled = !!(o && o.zone === 'exile' && o.exiledWithId);
       // Tinybones, Bauble Burglar: "cards you don't own with stash counters on them" — in exile, with a counter (exiledCounter)
@@ -6831,6 +6837,7 @@
         }
         if (plan && (!plan.mana || this.payMana(pid, plan.mana, { auto: true }))) {
           this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+          this._noteBend(pid, 'water');
         } else {
           this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not waterbend ${w.waterbend}.`);
           return false;
@@ -7297,6 +7304,7 @@
           const p = this.player(o.controller);
           if (p) { for (let i = 0; i < fire; i++) p.pool.add('R'); p.poolKeepUntil = 'combat'; }
           this.logEvent('keyword', `${o.name} firebends for ${fire} red mana.`);
+          if (p) this._noteBend(p.id, 'fire');
         }
         // annihilator: the defending player sacrifices permanents
         let ann = this._kwArg(o, 'annihilator');
@@ -7970,7 +7978,7 @@
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null });
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || '') });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -9000,6 +9008,8 @@
         if (!paid) return this.fail(`Not enough mana (${abMana}).`);
       }
       if (cost.tap) { this._markTapped(o); this.emit('sfx', 'tap'); }
+      // (Avatar Aang: "Whenever you waterbend" — a waterbend cost paid, whatever it was paid with)
+      if (cost.waterbend && !opts.free) this._noteBend(playerId, 'water');
       if (cost.exert) o.noUntapNext = true;
       // Devoted Druid: "Put a -1/-1 counter on this creature" as the price
       if (cost.putCounters) this.addCounters(o, cost.putCounters.kind, cost.putCounters.n || 1, { noReplace: true });
@@ -12293,6 +12303,8 @@
         case 'echoDue': return !!src && !!src.echoDue;
         case 'notRenowned': return !!src && !src.renowned;
         case 'saddled': return !!src && src.saddledTurn === this.turn;
+        // Avatar Aang: "if you've done all four this turn" — waterbent, earthbent, firebent and airbent (bentAllFour)
+        case 'bentAllFour': return !!me && !!me.bends && me.bends.turn === this.turn && me.bends.kinds.length >= 4;
         case 'lifeGained': return !!me && me.gainedTurn === this.turn && (me.gained || 0) >= (cond.n || 1);
         case 'graveyardPermanents': return !!me && this.zones[me.id].graveyard.filter(o => (o.analysis() || {}).isPermanent).length >= (cond.n || 1);
         case 'descended': return !!me && me.descendedTurn === this.turn;
@@ -14680,7 +14692,9 @@
           if (ab.castNth && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) !== ab.castNth) continue;
           // Zaxara: a spell with {X} in its mana cost (xSpell); Zuko: one cast during combat (duringCombat)
           // (the cost of the face being cast: a split card's half, an adventure, an MDFC's back; both halves fused)
-          if (ab.xSpell) {
+          // (Magus Lucea Kane: an ability activated — {X} in its activation cost: xCost)
+          if (ab.xSpell && event === 'youActivateAbility') { if (!data.xCost) continue; }
+          else if (ab.xSpell) {
             const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
             const mc = xItem && xItem.fused && xo && xo.card && xo.card.card_faces ? xo.card.card_faces.map(f => f.mana_cost || '').join('')
               : ((xo && xo.analysis && (xo.analysis() || {}).manaCost) || ((xo && xo.card) || {}).mana_cost || '');
@@ -15211,8 +15225,12 @@
       if (e.keepThis) {
         const short = String(own.name || '').split(',')[0];
         const lines = String(own.oracle_text || '').split('\n')
-          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has this ability\b/i.test(l))
-          .map(l => (e.keepName || !own.name ? l : l.split(own.name).join(card.name).split(short).join(card.name)));
+          // (Kimahri, Valiant Guardian: "it has vigilance and this ability")
+          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has (?:[a-z]+ and )?this ability\b/i.test(l))
+          /* (Kimahri, Valiant Guardian: its name kept, its short name made whole — a copy of a creature that isn't
+             legendary doesn't go by a short name) */
+          .map(l => (!own.name ? l : e.keepName ? l.split(own.name).join('\u0000').split(short).join(own.name).split('\u0000').join(own.name)
+            : l.split(own.name).join(card.name).split(short).join(card.name)));
         if (lines.length) {
           const text = String(card.oracle_text || '') + '\n' + lines.join('\n');
           card = Object.assign({}, card, { id: card.id + ':this:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
@@ -22086,7 +22104,9 @@
             this.logEvent('rules', `${who ? who.name : me.name + "'s opponents"} can't cast ${e.noncreature ? 'noncreature ' : ''}spells until ${me.name}'s next turn.`);
             break;
           }
-          this.logEvent('rules', `${me.name}'s opponents can't cast spells this turn.`);
+          // (Xanathar, Guild Kingpin: the one opponent targeted)
+          { const tq = e.who === 'target' ? firstPlayer() : null;
+            this.logEvent('rules', tq ? `${tq.name} can't cast spells this turn.` : `${me.name}'s opponents can't cast spells this turn.`); }
           break;
 
         case 'sortRevealed': {
@@ -23923,11 +23943,22 @@
           this.logEvent('rules', `${me.name} discovers ${k}${hit ? ': ' + hit.name : ''}.`);
           break;
         }
+        /* Xanathar, Guild Kingpin: "you may look at the top card of their library any time, you may play the top card of
+           their library" until end of turn — the opponent targeted (oppTopThisTurn) */
+        case 'oppTopThisTurn': {
+          const q = firstPlayer();
+          if (!q || q.id === ctx.controller || !me) break;
+          me.oppTopGrants = (me.oppTopGrants || []).filter(g => g.turn === this.turn).concat([{ turn: this.turn, from: q.id }]);
+          this.logEvent('rules', `${me.name} may look at and play the top card of ${q.name}'s library this turn.`);
+          break;
+        }
         /* Earthbend N: a land of yours becomes a 0/0 creature with haste that
            is still a land, with N +1/+1 counters; when it dies it comes back
            tapped. */
         case 'earthbend': {
           const t = firstObj();
+          // (Avatar Aang: "Whenever you earthbend" — even when what it does couldn't be done)
+          this._noteBend(ctx.controller, 'earth');
           if (!t || t.zone !== 'battlefield') break;
           t.effects.push({ setPt: { p: 0, t: 0 }, addTypes: ['Creature'], keywords: ['Haste'], until: null, returnOnDeath: 'tapped' });
           t._chr = null;
@@ -23938,6 +23969,8 @@
         }
         /* Airbend: exiled, and its owner may cast it for {2} while it is there */
         case 'airbend':
+          // (Avatar Aang: "Whenever you airbend" — once it is done)
+          this._noteBend(ctx.controller, 'air');
           // (Monk Gyatso: "airbend that creature" — the creature the trigger is about: triggerObj)
           for (const t of (e.triggerObj ? [{ kind: 'object', id: (ctx.triggerData || {}).objectId }] : targets)) {
             const x = t.kind === 'object' && this.obj(t.id);
@@ -29734,7 +29767,31 @@
       return false;
     }
 
+    /** Avatar Aang: a player waterbent, earthbent, firebent or airbent — noted for the turn, and the trigger. */
+    _noteBend(pid, kind) {
+      const p = this.player(pid);
+      if (!p) return;
+      if (!p.bends || p.bends.turn !== this.turn) p.bends = { turn: this.turn, kinds: [] };
+      if (!p.bends.kinds.includes(kind)) p.bends.kinds.push(kind);
+      this._fire('youBend', pid, { playerId: pid, bend: kind });
+    }
+
+    /* Xanathar, Guild Kingpin: "Until end of turn, … you may look at the top card of their library any time, you may
+       play the top card of their library" — the opponents chosen this turn, and their top cards (oppTopGrants) */
+    _oppTopGrant(playerId, o) {
+      const p = this.player(playerId);
+      if (!p || !o || o.zone !== 'library' || o.owner === playerId) return false;
+      if (((this.zones[o.owner] || {}).library || [])[0] !== o) return false;
+      return (p.oppTopGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    _oppTops(playerId) {
+      const p = this.player(playerId);
+      return ((p && p.oppTopGrants) || []).filter(g => g.turn === this.turn)
+        .map(g => ((this.zones[g.from] || {}).library || [])[0]).filter(Boolean);
+    }
+
     _topCardShown(ownerId, viewer) {
+      if (viewer !== ownerId && this._oppTops(viewer).some(c => c.owner === ownerId)) return true;
       for (const o of this.battlefield) {
         if (o.controller !== ownerId || o.phasedOut) continue;
         const e = this._staticOp(o, 'peekTop');
