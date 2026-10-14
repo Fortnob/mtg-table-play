@@ -6495,7 +6495,9 @@
       return out;
     }
 
-    /** Ward: the opponent must pay or the spell is countered (CR 702.21b). */
+    /** Ward: the opponent must pay or the spell or ability is countered (CR 702.21a). Mana, life and poison
+        are taken at once; a price that is a choice (discard a card, sacrifice three nonland permanents) is
+        asked by a ward trigger that goes on the stack above it (wardPay). */
     _applyWard(item) {
       for (const t of (item.targets || [])) {
         if (t.kind !== 'object') continue;
@@ -6503,19 +6505,44 @@
         if (!o || o.zone !== 'battlefield' || o.controller === item.controller) continue;
         for (const arg of this._wardCosts(o)) {
         if (item.countered) break;
-        const mana = (arg.match(/\{[^}]+\}/g) || []).join('');
-        const life = (arg.match(/pay (\d+) life/i) || [])[1];
         const caster = this.player(item.controller);
-        if (mana) {
-          if (this.payMana(item.controller, mana, { auto: true })) {
+        const w = O.wardPrice(arg);
+        // (a price the table can't take leaves the card to its players: the reading says so)
+        if (!w) continue;
+        if (w.discard || w.sacrifice) {
+          this.pendingTriggers.push({
+            id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
+            name: `${o.name} \u2014 ward`, auto: true, abilityText: `Ward\u2014${arg}`,
+            effects: [Object.assign({ op: 'wardPay', stackId: item.id, payer: item.controller, text: String(arg).replace(/\.$/, '') }, w)],
+            triggerData: { event: 'becomesTarget', stackId: item.id, objectId: o.id, playerId: item.controller },
+          });
+          continue;
+        }
+        // (Raubahn, Bull of Ala Mhigo: "Pay life equal to Raubahn's power")
+        const life = w.lifePower ? Math.max(0, this.powerOf(o)) : w.life || 0;
+        // life can be paid only with that much life to pay (CR 119.4)
+        if (life && caster.life < life) {
+          item.countered = true;
+          this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} can't pay ${life} life.`);
+          continue;
+        }
+        if (w.mana) {
+          if (this.payMana(item.controller, w.mana, { auto: true })) {
             this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
           } else {
             item.countered = true;
-            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not pay ${mana}.`);
+            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not pay ${w.mana}.`);
+            continue;
           }
-        } else if (life) {
-          this.changeLife(item.controller, -parseInt(life, 10), 'ward');
+        }
+        if (life) {
+          this.changeLife(item.controller, -life, 'ward');
           this.logEvent('ward', `${caster.name} pays ${life} life for ${o.name}'s ward.`);
+        }
+        if (w.poison) {
+          // (a price paid, not counters an effect puts: nothing replaces it)
+          this.logEvent('ward', `${caster.name} pays ${o.name}'s ward with poison counters.`);
+          this.addPoison(caster, w.poison, null);
         }
         }
       }
@@ -7435,6 +7462,8 @@
         if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, playerId, stackId: item.id });
       }
       this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
+      // ward on anything this ability targets (CR 702.21a: "a spell or ability an opponent controls")
+      this._applyWard(item);
       this._crimeCheck(playerId, item.targets);
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
@@ -16950,6 +16979,50 @@
         /* "Sacrifice it unless you sacrifice a land", "… unless you return an
            untapped Plains you control to its owner's hand", "… unless you
            discard a card": a thing picked is the price paid; none, and it goes */
+        /* Ward with a price that is a choice (CR 702.21a): "counter it unless that player discards a card /
+           sacrifices three nonland permanents" — the player who targeted it picks what to give up, or it is
+           countered (wardPay, from _applyWard) */
+        case 'wardPay': {
+          const item = this.stack.find(st => st.id === e.stackId);
+          if (!item || item.countered) break;
+          const payer = this.player(e.payer);
+          if (!payer || payer.hasLost) break;
+          const need = e.discard || e.sacrifice || 1;
+          const words = String(e.words || (e.discard ? 'card' : 'permanent'));
+          const pool = e.discard ? this.zones[payer.id].hand.filter(x => words === 'card' || this._cardFitsWords(x, words))
+            : this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, words) && this._canSacrifice(x));
+          const wardName = src ? `${src.name}'s ward` : 'Ward';
+          let paid = false;
+          if (pool.length >= need) {
+            if (e.random) {
+              const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'wardPay', stackId: item.id,
+                prompt: `${wardName}: discard ${need === 1 ? 'a card' : need + ' cards'} at random, or ${item.name} is countered?`,
+                yesLabel: 'Discard at random', noLabel: `Let ${item.name} be countered` }, 'wardRandom');
+              if (yes === SUSPEND) return SUSPEND;
+              if (yes) {
+                const left = pool.slice(), pick = [];
+                while (pick.length < need && left.length) pick.push(left.splice(Math.floor(this.rng.next() * left.length), 1)[0]);
+                this._discardNow(payer.id, pick);
+                paid = true;
+              }
+            } else {
+              const got = this._choose({ playerId: payer.id, purpose: 'wardPay', kind: 'objects', zone: e.discard ? 'hand' : 'battlefield',
+                items: this._chooseItems(pool), min: 0, max: need, prefer: 'worst', stackId: item.id,
+                prompt: `${wardName} \u2014 ${e.text || (e.discard ? 'Discard a card' : 'Sacrifice a permanent')}. Choose ${need === 1 ? 'one' : need}, or ${item.name} is countered.` }, 'ward');
+              if (got === SUSPEND) return SUSPEND;
+              const xs = ((got && got.picks) || []).map(id => this.obj(id))
+                .filter(x => x && pool.includes(x) && x.zone === (e.discard ? 'hand' : 'battlefield'));
+              if (xs.length === need) {
+                if (e.discard) this._discardNow(payer.id, xs); else this._sacrificeNow(payer.id, xs, null);
+                paid = true;
+              }
+            }
+          }
+          if (paid) this.logEvent('ward', `${payer.name} pays ${wardName}.`);
+          else { item.countered = true; this.logEvent('ward', `${item.name} is countered by ${wardName}.`); }
+          break;
+        }
+
         case 'sacSelfUnless': {
           if (!src || src.zone !== 'battlefield') break;
           const words = String(e.filter || 'card').replace(/^non-lair /, '');

@@ -192,6 +192,37 @@
     return line.split(/[,;]\s*(?![^(]*\))/).map(s => s.trim()).filter(Boolean);
   }
 
+  /** What a ward asks (CR 702.21a), in the engine's terms, or null for a price no part of the table takes:
+      mana; N life, or life equal to its power; poison counters; discarding or sacrificing cards of a kind. */
+  function wardPrice(arg) {
+    const s = String(arg || '').trim().replace(/\.$/, '');
+    // Ovika, Enigma Goliath: "{3}, Pay 3 life." — every part of it, or none
+    const parts = s.split(/,\s*(?=pay\b|\{|discard\b|sacrifice\b)/i);
+    if (parts.length > 1) {
+      const each = parts.map(wardPrice);
+      return each.every(Boolean) && each.filter(x => x.discard || x.sacrifice).length <= 1 ? Object.assign({}, ...each) : null;
+    }
+    let m;
+    if (/^(?:\{[^}]+\})+$/.test(s)) return { mana: s };
+    if (/^\d+$/.test(s)) return { mana: '{' + s + '}' };
+    if ((m = s.match(/^pay (\d+) life$/i))) return { life: +m[1] };
+    // Raubahn, Bull of Ala Mhigo, Phyrexian Fleshgorger: "Pay life equal to CARDNAME's power."
+    if (/^pay life equal to (?:CARDNAME|this creature)'s power$/i.test(s)) return { lifePower: true };
+    // Spectral Snatcher: "Get five poison counters."; Hexing Squelcher's kin: "You get two poison counters."
+    if ((m = s.match(/^(?:you )?get (a|an|one|two|three|four|five|\d+) poison counters?$/i))) return { poison: /^an?$/i.test(m[1]) ? 1 : num(m[1]) };
+    // Valgavoth, Terror Eater: "Sacrifice three nonland permanents."; Vein Ripper: "Sacrifice a creature."
+    if ((m = s.match(/^sacrifice (a|an|one|two|three|\d+) ([a-z0-9 ,-]+?)$/i))) {
+      const n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
+      return typeof n === 'number' ? { sacrifice: n, words: n > 1 ? m[2].replace(/s$/, '') : m[2] } : null;
+    }
+    // Westgate Regent: "Discard a card."; Saruman of Many Colors: "Discard an enchantment, instant, or sorcery card."
+    if ((m = s.match(/^discard (a|an|one|two|\d+) ([a-z ,-]*?)\s*cards?( at random)?$/i))) {
+      const n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
+      return typeof n === 'number' ? { discard: n, words: m[2].replace(/,$/, '').trim() || 'card', random: !!m[3] } : null;
+    }
+    return null;
+  }
+
   function matchKeyword(clause) {
     const c = clause.replace(/\s*\([^)]*\)\s*$/, '').trim();   // strip reminder text
     for (const re of KEYWORD_PATTERNS) {
@@ -14095,6 +14126,8 @@
     for (const ab of out.abilities) {
       if (ab.auto && /"unread":true/.test(JSON.stringify(ab.effects || []))) { ab.auto = false; out.fullyAutomated = false; }
     }
+    // Ward with a price the table can't take ("Collect evidence 4", "Waterbend {4}", "Discard a card or pay {2}"): a person's
+    if ((out.keywords || []).some(k => k && k.keyword === 'Ward' && k.arg && !wardPrice(k.arg))) out._keywordManual = true;
     // a keyword the reading could do only part of (Backup granting words it can't read, "Recover—Pay half your life")
     if (out._keywordManual) out.fullyAutomated = false;
     /* Jilt: "Return target creature to its owner's hand. If this spell was kicked, it deals 2 damage
@@ -17282,6 +17315,8 @@
     parseTypeLine, scopeOf,
     // (the engine's counts: "the number of Elves you control" — pluralTypes)
     singularType,
+    // what a ward asks, for the table that takes it
+    wardPrice,
     parseCost,
     parseEffects,
     parseEffectSentence,

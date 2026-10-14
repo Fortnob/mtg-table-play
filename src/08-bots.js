@@ -1837,6 +1837,20 @@
         .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
       return pool.length && pool[0].v <= keep ? { picks: [pool[0].o.id] } : { picks: [] };
     },
+    /* Ward that asks for cards or permanents (Valgavoth: "Sacrifice three nonland permanents"; Westgate Regent:
+       "Discard a card"): pay with the least of them when what it targeted is worth more than they are together;
+       otherwise the spell or ability is countered (wardPay) */
+    wardPay(s) {
+      const g = this.game;
+      const need = Math.max(1, s.max || 1);
+      const target = s.sourceId ? g.obj(s.sourceId) : null;
+      const worth = target ? this.permanentValue(target) : 0;
+      const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
+      if (pool.length < need) return { picks: [] };
+      const price = pool.slice(0, need).reduce((t, x) => t + x.v, 0);
+      return price <= worth ? { picks: pool.slice(0, need).map(x => x.o.id) } : { picks: [] };
+    },
     /* Painful Quandary: a card from hand rather than 5 life, the least of them */
     unlessDiscard(s) {
       const g = this.game;
@@ -2600,6 +2614,8 @@
       if (ch.purpose === 'leyline') return true;
       // the Chain spells: copy back for mana; not for a land or a card
       if (ch.purpose === 'chainCopy') return ch.costKind === 'mana';
+      // Alpharael, Stonechosen's ward: a card at random, to see the spell or ability through
+      if (ch.purpose === 'wardPay') return (g.zones[this.pid].hand || []).length > 0;
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature
