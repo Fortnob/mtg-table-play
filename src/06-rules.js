@@ -3202,6 +3202,8 @@
       if (t.kind === 'object') {
         const o = this.obj(t.id);
         if (!o) return false;
+        // it left the zone it was in when it was chosen, whether or not it came back (CR 400.7)
+        if (t.gone) return false;
         // "another target": never what the ability is on
         if (i != null && item.obj && o.id === item.obj.id && (this._specsOf(item)[i] || {}).another) return false;
         if (t.zone && o.zone !== t.zone) return false;
@@ -13516,6 +13518,11 @@
         const c = this.obj(o._uginCard);
         o._uginCard = null;
         if (c && c.zone === 'exile') { c.faceDownExile = false; this.moveObject(c, 'hand'); }
+      }
+      /* ...and a spell or ability that targeted it no longer can (CR 400.7, 608.2b): the same id lives on in the new
+         zone, so the targets on the stack that named it are marked gone (a flicker included) */
+      if (from !== toZone) {
+        for (const s of this.stack) for (const t of (s.targets || [])) if (t && t.kind === 'object' && t.id === o.id) t.gone = true;
       }
       /* A card that changes zones is a new object (CR 400.7): leave to play it from exile, and its being
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */

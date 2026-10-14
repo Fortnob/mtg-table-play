@@ -400,4 +400,31 @@ module.exports = (test) => {
     t.zone(poor.w, 'battlefield', 'at 9 life it lets the trigger be countered');
     t.eq(poor.T.life('B'), 9);
   });
+  test('Targets: a spell whose target left the battlefield (bounced, or flickered back) is countered on resolution (CR 608.2b)', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'G');
+    const gg = M.hand('A', 'Giant Growth');
+    M.cast('A', gg, { targets: [bear], resolve: false });
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Cloudshift'), { targets: [bear] });
+    t.zone(bear, 'battlefield', 'back from the flicker');
+    t.eq(g.powerOf(bear), 2, 'Giant Growth found its target gone: a new object came back');
+    t.zone(gg, 'graveyard');
+    t.ok(g.log.some(l => /Giant Growth is countered on resolution/.test(l.text || l.msg || String(l))), 'logged as countered');
+    // bounced: the same
+    M.mana('A', 'G');
+    const gg2 = M.hand('A', 'Giant Growth');
+    M.cast('A', gg2, { targets: [bear], resolve: false });
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Unsummon'), { targets: [bear] });
+    t.zone(bear, 'hand');
+    t.zone(gg2, 'graveyard');
+    // and a target that stays put is still fine
+    const bear2 = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'G');
+    M.cast('A', M.hand('A', 'Giant Growth'), { targets: [bear2] });
+    t.eq(g.powerOf(bear2), 5);
+  });
 };
