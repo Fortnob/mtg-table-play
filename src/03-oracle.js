@@ -7349,6 +7349,11 @@
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
         ? { op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], addSubtypes: [m[4]], addTypes: ['Creature'], targets: [spec] } : null; } },
+    /* Mishra, Eminent One: "create a token that's a copy of target noncreature artifact you control, except its name is
+       Mishra's Warform and it's a 4/4 Construct artifact creature in addition to its other types" (setName) */
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except its name is ([A-Z][^,.]*?) and it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) (artifact )?creature in addition to its other types\.?$/,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
+        ? { op: 'copyPermanent', n: 1, grant: [], setName: m[2], setPt: m[3] + '/' + m[4], addSubtypes: [m[5]], addTypes: (m[6] ? ['Artifact'] : []).concat('Creature'), targets: [spec] } : null; } },
     // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
@@ -8999,6 +9004,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Zimone and Dina: "Draw a card. You may put a land card from your hand onto the battlefield tapped. If you control
+       eight or more lands, repeat this process once." — the condition looked at once the first time is done (repeatOnceIf) */
+    { re: /^(.+?\.) If (you control [^,.]+), repeat this process once\.$/i,
+      make: (m) => {
+        const body = parseSentenceList(splitSentences(m[1]));
+        const cond = condOf(m[2]);
+        if (!body.auto || !body.effects.length || !cond || body.effects.some(x => x && x.op === 'manual')) return null;
+        return body.effects.concat([{ op: 'ifCond', cond, then: JSON.parse(JSON.stringify(body.effects)) }]);
+      } },
     /* Garth One-Eye: "Choose a card name that hasn't been chosen from among Disenchant, …, and Black Lotus. Create a
        copy of the card with the chosen name. You may cast the copy." — paying its costs, as the ability resolves (castNamedCopy) */
     { re: /^Choose a card name that hasn'?t been chosen from among ([^.]+?)\. Create a copy of the card with the chosen name\. You may cast the copy\.?$/i,

@@ -21393,6 +21393,12 @@
             card = Object.assign({}, card, { id: card.id + ':as:' + U.hash(line + pw + '/' + tg + cols.join('')),
               type_line: line, power: pw, toughness: tg, colors: cols, card_faces: null });
           }
+          // Mishra, Eminent One: "except its name is Mishra's Warform" (setName)
+          // (the reading wrote "Mishra" as CARDNAME: the card's own short name back in its place)
+          if (e.setName) {
+            const nm = String(e.setName).replace(/CARDNAME/g, String((src && src.name) || '').split(',')[0].trim());
+            card = Object.assign({}, card, { id: card.id + ':name:' + U.hash(nm), name: nm, card_faces: null });
+          }
           // Adagia: "except it's legendary"
           if (e.addLegendary && !/\bLegendary\b/.test(String(card.type_line || ''))) {
             const line = 'Legendary ' + String(card.type_line || '');
