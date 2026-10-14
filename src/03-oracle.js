@@ -4167,6 +4167,10 @@
        order." — one has to go (the play permission is the next sentence's) */
     { re: /^Exile one of (?:those cards|them) and put the rest on the bottom of your library in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'exile', mustTake: true, rest: 'bottomRandom', prompt: 'Exile one of those cards.' }) },
+    // Djeru and Hazoret: "You may exile a legendary creature card from among them." (the rest for the next sentence)
+    { re: /^You may exile an? ([a-z ]+?) card from among them\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: m[1].toLowerCase(), to: 'exile', optional: true, rest: 'keep',
+        prompt: `You may exile ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card.` }) },
     /* Gishath, Sun's Avatar, Ojer Kaslem: "Whenever … deals combat damage to a player, reveal that many cards
        from the top of your library" — as many as the damage the trigger is about (thatManyTop) */
     { re: /^(Reveal|Look at) that many cards from the top of your library\.?$/i,
@@ -4863,6 +4867,8 @@
     /* Wanda's Vision, Gríma, Saruman's Footman: "You may cast that card without paying its mana cost." — the
        card just exiled, cast as this resolves or not at all (CR 608.2g), not later in the turn (thatCard) */
     { re: /^(?:You may )?[Cc]ast that card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1 }) },
+    // The Infamous Cruelclaw: "You may cast that card by discarding a card rather than paying its mana cost." (discardCost)
+    { re: /^You may cast that card by discarding a card rather than paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'thatCard', upTo: 1, discardCost: true }) },
     { re: /^Until the end of your next turn, you may (?:cast|play) that (?:card|spell)\.?$/i, make: () => ({ op: 'markImpulse' }) },
     // (Scrib Nibblers: "target player's library" — a player the ability targets, not the one a trigger is about)
     { re: /^Exile the top card of (that player'?s|target player'?s) library\.?$/i,
@@ -8381,6 +8387,11 @@
       make: (m) => [{ op: 'lookAt', n: 'X', reveal: true, libOf: 'target', targets: [{ type: 'player', opponent: true }] },
         { op: 'takeFromLooked', n: 1, filter: m[1].toLowerCase(), maxMv: 'X', to: 'battlefield', optional: true, rest: 'bottomRandom',
           prompt: `You may put ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1].toLowerCase()} card with mana value X or less onto the battlefield under your control.` }] },
+    /* Shredder, Shadow Master: "for each other opponent, create a token that's a copy of Shredder tapped and attacking
+       that player, except it isn't legendary. Sacrifice those tokens at end of combat." (eachOtherOpponent) */
+    { re: /^For each other opponent, create a token that'?s a copy of CARDNAME tapped and attacking that player, except it isn'?t legendary\. Sacrifice those tokens at end of combat\.$/i,
+      make: () => [{ op: 'copyPermanent', self: true, n: 1, tapped: true, attacking: true, nonLegendary: true, eachOtherOpponent: true, grant: [] },
+        { op: 'delayed', event: 'endOfCombat', subject: 'made', name: 'Sacrifice those tokens at end of combat', effects: [{ op: 'sacrificeThat' }] }] },
     // Sauron, Lord of the Rings: "amass Orcs 5, mill five cards, then return a creature card from your graveyard to the battlefield"
     { re: /^(Amass [A-Z][a-z]+ \d+), (mill [a-z]+ cards), then (return [^.]+)\.$/i,
       make: (m) => {
@@ -11554,6 +11565,8 @@
       filt: (m) => subjectFilter(m[1]), extra: { fromExile: true } },
     // Nita, Forum Conciliator, Tasha: "Whenever you cast a spell you don't own" (notOwnedSpell)
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
+    // Don Andres, the Renegade: "Whenever you cast a noncreature spell you don't own"
+    { re: /^Whenever you cast an? ([a-z]+) spell you don'?t own,? /i, event: 'youCastSpell', extraOf: (m) => ({ notOwnedSpell: true, spellFilter: m[1].toLowerCase() }) },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
     { re: /^Whenever a player casts a spell they don'?t own,? /i, event: 'anyCastSpell', extra: { notOwnedByCaster: true } },
     // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
@@ -15386,6 +15399,17 @@
         if (!scope || scope.self || scope.attached) return null;
         return { op: 'continuous', layer: 4, scope, addTypes: ['Land'], addSubtypes: [U.titleCase(m[2])] };
       } },
+    /* Don Andres, the Renegade: "Each creature you control but don't own gets +2/+2, has menace and deathtouch, and is
+       a Pirate in addition to its other types." */
+    { re: /^(Each creature [a-z' ]+?) gets ([+-]\d+)\/([+-]\d+), has ([a-z ]+?) and ([a-z ]+?), and is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached) return null;
+        return { op: 'sequence', list: [
+          { op: 'continuous', layer: 7, scope, pt: { p: +m[2], t: +m[3] } },
+          { op: 'continuous', layer: 6, scope, grant: [U.titleCase(m[4]), U.titleCase(m[5])] },
+          { op: 'continuous', layer: 4, scope, addSubtypes: [m[6]] }] };
+      } },
     // Laughing Jasper Flint: "Creatures you control but don't own are Mercenaries in addition to their other types."
     { re: /^((?:[A-Za-z]+ )*[Cc]reatures [a-z' ]+?) are ([A-Z][a-z]+) in addition to their other types\.?$/,
       make: (m) => {
@@ -17501,6 +17525,9 @@
         make: (m) => ({ op: 'untapOnEveryUntapStep', filter: m[1].toLowerCase() + ' creature or ' + m[2].toLowerCase() + ' creature' }), auto: true },
       // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
       { re: /^Players can'?t activate planeswalkers'? loyalty abilities\.?$/i, eff: { op: 'noLoyalty' }, auto: true },
+      // Aminatou, Veil Piercer: "Each enchantment card in your hand has miracle. Its miracle cost is equal to its mana cost reduced by {4}." (grantMiracle)
+      { re: /^Each ([a-z]+) card in your hand has miracle\. Its miracle cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
+        make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase(), less: +m[2] }), auto: true },
       // Minthara, Merciless Soul: "Minthara has ward {X}, where X is the number of experience counters you have." (wardX)
       { re: /^CARDNAME has ward \{X\}, where X is (.+?)\.?$/i,
         make: (m) => { const v = amountOf(m[1]); return v ? { op: 'wardX', n: v } : null; }, auto: true },

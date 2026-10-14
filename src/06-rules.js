@@ -5167,12 +5167,23 @@
     _miracleCost(playerId, o) {
       const a = o && o.analysis();
       const ab = a && (a.abilities || []).find(x => x.kind === 'castModifier' && /^miracle$/i.test(x.keyword || '') && x.arg);
-      if (!ab) return null;
+      let arg = ab && ab.arg;
+      /* Aminatou, Veil Piercer: "Each enchantment card in your hand has miracle. Its miracle cost is equal to its mana
+         cost reduced by {4}." — its generic mana, as far as it goes (grantMiracle) */
+      if (!arg && a && o.zone === 'hand') {
+        let s = null;
+        for (const x of this.battlefield) {
+          const g0 = x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantMiracle');
+          if (g0 && this._cardFitsWords(o, g0.words)) { s = g0; break; }
+        }
+        if (s) arg = String(a.manaCost || '').replace(/\{(\d+)\}/, (w, k) => (+k > s.less ? '{' + (+k - s.less) + '}' : ''));
+      }
+      if (arg == null) return null;
       const src = this.manaSources(playerId);
       // (with its taxes and Trinisphere's floor, as _castFree will charge it)
-      if (!/\{X\}/.test(ab.arg)) return this.couldPay(playerId, this._freePrice(playerId, o, ab.arg), src) ? { cost: ab.arg, x: 0 } : null;
+      if (!/\{X\}/.test(arg)) return this.couldPay(playerId, this._freePrice(playerId, o, arg), src) ? { cost: arg, x: 0 } : null;
       for (let x = 20; x >= 0; x--) {
-        const c = ab.arg.replace(/\{X\}/g, x ? '{' + x + '}' : '');
+        const c = arg.replace(/\{X\}/g, x ? '{' + x + '}' : '');
         if (this.couldPay(playerId, this._freePrice(playerId, o, c), src)) return { cost: c, x };
       }
       return null;
@@ -19399,6 +19410,15 @@
           break;
         }
         case 'copyPermanent': {
+          /* Shredder, Shadow Master: "for each other opponent, … tapped and attacking that player" — one copy for each
+             opponent still in the game other than the one it attacks (eachOtherOpponent) */
+          if (e.eachOtherOpponent) {
+            const hit = src && src.attacking;
+            for (const foe of this.opponentsOf(ctx.controller).filter(p => !p.hasLost && p.id !== hit)) {
+              this._runEffect(Object.assign({}, e, { eachOtherOpponent: false, attackingId: foe.id }), ctx);
+            }
+            break;
+          }
           let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
           /* Orvar, the All-Form: "a copy of one of those permanents" — the other permanents of yours the spell
              targets, still yours; which one, when there is more than one (spellTargets) */
@@ -19526,7 +19546,7 @@
             /* Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it is
                attacking (Ilharg's way), during combat; never declared, so nothing "whenever attacks" sees it */
             if (e.attacking && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
-              const def = (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
+              const def = e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
               if (def) { copy.attacking = def; this.combat.attackers.push(copy.id); }
             }
             copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
@@ -23073,18 +23093,27 @@
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
+            // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
+            if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
             const yes = e.must || e.from === 'graveyard' || e.from === 'exiledCounter' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
-              prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
+              prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
+                : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
             const want = yes === null ? true : !!yes;
             if (!want) { if (r) r.marks[slot + 'done' + k] = true; continue; }
             // a spell cast as this resolves still chooses its targets (Goblin Dark-Dwellers' Shock)
             const tg = this._askSpellTargets(ctx.controller, c, 'fct' + k);
             if (tg === SUSPEND) return SUSPEND;
+            if (tg === null) { if (r) r.marks[slot + 'done' + k] = true; continue; }
+            // The Infamous Cruelclaw: the card discarded is the cost, paid as it is cast
+            if (e.discardCost) {
+              if (r) r.marks[slot + 'disc' + k] = true;
+              const dg = this._ask({ type: 'discard', playerId: ctx.controller, count: 1, prompt: `Discard a card to cast ${c.name}.` }, 'fcd' + k);
+              if (dg === SUSPEND) return SUSPEND;
+            }
             if (r) r.marks[slot + 'done' + k] = true;
-            if (tg === null) continue;
             // Tinybones, the Pickpocket: "and mana of any type can be spent to cast that spell"
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
