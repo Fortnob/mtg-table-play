@@ -2725,7 +2725,21 @@
        activated abilities only, a trigger's every ability, so the two are
        kept apart (Tannuk with Viridian Longbow's ping is not "the second
        time" its landfall has resolved) */
-    _resolvedKey(item) { return (item.activated ? 'a' : 't') + item.abilityIndex; }
+    /* (Victor, Valgavoth's Seneschal: "Whenever an enchantment you control enters and whenever you fully unlock a
+       Room, …" — read as two lines, still one ability: "the first time this ability has resolved" counts both, under
+       the first of them — sharedResolved) */
+    _resolvedKey(item) {
+      if (!item.activated && item.obj && item.abilityIndex != null && item.abilityIndex >= 0) {
+        const abs = (item.obj.analysis() || {}).abilities || [];
+        const ab = abs[item.abilityIndex];
+        if (ab && ab.kind === 'triggered' && /"nthResolution"/.test(JSON.stringify(ab.effects || []))) {
+          const body = JSON.stringify(ab.effects);
+          const first = abs.findIndex(x => x && x.kind === 'triggered' && JSON.stringify(x.effects || []) === body);
+          if (first >= 0) return 't' + first;
+        }
+      }
+      return (item.activated ? 'a' : 't') + item.abilityIndex;
+    }
 
     _resolveAbility(item) {
       this.logEvent('resolve', `${item.name} resolves.`);
@@ -3670,6 +3684,18 @@
       if (chb && ta.length) return true;
       return ta.some(t => tb.some(u => u.toLowerCase() === t.toLowerCase()));
     }
+    /* Orvar, the All-Form: "one or more other permanents you control" among a spell's targets — on the battlefield,
+       controlled by this one's controller, not this one */
+    _spellTargetsYourOther(targets, o) {
+      const out = [];
+      for (const t of targets || []) {
+        if (!t || t.kind !== 'object' || t.id === o.id) continue;
+        const x = this.obj(t.id);
+        if (x && x.zone === 'battlefield' && !x.phasedOut && x.controller === o.controller && !out.includes(x)) out.push(x);
+      }
+      return out;
+    }
+
     /* Zurzoth, Chaos Rider: "those players" — every player a creature of that type this player controls is attacking */
     _playersAttackedByType(pid, type) {
       const out = [];
@@ -4770,6 +4796,16 @@
           const use = { kind: 'cast', via: 'ninjutsu', cost: g0.cost, label: 'Ninjutsu ' + g0.cost };
           if (own < 0) out.push(use);
           else if (MANA.cmc(g0.cost) < MANA.cmc(out[own].cost)) out[own] = use;
+        }
+      }
+      /* Ashling, the Limitless: "Elemental permanent spells you cast from your hand gain evoke {4} as you cast
+         them" — beside any evoke of its own (grantEvoke) */
+      if (o.zone === 'hand' && o.owner === playerId && a.isPermanent && !a.isLand) {
+        for (const x of this.battlefield) {
+          if (x.controller !== playerId || x.phasedOut) continue;
+          const ge = this._staticOp(x, 'grantEvoke');
+          if (!ge || !this._hasCreatureType(o, ge.subtype) || out.some(u => u.via === 'evoke' && u.cost === ge.cost)) continue;
+          out.push({ kind: 'cast', via: 'evoke', cost: ge.cost, label: 'Evoke ' + ge.cost });
         }
       }
       /* Underworld Breach: every nonland card in your graveyard has escape
@@ -6814,9 +6850,9 @@
       if (a && a.isCreature) return;
       for (const o of this.battlefield) {
         if (o.controller !== item.controller) continue;
-        const oa = o.analysis();
-        if (!oa || !oa.keywordSet.has('prowess')) continue;
-        const n = this._kwCount(o, 'prowess');
+        // (Narset, Enlightened Exile: "Creatures you control have prowess" — given as well as printed, and gone with its abilities)
+        if (o.phasedOut || !this.hasKw(o, 'prowess')) continue;
+        const n = Math.max(1, this._kwCount(o, 'prowess'));
         for (let i = 0; i < n; i++) o.effects.push({ p: 1, t: 1, until: 'eot' });
         this.logEvent('keyword', `${o.name} gets +${n}/+${n} from prowess.`);
       }
@@ -13902,6 +13938,8 @@
         attackedPlayer: data.attackedPlayer,
         // Ghyrson Starn, Kelermorph: the permanent a source dealt damage to (toVictim)
         victimId: data.victimId,
+        // Orvar, the All-Form: what the spell cast targets, as it was cast (spellTargets)
+        spellTargets: data.spell && data.spell.targets ? data.spell.targets.map(t => ({ kind: t.kind, id: t.id })) : undefined,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -14179,6 +14217,8 @@
             return ab.targetsWhose === 'you' ? x.controller === o.controller : ab.targetsWhose === 'notYou' ? x.controller !== o.controller : true;
           })) continue;
           // Season of Growth: a spell aimed at a creature of yours
+          // Orvar, the All-Form: "if it targets one or more other permanents you control" (targetsYourOther)
+          if (ab.targetsYourOther && !this._spellTargetsYourOther(((data.spell && data.spell.targets) || []), o).length) continue;
           if (ab.targetsYourCreature && !((data.spell && data.spell.targets) || []).some(t => {
             const x = t.kind === 'object' && this.obj(t.id);
             return x && x.zone === 'battlefield' && x.controller === o.controller && (this.characteristics(x) || {}).isCreature;
@@ -19260,6 +19300,20 @@
         }
         case 'copyPermanent': {
           let source = e._forced || (e.self ? src : e.of === 'attached' ? (src && src.attachedTo && this.obj(src.attachedTo)) : firstObj());
+          /* Orvar, the All-Form: "a copy of one of those permanents" — the other permanents of yours the spell
+             targets, still yours; which one, when there is more than one (spellTargets) */
+          if (e.of === 'spellTargets') {
+            const pool = this._spellTargetsYourOther((ctx.triggerData || {}).spellTargets || [], src || { id: null, controller: ctx.controller });
+            if (!pool.length) break;
+            let pick = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Choose one of those permanents to copy.' }, 'copyWhich');
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
+            }
+            source = pick;
+          }
           // Cleaver Skaab: "copies of the sacrificed creature", as it last was
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
@@ -27808,6 +27862,12 @@
         const army = this._lastAmassed && this.obj(this._lastAmassed);
         return this._legalTargetsFor(Object.assign({}, spec, { maxPowerAmassed: false,
           maxPower: army && army.zone === 'battlefield' ? this.powerOf(army) : (army ? army._lastPower || 0 : 0) }), controllerId, sourceId);
+      }
+      // Narset, Enlightened Exile: "with mana value less than Narset's power", as it is now
+      if (spec.maxMvBelowSourcePower) {
+        const s0 = sourceId && this.obj(sourceId);
+        const most = s0 ? this.powerOf(s0) - 1 : -1;
+        return most < 0 ? [] : this._legalTargetsFor(Object.assign({}, spec, { maxMvBelowSourcePower: false, maxMv: most }), controllerId, sourceId);
       }
       // Go-Shintai of Hidden Cruelty: "with toughness X or less, where X is the number of Shrines you control", counted now
       if (spec.maxToughnessCount) {

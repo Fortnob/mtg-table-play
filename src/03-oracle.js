@@ -1773,6 +1773,9 @@
     { re: /^Return (target [a-z ]+?) card with power (\d+|X) or less from your graveyard to the battlefield( tapped)?\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with power ' + m[2] + ' or less'); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Lazotep Quarry: "Exile target creature card with mana value X from your graveyard."
+    // Narset, Enlightened Exile: "Exile target noncreature, nonland card with mana value less than Narset's power from a graveyard" (maxMvBelowSourcePower)
+    { re: /^Exile (target [a-z, ]+? card) with mana value less than (?:CARDNAME|this creature)'?s power from a graveyard\.?$/i,
+      make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', maxMvBelowSourcePower: true })] } : null; } },
     { re: /^Exile (target [a-z ]+?) card with mana value (\d+|X) from your graveyard\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
@@ -3281,10 +3284,14 @@
     { re: /^Put (a|an|one|two|three) ([+\-0-9/]+) counters? and an? ([a-z]+) counter on (target [a-z ]+?)\.?$/i,
       make: (m) => { const t = tgt(m[4]); return t && kwKnown(U.titleCase(m[3])) ? { op: 'sequence', list: [{ op: 'counters', kind: m[2], n: num(m[1]), targets: [t] },
         { op: 'counters', kind: m[3].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
-    // Rise from the Grave: "That creature is a black Zombie in addition to its other colors and types."
+    // Rise from the Grave: "That creature is a black Zombie in addition to its other colors and types." — for good (not the turn)
     { re: /^(?:That creature|It) is an? (white|blue|black|red|green) ([A-Z][a-z]+) in addition to its other colors and types\.?$/,
       make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
-        { op: 'becomes', duration: null, eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
+        { op: 'becomes', duration: 'permanent', eff: { addColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
+    // Chainer, Dementia Master: "That creature is black and is a Nightmare in addition to its other creature types." — for good
+    { re: /^(?:That creature|It) is (white|blue|black|red|green) and is an? ([A-Z][a-z]+) in addition to its other creature types\.?$/,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'addTypes', subtypes: [m[2]], scope: 'lastTarget' },
+        { op: 'becomes', duration: 'permanent', eff: { setColors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1]]] }, scope: 'lastTarget' }] }) },
     // Turn to Slag: "Destroy all Equipment attached to that creature."
     // Elesh Norn // The Argent Etchings: "Destroy all other permanents except for artifacts, lands, and Phyrexians."
     { re: /^Destroy all other permanents except for artifacts, lands, and Phyrexians\.?$/i,
@@ -3418,6 +3425,9 @@
         const c = condOf(m[2].replace(/^(?:his|her|its|their) power\b/i, "CARDNAME's power"));
         return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'you' }] } : null;
       } },
+    // Victor, Valgavoth's Seneschal: "surveil 2 if this is the first time this ability has resolved this turn" (surveilIf)
+    { re: /^[Ss]urveil (\d+) if (this is the (?:first|second|third) time this ability has resolved this turn)\.?$/,
+      make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'surveil', n: +m[1] }] } : null; } },
     // Captain America, Liberator: "for each Equipment attached to him, create a 1/1 white Soldier creature token" (forEachAttachedCreate)
     { re: /^[Ff]or each (Aura|Equipment) attached to (?:it|him|her|CARDNAME), (create (?:a|an) .+? tokens?)\.?$/,
       make: (m) => {
@@ -6461,6 +6471,8 @@
     { re: /^If the token is an? (Aura|Equipment|creature|artifact|enchantment|land), (.+)$/,
       make: (m) => { const inner = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1));
         return inner.auto && inner.effects.length ? { op: 'ifCopyIs', what: m[1].toLowerCase(), then: inner.effects } : null; } },
+    // Orvar, the All-Form: "create a token that's a copy of one of those permanents" — those the spell targets (of spellTargets)
+    { re: /^Create a token that'?s a copy of one of those permanents\.?$/i, make: () => ({ op: 'copyPermanent', n: 1, grant: [], of: 'spellTargets' }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -8827,6 +8839,14 @@
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
       } },
+    /* Ashling, the Limitless: "create a token that's a copy of it. The token gains haste until end of turn. At the
+       beginning of your next end step, sacrifice it unless you pay {W}{U}{B}{R}{G}." — the card sacrificed, as it
+       last was; the payment asked at that end step */
+    { re: /^Create a token that'?s a copy of it\. The token gains haste until end of turn\. At the beginning of your next end step, sacrifice it unless you pay ((?:\{[^}]+\})+)\.?$/i,
+      make: (m) => [{ op: 'copyPermanent', n: 1, grant: [], scope: 'triggerObject' },
+        { op: 'grantKeyword', keywords: ['Haste'], scope: 'thatToken', duration: 'eot' },
+        { op: 'delayed', event: 'yourEndStep', forPlayer: 'you', subject: 'lastTarget', name: 'Sacrifice it unless you pay ' + m[1],
+          effects: [{ op: 'unlessPays', who: 'you', cost: m[1], then: [{ op: 'sacrificeThat' }] }] }] },
     /* Kotis, the Fangkeeper: "exile the top X cards of their library, where X is the amount of damage dealt. You may
        cast any number of spells with mana value X or less from among them without paying their mana costs." — the
        player it hit, X the damage (triggerAmount) */
@@ -11606,6 +11626,9 @@
     { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
+    // Orvar, the All-Form: "Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control," (targetsYourOther)
+    { re: /^Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control,? /i, event: 'youCastSpell',
+      extra: { spellFilter: 'instant or sorcery', targetsYourOther: true } },
     // Season of Growth: "Whenever you cast a spell that targets a creature you control"
     { re: /^Whenever you cast a spell that targets a creature you control,? /i, event: 'youCastSpell', extra: { targetsYourCreature: true } },
     // Folk Hero: "Whenever you cast a spell that shares a creature type with this creature"
@@ -11856,6 +11879,8 @@
     // Well of Ideas: "At the beginning of each other player's draw step," — everyone's but yours
     { re: /^At the beginning of each other player'?s draw step,? /i, event: 'eachDrawStep', extra: { notYourTurnOnly: true } },
     { re: /^At the beginning of each player'?s draw step(?:,| )/i, event: 'eachDrawStep' },
+    // Ashling, the Limitless: "Whenever you sacrifice a nontoken Elemental"
+    { re: /^When(?:ever)? you sacrifice a nontoken ([A-Z][a-z]+),? /, event: 'youSacrifice', filt: (m) => ({ words: m[1].toLowerCase(), nontoken: true }) },
     // Camellia: "Whenever you sacrifice one or more Foods" (heard once for each one)
     { re: /^When(?:ever)? you sacrifice one or more ([A-Z][a-z]+)s(?:,| )/, event: 'youSacrifice', filt: (m) => subjectFilter('a ' + m[1]) },
     // (Astrid Peth: "Whenever you sacrifice a Clue or Food" — sacrificeEither)
@@ -16939,6 +16964,9 @@
         eff: { op: 'triggerDouble', cause: 'castInstantSorcery' }, auto: true },
       // Ground Seal: "Cards in graveyards can't be the targets of spells or abilities."
       { re: /^Cards in graveyards can'?t be the targets of spells or abilities\.?$/i, eff: { op: 'graveyardUntargetable' }, auto: true },
+      // Ashling, the Limitless: "Elemental permanent spells you cast from your hand gain evoke {4} as you cast them." (grantEvoke)
+      { re: /^([A-Z][a-z]+) permanent spells you cast from your hand gain evoke ((?:\{[^}]+\})+) as you cast them\.?$/,
+        make: (m) => ({ op: 'grantEvoke', subtype: m[1], cost: m[2] }), auto: true },
       // Satoru Umezawa: "Each creature card in your hand has ninjutsu {2}{U}{B}." (grantHandNinjutsu)
       { re: /^Each creature card in your hand has ninjutsu ((?:\{[^}]+\})+)\.?$/i, make: (m) => ({ op: 'grantHandNinjutsu', cost: m[1] }), auto: true },
       // Mana Vortex, Drop of Honey: "When there are no lands on the battlefield, sacrifice this enchantment."
