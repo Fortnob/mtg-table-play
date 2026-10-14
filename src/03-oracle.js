@@ -1583,6 +1583,17 @@
       make: () => ({ op: 'giveControl', to: 'triggerPlayer', self: true, until: 'eot' }) },
     { re: /^Untap CARDNAME, goad it, and it can'?t be sacrificed this turn\.?$/i,
       make: () => [{ op: 'untap', scope: 'self' }, { op: 'goad', scope: 'self' }, { op: 'restrict', flag: 'unsacrificable', scope: 'self' }] },
+    // Varchild, Betrayer of Kjeldor: "gain control of all Survivors" — whoever controls them (stealAll, words)
+    { re: /^Gain control of all ([A-Z][a-z]+?)s\.?$/, make: (m) => ({ op: 'stealAll', words: m[1] }) },
+    /* Varchild, Betrayer of Kjeldor: "that player creates that many 1/1 red Survivor creature tokens" — the player the
+       trigger is about (createToken who triggerPlayer) */
+    { re: /^[Tt]hat player creates (.+)$/, make: (m) => {
+      // ("that many", as Lathril's)
+      const many = /^that many /i.test(m[1]);
+      const tk = parseTokenSentence('Create ' + (many ? 'two ' + m[1].slice(10).replace(/\btoken\b/, 'tokens') : m[1]));
+      if (!tk || tk.op !== 'createToken' || tk.who) return null;
+      return Object.assign(tk, { who: 'triggerPlayer' }, many ? { n: 'triggerAmount' } : {});
+    } },
     // Emrakul, the World Anew: "gain control of all creatures target player controls" (stealAll)
     { re: /^Gain control of all (creatures|artifacts|permanents) target (player|opponent) controls\.?$/i,
       make: (m) => ({ op: 'stealAll', what: m[1].toLowerCase().replace(/s$/, ''), targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
@@ -3360,6 +3371,9 @@
     // Haunted Fengraf: "Return a creature card at random from your graveyard to your hand."
     { re: /^Return an? ([a-z ]*?)card at random from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'randomFromGraveyard', filter: m[1].trim() || 'card' }) },
+    // Tersa Lightshatter: "exile a card at random from your graveyard" — the card a "you may play that card" then means (to exile)
+    { re: /^Exile an? ([a-z ]*?)card at random from your graveyard\.?$/i,
+      make: (m) => ({ op: 'randomFromGraveyard', filter: m[1].trim() || 'card', to: 'exile' }) },
     // Reap the Past: "Return two cards at random from your graveyard to your hand."
     { re: /^Return (two|three|four|X|\d+) ([a-z ]*?)cards at random from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'randomFromGraveyard', filter: m[2].trim() || 'card', n: num(m[1]) }) },
@@ -7226,6 +7240,8 @@
     if (/^the number of cards looked at while scrying this way$/i.test(p)) return 'triggerAmount';
     // The Wise Mothman: "the number of nonland cards milled this way" — the lot the trigger counted
     if (/^the number of (?:nonland |creature |artifact |land )?cards milled this way$/i.test(p)) return 'triggerAmount';
+    // Tyvar the Bellicose: "the amount of mana this creature produced" — what the mana ability the trigger is about made
+    if (/^the amount of mana (?:this creature|it|CARDNAME) produced$/i.test(p)) return 'triggerAmount';
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     // Thraben Charm: "twice the number of creatures you control"
@@ -7459,6 +7475,9 @@
     // Cathedral Acolyte: "target creature that entered this turn"
     const enteredNow = /\s+that entered (?:the battlefield )?this turn$/i.test(String(phrase));
     if (enteredNow) phrase = String(phrase).replace(/\s+that entered (?:the battlefield )?this turn$/i, '');
+    // Ruxa, Patient Professor: "target creature card with no abilities" (noAbilities)
+    const noAbil = /\s+with no abilities$/i.test(String(phrase));
+    if (noAbil) phrase = String(phrase).replace(/\s+with no abilities$/i, '');
     // Éowyn, Fearless Knight: "target creature an opponent controls with greater power" — than the source's (greaterPowerThanSource)
     const greaterPow = /\s+with greater power$/i.test(String(phrase));
     if (greaterPow) phrase = String(phrase).replace(/\s+with greater power$/i, '');
@@ -7503,6 +7522,7 @@
     if (enteredNow) spec.enteredThisTurn = true;
     if (greaterPow) spec.greaterPowerThanSource = true;
     if (lesserPow) spec.lesserPowerThanSource = true;
+    if (noAbil) spec.noAbilities = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
     if (tapAb) spec.hasTapAbility = true;
@@ -7780,6 +7800,9 @@
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
+    // Ruxa, Patient Professor: "with no abilities" — the game's answer on the battlefield, the card's elsewhere (noAbilities)
+    if (spec.noAbilities && !(ctx && ctx.noAbilities ? ctx.noAbilities(obj)
+      : !(a.abilities || []).length && !(a.manaAbilities || []).length && !(a.keywordSet && a.keywordSet.size))) return false;
     // (hasTapAbility: an activated ability, mana abilities among them, with {T} in its cost)
     if (spec.hasTapAbility && !((analysis.abilities || []).concat(analysis.manaAbilities || []).some(ab => ab && ab.kind !== 'triggered' && ab.kind !== 'static' && ab.cost && ab.cost.tap))) return false;
     // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
@@ -10980,6 +11003,9 @@
     // Inga and Esika: "if three or more mana from creatures was spent to cast it" (manaFromCreatures)
     [/^(\w+) or more mana from creatures was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[2]), fromCreatures: true } : null)],
+    // Smaug, Wicked Worm: "if mana from a Treasure was spent to cast it" (manaFromTreasure); Shadow's "from an artifact"
+    [/^mana from an? (Treasure|artifact) was spent to cast (this spell|that spell|it|CARDNAME)$/i,
+      (m) => ({ kind: 'manaSpentAtLeast', n: 1, of: spentOf(m[2]), from: m[1].toLowerCase() })],
     // Seed Spark, Rolling Spoil: "if {G} was spent to cast this spell" — one mana of that colour (manaSymbolSpent)
     [/^\{([WUBRGC])\} was spent to cast (this spell|it|CARDNAME)$/, (m) => ({ kind: 'manaSpentAtLeast', n: 1, color: m[1], of: spentOf(m[2]) })],
     // Alchemy: "this card's intensity is 3 or more"
@@ -11699,6 +11725,8 @@
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
     // Elspeth's Talent: "Whenever you activate a loyalty ability of enchanted planeswalker"
     { re: /^Whenever you activate a loyalty ability of enchanted planeswalker,? /i, event: 'youActivateAbility', extra: { loyaltyOnly: true, ofEnchanted: true } },
+    // Tyvar the Bellicose: "Whenever a mana ability of this creature resolves" (manaAbilityResolves, its amount the mana it made)
+    { re: /^Whenever a mana ability of (?:this (?:creature|permanent)|CARDNAME) resolves,? /i, event: 'manaAbilityResolves', self: true },
     // Zhur-Taa Druid, Forbidden Orchard: "Whenever you tap this creature for mana"
     { re: /^Whenever you tap (?:this (?:creature|land|artifact|permanent)|CARDNAME) for mana,? /i, event: 'tapForMana', self: true },
     // Manabarbs, Burning Earth, Vorinclex: "Whenever a player (an opponent) taps a land for mana"
@@ -14927,6 +14955,9 @@
       } else if ((m = rest.match(/ with toughness greater than (?:its|their) power$/i))) {
         // Plagon, Lord of the Beach: "each creature you control with toughness greater than its power"
         sc.toughGtPow = true; rest = rest.slice(0, m.index);
+      } else if ((m = rest.match(/ with no abilities$/i))) {
+        // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
+        sc.noAbilities = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with (?:one or more |a )?counters? on (?:it|them)$/i))) {
         sc.withAnyCounter = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with an? ([+\-0-9/a-z]+) counter on (?:it|them)$/i)) ||
@@ -16198,6 +16229,11 @@
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    // Varchild, Betrayer of Kjeldor: "Survivors your opponents control can't block, and they can't attack you or planeswalkers you control."
+    if ((mm2 = String(line).match(/^(.+?) can'?t block, and they can'?t attack you or planeswalkers you control\.?$/))) {
+      const r = both(mm2[1] + " can't block.", mm2[1] + " can't attack you or planeswalkers you control.");
+      if (r) return r;
+    }
     /* Elenda, Saint of Dusk: "As long as …, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long
        as …" — two standing rules, the second on top of the first */
     if ((mm2 = String(line).match(/^(As long as [^.]+, CARDNAME gets [^.]+\.) CARDNAME gets an additional ([+-]\d+\/[+-]\d+ as long as [^.]+\.?)$/))) {
@@ -16986,6 +17022,11 @@
       // Familiar Ground: "Each creature you control can't be blocked by more than one creature."
       { re: /^Each creature you control can'?t be blocked by more than one creature\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature' }, flag: 'oneBlocker' }, auto: true },
+      /* Ruxa, Patient Professor: "For each creature you control with no abilities, you may have that creature assign
+         its combat damage as though it weren't blocked." — a rule laid on them, not an ability of theirs (asUnblocked),
+         asked as combat damage is assigned */
+      { re: /^For each creature you control with no abilities, you may have that creature assign its combat damage as though it weren'?t blocked\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', noAbilities: true }, flag: 'asUnblocked' }, auto: true },
       { re: /^You may have (?:CARDNAME|this creature) assign its combat damage as though it weren'?t blocked\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, grant: ['Trample'] }), auto: true },
       { re: /^Creatures with power less than (?:CARDNAME'?s?|this creature'?s) power can'?t block it\.?$/i,

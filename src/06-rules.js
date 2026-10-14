@@ -1089,9 +1089,11 @@
         case 'declareBlockers': this._declareBlockersStep(); return;
         case 'firstStrikeDamage':
           if (!this._anyFirstStrike()) { this._advanceStep(); return; }
+          if (this._askAsUnblocked(true)) return;
           this._combatDamage(true); break;
         case 'combatDamage':
           if (!this.combat.attackers.length) { this._advanceStep(); return; }
+          if (this._askAsUnblocked(false)) return;
           this._combatDamage(false); break;
         /* The end of combat step: "at end of combat" happens as it begins,
            but creatures stay attacking and blocking until it ends (CR 511.3),
@@ -9175,6 +9177,11 @@
           for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
         }
       };
+      // Tyvar the Bellicose: "Whenever a mana ability of this creature resolves, … equal to the amount of mana this creature produced"
+      if (o && o.zone === 'battlefield' && fromCreature) {
+        const amount = Object.values(made).reduce((k, v) => k + (Number(v) || 0), 0);
+        this._fire('manaAbilityResolves', o.controller, { source: o, object: o, objController: o.controller, amount, playerId });
+      }
       if (ab.cost && ab.cost.tap) {
         this._extraManaOnTap(playerId, o, made);
         // Zhur-Taa Druid, Manabarbs: triggers on being tapped for mana
@@ -10483,7 +10490,31 @@
       });
     }
 
+    /* Ruxa, Patient Professor: "you may have that creature assign its combat damage as though it weren't blocked" — a
+       blocked attacker with that rule laid on it (asUnblocked), dealing damage in this step: its controller says which
+       do, as the damage is assigned (CR 510.1c). A bot has every one of them do it. True while the question waits. */
+    _askAsUnblocked(firstStrikeStep) {
+      const key = this.turn + ':' + (this.combatsThisTurn || 1) + ':' + (firstStrikeStep ? 'fs' : 'cd');
+      const ids = (this.combat.attackers || []).filter(id => {
+        const o = this.obj(id);
+        if (!o || o.zone !== 'battlefield' || o.removedFromCombat || !o.attacking || !this._hasFlag(o, 'asUnblocked')) return false;
+        if (!((o.blockedBy || []).length || o.blockedNoBlocker === this.turn)) return false;
+        const fs = this.hasKw(o, 'first strike'), ds = this.hasKw(o, 'double strike');
+        if (firstStrikeStep ? !(fs || ds) : (fs && !ds)) return false;
+        return (this._dealsByToughness(o) ? this.toughnessOf(o) : this.powerOf(o)) > 0;
+      });
+      if (!ids.length) return false;
+      const ap = this.activePlayer;
+      if (!ap || ap.isBot) { for (const id of ids) this.obj(id)._asUnblockedAt = key; return false; }
+      this.queueChoice(MTG.choice.normalize({ type: 'choose', playerId: ap.id, purpose: 'asUnblocked', kind: 'objects', items: this._chooseItems(ids.map(id => this.obj(id))),
+        min: 0, max: ids.length, key, firstStrike: !!firstStrikeStep,
+        prompt: 'Choose the creatures that assign their combat damage as though they weren\'t blocked.' }));
+      return true;
+    }
+
     _combatDamage(firstStrikeStep) {
+      // (Ruxa, Patient Professor: the ones chosen to deal their damage as though unblocked — asUnblocked)
+      const asUnblockedKey = this.turn + ':' + (this.combatsThisTurn || 1) + ':' + (firstStrikeStep ? 'fs' : 'cd');
       const assignments = [];       // {source, target, amount, deathtouch, lifelink}
       const participants = this.combat.attackers.concat(this.combat.blockers);
       for (const id of participants) {
@@ -10501,7 +10532,10 @@
 
         if (o.attacking) {
           const blockers = o.blockOrder.map(bid => this.obj(bid)).filter(b => b && b.zone === 'battlefield' && b.blocking.includes(o.id));
-          if (!blockers.length) {
+          if (o._asUnblockedAt === asUnblockedKey && this._hasFlag(o, 'asUnblocked')) {
+            const d = o.attacking;
+            assignments.push({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount: power, a });
+          } else if (!blockers.length) {
             /* A creature that was blocked stays blocked when its blockers are
                gone (CR 509.1h): it deals no combat damage, unless it has
                trample (CR 702.19e). Fencing Ace's second blow after the
@@ -11885,7 +11919,9 @@
           const x = this._spentOn(cond.of, src, ctx && ctx.triggerData);
           if (!x) return false;
           // (Inga and Esika: "mana from creatures" — manaFromCreatures)
-          const had = cond.fromCreatures ? (x.manaFromCreatures || 0) : cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
+          // (Smaug, Wicked Worm: "mana from a Treasure" — manaFromTreasure, manaFromArtifact)
+          const had = cond.from === 'treasure' ? (x.manaFromTreasure || 0) : cond.from === 'artifact' ? (x.manaFromArtifact || 0)
+            : cond.fromCreatures ? (x.manaFromCreatures || 0) : cond.color ? ((x.manaSpentBy || {})[cond.color] || 0) : (x.manaSpent || 0);
           return had >= (cond.n || 0);
         }
         // Sneak: "if this creature's sneak cost was paid" — this turn, as it came in
@@ -12925,6 +12961,39 @@
       o._chrGen = this._lbGen;
       o._chrWorld = world;
       return res;
+    }
+
+    /* Ruxa, Patient Professor: "with no abilities" — a card with none printed; a permanent with none printed nor handed
+       to it (keywords, quoted and mana abilities, keyword counters), or with every one taken away and none given since
+       (noAbilities). A rule laid on it from outside (a flag) is not an ability of its own. */
+    _hasNoAbilities(o) {
+      if (!o) return false;
+      const a = o.analysis ? o.analysis() : null;
+      if (!a) return false;
+      const printedNone = !(a.abilities || []).length && !(a.manaAbilities || []).length && !(a.keywordSet && a.keywordSet.size);
+      if (o.zone !== 'battlefield') return printedNone;
+      const busy = this._noAbBusy || (this._noAbBusy = new Set());
+      if (busy.has(o.id)) return printedNone;
+      busy.add(o.id);
+      try {
+        const lb = !this._layerBusy ? this._layerBoard(o) : null;
+        const s = lb && lb.special ? lb.st.get(o.id) : null;
+        const loseTs = s && s.lost ? s.loseTs : -Infinity;
+        if (loseTs === -Infinity && !printedNone) return false;
+        if (loseTs === -Infinity && KEYWORD_COUNTERS.some(k => Number((o.counters || {})[k]) > 0)) return false;
+        const effs = o.effects || [];
+        for (let i = 0; i < effs.length; i++) {
+          const e = effs[i];
+          if (e && ((e.keywords && e.keywords.length) || (e.grantMana && e.grantMana.length) || e.grantText || e.grantAbilities) && this._effTs(e, i) > loseTs) return false;
+        }
+        for (const entry of this._continuous()) {
+          const ef = entry.ef;
+          if (!((ef.grant && ef.grant.length) || ef.grantChosen || (ef.grantMana && ef.grantMana.length)) || (ef.scope && ef.scope.noAbilities)) continue;
+          if (entry.ts < loseTs) continue;
+          if (this._contReaches(entry, o, a, lb)) return false;
+        }
+        return true;
+      } finally { busy.delete(o.id); }
     }
 
     /** A cheap fingerprint of the state that only belongs to this permanent. */
@@ -17023,7 +17092,10 @@
             // Rootcast Apprenticeship: "Target player creates …"
             : e.who === 'target' ? (firstPlayer() || me)
             // Yes Man, Funeral Pyre: "Its owner creates …" — the card targeted, else the permanent the ability is on
-            : e.who === 'itsOwner' ? (this.player((firstObj() || src || {}).owner) || me) : me;
+            : e.who === 'itsOwner' ? (this.player((firstObj() || src || {}).owner) || me)
+            // Varchild, Betrayer of Kjeldor: "that player creates …" — the player the trigger is about
+            : e.who === 'triggerPlayer' ? (triggerPlayer() || me) : me;
+          if (e.who === 'triggerPlayer' && (!triggerPlayer() || triggerPlayer().hasLost)) break;
           // "create X tokens" makes as many as X was; "a token for each land you control", one per land
           const many = e.count ? n(e.count) * (n(e.n) || 1) : (e.countBy ? e.n : n(e.n));
           // "a token for each …" with none of them is no token (not one: _createToken reads 0 as 1)
@@ -18092,6 +18164,15 @@
         // (Emrakul, the World Anew: "gain control of all creatures target player controls" — stealAll)
         case 'stealAll':
         case 'stealAllArtifacts': {
+          // Varchild, Betrayer of Kjeldor: "gain control of all Survivors" — of every other player (words)
+          if (e.op === 'stealAll' && e.words) {
+            const tsW = this._stampNew();
+            const got = this.battlefield.filter(y => y.controller !== ctx.controller && !y.phasedOut && this._cardFitsWords(y, e.words));
+            for (const x of got) x.effects.push({ control: ctx.controller, until: null, ts: tsW });
+            this._refreshControl();
+            if (got.length) this.logEvent('control', `${me.name} gains control of ${got.map(x => x.name).join(', ')}.`);
+            break;
+          }
           const q = e.op === 'stealAll' ? firstPlayer() : triggerPlayer();
           if (!q) break;
           const what = e.what || 'artifact';
@@ -20964,9 +21045,18 @@
         // Haunted Fengraf: a card at random, from your graveyard to your hand
         case 'randomFromGraveyard': {
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          // (nothing exiled, nothing for "that card" to be)
+          if (e.to === 'exile') { this._lastExiled = null; this._lastExiledList = []; }
           // Reap the Past: as many as it says, each at random
           for (let k = nVar(e.n); k > 0 && pool.length; k--) {
             const c = pool.splice(Math.floor(this.rng.next() * pool.length), 1)[0];
+            // Tersa Lightshatter: "exile a card at random from your graveyard" (to exile)
+            if (e.to === 'exile') {
+              this.moveObject(c, 'exile');
+              this._lastExiled = c.id; this._lastExiledList = [c.id];
+              this.logEvent('exile', `${me.name} exiles ${c.name} at random from their graveyard.`);
+              continue;
+            }
             this.moveObject(c, 'hand');
             this.logEvent('zone', `${me.name} returns ${c.name} at random to their hand.`);
           }
@@ -22706,8 +22796,11 @@
         case 'grantLast': {
           /* "They gain first strike": every one of the group the sentence
              before was about, when it was about a group */
-          if (e.plural && (this._lastGroup || []).length) {
-            for (const id of this._lastGroup) {
+          // (Tyvar the Bellicose: "Whenever one or more Elves you control attack, they gain deathtouch" — the lot the trigger is about)
+          const tdG = ctx.triggerData || {};
+          const lotG = e.plural && !(this._lastGroup || []).length && tdG.batch ? (tdG.batchIds || (tdG.objectId ? [tdG.objectId] : [])) : [];
+          if (e.plural && ((this._lastGroup || []).length || lotG.length)) {
+            for (const id of (lotG.length ? lotG : this._lastGroup)) {
               const x = this.obj(id);
               if (!x || x.zone !== 'battlefield') continue;
               x.effects.push({ keywords: e.keywords, until: e.until || null });
@@ -26188,6 +26281,8 @@
       }
       if (!inLayers && sc.keyword && !this.hasKw(o, sc.keyword)) return false;
       if (!inLayers && sc.withoutKeyword && this.hasKw(o, sc.withoutKeyword)) return false;
+      // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
+      if (sc.noAbilities && !this._hasNoAbilities(o)) return false;
       if (inLayers && sc.keyword && !(oa.keywordSet && oa.keywordSet.has(sc.keyword))) return false;
       return true;
     }
@@ -27417,6 +27512,17 @@
             break;
           }
           if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
+          // Ruxa, Patient Professor: the ones that deal their damage as though unblocked, then the damage (asUnblocked)
+          if (ch.purpose === 'asUnblocked') {
+            for (const id of got.picks || []) { const x = this.obj(id); if (x) x._asUnblockedAt = ch.key; }
+            this.pendingChoice = null;
+            this._nextChoice();
+            this._combatDamage(!!ch.firstStrike);
+            this.checkStateBasedActions();
+            this._givePriority(this.activeIndex);
+            this.touch();
+            return true;
+          }
           // asked while casting: the cast starts again with the answer
           if (ch.then && ch.then.kind === 'cast') {
             const again = Object.assign({}, ch.then.opts);
@@ -28378,6 +28484,8 @@
         get x() { return game._specX; },
         // Spear of Heliod: "this turn"
         get turn() { return game.turn; },
+        // (Ruxa, Patient Professor: "with no abilities" — noAbilities)
+        noAbilities: (o) => this._hasNoAbilities(o),
       };
       return this.__specCtx;
     }
