@@ -3758,6 +3758,7 @@
         const opts = { targets: c.targets, auto: true };
         if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
         if (c.discardIds) opts.discardIds = c.discardIds;
+        if (c.exileIds) opts.exileIds = c.exileIds;
         if (c.x != null) opts.x = c.x;
         if (g.activateAbility(this.pid, c.o.id, c.index, opts)) { this._did('activate', c.o, c.label); return true; }
       }
@@ -3865,11 +3866,23 @@
         x = (best.card && best.card.cmc) || 0;
         v += 1 + this.rating(best) * 0.6;
       }
+      /* Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard: Create two tokens that
+         are copies of the exiled card." — the best one it can pay the X of (mvX) */
+      let exileIds;
+      if (cost.exile && cost.exile.mvX && x == null) {
+        const able = g._exileCostPool(this.pid, cost.exile, o)
+          .filter(c => g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + ((c.card && c.card.cmc) || 0) + '}'), sources));
+        const best = able.sort((p, q) => this.rating(q) - this.rating(p))[0];
+        if (!best) return null;
+        x = (best.card && best.card.cmc) || 0;
+        exileIds = [best.id];
+        if (flat.some(e => e.op === 'copyPermanent' && e.of === 'costExiled')) v += 1 + this.rating(best) * 0.8;
+      }
       // targets: chosen as for a spell, and an ability with nothing worth pointing at waits
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);
       if (targets === null) return null;
       if (v <= 0) return null;
-      return { o, index, targets, v, label, sacrificeIds, discardIds, x };
+      return { o, index, targets, v, label, sacrificeIds, discardIds, x, exileIds };
     }
 
     /** A permanent we could give up to a cost: the least valuable that fits. */
@@ -5153,6 +5166,7 @@
       const opts = { targets: c.targets, auto: true };
       if (c.sacrificeIds) opts.sacrificeIds = c.sacrificeIds;
       if (c.discardIds) opts.discardIds = c.discardIds;
+      if (c.exileIds) opts.exileIds = c.exileIds;
       if (c.x != null) opts.x = c.x;
       return opts;
     }

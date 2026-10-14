@@ -1396,7 +1396,9 @@
         // "gain control of target creature until end of turn" ends here
         const back = o.effects.find(e => e.untilControl && e.until === 'eot');
         if (back && back.prevController != null && this.player(back.prevController)) {
+          const from = o.controller;
           o.controller = back.prevController;
+          this._controlTaken(o, from, o.controller);
           this.bumpBoard();
         }
         o.effects = o.effects.filter(e => e.until !== 'eot');
@@ -8167,7 +8169,11 @@
       // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
       const accWas = this._spentAcc;
       this._spentAcc = {};
+      this._costExiledNow = null;
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
+      // Osgir, the Reconstructor: "the exiled card" — the one exiled to pay (costExiled)
+      const costExiled = this._costExiledNow;
+      this._costExiledNow = null;
       const fromTreasure = this._spentAcc.treasure || 0;
       this._spentAcc = accWas;
       if (!payOk) return false;
@@ -8230,6 +8236,7 @@
         x: opts.x || 0,
       };
       if (fromTreasure) item.manaFromTreasure = fromTreasure;
+      if (costExiled && costExiled.length) item.costExiled = costExiled;
       // Toralf's Hammer: the Equipment that handed this ability out (unattachGranter, bounceGranter)
       if (ab.grantedBy) item.grantedBy = ab.grantedBy;
       this.stack.push(item);
@@ -8361,6 +8368,9 @@
           candidates: this._exiledWithPool(self, c.processWith.filter).map(x => x.id) });
         if (c.exileHand) out.push({ kind: 'exileHand', label: 'Exile ' + this._aCard(c.exileHand.filter, 'card') + ' from your hand', key: 'exileIds', need: 1,
           candidates: this._exileHandPool(pid, c.exileHand, self).map(x => x.id) });
+        // Osgir, the Reconstructor: which card with mana value X (mvX: the table shows those of the X paid)
+        if (c.exile && c.exile.what === 'graveyard' && c.exile.mvX) out.push({ kind: 'exileGraveyard', label: `Exile ${this._aCard(c.exile.filter, 'card')} with mana value X from your graveyard`,
+          key: 'exileIds', need: 1, mvX: true, candidates: this._exileCostPool(pid, c.exile, self).map(x => x.id) });
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
@@ -8752,7 +8762,9 @@
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && !cost.exile.viaAbility) {
         const need = this._costCount(cost.exile.n, opts);
-        if (this._exileCostPool(pid, cost.exile, self).length < need) return 'Not enough cards in your graveyard.';
+        // Osgir, the Reconstructor: "with mana value X" — the X paid, once it is known (mvX)
+        const pool = this._exileCostPool(pid, cost.exile, self).filter(c => !cost.exile.mvX || !opts || opts.x == null || ((c.card && c.card.cmc) || 0) === opts.x);
+        if (pool.length < need) return cost.exile.mvX ? `No ${cost.exile.filter} card with mana value ${opts && opts.x != null ? opts.x : 'X'} in your graveyard.` : 'Not enough cards in your graveyard.';
       }
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
@@ -9333,10 +9345,17 @@
           if (!top) return this.fail('Your library is empty.');
           this.moveObject(top, 'exile');
         } else {
-          const yard = ((this.zones[playerId] || {}).graveyard || [])
+          let yard = ((this.zones[playerId] || {}).graveyard || [])
             .filter(c => c.id !== o.id && (ex.filter === 'card' || this._matchesFilter(c, ex.filter)));
+          // Osgir, the Reconstructor: "with mana value X" — the X paid; the card the player named first (mvX)
+          if (ex.mvX) {
+            yard = yard.filter(c => ((c.card && c.card.cmc) || 0) === ((opts && opts.x) || 0));
+            const named = ((opts && opts.exileIds) || []).map(id => yard.find(c => c.id === id)).filter(Boolean);
+            yard = named.concat(yard.filter(c => !named.includes(c)));
+          }
           const want = ex.n || 1;
-          if (yard.length < want) return this.fail(`Not enough ${ex.filter === 'card' ? 'cards' : ex.filter + ' cards'} in your graveyard.`);
+          if (yard.length < want) return this.fail(`Not enough ${ex.filter === 'card' ? 'cards' : ex.filter + ' cards'}${ex.mvX ? ' with mana value ' + ((opts && opts.x) || 0) : ''} in your graveyard.`);
+          this._costExiledNow = yard.slice(0, want).map(c => c.id);
           for (const c of yard.slice(0, want)) this.moveObject(c, 'exile');
           this.logEvent('rules', `${this.player(playerId).name} exiles ${want} card${want === 1 ? '' : 's'} from their graveyard.`);
         }
@@ -11616,6 +11635,7 @@
           o._chr = null;
           changed = true;
           if (from != null) this._lostControl(o, from);
+          if (from != null) this._controlTaken(o, from, to);
           if (who == null && from != null) this.logEvent('control', `${o.name} goes back to ${(this.player(to) || {}).name || to}.`);
         }
       }
@@ -11646,6 +11666,20 @@
     }
     /* Khârn the Betrayer: "When you lose control of Khârn" — another player gained it (_refreshControl) or it left
        the battlefield (moveObject); the one who had it controls the trigger */
+    /* Zidane, Tantalus Thief: "Whenever an opponent gains control of a permanent from you" — its own going counts too,
+       the permanent that has the ability looking back to who controlled it (oppGainsControlFromYou) */
+    _controlTaken(o, from, to) {
+      const fp = this.player(from);
+      if (!fp || fp.hasLost || to == null || to === from || !this.opponentsOf(from).some(q => q.id === to)) return;
+      this._fire('oppGainsControlFromYou', from, { object: o, player: to });
+      const a = o.analysis();
+      (a ? a.abilities : []).forEach((ab, i) => {
+        if (ab.kind !== 'triggered' || ab.event !== 'oppGainsControlFromYou' || o.controller === from) return;
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: i, controller: from,
+          name: `${o.name} \u2014 ${truncate(MTG.oracle.abilityLabel(ab, o), 50)}`, effects: ab.effects, auto: !!ab.auto,
+          abilityText: MTG.oracle.abilityLabel(ab, o), optional: ab.optional, triggerData: { event: 'oppGainsControlFromYou', player: to, objectId: o.id } });
+      });
+    }
     _lostControl(o, from) {
       const a = (o.zone !== 'battlefield' && o._lkiAnalysis) || o.analysis();
       if (!a || !this.player(from) || this.player(from).hasLost) return;
@@ -15969,6 +16003,11 @@
           return;
         }
         if (e2.scope === 'lastTarget') { const x = firstObj(); if (x) fn(x); return; }
+        // Arthur, Marigold Knight: "that creature" — the one just put onto the battlefield from among them (takenOntoBf)
+        if (e2.scope === 'takenOntoBf') {
+          for (const id of (this._takenOntoBf || []).slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
+          return;
+        }
         // "put a stun counter on each of them": every object target
         if (e2.scope === 'eachTarget') {
           for (const t of targets) { const x = t.kind === 'object' && this.obj(t.id); if (x && x.zone === 'battlefield') fn(x); }
@@ -19411,6 +19450,29 @@
           this.emit('sfx', 'blink');
           break;
         }
+        /* Fortune, Loyal Steed: "exile it and up to one creature that saddled it this turn, then return those cards to
+           the battlefield under their owner's control" — it, while it is still the one that attacked (sinceTs), and
+           the one picked, out together and back together */
+        case 'blinkSaddled': {
+          const it = src && src.zone === 'battlefield' && (e.sinceTs == null || src.ts === e.sinceTs) ? src : null;
+          const sb = src && src.saddledBy && src.saddledBy.turn === this.turn ? src.saddledBy.ids : [];
+          const pool = sb.map(id => this.obj(id)).filter(x => x && x !== it && x.zone === 'battlefield' && this.characteristics(x).isCreature);
+          let pick = null;
+          if (pool.length) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'blinkSaddled', kind: 'objects', items: this._chooseItems(pool),
+              min: 0, max: 1, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}exile up to one creature that saddled it this turn and return it to the battlefield.` }, 'blinkSaddled');
+            if (got === SUSPEND) return SUSPEND;
+            pick = pool.find(x => ((got && got.picks) || []).includes(x.id)) || null;
+          }
+          const list = [it, pick].filter(Boolean);
+          for (const x of list) this.moveObject(x, 'exile');
+          for (const x of list) {
+            const back = this.obj(x.id) || x;
+            if (back.zone === 'exile') this.moveObject(back, 'battlefield', { controller: back.owner || back.controller });
+          }
+          if (list.length) this.logEvent('blink', `${list.map(x => x.name).join(' and ')} ${list.length > 1 ? 'flicker' : 'flickers'} out and return.`);
+          break;
+        }
         case 'drain': {
           const amt = n(e.n);
           const who = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller);
@@ -20542,6 +20604,8 @@
           if (e.of === 'sacrificed') { const s0 = ((ctx.sacrificed || this._lastSacrificed || [])[0]) || null; source = s0 ? this.obj(s0.id) : null; }
           // Grub, Notorious Auntie: "a copy of the blighted creature" — the one the counters just went on (copyBlighted)
           if (e.of === 'blighted') source = this._lastBlighted ? this.obj(this._lastBlighted) : null;
+          // Osgir, the Reconstructor: "copies of the exiled card" — the card exiled to pay, while it is still in exile (costExiled)
+          if (e.of === 'costExiled') { const c0 = this.obj((ctx.costExiled || [])[0]); source = c0 && c0.zone === 'exile' ? c0 : null; if (!source) break; }
           // God-Pharaoh's Gift: "exile a creature card from your graveyard. If you do, create a token that's a copy of that card"
           if (!source && e.scope === 'lastTarget') {
             // (Anikthea, Hand of Erebos: only a card exiled as this resolves — nowOnly)
@@ -26700,9 +26764,11 @@
             if (picked === SUSPEND) return SUSPEND;
             to = this.player(((picked || [])[0] || {}).id) || to;
           } else if (opps.length > 1) to = opps.slice().sort((x, y) => x.life - y.life)[0];
+          const was = src.controller;
           src.controller = to.id;
           src._chr = null; this.bumpBoard();
           this.logEvent('rules', `${to.name} gains control of ${src.name}.`);
+          this._controlTaken(src, was, to.id);
           break;
         }
         /* Valakut Awakening: any number of cards to the bottom, then that many plus one */

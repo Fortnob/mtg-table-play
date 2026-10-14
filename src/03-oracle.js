@@ -350,6 +350,9 @@
         }
         else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s*([-a-z' ]*?)\s*cards? from your graveyard$/i)))
           ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
+        // Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard" — X the one paid (mvX)
+        else if ((m = what.match(/^(?:a|an) ([a-z]+) card with mana value X from your graveyard$/i)))
+          ex = { what: 'graveyard', n: 1, filter: m[1].toLowerCase(), mvX: true };
         else if (/^the top card of your library$/i.test(what)) ex = { what: 'libraryTop', n: 1 };
         if (ex) { cost.exile = ex; continue; }
         // Jhoira of the Ghitu: "Exile a nonland card from your hand" — the player's pick (exileHand)
@@ -3599,6 +3602,11 @@
     // Reap the Past: "Return two cards at random from your graveyard to your hand."
     { re: /^Return (two|three|four|X|\d+) ([a-z ]*?)cards at random from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'randomFromGraveyard', filter: m[2].trim() || 'card', n: num(m[1]) }) },
+    /* Fortune, Loyal Steed: "at end of combat, exile it and up to one creature that saddled it this turn, then return
+       those cards to the battlefield under their owner's control." (blinkSaddled) */
+    { re: /^at end of combat, exile (?:it|CARDNAME) and up to one creature that saddled it this turn, then return those cards to the battlefield under their owner'?s'? control\.?$/i,
+      make: () => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Exile it and a creature that saddled it, then return them',
+        effects: [{ op: 'blinkSaddled', sinceNow: true }] }) },
     // Clockwork Dragon: "remove a +1/+1 counter from it at end of combat"
     { re: /^Remove an? ([+\-]\d+\/[+\-]\d+) counter from (?:it|CARDNAME|this creature) at end of combat\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'endOfCombat', subject: 'self', name: 'Remove a counter at end of combat',
@@ -6963,6 +6971,9 @@
     // Adagia, Windswept Bastion: "Create a token that's a copy of target artifact or enchantment you control, except it's legendary."
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s legendary\.?$/i,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown ? { op: 'copyPermanent', n: 1, grant: [], addLegendary: true, targets: [spec] } : null; } },
+    // Osgir, the Reconstructor: "Create two tokens that are copies of the exiled card." — the card exiled to pay (costExiled)
+    { re: /^Create (two|three|a) tokens? that'?s? (?:are )?(?:a )?cop(?:y|ies) of the exiled card\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', n: /^a$/i.test(m[1]) ? 1 : num(m[1].toLowerCase()), grant: [], of: 'costExiled' }) },
     // Feldon of the Third Path: "…a copy of target creature card in your graveyard, except it's an artifact in addition to its other types."
     { re: /^Create a token that'?s a copy of target (creature|artifact|permanent|creature or artifact) card in your graveyard(?:, except it'?s an? (artifact|enchantment) in addition to its other types)?\.?$/i,
       make: (m) => Object.assign({ op: 'copyPermanent', n: 1, grant: [],
@@ -13050,6 +13061,8 @@
        could not read leave the line for a person) */
     { re: /^When(?:ever)? you (?:cast|play) (?:a|an) spell(?:,| )/i, event: 'youCastSpell' },
     { re: /^When(?:ever)? an opponent casts a spell(?:,| )/i, event: 'opponentCastSpell' },
+    // Zidane, Tantalus Thief: "Whenever an opponent gains control of a permanent from you,"
+    { re: /^Whenever an opponent gains control of a permanent from you,? /i, event: 'oppGainsControlFromYou' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
     // The Watcher in the Water: "Whenever you draw a card during an opponent's turn" (drawOppTurn)
     { re: /^Whenever you draw a card during an opponent'?s turn,? /i, event: 'youDraw', extra: { notYourTurnOnly: true } },
@@ -15336,6 +15349,11 @@
       if (!ab.auto || !JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       // Unstable Mutation: "the upkeep of enchanted creature's controller, put a -1/-1 counter on that creature"
       if (ab.enchantedController) for (const x of (ab.effects || [])) if (x.op === 'counters' && x.scope === 'triggerObject') x.scope = 'attached';
+      /* Arthur, Marigold Knight: "You may put a creature card from among them onto the battlefield tapped and
+         attacking. … Return that creature to its owner's hand at end of combat." — the one put there (takenOntoBf) */
+      const put = (ab.effects || []).findIndex(x => x && x.op === 'takeFromLooked' && x.to === 'battlefield');
+      if (put >= 0) for (const x of ab.effects.slice(put + 1)) if (x && /^(?:bounce|destroy)AtEndOfCombat$/.test(x.op) && x.scope === 'triggerObject') x.scope = 'takenOntoBf';
+      if (!JSON.stringify(ab.effects || []).includes('"triggerObject"')) continue;
       if (ab.kind === 'triggered' && !ab.self) continue;
       // a creature's own trigger about another creature: the one it dealt damage to, the one it exploited
       // (Speedway Fanatic: the Vehicle it crewed)
@@ -18742,6 +18760,9 @@
       // Titania, Nature's Force: "You may play Forests from your graveyard."
       { re: /^(During your turn, )?[Yy]ou may play (Plains|Islands|Swamps|Mountains|Forests) from your graveyard\.?$/,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', filter: m[2].replace(/s$/, '').replace(/^Plain$/, 'Plains').toLowerCase(), duringYourTurn: !!m[1] }), auto: true },
+      // Hazezon, Shaper of Sand: "You may play Desert lands from your graveyard."
+      { re: /^You may play ([A-Z][a-z]+) lands from your graveyard\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', filter: m[1].toLowerCase() }), auto: true },
       { re: /^(During your turn, )?you may play lands from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       // Crystal Skull: "You may play historic lands and cast historic spells"; Traveling Chocobo: "play lands and cast Bird spells"

@@ -213,6 +213,8 @@ declare namespace MTG {
     /** forage: the Foods that could be sacrificed instead, answered in `foodKey` (forageFoodId) */
     foods?: Id[];
     foodKey?: string;
+    /** Osgir, the Reconstructor: only the candidates with mana value X, the X paid */
+    mvX?: boolean;
     /** remove a counter: the option naming which kind (counterKind) */
     kindKey?: string;
     [k: string]: any;

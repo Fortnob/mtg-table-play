@@ -161,10 +161,10 @@ const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt
   candidates: opt(arr(id)), max: opt(nat),
   /* a cost the table would otherwise pick (evidence, forage, reveal, behold…): the opts key the
      answer goes in, how many (or 'X'), and forage's Foods and their key */
-  key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str) });
+  key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool) });
 /* The same offer for one activated ability of a permanent, by the index activateAbility takes. */
 const CostPick = obj({ index: nat, kind: str, label: str, key: str, candidates: arr(id),
-  need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str) });
+  need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool) });
 
 /* ---- questions ---- */
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });

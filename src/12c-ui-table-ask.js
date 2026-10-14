@@ -1557,7 +1557,9 @@
             askKind(chosen[0]);
           });
         }
-        const ids = r.kind === 'forage' && !(r.candidates || []).length ? (r.foods || []) : (r.candidates || []);
+        // (Osgir, the Reconstructor: only the cards with mana value X, the X paid — mvX)
+        const ids = (r.kind === 'forage' && !(r.candidates || []).length ? (r.foods || []) : (r.candidates || []))
+          .filter(id => !r.mvX || (((this.objIn(id) || {}).card || {}).cmc || 0) === (x || 0));
         const key = r.kind === 'forage' && !(r.candidates || []).length ? (r.foodKey || 'forageFoodId') : r.key;
         const need = r.need === 'X' ? x : (Number(r.need) || 1);
         const byValue = r.kind === 'evidence';
