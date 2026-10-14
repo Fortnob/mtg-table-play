@@ -13565,7 +13565,7 @@
       if (busy.has(o.id)) return null;
       const top = !busy.size;
       // (an ability handed to one of them changes its effects, not the board)
-      let sig = this._boardKey + ':' + (this._lbGen || 0);
+      let sig = this._boardKey + ':' + (this._lbGen || 0) + ':' + (o.chosenExiled || '');
       for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
       if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
       busy.add(o.id);
@@ -13580,7 +13580,15 @@
           seen.add(k);
           list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor }));
         };
-        for (const x of this.battlefield) {
+        /* Koh, the Face Stealer: "all activated and triggered abilities of the last chosen card" — a card in exile,
+           still the one chosen (chosenCard) */
+        const chosen = spec.chosenCard && o.chosenExiled ? this.obj(o.chosenExiled) : null;
+        if (chosen && chosen.zone === 'exile') {
+          const ca = chosen.analysis();
+          for (const ab of ((ca && ca.abilities) || [])) if (ab.kind === 'activated' || ab.kind === 'triggered') take(acts, ab);
+          for (const ab of this.manaAbilitiesOf(chosen)) take(mana, ab);
+        }
+        for (const x of (spec.chosenCard ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
           if (spec.who === 'opponents' ? !opp.has(x.controller) : x.controller !== o.controller) continue;
           const xa = x.analysis();
@@ -13608,6 +13616,16 @@
         for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
           const parts = ef.op === 'sequence' ? (ef.list || []) : [ef];
           for (const x of parts) if (x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
+        }
+        /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '…'"" — a
+           standing line it was given hands out its ability too */
+        for (const ge of (src.effects || [])) {
+          if (!ge || !ge.grantText || !/\bha(?:ve|s) "/.test(ge.grantText)) continue;
+          const ga = O.analyze({ id: 'granted:' + U.hash(ge.grantText), name: src.name, type_line: (src.card && src.card.type_line) || 'Enchantment',
+            oracle_text: ge.grantText, keywords: [], layout: 'token' });
+          for (const ab of ((ga && ga.abilities) || [])) for (const x of (ab.effects || [])) {
+            if (x && x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
+          }
         }
       }
       this._grantCache = list;
@@ -14537,6 +14555,7 @@
         o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
+        o.chosenExiled = null;           // Koh, the Face Stealer: "the last chosen card" was chosen by the old object
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         o.leaveExile = false;
         if (vanishes) this.emit('object:gone', o);
@@ -15296,6 +15315,7 @@
           }
           // Sidisi: "put into your graveyard from your library"
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
+          if (ab.notFromBattlefield && data.fromZone === 'battlefield') continue;
           // Crawling Infestation: "during your turn"
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
@@ -22316,6 +22336,23 @@
           if (x) { this.moveObject(x, 'hand'); this.logEvent('zone', `${me.name} returns ${x.name} to its owner's hand.`); }
           break;
         }
+        /* Koh, the Face Stealer: "Choose a creature card exiled with Koh." — the last chosen is the one whose
+           abilities it has (chosenExiled) */
+        case 'chooseExiledWith': {
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = this._exiledWithPool(src, e.words || 'card');
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'chooseExiledWith', kind: 'objects', zone: 'exile', items: this._chooseItems(pool),
+            min: 1, max: 1, prompt: `Choose ${this._aCard(e.words || 'card')} exiled with ${src.name}.` }, 'cxw');
+          if (got === SUSPEND) return SUSPEND;
+          const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x));
+          if (!c) break;
+          src.chosenExiled = c.id;
+          src._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${me.name} chooses ${c.name} for ${src.name}.`);
+          break;
+        }
         // Hedge Shredder: the land cards that went to the graveyard together come back
         case 'batchToBattlefield': {
           const td = ctx.triggerData || {};
@@ -29308,9 +29345,11 @@
       (this.player(controller) || {}).tokensMadeTurn = this.turn;
       const card = {
         id: 'token:' + e.token + (e.def ? ':' + U.hash(d.type + d.text) : ''), name: e.token, layout: 'token', mana_cost: '', cmc: 0,
-        type_line: d.type, oracle_text: d.text, colors: [], color_identity: [], keywords: [],
+        type_line: d.type, oracle_text: d.text, colors: (d.colors || []).slice(), color_identity: (d.colors || []).slice(), keywords: [],
         rarity: 'common', set: 'tkn', set_name: 'Token', collector_number: '0', image_uris: null, _isToken: true,
       };
+      // Disa the Restless: a creature token of its own words — a Tarmogoyf, green, */1+*
+      if (d.power != null) { card.power = String(d.power); card.toughness = String(d.toughness); }
       /* Incubate (CR 701.53): an Incubator token's back face is a 0/0 colorless Phyrexian artifact creature — it
          transforms with its counters (Elesh Norn // The Argent Etchings: "transform all Incubator tokens") */
       if (e.token === 'Incubator' && !e.def) {

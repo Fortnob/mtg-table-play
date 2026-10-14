@@ -1806,6 +1806,11 @@
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '{T}: Add {R},
+       {G}, or {W}.'"" — a standing line of its own, the inner quotes made double */
+    { re: /^This (?:Saga|enchantment|artifact) gains "(.+'.+'.*)"\.?$/,
+      make: (m) => { const text = m[1].replace(/'([^']+)'/g, '"$1"');
+        return grantableText(text) ? { op: 'grantAbility', ability: text, duration: 'permanent', scope: 'self' } : null; } },
     // Olivia, Crimson Bride: "It gains '…'" — the creature the sentence before was about, for good
     { re: /^(?:It|That creature|That permanent) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'lastTarget' } : null) },
     // Jaxis, the Troublemaker: "It gains haste and "When this token dies, draw a card.""
@@ -2730,6 +2735,8 @@
     // (Desmond Miles: "surveil X, where X is …" — the where-X fills it in: surveilX)
     { re: /^Surveil X\.?$/i, make: () => ({ op: 'surveil', n: 'X' }) },
     { re: /^Mill (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'you' }) },
+    // Nashi, Searcher in the Dark: "you mill that many cards" — the damage the trigger is about
+    { re: /^(?:You )?[Mm]ill that many cards\.?$/, make: () => ({ op: 'mill', n: 'triggerAmount', who: 'you' }) },
     { re: /^(?:Then )?[Ll]earn\.?$/, make: () => ({ op: 'learn' }) },
     /* "Tap two target creatures." */
     { re: /^(Tap|Untap) (two|three|four) target ([a-z][a-z '-]*?)s\.?$/i,
@@ -2809,6 +2816,10 @@
     // Smuggler's Surprise: "You may put up to two creature and/or land cards from among the milled cards into your hand."
     { re: /^(?:Then )?(you may )?(?:put|return) up to (two|three|four) ([a-z, \/]*?)cards from among (?:the milled cards|the cards milled this way|them) (?:into|to) your hand\.?$/i,
       make: (m) => ({ op: 'takeFromMilled', n: num(m[2]), filter: m[3].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true }) },
+    // Nashi, Searcher in the Dark: "You may put any number of legendary and/or enchantment cards from among them into your hand."
+    { re: /^(?:Then )?(?:you may )?(?:put|return) any number of ([a-z, \/]*?)cards from among (?:the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
+      make: (m) => { const f = m[1].replace(/ and\/or /g, ' or ').trim() || 'any';
+        return { op: 'takeFromMilled', n: 1000, filter: f, optional: true, prompt: `Choose any number of ${m[1].trim() ? m[1].trim() + ' ' : ''}cards to put into your hand.` }; } },
     // The Grand Evolution: "Put up to two creature cards from among the milled cards onto the battlefield." (takeFromMilled to the battlefield)
     { re: /^(?:Then )?(?:you may )?put up to (one|two|three|four) ([a-z, \/]*?)cards? from among (?:the milled cards|the cards milled this way) onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true, to: 'battlefield',
@@ -6534,6 +6545,14 @@
       make: (m) => ({ op: 'mayPlayExiled', castOnly: true, duration: 'eot', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[(m[1] || m[2]).toLowerCase()] }) },
     // Hedge Shredder: "put them onto the battlefield tapped" — the cards the trigger was about
     { re: /^Put them onto the battlefield( tapped)?(?: under your control)?\.?$/i, make: (m) => ({ op: 'batchToBattlefield', tapped: !!m[1], filter: 'land' }) },
+    /* Disa the Restless: "create a Tarmogoyf token" — a green Lhurgoyf, as big as the card types among cards in all
+       graveyards (namedTokenDef) */
+    { re: /^Create a Tarmogoyf token\.?$/i,
+      make: () => ({ op: 'createNamedToken', n: 1, token: 'Tarmogoyf', def: { type: 'Token Creature — Lhurgoyf', colors: ['G'], power: '*', toughness: '1+*',
+        text: "Tarmogoyf's power is equal to the number of card types among cards in all graveyards and its toughness is equal to that number plus 1." } }) },
+    // Koh, the Face Stealer: "Choose a creature card exiled with Koh." (chooseExiledWith)
+    { re: /^Choose an? (creature|artifact|enchantment|land|instant|sorcery|planeswalker)? ?card exiled with (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => ({ op: 'chooseExiledWith', words: (m[1] || 'card').toLowerCase() }) },
     // Twenty-Toed Toad: "you win the game if there are twenty or more counters on it or …"
     { re: /^You win the game if (.+?)\.?$/i, make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'winGame' }] } : null; } },
     { re: /^You lose the game\.?$/i, make: () => ({ op: 'loseGame' }) },
@@ -11211,9 +11230,11 @@
       }
 
       // "You may pay 2 life. If you don't, it enters tapped."
-      const ifDont = next.match(/^If you don'?t,?\s*(.+)$/i);
+      // (Nashi, Searcher in the Dark: "If you put no cards into your hand this way, …" — read as "if you don't" of a pick from the milled cards)
+      const noneWay = /^If you put no cards into your hand this way\b/i.test(next);
+      const ifDont = next.match(/^(?:If you don'?t|If you put no cards into your hand this way),?\s*(.+)$/i);
       if (may && ifDont) {
-        const cost = asCost(may[1]);
+        const cost = noneWay ? null : asCost(may[1]);
         const elseText = U.titleCase(ifDont[1].charAt(0)) + ifDont[1].slice(1);
         const elsePart = parseSentenceList(splitSentences(elseText));
         if (cost) {
@@ -11226,7 +11247,7 @@
            hand. If you don't, put a +1/+1 counter on this creature." */
         {
           // "from among them" right after a mill is the milled cards
-          const mayText = /\bmills? \w+ cards?\.?$/i.test(sentences[i - 1] || '') ? may[1].replace(/from among them\b/i, 'from among the milled cards') : may[1];
+          const mayText = /\bmills? (?:that many|\w+) cards?\.?$/i.test(sentences[i - 1] || '') ? may[1].replace(/from among them\b/i, 'from among the milled cards') : may[1];
           const inner = parseSentenceList(splitSentences(U.titleCase(mayText.charAt(0)) + mayText.slice(1) + '.'));
           if (inner.auto && inner.effects.length === 1 && inner.effects[0].op === 'takeFromMilled') {
             effects.push(Object.assign({}, inner.effects[0], { optional: true, otherwise: elsePart.effects, text: s + ' ' + next }));
@@ -11238,7 +11259,7 @@
         /* Hakbal of the Surging Soul: "you may put a land card from your hand
            onto the battlefield. If you don't, draw a card." — none in hand
            is a land not put, too */
-        if (/^put a land card from your hand onto the battlefield$/i.test(may[1])) {
+        if (!noneWay && /^put a land card from your hand onto the battlefield$/i.test(may[1])) {
           effects.push({ op: 'landFromHand', n: 1, optional: true, otherwise: elsePart.effects, text: s + ' ' + next });
           if (!elsePart.auto) auto = false;
           i++;
@@ -13313,9 +13334,11 @@
     /* The Gitrog Monster: "Whenever one or more land cards are put into your
        graveyard from anywhere"; Vulturous Zombie: "a card … into an
        opponent's graveyard"; Sidisi: "from your library" */
-    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your|a|an opponent'?s) graveyard from (anywhere|your library)( during your turn)?,? /i,
+    // (Disa the Restless: "from anywhere other than the battlefield" — notFromBattlefield)
+    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your|a|an opponent'?s) graveyard from (anywhere other than the battlefield|anywhere|your library)( during your turn)?,? /i,
       event: 'cardToGraveyardAny',
       extraOf: (m) => Object.assign({}, /one or more/i.test(m[1]) ? { batch: true } : {}, /library/i.test(m[4]) ? { fromLibraryOnly: true } : {},
+        /other than/i.test(m[4]) ? { notFromBattlefield: true } : {},
         m[5] ? { yourTurnOnly: true } : {}),
       filt: (m) => {
         const words = m[2].trim();
@@ -14511,7 +14534,8 @@
            taken: a "no" leaves it there for a later trigger the same turn
            (Emet-Selch of the Third Seat: mayOncePerTurn) */
         let doOnce = false;
-        if (/^you may .*\. Do this only once each turn\.?$/i.test(body)) {
+        // (Legolas, Counter of Kills: "if Legolas is tapped, you may untap it. Do this only once each turn." — past an intervening "if")
+        if (/^(?:if [^,]+, )?you may .*\. Do this only once each turn\.?$/i.test(body)) {
           doOnce = true;
           body = body.replace(/\s*Do this only once each turn\.?$/i, '');
         }
@@ -14538,6 +14562,11 @@
         const optional = !linked && !mayFirst && /^you may /i.test(body);
         const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
         if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
+        // Disa the Restless: "… card is put into your graveyard from …, put it onto the battlefield" — that card
+        if (trig.event === 'cardToGraveyardAny' && /^put it onto the battlefield\.?$/i.test(body.trim())) {
+          parsed.effects = [{ op: 'batchToBattlefield', filter: 'permanent', text: 'Put it onto the battlefield.' }];
+          parsed.auto = true;
+        }
         // the pair the "if" clause names is the pair that melds (meldPair)
         const meldPair = [].concat(condition || []).find(c => c && c.kind === 'meldPair');
         if (meldPair) {
@@ -18043,6 +18072,9 @@
       { re: /^(?:CARDNAME|This creature) has all activated abilities of (?:all )?(legendary )?creatures (you|your opponents) control( that don'?t have the same name as (?:this creature|CARDNAME))?\.( You may spend mana as though it were mana of any colou?r to activate those abilities\.)?$/i,
         make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
           m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
+      /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
+         chosen with its own ability, while it is still in exile (borrowChosen) */
+      { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the last chosen card\.?$/i, eff: { op: 'borrowActivated', chosenCard: true }, auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^(?:CARDNAME|This creature) can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
       /* Shalai: "You, planeswalkers you control, and other creatures you control have hexproof." */

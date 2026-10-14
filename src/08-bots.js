@@ -1595,6 +1595,12 @@
         .sort((a, b) => this.permanentValue(b) - this.permanentValue(a));
       return { picks: theirs.length ? [theirs[0].id] : [] };
     },
+    /* Koh, the Face Stealer: the abilities worth having are the best card's */
+    chooseExiledWith(s) {
+      const g = this.game;
+      const cards = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => this.rating(b) - this.rating(a));
+      return cards.length ? { picks: [cards[0].id] } : null;
+    },
     /* Scapeshift: every land goes, to come back as the ones the deck wants */
     sacrificeAnyNumber(s) {
       // Scapeshift: every land; anything else (Pitiless Carnage): only tokens
@@ -3884,6 +3890,14 @@
         if (ewX.op === 'becomeExiledWithCopy' && (parseInt((best.analysis() || {}).power, 10) || 0) <= g.powerOf(o)) return null;
         x = (best.card && best.card.cmc) || 0;
         v += 1 + this.rating(best) * 0.6;
+      }
+      // Koh, the Face Stealer: "Choose a creature card exiled with Koh." — only for a better card than the one chosen
+      const cxw = flat.find(e => e.op === 'chooseExiledWith');
+      if (cxw) {
+        const best = g._exiledWithPool(o, cxw.words).sort((p, q) => this.rating(q) - this.rating(p))[0];
+        const cur = o.chosenExiled && g.obj(o.chosenExiled);
+        if (!best || (cur && cur.zone === 'exile' && this.rating(cur) >= this.rating(best))) return null;
+        v += 1 + this.rating(best) * 0.3;
       }
       /* Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard: Create two tokens that
          are copies of the exiled card." — the best one it can pay the X of (mvX) */
