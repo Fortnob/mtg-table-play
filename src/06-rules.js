@@ -3419,6 +3419,7 @@
       }
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
       if (leave && leave.srcId && leave.oncePerKind) this._usePlayFromKind(leave.srcId, 'land');
+      if (leave && leave.srcId && leave.reflexEffects) this._playFromReflex(leave);
       // Muldrotha, the Gravetide: this turn's land from the graveyard
       if (leave && leave.srcId && leave.perType) this._usePlayFromType(leave.srcId, 'land');
       if (back) o.face = 1;
@@ -5409,6 +5410,14 @@
       if (!s._playFromKinds || s._playFromKinds.turn !== this.turn) s._playFromKinds = { turn: this.turn, land: false, spell: false };
       s._playFromKinds[kind] = true;
     }
+    /** The Fourth Doctor: "When you do, create a Food token." — a reflexive trigger as the leave is used (reflexEffects). */
+    _playFromReflex(leave) {
+      const s = this.obj(leave.srcId);
+      if (!s || s.zone !== 'battlefield') return;
+      this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: s, objId: s.id, controller: s.controller,
+        name: `${s.name} — ${truncate(leave.reflexText || '', 50)}`, effects: JSON.parse(JSON.stringify(leave.reflexEffects)),
+        auto: true, abilityText: leave.reflexText || '', optional: false, triggerData: { event: 'reflexive' } });
+    }
 
     /**
      * Encore (CR 702.140): pay, exile the card from your graveyard, and
@@ -6895,6 +6904,7 @@
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
           if (lv.oncePerKind) this._usePlayFromKind(lv.srcId, 'spell');
+          if (lv.reflexEffects) this._playFromReflex(lv);
           if (lv.exileAfter) o._exileFromStack = true;
           // Edgar, Master Machinist: "that artifact enters tapped" (enterTapped)
           if (lv.enterTapped) o._enterTappedCast = true;
@@ -8894,6 +8904,8 @@
       if (only.when === 'upkeep' && this.step !== 'upkeep') return 'Only during upkeep.';
       // "only during your turn": any time in it; "only during combat"; "only during your upkeep"
       if (only.when === 'yourTurn' && !(this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your turn.';
+      // Lavinia, Foil to Conspiracy: "Activate only during an opponent's turn."
+      if (only.when === 'opponentTurn' && !(this.activePlayer && this.activePlayer.id !== playerId)) return "Only during an opponent's turn.";
       if (only.when === 'combat' && !(this.phase && this.phase.id === 'combat')) return 'Only during combat.';
       if (only.when === 'yourUpkeep' && !(this.step === 'upkeep' && this.activePlayer && this.activePlayer.id === playerId)) return 'Only during your upkeep.';
       if (only.when === 'endstep' && this.step !== 'end') return 'Only during the end step.';
@@ -10167,6 +10179,8 @@
       /* A mana ability a level band has not handed over yet is not a
          source the auto-tapper may reach for. */
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) return false;
+      // Lavinia, Foil to Conspiracy: "Activate only during an opponent's turn." — nor reached for outside it
+      if (ab && ab.only && this._activationBlocked(o, ab, playerId)) return false;
       if ((c.other || []).length) return false;
       // choosing which other permanent to give up is the player's call
       if (c.sacrifice || c.discard || c.exile || c.removeCounters || c.exileOwn || c.exileHand) return false;
@@ -11473,7 +11487,7 @@
           got = this.dealDamageToObject(t, as.amount, as.source, true) || 0;
           // Hunter's Insight: combat damage to a planeswalker, told apart from damage to a player
           if (got > 0 && as.source && (t.analysis() || {}).isPlaneswalker)
-            this._fire('creatureCombatDamageWalker', as.source.controller, { source: as.source, object: as.source, amount: got, walker: t });
+            this._fire('creatureCombatDamageWalker', as.source.controller, { source: as.source, object: as.source, amount: got, walker: t, victimId: t.id });
         }
         if (got > 0 && this.hasKw(as.source, 'lifelink')) this.changeLife(as.source.controller, got, 'lifelink');
         as.dealt = got;
@@ -14203,8 +14217,9 @@
       this._lifelinkFrom(source, amount, isCombat);
       // Ghyrson Starn, Kelermorph: a source of yours dealt damage to a permanent (a planeswalker or battle too)
       if (source && source.controller != null) this._fire('yourSourceDealsDamage', source.controller, { object: source, amount, combat: !!isCombat, victimId: o.id });
-      if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return; }
-      if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return; }
+      // (what was dealt, for combat's lifelink and Zagras, Thief of Heartbeats' "deals combat damage to a planeswalker")
+      if (a && a.isPlaneswalker) { this.addCounters(o, 'loyalty', -amount); this.logEvent('damage', `${o.name} loses ${amount} loyalty.`); return amount; }
+      if (a && a.isBattle) { this.addCounters(o, 'defense', -amount); return amount; }
       // wither and infect (CR 702.80, 702.90): damage to a creature is -1/-1 counters
       // (Everlasting Torment: all damage as though its source had wither)
       if ((source && (this.hasKw(source, 'wither') || this.hasKw(source, 'infect'))) || this._anyStatic('witherAll')) this.addCounters(o, '-1/-1', amount, source ? { by: source.controller } : undefined);
@@ -16595,6 +16610,12 @@
          targets. Gone from the battlefield, it is not there to act on. */
       if (e.scope === 'triggerObject' && TRIGGER_OBJECT_OPS.has(e.op)) {
         const id = (ctx.triggerData || {}).objectId;
+        const x = id && this.obj(id);
+        targets = x && x.zone === 'battlefield' ? [{ kind: 'object', id }] : [];
+      }
+      // Zagras, Thief of Heartbeats: "destroy that planeswalker" — what the trigger's source dealt damage to (triggerVictim)
+      if (e.scope === 'triggerVictim' && TRIGGER_OBJECT_OPS.has(e.op)) {
+        const id = (ctx.triggerData || {}).victimId;
         const x = id && this.obj(id);
         targets = x && x.zone === 'battlefield' ? [{ kind: 'object', id }] : [];
       }
@@ -21268,6 +21289,8 @@
             this.logEvent('rules', `${me.name} chooses: ${picks.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
             break;
           }
+          // Bumi, King of Three Trials: "choose up to X" — with X at 0, there is nothing to choose (upToX)
+          if (e.upToX && !(n(e.count) > 0)) { this.logEvent('rules', `${ctx.name || 'Effect'}: X is 0, no modes are chosen.`); break; }
           let want = Math.min(n(e.count) || 1, modes.length);
           /* "Choose one or more" (Farewell): as many as there are; "choose up
              to one" (Hullbreaker Horror): none is an answer as well */
@@ -21321,7 +21344,7 @@
             min: least !== want ? least : undefined, max: most !== want ? most : undefined,
             repeatable: !!e.repeatable,
             options: usable.map(i => ({ i, label: truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90) })),
-            prompt: e.prompt || `Choose ${want === 1 ? 'one' : want}.` });
+            prompt: e.prompt || `Choose ${e.upToX ? 'up to ' : ''}${want === 1 ? 'one' : want}.` });
           if (picked === SUSPEND) return SUSPEND;
           const order = (picked || []).slice(0, e.repeatable ? want : most);
           let chosen = (order.length || (least === 0 && Array.isArray(picked)) ? order : usable.slice(0, want));
@@ -25939,6 +25962,8 @@
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             // Yennett, Cryptic Sovereign: "if its mana value is odd" (mvOdd)
             if (e.mvOdd && ((c.card && c.card.cmc) || 0) % 2 !== 1) continue;
+            // Rashmi and Ragavan: "if it's a spell with mana value less than the number of artifacts you control" (belowMv)
+            if (e.belowMv != null && !(((c.card && c.card.cmc) || 0) < n(e.belowMv))) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
@@ -25984,6 +26009,13 @@
           if (e.elseHand) for (const id of pool) { const c = this.obj(id); if (c && (c.zone === 'library' || (e.from === 'thatCard' && c.zone === 'exile'))) this.moveObject(c, 'hand'); }
           // Yennett, Cryptic Sovereign: "If you don't cast it, draw a card." (elseDraw)
           if (e.elseDraw && !(r ? r.marks[slot + 'n'] : castHere)) this._drawCards(me, e.elseDraw);
+          // Rashmi and Ragavan: "If you don't cast it this way, you may cast it this turn." — paying for it (elseMayCast)
+          if (e.elseMayCast) for (const id of pool) {
+            const c = this.obj(id);
+            if (!c || c.zone !== 'exile' || (c.analysis() || {}).isLand) continue;
+            c.impulseBy = ctx.controller; c.impulseUntil = this.turn; c.impulseCastOnly = true;
+            this.logEvent('rules', `${me.name} may cast ${c.name} this turn.`);
+          }
           break;
         }
 

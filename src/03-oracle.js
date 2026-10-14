@@ -2927,6 +2927,8 @@
        sorcery), "only during combat", "only during your upkeep" */
     { re: /^Activate (?:this ability )?only during (your turn|combat|your upkeep)\.?$/i,
       make: (m) => ({ op: 'activateOnly', when: /turn/i.test(m[1]) ? 'yourTurn' : /combat/i.test(m[1]) ? 'combat' : 'yourUpkeep' }) },
+    // Lavinia, Foil to Conspiracy: "Activate only during an opponent's turn."
+    { re: /^Activate (?:this ability )?only during an opponent'?s turn\.?$/i, make: () => ({ op: 'activateOnly', when: 'opponentTurn' }) },
     // Desert: "Activate only during the end of combat step."
     { re: /^Activate (?:this ability )?only during the end of combat step\.?$/i, make: () => ({ op: 'activateOnly', when: 'endCombat' }) },
     // Trap Runner: "Activate only during combat after blockers are declared."
@@ -6828,6 +6830,8 @@
     { re: /^(?:CARDNAME|This creature) deals (\d+) damage to itself\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toSelf2: true }) },
     // Abomination: "destroy that creature at end of combat"
     { re: /^Destroy that creature at end of combat\.?$/i, make: () => ({ op: 'destroyAtEndOfCombat', scope: 'triggerObject' }) },
+    // Zagras, Thief of Heartbeats: "… deals combat damage to a planeswalker, destroy that planeswalker" — the one hit (triggerVictim)
+    { re: /^Destroy that planeswalker\.?$/i, make: () => ({ op: 'destroy', scope: 'triggerVictim' }) },
     // Wall of Tears, Aether Membrane: "Return that creature to its owner's hand at end of combat."
     { re: /^Return that creature to its owner'?s hand at end of combat\.?$/i, make: () => ({ op: 'bounceAtEndOfCombat', scope: 'triggerObject' }) },
     // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
@@ -9425,6 +9429,17 @@
        put there from their library this turn. Put it onto the battlefield under your control." (fromLibThisTurn) */
     { re: /^Choose target ([a-z ]+?) card in an opponent'?s graveyard that was put there from their library this turn\. Put it onto the battlefield under your control\.?$/i,
       make: (m) => [{ op: 'reanimate', mine: true, targets: [Object.assign(targetSpec('target ' + m[1].toLowerCase(), 'graveyard'), { controller: 'opponent', fromLibThisTurn: true })] }] },
+    /* Rashmi and Ragavan: "exile the top card of target opponent's library and create a Treasure token. Then you may
+       cast the exiled card without paying its mana cost if it's a spell with mana value less than the number of
+       artifacts you control. If you don't cast it this way, you may cast it this turn." (castFree belowMv, elseMayCast) */
+    { re: /^Exile the top card of target opponent'?s library and create an? (Treasure|Clue|Food) token\. Then you may cast the exiled card without paying its mana cost if it'?s a spell with mana value less than (.+?)\. If you don'?t cast it this way, you may cast it this turn\.?$/i,
+      make: (m) => {
+        const k = amountOf(m[2]);
+        if (k == null) return null;
+        return [{ op: 'exileTop', who: 'target', n: 1, targets: [{ type: 'player', opponent: true }] },
+          { op: 'createNamedToken', token: m[1], n: 1 },
+          { op: 'castFree', upTo: 1, belowMv: k, elseMayCast: true }];
+      } },
     /* Ghost of Ramirez DePietro: "choose up to one target card in a graveyard that was discarded or put there
        from a library this turn. Put that card into its owner's hand." (discardedOrLibThisTurn) */
     { re: /^Choose up to one target card in a graveyard that was discarded or put there from a library this turn\. Put that card into its owner'?s hand\.?$/i,
@@ -10720,6 +10735,16 @@
       if (inner) inner.effects[0].notChosen = nc[1] ? 'turn' : 'ever';
       return inner;
     }
+    /* Bumi, King of Three Trials: "choose up to X, where X is the number of Lesson cards in your graveyard \u2014" \u2014
+       as many as that comes to as it resolves, none at all an answer too (upToX) */
+    const ux = cleaned.match(/^Choose up to X, where X is ([^\u2014]+?)\s*[-\u2014]+\s*([\s\S]*)$/i);
+    if (ux) {
+      const k = amountOf(ux[1]);
+      const inner = k != null && parseModal('Choose one \u2014 ' + ux[2]);
+      if (!inner) return null;
+      Object.assign(inner.effects[inner.effects.length - 1], { count: k, min: 0, upToX: true });
+      return inner;
+    }
     const m = cleaned.match(/^Choose ([a-z ]+?)(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
     if (!m) return null;
     const word = m[1].trim().toLowerCase().replace(/^(one|two|three|four) or more$/, '$1 or more');
@@ -12013,8 +12038,9 @@
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
+      // (The Fourth Doctor: "Would You Like A...? — Once each turn, …")
       // (Banon, the Returners' Leader: "Pray — Once during each of your turns, …"; Wolverine, Best There Is: "Unrivaled Lethality — Double all damage …")
-      (/^(?:When|Whenever|At the|As long as|If |Once during |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |Double |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
+      (/^(?:When|Whenever|At the|As long as|If |Once during |Once each turn, |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |Double |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -13289,6 +13315,8 @@
     // Alela, Wavebreak Hippocamp: "your first spell during each opponent's turn" — not on your own turn
     // (Blightwing Bandit: "that player" is the opponent whose turn it is — thatPlayerActive)
     { re: /^When(?:ever)? you cast your first spell during each opponent'?s turn(?:,| )/i, event: 'firstSpellEachTurn', extra: { notYourTurnOnly: true, thatPlayerActive: true } },
+    // Rashmi and Ragavan: "Whenever you cast your first spell during each of your turns," — not on an opponent's
+    { re: /^When(?:ever)? you cast your first spell during each of your turns(?:,| )/i, event: 'firstSpellEachTurn', extra: { yourTurnOnly: true } },
     // Scrap Trawler: "Whenever this creature dies or another artifact you control is put into a graveyard from the battlefield"
     { re: /^Whenever (?:this creature|CARDNAME) dies or (another [a-z ]+? you control) is put into a graveyard from the battlefield,? /i,
       event: 'permDies', filt: (m) => subjectFilter('this creature or ' + m[1]) },
@@ -13952,6 +13980,8 @@
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to a player(?:,| )/i, event: 'combatDamageToPlayer', self: true },
     { re: /^Whenever (?:a|another) creature you control deals combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
     { re: /^Whenever one or more creatures you control deal combat damage to a player(?:,| )/i, event: 'yourCreatureCombatDamage' },
+    // Zagras, Thief of Heartbeats: "Whenever a creature you control deals combat damage to a planeswalker," (creatureCombatDamageWalker)
+    { re: /^Whenever a creature you control deals combat damage to a planeswalker,? /i, event: 'creatureCombatDamageWalker' },
     /* Ketramose, the New Dawn: "Whenever one or more cards are put into exile from graveyards and/or the battlefield during
        your turn," — anybody's cards, one trigger for the lot (cardExiledGyBf) */
     { re: /^Whenever one or more cards are put into exile from graveyards and\/or the battlefield( during your turn)?,? /i,
@@ -19899,6 +19929,15 @@
       { re: /^(During your turn, )?you may play ((?:[a-z]+ )?)lands and cast ((?:[A-Za-z]+ )?)spells from the top of your library\.?$/i,
         make: (m) => (m[2] || m[3]) ? { op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
           landFilter: (m[2] || '').trim().toLowerCase() || null, spellFilter: (m[3] || '').trim().toLowerCase() || null } : null, auto: true },
+      /* The Fourth Doctor: "Once each turn, you may play a historic land or cast a historic spell from the top of
+         your library. When you do, create a Food token." — one leave a turn, and a reflexive trigger as it is used */
+      { re: /^Once each turn, you may play an? ([a-z]+) land or cast an? ([a-z]+) spell from the top of your library\.(?: When you do, (.+?))?$/i,
+        make: (m) => {
+          const e = { op: 'playFrom', zone: 'top', what: 'any', oncePerTurn: true, landFilter: m[1].toLowerCase(), spellFilter: m[2].toLowerCase() };
+          if (!m[3]) return e;
+          const r = parseSentenceList(splitSentences(m[3].charAt(0).toUpperCase() + m[3].slice(1)));
+          return r.auto ? Object.assign(e, { reflexEffects: r.effects, reflexText: 'When you do, ' + m[3] }) : null;
+        }, auto: true },
       // Glarb, Calamity's Augur: "play lands and cast spells with mana value 4 or greater from the top of your library"
       { re: /^You may play lands and cast spells with mana value (\d+) or greater from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', spellMinMv: +m[1] }), auto: true },
