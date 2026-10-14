@@ -2867,6 +2867,8 @@
         effects: [{ op: 'ninjaIn', defender }], auto: true, targets: [] };
       this.stack.push(item);
       this.logEvent('ability', `${this.player(pid).name} returns ${back.name} and activates ninjutsu.`);
+      // an activated ability like any other (Satoru Umezawa: "Whenever you activate a ninjutsu ability")
+      this._fire('youActivateAbility', pid, { object: ninja, objController: pid, stackId: item.id, loyalty: false, playerId: pid, label: 'ninjutsu' });
       this.emit('stack:add', item);
       this._resetPriority();
     }
@@ -4666,6 +4668,19 @@
            itself rather than dying with it. */
         if (o.zone === 'hand' && arg && k === 'bestow') {
           out.push({ kind: 'cast', via: 'bestow', cost: arg, aura: true, label: 'Bestow ' + arg });
+        }
+      }
+      /* Satoru Umezawa: "Each creature card in your hand has ninjutsu {2}{U}{B}." — one more way in, beside its own;
+         as they do the same, only the cheapest is offered (Silent-Blade Oni's own is {6}{U}{B}) */
+      if (o.zone === 'hand' && o.owner === playerId && a.isCreature) {
+        for (const x of this.battlefield) {
+          if (x.controller !== playerId || x.phasedOut) continue;
+          const g0 = this._staticOp(x, 'grantHandNinjutsu');
+          if (!g0) continue;
+          const own = out.findIndex(u => u.via === 'ninjutsu');
+          const use = { kind: 'cast', via: 'ninjutsu', cost: g0.cost, label: 'Ninjutsu ' + g0.cost };
+          if (own < 0) out.push(use);
+          else if (MANA.cmc(g0.cost) < MANA.cmc(out[own].cost)) out[own] = use;
         }
       }
       /* Underworld Breach: every nonland card in your graveyard has escape */

@@ -29795,4 +29795,47 @@ module.exports = (test) => {
     M.mana('A', 'R');
     t.no(g.castSpell('A', late.id, { auto: true, via: 'free', targets: [{ kind: 'player', id: 'B' }] }), 'Ral, Leyline Prodigy: only this turn');
   });
+
+  test('Commanders: Satoru Umezawa — creature cards in hand have ninjutsu {2}{U}{B}; the first ninjutsu each turn digs one of three', (mk, t) => {
+    t.auto('Satoru Umezawa');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Satoru Umezawa');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const elf = M.bf('A', 'Llanowar Elves');
+    const craw = M.hand('A', 'Craw Wurm');
+    const oni = M.hand('A', 'Silent-Blade Oni');
+    // B's creature cards don't have it
+    const bHand = M.hand('B', 'Hill Giant');
+    t.no(g.altUsesFor('B', bHand.id).some(u => u.via === 'ninjutsu'), "Satoru: not B's cards");
+    t.no(g.altUsesFor('A', M.hand('A', 'Lightning Bolt').id).some(u => u.via === 'ninjutsu'), 'Satoru: not a noncreature card');
+    // Silent-Blade Oni's own ninjutsu is {6}{U}{B}: the cheaper one offered
+    const ou = g.altUsesFor('A', oni.id).filter(u => u.via === 'ninjutsu');
+    t.eq(ou.length, 1);
+    t.eq(ou[0].cost, '{2}{U}{B}', 'Satoru: the cheaper ninjutsu');
+    // attack with both; unblocked: ninjutsu the Craw Wurm in for the Grizzly Bears
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: elf.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    M.mana('A', '2UB');
+    t.ok(g.playableNow('A').some(p => p.objId === craw.id && p.via === 'ninjutsu'), 'Satoru: offered');
+    const top3 = [M.top('A', 'Opt'), M.top('A', 'Divination'), M.top('A', 'Lightning Bolt')];
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch; return { cardIds: [top3[1].id] }; });
+    t.ok(g.castSpell('A', craw.id, { via: 'ninjutsu', auto: true, returnId: bear.id }), g.lastError);
+    M.resolve();
+    t.zone(bear, 'hand', 'Satoru: the attacker home');
+    t.zone(craw, 'battlefield');
+    t.ok(craw.tapped && craw.attacking === 'B', 'Satoru: tapped and attacking');
+    t.ok(offered && offered.cards.length === 3, 'Satoru: the top three');
+    t.zone(top3[1], 'hand', 'Satoru: Divination into the hand');
+    const lib = g.zones.A.library;
+    t.ok(lib.indexOf(top3[0]) >= lib.length - 2 && lib.indexOf(top3[2]) >= lib.length - 2, 'Satoru: the rest on the bottom');
+    // a second ninjutsu this turn: no second look
+    const a0 = M.asked.length;
+    M.mana('A', '2UB');
+    t.ok(g.castSpell('A', oni.id, { via: 'ninjutsu', auto: true, returnId: elf.id }), g.lastError);
+    M.resolve();
+    t.zone(oni, 'battlefield');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard' && (ch.cards || []).length === 3), 'Satoru: only once each turn');
+  });
 };

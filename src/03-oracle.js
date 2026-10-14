@@ -10999,6 +10999,8 @@
        Illusionist's Bracers: an ability activated (one that uses the stack) */
     // Rangers' Refueler, Adrenaline Jockey: "Whenever you activate an exhaust ability (that isn't a mana ability)"
     { re: /^Whenever you activate an exhaust ability(?: that isn'?t a mana ability)?,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'exhaust' } },
+    // Satoru Umezawa: "Whenever you activate a ninjutsu ability" (commander ninjutsu is one too)
+    { re: /^Whenever you activate a ninjutsu ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'ninjutsu' } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -16262,6 +16264,8 @@
         eff: { op: 'triggerDouble', cause: 'castInstantSorcery' }, auto: true },
       // Ground Seal: "Cards in graveyards can't be the targets of spells or abilities."
       { re: /^Cards in graveyards can'?t be the targets of spells or abilities\.?$/i, eff: { op: 'graveyardUntargetable' }, auto: true },
+      // Satoru Umezawa: "Each creature card in your hand has ninjutsu {2}{U}{B}." (grantHandNinjutsu)
+      { re: /^Each creature card in your hand has ninjutsu ((?:\{[^}]+\})+)\.?$/i, make: (m) => ({ op: 'grantHandNinjutsu', cost: m[1] }), auto: true },
       // Mana Vortex, Drop of Honey: "When there are no lands on the battlefield, sacrifice this enchantment."
       { re: /^When there are no ([a-z]+)s? on the battlefield, sacrifice (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME)\.?$/i,
         make: (m) => ({ op: 'sacWhenNoneAtAll', what: m[1].toLowerCase() }), auto: true },
