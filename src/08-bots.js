@@ -1555,6 +1555,11 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Marina Vendrell: unlock a shut door (its words and its trigger) rather than lock an open one */
+    roomDoor(s) {
+      const i = (s.options || []).findIndex(o => o && o.unlock);
+      return { picks: [i < 0 ? 0 : i] };
+    },
     /* Sleight of Mind, Mind Bend: the word its text uses most is the one worth changing */
     textFrom(s) {
       const i = (s.options || []).findIndex(o => o && o.present);

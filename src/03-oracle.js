@@ -4530,9 +4530,13 @@
           m[7] ? { rest: /graveyard/i.test(m[7]) ? 'graveyard' : 'bottomRandom' } : {},
           /^target/i.test(m[4]) ? { targets: [{ type: 'player', opponent: true }] } : {});
       } },
+    // Marina Vendrell: "Lock or unlock a door of target Room you control." (lockOrUnlockDoor)
+    { re: /^Lock or unlock a door of target Room you control\.?$/i,
+      make: () => ({ op: 'lockOrUnlockDoor', targets: [targetSpec('target Room you control')] }) },
     // Muxus, Goblin Grandee: "Put all Goblin creature cards with mana value 5 or less from among them onto the battlefield …" — every one (takeAll)
-    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/,
-      make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: 'battlefield', rest: 'bottomRandom' }) },
+    // (Marina Vendrell: "Put all enchantment cards from among them into your hand and the rest …")
+    { re: /^Put all ([-A-Za-z' ]+?) cards (?:with mana value (\d+) or less )?from among them (onto the battlefield|into your hand) and the rest on the bottom of your library in a random order\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', all: true, n: 99, filter: m[1].trim().toLowerCase(), maxMv: m[2] ? +m[2] : null, to: /hand/.test(m[3]) ? 'hand' : 'battlefield', rest: 'bottomRandom' }) },
     // (Gishath, Sun's Avatar: "Put any number of Dinosaur creature cards from among them onto the battlefield and the rest …")
     { re: /^Put (?:up to )?(a|one|two|three|\d+|any number of) ([-a-z' ]*?)cards? (?:with (?:mana value|converted mana cost) (\d+) or less )?from among them onto the battlefield and the rest on the bottom of your library in a random order\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
@@ -12654,6 +12658,8 @@
     { re: /^Whenever you activate an exhaust ability(?: that isn'?t a mana ability)?,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'exhaust' } },
     // Satoru Umezawa: "Whenever you activate a ninjutsu ability" (commander ninjutsu is one too)
     { re: /^Whenever you activate a ninjutsu ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'ninjutsu' } },
+    // Ertha Jo, Frontier Mentor: "Whenever you activate an ability that targets a creature or player" (abTargetsCreatureOrPlayer)
+    { re: /^Whenever you activate an ability that targets a creature or player,? /i, event: 'youActivateAbility', extra: { abTargetsCreatureOrPlayer: true } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     { re: /^Whenever you activate an ability of an? (artifact|creature|artifact or creature|planeswalker)(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },
@@ -13456,6 +13462,10 @@
       extraOf: (m) => ({ minAmount: +m[1] }) },
     /* Ghyrson Starn, Kelermorph: "Whenever another source you control deals exactly 1 damage to a permanent or player"
        — each time, to each one (exactAmount) */
+    /* Imodane, the Pyrohammer: "Whenever an instant or sorcery spell you control that targets only a single creature
+       deals damage to that creature" (spellToItsOneCreature) */
+    { re: /^Whenever an instant or sorcery spell you control that targets only a single creature deals damage to that creature,? /i,
+      event: 'yourSourceDealsDamage', extra: { spellToItsOneCreature: true } },
     { re: /^When(?:ever)? another source you control deals exactly (\d+) damage to a permanent or player,? /i, event: 'yourSourceDealsDamage',
       extraOf: (m) => ({ exactAmount: +m[1], notSelf: true }) },
     /* The Red Terror: "Whenever a red source you control deals damage to one or more permanents and/or players" — once
@@ -14573,6 +14583,16 @@
          may search your library for the partner, reveal it and take it */
       if (/^Partner\s*(?:\u2014|-)\s*(?:Friends forever|Character select|Survivors)$/i.test(line)) {
         out.keywords.push({ keyword: 'Partner', arg: null, text: line });
+        autoLines++;
+        continue;
+      }
+      /* God-Eternal Kefnet: "You may reveal the first card you draw each turn as you draw it. Whenever you reveal an
+         instant or sorcery card this way, copy that card and you may cast the copy. That copy costs {2} less to cast."
+         — a trigger on the first card drawn each turn; revealed only to be copied, so one question (castCopy drawn) */
+      const kef = line.match(/^You may reveal the first card you draw each turn as you draw it\. Whenever you reveal an instant or sorcery card this way, copy that card and you may cast the copy\. That copy costs \{(\d+)\} less to cast\.?$/i);
+      if (kef) {
+        out.abilities.push({ kind: 'triggered', event: 'youDraw', drawNth: 1, self: false, optional: false, condition: null, text: line,
+          effects: [{ op: 'castCopy', of: 'drawn', words: 'instant or sorcery', pay: true, less: +kef[1], reveal: true }], auto: true });
         autoLines++;
         continue;
       }

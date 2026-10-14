@@ -15235,6 +15235,26 @@
             if (!((myAll && (spTypes.length || spAll)) || (spAll && mine.length) || mine.some(x => spTypes.includes(x)))) continue;
           }
           // Secrets of the Dead: "a spell from your graveyard"
+          // Ertha Jo, Frontier Mentor: "an ability that targets a creature or player" — as it was activated (abTargetsCreatureOrPlayer)
+          if (ab.abTargetsCreatureOrPlayer) {
+            const it = data.stackId && this.stack.find(st => st.id === data.stackId);
+            if (!it || !(it.targets || []).some(x => x && (x.kind === 'player' ? !!this.player(x.id)
+              : x.kind === 'object' && (this.obj(x.id) || {}).zone === 'battlefield' && this.characteristics(this.obj(x.id)).isCreature))) continue;
+          }
+          /* Imodane, the Pyrohammer: "an instant or sorcery spell you control that targets only a single creature deals
+             damage to that creature" — every target of the spell that one creature (spellToItsOneCreature) */
+          if (ab.spellToItsOneCreature) {
+            const sp = data.object;
+            // (the spell resolving is off the stack, and is what is resolving)
+            const rc = this.resolving && this.resolving.ctx;
+            const it = sp && sp.zone === 'stack' && (this.stack.find(st => st.objId === sp.id && st.kind === 'spell') ||
+              (rc && rc.objId === sp.id && rc.kind === 'spell' ? rc : null));
+            const spa = sp && sp.analysis();
+            const tg = (it && it.targets) || [];
+            const vic = data.victimId && this.obj(data.victimId);
+            if (!it || !spa || !(spa.isInstant || spa.isSorcery) || !tg.length || !tg.every(x => x && x.kind === 'object' && x.id === data.victimId) ||
+                !vic || !this.characteristics(vic).isCreature) continue;
+          }
           // (Neerdiv, Devious Diver: "or activate an ability of a card in your graveyard" — where it was as it was activated)
           if (ab.fromGraveyardOnly && !((data.spell && data.spell.fromZone === 'graveyard') || (event === 'youActivateAbility' && data.fromZone === 'graveyard'))) continue;
           // Melek, Izzet Paragon: "an instant or sorcery spell from your library"
@@ -18568,6 +18588,25 @@
         }
 
         /* "…copy that spell." — the one whose casting set this off. */
+        /* Marina Vendrell: "Lock or unlock a door of target Room you control." — one of the two doors, either way;
+           unlocking is unlocking (its "when you unlock this door"), locking triggers nothing (CR 709.5) */
+        case 'lockOrUnlockDoor': {
+          const o = firstObj();
+          if (!o || o.zone !== 'battlefield' || !(O.analyze(o.card, 0) || {}).isRoom || (o.card.card_faces || []).length < 2) break;
+          const open = (d) => o.face === 2 || o.face === d;
+          const options = [0, 1].map(d => ({ label: `${open(d) ? 'Lock' : 'Unlock'} ${o.card.card_faces[d].name}`, door: d, unlock: !open(d) }));
+          const got = this._choose({ playerId: ctx.controller, purpose: 'roomDoor', kind: 'options', options, min: 1, max: 1, compact: true,
+            prompt: `Lock or unlock a door of ${o.name}.` }, 'roomDoor');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = options[((got && got.picks) || [0])[0]] || options[0];
+          if (pick.unlock) { this._unlockDoor(o, pick.door); break; }
+          // locked: the other door alone stays open, or neither (face 3)
+          o.face = o.face === 2 ? 1 - pick.door : 3;
+          o._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${me.name} locks ${o.card.card_faces[pick.door].name}.`);
+          break;
+        }
         /* Neera, Wild Mage: "you may put it on the bottom of its owner's library. If you do, …" — the spell the trigger is
            about, while it is still a card on the stack; not asked otherwise */
         case 'spellToLibrary': {
@@ -25283,8 +25322,9 @@
         case 'castCopy': {
           // (Jacob Frye: "If you do, copy it" — only a card this very resolution exiled: fromRes)
           const recent = e.fromRes ? (this._resExiled || []) : this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
-          let c = this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
-          if ((!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
+          // God-Eternal Kefnet: the card the trigger is about, the first one drawn this turn — wherever it went since (drawn)
+          let c = e.of === 'drawn' ? this.obj((ctx.triggerData || {}).objectId) : this.obj(recent[recent.length - 1] || (e.fromRes ? null : this._lastExiled));
+          if (e.of !== 'drawn' && (!c || c.zone !== 'exile') && e.of === 'exiled' && src) {
             const kept = this.players.flatMap(pl => (this.zones[pl.id] || {}).exile || []).filter(x => x.exiledBy === src.id);
             c = kept[kept.length - 1] || null;
             // Panoptic Mirror: "a card exiled with this artifact" — which one, if there are several
@@ -25298,9 +25338,15 @@
           if (!c || !c.card) break;
           const ca = c.analysis();
           if (!ca || ca.isLand) break;
+          // (God-Eternal Kefnet: "Whenever you reveal an instant or sorcery card this way" — words)
+          if (e.words && !this._cardFitsWords(c, e.words)) break;
+          /* (Kefnet: "That copy costs {2} less to cast" — off what it would cost, taxes and all: less) */
+          const lessCost = e.pay && e.less ? this._addGeneric(this.castCost(c, {}) || '', -e.less) : null;
           // (Kaervek, the Punisher: paying its mana cost — pay; not offered when it can't be paid for)
-          if (e.pay && !this.couldPay(ctx.controller, (c.card && c.card.mana_cost) || '', this.manaSources(ctx.controller))) break;
-          const yes =this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast a copy of ${c.name}${e.pay ? ', paying its mana cost' : ' without paying its mana cost'}?` }, 'ccopy');
+          if (e.pay && !this.couldPay(ctx.controller, lessCost != null ? lessCost : ((c.card && c.card.mana_cost) || ''), this.manaSources(ctx.controller))) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+            prompt: e.reveal ? `Reveal ${c.name} and cast a copy of it${lessCost != null ? ` for ${lessCost || '{0}'}` : ''}?`
+              : `Cast a copy of ${c.name}${e.pay ? ', paying its mana cost' : ' without paying its mana cost'}?` }, 'ccopy');
           if (yes === SUSPEND) return SUSPEND;
           if (yes === false) break;
           const tg = this._askSpellTargets(ctx.controller, c, 'ccopyT');
@@ -25310,7 +25356,9 @@
           dup.isCopy = true;
           if (ca.isPermanent) dup.isToken = true;
           this.zones[ctx.controller].exile.push(dup);
-          const ok = this.castSpell(ctx.controller, dup.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
+          if (e.reveal) this.logEvent('reveal', `${me.name} reveals ${c.name}.`);
+          const ok = this.castSpell(ctx.controller, dup.id, Object.assign(e.pay ? {} : { free: true }, lessCost != null ? { costOverride: lessCost } : {},
+            { alternative: 'resolution', targets: tg, auto: true }));
           const st = this.stack.find(x => x.objId === dup.id);
           if (ok && st) {
             st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`);
