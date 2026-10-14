@@ -815,7 +815,10 @@
           if (e.op === 'damage' && e.fromTrigger) { if (targeted && /^That creature\b/i.test(e.text || '')) parsed.auto = false; }
           /* Galuf's Final Act: "put a number of +1/+1 counters equal to its power on up to one target
              creature" — an "its" said before the effect's own target is still the dying creature (itsBeforeTarget) */
-          else if (!(own && !targeted && /\bequal to its [a-z ]+? on (?:up to one )?(?:other |another )?target\b/i.test(e.text || '')))
+          /* (Breeches, the Blastmaker: "deals damage equal to that spell's mana value to any target" — "that spell"
+             is the one the trigger is about, never a target) */
+          else if (!(own && !targeted && /\bequal to its [a-z ]+? on (?:up to one )?(?:other |another )?target\b/i.test(e.text || '')) &&
+            !/\bthat spell'?s\b/i.test(e.text || ''))
             for (const k of ['n', 'p', 't']) if (e[k] && e[k].ofTrigger) e[k] = prior(e[k]);
         }
         if (own) targeted = true;
@@ -2134,7 +2137,8 @@
         return Object.assign({}, e, { who: 'opponents' });
       } },
     // Astarion, the Decadent: "Target opponent loses life equal to the amount of life they lost this turn." (targetPlayerStat)
-    { re: /^Target (opponent|player) loses life equal to the amount of life they(?:'ve)? lost this turn\.?$/i,
+    // (Blitzwing, Cruel Tormentor: "target opponent loses life equal to the life that player lost this turn")
+    { re: /^Target (opponent|player) loses life equal to the (?:amount of life they(?:'ve)?|life that player) lost this turn\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'target', n: { targetPlayerStat: 'lifeLostThisTurn', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Villainous Wrath: "Target opponent loses life equal to the number of creatures they control."
     { re: /^Target (opponent|player) loses life equal to the number of ([a-z]+?)s they control\.?$/i,
@@ -2206,6 +2210,10 @@
        damage dealt." — the token just made (thatToken), all the lot dealt that player */
     { re: /^Put (?:a number of|X) (\+1\/\+1) counters on it(?: equal to|, where X is) the damage dealt\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1], n: 'triggerAmount', scope: 'self' }) },
+    // Nalia de'Arnise: "put a +1/+1 counter on each creature you control and those creatures gain deathtouch until end of turn"
+    { re: /^Put an? (\+1\/\+1) counter on each creature you control and those creatures gain ([a-z ]+?) until end of turn\.?$/i,
+      make: (m) => [{ op: 'counters', kind: m[1], n: 1, targets: null, scope: 'yourCreatures' },
+        { op: 'grantKeyword', duration: 'eot', keywords: m[2].split(/,? and |, /).map(k => k.trim().charAt(0).toUpperCase() + k.trim().slice(1)), scope: 'yourCreatures' }] },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -2664,6 +2672,9 @@
     // (Slicer, Hired Muscle; Blaster, Combat DJ: "convert it" — always itself)
     { re: /^(you may )?convert (?:CARDNAME|this (?:creature|artifact|Vehicle|permanent)|~|it)\.?$/i,
       make: (m) => (m[1] ? { op: 'may', then: [{ op: 'transformSelf' }] } : { op: 'transformSelf' }) },
+    // Blitzwing, Cruel Tormentor: "If no life is lost this way, convert Blitzwing." (noLifeLostThisWay)
+    { re: /^If no life is lost this way, (?:convert|transform) (?:CARDNAME|it)\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'noLifeLostThisWay' }, then: [{ op: 'transformSelf' }] }) },
     { re: /^Shuffle (?:CARDNAME|this card|it) into (?:its|their) owner'?s library\.?$/i,
       make: () => ({ op: 'selfToLibrary', shuffle: true }) },
     // Kogla and Yidaro: "Shuffle this card into your library from your graveyard, then draw a card."
@@ -5631,7 +5642,8 @@
       } },
     /* "If you win the flip, …" is the sentence after the flip, and belongs
        to it rather than standing on its own. */
-    { re: /^If you (win|lose) the flip, (.+)$/i,
+    // (Breeches, the Blastmaker: "When you win the flip, …" — a reflexive trigger, the same rider)
+    { re: /^(?:If|When) you (win|lose) the flip, (.+)$/i,
       make: (m) => {
         const inner = parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1)));
         if (!inner.auto || !inner.effects.length) return null;
@@ -9553,6 +9565,9 @@
         { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
           otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
         { op: 'restToBottom', random: true }] },
+    // Blitzwing, Adaptive Assailant: "choose flying or indestructible at random. Blitzwing gains that ability until end of turn." (keywordRandom)
+    { re: /^choose ([a-z]+(?: [a-z]+)?) or ([a-z]+(?: [a-z]+)?) at random\. (?:CARDNAME|It|This creature) gains that ability until end of turn\.?$/i,
+      make: (m) => [{ op: 'grantKeyword', keywords: [], keywordRandom: [m[1], m[2]].map(k => k.charAt(0).toUpperCase() + k.slice(1).toLowerCase()), duration: 'eot', targets: null, scope: 'self' }] },
     /* The Cyber-Controller: "Put all creature cards milled this way onto the battlefield face down under your control.
        They're 2/2 Cyberman artifact creatures." — every one, whoever's (all, faceDownAs) */
     { re: /^Each opponent mills (X|\w+) cards\. Put all ([a-z]+) cards milled this way onto the battlefield face down under your control\. They'?re 2\/2 ([A-Z][a-z]+) artifact creatures\.?$/i,
@@ -11770,9 +11785,13 @@
         const host = e.flipRider.of || 'flipCoin';
         let found = false;
         for (let i = out.length - 1; i >= 0 && !found; i--) {
-          if (out[i].op !== host) continue;
+          /* Breeches, the Blastmaker: "you may sacrifice an artifact. If you do, flip a coin. When you win the flip, …"
+             — the flip the "if you do" holds */
+          const inner = out[i].op !== host && Array.isArray(out[i].then) && out[i].then.length && out[i].then[out[i].then.length - 1];
+          const at = out[i].op === host ? out[i] : inner && inner.op === host ? inner : null;
+          if (!at) continue;
           const key = e.flipRider.win ? 'then' : 'otherwise';
-          out[i][key] = (out[i][key] || []).concat(e.flipRider.effects);
+          at[key] = (at[key] || []).concat(e.flipRider.effects);
           found = true;
         }
         if (!found) out.push({ op: 'manual', text: e.text || '' });
@@ -11923,6 +11942,17 @@
       const nx = k >= 0 ? res.effects[k + 1] : null;
       if (nx && nx.op === 'manual' && /^It enters tapped and attacking\.?$/i.test(String(nx.text || '').trim())) {
         res.effects[k].entersAttacking = true;
+        res.effects.splice(k + 1, 1);
+        if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
+      }
+    }
+    /* Shark Shredder, Killer Clone: "put up to one target creature card from that player's graveyard onto the
+       battlefield under your control. It enters tapped and attacking that player." (attackTriggerPlayer) */
+    if (res && res.effects) {
+      const k = res.effects.findIndex(e => e && e.op === 'reanimate');
+      const nx = k >= 0 ? res.effects[k + 1] : null;
+      if (nx && nx.op === 'manual' && /^It enters tapped and attacking that player\.?$/i.test(String(nx.text || '').trim())) {
+        Object.assign(res.effects[k], { tapped: true, attacking: true, attackTriggerPlayer: true });
         res.effects.splice(k + 1, 1);
         if (res.effects.every(e => e && e.op !== 'manual')) res.auto = true;
       }
@@ -19336,6 +19366,9 @@
         make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
           // (Melek, Izzet Paragon: "instant and sorcery spells" — either kind)
           filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ').replace(/ and /g, ' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
+      // Nalia de'Arnise: "You may cast Cleric, Rogue, Warrior, and Wizard spells from the top of your library." — any of them
+      { re: /^You may cast ((?:[A-Z][a-z]+, )+(?:and|or) [A-Z][a-z]+) spells from the top of your library\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: m[1].split(/,\s*(?:and |or )?/).map(x => x.trim().toLowerCase()).filter(Boolean).join(' or ') }), auto: true },
       // Falco Spara, Pactweaver: "… by removing a counter from a creature you control in addition to paying their other costs"
       { re: /^You may cast spells from the top of your library by removing a counter from a creature you control in addition to paying their other costs\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', removeCounterCost: true }), auto: true },

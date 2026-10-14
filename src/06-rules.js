@@ -12707,6 +12707,8 @@
           return (ha.types || []).some(t => t.toLowerCase() === cond.what);
         }
         case 'firstCombat': return (this.combatsThisTurn || 1) === 1 && this._combatTurn === this.turn;
+        // Blitzwing, Cruel Tormentor: "If no life is lost this way" — within this resolution
+        case 'noLifeLostThisWay': return !((this._lastLifeLost || 0) > 0);
         case 'levelRange': {
           if (!src) return false;
           const lv = Number(src.counters.level) || 0;
@@ -18049,6 +18051,11 @@
             const idx = Array.isArray(picked) ? picked[0] : picked;
             kws = [e.keywordChoice[idx == null ? 0 : idx] || e.keywordChoice[0]];
           }
+          // Blitzwing, Adaptive Assailant: "choose flying or indestructible at random" (keywordRandom)
+          if (e.keywordRandom && e.keywordRandom.length) {
+            kws = [e.keywordRandom[this.rng.int(e.keywordRandom.length)]];
+            this.logEvent('rules', `${ctx.name || (src && src.name) || 'It'}: ${kws[0].toLowerCase()} is chosen at random.`);
+          }
           // Prismatic Boon: "protection from the chosen color"
           if (kws.some(k => /^protection from the chosen colou?r$/i.test(k))) {
             const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[ctx.chosenColor || (src && src.chosenColor)];
@@ -19994,7 +20001,9 @@
                  during combat; never declared */
               if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
                 const by = this.obj((ctx.triggerData || {}).objectId) || src;
-                const def = (by && by.attacking) || (this.opponentsOf(x.controller)[0] || {}).id;
+                // Shark Shredder, Killer Clone: "attacking that player" — the one it dealt combat damage to (attackTriggerPlayer)
+                const tpA = e.attackTriggerPlayer && triggerPlayer();
+                const def = (tpA && !tpA.hasLost && tpA.id) || (by && by.attacking) || (this.opponentsOf(x.controller)[0] || {}).id;
                 if (def && !this.combat.attackers.includes(x.id)) { x.attacking = def; this.combat.attackers.push(x.id); }
               }
               // Persist: "with a -1/-1 counter on it"
