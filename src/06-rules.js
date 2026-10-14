@@ -2834,14 +2834,16 @@
       // "you may" on a trigger is a question asked as it resolves, not before
       // (Tergrid, God of Fright: not asked once "that card" has left the graveyard — nothing left to say yes to: sacOrDiscardAny)
       const only = (item.effects || []).length === 1 && item.effects[0];
+      const tEff = only || (item.effects || []).find(e => e && (e.targets || []).length);
       const gone = item.optional && only && only.op === 'returnTriggerCard' && only.fromGrave && (() => {
         const x = item.triggerData && item.triggerData.objectId && this.obj(item.triggerData.objectId);
         return !x || x.zone !== 'graveyard' || x.isToken;
       })() ||
         /* Halvar, God of Battle: "you may attach target …" with nothing it could target is no question at all — a
            trigger without the targets it needs does nothing (CR 603.3d) (noTargetNoMay) */
-        (item.optional && only && !(item.targets || []).length && (only.targets || []).length &&
-          (only.targets || []).some(sp => sp && !sp.upTo && !sp.multi && !sp.controllerId && sp.controller !== 'triggerPlayer' && !sp.notTriggerPlayer && !sp.defending && !sp.mvBelowTrigger &&
+        // (Admiral Brass, Unsinkable: the target in the first of several sentences — tEff)
+        (item.optional && tEff && !(item.targets || []).length && (tEff.targets || []).length &&
+          (tEff.targets || []).some(sp => sp && !sp.upTo && !sp.multi && !sp.controllerId && sp.controller !== 'triggerPlayer' && !sp.notTriggerPlayer && !sp.defending && !sp.mvBelowTrigger &&
             !this._legalTargetsFor(sp.mvEqTrigger ? this._mvEqTriggerSpec(sp, item.triggerData) : sp, item.controller, item.objId || null).length));
       // (Emet-Selch of the Third Seat: "Do this only once each turn" — a second trigger waiting on the stack finds it taken: mayOncePerTurn)
       const ab0 = item.obj && item.abilityIndex != null && item.abilityIndex >= 0 && !item.activated ? ((item.obj.analysis() || {}).abilities || [])[item.abilityIndex] : null;
@@ -19662,6 +19664,11 @@
         }
         case 'reanimate': {
           this._noteLastAffected(targets);
+          /* Rat King, Verminister: "and all other cards with the same name as that card from your graveyard" — with it (sameNameToo) */
+          if (e.sameNameToo) {
+            const first = targets.map(t => t.kind === 'object' && this.obj(t.id)).find(x => x && x.zone === 'graveyard');
+            if (first) targets = targets.concat(this.zones[ctx.controller].graveyard.filter(c => c !== first && c.name === first.name).map(c => ({ kind: 'object', id: c.id })));
+          }
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const x = this.obj(t.id);
@@ -20412,8 +20419,10 @@
           /* Combustion Man: "…unless its controller has Combustion Man deal damage to them equal to his power" — his
              power as the trigger resolves (as he last was, if he's gone); damage of 0 is no price at all (selfDamage) */
           if (e.cost && e.cost.selfDamage) {
-            const k = src ? Math.max(0, this.powerOf(src)) : 0;
             const t0 = firstObj();
+            // (Craig Boone, Novac Guard: "up to one target creature" — none chosen, nothing happens; "that much" — an amount)
+            if (!t0 && (e.targets || []).some(sp => sp && sp.upTo)) break;
+            const k = e.cost.selfDamage === 'power' ? (src ? Math.max(0, this.powerOf(src)) : 0) : Math.max(0, n(e.cost.selfDamage) || 0);
             if (k > 0) {
               const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessDamage', amount: k, objId: t0 ? t0.id : null,
                 yesLabel: `Take ${k} damage`, noLabel: "Don't",

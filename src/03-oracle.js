@@ -1664,6 +1664,14 @@
        untap Slicer, goad it, and it can't be sacrificed this turn." — whose upkeep it is */
     { re: /^Have that player gain control of CARDNAME until end of turn\.?$/i,
       make: () => ({ op: 'giveControl', to: 'triggerPlayer', self: true, until: 'eot' }) },
+    /* Rat King, Verminister: "Return target creature card and all other cards with the same name as that card from your
+       graveyard to the battlefield tapped." (sameNameToo) */
+    { re: /^Return target creature card and all other cards with the same name as that card from your graveyard to the battlefield( tapped)?\.?$/i,
+      make: (m) => ({ op: 'reanimate', sameNameToo: true, tapped: !!m[1], targets: [{ type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you' }] }) },
+    /* Admiral Brass, Unsinkable: "It has base power and toughness 4/4." — for good; after a sentence with a target,
+       that target (itRef) */
+    { re: /^It has base power and toughness (\d+)\/(\d+)\.?$/i,
+      make: (m) => [{ op: 'becomes', duration: 'permanent', eff: { setPt: { p: +m[1], t: +m[2] } }, scope: 'self', itRef: true }] },
     /* Jon Irenicus, Shattered One: "It's goaded for the rest of the game and it gains "This creature can't be
        sacrificed."" — the creature just given away, goaded by you for good (goad forever, restrict permanent) */
     { re: /^It'?s goaded for the rest of the game and it gains "This creature can'?t be sacrificed\."\.?$/i,
@@ -3200,9 +3208,10 @@
 
     // --- copying a spell ---
     // (Expansion: "… with mana value 4 or less")
-    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?(?: with mana value (\d+) or less)?\.?(?: You may choose new targets for the copy\.?)?$/i,
-      make: (m) => ({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
-        m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }) },
+    // (Myojin of Cryptic Dreams: "Copy target permanent spell you control three times." — times)
+    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
+      make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
+        m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
        The copy's targets are offered again as it is made. */
     /* (Tawnos, Urza's Apprentice: "… from an artifact source"; The Peregrine Dynamo:
@@ -5124,6 +5133,16 @@
         const inner = parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1)));
         if (!inner.auto || !inner.effects.length) return null;
         return Object.assign({ op: 'reflexive', ifDiscarded: true, effects: inner.effects, text: m[0] }, m[1] ? { discardFilter: m[1].toLowerCase() } : {});
+      } },
+    /* Craig Boone, Novac Guard: "When you do, Craig Boone deals damage equal to the number of quest counters on it to up
+       to one target creature unless that creature's controller has Craig Boone deal that much damage to them." — a
+       reflexive trigger; the creature's controller chooses (selfDamage, an amount) */
+    { re: /^When you do, CARDNAME deals damage equal to the number of ([a-z+\-\/0-9]+) counters on it to up to one target creature unless that creature'?s controller has CARDNAME deals? that much damage to them\.?$/i,
+      make: (m) => {
+        const k = { countersOnSelf: m[1].toLowerCase(), mult: 1 };
+        return { op: 'reflexive', text: m[0], effects: [{ op: 'unlessPays', who: 'spellController', cost: { selfDamage: k },
+          targets: [{ type: 'creature', upTo: true }], then: [{ op: 'damage', n: k, text: 'it deals that much damage to that creature.' }],
+          text: m[0].replace(/^When you do, /i, '') }] };
       } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
@@ -11096,7 +11115,7 @@
        target, "it" is that target, not this card. */
     const itIsTarget = (e, i) => {
       // (Narset's Reversal: "Copy target instant or sorcery spell, then return it to its owner's hand" — the spell, not itself)
-      if (!e || !['counters', 'restrict', 'bounce', 'tap', 'untap'].includes(e.op) || e.scope !== 'self' || e.targets) return;
+      if (!e || !(['counters', 'restrict', 'bounce', 'tap', 'untap'].includes(e.op) || e.itRef) || e.scope !== 'self' || e.targets) return;
       if (!/\bit\b/i.test(e.text || '') || /\bthis\b|CARDNAME/.test(e.text || '')) return;
       if (folded.slice(0, i).some(x => x && (x.targets || []).some(t => t && t.type !== 'player'))) e.scope = 'lastTarget';
     };
