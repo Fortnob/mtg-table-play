@@ -1686,6 +1686,8 @@
     },
     /* Resourceful Defense: counters go where they were asked to go */
     moveCounters(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* Esper Terra: as many lore counters as it may — the copied Saga's chapters, now */
+    loreUpTo(s) { return { number: (s.number && s.number.max) || 0 }; },
     /* Patriarch's Bidding: the type with the most creature cards in our own graveyard */
     biddingType(s) {
       const g = this.game, gy = (g.zones[this.pid] || {}).graveyard || [];

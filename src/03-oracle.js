@@ -1300,6 +1300,12 @@
     // --- mana ---
     { re: /^Add (\{[^}]+\}(?:\{[^}]+\})*)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]) }) },
+    // Esper Terra: "If it's a Saga, put up to three lore counters on it." — the copy just made (loreUpTo)
+    { re: /^If it'?s a Saga, put up to (one|two|three|four|\d+) lore counters? on it\.?$/i,
+      make: (m) => ({ op: 'loreUpTo', n: num(m[1]) }) },
+    // Esper Terra: "Add {W}{W}, {U}{U}, {B}{B}, {R}{R}, and {G}{G}." — all of it
+    { re: /^Add ((?:\{[WUBRGC]\})+(?:, (?:\{[WUBRGC]\})+)*,? and (?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1].replace(/,|\band\b|\s/g, '')) }) },
     // Magus of the Vineyard, Eladamri's Vineyard: "that player adds {G}{G}" — into the pool of the player whose main phase it is
     { re: /^That player adds ((?:\{[WUBRGC]\})+)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'triggerPlayer' }) },
@@ -2690,6 +2696,9 @@
     { re: /^Exile all cards from (target player|target opponent|your)(?:'s)? library\.?$/i,
       make: (m) => ({ op: 'exileLibrary', who: /^your/i.test(m[1]) ? 'you' : 'target',
         targets: /^target/i.test(m[1]) ? [{ type: 'player', opponent: /opponent/i.test(m[1]) }] : undefined }) },
+    // Nicol Bolas, the Arisen: "Exile all but the bottom card of target player's library." (keepBottom)
+    { re: /^Exile all but the bottom card of (target player|target opponent)'s library\.?$/i,
+      make: (m) => ({ op: 'exileLibrary', who: 'target', keepBottom: 1, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^If you search(?:ed)? your library this way, shuffle(?: it)?\.?$/i, make: () => ({ op: 'noop' }) },
     { re: /^Each opponent sacrifices (a|one|two|\d+) (creature|permanent|artifact|enchantment|land)s?\.?$/i,
       make: (m) => ({ op: 'sacrificeChoice', n: num(m[1]), who: 'opponents', filter: m[2].toLowerCase() }) },
@@ -4744,6 +4753,10 @@
       make: (m) => {
         const inner = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
         if (!inner.auto || !inner.effects.length) return null;
+        /* Auron, Venerated Guardian: "put a +1/+1 counter on it. When you do, exile target creature … with power
+           less than Auron's power" — a reflexive trigger, its target chosen after the counter is on (reflexive) */
+        if (inner.effects.some(e => (e.targets || []).some(sp => sp && sp.lesserPowerThanSource)))
+          return { op: 'reflexive', effects: inner.effects, text: m[0] };
         return inner.effects.length === 1 ? inner.effects[0] : { op: 'sequence', list: inner.effects };
       } },
     { re: /^You may cast spells this turn as though they had flash\.?$/i, make: () => ({ op: 'flashThisTurn' }) },
@@ -4886,6 +4899,9 @@
       make: (m) => ({ op: 'topOrBottom', ownerChooses: true, targets: [targetSpec(m[1])] }) },
     { re: /^Each player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
       make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'each' }) },
+    // Braids, Conjurer Adept: "that player may put an artifact, creature, or land card from their hand onto the battlefield" (triggerPlayer)
+    { re: /^That player may put an? ([-a-z, ]*?)card from their hand onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: (m[1] || '').trim().toLowerCase() || 'any', who: 'triggerPlayer' }) },
     { re: /^That creature gains ([a-z, ']+?)\.?$/i,
       make: (m) => ({ op: 'grantKeyword', scope: 'thatObject',
         keywords: m[1].split(/,| and /).map(x => U.titleCase(x.trim())).filter(Boolean), duration: null }) },
@@ -5181,6 +5197,13 @@
     // Lady Octopus, Inspired Inventor: "You may cast an artifact spell from your hand with mana value less than or equal to the number of ingenuity counters on Lady Octopus without paying its mana cost."
     { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand with mana value less than or equal to (.+?) without paying its mana cost\.?$/i,
       make: (m) => { const k = amountOf(m[2]); return k && typeof k === 'object' ? { op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: k } : null; } },
+    /* Kellan, the Kid: "you may cast a permanent spell with equal or lesser mana value from your hand without paying
+       its mana cost. If you don't, you may put a land card from your hand onto the battlefield." — equal to the
+       spell the trigger is about; whether one was cast, for the next sentence (noFreeCast) */
+    { re: /^You may cast an? (permanent|creature|artifact|enchantment|noncreature) spell with equal or lesser mana value from your hand without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFreeFromHand', filter: m[1].toLowerCase(), maxMv: { ofTrigger: 'mv' } }) },
+    { re: /^If you don'?t, you may put a land card from your hand onto the battlefield\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'noFreeCast' }, then: [{ op: 'permanentFromHand', filter: 'land', who: 'you' }] }) },
     // Yue, the Moon Spirit: "You may cast a noncreature spell from your hand without paying its mana cost."
     { re: /^You may cast an? ((?:non)?(?:creature|instant|sorcery|artifact|enchantment|instant or sorcery) )?spell from your hand without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFreeFromHand', filter: (m[1] || '').trim().toLowerCase() || 'card', maxMv: null }) },
@@ -5763,9 +5786,11 @@
     /* ===== notes left for later (CR 603.7) ===== */
     // (Pyric Salamander, Dragon Whelp: "this creature" is itself — subject 'self' — not the last thing aimed at)
     // (Firion, Wild Rose Warrior: "Sacrifice that token at the beginning of the next upkeep")
-    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of the next (end step|upkeep)\.?$/i,
-      make: (m) => ({ op: 'delayed', event: /upkeep/i.test(m[2]) ? 'eachUpkeep' : 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
-        name: /upkeep/i.test(m[2]) ? 'Sacrifice it at the next upkeep' : 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }) },
+    // (Esper Terra: "Sacrifice it at the beginning of your next end step." — yours)
+    { re: /^Sacrifice (it|that (?:creature|token|permanent)|this creature|CARDNAME) at the beginning of (the|your) next (end step|upkeep)\.?$/i,
+      make: (m) => Object.assign({ op: 'delayed', event: /upkeep/i.test(m[3]) ? 'eachUpkeep' : /your/i.test(m[2]) ? 'yourEndStep' : 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
+        name: /upkeep/i.test(m[3]) ? 'Sacrifice it at the next upkeep' : 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] },
+      /your/i.test(m[2]) ? { forPlayer: 'you' } : {}) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
@@ -7376,6 +7401,9 @@
     // Éowyn, Fearless Knight: "target creature an opponent controls with greater power" — than the source's (greaterPowerThanSource)
     const greaterPow = /\s+with greater power$/i.test(String(phrase));
     if (greaterPow) phrase = String(phrase).replace(/\s+with greater power$/i, '');
+    // Auron, Venerated Guardian: "target creature defending player controls with power less than CARDNAME's power" (lesserPowerThanSource)
+    const lesserPow = /\s+with power less than (?:CARDNAME|this creature)'s power$/i.test(String(phrase));
+    if (lesserPow) phrase = String(phrase).replace(/\s+with power less than (?:CARDNAME|this creature)'s power$/i, '');
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
        Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
     const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
@@ -7413,6 +7441,7 @@
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
     if (greaterPow) spec.greaterPowerThanSource = true;
+    if (lesserPow) spec.lesserPowerThanSource = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
     if (tapAb) spec.hasTapAbility = true;

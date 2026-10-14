@@ -12021,6 +12021,8 @@
         // Tromokratis: "unless it's attacking or blocking"
         case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
         case 'yourTurn': return !!me && this.activePlayer && this.activePlayer.id === me.id;
+        // Kellan, the Kid: "If you don't" — no spell was cast for free just before
+        case 'noFreeCast': return !(ctx && ctx._freeCast);
         // Zurgo, Thunder's Decree: "During your end step"
         case 'yourEndStep': return !!me && this.activePlayer && this.activePlayer.id === me.id && this.step === 'end';
         // Rith, Liberated Primeval: "a creature or planeswalker an opponent controlled was dealt excess damage this turn"
@@ -19480,6 +19482,8 @@
             const cpa = copy.analysis();
             if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
             this._onEnter(copy);
+            // (Esper Terra: a copy of a Saga arrives with its lore counter too, CR 714.3a)
+            if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
             this._fireEnters(copy);
             // the copy is what any later sentence is talking about
             this._lastCopy = copy;
@@ -20365,9 +20369,10 @@
         case 'exileLibrary': {
           const p = e.who === 'you' ? me : firstPlayer();
           if (!p) break;
-          const lib = this.zones[p.id].library.slice();
+          // (Nicol Bolas, the Arisen: "all but the bottom card" — keepBottom)
+          const lib = this.zones[p.id].library.slice(0, e.keepBottom ? -e.keepBottom : undefined);
           for (const c of lib) this.moveObject(c, 'exile');
-          this.logEvent('exile', `${p.name} exiles their library (${lib.length} cards).`);
+          this.logEvent('exile', e.keepBottom ? `${p.name} exiles all but the bottom card of their library (${lib.length} cards).` : `${p.name} exiles their library (${lib.length} cards).`);
           break;
         }
         // "that player shuffles their hand into their library"
@@ -20955,6 +20960,33 @@
         case 'loseGame': this.playerLoses(me, 'a card said so'); break;
 
         /* ===== leave a note for later (CR 603.7) ===== */
+        /* Esper Terra: "If it's a Saga, put up to three lore counters on it." — the token copy just made; each
+           chapter it reaches triggers (CR 714.2b) */
+        case 'loreUpTo': {
+          if (ctx._loreFor == null) {
+            const lx = (this._lastCopy && this.obj(this._lastCopy.id)) || (this._lastAffected && this.obj(this._lastAffected.id));
+            ctx._loreFor = lx ? lx.id : '';
+          }
+          const x = ctx._loreFor && this.obj(ctx._loreFor);
+          if (!x || x.zone !== 'battlefield' || !(x.analysis() || {}).isSaga) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'loreUpTo', kind: 'number', number: { min: 0, max: n(e.n) || 0 },
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}put how many lore counters on ${x.name}? (up to ${n(e.n)})` }, 'lore');
+          if (got === SUSPEND) return SUSPEND;
+          const k = Math.min(n(e.n) || 0, Math.max(0, (got && got.number) || 0));
+          if (k > 0) this._advanceSaga(x, k);
+          break;
+        }
+        /* Auron, Venerated Guardian: "When you do, exile target creature …" — a reflexive trigger (CR 603.12),
+           put on the stack once this is done, its targets chosen then */
+        case 'reflexive': {
+          const so = ctx.obj || (ctx.objId && this.obj(ctx.objId)) || null;
+          const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
+          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
+            controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
+            effects: e.effects || [], auto: true, abilityText: rText, optional: false,
+            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }) });
+          break;
+        }
         case 'delayed': {
           // "Exile them at the beginning of the next end step": a note for each token just made
           if (e.subject === 'made') {
@@ -21571,7 +21603,8 @@
         }
 
         case 'permanentFromHand': {
-          const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : [me];
+          // (Braids, Conjurer Adept: "that player" — whose upkeep it is, triggerPlayer)
+          const who = e.who === 'each' ? this.players.filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
           for (const p of who) {
             // Anticausal Vestige: "with mana value less than or equal to the number of lands you control"
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
@@ -25238,7 +25271,10 @@
              chosen as it resolves. */
           this._castingNested = true;
           const prior = this.priorityIndex;
-          try { this._castFree(ctx.controller, c); } finally { this._castingNested = false; this.priorityIndex = prior; }
+          let castOk = false;
+          try { castOk = !!this._castFree(ctx.controller, c); } finally { this._castingNested = false; this.priorityIndex = prior; }
+          // (Kellan, the Kid: "If you don't, …" — noFreeCast)
+          if (castOk) ctx._freeCast = true;
           break;
         }
         /* The Great Synthesis III: "You may cast any number of spells from your hand without paying their mana
@@ -27930,6 +27966,13 @@
         const pG = !sG ? 0 : sG.zone === 'battlefield' ? this.powerOf(sG) : (sG._lastPower || 0);
         return this._legalTargetsFor(Object.assign({}, spec, { greaterPowerThanSource: false }), controllerId, sourceId)
           .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && this.powerOf(x) > pG; });
+      }
+      // Auron, Venerated Guardian: "with power less than Auron's power" — as it is now (or as it last was)
+      if (spec.lesserPowerThanSource) {
+        const sL = sourceId && this.obj(sourceId);
+        const pL = !sL ? 0 : sL.zone === 'battlefield' ? this.powerOf(sL) : (sL._lastPower || 0);
+        return this._legalTargetsFor(Object.assign({}, spec, { lesserPowerThanSource: false }), controllerId, sourceId)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && this.powerOf(x) < pL; });
       }
       // Pain for All: "any other target" — not the creature this Aura enchants
       if (spec.notAttached && sourceId) {
