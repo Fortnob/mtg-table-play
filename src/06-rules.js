@@ -19394,6 +19394,27 @@
               taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
             }
           }
+          /* Ao, the Dawn Sky: "any number of nonland permanent cards with total mana value 4 or less" — one pick,
+             the mana values adding up to no more than that (totalMv) */
+          else if (e.totalMv != null) {
+            const fit = legal.filter(o => ((o.card && o.card.cmc) || 0) <= e.totalMv);
+            if (fit.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'takeFromLooked', kind: 'objects', zone: 'library',
+                panel: true, items: this._chooseItems(fit).map(it => Object.assign(it, { mv: ((this.obj(it.id) || {}).card || {}).cmc || 0 })),
+                min: 0, max: fit.length, optional: true,
+                constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'total mana value' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}put any number of ${e.filter && e.filter !== 'any' ? e.filter + ' ' : ''}cards with total mana value ${e.totalMv} or less from among them onto the battlefield.` }, 'totalMv');
+              if (got === SUSPEND) return SUSPEND;
+              let sum = 0;
+              for (const id of (got && got.picks) || []) {
+                const o = this.obj(id);
+                if (!o || !fit.includes(o) || taken.includes(o)) continue;
+                const mv = (o.card && o.card.cmc) || 0;
+                if (sum + mv > e.totalMv) continue;
+                sum += mv; taken.push(o);
+              }
+            }
+          }
           else if (legal.length) {
             const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: Math.min(want, legal.length),
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),

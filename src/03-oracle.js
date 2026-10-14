@@ -3936,6 +3936,10 @@
       make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' },
         /^any number/i.test(m[1]) ? { prompt: `Put any number of ${(m[2] || '').trim() || 'these'} cards onto the battlefield.` } : {}) },
+    /* Ao, the Dawn Sky: "Put any number of nonland permanent cards with total mana value 4 or less from among
+       them onto the battlefield." — the rest wait for the next sentence (totalMv) */
+    { re: /^Put any number of ([-a-z' ]*?)cards with total mana value (\d+) or less from among them onto the battlefield\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', totalMv: +m[2], to: 'battlefield', rest: 'keep' }) },
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : 'bottom' }) },
@@ -4029,6 +4033,9 @@
       make: (m) => { const noun = /folk$/i.test(m[5]) ? m[5] : m[5].replace(/s$/, '');
         const one = () => Object.assign(targetSpec('target ' + noun + (m[6] || '')), m[3] ? { upTo: true } : {}, { distinct: true });
         return { op: 'counters', kind: m[2], n: num(m[1]), targets: Array.from({ length: num(m[4]) }, one) }; } },
+    // Ao, the Dawn Sky: "Put two +1/+1 counters on each permanent you control that's a creature or Vehicle."
+    { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d) counters? on each permanent you control that'?s an? (artifact|creature|enchantment|land) or (?:an? )?([A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), scope: { who: 'you', what: 'permanent', anyOf: [m[3], m[4].toLowerCase()] } }) },
     /* "a -1/-1 counter on each creature your opponents control", "on each
        other creature": any group the table can name */
     { re: /^Put (a|an|one|two|three|\d+|X) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on (each [-a-zA-Z' ]+?)\.?$/i,
@@ -11701,7 +11708,8 @@
       // (Jedit Ojanen of Efrava: "Jedit Ojanen" — every word before "of": shortBeforeOf)
       const short = full.includes(',') ? full.split(',')[0].trim()
         : (/^((?:[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+ )*?[A-Z\u00C0-\u00DE][a-z\u00DF-\u00FF'-]+) (?:of|the|from|to)\b/.exec(full) || [])[1];
-      if (short && short.length >= 3 && short !== full && !/^(?:The|A|An)$/.test(short)) {
+      // (Ao, the Dawn Sky: "When Ao dies" — two letters will do before a comma)
+      if (short && (short.length >= 3 || (short.length === 2 && full.includes(','))) && short !== full && !/^(?:The|A|An)$/.test(short)) {
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
         // (Óin, Fíli: a letter with an accent is still part of the word)
         text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(short) + '(?![\\w\\u00C0-\\u024F])(?!,\\s*[A-Z])', 'g'), 'CARDNAME');

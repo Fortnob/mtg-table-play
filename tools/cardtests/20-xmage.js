@@ -28830,4 +28830,43 @@ module.exports = (test) => {
     t.no(M.asked.some(ch => ch.type === 'sacrifice'), 'Gitrog: no creature saddled it');
     t.zone(bear, 'battlefield');
   });
+
+  test('Commanders: Ao, the Dawn Sky — dies: nonland permanents of total mana value 4 from the top seven', (mk, t) => {
+    t.auto('Ao, the Dawn Sky');
+    const M = mk({ library: Array(30).fill('Island') });
+    const ao = M.bf('A', 'Ao, the Dawn Sky');
+    // the top seven, from the top: Grizzly Bears, Mind Stone, Llanowar Elves, Hill Giant, Forest, Lightning Bolt, Island
+    const names = ['Grizzly Bears', 'Mind Stone', 'Llanowar Elves', 'Hill Giant', 'Forest', 'Lightning Bolt', 'Island'];
+    const cards = names.slice().reverse().map(n => M.top('A', n)).reverse();
+    const [bear, stone, elves, giant, forest, bolt] = cards;
+    let asked = null;
+    M.answer('mode', () => ({ modes: [0] }));
+    M.answer('choose', (ch) => { asked = ch; return { picks: [bear.id, stone.id] }; });
+    M.g.moveObject(ao, 'graveyard');
+    M.resolve();
+    t.ok(asked, 'Ao: asked which to put');
+    const offered = asked.items.map(x => x.id);
+    t.ok([bear, stone, elves, giant].every(o => offered.includes(o.id)), 'Ao: the nonland permanent cards');
+    t.no([forest, bolt].some(o => offered.includes(o.id)), 'Ao: not a land, not an instant');
+    t.ok(asked.constraints.some(c => c.kind === 'sum' && c.max === 4), 'Ao: total mana value 4 or less');
+    t.zone(bear, 'battlefield'); t.zone(stone, 'battlefield');
+    t.zone(elves, 'library'); t.zone(giant, 'library');
+    const lib = M.zone('A', 'library');
+    t.ok([elves, giant, forest, bolt].every(o => lib.indexOf(o) >= lib.length - 5), 'Ao: the rest on the bottom');
+  });
+  test('Commanders: Ao, the Dawn Sky — dies: two +1/+1 counters on each creature and Vehicle you control', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const ao = M.bf('A', 'Ao, the Dawn Sky');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const copter = M.bf('A', "Smuggler's Copter");
+    const stone = M.bf('A', 'Mind Stone');
+    const theirs = M.bf('B', 'Grizzly Bears');
+    M.answer('mode', () => ({ modes: [1] }));
+    M.g.moveObject(ao, 'graveyard');
+    M.resolve();
+    t.eq(bear.counters['+1/+1'], 2, 'Ao: a creature');
+    t.eq(copter.counters['+1/+1'], 2, 'Ao: a Vehicle');
+    t.no(stone.counters['+1/+1'], 'Ao: not another artifact');
+    t.no(theirs.counters['+1/+1'], "Ao: not B's");
+  });
 };
