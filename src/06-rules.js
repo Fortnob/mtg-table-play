@@ -4670,6 +4670,7 @@
         .find(g => g.turn === this.turn && g.zone === where && (g.what === 'any' || g.what === kind));
       // (Gwenom, Remorseless: "pay life equal to its mana value rather than pay its mana cost" — payLife)
       if (grant) return Object.assign({ op: 'playFrom', zone: where, what: grant.what }, grant.payLife ? { payLife: true } : {});
+      let costly = null;
       for (const src of this.battlefield) {
         if (src.controller !== playerId || src.phasedOut) continue;
         const a = src.analysis();
@@ -4713,11 +4714,19 @@
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Augur of Autumn, The Reality Chip: only while the condition holds
             if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) continue;
+            /* Falco Spara, Pactweaver: "by removing a counter from a creature you control in addition to paying their
+               other costs" — only with a counter to remove, and a leave with no such cost is used first */
+            if (ef.removeCounterCost) { if (!costly && this._counterCostPairs(playerId).length) costly = ef; continue; }
             return ef;
           }
         }
       }
-      return null;
+      return costly;
+    }
+    /** Falco Spara, Pactweaver: each counter that could be removed from a creature you control, as {id, kind}. */
+    _counterCostPairs(playerId) {
+      return this._counterCostPool(playerId, { filter: 'creature' }, null)
+        .flatMap(c => Object.entries(c.counters || {}).filter(([, k]) => Number(k) > 0).map(([kind]) => ({ id: c.id, kind })));
     }
     /**
      * Muldrotha, the Gravetide: "a land and … a permanent spell of each
@@ -5847,6 +5856,25 @@
           options: lv.freeTypes.map(t => ({ label: 'As ' + (/^[ae]/.test(t) ? 'an ' : 'a ') + t, type: t })), compact: true,
           prompt: `${o.name}: cast it from your graveyard as which permanent type? (${(this.obj(lv.srcId) || {}).name}: one of each type each turn)` }) === 'asked') return 'asked';
       }
+      /* Falco Spara, Pactweaver: "by removing a counter from a creature you control" — which counter, from which
+         creature, chosen with the cast (removeCounterFrom); with only one there is nothing to ask */
+      if (o.zone === 'library' && !opts.via && !opts.free && opts.removeCounterFrom == null) {
+        const lv = this._playFromRule(playerId, o, 'spell');
+        if (lv && lv.removeCounterCost) {
+          const pool = this._counterCostPairs(playerId);
+          if (!pool.length) return 'There is no counter on a creature of yours to remove.';
+          if (pool.length === 1) opts.removeCounterFrom = pool[0];
+          else if (decides) {
+            // a bot: a counter that hurts first, else one from the creature that has the most of that kind
+            const bad = (k) => /^(?:-1\/-1|stun)$/.test(k);
+            const many = (x) => Number((this.obj(x.id).counters || {})[x.kind]) || 0;
+            opts.removeCounterFrom = pool.slice().sort((x, y) => (bad(y.kind) - bad(x.kind)) || (many(y) - many(x)))[0];
+          } else {
+            return ask('removeCounterFrom', `${o.name}: remove a counter from a creature you control to cast it from the top of your library — which?`,
+              pool.map(x => `A ${x.kind} counter from ${this.obj(x.id).name}`), pool);
+          }
+        }
+      }
       const add = a && a.additionalCost;
       if (add && add.choice && !opts.skipAdditional && opts.additionalChoice == null) {
         const ok = this._payableChoices(playerId, o, add.choice, opts.free ? '' : chk.cost, opts);
@@ -6614,6 +6642,13 @@
          spell goes afterwards */
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
+        // Falco Spara, Pactweaver: the counter, removed as the spell is cast (chosen with it)
+        const rc = lv && lv.removeCounterCost && o.zone === 'library' && opts.removeCounterFrom;
+        const rco = rc && this.obj(rc.id);
+        if (rco && rco.zone === 'battlefield' && Number((rco.counters || {})[rc.kind]) > 0) {
+          this.addCounters(rco, rc.kind, -1);
+          this.logEvent('counters', `${p.name} removes a ${rc.kind} counter from ${rco.name} to cast ${o.name}.`);
+        }
         if (lv && lv.srcId) {
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
@@ -24003,6 +24038,17 @@
           }
           this._lastRemovedCounters = total;
           if (total) this.logEvent('counters', `${me.name} removes ${total} counter${total === 1 ? '' : 's'}.`);
+          break;
+        }
+        // Lily Bowen, Raging Grandma: "remove all but one +1/+1 counter from it" — how many came off is "removed this way"
+        case 'removeAllButCounters': {
+          this._lastRemovedCounters = 0;
+          if (!src || src.zone !== 'battlefield') break;
+          const have = Number((src.counters || {})[e.kind]) || 0, off = Math.max(0, have - (e.keep || 0));
+          if (!off) break;
+          this.addCounters(src, e.kind, -off);
+          this._lastRemovedCounters = off;
+          this.logEvent('counters', `${off} ${e.kind} counter${off === 1 ? ' is' : 's are'} removed from ${src.name}.`);
           break;
         }
         case 'removeAllCounters': {

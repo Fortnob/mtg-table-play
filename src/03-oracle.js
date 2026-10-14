@@ -3346,6 +3346,13 @@
     // Hulk, Strongest There Is: "double the number of +1/+1 counters on each Gamma creature you control" (doubleCountersType)
     { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on each ([A-Z][a-z]+) (?:creature )?you control\.?$/,
       make: (m) => { const sc = scopeOf(m[2] + ' creatures you control'); return sc && !sc.self ? { op: 'doubleCounters', kind: m[1].toLowerCase(), scope: sc } : null; } },
+    // Lily Bowen, Raging Grandma: "double the number of +1/+1 counters on Lily Bowen if its power is 16 or less" (selfPowerMax)
+    { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on (?:this creature|CARDNAME) if its power is (\d+) or less\.?$/i,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'selfPowerMax', n: +m[2] }, then: [{ op: 'doubleCounters', kind: m[1].toLowerCase(), scope: 'self' }] }) },
+    /* Lily Bowen: "remove all but one +1/+1 counter from it, then you gain 1 life for each +1/+1 counter removed this
+       way" (removeAllButCounters; the count is "removed this way") */
+    { re: /^Remove all but one (\+1\/\+1|[a-z]+) counters? from (?:it|this creature|CARDNAME), then you gain (\d+) life for each \1 counter removed this way\.?$/i,
+      make: (m) => [{ op: 'removeAllButCounters', kind: m[1].toLowerCase(), keep: 1 }, { op: 'gainLife', n: { removedCounters: true, mult: +m[2] }, who: 'you' }] },
     /* Mossborn Hydra, Bristly Bill */
     { re: /^Double the number of (\+1\/\+1|[a-z]+) counters on (this creature|CARDNAME|each creature you control)\.?$/i,
       make: (m) => ({ op: 'doubleCounters', kind: m[1].toLowerCase(), scope: /each/i.test(m[2]) ? 'yourCreatures' : 'self' }) },
@@ -3497,17 +3504,20 @@
     /* Enter the Avatar State: "Until end of turn, target creature you control
        becomes an Avatar in addition to its other types and gains flying, …";
        Archangel Elspeth: "It becomes an Angel … and gains flying." */
-    { re: /^(Until end of turn, )?(target creature(?: you control)?|it|that creature) becomes an? ([A-Z][a-z]+) in addition to its other types(?: and gains ([a-z, ]+?))?( until end of turn)?\.?$/i,
+    // (Sarkhan, Dragon Ascendant: "Until end of turn, Sarkhan becomes a Dragon in addition to his other types and gains flying." — itself)
+    { re: /^(Until end of turn, )?(target creature(?: you control)?|it|that creature|CARDNAME) becomes an? ([A-Z][a-z]+) in addition to (?:its|his|her|their) other types(?: and gains ([a-z, ]+?))?( until end of turn)?\.?$/i,
       make: (m) => {
         const eot = !!(m[1] || m[5]);
         const tg = /^target/i.test(m[2]) ? tgt(m[2]) : null;
         if (/^target/i.test(m[2]) && !tg) return null;
+        const self = m[2] === 'CARDNAME';
+        if (self && !eot) return null;
         const kws = m[4] ? keywordList(m[4]) : [];
         if (m[4] && (!kws.length || !kws.every(kwKnown))) return null;
         if (!m[4] && !eot && !tg) return null;      // the plain "It becomes …" is the rule below
-        const add = Object.assign({ op: 'addTypes', subtypes: [m[3]] }, eot ? { duration: 'eot' } : {}, tg ? { targets: [tg] } : { scope: 'lastTarget' });
+        const add = Object.assign({ op: 'addTypes', subtypes: [m[3]] }, eot ? { duration: 'eot' } : {}, tg ? { targets: [tg] } : { scope: self ? 'self' : 'lastTarget' });
         if (!kws.length) return add;
-        return { op: 'sequence', list: [add, { op: 'grantKeyword', keywords: kws, duration: eot ? 'eot' : 'permanent', scope: tg ? 'lastTarget' : 'lastTarget' }] };
+        return { op: 'sequence', list: [add, { op: 'grantKeyword', keywords: kws, duration: eot ? 'eot' : 'permanent', scope: self ? 'self' : 'lastTarget' }] };
       } },
     // Cauldron Haze: "Choose any number of target creatures. Each of those creatures gains persist until end of turn."
     { re: /^Each of those creatures gains ([a-z ,]+?) until end of turn\.?$/i,
@@ -13471,6 +13481,12 @@
         'Whenever you reveal the first card you draw on each of your turns and it\'s a nonland card, ' + kr[2]);
       i++;
     }
+    /* Fumiko the Lowblood: "Fumiko has bushido X, where X is the number of attacking creatures." — bushido is a
+       trigger (CR 702.45a), its X counted as it resolves: read as that trigger */
+    for (let i = 0; i < lines.length; i++) {
+      const bx = lines[i].match(/^CARDNAME has bushido X, where X is (the number of [a-z ]+)\.?$/);
+      if (bx) lines[i] = 'Whenever CARDNAME blocks or becomes blocked, it gets +X/+X until end of turn, where X is ' + bx[1] + '.';
+    }
     /* Up the Beanstalk: "When this enchantment enters and whenever you cast
        a spell with mana value 5 or greater, draw a card." Two triggers that
        do the same thing: read as two lines. */
@@ -18602,6 +18618,9 @@
         make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
           // (Melek, Izzet Paragon: "instant and sorcery spells" — either kind)
           filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ').replace(/ and /g, ' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
+      // Falco Spara, Pactweaver: "… by removing a counter from a creature you control in addition to paying their other costs"
+      { re: /^You may cast spells from the top of your library by removing a counter from a creature you control in addition to paying their other costs\.?$/i,
+        make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', removeCounterCost: true }), auto: true },
       // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
       { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },
