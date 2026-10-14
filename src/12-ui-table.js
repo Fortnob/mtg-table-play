@@ -2494,6 +2494,13 @@
         const x = c.kind === 'object' ? this.objIn(c.id) : null;
         return x && x.controller === o.controller;
       })) return false;
+      // Burglar's Plot: shares a card type with the one chosen before it (shareCardType)
+      if (spec.shareCardType && t.chosen.length) {
+        const prev = t.chosen[t.chosen.length - 1];
+        const p = prev && prev.kind === 'object' ? this.objIn(prev.id) : null;
+        const kinds = (x) => /** @type {string[]} */ (String((x && x.card && x.card.type_line) || '').split('—')[0].match(/\b(?:Artifact|Battle|Creature|Enchantment|Land|Planeswalker|Kindred)\b/g) || []);
+        if (p && !kinds(o).some(s => kinds(p).includes(s))) return false;
+      }
       // Secret Tunnel: shares a creature type with the one chosen before it
       if (spec.sharesTypeWithPrev && t.chosen.length) {
         const prev = t.chosen[t.chosen.length - 1];

@@ -2279,6 +2279,13 @@
        just returned enters, folded into that return (enterRider) */
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
+    /* Tom, Bert, and William: "When Tom, Bert, and William die, if they were a creature, return them to the battlefield.
+       They're an artifact." — not when they went as an artifact (ifWasCreature); an artifact and nothing else as they
+       enter, for as long as they stay (returnSelfFromGrave, enterRider) */
+    { re: /^If (?:they were|it was) a creature, return (?:them|it|CARDNAME) to the battlefield\.?$/i,
+      make: () => ({ op: 'returnSelfFromGrave', tapped: false, owner: true, ifWasCreature: true }) },
+    { re: /^(?:They'?re|It'?s) an? (artifact|enchantment|land)\.?$/i,
+      make: (m) => ({ op: 'manual', enterRider: { setTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] } }) },
     /* Vraska, the Silencer: "It's a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color,"
        and it loses all other card types." — only a Treasure artifact as it enters, its supertypes and abilities kept (enterRider) */
     { re: /^It'?s a Treasure artifact with "\{T\}, Sacrifice this artifact: Add one mana of any color,?" and it loses all other card types\.?$/,
@@ -3274,6 +3281,13 @@
       make: (m) => {
         const one = m[1].replace(/s$/, '');
         return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
+      } },
+    // Bilbo, Luckwearer (Burglar's Plot): "Exchange control of two target nonland permanents that share a card type." (shareCardType)
+    { re: /^Exchange control of two target (nonland permanents|permanents|nonland, noncreature permanents) that share a card type\.?$/i,
+      make: (m) => {
+        const one = m[1].replace(/s$/, '');
+        const a = targetSpec('target ' + one), b = targetSpec('another target ' + one);
+        return a && b && !a.unknown && !b.unknown ? { op: 'exchangeControl', shareCardType: true, targets: [a, Object.assign(b, { shareCardType: true })] } : null;
       } },
     // Avarice Totem, Eyes Everywhere: "Exchange control of this artifact and target nonland permanent." (withSelf)
     { re: /^Exchange control of (?:this (?:artifact|enchantment|creature|permanent)|CARDNAME) and (target [a-z ]+?)\.?$/i,
@@ -8130,6 +8144,8 @@
     if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
+    // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
+    if (/^opponents? whose life totals? (?:is|are) less than half their starting life totals?$/i.test(p)) return { opponentsBelowHalfLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
     if ((m = p.match(/^(opponents?|players?) (?:that|who) (?:was|were) dealt combat damage this turn$/i)))
       return { combatHitPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
@@ -12261,7 +12277,8 @@
       const prevE = out[out.length - 1];
       // Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — as the card returned enters (enterRider)
       if (e && e.enterRider) {
-        if (prevE && prevE.op === 'reanimate' && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        // (Tom, Bert, and William: "return them to the battlefield. They're an artifact." — returnSelfFromGrave)
+        if (prevE && (prevE.op === 'reanimate' || prevE.op === 'returnSelfFromGrave') && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
@@ -12635,6 +12652,8 @@
       (m) => ({ kind: 'meldPair', name: m[2], type: m[1].toLowerCase() })],
     [/^(.+?) and (you both own and control .+)$/i, (m) => { const a = condOf(m[1]), b = condOf(m[2]); return a && b ? [].concat(a, b) : null; }],
     // Myrkul, Bane and Bhaal, Lords: "your life total is less than or equal to half your starting life total"
+    // (Anya, Merciless Angel: "an opponent's life total is less than half their starting life total" — oppLifeBelowHalfStart)
+    [/^an opponent'?s life total is less than half their starting life total$/i, () => ({ kind: 'oppLifeBelowHalfStart' })],
     [/^your life total is less than or equal to half your starting life total$/i, () => ({ kind: 'lifeAtMostHalfStart' })],
     // Nalia de'Arnise, Linvala, Shield of Sea Gate: a Cleric, a Rogue, a Warrior and a Wizard
     [/^you have a full party$/i, () => ({ kind: 'fullParty' })],
@@ -18312,6 +18331,9 @@
         : /\bequipped creature\b/i.test(al[1]) ? 'Equipped creature' : 'CARDNAME';
       const body = al[2].replace(/^(?:it|this creature)\b/i, subject).replace(/^(\w)/, (c) => c.toUpperCase());
       if (/^As long as/i.test(body)) return null;
+      // (Akawalli, the Seething Tower: "CARDNAME can't be blocked by more than one creature" while it lasts — the oneBlocker flag)
+      if (/^CARDNAME can'?t be blocked by more than one creature\.?$/i.test(body))
+        return { kind: 'static', text: line, auto: true, effects: [{ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, flag: 'oneBlocker', cond }] };
       const inner = parseContinuous(body);
       if (!inner) return null;
       const add = (e) => (e.cond ? Object.assign(e, { cond: [].concat(e.cond, cond) }) : Object.assign(e, { cond }));
@@ -18391,6 +18413,12 @@
     // Varchild, Betrayer of Kjeldor: "Survivors your opponents control can't block, and they can't attack you or planeswalkers you control."
     if ((mm2 = String(line).match(/^(.+?) can'?t block, and they can'?t attack you or planeswalkers you control\.?$/))) {
       const r = both(mm2[1] + " can't block.", mm2[1] + " can't attack you or planeswalkers you control.");
+      if (r) return r;
+    }
+    /* Akawalli, the Seething Tower: "As long as there are eight or more permanent cards in your graveyard, Akawalli
+       gets an additional +2/+2 and can't be blocked by more than one creature." */
+    if ((mm2 = String(line).match(/^(As long as [^,]+), CARDNAME gets (?:an additional )?([+-]\d+\/[+-]\d+) and can'?t be blocked by more than one creature\.?$/))) {
+      const r = both(mm2[1] + ', CARDNAME gets ' + mm2[2] + '.', mm2[1] + ", CARDNAME can't be blocked by more than one creature.");
       if (r) return r;
     }
     /* Elenda, Saint of Dusk: "As long as …, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long
@@ -19982,6 +20010,9 @@
         make: () => [{ op: 'peekTop' }, { op: 'playFrom', zone: 'top', what: 'land' }], auto: true },
       { re: /^(?:CARDNAME|This land) enters tapped\. As it enters, choose a colou?r(?: other than (white|blue|black|red|green))?\.?$/i,
         make: (m) => ({ op: 'chooseColorOnEnter', except: m[1] ? { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] : null }), auto: true },
+      // Kianne, Corrupted Memory: "As long as Kianne's power is even, you may cast noncreature spells as though they had flash." (selfPowerParity)
+      { re: /^As long as CARDNAME'?s power is (even|odd), you may cast (creature|noncreature|instant|sorcery|artifact|enchantment) spells as though they had flash\.?$/i,
+        make: (m) => ({ op: 'flashGrant', filter: m[2].toLowerCase(), selfPowerParity: m[1].toLowerCase() }), auto: true },
       /* Leyline of Anticipation, Vedalken Orrery, Sigarda's Aid */
       { re: /^You may cast (spells|((?:[A-Za-z]+ )+?)spells(?: and ((?:[A-Za-z]+ )+?)spells)?) as though they had flash\.?$/i,
         make: (m) => ({ op: 'flashGrant', filter: m[2] ? [m[2], m[3]].filter(Boolean).map(x => x.trim().toLowerCase().replace(/ and /g, ' or ')).join(' or ') : null }), auto: true },

@@ -3826,6 +3826,8 @@
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
+      // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
+      if (v.opponentsBelowHalfLife) return this.opponentsOf(pid).filter(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20)).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
       if (v.combatHitPlayers) { const hit = ((this.turnHistory || {}).combatHit) || []; return hit.filter(id => v.combatHitPlayers === 'players' || this.opponentsOf(pid).some(q => q.id === id)).length * mult; }
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
@@ -4495,6 +4497,16 @@
       const ctl = (targets || []).filter(t => t.kind === 'object').map(t => (this.obj(t.id) || {}).controller).filter(Boolean);
       return new Set(ctl).size === ctl.length;
     }
+    /** Burglar's Plot: "two target … that share a card type" — the two objects aimed at have a card type in common (shareCardType) */
+    _sharedCardTypeOk(effects, targets) {
+      const flat = [];
+      for (const x of effects || []) { if (x && x.op === 'sequence') flat.push(...(x.list || [])); else if (x) flat.push(x); }
+      if (!flat.some(x => (x.targets || []).some(sp => sp && sp.shareCardType))) return true;
+      const objs = (targets || []).filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+      if (objs.length < 2) return true;
+      const tx = this._cardTypesOf(objs[0]);
+      return this._cardTypesOf(objs[1]).some(k => tx.includes(k));
+    }
     /** What paying for a spell took from the pool, kept while it is being cast (converge, sunburst). */
     /* What a payment took, and the life Phyrexian mana was paid with (it
        used to be free) */
@@ -4791,14 +4803,18 @@
           (!fu.filter || this._cardFitsWords(o, fu.filter))) return true;
       for (const src of this.battlefield) {
         if (src.phasedOut) continue;
-        const e = this._staticOp(src, 'flashGrant');
-        // Tidal Barracuda: "Any player may cast spells as though they had flash."
-        if (src.controller !== playerId && !(e && e.anyPlayer)) continue;
-        // Teferi, Mage of Zhalfir: "Creature cards you own …"
-        if (e && e.ownedOnly && o.owner !== src.controller) continue;
-        // Radagast of Rhosgobel: "The first creature spell you cast each turn … can be cast as though it had flash"
-        if (e && e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
-        if (e && (!e.filter || this._cardFitsWords(o, e.filter))) return true;
+        // (Kianne, Corrupted Memory: one for an even power, one for an odd — each of them)
+        for (const e of this._staticOpsAll(src, 'flashGrant')) {
+          // Tidal Barracuda: "Any player may cast spells as though they had flash."
+          if (src.controller !== playerId && !e.anyPlayer) continue;
+          // Teferi, Mage of Zhalfir: "Creature cards you own …"
+          if (e.ownedOnly && o.owner !== src.controller) continue;
+          // Radagast of Rhosgobel: "The first creature spell you cast each turn … can be cast as though it had flash"
+          if (e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
+          // Kianne: "As long as Kianne's power is even (odd)" (selfPowerParity)
+          if (e.selfPowerParity && (Math.abs(this.powerOf(src)) % 2 === 0) !== (e.selfPowerParity === 'even')) continue;
+          if (!e.filter || this._cardFitsWords(o, e.filter)) return true;
+        }
       }
       // Azula, Cunning Usurper: "you may cast cards exiled with Azula and you may cast them as though they had flash" (playFrom flash)
       if (o && o.zone === 'exile' && o.exiledWithId) {
@@ -6426,6 +6442,10 @@
         if (a0 && !a0.isPermanent && (opts.targets || []).length > 1 &&
           !this._differentControllersOk(this._cardSpellEffects(a0), (opts.targets || []).map(normTarget)))
           return this.fail('Those targets must be controlled by different players.');
+        // Burglar's Plot: "two target nonland permanents that share a card type" (shareCardType)
+        if (a0 && !a0.isPermanent && (opts.targets || []).length > 1 &&
+          !this._sharedCardTypeOk(this._cardSpellEffects(a0), (opts.targets || []).map(normTarget)))
+          return this.fail('Those targets must share a card type.');
       }
       // More Than Meets the Eye: the card cast converted, its back face up
       // (Disturb: the same, transformed, from the graveyard)
@@ -13180,6 +13200,8 @@
         case 'fullParty': return this._partySize(me ? me.id : null) >= 4;
         // Myrkul, Lord of Bones: at or under half the life the game started with
         case 'lifeAtMostHalfStart': return !!me && me.life * 2 <= ((this.config && this.config.startingLife) || 20);
+        // Anya, Merciless Angel: "an opponent's life total is less than half their starting life total"
+        case 'oppLifeBelowHalfStart': return !!me && this.opponentsOf(me.id).some(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20));
         // True-Faith Censer: the creature it is on is a Human
         case 'attachedHasType': { const host = src && src.attachedTo && this.obj(src.attachedTo); return !!host && this._hasCreatureType(host, cond.subtype); }
         // Tenza, Godo's Maul: "as long as it's legendary", "as long as it's red" — the creature it's attached to
@@ -13774,8 +13796,9 @@
       if (typeof v === 'object' && v.countersOnSelf === '*') return Object.values((src || o).counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) * (v.mult || 1);
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
+      // (Anya, Merciless Angel: the opponents below half their starting life — opponentsBelowHalfLife)
       // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.oppExileCards || v.party || v.enteredYours || v.unspentMana)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.oppExileCards || v.party || v.enteredYours || v.unspentMana || v.opponentsBelowHalfLife)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
@@ -17126,7 +17149,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -20172,7 +20195,9 @@
         case 'exchangeControl': {
           // Avarice Totem: this permanent and the one targeted (withSelf)
           const pair = (e.withSelf ? [src] : []).concat(targets.filter(t => t.kind === 'object').map(t => this.obj(t.id))).filter(x => x && x.zone === 'battlefield');
-          if (pair.length !== 2 || pair[0].controller === pair[1].controller) {
+          // (Burglar's Plot: two that no longer share a card type are not both legal targets — shareCardType)
+          if (pair.length !== 2 || pair[0].controller === pair[1].controller ||
+            (e.shareCardType && !this._cardTypesOf(pair[1]).some(k => this._cardTypesOf(pair[0]).includes(k)))) {
             this.logEvent('control', 'Nothing changes hands.');
             break;
           }
@@ -25683,9 +25708,12 @@
           const x = src || (ctx.objId && this.obj(ctx.objId));
           // (Senu, Keen-Eyed Protector: "if this card is exiled" — from exile: fromZone)
           if (!x || x.zone !== (e.fromZone || 'graveyard')) break;
+          // Tom, Bert, and William: "if they were a creature" — as they left (ifWasCreature)
+          if (e.ifWasCreature && !x._leftAsCreature) break;
           // "return it to the battlefield transformed": the back face arrives
           if (e.transformed && x.card.card_faces && x.card.card_faces.length > 1) x.face = 1;
-          this.moveObject(x, 'battlefield', { controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) });
+          // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
+          this.moveObject(x, 'battlefield', Object.assign({ controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
           if (e.tapped) x.tapped = true;
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
           if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
