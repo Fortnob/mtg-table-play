@@ -1422,6 +1422,9 @@
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'you' }) },
     { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'opponents' }) },
+    // Tinybones, Trinket Thief: "Each opponent with no cards in hand loses 10 life." (emptyHanded)
+    { re: /^Each opponent with no cards in hand loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
+      make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'opponents', emptyHanded: true }) },
     { re: /^Target player (?:or planeswalker )?loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
       make: (m) => ({ op: 'loseLife', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Target player gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) life\.?$/i,
@@ -3641,6 +3644,9 @@
     // Ulamog, the Defiler: "target opponent exiles the top half of their library, rounded up" (exileHalfLibrary)
     { re: /^(Target opponent|Target player) exiles the top half of their library, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: { halfLibrary: 'target', up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Rakdos, the Muscle: "exile cards equal to its mana value from the top of target player's library" — the creature sacrificed
+    { re: /^Exile cards equal to its mana value from the top of target (player|opponent)'?s library\.?$/i,
+      make: (m) => ({ op: 'exileTop', who: 'target', n: { ofTrigger: 'mv' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     { re: /^(Target opponent|Target player) exiles the top (card|(two|three|four|five|X|\d+) cards) of their library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'target', n: m[3] ? num(m[3]) : 1, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library."
@@ -6270,6 +6276,21 @@
     { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — the spell the trigger is about (spellGains)
+    { re: /^That spell gains (deathtouch|lifelink)(?: and (deathtouch|lifelink))?\.?$/i,
+      make: (m) => ({ op: 'spellGains', keywords: [m[1], m[2]].filter(Boolean).map(k => k.toLowerCase()) }) },
+    /* Arvinox, the Mind Flail: "exile the bottom card of each opponent's library face down. For as long as those
+       cards remain exiled, you may look at them, you may cast permanent spells from among them, and you may spend mana
+       as though it were mana of any color to cast those spells." (exileBottomEach, impulseFilter) */
+    { re: /^Exile the bottom card of each opponent'?s library( face down)?\.?$/i,
+      make: (m) => ({ op: 'exileBottomEach', who: 'opponents', faceDown: !!m[1] }) },
+    { re: /^For as long as those cards remain exiled, you may look at them, you may cast (permanent |creature |)spells from among them, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
+      make: (m) => Object.assign({ op: 'mayPlayExiled', castOnly: true, anyMana: true, duration: 'exiled' }, m[1].trim() ? { filter: m[1].trim().toLowerCase() } : {}) },
+    /* Ulalek, Fused Atrocity: "copy all spells you control, then copy all other activated and triggered abilities you
+       control. You may choose new targets for the copies." — every copy is offered new targets as it is made (allMine) */
+    { re: /^Copy all spells you control, then copy all other activated and triggered abilities you control\.?$/i,
+      make: () => ({ op: 'copySpell', allMine: true }) },
+    { re: /^You may choose new targets for the copies\.?$/i, make: () => ({ op: 'noop' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
@@ -10735,6 +10756,8 @@
     [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
+    // Tinybones, Trinket Thief: "if an opponent discarded a card this turn"
+    [/^an opponent discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn', who: 'opponent' })],
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
     [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],

@@ -5119,7 +5119,11 @@
       // Kroxa: who discarded what as this resolves (lifeUnlessDiscarded)
       if (this.resolving) (this.resolving._discBy = this.resolving._discBy || []).push({ pid: playerId, id: o.id });
       // The Raven Man: "if a player discarded a card this turn" (discardedThisTurn)
-      { const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1; }
+      {
+        const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); h.discards = (h.discards || 0) + 1;
+        // Tinybones, Trinket Thief: who discarded (discardsBy)
+        (h.discardsBy = h.discardsBy || {})[playerId] = ((h.discardsBy || {})[playerId] || 0) + 1;
+      }
       /* Obstinate Baloth: "If a spell or ability an opponent controls causes
          you to discard this card, put it onto the battlefield instead" — the
          cause is whatever is resolving (discardToBattlefield) */
@@ -10163,6 +10167,8 @@
       if (!o) return false;
       const c = this.characteristics(o);
       if (c && c.keywords.has(String(kw).toLowerCase())) return true;
+      // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." (spellGains)
+      if (o.zone === 'stack' && (o._stackKw || []).includes(String(kw).toLowerCase())) return true;
       // Soulfire Grand Master: "Instant and sorcery spells you control have lifelink" — a spell on the stack
       return o.zone === 'stack' && this._spellKeywordFrom(o, String(kw).toLowerCase());
     }
@@ -11552,7 +11558,12 @@
           const mv = it.card.cmc || 0;
           return cond.cmp === 'atLeast' ? mv >= cond.n : mv <= cond.n;
         }
-        case 'discardedThisTurn': return ((this.turnHistory || {}).discards || 0) > 0;
+        case 'discardedThisTurn': {
+          const h = this.turnHistory || {};
+          // Tinybones, Trinket Thief: "if an opponent discarded a card this turn" (discardsBy)
+          if (cond.who === 'opponent') return !!me && this.opponentsOf(me.id).some(q => ((h.discardsBy || {})[q.id] || 0) > 0);
+          return (h.discards || 0) > 0;
+        }
         case 'didThisWay': {
           const ids = cond.how === 'milled' ? (this._lastMilled || []) : cond.how === 'revealed' ? [this._lastRevealed].filter(Boolean)
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
@@ -12925,7 +12936,7 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
-        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {};
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o._stackKw = null;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
@@ -15174,6 +15185,8 @@
               if (k > 0) this.changeLife(p, -k);
             }
           }
+          // Tinybones, Trinket Thief: "Each opponent with no cards in hand" (emptyHanded)
+          else if (e.who === 'opponents' && e.emptyHanded) { for (const p of this.opponentsOf(ctx.controller)) if (!((this.zones[p.id] || {}).hand || []).length) this.changeLife(p, -cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) this.changeLife(p, -cnt);
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this.changeLife(p, -cnt); }
           else if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this.changeLife(p, -cnt); }
@@ -21749,6 +21762,34 @@
            exiles cards from the top of their library until they exile a
            nonland card", "…until you exile cards with total mana value 4 or
            greater". What was exiled is remembered for the sentence after. */
+        // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — for as long as it is that spell
+        case 'spellGains': {
+          const td = ctx.triggerData || {};
+          const sp = (td.objectId && this.obj(td.objectId)) || null;
+          if (!sp || sp.zone !== 'stack') break;
+          sp._stackKw = [...new Set((sp._stackKw || []).concat(e.keywords || []))];
+          this.logEvent('rules', `${sp.name} gains ${(e.keywords || []).join(' and ')}.`);
+          break;
+        }
+        /* Arvinox, the Mind Flail: "exile the bottom card of each opponent's library face down" — you may look at what
+           went face down (the leave to cast follows: mayPlayExiled) */
+        case 'exileBottomEach': {
+          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [me];
+          const out = [];
+          for (const pl of who) {
+            const lib = this.zones[pl.id].library;
+            const c = lib[lib.length - 1];
+            if (!c) continue;
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            if (e.faceDown) { c.faceDownExile = true; c.lookableBy = ctx.controller; }
+            out.push(c.id);
+          }
+          this._lastExiledList = out;
+          this._lastExiled = out.length ? out[out.length - 1] : null;
+          this.logEvent('exile', `${me.name} exiles the bottom card of ${who.length === 1 ? who[0].name + "'s library" : "each opponent's library"}${e.faceDown ? ' face down' : ''}.`);
+          break;
+        }
         case 'exileTop': {
           const who = e.who === 'each' ? this.players.filter(x => !x.hasLost)
             : e.who === 'opponents' ? this.opponentsOf(ctx.controller)
