@@ -1460,8 +1460,8 @@
         (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
-        // (Coram, the Undertaker: other players' graveyards too)
-        const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId))
+        // (Coram, the Undertaker: other players' graveyards too; Grolnok, the Omnivore: your own cards in exile with croak counters on them)
+        const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId), (z.exile || []).filter(o => !impulsed.includes(o)))
           .filter(o => this._playFromRule(playerId, o, 'land')).concat(this._borrowedGraveyard(playerId, 'land'));
         for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
           const a = o.analysis();
@@ -1481,8 +1481,10 @@
         this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'topPlot')))
         // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library)
         .concat(this._oppTops(playerId).filter(o => this._playFromRule(playerId, o, 'spell')));
+      // (Grolnok, the Omnivore: your own cards in exile that a permanent gives leave to cast — exiledCounter)
+      const ownLeave = (z.exile || []).filter(o => !impulsed.includes(o) && !waiting.includes(o) && this._playFromRule(playerId, o, 'spell'));
       // (The Great Work: the instants and sorceries in other players' graveyards too)
-      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, this._borrowedGraveyard(playerId))) {
+      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, this._borrowedGraveyard(playerId))) {
         /* Cycling and flashback are things you can do with this card that
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
@@ -2473,6 +2475,9 @@
     /** What a clone entering could copy ("any creature", "an artifact or creature you control"). */
     _clonePool(src, e, controller) {
       const what = e.what && e.what !== 'creature' ? e.what : 'creature';
+      // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard)
+      if (e.fromGraveyard) return this.players.filter(q => !q.hasLost).flatMap(q => (this.zones[q.id] || {}).graveyard || [])
+        .filter(o => o !== src && (o.analysis() || {}).isCreature);
       return this.battlefield.filter(o => o !== src && !o.phasedOut && this._cardFitsWords(o, what) &&
         (!e.yours || o.controller === controller) &&
         // Mockingbird: no more mana value than the mana spent to cast it
@@ -3320,7 +3325,8 @@
         const z = this.zones[playerId] || {};
         const impulsed = o.zone === 'exile' && !o.impulseCastOnly &&
           (this._impulseOpen(o, playerId) || this._mayPlayFromExile(playerId, o));
-        if (o.zone === 'graveyard' || (o.zone === 'library' && ((z.library || [])[0] === o || this._oppTopGrant(playerId, o)))) leave = this._playFromRule(playerId, o, 'land');
+        // (Grolnok, the Omnivore: your own cards in exile with croak counters on them — exiledCounter)
+        if (o.zone === 'graveyard' || o.zone === 'exile' || (o.zone === 'library' && ((z.library || [])[0] === o || this._oppTopGrant(playerId, o)))) leave = this._playFromRule(playerId, o, 'land');
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
@@ -4639,7 +4645,7 @@
           for (const ef of (ab.effects || [])) {
             if (ef.op !== 'playFrom' && ef.op !== 'playFromTop') continue;
             if (ef.zone === 'exiledCounter') {
-              if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId)) continue;
+              if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId) || (ef.owned && o.owner !== playerId)) continue;
             } else if ((ef.zone || 'top') !== where) continue;
             if (foreignGy && !ef.anyGraveyard) continue;
             if (where === 'exiledWith' && o.exiledWithId !== src.id) continue;
@@ -7258,9 +7264,12 @@
       const pid = item.controller;
       const lib = this.zones[pid].library;
       const mv = (a.mv || 0) + this._xMv(item);
+      /* Averna, the Chaos Bloom: "As you cascade, you may put a land card from among the exiled cards onto the
+         battlefield tapped." — a choice as it resolves, so each cascade goes on the stack (cascadeAgain, cascadeLand) */
+      const averna = this.battlefield.some(x => x.controller === pid && !x.phasedOut && this._staticOp(x, 'cascadeLand'));
       /* The first is done now; each other one waits on the stack beneath what the first casts, so that resolves
          before the next cascade goes looking (cascadeAgain) */
-      for (let k = 1; k < times; k++) {
+      for (let k = averna ? 0 : 1; k < times; k++) {
         const t = { id: this._uid('tr'), kind: 'ability', obj: item.obj, objId: item.objId, abilityIndex: -1, controller: pid,
           name: `${item.name} — cascade`, auto: true, triggered: true, effects: [{ op: 'cascadeAgain', mv }],
           abilityText: `Cascade (${item.name}, mana value ${mv}).`, triggerData: { event: 'castSelf', stackId: item.id, objectId: item.objId } };
@@ -7268,6 +7277,7 @@
         this.logEvent('trigger', `Triggered: ${t.name}`);
         this.emit('stack:add', t);
       }
+      if (averna) return;
       const exiled = [];
       let hit = null;
       while (lib.length) {
@@ -10253,7 +10263,7 @@
       // Gornog, the Red Reaper: "Cowards can't block Warriors." (typeCantBlockType)
       for (const s of this.battlefield) {
         const tc = !s.phasedOut && this._staticOp(s, 'typeCantBlockType');
-        if (tc && this._hasCreatureType(blocker, tc.blocker) && this._hasCreatureType(attacker, tc.attacker)) return false;
+        if (tc && (!tc.yours || attacker.controller === s.controller) && this._hasCreatureType(blocker, tc.blocker) && this._hasCreatureType(attacker, tc.attacker)) return false;
       }
       // Sidar Kondo of Jamuraa: an opponent's blocker without flying or reach, against a creature with power 2 or less (smallUnblockable)
       for (const s of this.battlefield) {
@@ -14848,6 +14858,8 @@
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !((data.spell && data.spell.fromZone === 'exile') || data.fromZone === 'exile')) continue;
+          // The Ninth Doctor: "during your untap step"
+          if (ab.duringYourUntap && !(this.step === 'untap' && this.activePlayer && this.activePlayer.id === o.controller)) continue;
           // "attacks a player": not a planeswalker or a battle
           if (ab.attacksPlayer && !(data.attacker && this.player(data.attacker.attacking))) continue;
           // Talion: the chosen number among the spell's mana value, power and toughness
@@ -15421,6 +15433,11 @@
           const text = String(card.oracle_text || '') + '\n' + lines.join('\n');
           card = Object.assign({}, card, { id: card.id + ':this:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
         }
+      }
+      // Superior Spider-Man: "he's a 4/4 …" — that size (copyPt)
+      if (e.copyPt) {
+        const [pw, tg] = e.copyPt.split('/');
+        card = Object.assign({}, card, { id: card.id + ':pt:' + e.copyPt, power: pw, toughness: tg, card_faces: null });
       }
       /* "except its name is CARDNAME" (and "it's legendary"): the copy
          keeps this card's name, and its words say that name */
@@ -22078,6 +22095,8 @@
           // The Ancient One: "When you discard a card this way" — only if one was, and "its" is that card (ifDiscarded)
           const tossed = e.ifDiscarded ? (this._lastDiscarded || [])[0] : null;
           if (e.ifDiscarded && !tossed) break;
+          // (Evie Frye: "When you discard a creature card this way" — of that kind)
+          if (e.discardFilter && !this._cardFitsWords(this.obj(tossed), e.discardFilter)) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
@@ -23000,6 +23019,14 @@
           this.logEvent('rules', `There ${k > 1 ? 'are ' + k + ' additional upkeep steps' : 'is an additional upkeep step'} after this phase.`);
           break;
         }
+        /* The Ninth Doctor: "you get an additional upkeep step after this step" — triggered in the untap step, it
+           resolves in the upkeep, and that upkeep comes again (extraUpkeepStep) */
+        case 'extraUpkeepStep': {
+          if (!this.phase || this.step !== 'upkeep' || !this.activePlayer || this.activePlayer.id !== ctx.controller) break;
+          (this._extraSteps = this._extraSteps || []).push({ turn: this.turn, step: 'upkeep' });
+          this.logEvent('rules', 'There is an additional upkeep step after this one.');
+          break;
+        }
         case 'extraEndStep': {
           if (!this.phase || this.step !== 'end') break;
           const begun = this._endSteps && this._endSteps.turn === this.turn ? this._endSteps.n : 0;
@@ -23500,6 +23527,12 @@
           // Cursed Mirror: a copy until the end of the turn, with haste
           if (e.eot) src.copyUntilTurn = this.turn;
           if (e.haste) src.effects.push({ keywords: ['Haste'], until: 'eot' });
+          /* Superior Spider-Man: "When you do, exile that card." — a reflexive trigger, the card copied (exileCopied) */
+          if (e.exileCopied && pick.zone === 'graveyard') {
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: src, objId: src.id, abilityIndex: -1,
+              controller: ctx.controller, name: `${src.name} — exile ${pick.name}`, effects: [{ op: 'exileTriggerCard' }], auto: true,
+              abilityText: 'When you do, exile that card.', optional: false, triggerData: { event: 'reflexive', objectId: pick.id } });
+          }
           this.bumpBoard();
           // (by the name it was cast with: "Phyrexian Metamorph enters as a copy of Sol Ring", not "Sol Ring … of Sol Ring")
           this.logEvent('rules', `${(src.printedCard && src.printedCard.name) || src.name} enters as a copy of ${pick.name}${e.eot ? ' until end of turn' : ''}.`);
@@ -24269,6 +24302,23 @@
               if (!ca.isLand && ((c.card && c.card.cmc) || 0) < (e.mv || 0)) { st.hit = c.id; break; }
             }
             if (r) r.marks[slot] = st;
+          }
+          /* Averna, the Chaos Bloom: "you may put a land card from among the exiled cards onto the battlefield tapped"
+             — after the last card is exiled, before the cast; one pick that may be left empty (cascadeLand) */
+          if (this.battlefield.some(x => x.controller === pid && !x.phasedOut && this._staticOp(x, 'cascadeLand'))) {
+            const lands = st.exiled.map(id => this.obj(id)).filter(c => c && c.zone === 'exile' && (c.analysis() || {}).isLand);
+            if (lands.length && !st.landDone) {
+              const got = this._choose({ playerId: pid, purpose: 'cascadeLand', kind: 'objects', zone: 'exile', items: this._chooseItems(lands),
+                min: 0, max: 1, prompt: 'Cascade: you may put a land card from among the exiled cards onto the battlefield tapped.' }, 'cascL');
+              if (got === SUSPEND) return SUSPEND;
+              st.landDone = true;
+              const land = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && lands.includes(c));
+              if (land) {
+                this.moveObject(land, 'battlefield', { controller: pid, tapped: true });
+                if (land.zone === 'battlefield') land.tapped = true;
+                this.logEvent('keyword', `${land.name} is put onto the battlefield tapped.`);
+              }
+            }
           }
           const hit = st.hit && this.obj(st.hit);
           if (hit && hit.zone === 'exile') {

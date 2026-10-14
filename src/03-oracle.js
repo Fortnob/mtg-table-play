@@ -748,6 +748,10 @@
     while (ex) {
       let c;
       if ((c = ex.match(/^it'?s an? ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to its other types/))) e.addTypes = c[1].split(' ');
+      // Superior Spider-Man: "he's a 4/4 Spider Human Hero in addition to his other types" (copyPt)
+      else if ((c = ex.match(/^(?:it|he|she)'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) in addition to (?:its|his|her) other types/))) {
+        e.copyPt = c[1] + '/' + c[2]; e.addTypes = c[3].split(' ');
+      }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
       // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
       else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
@@ -4040,6 +4044,8 @@
     { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
     // Mari, the Killing Quill: "exile it with a hit counter on it" — the card that died, a counter on it in exile
     { re: /^Exile the card that died with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
+    // Grolnok, the Omnivore: "Whenever a permanent card is put into your graveyard from your library, exile it with a croak counter on it."
+    { re: /^Exile it with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
     /* Zack Fair: "Put CARDNAME's counters on that creature and attach an Equipment that was attached to CARDNAME to
        that creature." — what it had as it was sacrificed (attachLeftEquipment) */
     { re: /^Put CARDNAME'?s counters on that creature and attach an Equipment that was attached to CARDNAME to that creature\.?$/,
@@ -4969,6 +4975,8 @@
     // Y'shtola Rhul: "Then if it's the first end step of the turn, there is an additional end step after this step."
     { re: /^(?:Then )?if it'?s the first end step of the turn, there is an additional end step after this step\.?$/i,
       make: () => ({ op: 'extraEndStep', ifFirst: true }) },
+    // The Ninth Doctor: "you get an additional upkeep step after this step" — the upkeep it resolves in, again (extraUpkeepStep)
+    { re: /^You get an additional upkeep step after this step\.?$/i, make: () => ({ op: 'extraUpkeepStep' }) },
     // Obeka, Splitter of Seconds: "you get that many additional upkeep steps after this phase" (extraUpkeeps)
     { re: /^You get that many additional upkeep steps after this phase\.?$/i, make: () => ({ op: 'extraUpkeeps', n: 'triggerAmount' }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
@@ -4990,11 +4998,12 @@
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ (?:and\/or|and) /g, ' or '), yours: true, tapped: !!m[2] }) },
     /* The Ancient One: "Draw a card, then discard a card. When you discard a card this way, target player mills
        cards equal to its mana value." — a reflexive trigger about the card discarded, none if none was (ifDiscarded) */
-    { re: /^When you discard a card this way, (.+)$/i,
+    // (Evie Frye: "When you discard a creature card this way, target creature you control can't be blocked this turn." — discardFilter)
+    { re: /^When you discard an? (?:(creature|land|nonland|artifact|instant|sorcery|noncreature) )?card this way, (.+)$/i,
       make: (m) => {
-        const inner = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
+        const inner = parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1)));
         if (!inner.auto || !inner.effects.length) return null;
-        return { op: 'reflexive', ifDiscarded: true, effects: inner.effects, text: m[0] };
+        return Object.assign({ op: 'reflexive', ifDiscarded: true, effects: inner.effects, text: m[0] }, m[1] ? { discardFilter: m[1].toLowerCase() } : {});
       } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
@@ -5363,6 +5372,9 @@
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature', upTo: true, filter: 'creature' }] }) },
     { re: /^Target creature can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature' }] }) },
+    // Evie Frye: "target creature you control can't be blocked this turn"
+    { re: /^Target creature you control can'?t be blocked this turn\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'unblockable', targets: [targetSpec('target creature you control')] }) },
     // Secret Tunnel: "Two target creatures you control that share a creature type can't be blocked this turn."
     { re: /^Two target creatures you control that share a creature type can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [targetSpec('target creature you control'),
@@ -8490,6 +8502,15 @@
         const rest = m[1] ? parseSentenceList(splitSentences(m[1])) : { auto: true, effects: [] };
         return rest.auto ? [{ op: 'eachMayRummage' }].concat(rest.effects) : null;
       } },
+    /* Superior Spider-Man: "You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except
+       his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do,
+       exile that card." — a card in any graveyard (fromGraveyard), exiled by a reflexive trigger (exileCopied) */
+    { re: /^You may have CARDNAME enter as a copy of any creature card in a graveyard(?:, except (.+?))?\. When you do, exile that card\.?$/,
+      make: (m) => {
+        const e = { op: 'etbAsCopy', what: 'creature', fromGraveyard: true, exileCopied: true };
+        if (m[1] && (!copyExceptions(m[1], e) || e.keepThis || e.keepOwn)) return null;
+        return [e];
+      } },
     /* Omnath, Locus of All: "look at the top card of your library. You may reveal that card if it has three or more
        colored mana symbols in its mana cost. If you do, add three mana in any combination of its colors and put it into
        your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
@@ -10456,6 +10477,21 @@
         // (only when the choice and what hangs on it are read too — not half a card done and half by hand)
         const rest = pre.auto && pre.effects.length && parseSentenceList(['You may ' + thenMay[2] + '.', next]);
         if (rest && rest.auto) { effects.push(...pre.effects); may = [s, thenMay[2]]; }
+      }
+      /* Taborax, Hope's Demise: "If that creature was a Cleric, you may draw a card. If you do, you lose 1 life." — what
+         hangs on the choice goes inside it, under the condition (condMayIfDo) */
+      if (!may && ifDo && /^If [^,]+, you may [^,]+\.$/i.test(s) && !/^When/i.test(next)) {
+        const pre = parseSentenceList([s]);
+        const c0 = pre.auto && pre.effects.length === 1 ? pre.effects[0] : null;
+        const m0 = c0 && c0.op === 'ifCond' && (c0.then || []).length === 1 && c0.then[0].op === 'may' ? c0.then[0] : null;
+        const tp = m0 && parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp && tp.auto && tp.effects.length) {
+          m0.then = (m0.then || []).concat(tp.effects);
+          c0.text = s + ' ' + next;
+          effects.push(c0);
+          i++;
+          continue;
+        }
       }
       /* "You may sacrifice another creature. If you do, you gain X life and
          draw X cards, where X is that creature's power." The sacrifice is
@@ -12772,6 +12808,8 @@
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped during your turn,? /i,
       event: 'becomesTapped', self: true, extra: { yourTurnOnly: true } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
+    // The Ninth Doctor: "Whenever The Ninth Doctor becomes untapped during your untap step" (duringYourUntap)
+    { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes untapped during your untap step,? /i, event: 'becomesUntapped', self: true, extra: { duringYourUntap: true } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
     { re: /^When(?:ever)? (?:this permanent|this creature|~|CARDNAME) leaves the battlefield(?:,| )/i, event: 'ltb', self: true },
     // Toralf, God of Fury: "Whenever a creature or planeswalker an opponent controls is dealt excess noncombat damage" (excessNoncombat)
@@ -18164,13 +18202,21 @@
             { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: 'Renown ' + m[3] }] } : null;
         }, auto: true },
       // (Kudo, King Among Bears: "Other creatures have base power and toughness 2/2 and are Bears …" — everyone's)
-      { re: /^(Creatures you control|Other creatures) have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
+      // (Graaz, Unstoppable Juggernaut: "Other creatures you control have base power and toughness 5/3 and are Juggernauts in addition to their other creature types.")
+      { re: /^(Creatures you control|Other creatures(?: you control)?) have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other (?:creature )?types\.?$/,
         make: (m) => {
           const scope = scopeOf(m[1]);
           return scope ? { op: 'sequence', list: [
             { op: 'continuous', layer: 7, scope, setPt: { p: +m[2], t: +m[3] } },
             { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[4]] }] } : null;
         }, auto: true },
+      // Averna, the Chaos Bloom: "As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped."
+      { re: /^As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped\.?$/i,
+        eff: { op: 'cascadeLand' }, auto: true },
+      /* Graaz, Unstoppable Juggernaut: "Juggernauts you control can't be blocked by Walls." — of the types they have after
+         the layers, Graaz's own "are Juggernauts" included (typeCantBlockType, yours) */
+      { re: /^([A-Z][a-z]+)s you control can'?t be blocked by ([A-Z][a-z]+)s\.?$/,
+        make: (m) => ({ op: 'typeCantBlockType', blocker: m[2], attacker: m[1], yours: true }), auto: true },
       // Porcelain Gallery: "Creatures you control have base power and toughness each equal to the number of creatures you control."
       { re: /^Creatures you control have base power and toughness each equal to the number of ([-a-z' ]+?) (you control|on the battlefield)\.?$/i,
         make: (m) => {
@@ -18395,6 +18441,9 @@
          from exile, and mana of any type can be spent to cast those spells." (exiledCounter) */
       { re: /^During your turn, you may play cards you don'?t own with ([a-z]+) counters on them from exile, and mana of any type can be spent to cast those spells\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), notOwned: true, what: 'any', duringYourTurn: true, anyMana: true }), auto: true },
+      // Grolnok, the Omnivore: "You may play lands and cast spells from among cards you own in exile with croak counters on them." (owned)
+      { re: /^You may play lands and cast spells from among cards you own in exile with ([a-z]+) counters on them\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), owned: true, what: 'any' }), auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
       // Zask, Skittering Swarmlord: "You may play lands and cast Insect spells from your graveyard." (spellFilter)
