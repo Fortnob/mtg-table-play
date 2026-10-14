@@ -10954,6 +10954,13 @@
       if (o.zone === 'battlefield' && c && c.isCreature) {
         for (const t of this._protCardTypes(o.controller)) if (this._cardTypesOf(source).includes(t)) return true;
       }
+      /* Rebbec, Architect of Ascension: "Artifacts you control have protection from each mana value among artifacts you
+         control" — a source whose mana value one of them has (a spell's with its X) */
+      if (o.zone === 'battlefield' && this._cardTypesOf(o).includes('Artifact') && this._anyStaticOf(o.controller, 'protMvAmongArtifacts')) {
+        const mvOf = (x) => (x.zone === 'stack' && x._castMv != null ? x._castMv : x.faceDown ? 0 : ((x.card && x.card.cmc) || 0));
+        const mvs = new Set(this.battlefield.filter(x => x.controller === o.controller && !x.phasedOut && this._cardTypesOf(x).includes('Artifact')).map(mvOf));
+        if (mvs.has(mvOf(source))) return true;
+      }
       // Commander's Plate: every colour outside its controller's commanders' colour identity
       const CNAME = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
       for (let i = args.length - 1; i >= 0; i--) {
@@ -21536,6 +21543,57 @@
         /* Davros, Dalek Creator: "each opponent who lost 3 or more life this turn faces a villainous choice — You draw
            a card, or that player discards a card." Each picks in turn order, then what they picked is done, all of
            it, "that player" being the one who picked it (CR 701.56) */
+        /* Garth One-Eye: a name not yet chosen for this Garth (forgotten once it leaves the battlefield: _leftSeq), a
+           copy of that card made, and cast if its controller likes, paying its costs, as this resolves (castNamedCopy) */
+        case 'castNamedCopy': {
+          if (!src) break;
+          const memo = src.namedCopies && src.namedCopies.seq === (src._leftSeq || null) ? src.namedCopies : { seq: src._leftSeq || null, names: [] };
+          const left = (e.names || []).filter(nm => !memo.names.includes(nm));
+          if (!left.length) { this.logEvent('rules', `Every name has been chosen for ${src.name}.`); break; }
+          const opts = left.map(nm => { const cd = this._cardByName(nm); return Object.assign({ label: nm }, cd ? { cards: [cd] } : {}); });
+          const got = this._choose({ playerId: ctx.controller, purpose: 'namedCopy', kind: 'options', options: opts, min: 1, max: 1,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a card name that hasn't been chosen. You may cast a copy of that card, paying its costs.` }, 'ncName');
+          if (got === SUSPEND) return SUSPEND;
+          const name = left[(got && got.picks && got.picks[0]) || 0] || left[0];
+          if (!this._doneHere('ncRec')) { memo.names = memo.names.concat(name); src.namedCopies = memo; this.logEvent('rules', `${me.name} chooses ${name}.`); }
+          const card = this._cardByName(name);
+          if (!card) { this.logEvent('rules', `There is no card named ${name} to copy.`); break; }
+          const r = this.resolving, mk = r ? r.index + ':ncDup' : null;
+          let dup = r && r.marks && r.marks[mk] ? this.obj(r.marks[mk]) : null;
+          if (!dup) {
+            // a copy of the card, outside the game until it is cast (a permanent one resolves as a token)
+            dup = this._register(new GObj(card, ctx.controller, 'exile'));
+            dup.isCopy = true;
+            if ((dup.analysis() || {}).isPermanent) dup.isToken = true;
+            this.zones[ctx.controller].exile.push(dup);
+            if (r) { r.marks = r.marks || {}; r.marks[mk] = dup.id; }
+          }
+          const gone = () => { if (dup.zone === 'exile') { this._removeFromZone(dup); dup.zone = null; } };
+          if (!this.couldPay(ctx.controller, String(this.castCost(dup, {}) || '').replace(/\{X\}/g, ''), this.manaSources(ctx.controller))) { gone(); break; }
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, prompt: `Cast the copy of ${name}, paying its costs?` }, 'ncCast');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) { gone(); break; }
+          const tg = this._askSpellTargets(ctx.controller, dup, 'ncT');
+          if (tg === SUSPEND) return SUSPEND;
+          if (!tg) { gone(); break; }
+          const ok = this.castSpell(ctx.controller, dup.id, { alternative: 'resolution', targets: tg, auto: true });
+          const st = this.stack.find(x => x.objId === dup.id);
+          if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${name}.`); } else gone();
+          break;
+        }
+        // Missy: "Each artifact creature you control deals 1 damage to that opponent" (eachDealsDamage)
+        case 'eachDealsDamage': {
+          const foes = e.to === 'eachOpponent' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [triggerPlayer()].filter(q => q && !q.hasLost);
+          const srcs = this.battlefield.filter(o => !o.phasedOut && o.controller === ctx.controller && this._matchesCategory(o, e.filter || 'creature'));
+          for (const q of foes) for (const o of srcs) this.dealDamageToPlayer(q, n(e.n || 1), o);
+          if (srcs.length && foes.length) this.logEvent('damage', `${srcs.length} ${e.filter || 'creature'}${srcs.length === 1 ? '' : 's'} deal${srcs.length === 1 ? 's' : ''} ${n(e.n || 1)} damage each to ${foes.map(q => q.name).join(', ')}.`);
+          break;
+        }
+        // Missy: "chaos ensues" — with no plane in the game, it sets off only what watches for it (chaosEnsues)
+        case 'chaosEnsues':
+          this.logEvent('rules', 'Chaos ensues.');
+          this._fire('chaosEnsues', ctx.controller, { playerId: ctx.controller });
+          break;
         case 'villainousChoice': {
           let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
             : e.who === 'triggerPlayer' ? [triggerPlayer()]

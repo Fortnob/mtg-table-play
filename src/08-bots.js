@@ -1563,6 +1563,19 @@
       const i = (s.options || []).findIndex(o => o && o.unlock);
       return { picks: [i < 0 ? 0 : i] };
     },
+    /* Garth One-Eye: the best card we can pay for now (Black Lotus is mana for later; Shivan Dragon when we can cast it) */
+    namedCopy(s) {
+      const g = this.game;
+      let best = 0, bestV = -Infinity;
+      (s.options || []).forEach((o, i) => {
+        const cd = o && o.cards && o.cards[0];
+        if (!cd) return;
+        const can = g.couldPay(this.pid, String(cd.mana_cost || '').replace(/\{X\}/g, ''), this.manaSources());
+        const v = rateCard(cd, { prior: 0 }) + (can ? 10 : 0);
+        if (v > bestV) { bestV = v; best = i; }
+      });
+      return { picks: [best] };
+    },
     /* Sensational Spider-Man: every counter taken off is a card; ours first, then theirs */
     removeCountersAmong(s) {
       const order = (s.options || []).map((o, i) => ({ i, mine: !!(o && o.mine) })).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
@@ -2798,6 +2811,13 @@
           const lose = this.me.life - other.life;
           return lose <= 0 || (other.life >= 10 && lose <= Math.max(0, (g.zones[this.pid].library || []).length - 5));
         }
+      }
+      /* Iroh, Tea Master: "you may have target opponent gain control of target permanent you control" — only
+         something of little worth (the Food it made), for the Ally that comes with it */
+      if (e && e.op === 'may' && (e.then || []).some(x => x && x.op === 'giveControl')) {
+        const r = g.resolving;
+        const t = ((r && r.ctx && r.ctx.targets) || []).map(x => x && x.kind === 'object' && g.obj(x.id)).find(Boolean);
+        return !!t && t.controller === this.pid && this.permanentValue(t) <= 1.5;
       }
       if (e && (e.op === 'may' || e.op === 'mayPay')) {
         const v = U.sum(flatEffects(e.then).map(x => this._contextWorth(x)));

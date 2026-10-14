@@ -1689,6 +1689,12 @@
     // Beacon of Unrest: "…from a graveyard onto the battlefield under your control"
     { re: /^Put target (artifact or creature|creature|artifact) card from a graveyard onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard' })] }) },
+    // Iroh, Tea Master: "you may have target opponent gain control of target permanent you control"
+    { re: /^[Hh]ave target opponent gain control of target permanent you control\.?$/,
+      make: () => ({ op: 'giveControl', targets: [{ type: 'player', opponent: true }, { type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] }) },
+    // …"Put a +1/+1 counter on that token for each permanent you own that your opponents control." (ownedOppControlled)
+    { re: /^Put a \+1\/\+1 counter on that token for each permanent you own that your opponents control\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: { ownedOppControlled: true, mult: 1 }, scope: 'thatToken' }) },
     // Wrong Turn, Harmless Offering: "Target opponent gains control of target creature (you control)."
     // (Jon Irenicus, Shattered One: "of up to one target creature you control")
     { re: /^Target (opponent|player) gains control of (up to one )?(target (?:creature|permanent|artifact)(?: you control)?)\.?$/i,
@@ -3626,6 +3632,12 @@
         return Object.assign({ op: 'villainousChoice', who, options }, k != null ? { lostLife: k } : {},
           who === 'target' ? { targets: [{ type: 'player', opponent: true }] } : {});
       } },
+    // Missy: "Each artifact creature you control deals 1 damage to that opponent" — each one a source of its own (eachDealsDamage)
+    { re: /^Each (artifact creature|creature|[A-Z][a-z]+) you control deals (\d+) damage to (that opponent|that player|each opponent)\.?$/,
+      make: (m) => ({ op: 'eachDealsDamage', filter: m[1].toLowerCase(), n: +m[2], to: /each/i.test(m[3]) ? 'eachOpponent' : 'triggerPlayer' }) },
+    /* Missy: "you draw a card and chaos ensues" — with no plane in the game, chaos ensuing sets off only what
+       watches for it (chaosEnsues) */
+    { re: /^You draw a card and chaos ensues\.?$/i, make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'chaosEnsues' }] },
     /* the newer mechanics, each a word for a small procedure */
     { re: /^Discover (one|two|three|four|five|six|seven|eight|nine|ten|\d+)\.?$/i, make: (m) => ({ op: 'discover', n: num(m[1]) }) },
     { re: /^Discover X, where X is (?:that spell'?s|its) mana value\.?$/i, make: () => ({ op: 'discover', n: { ofTrigger: 'mv' } }) },
@@ -8987,6 +8999,10 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Garth One-Eye: "Choose a card name that hasn't been chosen from among Disenchant, …, and Black Lotus. Create a
+       copy of the card with the chosen name. You may cast the copy." — paying its costs, as the ability resolves (castNamedCopy) */
+    { re: /^Choose a card name that hasn'?t been chosen from among ([^.]+?)\. Create a copy of the card with the chosen name\. You may cast the copy\.?$/i,
+      make: (m) => [{ op: 'castNamedCopy', names: m[1].split(/,\s*(?:and\s+)?|\s+and\s+/).map(x => x.trim()).filter(Boolean) }] },
     /* Ezio Auditore da Firenze: "you may pay {W}{U}{B}{R}{G} if that player has 10 or less life. When you do, that
        player loses the game." — nothing to pay with more life than that (thatPlayerLife, reflexive) */
     { re: /^you may pay ((?:\{[^}]+\})+) if (that player has \d+ or less life)\. When you do, that player loses the game\.?$/i,
@@ -9159,6 +9175,11 @@
     { re: /^Return (?:it|that card) to the battlefield face down under (its owner'?s|your) control\. It'?s an? (Plains|Island|Swamp|Mountain|Forest) land\.$/i,
       make: (m) => [{ op: 'returnTriggerCard', yours: /your/i.test(m[1]), triggerOnly: true, fromGrave: true,
         faceDownLand: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }] },
+    /* Missy: "return it to the battlefield under your control face down and tapped. It's a 2/2 Cyberman artifact
+       creature." — face down as that, and nothing more (faceDownLand, a whole type line) */
+    { re: /^[Rr]eturn (?:it|that card) to the battlefield under your control face down( and tapped)?\. It'?s a 2\/2 ([A-Z][a-z]+) artifact creature\.$/,
+      make: (m) => [Object.assign({ op: 'returnTriggerCard', yours: true, triggerOnly: true, fromGrave: true,
+        faceDownLand: 'Artifact Creature — ' + m[2] }, m[1] ? { tapped: true } : {})] },
     /* Teferi's Time Twist: "Exile target permanent you control. Return that card to the battlefield under its
        owner's control at the beginning of the next end step. If it enters as a creature, it enters with an
        additional +1/+1 counter on it." (enterExtraCounter) */
@@ -18246,6 +18267,8 @@
       // Brisela, Voice of Nightmares: "Your opponents can't cast spells with mana value 3 or less." (opponentsCantCastMv)
       { re: /^Your opponents can'?t cast spells with mana value (\d+) or (less|greater)\.?$/i,
         make: (m) => (/less/i.test(m[2]) ? { op: 'opponentsCantCastMv', max: +m[1] } : { op: 'opponentsCantCastMv', min: +m[1] }), auto: true },
+      // Rebbec, Architect of Ascension: "Artifacts you control have protection from each mana value among artifacts you control." (protMvAmongArtifacts)
+      { re: /^Artifacts you control have protection from each mana value among artifacts you control\.?$/i, eff: { op: 'protMvAmongArtifacts' }, auto: true },
       // Thrasta, Tempest's Roar: "Trample over planeswalkers" (trampleOverWalkers; the combat damage step reads it)
       { re: /^Trample over planeswalkers\.?$/i, eff: { op: 'trampleOverWalkers' }, auto: true },
       /* Gaddock Teeg: "Noncreature spells with mana value 4 or greater can't be cast." and
@@ -19882,7 +19905,7 @@
   function faceDownAnalysis(land, cloaked) {
     if (!land) return analyze(cloaked ? CLOAKED_CARD : FACE_DOWN_CARD);
     /* The Cyber-Controller: "They're 2/2 Cyberman artifact creatures." — a face-down 2/2 with those types, given as
-       a whole type line ('Artifact Creature — Cyberman') */
+       a whole type line ('Artifact Creature — Cyberman'); Missy's "It's a 2/2 Cyberman artifact creature." too */
     const asCreature = /\bCreature\b/.test(land);
     const key = land.toLowerCase().replace(/[^a-z]+/g, '_');
     const card = FACE_DOWN_LANDS[land] || (FACE_DOWN_LANDS[land] = Object.assign({}, FACE_DOWN_CARD,
