@@ -2819,10 +2819,12 @@
      * it does not send the original anywhere; a copy of a permanent spell
      * becomes a token. Everything chosen for the original comes with it.
      */
-    _copyOnStack(item, controller) {
+    _copyOnStack(item, controller, except) {
       let copy;
       if (item.kind === 'spell' && item.obj) {
-        const dup = this._register(new GObj(item.obj.card, controller, 'stack'));
+        // (The Sixth Doctor: "except the copy isn't legendary" — part of what the copy is, CR 707.9b)
+        const legend = except && except.nonLegendary && /\bLegendary\b/.test(String(item.obj.card.type_line || ''));
+        const dup = this._register(new GObj(legend ? this._copyExcept(item.obj.card, null, { nonLegendary: true }) : item.obj.card, controller, 'stack'));
         dup.isCopy = true; dup.chosenX = item.obj.chosenX; dup.giftTo = item.obj.giftTo || null;
         // (a copy of a kicked spell is kicked too — Gatekeeper of Malakir copied by Double Major, CR 707.10)
         dup.kickedTimes = item.obj.kickedTimes || 0; dup.wasKicked = !!item.obj.wasKicked;
@@ -15724,7 +15726,11 @@
         if (v && typeof v === 'object' && v.revealedCount) return (this._revealedCount || 0) * (v.mult || 1);
         // the Commander storms: how many times you've cast your commander from the command zone
         // Keening Stone: "the number of cards in that player's graveyard" — the targeted player
-        if (v && typeof v === 'object' && v.targetGraveyardCount) { const tp = firstPlayer(); return tp ? ((this.zones[tp.id] || {}).graveyard || []).length : 0; }
+        // (The Mouth of Sauron: "the number of instant and sorcery cards in that player's graveyard" — of those kinds)
+        if (v && typeof v === 'object' && v.targetGraveyardCount) {
+          const tp = firstPlayer(); const gy = tp ? ((this.zones[tp.id] || {}).graveyard || []) : [];
+          return v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length;
+        }
         if (v && typeof v === 'object' && v.commanderCasts) return (me ? this._commanderCastCount(me.id) : 0) * (v.mult || 1);
         // Scapeshift: "up to that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacrificed || []).length;
@@ -15792,6 +15798,8 @@
           const tdC = ctx.triggerData || {};
           const it = tdC.objectId && this.obj(tdC.objectId);
           const pile = it ? (it.zone === 'battlefield' ? it.counters : (it._diedCounters || {})) : {};
+          // (Reyhan, Last of the Abzan: "that many +1/+1 counters" — of that kind only)
+          if (v.counter) return (Number((pile || {})[v.counter]) || 0) * (v.mult || 1);
           return Object.values(pile || {}).reduce((acc, k) => acc + (Number(k) || 0), 0) * (v.mult || 1);
         }
         // Titan of Littjara: the other creatures you control that share a creature type with it
@@ -17875,7 +17883,7 @@
             // "for each other spell you've cast before it": none, and there is nothing to copy
             const times = e.n && typeof e.n === 'object' ? n(e.n) : Math.max(1, n(e.n || 1));
             if (times <= 0) break;
-            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller).id);
+            for (let k = 0; k < times + this._extraCopies(ctx.controller, item); k++) made.push(this._copyOnStack(item, ctx.controller, e.nonLegendary ? { nonLegendary: true } : null).id);
             if (r) r.marks[slot] = made;
             this.logEvent('copy', `${me.name} copies ${item.name || 'the spell'}${made.length > 1 ? ' ' + made.length + ' times' : ''}.`);
             this.emit('sfx', 'cast');
@@ -19648,6 +19656,20 @@
             if (k > 0) { this.dealDamageToPlayer(payer, k, src); this.emit('sfx', 'damage'); }
             break;
           }
+          /* Satya, Aetherflux Genius: "unless you pay an amount of {E} equal to its mana value" — the token's, as it is
+             now; gone, nothing to sacrifice; a mana value of 0 is paid with nothing (energyMv) */
+          if (e.energyMv) {
+            const it = ctx.obj || (ctx.objId && this.obj(ctx.objId));
+            if (!it || it.zone !== 'battlefield') break;
+            const k = (it.card && it.card.cmc) || 0;
+            if (!k) break;
+            if ((payer.energy || 0) < k) { this._spliceNext(e.then); break; }
+            const costE = '{E}'.repeat(k);
+            const paidE = this._ask({ type: 'payOrDont', playerId: payer.id, cost: costE, prompt: e.prompt || `Pay ${costE} to keep ${it.name}?` });
+            if (paidE === SUSPEND) return SUSPEND;
+            if (paidE) { payer.energy -= k; this.logEvent('rules', `${payer.name} pays ${costE}.`); } else this._spliceNext(e.then);
+            break;
+          }
           let cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');
           // Countervailing Winds: {1} for each card in your graveyard
           if (e.costPer) { const k = n(e.costPer); if (k <= 0) break; cost = '{' + k + '}'; }
@@ -19908,6 +19930,22 @@
             if (pool.length > 1) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Choose one of those permanents to copy.' }, 'copyWhich');
+              if (got === SUSPEND) return SUSPEND;
+              pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
+            }
+            source = pick;
+          }
+          /* Calamity, Galloping Inferno: "choose a nonlegendary creature that saddled it this turn" — one tapped to
+             saddle it this turn, still a creature on the battlefield; asked only when there is more than one (saddledSelf) */
+          if (e.of === 'saddledSelf') {
+            const sb = src && src.saddledBy && src.saddledBy.turn === this.turn ? src.saddledBy.ids : [];
+            const pool = sb.map(id => this.obj(id)).filter((x, i, all) => x && x.zone === 'battlefield' && !x.phasedOut && all.indexOf(x) === i &&
+              (this.characteristics(x) || {}).isCreature && !(x.analysis() || {}).isLegendary);
+            if (!pool.length) break;
+            let pick = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'copyWhich', kind: 'objects', zone: 'battlefield',
+                items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Choose a nonlegendary creature that saddled it this turn to copy.' }, 'copyWhich');
               if (got === SUSPEND) return SUSPEND;
               pick = pool.find(x => x.id === ((got && got.picks) || [])[0]) || pool[0];
             }

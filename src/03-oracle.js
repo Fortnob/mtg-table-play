@@ -2863,6 +2863,10 @@
     // Yuna, Grand Summoner: "you may put that number of +1/+1 counters on target creature" — the counters it had, of every kind
     { re: /^Put that number of \+1\/\+1 counters on target creature\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: { countersOnTrigger: true, mult: 1 }, targets: [targetSpec('target creature')] }) },
+    /* Reyhan, Last of the Abzan: "if it had one or more +1/+1 counters on it, you may put that many +1/+1 counters on
+       target creature" — the +1/+1 counters the one that left had, as it went (countersOnTrigger of a kind) */
+    { re: /^Put that many \+1\/\+1 counters on target creature\.?$/i,
+      make: () => ({ op: 'counters', kind: '+1/+1', n: { countersOnTrigger: true, counter: '+1/+1', mult: 1 }, targets: [targetSpec('target creature')] }) },
     // Aveline de Grandpré: "put that many +1/+1 counters on that creature" — the one that dealt the damage (thatManyOnThat)
     { re: /^Put that many (\+1\/\+1|[a-z]+) counters on that creature\.?$/i, make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: 'triggerObject' }) },
     // Lena, Selfless Champion: "Creatures you control with power less than Lena's power gain indestructible until end of turn." (powerBelowSrc)
@@ -4964,9 +4968,13 @@
       make: () => ({ op: 'noop' }) },
 
     /* ===== keyword actions ===== */
-    { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)\.?$/i,
+    // (The Mouth of Sauron: "Then amass Orcs X, where X is the number of instant and sorcery cards in that player's graveyard")
+    { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)(?:, where X is (.+?))?\.?$/i,
       // (Grishnákh, Brash Instigator: "amass Orcs 2" makes an Orc Army, the type singular — CR 701.47a)
-      make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: m[1] ? U.titleCase(singularType(m[1].trim())) : 'Zombie' }) },
+      make: (m) => {
+        const n = m[3] ? amountOf(m[3]) : m[2] === 'X' ? 'X' : +m[2];
+        return n ? { op: 'amass', n, kind: m[1] ? U.titleCase(singularType(m[1].trim())) : 'Zombie' } : null;
+      } },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
     /* Recruit (Esgaroth Garrison, Lake-town Lookout, The Queen of Dale): "Draw a card, then discard a
        card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token." */
@@ -6761,6 +6769,8 @@
     { re: /^You may choose new targets for the copies\.?$/i, make: () => ({ op: 'noop' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
+    { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
     // the Commander storms: "copy it for each time you've cast your commander from the command zone this game"
     { re: /^Copy (?:it|this spell) for each time you'?ve cast your commander from the command zone this game\.?$/i,
       make: () => ({ op: 'copyThatSpell', n: { commanderCasts: true } }) },
@@ -7508,6 +7518,9 @@
     if (/^the number of cards in your graveyard$/i.test(p)) return done({ cardsInGraveyard: 'you', mult: 1 });
     // Formless Genesis: "the number of land cards in your graveyard"
     if ((m = p.match(/^the number of ([a-z]+) cards in your graveyard$/i))) return done({ cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 });
+    // The Mouth of Sauron: "the number of instant and sorcery cards in that player's graveyard" — the targeted player's
+    if ((m = p.match(/^the number of ([a-z]+)(?: (?:and|or|and\/or) ([a-z]+))? cards in that player'?s graveyard$/i)))
+      return done({ targetGraveyardCount: true, filter: m[1].toLowerCase() + (m[2] ? ' or ' + m[2].toLowerCase() : '') });
     // "the number of counters on this creature": every kind
     if (/^the number of counters on (?:this creature|this artifact|this permanent|CARDNAME)$/i.test(p)) return done({ countersOnSelf: '*', mult: 1 });
     if ((m = p.match(/^the number of ([+\-0-9/a-z]+) counters on (?:this creature|this artifact|this enchantment|this permanent|CARDNAME|it)$/i)))
@@ -8304,6 +8317,15 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Calamity, Galloping Inferno: "choose a nonlegendary creature that saddled it this turn and create a tapped and
+       attacking token that's a copy of it. Sacrifice that token at the beginning of the next end step. Repeat this
+       process once." — a creature tapped to saddle it, still on the battlefield, chosen each time (the same one or
+       not); both tokens sacrificed at that end step (of saddledSelf) */
+    { re: /^choose a nonlegendary creature that saddled (?:it|CARDNAME|this creature) this turn and create a tapped and attacking token that'?s a copy of it\. Sacrifice that token at the beginning of the next end step\. Repeat this process once\.?$/i,
+      make: () => {
+        const one = { op: 'copyPermanent', n: 1, grant: [], of: 'saddledSelf', tapped: true, attacking: true };
+        return [one, Object.assign({}, one), { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }];
+      } },
     /* Omnath, Locus of All: "look at the top card of your library. You may reveal that card if it has three or more
        colored mana symbols in its mana cost. If you do, add three mana in any combination of its colors and put it into
        your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
@@ -9172,6 +9194,15 @@
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
       } },
+    /* Satya, Aetherflux Genius: "create a tapped and attacking token that's a copy of up to one other target nontoken
+       creature you control. You get {E}{E}. At the beginning of the next end step, sacrifice that token unless you pay
+       an amount of {E} equal to its mana value." — the copy made, if one was; the energy counted then (energyMv) */
+    { re: /^create a tapped and attacking token that'?s a copy of up to one other target (nontoken creature you control|creature you control)\. You get ((?:\{E\})+)\. At the beginning of the next end step, sacrifice that token unless you pay an amount of \{E\} equal to its mana value\.?$/i,
+      make: (m) => [{ op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true,
+        targets: [Object.assign(targetSpec('target ' + m[1]), { upTo: true, another: true })] },
+      { op: 'energy', n: (m[2].match(/\{E\}/g) || []).length },
+      { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice that token unless you pay {E} equal to its mana value',
+        effects: [{ op: 'unlessPays', who: 'you', energyMv: true, then: [{ op: 'sacrificeThat' }] }] }] },
     /* Ashling, the Limitless: "create a token that's a copy of it. The token gains haste until end of turn. At the
        beginning of your next end step, sacrifice it unless you pay {W}{U}{B}{R}{G}." — the card sacrificed, as it
        last was; the payment asked at that end step */
@@ -11455,6 +11486,8 @@
     // (Yuna, Grand Summoner: "it had one or more counters on it")
     [/^it (?:had|has) (?:one or more )?counters on it$/i, () => ({ kind: 'itHadCounters' })],
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Reyhan, Last of the Abzan: "it had one or more +1/+1 counters on it"
+    [/^it had one or more ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 1, counter: m[1].toLowerCase() })],
     // Transpose, Otterball Antics: "this spell was cast from your hand", "…from anywhere other than your hand"
     [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],
     [/^this spell was cast from anywhere other than your hand$/i, () => ({ kind: 'castFromHand', not: true })],
@@ -12177,6 +12210,10 @@
        its dying, or its leaving for exile (exileLeave) */
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or is put into exile(?: from the battlefield)?(?:,| )', 'i'),
       event: 'permDies', also: 'permLeaves', extra: { exileLeave: true }, filt: (m) => subjectFilter(m[1]) },
+    /* Reyhan, Last of the Abzan: "Whenever a creature you control dies or is put into the command zone" — leaving for
+       the graveyard, or for the command zone, a commander's dying among them (toZoneIn) */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or is put into the command zone(?:,| )', 'i'),
+      event: 'permLeaves', extra: { toZoneIn: ['graveyard', 'command'] }, filt: (m) => subjectFilter(m[1]) },
     // (the plural, "die or are put into exile", leaving for either: toZoneIn)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die) or (?:is|are) put into exile(?:,| )', 'i'),
       event: 'permLeaves', extra: { toZoneIn: ['graveyard', 'exile'] }, filt: (m) => subjectFilter(m[1]) },
@@ -13453,7 +13490,8 @@
          while saddled": the permanent itself, whatever it calls itself. */
       let tline = line.replace(/^(When(?:ever)? )this (?:Vehicle|Mount|Spacecraft)\b/, '$1this creature');
       let saddledOnly = false, whileCond = null;
-      if (/^When(?:ever)? this creature attacks while saddled,/i.test(tline)) {
+      // (Calamity, Galloping Inferno: "Whenever Calamity attacks while saddled")
+      if (/^When(?:ever)? (?:this creature|CARDNAME) attacks while saddled,/i.test(tline)) {
         saddledOnly = true;
         tline = tline.replace(/ while saddled,/i, ',');
       }
