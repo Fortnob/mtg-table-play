@@ -30883,4 +30883,132 @@ module.exports = (test) => {
     g.moveObject(elf, 'battlefield', { controller: 'A' }); M.resolve();
     t.no(elf.counters['+1/+1'], 'Kalain: not cast, no counter');
   });
+  test('Commanders: Wulfgar of Icewind Dale — attack triggers of yours, melee among them, trigger an additional time', (mk, t) => {
+    t.auto('Wulfgar of Icewind Dale');
+    const M = mk({ library: Array(30).fill('Island') });
+    const wul = M.bf('A', 'Wulfgar of Icewind Dale');
+    const hr = M.bf('A', 'Hellrider');
+    M.answer('declareAttackers', () => [{ attackerId: wul.id, defenderId: 'B' }, { attackerId: hr.id, defenderId: 'B' }]);
+    toMain2(M);
+    // Hellrider: 1 for each of two attackers, twice each (4); Wulfgar 4 + melee 1 twice (6); Hellrider 3
+    t.eq(M.life('B'), 20 - 4 - 6 - 3, 'Wulfgar: Hellrider twice for each attacker, melee twice');
+  });
+  test("Commanders: Wulfgar of Icewind Dale — not an opponent's attack triggers", (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Wulfgar of Icewind Dale');
+    const hr = M.bf('B', 'Hellrider');
+    M.toMain('B');
+    M.answer('declareAttackers', () => [{ attackerId: hr.id, defenderId: 'A' }]);
+    toMain2(M);
+    t.eq(M.life('A'), 20 - 1 - 3, "Wulfgar: B's Hellrider once");
+  });
+  test('Commanders: Felix Five-Boots — combat damage to a player triggers an additional time; not what follows from it', (mk, t) => {
+    t.auto('Felix Five-Boots');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const felix = M.bf('A', 'Felix Five-Boots');
+    t.ok(g.hasKw(felix, 'menace') && g.hasKw(felix, 'ward'), 'Felix: menace and ward');
+    const ninja = M.bf('A', 'Ninja of the Deep Hours');
+    const hawk = M.bf('A', 'Vampire Nighthawk');
+    const mate = M.bf('A', "Ajani's Pridemate");
+    const h0 = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: ninja.id, defenderId: 'B' }, { attackerId: hawk.id, defenderId: 'B' }]);
+    toMain2(M);
+    t.eq(M.zone('A', 'hand').length - h0, 2, 'Felix: the Ninja draws twice');
+    t.eq(mate.counters['+1/+1'], 1, "Felix: the life gained is no damage — Ajani's Pridemate once");
+  });
+  test("Commanders: Felix Five-Boots — not an opponent's creature", (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Felix Five-Boots');
+    const ninja = M.bf('B', 'Ninja of the Deep Hours');
+    M.toMain('B');
+    const h0 = M.zone('B', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: ninja.id, defenderId: 'A' }]);
+    toMain2(M);
+    t.eq(M.zone('B', 'hand').length - h0, 1, "Felix: B's Ninja draws once");
+  });
+  test('Commanders: Nelly Borca, Impulsive Accuser — attacks: suspect target creature, then goad every suspected creature', (mk, t) => {
+    t.auto('Nelly Borca, Impulsive Accuser');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const g = M.g;
+    const nelly = M.bf('A', 'Nelly Borca, Impulsive Accuser');
+    t.ok(g.hasKw(nelly, 'vigilance'), 'Nelly: vigilance');
+    const bb = M.bf('B', 'Grizzly Bears'), cb = M.bf('C', 'Grizzly Bears'), plain = M.bf('C', 'Hill Giant');
+    cb.effects.push({ keywords: ['Menace'], flag: 'cantBlock', suspected: true, until: null });
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bb.id }] }));
+    M.answer('declareAttackers', () => [{ attackerId: nelly.id, defenderId: 'C' }]);
+    M.toMain('A', 'declareBlockers');
+    t.ok(g.hasKw(bb, 'menace'), 'Nelly: the Bears suspected, with menace');
+    t.eq(bb.goadedBy, 'A', 'Nelly: the newly suspected Bears goaded');
+    t.eq(cb.goadedBy, 'A', 'Nelly: and the one suspected already');
+    t.no(plain.goadedBy, 'Nelly: not a creature that is not suspected');
+  });
+  test("Commanders: Nelly Borca, Impulsive Accuser — an opponent's creatures hit another opponent: both of you draw", (mk, t) => {
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.bf('A', 'Nelly Borca, Impulsive Accuser');
+    const b1 = M.bf('B', 'Grizzly Bears'), b2 = M.bf('B', 'Llanowar Elves');
+    M.toMain('B');
+    const a0 = M.zone('A', 'hand').length, b0 = M.zone('B', 'hand').length, c0 = M.zone('C', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'C' }, { attackerId: b2.id, defenderId: 'C' }]);
+    toMain2(M);
+    t.eq(M.life('C'), 17);
+    t.eq(M.zone('A', 'hand').length - a0, 1, 'Nelly: you draw a card, once for the two');
+    t.eq(M.zone('B', 'hand').length - b0, 1, 'Nelly: and the controller of those creatures');
+    t.eq(M.zone('C', 'hand').length - c0, 0, 'Nelly: not the player hit');
+  });
+  test('Commanders: Nelly Borca, Impulsive Accuser — not damage to you, nor your own creatures', (mk, t) => {
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.bf('A', 'Nelly Borca, Impulsive Accuser');
+    const b1 = M.bf('B', 'Grizzly Bears');
+    const mine = M.bf('A', 'Grizzly Bears');
+    let a0 = M.zone('A', 'hand').length;
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: mine.id }] }));
+    M.answer('declareAttackers', () => [{ attackerId: mine.id, defenderId: 'B' }]);
+    toMain2(M);
+    t.eq(M.life('B'), 18);
+    t.eq(M.zone('A', 'hand').length - a0, 0, 'Nelly: your own creature, no card');
+    M.toMain('B');
+    a0 = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }]);
+    toMain2(M);
+    t.eq(M.life('A'), 18);
+    t.eq(M.zone('A', 'hand').length - a0, 0, 'Nelly: damage to you, no card');
+  });
+  test('Commanders: Celes, Rune Knight — creatures arriving from a graveyard: a +1/+1 counter on each creature you control', (mk, t) => {
+    t.auto('Celes, Rune Knight');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const celes = M.bf('A', 'Celes, Rune Knight');
+    const kar = M.bf('A', 'Karador, Ghost Chieftain');
+    const theirs = M.bf('B', 'Grizzly Bears');
+    // cast from the hand: nothing
+    M.mana('A', 'G1');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.no(celes.counters['+1/+1'], 'Celes: cast from the hand, no counters');
+    // put onto the battlefield from a graveyard
+    const gb = M.grave('A', 'Hill Giant');
+    g.moveObject(gb, 'battlefield', { controller: 'A' }); M.resolve();
+    t.eq(celes.counters['+1/+1'], 1, 'Celes: one entered from a graveyard');
+    t.eq(kar.counters['+1/+1'], 1, 'Celes: each creature you control');
+    t.eq(gb.counters['+1/+1'], 1, 'Celes: the one that entered too');
+    t.no(theirs.counters['+1/+1'], "Celes: not B's");
+    // cast from a graveyard, as Karador, Ghost Chieftain allows
+    const gc = M.grave('A', 'Llanowar Elves');
+    M.mana('A', 'G');
+    M.cast('A', gc);
+    t.zone(gc, 'battlefield', 'Celes: the Elves cast from the graveyard');
+    t.eq(celes.counters['+1/+1'], 2, 'Celes: one cast from a graveyard');
+  });
+  test('Commanders: Celes, Rune Knight — enters: discard any number, draw that many plus one', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const h1 = M.hand('A', 'Forest'), h2 = M.hand('A', 'Forest');
+    M.hand('A', 'Mountain');
+    M.answer('discard', () => ({ cardIds: [h1.id, h2.id] }));
+    M.answer('pickCard', () => ({ cardIds: [h1.id, h2.id] }));
+    M.answer('choose', () => ({ picks: [h1.id, h2.id] }));
+    const n0 = M.zone('A', 'hand').length;
+    M.bf('A', 'Celes, Rune Knight', { etb: true }); M.resolve();
+    t.zone(h1, 'graveyard'); t.zone(h2, 'graveyard');
+    t.eq(M.zone('A', 'hand').length, n0 - 2 + 3, 'Celes: two discarded, three drawn');
+  });
 };

@@ -6730,8 +6730,11 @@
       for (const o of attackers) {
         const a = o.analysis();
         if (!a) continue;
+        /* these keywords are triggered abilities of an attacking creature: Isshin, Two Heavens as One and Wulfgar
+           of Icewind Dale have them trigger an additional time (twice) */
+        const twice = 1 + this._extraTriggers(o, 'attacks', { attacker: o, source: o });
         // battle cry pumps the *other* attackers
-        const bc = this._kwCount(o, 'battle cry');
+        const bc = this._kwCount(o, 'battle cry') * twice;
         if (bc) {
           for (const x of attackers) if (x !== o) x.effects.push({ p: bc, t: 0, until: 'eot' });
           this.logEvent('keyword', `${o.name}'s battle cry pumps the rest of the team.`);
@@ -6742,14 +6745,15 @@
           const def = this.player(o.attacking);
           const most = Math.max(...this.players.filter(p => !p.hasLost).map(p => p.life));
           if (def && def.life >= most) {
-            this.addCounters(o, '+1/+1', 1);
-            this.logEvent('keyword', `${o.name} gets a +1/+1 counter from dethrone.`);
+            this.addCounters(o, '+1/+1', twice);
+            this.logEvent('keyword', `${o.name} gets ${twice > 1 ? twice + ' +1/+1 counters' : 'a +1/+1 counter'} from dethrone.`);
           }
         }
         // melee: +1/+1 per opponent you attacked
         if (a.keywordSet.has('melee') && defenders.size) {
-          o.effects.push({ p: defenders.size, t: defenders.size, until: 'eot' });
-          this.logEvent('keyword', `${o.name} gets +${defenders.size}/+${defenders.size} from melee.`);
+          const m = defenders.size * twice;
+          o.effects.push({ p: m, t: m, until: 'eot' });
+          this.logEvent('keyword', `${o.name} gets +${m}/+${m} from melee.`);
         }
         // mentor: a +1/+1 counter on a weaker attacker
         if (a.keywordSet.has('mentor')) {
@@ -6765,7 +6769,7 @@
         if (a.keywordSet.has('training')) {
           const power = this.powerOf(o);
           if (attackers.some(x => x !== o && this.powerOf(x) > power)) {
-            this.addCounters(o, '+1/+1', 1);
+            this.addCounters(o, '+1/+1', twice);
             this.logEvent('keyword', `${o.name} trains.`);
           }
         }
@@ -11202,6 +11206,12 @@
           const lot = (td.batchIds || [td.objectId]).map(id => id && this.obj(id)).filter(Boolean);
           return !!lot.length && lot.every(x => !x.wasCast || (x.manaSpent || 0) === 0);
         }
+        // Celes, Rune Knight: "if one or more of them entered from a graveyard or was cast from a graveyard" (batchFromGraveyard)
+        case 'batchFromGraveyard': {
+          const td = (ctx && ctx.triggerData) || {};
+          const lot = (td.batchIds || [td.objectId]).map(id => id && this.obj(id)).filter(Boolean);
+          return lot.some(x => x.enteredFrom === 'graveyard' || (x.enteredFrom === 'stack' && x.castFromZone === 'graveyard'));
+        }
         // Martial Coup: "if X is 5 or more" — the X paid for the spell
         case 'xAtLeast': return ((ctx && (ctx.x || (ctx.obj && ctx.obj.chosenX))) || (src && src.chosenX) || 0) >= (cond.n || 0);
         // Essence Channeler: "if you've lost life this turn"
@@ -14438,6 +14448,11 @@
           for (const o of this.creaturesOf(ctx.controller, e2.scope)) fn(o);
           return;
         }
+        // Nelly Borca, Impulsive Accuser: "goad all suspected creatures"
+        if (e2.scope === 'suspected') {
+          for (const o of this.battlefield.slice()) if ((o.effects || []).some(x => x && x.suspected) && this.characteristics(o).isCreature) fn(o);
+          return;
+        }
         if (e2.scope === 'allCreatures') {
           for (const o of this.battlefield.slice()) { const oa = o.analysis(); if (oa && this.characteristics(o).isCreature) fn(o); }
           return;
@@ -14988,6 +15003,8 @@
           const cnt = n(e.n);
           if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'fixed') { const p = this.player(e.pid); if (p && !p.hasLost) this._drawCards(p, cnt); }
+          // Nelly Borca, Impulsive Accuser: "the controller of those creatures"
+          else if (e.who === 'triggerObjController') { const p = this.player((ctx.triggerData || {}).objController); if (p && !p.hasLost) this._drawCards(p, cnt); }
           // (Red Death, Shipwrecker: "goad target creature. That player draws a card." — the target's controller: drawTargetCtl)
           else if (e.who === 'targetController') { const fo = firstObj(); const p = this._lastAffectedController() || (fo && this.player(fo.controller)); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
@@ -25003,7 +25020,19 @@
           // Delney: "of a creature you control with power 2 or less"
           !(e.maxPower != null && !(this.characteristics(o).isCreature && this.powerOf(o) <= e.maxPower))) extra++;
         // Isshin: a creature attacking
-        else if (e.cause === 'attack' && ['attacks', 'permAttacks', 'youAttack'].includes(event)) extra++;
+        else if (e.cause === 'attack' && ['attacks', 'permAttacks', 'youAttack'].includes(event)) {
+          // Wulfgar of Icewind Dale: "a creature you control attacking" (yours; "whenever you attack" is yours already)
+          if (!(e.yours && event !== 'youAttack' && ((data.attacker || data.object || {}).controller !== src.controller))) extra++;
+        }
+        /* Felix Five-Boots: "a creature you control dealing combat damage to a player" — what speaks of the damage,
+           not of the life it costs (combatDamagePlayer) */
+        else if (e.cause === 'combatDamagePlayer') {
+          const by = data.source || data.object;
+          const toPlayer = ['combatDamageToPlayer', 'yourCreatureCombatDamage', 'permCombatDamage', 'equippedCombatDamage'].includes(event) ||
+            (data.combat && ['dealsDamage', 'youDealtDamage', 'yourSourceDamagesOpponent', 'yourSourceDamagesPlayer', 'yourSourceDealsDamage'].includes(event) &&
+              (event === 'youDealtDamage' || !!this.player(data.player)));
+          if (toPlayer && by && by.controller === src.controller && (this.characteristics(by) || {}).isCreature) extra++;
+        }
         // Veyran: casting or copying an instant or sorcery spell
         else if (e.cause === 'castInstantSorcery' && ['youCastSpell', 'anyCastSpell', 'youCopySpell', 'castSelf'].includes(event)) {
           const sp = data.object || (data.spell && data.spell.obj);

@@ -5428,6 +5428,11 @@
     // "You and that player each draw three cards": you, and the opponent chosen
     { re: /^You and that player each draw (\w+) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerPlayer' }] }) },
+    // Nelly Borca, Impulsive Accuser: "you and the controller of those creatures each draw a card"
+    { re: /^You and the controller of (?:those creatures|that creature) each draw (\w+) cards?\.?$/i,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' }, { op: 'draw', n: num(m[1]), who: 'triggerObjController' }] }) },
+    // Nelly Borca, Impulsive Accuser: "suspect target creature. Then goad all suspected creatures." (scope suspected)
+    { re: /^(?:Then )?goad all suspected creatures\.?$/i, make: () => ({ op: 'goad', scope: 'suspected' }) },
     { re: /^Name a (?:nonland )?card\.?$/i, make: () => ({ op: 'noop' }) },
     /* "Choose a creature type." as an effect: the spell or ability remembers
        it, for "of the chosen type" after it */
@@ -10421,6 +10426,8 @@
     /* Satoru, the Infiltrator: "if none of them were cast or no mana was spent to cast them" — every one of the lot
        that entered either put there some other way or cast for nothing (batchUncastOrFree) */
     [/^none of them were cast or no mana was spent to cast them$/i, () => ({ kind: 'batchUncastOrFree' })],
+    // Celes, Rune Knight: "if one or more of them entered from a graveyard or was cast from a graveyard" (batchFromGraveyard)
+    [/^one or more of them entered from a graveyard or (?:was|were) cast from a graveyard$/i, () => ({ kind: 'batchFromGraveyard' })],
     // Agent of Treachery: "you control three or more permanents you don't own"
     [/^you control (\w+) or more permanents you don'?t own$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'controlNotOwned', n: num(m[1]) } : null)],
     // Essence Channeler: "you've lost life this turn"; Bloodchief Ascension: "an opponent lost 2 or more life this turn"
@@ -11384,6 +11391,10 @@
     // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
+    /* Nelly Borca, Impulsive Accuser: "Whenever one or more creatures an opponent controls deal combat damage to one or
+       more of your opponents," — one for the lot */
+    { re: /^Whenever one or more creatures an opponent controls deal combat damage to one or more of your opponents,? /i,
+      event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature', who: 'opponent', batch: true }), extra: { hitYourOpponent: true } },
     /* --- spells being cast, by whom and of what kind --- */
     // Edgar Markov: "Whenever you cast another Vampire spell" — not this card
     { re: /^When(?:ever)? you cast another ([a-zA-Z ,-]*?)spell, /i,
@@ -16844,8 +16855,13 @@
          triggered ability of a permanent you control to trigger, …" (enterOrLeave) */
       { re: /^If a legendary permanent or an artifact entering or leaving the battlefield causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'enterOrLeave', what: 'legendary or artifact' }, auto: true },
-      { re: /^If a creature attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
-        eff: { op: 'triggerDouble', cause: 'attack' }, auto: true },
+      // Isshin, Two Heavens as One; Wulfgar of Icewind Dale: "If a creature you control attacking causes …" (yours)
+      { re: /^If a creature( you control)? attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        make: (m) => Object.assign({ op: 'triggerDouble', cause: 'attack' }, m[1] ? { yours: true } : {}), auto: true },
+      /* Felix Five-Boots: "If a creature you control dealing combat damage to a player causes a triggered ability
+         of a permanent you control to trigger, that ability triggers an additional time." (combatDamagePlayer) */
+      { re: /^If a creature you control dealing combat damage to a player causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'combatDamagePlayer', yours: true }, auto: true },
       // Delney: "If a triggered ability of a creature you control with power 2 or less triggers, …"
       { re: /^If a triggered ability of a creature you control with power (\d+) or less triggers, that ability triggers an additional time\.?$/i,
         make: (m) => ({ op: 'triggerDouble', cause: 'source', what: 'creature', maxPower: +m[1] }), auto: true },
