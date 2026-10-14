@@ -2550,6 +2550,11 @@
     { re: /^(?:Then )?(?:you may )?put up to (one|two|three|four) ([a-z, \/]*?)cards? from among (?:the milled cards|the cards milled this way) onto the battlefield( tapped)?\.?$/i,
       make: (m) => Object.assign({ op: 'takeFromMilled', n: num(m[1]), filter: m[2].replace(/ and\/or /g, ' or ').trim() || 'any', optional: true, to: 'battlefield',
         prompt: `Choose up to ${m[1].toLowerCase()} ${(m[2].trim() || '')}${m[2].trim() ? ' ' : ''}card${num(m[1]) === 1 ? '' : 's'} from among the milled cards to put onto the battlefield${m[3] ? ' tapped' : ''}.` }, m[3] ? { tapped: true } : {}) },
+    /* Gyruda, Doom of Depths: "Put a creature card with an even mana value from among the milled cards onto the
+       battlefield under your control." — after "each player mills", anybody's card (anyOwner) */
+    { re: /^(?:Then )?(you may )?put an? ([a-z]+ )?card with an (even|odd) mana value from among (?:the milled cards|the cards milled this way) onto the battlefield under your control\.?$/i,
+      make: (m) => ({ op: 'takeFromMilled', n: 1, filter: (m[2] || '').trim() || 'any', mvParity: m[3].toLowerCase(), anyOwner: true, optional: !!m[1], to: 'battlefield',
+        prompt: `Put a ${(m[2] || '').trim() ? m[2].trim() + ' ' : ''}card with an ${m[3].toLowerCase()} mana value from among the milled cards onto the battlefield under your control.` }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
 
     // --- tokens ---
@@ -3772,6 +3777,10 @@
     // Shadrix Silverquill: "Target player puts a +1/+1 counter on each creature they control."
     { re: /^Target (player|opponent) puts an? (\+1\/\+1|[a-z]+) counter on each creature they control\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: 1, scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Tasha, the Witch Queen: "You may cast a spell from among cards in exile with page counters on them without
+       paying its mana cost." — anybody's, one of them (exiledCounter) */
+    { re: /^(?:You may )?cast a spell from among cards in exile with ([a-z]+) counters on them without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'exiledCounter', counter: m[1].toLowerCase(), upTo: 1 }) },
     // Tinybones, Bauble Burglar: "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it."
     { re: /^Exile (?:it|that card) from (?:their|its owner'?s) graveyard with an? ([a-z]+) counter on it\.?$/i,
       make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
@@ -4767,6 +4776,10 @@
     // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
     { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking(?: that (?:opponent|player))?)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
+    // Kastral, the Windcrested: "You may put a Bird creature card from your hand or graveyard onto the battlefield with a finality counter on it."
+    { re: /^((?:[Yy]ou may )?)[Pp]ut an? ([-a-zA-Z, ]*?)card from your hand or graveyard onto the battlefield( tapped)?(?: with an? (finality|\+1\/\+1|shield|stun) counter on it)?\.?$/,
+      make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you', from: ['hand', 'graveyard'] },
+        m[3] ? { tapped: true } : {}, m[4] ? { counter: m[4] } : {}, m[1] ? {} : { optional: false }) },
     // Smuggler's Surprise: "You may put up to two creature cards from your hand onto the battlefield."
     // Ugin, the Spirit Dragon: "Exile each permanent with mana value X or less that's one or more colors."
     { re: /^(Exile|Destroy) each (permanent|nonland permanent) with mana value X or less( that'?s one or more colou?rs)?\.?$/i,
@@ -4835,6 +4848,12 @@
         if (!m[5] && k !== 'any number of') return null;
         return out;
       } },
+    /* Dragonlord Atarka: "it deals 5 damage divided as you choose among any number of target creatures and/or
+       planeswalkers your opponents control" \u2014 picked as it resolves (anyFrom), no more of them than the damage */
+    { re: /^(?:CARDNAME|It) deals (one|two|three|four|five|six|\d+) damage divided as you choose among any number of target creatures( and\/or planeswalkers)? (your opponents control|an opponent controls)\.?$/i,
+      make: (m) => ({ op: 'damageDivided', n: num(m[1]),
+        anyFrom: Object.assign(targetSpec('target creature' + (m[2] ? ' or planeswalker' : '') + ' an opponent controls'), { upTo: true }),
+        anyPrompt: `choose any number of creatures${m[2] ? ' and/or planeswalkers' : ''} your opponents control to divide ${num(m[1])} damage among` }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
@@ -9957,6 +9976,14 @@
           effects.push(Object.assign({ prompt: s.replace(/ from among them\b/i, '') }, one, { optional: true, mustTake: false, text: s }));
           continue;
         }
+        /* Kastral, the Windcrested: "You may put a Bird creature card from your hand or graveyard onto the
+           battlefield" — the pick is the choice, one that can be passed up; with none, nothing is asked */
+        if (one && one.op === 'permanentFromHand' && one.optional === false && (one.n == null || one.n === 1)) {
+          const o = Object.assign({}, one, { text: s });
+          delete o.optional;
+          effects.push(o);
+          continue;
+        }
         if (inner.auto) { effects.push({ op: 'may', then: inner.effects, text: s }); continue; }
       }
 
@@ -10211,6 +10238,14 @@
       // Urabrask, Heretic Praetor: "They may play it this turn." — the card the replaced draw exiles
       if (e && e.op === 'manual' && prevE && prevE.op === 'nextDrawExiles' && /^They may play it this turn\.?$/i.test(String(e.text || ''))) {
         prevE.play = true; continue;
+      }
+      /* Tasha, the Witch Queen: "exile up to one target instant or sorcery card from that player's graveyard and put
+         a page counter on it" — "it" is the card exiled, the counter on it in exile */
+      if (e && prevE && e.op === 'counters' && e.scope === 'self' && prevE.op === 'exile' && !prevE.counter &&
+          ((prevE.perOpponentFrom && prevE.perOpponentFrom.zone === 'graveyard') || ((prevE.targets || [])[0] || {}).zone === 'graveyard') &&
+          /^Put an? [a-z]+ counter on it\.?$/i.test(String(e.text || '')) && typeof e.kind === 'string' && /^[a-z]+$/.test(e.kind)) {
+        prevE.counter = e.kind;
+        continue;
       }
       if (e && prevE && prevE.op === 'getEmblem' && prevE.thisTurn && !prevE.once &&
           /^You may (?:play|cast) (?:it|that card|those cards|them)\b/i.test(String(e.text || ''))) {

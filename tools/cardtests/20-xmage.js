@@ -11954,6 +11954,8 @@ module.exports = (test) => {
     const T = mk();
     const a = T.bf('B', 'Craw Wurm'), b = T.bf('B', 'Craw Wurm');
     T.mana('A', '6RR');
+    // (divided as A chooses: one to each, and the other ten five apiece)
+    T.answer('choose', (ch) => ({ picks: ch.purpose === 'divideDamage' ? [0, 0, 0, 0, 0, 1, 1, 1, 1, 1] : [] }));
     T.cast('A', T.hand('A', 'Shatterskull Smashing // Shatterskull, the Hammer Pass'), { x: 6, targets: [a.id, b.id] });
     T.settle(); T.resolve();
     t.eq(a.zone, 'graveyard'); t.eq(b.zone, 'graveyard', 'twelve damage, six each');
@@ -32018,5 +32020,167 @@ module.exports = (test) => {
     const bear = M.grave('A', 'Grizzly Bears');
     M.toMain('A', 'end');
     t.no(M.g.activateAbility('A', xu.id, 0, { targets: [bear.id] }), 'Xu-Ifit: not in the end step');
+  });
+
+  test('Commanders: Kastral, the Windcrested — a Bird from hand or graveyard with a finality counter, counters on Birds, a card', (mk, t) => {
+    t.auto('Kastral, the Windcrested');
+    const M = mk({ library: Array(30).fill('Island') });
+    const kas = M.bf('A', 'Kastral, the Windcrested');
+    const hawk = M.grave('A', 'Suntail Hawk');
+    const bop = M.hand('A', 'Birds of Paradise');
+    M.hand('A', 'Grizzly Bears');
+    // mode one: one pick from hand and graveyard together, Birds only
+    M.answer('declareAttackers', () => [{ attackerId: kas.id, defenderId: 'B' }]);
+    M.answer('mode', { modes: [0] });
+    M.answer('pickCard', (ch) => { t.eq(ch.cards.length, 2, 'the two Birds offered'); t.ok(ch.optional, 'can be passed up'); return { cardIds: [hawk.id] }; });
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 16);
+    t.zone(hawk, 'battlefield', 'Suntail Hawk from the graveyard');
+    t.eq(hawk.counters.finality, 1, 'with a finality counter');
+    t.zone(bop, 'hand');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'no yes/no before the pick');
+    // mode two: a +1/+1 counter on each Bird
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: kas.id, defenderId: 'B' }]);
+    M.answer('mode', { modes: [1] });
+    M.toMain('A', 'endCombat');
+    t.eq(kas.counters['+1/+1'], 1, 'Kastral is a Bird');
+    t.eq(hawk.counters['+1/+1'], 1);
+    // mode three: draw a card, from a Bird other than Kastral
+    M.nextTurn('A');
+    const before = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: hawk.id, defenderId: 'B' }]);
+    M.answer('mode', { modes: [2] });
+    M.toMain('A', 'endCombat');
+    t.eq(M.zone('A', 'hand').length, before + 1);
+    // the finality counter: Suntail Hawk dies into exile
+    M.nextTurn('A');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [hawk.id] });
+    t.zone(hawk, 'exile');
+  });
+
+  test('Commanders: Gyruda, Doom of Depths — each player mills four, an even creature from any of them is yours', (mk, t) => {
+    t.auto('Gyruda, Doom of Depths');
+    const M = mk({ library: Array(20).fill('Island') });
+    const bears = M.top('B', 'Grizzly Bears');
+    const elves = M.top('B', 'Llanowar Elves');
+    const giant = M.top('A', 'Hill Giant');
+    M.answer('pickCard', (ch) => {
+      t.eq(ch.cards.map(c => c.name).sort().join(), 'Grizzly Bears,Hill Giant', 'even mana values only, both players\' cards');
+      t.no(ch.optional, 'one has to be put');
+      return { cardIds: [bears.id] };
+    });
+    M.mana('A', 'UUBB2');
+    M.cast('A', M.hand('A', 'Gyruda, Doom of Depths'));
+    t.eq(M.zone('A', 'graveyard').length, 4);
+    t.zone(bears, 'battlefield', 'Grizzly Bears from B\'s milled cards');
+    t.eq(bears.controller, 'A', 'under A\'s control');
+    t.zone(elves, 'graveyard', 'Llanowar Elves: mana value 1');
+    t.zone(giant, 'graveyard');
+    // one fitting card: put without a question
+    const M2 = mk({ library: Array(20).fill('Island') });
+    const ogre = M2.top('B', 'Gray Ogre');
+    M2.top('A', 'Llanowar Elves');
+    M2.mana('A', 'UUBB2');
+    M2.cast('A', M2.hand('A', 'Gyruda, Doom of Depths'));
+    t.zone(ogre, 'graveyard', 'Gray Ogre: mana value 3');
+    t.no(M2.asked.some(ch => ch.type === 'pickCard'), 'nothing to put, nothing asked');
+    const M3 = mk({ library: Array(20).fill('Island') });
+    const bear3 = M3.top('B', 'Grizzly Bears');
+    M3.mana('A', 'UUBB2');
+    M3.cast('A', M3.hand('A', 'Gyruda, Doom of Depths'));
+    t.zone(bear3, 'battlefield', 'the only one: put without a question');
+    t.no(M3.asked.some(ch => ch.type === 'pickCard'));
+  });
+
+  test('Commanders: Tasha, the Witch Queen — page counters on exiled spells, one cast for free, a Demon for a spell not owned', (mk, t) => {
+    t.auto('Tasha, the Witch Queen');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const tasha = M.bf('A', 'Tasha, the Witch Queen');
+    const bolt = M.grave('B', 'Lightning Bolt');
+    const div = M.grave('B', 'Divination');
+    const bears = M.grave('B', 'Grizzly Bears');
+    const mine = M.grave('A', 'Shock');
+    const hand0 = M.zone('A', 'hand').length;
+    M.answer('choose', (ch) => {
+      t.eq(ch.items.map(x => x.id).sort().join(), [bolt.id, div.id].sort().join(), 'B\'s instants and sorceries only');
+      return { picks: [bolt.id] };
+    });
+    M.activate('A', tasha, 0);
+    t.eq(tasha.counters.loyalty, 5);
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'draw a card');
+    t.zone(bolt, 'exile', 'Lightning Bolt exiled');
+    t.eq(bolt.counters.page, 1, 'with a page counter');
+    t.zone(div, 'graveyard');
+    t.zone(bears, 'graveyard');
+    t.zone(mine, 'graveyard', 'not from A\'s own graveyard');
+    // −3: Lightning Bolt cast for nothing, at B; a spell A doesn't own makes a Demon
+    M.nextTurn('A');
+    M.answer('pickCard', (ch) => { t.eq(ch.cards.length, 1); t.ok(ch.optional); return { cardIds: [bolt.id] }; });
+    M.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    M.activate('A', tasha, 1);
+    t.eq(tasha.counters.loyalty, 2);
+    t.eq(M.life('B'), 17, 'Lightning Bolt to B');
+    t.zone(bolt, 'graveyard', 'back to its owner\'s graveyard');
+    t.no(M.asked.some(ch => ch.type === 'confirm'), 'no yes/no after the pick');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Demon').length, 1, 'a 3/3 Demon');
+    // a spell A owns: no Demon
+    M.nextTurn('A');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'no Demon for a spell A owns');
+    void g;
+  });
+
+  test('Commanders: Dragonlord Atarka — 5 damage divided as you choose among opponents\' creatures and planeswalkers', (mk, t) => {
+    t.auto('Dragonlord Atarka');
+    const M = mk({ library: Array(20).fill('Forest') });
+    const bears = M.bf('B', 'Grizzly Bears');
+    const giant = M.bf('B', 'Hill Giant');
+    const lili = M.bf('B', 'Liliana of the Veil');
+    const own = M.bf('A', 'Grizzly Bears');
+    M.answer('choose', (ch) => {
+      t.eq(ch.purpose, 'anyTargets');
+      t.eq(ch.max, 3, 'only the opponent\'s three');
+      t.no(ch.items.some(x => x.id === own.id), 'not A\'s own creature');
+      return { picks: [bears.id, giant.id] };
+    });
+    M.answer('choose', (ch) => {
+      t.eq(ch.purpose, 'divideDamage');
+      t.eq(ch.min, 3, 'one to each, three more to divide');
+      return { picks: [0, 1, 1] };
+    });
+    M.mana('A', 'RG5');
+    M.cast('A', M.hand('A', 'Dragonlord Atarka'));
+    t.zone(bears, 'graveyard', 'Grizzly Bears: 2 damage');
+    t.zone(giant, 'graveyard', 'Hill Giant: 3 damage');
+    t.zone(lili, 'battlefield');
+    t.eq(lili.counters.loyalty, 3);
+    // a planeswalker and a creature: the bot's split finishes off both
+    const M2 = mk({ library: Array(20).fill('Forest') });
+    const lili2 = M2.bf('B', 'Liliana of the Veil');
+    const bears2 = M2.bf('B', 'Grizzly Bears');
+    M2.answer('choose', () => ({ picks: [lili2.id, bears2.id] }));
+    M2.answer('choose', (ch) => {
+      const bots = M2.MTG.bots;
+      const bot = new bots.BotPlayer(M2.g, 'A', 8);
+      const a = bot.chooseGeneric(ch);
+      const per = [0, 0];
+      for (const i of a.picks) per[i]++;
+      t.eq(per.join(), '2,1', 'bot: two more to Liliana (3 loyalty), one more to Grizzly Bears (2 toughness)');
+      return a;
+    });
+    M2.mana('A', 'RG5');
+    M2.cast('A', M2.hand('A', 'Dragonlord Atarka'));
+    t.zone(lili2, 'graveyard');
+    t.zone(bears2, 'graveyard');
+    // nothing of the opponents' to aim at: nothing asked
+    const M3 = mk({ library: Array(20).fill('Forest') });
+    M3.bf('A', 'Grizzly Bears');
+    M3.mana('A', 'RG5');
+    M3.cast('A', M3.hand('A', 'Dragonlord Atarka'));
+    t.no(M3.asked.some(ch => ch.type === 'choose'), 'no targets, no question');
   });
 };

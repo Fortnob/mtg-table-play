@@ -4866,11 +4866,12 @@ module.exports = (test) => {
       T.toMain('A');
       T.top('A', 'Island');
       const f = T.hand('A', 'Forest');
-      T.answer('confirm', { yes });
-      T.answer('pickCard', (ch) => ({ cardIds: [f.id] }));
+      // (one question: the pick, which can be passed up — no yes/no before it)
+      T.answer('pickCard', (ch) => { t.ok(ch.optional); return { cardIds: yes ? [f.id] : [] }; });
       T.mana('A', 'GU');
       T.cast('A', T.hand('A', 'Growth Spiral')); T.settle();
       t.zone(f, yes ? 'battlefield' : 'hand', yes ? 'yes: the Forest' : 'no: nothing put');
+      t.no(T.asked.some(ch => ch.type === 'confirm'), 'no yes/no');
     }
   });
 

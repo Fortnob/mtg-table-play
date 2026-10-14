@@ -1611,6 +1611,22 @@
         ((o.analysis() || {}).abilities || []).some(ab => ab.kind === 'triggered' && ab.event === 'etb' && ab.self));
       return { picks: picks.map(o => o.id) };
     },
+    /* Dragonlord Atarka: the damage left over after one to each target — to finish off what it can, the
+       cheapest kills first, and what is left to the first that still stands (divideDamage) */
+    divideDamage(s) {
+      const opts = (s.options || []).map(o => ({ i: o.i, need: o.need == null ? Infinity : o.need }));
+      let left = s.max || 0;
+      const picks = [];
+      for (const o of opts.slice().sort((a, b) => a.need - b.need)) {
+        if (o.need === Infinity || o.need > left) continue;
+        for (let k = 0; k < o.need; k++) picks.push(o.i);
+        left -= o.need;
+        o.need = 0;
+      }
+      const sink = opts.find(o => o.need > 0) || opts[0];
+      while (left-- > 0 && sink) picks.push(sink.i);
+      return { picks };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

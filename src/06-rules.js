@@ -14515,10 +14515,12 @@
         const pool = this._legalTargetsFor(e.anyFrom, ctx.controller, src ? src.id : null)
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
         if (!pool.length) return null;
+        // (Dragonlord Atarka: "5 damage divided as you choose among any number of …" — no more of them than there is damage, CR 601.2d)
+        const cap = e.op === 'damageDivided' && typeof e.n === 'number' ? Math.min(pool.length, e.n) : pool.length;
         const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
-          items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
-          harmful: /^(?:destroy|exile|bounce|tap|damage|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
-          prompt: `${ctx.name ? ctx.name + ': ' : ''}choose any number of ${e.anyFrom.filter || 'targets'}.` }, 'anyt');
+          items: this._chooseItems(pool), min: 0, max: cap, optional: true,
+          harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
+          prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.anyPrompt || `choose any number of ${e.anyFrom.filter || 'targets'}`}.` }, 'anyt');
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         targets = got.picks.map(id => ({ kind: 'object', id }));
@@ -15731,6 +15733,11 @@
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
             if (o) { this.moveObject(o, 'exile'); this._lastExiled = o.id; }
+            // Tasha, the Witch Queen: "and put a page counter on it" — on the card in exile
+            if (o && e.counter && o.zone === 'exile') {
+              o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; this.bumpBoard();
+              this.logEvent('exile', `${o.name} is exiled with a ${e.counter} counter on it.`);
+            }
           }
           break;
         case 'bounce':
@@ -16417,15 +16424,19 @@
         /* "Mill four cards. You may put a creature card from among the
            milled cards into your hand." */
         case 'takeFromMilled': {
+          // Gyruda, Doom of Depths: "a creature card with an even mana value from among the milled cards" — whoever's (anyOwner)
           const pool = (this._lastMilled || []).map(id => this.obj(id))
-            .filter(o => o && o.zone === 'graveyard' && o.owner === ctx.controller &&
-              (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)));
+            .filter(o => o && o.zone === 'graveyard' && (e.anyOwner || o.owner === ctx.controller) &&
+              (!e.filter || e.filter === 'any' || this._cardFitsWords(o, e.filter)) &&
+              (!e.mvParity || (((o.card && o.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')));
           if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
           const want = Math.min(n(e.n) || 1, pool.length);
-          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
+          // (Gyruda: a put that must happen, with only as many to put as there are, asks nothing)
+          let picked = e.optional === false && pool.length <= want ? pool.map(o => o.id) : this._ask({ type: 'pickCard', playerId: ctx.controller, count: want,
             cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
             optional: e.optional !== false, prompt: e.prompt || `Choose ${want === 1 ? 'a card' : want + ' cards'} to put into your hand.` });
           if (picked === SUSPEND) return SUSPEND;
+          if (e.optional === false && !(picked || []).some(id => pool.some(o => o.id === id))) picked = pool.slice(0, want).map(o => o.id);
           let took = 0;
           for (const id of (picked || []).slice(0, want)) {
             const o = this.obj(id);
@@ -21081,7 +21092,9 @@
             const mvCap = e.maxMv != null ? n(e.maxMv) : null;
             // Aether Vial: "with mana value equal to the number of charge counters on this artifact"
             const mvIs = e.exactMv != null ? n(e.exactMv) : null;
-            const pool = this.zones[p.id].hand.filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
+            // Kastral, the Windcrested: "a Bird creature card from your hand or graveyard" (from)
+            const fromZones = e.from || ['hand'];
+            const pool = [].concat(...fromZones.map(zn => this.zones[p.id][zn] || [])).filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
@@ -21093,8 +21106,9 @@
             const must = e.optional === false;
             const picked = this._ask({ type: 'pickCard', playerId: p.id, count: many, optional: !must,
               cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
-              prompt: must ? 'Put one of these cards from your hand onto the battlefield.'
-                : many > 1 ? 'Put any number of these cards from your hand onto the battlefield.' : 'You may put a card from your hand onto the battlefield.' }, 'p' + p.id);
+              prompt: must ? `Put one of these cards from your ${fromZones.join(' or ')} onto the battlefield.`
+                : many > 1 ? `Put any number of these cards from your ${fromZones.join(' or ')} onto the battlefield.`
+                : `You may put a card from your ${fromZones.join(' or ')} onto the battlefield${e.counter ? ` with a ${e.counter} counter on it` : ''}.` }, 'p' + p.id);
             if (picked === SUSPEND) return SUSPEND;
             let ids = (picked || []).filter(id => pool.some(o => o.id === id)).slice(0, many);
             if (must && ids.length < many) ids = ids.concat(this._cheapestFirst(pool).reverse().filter(o => !ids.includes(o.id)).slice(0, many - ids.length).map(o => o.id));
@@ -21103,6 +21117,8 @@
               if (!o) continue;
               this.moveObject(o, 'battlefield', { controller: p.id, tapped: !!(e.tapped) });
               if (e.tapped) o.tapped = true;
+              // Kastral: "with a finality counter on it"
+              if (e.counter && o.zone === 'battlefield') this.addCounters(o, e.counter, 1);
               // Incandescent Soulstoke: "That creature gains haste" — the one just put, as reanimateTop does
               if (o.zone === 'battlefield' && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: o.id }];
               /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
@@ -21160,8 +21176,27 @@
           const each = Math.floor(total / objs.length);
           // (Fireball: "divided evenly, rounded down" — what doesn't divide evenly is not dealt)
           let spare = e.evenly ? 0 : total - each * objs.length;
-          for (const t of objs) {
-            const amt = each + (spare-- > 0 ? 1 : 0);
+          /* Dragonlord Atarka: "divided as you choose" — one to each target, and the rest wherever its controller
+             says (a point at a time; nothing asked when there is nothing left over) */
+          let split = null;
+          if (!e.evenly && objs.length > 1 && total > objs.length) {
+            const opts = objs.map((t, i) => {
+              const o = t.kind === 'object' && this.obj(t.id);
+              const need = o && o.zone === 'battlefield' && this.characteristics(o).isCreature ? Math.max(0, this.toughnessOf(o) - (o.damage || 0) - 1)
+                : o && o.zone === 'battlefield' ? Math.max(0, (Number((o.counters || {}).loyalty) || 0) - 1) : null;
+              return { i, label: t.kind === 'player' ? (this.player(t.id) || {}).name || t.id : (o ? o.name : '?'), id: t.id, need };
+            });
+            const rest = total - objs.length;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'divideDamage', kind: 'options', repeat: true, min: rest, max: rest,
+              options: opts, prompt: `${ctx.name ? ctx.name + ': ' : ''}each target is dealt 1 damage; divide the other ${rest} among them.` }, 'divide');
+            if (got === SUSPEND) return SUSPEND;
+            split = objs.map(() => 1);
+            for (const i of ((got && got.picks) || []).slice(0, rest)) if (split[i] != null) split[i]++;
+            // (an answer short of the whole amount: the rest to the first, as before)
+            split[0] += total - split.reduce((a, b) => a + b, 0);
+          }
+          for (const [ix, t] of objs.entries()) {
+            const amt = split ? split[ix] : each + (spare-- > 0 ? 1 : 0);
             if (amt <= 0) continue;
             if (t.kind === 'player') this.dealDamageToPlayer(this.player(t.id), amt, src);
             else { const o = this.obj(t.id); if (o) this.dealDamageToObject(o, amt, src); }
@@ -22341,6 +22376,8 @@
               : e.from === 'thatCard' ? (this._exileUntil ? this._exileUntil.hits.slice(-1) : [this._lastExiled].filter(Boolean))
               // Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it …" — the card revealed, still there (revealedTop)
               : e.from === 'revealed' ? [this._lastRevealed].filter(id => id && (this.obj(id) || {}).zone === 'library')
+              // Tasha, the Witch Queen: "from among cards in exile with page counters on them" — anybody's, one picked (exiledCounter)
+              : e.from === 'exiledCounter' ? this._freeFromExiledCounter(e, ctx)
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);
@@ -22375,7 +22412,8 @@
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
-            const yes = e.must ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
+            const yes = e.must || e.from === 'graveyard' || e.from === 'exiledCounter' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
             const want = yes === null ? true : !!yes;
@@ -27133,6 +27171,26 @@
       const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
         cards: fits.map(x => ({ id: x.id, name: x.name, card: x.card })),
         prompt: `${ctx.name || 'Effect'}: you may cast a spell from ${e.whose === 'you' ? 'your graveyard' : 'a graveyard'} without paying its mana cost.` }, 'cfg');
+      if (picked === SUSPEND) return SUSPEND;
+      return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
+    }
+
+    /* Tasha, the Witch Queen: "You may cast a spell from among cards in exile with page counters on them without
+       paying its mana cost." — anybody's exiled card with one on it, a land not a spell; the one picked as this
+       resolves, in a list (empty for none), or SUSPEND */
+    _freeFromExiledCounter(e, ctx) {
+      const me = this.player(ctx.controller);
+      const fits = [];
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).exile || [])) {
+        const ca = c.analysis();
+        if (!ca || ca.isLand || !((Number((c.counters || {})[e.counter]) || 0) > 0)) continue;
+        fits.push(c);
+      }
+      if (!fits.length) return [];
+      if (me.isBot) return [fits.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x))[0].id];
+      const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+        cards: fits.map(x => ({ id: x.id, name: x.name, card: x.card })),
+        prompt: `${ctx.name || 'Effect'}: you may cast a spell from among cards in exile with ${e.counter} counters on them without paying its mana cost.` }, 'cfx');
       if (picked === SUSPEND) return SUSPEND;
       return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
     }
