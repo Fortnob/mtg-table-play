@@ -4498,6 +4498,9 @@
     /* more combat */
     { re: /^After this (?:main )?phase, there is an additional combat phase( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1] }) },
+    // Bumi, Unleashed: "Only land creatures can attack during that combat phase." — the one just added (onlyAttack)
+    { re: /^Only (land|artifact|enchantment|legendary|token|nontoken) creatures can attack during that combat phase\.?$/i,
+      make: (m) => ({ op: 'extraCombatOnly', words: m[1].toLowerCase() + ' creature' }) },
     // Great Train Heist: "If it's your combat phase, there is an additional combat phase after this phase."
     { re: /^If it'?s your main phase, there is an additional combat phase after this phase(, followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },

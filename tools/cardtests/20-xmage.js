@@ -30145,4 +30145,41 @@ module.exports = (test) => {
     t.no(M2.asked.some(ch => ch.type === 'pickTarget'), 'Éowyn: no creature with greater power, no question');
     t.zone(giant2, 'battlefield', 'Éowyn: Hill Giant stays');
   });
+
+  test('Commanders: Bumi, Unleashed — earthbend 4; combat damage to a player untaps your lands and adds a combat only land creatures attack in', (mk, t) => {
+    t.auto('Bumi, Unleashed');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const forest = M.bf('A', 'Forest');
+    const arbor = M.bf('A', 'Dryad Arbor');
+    const bear = M.bf('A', 'Grizzly Bears');
+    // earthbend 4: the Forest is a 0/0 with four +1/+1 counters and haste
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: forest.id }] }));
+    M.mana('A', '3RG');
+    M.cast('A', M.hand('A', 'Bumi, Unleashed'));
+    const bumi = M.bfOf('A').find(o => o.name === 'Bumi, Unleashed');
+    t.eq(forest.counters['+1/+1'], 4, 'Bumi: earthbend 4');
+    t.ok(g.characteristics(forest).isCreature, 'Bumi: the Forest is a creature');
+    M.nextTurn('A');
+    forest.tapped = true;
+    let second = null;
+    M.answer('declareAttackers', () => [{ attackerId: bumi.id, defenderId: 'B' }]);
+    M.answer('declareAttackers', (ch) => {
+      second = { forest: g.canAttack(forest), arbor: g.canAttack(arbor), bear: g.canAttack(bear) };
+      return [{ attackerId: forest.id, defenderId: 'B' }, { attackerId: arbor.id, defenderId: 'B' }];
+    });
+    for (let i = 0; i < 80 && !(g.phase.id === 'postcombat' && g.step === 'main' && !g.stack.length); i++) {
+      M.settle();
+      if (g.phase.id === 'postcombat' && g.step === 'main') break;
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    t.ok(second, 'Bumi: an additional combat');
+    t.ok(second && second.forest, 'Bumi: the land creature untapped and can attack');
+    t.ok(second && second.arbor, 'Bumi: Dryad Arbor can attack');
+    t.no(second && second.bear, 'Bumi: Grizzly Bears is no land');
+    t.eq(M.life('B'), 20 - 5 - 4 - 1, 'Bumi: 5, then the Forest and the Arbor');
+    // the next turn, any creature attacks again
+    M.nextTurn('A');
+    t.ok(g.canAttack(bear), 'Bumi: only that combat');
+  });
 };

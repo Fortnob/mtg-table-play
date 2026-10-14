@@ -961,17 +961,23 @@
         this._extraPhases = this._extraPhases.filter(x => !due.includes(x));
         if (this._resumePhase == null) this._resumePhase = cur + 1;
         const add = [];
-        for (const x of due) add.push(...x.phases);
+        // (Bumi, Unleashed: a combat only some creatures can attack in — onlyAttack)
+        for (const x of due) add.push(...x.phases.map(ph => (x.onlyAttack && ph === 2 ? { ph, onlyAttack: x.onlyAttack } : ph)));
         this._phaseQueue = add.concat(this._phaseQueue || []);
       }
-      if (this._phaseQueue && this._phaseQueue.length) return this._phaseQueue.shift();
+      this._combatOnlyAttack = null;
+      if (this._phaseQueue && this._phaseQueue.length) {
+        const nx = this._phaseQueue.shift();
+        if (nx && typeof nx === 'object') { this._combatOnlyAttack = { turn: this.turn, words: nx.onlyAttack }; return nx.ph; }
+        return nx;
+      }
       if (this._resumePhase != null) { const r = this._resumePhase; this._resumePhase = null; return r; }
       return cur + 1;
     }
 
     _endTurn() {
       const ap = this.activePlayer;
-      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = [];
+      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = []; this._combatOnlyAttack = null;
       this._checkDayNight();          // day/night flips between turns
       this.spellsThisTurn = 0;
       // cleanup already ran as a step
@@ -8952,6 +8958,8 @@
     canAttack(o) {
       if (o.zone !== 'battlefield' || o.controller !== this.activePlayer.id) return false;
       if (this.noAttacksTurn === this.turn) return false;
+      // Bumi, Unleashed: "Only land creatures can attack during that combat phase."
+      if (this._combatOnlyAttack && this._combatOnlyAttack.turn === this.turn && !this._cardFitsWords(o, this._combatOnlyAttack.words)) return false;
       const a = o.analysis();
       const c = this.characteristics(o);
       if (!a || !(c && c.isCreature)) return false;
@@ -20486,6 +20494,12 @@
           if (e.withMain) phases.push(3);
           (this._extraPhases = this._extraPhases || []).push({ turn: this.turn, after: this.phaseIndex, phases });
           this.logEvent('rules', `There ${phases.length > 1 ? 'are' : 'is'} an additional combat phase${e.withMain ? ' and main phase' : ''} this turn.`);
+          break;
+        }
+        // Bumi, Unleashed: "Only land creatures can attack during that combat phase." — the combat just promised
+        case 'extraCombatOnly': {
+          const lastX = (this._extraPhases || []).filter(x => x.turn === this.turn).pop();
+          if (lastX) lastX.onlyAttack = e.words;
           break;
         }
         /* Y'shtola Rhul: "Then if it's the first end step of the turn, there is an
