@@ -53,6 +53,27 @@ module.exports = (test) => {
     t.eq(high.T.life('B'), 18, 'and takes 2');
   });
 
+  test('Audit: a bot copies Chain of Smog back only while the other hand has cards to lose', (mk, t) => {
+    t.auto('Chain of Smog');
+    const run = (cardsInA) => {
+      const T = mk();
+      T.toMain('A');
+      T.player('B').isBot = true;
+      const bot = new T.MTG.bots.BotPlayer(T.g, 'B', 8);
+      for (let i = 0; i < cardsInA; i++) T.hand('A', 'Island');
+      T.mana('A', '1B');
+      T.g.castSpell('A', T.hand('A', 'Chain of Smog').id, { auto: true, targets: [{ kind: 'player', id: 'B' }] });
+      let ch = null;
+      for (let i = 0; i < 20 && !(ch = T.g.pendingChoice && T.g.pendingChoice.purpose === 'chainCopy' ? T.g.pendingChoice : null); i++) {
+        if (T.g.pendingChoice) T.settle(); else if (T.g.priorityPlayer) T.g.passPriority(T.g.priorityPlayer.id, true); else break;
+      }
+      t.ok(ch && ch.playerId === 'B', 'B is offered the copy');
+      return bot.confirmChoice(ch);
+    };
+    t.no(run(0), "A's hand is empty: no copy (two bots would copy it at each other for ever)");
+    t.ok(run(2), 'A has cards: copy it back');
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {

@@ -2612,8 +2612,18 @@
          letting it sit in the graveyard. */
       if (ch.purpose === 'madness') return g.couldPay(this.pid, ch.cost || '', this.manaSources());
       if (ch.purpose === 'leyline') return true;
-      // the Chain spells: copy back for mana; not for a land or a card
-      if (ch.purpose === 'chainCopy') return ch.costKind === 'mana';
+      /* the Chain spells: copy back for mana; not for a land or a card. And only with something of an opponent's
+         for the copy to hit: two bots copying a free Chain of Smog at each other's empty hands would never stop */
+      if (ch.purpose === 'chainCopy') {
+        if (ch.costKind !== 'mana') return false;
+        const effs = (g.resolving && g.resolving.effects) || [];
+        const spec = effs.map(e => e && (e.targets || [])[0]).find(Boolean);
+        if (!spec) return true;
+        const discards = effs.some(e => e && e.op === 'discard');
+        return g._legalTargetsFor(spec, this.pid).some(t => t.kind === 'player'
+          ? t.id !== this.pid && !(g.player(t.id) || {}).hasLost && (!discards || (g.zones[t.id].hand || []).length > 0)
+          : !!g.obj(t.id) && g.obj(t.id).controller !== this.pid);
+      }
       // Alpharael, Stonechosen's ward: a card at random, to see the spell or ability through
       if (ch.purpose === 'wardPay') return (g.zones[this.pid].hand || []).length > 0;
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise

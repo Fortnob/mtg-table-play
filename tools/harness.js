@@ -56,6 +56,7 @@ function card(name) {
   return engine().scry.slim(c);
 }
 
+const chains = new WeakMap();
 /** The default answer to every question the engine can ask. */
 function defaultAnswer(g, ch) {
   const pid = ch.playerId;
@@ -68,7 +69,12 @@ function defaultAnswer(g, ch) {
       return g.declareAttackers(pid, must.map(o => ({ attackerId: o.id, defenderId: defOf(o).id })));
     }
     case 'declareBlockers': return g.declareBlockers(pid, []);
-    case 'confirm': return g.resolveChoice(pid, { yes: true });
+    // (a free Chain of Smog copied back and forth for ever: yes the first few times only)
+    case 'confirm': {
+      if (ch.purpose !== 'chainCopy') return g.resolveChoice(pid, { yes: true });
+      chains.set(g, (chains.get(g) || 0) + 1);
+      return g.resolveChoice(pid, { yes: chains.get(g) <= 3 });
+    }
     case 'payOrDont': return g.resolveChoice(pid, { pay: true });
     case 'payOrCounter': return g.resolveChoice(pid, { pay: false });
     case 'pickTarget': return g.resolveChoice(pid, { targets: (ch.options || []).map(l => l[0]).filter(Boolean) });
