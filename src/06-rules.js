@@ -10356,13 +10356,27 @@
       }
       return out;
     }
+    /* Galactus, Devourer of Worlds: "… unless you control a creature named Silver Surfer, Galactus's Herald" (unlessNamed) */
+    _mustAttackExcused(o, e) {
+      return !!(e && e.unlessNamed && this.battlefield.some(x => x.controller === o.controller && !x.phasedOut &&
+        (this.characteristics(x) || {}).isCreature && x.name === e.unlessNamed));
+    }
+    /** Galactus: the opponents with the most life, when it has to attack one of them (mostLife); else null. */
+    _mustAttackMost(o) {
+      const a = o && o.analysis();
+      const e = a && a.abilities.map(x => (x.effects || []).find(y => y && y.op === 'mustAttack' && y.mostLife)).find(Boolean);
+      if (!e || this._mustAttackExcused(o, e)) return null;
+      const opps = this.opponentsOf(o.controller).filter(p => !p.hasLost);
+      const top = Math.max(...opps.map(p => p.life));
+      return opps.filter(p => p.life === top).map(p => p.id);
+    }
     mustAttack(o) {
       if (!o) return false;
       const a = o.analysis();
       if (!a) return false;
-      return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack')) ||
+      return a.abilities.some(x => (x.effects || []).some(e => e.op === 'mustAttack' && !this._mustAttackExcused(o, e))) ||
         // (Alexios, Deimos of Kosmos: one of three standing rules on a line)
-        !!this._staticOp(o, 'mustAttack') ||
+        (!!this._staticOp(o, 'mustAttack') && !this._mustAttackExcused(o, this._staticOp(o, 'mustAttack'))) ||
         this._hasFlag(o, 'mustAttackEot') || this._goaders(o).length > 0 || o.mustAttackPlayer != null ||
         // Psychic Impetus: an Aura that keeps it goaded
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
@@ -10470,9 +10484,20 @@
           const o = this.obj(id);
           /* "if able": not when everything it could attack is somewhere it can't
              (Alexios, Deimos of Kosmos at two players, away from its owner) */
-          const must = this.mustAttack(o) && ch.defenders.some(x => !this._cantAttackYou(o, x.id));
+          /* Galactus, Devourer of Worlds: "attacks an opponent with the most life among your opponents each combat
+             if able" — one of them, when it can attack one of them (mostLife) */
+          const most = o ? this._mustAttackMost(o) : null;
+          const ableMost = most && most.filter(pid => ch.defenders.some(x => x.id === pid) && !this._cantAttackYou(o, pid));
+          const must = most ? ableMost.length > 0 : this.mustAttack(o) && ch.defenders.some(x => !this._cantAttackYou(o, x.id));
           if (must && !declarations.some(d => d.attackerId === id))
             return this.fail(`${o.name} ${this._goaders(o).length ? 'is goaded and must attack' : 'attacks each combat if able'}.`);
+          if (must && most) {
+            const d = declarations.find(x => x.attackerId === id);
+            if (!ableMost.includes(d.defenderId)) {
+              if ((this.player(playerId) || {}).isBot) d.defenderId = ableMost[0];
+              else return this.fail(`${o.name} attacks an opponent with the most life (${ableMost.map(pid => this.player(pid).name).join(' or ')}) if able.`);
+            }
+          }
           /* goaded: it attacks a player other than the one who goaded it, if it can (CR 701.15b) — a bot's
              declaration is turned that way, a person is told (each goader, Baeloth Barrityl's controller too) */
           const goaders = o ? this._goaders(o) : [];
@@ -18254,6 +18279,13 @@
              is the spell, and the permanent it becomes keeps what it gained */
           const tdG = ctx.triggerData || {};
           const spellG = e.scope === 'lastTarget' && !firstObj() && tdG.stackId && tdG.objectId && this.obj(tdG.objectId);
+          /* Symbiote Spider-Man: "It gains this card's other abilities." — the source card's lines but the one at work, for good */
+          if (e.otherOfSource) {
+            const lines = String((src && src.card && src.card.oracle_text) || '').split('\n').map(x => x.trim())
+              .filter(x => x && !/this card'?s other abilities/i.test(x));
+            if (lines.length) this._spliceNext(lines.map(x => ({ op: 'grantAbility', ability: x, duration: 'permanent', scope: e.scope })));
+            break;
+          }
           (spellG && spellG.zone === 'stack' ? (f) => f(spellG) : (f) => applyToScope(e, f))((o) => {
             /* the ability written out already (a translated card), or its words to read */
             // Quicksmith Spy: "for as long as you control this creature"
@@ -25483,7 +25515,8 @@
             // (Kefka, Dancing Mad: "a spell you cast this way" — castOwnersLoseMv)
             if (r) (r.castThisWay = r.castThisWay || []).push(c.id);
             const it = this.stack.find(st => st.objId === c.id);
-            if (it && e.exileAfter) it.viaAfter = 'exile';
+            // (Bilbo, Thief in the Night: "If an instant or sorcery spell cast this way would be put into your graveyard" — those only: exileAfterWords)
+            if (it && e.exileAfter && (!e.exileAfterWords || this._cardFitsWords(c, e.exileAfterWords))) it.viaAfter = 'exile';
           }
           // Rashmi, Eternities Crafter: "If you don't cast it, put it into your hand." (elseHand)
           // (Bre of Clan Stoutarm: "Otherwise, put it into your hand." — the card exiled, not cast)
@@ -30751,13 +30784,15 @@
         if (!ca || ca.isLand) continue;
         if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
         if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
+        // Bilbo, Thief in the Night: paying its mana cost — only what can be paid for (pay)
+        if (e.pay && !this.canPayNow(ctx.controller, this.castCost(c, null, ctx.controller), { forSpell: c })) continue;
         fits.push(c);
       }
       if (!fits.length) return [];
       if (me.isBot) return [fits.slice().sort((x, y) => this._cardValue(y) - this._cardValue(x))[0].id];
       const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
         cards: fits.map(x => ({ id: x.id, name: x.name, card: x.card })),
-        prompt: `${ctx.name || 'Effect'}: you may cast a spell from ${e.whose === 'you' ? 'your graveyard' : 'a graveyard'} without paying its mana cost.` }, 'cfg');
+        prompt: `${ctx.name || 'Effect'}: you may cast ${e.filter ? (/^[aeiou]/i.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'} from ${e.whose === 'you' ? 'your graveyard' : 'a graveyard'}${e.pay ? '' : ' without paying its mana cost'}.` }, 'cfg');
       if (picked === SUSPEND) return SUSPEND;
       return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
     }

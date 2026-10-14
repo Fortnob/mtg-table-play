@@ -1816,6 +1816,11 @@
         return grantableText(text) ? { op: 'grantAbility', ability: text, duration: 'permanent', scope: 'self' } : null; } },
     // Olivia, Crimson Bride: "It gains '…'" — the creature the sentence before was about, for good
     { re: /^(?:It|That creature|That permanent) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'lastTarget' } : null) },
+    // Symbiote Spider-Man: "It gains this card's other abilities." — the card's other lines, read as it resolves (otherOfSource)
+    { re: /^It gains this card'?s other abilities\.?$/i, make: () => ({ op: 'grantAbility', otherOfSource: true, duration: 'permanent', scope: 'lastTarget' }) },
+    // Symbiote Spider-Man: "Put one of them into your hand and the rest into your graveyard." — after "look at that many"
+    { re: /^Put one of them into your hand and the rest into your graveyard\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'graveyard', prompt: 'Put one of them into your hand.' }) },
     // Jaxis, the Troublemaker: "It gains haste and "When this token dies, draw a card.""
     { re: /^(?:It|That creature|That token) gains ([a-z ]+?) and "([^"]+)"\.?$/,
       make: (m) => {
@@ -5235,6 +5240,9 @@
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
     { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
+    // The Incredible Hulk: "If he's attacking, untap him and there is an additional combat phase after this phase."
+    { re: /^If (?:he|she|it)'?s attacking, untap (?:him|her|it) and there is an additional combat phase after this phase\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'selfAttacking' }, then: [{ op: 'untap', scope: 'self' }, { op: 'extraCombat', count: 1 }] }) },
     // Tifa, Martial Artist: "If it's the first combat phase of your turn, there is an additional combat phase after this phase."
     // (Raiyuu, Storm's Edge: "of the turn" — an attack is the active player's)
     { re: /^If it'?s the first combat phase of (?:your|the) turn, there is an additional combat phase after this phase\.?$/i,
@@ -9935,6 +9943,14 @@
           out.push(...rest.effects);
         }
         return out;
+      } },
+    /* Bilbo, Thief in the Night: "you may cast an artifact, instant, or sorcery spell from your graveyard. If an instant or
+       sorcery spell cast this way would be put into your graveyard, exile it instead." — one card, paid for (exileAfterWords) */
+    { re: /^You may cast an? ((?:[a-z]+, )*[a-z]+,? or [a-z]+) spell from your graveyard\.(?: If an? ((?:[a-z]+, )*[a-z]+,? or [a-z]+|[a-z]+) spell cast this way would be put into your graveyard, exile it instead\.)?$/i,
+      make: (m) => {
+        const words = (s) => s.toLowerCase().replace(/,? or |, /g, ' or ');
+        return [Object.assign({ op: 'castFree', from: 'graveyard', whose: 'you', filter: words(m[1]), pay: true, upTo: 1 },
+          m[2] ? { exileAfter: true, exileAfterWords: words(m[2]) } : {})];
       } },
     /* Horde of Notions: "You may play target Elemental card from your graveyard without paying its mana cost." — a card
        of that creature type, kindred spells too (no land is an Elemental, so "play" is casting it), now (castFree) */
@@ -18570,6 +18586,11 @@
         make: (m) => (m[1] === 'attack' ? { op: 'cantAttackAlone' } : m[1] === 'block' ? { op: 'cantBlockAlone' }
           : { op: 'sequence', list: [{ op: 'cantAttackAlone' }, { op: 'cantBlockAlone' }] }), auto: true },
       { re: /^CARDNAME attacks each (?:combat|turn) if able\.?$/i, eff: { op: 'mustAttack' }, auto: true },
+      /* Galactus, Devourer of Worlds: "Galactus attacks an opponent with the most life among your opponents each combat
+         if able unless you control a creature named Silver Surfer, Galactus's Herald." (mostLife, unlessNamed — the
+         Herald's name read back from the card's own, which the reader wrote as CARDNAME) */
+      { re: /^CARDNAME attacks an opponent with the most life among your opponents each combat if able(?: unless you control a creature named (Silver Surfer, CARDNAME's Herald))?\.?$/i,
+        make: (m) => Object.assign({ op: 'mustAttack', mostLife: true }, m[1] ? { unlessNamed: "Silver Surfer, Galactus's Herald" } : {}), auto: true },
       /* Alexios, Deimos of Kosmos: "attacks each combat if able, can't be sacrificed, and can't attack its
          owner" (unsacrificable, cantAttackOwner) */
       { re: /^CARDNAME attacks each combat if able, can'?t be sacrificed, and can'?t attack its owner\.?$/i,
