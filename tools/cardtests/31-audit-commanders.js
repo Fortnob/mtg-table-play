@@ -122,6 +122,22 @@ module.exports = (test) => {
     t.eq(errs.join(' / '), '', 'the step and phase could be read throughout');
   });
 
+  test('Audit: Farsight Ritual puts the rest on the bottom in a random order', (mk, t) => {
+    t.auto('Farsight Ritual');
+    const T = mk({ library: Array(10).fill('Plains') });
+    T.toMain('A');
+    const a = T.MTG.oracle.analyze(require('../harness').card('Farsight Ritual'));
+    const take = JSON.stringify(a.abilities).match(/"op":"takeFromLooked"[^}]*/);
+    t.ok(take && /"rest":"bottomRandom"/.test(take[0]), 'read as random: ' + (take && take[0]));
+    const top = ['Island', 'Swamp', 'Mountain', 'Forest'].map(n => T.top('A', n)).reverse();
+    T.answer('choose', (ch) => ({ picks: ch.items ? ch.items.slice(0, 2).map(x => x.id) : [] }));
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Farsight Ritual'));
+    t.eq(top.filter(o => o.zone === 'hand').length, 2, 'two into the hand');
+    const lib = T.zone('A', 'library');
+    t.eq(lib.slice(-2).filter(o => top.includes(o)).length, 2, 'the other two at the bottom');
+  });
+
   /* ---- ward: only {N} and "Pay N life" were ever taken; any other price let the spell through free ---- */
 
   test('Audit: Valgavoth, Terror Eater — "Ward—Sacrifice three nonland permanents", or the spell is countered', (mk, t) => {

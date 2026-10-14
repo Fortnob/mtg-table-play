@@ -4073,9 +4073,10 @@
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', totalMv: +m[2], to: 'battlefield', rest: 'keep' }) },
     { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
-        to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : 'bottom' }) },
+        to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
+    // (Farsight Ritual: "… the rest on the bottom of your library in a random order" — random, not in the order they were)
     { re: /^Put (one|two|three) of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', rest: 'bottom' }) },
+      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: 'any', to: 'hand', rest: /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
     { re: /^Put one of them into your hand and the other on the bottom of your library\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'bottom' }) },
     { re: /^Put (?:them|those cards) back in any order\.?$/i, make: () => ({ op: 'putBackLooked' }) },
