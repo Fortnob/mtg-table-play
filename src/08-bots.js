@@ -1664,13 +1664,6 @@
       (s.options || []).forEach((o, i) => { const k = gy.filter(c => g._hasCreatureType(c, o.label)).length; if (k > bestN) { best = i; bestN = k; } });
       return { picks: [best] };
     },
-    /* Mogis and kin: pay with the least of it once life is getting short */
-    unlessSacrifice(s) {
-      if (this.me.life > 10 || !(s.items || []).length) return { picks: [] };
-      const g = this.game;
-      const worth = (x) => { const o = g.obj(x.id); return o && o.zone === 'battlefield' ? this.permanentValue(o) : 1; };
-      return { picks: [(s.items || []).slice().sort((x, y) => worth(x) - worth(y))[0].id] };
-    },
     /* Liliana of the Dark Realms: shrink theirs, grow ours */
     pumpEitherWay(s) {
       const g = this.game, c = g && g.resolving && g.resolving.ctx;
@@ -1829,7 +1822,17 @@
     unlessSacrifice(s) {
       const g = this.game;
       const src = s.sourceId ? g.obj(s.sourceId) : null;
-      const keep = src ? this.permanentValue(src) : 0;
+      /* Mogis and kin ("… unless they sacrifice a creature", Rakdos, Patron of Chaos's two): someone else's
+         permanent asks, and only life or cards are at stake — pay with the least of it once life is getting
+         short. (This answer was once a second unlessSacrifice above, which the one below quietly replaced.) */
+      if (!src || src.controller !== this.pid) {
+        const need = Math.max(1, s.max || 1);
+        if (this.me.life > 10 || (s.items || []).length < need) return { picks: [] };
+        const worth = (x) => { const o = g.obj(x.id); return o && o.zone === 'battlefield' ? this.permanentValue(o) : 1; };
+        return { picks: (s.items || []).slice().sort((x, y) => worth(x) - worth(y)).slice(0, need).map(x => x.id) };
+      }
+      // "Sacrifice it unless …": ours to keep, if it is worth more than the price
+      const keep = this.permanentValue(src);
       const pool = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
         .map(o => ({ o, v: o.zone === 'battlefield' ? this.permanentValue(o) : this.rating(o) })).sort((x, y) => x.v - y.v);
       return pool.length && pool[0].v <= keep ? { picks: [pool[0].o.id] } : { picks: [] };

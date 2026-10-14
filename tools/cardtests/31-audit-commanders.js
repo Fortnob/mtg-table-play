@@ -28,4 +28,28 @@ module.exports = (test) => {
     t.eq(T.life('C'), 18, 'C, the player it attacked, loses 2');
     t.eq(T.life('B'), 20, 'B loses nothing');
   });
+
+  test('Audit: a bot pays Mogis with a creature once its life is short (its answer had been overwritten)', (mk, t) => {
+    t.auto('Mogis, God of Slaughter');
+    const run = (life) => {
+      const T = mk();
+      const mo = T.bf('A', 'Mogis, God of Slaughter');
+      const bears = T.bf('B', 'Grizzly Bears');
+      T.player('B').life = life; T.player('B').isBot = true;
+      const bot = new T.MTG.bots.BotPlayer(T.g, 'B', 8);
+      T.g._runEffects(mo.analysis().abilities.find(a => a.kind === 'triggered').effects,
+        { controller: 'A', obj: mo, name: 'Mogis', kind: 'ability', triggerData: { player: 'B', playerId: 'B' } });
+      const ch = T.g.pendingChoice;
+      t.ok(ch && ch.playerId === 'B', 'B is asked');
+      bot.doChoice(ch);
+      T.settle();
+      return { T, bears };
+    };
+    const low = run(6);
+    t.zone(low.bears, 'graveyard', 'at 6 life the bot sacrifices the Bears');
+    t.eq(low.T.life('B'), 6, 'and takes no damage');
+    const high = run(20);
+    t.zone(high.bears, 'battlefield', 'at 20 life it keeps the Bears');
+    t.eq(high.T.life('B'), 18, 'and takes 2');
+  });
 };
