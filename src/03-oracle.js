@@ -2346,6 +2346,8 @@
     { re: /^Untap (?:those|them|these) creatures\.?$/i, make: () => ({ op: 'untapThose' }) },
 
     /* Connive (CR 702.153). */
+    // Baron Strucker, HYDRA Overlord: "you may have it connive" — the Villain that entered (triggerObject)
+    { re: /^Have (?:it|that creature) connive\.?$/i, make: () => ({ op: 'connive', n: 1, scope: 'triggerObject' }) },
     { re: /^(?:It|He|She|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
     // (Raffine, Scheming Seer: "Target attacking creature connives X" — raffineConnive)
@@ -5472,6 +5474,10 @@
        amount of life you gained this turn." — X counted once, as it resolves (costModTurn, lessX) */
     { re: /^Spells you cast this turn that are (white|blue|black|red|green) and\/or (white|blue|black|red|green) cost \{X\} less to cast, where X is (.+?)\.?$/i,
       make: (m) => { const a = amountOf(m[3]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), amount: 0 }, lessX: a }; } },
+    /* Commander Liara Portyr: "spells you cast from exile this turn cost {X} less to cast, where X is the number of players
+       being attacked" — X counted as it resolves (costModTurn, lessX, fromZones) */
+    { re: /^Spells you cast from exile this turn cost \{X\} less to cast, where X is (.+?)\.?$/i,
+      make: (m) => { const a = amountOf(m[1]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: 'spell', amount: 0, fromZones: ['exile'] }, lessX: a }; } },
     // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast." (costModTurn)
     { re: /^(.+? spells you cast) this turn cost (\{\d+\}) less to cast\.?$/i,
       make: (m) => {
@@ -5933,7 +5939,7 @@
        just exiled, playable as it says */
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards|those exiled cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
@@ -9722,6 +9728,11 @@
     // Tivit, Capital Punishment: "For each A vote, …. For each B vote, …."
     { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. For each \1 vote, (.+?)\. For each \2 vote, (.+?)\.?$/i,
       make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'each', thenA: a, thenB: b }] : null; } },
+    /* Círdan the Shipwright: "Secret council — … each player secretly votes for a player, then those votes are revealed.
+       Each player draws a card for each vote they received. Each player who received no votes may put a permanent card
+       from their hand onto the battlefield." (votePlayers) */
+    { re: /^Each player secretly votes for a player, then those votes are revealed\. Each player draws a card for each vote they received\. Each player who received no votes may put a permanent card from their hand onto the battlefield\.?$/i,
+      make: () => [{ op: 'votePlayers', secret: true, drawPerVote: true, noVotesPut: 'permanent' }] },
     // Council's Judgment
     { re: /^Starting with you, each player votes for an? (nonland permanent|creature|permanent) you don'?t control\. (Exile|Destroy) each (?:permanent|creature) with the most votes or tied for most votes\.?$/i,
       make: (m) => [{ op: 'voteObjects', words: m[1].toLowerCase(), notYours: true, then: m[2].toLowerCase() }] },

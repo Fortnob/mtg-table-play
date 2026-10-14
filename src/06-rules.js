@@ -3546,6 +3546,8 @@
       for (const e of ((this.player(pid) || {}).turnCostMods || [])) {
         if (e.turn !== this.turn) continue;
         if (e.words && e.words !== 'spell' && !this._cardFitsWords(o, e.words)) continue;
+        // (Commander Liara Portyr: "spells you cast from exile this turn")
+        if (e.fromZones && !e.fromZones.includes(o.zone)) continue;
         d += Number(e.amount) || 0;
       }
       // Ral, Leyline Prodigy: a change for a while, not from a permanent (costModUntil)
@@ -18214,7 +18216,9 @@
           const count = nVar(e.n);
           const who = this.player(ctx.controller);
           // (Lethal Scheme: a creature named by id, conniving for its controller)
+          // (Baron Strucker, HYDRA Overlord: "have it connive" — the creature the trigger is about: triggerObject)
           const x = e.objId ? this.obj(e.objId) : e.scope === 'self' ? src
+            : e.scope === 'triggerObject' ? this.obj((ctx.triggerData || {}).objectId)
             : (targets[0] && targets[0].kind === 'object' && this.obj(targets[0].id)) || src;
           if (!who) break;
           /* Draw, then discard as many — the player picks which (the draw is kept
@@ -18240,7 +18244,7 @@
             this.moveObject(c, 'graveyard');
             this._afterDiscard(who.id, c);
           }
-          if (x && grew) this.addCounters(x, '+1/+1', grew);
+          if (x && grew && x.zone === 'battlefield') this.addCounters(x, '+1/+1', grew);
           this.logEvent('rules', `${x ? x.name : who.name} connives${grew ? ` and grows by ${grew}` : ''}.`);
           // Iron Monger: "Whenever a creature you control connives"
           if (x && x.zone === 'battlefield') this._fire('connives', x.controller, { object: x, objController: x.controller });
@@ -23270,7 +23274,8 @@
 
         case 'permanentFromHand': {
           // (Braids, Conjurer Adept: "that player" — whose upkeep it is, triggerPlayer)
-          const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
+          // (Círdan the Shipwright: "each player who received no votes" — those players: pids)
+          const who = e.who === 'each' ? this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost && (!e.pids || e.pids.includes(p.id))) : e.who === 'triggerPlayer' ? [triggerPlayer()].filter(p => p && !p.hasLost) : [me];
           // Kynaios and Tiro of Meletis: who put one, kept across the questions (notePut)
           const putBy = e.notePut && this.resolving ? ((this.resolving.marks = this.resolving.marks || {}).putBy = this.resolving.marks.putBy || []) : null;
           for (const p of who) {
@@ -23280,7 +23285,8 @@
             const mvIs = e.exactMv != null ? n(e.exactMv) : null;
             // Kastral, the Windcrested: "a Bird creature card from your hand or graveyard" (from)
             const fromZones = e.from || ['hand'];
-            const pool = [].concat(...fromZones.map(zn => this.zones[p.id][zn] || [])).filter(o => this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
+            // (an instant or sorcery card never goes onto the battlefield: "a permanent card" or not, only those — CR 110.4b)
+            const pool = [].concat(...fromZones.map(zn => this.zones[p.id][zn] || [])).filter(o => (o.analysis() || {}).isPermanent && this._fitsFilter(o, e.filter === 'any' ? '' : e.filter) &&
               (mvCap == null || ((o.card && o.card.cmc) || 0) <= mvCap) && (mvIs == null || ((o.card && o.card.cmc) || 0) === mvIs));
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
@@ -25761,6 +25767,44 @@
           else if (counts[1] > counts[0] || e.tieB) run.push(...e.thenB);
           this.logEvent('rules', `The vote: ${e.choices[0]} ${counts[0]}, ${e.choices[1]} ${counts[1]}.`);
           if (run.length) this._spliceNext(run);
+          break;
+        }
+        /* Círdan the Shipwright: "each player secretly votes for a player, then those votes are revealed" — nobody's vote
+           is told until all are in; then a card for each vote received, and those who got none may put a permanent card
+           from their hand onto the battlefield (votePlayers) */
+        case 'votePlayers': {
+          const voters = this._turnOrderFrom(ctx.controller).filter(p => !p.hasLost);
+          const pool = voters.slice();
+          const got = {};
+          const tally = {};
+          for (const p of voters) {
+            const v = this._choose({ playerId: p.id, purpose: 'votePlayer', kind: 'players', items: this._choosePlayers(pool), min: 1, max: 1,
+              prompt: `${src ? src.name + ': ' : ''}${e.secret ? 'secretly vote' : 'vote'} for a player.` }, 'vp' + p.id);
+            if (v === SUSPEND) return SUSPEND;
+            const pick = (v && v.picks || []).map(id => this.player(id)).find(q => q && pool.includes(q)) || p;
+            got[p.id] = [pick.id];
+            // (Tivit, Seller of Secrets: an additional vote — a bot always takes it, the same way)
+            const extra = this._extraVotes(p.id);
+            for (let k = 0; k < extra.length; k++) {
+              let more = pick;
+              if (!p.isBot) {
+                const v2 = this._choose({ playerId: p.id, purpose: 'votePlayer', kind: 'players', items: this._choosePlayers(pool), min: extra[k].optional ? 0 : 1, max: 1,
+                  prompt: `${src ? src.name + ': ' : ''}${extra[k].optional ? 'you may vote an additional time' : 'your additional vote'}, for a player.` }, 'vp' + p.id + ':' + k);
+                if (v2 === SUSPEND) return SUSPEND;
+                more = (v2 && v2.picks || []).map(id => this.player(id)).find(q => q && pool.includes(q)) || (extra[k].optional ? null : pick);
+              }
+              if (more) got[p.id].push(more.id);
+            }
+          }
+          for (const p of voters) for (const id of got[p.id]) tally[id] = (tally[id] || 0) + 1;
+          if (!this._doneHere('vpTold')) {
+            for (const p of voters) this.logEvent('rules', `${p.name} voted for ${got[p.id].map(id => (this.player(id) || {}).name).join(' and ')}.`);
+          }
+          const after = [];
+          if (e.drawPerVote) for (const p of voters) if (tally[p.id]) this._drawCards(p, tally[p.id]);
+          const none = voters.filter(p => !tally[p.id] && !p.hasLost).map(p => p.id);
+          if (e.noVotesPut && none.length) after.push({ op: 'permanentFromHand', filter: e.noVotesPut, who: 'each', pids: none });
+          if (after.length) this._spliceNext(after);
           break;
         }
         // Council's Judgment: each player votes for a permanent; the most-voted go
