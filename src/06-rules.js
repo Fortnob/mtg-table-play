@@ -538,8 +538,22 @@
         return !e.ifTougher || this.toughnessOf(o) > this.powerOf(o);
       });
     }
+    /* Tibalt, Cosmic Impostor: an emblem of this player's whose Tibalt this card was exiled with (playExiledWithLink,
+       card.exiledWithLink) */
+    _exiledWithLinkEmblem(pid, o) {
+      if (!o || o.zone !== 'exile' || o.faceDown) return null;
+      const link = o.exiledWithId || (o._exiledWithGone && o._exiledWithGone.id);
+      if (!link) return null;
+      for (const p of this.players) {
+        if (p.id !== pid) continue;
+        for (const em of ((this.zones[p.id] || {}).command || [])) if (em.card && em.card.exiledWithLink === link) return em;
+      }
+      return null;
+    }
     /** "You may spend mana as though it were mana of any color to cast …": the cost, with its colours made generic. */
     _anyColorCost(pid, o, cost) {
+      // (Tibalt, Cosmic Impostor's emblem: "… and you may spend mana as though it were mana of any color to cast those spells")
+      if (o && this._exiledWithLinkEmblem(pid, o)) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Hostage Taker: "mana of any type can be spent to cast that spell"
       if (o && o.impulseAnyMana === pid) return String(cost).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       // Tinybones, Bauble Burglar: "and mana of any type can be spent to cast those spells" (exiledCounter)
@@ -4532,6 +4546,8 @@
      * this card from where it is. kind is 'land' or 'spell'.
      */
     _playFromRule(playerId, o, kind) {
+      // Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt" — that one, on the battlefield or gone
+      if (this._exiledWithLinkEmblem(playerId, o)) return { op: 'playFrom', zone: 'exiledWith', what: 'any', anyMana: true };
       const z = this.zones[playerId];
       // Valgavoth, Terror Eater: "cards exiled with Valgavoth" are somebody else's
       const exiled = !!(o && o.zone === 'exile' && o.exiledWithId);
@@ -13626,6 +13642,9 @@
         // Skyclave Apparition: "the exiled card" is what this permanent's own ability exiled
         const ro = this.resolving.ctx && this.resolving.ctx.obj;
         if (ro && ro !== o && ro.id) (ro._exiledHere = ro._exiledHere || []).push(o.id);
+        /* and a card a permanent's own ability exiles is exiled with it (CR 607.2a): Tibalt, Cosmic Impostor's "cards
+           exiled with Tibalt", Valki, God of Lies's "a creature card exiled with Valki" */
+        if (ro && ro !== o && ro.id && ro.zone === 'battlefield' && from !== 'exile') o.exiledWithId = ro.id;
       }
       // Phyrexian Dragon Engine: "enters from your graveyard" — where it came from
       if (toZone === 'battlefield') o.enteredFrom = from;
@@ -14943,8 +14962,10 @@
       /* "except it has flying", "except it has 'When this creature
          becomes the target of a spell or ability, sacrifice it'": the
          copy's words, with that added */
-      if ((e.addText || []).length) {
-        const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
+      // (Moritte of the Frost: "if it's a creature, … has changeling" — creatureText)
+      const addText = (e.addText || []).concat(e.creatureText && /\bCreature\b/.test(String(card.type_line || '')) ? e.creatureText : []);
+      if (addText.length) {
+        const text = String(card.oracle_text || '') + '\n' + addText.join('\n');
         card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
       }
       /* "except it has CARDNAME's other abilities": the printed card's own
@@ -14977,6 +14998,8 @@
         const nm = e.keepName && own.name ? own.name : was;
         let line = String(card.type_line || '');
         if (e.addLegendary && !/\bLegendary\b/.test(line)) line = 'Legendary ' + line;
+        // Moritte of the Frost: "legendary and snow" (addSnow)
+        if (e.addSnow && !/\bSnow\b/.test(line)) line = line.replace(/^(Legendary )?/, '$1Snow ');
         const text = String(card.oracle_text || '').split(was).join(nm);
         card = Object.assign({}, card, { id: card.id + ':named:' + U.hash(nm + line), name: nm, type_line: line, oracle_text: text, card_faces: null });
       }
@@ -16554,6 +16577,8 @@
             card._script = { abilities: JSON.parse(JSON.stringify(e.abilities).replace(/"\$tgt"/g, JSON.stringify(tg.id))) };
             card.id += ':' + tg.id;
           }
+          // Tibalt, Cosmic Impostor: "cards exiled with Tibalt" — the permanent that made it (linkSource)
+          if (e.linkSource && src) { card.exiledWithLink = src.id; card.id += ':' + src.id; card.oracle_text = text.replace(/CARDNAME/g, src.name); }
           // Massacre Girl: the emblem's words point at the permanent that made it
           if (e.exceptSource && e.abilities) {
             const sid = src ? src.id : '-';
@@ -17921,6 +17946,12 @@
                 // Polymorph: its controller's card, onto the battlefield under that player's control
                 this.moveObject(c, 'battlefield', { controller: e.toOwner ? p.id : ctx.controller, tapped: !!(e.tapped) });
                 if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+                // Raph & Mikey, Troublemakers: "tapped and attacking" — whoever the one whose trigger it is attacks
+                if (e.attacking && c.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+                  const by = src && src.attacking ? src : this.obj(this.combat.attackers[0]);
+                  const def = (by && by.attacking) || (this.opponentsOf(c.controller)[0] || {}).id;
+                  if (def) { c.attacking = def; this.combat.attackers.push(c.id); }
+                }
                 this._lastPut = c.id;
               }
             }
@@ -20276,6 +20307,46 @@
         }
         /* Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your
            control" — the cards that Gisa exiled, still so if Gisa has left since this triggered (_exiledWithGone) */
+        /* Valki, God of Lies: "each opponent reveals their hand. For each opponent, exile a creature card they revealed
+           this way until Valki leaves the battlefield." — Valki gone first, the hands are shown and nothing is exiled */
+        case 'exileFromOppHandsUntil': {
+          for (const q of this.opponentsOf(ctx.controller)) {
+            const hand = this.zones[q.id].hand;
+            if (!ctx['_vkShown' + q.id]) { ctx['_vkShown' + q.id] = true; this.logEvent('reveal', `${q.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`); }
+            if (!src || src.zone !== 'battlefield') continue;
+            const pool = hand.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+            if (!pool.length) continue;
+            let c = pool[0];
+            if (pool.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'exileFromOppHand', kind: 'objects', zone: 'hand',
+                items: this._chooseItems(pool), min: 1, max: 1,
+                prompt: `Exile a ${e.filter || 'card'} card from ${q.name}'s hand until ${src.name} leaves the battlefield.` }, 'vk' + q.id);
+              if (got === SUSPEND) return SUSPEND;
+              c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || pool[0];
+            }
+            if (c.zone !== 'hand') continue;
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            c.exiledBy = src.id; c.exiledReturn = 'hand'; c.exiledWithId = src.id;
+            this.logEvent('exile', `${me.name} exiles ${c.name} from ${q.name}'s hand until ${src.name} leaves the battlefield.`);
+          }
+          break;
+        }
+        // Valki, God of Lies: "Choose a creature card exiled with Valki with mana value X. Valki becomes a copy of that card."
+        case 'becomeExiledWithCopy': {
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = this._exiledWithPool(src, e.words).filter(c => !e.mvX || ((c.card && c.card.cmc) || 0) === (ctx.x || 0));
+          if (!pool.length) { this.logEvent('rules', `${src.name}: no ${e.words || 'card'} card with mana value ${ctx.x || 0} is exiled with it.`); break; }
+          let c = pool[0];
+          if (pool.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'becomeCopyOf', kind: 'objects', zone: 'exile', items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `${src.name} becomes a copy of which card?` }, 'bewc');
+            if (got === SUSPEND) return SUSPEND;
+            c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x)) || pool[0];
+          }
+          this._runEffect({ op: 'becomeCopy', _forcedId: c.id }, ctx);
+          break;
+        }
         case 'exiledWithToBattlefield': {
           if (!src) break;
           let list = this._exiledWithPool(src, e.words);
@@ -22660,6 +22731,8 @@
             if (ca && ca.isCreature) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + 1;
             if (ca && ca.isPlaneswalker) src.counters.loyalty = (parseInt(ca.loyalty, 10) || 0) + 1;
           } else if ((src.analysis() || {}).isPlaneswalker) src.counters.loyalty = parseInt(src.analysis().loyalty, 10) || 0;
+          // Moritte of the Frost: "if it's a creature, it enters with two additional +1/+1 counters on it" (creatureCounters)
+          if (e.creatureCounters && (src.analysis() || {}).isCreature) src.counters['+1/+1'] = (Number(src.counters['+1/+1']) || 0) + e.creatureCounters;
           // Cursed Mirror: a copy until the end of the turn, with haste
           if (e.eot) src.copyUntilTurn = this.turn;
           if (e.haste) src.effects.push({ keywords: ['Haste'], until: 'eot' });
@@ -22673,13 +22746,14 @@
            her name is CARDNAME (and she has this ability)" — the exceptions are
            part of the copy (CR 707.9b), written into its card. */
         case 'becomeCopy': {
-          let t = firstObj();
+          // (Valki, God of Lies: a card exiled with it, chosen as it resolves — _forcedId)
+          let t = e._forcedId ? this.obj(e._forcedId) : firstObj();
           // (the Dragon gone before the trigger resolves: not a target, so as it last existed)
           if (!t && e.scope === 'triggerObject') {
             const x = this.obj((ctx.triggerData || {}).objectId);
             if (x && x.zone !== 'battlefield' && x._lkiCard) t = { card: x._lkiCard.card, face: x._lkiCard.face, name: x._lkiCard.card.name, zone: 'battlefield' };
           }
-          if (!src || src.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard')) break;
+          if (!src || src.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !(e._forcedId && t.zone === 'exile'))) break;
           const was = src.card, wasName = src.name;
           /* a copy until end of turn over one that lasts: what it was comes back after
              (Mirrorweave's way); a lasting copy outlives one that was to end */
@@ -28044,6 +28118,8 @@
         o.exiledBy = null;
         // a token exiled has ceased to exist (CR 111.7): it never comes back
         if (o.isToken && !((this.zones[o.owner] || {}).exile || []).includes(o)) continue;
+        // Valki, God of Lies: a card exiled from a hand goes back to that hand (CR 610.3c, exiledReturn)
+        if (o.exiledReturn === 'hand') { o.exiledReturn = null; this.moveObject(o, 'hand'); this.logEvent('zone', `${o.name} returns from exile to ${this.player(o.owner).name}'s hand.`); continue; }
         this.moveObject(o, 'battlefield', { controller: o.owner });
         this.logEvent('zone', `${o.name} returns from exile.`);
       }

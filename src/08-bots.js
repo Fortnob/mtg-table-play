@@ -3805,12 +3805,15 @@
         if (!g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + xMin + '}'), sources)) return null;
         x = xMin;
       }
-      // Shelob, Dread Weaver: "target creature card with mana value X exiled with Shelob" — the X of the best one it can pay for (mvX)
-      const ewX = flat.find(e => e.op === 'exiledWithToBattlefield' && e.mvX);
+      /* Shelob, Dread Weaver: "target creature card with mana value X exiled with Shelob"; Valki, God of Lies: "Choose a
+         creature card exiled with Valki with mana value X" — the X of the best one it can pay for (mvX) */
+      const ewX = flat.find(e => (e.op === 'exiledWithToBattlefield' || e.op === 'becomeExiledWithCopy') && e.mvX);
       if (ewX && x == null) {
         const able = g._exiledWithPool(o, ewX.words).filter(c => g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + ((c.card && c.card.cmc) || 0) + '}'), sources));
         const best = able.sort((p, q) => this.rating(q) - this.rating(p))[0];
         if (!best) return null;
+        // (a copy only of something bigger than it is now)
+        if (ewX.op === 'becomeExiledWithCopy' && (parseInt((best.analysis() || {}).power, 10) || 0) <= g.powerOf(o)) return null;
         x = (best.card && best.card.cmc) || 0;
         v += 1 + this.rating(best) * 0.6;
       }

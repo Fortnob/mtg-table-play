@@ -732,6 +732,14 @@
       // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
       else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
       else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
+      // Moritte of the Frost: "it's legendary and snow in addition to its other types" (addSnow)
+      else if ((c = ex.match(/^it'?s legendary and snow in addition to its other types/i))) { e.addLegendary = true; e.addSnow = true; }
+      /* Moritte of the Frost: "if it's a creature, it enters with two additional +1/+1 counters on it and has changeling"
+         (creatureCounters, creatureText) */
+      else if ((c = ex.match(/^(?:and,?\s*)?if it'?s a creature, it enters with (an?|one|two|three) additional \+1\/\+1 counters? on it(?: and has (changeling|flying|haste|trample))?/i))) {
+        e.creatureCounters = /^an?$/i.test(c[1]) ? 1 : num(c[1]);
+        if (c[2]) e.creatureText = [c[2][0].toUpperCase() + c[2].slice(1).toLowerCase()];
+      }
       // Sakashima of a Thousand Faces: "it has CARDNAME's other abilities"
       else if ((c = ex.match(/^it has CARDNAME'?s other abilities/i))) e.keepOwn = true;
       // Thespian's Stage, Irma, Part-Time Mutant: "it has this ability", "she has this ability"
@@ -920,7 +928,8 @@
     const probe = analyze({ id: 'emblemprobe:' + U.hash(text), name: 'Emblem', type_line: 'Emblem',
       oracle_text: text, keywords: [], layout: 'emblem' });
     // standing rules the engine asks of a player's emblems as well as their permanents
-    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty'];
+    // (Tibalt, Cosmic Impostor: "You may play cards exiled with Tibalt …" — playExiledWithLink)
+    const PLAYER_STATICS = ['noMaxHandSize', 'freeFromHand', 'playerHexproof', 'playerShroud', 'costMod', 'lifeFloor', 'grantRetraceInstSorc', 'instantLoyalty', 'playExiledWithLink'];
     return !!(probe && probe.fullyAutomated && probe.abilities.length && probe.abilities.every(ab => ab.kind === 'triggered' ||
       (ab.kind === 'static' && (ab.effects || []).every(e => e.op === 'continuous' || PLAYER_STATICS.includes(e.op) ||
         // (Ral, Crackling Wit: storm or cascade for your spells, which the engine looks for on emblems too)
@@ -953,10 +962,12 @@
     // Old Stickfingers: "Put all creature cards revealed this way into your graveyard, then put the rest on the bottom of your library in a random order."
     if (/^Put all [a-z ]+? cards revealed this way into (?:your|their) graveyard, then put the rest on the bottom of (?:your|their) library in a random order\.?$/i.test(rest))
       return Object.assign(e, { dest: 'graveyard', rest: 'bottom' });
-    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
+    const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
     if (!put) return null;
     e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
     e.tapped = /tapped/i.test(put[1]);
+    // Raph & Mikey, Troublemakers: "Put that card onto the battlefield tapped and attacking"
+    if (/attacking/i.test(put[1])) e.attacking = true;
     if (/their control/i.test(put[1]) || (w !== 'reveal' && !/your control/i.test(put[1]))) e.toOwner = true;
     e.rest = put[2] ? (/graveyard/i.test(put[2]) ? 'graveyard' : 'bottom') : 'shuffle';
     return e;
@@ -2579,7 +2590,8 @@
         const text = [...m[1].matchAll(/"([^"]+)"/g)].map(x => x[1].trim())
           // Liliana of the Dark Realms: "Swamps you control have '{T}: Add {B}{B}{B}{B}.'" — the inner quotation
           .map(x => x.replace(/ (has|have) '(.+)'\.?$/, ' $1 "$2"')).join('\n');
-        return emblemText(text) ? { op: 'getEmblem', emblemText: text } : null;
+        // (Tibalt, Cosmic Impostor: "cards exiled with Tibalt" — that Tibalt, the one making the emblem: linkSource)
+        return emblemText(text) ? Object.assign({ op: 'getEmblem', emblemText: text }, /^You may play cards exiled with /i.test(text) ? { linkSource: true } : {}) : null;
       } },
     // Ob Nixilis Reignited: "Target opponent gets an emblem with '…'"; Chandra, Awakened Inferno: "Each opponent gets …"
     { re: /^(Target opponent|Target player|Each opponent) gets an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
@@ -8150,7 +8162,15 @@
        your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
     { re: /^look at the top card of your library\. You may reveal that card if it has (three|four|\d+) or more colou?red mana symbols in its mana cost\. If you do, add (three|two|\d+) mana in any combination of its colou?rs and put it into your hand\. If you don'?t reveal it, put it into your hand\.?$/i,
       make: (m) => [{ op: 'revealTopForMana', pips: num(m[1]), amount: num(m[2]) }] },
-    /* Ral, Monsoon Mage:"flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
+    /* Valki, God of Lies: "each opponent reveals their hand. For each opponent, exile a creature card they revealed this
+       way until Valki leaves the battlefield." (exileFromOppHandsUntil) */
+    { re: /^Each opponent reveals their hand\. For each opponent, exile an? ([a-z]+) card they revealed this way until (?:CARDNAME|this creature) leaves the battlefield\.?$/i,
+      make: (m) => [{ op: 'exileFromOppHandsUntil', filter: m[1].toLowerCase() }] },
+    /* Valki, God of Lies: "Choose a creature card exiled with Valki with mana value X. Valki becomes a copy of that card."
+       (becomeExiledWithCopy mvX) */
+    { re: /^Choose an? ([a-z]+) card exiled with CARDNAME with mana value X\. CARDNAME becomes a copy of that card\.?$/i,
+      make: (m) => [{ op: 'becomeExiledWithCopy', words: m[1].toLowerCase(), mvX: true }] },
+    /* Ral, Monsoon Mage: "flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
        exile Ral. If you do, return him to the battlefield transformed under his owner's control." — not asked once
        he has gone (selfHere) */
     { re: /^Flip a coin\. If you lose the flip, ([^.]+\.) If you win the flip, you may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield transformed under (?:its|his|her) owner'?s control\.?$/i,
@@ -9111,7 +9131,8 @@
        creature card. Put that card into your hand and the rest on the
        bottom of your library in a random order." Dig until one fits (or
        two, or X); "Its controller reveals …" after a Polymorph. */
-    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+    // (Sméagol, Helpful Guide: "target opponent reveals cards … until they reveal a land card. Put that card onto the battlefield tapped under your control …")
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
       make: (m) => {
         const e = revealUntilOf(m[2]);
         if (!e) return null;
@@ -16670,6 +16691,10 @@
       { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
           words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },
+      /* Tibalt, Cosmic Impostor's emblem: "You may play cards exiled with Tibalt, Cosmic Impostor, and you may spend mana
+         as though it were mana of any color to cast those spells." — the Tibalt that made it (playExiledWithLink) */
+      { re: /^You may play cards exiled with (.+?), and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
+        eff: { op: 'playExiledWithLink', anyMana: true }, auto: true },
       // Shadow the Hedgehog: "Each spell you cast has split second if mana from an artifact was spent to cast it." (ifArtifactMana)
       { re: /^Each spell you cast has split second if mana from an artifact was spent to cast it\.?$/i,
         eff: { op: 'spellKeyword', keyword: 'split second', words: 'spell', ifArtifactMana: true }, auto: true },
