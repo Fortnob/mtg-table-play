@@ -2796,7 +2796,8 @@
       if (taken) this.logEvent('trigger', `${item.name} does nothing — it has been done once this turn.`);
       /* Minn, Wily Illusionist: "you may put a permanent card … from your hand onto the battlefield" — one pick that
          may be left empty, not a yes or no and then the pick (ownPick) */
-      const ownPick = item.optional && !item._asked && only && only.op === 'permanentFromHand' && !once;
+      // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || (only.op === 'castFree' && only.from === 'handOrGraveyard')) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [] }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -4548,6 +4549,17 @@
         // Radagast of Rhosgobel: "The first creature spell you cast each turn … can be cast as though it had flash"
         if (e && e.nthEachTurn && ((p || {}).spellObjsThisTurn || []).some(x => x !== o && (!e.filter || this._cardFitsWords(x, e.filter)))) continue;
         if (e && (!e.filter || this._cardFitsWords(o, e.filter))) return true;
+      }
+      /* Elsha of the Infinite: "If you cast a spell this way, you may cast it as though it had flash." — the top card
+         of your library, cast by that leave (playFrom flash) */
+      const z = this.zones[playerId];
+      if (o && o.zone === 'library' && z && z.library[0] === o) {
+        for (const src of this.battlefield) {
+          if (src.phasedOut || src.controller !== playerId) continue;
+          const ef = ((src.analysis() || {}).abilities || []).flatMap(ab => ab.effects || [])
+            .find(x => x && x.op === 'playFrom' && x.zone === 'top' && x.flash && (!x.filter || this._cardFitsWords(o, x.filter)));
+          if (ef) return true;
+        }
       }
       return false;
     }
@@ -23526,6 +23538,7 @@
             pool = e.from === 'hand' ? this.zones[ctx.controller].hand.map(c => c.id)
               : e.from === 'targets' ? targets.filter(t => t.kind === 'object').map(t => t.id)
               : e.from === 'graveyard' ? this._freeFromGraveyardPick(e, ctx, me, firstPlayer, n)
+              : e.from === 'handOrGraveyard' ? this._freeFromHandOrGravePick(e, ctx, me)
               : e.from === 'looked' ? (this._looked || []).slice()
               // Malcolm, Alluring Scoundrel: "the discarded card" — what you discarded as this resolved, still in your graveyard (castDiscarded)
               : e.from === 'discarded' ? (((r && r._discBy) || []).filter(d => d.pid === ctx.controller).map(d => d.id).filter(id => (this.obj(id) || {}).zone === 'graveyard'))
@@ -23572,7 +23585,7 @@
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
             // (Chandra, Acolyte of Flame: "cast target … card from your graveyard" — paying its mana cost)
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
-            const yes = e.must || e.from === 'graveyard' || e.from === 'exiledCounter' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
+            const yes = e.must || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
                 : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
@@ -23591,8 +23604,12 @@
             if (r) r.marks[slot + 'done' + k] = true;
             // Tinybones, the Pickpocket: "and mana of any type can be spent to cast that spell"
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
+            // Anrakyr the Traveller: life equal to its mana value, rather than its mana cost (payLifeMv)
+            const lifeMv = e.payLifeMv ? ((c.card && c.card.cmc) || 0) : 0;
+            if (e.payLifeMv && !this._canPayLifeMv(me, lifeMv)) continue;
             const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
+            if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
             if (r) r.marks[slot + 'n']++;
             // (Kefka, Dancing Mad: "a spell you cast this way" — castOwnersLoseMv)
             if (r) (r.castThisWay = r.castThisWay || []).push(c.id);
@@ -28407,6 +28424,33 @@
       return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
     }
 
+    /** Can this player pay life equal to a mana value (CR 119.4: no more than they have; none at all while their life can't change)? */
+    _canPayLifeMv(p, mv) {
+      if (!(mv > 0)) return true;
+      return !!p && p.life >= mv && !this._lifeFrozen(p) && !this._lifeSacCostBan();
+    }
+    /* Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard by paying life equal to its
+       mana value" — a card of the kind from either, one whose life can be paid; one optional pick (handOrGraveyard) */
+    _freeFromHandOrGravePick(e, ctx, me) {
+      const z = this.zones[ctx.controller] || {};
+      const fits = (z.hand || []).concat(z.graveyard || []).filter(c => {
+        const ca = c.analysis();
+        if (!ca || ca.isLand || (e.filter && !this._cardFitsWords(c, e.filter))) return false;
+        return !e.payLifeMv || this._canPayLifeMv(me, (c.card && c.card.cmc) || 0);
+      });
+      if (!fits.length) return [];
+      if (me.isBot) {
+        // a bot pays only life it can spare
+        const ok = fits.filter(c => ((c.card && c.card.cmc) || 0) <= Math.max(0, me.life - 8));
+        return ok.length ? [ok.sort((x, y) => this._cardValue(y) - this._cardValue(x))[0].id] : [];
+      }
+      const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+        cards: fits.map(x => ({ id: x.id, name: x.name, card: x.card })),
+        prompt: `${ctx.name || 'Effect'}: you may cast ${/^[aeiou]/i.test(e.filter || '') ? 'an' : 'a'} ${e.filter || ''} spell from your hand or graveyard by paying life equal to its mana value rather than paying its mana cost.`.replace(/ {2,}/g, ' ') }, 'cfhg');
+      if (picked === SUSPEND) return SUSPEND;
+      return (picked || []).filter(id => fits.some(x => x.id === id)).slice(0, 1);
+    }
+
     /* Tasha, the Witch Queen: "You may cast a spell from among cards in exile with page counters on them without
        paying its mana cost." — anybody's exiled card with one on it, a land not a spell; the one picked as this
        resolves, in a list (empty for none), or SUSPEND */
@@ -28578,6 +28622,8 @@
       }
       if (f.attacking && !x.attacking) return false;
       if (f.pumped && !(this.powerOf(x) > (parseInt((x.analysis() || {}).power, 10) || 0))) return false;
+      // Aragorn, Hornburg Hero: "a renowned creature"
+      if (f.renowned && !x.renowned) return false;
       // Fecund Greenshell: "with toughness greater than its power"
       if (f.toughGtPow && !(this.toughnessOf(x) > this.powerOf(x))) return false;
       return true;

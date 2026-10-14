@@ -1739,6 +1739,10 @@
         const whose = /^your/i.test(m[4]) ? 'you' : /^that/i.test(m[4]) ? 'target' : 'any';
         return [Object.assign({ op: 'castFree', from: 'graveyard', whose, filter: words, upTo: 1, exileAfter: !!m[6] }, most != null ? { maxMv: most } : {})];
       } },
+    /* Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard by paying life equal to its
+       mana value rather than paying its mana cost" — one card, picked as this resolves (handOrGraveyard, payLifeMv) */
+    { re: /^(?:You may )?[Cc]ast an? ([a-z]+) spell from your hand or graveyard by paying life equal to its mana value rather than paying its mana cost\.?$/,
+      make: (m) => [{ op: 'castFree', from: 'handOrGraveyard', filter: m[1].toLowerCase(), upTo: 1, payLifeMv: true }] },
     // Zul Ashur: "You may cast target Zombie creature card from your graveyard this turn."
     { re: /^You may cast (target [A-Za-z ]+? card) from your graveyard this turn\.?$/,
       make: (m) => { const spec = targetSpec(m[1], 'graveyard'); return spec && !spec.unknown ? { op: 'mayCastFromGraveyard', targets: [Object.assign(spec, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -2356,6 +2360,9 @@
     // Bottomless Pool: "Return up to one target creature to its owner's hand."
     { re: /^Return up to one (other )?target ([a-z ]+?) to its owner'?s hand\.?$/i,
       make: (m) => ({ op: 'bounce', targets: [Object.assign(targetSpec('target ' + m[2]), { upTo: true }, m[1] ? { another: true } : {})] }) },
+    // Clement, the Worrywort: "return up to one target creature you control with lesser mana value to its owner's hand" — lesser than the one that entered
+    { re: /^Return up to one target ([a-z ]+?) with lesser mana value to its owner'?s hand\.?$/i,
+      make: (m) => ({ op: 'bounce', targets: [Object.assign(targetSpec('target ' + m[1]), { upTo: true, mvBelowTrigger: true })] }) },
     // Ulamog: "Defending player exiles the top twenty cards of their library."
     { re: /^(Defending player|Target player|Each opponent) exiles the top (\w+) cards of their library\.?$/i,
       make: (m) => (typeof num(m[2]) === 'number' ? Object.assign({ op: 'exileTop', n: num(m[2]),
@@ -4518,13 +4525,15 @@
     /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
        it deals 2 damage to any target" and "{T}: Add one mana of any color."" — a token of its own, its words read
        as its own card's would be, and only if they read whole (namedTokenDef) */
-    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) (tapped )?colorless artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
+    // (Svella, Ice Shaper: "a colorless snow artifact token named Icy Manalith" — snow too)
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) (tapped )?colorless (?:snow )?artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)"(?: and "([^"]+)")?\.?$/,
       make: (m) => {
+        const snow = / colorless snow artifact /.test(m[0]);
         // (each ability a sentence of its own, and the token calling itself a token, as printed)
         const text = [m[4], m[5]].filter(Boolean).map(x => x.replace(/\bthis creature\b/g, 'this token').replace(/([^.])$/, '$1.')).join('\n');
         const probe = analyze({ id: 'tokentext:' + U.hash(m[3] + text), name: m[3], type_line: 'Token Artifact', oracle_text: text, keywords: [], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
-        return { op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: 'Token Artifact', text } };
+        return { op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2], def: { type: snow ? 'Token Snow Artifact' : 'Token Artifact', text } };
       } },
     { re: /^Populate\.?$/i, make: () => ({ op: 'populate' }) },
     // Lethal Vapors, Experimental Frenzy: "Destroy this enchantment."
@@ -11657,6 +11666,8 @@
     else if (/^(?:a|an) /i.test(p)) p = p.replace(/^(?:a|an) /i, '');
     else return null;
     if (/ of the chosen type\b/i.test(p)) { f.chosenType = true; p = p.replace(/ of the chosen type\b/i, ''); }
+    // Aragorn, Hornburg Hero: "a renowned creature you control"
+    if (/^renowned /i.test(p)) { f.renowned = true; p = p.replace(/^renowned /i, ''); }
     const who = (q) => {
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
       // Athreos, God of Passage: "another creature you own" — whoever controls it
@@ -17712,6 +17723,14 @@
             { op: 'continuous', layer: 6, scope, cond, grant: kws, grantText: m[6] }] };
         }, auto: true },
       // March of the World Ooze: "Creatures you control have base power and toughness 6/6 and are Oozes in addition to their other types."
+      // Aragorn, Hornburg Hero: "Attacking creatures you control have first strike and renown 1." — renown as its own line
+      { re: /^(Attacking creatures you control) have ([a-z ,]+?) and renown (\d+)\.?$/i,
+        make: (m) => {
+          const scope = scopeOf(m[1]), kws = keywordList(m[2]);
+          return scope && kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [
+            { op: 'continuous', layer: 6, scope, grant: kws },
+            { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: 'Renown ' + m[3] }] } : null;
+        }, auto: true },
       // (Kudo, King Among Bears: "Other creatures have base power and toughness 2/2 and are Bears …" — everyone's)
       { re: /^(Creatures you control|Other creatures) have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
         make: (m) => {
@@ -17944,9 +17963,10 @@
       { re: /^(During your turn, )?you may play lands and cast spells from the top of your library\.?(?: If you cast a spell this way, pay life equal to its mana value rather than pay its mana cost\.?)?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'any', duringYourTurn: !!m[1],
           payLife: /pay life equal/i.test(m[0]) }), auto: true },
-      { re: /^(During your turn, )?you may cast ((?:[a-z]+ )*?)spells(?: and ((?:[a-z]+ )*?)spells)? from the top of your library\.?$/i,
-        make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
-          filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ') || null }), auto: true },
+      // (Elsha of the Infinite: "If you cast a spell this way, you may cast it as though it had flash." — flash)
+      { re: /^(During your turn, )?you may cast ((?:[a-z]+ )*?)spells(?: and ((?:[a-z]+ )*?)spells)? from the top of your library\.?( If you cast a spell this way, you may cast it as though it had flash\.?)?$/i,
+        make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
+          filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
       // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
       { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },
