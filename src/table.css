@@ -73,6 +73,8 @@
 .arena-board { position: absolute; z-index: 2;
   top: 6px; left: var(--rail-w); right: var(--side-w); bottom: calc(var(--hand-peek) + 6px);
   display: grid; grid-template-rows: minmax(0, 1fr) 0 minmax(0, 1fr);
+  /* (one column as wide as the board: the boards peeking in at the sides must not widen it to their cards) */
+  grid-template-columns: minmax(0, 1fr);
 }
 .midline { position: relative; z-index: 1; }
 .midline::before { content: ''; position: absolute; left: 4%; right: 4%; top: 0; height: 1px;
@@ -115,6 +117,12 @@
 .field-row.back { gap: calc(var(--cw) * .5); --w: calc(var(--cw) * .78); min-height: calc(var(--cw) * .78 * 1.3968); }
 .row-part { display: flex; align-items: center; gap: calc(var(--cw) * .08); }
 .row-part:empty { display: none; }
+/* a crowded board wraps into rows rather than shrinking along one (the fitter decides: _fieldRows) */
+.seat-field.wrap-front .field-row.front { flex-wrap: wrap; row-gap: calc(var(--cw) * .12); max-width: var(--front-w, 100%); width: 100%; margin-inline: auto; }
+.seat-field.wrap-back .field-row.back { flex-wrap: wrap; row-gap: calc(var(--cw) * .12); }
+.seat-field.wrap-back .row-part { flex-wrap: wrap; justify-content: center; max-width: 100%; row-gap: calc(var(--cw) * .12); }
+.seat-field.wrap-back .row-part.lands { max-width: min(100%, var(--lands-w, 100%)); }
+.seat-field.wrap-back .row-part.others { max-width: min(100%, var(--others-w, 100%)); }
 
 /* ---------- a card ---------- */
 .cv { position: relative; width: var(--w, 100px); height: calc(var(--w, 100px) * 1.3968); flex: none;

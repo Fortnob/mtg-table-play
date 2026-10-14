@@ -716,12 +716,67 @@
         const atts = Math.max(0, ...this.view.battlefield.filter(o => o.controller === s.root.dataset.seat).map(o => this._attachSpread(o)));
         const tall = CARD_RATIO * (1 + backScale) + 0.32 + atts * 0.2;
         let cw = Math.min(W / widest, H / tall, maxCw);
+        const peek = s.root.classList.contains('peek');
+        /* One long row shrinks every card to fit it. When that leaves them
+           well short of full size and there is height to spare, the rows
+           wrap instead — the creatures in two or three rows, the lands and
+           the rest likewise — at the biggest size at which they all fit. */
+        let rows = { front: 1, back: 1 };
+        if (!peek && cw < maxCw * 0.85) {
+          for (let c = Math.floor(maxCw); c >= cw * 1.06; c--) {
+            const l = this._fieldRows(s.counts, (W - 2) / c, backScale, atts);
+            if ((l.front > 1 || l.back > 1) && l.tall * c <= H) { rows = l; cw = c; break; }
+          }
+        }
+        s.field.classList.toggle('wrap-front', rows.front > 1);
+        s.field.classList.toggle('wrap-back', rows.back > 1);
         // a board peeking in from the side is smaller, and cut off at the edge rather than shrunk to fit
-        if (s.root.classList.contains('peek')) cw = Math.min(H / tall, maxCw) * 0.6;
+        if (peek) cw = Math.min(H / tall, maxCw) * 0.6;
         cw = Math.max(phone ? 26 : 34, cw);
         const want = cw.toFixed(1) + 'px';
         if (s.field.style.getPropertyValue('--cw') !== want) s.field.style.setProperty('--cw', want);
+        // how wide each wrapped lane is, so its rows come out even
+        for (const k of ['front', 'lands', 'others']) {
+          const w = rows.widths ? Math.ceil(rows.widths[k] * cw) + 'px' : '';
+          if (s.field.style.getPropertyValue('--' + k + '-w') !== w) s.field.style.setProperty('--' + k + '-w', w);
+        }
       }
+    },
+
+    /**
+     * How many rows a seat's permanents wrap into across `room` card widths
+     * (the widths in `counts`, as renderField sets them), the way the
+     * browser breaks a wrapping row: the creatures' row, and the lands and
+     * the rest, which share a row while they fit on one and otherwise each
+     * take rows of their own. `tall` is the height that needs, in card
+     * widths; `widths` the narrowest each lane can be and keep that many
+     * rows, so they come out even rather than a full row and a straggler.
+     */
+    _fieldRows(counts, room, backScale, atts) {
+      const ROW_GAP = 0.12;
+      const lines = (list, gap, w) => {
+        let n = 0, at = 0;
+        for (const x of list) {
+          if (!n || at + gap + x > w) { n++; at = x; } else at += gap + x;
+        }
+        return n;
+      };
+      // the narrowest width that still takes no more rows than `room` does
+      const even = (list, gap) => {
+        const n = lines(list, gap, room);
+        let lo = Math.max(0, ...list), hi = room;
+        if (n <= 1) return hi;
+        for (let i = 0; i < 18; i++) { const mid = (lo + hi) / 2; if (lines(list, gap, mid) <= n) hi = mid; else lo = mid; }
+        return hi + 0.02;
+      };
+      const sum = (list, gap) => list.reduce((a, x) => a + x, 0) + Math.max(0, list.length - 1) * gap;
+      const lands = counts.lands.map(x => x * backScale), others = counts.others.map(x => x * backScale);
+      const front = Math.max(1, lines(counts.front, 0.1, room));
+      const both = lands.length && others.length;
+      const back = Math.max(1, sum(lands, 0.08) + sum(others, 0.08) + (both ? 0.5 : 0) <= room ? 1
+        : lines(lands, 0.08, room) + lines(others, 0.08, room));
+      const tall = front * CARD_RATIO + back * CARD_RATIO * backScale + (front + back - 2) * ROW_GAP + 0.32 + atts * 0.2;
+      return { front, back, tall, widths: { front: even(counts.front, 0.1), lands: even(lands, 0.08), others: even(others, 0.08) } };
     },
 
     /* ---------------- arrows ---------------- */
