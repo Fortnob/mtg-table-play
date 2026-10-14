@@ -6832,6 +6832,12 @@
       /* A mana price chosen as the additional cost is paid with the rest,
          even for a spell cast without paying its mana cost. */
       if (addPick && addPick.mana) cost = (cost || '') + addPick.mana;
+      /* Mavinda, Students' Advocate: "If that spell doesn't target a creature you control, it costs {8} more to cast
+         this way." (graveCastTax) */
+      if (via && via.via === 'granted' && o.graveCastTax && o.graveCastTax.turn === this.turn && !(opts.targets || []).some(t => {
+        const x = this.obj((t && t.id) || t);
+        return !!x && x.zone === 'battlefield' && x.controller === playerId && !!this.characteristics(x).isCreature;
+      })) cost = this._addGeneric(cost || '', o.graveCastTax.n);
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       {
         let tTax = 0;
@@ -16107,7 +16113,7 @@
           if (ab.byActivated && event === 'becomesTarget' && (!data.byAbility || data.byTrigger)) continue;
           /* Loki, God of Mischief: "the target of an ability" (anyAbility); a triggered ability's targets, chosen as it
              resolves (byTrigger), are told to no other trigger: they would answer it too late */
-          if (event === 'becomesTarget' && (ab.anyAbility ? !data.byAbility : data.byTrigger)) continue;
+          if (event === 'becomesTarget' && (ab.anyAbility ? !data.byAbility : data.byTrigger && !ab.withTriggered)) continue;
           if (ab.byOpponent && event === 'becomesTarget' && data.playerId === o.controller) continue;
           if (ab.skipFirstDrawStep && data.inDrawStep && data.nth === 1) continue;
           /* "their first noncreature spell each turn": none of that kind
@@ -16133,7 +16139,8 @@
           if (ab.youOnly && data.player !== o.controller) continue;
           // Shay Cormac: the target is another player's, the spell or ability this one's controller's (targetedByYou)
           if (ab.targetedByYou && (event !== 'becomesTarget' || data.playerId !== o.controller)) continue;
-          if (controllerId && !ab.self && !ab.ofEnchanted && !ab.targetedByYou && o.controller !== controllerId) continue;
+          // (Horobi, Death's Wail: "Whenever a creature becomes the target …" — whoever controls it: anyonesCreature)
+          if (controllerId && !ab.self && !ab.ofEnchanted && !ab.targetedByYou && !ab.anyonesCreature && o.controller !== controllerId) continue;
           if (data.except && o.id === data.except) continue;
           if (data.except && o.controller === data.except) continue;
           // an intervening "if" clause is checked before the trigger is even
@@ -24227,6 +24234,23 @@
               taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
             }
           }
+          /* Rip, Spawn Hunter: "Put any number of creature and/or Vehicle cards with different powers from among them
+             into your hand." — one pick, no two of the same power (distinctPower) */
+          else if (e.distinctPower) {
+            const powOf = (o) => { const pw = String((o.card || {}).power != null ? o.card.power : ''); return /^\d+$/.test(pw) ? String(+pw) : pw; };
+            const typed = legal.filter(o => powOf(o) !== '');
+            if (typed.length) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'distinctPower', kind: 'objects', zone: 'library',
+                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: [powOf(this.obj(it.id))] })),
+                min: 0, max: typed.length, optional: true,
+                constraints: [{ kind: 'distinctTypes', key: 'types', label: 'power' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}put any number of ${e.filter.replace(/ or /, ' and/or ')} cards with different powers from among them into your hand.` }, 'distinctPower');
+              if (got === SUSPEND) return SUSPEND;
+              const seen = new Set();
+              taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o) && !seen.has(powOf(o)) && seen.add(powOf(o)));
+              if (taken.length) this.logEvent('reveal', `${me.name} puts ${taken.map(o => o.name).join(', ')} into their hand.`);
+            }
+          }
           /* Niv-Mizzet Reborn: "For each color pair, choose a card that's exactly those colors from among them" —
              one pick, a card for every pair there is, each standing for its own pair, no two for the same one */
           else if (e.perColorPair) {
@@ -28918,6 +28942,8 @@
             if (!c || c.zone !== 'graveyard') continue;
             c.graveCastBy = ctx.controller; c.graveCastTurn = this.turn;
             if (e.exileAfter) c._exileFromStack = true;
+            // Mavinda, Students' Advocate: "it costs {8} more to cast this way" unless it targets a creature you control
+            c.graveCastTax = e.taxUnlessYourCreature ? { n: e.taxUnlessYourCreature, turn: this.turn } : null;
             this.logEvent('rules', `${me.name} may cast ${c.name} from the graveyard this turn.`);
           }
           break;

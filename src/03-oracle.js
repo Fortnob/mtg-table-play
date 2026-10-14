@@ -595,7 +595,10 @@
       if (!kws.every(k => kwKnown(k) || /^protection from /i.test(k))) return null;
       return kws;
     };
-    if ((m = s.match(/^ with "([^"]+)"/))) {
+    // (Ozox, the Clattering King: Jumblebones, 'with "Jumblebones can't block" and "When Jumblebones leaves …"' — two lines)
+    if ((m = s.match(/^ with "([^"]+)" and "([^"]+)"/))) {
+      e.grantedText = m[1] + '\n' + m[2]; s = s.slice(m[0].length);
+    } else if ((m = s.match(/^ with "([^"]+)"/))) {
       e.grantedText = m[1]; s = s.slice(m[0].length);
     // (The Sentry, Golden Guardian: 'with flying, indestructible, and "…"' — a list's last comma)
     } else if ((m = s.match(/^ with ([a-z0-9 ,']+?),? and "([^"]+)"/))) {
@@ -2627,6 +2630,9 @@
     // Oubliette: "target creature phases out until this enchantment leaves the battlefield"
     { re: /^(target [a-z ]+?) phases out until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'phaseOutUntilLeaves', targets: [targetSpec(m[1])] }) },
+    // Mavinda, Students' Advocate: "If that spell doesn't target a creature you control, it costs {8} more to cast this way."
+    { re: /^If that spell doesn'?t target a creature you control, it costs \{(\d+)\} more to cast this way\.?$/i,
+      make: (m) => ({ op: 'noop', graveTaxRider: +m[1] }) },
     // Vohar, Dire Fleet Daredevil: "If that spell would be put into your graveyard, exile it instead."
     { re: /^If that (?:spell|card) would be put into (?:your|a|its owner'?s) graveyard, exile it instead\.?$/i,
       make: () => ({ op: 'noop', exileAfterCastRider: true }) },
@@ -2737,6 +2743,9 @@
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you', mvBelowTrigger: true })] }) },
     { re: /^Return (target [a-z0-9 '-]+?) from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: [Object.assign(targetSpec(m[1], 'graveyard'), { controller: 'you' })] }) },
+    // Ozox, the Clattering King's Jumblebones: "return target card named Ozox, the Clattering King from your graveyard to your hand"
+    { re: /^Return target card named ([A-Z][^.]*?) from your graveyard to your hand\.?$/,
+      make: (m) => (m[1] === 'CARDNAME' ? null : { op: 'regrowth', targets: [{ type: 'card', filter: 'card', zone: 'graveyard', controller: 'you', name: m[1] }] }) },
     { re: /^Counter (target spell|target creature spell|target noncreature spell|target instant or sorcery spell|target activated or triggered ability)\.?$/i,
       make: (m) => ({ op: 'counterSpell', targets: [targetSpec(m[1])] }) },
     { re: /^Sacrifice (this creature|this artifact|this permanent|~)\.?$/i,
@@ -7367,7 +7376,8 @@
     { re: /^Counter that spell or ability\.?$/i, make: () => ({ op: 'counterSpell', thatSpell: true }) },
     // Tempt with Reflections: "Choose target creature you control." — what the next sentences call "that creature"
     // (Yenna, Redtooth Regent: "… you control that doesn't have the same name as another permanent you control")
-    { re: /^Choose (target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control)?)\.?$/i,
+    // (Willowdusk, Essence Seer: "Choose another target creature.")
+    { re: /^Choose ((?:another )?target (?:creature|artifact|enchantment|land|permanent|nonland permanent|planeswalker)(?: you control| an opponent controls| you don'?t control| attacking you)?(?: that doesn'?t have the same name as another permanent you control)?)\.?$/i,
       make: (m) => ({ op: 'chooseTarget', targets: [targetSpec(m[1])] }) },
     // Ramos, Dragon Engine: "put a +1/+1 counter on Ramos for each of that spell's colors" (spellColorCount)
     { re: /^Put an? ([+-]\d+\/[+-]\d+) counter on (?:CARDNAME|this creature) for each of that spell'?s colou?rs\.?$/i,
@@ -7591,6 +7601,11 @@
       // ("other than Shaun" is "another")
       make: (m) => { const spec = targetSpec(m[1].replace(/^target (.+?) other than (?:CARDNAME|this creature)$/, 'another target $1')); return spec && !spec.unknown
         ? { op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, nonLegendary: true, addSubtypes: [m[2]], addTypes: ['Artifact', 'Creature'], targets: [spec] } : null; } },
+    /* Loki, the Deceiver: "create a tapped and attacking token that's a copy of another target Villain you control, except
+       it isn't legendary and it's an Illusion in addition to its other types." */
+    { re: /^Create a tapped and attacking token that'?s a copy of (another target [A-Z][a-z]+ you control), except it isn'?t legendary and it'?s an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown && spec.zone !== 'graveyard'
+        ? { op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, nonLegendary: true, addSubtypes: [m[2]], targets: [spec] } : null; } },
     /* Saheeli, Radiant Creator: "create a token that's a copy of target permanent you control, except it's a 5/5
        artifact creature in addition to its other types and has haste." */
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ((?:artifact |enchantment )*)creature in addition to its other types(?: and has ([a-z ,]+?))?\.?$/i,
@@ -10789,6 +10804,18 @@
     { re: /^Search your library for an? ([a-z ]+?) card with mana value X or less, where X is (one|two|three|\d+) plus the sacrificed creature'?s mana value\. Put that card onto the battlefield, then shuffle\.( Exile CARDNAME\.)?$/i,
       make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: { ofSacrificed: 'mv', plus: num(m[2]) },
         prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }].concat(m[3] ? [{ op: 'exileSelf' }] : []) },
+    /* Willowdusk, Essence Seer: "Choose another target creature. Put a number of +1/+1 counters on it equal to the amount
+       of life you gained this turn or the amount of life you lost this turn, whichever is greater." */
+    { re: /^Choose ((?:another )?target creature(?: you control)?)\. Put (?:a number of (\+1\/\+1) counters on it equal to (.+?)|X (\+1\/\+1) counters on it, where X is (.+?))\.(?: Activate only as a sorcery\.)?$/i,
+      make: (m) => { const n = amountOf(m[3] || m[5]), sp = targetSpec(m[1]);
+        return n == null || n === false || !sp || sp.unknown ? null : [{ op: 'counters', kind: m[2] || m[4], n, targets: [sp] }]; } },
+    /* Rip, Spawn Hunter: "reveal the top X cards of your library, where X is its power. Put any number of creature and/or
+       Vehicle cards with different powers from among them into your hand. Put the rest on the bottom …" — its own power,
+       the trigger being about no other object; one pick, no two cards of the same power (distinctPower) */
+    { re: /^Reveal the top X cards of your library, where X is its power\. Put any number of ([a-z]+(?: and\/or [A-Za-z]+)?) cards with different powers from among them into your hand\. Put the rest on the bottom of your library in a random order\.?$/i,
+      make: (m) => [{ op: 'lookAt', n: { ofSelf: 'power' }, keep: 0, reveal: true },
+        { op: 'takeFromLooked', n: 99, filter: m[1].replace(/ and\/or /i, ' or ').toLowerCase(), to: 'hand', optional: true, rest: 'keep', distinctPower: true },
+        { op: 'restToBottom', random: true }] },
     /* Emry, Conduit of Worlds: a card from the graveyard, castable this turn */
     { re: /^Choose target ([a-z ]+?) card in your graveyard\. (?:You may cast that card this turn|If you haven'?t cast a spell this turn, you may cast that card)\.?$/i,
       make: (m) => [{ op: 'mayCastFromGraveyard', targets: [Object.assign(targetSpec('target ' + m[1]), { zone: 'graveyard', controller: 'you' })] }] },
@@ -12635,6 +12662,13 @@
         prev.exileAfter = true;
         continue;
       }
+      // Mavinda, Students' Advocate: the leave to cast it costs more unless it targets a creature you control (taxUnlessYourCreature)
+      if (e && e.graveTaxRider) {
+        const prev = out.slice().reverse().find(x => x && x.op === 'mayCastFromGraveyard');
+        if (!prev) { unrideable(); continue; }
+        prev.taxUnlessYourCreature = e.graveTaxRider;
+        continue;
+      }
       // Combust: the damage just dealt can't be prevented
       if (e && e.noPreventRider) {
         const prev = out.slice().reverse().find(x => x && x.op === 'damage');
@@ -13924,6 +13958,10 @@
     // Monk Gyatso: "Whenever another creature you control becomes the target of a spell or ability" — anyone's
     { re: /^Whenever another creature you control becomes the target of a spell or ability,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('another creature you control'), aboutObject: true },
+    /* Horobi, Death's Wail: "Whenever a creature becomes the target of a spell or ability" — anyone's creature, and a
+       triggered ability's target too, though told only as it resolves (anyonesCreature, withTriggered) */
+    { re: /^Whenever a creature becomes the target of a spell or ability,? /i,
+      event: 'becomesTarget', filt: () => subjectFilter('a creature'), aboutObject: true, extra: { anyonesCreature: true, withTriggered: true } },
     // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
     { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },
@@ -14784,6 +14822,10 @@
        itself when it says "non-Spirit creatures" or "each other Illusion". */
     const typeNamed = card.layout === 'token' && !!name && tl.subtypes.join(' ') === name;
     let text = normalizePunct(rawText);
+    /* Ozox, the Clattering King: a token's quoted "return target card named Ozox, the Clattering King" names this card,
+       not the token that will say it — kept as it is printed (heldName) */
+    const heldName = normalizePunct(U.frontName(name));
+    if (heldName) text = text.replace(/"[^"]*"/g, (q) => q.split('card named ' + heldName).join('card named \u0001'));
     if (!typeNamed) text = text.replace(new RegExp(escapeRe(normalizePunct(U.frontName(name))), 'g'), 'CARDNAME');
     // a Room's door: "this door" is the one this half is
     if (isRoom(card)) text = text.replace(/When you unlock this door/g, 'When you unlock door ' + faceIndex).replace(/\b[Tt]his Room\b/g, 'CARDNAME');
@@ -14834,6 +14876,7 @@
     if (/\bCARDNAME become (?:tapped|untapped)\b/.test(text)) text = text.replace(/\bCARDNAME become (tapped|untapped)\b/g, 'CARDNAME becomes $1').replace(/ counters? on them\./g, (x) => x.replace(/them\.$/, 'CARDNAME.'));
     text = text.replace(/(?<!\b(?:have|let) )\bCARDNAME (enter|attack|block|die|deal)(?=[ ,.])/g, 'CARDNAME $1s')
       .replace(/\bCARDNAME (enters|attacks) or (attack|block|die)(?=[ ,.])/g, 'CARDNAME $1 or $2s');
+    if (heldName) text = text.replace(/\u0001/g, heldName);
 
     const out = {
       name, faceIndex,
