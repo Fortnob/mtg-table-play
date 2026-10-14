@@ -11664,7 +11664,9 @@
         }
         if (base.notCreatureUnless) {
           const want = base.notCreatureUnless;
-          notCreature = this._devotionTo(o.controller, want.colors) < want.n;
+          // The Warring Triad: the cards in its controller's graveyard instead
+          notCreature = want.graveyard ? ((this.zones[o.controller] || {}).graveyard || []).length < want.n
+            : this._devotionTo(o.controller, want.colors) < want.n;
         }
         if (waiting) notCreature = true;
       } finally { this._dynBusy = false; }
@@ -11676,6 +11678,8 @@
       if (notCreature) {
         out.types = (base.types || []).filter(t => t !== 'Creature');
         out.isCreature = false;
+        // and its creature types with it: no longer a God (CR 205.1b)
+        out.subtypes = (base.subtypes || []).filter(t => !this._isCreatureType(t));
       }
       if (stationed && !notCreature) {
         out.types = (base.types || []).concat('Creature');
@@ -14465,6 +14469,26 @@
           /* "any color in your commander's color identity" is only those */
           const allowed = e.commanderIdentity ? Array.from(this._commanderColors(ctx.controller)) : MANA.COLORS;
           const pool = allowed.length ? allowed : MANA.COLORS;
+          /* The Warring Triad: "Target player adds one mana of any color" —
+             into that player's pool, in a colour the ability's controller
+             picks as it resolves (a bot: the one that player wants most) */
+          if (e.who === 'target') {
+            const into = firstPlayer();
+            if (!into || into.hasLost) break;
+            let c = this._preferredColor(into);
+            if (!me.isBot) {
+              const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+              const got = this._choose({ playerId: ctx.controller, purpose: 'manaColor', kind: 'options', min: 1, max: 1,
+                options: pool.map((x, i) => ({ i, label: `{${x}} ${NAMES[x]}` })),
+                prompt: `${into.id === me.id ? 'You add' : into.name + ' adds'} ${amt === 1 ? 'one mana' : amt + ' mana'} of any${amt > 1 ? ' one' : ''} colour: choose the colour.` }, 'tcol');
+              if (got === SUSPEND) return SUSPEND;
+              c = pool[(got && got.picks && got.picks[0]) || 0] || c;
+            }
+            if (!pool.includes(c)) c = pool[0];
+            for (let i = 0; i < amt; i++) into.pool.add(c);
+            this.logEvent('mana', `${into.name} adds ${('{' + c + '}').repeat(amt)}.`);
+            break;
+          }
           const pref = this._preferredColor(me);
           const color = ctx.manaChoice && pool.includes(ctx.manaChoice) ? ctx.manaChoice : (pool.includes(pref) ? pref : pool[0]);
           // Firemind Vessel: "two mana of different colors" — the split asked for, else the colours most wanted

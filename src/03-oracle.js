@@ -1224,6 +1224,10 @@
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2]), MANA.parse(m[3])] }) },
     { re: /^Add one mana of any color\.?$/i,
       make: () => ({ op: 'addManaAny', amount: 1 }) },
+    /* The Warring Triad: "Target player adds one mana of any color." — not a
+       mana ability, as it targets (CR 605.1a); its controller picks the colour */
+    { re: /^Target player adds (?:(one) mana of any|(two|three) mana of any one) color\.?$/i,
+      make: (m) => ({ op: 'addManaAny', amount: num(m[1] || m[2]), sameColor: true, who: 'target', targets: [{ type: 'player' }] }) },
     { re: /^Add (one|two|three|four|five|six|seven|eight|nine|ten|\d+) mana of any one color\.?$/i,
       make: (m) => ({ op: 'addManaAny', amount: num(m[1]), sameColor: true }) },
     { re: /^Add (one|two|three|four|five|six|seven|eight|nine|ten|\d+) mana in any combination of colors\.?$/i,
@@ -13233,7 +13237,7 @@
        each time it looks. */
     for (const ab of out.abilities) {
       const nc = (ab.effects || []).find(e => e && e.op === 'notCreatureUnless');
-      if (nc) out.notCreatureUnless = { colors: nc.colors, n: nc.n };
+      if (nc) out.notCreatureUnless = nc.graveyard ? { graveyard: true, n: nc.n } : { colors: nc.colors, n: nc.n };
     }
 
     /* The gift itself: a permanent hands it over as it enters, an instant
@@ -15587,6 +15591,9 @@
       { re: /^As long as your devotion to (white|blue|black|red|green)(?: and (white|blue|black|red|green))? is less than (\w+), (?:CARDNAME|this creature|it) isn'?t a creature\.?$/i,
         make: (m) => ({ op: 'notCreatureUnless', n: num(m[3]),
           colors: [m[1], m[2]].filter(Boolean).map(c => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[c.toLowerCase()]) }), auto: true },
+      // The Warring Triad: "As long as there are fewer than eight cards in your graveyard, The Warring Triad isn't a creature."
+      { re: /^As long as there are fewer than (\w+) cards in your graveyard, (?:CARDNAME|this creature|it) isn'?t a creature\.?$/i,
+        make: (m) => ({ op: 'notCreatureUnless', n: num(m[1]), graveyard: true }), auto: true },
       /* Cursed Mirror: a copy only until the end of the turn, with haste */
       { re: /^As (?:CARDNAME|this (?:artifact|creature|permanent)) enters, you may have it become a copy of any creature on the battlefield until end of turn(, except it has haste)?\.?$/i,
         make: (m) => Object.assign({ op: 'etbAsCopy', what: 'creature', eot: true }, m[1] ? { haste: true } : {}), auto: true },

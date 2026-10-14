@@ -29633,4 +29633,41 @@ module.exports = (test) => {
     t.no(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'B'), 'Zodiark: B is not asked');
     t.ok(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'C' && ch.count === 2), 'Zodiark: C picks two');
   });
+
+  test('Commanders: The Warring Triad — a creature with eight cards in the graveyard; {T}, mill a card: target player adds one mana', (mk, t) => {
+    t.auto('The Warring Triad');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const tri = M.bf('A', 'The Warring Triad');
+    const isCr = () => !!g.characteristics(tri).isCreature;
+    t.no(isCr(), 'Warring Triad: no cards in the graveyard, not a creature');
+    t.ok(tri.analysis().isArtifact, 'Warring Triad: still an artifact');
+    t.no(tri.analysis().subtypes.includes('God'), 'Warring Triad: not a God either');
+    for (let i = 0; i < 7; i++) M.grave('A', 'Swamp');
+    t.no(isCr(), 'Warring Triad: seven is fewer than eight');
+    // B's graveyard does not count
+    for (let i = 0; i < 3; i++) M.grave('B', 'Swamp');
+    t.no(isCr(), "Warring Triad: only its controller's graveyard");
+    // {T}, mill a card: B adds one mana of the colour A picks — the eighth card
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.findIndex(o => /Red/.test(o.label))] }; });
+    const top = g.zones.A.library[0];
+    M.activate('A', tri, 0, { targets: ['B'] });
+    t.ok(asked && asked.playerId === 'A', 'Warring Triad: its controller picks the colour');
+    t.eq(asked.options.length, 5);
+    t.zone(top, 'graveyard', 'Warring Triad: a card milled');
+    t.eq(M.player('B').pool.R || 0, 1, 'Warring Triad: B adds {R}');
+    t.eq(M.player('A').pool.R || 0, 0, 'Warring Triad: not A');
+    t.ok(tri.tapped);
+    t.ok(isCr(), 'Warring Triad: eight cards, a creature');
+    t.ok(tri.analysis().subtypes.includes('God'));
+    t.ok(g.characteristics(tri).isCreature && M.g.powerOf(tri) === 5, 'Warring Triad: a 5/5');
+    // to itself, on the stack (not a mana ability)
+    M.nextTurn('A');
+    M.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => /Green/.test(o.label))] }));
+    M.activate('A', tri, 0, { targets: ['A'], resolve: false });
+    t.ok(g.stack.length === 1, 'Warring Triad: the ability uses the stack');
+    M.resolve();
+    t.eq(M.player('A').pool.G || 0, 1, 'Warring Triad: A adds {G}');
+  });
 };
