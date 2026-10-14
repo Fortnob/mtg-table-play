@@ -4771,6 +4771,16 @@
       if (spell && o.prepared && o.zone === 'battlefield' && o.controller === playerId) {
         out.push({ kind: 'cast', via: 'prepared', cost: spell.mana_cost || '', label: 'Cast a copy of ' + spell.name + ' ' + (spell.mana_cost || '') });
       }
+      /* Ezio Auditore da Firenze: "Assassin spells you cast have freerunning {B}{B}" — once an Assassin or your
+         commander got through this turn (grantCastKeyword freerunning) */
+      if (o.zone === 'hand' && o.owner === playerId && !a.isLand && (this.player(playerId) || {}).freerunningTurn === this.turn) {
+        for (const src of this.battlefield) {
+          if (src.controller !== playerId || src.phasedOut) continue;
+          const g = this._staticOp(src, 'grantCastKeyword');
+          if (!g || g.keyword !== 'freerunning' || !g.cost || (g.filter && !this._cardFitsWords(o, g.filter))) continue;
+          if (!out.some(u => u.via === 'freerunning' && u.cost === g.cost)) out.push({ kind: 'cast', via: 'freerunning', cost: g.cost, label: 'Freerunning ' + g.cost });
+        }
+      }
       // Past in Flames: flashback until end of turn, for its mana cost
       if (o.zone === 'graveyard' && o.owner === playerId && o.flashbackTurn === this.turn && !a.isLand &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^flashback$/i.test(ab.keyword || '') && ab.arg)) {
@@ -12701,6 +12711,12 @@
           const dp = this._defenderOf(src);
           return !!me && !!dp && this.zones[dp.id].hand.length > this.zones[me.id].hand.length;
         }
+        // Ezio Auditore da Firenze: "if that player has 10 or less life"
+        case 'thatPlayerLife': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player || td.playerId || td.drawer);
+          return !!p && !p.hasLost && p.life <= (cond.n || 0);
+        }
         case 'thatPlayerHand': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -14918,6 +14934,8 @@
           }
           // Secrets of the Dead: "a spell from your graveyard"
           if (ab.fromGraveyardOnly && !(data.spell && data.spell.fromZone === 'graveyard')) continue;
+          // Melek, Izzet Paragon: "an instant or sorcery spell from your library"
+          if (ab.castFromLibraryOnly && !(data.spell && data.spell.fromZone === 'library')) continue;
           // Nalfeshnee: "a spell from exile"
           if (ab.fromExileOnly && !((data.spell && data.spell.fromZone === 'exile') || data.fromZone === 'exile')) continue;
           // The Ninth Doctor: "during your untap step"
@@ -22098,7 +22116,8 @@
           this.checkStateBasedActions();
           break;
         }
-        case 'loseGame': this.playerLoses(me, 'a card said so'); break;
+        // (Ezio Auditore da Firenze: "that player loses the game" — triggerPlayer)
+        case 'loseGame': { const lp = e.who === 'triggerPlayer' ? triggerPlayer() : me; if (lp && !lp.hasLost) this.playerLoses(lp, 'a card said so'); break; }
         /* Etrata, the Silencer: "That player loses the game if they own three or more exiled cards with hit counters
            on them." — in any exile, theirs to own */
         case 'loseIfExiledCounters': {

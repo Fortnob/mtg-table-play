@@ -39453,4 +39453,45 @@ module.exports = (test) => {
     M.toMain('A', 'end'); M.resolve();
     t.eq(M.life('B'), 18, 'Spider-Man: flashback — 2 damage, his power');
   });
+  test('Commanders: Melek, Izzet Paragon — an instant or sorcery cast from your library is copied; not one from your hand', (mk, t) => {
+    t.auto('Melek, Izzet Paragon');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.toMain('A');
+    M.bf('A', 'Melek, Izzet Paragon');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(M.life('B'), 17, 'Melek: from your hand, no copy');
+    const top = M.top('A', 'Lightning Bolt');
+    M.mana('A', 'R');
+    t.ok(g.playableNow('A').some(x => x.objId === top.id), 'Melek: an instant on top may be cast');
+    M.cast('A', top, { targets: ['B'] });
+    t.eq(M.life('B'), 11, 'Melek: from the top of your library — copied');
+  });
+  test('Commanders: Ezio Auditore da Firenze — Assassin spells get freerunning {B}{B}; hits a player at 10 or less: pay WUBRG, they lose', (mk, t) => {
+    t.auto('Ezio Auditore da Firenze');
+    const M = mk({ library: Array(30).fill('Swamp') });
+    const g = M.g;
+    M.toMain('A');
+    const ez = M.bf('A', 'Ezio Auditore da Firenze'); ez.summoningSick = false;
+    const ra = M.hand('A', 'Royal Assassin'), bear = M.hand('A', 'Grizzly Bears');
+    t.no(g.altUsesFor('A', ra.id).some(u => u.via === 'freerunning'), 'Ezio: no freerunning before an Assassin got through');
+    M.answer('declareAttackers', () => [{ attackerId: ez.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    for (let k = 0; k < 10 && !(g.phase.id === 'postcombat' && !g.stack.length); k++) { g.passPriority(g.priorityPlayer.id, true); M.settle(); }
+    t.eq(M.life('B'), 17);
+    t.no(M.asked.some(q => q.type === 'payOrDont'), 'Ezio: 20 life — nothing to pay');
+    t.ok(g.altUsesFor('A', ra.id).some(u => u.via === 'freerunning' && u.cost === '{B}{B}'), 'Ezio: Royal Assassin has freerunning {B}{B}');
+    t.no(g.altUsesFor('A', bear.id).some(u => u.via === 'freerunning'), 'Ezio: not a Bears');
+    M.mana('A', 'BB');
+    M.cast('A', ra, { via: 'freerunning' });
+    t.zone(ra, 'battlefield', 'Ezio: cast for {B}{B}');
+    M.nextTurn('B'); M.nextTurn('A');
+    g.player('B').life = 12;
+    for (const n of ['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']) M.bf('A', n);
+    ez.tapped = false;
+    M.answer('declareAttackers', () => [{ attackerId: ez.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.ok(g.player('B').hasLost, 'Ezio: 9 life, WUBRG paid — B loses the game');
+  });
 };

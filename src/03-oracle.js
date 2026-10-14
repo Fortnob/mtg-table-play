@@ -8512,6 +8512,14 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ezio Auditore da Firenze: "you may pay {W}{U}{B}{R}{G} if that player has 10 or less life. When you do, that
+       player loses the game." — nothing to pay with more life than that (thatPlayerLife, reflexive) */
+    { re: /^you may pay ((?:\{[^}]+\})+) if (that player has \d+ or less life)\. When you do, that player loses the game\.?$/i,
+      make: (m) => {
+        const c = condOf(m[2]);
+        return c ? [{ op: 'ifCond', cond: c, then: [{ op: 'mayPay', pay: { mana: m[1] },
+          then: [{ op: 'reflexive', effects: [{ op: 'loseGame', who: 'triggerPlayer' }], text: 'When you do, that player loses the game.' }] }] }] : null;
+      } },
     /* Altaïr Ibn-La'Ahad: "exile up to one target Assassin creature card from your graveyard with a memory counter on it.
        Then for each creature card you own in exile with a memory counter on it, create a tapped and attacking token
        that's a copy of it. Exile those tokens at end of combat." (copyEach withCounter) */
@@ -11936,6 +11944,8 @@
       (m) => ({ kind: 'life', n: +m[1], cmp: /less/i.test(m[0]) ? 'atMost' : 'atLeast' })],
     [/^you(?:'ve)? gained (\w+) or more life this turn$/i, (m) => ({ kind: 'lifeGained', n: num(m[1]) })],
     [/^an opponent has (\d+) or less life$/i, (m) => ({ kind: 'opponentLife', n: +m[1], cmp: 'atMost' })],
+    // Ezio Auditore da Firenze: "if that player has 10 or less life" — the player the trigger is about (thatPlayerLife)
+    [/^that player has (\d+) or less life$/i, (m) => ({ kind: 'thatPlayerLife', n: +m[1] })],
     // Land Tax, Gift of Estates and the other catch-up cards
     [/^an opponent controls more ([a-z]+?)s than you$/i, (m) => ({ kind: 'opponentMore', what: m[1] })],
     // Hagra Mauling: "if an opponent controls no basic lands"
@@ -12533,6 +12543,9 @@
       filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}), extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
     // Secrets of the Dead: "Whenever you cast a spell from your graveyard"
     { re: /^Whenever you cast a spell from your graveyard,? /i, event: 'youCastSpell', extra: { fromGraveyardOnly: true } },
+    // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)
+    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your library,? /i, event: 'youCastSpell',
+      extraOf: (m) => Object.assign({ castFromLibraryOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     // Rivaz of the Claw: "Whenever you cast a Dragon creature spell from your graveyard"
     { re: /^Whenever you cast an? ([a-zA-Z -]+?) spell from your graveyard,? /i, event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' '),
       extra: { fromGraveyardOnly: true } },
@@ -17435,6 +17448,9 @@
       // Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them."
       { re: /^(Creature )spells you cast gain offspring ((?:\{[^}]+\})+) as you cast them\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'offspring', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
+      // Ezio Auditore da Firenze: "Assassin spells you cast have freerunning {B}{B}." (grantCastKeyword freerunning)
+      { re: /^([A-Z][a-z]+ )spells you cast have freerunning ((?:\{[^}]+\})+)\.?$/,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'freerunning', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
@@ -18584,7 +18600,8 @@
       // (Elsha of the Infinite: "If you cast a spell this way, you may cast it as though it had flash." — flash)
       { re: /^(During your turn, )?you may cast ((?:[a-z]+ )*?)spells(?: and ((?:[a-z]+ )*?)spells)? from the top of your library\.?( If you cast a spell this way, you may cast it as though it had flash\.?)?$/i,
         make: (m) => Object.assign({ op: 'playFrom', zone: 'top', what: 'spell', duringYourTurn: !!m[1],
-          filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
+          // (Melek, Izzet Paragon: "instant and sorcery spells" — either kind)
+          filter: [m[2], m[3]].filter(Boolean).map(x => x.trim()).join(' or ').replace(/ and /g, ' or ') || null }, m[4] ? { flash: true } : {}), auto: true },
       // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
       { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },
