@@ -14635,6 +14635,13 @@
           })) continue;
           // Zada, Hedron Grinder: "that targets only Zada" — every target it has is Zada
           if (ab.targetsOnlySelf && !((data.spell && data.spell.targets) || []).every(t => t.kind === 'object' && t.id === o.id)) continue;
+          // Ivy, Gleeful Spellthief: "targets only a single creature other than Ivy" — one creature, maybe more than once, and nothing else
+          if (ab.targetsOneOtherCreature) {
+            const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
+            const ts = (sp && sp.targets) || [];
+            const x = ts.length && ts[0].kind === 'object' ? this.obj(ts[0].id) : null;
+            if (!x || x === o || x.zone !== 'battlefield' || !(this.characteristics(x) || {}).isCreature || !ts.every(t => t.kind === 'object' && t.id === x.id)) continue;
+          }
           // Black Vise: only the upkeep of the player chosen as it entered
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
           // Captain Ripley Vance: only the third spell its controller casts this turn
@@ -17876,10 +17883,14 @@
             if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
             const have = item.targets || [];
             const specs = this._specsOf(item, have.length);
-            const slots = have.map((t, i) => (t.kind === 'object' && t.id === src.id ? i : -1)).filter(i => i >= 0);
-            const others = this.battlefield.filter(c => c.controller === ctx.controller && c.id !== src.id && !c.phasedOut &&
-              this._matchesCategory(c, e.what || 'creature') &&
-              slots.length && slots.every(i => specs[i] && this._legalTargetsFor(specs[i], ctx.controller, item.objId).some(x => x.kind === 'object' && x.id === c.id)));
+            // (Ivy, Gleeful Spellthief: what was the one creature becomes Ivy — toSelf)
+            const was = e.toSelf ? ((have.find(t => t.kind === 'object') || {}).id || null) : src.id;
+            const slots = have.map((t, i) => (t.kind === 'object' && t.id === was ? i : -1)).filter(i => i >= 0);
+            if (e.toSelf && this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); break; }
+            const fits = (c) => slots.length && slots.every(i => specs[i] && this._legalTargetsFor(specs[i], ctx.controller, item.objId).some(x => x.kind === 'object' && x.id === c.id));
+            const others = e.toSelf ? [src].filter(c => c && c.zone === 'battlefield' && !c.phasedOut && c.id !== was && fits(c))
+              : this.battlefield.filter(c => c.controller === ctx.controller && c.id !== src.id && !c.phasedOut &&
+                this._matchesCategory(c, e.what || 'creature') && fits(c));
             for (const c of others) {
               const copy = this._copyOnStack(item, ctx.controller);
               copy.targets = have.map((t, i) => (slots.includes(i) ? { kind: 'object', id: c.id } : t));

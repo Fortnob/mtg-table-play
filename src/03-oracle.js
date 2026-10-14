@@ -2505,7 +2505,8 @@
     { re: /^Regenerate (?:CARDNAME|this permanent|this artifact|this land)\.?$/i, make: () => ({ op: 'regenerate', scope: 'self' }) },
 
     // --- pump ---
-    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
+    // (Armix, Filigree Thrasher: "target creature defending player controls gets -X/-X until end of turn")
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls| defending player controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature) gets ([+-][\dX]+)\/([+-][\dX]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
         scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature)$/i.test(m[1]) ? 'lastTarget' : null) }) },
@@ -6729,8 +6730,7 @@
     /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
        Each copy targets a different one of those creatures." */
     { re: /^Copy that spell for each other creature you control that the spell could target\.?$/i,
-      make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },
-    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
+      make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     { re: /^Copy (?:that ability|it)\.?(?: You may choose new targets for the copy\.?)?$/i, make: () => ({ op: 'copyThatSpell' }) },
     // Judith, Carnage Connoisseur: "That spell gains deathtouch and lifelink." — the spell the trigger is about (spellGains)
@@ -7187,6 +7187,9 @@
     // (Life // Death: "All lands you control become 1/1 creatures until end of turn.")
     { re: /^All ([a-z]+)s you control become (\d+\/\d+) ((?:[A-Z][a-z]+ )*)creatures( with [^.]+?)?( until end of turn)?\.?$/,
       make: (m) => { const e = parseEffectSentence('Each ' + m[1] + ' you control becomes a ' + m[2] + ' ' + m[3] + 'creature' + (m[4] || '') + (m[5] || '') + '.'); return e && e.op !== 'manual' ? e : null; } },
+    // Vihaan, Goldwaker: "have Treasures you control become 3/3 Construct Assassin artifact creatures in addition to their other types until end of turn"
+    { re: /^Have ([A-Z][a-z]+)s you control become (\d+\/\d+) ((?:[A-Z][a-z]+ )*)(artifact )?creatures in addition to their other types until end of turn\.?$/,
+      make: (m) => { const e = parseEffectSentence('Each ' + m[1] + ' you control becomes a ' + m[2] + ' ' + m[3] + (m[4] || '') + 'creature in addition to its other types until end of turn.'); return e && e.op === 'becomes' ? e : null; } },
     // Oblation, Zoyowa's Justice: "The owner of target nonland permanent shuffles it into their library, then draws two cards."
     { re: /^The owner of (target [a-z ]+?) shuffles it into their library, then draws (a|one|two|three) cards?\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'toLibrary', where: 'shuffle', targets: [t] }, { op: 'draw', n: num(m[2]), who: 'targetController' }] : null; } },
@@ -7391,6 +7394,12 @@
     // Endless Ranks of the Dead: "half the number of Zombies you control, rounded down"
     const hf = p.match(/^half (the number of .+), rounded (up|down)$/i);
     if (hf) { const k = amountOf(hf[1]); return k ? { half: k, up: /up/i.test(hf[2]) } : null; }
+    // Armix, Filigree Thrasher: "the number of artifacts you control plus the number of artifact cards in your graveyard"
+    const ps = p.match(/^(the number of .+?) plus (the number of .+)$/i);
+    if (ps) {
+      const a = amountOf(ps[1]), b = amountOf(ps[2]);
+      return a && b && typeof a === 'object' && typeof b === 'object' && !a.plus && !b.plus ? { sum: [a, b], mult: 1 } : null;
+    }
     let plus = 0;
     const pl = p.match(/^(.+?) plus (one|two|three|four|five|\d+)$/i);
     if (pl) { p = pl[1]; plus = num(pl[2]); if (typeof plus !== 'number') return null; }
@@ -10908,6 +10917,11 @@
         out.push({ op: 'mayPlayExiled', castOnly: /^They may cast/i.test(e.text), who: 'objController', duration: 'exiled', text: e.text });
         continue;
       }
+      // Ivy, Gleeful Spellthief: "copy that spell. The copy targets Ivy." — no copy if Ivy couldn't be its target (toSelf)
+      if (e && e.op === 'manual' && /^The copy targets (?:CARDNAME|this creature)\.?$/i.test(e.text || '') && out.length && out[out.length - 1].op === 'copyThatSpell') {
+        out[out.length - 1] = { op: 'copySpellEachOther', toSelf: true, text: (out[out.length - 1].text || '') + ' ' + e.text };
+        continue;
+      }
       // Nashi, Moon Sage's Scion: life for the spell; Gonti, Night Minister: any mana for it — on the leave just given
       if (e && (e.payLifeRider || e.anyManaRider)) {
         const host = out.slice().reverse().find(x => x && (x.op === 'mayPlayExiled' || x.op === 'impulseLast'));
@@ -11322,7 +11336,8 @@
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
     // Dark Petition, spell mastery: "there are two or more instant and/or sorcery cards in your graveyard"
     // (the sentence reader has already made "and/or" between card types plain "or")
-    [/^there are (\w+) or more ([a-z]+) (?:and\/or|or) ([a-z]+) cards in your graveyard$/i,
+    // (Octavia, Living Thesis: "you have eight or more instant and/or sorcery cards in your graveyard")
+    [/^(?:there are|you have) (\w+) or more ([a-z]+) (?:and\/or|or) ([a-z]+) cards in your graveyard$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyard', anyOf: [m[2].toLowerCase(), m[3].toLowerCase()], n: num(m[1]) } : null)],
     // H.E.R.B.I.E., Council of Reeds: "you've cast a noncreature spell this turn"
     [/^you'?ve cast an? (noncreature|creature|instant or sorcery|instant|sorcery|artifact|enchantment|multicolored) spell this turn$/i,
@@ -11827,6 +11842,8 @@
     { re: /^Whenever you cast a spell you don'?t own,? /i, event: 'youCastSpell', extra: { notOwnedSpell: true } },
     // Don Andres, the Renegade: "Whenever you cast a noncreature spell you don't own"
     { re: /^Whenever you cast an? ([a-z]+) spell you don'?t own,? /i, event: 'youCastSpell', extraOf: (m) => ({ notOwnedSpell: true, spellFilter: m[1].toLowerCase() }) },
+    // Ivy, Gleeful Spellthief: "Whenever a player casts a spell that targets only a single creature other than Ivy" (targetsOneOtherCreature)
+    { re: /^Whenever a player casts a spell that targets only a single creature other than (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', extra: { targetsOneOtherCreature: true } },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
     { re: /^Whenever a player casts a spell they don'?t own,? /i, event: 'anyCastSpell', extra: { notOwnedByCaster: true } },
     // The First Doctor: "Whenever you cast a spell with cascade" (castWithKeyword)
@@ -14861,9 +14878,8 @@
     }
     out.autoCoverage = totalLines === 0 ? 1 : U.clamp(autoLines / totalLines, 0, 1);
     out.fullyAutomated = out.autoCoverage >= 0.999;
-    /* Slash of Light: "the number of creatures you control plus the number of
-       Equipment you control" — a count whose words nothing here can count
-       would quietly come to nothing */
+    /* Chameleon Spirit, Karn, Gilded Guardian: a count whose words nothing
+       here can count would quietly come to nothing */
     for (const ab of out.abilities) {
       if (ab.auto && /"unread":true/.test(JSON.stringify(ab.effects || []))) { ab.auto = false; out.fullyAutomated = false; }
     }

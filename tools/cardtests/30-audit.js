@@ -1888,10 +1888,10 @@ module.exports = (test) => {
     t.eq(T.g.powerOf(am), 3, 'Island, Swamp, Ghost Quarter');
   });
 
-  test('Audit: counts that nothing here reads are left to a person (Slash of Light, Chameleon Spirit, Karn, Gilded Guardian)', (mk, t) => {
+  test('Audit: counts that nothing here reads are left to a person (Chameleon Spirit, Karn, Gilded Guardian)', (mk, t) => {
     const { card } = require('../harness');
     const T = mk();
-    for (const n of ['Slash of Light', 'Chameleon Spirit', 'Karn, Gilded Guardian', 'Skyshroud War Beast'])
+    for (const n of ['Chameleon Spirit', 'Karn, Gilded Guardian', 'Skyshroud War Beast'])
       t.no(T.MTG.oracle.analyze(card(n)).fullyAutomated, n);
   });
 
