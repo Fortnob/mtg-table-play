@@ -4012,6 +4012,10 @@
       make: (m) => Object.assign({ op: 'takeFromLooked', n: /^any number/i.test(m[1]) ? 99 : num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
         maxMv: m[3] ? +m[3] : null, to: 'battlefield', rest: 'bottomRandom' },
         /^any number/i.test(m[1]) ? { prompt: `Put any number of ${(m[2] || '').trim() || 'these'} cards onto the battlefield.` } : {}) },
+    /* Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way, you may attach one
+       of them to a Samurai you control." — what the look before it put there (attachOneOfTaken) */
+    { re:/^When you put one or more ([A-Za-z]+) onto the battlefield this way, you may attach one of them to an? ([A-Za-z]+) you control\.?$/,
+      make: (m) => ({ op: 'attachOneOfTaken', what: m[1].toLowerCase(), host: m[2].toLowerCase() }) },
     /* Ao, the Dawn Sky: "Put any number of nonland permanent cards with total mana value 4 or less from among
        them onto the battlefield." — the rest wait for the next sentence (totalMv) */
     { re: /^Put any number of ([-a-z' ]*?)cards with total mana value (\d+) or less from among them onto the battlefield\.?$/i,
@@ -9725,6 +9729,20 @@
           i++;
           continue;
         }
+        /* Gilraen, Dúnedain Protector: "You may return that card to the battlefield under its owner's control. If you
+           don't, at the beginning of the next end step, return that card to the battlefield under its owner's control
+           with a vigilance counter and a lifelink counter on it." — the card just exiled (returnExiledNow) */
+        const later = /^return that card to the battlefield under its owner'?s control$/i.test(may[1]) &&
+          ifDont[1].match(/^at the beginning of the next end step, return that card to the battlefield under its owner'?s control(?: with an? ([a-z]+) counter(?: and an? ([a-z]+) counter)? on it)?\.?$/i);
+        if (later) {
+          const counters = [later[1], later[2]].filter(Boolean).map(k => k.toLowerCase());
+          effects.push({ op: 'may', then: [{ op: 'returnExiledNow' }], prompt: s + ' ' + next,
+            yesLabel: 'Return it now', noLabel: 'At the next end step',
+            otherwise: [{ op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return it at the next end step',
+              effects: [Object.assign({ op: 'returnThat' }, counters.length ? { counters } : {})] }], text: s + ' ' + next });
+          i++;
+          continue;
+        }
         /* Chandra, Torch of Defiance: "You may cast that card. If you don't,
            CARDNAME deals 2 damage to each opponent." */
         if (/^cast (?:that card|it|the exiled card)$/i.test(may[1])) {
@@ -13425,7 +13443,7 @@
        each time it looks. */
     for (const ab of out.abilities) {
       const nc = (ab.effects || []).find(e => e && e.op === 'notCreatureUnless');
-      if (nc) out.notCreatureUnless = nc.graveyard ? { graveyard: true, n: nc.n } : { colors: nc.colors, n: nc.n };
+      if (nc) out.notCreatureUnless = nc.graveyard ? { graveyard: true, n: nc.n } : nc.notOwned != null ? { notOwned: nc.notOwned } : { colors: nc.colors, n: nc.n };
     }
 
     /* The gift itself: a permanent hands it over as it enters, an instant
@@ -15808,6 +15826,9 @@
       // The Warring Triad: "As long as there are fewer than eight cards in your graveyard, The Warring Triad isn't a creature."
       { re: /^As long as there are fewer than (\w+) cards in your graveyard, (?:CARDNAME|this creature|it) isn'?t a creature\.?$/i,
         make: (m) => ({ op: 'notCreatureUnless', n: num(m[1]), graveyard: true }), auto: true },
+      // Arvinox, the Mind Flail: "CARDNAME isn't a creature unless you control three or more permanents you don't own." (notOwned)
+      { re: /^(?:CARDNAME|This creature) isn'?t a creature unless you control (\w+) or more permanents you don'?t own\.?$/i,
+        make: (m) => (typeof num(m[1]) === 'number' ? { op: 'notCreatureUnless', notOwned: num(m[1]) } : null), auto: true },
       /* Cursed Mirror: a copy only until the end of the turn, with haste */
       { re: /^As (?:CARDNAME|this (?:artifact|creature|permanent)) enters, you may have it become a copy of any creature on the battlefield until end of turn(, except it has haste)?\.?$/i,
         make: (m) => Object.assign({ op: 'etbAsCopy', what: 'creature', eot: true }, m[1] ? { haste: true } : {}), auto: true },

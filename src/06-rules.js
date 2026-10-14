@@ -3057,6 +3057,8 @@
      */
     _impulseOpen(o, playerId) {
       if (!o || o.impulseBy !== playerId || o.impulseUntil == null || o.impulseUntil < this.turn) return false;
+      // Arvinox, the Mind Flail: "you may cast permanent spells from among them" (impulseFilter)
+      if (o.impulseFilter && !this._cardFitsWords(o, o.impulseFilter)) return false;
       // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
       if (o.impulseIfAttackedToken && (this.player(playerId) || {}).attackedWithTokenTurn !== this.turn) return false;
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
@@ -11982,8 +11984,11 @@
         }
         if (base.notCreatureUnless) {
           const want = base.notCreatureUnless;
-          // The Warring Triad: the cards in its controller's graveyard instead
+          // The Warring Triad: the cards in its controller's graveyard instead; Arvinox, the Mind Flail: "unless you control
+          // three or more permanents you don't own" (notOwned)
           notCreature = want.graveyard ? ((this.zones[o.controller] || {}).graveyard || []).length < want.n
+            : want.notOwned != null
+            ? this.battlefield.filter(x => x.controller === o.controller && x.owner !== o.controller && !x.phasedOut).length < want.notOwned
             : this._devotionTo(o.controller, want.colors) < want.n;
         }
         if (waiting) notCreature = true;
@@ -12769,7 +12774,7 @@
       /* A card that changes zones is a new object (CR 400.7): leave to play it from exile, and its being
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
-        o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null;
+        o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false;
         o.faceDownExile = false; o.lookableBy = null;
       }
@@ -17552,7 +17557,11 @@
                spell on the stack, not the trigger, which would copy itself for ever) */
             const tdS = ctx.triggerData || {};
             const selfSpell = ctx.kind === 'spell' ? ctx : (tdS.stackId && this.stack.find(x => x.id === tdS.stackId)) || null;
-            const sources = e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
+            /* Ulalek, Fused Atrocity: "copy all spells you control, then copy all other activated and triggered abilities
+               you control" — the spells first, then the abilities, not this one resolving (allMine) */
+            const mine = e.allMine ? this.stack.filter(x => x !== r && x.controller === ctx.controller && x.id !== ctx.id) : null;
+            const sources = mine ? mine.filter(x => x.kind === 'spell').concat(mine.filter(x => x.kind !== 'spell'))
+              : e.self ? [selfSpell] : targets.map(t => this.stack.find(x => x.id === t.id || x.objId === t.id));
             for (const item of sources) {
               if (!item) continue;
               // Gogo, Master of Mimicry: "This ability can't be copied"
@@ -19516,6 +19525,33 @@
           break;
         }
         // Stonehewer Giant: what was just put onto the battlefield, attached to a creature you choose
+        /* Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way, you may attach
+           one of them to a Samurai you control." — which one is the choice, and none at all; then which Samurai */
+        case 'attachOneOfTaken': {
+          const eqs = (this._takenOntoBf || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && this._cardFitsWords(o, e.what));
+          const hosts = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && (this.characteristics(o) || {}).isCreature && this._cardFitsWords(o, e.host));
+          if (!eqs.length || !hosts.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'attachOneOfTaken', kind: 'objects', items: this._chooseItems(eqs), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach one of them to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${U.titleCase(e.host)} you control.` }, 'aot');
+          if (got === SUSPEND) return SUSPEND;
+          const eq = this.obj(((got && got.picks) || [])[0]);
+          if (!eq || !eqs.includes(eq)) break;
+          let host = hosts.length === 1 ? hosts[0] : null;
+          if (!host) {
+            const h = this._choose({ playerId: ctx.controller, purpose: 'attachTo', kind: 'objects', items: this._chooseItems(hosts), min: 1, max: 1,
+              prompt: `Attach ${eq.name} to ${/^[aeiou]/i.test(e.host) ? 'an' : 'a'} ${U.titleCase(e.host)} you control.` }, 'aoth');
+            if (h === SUSPEND) return SUSPEND;
+            host = this.obj(((h && h.picks) || [])[0]) || hosts[0];
+          }
+          const was = eq.attachedTo && this.obj(eq.attachedTo);
+          if (was) was.attachments = (was.attachments || []).filter(id => id !== eq.id);
+          eq.attachedTo = host.id;
+          eq.ts = this._stampNew();
+          host.attachments = (host.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
+          break;
+        }
         case 'attachPutToChosen': {
           const eq = this._lastPut && this.obj(this._lastPut);
           if (!eq || eq.zone !== 'battlefield') break;
@@ -19817,6 +19853,18 @@
           if (x && e.tapped && x.zone === 'battlefield') x.tapped = true;
           // Parting Gust: "…with a +1/+1 counter on it"
           if (x && e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
+          // Gilraen, Dúnedain Protector: "with a vigilance counter and a lifelink counter on it"
+          if (x && x.zone === 'battlefield') for (const k of (e.counters || [])) this.addCounters(x, k, 1);
+          break;
+        }
+        // Gilraen, Dúnedain Protector: "You may return that card to the battlefield under its owner's control" — the card just exiled
+        case 'returnExiledNow': {
+          for (const id of (this._exiledNow || []).slice()) {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'exile') continue;
+            this.moveObject(x, 'battlefield', { controller: x.owner });
+            this.logEvent('zone', `${x.name} returns to the battlefield.`);
+          }
           break;
         }
         // Turn to Slag: the Equipment on the creature it just hit
@@ -20124,6 +20172,7 @@
 
         case 'takeFromLooked': {
           if (e.rest === 'graveyard') this._lookedToGraveyard = 0;
+          if (e.to === 'battlefield') this._takenOntoBf = [];
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
           if (!pool.length) break;
           const want = n(e.n);
@@ -20188,6 +20237,8 @@
           const z = this.zones[ctx.controller];
           // Florian, Voldaren Scion: "You may play the exiled card this turn" — the card this exiled, for what follows
           if (e.to === 'exile') { this._lastExiledList = taken.map(o => o.id); this._lastExiled = taken.length ? taken[taken.length - 1].id : null; }
+          // Gilgamesh, Master-at-Arms: "When you put one or more Equipment onto the battlefield this way" (attachOneOfTaken)
+          if (e.to === 'battlefield') this._takenOntoBf = taken.map(o => o.id);
           for (const o of taken) {
             this._removeFromZone(o);
             if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true; }
@@ -20519,6 +20570,8 @@
             if (e.free && !(!e.castOnly && (c.analysis() || {}).isLand)) { c.freeCastBy = pid; c.freeCastTurn = this.turn; c.freeCastUntil = until; }
             else { c.impulseBy = pid; c.impulseUntil = until; c.impulseCastOnly = !!e.castOnly; }
             if (e.anyMana) c.impulseAnyMana = pid;
+            // Arvinox, the Mind Flail: "you may cast permanent spells from among them" (impulseFilter)
+            c.impulseFilter = e.filter || null;
             if (group) c.impulseGroup = group;
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             // Nashi: "If you cast a spell this way, pay life equal to its mana value rather than paying its mana cost."

@@ -1635,6 +1635,12 @@
     },
     /* Well of Lost Dreams: as many cards as can be paid for */
     payXDraw(s) { return { number: (s.number && s.number.max) || 0 }; },
+    /* Gilgamesh, Master-at-Arms: the best of the Equipment it put there, always worth wearing */
+    attachOneOfTaken(s) {
+      const g = this.game;
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((a, b) => this.permanentValue(b) - this.permanentValue(a))[0];
+      return best ? { picks: [best.id] } : { picks: [] };
+    },
     /* Stonehewer Giant: the Equipment goes on the strongest creature */
     attachTo(s) {
       const g = this.game;
