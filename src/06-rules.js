@@ -2825,6 +2825,7 @@
       const now = (picked || []).map(normTarget).filter(Boolean);
       if (now.length === have.length && now.some((t, i) => t.kind !== have[i].kind || t.id !== have[i].id)) {
         copy.targets = now;
+        this._stampTargets(copy);
         this.logEvent('rules', `The copy of ${copy.name} now targets ${now.map(t => this.describeTarget(t)).join(', ')}.`);
       }
       return null;
@@ -3163,6 +3164,8 @@
         // "another target": never what the ability is on
         if (i != null && item.obj && o.id === item.obj.id && (this._specsOf(item)[i] || {}).another) return false;
         if (t.zone && o.zone !== t.zone) return false;
+        // moved since it was chosen, even back to where it was: a new object, not the one targeted (CR 400.7)
+        if (t.zcc != null && (o.zcc || 0) !== t.zcc) return false;
         /* a spell whose words a text-changing effect changed (layer 3, Sleight of Mind on "destroy target
            nonblack creature"): its target is checked against what the words say now (CR 608.2b) */
         if (item.wordsChanged && i != null) {
@@ -3182,6 +3185,21 @@
       }
       if (t.kind === 'stack') return this.stack.some(s => s.id === t.id);
       return true;
+    }
+    /* Each object a spell or ability targets, as it was when it was chosen: the zone it was in and how many
+       times it had changed zones (zcc). A card that changes zones is a new object (CR 400.7), so one that has
+       moved since is not a legal target as the spell or ability resolves (CR 608.2b) — a creature that died,
+       was bounced, or was blinked and came back. Targets already stamped keep what they had. Plain data, for
+       the snapshot. */
+    _stampTargets(item) {
+      const tg = item && item.targets;
+      if (!tg) return;
+      for (let i = 0; i < tg.length; i++) {
+        const t = tg[i];
+        if (!t || t.kind !== 'object' || t.zcc != null) continue;
+        const o = this.obj(t.id);
+        if (o) tg[i] = Object.assign({}, t, { zone: o.zone, zcc: o.zcc || 0 });
+      }
     }
 
     /* ---------- playing cards ---------- */
@@ -5371,6 +5389,7 @@
           effects: a.forecast.effects, auto: true, abilityText: 'Forecast',
         };
         this.stack.push(item);
+        this._stampTargets(item);
         this.logEvent('ability', `${this.player(playerId).name} reveals ${o.name} and forecasts.`);
         this.emit('sfx', 'cast');
         this.emit('stack:add', item);
@@ -5401,6 +5420,7 @@
         x,
       };
       this.stack.push(item);
+      this._stampTargets(item);
       this.logEvent('ability', `${this.player(playerId).name} channels ${o.name}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -6295,6 +6315,7 @@
       const fromZone = o.zone;
       this._removeFromZone(o);
       o.zone = 'stack';
+      o.zcc = (o.zcc || 0) + 1;
       o.adventureBy = null;
       o.controller = playerId;
       o.chosenX = opts.x || 0;
@@ -6332,6 +6353,7 @@
         item.name = o.card.name;
       }
       this.stack.push(item);
+      this._stampTargets(item);
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
       if (payFlags.uncounterable) item.uncounterable = true;
@@ -7505,6 +7527,9 @@
         if (rc.n === 'X' && (opts.x || 0) > have) return this.fail(`${o.name} does not have that many counters.`);
         opts = Object.assign({}, opts, { x: Math.min(have, opts.x != null ? opts.x : have) });
       }
+      // what it targets as chosen, before the costs are paid: sacrificing that leaves it nothing to point at (CR 602.2b)
+      const chosen = { targets: (opts.targets || []).map(normTarget) };
+      this._stampTargets(chosen);
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
       if (!payOk) return false;
       const used = ab.cost && ab.cost.label;
@@ -7561,7 +7586,7 @@
         // (activated: its abilityIndex counts activated abilities only, not every ability)
         id: this._uid('st'), kind: 'ability', obj: o, objId: o.id, abilityIndex, activated: true,
         controller: playerId, name: `${o.name} — ${truncate(MTG.oracle.abilityLabel(ab, o), 60)}`,
-        targets: (opts.targets || []).map(normTarget),
+        targets: chosen.targets,
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
         x: opts.x || 0,
       };
@@ -13161,6 +13186,8 @@
       this._removeFromZone(o);
       this.bumpBoard();
       o.zone = toZone;
+      // (a new object now, for anything that targeted it: zcc, _stampTargets)
+      if (from !== toZone) o.zcc = (o.zcc || 0) + 1;
       // every card a resolution exiles, from anywhere: "you may play that card" points back at them
       if (toZone === 'exile' && this.resolving) {
         (this._resExiled = this._resExiled || []).push(o.id);
@@ -14156,6 +14183,7 @@
       for (const t of order) {
         t.triggered = true;          // "copy target triggered ability" needs to tell
         this.stack.push(t);
+        this._stampTargets(t);
         this.logEvent('trigger', `Triggered: ${t.name}`);
         this.emit('stack:add', t);
       }
@@ -17129,6 +17157,7 @@
             for (const c of others) {
               const copy = this._copyOnStack(item, ctx.controller);
               copy.targets = have.map((t, i) => (slots.includes(i) ? { kind: 'object', id: c.id } : t));
+              this._stampTargets(copy);
               made.push({ id: copy.id, fixed: true });
             }
             if (others.length) for (let k = this._extraCopies(ctx.controller, item); k > 0; k--) made.push({ id: this._copyOnStack(item, ctx.controller).id });
@@ -22964,7 +22993,7 @@
           if (e.newTargets && item.obj && (item.targets || []).length) {
             const tg = this._askSpellTargets(ctx.controller, item.obj, 'stealT');
             if (tg === SUSPEND) return SUSPEND;
-            if (tg && tg.length) item.targets = tg;
+            if (tg && tg.length) { item.targets = tg; this._stampTargets(item); }
           }
           break;
         }
@@ -23074,6 +23103,7 @@
             const was = tg[i].kind === 'player' ? (this.player(tg[i].id) || {}).name : (this.obj(tg[i].id) || {}).name;
             tg[i] = { kind: 'object', id: src.id };
             item.targets = tg;
+            this._stampTargets(item);
             this.logEvent('rules', `${item.name} now targets ${src.name} instead of ${was || 'what it did'}.`);
             done = true;
           }
@@ -24894,6 +24924,7 @@
           const now = (picked || []).map(normTarget).filter(Boolean);
           if (now.length === item.targets.length) {
             item.targets = now;
+            this._stampTargets(item);
             delete item.resolvedTargets;
             this.logEvent('rules', `${me.name} changes the target of ${item.name}.`);
           }

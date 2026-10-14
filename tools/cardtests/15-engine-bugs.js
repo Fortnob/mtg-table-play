@@ -209,4 +209,59 @@ module.exports = (test) => {
     t.ok(card.analysis().isLand, 'it is the land on the battlefield');
     t.eq(T.player('A').landsPlayed, 1, 'it was the land for the turn');
   });
+
+  /* A card that changes zones is a new object (CR 400.7): a spell whose only target has left, or left and
+     come back, is countered as it resolves (CR 608.2b), and does not count as having resolved. */
+  const fizzled = (T, name) => T.g.log.some(l => l.text === `${name} is countered on resolution (no legal targets).`);
+  test('Bugs: a spell whose target died before it resolved is countered (Giant Growth)', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    const gg = T.hand('A', 'Giant Growth');
+    T.mana('A', 'G');
+    T.cast('A', gg, { targets: [bear], resolve: false });
+    T.g.moveObject(bear, 'graveyard');
+    T.resolve();
+    t.ok(fizzled(T, 'Giant Growth'), 'countered on resolution');
+    t.no(T.g.log.some(l => l.text === 'Giant Growth resolves.'), 'it did not resolve');
+    t.zone(gg, 'graveyard');
+  });
+
+  test('Bugs: a target blinked out and back is a new object, and the spell is countered (Giant Growth)', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bear], resolve: false });
+    T.g.moveObject(bear, 'exile');
+    T.g.moveObject(bear, 'battlefield');
+    T.resolve();
+    t.ok(fizzled(T, 'Giant Growth'), 'countered on resolution');
+    t.eq(T.g.powerOf(bear), 2, 'the creature that came back is not pumped');
+  });
+
+  test('Bugs: a target that stays where it was still resolves, after a save and load too (Giant Growth, Disentomb)', (mk, t) => {
+    const T = mk();
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bear], resolve: false });
+    T.g.restore(JSON.parse(JSON.stringify(T.g.snapshot())));
+    T.resolve();
+    t.no(fizzled(T, 'Giant Growth'), 'not countered');
+    t.eq(T.g.powerOf(T.g.obj(bear.id)), 5, 'pumped');
+    // a card in a graveyard is a legal target where it is
+    const dead = T.grave('A', 'Hill Giant');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Disentomb'), { targets: [dead] });
+    t.no(fizzled(T, 'Disentomb'), 'not countered');
+    t.zone(T.g.obj(dead.id), 'hand', 'returned');
+  });
+
+  test('Bugs: an ability whose target was sacrificed to pay for it is countered (Mogg Fanatic)', (mk, t) => {
+    const T = mk();
+    const fan = T.bf('A', 'Mogg Fanatic');
+    const life = T.life('B');
+    T.activate('A', fan, 0, { targets: [fan] });
+    t.zone(fan, 'graveyard');
+    t.ok(T.g.log.some(l => /Mogg Fanatic.*is countered on resolution \(no legal targets\)/.test(l.text)), 'countered on resolution');
+    t.eq(T.life('B'), life);
+  });
 };
