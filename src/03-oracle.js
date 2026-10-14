@@ -2658,7 +2658,8 @@
     /* the same for any other kind of target ("target permanent you
        control", "target legendary creature"), with keywords the table
        knows */
-    { re: /^((?:Another )?[Tt]arget [a-z ]+?) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (Urdnan, Dromoka Warrior: "target attacking creature with a +1/+1 counter on it gains first strike …")
+    { re: /^((?:Another )?[Tt]arget [a-z ]+?(?: with an? [+\-0-9/a-z]+ counter on it)?) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => {
         // Alseid of Life's Bounty: "protection from the color of your choice" is one keyword, chosen as it resolves
         const kws = /^protection from (?:colou?rless or from )?the colou?r of your choice$/i.test(m[2]) ? [U.titleCase(m[2])] : keywordList(m[2]);
@@ -3619,6 +3620,12 @@
     // Zodiark, Umbral God: "Each player sacrifices half the non-God creatures they control of their choice, rounded down." (halfRoundDown)
     { re: /^Each player sacrifices half the (non-[A-Z][a-z]+ )?creatures they control of their choice, rounded down\.?$/,
       make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'each', filter: ((m[1] || '') + 'creature').toLowerCase() }) },
+    // Lord Xander, the Collector: "target opponent sacrifices half the nonland permanents they control of their choice, rounded down"
+    { re: /^Target opponent sacrifices half the (nonland permanents|creatures|permanents) they control of their choice, rounded down\.?$/i,
+      make: (m) => ({ op: 'sacrificeChoice', n: 1, half: true, who: 'target', filter: singularType(m[1].toLowerCase()), targets: [{ type: 'player', opponent: true }] }) },
+    // Lord Xander, the Collector: "target opponent discards half the cards in their hand, rounded down"
+    { re: /^Target (opponent|player) discards half the cards in their hand, rounded (down|up)\.?$/i,
+      make: (m) => ({ op: 'discard', who: 'target', n: { half: { cardsInHand: 'target' }, up: /up/i.test(m[2]) }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains "You may play this card from your graveyard."" (gravePlayThisTurn)
     { re: /^Until end of turn, each ([a-z]+ )?card in your graveyard gains "You may play this card from your graveyard\.?"\.?$/i,
       make: (m) => ({ op: 'gravePlayThisTurn', filter: m[1] ? m[1].trim().toLowerCase() : null }) },
@@ -5659,6 +5666,10 @@
     /* Malakir Rebirth: a creature that comes back once */
     { re: /^Until end of turn, (target creature|that creature) gains "When this creature dies, return it to the battlefield tapped under its owner'?s control\."\.?$/i,
       make: (m) => ({ op: 'grantDiesReturn', tapped: true, targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : undefined, scope: /^that/i.test(m[1]) ? 'lastTarget' : undefined }) },
+    /* Saffi Eriksdotter: "When target creature is put into your graveyard this turn, return that card to the
+       battlefield." — only into your graveyard, and the trigger is yours (ownedBy) */
+    { re: /^When target creature is put into your graveyard this turn, return that card to the battlefield\.?$/i,
+      make: () => ({ op: 'grantDiesReturn', tapped: false, ownedBy: 'you', targets: [{ type: 'creature' }] }) },
     { re: /^Choose target creature\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'creature' }] }) },
     // Curious Herd, Haunt the Network: "Choose target opponent." — "that player" in what follows
     { re: /^Choose target opponent\.?$/i, make: () => ({ op: 'noop', targets: [{ type: 'player', opponent: true }] }) },
@@ -6635,6 +6646,10 @@
     { re: /^(?:CARDNAME|This creature) gets ([+-]\d+)\/([+-]\d+) until end of turn and can'?t be blocked this turn\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', scope: 'self' },
         { op: 'restrict', flag: 'unblockable', scope: 'self' }] }) },
+    // Hraesvelgr of the First Brood: "target creature gets +1/+0 until end of turn and can't be blocked this turn"
+    { re: /^(Target creature(?: you control)?) gets ([+-]\d+)\/([+-]\d+) until end of turn and can'?t be blocked this turn\.?$/i,
+      make: (m) => [{ op: 'pump', p: pmNum(m[2]), t: pmNum(m[3]), duration: 'eot', targets: [targetSpec(m[1].toLowerCase())] },
+        { op: 'restrict', flag: 'unblockable', scope: 'lastTarget' }] },
     // Jaya's Immolating Inferno: "X damage to each of up to three targets"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+|X) damage to each of up to (two|three|four) targets\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), targets: Array.from({ length: num(m[2]) }, () => ({ type: 'any', filter: 'any target', zone: 'battlefield', upTo: true, distinct: true })) }) },
@@ -10025,6 +10040,16 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
+       opponent controls. The token has enchant creature and "Whenever enchanted creature attacks, …"" (createAuraToken) */
+    { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to (target creature(?: an opponent controls| you control)?)\. The token has enchant creature and "(.+)"\.?$/i,
+      make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
+        words: m[4], targets: [targetSpec(m[3])] }] },
+    /* Scriv, the Obligator's Contract: "Whenever enchanted creature attacks, it gets +2/+0 until end of turn if it's
+       attacking one of your opponents. Otherwise, its controller loses 2 life." */
+    { re: /^It gets \+(\d+)\/\+(\d+) until end of turn if it'?s attacking one of your opponents\. Otherwise, its controller loses (\d+) life\.?$/i,
+      make: (m) => [{ op: 'ifCond', cond: { kind: 'trigAttackingYourOpp' }, then: [{ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'triggerObject' }],
+        otherwise: [{ op: 'loseLife', who: 'triggerObjController', n: +m[3] }] }] },
   ];
 
   /** Split an ability's effect text into sentences and parse each. */
@@ -12058,6 +12083,10 @@
     // (Yuna, Grand Summoner: "it had one or more counters on it")
     [/^it (?:had|has) (?:one or more )?counters on it$/i, () => ({ kind: 'itHadCounters' })],
     [/^it (?:had|has) no ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 0, cmp: 'atMost', counter: m[1].toLowerCase() })],
+    // Scriv, the Obligator's Contract: "if it's attacking one of your opponents" — the creature the trigger is about, attacking that player (trigAttackingYourOpp)
+    [/^it'?s attacking one of your opponents$/i, () => ({ kind: 'trigAttackingYourOpp' })],
+    // Urdnan, Dromoka Warrior: "that creature has two or more +1/+1 counters on it" — the target, or the one the trigger is about (thatObjCounters)
+    [/^that creature has (\w+) or more ([a-z+\-0-9/]+) counters on it$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'thatObjCounters', n: num(m[1]), counter: m[2].toLowerCase() } : null)],
     // Reyhan, Last of the Abzan: "it had one or more +1/+1 counters on it"
     [/^it had one or more ([a-z+\-0-9/]+) counters on it$/i, (m) => ({ kind: 'itCounters', n: 1, counter: m[1].toLowerCase() })],
     // Avatar Aang: "you've done all four this turn" — waterbent, earthbent, firebent and airbent (bentAllFour)

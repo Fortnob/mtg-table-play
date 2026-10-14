@@ -8378,8 +8378,17 @@
         const r = this.obj(id);
         if (r && r.isToken && r.controller === pid && /\bRole\b/.test(String((r.card || {}).type_line || ''))) this.moveObject(r, 'graveyard');
       }
+      const o = this._createAuraToken(pid, card, host);
+      this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
+      return o;
+    }
+    /* An Aura token made attached to a permanent (a Role; Scriv, the Obligator's Contract). With `legal`, none
+       is made if it could not enchant that permanent (Scriv's ruling: protection from white). */
+    _createAuraToken(pid, card, host, legal) {
       const o = this._register(new GObj(card, pid, 'battlefield'));
-      o.isToken = true; o.controller = pid; o.zone = 'battlefield'; o.entered = this.turn;
+      o.isToken = true; o.controller = pid;
+      if (legal && !this._attachLegal(o, o.analysis() || {}, host)) { this.objects.delete(o.id); return null; }
+      o.zone = 'battlefield'; o.entered = this.turn;
       o.attachedTo = host.id;
       host.attachments = (host.attachments || []).concat(o.id);
       o.ts = this._stampNew();
@@ -8387,7 +8396,6 @@
       this.bumpBoard();
       this._onEnter(o);
       this._fireEnters(o);
-      this.logEvent('token', `${(this.player(pid) || {}).name} creates a ${role} Role attached to ${host.name}.`);
       return o;
     }
     /** Permanents of a player's with a counter to remove for a cost: the least valuable first. */
@@ -12415,6 +12423,21 @@
         /* Sweep Away, Emeria Shepherd: "if that creature is attacking", "if that land is a Plains" — the
            target the sentence before acted on, else what the trigger is about: the first that is that
            kind of thing (thatObjIs) */
+        // Scriv, the Obligator's Contract: "if it's attacking one of your opponents" — a player, not their planeswalker
+        case 'trigAttackingYourOpp': {
+          const td = (ctx && ctx.triggerData) || {};
+          const it = td.objectId && this.obj(td.objectId);
+          const d = it && it.zone === 'battlefield' && it.attacking;
+          const p = d && this.player(d);
+          return !!p && !p.hasLost && p.id !== ctx.controller && this.opponentsOf(ctx.controller).some(x => x.id === p.id);
+        }
+        // Urdnan, Dromoka Warrior: "If that creature has two or more +1/+1 counters on it" — the target, else the trigger's
+        case 'thatObjCounters': {
+          const ids = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).filter(t => t && t.kind === 'object').map(t => t.id);
+          if (ctx && ctx.triggerData && ctx.triggerData.objectId) ids.push(ctx.triggerData.objectId);
+          const it = ids.map(id => this.obj(id)).find(x => x && x.zone === 'battlefield');
+          return !!it && (Number((it.counters || {})[cond.counter]) || 0) >= (cond.n || 1);
+        }
         case 'thatObjIs': {
           const ids = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).filter(t => t && t.kind === 'object').map(t => t.id);
           if (ctx && ctx.triggerData && ctx.triggerData.objectId) ids.push(ctx.triggerData.objectId);
@@ -14376,7 +14399,7 @@
          (CR 111.7), so it is never filed in the zone it was sent to. */
       const vanishes = o.isToken && from === 'battlefield' && toZone !== 'battlefield';
       const comesBack = from === 'battlefield' && toZone === 'graveyard' && !vanishes &&
-        (o.effects || []).find(e => e.returnOnDeath);
+        (o.effects || []).find(e => e.returnOnDeath && (e.retBy == null || e.retBy === o.owner));
       if (toZone !== 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
         if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') { o.face = 0; o.flipped = false; }
@@ -14532,7 +14555,7 @@
           }
           this._fire('permDies', null, { object: o, objController: lastCtrl });
           if (comesBack) {
-            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: lastCtrl,
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: comesBack.retBy != null ? comesBack.retBy : lastCtrl,
               name: `${o.name} \u2014 return it to the battlefield`, auto: true, abilityText: 'Return it to the battlefield',
               effects: [{ op: 'returnSelfFromGrave', tapped: comesBack.returnOnDeath === 'tapped' }] });
           }
@@ -25978,6 +26001,19 @@
           this._createRole(ctx.controller, e.role, host);
           break;
         }
+        /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
+           opponent controls. The token has enchant creature and "…"" */
+        case 'createAuraToken': {
+          const host = firstObj();
+          if (!host || host.zone !== 'battlefield' || !this.characteristics(host).isCreature) break;
+          const card = { id: 'aura:' + e.name, name: e.name, layout: 'token', mana_cost: '', cmc: 0,
+            type_line: 'Token Enchantment \u2014 Aura', oracle_text: 'Enchant creature\n' + e.words,
+            colors: (e.colors || []).slice(), color_identity: (e.colors || []).slice(), keywords: [], rarity: 'common', set: 'tkn', set_name: 'Token',
+            collector_number: '0', image_uris: null, _isToken: true };
+          const o = this._createAuraToken(ctx.controller, card, host, true);
+          if (o) this.logEvent('token', `${me.name} creates ${e.name} attached to ${host.name}.`);
+          break;
+        }
         // Counterbore: every other card with that name — graveyard, hand, library — exiled, then a shuffle
         case 'exileNamedEverywhere': {
           const la = this._lastCountered || this._lastAffected;
@@ -27486,7 +27522,8 @@
           break;
         /* Malakir Rebirth: "When this creature dies, return it to the battlefield tapped" */
         case 'grantDiesReturn':
-          applyToScope(e, (o) => o.effects.push({ returnOnDeath: e.tapped ? 'tapped' : 'untapped', until: 'eot' }));
+          // (Saffi Eriksdotter: only if it goes to your graveyard, and the trigger is yours: retBy)
+          applyToScope(e, (o) => o.effects.push(Object.assign({ returnOnDeath: e.tapped ? 'tapped' : 'untapped', until: 'eot' }, e.ownedBy ? { retBy: ctx.controller } : {})));
           break;
         /* The One Ring, Teferi's Protection: protection from everything
            until your next turn (and, for Teferi's, a life total that
