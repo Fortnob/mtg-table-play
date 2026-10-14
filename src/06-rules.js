@@ -1575,7 +1575,8 @@
           continue;
         }
         // an adventurer in hand: the adventure too, with its face
-        if (o.zone === 'hand' && this._adventure(o)) {
+        // (Hildibrand Manderville: from the graveyard too, for a while — graveAdventure)
+        if ((o.zone === 'hand' || this._graveAdventureOpen(o, playerId)) && this._adventure(o)) {
           const okAdv = this._asHalf(o, 1, () => {
             const c2 = this.canCast(playerId, o.id);
             return c2.ok && this.canPayNow(playerId, String(c2.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
@@ -4353,7 +4354,9 @@
           return { ok: false, reason: "A cage stops spells cast from graveyards." };
         const impulsed = (o.zone === 'exile' && this._impulseOpen(o, playerId)) ||
           // back from an adventure: the creature, for its cost
-          (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0);
+          (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0) ||
+          // Hildibrand Manderville: from the graveyard as an Adventure, and only that (graveAdventure)
+          (o.zone === 'graveyard' && (o.face || 0) === 1 && this._graveAdventureOpen(o, playerId));
         if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts, playerId) };
         /* A card with flashback is cast for its flashback cost, not for
            the cost printed in its corner — so casting it from the
@@ -4699,6 +4702,10 @@
       this.logEvent((opts && opts.logType) || 'rules', `${p.name} rolls a d${sides}: ${result}${ignored.length ? ` (also ${ignored.join(', ')}, ignored)` : ''}.`);
       this.emit('roll', Object.assign({ playerId: p.id, sides, result, rolls, ignored }, this._luckSource(opts)));
       return result;
+    }
+    /** Hildibrand Manderville: this card may be cast from its owner's graveyard as an Adventure by this player, still (graveAdventure). */
+    _graveAdventureOpen(o, playerId) {
+      return !!(o && o.zone === 'graveyard' && o.graveAdvBy === playerId && o.owner === playerId && this.turn <= (o.graveAdvUntil || 0) && this._adventure(o));
     }
     /** An adventurer card (CR 715): a creature, and an instant or sorcery on an adventure. */
     _adventure(o) {
@@ -6515,7 +6522,7 @@
         if (!so) return this.fail('No such card.');
         const f = Number(opts.face);
         const adv = this._adventure(so);
-        if (adv && f === 1 && so.zone !== 'hand') return this.fail('An adventure is cast from your hand.');
+        if (adv && f === 1 && so.zone !== 'hand' && !(so.zone === 'graveyard' && this._graveAdventureOpen(so, playerId))) return this.fail('An adventure is cast from your hand.');
         // (Halvar, God of Battle // Sword of the Realms: a modal double-faced card cast as its back — mdfcBack)
         if (!this._splitHalves(so) && !adv && !this._mdfcSpellBack(so)) { if (f !== 0) return this.fail('That card has only one half to cast.'); }
         else {
@@ -11963,6 +11970,12 @@
         if (ef.sourceEnteredThisTurn && !(ev.source && ev.source.zone === 'battlefield' && ev.source.entered === this.turn)) return false;
         // Raphael, the Muscle: "creatures you control with counters on them" (sourceCountered)
         if (ef.sourceCountered && !(ev.source && Object.values(ev.source.counters || {}).some(v => Number(v) > 0))) return false;
+        // Obosh, the Preypiercer: "a source you control with an odd mana value" — a spell's as it was cast, X and all (sourceMvParity)
+        if (ef.sourceMvParity) {
+          const s0 = ev.source;
+          const mv = !s0 ? 0 : s0.zone === 'stack' && s0._castMv != null ? s0._castMv : this._faceMv(s0);
+          if ((mv % 2 === 1) !== (ef.sourceMvParity === 'odd')) return false;
+        }
         // Sokrates, Athenian Teacher: "If this creature would deal combat damage" — the one that has it
         if (ef.fromSelf && !(ev.source && ev.source.id === src.id)) return false;
         // Rem Karolus, Stalwart Slayer: "If a spell would deal damage" — an instant or sorcery as it resolves (spellSource)
@@ -14884,6 +14897,8 @@
       // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
       // (Prowl, Stoic Strategist: "a card exiled with Prowl" is still known as it is played — _leftExileWith)
       o._leftExileWith = from === 'exile' && toZone !== 'exile' ? (o.exiledWithId || null) : null;
+      // (Hildibrand Manderville: out of the graveyard, the leave to cast it from there is over — graveAdventure)
+      if (from === 'graveyard' && toZone !== 'graveyard') o.graveAdvBy = null;
       if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
@@ -28316,6 +28331,15 @@
           if (!p || p.hasLost) break;
           p.skipTurns = (p.skipTurns || 0) + 1;
           this.logEvent('turn', `${p.name} will skip their next turn.`);
+          break;
+        }
+        /* Hildibrand Manderville: "When Hildibrand Manderville dies, you may cast it from your graveyard as an Adventure
+           until the end of your next turn." — the card in its owner's graveyard, if that is you (graveAdventure) */
+        case 'graveAdventure': {
+          const x = this.obj((ctx.triggerData || {}).objectId) || src;
+          if (!x || x.zone !== 'graveyard' || x.owner !== ctx.controller || !this._adventure(x)) break;
+          x.graveAdvBy = ctx.controller; x.graveAdvUntil = this._endOfNextTurnOf(ctx.controller);
+          this.logEvent('rules', `${x.name} may be cast from the graveyard as an Adventure until the end of ${this.player(ctx.controller).name}'s next turn.`);
           break;
         }
         // Yosei, the Morning Star: "target player skips their next untap step." (skipUntaps)

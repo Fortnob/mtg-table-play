@@ -2598,6 +2598,11 @@
       make: (m) => ({ op: 'whileCounter', counter: m[1].toLowerCase(), ef: { setSubtypes: [], loseAll: true,
         grantMana: [{ kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {C}.', effects: [{ op: 'addMana', symbols: ['C'] }] }] } }) },
 
+    /* Mathas, Fiend Seeker: "For as long as that creature has a bounty counter on it, it has "When this creature dies,
+       each opponent draws a card and gains 2 life."" — the ability on the creature itself, lasting while the counter does (whileCounter) */
+    { re: /^For as long as that creature has an? ([a-z]+) counter on it, it has "([^"]+)"\.?$/i,
+      make: (m) => (grantableText(m[2]) ? { op: 'whileCounter', counter: m[1].toLowerCase(), ef: { grantText: m[2] } } : null) },
+
     // --- removal / zone changes ---
     /* ===== exile that comes back when the jailer leaves ===== */
     { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
@@ -4042,6 +4047,11 @@
     // Imoen, Mystic Trickster: "Draw another card if you've completed a dungeon." (drawAnotherIf)
     { re: /^Draw another card if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[1]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] } : null; } },
+    /* Barrowin of Clan Undurr: "return up to one creature card with mana value 3 or less from your graveyard to the
+       battlefield if you've completed a dungeon." — as it resolves */
+    { re: /^(Return up to one [a-z ]+? card[a-z0-9 ]*? from your graveyard to the battlefield) if (you'?ve completed a dungeon)\.?$/i,
+      make: (m) => { const c = condOf(m[2]); const inner = c && parseEffectSentence(m[1] + '.', 1);
+        return inner && inner.op !== 'manual' && !hasManualStep(inner) ? { op: 'ifCond', cond: c, then: [inner] } : null; } },
     // Barret Wallace, Ghost-Spider, Commander Mustard: "it deals 1 (X) damage to defending player", "deals damage equal to … to defending player" (damageDefending)
     { re: /^(?:It|CARDNAME|This creature) deals (\d+|X) damage to defending player(?:, where X is (.+?))?\.?$/i,
       make: (m) => { const k = m[1] === 'X' ? (m[2] ? amountOf(m[2]) : null) : +m[1]; return k == null || k === false ? null : { op: 'damage', n: k, toDefending: true }; } },
@@ -4451,6 +4461,8 @@
     { re: /^(?:You may )?cast the discarded card without paying its mana cost\.?$/i, make: () => ({ op: 'castFree', from: 'discarded', upTo: 1 }) },
     // Oskar, Rubbish Reclaimer: "Whenever you discard a nonland card, you may cast it from your graveyard." — paying its costs (triggerObj)
     { re: /^(?:You may )?cast it from your graveyard\.?$/i, make: () => ({ op: 'castFree', from: 'triggerObj', pay: true, upTo: 1 }) },
+    // Hildibrand Manderville: "When Hildibrand Manderville dies, you may cast it from your graveyard as an Adventure until the end of your next turn." (graveAdventure)
+    { re: /^(?:You may )?cast it from your graveyard as an Adventure until the end of your next turn\.?$/i, make: () => ({ op: 'graveAdventure' }) },
     { re: /^Each player discards their hand,? then draws seven cards\.?$/i, make: () => ({ op: 'wheel', n: 7 }) },
     { re: /^Each player discards their hand,? then draws cards equal to the greatest number of cards a player discarded this way\.?$/i,
       make: () => ({ op: 'wheel', n: 'mostDiscarded' }) },
@@ -14064,6 +14076,10 @@
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
+    /* Puppet Master, String Puller: "Whenever one or more goaded creatures deal combat damage to one of your opponents," —
+       anyone's goaded creatures, once for each opponent hit (batchPerPlayer, hitYourOpponent) */
+    { re: /^Whenever one or more goaded creatures deal combat damage to one of your opponents,? /i,
+      event: 'permCombatDamage', filt: () => ({ words: 'goaded creature' }), extra: { hitYourOpponent: true, batchPerPlayer: true } },
     /* Nelly Borca, Impulsive Accuser: "Whenever one or more creatures an opponent controls deal combat damage to one or
        more of your opponents," — one for the lot */
     { re: /^Whenever one or more creatures an opponent controls deal combat damage to one or more of your opponents,? /i,
@@ -15636,7 +15652,8 @@
         /* Ardenn, Intrepid Archaeologist: "you may attach any number of …" — none of them is the "no", so the "may"
            is not asked on its own (mayIsAnyNumber) */
         // (Bruna, Light of Alabaster: "you may attach to it any number of Auras …" — attachAurasToSelf)
-        let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && (parsed.effects[0].op === 'attachAnyTo' || parsed.effects[0].op === 'attachAurasToSelf');
+        // (Hildibrand Manderville: "you may cast it … until the end of your next turn" — the "may" is the casting, later: graveAdventure)
+        let anyNumber = optional && parsed.effects.length === 1 && parsed.effects[0] && (parsed.effects[0].op === 'attachAnyTo' || parsed.effects[0].op === 'attachAurasToSelf' || parsed.effects[0].op === 'graveAdventure');
         /* Light-Paws, Emperor's Voice: "you may search your library for an Aura card …" — finding none is the "no", one
            optional pick (mayPick) */
         if (optional && parsed.effects.length === 1 && parsed.effects[0] && parsed.effects[0].op === 'tutor' && parsed.effects[0].attachSelf) {
@@ -18272,6 +18289,10 @@
        instead"; "If another creature would deal combat damage to equipped creature" */
     { re: /^If (enchanted|equipped) creature would deal combat damage(?: to a permanent or player)?, it deals double that damage instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgAttachedDouble', event: 'damage', who: 'any', how: 'double', fromAttached: true, combatOnly: true }) },
+    /* Obosh, the Preypiercer: "If a source you control with an odd mana value would deal damage to a permanent or player,
+       it deals double that damage to that permanent or player instead." (sourceMvParity) */
+    { re: /^If a source you control with an (odd|even) mana value would deal damage to a permanent or player, it deals double that damage to that permanent or player instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgDoubleParity', event: 'damage', who: 'you', how: 'double', sourceMvParity: m[1].toLowerCase() }) },
     // Raphael, the Muscle: "Double all damage that creatures you control with counters on them would deal." (sourceCountered)
     { re: /^Double all damage that creatures you control with counters on them would deal\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgDoubleCountered', event: 'damage', who: 'you', how: 'double', sourceWords: 'creature', sourceCountered: true }) },
