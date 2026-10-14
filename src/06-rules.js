@@ -3345,6 +3345,13 @@
         if (e.words && e.words !== 'spell' && !this._cardFitsWords(o, e.words)) continue;
         d += Number(e.amount) || 0;
       }
+      // Ral, Leyline Prodigy: a change for a while, not from a permanent (costModUntil)
+      const cp = this.player(pid);
+      for (const c of ((cp && cp.costModsUntil) || [])) {
+        if (!this._costModUntilLive(cp, c)) continue;
+        if (c.words && c.words !== 'spell' && !this._cardFitsWords(o, c.words)) continue;
+        d += c.amount;
+      }
       for (const sc of (a.selfCost || [])) {
         let k = 0;
         if (sc.per) k = this._countValue(sc.per, pid, o);
@@ -10152,6 +10159,10 @@
     _beforeNextTurnOf(pid, taken) {
       const p = this.player(pid);
       return !!p && !p.hasLost && (p.turnsTaken || 0) <= taken;
+    }
+    /** Is a cost change for a while (costModUntil) still on: this turn, or until its player's next turn? */
+    _costModUntilLive(p, c) {
+      return c.until === 'yourNextTurn' ? this._beforeNextTurnOf(p.id, c.taken) : c.turn === this.turn;
     }
 
     _replaceMatches(ef, src, ev) {
@@ -17498,6 +17509,8 @@
         }
 
         case 'may': {
+          // Ral, Monsoon Mage: "you may exile Ral" — nothing to ask once he has left (selfHere)
+          if (e.selfHere && !(src && src.zone === 'battlefield')) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
           // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
@@ -20056,6 +20069,8 @@
             if (!c || c.zone !== 'exile' || !whoFor) continue;
             // Chandra, Dressed to Kill: only the red ones
             if (e.color && !(((c.analysis() || {}).colors) || []).includes(e.color)) continue;
+            // Ral, Leyline Prodigy: "instant and sorcery spells from among them" — only those
+            if (e.words && !this._cardFitsWords(c, e.words)) continue;
             const pid = e.who === 'owner' ? c.owner : whoFor;
             // Unlucky Witness: "Until your next end step" — this turn's, if it is theirs and still to come
             const nextEndNow = e.duration === 'nextEnd' && this.activePlayer && this.activePlayer.id === pid && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
@@ -21812,6 +21827,11 @@
         // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
         case 'flashUntilNextTurn':
           me.flashUntil = { setTurn: this.turn, filter: e.filter || null };
+          break;
+        // Ral, Leyline Prodigy: "Until your next turn, instant and sorcery spells you cast cost {1} less to cast."
+        case 'costModUntil':
+          me.costModsUntil = (me.costModsUntil || []).filter(c => this._costModUntilLive(me, c))
+            .concat([{ words: e.words || 'spell', amount: Number(e.amount) || 0, turn: this.turn, until: e.until || 'eot', taken: me.turnsTaken || 0 }]);
           break;
         // Flare of Fortitude: "until end of turn, your life total can't change"
         case 'lifeLockTurn':

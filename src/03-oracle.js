@@ -4408,6 +4408,10 @@
     // Teferi, Time Raveler: "Until your next turn, you may cast sorcery spells as though they had flash."
     { re: /^Until your next turn, you may cast (sorcery|creature|instant and sorcery|noncreature) spells as though they had flash\.?$/i,
       make: (m) => ({ op: 'flashUntilNextTurn', filter: m[1].toLowerCase().replace(' and ', ' or ') }) },
+    // Ral, Leyline Prodigy: "Until your next turn, instant and sorcery spells you cast cost {1} less to cast." (costModUntil)
+    { re: /^(Until your next turn|Until end of turn|This turn), (instant and sorcery |creature |noncreature |artifact |enchantment )?spells you cast cost \{(\d+)\} (less|more) to cast\.?$/i,
+      make: (m) => ({ op: 'costModUntil', words: m[2] ? m[2].trim().toLowerCase().replace(' and ', ' or ') : 'spell',
+        amount: /less/i.test(m[4]) ? -m[3] : +m[3], until: /next turn/i.test(m[1]) ? 'yourNextTurn' : 'eot' }) },
     /* Isochron Scepter, Elite Arcanist, Panoptic Mirror: "(you may) exile an
        instant card with mana value 2 or less from your hand" — kept with
        this permanent, for "the exiled card" later */
@@ -4437,6 +4441,9 @@
     { re: /^Draw a card if an opponent has cast an? (white|blue|black|red|green)(?: or (white|blue|black|red|green))? spell this turn\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'opponentCastColor', colors: [m[1], m[2]].filter(Boolean).map(x => ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[x.toLowerCase()]) },
         then: [{ op: 'draw', n: 1, who: 'you' }] }) },
+    // Ral, Leyline Prodigy: "Draw a card if you control a blue permanent other than Ral." — as it resolves
+    { re: /^Draw (a card|two cards) if (you control .+?)\.?$/i,
+      make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'draw', n: /two/i.test(m[1]) ? 2 : 1, who: 'you' }] } : null; } },
     // Angel's Grace: "You can't lose the game this turn and your opponents can't win the game this turn."
     { re: /^You can'?t lose the game this turn and your opponents can'?t win the game this turn\.?$/i, make: () => ({ op: 'cantLoseTurn' }) },
     // Angel's Grace: "Until end of turn, damage that would reduce your life total to less than 1 reduces it to 1 instead."
@@ -5169,11 +5176,14 @@
        just exiled, playable as it says */
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
-    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|spells from among (?:them|those cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
+    { re: /^(?:(?:Until|Through) (end of turn|the end of your next turn|your next end step|end of your next turn), )?(?:you|its owner|their owner) may (play|cast) (?:that card|those cards|the exiled cards?|that spell|cards exiled this way|it|them|(?:(?:instant and sorcery|instant|sorcery|creature|noncreature|artifact) )?spells from among (?:them|those cards)|one of (?:those cards|them)|(lands and cast spells) from among (?:them|those cards|cards exiled this way))(.*)$/i,
       make: (m) => {
         let rest = m[4].trim().replace(/\.$/, '');
         const e = { op: 'mayPlayExiled', castOnly: /cast/i.test(m[2]) };
         if (/ may (?:play|cast) one of /i.test(m[0])) e.oneOf = true;
+        // Ral, Leyline Prodigy: "You may cast instant and sorcery spells from among them" — only those (words)
+        const kinds = m[0].match(/ may cast (instant and sorcery|instant|sorcery|creature|noncreature|artifact) spells from among /i);
+        if (kinds) e.words = kinds[1].toLowerCase().replace(' and ', ' or ');
         // (Stolen Goods: "until they exile a nonland card. Until end of turn, you may cast that card …" — the one card: thatCard)
         if (/ may (?:play|cast) that card\b/i.test(m[0])) e.thatCard = true;
         if (/^(?:its|their) owner/i.test(m[0].replace(/^[^,]*, /, ''))) e.who = 'owner';
@@ -5190,7 +5200,7 @@
         if (rest) return null;
         if (!dur) {
           // no time given: during this resolution, for nothing (CR 608.2g) — the lands among them played then too
-          return e.free && !e.oneOf ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}) : null;
+          return e.free && !e.oneOf ? Object.assign({ op: 'castFree' }, m[3] ? { lands: true } : {}, e.words ? { filter: e.words } : {}) : null;
         }
         e.duration = dur === 'eot' ? 'eot' : dur === 'exiled' ? 'exiled' : dur === 'nextEnd' ? 'nextEnd' : 'nextTurn';
         return e;
@@ -6658,6 +6668,9 @@
     if (/^creatures? in your party$/i.test(p)) return { party: true, mult: k };
     // Murmuration: "for each spell you've cast this turn"
     if (/^spells? you'?ve cast this turn$/i.test(p)) return { spellsCastThisTurn: true, mult: k };
+    // Ral, Leyline Prodigy: "for each instant and sorcery spell you've cast this turn"
+    if ((m = p.match(/^(instant and sorcery|instant and\/or sorcery|noncreature|creature) spells? you'?ve cast this turn$/i)))
+      return { spellsCastWords: m[1].toLowerCase().replace(/ and(?:\/or)? /, ' or '), mult: k };
     // Titan of Littjara: "for each other creature you control that shares a creature type with it"
     if (/^other creatures? you control that shares? a creature type with (?:it|CARDNAME|this creature)$/i.test(p)) return { sharesTypeOthers: true, mineOnly: true, mult: k };
     // Wolfbriar Elemental, Lightkeeper of Emeria: "for each time it was kicked" (multikicker)
@@ -7653,6 +7666,17 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Ral, Monsoon Mage: "flip a coin. If you lose the flip, Ral deals 1 damage to you. If you win the flip, you may
+       exile Ral. If you do, return him to the battlefield transformed under his owner's control." — not asked once
+       he has gone (selfHere) */
+    { re: /^Flip a coin\. If you lose the flip, ([^.]+\.) If you win the flip, you may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield transformed under (?:its|his|her) owner'?s control\.?$/i,
+      make: (m) => {
+        const lose = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1)));
+        if (!lose.auto) return null;
+        return [{ op: 'flipCoin', otherwise: lose.effects, then: [{ op: 'may', selfHere: true,
+          text: 'You may exile CARDNAME. If you do, return him to the battlefield transformed under his owner\'s control.',
+          prompt: 'Exile CARDNAME and return him to the battlefield transformed?', then: [{ op: 'blinkTransformed', ownerControl: true }] }] }];
+      } },
     /* Rashmi, Eternities Crafter: "reveal the top card of your library. You may cast it without paying its mana cost
        if it's a spell with lesser mana value. If you don't cast it, put it into your hand." — the card revealed, lesser
        than the spell the trigger is about; a land, a costlier card or one not cast goes to the hand (revealedTop) */
@@ -10367,6 +10391,8 @@
       const a = condOf('you control a ' + m[1]), b = condOf('you control a ' + m[2]);
       return a && b ? { kind: 'any', of: [a, b] } : null;
     }],
+    // Ral, Leyline Prodigy: "you control a blue permanent other than Ral" — another one
+    [/^you control an? ([a-zA-Z ,'-]+?) other than CARDNAME$/i, (m) => condOf('you control another ' + m[1])],
     [/^you control (another|an?|one or more) ([a-zA-Z ,'-]+?)$/i, (m) => {
       // ("an artifact creature" is one permanent that is both: only the last of the words is the noun — controlEither)
       const words = m[2].replace(/\b(permanent|creature|artifact|enchantment|land|planeswalker)\b(?!s)(?!\s+(?:permanent|creature|artifact|enchantment|land|planeswalker)\b)/g, '$1s');
@@ -11009,8 +11035,9 @@
       event: 'discardedByOpponent', self: true, extra: { fromGraveyard: true } },
     // Voracious Tome-Skimmer, Dream Spoilers: "Whenever you cast a spell during an opponent's turn"
     // (Gandalf of the Secret Fire: "an instant or sorcery spell from your hand during an opponent's turn")
-    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during an opponent'?s turn,? /i, event: 'youCastSpell',
-      extraOf: (m) => Object.assign({ notYourTurnOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}, m[2] ? { fromHandOnly: true } : {}) },
+    // (Ral, Monsoon Mage: "an instant or sorcery spell during your turn")
+    { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell( from your hand)? during (an opponent'?s|your) turn,? /i, event: 'youCastSpell',
+      extraOf: (m) => Object.assign(/your/i.test(m[3]) ? { yourTurnOnly: true } : { notYourTurnOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}, m[2] ? { fromHandOnly: true } : {}) },
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
     // (Ojer Pakpatiq: "an instant spell", "a sorcery spell"; Jodah, the Unifier: "a legendary spell")
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
@@ -13458,11 +13485,12 @@
     if (eqs && !out.entersWithCounters) out.entersWithCounters = { kind: eqs[1], n: { manaSpent: true } };
     // Diregraf Colossus: "enters with a +1/+1 counter on it for each Zombie card in your graveyard"
     // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two +1/+1 counters on it for each …" — etbEachMore)
-    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
+    // (Ral, Leyline Prodigy: "an additional loyalty counter on him for each instant and sorcery spell you've cast this turn")
+    const etbEach = text.match(/(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (an?|an additional|two|three) ([+\-0-9/a-z]+) counters? on (?:it|him|her|them) for each ([^.]+?)\./i);
     if (etbEach && !out.entersWithCounters && !/mana spent/i.test(etbEach[3])) {
       const c = countOf(etbEach[3]);
-      const k = /^an?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
-      if (c && plainCount(c)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
+      const k = /^an?(?: additional)?$/i.test(etbEach[1]) ? 1 : num(etbEach[1]);
+      if (c && (plainCount(c) || c.spellsCastWords)) out.entersWithCounters = { kind: etbEach[2], n: { count: k === 1 ? c : Object.assign({}, c, { mult: (c.mult || 1) * k }) } };
     }
     if (out.keywordSet.has('sunburst') && !out.entersWithCounters) out.entersWithCounters = { kind: out.isCreature ? '+1/+1' : 'charge', n: { colorsSpent: true } };
     // Ulamog, the Defiler: "enters with a number of +1/+1 counters on it equal to the greatest mana value among cards in exile" (etbEqualTo)
@@ -15995,8 +16023,8 @@
          card-level scan found; this rule is here so the sentence that says
          so counts as read rather than as a line nobody could parse. */
       // (Michelangelo, On the Scene: "on him"; The Swarmlord: "two … counters on it for each" — etbEachMore)
-      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
-        make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
+      { re: /^(?:CARDNAME|This creature|This artifact) enters(?: the battlefield)? with (?:an?|an additional|two|three) [+\-0-9/a-z]+ counters? on (?:it|him|her|them) for each ([^.]+?)\.?$/i,
+        make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read

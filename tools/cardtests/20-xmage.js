@@ -29711,4 +29711,88 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Unsummon'), { targets: [bear2.id] });
     t.zone(bear2, 'hand', 'Athreos: bounced, it stays in the hand');
   });
+
+  test('Commanders: Ral, Monsoon Mage — a flip for each instant or sorcery on A\'s turn: 1 damage, or exiled and back as Ral, Leyline Prodigy', (mk, t) => {
+    t.auto('Ral, Monsoon Mage // Ral, Leyline Prodigy');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const ral = M.bf('A', 'Ral, Monsoon Mage');
+    // {1} less: Divination for {1}{U}; a lost flip, 1 damage to A
+    g.rng.chance = () => false;
+    M.mana('A', '1U');
+    M.cast('A', M.hand('A', 'Divination'));
+    t.eq(M.life('A'), 19, 'Ral: a lost flip, 1 damage to A');
+    t.eq(g.zones.A.hand.length, 2, 'Ral: Divination for {1}{U}');
+    t.eq(ral.face || 0, 0);
+    // on B's turn: no flip
+    M.nextTurn('B');
+    const coins = []; g.on('coin', (c) => coins.push(c));
+    g.passPriority('B', true);
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Opt'));
+    t.eq(coins.length, 0, "Ral: not on B's turn");
+    // a won flip, declined: Ral stays
+    M.nextTurn('A');
+    g.rng.chance = () => true;
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Opt'));
+    t.eq(ral.zone, 'battlefield');
+    t.eq(ral.face || 0, 0, 'Ral: declined, still the creature');
+    t.eq(M.life('A'), 19);
+    // won again: exiled and back transformed, with a loyalty counter more for each of the two spells this turn
+    let asked = null;
+    M.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Opt'));
+    t.ok(asked && /Exile Ral, Monsoon Mage/.test(asked.prompt), 'Ral: asked whether to exile him');
+    const pw = g.battlefield.find(o => o.controller === 'A' && /Ral/.test(o.name));
+    t.ok(pw && pw.face === 1, 'Ral: back transformed');
+    t.ok(pw.analysis().isPlaneswalker);
+    t.eq(pw.counters.loyalty, 4, 'Ral, Leyline Prodigy: 2 and one for each of two instants this turn');
+    // +1: until A's next turn, instant and sorcery spells cost {1} less
+    M.activate('A', pw, 0);
+    t.eq(pw.counters.loyalty, 5);
+    const div = M.hand('A', 'Divination');
+    t.eq(g.castCost(div), '{1}{U}', 'Ral, Leyline Prodigy: {1} less');
+    t.eq(g.castCost(M.hand('A', 'Grizzly Bears')), '{1}{G}', 'Ral, Leyline Prodigy: not a creature spell');
+    M.nextTurn('B');
+    t.eq(g.castCost(div), '{1}{U}', "Ral, Leyline Prodigy: still on B's turn");
+    t.eq(g.castCost(M.hand('B', 'Divination')), '{2}{U}', "Ral, Leyline Prodigy: not B's spells");
+    M.nextTurn('A');
+    t.eq(g.castCost(div), '{2}{U}', "Ral, Leyline Prodigy: over at A's next turn");
+    // −2: 2 damage divided, a card drawn only with another blue permanent
+    const h0 = g.zones.A.hand.length;
+    M.activate('A', pw, 1, { targets: ['B'], divide: [2] });
+    t.eq(M.life('B'), 18, 'Ral, Leyline Prodigy: 2 damage to B');
+    t.eq(g.zones.A.hand.length, h0, 'Ral, Leyline Prodigy: no other blue permanent, no card');
+    M.nextTurn('A');
+    M.bf('A', 'Coral Merfolk');
+    const bear = M.bf('B', 'Grizzly Bears');
+    const h1 = g.zones.A.hand.length;
+    M.activate('A', pw, 1, { targets: ['B', bear.id], divide: [1, 1] });
+    t.eq(M.life('B'), 17);
+    t.eq(bear.damage, 1, 'Ral, Leyline Prodigy: 1 to the Grizzly Bears');
+    t.eq(g.zones.A.hand.length, h1 + 1, 'Ral, Leyline Prodigy: a blue permanent, a card drawn');
+    // −8: the top eight exiled; the instants and sorceries among them free this turn
+    M.nextTurn('A');
+    pw.counters.loyalty = 8;
+    const late = M.top('A', 'Lightning Bolt');
+    const bolt = M.top('A', 'Lightning Bolt');
+    const bears = M.top('A', 'Grizzly Bears');
+    const dv = M.top('A', 'Divination');
+    M.activate('A', pw, 2);
+    t.zone(bolt, 'exile'); t.zone(bears, 'exile'); t.zone(dv, 'exile');
+    t.ok(pw.zone !== 'battlefield', 'Ral, Leyline Prodigy: no loyalty left');
+    M.cast('A', dv, { via: 'free' });
+    t.zone(dv, 'graveyard', 'Ral, Leyline Prodigy: Divination cast for nothing');
+    M.cast('A', bolt, { targets: ['B'], via: 'free' });
+    t.eq(M.life('B'), 14, 'Ral, Leyline Prodigy: Lightning Bolt cast for nothing');
+    t.no(g.castSpell('A', bears.id, { auto: true, via: 'free' }), 'Ral, Leyline Prodigy: not a creature card');
+    // next turn, no longer
+    t.zone(late, 'exile');
+    M.nextTurn('A');
+    M.mana('A', 'R');
+    t.no(g.castSpell('A', late.id, { auto: true, via: 'free', targets: [{ kind: 'player', id: 'B' }] }), 'Ral, Leyline Prodigy: only this turn');
+  });
 };
