@@ -3771,6 +3771,16 @@
       if (a.isCreature && o.zone !== 'battlefield' && this._anyStaticOf(o.owner, 'everyTypeElsewhere')) return true;
       if (o.zone === 'battlefield' && this.hasKw(o, 'changeling')) return true;
       const t = String(type).toLowerCase();
+      /* Roshan, Hidden Magister: "creature spells you control and creature cards you own that aren't on the battlefield"
+         are Assassins too (typeElsewhere) */
+      if (a.isCreature && o.zone !== 'battlefield') {
+        const who = o.zone === 'stack' ? (o.controller || o.owner) : o.owner;
+        for (const src of this._withEmblems(this.battlefield)) {
+          if (src.controller !== who || src.phasedOut || src === o) continue;
+          const te = this._staticOp(src, 'typeElsewhere');
+          if (te && String(te.type).toLowerCase() === t) return true;
+        }
+      }
       return (a.subtypes || []).some(x => x.toLowerCase() === t);
     }
 
@@ -4084,6 +4094,9 @@
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
+      // Haakon, Stromgald Scourge: "You may cast this card from your graveyard, but not from anywhere else." (onlyHere)
+      if (o.zone !== 'graveyard' && (a.abilities || []).some(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && x.onlyHere)))
+        return { ok: false, reason: `${o.name} can be cast only from a graveyard.` };
       // Oathbreaker: the Signature Spell only while its Oathbreaker is on the battlefield
       if (o.isSignature && o.zone === 'command' && !this._oathbreakerOut(o.owner))
         return { ok: false, reason: 'A Signature Spell can be cast only while its Oathbreaker is on the battlefield.' };
@@ -5641,6 +5654,19 @@
         else if (k === 'squad') out.push({ kind: 'squad', cost: ab.arg, label: 'Squad ' + ab.arg });
         else if (k === 'casualty') out.push({ kind: 'casualty', n: parseInt(ab.arg, 10) || 1,
           cost: '', label: 'Casualty ' + ab.arg });
+      }
+      /* Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them." — from a permanent of
+         the caster's (grantCastKeyword offspring); one offspring is all the table pays for */
+      if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'offspring')) {
+        const caster = o.controller || o.owner;
+        for (const src of this.battlefield) {
+          if (src.controller !== caster || src.phasedOut) continue;
+          const g = this._staticOp(src, 'grantCastKeyword');
+          if (!g || g.keyword !== 'offspring' || !g.cost) continue;
+          if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
+          out.push({ kind: 'offspring', cost: g.cost, label: 'Offspring ' + g.cost });
+          break;
+        }
       }
       /* Spree: the modes are the extra costs, and at least one is bought. */
       if (a.spreeModes && a.spreeModes.length) {
@@ -26806,6 +26832,16 @@
         if (sc.minPower != null && pw < sc.minPower) return false;
         if (sc.maxPower != null && pw > sc.maxPower) return false;
       }
+      /* Zinnia, Valley's Voice: "with base power 1" — what 7a and 7b make it; while the layers are being worked out, its
+         printed power or the latest power an effect set it to (basePower) */
+      if (sc.basePower != null) {
+        let bp;
+        if (inLayers) {
+          const sets = (o.effects || []).filter(e => e && e.setPt && typeof e.setPt.p === 'number');
+          bp = sets.length ? sets[sets.length - 1].setPt.p : (parseInt(oa.power, 10) || 0);
+        } else bp = (this.characteristics(o) || {}).basePower || 0;
+        if (bp !== sc.basePower) return false;
+      }
       // Plagon, Lord of the Beach: "with toughness greater than its power"
       if (sc.toughGtPow) {
         const pw = inLayers ? (parseInt(oa.power, 10) || 0) : this.powerOf(o);
@@ -28751,7 +28787,9 @@
         // historic: legendary, an artifact, or a Saga
         if (w === 'historic') return !!a.isLegendary || !!a.isArtifact || (a.subtypes || []).includes('Saga');
         // an outlaw: an Assassin, Mercenary, Pirate, Rogue or Warlock
-        if (w === 'outlaw' || w === 'outlaws') return (a.subtypes || []).some(t => ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock'].includes(t.toLowerCase())) || !!(a.keywordSet && a.keywordSet.has('changeling'));
+        if (w === 'outlaw' || w === 'outlaws') return (a.subtypes || []).some(t => ['assassin', 'mercenary', 'pirate', 'rogue', 'warlock'].includes(t.toLowerCase())) || !!(a.keywordSet && a.keywordSet.has('changeling')) ||
+          // (Roshan, Hidden Magister: your creature cards elsewhere are Assassins)
+          (!!a.isCreature && o.zone !== 'battlefield' && this._hasCreatureType(o, 'assassin'));
         if (w === 'token' || w === 'tokens') return !!o.isToken;
         // Flamekin Herald: "Commander spells you cast"
         if (w === 'commander' || w === 'commanders') return !!o.isCommander;
@@ -28781,6 +28819,9 @@
         // (Valley Questcaller: "Mice" are Mouse creatures)
         const alt = w === 'plains' ? w : w === 'mice' ? 'mouse' : w.replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/oes$/, 'o');
         if (types.includes(w) || types.includes(bare) || types.includes(alt) || new RegExp('\\b' + bare + 's?\\b').test(line)) return true;
+        /* Roshan, Hidden Magister, Maskwood Nexus: a creature card or spell given a type wherever it is ("an Assassin
+           card", "an outlaw") */
+        if (a.isCreature && o.zone !== 'battlefield' && [w, bare, alt].some(x => CREATURE_TYPES_LOWER.has(x) && this._hasCreatureType(o, x))) return true;
         // a changeling is every creature type, wherever it is (CR 702.73a): "a Goblin card", "if it was a Human"
         return !!(a.keywordSet && a.keywordSet.has('changeling')) && [w, bare, alt].some(x => CREATURE_TYPES_LOWER.has(x));
       };

@@ -12324,6 +12324,10 @@
     // Kediss: "Whenever a commander you control deals combat damage to an opponent"
     { re: /^Whenever a commander you control deals combat damage to an opponent,? /i, event: 'yourCreatureCombatDamage', extra: { commanderOnly: true } },
     { re: /^When(?:ever)? a creature you control deals combat damage to an opponent,? /i, event: 'yourCreatureCombatDamage' },
+    /* Captain America, Living Legend: "Whenever a creature you control becomes tapped during your turn, if it's the first
+       time that creature has become tapped this turn" (yourTurnOnly, firstTapEachTurn) */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + " becomes tapped during your turn, if it'?s the first time that creature has become tapped this turn,? ", 'i'),
+      event: 'becomesTapped', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true, firstTapEachTurn: true } },
     // Magda: "Whenever a Dwarf you control becomes tapped"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
@@ -15287,6 +15291,8 @@
       if (/type/i.test(chosen[1])) sc.chosenType = true; else sc.chosenColor = true;
       rest = rest.replace(/ of the chosen (?:type|colou?r)\b/i, '');
     }
+    // Zinnia, Valley's Voice: "other creatures you control with base power 1" (basePower)
+    if ((mm0 = rest.match(/ with base power (\d+)$/i))) { sc.basePower = +mm0[1]; rest = rest.slice(0, mm0.index); }
     // who controls them
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
@@ -16991,6 +16997,12 @@
           if (m[2] && !cond) return { op: 'manual' };
           return Object.assign({ op: 'castSelfFromGraveyard' }, m[1] ? { exile: true } : {}, cond ? { cond } : {});
         }, auto: true },
+      // Haakon, Stromgald Scourge: "You may cast this card from your graveyard, but not from anywhere else." (onlyHere)
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard, but not from anywhere else\.?$/i, eff: { op: 'castSelfFromGraveyard', onlyHere: true }, auto: true },
+      /* Haakon, Stromgald Scourge: "As long as Haakon is on the battlefield, you may cast Knight spells from your
+         graveyard." — standing leave from a permanent, which is only there while it is */
+      { re: /^As long as (?:CARDNAME|this creature) is on the battlefield, you may cast ([A-Z][a-z]+) spells from your graveyard\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'spell', filter: m[1].toLowerCase() }), auto: true },
       // Eternal Scourge, Misthollow Griffin: "You may cast this card from exile."
       { re: /^You may cast (?:this card|CARDNAME) from exile\.?$/i, eff: { op: 'castSelfFromGraveyard', exile: true, exileOnly: true }, auto: true },
       /* Squee, Dubious Monarch: "You may cast this card from your graveyard by paying {3}{R} and exiling four other
@@ -17007,6 +17019,12 @@
           { op: 'continuous', layer: 4, scope: { attached: true }, addSubtypes: [m[2]] }] }), auto: true },
       { re: /^(?:This artifact|CARDNAME|This permanent) enters with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) [a-z]+ counters? on it\.?$/i,
         eff: { op: 'noop' }, auto: true },
+      /* Roshan, Hidden Magister: "Other creatures you control are Assassins in addition to their other types. The same
+         is true for creature spells you control and creature cards you own that aren't on the battlefield." (typeElsewhere) */
+      { re: /^Other creatures you control are ([A-Z][a-z]+) in addition to their other types\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/,
+        make: (m) => { const ty = U.titleCase(singularType(m[1])); return { op: 'sequence', list: [
+          { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature', other: true }, addSubtypes: [ty] },
+          { op: 'typeElsewhere', type: ty }] }; }, auto: true },
       /* Maskwood Nexus: every creature type, on the battlefield and off it */
       { re: /^Creatures you control are every creature type\. The same is true for creature spells you control and creature cards you own that aren'?t on the battlefield\.?$/i,
         make: () => ({ op: 'sequence', list: [
@@ -17061,6 +17079,9 @@
       // Party Thrasher: "Noncreature spells you cast from exile have convoke."
       { re: /^([A-Za-z ]*?)spells you cast from exile have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell', fromZones: ['exile'] }), auto: true },
+      // Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them."
+      { re: /^(Creature )spells you cast gain offspring ((?:\{[^}]+\})+) as you cast them\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'offspring', cost: m[2], filter: m[1].trim().toLowerCase() }), auto: true },
       { re: /^([A-Za-z ]*?)spells you cast have (convoke|improvise|delve)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: m[2].toLowerCase(), filter: m[1].trim().toLowerCase() || 'spell' }), auto: true },
       // Tezzeret, Master of the Bridge: "Creature and planeswalker spells you cast have affinity for artifacts."
