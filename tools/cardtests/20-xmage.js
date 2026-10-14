@@ -30110,4 +30110,39 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Shock'), { targets: ['C'] });
     t.eq(treasures(), 3, 'Malcolm: Shock is no Pirate');
   });
+
+  test('Commanders: Éowyn, Fearless Knight — exile a creature with greater power; legendary creatures gain protection from its colors', (mk, t) => {
+    t.auto('Éowyn, Fearless Knight');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const giant = M.bf('B', 'Hill Giant');
+    const rhino = M.bf('B', 'Siege Rhino');
+    const bear = M.bf('A', 'Grizzly Bears');
+    let offered = null;
+    M.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: rhino.id }] }; });
+    M.mana('A', '2RW');
+    M.cast('A', M.hand('A', 'Éowyn, Fearless Knight'));
+    const eow = M.bfOf('A').find(o => o.name === 'Éowyn, Fearless Knight');
+    t.ok(eow, 'Éowyn: on the battlefield');
+    if (offered) {
+      const ids = JSON.stringify(offered);
+      t.no(ids.includes(giant.id), 'Éowyn: Hill Giant has no greater power');
+    }
+    t.zone(rhino, 'exile', 'Éowyn: Siege Rhino exiled');
+    t.zone(giant, 'battlefield');
+    t.ok(g.hasKw(eow, 'protection from white') && g.hasKw(eow, 'protection from black') && g.hasKw(eow, 'protection from green'),
+      "Éowyn: protection from each of the Rhino's colors");
+    t.no(g.hasKw(eow, 'protection from red'));
+    t.no(g.hasKw(bear, 'protection from green'), 'Éowyn: Grizzly Bears is not legendary');
+    // the next turn: gone
+    M.nextTurn('B');
+    t.no(g.hasKw(eow, 'protection from green'), 'Éowyn: until end of turn');
+    // only a 3-power creature about: nothing to target, nothing asked
+    const M2 = mk({ library: Array(30).fill('Island') });
+    const giant2 = M2.bf('B', 'Hill Giant');
+    M2.mana('A', '2RW');
+    M2.cast('A', M2.hand('A', 'Éowyn, Fearless Knight'));
+    t.no(M2.asked.some(ch => ch.type === 'pickTarget'), 'Éowyn: no creature with greater power, no question');
+    t.zone(giant2, 'battlefield', 'Éowyn: Hill Giant stays');
+  });
 };

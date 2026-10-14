@@ -12555,6 +12555,8 @@
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
         o._lastBasePower = lc ? lc.basePower : 0;
+        // Éowyn, Fearless Knight: "each of that creature's colors" after it has gone
+        o._lastColors = ((was || {}).colors || []).slice();
         // Sarkhan, Soul Aflame: "become a copy of it" after it has gone — its copiable values as it last was
         o._lkiCard = { card: o.card, face: o.face || 0 };
         // Barrin, Tolarian Archmage: a permanent put into its owner's hand this turn (bouncedToHand)
@@ -15527,6 +15529,19 @@
           break;
         }
         // Brave the Elements: protection from the colour just chosen
+        /* Éowyn, Fearless Knight: "gain protection from each of that creature's colors" — the target's, as it last was
+           if it has gone */
+        case 'grantProtColorsOf': {
+          const tP = targets.find(t => t.kind === 'object');
+          const xP = tP && this.obj(tP.id);
+          const colsP = !xP ? [] : xP.zone === 'battlefield' ? ((xP.analysis() || {}).colors || []) : (xP._lastColors || []);
+          const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+          const kwsP = colsP.map(c => NAMES[c]).filter(Boolean).map(c => 'Protection From ' + c);
+          if (!kwsP.length) break;
+          for (const o of this._scopeList(e.scope, ctx.controller, src)) o.effects.push({ keywords: kwsP, until: 'eot' });
+          this.bumpBoard();
+          break;
+        }
         case 'grantProtChosen': {
           const col = ctx.chosenColor || (src && src.chosenColor);
           const NAME = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[col];
@@ -26329,6 +26344,13 @@
       if (spec.maxMvCount) {
         const s0 = sourceId && this.obj(sourceId);
         return this._legalTargetsFor(Object.assign({}, spec, { maxMvCount: null, maxMv: Math.max(0, this._countValue(spec.maxMvCount, controllerId, s0 || null)) }), controllerId, sourceId);
+      }
+      // Éowyn, Fearless Knight: "with greater power" — than the source's, as it is now (or as it last was)
+      if (spec.greaterPowerThanSource) {
+        const sG = sourceId && this.obj(sourceId);
+        const pG = !sG ? 0 : sG.zone === 'battlefield' ? this.powerOf(sG) : (sG._lastPower || 0);
+        return this._legalTargetsFor(Object.assign({}, spec, { greaterPowerThanSource: false }), controllerId, sourceId)
+          .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && this.powerOf(x) > pG; });
       }
       // Pain for All: "any other target" — not the creature this Aura enchants
       if (spec.notAttached && sourceId) {

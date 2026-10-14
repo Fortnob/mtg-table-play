@@ -3846,6 +3846,9 @@
     { re: /^Destroy all ([a-z]+s) with power greater than or equal to the chosen number\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), minPower: 'chosen' }) },
     { re: /^Choose a number between (\d+) and (\d+)\.?$/i, make: (m) => ({ op: 'chooseNumberNow', min: +m[1], max: +m[2] }) },
+    // Éowyn, Fearless Knight: "Legendary creatures you control gain protection from each of that creature's colors until end of turn."
+    { re: /^([a-z ]*creatures you control) gain protection from each of that creature'?s colou?rs until end of turn\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'grantProtColorsOf', scope: sc, duration: 'eot' } : null; } },
     // Brave the Elements: "White creatures you control gain protection from the chosen color until end of turn."
     { re: /^((?:white |blue |black |red |green )?creatures you control) gain protection from the chosen colou?r until end of turn\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'grantProtChosen', scope: sc, duration: 'eot' } : null; } },
@@ -7034,6 +7037,9 @@
     // Cathedral Acolyte: "target creature that entered this turn"
     const enteredNow = /\s+that entered (?:the battlefield )?this turn$/i.test(String(phrase));
     if (enteredNow) phrase = String(phrase).replace(/\s+that entered (?:the battlefield )?this turn$/i, '');
+    // Éowyn, Fearless Knight: "target creature an opponent controls with greater power" — than the source's (greaterPowerThanSource)
+    const greaterPow = /\s+with greater power$/i.test(String(phrase));
+    if (greaterPow) phrase = String(phrase).replace(/\s+with greater power$/i, '');
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
        Tinder Wall, Wall of Corpses: "target creature it's (this creature is) blocking" */
     const blockingSelf = /\s+blocking (?:it|this creature|CARDNAME)$/i.test(String(phrase));
@@ -7070,6 +7076,7 @@
     if (hasX) spec.hasXCost = true;
     if (colored) spec.colored = true;
     if (enteredNow) spec.enteredThisTurn = true;
+    if (greaterPow) spec.greaterPowerThanSource = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
     if (tapAb) spec.hasTapAbility = true;
