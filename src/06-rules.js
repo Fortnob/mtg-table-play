@@ -6576,7 +6576,6 @@
         if (!o || o.zone !== 'battlefield' || o.controller === item.controller) continue;
         for (const arg of this._wardCosts(o)) {
         if (item.countered) break;
-        const caster = this.player(item.controller);
         const w = O.wardPrice(arg);
         // (a price the table can't take leaves the card to its players: the reading says so)
         if (!w) continue;
@@ -6589,59 +6588,211 @@
           });
           continue;
         }
-        // (Raubahn, Bull of Ala Mhigo: "Pay life equal to Raubahn's power")
-        const life = w.lifePower ? Math.max(0, this.powerOf(o)) : w.life || 0;
-        // life can be paid only with that much life to pay (CR 119.4)
-        if (life && caster.life < life) {
-          item.countered = true;
-          this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} can't pay ${life} life.`);
-          continue;
-        }
-        // Axebane Ferox: "Ward—Collect evidence 4" — the biggest cards first, so as few go as can
-        if (w.evidence) {
-          if (this._evidenceTotal(item.controller, null) >= w.evidence && this._collectEvidence(item.controller, w.evidence, null)) {
-            this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
-          } else {
-            item.countered = true;
-            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not collect evidence ${w.evidence}.`);
-            continue;
-          }
-        }
-        // The Unagi of Kyoshi Island: "Ward—Waterbend {4}" — mana, or artifacts and creatures tapped for {1} each
-        if (w.waterbend) {
-          const plan = this._waterbendPlan(item.controller, null, {}, w.waterbend);
-          if (plan && plan.tap.length) {
-            for (const x of plan.tap) this._markTapped(x);
-            this.logEvent('rules', `${caster.name} waterbends, tapping ${plan.tap.map(x => x.name).join(', ')}.`);
-          }
-          if (plan && (!plan.mana || this.payMana(item.controller, plan.mana, { auto: true }))) {
-            this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
-          } else {
-            item.countered = true;
-            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not waterbend ${w.waterbend}.`);
-            continue;
-          }
-        }
-        if (w.mana) {
-          if (this.payMana(item.controller, w.mana, { auto: true })) {
-            this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
-          } else {
-            item.countered = true;
-            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not pay ${w.mana}.`);
-            continue;
-          }
-        }
-        if (life) {
-          this.changeLife(item.controller, -life, 'ward');
-          this.logEvent('ward', `${caster.name} pays ${life} life for ${o.name}'s ward.`);
-        }
-        if (w.poison) {
-          // (a price paid, not counters an effect puts: nothing replaces it)
-          this.logEvent('ward', `${caster.name} pays ${o.name}'s ward with poison counters.`);
-          this.addPoison(caster, w.poison, null);
-        }
+        if (!this._payWardPrice(item.controller, o, w, item.name)) item.countered = true;
         }
       }
+    }
+
+    /** Pay a ward price that is not a choice (mana, life, poison, evidence, waterbend) for `name`, the spell or
+        ability it would counter: true when paid; false, said in the log, when it could not be. */
+    _payWardPrice(pid, o, w, name) {
+      const caster = this.player(pid);
+      // (Raubahn, Bull of Ala Mhigo: "Pay life equal to Raubahn's power")
+      const life = w.lifePower ? Math.max(0, this.powerOf(o)) : w.life || 0;
+      // life can be paid only with that much life to pay (CR 119.4)
+      if (life && caster.life < life) {
+        this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} can't pay ${life} life.`);
+        return false;
+      }
+      // Axebane Ferox: "Ward—Collect evidence 4" — the biggest cards first, so as few go as can
+      if (w.evidence) {
+        if (this._evidenceTotal(pid, null) >= w.evidence && this._collectEvidence(pid, w.evidence, null)) {
+          this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+        } else {
+          this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not collect evidence ${w.evidence}.`);
+          return false;
+        }
+      }
+      // The Unagi of Kyoshi Island: "Ward—Waterbend {4}" — mana, or artifacts and creatures tapped for {1} each
+      if (w.waterbend) {
+        const plan = this._waterbendPlan(pid, null, {}, w.waterbend);
+        if (plan && plan.tap.length) {
+          for (const x of plan.tap) this._markTapped(x);
+          this.logEvent('rules', `${caster.name} waterbends, tapping ${plan.tap.map(x => x.name).join(', ')}.`);
+        }
+        if (plan && (!plan.mana || this.payMana(pid, plan.mana, { auto: true }))) {
+          this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+        } else {
+          this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not waterbend ${w.waterbend}.`);
+          return false;
+        }
+      }
+      if (w.mana) {
+        if (this.payMana(pid, w.mana, { auto: true })) {
+          this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+        } else {
+          this.logEvent('ward', `${name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not pay ${w.mana}.`);
+          return false;
+        }
+      }
+      if (life) {
+        this.changeLife(pid, -life, 'ward');
+        this.logEvent('ward', `${caster.name} pays ${life} life for ${o.name}'s ward.`);
+      }
+      if (w.poison) {
+        // (a price paid, not counters an effect puts: nothing replaces it)
+        this.logEvent('ward', `${caster.name} pays ${o.name}'s ward with poison counters.`);
+        this.addPoison(caster, w.poison, null);
+      }
+      return true;
+    }
+
+    /** What a ward that asks for cards or permanents could be paid with: the payer's cards in hand of the kind it
+        names, or their permanents of that kind that can be sacrificed. */
+    _wardChoicePool(pid, w) {
+      const words = String(w.words || (w.discard ? 'card' : 'permanent'));
+      return w.discard ? this.zones[pid].hand.filter(x => words === 'card' || this._cardFitsWords(x, words))
+        : this.battlefield.filter(x => !x.phasedOut && x.controller === pid && this._cardFitsWords(x, words) && this._canSacrifice(x));
+    }
+
+    /** Ask the player paying a ward whose price is a choice ("Discard a card", "Sacrifice three nonland permanents")
+        what they give up, or whether to discard at random; `what` is the spell or ability it would counter. Returns
+        SUSPEND while the question waits, null when it can't be paid or they let it be countered, or what was
+        chosen ({ ids } or { random: true }) for _wardPayChosen. */
+    _wardAskChoice(pid, w, wardName, what, sub, about) {
+      const need = w.discard || w.sacrifice || 1;
+      const pool = this._wardChoicePool(pid, w);
+      if (pool.length < need) return null;
+      if (w.random) {
+        const yes = this._ask(Object.assign({ type: 'confirm', playerId: pid, purpose: 'wardPay' }, about || {}, {
+          prompt: `${wardName}: discard ${need === 1 ? 'a card' : need + ' cards'} at random, or ${what} is countered?`,
+          yesLabel: 'Discard at random', noLabel: `Let ${what} be countered` }), sub + 'Random');
+        if (yes === SUSPEND) return SUSPEND;
+        return yes ? { random: true } : null;
+      }
+      const got = this._choose(Object.assign({ playerId: pid, purpose: 'wardPay', kind: 'objects', zone: w.discard ? 'hand' : 'battlefield',
+        items: this._chooseItems(pool), min: 0, max: need, prefer: 'worst' }, about || {}, {
+        prompt: `${wardName} \u2014 ${w.text || (w.discard ? 'Discard a card' : 'Sacrifice a permanent')}. Choose ${need === 1 ? 'one' : need}, or ${what} is countered.` }), sub);
+      if (got === SUSPEND) return SUSPEND;
+      const ids = ((got && got.picks) || []).filter(id => pool.some(x => x.id === id));
+      return ids.length === need ? { ids } : null;
+    }
+
+    /** Give up what _wardAskChoice chose, if it is all still there to give: true when the ward is paid. */
+    _wardPayChosen(pid, w, got) {
+      const need = w.discard || w.sacrifice || 1;
+      const pool = this._wardChoicePool(pid, w);
+      let xs;
+      if (got && got.random) {
+        const left = pool.slice();
+        xs = [];
+        while (xs.length < need && left.length) xs.push(left.splice(Math.floor(this.rng.next() * left.length), 1)[0]);
+      } else xs = ((got && got.ids) || []).map(id => pool.find(x => x.id === id)).filter(Boolean);
+      if (xs.length !== need) return false;
+      if (w.discard) this._discardNow(pid, xs); else this._sacrificeNow(pid, xs, null);
+      return true;
+    }
+
+    /** The ward price in words, for the question: "{2}", "Pay 3 life", "Collect evidence 4". */
+    _wardPriceWords(o, arg, w) {
+      if (w.lifePower) return `Pay ${Math.max(0, this.powerOf(o))} life (${o.name}'s power)`;
+      return String(arg).replace(/\.$/, '').replace(/^(\{[^}]+\}(?:\{[^}]+\})*),\s*[a-z]+(?: [a-z]+)?$/i, '$1');
+    }
+
+    /** Can `pid` pay this ward price now? (A choice is asked only when there is enough to choose from.) */
+    _wardPayable(pid, o, w) {
+      const p = this.player(pid);
+      if (!p || p.hasLost) return false;
+      const life = w.lifePower ? Math.max(0, this.powerOf(o)) : w.life || 0;
+      if (life && p.life < life) return false;
+      if (w.evidence && this._evidenceTotal(pid, null) < w.evidence) return false;
+      if (w.waterbend && !this._waterbendPlan(pid, null, {}, w.waterbend)) return false;
+      if (w.mana && !this.couldPay(pid, w.mana, this.manaSources(pid))) return false;
+      if ((w.discard || w.sacrifice) && this._wardChoicePool(pid, w).length < (w.discard || w.sacrifice)) return false;
+      return true;
+    }
+
+    /**
+     * Ward on targets chosen as a spell or ability resolves (CR 702.21a). The rules choose a triggered ability's
+     * targets as it is put on the stack (CR 603.3d), so that ward triggers and resolves first; this engine chooses
+     * them as the ability resolves (and a mode's as the spell resolves), so ward is done here instead, as soon as
+     * the targets are chosen and before anything is done to them: each ward of each opponent's permanent newly
+     * targeted is paid by the controller of the spell or ability, asked with the whole price, or the spell or
+     * ability is countered and nothing more of it happens. Returns SUSPEND while a question waits, true when it
+     * was countered, false when it goes on.
+     */
+    _wardOnResolve(ctx, targets, sub) {
+      const r = this.resolving;
+      if (!r || !ctx || (ctx.kind !== 'ability' && ctx.kind !== 'spell')) return false;
+      const rc = r.ctx || ctx;
+      const doneKey = r.index + ':' + sub + ':ward';
+      // (already settled for these targets: an effect asked something later and is running again)
+      if (Object.prototype.hasOwnProperty.call(r.answers, doneKey)) return r.answers[doneKey] === 'countered';
+      const pid = rc.controller;
+      const payer = this.player(pid);
+      if (!payer) return false;
+      const opp = new Set(this.opponentsOf(pid).map(q => q.id));
+      // a permanent becomes the target of one spell or ability once, however many of its sentences point at it
+      // (what it was aimed at as it was cast or activated met ward then: _applyWard)
+      const seen = (rc._wardSeen || []).concat((rc.targets || []).filter(t => t && t.kind === 'object').map(t => t.id));
+      const wards = [];
+      for (const t of (targets || [])) {
+        const o = t && t.kind === 'object' ? this.obj(t.id) : null;
+        if (!o || o.zone !== 'battlefield' || !opp.has(o.controller) || seen.includes(o.id)) continue;
+        seen.push(o.id);
+        for (const arg of this._wardCosts(o)) {
+          const w = O.wardPrice(arg);
+          // (a price the table can't take leaves the card to its players: the reading says so)
+          if (w) wards.push({ o, arg, w });
+        }
+      }
+      if (!wards.length) return false;
+      const srcObj = rc.obj || (rc.objId && this.obj(rc.objId));
+      const what = rc.kind === 'spell' ? rc.name : srcObj ? `${srcObj.name}'s ability` : 'the ability';
+      // first every ward is asked (an answer is kept, so a question asked again finds it), then every price paid
+      const answers = [];
+      let failed = null;
+      for (let k = 0; k < wards.length; k++) {
+        const { o, arg, w } = wards[k];
+        const wardName = `${o.name}'s ward`;
+        const about = { objId: o.id, sourceId: o.id, sourceName: o.name,
+          // (a face-down creature's ward, disguise's {2}, shows no more of it than its back)
+          sourceCard: o.faceDown ? null : o.card || null, sourceText: `Ward—${arg}` };
+        if (!this._wardPayable(pid, o, w)) { failed = { o, why: `${payer.name} can't pay ${this._wardPriceWords(o, arg, w)}` }; break; }
+        let got;
+        if (w.discard || w.sacrifice) {
+          got = this._wardAskChoice(pid, Object.assign({ text: String(arg).replace(/\.$/, '') }, w), wardName, what, sub + ':ward' + k, about);
+        } else {
+          const price = this._wardPriceWords(o, arg, w);
+          got = this._ask(Object.assign({ type: 'confirm', playerId: pid, purpose: 'wardPrice', ward: {
+            mana: w.mana || null, life: w.lifePower ? Math.max(0, this.powerOf(o)) : (w.life || 0), poison: w.poison || 0,
+            evidence: w.evidence || 0, waterbend: w.waterbend || null } }, about, {
+            prompt: `${wardName} — ${price}. Pay it, or ${what} is countered?`,
+            // (a button shows plain words: the mana symbols are in the prompt)
+            yesLabel: /\{/.test(price) ? 'Pay' : price, noLabel: `Let ${what} be countered` }), sub + ':ward' + k);
+        }
+        if (got === SUSPEND) return SUSPEND;
+        if (!got) { failed = { o, why: `${payer.name} doesn't pay` }; break; }
+        answers.push(got);
+      }
+      if (!failed) {
+        for (let k = 0; k < wards.length; k++) {
+          const { o, w } = wards[k];
+          if (w.discard || w.sacrifice) {
+            if (this._wardPayChosen(pid, w, answers[k])) this.logEvent('ward', `${payer.name} pays ${o.name}'s ward.`);
+            else { failed = { o, why: `${payer.name} can't pay it` }; break; }
+          } else if (!this._payWardPrice(pid, o, w, what)) { failed = { o, why: null }; break; }
+        }
+      }
+      rc._wardSeen = seen;
+      r.answers[doneKey] = failed ? 'countered' : 'paid';
+      if (!failed) return false;
+      if (failed.why) this.logEvent('ward', `${what} is countered by ${failed.o.name}'s ward — ${failed.why}.`);
+      // countered: nothing more of it happens (_runEffect checks wardCountered)
+      rc.wardCountered = true;
+      if (rc.kind === 'spell') rc.countered = true;
+      r.effects.splice(r.index + 1);
+      return true;
     }
 
     /** Prowess: +1/+1 until end of turn for each noncreature spell (CR 702.108). */
@@ -14512,6 +14663,8 @@
     }
 
     _runEffect(e, ctx) {
+      // countered by ward as it resolved: nothing more of it happens (_wardOnResolve)
+      if (ctx.wardCountered || (this.resolving && this.resolving.ctx && this.resolving.ctx.wardCountered)) return null;
       const me = this.player(ctx.controller);
       const src = ctx.obj;
       /* "defending player": the one attacked by the creature this is about —
@@ -14608,6 +14761,9 @@
         if (got === SUSPEND) return SUSPEND;
         if (!got || !got.picks.length) return null;
         targets = got.picks.map(id => ({ kind: 'object', id }));
+        const warded = this._wardOnResolve(ctx, targets, 'anyt');
+        if (warded === SUSPEND) return SUSPEND;
+        if (warded) return null;
         this._noteLastAffected(targets);
       }
       /* Overload: every one of the things the target could have been — no
@@ -14649,6 +14805,9 @@
         }
         if (!picks.length) return null;
         targets = picks.map(id => ({ kind: 'object', id }));
+        const warded = this._wardOnResolve(ctx, targets, 'perOpp');
+        if (warded === SUSPEND) return SUSPEND;
+        if (warded) return null;
         this._noteLastAffected(targets);
         this._lastGroup = picks.slice();
       }
@@ -14719,6 +14878,10 @@
             targets = targets.filter((t, i) => !(i > 0 && e.targets[i] && e.targets[i].sameControllerAsPrev &&
               (t.kind !== 'object' || (this.obj(t.id) || {}).controller !== this._targetsController(targets[i - 1]))));
           }
+          // ward on what was just chosen, before anything is done to it (CR 702.21a)
+          const warded = this._wardOnResolve(ctx, targets, 'tgt');
+          if (warded === SUSPEND) return SUSPEND;
+          if (warded) return null;
           ctx.resolvedTargets = targets;
           ctx._askedSpecs = JSON.stringify(e.targets);
           if (e.targets.some(sp => sp && sp.distinctModePlayer)) {
@@ -17420,37 +17583,10 @@
           if (!item || item.countered) break;
           const payer = this.player(e.payer);
           if (!payer || payer.hasLost) break;
-          const need = e.discard || e.sacrifice || 1;
-          const words = String(e.words || (e.discard ? 'card' : 'permanent'));
-          const pool = e.discard ? this.zones[payer.id].hand.filter(x => words === 'card' || this._cardFitsWords(x, words))
-            : this.battlefield.filter(x => !x.phasedOut && x.controller === payer.id && this._cardFitsWords(x, words) && this._canSacrifice(x));
           const wardName = src ? `${src.name}'s ward` : 'Ward';
-          let paid = false;
-          if (pool.length >= need) {
-            if (e.random) {
-              const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'wardPay', stackId: item.id,
-                prompt: `${wardName}: discard ${need === 1 ? 'a card' : need + ' cards'} at random, or ${item.name} is countered?`,
-                yesLabel: 'Discard at random', noLabel: `Let ${item.name} be countered` }, 'wardRandom');
-              if (yes === SUSPEND) return SUSPEND;
-              if (yes) {
-                const left = pool.slice(), pick = [];
-                while (pick.length < need && left.length) pick.push(left.splice(Math.floor(this.rng.next() * left.length), 1)[0]);
-                this._discardNow(payer.id, pick);
-                paid = true;
-              }
-            } else {
-              const got = this._choose({ playerId: payer.id, purpose: 'wardPay', kind: 'objects', zone: e.discard ? 'hand' : 'battlefield',
-                items: this._chooseItems(pool), min: 0, max: need, prefer: 'worst', stackId: item.id,
-                prompt: `${wardName} \u2014 ${e.text || (e.discard ? 'Discard a card' : 'Sacrifice a permanent')}. Choose ${need === 1 ? 'one' : need}, or ${item.name} is countered.` }, 'ward');
-              if (got === SUSPEND) return SUSPEND;
-              const xs = ((got && got.picks) || []).map(id => this.obj(id))
-                .filter(x => x && pool.includes(x) && x.zone === (e.discard ? 'hand' : 'battlefield'));
-              if (xs.length === need) {
-                if (e.discard) this._discardNow(payer.id, xs); else this._sacrificeNow(payer.id, xs, null);
-                paid = true;
-              }
-            }
-          }
+          const got = this._wardAskChoice(payer.id, e, wardName, item.name, 'ward', { stackId: item.id });
+          if (got === SUSPEND) return SUSPEND;
+          const paid = !!got && this._wardPayChosen(payer.id, e, got);
           if (paid) this.logEvent('ward', `${payer.name} pays ${wardName}.`);
           else { item.countered = true; this.logEvent('ward', `${item.name} is countered by ${wardName}.`); }
           break;

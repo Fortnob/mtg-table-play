@@ -2676,6 +2676,17 @@
       }
       // Alpharael, Stonechosen's ward: a card at random, to see the spell or ability through
       if (ch.purpose === 'wardPay') return (g.zones[this.pid].hand || []).length > 0;
+      /* a ward met as our own trigger resolves (_wardOnResolve): mana, evidence and waterbending are paid whenever
+         they can be, as they are for a spell; life and poison only while there is plenty to spare, and not for
+         something worth less than the price */
+      if (ch.purpose === 'wardPrice') {
+        const w = ch.ward || {};
+        const t = ch.objId ? g.obj(ch.objId) : null;
+        const worth = t ? this.permanentValue(t) : 0;
+        if (w.life && (this.me.life - w.life < 8 || worth < w.life * 0.5)) return false;
+        if (w.poison && ((Number(this.me.poison) || 0) + w.poison >= 7 || worth < w.poison)) return false;
+        return true;
+      }
       // Combustible Gearhulk: let them draw while life is short; take the damage otherwise
       if (ch.purpose === 'opponentMay') return ch.option === 'gift' ? true : ch.option === 'draw' ? this.me.life <= 12 : this.me.life > 12;
       // Vexing Devil: take the damage while there's life to spare, rather than face the creature

@@ -300,4 +300,104 @@ module.exports = (test) => {
     t.ok(a('Colorstorm Stallion').fullyAutomated, 'Colorstorm Stallion stays automated');
     t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('{1}, haste')), '{"mana":"{1}"}');
   });
+
+  /* ---- ward on a triggered ability: its targets are chosen as it resolves here, and ward is met then ---- */
+
+  /* B casts Ravenous Chupacabra; its enters trigger is aimed at `name`, A's. */
+  const chupacabraAt = (mk, name, opts) => {
+    opts = opts || {};
+    const T = mk({ library: Array(20).fill('Swamp') });
+    T.toMain('B');
+    const w = T.bf('A', name);
+    if (opts.setup) opts.setup(T, w);
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }] }));
+    if (opts.answer) T.answer(opts.answer.type, opts.answer.data);
+    T.mana('B', '2BB');
+    if (opts.extra) T.mana('B', opts.extra);
+    T.cast('B', T.hand('B', 'Ravenous Chupacabra'));
+    return { T, w };
+  };
+
+  test('Ward: a triggered ability aimed at a ward {2} creature is countered unless its controller pays', (mk, t) => {
+    t.auto('Ravenous Chupacabra'); t.auto('Hulking Raptor');
+    const paid = chupacabraAt(mk, 'Hulking Raptor', { extra: '2' });
+    const q = paid.T.asked.find(c => c.purpose === 'wardPrice');
+    t.ok(q && q.playerId === 'B', 'B, who controls the trigger, is asked');
+    t.ok(/\{2\}/.test(q.prompt) && q.objId === paid.w.id, 'with the whole price shown: ' + (q && q.prompt));
+    t.zone(paid.w, 'graveyard', 'paid {2}: the Raptor is destroyed');
+    t.eq(paid.T.g.player('B').pool.C || 0, 0, 'and the {2} is spent');
+    const declined = chupacabraAt(mk, 'Hulking Raptor', { extra: '2', answer: { type: 'confirm', data: (ch) => ({ yes: ch.purpose !== 'wardPrice' }) } });
+    t.zone(declined.w, 'battlefield', 'not paid: the trigger is countered and the Raptor lives');
+    t.eq(declined.T.g.player('B').pool.C || 0, 2, 'and nothing is paid');
+    t.ok(declined.T.g.log.some(l => /countered by Hulking Raptor's ward/.test(l.text)), 'the log says so');
+    const broke = chupacabraAt(mk, 'Hulking Raptor');
+    t.zone(broke.w, 'battlefield', 'no {2} to pay: countered');
+    t.no(broke.T.asked.some(c => c.purpose === 'wardPrice'), 'without asking a price that can\'t be paid');
+  });
+
+  test('Ward: a trigger pays "Pay 7 life", "Sacrifice a creature" and "Discard a card" too', (mk, t) => {
+    t.auto('Sire of Seven Deaths'); t.auto('Vein Ripper'); t.auto('Westgate Regent');
+    const life = chupacabraAt(mk, 'Sire of Seven Deaths');
+    t.zone(life.w, 'graveyard', 'paid 7 life: Sire destroyed');
+    t.eq(life.T.life('B'), 13, 'B paid 7 life');
+    const low = chupacabraAt(mk, 'Sire of Seven Deaths', { setup: (T) => { T.player('B').life = 6; } });
+    t.zone(low.w, 'battlefield', 'six life can\'t pay seven: countered');
+    t.eq(low.T.life('B'), 6, 'and no life is paid');
+    let bears;
+    const sac = chupacabraAt(mk, 'Vein Ripper', { setup: (T) => { bears = T.bf('B', 'Grizzly Bears'); },
+      answer: { type: 'choose', data: (ch) => ({ picks: ch.purpose === 'wardPay' ? [bears.id] : [] }) } });
+    t.ok(sac.T.asked.some(c => c.type === 'choose' && c.purpose === 'wardPay' && c.playerId === 'B'), 'B is asked what to sacrifice');
+    t.zone(bears, 'graveyard', 'the Bears sacrificed');
+    t.zone(sac.w, 'graveyard', 'and Vein Ripper destroyed');
+    let card;
+    const nope = chupacabraAt(mk, 'Westgate Regent', { setup: (T) => { card = T.hand('B', 'Grizzly Bears'); },
+      answer: { type: 'choose', data: { picks: [] } } });
+    t.zone(card, 'hand', 'declined: nothing discarded');
+    t.zone(nope.w, 'battlefield', 'and the trigger is countered');
+  });
+
+  test('Ward: your own trigger at your own warded creature asks nothing', (mk, t) => {
+    t.auto('Flametongue Kavu');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    T.toMain('A');
+    const raptor = T.bf('A', 'Hulking Raptor');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: raptor.id }] }));
+    T.mana('A', '3R');
+    T.cast('A', T.hand('A', 'Flametongue Kavu'));
+    t.no(T.asked.some(c => c.purpose === 'wardPrice'), 'no ward');
+    t.zone(raptor, 'graveyard', '4 damage to its own Raptor');
+  });
+
+  test('Ward: "up to one target" — Skyclave Apparition at a ward creature', (mk, t) => {
+    t.auto('Skyclave Apparition');
+    const run = (pay) => {
+      const T = mk({ library: Array(20).fill('Plains') });
+      T.toMain('B');
+      const raptor = T.bf('A', 'Hulking Raptor');
+      T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: raptor.id }] }));
+      T.answer('confirm', (ch) => ({ yes: ch.purpose === 'wardPrice' ? pay : true }));
+      T.mana('B', '1WW'); T.mana('B', '2');
+      T.cast('B', T.hand('B', 'Skyclave Apparition'));
+      return raptor;
+    };
+    t.zone(run(true), 'exile', 'paid: exiled');
+    t.zone(run(false), 'battlefield', 'not paid: countered');
+  });
+
+  test('Ward: a bot pays for its trigger, and keeps its life when it is short', (mk, t) => {
+    const run = (name, life) => {
+      let bot;
+      return chupacabraAt(mk, name, { extra: '2', setup: (T) => {
+        T.player('B').life = life;
+        bot = new T.MTG.bots.BotPlayer(T.g, 'B', 8);
+      }, answer: { type: 'confirm', data: (ch) => ({ yes: bot.confirmChoice(ch) }) } });
+    };
+    t.zone(run('Hulking Raptor', 20).w, 'graveyard', 'the bot pays {2}');
+    const rich = run('Polterheist', 20);
+    t.zone(rich.w, 'graveyard', 'at 20 life the bot pays 3 life');
+    t.eq(rich.T.life('B'), 17);
+    const poor = run('Polterheist', 9);
+    t.zone(poor.w, 'battlefield', 'at 9 life it lets the trigger be countered');
+    t.eq(poor.T.life('B'), 9);
+  });
 };
