@@ -2966,6 +2966,9 @@
     // --- library and graveyard ---
     { re: /^Return target creature card from your graveyard to the battlefield\.?$/i,
       make: () => ({ op: 'reanimate', targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
+    // Olivia, Crimson Bride: "… to the battlefield tapped and attacking" — beside the creature attacking
+    { re: /^Return target creature card from your graveyard to the battlefield tapped and attacking\.?$/i,
+      make: () => ({ op: 'reanimate', tapped: true, attacking: true, targets: [{ type: 'creature', zone: 'graveyard', controller: 'you' }] }) },
     { re: /^Return target card from your graveyard to your hand\.?$/i,
       make: () => ({ op: 'regrowth', targets: [{ type: 'card', zone: 'graveyard', controller: 'you' }] }) },
     { re: /^Exile target player'?s graveyard\.?$/i,
@@ -3720,6 +3723,15 @@
         return { op: 'moveCountersAny', all: /^all$/i.test(m[1]), kind: m[2] ? '+1/+1' : null,
           targets: [a, Object.assign({}, b, { distinct: true }, m[5] ? { sameControllerAsPrev: true } : {})] };
       } },
+    /* Goldberry, River-Daughter: "Move a counter of each kind not on Goldberry from another target permanent you
+       control onto Goldberry." — one of each kind it doesn't have yet (eachKindNew) */
+    { re: /^Move a counter of each kind not on CARDNAME from (another target [a-z ]+?) onto CARDNAME\.?$/i,
+      make: (m) => { const a = targetSpec(m[1]); return a && !a.unknown ? { op: 'moveCountersAny', toSelf: true, eachKindNew: true, all: true, targets: [a] } : null; } },
+    /* Akroma, Vision of Ixidor: "until end of turn, each other creature you control gets +1/+1 if it has flying,
+       +1/+1 if it has first strike, and so on for double strike, …, and partner." — +1/+1 for each one it has */
+    { re: /^Until end of turn, each other creature you control gets \+1\/\+1 if it has ([a-z ]+), \+1\/\+1 if it has ([a-z ]+), and so on for ([a-z ,]+)\.?$/i,
+      make: (m) => ({ op: 'pumpPerKeyword', other: true,
+        kwList: [m[1], m[2]].concat(m[3].split(/,\s*(?:and\s+)?|\s+and\s+/)).map(x => x.trim().toLowerCase()).filter(Boolean) }) },
     /* Forgotten Ancient: its counters handed out one at a time */
     { re: /^Move any number of (\+1\/\+1|[a-z]+) counters from (?:this creature|CARDNAME) onto other creatures\.?$/i,
       make: (m) => ({ op: 'moveCountersOut', kind: m[1].toLowerCase() }) },
@@ -5795,6 +5807,11 @@
       make: (m) => Object.assign({ op: 'delayed', event: /upkeep/i.test(m[3]) ? 'eachUpkeep' : /your/i.test(m[2]) ? 'yourEndStep' : 'eachEndStep', subject: /^(?:this creature|CARDNAME)$/i.test(m[1]) ? 'self' : 'lastTarget',
         name: /upkeep/i.test(m[3]) ? 'Sacrifice it at the next upkeep' : 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] },
       /your/i.test(m[2]) ? { forPlayer: 'you' } : {}) },
+    /* Aang, at the Crossroads: "transform Aang at the beginning of the next upkeep" — only if it hasn't transformed
+       since this was set up (CR 701.28f; sinceNow) */
+    { re: /^Transform CARDNAME at the beginning of the next upkeep\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachUpkeep', nextTurn: true, subject: 'self', name: 'Transform it at the next upkeep',
+        effects: [{ op: 'transform', self: true, sinceNow: true }] }) },
     { re: /^Exile (it|that (?:creature|token|permanent)) at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget',
         name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }) },
@@ -8335,6 +8352,20 @@
     // Anim Pakal: "put a +1/+1 counter on Anim Pakal, then create X 1/1 … tapped and attacking, where X is …"
     { re: /^Put a \+1\/\+1 counter on (?:CARDNAME|Anim Pakal), then (create [\s\S]+)$/i,
       make: (m) => { const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return rest.auto ? [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }, ...rest.effects] : null; } },
+    /* Goldberry, River-Daughter: "Move one or more counters from Goldberry onto another target permanent you control.
+       If you do, draw a card." — as many of each kind as you like, one at least (fromSelf, minOne; then if any moved) */
+    { re: /^Move one or more counters from CARDNAME onto (another target [a-z ]+?)\. If you do, (draw a card)\.$/i,
+      make: (m) => {
+        const b = targetSpec(m[1]);
+        const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        return b && !b.unknown && then.auto ? [{ op: 'moveCountersAny', fromSelf: true, minOne: true, targets: [b], then: then.effects }] : null;
+      } },
+    // Sauron, Lord of the Rings: "amass Orcs 5, mill five cards, then return a creature card from your graveyard to the battlefield"
+    { re: /^(Amass [A-Z][a-z]+ \d+), (mill [a-z]+ cards), then (return [^.]+)\.$/i,
+      make: (m) => {
+        const pe = parseSentenceList([m[1], m[2], m[3]].map(x => x.charAt(0).toUpperCase() + x.slice(1) + '.'));
+        return pe.auto && pe.effects.length === 3 ? pe.effects : null;
+      } },
     // Sephiroth, One-Winged Angel: "you may sacrifice any number of other creatures. If you do, draw that many cards."
     { re: /^(?:You may )?sacrifice any number of other creatures\. If you do, draw that many cards\.$/i,
       make: () => [{ op: 'sacrificeAnyNumber', filter: 'creature', other: true }, { op: 'draw', who: 'you', n: { lastSacCount: true, mult: 1 } }] },
@@ -8773,6 +8804,16 @@
         abilities: [{ kind: 'triggered', event: 'yourCreatureCombatDamage', also: 'creatureCombatDamageWalker', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', text: 'Whenever the chosen creature deals combat damage to a player or planeswalker, draw that many cards.',
           effects: [{ op: 'draw', n: 'triggerAmount', who: 'you' }] }] }] },
+    /* Captain Howler, Sea Scourge: "target creature gets +2/+0 until end of turn for each card discarded this way.
+       Whenever that creature deals combat damage to a player this turn, you draw a card." — the cards in the
+       discard trigger's lot; the creature targeted watched for the rest of the turn (an emblem, as Hunter's Insight) */
+    { re: /^Target creature gets \+(\d+)\/\+0 until end of turn for each card discarded this way\. Whenever that creature deals combat damage to a player this turn, you draw a card\.$/i,
+      make: (m) => [{ op: 'pump', p: { triggerAmount: true, mult: +m[1] }, t: 0, duration: 'eot', targets: [targetSpec('target creature')] },
+        { op: 'getEmblem', thisTurn: true, name: 'Until end of turn', linkTarget: true,
+          emblemText: 'Whenever the chosen creature deals combat damage to a player this turn, you draw a card.',
+          abilities: [{ kind: 'triggered', event: 'permCombatDamage', self: false, optional: false, auto: true, condition: null,
+            objectIdIs: '$tgt', text: 'Whenever the chosen creature deals combat damage to a player, you draw a card.',
+            effects: [{ op: 'draw', n: 1, who: 'you' }] }] }] },
     /* Ad Nauseam: "Reveal the top card of your library and put that card into your hand. You lose life
        equal to its mana value. You may repeat this process any number of times." */
     { re: /^Reveal the top card of your library and put that card into your hand\. You lose life equal to its mana value\. You may repeat this process any number of times\.$/i,
@@ -11775,6 +11816,9 @@
     { re: /^Whenever a commander you control enters or attacks,? /i, event: 'permEnters', also: 'permAttacks', filt: () => ({ commander: 'control' }) },
     { re: /^Whenever a commander you control attacks,? /i, event: 'permAttacks', filt: () => ({ commander: 'control' }) },
     { re: /^Whenever a commander you control enters,? /i, event: 'permEnters', filt: () => ({ commander: 'control' }) },
+    /* Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the command zone
+       (commanderDies), or into the graveyard when it stays there */
+    { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', also: 'permDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
     { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
     { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
@@ -17146,6 +17190,10 @@
         make: () => ({ op: 'stateTrigger', noCounter: 'ice', label: 'no ice counters',
           effects: [{ op: 'sacSelfThen', then: [{ op: 'createToken', n: 1, pt: '20/20', colorWords: ['black'], subtypes: 'Avatar', addTypes: [],
             legendary: true, name: 'Marit Lage', keywords: ['Flying', 'Indestructible'] }] }] }), auto: true },
+      /* Olivia, Crimson Bride: "When you don't control a legendary Vampire, exile this creature." — the same kind
+         of state trigger, on what you control (noControl) */
+      { re: /^When you don'?t control an? (legendary [A-Z][a-z]+), exile (?:CARDNAME|this creature)\.?$/,
+        make: (m) => ({ op: 'stateTrigger', noControl: m[1].toLowerCase(), label: 'no ' + m[1], effects: [{ op: 'exileSelf' }] }), auto: true },
       /* Mazemind Tome, Darksteel Reactor, Nine Lives, Force Bubble: the same
          kind of state trigger on a pile of counters. Once there are enough it
          goes on the stack, and not again while that one is waiting */

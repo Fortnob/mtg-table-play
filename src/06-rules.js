@@ -13413,8 +13413,13 @@
       }
       /* commander replacement effect (CR 903.9). Exiled to meld, a commander is back on the battlefield, melded,
          before the state-based action that would send it to the command zone (CR 903.9a) is ever checked. */
+      // (Sauron, Lord of the Rings: "Whenever a commander an opponent controls dies" — on its way to the graveyard first, CR 903.9a)
+      let cmdDied = false;
       if (o.isCommander && ['graveyard', 'exile', 'hand', 'library'].includes(toZone) && from === 'battlefield' && !opts.meld) {
-        if (MTG.settings.commanderToZone !== false) toZone = 'command';
+        if (MTG.settings.commanderToZone !== false) {
+          cmdDied = toZone === 'graveyard' && !!(o.analysis() || {}).isCreature;
+          toZone = 'command';
+        }
       }
       /* Oathbreaker: a Signature Spell that would go anywhere but the stack
          goes back to the command zone instead: resolved, countered, exiled
@@ -13629,7 +13634,10 @@
         if (from === 'battlefield') this.emit('sfx', 'exile', { player: o.owner });
         if (from === 'battlefield' && heldBy.length) this._fire('equippedDies', null, { object: o, attachedIds: heldBy, objController: lastCtrl, exiledFromBattlefield: true });
       }
-      else if (toZone === 'command') this.zones[o.owner].command.push(o);
+      else if (toZone === 'command') {
+        this.zones[o.owner].command.push(o);
+        if (cmdDied) this._fire('commanderDies', null, { object: o, objController: lastCtrl });
+      }
       else if (toZone === 'library') {
         const z = this.zones[o.owner].library;
         if (opts.toBottom) z.push(o); else z.unshift(o);
@@ -15141,6 +15149,8 @@
         }
         // Shatterskull Smashing: X, or twice X once X is big enough
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
+        // Captain Howler, Sea Scourge: "+2/+0 … for each card discarded this way" — the cards in the lot, times two
+        if (v && typeof v === 'object' && v.triggerAmount) return n('triggerAmount') * (v.mult || 1);
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // "… minus four": never less than zero
@@ -18432,6 +18442,13 @@
               this.moveObject(x, 'battlefield', Object.assign({ controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (e.tapped) x.tapped = true;
+              /* Olivia, Crimson Bride: "tapped and attacking" — at whoever the creature that set it off attacks,
+                 during combat; never declared */
+              if (e.attacking && x.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+                const by = this.obj((ctx.triggerData || {}).objectId) || src;
+                const def = (by && by.attacking) || (this.opponentsOf(x.controller)[0] || {}).id;
+                if (def && !this.combat.attackers.includes(x.id)) { x.attacking = def; this.combat.attackers.push(x.id); }
+              }
               // Persist: "with a -1/-1 counter on it"
               if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
               this.logEvent('reanimate', `${me.name} reanimates ${x.name}.`);
@@ -19349,6 +19366,7 @@
           const x = src || (ctx.objId && this.obj(ctx.objId));
           if (x && x.card && x.card.card_faces && x.card.card_faces.length > 1) {
             x.face = (x.face + 1) % x.card.card_faces.length;
+            x.xformN = (x.xformN || 0) + 1;
             /* "Exile this Saga, then return it transformed" is a new object, with no counters; a permanent that
                just transforms keeps its own (an Incubator's +1/+1 counters, CR 712.9) */
             if (e.fresh) x.counters = {};
@@ -20311,24 +20329,47 @@
         /* Resourceful Defense, Fate Transfer, Bioshift: counters moved from
            one target to the other, all of them or as many of each kind as
            its controller likes */
+        /* Akroma, Vision of Ixidor: each other creature you control, +1/+1 until end of turn for each of the
+           keywords it has as this resolves — one for a keyword however many times or kinds ("hexproof from",
+           "partner with" are hexproof and partner) */
+        case 'pumpPerKeyword': {
+          for (const o of this.battlefield.slice()) {
+            if (o.controller !== ctx.controller || o.phasedOut || (e.other && src && o.id === src.id)) continue;
+            const c = this.characteristics(o);
+            if (!c || !c.isCreature) continue;
+            const k = (e.kwList || []).filter(kw => c.keywords.has(kw) || [...c.keywords].some(x => x.startsWith(kw + ' '))).length;
+            if (!k) continue;
+            o.effects.push({ p: k, t: k, until: 'eot' });
+            o._chr = null;
+          }
+          this.bumpBoard();
+          break;
+        }
         case 'moveCountersAny': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id));
-          const [from, to] = objs;
+          // (Goldberry, River-Daughter: from "another target permanent you control" onto itself — toSelf; or from itself — fromSelf)
+          const [from, to] = e.toSelf ? [objs[0], src] : e.fromSelf ? [src, objs[0]] : objs;
           if (!from || !to || from === to || from.zone !== 'battlefield' || to.zone !== 'battlefield') break;
           if (from.controller !== to.controller && (e.targets || [])[1] && e.targets[1].sameControllerAsPrev) break;
-          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0 && (!e.kind || k === e.kind));
+          // (Goldberry: "a counter of each kind not on Goldberry" — eachKindNew, one of each)
+          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0 && (!e.kind || k === e.kind) &&
+            !(e.eachKindNew && Number((to.counters || {})[k]) > 0));
           const moved = [];
           for (let i = 0; i < kinds.length; i++) {
             const k = kinds[i], have = Number(from.counters[k]) || 0;
-            let m = have;
+            let m = e.eachKindNew ? 1 : have;
             if (!e.all) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'moveCounters', kind: 'number', number: { min: 0, max: have },
+              // (Goldberry: "one or more" — the last kind asked can't be none when nothing has moved yet)
+              const lo = e.minOne && i === kinds.length - 1 && !moved.length ? 1 : 0;
+              const got = this._choose({ playerId: ctx.controller, purpose: 'moveCounters', kind: 'number', number: { min: lo, max: have },
                 prompt: `${ctx.name ? ctx.name + ': ' : ''}move how many ${k} counters from ${from.name} to ${to.name}?` }, 'mca:' + i);
               if (got === SUSPEND) return SUSPEND;
-              m = Math.min(have, Math.max(0, (got && got.number) || 0));
+              m = Math.min(have, Math.max(lo, (got && got.number) || 0));
             }
             if (m > 0) moved.push([k, m]);
           }
+          // (Goldberry: "If you do, draw a card.")
+          if (moved.length && (e.then || []).length) this._spliceNext(JSON.parse(JSON.stringify(e.then)));
           for (const [k, m] of moved) {
             const left = (Number(from.counters[k]) || 0) - m;
             if (left > 0 || k === 'loyalty') from.counters[k] = Math.max(0, left); else delete from.counters[k];
@@ -21101,6 +21142,8 @@
               }
               // Phelia: the counter goes on the creature that set this up
               if (x.op === 'returnThatCounterSource') return Object.assign({}, x, { srcId: src ? src.id : null });
+              // (Aang, at the Crossroads: the permanent as it is now — the same one, not transformed since: sinceNow)
+              if (x.sinceNow && src) return Object.assign({}, x, { sinceTs: src.ts, sinceXf: src.xformN || 0 });
               // (Faramir: "they" — the player chosen now)
               if (e.forPlayer === 'chosen' && x.op === 'ifCond') return JSON.parse(JSON.stringify(x).replace(/"pid":"chosen"/g, '"pid":' + JSON.stringify(ctx.chosenPlayer)));
               /* Dragonhawk, Fate's Tempest: "those cards" are the ones just exiled, each as it is in exile
@@ -22453,7 +22496,11 @@
           if (!x || !x.card.card_faces || x.card.card_faces.length < 2) break;
           // a melded permanent can't be transformed: it isn't a transforming double-faced card (CR 701.28c)
           if (x.meld) { this.logEvent('rules', `${x.name} is melded and can't transform.`); break; }
+          /* Aang, at the Crossroads: a delayed transform does nothing to a permanent that has left since, or has
+             transformed since it was set up (CR 701.28f; sinceNow) */
+          if (e.sinceNow && (x.zone !== 'battlefield' || x.ts !== e.sinceTs || (x.xformN || 0) !== e.sinceXf)) break;
           x.face = (x.face + 1) % x.card.card_faces.length;
+          x.xformN = (x.xformN || 0) + 1;
           x._chr = null;
           this.bumpBoard();
           this.logEvent('rules', `${x.name} transforms.`);
@@ -26826,7 +26873,9 @@
           const stt = this._staticOp(o, 'stateTrigger');
           // (Mazemind Tome, Darksteel Reactor: or once it has enough of a kind)
           const sttOn = stt && (stt.noCounter ? !(Number(o.counters[stt.noCounter]) > 0)
-            : stt.minCounter ? (Number(o.counters[stt.minCounter.kind]) || 0) >= stt.minCounter.n : false);
+            : stt.minCounter ? (Number(o.counters[stt.minCounter.kind]) || 0) >= stt.minCounter.n
+            // (Olivia, Crimson Bride: "When you don't control a legendary Vampire" — noControl)
+            : stt.noControl ? !this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, stt.noControl)) : false);
           if (sttOn && o.zone === 'battlefield' &&
               !this.pendingTriggers.concat(this.stack).some(x => x && x.objId === o.id && x.stateTrigger)) {
             this.pendingTriggers.push({
@@ -27902,7 +27951,8 @@
       if (f.name && x.name !== f.name) return false;
       // Tome of Legends: "your commander"
       // (Norn's Choirmaster: "a commander you control" — commander 'control')
-      if (f.commander && !(x.isCommander && src && (f.commander === 'control' ? x.controller === src.controller : x.owner === src.controller))) return false;
+      // (Sauron, Lord of the Rings: "a commander an opponent controls" — any commander, whoever controls it: commander 'any')
+      if (f.commander && !(x.isCommander && src && (f.commander === 'any' || (f.commander === 'control' ? x.controller === src.controller : x.owner === src.controller)))) return false;
       // "whenever equipped creature attacks": the creature this is attached to
       if (f.equipped && !(src && src.attachedTo === x.id)) return false;
       // Reyav, Master Smith: "that's enchanted or equipped" — an Aura or an Equipment on it
