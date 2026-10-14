@@ -22997,7 +22997,7 @@
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [from, to] = objs;
           if (!from || !to || from === to) break;
-          // (Rikku, Resourceful Guardian: of several kinds, the one to move is chosen)
+          // (Rikku, Resourceful Guardian; Tidus, Yuna's Guardian: of several kinds, the one to move is chosen)
           const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0);
           if (!kinds.length) break;
           let kind = kinds[0];

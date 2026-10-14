@@ -29385,4 +29385,40 @@ module.exports = (test) => {
     t.eq(M.life('B'), 18, 'Calix: hit');
     t.no(M.asked.slice(a3).some(ch => ch.purpose === 'effectObject' || ch.type === 'confirm'), 'Calix: nothing to copy, nothing asked');
   });
+
+  test("Commanders: Tidus, Yuna's Guardian — a counter moved at the beginning of combat; Cheer draws and proliferates once a turn", (mk, t) => {
+    t.auto("Tidus, Yuna's Guardian");
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.bf('A', "Tidus, Yuna's Guardian");
+    const bears = M.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1, shield: 1 } });
+    const elves = M.bf('A', 'Llanowar Elves');
+    const ogre = M.bf('A', 'Gray Ogre');
+    let opts = null;
+    M.answer('pickTarget', (ch) => { opts = ch.options; return { targets: [bears.id, elves.id] }; });
+    // two kinds on the Bears: the +1/+1 one is picked
+    M.answer('choose', (ch) => ({ picks: [ch.options.findIndex(o => o.label === '+1/+1')] }));
+    M.answer('declareAttackers', () => [{ attackerId: elves.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'C' }, { attackerId: ogre.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.ok(opts && opts[0].every(o => o.kind === 'object' && M.g.obj(o.id).controller === 'A'), 'Tidus: creatures A controls');
+    t.eq(M.asked.filter(ch => ch.purpose === 'counterKind').length, 1, 'Tidus: asked which counter');
+    // moved: the Bears keep the shield; the Elves get the +1/+1, then proliferate adds one to each
+    t.eq(bears.counters['+1/+1'] || 0, 0, 'Tidus: the +1/+1 counter left the Bears');
+    t.eq(elves.counters['+1/+1'], 2, 'Tidus: moved to the Elves, and proliferated');
+    t.eq(bears.counters.shield, 2, 'Tidus: the shield counter proliferated');
+    t.eq(M.zone('A', 'hand').length, 1, 'Tidus: Cheer drew one card, though two players were hit');
+    t.eq(ogre.counters['+1/+1'] || 0, 0, 'Tidus: the Ogre has none');
+    // declined: nothing moves
+    M.nextTurn('A');
+    M.answer('confirm', () => ({ yes: false }));
+    M.toMain('A', 'end');
+    M.settle();
+    t.eq(elves.counters['+1/+1'], 2, 'Tidus: declined, nothing moved');
+    // only the Ogre, with no counters, connects: no Cheer
+    const hand = M.zone('A', 'hand').length;
+    M.nextTurn('A');
+    M.answer('confirm', () => ({ yes: false }));
+    M.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.zone('A', 'hand').length, hand + 1, 'Tidus: a creature without counters is no cheer (only the turn draw)');
+  });
 };

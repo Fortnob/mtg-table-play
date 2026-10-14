@@ -3438,6 +3438,12 @@
         const a = targetSpec(m[1]), b = targetSpec(m[2]);
         return a && b && !a.unknown && !b.unknown ? { op: 'moveCounter', targets: [a, Object.assign({}, b, { distinct: true })] } : null;
       } },
+    // (Tidus, Yuna's Guardian: "from target creature you control onto a second target creature you control")
+    { re: /^Move a counter from (target [a-z ]+?) onto a second (target [a-z ]+?)\.?$/i,
+      make: (m) => {
+        const a = tgt(m[1]), b = tgt(m[2]);
+        return a && b ? { op: 'moveCounter', targets: [a, Object.assign({}, b, { distinct: true })] } : null;
+      } },
     /* Ghostly Flicker and its kin */
     { re: /^Exile (two|three) target ((?:artifacts|creatures|lands|enchantments)(?:,? (?:and\/or |or )?(?:artifacts|creatures|lands|enchantments))*) you control, then return (?:those cards|them) to the battlefield under your control\.?$/i,
       make: (m) => {
@@ -10800,8 +10806,9 @@
         f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? ([+\-0-9/a-z]+) counter on it$/i))) {
         f.withCounter = m[1]; p = p.slice(0, m.index);
-      } else if ((m = p.match(/ with counters on it$/i))) {
+      } else if ((m = p.match(/ with counters on (?:it|them)$/i))) {
         // Cleopatra, Exiled Pharaoh: "a legendary creature with counters on it" — of any kind (countersOnItAny)
+        // (Tidus, Yuna's Guardian: "one or more creatures you control with counters on them")
         f.withCounter = '*'; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with ([+\-0-9/a-z]+) counters on them$/i))) {
         // Haliya, Ascendant Cadet: "one or more creatures you control with +1/+1 counters on them" (countersOnThem)
