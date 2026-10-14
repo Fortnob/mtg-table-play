@@ -15215,7 +15215,9 @@
           // Xantcha, Sleeper Agent: "Xantcha's controller loses 2 life" — whoever controls it, not who activated it (selfController)
           else if (e.who === 'selfController') { const p = src && this.player(src.controller); if (p) this.changeLife(p, -cnt); }
           // Burakos, Party Leader: "defending player loses X life" — the one its source attacks (defendingLosesX)
-          else if (e.who === 'defending') { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id; const p = dp && this.player(dp); if (p) this.changeLife(p, -cnt); }
+          /* Silent Skimmer: "defending player loses 2 life" — still that player once the attacker has left combat
+             (the attack trigger names them: triggerPlayer) */
+          else if (e.who === 'defending') { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id || (triggerPlayer() || {}).id; const p = dp && this.player(dp); if (p) this.changeLife(p, -cnt); }
           // Liliana, Waker of the Dead: "each opponent who can't" discard (couldNot)
           else if (e.who === 'couldNot') {
             for (const id of this._couldNot || []) {
@@ -15234,8 +15236,6 @@
           }
           // (Laquatus's Champion remembers whom, for "that player gains 6 life" as it leaves)
           else if (e.who === 'target') { const p = firstPlayer(); if (p) { this.changeLife(p, -cnt); if (src) src._linkedPlayer = p.id; } }
-          // Silent Skimmer: "defending player loses 2 life"
-          else if (e.who === 'defending') { const p = this._defenderOf(src) || triggerPlayer(); if (p) this.changeLife(p, -cnt); }
           else this.changeLife(me, -cnt);
           break;
         }
