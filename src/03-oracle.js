@@ -16259,6 +16259,20 @@
           const kws = keywordList(m[1]);
           return kws.length && kws.every(kwKnown) ? { op: 'continuous', layer: 6, scope: { who: 'you', what: 'permanent', commander: 'control' }, grant: kws, cond: { kind: 'yourTurn' } } : null;
         }, auto: true },
+      /* Bello, Bard of the Brambles: "During your turn, each non-Equipment artifact and non-Aura enchantment you control
+         with mana value 4 or greater is a 4/4 Elemental creature in addition to its other types and has indestructible,
+         haste, and '…'" */
+      { re: /^During your turn, each non-Equipment artifact and non-Aura enchantment you control with mana value (\d+) or greater is an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types and has ([a-z ,]+?),? and "([^"]+)"\.?$/,
+        make: (m) => {
+          const kws = keywordList(m[5]);
+          if (!kws.length || !kws.every(kwKnown) || !grantableText(m[6])) return null;
+          const scope = { who: 'you', what: 'permanent', anyOf: ['artifact', 'enchantment'], notSubtypes: ['equipment', 'aura'], minMv: +m[1] };
+          const cond = { kind: 'yourTurn' };
+          return { op: 'sequence', list: [
+            { op: 'continuous', layer: 4, scope, cond, addTypes: ['Creature'], addSubtypes: [m[4]] },
+            { op: 'continuous', layer: 7, scope, cond, setPt: { p: +m[2], t: +m[3] } },
+            { op: 'continuous', layer: 6, scope, cond, grant: kws, grantText: m[6] }] };
+        }, auto: true },
       // March of the World Ooze: "Creatures you control have base power and toughness 6/6 and are Oozes in addition to their other types."
       { re: /^Creatures you control have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
         make: (m) => ({ op: 'sequence', list: [

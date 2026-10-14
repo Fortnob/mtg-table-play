@@ -28536,4 +28536,35 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Grizzly Bears'));
     t.eq(wraiths().length, n0, 'Lord: instants and sorceries only');
   });
+
+  test('Commanders: Bello, Bard of the Brambles — on your turn, big non-Equipment artifacts and non-Aura enchantments are 4/4 Elementals', (mk, t) => {
+    t.auto('Bello, Bard of the Brambles');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Bello, Bard of the Brambles');
+    const lotus = M.bf('A', 'Gilded Lotus', { sick: true });
+    const tithe = M.bf('A', 'Smothering Tithe');
+    const armor = M.bf('A', 'Argentum Armor');
+    const stone = M.bf('A', 'Mind Stone');
+    const theirs = M.bf('B', 'Gilded Lotus');
+    const ch = (o) => g.characteristics(o);
+    t.ok(ch(lotus).isCreature && ch(lotus).power === 4 && ch(lotus).toughness === 4, 'Bello: Gilded Lotus is a 4/4');
+    t.ok(g._hasCreatureType(lotus, 'Elemental'), 'Bello: an Elemental');
+    t.ok((lotus.analysis().types || []).includes('Artifact'), 'Bello: still an artifact');
+    t.ok(g.hasKw(lotus, 'indestructible') && g.hasKw(lotus, 'haste'), 'Bello: indestructible and haste');
+    t.ok(ch(tithe).isCreature, 'Bello: a non-Aura enchantment of mana value 4');
+    t.no(ch(armor).isCreature, 'Bello: not an Equipment');
+    t.no(ch(stone).isCreature, 'Bello: not mana value 2');
+    t.no(ch(theirs).isCreature, "Bello: not B's");
+    // haste: it attacks the turn it came, and draws a card on combat damage
+    const hand0 = M.zone('A', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: lotus.id, defenderId: 'B' }]);
+    toMain2(M);
+    t.eq(M.life('B'), 16, 'Bello: 4 combat damage');
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Bello: and a card drawn');
+    // B's turn: an artifact again
+    M.nextTurn('B');
+    t.no(ch(lotus).isCreature, "Bello: only during A's turn");
+    t.no(ch(tithe).isCreature);
+  });
 };
