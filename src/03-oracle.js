@@ -4609,6 +4609,9 @@
       } },
     { re: /^You gain (one|two|three|four|\d+) life for each card exiled this way\.?$/i,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { lastExiledCount: true, mult: num(m[1]) } }) },
+    // Tymaret, Chosen from Death: "You gain 1 life for each creature card exiled this way." (exiledMatching)
+    { re: /^You gain (one|two|three|four|\d+) life for each ([a-z]+) card exiled this way\.?$/i,
+      make: (m) => ({ op: 'gainLife', who: 'you', n: { exiledMatching: m[2].toLowerCase(), mult: num(m[1]) } }) },
     { re: /^Exile (?:all|each) (?:player'?s|players'?) graveyards?\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
     /* Planar Despair, Mutilate: "All creatures get -1/-1 until end of turn
        for each basic land type among lands you control" — counted once, as
@@ -4884,6 +4887,9 @@
     { re: /^Exile up to (two|three|four|five) target cards from a single graveyard\.?$/i,
       make: (m) => ({ op: 'exile', sameGraveyard: true,
         targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', upTo: true })) }) },
+    // Tymaret, Chosen from Death: "Exile up to two target cards from graveyards." — any graveyards
+    { re: /^Exile up to (two|three|four|five) target cards from graveyards\.?$/i,
+      make: (m) => ({ op: 'exile', targets: Array.from({ length: num(m[1]) }, () => ({ type: 'permanent', filter: 'card', zone: 'graveyard', upTo: true })) }) },
 
     /* ===== keyword actions that make a thing ===== */
     { re: /^Investigate\.?$/i, make: () => ({ op: 'createNamedToken', n: 1, token: 'Clue' }) },
@@ -5325,7 +5331,8 @@
     { re: /^Return (target [a-z ]*?creature card) from your graveyard to the battlefield with an? ([+\-0-9/a-z]+) counter on it\.?$/i,
       make: (m) => ({ op: 'reanimate', counter: m[2].toLowerCase(), targets: [targetSpec(m[1].replace(/ card$/, ''), 'graveyard')].map(t => Object.assign(t, { controller: 'you' })) }) },
     /* more combat */
-    { re: /^After this (?:main )?phase, there is an additional combat phase( followed by an additional main phase)?\.?$/i,
+    // (Raphael, Tag Team Tough: "After this combat phase, there is an additional combat phase.")
+    { re: /^After this (?:main |combat )?phase, there is an additional combat phase( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1] }) },
     // Bumi, Unleashed: "Only land creatures can attack during that combat phase." — the one just added (onlyAttack)
     { re: /^Only (land|artifact|enchantment|legendary|token|nontoken) creatures can attack during that combat phase\.?$/i,
@@ -5513,6 +5520,9 @@
       } },
     /* (The Ur-Dragon: "you may put a permanent card …" is a choice; without
        "you may" it is not — optional: false, and a card is put if there is one) */
+    // Michelangelo, Improviser: "you may put a creature card and/or a land card from your hand onto the battlefield" (oneEachType)
+    { re: /^(?:[Yy]ou may )?[Pp]ut an? ([a-z]+) card and\/or an? ([a-z]+) card from your hand onto the battlefield\.?$/,
+      make: (m) => ({ op: 'permanentFromHand', filter: 'any', who: 'you', oneEachType: [m[1], m[2]] }) },
     // (Ilharg, the Raze-Boar: "… onto the battlefield tapped and attacking")
     { re: /^(?:Then )?((?:[Yy]ou may )?)[Pp]ut an? ([-a-z, ]*?)card from your hand onto the battlefield( tapped)?( and attacking(?: that (?:opponent|player))?)?\.?$/i,
       make: (m) => Object.assign({ op: 'permanentFromHand', filter: (m[2] || '').trim().toLowerCase() || 'any', who: 'you' }, m[3] ? { tapped: true } : {}, m[4] ? { attacking: true } : {}, m[1] ? {} : { optional: false }) },
@@ -10899,6 +10909,12 @@
     if (colG) {
       const inner = parseCostMod(colG[1] + ' cost {1} less to cast');
       return inner && inner.amount === -1 && !inner.symbols && !inner.per ? Object.assign(inner, { amount: 0, lessSymbols: colG[2].match(/[WUBRG]/g).map(c => c + '|1') }) : null;
+    }
+    // The Scarlet Witch: "… cost {X} less to cast, where X is The Scarlet Witch's power" — {1} less for each point (srcPower)
+    const xPow = s.match(/^(.+?) cost \{X\} less to cast, where X is CARDNAME'?s power$/);
+    if (xPow) {
+      const inner = parseCostMod(xPow[1] + ' cost {1} less to cast');
+      return inner && inner.amount === -1 && !inner.symbols && !inner.per && !inner.cond ? Object.assign(inner, { per: { srcPower: true } }) : null;
     }
     // Temur Battlecrier: "During your turn, spells you cast cost {1} less to cast for each creature you control with power 4 or greater"
     const each = s.match(/^(During your turn, )?([A-Za-z ]*?)spells you cast cost \{(\d+)\} less to cast for each (.+)$/i);

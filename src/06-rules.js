@@ -3681,6 +3681,8 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      // The Scarlet Witch: "where X is The Scarlet Witch's power" (srcPower; none below 0)
+      if (v.srcPower) return (src && src.zone === 'battlefield' ? Math.max(0, this.powerOf(src)) : 0) * mult;
       // Eris, Roar of the Storm: "each different mana value among instant and sorcery cards in your graveyard" (graveMvDistinct)
       if (v.graveMvDistinct) {
         const gy = ((this.zones[pid] || {}).graveyard || []).filter(o => this._cardFitsWords(o, v.graveMvDistinct));
@@ -16980,6 +16982,11 @@
         }
         // Crypt Incursion: "for each card exiled this way"
         if (v && typeof v === 'object' && v.lastExiledCount) return (this._lastExiledCount || 0) * (v.mult || 1);
+        // Tymaret, Chosen from Death: "for each creature card exiled this way" (exiledMatching)
+        if (v && typeof v === 'object' && v.exiledMatching) {
+          const ids = this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []);
+          return ids.filter(id => { const c = this.obj(id); return c && c.zone === 'exile' && this._cardFitsWords(c, v.exiledMatching); }).length * (v.mult || 1);
+        }
         // Sunfall: how many the sweep just before took
         if (v === 'lastSweep') return this._lastSweep || 0;
         if (v === 'lastRoll') return this._lastRoll || 0;
@@ -24231,6 +24238,27 @@
             if (!pool.length) continue;
             // (The Gitrog, Ravenous Ride: "up to X land cards", X counted as it happens — none for 0)
             if (!e.any && e.n != null && typeof e.n === 'object' && !(n(e.n) > 0)) continue;
+            /* Michelangelo, Improviser: "you may put a creature card and/or a land card from your hand onto the
+               battlefield" — one pick, each card standing for one of the kinds, no two for the same (oneEachType) */
+            if (e.oneEachType) {
+              const kindsOf = (o) => e.oneEachType.filter(k => this._fitsFilter(o, k));
+              const typed = pool.filter(o => kindsOf(o).length);
+              if (!typed.length) continue;
+              const got = this._choose({ playerId: p.id, purpose: 'oneEachKind', kind: 'objects', zone: fromZones[0],
+                items: this._chooseItems(typed).map(it => Object.assign(it, { types: kindsOf(this.obj(it.id)) })),
+                min: 0, max: Math.min(typed.length, e.oneEachType.length), optional: true,
+                constraints: [{ kind: 'distinctTypes', key: 'types', label: 'kind' }],
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}you may put ${e.oneEachType.map((k, i) => (i && i === e.oneEachType.length - 1 ? 'and/or ' : '') + (/^[aeiou]/i.test(k) ? 'an ' : 'a ') + k + ' card').join(e.oneEachType.length > 2 ? ', ' : ' ')} from your ${fromZones.join(' or ')} onto the battlefield.` }, 'p' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              const ids = ((got && got.picks) || []).filter(id => typed.some(o => o.id === id));
+              for (const id of ids) {
+                const o = this.obj(id);
+                if (!o || !fromZones.includes(o.zone)) continue;
+                this.moveObject(o, 'battlefield', { controller: p.id });
+                this._lastPut = o.id;
+              }
+              continue;
+            }
             const many = e.any ? pool.length : Math.min(n(e.n) || 1, pool.length);
             /* "You may put", "any number", "up to two" are choices; a card that
                says only "put a creature card from your hand onto the battlefield"
