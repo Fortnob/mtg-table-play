@@ -9153,6 +9153,12 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    // Rex, Cyber-Hound: "Choose target creature card in a graveyard. Exile it with a brain counter on it."
+    { re: /^Choose (target [a-z ]+? card) in a graveyard\. Exile it with an? ([a-z]+) counter on it\.(?: Activate only as a sorcery\.)?$/i,
+      make: (m) => {
+        const ex = parseEffectSentence('Exile ' + m[1] + ' from a graveyard.', 1);
+        return ex && ex.op === 'exile' && (ex.targets || []).length === 1 ? [Object.assign(ex, { counter: m[2].toLowerCase() })] : null;
+      } },
     /* Krothuss, Lord of the Deep: "create a tapped and attacking token that's a copy of another target attacking creature.
        If that creature is a Kraken, Leviathan, Octopus, or Serpent, create two of those tokens instead." (twiceIfType, a list) */
     { re: /^create a tapped and attacking token that'?s a copy of another target attacking creature\. If that creature is an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+), create two of those tokens instead\.?$/,
@@ -18789,6 +18795,9 @@
       /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
          chosen with its own ability, while it is still in exile (borrowChosen) */
       { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the last chosen card\.?$/i, eff: { op: 'borrowActivated', chosenCard: true }, auto: true },
+      // Rex, Cyber-Hound: "Rex has all activated abilities of all cards in exile with brain counters on them." (exiledCounter)
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of all cards in exile with ([a-z]+) counters on them\.?$/i,
+        make: (m) => ({ op: 'borrowActivated', exiledCounter: m[1].toLowerCase() }), auto: true },
       { re: /^(?:CARDNAME|This creature|This token) can't block\.?$/i, eff: { op: 'cantBlock' }, auto: true },
       { re: /^(?:CARDNAME|This creature) can't attack\.?$/i, eff: { op: 'cantAttack' }, auto: true },
       /* Shalai: "You, planeswalkers you control, and other creatures you control have hexproof." */
@@ -19409,6 +19418,9 @@
       // Mishra, Tamer of Mak Fawa: "Each artifact card in your graveyard has unearth {1}{B}{R}." (grantUnearth)
       { re: /^Each ([a-z]+) card in your graveyard has unearth ((?:\{[^}]+\})+)\.?$/i,
         make: (m) => ({ op: 'grantUnearth', words: m[1].toLowerCase(), cost: m[2] }), auto: true },
+      // Kid Loki: "Each creature you control that you've put one or more +1/+1 counters on this turn has hexproof." (plusPutByYouTurn)
+      { re: /^Each creature you control that you'?ve put one or more \+1\/\+1 counters on this turn has (hexproof|indestructible|flying|haste|trample|lifelink|vigilance|menace|deathtouch)\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', plusPutByYouTurn: true }, grant: [U.titleCase(m[1])] }), auto: true },
       // Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value." (grantEncoreMv)
       { re: /^Each ([A-Z][a-z]+) creature card in your graveyard has encore \{X\}, where X is its mana value\.?$/,
         make: (m) => ({ op: 'grantEncoreMv', words: m[1].toLowerCase() + ' creature' }), auto: true },

@@ -13907,6 +13907,10 @@
       for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
       // (Thranduil, the Elvenking: the cards in its controller's graveyard, as they are now)
       if (spec.graveyard) sig += '|' + ((this.zones[o.controller] || {}).graveyard || []).map(x => x.id).join(',');
+      // (Rex, Cyber-Hound: which cards in exile have the counter — exiledCounter)
+      const exiledWith = () => spec.exiledCounter ? this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
+        .filter(c => Number((c.counters || {})[spec.exiledCounter]) > 0) : [];
+      if (spec.exiledCounter) sig += '|x' + exiledWith().map(c => c.id).join(',');
       if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
       busy.add(o.id);
       let res = null;
@@ -13939,7 +13943,14 @@
             for (const ab of (xa.manaAbilities || [])) take(mana, ab);
           }
         }
-        for (const x of (spec.chosenCard || spec.graveyard ? [] : this.battlefield)) {
+        /* Rex, Cyber-Hound: "all activated abilities of all cards in exile with brain counters on them" — anybody's
+           cards, activated abilities only (exiledCounter) */
+        for (const c of exiledWith()) {
+          const ca = c.analysis();
+          for (const ab of ((ca && ca.abilities) || [])) if (ab.kind === 'activated') take(acts, ab);
+          for (const ab of ((ca && ca.manaAbilities) || [])) take(mana, ab);
+        }
+        for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
           if (spec.who === 'opponents' ? !opp.has(x.controller) : x.controller !== o.controller) continue;
           const xa = x.analysis();
@@ -14640,6 +14651,8 @@
         (h.countersPutOn = h.countersPutOn || {})[o.id] = true;
         // Lord Jyscal Guado: who put a counter on a creature this turn (counterPutter)
         if (putter && (this.characteristics(o) || {}).isCreature) (h.counterPutters = h.counterPutters || {})[putter] = true;
+        // Kid Loki: who put +1/+1 counters on this permanent this turn, as this object (plusPutByYouTurn)
+        if (putter && kind === '+1/+1') (h.plusPutBy = h.plusPutBy || {})[o.id + '|' + putter] = o.ts == null ? 0 : o.ts;
       }
       if (n > 0 && o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind, amount: n, putter });
       this.emit('sfx', n > 0 ? 'counter_add' : 'counter_remove', { player: o.controller, size: Math.abs(n) });
@@ -29602,6 +29615,11 @@
       if (sc.token && !o.isToken) return false;
       // Oran-Rief: "that entered this turn"
       if (sc.enteredThisTurn && o.entered !== this.turn) return false;
+      // Kid Loki: "that you've put one or more +1/+1 counters on this turn" (plusPutByYouTurn)
+      if (sc.plusPutByYouTurn) {
+        const pb = ((this.turnHistory || {}).plusPutBy || {})[o.id + '|' + pid];
+        if (pb === undefined || pb !== (o.ts == null ? 0 : o.ts)) return false;
+      }
       // Desynchronization: historic is legendary, an artifact or a Saga
       if (sc.notHistoric && ((oa.supertypes || []).includes('Legendary') || (oa.types || []).includes('Artifact') || (oa.subtypes || []).includes('Saga'))) return false;
       if (sc.tapped && !o.tapped) return false;
