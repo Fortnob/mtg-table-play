@@ -6873,6 +6873,7 @@
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, bySpell: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
         // Unsettled Mariner: "Whenever you … become the target" — a player aimed at (playerTarget)
         if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, bySpell: true, playerId, stackId: item.id });
+        this._spellBecomesTarget(t, { bySpell: true, playerId, stackId: item.id });
       }
       this._fire('opponentCastSpell', null, Object.assign({ except: playerId }, castData));
       this._crimeCheck(playerId, item.targets);
@@ -6977,6 +6978,14 @@
         if (!this._payWardPrice(item.controller, o, w, item.name)) item.countered = true;
         }
       }
+    }
+
+    /** Surrak, Elusive Hunter: "a creature spell you control becomes the target of a spell or ability" — a spell
+        aimed at on the stack, told only to the triggers that watch spells as well (onStack, spellsToo) */
+    _spellBecomesTarget(t, data) {
+      const s = t && t.kind === 'stack' && this.stack.find(x => x.id === t.id);
+      if (!s || s.kind !== 'spell' || !s.obj || s.obj.zone !== 'stack') return;
+      this._fire('becomesTarget', s.controller, Object.assign({ source: s.obj, object: s.obj, onStack: true }, data));
     }
 
     /** Pay a ward price that is not a choice (mana, life, poison, evidence, waterbend) for `name`, the spell or
@@ -8175,6 +8184,7 @@
         const x = t.kind === 'object' && this.obj(t.id);
         if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, playerId, stackId: item.id, nth: this._targetedNth(x) });
         if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, playerId, stackId: item.id });
+        this._spellBecomesTarget(t, { byAbility: true, playerId, stackId: item.id });
       }
       this.logEvent('ability', `${this.player(playerId).name} activates ${o.name}: ${truncate(MTG.oracle.abilityLabel(ab, o), 80)}`);
       // ward on anything this ability targets (CR 702.21a: "a spell or ability an opponent controls")
@@ -15104,6 +15114,7 @@
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
+          if (event === 'becomesTarget' && data.onStack && !ab.spellsToo) continue;
           // Nicanzil, Current Conductor: "explores a land card", "explores a nonland card" (exploreKind)
           if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
           // Professor Hojo: "become the target of an activated ability"
@@ -27585,6 +27596,8 @@
           : this.toughnessOf(o);
         if (tg > sc.maxToughness) return false;
       }
+      // Raggadragga, Goreguts Boss: "Each creature you control with a mana ability" (withManaAbility)
+      if (sc.withManaAbility && !this._hasManaAbility(o, oa, inLayers)) return false;
       if (!inLayers && sc.keyword && !this.hasKw(o, sc.keyword)) return false;
       if (!inLayers && sc.withoutKeyword && this.hasKw(o, sc.withoutKeyword)) return false;
       // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
@@ -28204,12 +28217,13 @@
       let n = e.n === 'X' ? 1 : (e.n || 1);
       if (e.countBy) n = this.countMatching(controller, e.countBy);
       // "it creates twice that many of those tokens instead"
+      // (Mu Yanling, Wind Rider: "a 3/2 colorless Vehicle artifact token with crew 1" — no creature until crewed: noncreature)
       const ev = e._noRep ? { n } : this._replace({ kind: 'createToken', n, controller,
-        tokenTypes: ['Creature'].concat(e.addTypes || [], [String(e.subtypes || '')]).join(' ') });
+        tokenTypes: (e.noncreature ? [] : ['Creature']).concat(e.addTypes || [], [String(e.subtypes || '')]).join(' ') });
       if (ev.cancelled) return;
       n = ev.n;
       // Divine Visitation: whatever creature tokens they were to be, they are 4/4 Angels
-      if (this._anyStaticOf(controller, 'tokensBecomeAngels')) {
+      if (!e.noncreature && this._anyStaticOf(controller, 'tokensBecomeAngels')) {
         e = Object.assign({}, e, { pt: '4/4', colorWords: ['white'], subtypes: 'Angel', addTypes: [], keywords: ['Flying', 'Vigilance'],
           grantedText: '', name: null, legendary: false, snow: false });
       }
@@ -28225,7 +28239,7 @@
       /* "a 1/1 colorless Thopter artifact creature token": the types in
          front of "creature" are part of what it is, not of its name. */
       const front = [e.legendary ? 'Legendary' : null, e.snow ? 'Snow' : null].filter(Boolean)
-        .concat(['Token'], e.addTypes || [], ['Creature']).join(' ');
+        .concat(['Token'], e.addTypes || [], e.noncreature ? [] : ['Creature']).join(' ');
       const text = [(e.keywords || []).join(', '), e.grantedText || ''].filter(Boolean).join('\n');
       const card = {
         id: 'token:' + U.hash(JSON.stringify([e.pt, subtypes, colorWords, e.keywords, e.grantedText || '', front, e.name || ''])),
@@ -29616,8 +29630,23 @@
      * Does a permanent (or spell) fit what a trigger is watching for:
      * "another nontoken creature", "a creature with power 4 or greater"?
      */
+    /**
+     * Raggadragga, Goreguts Boss: does this permanent have a mana ability — printed, or handed to it ("Creatures you
+     * control have '{T}: Add one mana of any color.'")? Inside the layers its own characteristics can't be asked for,
+     * so there the printed ones and the grants that reach it stand in.
+     */
+    _hasManaAbility(o, oa, inLayers) {
+      const a = oa || (o && o.analysis());
+      if (!a) return false;
+      if (!inLayers) return this.manaAbilitiesOf(o).length > 0;
+      if ((a.manaAbilities || []).length) return true;
+      if ((o.effects || []).some(e => e && (e.grantMana || []).length)) return true;
+      return this._continuous().some(en => en.ef && (en.ef.grantMana || []).length && !(en.ef.scope && en.ef.scope.withManaAbility) && this._contReaches(en, o, a, null));
+    }
     _objFits(x, f, src, ctrl) {
       if (!x || !f) return true;
+      // Raggadragga, Goreguts Boss: "a creature you control with a mana ability"
+      if (f.withManaAbility && !this._hasManaAbility(x)) return false;
       // "this creature or another Elemental": itself always counts
       if (f.selfOk && src && x.id === src.id) return true;
       if (f.other && src && x.id === src.id) return false;

@@ -1247,6 +1247,15 @@
 
   const EFFECT_RULES = [
     { re: TEXT_CHANGE_RE, make: (m) => textChangeEffect(m[0]) },
+    // Miles Morales // Ultimate Spider-Man: "He gains hexproof and becomes colorless until end of turn."
+    { re: /^(?:CARDNAME|This creature) gains ([a-z ]+?) and becomes (white|blue|black|red|green|colorless) until end of turn\.?$/i,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        const col = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null }[m[2].toLowerCase()];
+        return [{ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'self' },
+          { op: 'becomes', duration: 'eot', eff: { setColors: col ? [col] : [] }, scope: 'self' }];
+      } },
     // Deadpool, Trading Card: "Each other player draws a card."
     { re: /^Each other player draws (a|one|two|three|\d+) cards?\.?$/i,
       make: (m) => ({ op: 'draw', n: num(m[1]), who: 'opponents' }) },
@@ -2211,6 +2220,13 @@
         if (!sp || sp.unknown) return null;
         return { op: 'doubleCounters', allKinds: true, targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, sp, { upTo: true, distinct: true })) };
       } },
+    // Ultimate Spider-Man: "double the number of each kind of counter on each Spider and legendary creature you control" — either
+    { re: /^Double the number of each kind of counter on each ([A-Z][a-z]+) and legendary creature you control\.?$/,
+      make: (m) => ({ op: 'doubleCounters', allKinds: true, scope: { who: 'you', what: 'creature', thatIs: m[1] + ' or legendary' } }) },
+    // Mu Yanling, Wind Rider: "create a 3/2 colorless Vehicle artifact token with crew 1" — an artifact, no creature until crewed
+    { re: /^Create an? (\d+)\/(\d+) colorless Vehicle artifact token with crew (\d+)\.?$/i,
+      make: (m) => ({ op: 'createToken', n: 1, pt: m[1] + '/' + m[2], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
+        noncreature: true, keywords: [], grantedText: 'Crew ' + m[3] }) },
     // Aetheric Amplifier: "Double the number of each kind of counter you have."
     { re: /^Double the number of each kind of counter you have\.?$/i, make: () => ({ op: 'doublePlayerCounters' }) },
     // Garnet, Princess of Alexandria: "Put a +1/+1 counter on Garnet for each lore counter removed this way."
@@ -12171,6 +12187,9 @@
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         // Luminous Broodmoth: "a creature you control without flying"
         f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with an? mana ability$/i))) {
+        // Raggadragga, Goreguts Boss: "a creature you control with a mana ability" (withManaAbility)
+        f.withManaAbility = true; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with toughness greater than its power$/i))) {
         // Fecund Greenshell: "another creature you control with toughness greater than its power"
         f.toughGtPow = true; p = p.slice(0, m.index);
@@ -12525,6 +12544,9 @@
        ability an opponent controls"; Amulet of Safekeeping: "Whenever you become the target of …" (orYou) */
     { re: /^Whenever you or (a|another) permanent you control becomes the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1].toLowerCase() + ' permanent you control'), extra: { byOpponent: true, orYou: true } },
+    // Surrak, Elusive Hunter: "Whenever a creature you control or a creature spell you control becomes the target of …" (spellsToo)
+    { re: /^Whenever a creature you control or a creature spell you control becomes the target of a spell or ability an opponent controls,? /i,
+      event: 'becomesTarget', filt: () => subjectFilter('a creature you control'), extra: { byOpponent: true, spellsToo: true } },
     { re: /^Whenever you become the target of a spell or ability an opponent controls,? /i,
       event: 'becomesTarget', extra: { byOpponent: true, orYou: true, youTargetedOnly: true } },
     // Professor Hojo: "Whenever one or more creatures you control become the target of an activated ability" (byActivated)
@@ -15680,6 +15702,9 @@
       } else if ((m = rest.match(/ with toughness greater than (?:its|their) power$/i))) {
         // Plagon, Lord of the Beach: "each creature you control with toughness greater than its power"
         sc.toughGtPow = true; rest = rest.slice(0, m.index);
+      } else if ((m = rest.match(/ with an? mana ability$/i))) {
+        // Raggadragga, Goreguts Boss: "Each creature you control with a mana ability" (withManaAbility)
+        sc.withManaAbility = true; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with no abilities$/i))) {
         // Ruxa, Patient Professor: "Creatures you control with no abilities" (noAbilities)
         sc.noAbilities = true; rest = rest.slice(0, m.index);
