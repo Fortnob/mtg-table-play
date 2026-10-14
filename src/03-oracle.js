@@ -6158,8 +6158,10 @@
     { re: /^Copy (?:it|that spell) for each other (instant and sorcery|instant or sorcery|noncreature)? ?spell you'?ve cast before it this turn\.?$/i,
       make: (m) => ({ op: 'copyThatSpell', n: { castBefore: (m[1] || 'spell').replace(' and ', ' or ') } }) },
     /* Tyrite Sanctum: "Target legendary creature becomes a God in addition to its other types." */
-    { re: /^(Target (?:legendary )?creature(?: you control)?) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
-      make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
+    /* (Clavileño, First of the Blessed: "Target attacking Vampire that isn't a Demon becomes a Demon …" — any
+       target the reader knows) */
+    { re: /^(Target (?:legendary )?creature(?: you control)?|Target [A-Za-z' -]+?) becomes an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => { const tg = tgt(m[1]); return tg ? { op: 'becomes', duration: 'permanent', eff: { addSubtypes: [m[2]] }, targets: [tg] } : null; } },
     /* Endurance: "puts all the cards from their graveyard on the bottom of their library in a random order" */
     { re: /^(Up to one target player|Target player) puts all the cards from their graveyard on the bottom of their library in a random order\.?$/i,
       make: (m) => ({ op: 'graveyardToLibrary', who: 'target', bottom: true, targets: [Object.assign({ type: 'player' }, /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
@@ -6997,9 +6999,13 @@
     // Yenna, Redtooth Regent: "target enchantment you control that doesn't have the same name as another permanent you control" (uniqueName)
     const unique = /\s+that doesn'?t have the same name as another permanent you control$/i.test(String(phrase));
     if (unique) phrase = String(phrase).replace(/\s+that doesn'?t have the same name as another permanent you control$/i, '');
+    // Clavileño, First of the Blessed: "target attacking Vampire that isn't a Demon" (notSubtype)
+    const isnt = String(phrase).match(/\s+that isn'?t an? ([A-Z][a-z]+)$/);
+    if (isnt) phrase = String(phrase).slice(0, isnt.index);
     const orig = String(phrase).replace(/^(?:another |other )?target\s+/i, '').trim();
     const p = orig.toLowerCase();
     const spec = { type: 'permanent', filter: p, zone: zone || 'battlefield' };
+    if (isnt) { spec.notSubtype = isnt[1].toLowerCase(); spec.filter = p + " that isn't a " + isnt[1]; }
     if (unique) spec.uniqueName = true;
     if (atYou) { spec.attacking = true; spec.attackingYou = true; spec.filter = p + ' attacking you'; }
     if (damaged) spec.damagedThisTurn = true;

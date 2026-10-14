@@ -29297,4 +29297,44 @@ module.exports = (test) => {
     t.zone(bears2, 'battlefield', 'Fandaniel: B declines');
     t.eq(M.life('B'), 16, 'Fandaniel: and loses 4');
   });
+
+  test('Commanders: Clavileño, First of the Blessed — an attacking Vampire becomes a Demon that draws and makes a 4/3 when it dies', (mk, t) => {
+    t.auto('Clavileño, First of the Blessed');
+    const M = mk({ library: Array(30).fill('Island') });
+    const clav = M.bf('A', 'Clavileño, First of the Blessed');
+    const vamp = M.bf('A', 'Vampire Interloper');
+    const bears = M.bf('A', 'Grizzly Bears');
+    let opts = null;
+    M.answer('pickTarget', (ch) => { opts = ch.options; return { targets: [vamp.id] }; });
+    M.answer('declareAttackers', () => [clav, vamp, bears].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    M.toMain('A', 'declareBlockers');
+    const ids = (opts || []).flat().map(x => (x && x.id) || x);
+    t.ok(ids.includes(clav.id) && ids.includes(vamp.id), 'Clavileño: the attacking Vampires');
+    t.no(ids.includes(bears.id), 'Clavileño: not a Bear');
+    t.ok(M.g._hasSubtype(vamp, 'Demon'), 'Clavileño: the Interloper is a Demon');
+    t.ok(M.g._hasSubtype(vamp, 'Vampire'), 'Clavileño: in addition to its other types');
+    // it dies: a card and a tapped 4/3 flier
+    M.toMain('A', 'main');
+    M.nextTurn('A');
+    t.ok(M.g._hasSubtype(vamp, 'Demon'), 'Clavileño: a Demon for good');
+    const hand0 = M.zone('A', 'hand').length;
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [vamp.id] });
+    t.zone(vamp, 'graveyard');
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Clavileño: drew a card');
+    const tok = M.bfOf('A').find(o => o.isToken);
+    t.ok(tok && tok.tapped, 'Clavileño: a tapped token');
+    const ch = tok && M.g.characteristics(tok);
+    t.eq(ch && M.g.powerOf(tok) + '/' + M.g.toughnessOf(tok), '4/3', 'Clavileño: a 4/3');
+    t.ok(tok && M.g._hasSubtype(tok, 'Vampire') && M.g._hasSubtype(tok, 'Demon'), 'Clavileño: a Vampire Demon');
+    // next combat: the Demon token attacking too can't be picked; Clavileño itself can
+    opts = null;
+    M.nextTurn('A');
+    M.answer('pickTarget', (c) => { opts = c.options; return { targets: [clav.id] }; });
+    M.answer('declareAttackers', () => [clav, tok].map(o => ({ attackerId: o.id, defenderId: 'B' })));
+    M.toMain('A', 'declareBlockers');
+    const ids2 = (opts || []).flat().map(x => (x && x.id) || x);
+    t.no(ids2.includes(tok.id), "Clavileño: a Vampire that's a Demon already is not a target");
+    t.ok(M.g._hasSubtype(clav, 'Demon'), 'Clavileño: itself a Demon now');
+  });
 };
