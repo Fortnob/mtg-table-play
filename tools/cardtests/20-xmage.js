@@ -31921,4 +31921,102 @@ module.exports = (test) => {
     t.eq(M.g.powerOf(nem), 5, 'Nemata: +2/+2');
     t.eq(saps().length, 0, 'Nemata: the Saproling sacrificed');
   });
+
+  test('Commanders: Toralf, God of Fury — excess noncombat damage to an opponent\'s creature, dealt again to another target', (mk, t) => {
+    t.auto("Toralf, God of Fury // Toralf's Hammer");
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', "Toralf, God of Fury // Toralf's Hammer");
+    const myr = M.bf('B', 'Darksteel Myr');
+    let asked = null;
+    M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'player', id: 'B' }] }; });
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [myr.id] });
+    t.zone(myr, 'battlefield', 'Toralf: the Myr is indestructible');
+    t.ok(asked, 'Toralf: asked for a target');
+    t.no(JSON.stringify(asked.targets || []).includes(myr.id), 'Toralf: not that permanent');
+    t.eq(M.life('B'), 18, 'Toralf: 3 damage to a 0/1 is 2 excess');
+  });
+  test('Commanders: Toralf, God of Fury — not for combat damage, nor exactly lethal, nor A\'s own creature', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    M.bf('A', "Toralf, God of Fury // Toralf's Hammer");
+    const giant = M.bf('B', 'Hill Giant'), mine = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [giant.id] });
+    t.zone(giant, 'graveyard');
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [mine.id] });
+    t.no(M.asked.some(ch => ch.type === 'pickTarget'), 'Toralf: no excess, and not an opponent\'s');
+    const elves = M.bf('B', 'Llanowar Elves');
+    const ogre = M.bf('A', 'Hill Giant');
+    M.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'B' }]);
+    M.answer('declareBlockers', () => [{ blockerId: elves.id, attackerIds: [ogre.id] }]);
+    M.toMain('A', 'endCombat');
+    t.zone(elves, 'graveyard');
+    t.no(M.asked.some(ch => ch.type === 'pickTarget'), 'Toralf: combat damage is not noncombat');
+  });
+  test("Commanders: Toralf's Hammer — the equipped creature's {1}{R}, {T}, Unattach: 3 damage, and the Hammer back to hand", (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const ham = M.bf('A', "Toralf, God of Fury // Toralf's Hammer");
+    ham.face = 1; M.g.bumpBoard();
+    const isa = M.bf('A', 'Isamaru, Hound of Konda');
+    M.mana('A', '1R');
+    M.activate('A', ham, 0, { targets: [isa.id] });
+    t.eq(ham.attachedTo, isa.id, 'Hammer: equipped');
+    t.eq(M.g.powerOf(isa), 5, 'Hammer: +3/+0 on a legend');
+    const acts = isa.analysis().abilities.filter(x => x.kind === 'activated');
+    t.ok(acts.some(x => /Unattach Toralf's Hammer/.test(x.text)), 'Hammer: the ability says the Hammer by name');
+    const all = isa.analysis().manaAbilities.concat(isa.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const k = all.findIndex(x => /Unattach/.test(x.text || ''));
+    M.mana('A', '1R');
+    M.activate('A', isa, k, { targets: ['B'] });
+    t.eq(M.life('B'), 17, 'Hammer: it deals 3 damage');
+    t.ok(isa.tapped, 'Hammer: {T}');
+    t.zone(ham, 'hand', 'Hammer: back to its owner\'s hand');
+    t.eq(M.g.powerOf(isa), 2, 'Hammer: no longer equipped');
+  });
+
+  test("Commanders: Toralf's Hammer — no +3/+0 on a nonlegendary creature; Razor Boomerang the same way", (mk, t) => {
+    t.auto('Razor Boomerang');
+    const M = mk({ library: Array(20).fill('Island') });
+    const ham = M.bf('A', "Toralf, God of Fury // Toralf's Hammer");
+    ham.face = 1; M.g.bumpBoard();
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', '1R');
+    M.activate('A', ham, 0, { targets: [bear.id] });
+    t.eq(ham.attachedTo, bear.id);
+    t.eq(M.g.powerOf(bear), 2, 'Hammer: not legendary, no +3/+0');
+    const boom = M.bf('A', 'Razor Boomerang'), elves = M.bf('A', 'Llanowar Elves');
+    M.mana('A', '2');
+    M.activate('A', boom, 0, { targets: [elves.id] });
+    const all = elves.analysis().manaAbilities.concat(elves.analysis().abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const k = all.findIndex(x => /Unattach Razor Boomerang/.test(x.text || ''));
+    t.ok(k >= 0, 'Razor Boomerang: the ability handed to the Elves');
+    M.activate('A', elves, k, { targets: ['B'] });
+    t.eq(M.life('B'), 19, 'Razor Boomerang: 1 damage');
+    t.zone(boom, 'hand', 'Razor Boomerang: back to hand');
+    t.eq(ham.attachedTo, bear.id, 'the Hammer stays where it is');
+  });
+
+  test('Commanders: Xu-Ifit, Osteoharmonist — returns a creature card as a Skeleton with no abilities, not even as it enters', (mk, t) => {
+    t.auto('Xu-Ifit, Osteoharmonist');
+    const M = mk({ library: Array(20).fill('Island') });
+    const xu = M.bf('A', 'Xu-Ifit, Osteoharmonist');
+    const drifter = M.grave('A', 'Mulldrifter');
+    const hand0 = M.zone('A', 'hand').length;
+    M.activate('A', xu, 0, { targets: [drifter.id] });
+    t.zone(drifter, 'battlefield');
+    t.eq(M.zone('A', 'hand').length, hand0, 'Xu-Ifit: its enters ability is gone before it could trigger');
+    t.no(M.g.hasKw(drifter, 'flying'), 'Xu-Ifit: no flying');
+    t.ok(M.g._hasCreatureType(drifter, 'Skeleton') && M.g._hasCreatureType(drifter, 'Elemental'), 'Xu-Ifit: a Skeleton as well');
+    t.ok(xu.tapped);
+    t.no(M.g.activateAbility('A', xu.id, 0, { targets: [M.grave('A', 'Grizzly Bears').id] }), 'Xu-Ifit: {T} is spent');  });
+  test('Commanders: Xu-Ifit, Osteoharmonist — only as a sorcery, only from your graveyard', (mk, t) => {
+    const M = mk({ library: Array(20).fill('Island') });
+    const xu = M.bf('A', 'Xu-Ifit, Osteoharmonist');
+    const theirs = M.grave('B', 'Hill Giant');
+    t.no(M.g.activateAbility('A', xu.id, 0, { targets: [theirs.id] }), "Xu-Ifit: not B's graveyard");
+    const bear = M.grave('A', 'Grizzly Bears');
+    M.toMain('A', 'end');
+    t.no(M.g.activateAbility('A', xu.id, 0, { targets: [bear.id] }), 'Xu-Ifit: not in the end step');
+  });
 };

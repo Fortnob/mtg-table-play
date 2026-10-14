@@ -352,6 +352,9 @@
         cost.putCounters = { n: WORDN(m[1]), kind: m[2].toLowerCase() };
         continue;
       }
+      /* Toralf's Hammer, Razor Boomerang: "Equipped creature has '{T}, Unattach Razor Boomerang: …'" — the Equipment
+         that hands the ability out, taken off as the price (unattachGranter; granterWords) */
+      if (/^Unattach the granting Equipment$/i.test(p)) { cost.unattachGranter = true; continue; }
       // "Return this creature to its owner's hand": the permanent itself as the price
       if (/^Return (?:this (?:creature|artifact|enchantment|permanent|Aura|land)|CARDNAME) to its owner'?s hand$/i.test(p)) { cost.returnSelf = true; continue; }
       /* "Return a land you control to its owner's hand", "Return two Islands
@@ -641,6 +644,14 @@
         effects: [{ op: 'continuous', layer: 6, scope: { self: true }, grant: kws, cond }] });
     }
     return ok;
+  }
+
+  /* Toralf's Hammer, Razor Boomerang: "Equipped creature has '{T}, Unattach Razor Boomerang: It deals 1 damage to any
+     target. Return Razor Boomerang to its owner's hand.'" — in the creature's hands, the Equipment's own name is
+     the Equipment, not the creature: "the granting Equipment" (the table shows its name) */
+  function granterWords(scope, text) {
+    if (!scope || !scope.attached || !/\bUnattach CARDNAME\b/.test(text || '')) return text;
+    return String(text).replace(/\bCARDNAME\b/g, 'the granting Equipment');
   }
 
   /* Words in quotation marks that a permanent can be handed and the engine
@@ -1976,6 +1987,16 @@
     // Grist, the Plague Swarm: "Put a deathtouch counter on the token if a black card was milled this way." — the token just made
     { re: /^Put an? ([+\-0-9/a-z]+) counter on the token if (.+?)\.?$/i,
       make: (m) => { const c = condOf(m[2]); return c ? { op: 'ifCond', cond: c, then: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget' }] } : null; } },
+    // Toralf's Hammer, Razor Boomerang: "Return Toralf's Hammer to its owner's hand." — the Equipment that handed it out (granterWords)
+    { re: /^Return the granting Equipment to its owner'?s hand\.?$/i, make: () => ({ op: 'bounceGranter' }) },
+    /* Toralf, God of Fury: "Toralf deals damage equal to the excess to any target other than that permanent." — the
+       excess the trigger counted; not the permanent dealt it (notTriggerObject) */
+    { re: /^CARDNAME deals damage equal to the excess to any target other than that permanent\.?$/i,
+      make: () => ({ op: 'damage', n: 'triggerAmount', targets: [Object.assign(targetSpec('any target'), { notTriggerObject: true })] }) },
+    /* Xu-Ifit, Osteoharmonist: "It's a Skeleton in addition to its other types and has no abilities." — how the card
+       just returned enters, folded into that return (enterRider) */
+    { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -10181,6 +10202,12 @@
          end of your next turn." — the second sentence belongs to each of
          those triggers, not to the spell */
       const prevE = out[out.length - 1];
+      // Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — as the card returned enters (enterRider)
+      if (e && e.enterRider) {
+        if (prevE && prevE.op === 'reanimate' && !prevE.enterEff) { prevE.enterEff = e.enterRider; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
       // Urabrask, Heretic Praetor: "They may play it this turn." — the card the replaced draw exiles
       if (e && e.op === 'manual' && prevE && prevE.op === 'nextDrawExiles' && /^They may play it this turn\.?$/i.test(String(e.text || ''))) {
         prevE.play = true; continue;
@@ -10644,7 +10671,7 @@
     [/^this Vehicle has (\w+) or more ([+\-0-9/a-z]+) counters on it$/i, (m) => ({ kind: 'selfCounters', n: num(m[1]), counter: m[2].toLowerCase() })],
     // an Aura's condition on what it enchants, by its printed colour or type
     [/^enchanted (?:creature|permanent) is (white|blue|black|red|green)$/i, (m) => ({ kind: 'attachedIs', color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] })],
-    [/^enchanted (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
+    [/^(?:enchanted|equipped) (?:creature|permanent) is (?:an? )?(legendary|creature|artifact|land|Equipment|enchantment)$/i, (m) => ({ kind: 'attachedIs', what: m[1].toLowerCase() })],
     [/^(?:equipped|enchanted) creature is attacking$/i, () => ({ kind: 'attachedIs', attacking: true })],
     [/^it'?s your turn$/i, () => ({ kind: 'yourTurn' })],
     [/^it'?s the first combat phase of the turn$/i, () => ({ kind: 'firstCombat' })],
@@ -11809,6 +11836,9 @@
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes untapped(?:,| )/i, event: 'becomesUntapped', self: true },
     { re: /^When(?:ever)? (?:this permanent|this creature|~|CARDNAME) leaves the battlefield(?:,| )/i, event: 'ltb', self: true },
+    // Toralf, God of Fury: "Whenever a creature or planeswalker an opponent controls is dealt excess noncombat damage" (excessNoncombat)
+    { re: /^Whenever (an? [a-z ]+? an opponent controls) is dealt excess noncombat damage,? /i, event: 'excessNoncombat',
+      filt: (m) => subjectFilter(m[1]) },
     // Zenos yae Galvus: "When the chosen creature leaves the battlefield, transform Zenos." (chosenObjOnly)
     { re: /^When(?:ever)? the chosen creature leaves the battlefield,? /i, event: 'permLeaves', extra: { chosenObjOnly: true } },
     // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game." (chosenPlayerLoses)
@@ -15113,8 +15143,9 @@
       make: (m) => {
         if (!m[2] && !m[4]) return null;      // the plain shape is the rule below
         const scope = scopeOf(m[1]);
-        if (!scope || !grantableText(m[5])) return null;
-        const list = [{ op: 'continuous', layer: 6, scope, grantText: m[5] }];
+        const said = granterWords(scope, m[5]);
+        if (!scope || !grantableText(said)) return null;
+        const list = [{ op: 'continuous', layer: 6, scope, grantText: said }];
         if (m[4]) {
           const kws = keywordList(m[4]);
           if (!kws.length || !kws.every(k => kwKnown(k))) return null;
@@ -15145,7 +15176,8 @@
         if (!scope) return null;
         /* a triggered ability handed out: the engine reads it as the
            permanent's own while the static ability lasts */
-        if (grantableText(m[2])) return { op: 'continuous', layer: 6, scope, grantText: m[2] };
+        const said = granterWords(scope, m[2]);
+        if (grantableText(said)) return { op: 'continuous', layer: 6, scope, grantText: said };
         /* Hexing Squelcher: 'have "Ward—Pay 2 life."' is a keyword in quotes */
         const qk = matchKeyword(m[2].replace(/\.$/, ''));
         if (qk && kwKnown(qk.text)) return { op: 'continuous', layer: 6, scope, grant: [qk.text] };
@@ -15854,6 +15886,9 @@
       }
     }
     const tail = !/^As long as /i.test(line) && String(line).match(/^([^.]+?) as long as ([^,.]+)\.?$/i);
+    // (Toralf's Hammer: "Equipped creature gets +3/+0 as long as it's legendary" — "it" is the equipped creature)
+    const its = tail && tail[1].match(/^(Equipped|Enchanted) creature\b/i) && tail[2].match(/^it'?s (an? )?(legendary|artifact|land|enchantment)$/i);
+    if (its) tail[2] = tail[1].split(' ')[0].toLowerCase() + ' creature is ' + (its[1] || '') + its[2];
     if (tail && condOf(tail[2])) {
       const again = parseStatic('As long as ' + tail[2] + ', ' + tail[1].charAt(0).toLowerCase() + tail[1].slice(1) + '.', ctx);
       if (again && again.auto) return Object.assign({}, again, { text: line });

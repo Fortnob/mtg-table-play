@@ -7533,6 +7533,8 @@
         effects: ab.effects, auto: !!ab.auto, abilityText: MTG.oracle.abilityLabel(ab, o),
         x: opts.x || 0,
       };
+      // Toralf's Hammer: the Equipment that handed this ability out (unattachGranter, bounceGranter)
+      if (ab.grantedBy) item.grantedBy = ab.grantedBy;
       this.stack.push(item);
       this._payThingCosts(playerId, ab.cost, o, opts, item);
       for (const t of item.targets || []) {
@@ -8036,6 +8038,18 @@
       opts = opts || {};
       // "Return this creature to its owner's hand" as the price
       if (cost.returnSelf && self && self.zone === 'battlefield') this.moveObject(self, 'hand');
+      // Toralf's Hammer: "Unattach Toralf's Hammer" as the price — the Equipment that handed the ability out
+      if (cost.unattachGranter && item && item.grantedBy) {
+        const eq = this.obj(item.grantedBy);
+        if (eq && eq.attachedTo && (!self || eq.attachedTo === self.id)) {
+          const host = this.obj(eq.attachedTo);
+          if (host) host.attachments = (host.attachments || []).filter(x => x !== eq.id);
+          eq.attachedTo = null; eq._chr = null;
+          if (host) host._chr = null;
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is unattached${host ? ' from ' + host.name : ''}.`);
+        }
+      }
       // "Pay {E}{E}"
       if (cost.energy) {
         const pe = this.player(pid);
@@ -12151,19 +12165,21 @@
       const borrowed = this._borrowedAbilities(o, base);
       if (!own.length && !sources.length && !base.notCreatureUnless && !stationed && !waiting && !proto && !borrowed) return base;
       this._dynBusy = true;
-      let texts, stamps, notCreature = false;
+      let texts, stamps, froms, notCreature = false;
       try {
         /* A granted ability is its words, or (from a translated card) the
            ability already written out, carried as JSON. */
         const said = (e) => e.grantText || ('\u0002' + JSON.stringify(e.grantAbilities));
         texts = own.map(said);
+        // (Toralf's Hammer: which permanent handed each out — "the granting Equipment")
+        froms = own.map(() => null);
         // when each was handed over, so an effect that takes every ability away can tell what came after it
         stamps = own.map(e => this._effTs(e, o.effects.indexOf(e)));
         const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
         for (const entry of sources) {
           const ss = lb && lb.st.get(entry.src.id);
           if (ss && (ss.lost || ss.rulesLost)) continue;          // its source has nothing left to hand out
-          if (this._contApplies(entry, o, base)) { texts.push(said(entry.ef)); stamps.push(entry.ts); }
+          if (this._contApplies(entry, o, base)) { texts.push(said(entry.ef)); stamps.push(entry.ts); froms.push(entry.src.id); }
         }
         if (base.notCreatureUnless) {
           const want = base.notCreatureUnless;
@@ -12178,6 +12194,7 @@
       } finally { this._dynBusy = false; }
       if (!texts.length && !notCreature && !stationed && !proto && !borrowed) return base;
       const key = base.name + '|' + (notCreature ? 1 : 0) + (stationed ? 's' : '') + (proto ? 'p' : '') + '|' + texts.join('\u0001') + '|' + stamps.join(',') +
+        (froms.some(Boolean) ? '|' + froms.join(',') : '') +
         (borrowed ? '|' + borrowed.key : '');
       if (o._dynKey === key && o._dynBase === base) return o._dyn;
       const out = Object.assign({}, base);
@@ -12213,7 +12230,10 @@
           /* …and standing rules ("This creature gets +1/+1 for each …",
              "Creature tokens you control get +2/+2"): read as its own, so
              the layers count them from it */
-          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static' || (loyal && ab.kind === 'loyalty')) extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
+          // (Toralf's Hammer: "the granting Equipment" is that Equipment, by its name — grantedBy)
+          const by = /the granting Equipment/.test(t) && froms[i] ? this.obj(froms[i]) : null;
+          const mark = (ab) => (by ? { grantedBy: by.id, text: String(ab.text || '').replace(/the granting Equipment/g, by.name) } : {});
+          for (const ab of ((ga && ga.abilities) || [])) if (ab.kind === 'triggered' || ab.kind === 'activated' || ab.kind === 'static' || (loyal && ab.kind === 'loyalty')) extra.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }, mark(ab)));
           // a mana ability handed over: "has '{T}: Add one mana of any color'"
           for (const ab of ((ga && ga.manaAbilities) || [])) extraMana.push(Object.assign({}, ab, { granted: true, grantTs: stamps[i] }));
         });
@@ -12583,6 +12603,8 @@
       if (excess > 0) {
         this._lastExcess = (this._lastExcess || 0) + excess; o._excessTurn = this.turn;
         (this._excessOn = this._excessOn || {})[o.id] = (this._excessOn[o.id] || 0) + excess;
+        // Toralf, God of Fury: "is dealt excess noncombat damage" — how much is the trigger's amount
+        if (!isCombat && o.zone === 'battlefield') this._fire('excessNoncombat', null, { object: o, objController: o.controller, amount: excess });
       }
       this._evDamage(source, { kind: 'object', id: o.id }, amount, isCombat);
       this._noteNoncombatDamage(source, amount, isCombat);
@@ -13161,6 +13183,10 @@
         o.summoningSick = true;
         o.damage = 0;
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
+        /* Xu-Ifit, Osteoharmonist: what it is as it enters — no abilities, so none of them triggers or changes how it
+           enters (enterEffects) */
+        for (const ef of ((opts && opts.enterEffects) || [])) o.effects.push(Object.assign(JSON.parse(JSON.stringify(ef)), { until: null }));
+        if (opts && opts.enterEffects) o._chr = null;
         this.battlefield.push(o);
         const a = o.analysis();
         if (a) {
@@ -14557,6 +14583,8 @@
           : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
           // Shadrix Silverquill: "Each mode must target a different player" — none an earlier mode pointed at
           : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
+          // Toralf, God of Fury: "any target other than that permanent" — the one the trigger is about (notTriggerObject)
+          : spec && spec.notTriggerObject ? Object.assign({}, spec, { notTriggerObject: false, notObject: td.objectId || null })
           : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
           // Scrap Trawler: "with lesser mana value" than the one the trigger is about
           .map(spec => {
@@ -16798,6 +16826,12 @@
           this.logEvent('control', `Each player gains control of the nonland permanents of the next player to the ${ctx.chosenDirection || 'left'}.`);
           break;
         }
+        // Toralf's Hammer: "Return Toralf's Hammer to its owner's hand." — the Equipment that handed the ability out
+        case 'bounceGranter': {
+          const eq = ctx.grantedBy && this.obj(ctx.grantedBy);
+          if (eq && eq.zone === 'battlefield') { this.moveObject(eq, 'hand'); this.logEvent('zone', `${eq.name} returns to its owner's hand.`); }
+          break;
+        }
         /* Zenos yae Galvus: "choose a creature an opponent controls" — the pick (chooseFrom) is "the chosen creature"
            for as long as this permanent stays */
         case 'chooseLinked': {
@@ -17910,7 +17944,9 @@
             const x = this.obj(t.id);
             if (x) {
               // Kenrith: "under its owner's control"
-              this.moveObject(x, 'battlefield', { controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) });
+              // (Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — so as it enters: enterEff)
+              this.moveObject(x, 'battlefield', Object.assign({ controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
+                e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (e.tapped) x.tapped = true;
               // Persist: "with a -1/-1 counter on it"
               if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, 1);
@@ -27325,6 +27361,8 @@
       if (spec.another && sourceId) {
         return this._legalTargetsFor(Object.assign({}, spec, { another: false }), controllerId).filter(t => t.id !== sourceId);
       }
+      // Toralf, God of Fury: "other than that permanent" (notObject)
+      if (spec.notObject) return this._legalTargetsFor(Object.assign({}, spec, { notObject: null }), controllerId, sourceId).filter(t => t.id !== spec.notObject);
       const out = [];
       /* "You have hexproof" keeps a player off the list of things an
          opponent's spell may point at (CR 702.11e). */
