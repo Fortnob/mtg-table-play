@@ -3675,6 +3675,13 @@
         for (const q of this.opponentsOf(pid)) for (const c of ((this.zones[q.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInOpponentGraveyards)) k++;
         return k * mult;
       }
+      // Umbris, Fear Manifest: "for each card your opponents own in exile" — face up or down (oppExileCards)
+      if (v.oppExileCards) {
+        const opp = new Set(this.opponentsOf(pid).map(q => q.id));
+        let k = 0;
+        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (opp.has(c.owner)) k++;
+        return k * mult;
+      }
       // Commander's Insignia: times its controller has cast a commander from the command zone
       if (v.commanderCasts) return this._commanderCastCount(pid) * mult;
       // Vishgraz: the poison counters among your opponents
@@ -5440,9 +5447,18 @@
         let s = null;
         for (const x of this.battlefield) {
           const g0 = x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantMiracle');
-          if (g0 && this._cardFitsWords(o, g0.words)) { s = g0; break; }
+          if (g0 && !g0.cost && this._cardFitsWords(o, g0.words)) { s = g0; break; }
         }
         if (s) arg = String(a.manaCost || '').replace(/\{(\d+)\}/, (w, k) => (+k > s.less ? '{' + (+k - s.less) + '}' : ''));
+      }
+      /* Lorehold, the Historian: "Each instant and sorcery card in your hand has miracle {2}." — a cost of its own;
+         with a miracle printed as well, the cheaper of the two */
+      if (a && o.zone === 'hand') {
+        for (const x of this.battlefield) {
+          const g1 = x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantMiracle');
+          if (!g1 || !g1.cost || !this._cardFitsWords(o, g1.words)) continue;
+          if (arg == null || MANA.cmc(String(arg).replace(/\{X\}/g, '')) > MANA.cmc(g1.cost)) arg = g1.cost;
+        }
       }
       if (arg == null) return null;
       const src = this.manaSources(playerId);
@@ -5779,6 +5795,18 @@
           if (!g || g.keyword !== 'offspring' || !g.cost) continue;
           if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
           out.push({ kind: 'offspring', cost: g.cost, label: 'Offspring ' + g.cost });
+          break;
+        }
+      }
+      // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1." (grantCastKeyword casualty)
+      if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'casualty')) {
+        const caster = o.controller || o.owner;
+        for (const src of this.battlefield) {
+          if (src.controller !== caster || src.phasedOut) continue;
+          const g = this._staticOp(src, 'grantCastKeyword');
+          if (!g || g.keyword !== 'casualty' || !g.n) continue;
+          if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
+          out.push({ kind: 'casualty', n: g.n, cost: '', label: 'Casualty ' + g.n });
           break;
         }
       }
@@ -13126,7 +13154,7 @@
       if (typeof v === 'object' && v.opponentsPoison) return this._countValue(v, (src || o).controller, src || o, true);
       // Knowledge Is Power, Commander's Insignia: a number the player keeps
       // (Kinbinding: v.enteredYours — what entered under its controller's control this turn)
-      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.party || v.enteredYours || v.unspentMana)) return this._countValue(v, (src || o).controller, src || o, true);
+      if (typeof v === 'object' && (v.playerStat || v.commanderCasts || v.cardsInOpponentGraveyards || v.oppExileCards || v.party || v.enteredYours || v.unspentMana)) return this._countValue(v, (src || o).controller, src || o, true);
       if (typeof v === 'object' && v.countersOnSelf) return (Number(((src || o).counters || {})[v.countersOnSelf]) || 0) * (v.mult || 1);
       // Emissary Escort: the greatest mana value among other artifacts you control, printed
       if (typeof v === 'object' && v.greatestMv) {
@@ -27303,8 +27331,11 @@
             }
           }
           for (const c of cards) {
-            this.moveObject(c, 'battlefield', { controller: e.mine || e.yours ? ctx.controller : c.owner, tapped: !!(e.tapped) });
+            // (Shilgengar, Sire of Famine: "with a finality counter on it. Those creatures are Vampires …" — counter, enterEff)
+            this.moveObject(c, 'battlefield', Object.assign({ controller: e.mine || e.yours ? ctx.controller : c.owner, tapped: !!(e.tapped) },
+              e.enterEff ? { enterEffects: [Object.assign({}, e.enterEff)] } : {}));
             if (e.tapped && c.zone === 'battlefield') c.tapped = true;
+            if (e.counter && c.zone === 'battlefield') this.addCounters(c, e.counter, 1);
           }
           this.logEvent('reanimate', `${cards.length} card${cards.length === 1 ? '' : 's'} return${cards.length === 1 ? 's' : ''} to the battlefield.`);
           break;

@@ -4138,6 +4138,11 @@
     // Madcap Experiment, Audacious Reshapers: "CARDNAME deals damage to you equal to the number of cards revealed this way." (revealedCountUntil)
     { re: /^(?:CARDNAME|This creature|This artifact) deals damage to you equal to the number of cards revealed this way\.?$/i,
       make: () => ({ op: 'damage', n: { revealedCount: true, mult: 1 }, toSelf: true }) },
+    /* Shilgengar, Sire of Famine: "If you sacrificed an Angel this way, create a number of Blood tokens equal to its
+       toughness instead." — as it was sacrificed (sacrificedWas, ofSacrificed) */
+    { re: /^If you sacrificed an? ([A-Z][a-z]+) this way, create a number of (Blood|Treasure|Food|Clue|Map) tokens equal to its (toughness|power) instead\.?$/,
+      make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'sacrificedWas', what: m[1].toLowerCase() },
+        effects: [{ op: 'createNamedToken', token: m[2], n: { ofSacrificed: m[3] } }] } }) },
     // Rise of the Witch-king: "If you sacrificed a creature this way, you may return another permanent card from your graveyard to the battlefield." (sacrificedThisWay)
     { re: /^If you sacrificed a (creature|permanent) this way, you may return another (creature|permanent) card from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: Object.assign({ kind: 'youSacrificedThisWay' }, /creature/i.test(m[1]) ? { what: 'Creature' } : {}),
@@ -7565,6 +7570,8 @@
     if (/^card in your hand$/i.test(p)) return { cardsInHand: 'you', mult: k };
     if ((m = p.match(/^([+\-0-9/a-z]+) counter on (?:this creature|this artifact|this permanent|CARDNAME|it)$/i)))
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
+    // Umbris, Fear Manifest: "for each card your opponents own in exile" (oppExileCards)
+    if (/^card your opponents own in exile$/i.test(p)) return { oppExileCards: true, mult: k };
     // Wight of Precinct Six: "for each creature card in your opponents' graveyards"
     if ((m = p.match(/^([a-z]+) card in your opponents'? graveyards$/i))) return { cardsInOpponentGraveyards: m[1].toLowerCase(), mult: k };
     // Omnath, Locus of Mana: "for each unspent green mana you have"; Omnath, Locus of the Void: "for each unspent mana you have" (unspentMana)
@@ -8573,6 +8580,10 @@
     { re: /^choose (target [a-z ]+?)\. Until your next turn, it can'?t attack or block, and its activated abilities can'?t be activated\.?$/i,
       make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', targets: [t] },
         { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: 'lastTarget' }] : null; } },
+    /* Shilgengar, Sire of Famine: "Return each creature card from your graveyard to the battlefield with a finality
+       counter on it. Those creatures are Vampires in addition to their other types." — Vampires as they enter */
+    { re: /^Return each creature card from your graveyard to the battlefield with an? ([a-z]+) counter on it\. Those creatures are ([A-Z][a-z]+)s in addition to their other types\.?$/,
+      make: (m) => [{ op: 'massReanimate', filter: 'creature', yours: true, counter: m[1], enterEff: { addSubtypes: [m[2]] } }] },
     /* Xanathar, Guild Kingpin: "choose target opponent. Until end of turn, that player can't cast spells, you may look
        at the top card of their library any time, you may play the top card of their library, and you may spend mana as
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
@@ -17536,6 +17547,9 @@
       { re: /^The first spell you cast( from exile)? each turn has cascade\.?$/i,
         make: (m) => (m[1] ? { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }
           : { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', firstEachTurn: true }), auto: true },
+      // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1."
+      { re: /^Each (instant and sorcery|[a-z]+) spell you cast has casualty (\d+)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase().replace(' and ', ' or ') }), auto: true },
       // Thrumming Stone: "Spells you cast have ripple 4."
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
@@ -18522,6 +18536,9 @@
       // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
       { re: /^Players can'?t activate planeswalkers'? loyalty abilities\.?$/i, eff: { op: 'noLoyalty' }, auto: true },
       // Aminatou, Veil Piercer: "Each enchantment card in your hand has miracle. Its miracle cost is equal to its mana cost reduced by {4}." (grantMiracle)
+      // Lorehold, the Historian: "Each instant and sorcery card in your hand has miracle {2}." (grantMiracle cost)
+      { re: /^Each (instant and sorcery|[a-z]+) card in your hand has miracle ((?:\{[^}]+\})+)\.?$/i,
+        make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase().replace(' and ', ' or '), cost: m[2] }), auto: true },
       { re: /^Each ([a-z]+) card in your hand has miracle\. Its miracle cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
         make: (m) => ({ op: 'grantMiracle', words: m[1].toLowerCase(), less: +m[2] }), auto: true },
       /* Maralen, Fae Ascendant: "Once each turn, you may cast a spell with mana value less than or equal to the number
