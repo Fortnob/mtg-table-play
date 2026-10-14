@@ -15528,7 +15528,7 @@
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Primo, the Unbounded: "equal to the damage dealt" — what the whole lot dealt that player
-          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
+          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — each player the lot hit (batchPlayers)
@@ -18610,9 +18610,10 @@
              not before. Coming back with the answer, it is already done. */
           const r = this.resolving;
           if (r && Object.prototype.hasOwnProperty.call(r.answers, r.index + ':' + e.op)) break;
-          const want = n(e.n);
           // Kozilek's Command: "Target player scries X"
           const who = (e.who === 'target' && firstPlayer()) || me;
+          // Kenessos, Priest of Thassa: "scry that many cards plus one instead" (a scry replacement)
+          const want = e.op === 'scry' && n(e.n) > 0 ? this._replace({ kind: 'scry', n: n(e.n), controller: who.id }).n : n(e.n);
           const cards = this._topOfLibrary(who.id, want);
           if (!cards.length) {
             this.logEvent(e.op, `${who.name} has no cards to ${e.op}.`);
@@ -19690,7 +19691,10 @@
             const lib = this.zones[p.id].library;
             const found = [];
             let last = -1;
+            // Kethek, Crucible Goliath: "with lesser mana value" — than the creature just sacrificed (mvBelowSacrificed)
+            const sacMv = e.mvBelowSacrificed ? (((ctx.sacrificed || this._lastSacrificed || [])[0] || {}).mv || 0) : null;
             for (let i = 0; i < lib.length && found.length < want; i++) {
+              if (sacMv != null && !(((lib[i].card && lib[i].card.cmc) || 0) < sacMv)) continue;
               if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
@@ -21657,7 +21661,8 @@
           // Hofri Ghostforge: "exile it. If you do, create a token …" — only the card exiled just now (ifExiled)
           if (e.ifExiled && (source.zone !== 'exile' || this._lastExiled !== source.id)) break;
           // Hazel of the Rootbloom: "If that token is a Squirrel, instead create two tokens that are copies of it." (twiceIfType)
-          const cnt = e.twiceIfType && this._hasCreatureType(source, e.twiceIfType) ? 2 : nVar(e.n);
+          // (Krothuss, Lord of the Deep: "a Kraken, Leviathan, Octopus, or Serpent" — any of a list)
+          const cnt = e.twiceIfType && [].concat(e.twiceIfType).some(ty => this._hasCreatureType(source, ty)) ? 2 : nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
           let card = this._copiable(source.card);
           let faceUp = source.face || 0;
@@ -24763,11 +24768,26 @@
           break;
         /* "Look at the top card of your library. If it's a land card, you
            may put it onto the battlefield tapped." */
+        /* Runo Stromkirk: "look at the top card of your library. You may reveal that card. If a creature card with mana
+           value 6 or greater is revealed this way, transform Runo." — nothing to ask when the card wouldn't do it */
+        case 'revealTopTransform': {
+          const top = this.zones[ctx.controller].library[0];
+          if (!top || !this._cardFitsWords(top, e.what || 'card') || ((top.card && top.card.cmc) || 0) < (e.minMv || 0)) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, card: top.card, cardId: top.id,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}reveal ${top.name} and transform ${(src && src.name) || 'it'}?` }, 'revealTop');
+          if (yes === SUSPEND) return SUSPEND;
+          if (!yes) break;
+          this.logEvent('reveal', `${me.name} reveals ${top.name} from the top of their library.`);
+          this._spliceNext([{ op: 'transformSelf' }]);
+          break;
+        }
         case 'topLand': {
           const z = this.zones[ctx.controller];
           const top = z && z.library[0];
           if (!top) break;
-          const isLand = !!(top.analysis() || {}).isLand;
+          // (Kenessos, Priest of Thassa: "a Kraken, Leviathan, Octopus, or Serpent creature card" — what, subtypes)
+          const isLand = e.what ? (this._cardFitsWords(top, e.what) && (!e.subtypes || e.subtypes.some(t => this._hasCreatureType(top, t))))
+            : !!(top.analysis() || {}).isLand;
           let put = isLand;
           if (isLand && e.may) {
             const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
@@ -24785,6 +24805,17 @@
           } else if (e.elseHand) {
             this.moveObject(top, 'hand');
             this.logEvent('zone', `${me.name} puts the top card of their library into their hand.`);
+          } else if (e.elseBottomMay) {
+            // Kenessos: "If you don't put the card onto the battlefield, you may put it on the bottom of your library."
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, card: top.card, cardId: top.id,
+              prompt: `Put ${top.name} on the bottom of your library?` }, 'topBottom');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes && top.zone === 'library') {
+              const lib = z.library;
+              lib.splice(lib.indexOf(top), 1);
+              lib.push(top);
+              this.logEvent('zone', `${me.name} puts the top card of their library on the bottom.`);
+            }
           }
           break;
         }

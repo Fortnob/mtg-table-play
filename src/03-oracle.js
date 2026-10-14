@@ -1021,9 +1021,13 @@
     const w = who0[1].toLowerCase();
     const who = w === 'reveal' ? 'you' : /each opponent/.test(w) ? 'opponents' : /^target/.test(w) ? 'target'
       : /controller/.test(w) ? 'targetController' : 'triggerPlayer';
+    // Kethek, Crucible Goliath: "a nonlegendary creature card with lesser mana value" — than the creature sacrificed (mvBelowSacrificed)
+    const lesser = / card with lesser mana value(?=[,.])/i.test(t);
+    if (lesser) t = t.replace(/ card with lesser mana value(?=[,.])/i, ' card');
     const m = t.match(/until (?:you|they) reveal (an?|one|two|three|four|five|X) ([a-z ,]+?) cards?(?:, where X is (.+?))?(,|\.) ([\s\S]+)$/i);
     if (!m) return null;
     const e = { op: 'revealUntil', who, filter: m[2].replace(/,? or /g, ' or ').trim().toLowerCase() };
+    if (lesser) e.mvBelowSacrificed = true;
     if (/^X$/i.test(m[1])) { if (m[3]) { const k = amountOf(m[3]); if (!k) return null; e.n = k; } else e.n = 'X'; }
     else e.n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
     if (who === 'target') e.targets = [{ type: 'player', opponent: /opponent/.test(w) }];
@@ -1032,6 +1036,9 @@
     if (m[4] === ',' && /^then puts? (?:those cards|all cards revealed this way) into (?:their|your) graveyard\.?$/i.test(rest)) {
       return Object.assign(e, { dest: 'graveyard', rest: 'graveyard' });
     }
+    // Kethek, Crucible Goliath: ", put it onto the battlefield, then put the rest on the bottom of your library in a random order"
+    if (m[4] === ',' && w === 'reveal' && /^put it onto the battlefield, then put the rest on the bottom of your library in a random order\.?$/i.test(rest))
+      return Object.assign(e, { dest: 'battlefield', tapped: false, rest: 'bottom' });
     if (m[4] !== '.') return null;
     // Old Stickfingers: "Put all creature cards revealed this way into your graveyard, then put the rest on the bottom of your library in a random order."
     if (/^Put all [a-z ]+? cards revealed this way into (?:your|their) graveyard, then put the rest on the bottom of (?:your|their) library in a random order\.?$/i.test(rest))
@@ -2150,6 +2157,9 @@
     { re: /^That player gains (one|two|three|four|five|six|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', who: 'triggerPlayer', n: num(m[1]) }) },
     // Ragged Veins: "its controller loses that much life" — the creature the trigger is about
     { re: /^Its controller loses that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'triggerObjController', n: 'triggerAmount' }) },
+    /* Anowon, the Ruin Thief: "that player mills a card for each 1 damage dealt to them" — what the lot of Rogues dealt
+       that player (triggerAmount) */
+    { re: /^That player mills a card for each 1 damage dealt to them\.?$/i, make: () => ({ op: 'mill', who: 'triggerPlayer', n: 'triggerAmount' }) },
     // Cecil, Dark Knight: "Whenever Cecil deals damage, you lose that much life."
     { re: /^You lose that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'you', n: 'triggerAmount' }) },
     /* Auntie Ool, Cursewretch: "draw a card if you control that creature. If you don't control it, its controller
@@ -7154,6 +7164,9 @@
        puts those cards into their graveyard" */
     { re: /^(?:Each opponent|Target player|Target opponent|That player|Defending player) reveals cards from the top of their library until they reveal .+$/i,
       make: (m) => revealUntilOf(m[0]) },
+    // Kethek, Crucible Goliath: "reveal cards … until you reveal a nonlegendary creature card with lesser mana value, put it onto the battlefield, then …"
+    { re: /^Reveal cards from the top of your library until you reveal [^.]+, put it onto the battlefield, then put the rest on the bottom of your library in a random order\.?$/i,
+      make: (m) => revealUntilOf(m[0]) },
     // Mirror Entity: "Until end of turn, creatures you control have base power and toughness X/X and gain all creature types."
     { re: /^Until end of turn, creatures you control have base power and toughness (X|\d+)\/(X|\d+)( and gain all creature types)?\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2], allTypes: !!m[3] }) },
@@ -9140,6 +9153,18 @@
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Krothuss, Lord of the Deep: "create a tapped and attacking token that's a copy of another target attacking creature.
+       If that creature is a Kraken, Leviathan, Octopus, or Serpent, create two of those tokens instead." (twiceIfType, a list) */
+    { re: /^create a tapped and attacking token that'?s a copy of another target attacking creature\. If that creature is an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+), create two of those tokens instead\.?$/,
+      make: (m) => {
+        const spec = targetSpec('another target attacking creature');
+        return spec && !spec.unknown ? [{ op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, targets: [spec],
+          twiceIfType: m[1].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim()).filter(Boolean) }] : null;
+      } },
+    /* Runo Stromkirk: "look at the top card of your library. You may reveal that card. If a creature card with mana value 6
+       or greater is revealed this way, transform Runo." — asked only when revealing would do something (revealTopTransform) */
+    { re: /^look at the top card of your library\. You may reveal that card\. If an? ([a-z]+) card with mana value (\d+) or greater is revealed this way, transform CARDNAME\.?$/i,
+      make: (m) => [{ op: 'revealTopTransform', what: m[1].toLowerCase(), minMv: +m[2] }] },
     /* Winter, Cynical Opportunist: "you may exile any number of cards from your graveyard with four or more card types
        among them. If you do, put a permanent card from among them onto the battlefield with a finality counter on it."
        — one optional pick, the "may" in it (exileGraveTypesPut) */
@@ -10633,6 +10658,11 @@
        battlefield if it is a land, and perhaps into the hand if not */
     { re: /^(?:Look at|Reveal) the top card of your library\. If it'?s a land card, (you may )?put it onto the battlefield( tapped)?\.(?: (If you don'?t put the card onto the battlefield|Otherwise), put (?:it|that card) into your hand\.)?$/i,
       make: (m) => [{ op: 'topLand', may: !!m[1], tapped: !!m[2], elseHand: !!m[3] }] },
+    /* Kenessos, Priest of Thassa: "Look at the top card of your library. If it's a Kraken, Leviathan, Octopus, or Serpent
+       creature card, you may put it onto the battlefield. If you don't put the card onto the battlefield, you may put it
+       on the bottom of your library." (topLand, subtypes, elseBottomMay) */
+    { re: /^Look at the top card of your library\. If it'?s an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) creature card, you may put it onto the battlefield\. If you don'?t put the card onto the battlefield, you may put it on the bottom of your library\.?$/,
+      make: (m) => [{ op: 'topLand', may: true, what: 'creature', subtypes: m[1].split(/,\s*(?:or\s+)?|\s+or\s+/).map(x => x.trim()).filter(Boolean), elseBottomMay: true }] },
     /* Urza's Tower and its partners: more mana with the whole set out */
     { re: /^Add \{C\}\. If you control an Urza'?s ([A-Za-z-]+) and an Urza'?s ([A-Za-z-]+), add (\{C\}(?:\{C\})+) instead\.?$/i,
       make: (m) => [{ op: 'addMana', symbols: ['C'],
@@ -12977,6 +13007,8 @@
     // Vohar, Vodalian Desecrator: "you discarded an instant or sorcery card this way"
     [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
+    // Anowon, the Ruin Thief: "the player mills at least one creature card this way"
+    [/^(?:the|that) player mills at least one ([a-z]+) card this way$/i, (m) => ({ kind: 'didThisWay', how: 'milled', filter: m[1].toLowerCase() })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
     // (Old Rutstein: "a noncreature, nonland card is milled this way" — both at once; Grist, the Plague Swarm:
     // "if a black card was milled this way" — a colour too)
@@ -18077,6 +18109,9 @@
     // Pir, Imaginative Rascal: "on a permanent your team controls" — yours, with no teams
     { re: /^If one or more counters would be put on a permanent your team controls, that many plus one of each of those kinds of counters are put on that permanent instead\.?$/i,
       make: () => ({ op: 'replace', id: 'cntPlus1Team', event: 'counters', who: 'you', how: 'add', n: 1, whatAny: ['permanent'] }) },
+    // Kenessos, Priest of Thassa: "If you would scry a number of cards, scry that many cards plus one instead."
+    { re: /^If you would scry a number of cards, scry that many cards plus (one|two|three|\d+) instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'scryPlus', event: 'scry', who: 'you', how: 'add', n: num(m[1]) }) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },
