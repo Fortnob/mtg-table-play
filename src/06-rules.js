@@ -13306,6 +13306,9 @@
         // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
         case 'spellAllColors': { const tdA = (ctx && ctx.triggerData) || {}; const xA = tdA.objectId && this.obj(tdA.objectId);
           return !!xA && ((this.characteristics(xA) || {}).colors || ((xA.analysis() || {}).colors) || []).length >= 5; }
+        // Jared Carthalion: "If that card was all colors" — the card targeted, wherever it went (targetAllColors)
+        case 'targetAllColors': { const tT = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object'); const xT = tT && this.obj(tT.id);
+          return !!xT && ((xT.zone === 'battlefield' && (this.characteristics(xT) || {}).colors) || (xT.analysis() || {}).colors || []).length >= 5; }
         // Baird, Argivian Recruiter: "a creature with power greater than its base power" (controlPumped)
         case 'controlPumped': return !!me && this.battlefield.some(x => x.controller === me.id && !x.phasedOut && (this.characteristics(x) || {}).isCreature &&
           this.powerOf(x) > (this.characteristics(x) || {}).basePower);
@@ -17369,6 +17372,12 @@
             this._lastGroup = listC.map(o => o.id);
             for (const o of listC) this.addCounters(o, e.kind, cnt);
           }
+          // Jared Carthalion: "a number of +1/+1 counters on it equal to the number of colors it is" — each its own (perColorsOf)
+          else if (e.perColorsOf) for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            const k = o && o.zone === 'battlefield' ? ((this.characteristics(o) || {}).colors || (o.analysis() || {}).colors || []).length : 0;
+            if (k > 0) this.addCounters(o, e.kind, k);
+          }
           else for (const t of targets) { if (t.kind === 'object') { const o = this.obj(t.id); if (o) this.addCounters(o, e.kind, cnt); } }
           break;
         }
@@ -18163,6 +18172,8 @@
               took++; this.logEvent('rules', `${me.name} puts ${o.name} onto the battlefield.`);
               continue;
             }
+            // Lluwen, Imperfect Naturalist: "on top of your library"
+            if (e.to === 'top') { this.moveObject(o, 'library'); took++; this.logEvent('rules', `${me.name} puts ${o.name} on top of their library.`); continue; }
             this.moveObject(o, 'hand'); took++; this.logEvent('rules', `${me.name} puts ${o.name} into their hand.`);
           }
           // Ostrich-Horse: "If you don't, put a +1/+1 counter on this creature."
@@ -22192,22 +22203,24 @@
         }
         // Yuffie, Materia Hunter: "Then you may attach an Equipment you control to Yuffie." — chosen as it resolves
         case 'attachYoursToSelf': {
-          if (!src || src.zone !== 'battlefield' || !(this.characteristics(src) || {}).isCreature) break;
-          const eqs = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && o !== src && o.attachedTo !== src.id &&
-            (o.analysis() || {}).isEquipment && this._attachableTo(o, src, null));
+          // (Nahiri, the Lithomancer: "to it" — the token just made, thatToken)
+          const hostY = e.host === 'thatToken' ? this.obj((this._lastTokenGroup || [])[0]) : src;
+          if (!hostY || hostY.zone !== 'battlefield' || !(this.characteristics(hostY) || {}).isCreature) break;
+          const eqs = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && o !== hostY && o.attachedTo !== hostY.id &&
+            (o.analysis() || {}).isEquipment && this._attachableTo(o, hostY, null));
           if (!eqs.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'attachOneOfTaken', kind: 'objects', items: this._chooseItems(eqs), min: 0, max: 1, optional: true,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach an Equipment you control to ${src.name}.` }, 'ays');
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach an Equipment you control to ${e.host === 'thatToken' ? 'it' : hostY.name}.` }, 'ays');
           if (got === SUSPEND) return SUSPEND;
           const eq = this.obj(((got && got.picks) || [])[0]);
-          if (!eq || !eqs.includes(eq)) break;
+          if (!eq || !eqs.includes(eq) || hostY.zone !== 'battlefield') break;
           const was = eq.attachedTo && this.obj(eq.attachedTo);
           if (was) was.attachments = (was.attachments || []).filter(id => id !== eq.id);
-          eq.attachedTo = src.id;
+          eq.attachedTo = hostY.id;
           eq.ts = this._stampNew();
-          src.attachments = (src.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          hostY.attachments = (hostY.attachments || []).filter(id => id !== eq.id).concat(eq.id);
           this.bumpBoard();
-          this.logEvent('rules', `${eq.name} is attached to ${src.name}.`);
+          this.logEvent('rules', `${eq.name} is attached to ${hostY.name}.`);
           break;
         }
         case 'attachPutToChosen': {
@@ -22287,6 +22300,20 @@
           this.rng.shuffle(z.library);
           this.logEvent('rules', `${me.name} exchanges hand (${hand.length}) and library (${lib.length}).`);
           this.bumpBoard();
+          break;
+        }
+        /* Zurgo and Ojutai: "You may return one of those Dragons to its owner's hand." — one of the lot the trigger was
+           about, still on the battlefield, or none */
+        case 'bounceFromBatch': {
+          const td = ctx.triggerData || {};
+          const pool = (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id))
+            .filter(x => x && x.zone === 'battlefield' && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter)));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'bounceFromBatch', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+            min: 0, max: 1, harmful: true, prompt: `You may return one of those ${e.filter ? e.filter + 's' : 'creatures'} to its owner's hand.` }, 'bfb');
+          if (got === SUSPEND) return SUSPEND;
+          const x = ((got && got.picks) || []).map(id => this.obj(id)).find(o => o && pool.includes(o) && o.zone === 'battlefield');
+          if (x) { this.moveObject(x, 'hand'); this.logEvent('zone', `${me.name} returns ${x.name} to its owner's hand.`); }
           break;
         }
         // Hedge Shredder: the land cards that went to the graveyard together come back

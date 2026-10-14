@@ -1597,6 +1597,10 @@
        enchanted creature" (picked as it resolves) */
     { re: /^Return any number of target Aura and\/or Equipment cards from your graveyard to the battlefield attached to enchanted creature\.?$/i,
       make: () => ({ op: 'returnAttachedToEnchanted' }) },
+    // Jared Carthalion: "Create a 3/3 Kavu creature token with trample that's all colors."
+    { re: /^(Create an? \d+\/\d+ [A-Z][a-z]+(?: [A-Z][a-z]+)* creature token(?: with [a-z ,]+?)?) that'?s all colou?rs\.?$/,
+      make: (m) => { const inner = parseEffectSentence(m[1] + '.', 1);
+        return inner && inner.op === 'createToken' && !(inner.colorWords || []).length ? Object.assign(inner, { colorWords: ['white', 'blue', 'black', 'red', 'green'] }) : null; } },
     // Najeela, the Blade-Blossom: "you may have its controller create a 1/1 white Warrior creature token that's tapped and attacking" (itsControllerCreates)
     { re: /^(?:You may )?[Hh]ave its controller (create .+? tokens?(?: that'?s| that are)? tapped and attacking)\.?$/,
       make: (m) => { const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1); return inner && inner.op === 'createToken' && !inner.who ? Object.assign(inner, { who: 'triggerObjController' }) : null; } },
@@ -3345,6 +3349,10 @@
     // Zedruu the Greathearted: "you gain X life and draw X cards, where X is the number of permanents you own that your opponents control"
     { re: /^You gain X life and draw X cards, where X is the number of (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[1]); return c ? [{ op: 'gainLife', n: c, who: 'you' }, { op: 'draw', n: c, who: 'you' }] : null; } },
+    /* Zurgo and Ojutai: "You may return one of those Dragons to its owner's hand." — one of the lot that dealt the
+       damage, or none (bounceFromBatch) */
+    { re: /^You may return one of those ([A-Z][a-z]+s|creatures) to its owner'?s hand\.?$/,
+      make: (m) => ({ op: 'bounceFromBatch', filter: /^creatures$/.test(m[1]) ? 'creature' : singularType(m[1]) }) },
     { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
       make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
     /* Unbreakable Formation: "each of those creatures" */
@@ -9046,6 +9054,27 @@
         if (!md || !md.auto) return null;
         return [{ op: 'sacThen', optional: true, triggerObject: true, filter: 'permanent', then: md.effects }];
       } },
+    /* Jared Carthalion: "Choose up to two target creatures. For each of them, put a number of +1/+1 counters on it equal
+       to the number of colors it is." — each its own number (perColorsOf) */
+    { re: /^Choose up to (one|two|three) target creatures\. For each of them, put a number of (\+1\/\+1) counters on it equal to the number of colou?rs it is\.$/i,
+      make: (m) => [{ op: 'counters', kind: m[2], n: 0, perColorsOf: true,
+        targets: Array.from({ length: num(m[1]) }, () => Object.assign(targetSpec('target creature'), { upTo: true, distinct: true })) }] },
+    /* Nahiri, the Lithomancer: "Create a 1/1 white Kor Soldier creature token. You may attach an Equipment you control
+       to it." — to the token just made (attachYoursToSelf thatToken) */
+    { re: /^(Create an? [^.]+? creature token(?: with [^."]+)?)\. You may attach an Equipment you control to it\.$/,
+      make: (m) => {
+        const tk = parseEffectSentence(m[1] + '.', 1);
+        return tk && tk.op === 'createToken' && (tk.n === 1 || tk.n == null) ? [tk, { op: 'attachYoursToSelf', host: 'thatToken' }] : null;
+      } },
+    /* Nahiri, the Lithomancer: "Create a colorless Equipment artifact token named Stoneforged Blade. It has
+       indestructible, "Equipped creature gets +5/+5 and has double strike," and equip {0}." (namedTokenDef) */
+    { re: /^Create a colorless Equipment artifact token named ([A-Z][A-Za-z' -]*?)\. It has ([a-z]+), "([^"]+?),?" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.$/,
+      make: (m) => {
+        const text = U.titleCase(m[2]) + '\n' + m[3].replace(/([^.])$/, '$1.') + '\nEquip ' + m[4];
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Artifact — Equipment', oracle_text: text, keywords: [U.titleCase(m[2])], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return [{ op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Artifact — Equipment', text } }];
+      } },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
       make: () => [{ op: 'forEachTargetPlayer', targets: [{ type: 'player', distinct: true }, { type: 'player', distinct: true }],
@@ -10067,6 +10096,12 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
+    /* Lluwen, Imperfect Naturalist: "mill four cards, then you may put a creature or land card from among the milled
+       cards on top of your library" (takeFromMilled to the top) */
+    { re: /^Mill (two|three|four|five|six|\d+) cards, then (you may )?put an? ([a-z, ]*?)card from among (?:them|the milled cards) on top of your library\.?$/i,
+      make: (m) => { const f = m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any';
+        return [{ op: 'mill', n: num(m[1]), who: 'you' },
+          { op: 'takeFromMilled', n: 1, filter: f, optional: !!m[2], to: 'top', prompt: `Choose ${f === 'any' ? 'a' : /^[aeiou]/.test(f) ? 'an ' + f : 'a ' + f} card to put on top of your library.` }]; } },
     /* Fable of the Mirror-Breaker: "You may discard up to two cards. If you
        do, draw that many cards." */
     { re: /^You may discard up to (one|two|three|four|\d+) cards?\. If you do, draw that many cards\.?$/i,
@@ -12310,6 +12345,10 @@
     [/^a card left your graveyard this turn$/i, () => ({ kind: 'cardLeftYourGraveyard' })],
     // Jenson Carthalion, Druid Exile: "If that spell was all colors" (spellAllColors)
     [/^that spell was all colou?rs$/i, () => ({ kind: 'spellAllColors' })],
+    // Hazoret, Godseeker: "unless you have max speed" (maxSpeed)
+    [/^you have max speed$/i, () => ({ kind: 'maxSpeed' })],
+    // Jared Carthalion: "If that card was all colors" — the card targeted (targetAllColors)
+    [/^that card was all colou?rs$/i, () => ({ kind: 'targetAllColors' })],
     // Baird, Argivian Recruiter: "if you control a creature with power greater than its base power" (controlPumped)
     [/^you control a creature with power greater than its base power$/i, () => ({ kind: 'controlPumped' })],
     // Tom Bombadil: "there are four or more lore counters among Sagas you control" (countersAmongAtLeast)
