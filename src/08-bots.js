@@ -2703,6 +2703,11 @@
       if (ch.purpose === 'takeDamage') return this.me.life > 12;
       // Slicer, Hired Muscle: lent out goaded, it has to attack someone else — only with another opponent to attack
       if (ch.purpose === 'lendSelf') return g.opponentsOf(this.pid).filter(q => !q.hasLost).length > 1;
+      // Combustion Man: take the damage while there's life to spare and the permanent is worth it
+      if (ch.purpose === 'unlessDamage') {
+        const t = ch.objId ? g.obj(ch.objId) : null;
+        return this.me.life - (ch.amount || 0) > 10 && (!t || this.permanentValue(t) >= (ch.amount || 0) * 0.5);
+      }
       // Perplex: give up the hand only when there is little in it
       if (ch.purpose === 'unlessDiscardHand') return (g.zones[this.pid].hand || []).length <= 1;
       // Chandra: cast the exiled card only if it can be paid for

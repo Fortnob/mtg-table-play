@@ -3529,6 +3529,11 @@
         return (v.filter ? gy.filter(o => this._cardFitsWords(o, v.filter)).length : gy.length) * mult;
       }
       if (v.opponents) return this.opponentsOf(pid).length * mult;
+      // Eris, Roar of the Storm: "each different mana value among instant and sorcery cards in your graveyard" (graveMvDistinct)
+      if (v.graveMvDistinct) {
+        const gy = ((this.zones[pid] || {}).graveyard || []).filter(o => this._cardFitsWords(o, v.graveMvDistinct));
+        return new Set(gy.map(o => (o.card && o.card.cmc) || 0)).size * mult;
+      }
       // Ulamog, the Defiler: the greatest mana value among cards in exile, anyone's; face down, none (greatestMvExile)
       if (v.greatestMvExile) {
         let best = 0;
@@ -4593,6 +4598,8 @@
             // Kagha, Shadow Archdruid: "that were put there from your library this turn"
             if (ef.fromLibThisTurn && o._toGraveFromLib !== this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
+            // Banon, the Returners' Leader: "cards … that were put there from anywhere other than the battlefield this turn"
+            if (ef.notFromBfThisTurn && o._gyNotBfTurn !== this.turn) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
             // Muldrotha, the Gravetide: the permanent types this card could still be played as this turn
@@ -10965,6 +10972,7 @@
         if (!a) return false;
         const fits = ef.whatAny.some(w => w === 'permanent' || (w === 'nonland' ? !a.isLand
           : w === 'nonbasic land' ? (a.isLand && !(a.supertypes || []).includes('Basic'))
+          : w === 'snow land' ? (a.isLand && (a.supertypes || []).includes('Snow'))
           : (a.types || []).some(t => t.toLowerCase() === w) || (a.subtypes || []).some(t => t.toLowerCase() === w)));   // (Caradora: "or Vehicle" — plusOneVehicle)
         if (!fits) return false;
       }
@@ -11026,6 +11034,8 @@
       switch (ef.how) {
         case 'double': ev.n = (ev.n || 0) * 2; break;
         case 'half': ev.n = Math.floor((ev.n || 0) / 2); if (!ev.n) ev.cancelled = true; break;
+        // Valkmira, Protector's Shield: "prevent 1 of that damage"
+        case 'subtract': ev.n = Math.max(0, (ev.n || 0) - (ef.n || 1)); if (!ev.n) ev.cancelled = true; break;
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
@@ -13971,6 +13981,8 @@
       // (meldTo, above: gone as the melded permanent, its two cards are their front faces again, side by side)
       if (meldTo && o.meld) this._meldOut(o, meldTo, opts);
       if (toZone === 'graveyard' && from !== 'battlefield') this._fire('cardToGraveyard', null, { object: o, objController: o.owner });
+      // Banon, the Returners' Leader: the turn a card was put into a graveyard from anywhere other than the battlefield
+      if (toZone === 'graveyard') o._gyNotBfTurn = from !== 'battlefield' ? this.turn : null;
       // The Gitrog Monster: a card into a graveyard from anywhere, the battlefield as well
       if (toZone === 'graveyard' && !o.isToken) this._fire('cardToGraveyardAny', null, { object: o, objController: o.owner, fromZone: from, amount: 1 });
       // Laelia: cards exiled from a library or graveyard, one trigger for the lot
@@ -19524,6 +19536,22 @@
             const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
             if (x && x.zone === 'hand' && x.owner === payer.id) this._discardNow(payer.id, [x]);
             else this._spliceNext(e.then);
+            break;
+          }
+          /* Combustion Man: "…unless its controller has Combustion Man deal damage to them equal to his power" — his
+             power as the trigger resolves (as he last was, if he's gone); damage of 0 is no price at all (selfDamage) */
+          if (e.cost && e.cost.selfDamage) {
+            const k = src ? Math.max(0, this.powerOf(src)) : 0;
+            const t0 = firstObj();
+            if (k > 0) {
+              const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'unlessDamage', amount: k, objId: t0 ? t0.id : null,
+                yesLabel: `Take ${k} damage`, noLabel: "Don't",
+                prompt: `Have ${src.name} deal ${k} damage to you? If you don't: ${whole((e.then || []).map(x => x && x.text).filter(Boolean).join(' ') || 'it happens', 80)}` }, 'udmg');
+              if (yes === SUSPEND) return SUSPEND;
+              if (!yes) { this._spliceNext(e.then); break; }
+            }
+            this.logEvent('rules', `${payer.name} has ${src ? src.name : 'it'} deal ${k} damage to them.`);
+            if (k > 0) { this.dealDamageToPlayer(payer, k, src); this.emit('sfx', 'damage'); }
             break;
           }
           let cost = e.costFromPower && src ? '{' + this.powerOf(src) + '}' : (e.cost || '{1}');

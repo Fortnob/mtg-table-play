@@ -7267,6 +7267,9 @@
     /* Aatchik, Emerald Radian: "for each artifact and/or creature card in your graveyard" (eitherCardInGraveyard);
        Fandaniel, Telophoroi Ascian: "for each instant and sorcery card in your graveyard" — either one */
     if ((m = p.match(/^([a-z]+) (?:and\/or|or|and) ([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
+    // Eris, Roar of the Storm: "for each different mana value among instant and sorcery cards in your graveyard" (graveMvDistinct)
+    if ((m = p.match(/^different mana value among (?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) cards in your graveyard$/i)))
+      return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
@@ -9734,7 +9737,8 @@
       return { op: 'costMod', who, words: words || 'spell', chosenType: false, amount: 0, symbols: '{' + m[5] + '}' };
     }
     const amount = (+m[5]) * (/less/i.test(m[6]) ? -1 : 1);
-    if (Object.keys(extra).length && who !== 'you') return null;
+    // (Reidane, God of the Worthy: "Noncreature spells your opponents cast with mana value 4 or greater" — minMv for anyone's)
+    if (Object.keys(extra).some(k => k !== 'minMv') && who !== 'you') return null;
     if (creatureTypes.length) extra.creatureTypes = creatureTypes;
     return Object.assign({ op: 'costMod', who, words: words || 'spell', chosenType: !!m[3], amount }, offTurn ? { offTurn: true } : {},
       pw ? { minPower: +pw[1] } : {}, extra);
@@ -10384,14 +10388,16 @@
         /* Mogis, Torment of Scarabs, Nicol Bolas: "…unless they sacrifice a
            creature of their choice", "…unless that player sacrifices a nonland
            permanent of their choice or discards a card" */
-        s.match(/^(.+?) unless (that player|they|target player|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card)?)\.?$/i);
+        s.match(/^(.+?) unless (that player|they|target player|its controller) (sacrifices? an? ((?:non)?[a-z]+(?: (?:creature|permanent|artifact))?)(?: of their choice)?( or discards? a card)?)\.?$/i) ||
+        // Combustion Man: "destroy target permanent unless its controller has Combustion Man deal damage to them equal to his power" (selfDamage)
+        s.match(/^(.+?) unless (its controller) (has (?:CARDNAME|this creature) deals? damage to them equal to (?:his|her|its) power)\.?$/i);
       if (unless) {
         /* Acererak the Archlich: "for each opponent, you create a 2/2 black Zombie creature token unless that player
            sacrifices a creature of their choice" — each opponent answers for themselves (eachOpponent) */
         const perOpp = /^for each opponent, /i.test(unless[1].trim()) && /^sacrifice/i.test(unless[3] || '') && /^that player$/i.test(unless[2]);
         if (perOpp) unless[1] = unless[1].trim().replace(/^for each opponent, (?:you )?/i, '').replace(/^./, c => c.toUpperCase());
         const inner = parseSentenceList(splitSentences(unless[1].trim() + '.'));
-        const cost = /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
+        const cost = /^has /i.test(unless[3]) ? { selfDamage: 'power' } : /^sacrifice/i.test(unless[3]) ? Object.assign({ sacrifice: unless[4].toLowerCase() }, unless[5] ? { orDiscard: true } : {})
           : /^discards? (?:their|his or her) hand$/i.test(unless[3]) ? { discardHand: true }
           : /^discard/i.test(unless[3]) ? { discard: 1 } : /life$/i.test(unless[3]) ? { life: parseInt(unless[3], 10) } : unless[3];
         effects.push(Object.assign({ op: 'unlessPays', who: /^you$/i.test(unless[2]) ? 'you'
@@ -10409,6 +10415,14 @@
            where the table would ask the first one's; a person settles it */
         if (/^its controller$/i.test(unless[2]) && effects.some(x => x && (x.targets || []).length) &&
           /"targets":\[\{"type":"(?!spell)/.test(JSON.stringify(inner.effects))) auto = false;
+        /* Combustion Man: a trigger's target is picked as it resolves, so "target permanent" is picked before its
+           controller is asked, and the destroying acts on it (selfDamage) */
+        const lastU = effects[effects.length - 1];
+        if (cost.selfDamage && inner.effects.length === 1 && (inner.effects[0].targets || []).length === 1) {
+          lastU.targets = inner.effects[0].targets;
+          lastU.then = [Object.assign({}, inner.effects[0])];
+          delete lastU.then[0].targets;
+        }
         continue;
       }
 
@@ -10634,7 +10648,8 @@
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
-      (/^(?:When|Whenever|At the|As long as|If |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
+      // (Banon, the Returners' Leader: "Pray — Once during each of your turns, …")
+      (/^(?:When|Whenever|At the|As long as|If |Once during |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -16171,6 +16186,9 @@
     { re: /^If damage would be dealt to you, put that many ([a-z]+) counters on (?:this (?:enchantment|artifact|creature|permanent)|CARDNAME) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgToCounters', event: 'damage', who: 'any', how: 'countersOnSelf', counterKind: m[1].toLowerCase(), perDamage: true,
         toYou: true, toPlayerOnly: true }) },
+    // Valkmira, Protector's Shield: "If a source an opponent controls would deal damage to you or a permanent you control, prevent 1 of that damage." (subtract)
+    { re: /^If a source an opponent controls would deal damage to you or a permanent you control, prevent (one|two|three|\d+) of that damage\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgPreventSomeOpp', event: 'damage', who: 'opponents', how: 'subtract', n: num(m[1]), toYou: true, prevention: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -16231,7 +16249,8 @@
       make: (m) => ({ op: 'replace', id: 'etbTapAll', event: 'enters', who: 'all', how: 'tapped',
         whatAny: m[1].toLowerCase().split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
     // Kismet, Frozen Aether: "Artifacts, creatures, and lands your opponents control enter tapped."
-    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
+    // (Reidane, God of the Worthy: "Snow lands your opponents control enter tapped.")
+    { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands|Snow lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
         whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
     // Possessed Skaab: "If this creature would die, exile it instead."
@@ -17693,10 +17712,14 @@
             { op: 'continuous', layer: 6, scope, cond, grant: kws, grantText: m[6] }] };
         }, auto: true },
       // March of the World Ooze: "Creatures you control have base power and toughness 6/6 and are Oozes in addition to their other types."
-      { re: /^Creatures you control have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
-        make: (m) => ({ op: 'sequence', list: [
-          { op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature' }, setPt: { p: +m[1], t: +m[2] } },
-          { op: 'continuous', layer: 4, scope: { who: 'you', what: 'creature' }, addSubtypes: [m[3]] }] }), auto: true },
+      // (Kudo, King Among Bears: "Other creatures have base power and toughness 2/2 and are Bears …" — everyone's)
+      { re: /^(Creatures you control|Other creatures) have base power and toughness (\d+)\/(\d+) and are ([A-Z][a-z]+?)s? in addition to their other types\.?$/,
+        make: (m) => {
+          const scope = scopeOf(m[1]);
+          return scope ? { op: 'sequence', list: [
+            { op: 'continuous', layer: 7, scope, setPt: { p: +m[2], t: +m[3] } },
+            { op: 'continuous', layer: 4, scope: Object.assign({}, scope), addSubtypes: [m[4]] }] } : null;
+        }, auto: true },
       // Porcelain Gallery: "Creatures you control have base power and toughness each equal to the number of creatures you control."
       { re: /^Creatures you control have base power and toughness each equal to the number of ([-a-z' ]+?) (you control|on the battlefield)\.?$/i,
         make: (m) => {
@@ -17887,6 +17910,10 @@
       // Raul, Trouble Shooter: "Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn." (milledThisTurn)
       { re: /^Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn\.?$/,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: null, milledThisTurn: true }, auto: true },
+      /* Banon, the Returners' Leader: "Once during each of your turns, you may cast a creature spell from among cards in
+         your graveyard that were put there from anywhere other than the battlefield this turn." (notFromBfThisTurn) */
+      { re: /^Once during each of your turns, you may cast an? ([a-z]+) spell from among cards in your graveyard that were put there from anywhere other than the battlefield this turn\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: m[1].toLowerCase(), notFromBfThisTurn: true }), auto: true },
       /* Muldrotha, the Gravetide: "During each of your turns, you may play a land and cast a permanent
          spell of each permanent type from your graveyard." — once a turn for each type (perType), a card
          of more than one using up the type chosen as it is cast */
