@@ -2735,6 +2735,11 @@
         if (!c) return false;
         return c.owner === this.pid ? !this.wantToDraw(c, 0) : !(c.analysis() || {}).isLand;
       }
+      // a clash: our own revealed card to the bottom when we would rather not draw it
+      if (ch.purpose === 'clashBottom') {
+        const c = ch.cardId && g.obj(ch.cardId);
+        return !!c && !this.wantToDraw(c, 0);
+      }
       if (ch.purpose === 'payToUntap') {
         // a shock land: pay when we would use the mana this turn and can spare the life
         return this.me.life > 10 && (this.d <= 3 || this._wouldUseUntapped());

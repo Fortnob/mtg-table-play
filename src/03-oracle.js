@@ -76,6 +76,8 @@
     'Paradigm',
     // when it is cast, the top N revealed and any of the same name cast for free
     'Ripple',
+    // when it is cast, a copy for you, and one for an opponent you choose (The Twelfth Doctor)
+    'Demonstrate',
   ]);
   const IMPLEMENTED_LOWER = new Set(Array.from(IMPLEMENTED_KEYWORDS).map(k => k.toLowerCase()));
   /* A keyword the engine can honour when it is handed out: one of the
@@ -3393,6 +3395,9 @@
     /* Buster Sword */
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value less than or equal to (?:that damage|the damage dealt) without paying its mana cost\.?$/,
       make: () => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount' }) },
+    // Marvo, Deep Operative: "Then you may cast a spell from your hand with mana value 8 or less without paying its mana cost."
+    { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value (\d+) or less without paying its mana cost\.?$/,
+      make: (m) => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: +m[1] }) },
     /* "Draw a card if you've gained 3 or more life this turn." */
     // Lozhan, Dragons' Legacy: "deals damage equal to that spell's mana value to any target that isn't a commander" (notCommanderTarget)
     { re: /^(?:CARDNAME|It|This creature) deals damage equal to that spell'?s mana value to any target that isn'?t a commander\.?$/i,
@@ -5383,6 +5388,8 @@
     /* Clash (CR 701.23): both players look at the top of their library and
        the bigger mana value wins. */
     { re: /^Clash with an opponent\.?$/i, make: () => ({ op: 'clash' }) },
+    // Marvo, Deep Operative: "clash with defending player"
+    { re: /^Clash with defending player\.?$/i, make: () => ({ op: 'clash', who: 'defending' }) },
     { re: /^If you win(?: the clash)?, (.+)$/i,
       make: (m) => {
         const inner = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
@@ -8557,6 +8564,15 @@
           { op: 'copyEach', zone: 'exile', filter: 'creature', withCounter: m[2], tapped: true, attacking: true },
           { op: 'exileMadeEoc' }];
       } },
+    /* Linvala, Shield of Sea Gate: "Choose hexproof or indestructible. Creatures you control gain that ability until
+       end of turn." — one of the two, asked as it resolves (keywordChoice) */
+    { re: /^Choose (hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste) or (hexproof|indestructible|flying|vigilance|lifelink|trample|first strike|deathtouch|haste)\. Creatures you control gain that ability until end of turn\.?$/i,
+      make: (m) => [{ op: 'grantKeyword', keywords: [], keywordChoice: [m[1], m[2]].map(k => k.replace(/\b\w/g, c => c.toUpperCase())), duration: 'eot', scope: 'yourCreatures' }] },
+    /* Linvala, Shield of Sea Gate: "choose target nonland permanent an opponent controls. Until your next turn, it
+       can't attack or block, and its activated abilities can't be activated." */
+    { re: /^choose (target [a-z ]+?)\. Until your next turn, it can'?t attack or block, and its activated abilities can'?t be activated\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? [{ op: 'restrict', flag: 'cantAttackOrBlock', duration: 'nextTurn', targets: [t] },
+        { op: 'restrict', flag: 'cantActivate', duration: 'nextTurn', scope: 'lastTarget' }] : null; } },
     /* Xanathar, Guild Kingpin: "choose target opponent. Until end of turn, that player can't cast spells, you may look
        at the top card of their library any time, you may play the top card of their library, and you may spend mana as
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
@@ -12593,6 +12609,11 @@
     { re: /^Whenever a commander an opponent controls dies,? /i, event: 'commanderDies', also: 'permDies', filt: () => ({ commander: 'any', who: 'opponent', words: 'creature' }) },
     { re: /^Whenever your commander attacks,? /i, event: 'permAttacks', filt: () => ({ commander: true }) },
     { re: /^Whenever your commander enters,? /i, event: 'permEnters', filt: () => ({ commander: true }) },
+    // The Blue Spirit: "Whenever a nontoken creature you control enters during combat" (duringCombat)
+    { re: /^Whenever (an? (?:nontoken )?creature you control) enters during combat,? /i, event: 'permEnters',
+      filt: (m) => subjectFilter(m[1]), extra: { duringCombat: true } },
+    // Marvo, Deep Operative: "Whenever you win a clash" (youWinClash)
+    { re: /^Whenever you win a clash,? /i, event: 'youWinClash' },
     // Patrolling Peacemaker: "Whenever an opponent commits a crime"
     { re: /^Whenever an opponent commits a crime,? /i, event: 'opponentCommitCrime' },
     /* Syr Vondam, Sunstar Exemplar: "Whenever another creature you control dies or is put into exile" — leaving
@@ -12709,6 +12730,8 @@
       event: 'youCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
     { re: /^When(?:ever)? you cast (?:a|an) ([a-zA-Z ,-]*?)spell of the chosen type, /i,
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },
+    // The Twelfth Doctor: "Whenever you copy a spell"
+    { re: /^Whenever you copy a spell,? /i, event: 'youCopySpell' },
     { re: /^When(?:ever)? you cast or copy (?:a|an) ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', also: 'youCopySpell', filt: (m) => spellFilter(m[1]) },
     { re: /^When(?:ever)? an opponent casts (?:a|an) ([a-zA-Z ,-]*?)spell( with (?:mana value|converted mana cost|power) (?:\d+ or (?:greater|more|less|fewer)|less than (?:this creature|CARDNAME)'?s power))?, /i,
@@ -17154,6 +17177,9 @@
     const nthFlash = line.match(/^(The first ((?:[a-z]+ )*?)spell you cast each turn) costs (\{\d+\}) less to cast and can be cast as though it had flash\.?$/i);
     const nthCm = nthFlash && parseCostMod(nthFlash[1] + ' costs ' + nthFlash[3] + ' less to cast');
     if (nthCm) return { kind: 'static', text: line, auto: true, effects: [nthCm, { op: 'flashGrant', filter: nthFlash[2].trim().toLowerCase() || null, nthEachTurn: 1 }] };
+    // The Blue Spirit: "You may cast the first creature spell you cast each turn as though it had flash." (flashGrant nthEachTurn)
+    const nthOnly = line.match(/^You may cast the first ((?:[a-z]+ )*?)spell you cast each turn as though it had flash\.?$/i);
+    if (nthOnly) return { kind: 'static', text: line, auto: true, effects: [{ op: 'flashGrant', filter: nthOnly[1].trim().toLowerCase() || null, nthEachTurn: 1 }] };
     const cm = parseCostMod(line);
     if (cm) return { kind: 'static', text: line, auto: true, effects: [cm] };
     const cont = parseContinuous(line);
@@ -17503,6 +17529,9 @@
       { re: /^([A-Za-z ]*?)spells you cast have storm\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'storm', filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },
       // Wild-Magic Sorcerer: "The first spell you cast from exile each turn has cascade."
+      // The Twelfth Doctor: "The first spell you cast from anywhere other than your hand each turn has demonstrate."
+      { re: /^The first spell you cast from anywhere other than your hand each turn has demonstrate\.?$/i,
+        make: () => ({ op: 'grantCastKeyword', keyword: 'demonstrate', filter: 'spell', firstNotFromHand: true }), auto: true },
       // (Maelstrom Nexus: "The first spell you cast each turn has cascade.")
       { re: /^The first spell you cast( from exile)? each turn has cascade\.?$/i,
         make: (m) => (m[1] ? { op: 'grantCastKeyword', keyword: 'cascade', filter: 'spell', fromZones: ['exile'], firstFromExile: true }

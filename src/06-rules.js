@@ -6801,6 +6801,8 @@
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
       // Wild-Magic Sorcerer: how many spells this player has cast from exile this turn
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
+      // The Twelfth Doctor: how many spells this player has cast from anywhere other than their hand this turn
+      if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -6836,6 +6838,7 @@
       if (replicated) copyTrigger(replicated, 'replicate');
       if (conspired.length) copyTrigger(1, 'conspire');
       this._rippleTriggers(item, o, a, playerId);
+      this._demonstrateTriggers(item, o, a, playerId, fromZone);
 
       // ward on anything this spell targets (CR 702.21)
       this._applyWard(item);
@@ -7291,6 +7294,32 @@
           id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
           controller: playerId, name: `${o.name} \u2014 ripple ${k}`, auto: true,
           effects: [{ op: 'ripple', n: k, name: o.name }], abilityText: `Ripple ${k}`,
+          triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
+        });
+      }
+    }
+    /**
+     * Demonstrate (CR 702.144): "When you cast this spell, you may copy it. If you do, choose an opponent to also copy
+     * it." Printed, or handed out — The Twelfth Doctor: "The first spell you cast from anywhere other than your hand
+     * each turn has demonstrate." (firstNotFromHand)
+     */
+    _demonstrateTriggers(item, o, a, playerId, fromZone) {
+      if (!a || !o || item.isCopy) return;
+      let k = a.keywordSet && a.keywordSet.has('demonstrate') ? 1 : 0;
+      const p = this.player(playerId) || {};
+      for (const src of this._withEmblems(this.battlefield)) {
+        if (src.phasedOut || src.controller !== playerId) continue;
+        const g = this._staticOp(src, 'grantCastKeyword');
+        if (!g || g.keyword !== 'demonstrate') continue;
+        if (g.firstNotFromHand && (fromZone === 'hand' || !p.notHandCastsTurn || p.notHandCastsTurn.turn !== this.turn || p.notHandCastsTurn.n !== 1)) continue;
+        if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
+        k++;
+      }
+      for (let i = 0; i < k; i++) {
+        this.pendingTriggers.push({
+          id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1,
+          controller: playerId, name: `${o.name} \u2014 demonstrate`, auto: true, optional: true,
+          effects: [{ op: 'demonstrate' }], abilityText: `Demonstrate: you may copy ${o.name}. If you do, choose an opponent to also copy it.`,
           triggerData: { event: 'castSelf', stackId: item.id, objectId: o.id },
         });
       }
@@ -18294,6 +18323,43 @@
           break;
         }
 
+        /* Demonstrate (CR 702.144): a copy for you, then one for the opponent you choose, each controlled by its
+           maker, who may choose new targets for it */
+        case 'demonstrate': {
+          const id = (ctx.triggerData && ctx.triggerData.stackId) || null;
+          const r = this.resolving;
+          const slot = r ? r.index + ':demo' : null;
+          r && (r.marks = r.marks || {});
+          let made = r && r.marks[slot];
+          if (!made) {
+            const item = id ? this.stack.find(st => st.id === id) : null;
+            if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
+            if (this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); break; }
+            const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+            let foe = opps[0] || null;
+            if (opps.length > 1) {
+              const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players',
+                items: this._choosePlayers(opps), min: 1, max: 1, prompt: `Demonstrate: choose an opponent to also copy ${item.name}.` }, 'demoOpp');
+              if (got === SUSPEND) return SUSPEND;
+              foe = (got && got.picks.length && this.player(got.picks[0])) || foe;
+            }
+            made = [];
+            for (let c = 0; c < 1 + this._extraCopies(ctx.controller, item); c++) made.push([ctx.controller, this._copyOnStack(item, ctx.controller).id]);
+            this.logEvent('copy', `${me.name} copies ${item.name}.`);
+            if (foe) {
+              for (let c = 0; c < 1 + this._extraCopies(foe.id, item); c++) made.push([foe.id, this._copyOnStack(item, foe.id).id]);
+              this.logEvent('copy', `${foe.name} copies ${item.name} too.`);
+            }
+            if (r) r.marks[slot] = made;
+            this.emit('sfx', 'cast');
+          }
+          for (let k = 0; k < made.length; k++) {
+            const copy = this.stack.find(x => x.id === made[k][1]);
+            if (copy && this._newTargetsForCopy(copy, made[k][0], 'dnt' + k) === SUSPEND) return SUSPEND;
+          }
+          break;
+        }
+
         /* Krark, the Thumbless: "If you lose the flip, return that spell to its owner's hand." — off the stack,
            uncast, if it is still there */
         case 'bounceThatSpell': {
@@ -23852,14 +23918,43 @@
         /* Clash (CR 701.23): you and an opponent each show the top card of
            your library, and the bigger mana value wins. Each card goes
            back on top. */
+        /* Clash (CR 701.23): each clashing player reveals their top card, then puts it on the top or the bottom of
+           their library, their own choice; a player whose card had the greater mana value wins (youWinClash).
+           Marvo, Deep Operative: "clash with defending player" (who 'defending') */
         case 'clash': {
-          const foe = this.opponentsOf(ctx.controller)[0];
-          const mine = (this.zones[ctx.controller].library || [])[0];
-          const theirs = foe ? (this.zones[foe.id].library || [])[0] : null;
+          const r = this.resolving;
+          const ck = r ? r.index + ':clashCards' : null;
+          let st = r && r.marks && r.marks[ck];
           const mv = (c) => (c && c.card && c.card.cmc) || 0;
-          const won = !!mine && mv(mine) > mv(theirs);
-          this.logEvent('rules', `Clash: ${mine ? mine.name : 'nothing'} (${mv(mine)}) against ` +
-            `${theirs ? theirs.name : 'nothing'} (${mv(theirs)}) — ${won ? 'you win' : 'you do not win'}.`);
+          if (!st) {
+            const foe = (e.who === 'defending' && this._defenderOf(src)) || this.opponentsOf(ctx.controller).find(q => !q.hasLost) || null;
+            const mine = (this.zones[ctx.controller].library || [])[0];
+            const theirs = foe ? (this.zones[foe.id].library || [])[0] : null;
+            st = { foe: foe ? foe.id : null, mine: mine ? mine.id : null, theirs: theirs ? theirs.id : null };
+            if (r) { r.marks = r.marks || {}; r.marks[ck] = st; }
+            this.logEvent('reveal', `Clash: ${me.name} reveals ${mine ? mine.name : 'nothing'} (${mv(mine)})` +
+              (foe ? `, ${foe.name} reveals ${theirs ? theirs.name : 'nothing'} (${mv(theirs)}).` : '.'));
+          }
+          for (const [pid, cid, tag] of [[ctx.controller, st.mine, 'clashMine'], [st.foe, st.theirs, 'clashTheirs']]) {
+            const c = cid && this.obj(cid);
+            if (!pid || !c || c.zone !== 'library') continue;
+            const bottom = this._ask({ type: 'confirm', playerId: pid, purpose: 'clashBottom', card: c.card, cardId: c.id,
+              prompt: `Clash: put ${c.name} on the bottom of your library? (No keeps it on top.)` }, tag);
+            if (bottom === SUSPEND) return SUSPEND;
+            if (bottom && !this._doneHere(tag + 'Moved')) {
+              const lib = this.zones[c.owner].library;
+              if (lib.includes(c)) { lib.splice(lib.indexOf(c), 1); lib.push(c); }
+              this.logEvent('rules', `${(this.player(pid) || {}).name} puts the card on the bottom.`);
+            }
+          }
+          const mineC = st.mine && this.obj(st.mine), theirsC = st.theirs && this.obj(st.theirs);
+          const won = !!mineC && mv(mineC) > mv(theirsC);
+          const lost = !!theirsC && mv(theirsC) > mv(mineC);
+          if (!this._doneHere('clashWon')) {
+            this.logEvent('rules', won ? `${me.name} wins the clash.` : lost ? `${(this.player(st.foe) || {}).name} wins the clash.` : 'Nobody wins the clash.');
+            if (won) this._fire('youWinClash', ctx.controller, { playerId: ctx.controller });
+            if (lost) this._fire('youWinClash', st.foe, { playerId: st.foe });
+          }
           this._spliceNext(won ? (e.then || []) : (e.otherwise || []));
           break;
         }
@@ -27744,6 +27839,8 @@
       p.spellsCastThisTurn = (p.spellsCastThisTurn || 0) + 1;
       // a spell cast for nothing is counted as castSpell counts one (Magebane Lizard, Approach of the Second Sun)
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
+      // The Twelfth Doctor: how many spells this player has cast from anywhere other than their hand this turn
+      if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       // (its mana value as it was cast, X included — castMvNoted)
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
