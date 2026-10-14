@@ -6670,8 +6670,9 @@
     if (/^(?:permanent|creature) (?:destroyed|exiled|returned) this way$/i.test(p)) return { lastSweep: true, mult: k };
     // "for each land card in your graveyard"
     if ((m = p.match(/^([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase(), mult: k };
-    // Aatchik, Emerald Radian: "for each artifact and/or creature card in your graveyard" (eitherCardInGraveyard)
-    if ((m = p.match(/^([a-z]+) (?:and\/or|or) ([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
+    /* Aatchik, Emerald Radian: "for each artifact and/or creature card in your graveyard" (eitherCardInGraveyard);
+       Fandaniel, Telophoroi Ascian: "for each instant and sorcery card in your graveyard" — either one */
+    if ((m = p.match(/^([a-z]+) (?:and\/or|or|and) ([a-z]+) card in your graveyard$/i))) return { cardsInGraveyard: 'you', filter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
     if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
@@ -9389,8 +9390,20 @@
           continue;
         }
       }
+      /* Fandaniel, Telophoroi Ascian: "each opponent may sacrifice a nontoken creature of their choice. Each
+         opponent who doesn't loses 2 life for …" — each answers for themselves (unlessPays, then each opponent) */
+      const esac = s.match(/^Each opponent may sacrifice (?:a|an) ([a-z ,-]+?) of their choice\.$/i);
+      const enot = esac && next.match(/^Each opponent who doesn'?t (.+)$/i);
+      if (esac && enot) {
+        const tp = parseSentenceList(splitSentences('Each opponent ' + enot[1]));
+        if (tp.auto && tp.effects.length === 1 && tp.effects[0].who === 'opponents') {
+          effects.push({ op: 'unlessPays', who: 'target', cost: { sacrifice: esac[1].toLowerCase() }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       // (not "sacrifice an artifact or discard a card": two prices, not one)
-      const sacMay = may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
+      const sacMay =may && ifDo && !/ or (?:discard|pay|exile)\b/i.test(may[1]) && may[1].match(/^sacrifice (a|an|another) ([a-z ]+?)$/i);
       if (sacMay) {
         let tt = U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1);
         let xv = null;

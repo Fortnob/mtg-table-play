@@ -29267,4 +29267,34 @@ module.exports = (test) => {
     M.bf('A', 'Hanweir Garrison');
     t.ok(bot._abilityCandidate(bat, a, all[meldIx], meldIx, 'main1', bot.manaSources()), 'bot: with the Garrison, worth it');
   });
+
+  test('Commanders: Fandaniel, Telophoroi Ascian — surveil on instants; each opponent sacrifices a nontoken creature or loses 2 a spell card', (mk, t) => {
+    t.auto('Fandaniel, Telophoroi Ascian');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    M.bf('A', 'Fandaniel, Telophoroi Ascian');
+    // "Whenever you cast an instant or sorcery spell, surveil 1."
+    const a0 = M.asked.length;
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['C'] });
+    t.ok(M.asked.slice(a0).some(ch => ch.type === 'surveil'), 'Fandaniel: surveil 1');
+    M.grave('A', 'Opt');
+    M.grave('A', 'Grizzly Bears');
+    // two instants in A's graveyard: 4 life. B sacrifices its Bears; C has only a token, so loses
+    const bears = M.bf('B', 'Grizzly Bears');
+    M.g._createToken('C', { n: 1, pt: '1/1', subtypes: 'Soldier', colorWords: ['white'], keywords: [] });
+    const lifeC = M.life('C');
+    M.answer('choose', () => ({ picks: [bears.id] }));
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(bears, 'graveyard', 'Fandaniel: B sacrificed');
+    t.eq(M.life('B'), 20, 'Fandaniel: B who sacrificed loses nothing');
+    t.eq(M.life('C'), lifeC - 4, 'Fandaniel: C, with only a token, loses 2 for each of 2 instants');
+    t.eq(M.asked.filter(ch => ch.purpose === 'unlessSacrifice' && ch.playerId === 'C').length, 0, 'Fandaniel: C has nothing to choose from');
+    // next end step: B declines with a creature in play
+    const bears2 = M.bf('B', 'Grizzly Bears');
+    M.nextTurn('A');
+    M.answer('choose', () => ({ picks: [] }));
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(bears2, 'battlefield', 'Fandaniel: B declines');
+    t.eq(M.life('B'), 16, 'Fandaniel: and loses 4');
+  });
 };

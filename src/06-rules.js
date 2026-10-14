@@ -17684,7 +17684,10 @@
               else hit.push(q);
             }
             const list = [];
-            for (const q of hit) list.push(Object.assign(JSON.parse(JSON.stringify(e.then[0])), { who: 'you', _as: q.id }));
+            /* Fandaniel, Telophoroi Ascian: "loses 2 life for each instant and sorcery card in your graveyard" —
+               counted for the trigger's controller, not for each loser */
+            const cnt0 = e.then[0].n && typeof e.then[0].n === 'object' ? n(e.then[0].n) : null;
+            for (const q of hit) list.push(Object.assign(JSON.parse(JSON.stringify(e.then[0])), { who: 'you', _as: q.id }, cnt0 != null ? { n: cnt0 } : {}));
             this._spliceNext(list);
             break;
           }
