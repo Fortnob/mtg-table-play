@@ -7603,6 +7603,9 @@
         if (g.firstEachTurn && ((this.player(item.controller) || {}).spellsCastThisTurn || 0) !== 1) continue;
         if (!g.filter || g.filter === 'spell' || this._cardFitsWords(item.obj, g.filter)) granted += g.times || 1;
       }
+      // (Yidris, Maelstrom Wielder: "as you cast spells from your hand this turn, they gain cascade" — cascadeHand)
+      const ch = (this.player(item.controller) || {}).cascadeHand;
+      if (item.obj && !item.isCopy && ch && ch.turn === this.turn && item.fromZone === 'hand') granted += ch.n || 1;
       // every instance triggers, printed or given (Maelstrom Wanderer's two; Imoti's on a spell with its own: CR 702.85c)
       const printed = (a.keywords || []).filter(k => String(k.keyword).toLowerCase() === 'cascade').length || (a.keywordSet.has('cascade') ? 1 : 0);
       const times = printed + granted;
@@ -17609,7 +17612,11 @@
           break;
         }
         case 'counters': {
+          // (Omega, Heartless Evolution: "on each of those permanents …, where X is the number of nonbasic lands" — the
+          // lands counted are not "those")
+          const group0 = e.scope === 'lastGroup' ? this._lastGroup : null;
           const cnt = n(e.n);
+          if (group0) this._lastGroup = group0;
           if (e.scope === 'self' && src) this.addCounters(src, e.kind, cnt);
           else if (e.scope === 'yourMatching') {
             for (const o of this.battlefield) {
@@ -19461,10 +19468,17 @@
               if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
-            if (shown.length) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
+            // (Hei Bai, Forest Guardian: "You may put that card onto the battlefield" — asked once it is shown: optional)
+            if (shown.length && !this._doneHere('ruShown' + p.id)) this.logEvent('rules', `${p.name} reveals ${shown.map(c => c.name).join(', ')}.`);
             // Madcap Experiment: "the number of cards revealed this way" (revealedCountUntil)
             this._revealedCount = shown.length;
             const rest = shown.filter(c => !found.includes(c));
+            if (e.optional && found.length && e.dest === 'battlefield') {
+              const yes = this._ask({ type: 'confirm', playerId: ctx.controller, card: found[0].card, cardId: found[0].id,
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${found[0].name} onto the battlefield?` }, 'ru' + p.id);
+              if (yes === SUSPEND) return SUSPEND;
+              if (!yes) found.length = 0;
+            }
             /* Neera, Wild Mage: the cards stay where they are, revealed — the one found to cast from there
                (castFree revealed), the rest for whatever comes after (revealedToBottom) */
             if (e.dest === 'stay') {
@@ -19489,6 +19503,7 @@
               }
             }
             if (e.rest === 'graveyard') for (const c of rest) this.moveObject(c, 'graveyard');
+            else if (e.rest === 'stay') continue;
             else if (e.rest === 'shuffle') { this.rng.shuffle(lib); this.emit('sfx', 'shuffle'); }
             else if (rest.length) {
               for (const c of rest) lib.splice(lib.indexOf(c), 1);
@@ -22926,6 +22941,13 @@
           break;
         }
         // Archway of Innovation
+        // Yidris, Maelstrom Wielder: cascade for spells cast from hand this turn — once more for each time (cascadeHand)
+        case 'cascadeHandTurn': {
+          const was = me.cascadeHand && me.cascadeHand.turn === this.turn ? me.cascadeHand.n : 0;
+          me.cascadeHand = { turn: this.turn, n: was + 1 };
+          this.logEvent('rules', `This turn, spells ${me.name} casts from their hand have cascade.`);
+          break;
+        }
         case 'nextSpellKeyword': me.nextSpellKeyword = { turn: this.turn, keyword: e.keyword, words: e.words || null }; break;
         // Ocelot Pride: a copy of each token of yours that entered this turn
         case 'copyTokensEnteredThisTurn': {

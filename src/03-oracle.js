@@ -1027,6 +1027,9 @@
     // Old Stickfingers: "Put all creature cards revealed this way into your graveyard, then put the rest on the bottom of your library in a random order."
     if (/^Put all [a-z ]+? cards revealed this way into (?:your|their) graveyard, then put the rest on the bottom of (?:your|their) library in a random order\.?$/i.test(rest))
       return Object.assign(e, { dest: 'graveyard', rest: 'bottom' });
+    /* Hei Bai, Forest Guardian: "You may put that card onto the battlefield. Then shuffle." — the cards stay where they
+       are if not, for the shuffle after (optional, rest stay) */
+    if (/^You may put that card onto the battlefield\.?$/i.test(rest) && w === 'reveal') return Object.assign(e, { dest: 'battlefield', optional: true, rest: 'stay' });
     const put = rest.match(/^(?:(?:The|That) player puts?|Put) (?:that card|it|those (?:[a-z ]+ )?cards) (into (?:your|their) hand|onto the battlefield(?: tapped(?: and attacking)?)?(?: under (?:your|their|its owner'?s) control)?)(?: and (?:the rest|all other cards revealed this way) (on the bottom of (?:your|their) library in a random order|into (?:your|their) graveyard)|, then shuffles? (?:the rest|all other cards revealed this way) into (?:your|their) library)\.?$/i);
     if (!put) return null;
     e.dest = /hand/i.test(put[1]) ? 'hand' : 'battlefield';
@@ -3430,6 +3433,10 @@
        damage, or none (bounceFromBatch) */
     { re: /^You may return one of those ([A-Z][a-z]+s|creatures) to its owner'?s hand\.?$/,
       make: (m) => ({ op: 'bounceFromBatch', filter: /^creatures$/.test(m[1]) ? 'creature' : singularType(m[1]) }) },
+    /* Omega, Heartless Evolution: "Put X stun counters on each of those permanents and you gain X life, where X is the
+       number of nonbasic lands you control." — the ones just tapped (lastGroup) */
+    { re: /^Put X ([a-z]+) counters on each of those (?:permanents|creatures) and you gain X life, where X is (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k == null ? null : [{ op: 'counters', kind: m[1].toLowerCase(), n: k, scope: 'lastGroup' }, { op: 'gainLife', n: k, who: 'you' }]; } },
     { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
       make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
     /* Unbreakable Formation: "each of those creatures" */
@@ -7120,6 +7127,8 @@
       make: (m) => ({ op: 'createNamedToken', token: m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase(), n: { playersBeingAttacked: true, mult: 1 } }) },
     // Red Death, Shipwrecker: "… You add {R}." — mana added as the ability resolves (youAddMana)
     { re: /^You add ((?:\{[WUBRGC]\})+)\.?$/, make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]) }) },
+    // Yidris, Maelstrom Wielder: "as you cast spells from your hand this turn, they gain cascade" (cascadeHandTurn)
+    { re: /^As you cast spells from your hand this turn, they gain cascade\.?$/i, make: () => ({ op: 'cascadeHandTurn' }) },
     // Archway of Innovation: "The next spell you cast this turn has improvise."
     { re: /^The next spell you cast this turn has (improvise|convoke|delve)\.?$/i, make: (m) => ({ op: 'nextSpellKeyword', keyword: m[1].toLowerCase() }) },
     // Storm, Force of Nature; Crackling Spellslinger: "the next instant or sorcery spell you cast this turn has storm"
@@ -10262,7 +10271,7 @@
        bottom of your library in a random order." Dig until one fits (or
        two, or X); "Its controller reveals …" after a Polymorph. */
     // (Sméagol, Helpful Guide: "target opponent reveals cards … until they reveal a land card. Put that card onto the battlefield tapped under your control …")
-    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
+    { re: /^((?:[^.]+\.\s+)*?)((?:(?:Its|That creature'?s) controller|That player|Defending player|Target player|[Tt]arget opponent|Each opponent)? ?[Rr]eveals? cards from the top of (?:your|their) library until (?:you|they) reveal [^.]+(?:\.\s+(?:Put|You may put|The player puts|That player puts)[^.]+)?\.?)(?:\s+([\s\S]+))?$/,
       make: (m) => {
         const e = revealUntilOf(m[2]);
         if (!e) return null;
