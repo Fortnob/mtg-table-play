@@ -5798,6 +5798,10 @@
     // Katara, Water Tribe's Hope: "Creatures you control have base power and toughness X/X until end of turn."
     { re: /^Creatures you control have base power and toughness (X|\d+)\/(X|\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: m[1] === 'X' ? 'X' : +m[1], t: m[2] === 'X' ? 'X' : +m[2] }) },
+    /* Tanazir Quandrix: "you may have the base power and toughness of other creatures you control become equal to
+       Tanazir Quandrix's power and toughness until end of turn" — its, as this resolves (srcPower, srcToughness) */
+    { re: /^(?:You may )?have the base power and toughness of other creatures you control become equal to (?:CARDNAME|this creature)'s power and toughness until end of turn\.?$/i,
+      make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcToughness', other: true }] }) },
     // Lord of the Nazgûl: "Wraiths you control have base power and toughness 9/9 until end of turn."
     { re: /^([A-Z][a-z]+) you control have base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
       make: (m) => (m[1] === 'Creatures' ? null : { op: 'setBaseAll', p: +m[2], t: +m[3], subtype: U.titleCase(singularType(m[1])) }) },
@@ -6534,6 +6538,9 @@
     // Mobilized District: "for each legendary creature and planeswalker you control" — either kind
     { re: /^This ability costs \{(\d+)\} less to activate for each ((?:legendary |nonland |nontoken )?(?:creature|artifact|enchantment|land|planeswalker) (?:and|or) (?:creature|artifact|enchantment|land|planeswalker)) you control\.?$/i,
       make: (m) => ({ op: 'noop', abilityDiscount: { amount: +m[1], per: countSpec(m[2], 1) } }) },
+    // Wayta, Trainer Prodigy: "This ability costs {2} less to activate if it targets two creatures you control." (targetsYours)
+    { re: /^This ability costs \{(\d+)\} less to activate if it targets (two|three) ([a-z]+)s you control\.?$/i,
+      make: (m) => ({ op: 'noop', abilityDiscount: { amount: +m[1], targetsYours: { n: num(m[2]), words: m[3].toLowerCase() } } }) },
     // Hylda's Crown of Winter: "This ability costs {1} less to activate during your turn."
     { re: /^This ability costs \{(\d+)\} less to activate (during your turn|if [^.]+?)\.?$/i,
       make: (m) => { const c = /^during your turn$/i.test(m[2]) ? { kind: 'yourTurn' } : condOf(m[2].replace(/^if /i, '')); return c ? { op: 'noop', abilityDiscount: { amount: +m[1], cond: c } } : null; } },
@@ -7809,6 +7816,10 @@
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // The Balrog, Durin's Bane: "for each permanent sacrificed this turn" — by anyone (sacrificedThisTurn, byAnyone)
     if (/^permanents? sacrificed this turn$/i.test(p)) return { sacrificedThisTurn: 'permanent', byAnyone: true, mult: k };
+    /* Gingerbehemoth: "for each Food you've sacrificed this turn"; Dargo, the Shipwrecker: "for each other artifact
+       or creature you've sacrificed this turn" (sacrificedThisTurn: the type words, any one of them) */
+    if ((m = p.match(/^(?:other )?([A-Za-z]+(?: or [A-Za-z]+)?) you'?ve sacrificed this turn$/i)))
+      return { sacrificedThisTurn: m[1].toLowerCase().replace(/s\b/g, ''), mult: k };
     // Zedruu the Greathearted: "the number of permanents you own that your opponents control" (ownedOppControlled)
     if (/^permanents? you own that (?:your opponents|an opponent) controls?$/i.test(p)) return { ownedOppControlled: true, mult: k };
     // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
@@ -10738,6 +10749,24 @@
     }
     return { choice, optional: false };
   }
+  /* Torgaar, Famine Incarnate: "As an additional cost to cast this spell, you may sacrifice any number of
+     creatures. This spell costs {2} less to cast for each creature sacrificed this way." Dargo, the
+     Shipwrecker adds "and {2} less to cast for each other artifact or creature you've sacrificed this turn".
+     The sacrifices are chosen with the cast (sacForLess: what may go, and the mana each takes off); the
+     second part is a reduction of the spell's own (selfCost). */
+  function parseSacForLess(line) {
+    const m = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice any number of ([a-z ,/]+?)\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each (?:[a-z]+) sacrificed this way(?: and \{(\d+)\} less to cast for each (.+?))?\.?$/i);
+    if (!m) return null;
+    const filter = m[1].replace(/\s+and\/or\s+|\s+or\s+|\s+and\s+/g, ' or ').replace(/s\b/g, '').trim();
+    if (!/^(?:non)?[a-z]+(?: (?:or )?[a-z]+)*$/.test(filter)) return null;
+    let self = null;
+    if (m[3]) {
+      const per = countOf(m[4]);
+      if (!per) return null;
+      self = { amount: -(+m[3]), per };
+    }
+    return { sac: { filter, each: +m[2] }, self };
+  }
   function oneAdditionalCost(what, optional) {
     let k;
     if ((k = what.match(/^pay ((?:\{[^}]+\})+)$/i))) return { mana: k[1], optional };
@@ -12449,6 +12478,8 @@
     [/^(?:they were|that player was) attacked this turn by an? ([A-Z][a-z]+) you controlled$/, (m) => ({ kind: 'triggerPlayerAttackedBy', subtype: m[1].toLowerCase() })],
     // M'Baku, Jabari Chieftain: "if that player is the monarch" — the player the trigger is about (triggerPlayerMonarch)
     [/^that player is the monarch$/i, () => ({ kind: 'triggerPlayerMonarch' })],
+    // O-Kagachi, Vengeful Kami: "if that player attacked you during their last turn" (thatPlayerAttackedYou)
+    [/^that player attacked you during their last turn$/i, () => ({ kind: 'thatPlayerAttackedYou' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
     [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
@@ -13112,6 +13143,10 @@
     // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
     { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },
+    /* Loki, God of Mischief: "Whenever a player or permanent becomes the target of an ability you control" — an
+       activated one as it is activated, a triggered one as its targets are chosen (anyAbility) */
+    { re: /^Whenever a player or permanent becomes the target of an ability you control,? /i,
+      event: 'becomesTarget', extra: { targetedByYou: true, anyAbility: true } },
     // (Opaline Sliver's granted "this permanent")
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
@@ -15134,6 +15169,15 @@
       if (defiler) {
         out.abilities.push({ kind: 'static', text: line, auto: true,
           effects: [{ op: 'defilerCost', words: defiler[1].toLowerCase() + ' permanent', life: +defiler[2], symbol: defiler[3].toUpperCase() }] });
+        autoLines++;
+        continue;
+      }
+      // Torgaar, Famine Incarnate; Dargo, the Shipwrecker: any number sacrificed, each for less (sacForLess)
+      const sfl = parseSacForLess(line);
+      if (sfl) {
+        out.sacForLess = sfl.sac;
+        if (sfl.self) (out.selfCost = out.selfCost || []).push(sfl.self);
+        out.abilities.push({ kind: 'castModifier', text: line, auto: true, effects: [] });
         autoLines++;
         continue;
       }
@@ -19271,10 +19315,16 @@
       // Krang, the All-Powerful: "If a player drawing a card causes a triggered ability of a permanent you control to trigger, …" (draw)
       { re: /^If a player drawing a card causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'draw' }, auto: true },
+      // Leader, Super-Genius: "If a creature you control would connive, instead you draw a card, then that creature connives." (conniveDrawFirst)
+      { re: /^If a creature you control would connive, instead you draw a card, then that creature connives\.?$/i,
+        eff: { op: 'conniveDrawFirst' }, auto: true },
       /* Felix Five-Boots: "If a creature you control dealing combat damage to a player causes a triggered ability
          of a permanent you control to trigger, that ability triggers an additional time." (combatDamagePlayer) */
       { re: /^If a creature you control dealing combat damage to a player causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'combatDamagePlayer', yours: true }, auto: true },
+      // Wayta, Trainer Prodigy: "If a creature you control being dealt damage causes a triggered ability of a permanent you control to trigger, …" (damagedYours)
+      { re: /^If a creature you control being dealt damage causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'damagedYours' }, auto: true },
       // Delney: "If a triggered ability of a creature you control with power 2 or less triggers, …"
       { re: /^If a triggered ability of a creature you control with power (\d+) or less triggers, that ability triggers an additional time\.?$/i,
         make: (m) => ({ op: 'triggerDouble', cause: 'source', what: 'creature', maxPower: +m[1] }), auto: true },

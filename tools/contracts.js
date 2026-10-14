@@ -159,6 +159,8 @@ const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt
   choose: opt((v, p, out) => ChooseSpec(v, p, out)),
   /* convoke, improvise, delve: what could pay, and how much of the cost at most */
   candidates: opt(arr(id)), max: opt(nat),
+  /* Torgaar, Dargo: the generic mana each sacrifice takes off (sacForLess) */
+  each: opt(nat),
   /* a cost the table would otherwise pick (evidence, forage, reveal, behold…): the opts key the
      answer goes in, how many (or 'X'), and forage's Foods and their key */
   key: opt(str), need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool) });
@@ -291,6 +293,8 @@ const INTENTS = {
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),
+    /* Torgaar, Dargo: the permanents sacrificed for a cheaper spell (none, for an empty list); left out, the engine picks */
+    sacrificeIds: opt(arr(id)),
     /* a split card's half: 0 left, 1 right */
     face: opt(nat),
     /* fuse: both halves of a split card with fuse, from hand */

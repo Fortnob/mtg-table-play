@@ -870,6 +870,7 @@
 
     _nextTurn() {
       if (this.over) return;
+      const endingTurnOf = this.turn > 0 ? this.activePlayer : null;
       // (Medomai the Ageless: "during extra turns" — extraTurnNow)
       this.isExtraTurn = false;
       // extra turns first
@@ -906,6 +907,8 @@
       // happened this turn, so the turn keeps a short memory
       // Ephara, God of the Polis: "if you had another creature enter the battlefield under your control last turn" (creaturesInLastTurn)
       this.creaturesInLastTurn = (this.turnHistory || {}).creaturesIn || {};
+      // O-Kagachi, Vengeful Kami: the players each one attacked during their last turn (attackedLastTurn)
+      if (endingTurnOf && this.turn > 1) endingTurnOf.attackedLastTurn = ((((this.turnHistory || {}).attackedPlayersBy) || {})[endingTurnOf.id] || []).slice();
       this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false };
       for (const o of this.battlefield) o.noRegenThisTurn = false;
       // one loyalty ability per planeswalker each turn (CR 606.3): a new turn, a new one
@@ -3462,6 +3465,12 @@
 
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
+      /* Torgaar, Dargo: "{2} less to cast for each permanent sacrificed this way" — the price with all there is
+         to sacrifice gone (sacForLessN: so many); the cast puts back what the ones kept would have taken off */
+      if (a && a.sacForLess) {
+        const n = opts.sacForLessN != null ? opts.sacForLessN : this._sacForLessPool(pid, o).length;
+        if (n > 0) mana = this._addGeneric(mana, -n * (a.sacForLess.each || 1));
+      }
       // convoke pays coloured mana too: a creature of the colour for each symbol it covers (_convokeColors)
       const cc = this._convokeColors(pid, o);
       if (cc.length) mana = this._dropSymbols(mana, cc.map(x => x.sym));
@@ -3684,7 +3693,8 @@
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
       // (The Balrog, Durin's Bane: "each permanent sacrificed this turn" — every player's: byAnyone)
       if (v.sacrificedThisTurn && v.byAnyone) return Object.values(((this.turnHistory || {}).sacrificedBy) || {}).reduce((k, l) => k + (l || []).length, 0) * mult;
-      if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || w.includes(v.sacrificedThisTurn)).length * mult;
+      // (Dargo, the Shipwrecker: "artifact or creature" — either one)
+      if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || String(v.sacrificedThisTurn).split(' or ').some(t => w.includes(t))).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
       // Guardian Scalelord: "where X is this creature's power", as a target's cap (maxMvCount)
@@ -6652,6 +6662,15 @@
         }
         if (d) cost = this._addGeneric(cost || '', d);
       }
+      /* Torgaar, Dargo: "you may sacrifice any number of …" — the ones chosen (or as few as the mana needs),
+         the price having come with all of them gone; what the ones kept would have taken off goes back on */
+      let sacForLess = [];
+      if (a && a.sacForLess && !opts.free && !via && opts.costOverride == null && !o.isCopy) {
+        const sp = this._sacForLessPlan(playerId, o, opts, cost);
+        if (sp.error) return this.fail(sp.error);
+        if (sp.back) cost = this._addGeneric(cost || '', sp.back);
+        sacForLess = sp.list;
+      }
       /* Trinisphere: "each spell that would cost less than three mana to cast
          costs three mana to cast" — the last word on the price, once
          everything else has had its say (costFloor), a spell cast without
@@ -6724,6 +6743,8 @@
         if (!paid) return this.fail(`Not enough mana for ${o.name} (${cost}).`);
         if (reduces) this._payReduction(playerId, o, plan, ccHeld);
       }
+      // (Torgaar, Dargo: the sacrifices, paid with the mana — sacForLess)
+      if (sacForLess.length) this._sacrificeNow(playerId, sacForLess.filter(x => x.zone === 'battlefield'), null);
       /* Sneak: the unblocked attacker goes back to hand as the spell is cast;
          what it was attacking, the sneaked creature attacks */
       if (via && via.via === 'sneak') {
@@ -8494,6 +8515,47 @@
       this._fire('youCollectEvidence', pid, { playerId: pid });
       return true;
     }
+    /** Torgaar, Famine Incarnate; Dargo, the Shipwrecker: what could be sacrificed as the spell is cast (sacForLess), the least valuable first. */
+    _sacForLessPool(pid, o) {
+      const sf = o && (o.analysis() || {}).sacForLess;
+      if (!sf) return [];
+      return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && x !== o &&
+        this._cardFitsWords(x, sf.filter) && this._canSacrifice(x)));
+    }
+    /** The table's offer: any number of them, sent back as the cast's sacrificeIds. */
+    _sacForLessOffer(pid, o) {
+      const sf = o && (o.analysis() || {}).sacForLess;
+      if (!sf || !['hand', 'command'].includes(o.zone)) return [];
+      const pool = this._sacForLessPool(pid, o);
+      if (!pool.length) return [];
+      const what = sf.filter.replace(/ or /g, ' and/or ').replace(/(\w+)(?= and\/or|$)/g, (w) => w + 's');
+      return [{ kind: 'sacForLess', label: `Sacrifice any number of ${what} ({${sf.each}} less for each)`, cost: '',
+        key: 'sacrificeIds', need: 0, max: pool.length, each: sf.each, candidates: pool.map(x => x.id) }];
+    }
+    /* Which of them go with this cast: the ones named (sacrificeIds, none at all for an empty list), or, named
+       by nobody, as few as the mana to hand needs, the least valuable first. `back`: the mana put back on
+       the price, which was worked out with all of them gone (castCost). */
+    _sacForLessPlan(pid, o, opts, cost) {
+      const pool = this._sacForLessPool(pid, o);
+      const priceWith = (n) => MANA.cmc(this.castCost(o, { sacForLessN: n }, pid));
+      const backFor = (n) => Math.max(0, priceWith(n) - priceWith(pool.length));
+      if (Array.isArray(opts.sacrificeIds)) {
+        const list = [];
+        for (const id of opts.sacrificeIds) {
+          const x = pool.find(y => y.id === id);
+          if (!x) return { error: `${(this.obj(id) || {}).name || 'That'} can't be sacrificed for ${o.name}.` };
+          if (list.includes(x)) return { error: 'The same permanent cannot be sacrificed twice.' };
+          list.push(x);
+        }
+        return { list, back: backFor(list.length) };
+      }
+      const src = this.manaSources(pid);
+      const xd = (c) => String(c || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}');
+      let n = 0;
+      // no more than it takes, and none past where nothing more comes off
+      while (n < pool.length && backFor(n) > 0 && !this.couldPay(pid, xd(this._addGeneric(cost || '', backFor(n))), src)) n++;
+      return { list: pool.slice(0, n), back: backFor(n) };
+    }
     /** What could pay the costs the table would otherwise pick for the player, and the opts key each answer goes in. */
     _costPickOffers(pid, self, cost) {
       if (!cost) return [];
@@ -9332,7 +9394,11 @@
         if (ab.equipDiscount && ab.equipDiscount.targetPower) d -= Math.max(0, this.powerOf(tObj));
       }
       // Voldaren Estate: "This ability costs {1} less to activate for each Vampire you control"
-      for (const e of (ab.effects || [])) if (e && e.abilityDiscount) d -= e.abilityDiscount.amount * (e.abilityDiscount.cond
+      for (const e of (ab.effects || [])) if (e && e.abilityDiscount) d -= e.abilityDiscount.amount * (e.abilityDiscount.targetsYours
+        // Wayta, Trainer Prodigy: "if it targets two creatures you control" — as many of them among its targets (targetsYours)
+        ? ((targets || []).filter(t => { const x = t && this.obj(typeof t === 'string' ? t : t.id); return !!x && x.zone === 'battlefield' &&
+          x.controller === o.controller && this._matchesCategory(x, e.abilityDiscount.targetsYours.words); }).length >= e.abilityDiscount.targetsYours.n ? 1 : 0)
+        : e.abilityDiscount.cond
         // Hylda's Crown of Winter: so much less while a condition holds
         ? (this._condMet(e.abilityDiscount.cond, { controller: o.controller, obj: o }) ? 1 : 0)
         : this._countValue(e.abilityDiscount.per, o.controller, o));
@@ -13072,6 +13138,12 @@
           return !!me && !!dp && this.zones[dp.id].hand.length > this.zones[me.id].hand.length;
         }
         // Ezio Auditore da Firenze: "if that player has 10 or less life"
+        // O-Kagachi, Vengeful Kami: "if that player attacked you during their last turn" (attackedLastTurn)
+        case 'thatPlayerAttackedYou': {
+          const td = (ctx && ctx.triggerData) || {};
+          const p = this.player(td.player || td.playerId);
+          return !!p && (p.attackedLastTurn || []).includes(ctx.controller);
+        }
         case 'thatPlayerLife': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -15227,7 +15299,8 @@
           if (ab.spellFilter && !(data.object && this._cardFitsWords(data.object, ab.spellFilter))) continue;
           // (the Shrines: "At the beginning of your upkeep and whenever you cast a white spell" — the colour is the spell's only: filterOnlyOn)
           // a player aimed at is only for "you or a permanent you control" (orYou); "you become the target": only that (youTargetedOnly)
-          if (data.playerTarget && !(ab.orYou && data.playerTarget === o.controller)) continue;
+          // (Loki, God of Mischief: "a player or permanent", any player — anyAbility)
+          if (data.playerTarget && !(ab.orYou && data.playerTarget === o.controller) && !ab.anyAbility) continue;
           if (ab.youTargetedOnly && !data.playerTarget) continue;
           if (ab.objFilter && !data.playerTarget && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
           // Carth the Lion: "Whenever Carth enters or …" — of what enters, only itself (selfOnEnter)
@@ -15541,7 +15614,10 @@
           // Nicanzil, Current Conductor: "explores a land card", "explores a nonland card" (exploreKind)
           if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
           // Professor Hojo: "become the target of an activated ability"
-          if (ab.byActivated && event === 'becomesTarget' && !data.byAbility) continue;
+          if (ab.byActivated && event === 'becomesTarget' && (!data.byAbility || data.byTrigger)) continue;
+          /* Loki, God of Mischief: "the target of an ability" (anyAbility); a triggered ability's targets, chosen as it
+             resolves (byTrigger), are told to no other trigger: they would answer it too late */
+          if (event === 'becomesTarget' && (ab.anyAbility ? !data.byAbility : data.byTrigger)) continue;
           if (ab.byOpponent && event === 'becomesTarget' && data.playerId === o.controller) continue;
           if (ab.skipFirstDrawStep && data.inDrawStep && data.nth === 1) continue;
           /* "their first noncreature spell each turn": none of that kind
@@ -16287,6 +16363,16 @@
           if (warded) return null;
           ctx.resolvedTargets = targets;
           ctx._askedSpecs = JSON.stringify(e.targets);
+          // (Loki, God of Mischief: a triggered ability's targets — byTrigger; once, should a later question re-run this)
+          const rz = this.resolving;
+          const told = 'btg' + (rz ? rz.index : 0);
+          if (rz) rz.marks = rz.marks || {};
+          if (ctx.kind === 'ability' && !(rz && rz.marks[told])) for (const t of targets) {
+            if (rz) rz.marks[told] = true;
+            const x = t && t.kind === 'object' && this.obj(t.id);
+            if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, byTrigger: true, playerId: ctx.controller });
+            if (t && t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, byTrigger: true, playerId: ctx.controller });
+          }
           if (e.targets.some(sp => sp && sp.distinctModePlayer)) {
             ctx._modePlayers = ctx._modePlayers || [];
             for (const t of targets) if (t.kind === 'player' && !ctx._modePlayers.includes(t.id)) ctx._modePlayers.push(t.id);
@@ -18495,7 +18581,14 @@
           const r = this.resolving;
           r && (r.marks = r.marks || {});
           const slot = 'conn' + (r ? r.index : 0);
-          if (!(r && r.marks[slot])) { this._drawCards(who, count); if (r) r.marks[slot] = true; }
+          if (!(r && r.marks[slot])) {
+            /* Leader, Super-Genius: "If a creature you control would connive, instead you draw a card, then that
+               creature connives" — a card first for each one its controller has (conniveDrawFirst) */
+            const lead = x && x.zone === 'battlefield' ? this.battlefield.filter(s => s.controller === x.controller && !s.phasedOut && this._staticOp(s, 'conniveDrawFirst')).length : 0;
+            if (lead) this._drawCards(this.player(x.controller), lead);
+            this._drawCards(who, count);
+            if (r) r.marks[slot] = true;
+          }
           const hand = (this.zones[who.id] || {}).hand || [];
           let toss = count > 0 ? hand.slice(-count) : [];
           if (count > 0 && hand.length > count) {
@@ -19174,8 +19267,10 @@
         }
         // Mirror Entity: "creatures you control have base power and toughness X/X"
         case 'setBaseAll': {
-          const p = n(e.p), t = n(e.t);
+          // (Tanazir Quandrix: its own power and toughness, to the others — srcPower, srcToughness, other)
+          const p = e.p === 'srcPower' ? Math.max(0, this.powerOf(src)) : n(e.p), t = e.t === 'srcToughness' ? Math.max(0, this.toughnessOf(src)) : n(e.t);
           for (const x of this.creaturesOf(ctx.controller, 'yourCreatures')) {
+            if (e.other && x === src) continue;
             // Allosaurus Shepherd: each Elf, which becomes a Dinosaur as well
             if (e.subtype && !this._hasCreatureType(x, e.subtype)) continue;
             // Sephiroth, Fallen Hero: only those modified as it resolves (counters, or its controller's Equipment or Aura)
@@ -28896,6 +28991,12 @@
               (event === 'youDealtDamage' || !!this.player(data.player)));
           if (toPlayer && by && by.controller === src.controller && (this.characteristics(by) || {}).isCreature) extra++;
         }
+        /* Wayta, Trainer Prodigy: "a creature you control being dealt damage" — its own enrage, or "whenever a creature
+           (you control) is dealt damage" (damagedYours) */
+        else if (e.cause === 'damagedYours' && ['isDealtDamage', 'anyDealtDamage'].includes(event)) {
+          const hurt = data.object;
+          if (hurt && hurt.controller === src.controller && (this.characteristics(hurt) || {}).isCreature) extra++;
+        }
         // Krang, the All-Powerful: a player drawing a card (draw)
         else if (e.cause === 'draw' && ['youDraw', 'anyDraw', 'opponentDraw'].includes(event)) extra++;
         // Veyran: casting or copying an instant or sorcery spell
@@ -31906,7 +32007,7 @@
           if (!z) return out;
           for (const o of z.hand.concat(z.command)) {
             // convoke, improvise and delve: what could pay, for the table to offer
-            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null));
+            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null), this._sacForLessOffer(playerId, o));
             if (ex.length) out[o.id] = ex;
           }
           return out;

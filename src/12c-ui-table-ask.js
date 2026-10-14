@@ -1283,7 +1283,9 @@
       /* Paid by the game, or from the lands you tap (below). Convoke and
          the like are worked out by the game alone, so a spell paid partly
          that way is left to it. */
-      const byGame = steps.altPay || offered.some(x => ['convoke', 'improvise', 'delve'].includes(x.kind));
+      // (Torgaar, Dargo: what is sacrificed for less left to the game as well — sacForLess)
+      const byGame = steps.altPay || offered.some(x => ['convoke', 'improvise', 'delve'].includes(x.kind)) ||
+        (offered.some(x => x.kind === 'sacForLess') && !Array.isArray((steps.costPicks || {}).sacrificeIds));
       const cost = byGame ? '' : this._castCost(steps, offered);
       const go = (targets) => { this._dropAt = null; this.payThen(Object.assign({ kind: 'cast', objId: o.id, targets }, extra), cost, o.card); };
       this.render();
@@ -1355,6 +1357,13 @@
       const spree = ex('spree');
       for (const m of spree.modes || []) if ((p.spree || []).includes(m.i)) cost += m.cost || '';
       if (spree.escalate && (p.spree || []).length > 1) cost += String(spree.escalate).repeat(p.spree.length - 1);
+      // Torgaar, Dargo: {2} less for each permanent chosen to be sacrificed, off the generic mana (sacForLess)
+      const sac = ((steps.costPicks || {}).sacrificeIds || []).length * (ex('sacForLess').each || 0);
+      if (sac > 0) {
+        const syms = MTG.mana.parse(cost);
+        const gen = Math.max(0, syms.filter(x => /^\d+$/.test(x)).reduce((k, x) => k + +x, 0) - sac);
+        cost = (gen ? '{' + gen + '}' : '') + syms.filter(x => !/^\d+$/.test(x)).map(x => '{' + x + '}').join('');
+      }
       return cost;
     },
 
@@ -1557,6 +1566,14 @@
             askKind(chosen[0]);
           });
         }
+        // Torgaar, Dargo: any number of them, none included, each taking mana off the price (sacForLess)
+        if (r.kind === 'sacForLess') {
+          if (!(r.candidates || []).length) return next();
+          return this._pickPayers({ label: r.label || 'Choose what to sacrifice', ids: r.candidates, count: r.max || r.candidates.length, anyNumber: true }, card, (chosen) => {
+            if (chosen) out[r.key] = chosen;
+            next();
+          });
+        }
         // (Osgir, the Reconstructor: only the cards with mana value X, the X paid — mvX)
         const ids = (r.kind === 'forage' && !(r.candidates || []).length ? (r.foods || []) : (r.candidates || []))
           .filter(id => !r.mvX || (((this.objIn(id) || {}).card || {}).cmc || 0) === (x || 0));
@@ -1579,7 +1596,7 @@
       const picked = [];
       const key = 'payers:' + p.label + ':' + p.ids.join(',');
       const mv = (id) => { const x = this.objIn(id); return (x && x.card && x.card.cmc) || 0; };
-      const enough = () => (p.total != null ? picked.reduce((n, id) => n + mv(id), 0) >= p.total : picked.length === p.count);
+      const enough = () => (p.total != null ? picked.reduce((n, id) => n + mv(id), 0) >= p.total : p.anyNumber ? picked.length <= p.count : picked.length === p.count);
       this.asking = { base: key, get key() { return key + ':' + picked.join(','); }, build: () => {
         const row = el('div', { class: 'pick-row' });
         for (const id of p.ids) {
@@ -1595,10 +1612,10 @@
             } }));
         }
         const sum = picked.reduce((n, id) => n + mv(id), 0);
-        const sub = p.total != null ? `Mana value ${sum} of ${p.total}.` : `${picked.length} of ${p.count} chosen.`;
+        const sub = p.total != null ? `Mana value ${sum} of ${p.total}.` : p.anyNumber ? `${picked.length} chosen.` : `${picked.length} of ${p.count} chosen.`;
         return this.panel(escapeHtml(p.label), sub, row, [
           { label: 'Let the game choose', fn: () => { this.asking = null; done(null); } },
-          { label: 'Use these', cls: 'primary', disabled: !enough(), fn: () => { this.asking = null; done(picked.slice()); } },
+          { label: p.anyNumber && !picked.length ? 'None' : 'Use these', cls: 'primary', disabled: !enough(), fn: () => { this.asking = null; done(picked.slice()); } },
         ], { card, wide: true });
       } };
       this.render();

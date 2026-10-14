@@ -4870,6 +4870,8 @@
           ...costPicksOf(intent),
           // what pays instead of mana, when the player chose it: creatures to convoke, artifacts to improvise, cards to delve
           convokeIds: idList(intent.convokeIds), improviseIds: idList(intent.improviseIds), delveIds: idList(intent.delveIds),
+          // Torgaar, Dargo: what is sacrificed for less (an empty list: none); left out, the engine picks
+          sacrificeIds: idList(intent.sacrificeIds),
           // generic questions answered with the extra costs (replicate, splice); the engine checks them
           choices: intent.choices && typeof intent.choices === 'object' ? intent.choices : null,
           x: Math.max(0, Math.min(99, parseInt(intent.x, 10) || 0)) }); break;
