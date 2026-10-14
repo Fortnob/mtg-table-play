@@ -27628,7 +27628,8 @@
         holdFor: this.holdFor || null, spellsThisTurn: this.spellsThisTurn || 0,
         objSeq: this._objSeq, uidSeq: this._uidSeq, tsSeq: this._tsSeq || 0, exileSeq: this._exileSeq || 0,
         // the meld results the decks can make (Brisela, Voice of Nightmares), and two melded cards waiting to be ordered in a library
-        meldCards: this.meldCards ? Object.assign({}, this.meldCards) : null, meldOrderAsk: this._meldOrderAsk || null,
+        // (none yet, or an empty lookup, is the same: a replay must read it back the same — meldCards)
+        meldCards: this.meldCards && Object.keys(this.meldCards).length ? Object.assign({}, this.meldCards) : null, meldOrderAsk: this._meldOrderAsk || null,
       };
       // what this turn has seen ("if a creature died this turn", spells cast last turn, combats), and the rest plain
       snap.extra = this._snapExtras(this, {}, SNAP_SKIP_GAME, snap);
@@ -27719,7 +27720,7 @@
       if (snap.isDay !== null && snap.isDay !== undefined) this.isDay = snap.isDay;
       this.holdFor = snap.holdFor || null;
       this.spellsThisTurn = snap.spellsThisTurn || 0;
-      this.meldCards = snap.meldCards ? Object.assign({}, snap.meldCards) : (this.meldCards || {});
+      this.meldCards = snap.meldCards ? Object.assign({}, snap.meldCards) : null;
       this._meldOrderAsk = snap.meldOrderAsk || null;
       // the event stream carries on from the game as it now is
       this._evRebase();
