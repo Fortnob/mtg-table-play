@@ -1930,6 +1930,9 @@
     // Immaculate Magistrate: "Put a +1/+1 counter on target creature for each Elf you control."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (target creature(?: you control)?) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[3]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [targetSpec(m[2])] } : null; } },
+    // Geralf, the Fleshwright: "put a +1/+1 counter on it for each other Zombie that entered …" — "it" the trigger's, or the last one named
+    { re: /^Put an? ([+\-0-9/a-z]+) counter on it for each (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2]); return c ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: null, scope: 'lastTarget' } : null; } },
     // Go-Shintai of Boundless Vigor: "Put a +1/+1 counter on target Shrine for each Shrine you control."
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (target (?:[A-Z][a-z]+|artifact|enchantment|land|permanent)) for each (.+?)\.?$/,
       make: (m) => { const c = countOf(m[3]); const t = targetSpec(m[2]); return c && t && !t.unknown ? { op: 'counters', kind: m[1].toLowerCase(), n: c, targets: [t] } : null; } },
@@ -7257,6 +7260,10 @@
     if ((m = p.match(/^(opponents?|players?) dealt damage$/i))) return { batchPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
     // Apothecary White: "for each player being attacked" (playersBeingAttacked)
     if (/^(?:players?|opponents?) being attacked$/i.test(p)) return { playersBeingAttacked: true, mult: k };
+    // Geralf, the Fleshwright: "for each other Zombie that entered the battlefield under your control this turn" — not the one the trigger is about, itself one of them
+    if ((m = p.match(/^other ([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
+      const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k, plus: -k };
+    }
     // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn"
     if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
       const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
@@ -10104,6 +10111,18 @@
         continue;
       }
 
+      /* Stiltzkin, Moogle Merchant: "Target opponent gains control of another target permanent you control. If they
+         do, you draw a card." — the draw only once it has changed hands (giveControl then) */
+      const giveT = s.match(/^Target (opponent|player) gains control of ((?:another )?target (?:creature|permanent|artifact) you control)\.$/i);
+      const giveIf = giveT && next.match(/^If they do,\s*(.+)$/i);
+      if (giveIf) {
+        const then = parseSentenceList(splitSentences(U.titleCase(giveIf[1].charAt(0)) + giveIf[1].slice(1)));
+        if (!then.auto) auto = false;
+        effects.push({ op: 'giveControl', targets: [{ type: 'player', opponent: /opponent/i.test(giveT[1]) }, targetSpec(giveT[2])], then: then.effects, text: s + ' ' + next });
+        i++;
+        continue;
+      }
+
       /* Yes Man, Personal Securitron: "Target opponent gains control of Yes Man. When they do, you draw two
          cards and put a quest counter on Yes Man." — the reflexive half once it has changed hands (giveSelfThen) */
       const giveTo = s.match(/^Target (opponent|player) gains control of (?:this creature|CARDNAME|this artifact|this permanent)\.$/i);
@@ -11506,6 +11525,8 @@
     /* (Chain Assassination's "if another creature died this turn" means
        besides the one it destroyed, which this count cannot tell apart) */
     [/^a creature died this turn$/i, () => ({ kind: 'morbid' })],
+    // Ebondeath, Dracolich: "a creature not named Ebondeath, Dracolich died this turn" — its own name (morbidOtherName)
+    [/^a creature not named CARDNAME died this turn$/i, () => ({ kind: 'morbidOtherName' })],
     [/^a permanent you controlled left the battlefield this turn$/i, () => ({ kind: 'revolt' })],
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
@@ -11819,6 +11840,8 @@
       extraOf: (m) => ({ attackersOfType: singularType(m[1]), attackersOfTypeAtPlayer: true }) },
     // Neyali, Suns' Vanguard: "Whenever one or more tokens you control attack a player" (attackersFit)
     { re: /^Whenever one or more tokens you control attack a player,? /i, event: 'youAttack', extra: { attackersFit: 'token', attackPlayerOnly: true } },
+    // Geralf, the Fleshwright: "Whenever you cast a spell during your turn other than your first spell that turn" (notFirstSpell)
+    { re: /^Whenever you cast a spell during your turn other than your first spell that turn,? /i, event: 'youCastSpell', extra: { yourTurnOnly: true, notFirstSpell: true } },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
     { re: /^Whenever you cast a spell during combat,? /i, event: 'youCastSpell', extra: { duringCombat: true } },
     // Zaxara, the Exemplary: "Whenever you cast a spell with {X} in its mana cost" (xSpell)
@@ -16794,8 +16817,10 @@
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME) cost an additional (\d+) life to cast\.?$/i,
         make: (m) => ({ op: 'targetLifeTax', life: +m[1] }), auto: true },
       /* Gravecrawler, Squee: the card casts itself from where it lies */
-      { re: /^You may cast (?:this card|CARDNAME) from your graveyard( or from exile)?(?: as long as (.+?))?\.?$/i,
+      // (Ebondeath, Dracolich: "… if a creature not named Ebondeath, Dracolich died this turn")
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard( or from exile)?(?: as long as (.+?)| if (.+?))?\.?$/i,
         make: (m) => {
+          if (m[3]) m[2] = m[3];
           const cond = m[2] ? condOf(m[2]) : null;
           if (m[2] && !cond) return { op: 'manual' };
           return Object.assign({ op: 'castSelfFromGraveyard' }, m[1] ? { exile: true } : {}, cond ? { cond } : {});
@@ -17889,6 +17914,9 @@
       // Isshin, Two Heavens as One; Wulfgar of Icewind Dale: "If a creature you control attacking causes …" (yours)
       { re: /^If a creature( you control)? attacking causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         make: (m) => Object.assign({ op: 'triggerDouble', cause: 'attack' }, m[1] ? { yours: true } : {}), auto: true },
+      // Krang, the All-Powerful: "If a player drawing a card causes a triggered ability of a permanent you control to trigger, …" (draw)
+      { re: /^If a player drawing a card causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        eff: { op: 'triggerDouble', cause: 'draw' }, auto: true },
       /* Felix Five-Boots: "If a creature you control dealing combat damage to a player causes a triggered ability
          of a permanent you control to trigger, that ability triggers an additional time." (combatDamagePlayer) */
       { re: /^If a creature you control dealing combat damage to a player causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,

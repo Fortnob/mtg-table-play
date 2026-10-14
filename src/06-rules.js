@@ -12582,6 +12582,7 @@
         }
         case 'landfall': return !!me && (me.landsPlayed || 0) > 0;
         case 'morbid': return (h.creaturesDied || 0) > 0;
+        case 'morbidOtherName': return (h.diedNames || []).some(nm => !src || U.normName(nm) !== U.normName(src.name));
         case 'revolt': return (h.permanentsLeft || 0) > 0;
         case 'raid': return !!h.attacked;
         case 'spellsCast': return !!me && at(me.spellsCastThisTurn || 0);
@@ -13765,6 +13766,9 @@
           // Sméagol: "a creature died under your control this turn"
           h.diedBy = h.diedBy || {};
           h.diedBy[o.controller] = (h.diedBy[o.controller] || 0) + 1;
+          // Ebondeath, Dracolich: "a creature not named …" — the names of the ones that died (morbidOtherName)
+          h.diedNames = h.diedNames || [];
+          if (!h.diedNames.includes(o.name)) h.diedNames.push(o.name);
         }
         // Vren, the Relentless: "creatures that were exiled under your opponents' control this turn" (exiledBy)
         if (wasA && wasA.isCreature && toZone === 'exile') { h.exiledBy = h.exiledBy || {}; h.exiledBy[o.controller] = (h.exiledBy[o.controller] || 0) + 1; }
@@ -14609,6 +14613,8 @@
             if (!/\{X\}/.test(mc)) continue;
           }
           if (ab.duringCombat && !(this.phase && this.phase.id === 'combat')) continue;
+          // Geralf, the Fleshwright: "other than your first spell that turn" (notFirstSpell)
+          if (ab.notFirstSpell && ((this.player(o.controller) || {}).spellsCastThisTurn || 0) < 2) continue;
           // Nita, Forum Conciliator: a spell its controller doesn't own (notOwnedSpell)
           if (ab.notOwnedSpell && !(data.object && data.object.owner !== o.controller)) continue;
           // Gonti, Night Minister: a spell its caster doesn't own (notOwnedByCaster)
@@ -24530,6 +24536,8 @@
           this.logEvent('control', `${p.name} gains control of ${x.name}.`);
           // ("It gains haste until end of turn": that one)
           if (e.self) this._noteLastAffected([{ kind: 'object', id: x.id }]);
+          // Stiltzkin, Moogle Merchant: "If they do, you draw a card."
+          if (e.then && x.controller === p.id) this._spliceNext(e.then);
           break;
         }
         // Rona, Tolarian Obliterator: "that source's controller exiles a card from their hand at random"
@@ -26848,6 +26856,8 @@
               (event === 'youDealtDamage' || !!this.player(data.player)));
           if (toPlayer && by && by.controller === src.controller && (this.characteristics(by) || {}).isCreature) extra++;
         }
+        // Krang, the All-Powerful: a player drawing a card (draw)
+        else if (e.cause === 'draw' && ['youDraw', 'anyDraw', 'opponentDraw'].includes(event)) extra++;
         // Veyran: casting or copying an instant or sorcery spell
         else if (e.cause === 'castInstantSorcery' && ['youCastSpell', 'anyCastSpell', 'youCopySpell', 'castSelf'].includes(event)) {
           const sp = data.object || (data.spell && data.spell.obj);
