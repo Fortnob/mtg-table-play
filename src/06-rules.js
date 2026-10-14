@@ -917,6 +917,14 @@
           o._chr = null;
         }
       }
+      // (Tamiyo, Seasoned Scholar: an "until your next turn, whenever …" emblem — untilTurnOf)
+      for (const p of this.players) {
+        for (const em of ((this.zones[p.id] || {}).command || []).filter(x => x.card && x.card.untilTurnOf === this.turnOrder[this.activeIndex])) {
+          this._removeFromZone(em);
+          em.zone = null;
+          this.bumpBoard();
+        }
+      }
       const ap = this.activePlayer;
       ap.landsPlayed = 0;
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
@@ -2888,7 +2896,7 @@
     }
     _botCopyTargets(copy, specs, options, playerId) {
       const HARM = new Set(['damage', 'destroy', 'exile', 'bounce', 'counterSpell', 'counterUnless', 'tap', 'loseLife',
-        'discard', 'mill', 'fight', 'bite', 'gainControl', 'exileUntilLeaves', 'sacrificeChoice', 'drain', 'handAttack',
+        'discard', 'mill', 'fight', 'bite', 'groupBite', 'gainControl', 'exileUntilLeaves', 'sacrificeChoice', 'drain', 'handAttack',
         'restrict', 'goad', 'toLibrary', 'damageDivided', 'selfBite']);
       const ops = [];
       const walk = (list) => {
@@ -14367,6 +14375,8 @@
           });
         }
       }
+      // (Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — put like any counter)
+      if (o.zone === 'battlefield') this._fire('countersPut', null, { object: o, source: o, objController: o.controller, kind: 'lore', amount: Number(evL.n), putter: this._putBy || o.controller });
       if (this.pendingTriggers.length) this.emit('sfx', 'trigger');
       this.logEvent('saga', `${o.name} reaches chapter ${after}.`);
     }
@@ -16927,6 +16937,8 @@
              damage to that player this turn": that player only. Kept on the
              card, so a saved game keeps them too. */
           if (e.thisTurn) card.untilEot = true;
+          // Tamiyo, Seasoned Scholar: "Until your next turn, whenever …" — gone as that turn begins
+          if (e.nextTurn) card.untilTurnOf = ctx.controller;
           if (e.once) card.once = true;
           // Alchemy: "a two-time boon"
           if (e.times > 1) { card.times = e.times; card.id += ':x' + e.times; }
@@ -18086,6 +18098,22 @@
           } else this.dealDamageToObject(victim, amount, biter);
           this.logEvent('fight', `${biter.name} deals ${amount} damage to ${victim.name}.`);
           this.emit('sfx', 'damage');
+          break;
+        }
+        /* Bartz and Boko: "each other Bird you control deals damage equal to its power to target creature an
+           opponent controls" — each one a source of its own, all at once */
+        case 'groupBite': {
+          const victim = firstObj();
+          if (!victim || victim.zone !== 'battlefield') break;
+          const biters = this.battlefield.filter(o => !o.phasedOut && o.controller === ctx.controller && !(e.other && o === src) &&
+            this._matchesCategory(o, e.filter || 'creature'));
+          for (const b of biters) {
+            const amount = this.powerOf(b);
+            if (amount <= 0) continue;
+            this.dealDamageToObject(victim, amount, b);
+            this.logEvent('fight', `${b.name} deals ${amount} damage to ${victim.name}.`);
+          }
+          if (biters.length) this.emit('sfx', 'damage');
           break;
         }
         // Savage Stomp: the creature the spell aimed at first fights this one
@@ -21802,6 +21830,17 @@
           break;
         }
         case 'loseGame': this.playerLoses(me, 'a card said so'); break;
+        /* Etrata, the Silencer: "That player loses the game if they own three or more exiled cards with hit counters
+           on them." — in any exile, theirs to own */
+        case 'loseIfExiledCounters': {
+          // ("that player": the one dealt the damage — `of`, not `who`, as the target before it is theirs too)
+          const p = e.of === 'triggerPlayer' ? triggerPlayer() : me;
+          if (!p || p.hasLost || (e.ifTargeted && !(ctx.resolvedTargets || ctx.targets || []).length)) break;
+          let k = 0;
+          for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.owner === p.id && !c.isToken && Number((c.counters || {})[e.kind]) > 0) k++;
+          if (k >= n(e.n)) { this.playerLoses(p, `${k} exiled cards with ${e.kind} counters`); this.checkStateBasedActions(); }
+          break;
+        }
 
         /* ===== leave a note for later (CR 603.7) ===== */
         /* Omnath, Locus of All: the top card looked at; with three or more coloured mana symbols in its cost it may be
@@ -21833,6 +21872,23 @@
             if (!c || c.zone !== 'exile' || c.impulseBy !== ctx.controller || !this._cardFitsWords(c, e.words)) continue;
             c.freeCastBy = ctx.controller; c.freeCastTurn = c.impulseUntil != null && c.impulseUntil < 99999 ? c.impulseUntil : this.turn;
           }
+          break;
+        }
+        /* Sigurd, Jarl of Ravensthorpe: "Put a lore counter on target Saga you control or remove one from it." — asked
+           only when there is one to remove; a counter put on reaches its chapter (CR 714.2b) */
+        case 'loreAddOrRemove': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield' || !(x.analysis() || {}).isSaga) break;
+          let add = true;
+          if (Number(x.counters.lore) > 0) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'loreAddOrRemove', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: `Put a lore counter on ${x.name}` }, { i: 1, label: `Remove a lore counter from ${x.name}` }],
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put a lore counter on ${x.name} or remove one from it?` }, 'lore');
+            if (got === SUSPEND) return SUSPEND;
+            add = !(got && (got.picks || [])[0] === 1);
+          }
+          if (add) this._advanceSaga(x, 1);
+          else { this.addCounters(x, 'lore', -1); this.logEvent('saga', `A lore counter is removed from ${x.name}.`); }
           break;
         }
         /* Esper Terra: "If it's a Saga, put up to three lore counters on it." — the token copy just made; each
@@ -22898,7 +22954,23 @@
           break;
         }
         case 'selfToLibrary': {
+          // Zask, Skittering Swarmlord: "put it on the bottom" — the Insect that died, if it is still in the graveyard (trigObj)
+          if (e.trigObj) {
+            const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            if (x && x.zone === 'graveyard' && !x.isToken) { this.moveObject(x, 'library', { toBottom: !!e.bottom }); this.logEvent('zone', `${x.name} goes to the bottom of its owner's library.`); }
+            break;
+          }
           if (!src) break;
+          // Etrata, the Silencer: "Etrata's owner shuffles Etrata into their library" — only the permanent, leaving as any does
+          // (gone from there, or put in the command zone instead, the library is shuffled all the same — Scryfall ruling)
+          // ("If the player controls no creatures, Etrata's ability doesn't resolve" — ifTargeted)
+          if (e.ifTargeted && !(ctx.resolvedTargets || ctx.targets || []).length) break;
+          if (e.fromBf) {
+            if (src.zone === 'battlefield') this.moveObject(src, 'library');
+            if (this.zones[src.owner]) this.rng.shuffle(this.zones[src.owner].library);
+            this.logEvent('zone', src.zone === 'library' ? `${src.name} is shuffled into its owner's library.` : `${(this.player(src.owner) || {}).name || 'Its owner'} shuffles their library.`);
+            break;
+          }
           // Kogla and Yidaro: only if it is still in the graveyard it was discarded to
           if (e.fromGraveyard && src.zone !== 'graveyard') break;
           const z = this.zones[src.owner].library;

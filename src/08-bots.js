@@ -1511,7 +1511,7 @@
 
   /* Effects that hurt whatever they are pointed at. */
   const HARMFUL = new Set(['damage', 'destroy', 'exile', 'exileUntilLeaves', 'bounce', 'tap', 'loseLife', 'discard',
-    'mill', 'counterSpell', 'counterUnless', 'sacrificeChoice', 'gainControl', 'fight', 'bite', 'damageByPower', 'goad',
+    'mill', 'counterSpell', 'counterUnless', 'sacrificeChoice', 'gainControl', 'fight', 'bite', 'groupBite', 'damageByPower', 'goad',
     'cantBlock', 'cantAttack', 'restrict', 'drain', 'discardChosen', 'exileChosen', 'handAttack', 'damageDivided',
     'revealHand', 'tapAll', 'noUntap', 'stealAll',
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library"
@@ -1640,6 +1640,8 @@
         Object.keys(o.counters || {}).filter(k => Number(o.counters[k]) > 0).every(k => BAD.test(k)));
       return { picks: picks.map(o => o.id) };
     },
+    /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
+    loreAddOrRemove() { return { picks: [0] }; },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

@@ -999,9 +999,11 @@
      at the card or at something chosen before it. */
   function turnTrigger(text) {
     const t = String(text).trim();
-    let body = null, once = false;
+    let body = null, once = false, nextTurn = false;
     let m = t.match(/^(?:Until end of turn|This turn), (whenever [\s\S]+)$/i);
     if (m) body = 'W' + m[1].slice(1);
+    // Tamiyo, Seasoned Scholar: "Until your next turn, whenever a creature attacks you …" — gone as that turn begins (nextTurn)
+    else if ((m = t.match(/^Until your next turn, (whenever [\s\S]+)$/i))) { body = 'W' + m[1].slice(1); nextTurn = true; }
     // Galvanic Iteration: "When you next cast an instant or sorcery spell this turn, copy that spell." — once
     else if ((m = t.match(/^When you next (cast [^,"]+?) this turn, ([\s\S]+)$/i))) { body = 'Whenever you ' + m[1] + ', ' + m[2]; once = true; }
     // Twinferno: "When you cast your next instant or sorcery spell this turn, …"
@@ -1011,6 +1013,7 @@
     const head = body.split(',')[0];
     if (/\bthat (?:player|creature|permanent|card)\b|\bchosen\b/i.test(head)) return null;
     body = body.replace(/\.?$/, '.');
+    if (nextTurn) return emblemText(body) ? { op: 'getEmblem', emblemText: body, nextTurn: true, name: 'Until your next turn' } : null;
     return emblemText(body) ? Object.assign({ op: 'getEmblem', emblemText: body, thisTurn: true, name: once ? 'Next spell this turn' : 'Until end of turn' }, once ? { once: true } : {}) : null;
   }
 
@@ -1674,6 +1677,17 @@
        battlefield, its owner shuffles it into their library." — the card
        itself (a sentence after a target is read whole, above) */
     { re: /^Its owner shuffles it into their library\.?$/i, make: () => ({ op: 'selfToLibrary', shuffle: true, ownerIt: true }) },
+    // Sigurd, Jarl of Ravensthorpe: "Put a lore counter on target Saga you control or remove one from it." (loreAddOrRemove)
+    { re: /^Put a lore counter on target Saga you control or remove one from it\.?$/i,
+      make: () => ({ op: 'loreAddOrRemove', targets: [targetSpec('target Saga you control')] }) },
+    // Etrata, the Silencer: "Etrata's owner shuffles Etrata into their library." — the permanent, if it is still there (fromBf)
+    { re: /^CARDNAME'?s owner shuffles CARDNAME into their library\.?$/, make: () => ({ op: 'selfToLibrary', shuffle: true, fromBf: true, ifTargeted: true }) },
+    /* Etrata, the Silencer: "exile target creature that player controls and put a hit counter on that card. That player
+       loses the game if they own three or more exiled cards with hit counters on them." (loseIfExiledCounters) */
+    { re: /^Exile target creature that player controls and put an? ([a-z]+) counter on that card\.?$/i,
+      make: (m) => ({ op: 'exile', counter: m[1].toLowerCase(), targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer' }] }) },
+    { re: /^That player loses the game if they own (two|three|four|five|\d+) or more exiled cards with ([a-z]+) counters on them\.?$/i,
+      make: (m) => ({ op: 'loseIfExiledCounters', of: 'triggerPlayer', n: num(m[1]), kind: m[2].toLowerCase(), ifTargeted: true }) },
     // Spellstutter Sprite: "counter target spell with mana value X or less, where X is the number of Faeries you control"
     { re: /^Counter target spell with mana value X or less, where X is (.+?)\.?$/i,
       make: (m) => {
@@ -2860,6 +2874,9 @@
       make: (m) => ({ op: 'bite',
         targets: [m[1] === 'creature' ? { type: 'creature', controller: 'you' } : Object.assign(targetSpec('target ' + m[1] + ' you control'), { type: 'creature' }),
           Object.assign(targetSpec(m[3]), m[2] ? { distinct: true } : {})] }) },
+    // Bartz and Boko: "each other Bird you control deals damage equal to its power to target creature an opponent controls" (groupBite)
+    { re: /^Each other ([A-Z][a-z]+|creature) you control deals damage equal to its power to (target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/,
+      make: (m) => ({ op: 'groupBite', filter: m[1].toLowerCase(), other: true, targets: [targetSpec(m[2])] }) },
     /* Gravitic Punch: "to target player"; Soul's Fire: "to any target", a
        creature or planeswalker as much as a player; Origin of Thor: "to each
        opponent", every one of them */
@@ -3841,6 +3858,9 @@
     { re: /^(?:You )?[Cc]reate a number of (Treasure|Food|Clue|Blood|Gold) tokens equal to the result\.?$/,
       make: (m) => ({ op: 'createNamedToken', token: m[1], n: 'lastRoll' }) },
     { re: /^Draw cards equal to the result\.?$/i, make: () => ({ op: 'draw', who: 'you', n: 'lastRoll' }) },
+    // Tamiyo, Seasoned Scholar: "Draw cards equal to half the number of cards in your library, rounded up."
+    { re: /^Draw cards equal to half the number of cards in your library, rounded up\.?$/i,
+      make: () => ({ op: 'draw', who: 'you', n: { halfLibrary: 'you', up: true } }) },
     { re: /^Create a number of (.+? creature tokens?(?: with [a-z ,]+)?) equal to the result\.?$/i,
       make: (m) => { const t = parseTokenSentence('Create two ' + m[1].replace(/tokens?/, 'tokens')); return t ? Object.assign(t, { n: 'lastRoll' }) : null; } },
     /* Noxious Revival */
@@ -5494,6 +5514,12 @@
     { re: /^If it was an? ([a-z ]+?) card, (.+)$/i,
       make: (m) => ({ op: 'ifLastWas', filter: m[1].trim().toLowerCase(),
         then: parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1))).effects }) },
+    // Tamiyo, Seasoned Scholar: "Return target instant or sorcery card … If it's a green card, add one mana of any color." — the target
+    { re: /^If it'?s an? (white|blue|black|red|green) card, (add .+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences('A' + m[2].slice(1)));
+        return inner.auto && inner.effects.length ? { op: 'ifLastWas', ofTarget: true, filter: m[1].toLowerCase(), then: inner.effects } : null;
+      } },
     { re: /^If it'?s an? ([a-z ]+?) card, that player puts it into their hand\.?$/i,
       make: (m) => ({ op: 'ifLastWas', filter: m[1].trim().toLowerCase(), who: 'triggerPlayer',
         then: [{ op: 'toHandThat' }] }) },
@@ -6625,7 +6651,7 @@
           text: 'Whenever a creature dies, each creature other than the one that made this gets -' + m[1] + '/-' + m[2] + ' until end of turn.',
           effects: [{ op: 'pump', p: -(+m[1]), t: -(+m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', exceptId: '$src' } }] }] }) },
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
-    { re: /^(?:Until end of turn|This turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
+    { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
       make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
@@ -8299,8 +8325,9 @@
     }
     /* Dawnsire: "deals 100 damage to up to one target creature" — read with
        "target", and the one target made optional */
-    if (!depth && /\bup to one target\b/i.test(s) && (s.match(/\btarget\b/gi) || []).length === 1) {
-      const inner = parseEffectSentence(s.replace(/\bup to one target\b/i, 'target'), 1);
+    // (Sigurd, Jarl of Ravensthorpe: "on up to one other target creature" — "another target", made optional)
+    if (!depth && /\bup to one (?:other )?target\b/i.test(s) && (s.match(/\btarget\b/gi) || []).length === 1) {
+      const inner = parseEffectSentence(s.replace(/\bup to one target\b/i, 'target').replace(/\bup to one other target\b/i, 'another target'), 1);
       if (inner && inner.op !== 'manual' && !hasManualStep(inner) && (inner.targets || []).length === 1) {
         inner.targets = [Object.assign({}, inner.targets[0], { upTo: true })];
         inner.text = s;
@@ -12802,6 +12829,9 @@
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
+    // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter
+    { re: /^Whenever you put a lore counter on a Saga you control, /i, event: 'countersPut', aboutObject: true,
+      filt: () => ({ words: 'saga', who: 'you' }), extra: { counterKind: 'lore', putByYou: true, perAmount: true } },
     { re: /^When(?:ever)? an opponent searches their library(?:,| )/i, event: 'opponentSearches' },
     { re: /^At the beginning of your precombat main phase(?:,| )/i, event: 'yourMain1' },
     { re: /^At the beginning of each opponent'?s upkeep(?:,| )/i, event: 'opponentUpkeep' },
@@ -13803,6 +13833,11 @@
             if (!e || e.op !== 'returnExiled' || !/^(?:you may )?return that card\b/i.test(String(e.text || ''))) continue;
             e.op = 'returnTriggerCard'; e.yours = /under your control/i.test(e.text || ''); e.triggerOnly = true;
           }
+        }
+        /* Zask, Skittering Swarmlord: "Whenever another Insect you control dies, put it on the bottom of its owner's
+           library" — the card that died, not this one (trigObj) */
+        if (trig.event === 'permDies' && !trig.self) {
+          for (const e of parsed.effects) if (e && e.op === 'selfToLibrary' && /^put it\b/i.test(String(e.text || ''))) e.trigObj = true;
         }
         // It That Betrays: "put that card onto the battlefield under your control" — the card sacrificed (sacrificedAny)
         // (Tergrid, God of Fright: "from a graveyard" — the card sacrificed or discarded, from there only: sacOrDiscardAny)
@@ -18273,6 +18308,9 @@
         make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), notOwned: true, what: 'any', duringYourTurn: true, anyMana: true }), auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', duringYourTurn: !!m[1] }), auto: true },
+      // Zask, Skittering Swarmlord: "You may play lands and cast Insect spells from your graveyard." (spellFilter)
+      { re: /^You may play lands and cast ([A-Z][a-z]+|creature|artifact|enchantment|permanent) spells from your graveyard\.?$/,
+        make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'any', spellFilter: m[1].toLowerCase() }), auto: true },
       // Titania, Nature's Force: "You may play Forests from your graveyard."
       { re: /^(During your turn, )?[Yy]ou may play (Plains|Islands|Swamps|Mountains|Forests) from your graveyard\.?$/,
         make: (m) => ({ op: 'playFrom', zone: 'graveyard', what: 'land', filter: m[2].replace(/s$/, '').replace(/^Plain$/, 'Plains').toLowerCase(), duringYourTurn: !!m[1] }), auto: true },
