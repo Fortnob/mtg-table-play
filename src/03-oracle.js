@@ -5104,7 +5104,8 @@
 
     // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
     // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
-    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
+    // (Jecht, Reluctant Guardian: "you may exile it, then return it …" — "it" is Jecht, the one dealing the damage)
+    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent|it), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
     // Sheoldred // The True Scriptures, Elesh Norn // The Argent Etchings: "Exile this Saga, then return it to the battlefield (front face up)." (sagaFrontFace)
     { re: /^Exile this Saga, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i, make: () => ({ op: 'blinkTransformed', front: true, ownerControl: true }) },
@@ -8681,6 +8682,9 @@
     /* Valakut Exploration: "if there are cards exiled with this enchantment,
        put them into their owner's graveyard, then this enchantment deals that
        much damage to each opponent." */
+    // Asmodeus the Archfiend: "Return all cards exiled with Asmodeus to their owner's hand and you lose that much life."
+    { re: /^Return all cards exiled with CARDNAME to their owner'?s hand and you lose that much life\.?$/i,
+      make: () => [{ op: 'exiledWithToHand', loseLife: true }] },
     { re: /^(?:if there are cards exiled with (?:this enchantment|CARDNAME), )?put them into their owner'?s graveyard, then (?:this enchantment|CARDNAME) deals that much damage to each opponent\.$/i,
       make: () => [{ op: 'exiledWithToGraveyardDamage' }] },
     /* Pitiless Carnage, Reprocess, Last-Ditch Effort, Renounce, Landslide,
@@ -12173,6 +12177,9 @@
        for the lot, itself one of them or not (selfOk, batch) */
     { re: /^Whenever (?:CARDNAME|this creature) and\/or (one or more other [a-z ]+? you control) enter,? /i,
       event: 'permEnters', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.selfOk = true; return f; } },
+    // Carth the Lion: "Whenever Carth enters or a planeswalker you control dies" — itself entering, or that dying (selfOnEnter)
+    { re: /^Whenever (?:CARDNAME|this creature) enters or an? ([a-z]+) you control dies,? /i, event: 'permEnters', also: 'permDies',
+      filt: (m) => ({ words: m[1].toLowerCase(), who: 'you' }), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
@@ -16807,6 +16814,10 @@
           if (m[1] && !cond) return null;
           return Object.assign({ op: 'abilityCostMod', who: 'you', equip: true, setZero: true }, cond ? { cond } : {});
         }, auto: true },
+      // Carth the Lion: "Planeswalkers' loyalty abilities you activate cost an additional [+1] to activate." (loyaltyCostPlus)
+      { re: /^Planeswalkers'? loyalty abilities you activate cost an additional \[\+(\d+)\] to activate\.?$/i, make: (m) => ({ op: 'loyaltyCostPlus', n: +m[1] }), auto: true },
+      // Strong, the Brutish Thespian: "You gain life rather than lose life from radiation." (radGainsLife)
+      { re: /^You gain life rather than lose life from radiation\.?$/i, eff: { op: 'radGainsLife' }, auto: true },
       // Electro, Ashling: "You don't lose unspent red mana as steps and phases end."
       { re: /^You don'?t lose unspent (red|blue|black|white|green) mana as steps and phases end\.?$/i,
         make: (m) => ({ op: 'keepManaColor', color: ({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()] }), auto: true },
@@ -17942,6 +17953,11 @@
          some, the first one in your draw step) is two */
       { re: /^If you would draw a card( except the first one you draw in each of your draw steps)?, draw two cards instead\.?$/i,
         make: (m) => ({ op: 'drawDouble', exceptFirst: !!m[1] }), auto: true },
+      /* Eruth, Tormented Prophet: "If you would draw a card, exile the top two cards of your library instead. You may
+         play those cards this turn."; Asmodeus the Archfiend: "If you would draw a card, exile the top card of your
+         library face down instead." (drawExilesInstead) */
+      { re: /^If you would draw a card, exile the top (card|two cards|three cards) of your library( face down)? instead\.(?: (You may play those cards this turn)\.)?$/i,
+        make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
       { re: /^If you would draw a card while your library has no cards in it, you win the game instead\.?$/i,
         eff: { op: 'winOnEmptyDraw' }, auto: true },
       /* Torpor Orb, Hushbringer, Elesh Norn: arrivals that set nothing off */

@@ -3774,7 +3774,7 @@
       let sacrificeIds, discardIds, x;
       if (ab.kind === 'loyalty') {
         const loy = g.loyaltyOf ? g.loyaltyOf(o) : (o.counters.loyalty || 0);
-        const delta = (ab.cost || {}).loyalty || 0;
+        const delta = g._loyaltyDelta ? g._loyaltyDelta(ab, {}, this.pid) : ((ab.cost || {}).loyalty || 0);
         if (delta < 0 && -delta >= loy && !(-delta === loy && this.d >= 8)) return null;
         v = this._effectsHere(flat) + delta * (this.underPressure() ? 0.45 : 0.3) + 1;
         if (v <= 0 && delta >= 0) v = 0.6;                 // ticking up is never nothing

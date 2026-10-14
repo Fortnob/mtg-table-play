@@ -1082,8 +1082,10 @@
               if (!(c.analysis() || {}).isLand) hits++;
             }
             this._noteMilled(ap.id, radMilled);
-            if (hits) { this.changeLife(ap, -hits); ap.rad = Math.max(0, ap.rad - hits); }
-            this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life lost (${ap.rad} rad left).`);
+            // Strong, the Brutish Thespian: "You gain life rather than lose life from radiation." (radGainsLife)
+            const gains = hits > 0 && this.battlefield.some(o => o.controller === ap.id && !o.phasedOut && this._staticOp(o, 'radGainsLife'));
+            if (hits) { this.changeLife(ap, gains ? hits : -hits); ap.rad = Math.max(0, ap.rad - hits); }
+            this.logEvent('rules', `${ap.name}'s rad counters: ${milled} milled, ${hits} life ${gains ? 'gained' : 'lost'} (${ap.rad} rad left).`);
           }
           // Paradigm: a free copy of each, if its owner wants one
           if (this.phase.id === 'precombat') {
@@ -7870,7 +7872,7 @@
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
         if (ab.kind === 'loyalty') { const sun = this._anyStatic('noLoyalty'); if (sun) return this.fail(`${sun.name}: loyalty abilities can't be activated.`); }
         // a minus ability needs that many loyalty counters to take off (CR 606.6)
-        if (ab.kind === 'loyalty' && this._loyaltyDelta(ab, opts) < 0 && (Number(o.counters.loyalty) || 0) < -this._loyaltyDelta(ab, opts))
+        if (ab.kind === 'loyalty' && this._loyaltyDelta(ab, opts, playerId) < 0 && (Number(o.counters.loyalty) || 0) < -this._loyaltyDelta(ab, opts, playerId))
           return this.fail(`${o.name} does not have enough loyalty.`);
       }
 
@@ -7899,7 +7901,7 @@
       if (ab.kind === 'loyalty') {
         // (how many this turn: Urza, Planeswalker may twice — loyaltyTwice)
         o.activatedLoyaltyThisTurn = (Number(o.activatedLoyaltyThisTurn) || 0) + 1;
-        const delta = this._loyaltyDelta(ab, opts);
+        const delta = this._loyaltyDelta(ab, opts, playerId);
         this.addCounters(o, 'loyalty', delta);
       }
 
@@ -14188,6 +14190,26 @@
           }
           continue;
         }
+        /* Eruth, Tormented Prophet: "exile the top two cards of your library instead. You may play those cards this
+           turn."; Asmodeus the Archfiend: "exile the top card of your library face down instead" — exiled with it, and
+           nobody may look (drawExilesInstead). An empty library loses nothing: there was no draw. */
+        const rx = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawExilesInstead'));
+        if (rx) {
+          const e = this._staticOp(rx, 'drawExilesInstead');
+          left--;
+          const top = z.library.slice(0, Math.max(1, Number(e.n) || 1));
+          const went = [];
+          for (const c of top) {
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            c.exiledWithId = rx.id;
+            if (e.faceDown) { c.faceDownExile = true; c.lookableBy = null; }
+            if (e.play) { c.impulseBy = p.id; c.impulseUntil = this.turn; }
+            went.push(c);
+          }
+          if (went.length) this.logEvent('exile', `${rx.name}: instead of drawing, ${p.name} exiles ${e.faceDown ? (went.length === 1 ? 'the top card' : 'the top ' + went.length + ' cards') + ' face down' : went.map(c => c.name).join(' and ')}${e.play ? ' and may play them this turn' : ''}.`);
+          continue;
+        }
         left--;
         if (extras > 0) extras--;
         else { const ex = doubled(); if (ex) { left += ex; extras += ex; } }
@@ -14490,6 +14512,8 @@
           if (data.playerTarget && !(ab.orYou && data.playerTarget === o.controller)) continue;
           if (ab.youTargetedOnly && !data.playerTarget) continue;
           if (ab.objFilter && !data.playerTarget && !(ab.filterOnlyOn && event !== ab.filterOnlyOn) && !(data.object && this._objFits(data.object, ab.objFilter, o, data.objController))) continue;
+          // Carth the Lion: "Whenever Carth enters or …" — of what enters, only itself (selfOnEnter)
+          if (ab.selfOnEnter && event === 'permEnters' && !(data.object && data.object.id === o.id)) continue;
           /* a card leaving a graveyard is seen from before it left (CR 603.10a):
              the card itself, come back from there, was not around to see it */
           if (event === 'leftGraveyard' && data.object && data.object.id === o.id) continue;
@@ -20518,6 +20542,17 @@
           break;
         }
         // Valakut Exploration: what it exiled goes to the graveyard, and as much damage to each opponent
+        // Asmodeus the Archfiend: "Return all cards exiled with Asmodeus to their owner's hand and you lose that much life."
+        case 'exiledWithToHand': {
+          if (!src) break;
+          const list = [];
+          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) if (c.exiledWithId === src.id) list.push(c);
+          let back = 0;
+          for (const c of list) { c.faceDownExile = false; this.moveObject(c, 'hand'); if (c.zone === 'hand') back++; }
+          if (back) this.logEvent('rules', `${back} card${back === 1 ? '' : 's'} exiled with ${src.name} return${back === 1 ? 's' : ''} to hand.`);
+          if (e.loseLife && back) this.changeLife(me, -back);
+          break;
+        }
         case 'exiledWithToGraveyardDamage': {
           if (!src) break;
           const list = [];
@@ -28376,10 +28411,18 @@
       };
     }
     /** What a loyalty ability's cost does to its loyalty: "−2", or "−X" with the X chosen. */
-    _loyaltyDelta(ab, opts) {
+    _loyaltyDelta(ab, opts, pid) {
       const c = (ab && ab.cost) || {};
-      if (c.loyaltyX) return c.loyaltyX * Math.max(0, Number((opts || {}).x) || 0);
-      return Number(c.loyalty) || 0;
+      /* Carth the Lion: "Planeswalkers' loyalty abilities you activate cost an additional [+1] to activate." —
+         [+N] is [+N+1], [−N] is [−N+1], for whoever activates them (loyaltyCostPlus) */
+      let more = 0;
+      if (pid != null) for (const x of this.battlefield) {
+        if (x.controller !== pid || x.phasedOut) continue;
+        const e = this._staticOp(x, 'loyaltyCostPlus');
+        if (e) more += Number(e.n) || 1;
+      }
+      if (c.loyaltyX) return c.loyaltyX * Math.max(0, Number((opts || {}).x) || 0) + more;
+      return (Number(c.loyalty) || 0) + more;
     }
     /** The player a creature is attacking, or the controller of the planeswalker or battle it attacks. */
     _defenderOf(o) {
