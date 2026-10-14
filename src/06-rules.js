@@ -10800,6 +10800,8 @@
         // "attacks for the first time each turn", "creatures that attacked this turn"
         o.attacksThisTurn = (o.attackedTurn === this.turn ? (o.attacksThisTurn || 0) : 0) + 1;
         o.attackedTurn = this.turn;
+        // (Tolsimir, Midnight's Light: "attacked this combat" — which combat: selfAttackedThisCombat)
+        o.attackedCombatNo = this.combatsThisTurn || 1;
         // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
         if (o.isToken) { const ap = this.player(o.controller); if (ap) ap.attackedWithTokenTurn = this.turn; }
         // Neriv, Crackling Vanguard: "During any turn you attacked with a commander"
@@ -13259,6 +13261,8 @@
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
+        // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" — this one, not an earlier combat this turn
+        case 'selfAttackedThisCombat': return !!src && src.attackedTurn === this.turn && (src.attackedCombatNo || 1) === (this.combatsThisTurn || 1);
         // Chandra, Fire of Kaladesh: "has dealt 3 or more damage this turn" (_noteNoncombatDamage keeps the tally)
         case 'selfDealtDamage': return !!src && !!src._dealtDmg && src._dealtDmg.turn === this.turn && src._dealtDmg.n >= (cond.n || 1);
         // Wolverine, Best There Is: "dealt damage to another creature this turn"
@@ -19004,7 +19008,8 @@
               (/\bland/.test(want) && xa.isLand);
           };
           const zone = e.op === 'destroyAll' ? 'graveyard' : e.op === 'exileAll' ? 'exile' : 'hand';
-          const cap = (v) => (v === 'X' ? (ctx.x || (src && src.chosenX) || 0) : v);
+          // (Sarulf, Realm Eater: "less than or equal to the number of counters removed this way" — removedCounters)
+          const cap = (v) => (v === 'X' ? (ctx.x || (src && src.chosenX) || 0) : v === 'removedCounters' ? (this._lastRemovedCounters || 0) : v);
           let n = 0;
           /* Everything that goes, goes at once: the list is settled before
              anything moves, so losing an anthem halfway through does not

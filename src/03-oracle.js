@@ -7623,6 +7623,9 @@
     // Ran and Shaw: "create a token that's a copy of Ran and Shaw, except it's not legendary"
     { re: /^Create a token that'?s a copy of (?:CARDNAME|this creature), except (?:the token isn'?t|it isn'?t|it'?s not|it is not) legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', self: true, n: 1, grant: [], nonLegendary: true }) },
+    // The Notary Hobbits: "create two tokens that are copies of them, except the tokens aren't legendary" — a card named as many
+    { re: /^Create (two|three) tokens that are copies of (?:them|CARDNAME), except the tokens aren'?t legendary\.?$/i,
+      make: (m) => ({ op: 'copyPermanent', self: true, n: num(m[1]), grant: [], nonLegendary: true }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -7783,8 +7786,9 @@
     { re: /^(Target land|This land|CARDNAME) becomes the basic land type of your choice until end of turn\.?$/i,
       make: (m) => (/^target/i.test(m[1]) ? { op: 'becomeBasicType', targets: [targetSpec('target land')] } : { op: 'becomeBasicType', scope: 'self' }) },
     // Fighter Class: "Whenever a creature you control attacks, up to one target creature blocks it this combat if able."
-    { re: /^(Target creature|Up to one target creature) blocks it this (?:turn|combat) if able\.?$/i,
-      make: (m) => ({ op: 'mustBlockThis', ofTrigger: true, targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
+    // (Tolsimir, Midnight's Light: "target creature an opponent controls blocks that Wolf this combat if able")
+    { re: /^(Target creature|Up to one target creature)( an opponent controls)? blocks (?:it|that [A-Z][a-z]+|that creature) this (?:turn|combat) if able\.?$/i,
+      make: (m) => ({ op: 'mustBlockThis', ofTrigger: true, targets: [Object.assign(targetSpec('target creature' + (m[2] || '')), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     { re: /^(Target creature|Up to one target creature) blocks (?:CARDNAME|this creature) this turn if able\.?$/i,
       make: (m) => ({ op: 'mustBlockThis', targets: [Object.assign(targetSpec('target creature'), /^up to/i.test(m[1]) ? { upTo: true } : {})] }) },
     { re: /^All creatures able to block (target creature|CARDNAME|this creature) this turn do so\.?$/i,
@@ -10969,6 +10973,15 @@
     { re: /^(Target player|Target opponent) skips their next untap step\. Tap up to (one|two|three|four|five) target permanents that player controls\.?$/i,
       make: (m) => [{ op: 'skipUntap', who: 'target', tapTargets: true, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }].concat(
         Array.from({ length: num(m[2]) }, () => ({ type: 'permanent', filter: 'permanent', zone: 'battlefield', upTo: true, distinct: true, sameControllerAsPrev: true }))) }] },
+    /* Sarulf, Realm Eater: "if Sarulf has one or more +1/+1 counters on it, you may remove all of them. If you do, exile
+       each other nonland permanent with mana value less than or equal to the number of counters removed this way."
+       — "them" the +1/+1 counters the condition names (removeAllButCounters keeping none; maxMv removedCounters) */
+    { re: /^(you may )?remove all of them\. If you do, exile each other nonland permanent with mana value less than or equal to the number of counters removed this way\.?$/i,
+      make: (m) => {
+        const list = [{ op: 'removeAllButCounters', kind: '+1/+1', keep: 0 },
+          { op: 'exileAll', what: 'permanent', maxMv: 'removedCounters', scope: { who: 'all', other: true, what: 'permanent', notType: ['land'] } }];
+        return m[1] ? [{ op: 'may', then: list }] : list;
+      } },
     // Norin, Swift Survivalist: "Whenever a creature you control becomes blocked, you may exile it. You may play that card from exile this turn."
     { re: /^(?:You may )?exile it\. You may play that card from exile this turn\.?$/i,
       make: () => [{ op: 'exile', scope: 'triggerObject' }, { op: 'impulseLast', duration: 'eot' }] },
@@ -12344,7 +12357,8 @@
        in all but name: any short label in front of a trigger or a static
        rule goes, unless it is one of the keywords above. */
     // (Martha Jones: "Woman Who Walked the Earth —", five words: labelWords)
-    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= (/,/.test(word) ? 6 : 5) &&
+    // (Ignis Scientia: "I've Come Up with a New Recipe! — {1}{G}{U}, {T}: …" — seven words before a mana cost)
+    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= (/,/.test(word) ? 6 : /^\{/.test(m[2].trim()) ? 7 : 5) &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
@@ -12806,6 +12820,8 @@
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
+    // (The Notary Hobbits: "if they're not a token" — a card named as many)
+    [/^they'?re not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
     // the Hidden cycle: "if this permanent is an enchantment"
     [/^(?:this permanent|this enchantment|this creature|CARDNAME) is an? (enchantment|creature|artifact|land)$/i, (m) => ({ kind: 'selfIs', what: 'type:' + m[1].toLowerCase() })],
     // Massacre Girl, Known Killer: "Whenever a creature … dies, if its toughness was less than 1, …"
@@ -12854,6 +12870,8 @@
     [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
+    // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" (selfAttackedThisCombat)
+    [/^(?:it|this creature|CARDNAME) attacked this combat$/i, () => ({ kind: 'selfAttackedThisCombat' })],
     // Chandra, Fire of Kaladesh: "Chandra has dealt 3 or more damage this turn" (selfDealtDamage)
     [/^(?:this creature|CARDNAME) has dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfDealtDamage', n: num(m[1]) } : null)],
     // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" (selfDamagedCreatureThisTurn)
@@ -14782,7 +14800,10 @@
       if (short && (short.length >= 3 || (short.length === 2 && full.includes(','))) && short !== full && !/^(?:The|A|An)$/.test(short)) {
         // ("Exile Dion, then return it …": a comma before lowercase words is not the rest of another legend's name)
         // (Óin, Fíli: a letter with an accent is still part of the word)
-        text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(short) + '(?![\\w\\u00C0-\\u024F])(?!,\\s*[A-Z])', 'g'), 'CARDNAME');
+        /* (Lizard, Connors's Curse: "becomes a green Lizard creature" — a short name that is one of its own creature
+           types, said as a type, is the type) */
+        const asType = (tl.subtypes || []).some(x => x.toLowerCase() === short.toLowerCase()) ? '(?!\\s+(?:creatures?|tokens?|cards?|spells?|permanents?)\\b)' : '';
+        text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(short) + '(?![\\w\\u00C0-\\u024F])(?!,\\s*[A-Z])' + asType, 'g'), 'CARDNAME');
       }
       /* Legolas Greenleaf: "Legolas can't be blocked …"; Captain Kathryn
          Janeway: "Whenever Captain Janeway … enters" — a legend with no comma
