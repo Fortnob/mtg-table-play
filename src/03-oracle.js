@@ -343,6 +343,9 @@
           ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
         else if (/^the top card of your library$/i.test(what)) ex = { what: 'libraryTop', n: 1 };
         if (ex) { cost.exile = ex; continue; }
+        // Jhoira of the Ghitu: "Exile a nonland card from your hand" — the player's pick (exileHand)
+        const fh = what.match(/^(?:a|an) ([-a-z ]*?)\s*card from your hand$/i);
+        if (fh) { cost.exileHand = { filter: (fh[1] || '').trim().toLowerCase() || 'card' }; continue; }
         // City of Shadows: "Exile a creature you control"
         const own = what.match(/^(a|an|another) ([a-z ]+?) you control$/i);
         if (own && !/spell/i.test(own[2])) { cost.exileOwn = { filter: own[2].trim().toLowerCase(), another: /another/i.test(own[1]) }; continue; }
@@ -2065,6 +2068,10 @@
        excess the trigger counted; not the permanent dealt it (notTriggerObject) */
     { re: /^CARDNAME deals damage equal to the excess to any target other than that permanent\.?$/i,
       make: () => ({ op: 'damage', n: 'triggerAmount', targets: [Object.assign(targetSpec('any target'), { notTriggerObject: true })] }) },
+    // The Tenth Doctor: "Time travel three times." (timeTravel)
+    { re: /^Time travel(?: (two|three|four|five) times)?\.?$/i, make: (m) => ({ op: 'timeTravel', n: m[1] ? num(m[1]) : 1 }) },
+    // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — folded into the tokens' creation (goadTokensRider)
+    { re: /^The tokens? (?:are|is) goaded for the rest of the game\.?$/i, make: () => ({ op: 'manual', goadTokensRider: true }) },
     /* Xu-Ifit, Osteoharmonist: "It's a Skeleton in addition to its other types and has no abilities." — how the card
        just returned enters, folded into that return (enterRider) */
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
@@ -7298,6 +7305,8 @@
     if (/^time (?:it|CARDNAME|this (?:spell|creature|enchantment|artifact|permanent)) was kicked$/i.test(p)) return { timesKicked: true, mult: k };
     // Mahadi: "for each creature that died this turn"
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
+    // The Balrog, Durin's Bane: "for each permanent sacrificed this turn" — by anyone (sacrificedThisTurn, byAnyone)
+    if (/^permanents? sacrificed this turn$/i.test(p)) return { sacrificedThisTurn: 'permanent', byAnyone: true, mult: k };
     // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
     if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
@@ -8361,6 +8370,11 @@
         const one = { op: 'copyPermanent', n: 1, grant: [], of: 'saddledSelf', tapped: true, attacking: true };
         return [one, Object.assign({}, one), { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }];
       } },
+    /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
+       that card to the battlefield with an additional +1/+1 counter on it. The creature is a Vampire in addition to its
+       other types." — not targeted; the player attacked picks (chooser 'defending') */
+    { re: /^[Dd]efending player chooses an? ([a-z ]+?) card in your graveyard\. You return that card to the battlefield with an additional \+1\/\+1 counter on it\. The creature is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => [{ op: 'reanimateChosen', chooser: 'defending', byWords: true, n: 1, what: m[1], counter: '+1/+1', enterEff: { addSubtypes: [m[2]] } }] },
     /* Omnath, Locus of All: "look at the top card of your library. You may reveal that card if it has three or more
        colored mana symbols in its mana cost. If you do, add three mana in any combination of its colors and put it into
        your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
@@ -9091,6 +9105,14 @@
        equal to its mana value. If it doesn't have suspend, it gains suspend." */
     { re: /^(You may )?exile an? (nonland )?card from your hand with a number of time counters on it equal to its mana value\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'suspendCard', from: 'hand', mvCounters: true, filter: m[2] ? 'nonland card' : 'card', optional: !!m[1] }] },
+    /* Jhoira of the Ghitu: "Put four time counters on the exiled card. If it doesn't have suspend, it gains suspend." —
+       the card the cost exiled from the hand (from 'exiledCost') */
+    { re: /^Put (two|three|four|five) time counters on the exiled card\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'suspendCard', from: 'exiledCost', timeCounters: num(m[1]) }] },
+    /* The Tenth Doctor: "exile cards from the top of your library until you exile a nonland card. Put three time
+       counters on it. If it doesn't have suspend, it gains suspend." (from 'exileUntil') */
+    { re: /^Exile cards from the top of your library until you exile a nonland card\. Put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
+      make: (m) => [{ op: 'exileTop', who: 'you', untilNonland: true }, { op: 'suspendCard', from: 'exileUntil', timeCounters: num(m[1]) }] },
     /* Suspend (the card): "Exile target creature and put two time counters on it. If it doesn't have suspend, it gains suspend." */
     { re: /^Exile (target (?:nontoken )?creature) and put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'exileSuspend', timeCounters: num(m[2]), targets: [targetSpec(m[1])] }] },
@@ -10793,8 +10815,8 @@
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
-      // (Banon, the Returners' Leader: "Pray — Once during each of your turns, …")
-      (/^(?:When|Whenever|At the|As long as|If |Once during |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
+      // (Banon, the Returners' Leader: "Pray — Once during each of your turns, …"; Wolverine, Best There Is: "Unrivaled Lethality — Double all damage …")
+      (/^(?:When|Whenever|At the|As long as|If |Once during |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |Double |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
         /^(?:Pay|Sacrifice|Tap|Untap|Discard|Exile|Remove|Return|Reveal|Collect evidence|Forage)\b[^:.]*: /.test(m[2].trim()) ||
         // Sage's Nouliths: "Hagneia — Equip {3}"
@@ -10852,6 +10874,12 @@
         // (Vraska, the Silencer: "you may pay {1}. If you do, return that card … It's a Treasure artifact …" — the return the payment buys)
         const ret = prevE && prevE.op === 'mayPay' && (prevE.then || [])[(prevE.then || []).length - 1];
         if (ret && ret.op === 'returnTriggerCard' && !ret.enterEff) { ret.enterEff = e.enterRider; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
+      // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — the tokens just made (goadForever)
+      if (e && e.goadTokensRider) {
+        if (prevE && prevE.op === 'createToken' && !prevE.goadForever) { prevE.goadForever = true; continue; }
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
@@ -11250,6 +11278,8 @@
     [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
+    // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" (selfDamagedCreatureThisTurn)
+    [/^(?:it|this creature|CARDNAME) dealt damage to another creature this turn$/i, () => ({ kind: 'selfDamagedCreatureThisTurn' })],
     // Clockwork Beast, Kjeldoran Home Guard: "this creature attacked or blocked this combat"
     // (Daredevil Dragster: "this Vehicle")
     [/^(?:it|this creature|this Vehicle|CARDNAME) attacked or blocked this (?:combat|turn)$/i, () => ({ kind: 'any', of: [{ kind: 'selfAttackedThisTurn' }, { kind: 'selfBlockedThisTurn' }] })],
@@ -12179,6 +12209,8 @@
     { re: /^Whenever you play a land or cast a spell,/i, event: 'youPlayLand', also: 'youCastSpell' },
     // Shanid, Sleepers' Scourge: "Whenever you play a legendary land or cast a legendary spell,"
     { re: /^Whenever you play a legendary land or cast a legendary spell,/i, event: 'youPlayLand', also: 'youCastSpell', filt: () => ({ words: 'legendary' }) },
+    // Rendmaw, Creaking Nest: "whenever you play a card with two or more card types" — a land played or a spell cast (minCardTypes)
+    { re: /^Whenever you play a card with two or more card types,/i, event: 'youPlayLand', also: 'youCastSpell', filt: () => ({ minCardTypes: 2 }) },
     // Shadow of the Goblin: "… from anywhere other than your hand" — the land's zone or the spell's (notFromHand)
     { re: /^Whenever you play a land or cast a spell from anywhere other than your hand,/i, event: 'youPlayLand', also: 'youCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you play (another|a) land,/i, event: 'youPlayLand', extraOf: (m) => (/another/i.test(m[1]) ? { notSelf: true } : {}) },
@@ -16343,8 +16375,11 @@
     { re: /^If an? ((?:red |green |white |blue |black )?(?:source|creature)) you control would deal an amount of (noncombat )?damage less than (?:CARDNAME|this creature)'s power to an opponent, (?:that source|it) deals damage equal to (?:CARDNAME|this creature)'s power instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dmgAtLeastPower', event: 'damage', who: 'you', how: 'atLeastSelfPower',
         toOpponent: true, toPlayerOnly: true, sourceWords: m[1].toLowerCase().replace(/\bsource\b/, '').trim() || null }, m[2] ? { noncombat: true } : {}) },
+    // Wolverine, Best There Is: "Double all damage Wolverine would deal." — itself, to anything (fromSelf)
+    { re: /^Double all damage (?:CARDNAME|this creature) would deal\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgSelfDouble', event: 'damage', who: 'any', how: 'double', fromSelf: true }) },
     // Absorbing Man and Titania: "Double all damage that creature sources you control would deal." (doubleSourcesYours)
-    { re: /^Double all damage that (creature |red |green |white |blue |black )?sources you control would deal\.?$/i,
+    { re: /^Double all damage that (creature |red|green |white |blue |black )?sources you control would deal\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgDoubleYours', event: 'damage', who: 'you', how: 'double', sourceWords: m[1] ? m[1].trim().toLowerCase() : null }) },
     /* The Sound of Drums, Inquisitor's Flail: "If enchanted (equipped) creature would
        deal combat damage (to a permanent or player), it deals double that damage

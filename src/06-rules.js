@@ -3578,6 +3578,8 @@
       // Rakdos, Lord of Riots: "for each 1 life your opponents have lost this turn" (opponentsLifeLost)
       if (v.opponentsLifeLost) return this.opponentsOf(pid).reduce((k, q) => k + (q.lifeLostThisTurn || 0), 0) * mult;
       // Sawblade Skinripper: the permanents its controller sacrificed this turn (sacrificedThisTurn)
+      // (The Balrog, Durin's Bane: "each permanent sacrificed this turn" — every player's: byAnyone)
+      if (v.sacrificedThisTurn && v.byAnyone) return Object.values(((this.turnHistory || {}).sacrificedBy) || {}).reduce((k, l) => k + (l || []).length, 0) * mult;
       if (v.sacrificedThisTurn) return ((((this.turnHistory || {}).sacrificedBy) || {})[pid] || []).filter(w => v.sacrificedThisTurn === 'permanent' || w.includes(v.sacrificedThisTurn)).length * mult;
       // Celestine, Elenda and Azor, Meren, The Speed Demon: a number the player keeps
       if (v.playerStat) return (Number((this.player(pid) || {})[v.playerStat]) || 0) * mult;
@@ -5250,12 +5252,17 @@
         this._fire('timeCounterRemoved', o.owner, { object: o, source: o });
         this.logEvent('rules', `${o.name}: ${o.counters.time} time counter${o.counters.time === 1 ? '' : 's'} left.`);
         if (o.counters.time > 0) continue;
-        o.suspendedBy = null;
-        o.suspendHaste = true;
-        const r = this.castSpell(playerId, o.id,
-          { free: true, costOverride: '', alternative: 'suspend', auto: true, targets: [] });
-        if (r === false) this.logEvent('rules', `${o.name} could not be cast from suspend.`);
+        this._castFromSuspend(playerId, o);
       }
+    }
+    /** The last time counter is off a suspended card: it is cast without paying its mana cost, with haste if a creature
+        (in the upkeep, or as a trigger resolves: time travel) */
+    _castFromSuspend(playerId, o) {
+      o.suspendedBy = null;
+      o.suspendHaste = true;
+      const r = this.castSpell(playerId, o.id,
+        { free: true, costOverride: '', alternative: this.resolving ? 'resolution' : 'suspend', auto: true, targets: [] });
+      if (r === false) this.logEvent('rules', `${o.name} could not be cast from suspend.`);
     }
 
     /**
@@ -8109,6 +8116,8 @@
         // Shelob, Dread Weaver: which card exiled with it goes to its owner's graveyard (processWith)
         if (c.processWith && self) out.push({ kind: 'processWith', label: `Put a ${c.processWith.filter} card exiled with ${self.name} into its owner's graveyard`, key: 'exileIds', need: 1,
           candidates: this._exiledWithPool(self, c.processWith.filter).map(x => x.id) });
+        if (c.exileHand) out.push({ kind: 'exileHand', label: 'Exile ' + this._aCard(c.exileHand.filter, 'card') + ' from your hand', key: 'exileIds', need: 1,
+          candidates: this._exileHandPool(pid, c.exileHand, self).map(x => x.id) });
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
@@ -8119,6 +8128,10 @@
           candidates: this._beholdPool(pid, c.behold, self).map(x => x.id) });
       }
       return out;
+    }
+    /** Jhoira of the Ghitu: the cards in the hand a "Exile a nonland card from your hand" cost could take. */
+    _exileHandPool(pid, ex, self) {
+      return this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, (ex && ex.filter) || 'card'));
     }
     /** Forage: a Food to sacrifice, or three cards in the graveyard to exile. */
     _canForage(pid, self) {
@@ -8506,6 +8519,7 @@
         const need = this._costCount(cost.revealHand.n, opts);
         if (this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).length < need) return `Not enough ${cost.revealHand.filter} cards in your hand to reveal.`;
       }
+      if (cost.exileHand && !this._exileHandPool(pid, cost.exileHand, self).length) return `No ${this._aCard(cost.exileHand.filter, 'card').replace(/^an? /, '')} in your hand to exile.`;
       if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
       if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
       // Shelob, Dread Weaver: "Put a creature card exiled with Shelob into its owner's graveyard" (processWith)
@@ -8658,6 +8672,14 @@
         const named = (opts.revealIds || []).map(id => fits.find(c => c.id === id)).filter((c, i, l) => c && l.indexOf(c) === i);
         const shown = (named.length >= need ? named : fits).slice(0, need);
         if (shown.length) this.logEvent('rules', `${this.player(pid).name} reveals ${shown.map(c => c.name).join(', ')}.`);
+      }
+      /* Jhoira of the Ghitu: the card from the hand the player named, or the costliest — what the ability does
+         with it is worth more the more it costs (exiledCost) */
+      if (cost.exileHand) {
+        const pool = this._exileHandPool(pid, cost.exileHand, self);
+        const x = (opts.exileIds || []).map(id => pool.find(c => c.id === id)).filter(Boolean)[0] ||
+          pool.slice().sort((a, b) => ((b.card && b.card.cmc) || 0) - ((a.card && a.card.cmc) || 0))[0];
+        if (x) { if (item) item.exiledCost = { id: x.id, name: x.name, power: 0, mv: (x.card && x.card.cmc) || 0 }; this.moveObject(x, 'exile'); this.logEvent('exile', `${this.player(pid).name} exiles ${x.name} from their hand.`); }
       }
       // City of Shadows: the creature that matters least
       if (cost.exileOwn) {
@@ -9559,7 +9581,7 @@
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) return false;
       if ((c.other || []).length) return false;
       // choosing which other permanent to give up is the player's call
-      if (c.sacrifice || c.discard || c.exile || c.removeCounters || c.exileOwn) return false;
+      if (c.sacrifice || c.discard || c.exile || c.removeCounters || c.exileOwn || c.exileHand) return false;
       // and so is which creatures to tap (Springleaf Drum): it is clicked, never reached for
       if (c.tapCreatures) return false;
       if (c.tap && o.tapped) return false;
@@ -9782,6 +9804,8 @@
       const out = [];
       if (!o) return out;
       if (o.goadedBy != null) out.push(o.goadedBy);
+      // (Rendmaw, Creaking Nest: "goaded for the rest of the game")
+      if (o.goadForever != null && !out.includes(o.goadForever)) out.push(o.goadForever);
       if ((o.zone !== 'battlefield' && !leaving) || !(this.characteristics(o) || {}).isCreature) return out;
       for (const s of this.battlefield) {
         if (s.phasedOut || s.controller === o.controller || out.includes(s.controller)) continue;
@@ -12274,6 +12298,8 @@
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
+        // Wolverine, Best There Is: "dealt damage to another creature this turn"
+        case 'selfDamagedCreatureThisTurn': return !!src && src._hurtCreatureTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
         case 'fullParty': return this._partySize(me ? me.id : null) >= 4;
         // Myrkul, Lord of Bones: at or under half the life the game started with
@@ -13363,6 +13389,8 @@
       if (source) {
         if (!o._damagedBy || o._damagedBy.turn !== this.turn) o._damagedBy = { turn: this.turn, ids: [] };
         if (!o._damagedBy.ids.includes(source.id)) o._damagedBy.ids.push(source.id);
+        // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" — from the source's side
+        if (source !== o && (this.characteristics(o) || {}).isCreature) source._hurtCreatureTurn = this.turn;
         // Shelob, Child of Ungoliant: "by a Spider you controlled" — what the source was, and whose, as it dealt it
         const sa = source.analysis() || {};
         (o._damagedBy.kinds = o._damagedBy.kinds || []).push({ pid: source.controller,
@@ -13914,7 +13942,7 @@
         o.licid = false; o.bandId = null;
         // (Plagon's "this turn" was said of the creature that left)
         o.toughDamageTurn = null;
-        o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null;
+        o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
         o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
@@ -17389,6 +17417,8 @@
           break;
         }
         case 'createToken': {
+          // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — by this ability's controller (goadForever)
+          if (e.goadForever === true) e = Object.assign({}, e, { goadForever: ctx.controller });
           const owner = e.who === 'targetController'
             ? (this._lastAffectedController() || me)
             // Genesis Chamber: "that creature's controller creates …" — the one that entered
@@ -18985,9 +19015,29 @@
         case 'reanimateChosen': {
           // (Nethroi, Apex of Death: "with total power 10 or less" — totalPower)
           const pw = (c) => Math.max(0, this.powerOf(c) || 0);
-          const pool = this.zones[ctx.controller].graveyard.filter(c => this._matchesCategory(c, e.what) &&
+          const pool = this.zones[ctx.controller].graveyard.filter(c => (e.byWords ? this._cardFitsWords(c, e.what) : this._matchesCategory(c, e.what)) &&
             (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv) && (e.totalPower == null || pw(c) <= e.totalPower));
           if (!pool.length) break;
+          /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
+             that card to the battlefield with an additional +1/+1 counter on it. The creature is a Vampire …" — one card,
+             chosen by the player attacked (chooser 'defending'); it enters with the counter and the type (enterEff) */
+          if (e.chooser === 'defending') {
+            const dp = this._defenderOf(src) || triggerPlayer() || this.opponentsOf(ctx.controller)[0];
+            if (!dp) break;
+            const pick = this._choose({ playerId: dp.id, purpose: 'reanimateFor', kind: 'objects', zone: 'graveyard', forPlayer: ctx.controller,
+              items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `Choose a ${e.what} card in ${me.name}'s graveyard. ${me.name} returns it to the battlefield` +
+                (e.counter ? ` with an additional ${e.counter} counter on it` : '') + '.' }, 'rcDef');
+            if (pick === SUSPEND) return SUSPEND;
+            const x = this.obj(pick && pick.picks && pick.picks[0]);
+            const c = x && pool.includes(x) && x.zone === 'graveyard' ? x : pool[0];
+            this.logEvent('rules', `${dp.name} chooses ${c.name}.`);
+            if (e.counter) c._enterExtraCounter = { kind: e.counter, n: 1 };
+            this.moveObject(c, 'battlefield', Object.assign({ controller: ctx.controller }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+            if (c.zone !== 'battlefield') c._enterExtraCounter = null;
+            this.logEvent('reanimate', `${me.name} returns ${c.name} to the battlefield.`);
+            break;
+          }
           // (Phoenix, Warden of Fire: "any number of" — n 'any'; the total mana value held to as they are picked)
           const anyR = e.n === 'any';
           const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
@@ -25417,11 +25467,19 @@
               prompt: `${ctx.name ? ctx.name + ': ' : ''}exile a card from your hand with time counters on it equal to its mana value (it is suspended).` }, 'susp');
             if (picked === SUSPEND) return SUSPEND;
             cards = (picked || []).map(id => this.obj(id)).filter(c => c && pool.includes(c)).slice(0, 1);
+          } else if (e.from === 'exiledCost') {
+            // Jhoira of the Ghitu: the card the cost exiled, while it is still there
+            const x = ctx.exiledCost && this.obj(ctx.exiledCost.id);
+            cards = x && x.zone === 'exile' ? [x] : [];
+          } else if (e.from === 'exileUntil') {
+            // The Tenth Doctor: the nonland card the exiling stopped at
+            const x = this.obj(((this._exileUntil || {}).hits || [])[0]);
+            cards = x && x.zone === 'exile' ? [x] : [];
           } else {
             cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(c => c && c.zone === 'graveyard');
           }
           for (const x of cards) {
-            this.moveObject(x, 'exile');
+            if (x.zone !== 'exile') this.moveObject(x, 'exile');
             x.counters.time = e.mvCounters ? ((x.card && x.card.cmc) || 0) : n(e.timeCounters);
             x.suspendedBy = x.owner;
             this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counter${x.counters.time === 1 ? '' : 's'}, suspended.`);
@@ -25441,6 +25499,53 @@
           x.counters.time = n(e.timeCounters);
           x.suspendedBy = x.owner;
           this.logEvent('rules', `${x.name} is exiled with ${x.counters.time} time counters, suspended.`);
+          break;
+        }
+        /* Time travel: "For each suspended card you own and each permanent you control with a time counter on it,
+           you may add or remove a time counter." The Tenth Doctor: "Time travel three times." — one question for
+           each, how many on or off over all of them; a last counter off is its trigger, after this (timeCounterGone) */
+        case 'timeTravel': {
+          const times = Math.max(1, n(e.n || 1));
+          if (!this._doneHere('ttPool')) {
+            ctx._ttPool = this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && c.suspendedBy != null && (Number(c.counters.time) || 0) > 0)
+              .concat(this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && (Number(o.counters.time) || 0) > 0)).map(c => c.id);
+          }
+          const ids = ctx._ttPool || [];
+          for (let i = 0; i < ids.length; i++) {
+            const x = this.obj(ids[i]);
+            const have = x ? Number(x.counters.time) || 0 : 0;
+            if (!x || !have || (x.zone !== 'exile' && x.zone !== 'battlefield')) continue;
+            const opts = [];
+            for (let r = Math.min(times, have); r >= 1; r--) opts.push({ label: `Remove ${r === 1 ? 'a time counter' : r + ' time counters'}`, delta: -r });
+            opts.push({ label: 'Leave them', delta: 0 });
+            for (let a = 1; a <= times; a++) opts.push({ label: `Add ${a === 1 ? 'a time counter' : a + ' time counters'}`, delta: a });
+            const got = this._choose({ playerId: ctx.controller, purpose: 'timeTravel', kind: 'options', min: 1, max: 1, targetId: x.id,
+              suspended: x.zone === 'exile', options: opts.map(o => ({ label: o.label, delta: o.delta })),
+              prompt: `Time travel${times > 1 ? ' ' + times + ' times' : ''}: ${x.name} has ${have} time counter${have === 1 ? '' : 's'}. Add or remove ${times > 1 ? 'up to ' + times : 'one'}?` }, 'tt:' + x.id);
+            if (got === SUSPEND) return SUSPEND;
+            const d = (opts[(got && got.picks || [])[0]] || {}).delta || 0;
+            if (!d || this._doneHere('ttDid:' + x.id)) continue;
+            x.counters.time = Math.max(0, have + d);
+            x._chr = null;
+            this.logEvent('counters', `${x.name}: ${d > 0 ? d + ' time counter' + (d === 1 ? '' : 's') + ' added' : -d + ' time counter' + (d === -1 ? '' : 's') + ' removed'} (${x.counters.time}).`);
+            // Aeon Chronicler: "whenever a time counter is removed from this card while it's exiled"
+            if (d < 0 && x.zone === 'exile') for (let r = 0; r < -d; r++) this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
+            // the last one off: suspend casts it, vanishing sacrifices it — triggers, after this ability
+            const vanish = x.zone === 'battlefield' && ((x.analysis() || {}).keywordSet || new Set()).has('vanishing');
+            if (d < 0 && x.counters.time === 0 && (x.zone === 'exile' || vanish)) {
+              this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
+                controller: x.zone === 'exile' ? x.owner : x.controller, name: `${x.name} — ${x.zone === 'exile' ? 'suspend' : 'vanishing'}`, auto: true,
+                effects: [{ op: 'timeCounterGone', zone: x.zone }], abilityText: x.zone === 'exile' ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
+                  : 'When the last time counter is removed from it, sacrifice it.', triggerData: { event: 'timeCounterGone', objectId: x.id } });
+            }
+          }
+          break;
+        }
+        case 'timeCounterGone': {
+          const x = src;
+          if (!x || x.zone !== e.zone || (Number(x.counters.time) || 0) > 0) break;
+          if (x.zone === 'exile' && x.suspendedBy != null) this._castFromSuspend(x.owner, x);
+          else if (x.zone === 'battlefield') this._sacrificeNow(x.controller, [x], ctx);
           break;
         }
         case 'exileSuspend': {
@@ -27497,6 +27602,7 @@
         o.zone = 'battlefield'; o.entered = this.turn; o.summoningSick = true;
         if (e.tapped) o.tapped = true;
         if (e.temporary === 'combat') o.sacAtEndOfCombat = true;
+        if (e.goadForever) o.goadForever = e.goadForever;
         if (e.attacking && this.combat && this.combat.attackers) {
           const def = (e.attackingId && this.player(e.attackingId)) || this.opponentsOf(controller)[0];
           if (def) { o.attacking = def.id; this.combat.attackers.push(o.id); }
@@ -28894,6 +29000,8 @@
       if (f.mvAboveExperience && !((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) >
         (Number((this.player(src ? src.controller : ctrl) || {}).experience) || 0))) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
+      // Rendmaw, Creaking Nest: "a card with two or more card types"
+      if (f.minCardTypes && this._cardTypesOf(x).length < f.minCardTypes) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
       // (one that has died is judged by the keywords it had as it went — _lastKeywords)
@@ -29412,7 +29520,7 @@
           companion: !!o.companion,
           castFromCommandZone: o.castFromCommandZone, foretold: o.foretold, note: o.note,
           shields: o.shields || 0, preventShield: o.preventShield || 0,
-          noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || null,
+          noUntapNext: !!o.noUntapNext, goadedBy: o.goadedBy || o.goadForever || null,
           impulseUntil: o.impulseUntil == null ? null : o.impulseUntil, impulseBy: o.impulseBy || null,
           // how that leave may be used (Nashi: one of a lot, for life; Gonti: any mana; Inti: until the end step) and who may see a card face down in exile
           impulseCastOnly: !!o.impulseCastOnly, impulseAnyMana: o.impulseAnyMana || null, impulseGroup: o.impulseGroup || null,

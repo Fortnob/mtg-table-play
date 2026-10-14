@@ -874,7 +874,7 @@
       const afterExtras = () => (hasX && via !== 'morph' ? this.askX(steps, afterX) : afterX());
       const afterX = () => (pays.length ? this.askAltPay(steps, pays, afterPay) : afterPay());
       // an additional cost left unpaid in the extras (Hulk's Thunderclap): nothing of it to pick
-      const PICKS_OF = { evidence: 'evidence', forage: 'forage', reveal: 'revealHand', exileOwn: 'exileOwn', counterFrom: 'removeCounterFrom', blight: 'blight', behold: 'behold' };
+      const PICKS_OF = { evidence: 'evidence', forage: 'forage', reveal: 'revealHand', exileOwn: 'exileOwn', exileHand: 'exileHand', counterFrom: 'removeCounterFrom', blight: 'blight', behold: 'behold' };
       const picksNow = () => (extras.some(x => x.kind === 'optional') && !steps.picked.payAdditional
         ? picks.filter(r => !(a && a.additionalCost && a.additionalCost[PICKS_OF[r.kind]])) : picks);
       const afterPay = () => (picksNow().length

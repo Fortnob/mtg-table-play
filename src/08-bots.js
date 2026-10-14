@@ -1774,6 +1774,16 @@
       for (const x of cards) { if (a <= b) { one.push(x.o.id); a += x.v; } else { two.push(x.o.id); b += x.v; } }
       return { picks: one };
     },
+    /* Time travel (The Tenth Doctor): a suspended card sooner, as many off as can come; a vanishing
+       permanent longer; anything else left alone */
+    timeTravel(s) {
+      const opts = s.options || [];
+      const g = this.game, x = g.obj(s.targetId);
+      const at = (pick) => { const i = opts.findIndex(pick); return i < 0 ? 0 : i; };
+      if (s.suspended) return { picks: [0] };
+      if (x && ((x.analysis() || {}).keywordSet || new Set()).has('vanishing')) return { picks: [opts.length - 1] };
+      return { picks: [at(o => o && o.delta === 0)] };
+    },
     /* Plargg and Nassari: the exiled card the opponent can't cast — the one worth most */
     denyExiled(s) {
       const g = this.game;
