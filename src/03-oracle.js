@@ -3254,6 +3254,9 @@
     { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
       make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
         m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
+    // Errant, Street Artist: "Copy target spell you control that wasn't cast." — a copy, say (notCast)
+    { re: /^Copy target spell you control that wasn'?t cast\.?(?: You may choose new targets for the copy\.?)?$/i,
+      make: () => ({ op: 'copySpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'you', notCast: true }] }) },
     /* Strionic Resonator, Lithoform Engine: an ability copied on the stack.
        The copy's targets are offered again as it is made. */
     /* (Tawnos, Urza's Apprentice: "… from an artifact source"; The Peregrine Dynamo:
@@ -4768,8 +4771,9 @@
     { re: /^Until end of turn, you may cast spells from your hand without paying their mana costs\.?$/i,
       make: () => ({ op: 'getEmblem', emblemText: 'You may cast spells from your hand without paying their mana costs.', thisTurn: true, name: 'Until end of turn' }) },
     // Plagon, Lord of the Beach: "Target creature you control assigns combat damage equal to its toughness rather than its power this turn."
-    { re: /^(target creature(?: you control)?) assigns combat damage equal to its toughness rather than its power this turn\.?$/i,
-      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'toughDamageTurn', targets: [t] } : null; } },
+    // (Bill the Pony: "Until end of turn, target creature you control assigns …")
+    { re: /^(?:Until end of turn, )?(target creature(?: you control)?) assigns combat damage equal to its toughness rather than its power(?: this turn)?\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown && /^Until end of turn|this turn\.?$/i.test(m[0]) ? { op: 'toughDamageTurn', targets: [t] } : null; } },
     // Ojer Pakpatiq, Deepest Epoch: "Whenever you cast an instant spell from your hand, it gains rebound."
     { re: /^(?:It|That spell) gains rebound\.?$/i, make: () => ({ op: 'spellGainsRebound' }) },
     /* Murmuration, Bladewing: "for each spell you've cast this turn, create
@@ -5997,6 +6001,10 @@
         if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
         return e;
       } },
+    /* Niko, Light of Hope: "Exile target nonlegendary creature you control. Shards you control become copies of it
+       until the next end step." — the card just exiled (exiledTarget), each Shard of yours a copy of it */
+    { re: /^([A-Z][a-z]+)s you control become copies of it until (end of turn|the next end step)\.?$/,
+      make: (m) => ({ op: 'becomeCopyAll', of: 'exiledTarget', words: m[1].toLowerCase(), duration: /next end step/i.test(m[2]) ? 'nextEnd' : 'eot' }) },
     /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you control
        until end of turn, except it isn't legendary." — the first target changes (subjectTarget) */
     { re: /^(Target [a-z ]+?) becomes a copy of a second (target [a-z ]+?) until end of turn(?:, except (.+?))?\.?$/,
@@ -6012,6 +6020,15 @@
     { re: /^(?:This land|CARDNAME|This permanent) becomes a copy of (target [a-z ]+? card in your graveyard) until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeCopy', eot: true, targets: [Object.assign(targetSpec(m[1].replace(/ card in your graveyard$/, '')),
         { zone: 'graveyard', controller: 'you' })] }) },
+    /* Lazav, the Multifarious: "{X}: Lazav becomes a copy of target creature card in your graveyard with mana value X,
+       except its name is Lazav, the Multifarious, it's legendary in addition to its other types, and it has this ability" */
+    { re: /^(?:This creature|CARDNAME) becomes a copy of target (creature|permanent) card in your graveyard with mana value X(?:, except (.+?))?\.?$/i,
+      make: (m) => {
+        const kind = m[1].toLowerCase();
+        const e = { op: 'becomeCopy', targets: [{ type: kind, filter: kind + ' card', zone: 'graveyard', controller: 'you', mv: 'X' }] };
+        if (m[2] && (!copyExceptions(m[2], e) || e.keepOwn)) return null;
+        return e;
+      } },
     /* Clones: "You may have CARDNAME enter the battlefield as a copy of
        any creature on the battlefield." */
     { re: /^You may have (?:CARDNAME|this (?:creature|artifact|enchantment|land|Equipment|permanent)) enter(?: the battlefield)?( tapped)? as a copy of (?:any|a|an|another) ([a-z ]+?)( you control)?(?: on the battlefield)?(?:, except (.+?))?\.?$/i,

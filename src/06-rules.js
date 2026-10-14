@@ -1155,6 +1155,10 @@
             this.logEvent('monarch', `${king.name} draws for being the monarch.`);
           }
           this._sacrificeBlitzed();
+          /* Niko, Light of Hope: "become copies of it until the next end step" — what they were again as this end
+             step begins, if it is the one after (copyEndsAt, counted by _endStepCount) */
+          this._endStepCount = (this._endStepCount || 0) + 1;
+          for (const o of this.battlefield) if (o.copyEndsAt != null && o.copyEndsAt < this._endStepCount && o.printedCard) this._copyEnds(o);
           this._fire('yourEndStep', this.activePlayer.id); this._fire('eachEndStep', null, { playerId: this.activePlayer.id });
           break;
         }
@@ -1428,7 +1432,8 @@
         }
         /* A copy that lasts until end of turn is what it was again: itself,
            or a Clone that was already a copy before Mirrorweave (CR 707). */
-        if (o.copyUntilTurn != null && o.printedCard) this._copyEnds(o);
+        // (Niko, Light of Hope: "until the next end step" — over as that step began, not here: copyEndsAt)
+        if (o.copyUntilTurn != null && o.printedCard && o.copyEndsAt == null) this._copyEnds(o);
         o.removedFromCombat = false;
         o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
       }
@@ -14516,7 +14521,7 @@
         o.noMaxHandFor = null;
         o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
-        o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.ts = null;
+        o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         o.leaveExile = false;
         if (vanishes) this.emit('object:gone', o);
@@ -15884,7 +15889,7 @@
       const back = o.copyBefore;
       if (back && back.card && back.card !== o.printedCard) { o.card = back.card; o.face = back.face || 0; o.copyOf = back.copyOf || back.card; }
       else { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
-      o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyBefore = null; o._chr = null;
+      o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.copyBefore = null; o._chr = null;
       this.bumpBoard();
     }
 
@@ -28227,10 +28232,16 @@
               prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a token; each other token you control becomes a copy of it.` }, 'tokcopy');
             if (got === SUSPEND) return SUSPEND;
             model = got && got.picks.length ? this.obj(got.picks[0]) : null;
+          } else if (e.of === 'exiledTarget') {
+            // Niko, Light of Hope: "copies of it" — the creature card just exiled, as it is in exile
+            const t0 = targets.find(x => x && x.kind === 'object');
+            model = t0 ? this.obj(t0.id) : null;
+            if (model && model.zone !== 'exile') model = null;
           } else model = firstObj();
-          if (!model || model.zone !== 'battlefield') break;
+          if (!model || (model.zone !== 'battlefield' && e.of !== 'exiledTarget')) break;
           const card = this._copiable(model.card), face = model.face || 0;
           const others = e.of === 'chosenToken' ? yourTokens().filter(o => o !== model)
+            : e.of === 'exiledTarget' ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && this._cardFitsWords(o, e.words || 'permanent'))
             : this.battlefield.filter(o => o !== model && !o.phasedOut && (o.analysis() || {}).isCreature);
           for (const o of others) {
             if (o.copyUntilTurn == null) o.copyBefore = { card: o.card, face: o.face || 0, copyOf: o.copyOf || null };
@@ -28238,11 +28249,13 @@
             o.card = card; o.face = face; o.copyOf = card;
             o.copyUntilTurn = e.duration === 'permanent' ? null : this.turn;
             if (e.duration === 'permanent') o.copyBefore = null;
+            // (Niko: "until the next end step" — copyEndsAt, the end steps begun so far)
+            o.copyEndsAt = e.duration === 'nextEnd' ? (this._endStepCount || 0) : null;
             o._chr = null;
           }
           this.bumpBoard();
           const what = e.of === 'chosenToken' ? 'token' : 'creature';
-          this.logEvent('rules', `${others.length} ${what}${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : ' until end of turn'}.`);
+          this.logEvent('rules', `${others.length} ${what}${others.length === 1 ? '' : 's'} become${others.length === 1 ? 's' : ''} a copy of ${model.name}${e.duration === 'permanent' ? '' : e.duration === 'nextEnd' ? ' until the next end step' : ' until end of turn'}.`);
           break;
         }
         case 'extraLand': me.maxLands += (e.n || 1); break;
@@ -30883,6 +30896,8 @@
       if (spec.hasXCost && !/\{X\}/.test(String((o.card && o.card.mana_cost) || ''))) return false;
       // Wash Away: a spell that wasn't cast from its owner's hand (notFromHand)
       if (spec.notFromHand && item.fromZone === 'hand') return false;
+      // Errant, Street Artist: "that wasn't cast" — a copy put on the stack, from nowhere (notCast)
+      if (spec.notCast && item.fromZone != null) return false;
       if (xv(spec.mv) != null && mv !== xv(spec.mv)) return false;
       if (controllerId && spec.controller === 'you' && item.controller !== controllerId) return false;
       if (controllerId && spec.controller === 'opponent' && item.controller === controllerId) return false;
