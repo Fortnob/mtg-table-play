@@ -13460,6 +13460,8 @@
           const tdX = (ctx && ctx.triggerData) || {}; const x = tdX.objectId && this.obj(tdX.objectId);
           return x && x.zone === 'battlefield' ? x._excessTurn === this.turn : !!tdX.hitExcess;
         }
+        // Wasitora, Nekoru Queen: "If the player can't" — the sacrifice just asked for had nothing to take (couldNot)
+        case 'someoneCouldNot': return (this._couldNot || []).length > 0;
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
         // (Fall from Favor, a standing rule: "that player" is the enchanted creature's controller)
@@ -16753,6 +16755,9 @@
           ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
           // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
           : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
+          // Lucy MacLean, Positively Armed: "target player other than its controller" — the token the trigger is about (notTriggerObjController)
+          : spec && spec.notTriggerObjController ? Object.assign({}, spec, { notTriggerObjController: false,
+            notPlayer: td.objController || ((td.objectId && this.obj(td.objectId)) || {}).controller || '-' })
           // Shadrix Silverquill: "Each mode must target a different player" — none an earlier mode pointed at
           : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
           // Toralf, God of Fury: "any target other than that permanent" — the one the trigger is about (notTriggerObject)
@@ -19063,6 +19068,8 @@
             : e.who === 'triggerObjController' ? [ctx.triggerData ? this.player(ctx.triggerData.hitController || ctx.triggerData.objController) ||
               this.player((this.obj(ctx.triggerData.objectId) || {}).controller) : this.player((firstObj() || {}).controller)].filter(p => p && !p.hasLost)
             : [firstPlayer()].filter(Boolean);
+          // (Wasitora, Nekoru Queen: "If the player can't, …" — those with nothing to sacrifice, noted once: couldNot)
+          if (!this._doneHere('sacCouldNot')) this._couldNot = [];
           for (const p of who) {
             const pool = this.battlefield.filter(x => {
               const xa = x.analysis();
@@ -19079,6 +19086,7 @@
               /* Plaguecrafter: come back to with the answer, a player whose last creature was the one
                  sacrificed has nothing left — that is a sacrifice made, not one they could not make */
               if (this.resolving && Object.prototype.hasOwnProperty.call(this.resolving.answers, this.resolving.index + ':sac' + p.id)) continue;
+              if (!(this._couldNot = this._couldNot || []).includes(p.id)) this._couldNot.push(p.id);
               if (e.orDiscard && this.zones[p.id].hand.length) {
                 // (waited for, as the sacrifice is)
                 const q = { type: 'discard', playerId: p.id, count: 1, prompt: 'You have nothing to sacrifice: discard a card.' };
@@ -24903,6 +24911,19 @@
           break;
         }
 
+        /* Lucy MacLean, Positively Armed: "have target player other than its controller create a token that's a copy of
+           it, then you draw a card if an opponent created a token this way" — made as that player's (tokenCopyForPlayer) */
+        case 'tokenCopyForPlayer': {
+          const who = firstPlayer();
+          const td = ctx.triggerData || {};
+          if (!who || who.hasLost || !td.objectId || !this.obj(td.objectId)) break;
+          const before = (this._madeThisResolution || []).length;
+          const r = this._runEffect({ op: 'copyPermanent', n: 1, scope: 'triggerObject', grant: [] }, Object.assign({}, ctx, { controller: who.id }));
+          if (r === SUSPEND) return SUSPEND;
+          const madeAny = (this._madeThisResolution || []).length > before;
+          if (e.drawIfOpponent && madeAny && this.opponentsOf(ctx.controller).some(q => q.id === who.id)) this._drawCards(me, 1);
+          break;
+        }
         /* Leori, Sparktouched Hunter: "choose a planeswalker type" — among the planeswalkers of yours, wherever they are,
            the commonest first; one of them taken without asking, none and there is nothing to choose (chosenPwType) */
         case 'choosePwType': {

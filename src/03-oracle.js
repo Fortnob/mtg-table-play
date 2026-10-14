@@ -2926,6 +2926,10 @@
     /* "Destroy it." after a trigger about a permanent: that permanent */
     { re: /^Destroy (?:it|that land|that permanent|that artifact)\.?$/i,
       make: () => ({ op: 'destroy', scope: 'lastTarget' }) },
+    /* Lucy MacLean, Positively Armed: "you may have target player other than its controller create a token that's a
+       copy of it, then you draw a card if an opponent created a token this way" (tokenCopyForPlayer) */
+    { re: /^Have target player other than its controller create a token that'?s a copy of it, then you draw a card if an opponent created a token this way\.?$/i,
+      make: () => ({ op: 'tokenCopyForPlayer', drawIfOpponent: true, targets: [{ type: 'player', notTriggerObjController: true }] }) },
     /* "Create a token that's a copy of that creature": the one the trigger is about */
     { re: /^Create a token that'?s a copy of (?:it|that creature|that artifact|that permanent)\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [] }) },
@@ -5073,6 +5077,12 @@
        "For each opponent who can't, you draw a card." — after "each opponent
        discards a card", those whose hands were empty (couldNot) */
     { re: /^Each (opponent|player) who can'?t loses (\d+) life\.?$/i, make: (m) => ({ op: 'loseLife', n: +m[2], who: 'couldNot', couldNotOf: /^opp/i.test(m[1]) ? 'opponents' : 'players' }) },
+    // Wasitora, Nekoru Queen: "that player sacrifices a creature of their choice. If the player can't, you create …" (couldNot)
+    { re: /^If the player can'?t, you (create .+?)\.?$/i,
+      make: (m) => {
+        const inner = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.', 1);
+        return inner && inner.op !== 'manual' && !hasManualStep(inner) ? { op: 'ifCond', cond: { kind: 'someoneCouldNot' }, then: [inner] } : null;
+      } },
     { re: /^For each (opponent|player) who can'?t, (.+?)\.?$/i,
       make: (m) => {
         const inner = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.', 1);
@@ -15413,7 +15423,10 @@
         // "you may X. If you do, Y" is one thought: leave both halves together
         /* "…this way" points back at the sentence before it, so the two
            halves have to be read together rather than one at a time. */
-        const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) || /\bthis way\b/i.test(body);
+        // (Lucy MacLean, Positively Armed: "you may have …, then you draw a card if an opponent created a token this way" —
+        // a "this way" inside the one sentence asked about links nothing)
+        const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) ||
+          /\bthis way\b/i.test(/^you may /i.test(body) ? body.replace(/^[^.]*\./, '') : body);
         /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, each modified
            creature …" — the second sentence happens either way: only the first step is asked (mayStep) */
         const mayFirst = !linked && /^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body);
