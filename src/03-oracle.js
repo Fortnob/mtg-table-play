@@ -204,6 +204,8 @@
     }
     let m;
     if (/^(?:\{[^}]+\})+$/.test(s)) return { mana: s };
+    // Colorstorm Stallion: "Ward {1}, haste" — the keywords after it are its own
+    if ((m = s.match(/^((?:\{[^}]+\})+),\s*[a-z]+(?: [a-z]+)?$/i))) return { mana: m[1] };
     if (/^\d+$/.test(s)) return { mana: '{' + s + '}' };
     if ((m = s.match(/^pay (\d+) life$/i))) return { life: +m[1] };
     // Raubahn, Bull of Ala Mhigo, Phyrexian Fleshgorger: "Pay life equal to CARDNAME's power."

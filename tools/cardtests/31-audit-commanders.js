@@ -205,5 +205,8 @@ module.exports = (test) => {
     const a = (n) => mk().MTG.oracle.analyze(require('../harness').card(n));
     t.no(a('Titania, Rugged Rumbler').fullyAutomated, '"Discard a card or pay {2}"');
     t.no(a('Axebane Ferox').fullyAutomated, '"Collect evidence 4"');
+    // and "Ward {1}, haste" is {1}, the haste its own keyword
+    t.ok(a('Colorstorm Stallion').fullyAutomated, 'Colorstorm Stallion stays automated');
+    t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('{1}, haste')), '{"mana":"{1}"}');
   });
 };
