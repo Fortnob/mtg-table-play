@@ -1857,6 +1857,10 @@
         for (const x of this.battlefield) if (x.controller === pid && (x.analysis() || {}).isCreature) best = Math.max(best, this.powerOf(x));
         return best;
       }
+      // Selvala, Eager Trailblazer: "for each different power among creatures you control"
+      if (e.x === 'differentPowers') {
+        return new Set(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && (this.characteristics(x) || {}).isCreature).map(x => this.powerOf(x))).size;
+      }
       return Number(e.n) || 0;
     }
 
@@ -13824,6 +13828,8 @@
       // (an ability handed to one of them changes its effects, not the board)
       let sig = this._boardKey + ':' + (this._lbGen || 0) + ':' + (o.chosenExiled || '');
       for (const x of this.battlefield) sig += ',' + x.controller + (x.phasedOut ? 'p' : '') + this._localEpoch(x);
+      // (Thranduil, the Elvenking: the cards in its controller's graveyard, as they are now)
+      if (spec.graveyard) sig += '|' + ((this.zones[o.controller] || {}).graveyard || []).map(x => x.id).join(',');
       if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
       busy.add(o.id);
       let res = null;
@@ -13845,7 +13851,18 @@
           for (const ab of ((ca && ca.abilities) || [])) if (ab.kind === 'activated' || ab.kind === 'triggered') take(acts, ab);
           for (const ab of this.manaAbilitiesOf(chosen)) take(mana, ab);
         }
-        for (const x of (spec.chosenCard ? [] : this.battlefield)) {
+        /* Thranduil, the Elvenking: "all activated abilities of all Elf cards in your graveyard" — the cards' printed
+           abilities, read from the graveyard (graveyard) */
+        if (spec.graveyard) {
+          for (const x of ((this.zones[o.controller] || {}).graveyard || [])) {
+            if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
+            const xa = x.analysis();
+            if (!xa) continue;
+            for (const ab of (xa.abilities || [])) if (ab.kind === 'activated' || ab.kind === 'loyalty') take(acts, ab);
+            for (const ab of (xa.manaAbilities || [])) take(mana, ab);
+          }
+        }
+        for (const x of (spec.chosenCard || spec.graveyard ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
           if (spec.who === 'opponents' ? !opp.has(x.controller) : x.controller !== o.controller) continue;
           const xa = x.analysis();
@@ -23170,7 +23187,10 @@
         }
         // Haunted Fengraf: a card at random, from your graveyard to your hand
         case 'randomFromGraveyard': {
-          const pool = this.zones[ctx.controller].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
+          // (Tariel, Reckoner of Souls: "from target opponent's graveyard" — ofTarget)
+          const gyOf = e.ofTarget ? firstPlayer() : me;
+          if (!gyOf) break;
+          const pool = this.zones[gyOf.id].graveyard.filter(c => this._cardFitsWords(c, e.filter || 'card'));
           // (nothing exiled, nothing for "that card" to be)
           if (e.to === 'exile') { this._lastExiled = null; this._lastExiledList = []; }
           // Reap the Past: as many as it says, each at random
@@ -23181,6 +23201,12 @@
               this.moveObject(c, 'exile');
               this._lastExiled = c.id; this._lastExiledList = [c.id];
               this.logEvent('exile', `${me.name} exiles ${c.name} at random from their graveyard.`);
+              continue;
+            }
+            // Tariel: "Put that card onto the battlefield under your control."
+            if (e.to === 'battlefield') {
+              this.logEvent('zone', `${me.name} chooses ${c.name} at random from ${gyOf.name}'s graveyard.`);
+              this.moveObject(c, 'battlefield', { controller: ctx.controller });
               continue;
             }
             this.moveObject(c, 'hand');
@@ -28417,15 +28443,18 @@
           // Speedway Fanatic: each creature tapped to crew it, crewing it
           for (const t of (ctx.tapped || [])) { const x = this.obj(t.id); if (x) this._fire('crewsVehicle', x.controller, { source: x, object: src }); }
           break;
-        case 'saddled':
-          if (!src || src.zone !== 'battlefield') break;
-          src.saddledTurn = this.turn;
+        case 'saddled': {
+          // (Kolodin, Triumph Caster: "it becomes saddled until end of turn" — the Mount that entered, not by its own saddle: triggerObject)
+          const sd = e.scope === 'triggerObject' ? this.obj((ctx.triggerData || {}).objectId) : src;
+          if (!sd || sd.zone !== 'battlefield') break;
+          sd.saddledTurn = this.turn;
           // The Gitrog, Ravenous Ride: "a creature that saddled it this turn" — the ones tapped for it
-          src.saddledBy = { turn: this.turn, ids: ((src.saddledBy && src.saddledBy.turn === this.turn && src.saddledBy.ids) || [])
+          sd.saddledBy = { turn: this.turn, ids: ((sd.saddledBy && sd.saddledBy.turn === this.turn && sd.saddledBy.ids) || [])
             .concat((ctx.tapped || []).map(t => t.id)) };
-          this.logEvent('rules', `${src.name} is saddled.`);
-          this._fire('becomesSaddled', src.controller, { source: src, object: src });
+          this.logEvent('rules', `${sd.name} is saddled.`);
+          this._fire('becomesSaddled', sd.controller, { source: sd, object: sd });
           break;
+        }
         /* Echo: pay it, or sacrifice the permanent */
         case 'echo': {
           if (!src || src.zone !== 'battlefield') break;

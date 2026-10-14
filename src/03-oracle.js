@@ -6822,6 +6822,11 @@
     // Capenna Express: "This Vehicle becomes an artifact creature until end of turn." — not crewed, just a creature
     { re: /^(?:This Vehicle|CARDNAME) becomes an artifact creature until end of turn\.?$/i,
       make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'self' }) },
+    // Kolodin, Triumph Caster: "Whenever a Vehicle you control enters, it becomes an artifact creature until end of turn."
+    { re: /^It becomes an artifact creature until end of turn\.?$/i,
+      make: () => ({ op: 'addTypes', types: ['Creature'], subtypes: [], duration: 'eot', scope: 'triggerObject' }) },
+    // Kolodin, Triumph Caster: "Whenever a Mount you control enters, it becomes saddled until end of turn."
+    { re: /^It becomes saddled until end of turn\.?$/i, make: () => ({ op: 'saddled', scope: 'triggerObject' }) },
     // Bridge from Below: "exile this card" — from the graveyard it works in
     { re: /^Exile (?:this card|CARDNAME)\.?$/i, make: () => ({ op: 'exileSelfAnywhere' }) },
     // Stuffy Doll: "it deals that much damage to the chosen player", "deals 1 damage to itself"
@@ -9440,6 +9445,11 @@
           { op: 'createNamedToken', token: m[1], n: 1 },
           { op: 'castFree', upTo: 1, belowMv: k, elseMayCast: true }];
       } },
+    /* Tariel, Reckoner of Souls: "Choose a creature card at random from target opponent's graveyard. Put that card
+       onto the battlefield under your control." (randomFromGraveyard, of the target, to the battlefield) */
+    { re: /^Choose an? ([a-z ]*?)card at random from target (opponent|player)'?s graveyard\. Put that card onto the battlefield under your control\.?$/i,
+      make: (m) => [{ op: 'randomFromGraveyard', filter: m[1].trim() || 'card', ofTarget: true, to: 'battlefield',
+        targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }] },
     /* Ghost of Ramirez DePietro: "choose up to one target card in a graveyard that was discarded or put there
        from a library this turn. Put that card into its owner's hand." (discardedOrLibThisTurn) */
     { re: /^Choose up to one target card in a graveyard that was discarded or put there from a library this turn\. Put that card into its owner'?s hand\.?$/i,
@@ -10438,6 +10448,9 @@
     // Astral Cornucopia: "Choose a color. Add one mana of that color for each charge counter on this artifact."
     { re: /^Choose a colou?r\. Add one mana of that colou?r for each ([a-z]+) counter on (?:this (?:artifact|creature|permanent|land)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'addManaX', x: 'counters', counter: m[1].toLowerCase() }] },
+    // Selvala, Eager Trailblazer: "Choose a color. Add one mana of that color for each different power among creatures you control."
+    { re: /^Choose a colou?r\. Add one mana of that colou?r for each different power among creatures you control\.?$/i,
+      make: () => [{ op: 'addManaX', x: 'differentPowers' }] },
     // Eldrazi Monument: "Sacrifice a creature. If you can't, sacrifice this artifact."
     { re: /^Sacrifice an? (creature|artifact|land|permanent)\. If you can'?t, sacrifice (?:this (?:artifact|creature|enchantment|permanent)|CARDNAME)\.?$/i,
       make: (m) => [{ op: 'sacOrSelf', filter: m[1].toLowerCase() }] },
@@ -18668,6 +18681,9 @@
       { re: /^(?:CARDNAME|This creature) has all activated abilities of (?:all )?(legendary )?creatures (you|your opponents) control( that don'?t have the same name as (?:this creature|CARDNAME))?\.( You may spend mana as though it were mana of any colou?r to activate those abilities\.)?$/i,
         make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
           m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
+      // Thranduil, the Elvenking: "Thranduil has all activated abilities of all Elf cards in your graveyard." (borrowActivated graveyard)
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of all ([A-Z][a-z]+|creature) cards in your graveyard\.?$/,
+        make: (m) => ({ op: 'borrowActivated', who: 'you', graveyard: true, words: m[1].toLowerCase() }), auto: true },
       /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
          chosen with its own ability, while it is still in exile (borrowChosen) */
       { re: /^(?:CARDNAME|This creature) has all activated and triggered abilities of the last chosen card\.?$/i, eff: { op: 'borrowActivated', chosenCard: true }, auto: true },
