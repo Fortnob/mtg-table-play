@@ -2405,10 +2405,12 @@
         scope: /each/.test(m[2]) ? 'yourCreatures' : (/it|this|CARDNAME/.test(m[2]) ? 'self' : null) }) },
     /* Qarsi Revenant: "Put a flying counter, a deathtouch counter, and a
        lifelink counter on target creature." — one target, several kinds */
-    { re: /^Put ((?:an? (?:[a-z]+|first strike|double strike) counter,? )+and an? (?:[a-z]+|first strike|double strike) counter) on ((?:another )?target [a-z ]+)\.?$/i,
+    // (Abigale, Eloquent First-Year: "… on that creature" — the one it aimed at before)
+    { re: /^Put ((?:an? (?:[a-z]+|first strike|double strike) counter,? )+and an? (?:[a-z]+|first strike|double strike) counter) on ((?:another )?target [a-z ]+|that creature)\.?$/i,
       make: (m) => {
         const kinds = [...m[1].matchAll(/an? ((?:first |double )?[a-z]+) counter/gi)].map(x => x[1].toLowerCase());
-        return { op: 'sequence', list: kinds.map((k, i) => (i === 0
+        const tgt = /target/i.test(m[2]);
+        return { op: 'sequence', list: kinds.map((k, i) => (i === 0 && tgt
           ? { op: 'counters', kind: k, n: 1, targets: [targetSpec(m[2])] }
           : { op: 'counters', kind: k, n: 1, scope: 'lastTarget' })) };
       } },
@@ -3141,6 +3143,19 @@
         if (!eff || !eff.loseAll || !eff.setPt) return null;
         return becomesSubject(m[1], eff, 'permanent');
       } },
+    /* Aurelia, Exemplar of Justice: "Until end of turn, that creature gets +2/+0, gains trample if it's red, and gains
+       vigilance if it's white." — each keyword for its own colour, as it resolves */
+    { re: /^Until end of turn, (that creature|target creature) gets ([+-]\d+)\/([+-]\d+), gains ([a-z]+) if it'?s (white|blue|black|red|green), and gains ([a-z]+) if it'?s (white|blue|black|red|green)\.?$/i,
+      make: (m) => {
+        const tg = /target/i.test(m[1]);
+        const on = tg ? { targets: [targetSpec(m[1])] } : { scope: 'lastTarget' };
+        const kw = (w, col) => ({ op: 'ifCond', cond: { kind: 'itIs', filter: col.toLowerCase() },
+          then: [{ op: 'grantKeyword', keywords: [w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()], duration: 'eot', scope: 'lastTarget' }] });
+        return { op: 'sequence', list: [Object.assign({ op: 'pump', p: +m[2], t: +m[3], duration: 'eot' }, on), kw(m[4], m[5]), kw(m[6], m[7])] };
+      } },
+    // Abigale, Eloquent First-Year: "up to one other target creature loses all abilities." — for good
+    { re: /^((?:up to one )?(?:other |another )?target creature) loses all abilities\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { loseAll: true }, targets: [targetSpec(m[1])] }) },
     /* Mirrorweave: a copy effect on every other creature, for the turn */
     { re: /^Each other creature becomes a copy of (target [a-z ]+?) until end of turn\.?$/i,
       make: (m) => ({ op: 'becomeCopyAll', duration: 'eot', targets: [targetSpec(m[1])] }) },
@@ -5716,6 +5731,10 @@
     { re: /^(?:A creature|Creatures) destroyed this way can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
     { re: /^Its controller manifests the top card of their library\.?$/i, make: () => ({ op: 'manifest', who: 'targetController' }) },
     { re: /^Manifest the top card of your library\.?$/i, make: () => ({ op: 'manifest' }) },
+    /* Cloak (CR 701.58): manifest, with ward {2} — Vannifar, Evolved Enigma: "Cloak a card from your hand.";
+       Cryptic Coat: "Cloak the top card of your library" (cloak) */
+    { re: /^Cloak the top card of your library\.?$/i, make: () => ({ op: 'cloak', from: 'top' }) },
+    { re: /^Cloak a card from your hand\.?$/i, make: () => ({ op: 'cloak', from: 'hand' }) },
     { re: /^(?:That creature'?s controller|Its controller) sacrifices it\.?$/i, make: () => ({ op: 'sacAttached' }) },
     // (Palinchron, Time Spiral: "untap up to seven lands", "You untap up to six lands")
     { re: /^(?:You )?[Uu]ntap (up to )?(one|two|three|four|five|six|seven|eight|nine|ten|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/,
@@ -10380,12 +10399,15 @@
     if (flq) s = s.replace(flq[0], ' spells');
     const fromq = s.match(/(?<=you cast) from (your graveyard|anywhere other than your hand)(?= costs?)/i);
     if (fromq) s = s.replace(fromq[0], '');
+    // Gonti, Canny Acquisitor: "Spells you cast but don't own" (notOwned)
+    const nownq = s.match(/(?<=you cast) but don'?t own(?= costs?)/i);
+    if (nownq) s = s.replace(nownq[0], '');
     // The Ur-Dragon: "Other Dragon spells you cast" — not this card itself
     const otherQ = /^Other /.test(s);
     if (otherQ) s = s.replace(/^Other (.)/, (x, c) => c.toUpperCase());
     const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
       fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {},
-      tgp ? { toughGtPower: true } : {});
+      tgp ? { toughGtPower: true } : {}, nownq ? { notOwned: true } : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
     const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander)$/;
@@ -14579,9 +14601,9 @@
         if (spec) autoLines++;
         continue;
       }
-      /* Partner with NAME (CR 702.124j): a deck rule, and as it enters you
-         may search your library for the partner, reveal it and take it */
-      if (/^Partner\s*(?:\u2014|-)\s*(?:Friends forever|Character select|Survivors)$/i.test(line)) {
+      /* Partner—Friends forever, —Character select, —Survivors (Atreus, Impulsive Son: "Partner—Father & son"):
+         a deck rule pairing two of the same kind */
+      if (/^Partner\s*(?:\u2014|-)\s*[A-Z][A-Za-z&' ]+$/i.test(line)) {
         out.keywords.push({ keyword: 'Partner', arg: null, text: line });
         autoLines++;
         continue;
@@ -14596,6 +14618,8 @@
         autoLines++;
         continue;
       }
+      /* Partner with NAME (CR 702.124j): a deck rule, and as it enters you
+         may search your library for the partner, reveal it and take it */
       const pw = line.match(/^Partner with ([^(]+?)\s*$/);
       if (pw) {
         out.keywords.push({ keyword: 'Partner with', arg: pw[1], text: line });
@@ -19042,6 +19066,12 @@
       // Errant and Giada: "You may cast spells with flash or flying from the top of your library." (keywordAny)
       { re: /^You may cast spells with (flash|flying|haste|defender|reach|trample) or (flash|flying|haste|defender|reach|trample) from the top of your library\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'top', what: 'spell', keywordAny: [m[1].toLowerCase(), m[2].toLowerCase()] }), auto: true },
+      /* Noctis, Prince of Lucis: "You may cast artifact spells from your graveyard by paying 3 life in addition to
+         paying their other costs. If you cast a spell this way, that artifact enters with a finality counter on it."
+         (lifeCost, finality) */
+      { re: /^You may cast ([a-z]+) spells from your graveyard by paying (\d+) life in addition to paying their other costs\.(?: If you cast a spell this way, that [a-z]+ enters with a finality counter on it\.)?$/i,
+        make: (m) => Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', filter: m[1].toLowerCase(), lifeCost: +m[2] },
+          /finality/.test(m[0]) ? { finality: true } : {}), auto: true },
       // Realmwalker: "You may cast creature spells of the chosen type from the top of your library."
       { re: /^You may cast creature spells of the chosen type from the top of your library\.?$/i,
         make: () => ({ op: 'playFrom', zone: 'top', what: 'spell', filter: 'creature', chosenType: true }), auto: true },

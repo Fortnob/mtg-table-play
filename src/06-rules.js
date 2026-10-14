@@ -3103,6 +3103,8 @@
         if (x === 'legendary' || x === 'basic') return sup.includes(x);
         // (Grist, the Plague Swarm: "a black card" — its colour)
         const COL = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
+        // (Aurelia, Exemplar of Justice: "if it's red" — a permanent's colours as they are now)
+        if (COL[x] && o.zone === 'battlefield' && (this.characteristics(o) || {}).colors) return this.characteristics(o).colors.includes(COL[x]);
         if (COL[x]) return ((o.card && (o.card.card_faces && o.card.card_faces[o.face || 0] && o.card.card_faces[o.face || 0].colors || o.card.colors)) || []).includes(COL[x]);
         if (x.startsWith('non')) return !types.includes(x.slice(3)) && !sup.includes(x.slice(3));
         return types.includes(x);
@@ -3409,9 +3411,11 @@
       return this._staticOp(o, 'commanderTaxLife') ? { mana: 0, life: n } : { mana: n, life: 0 };
     }
 
-    /** What it costs to cast this, after commander tax and cost reduction. */
-    castCost(o, opts) {
+    /** What it costs to cast this, after commander tax and cost reduction (caster: who casts it, when not its controller). */
+    castCost(o, opts, caster) {
       opts = opts || {};
+      // Gonti, Canny Acquisitor: a card cast by a player who does not own it — that player's discounts ("you cast but don't own")
+      const pid = caster || o.controller || o.owner;
       const a = o.analysis();
       let mana = (a && a.manaCost) || '';
       // commander tax; an Oathbreaker's Signature Spell pays its own
@@ -3420,20 +3424,20 @@
       /* standing taxes and discounts first (Thalia, Herald's Horn, the
          spell's own "costs {1} less for each…"), then convoke and its kin */
       const less = [];
-      const delta = this._costDelta(o, o.controller || o.owner, less);
+      const delta = this._costDelta(o, pid, less);
       if (delta) mana = this._addGeneric(mana, delta);
       // Alchemy: "perpetually gains 'This spell costs {1} less to cast'"
       const pd = (o.effects || []).reduce((k, e) => k + ((e && e.perpetual && e.costDelta) || 0), 0);
       if (pd) mana = this._addGeneric(mana, pd);
       // Andradite Leech: "Black spells you cast cost {B} more to cast"
-      mana += this._costExtraSymbols(o, o.controller || o.owner);
+      mana += this._costExtraSymbols(o, pid);
       // Morophon, the Boundless: "{W}{U}{B}{R}{G} less", coloured mana only
       if (less.length) mana = this._lessColored(mana, less);
 
       const cut = this.costReductionFor(o, opts);
       if (cut > 0) mana = this._addGeneric(mana, -cut);
       // convoke pays coloured mana too: a creature of the colour for each symbol it covers (_convokeColors)
-      const cc = this._convokeColors(o.controller || o.owner, o);
+      const cc = this._convokeColors(pid, o);
       if (cc.length) mana = this._dropSymbols(mana, cc.map(x => x.sym));
       return mana;
     }
@@ -3523,6 +3527,8 @@
             if (e.toughGtPower && !(parseInt(a.toughness, 10) > parseInt(a.power, 10))) continue;
             // Savvy Trader: "from anywhere other than your hand"
             if (e.notFromZones && e.notFromZones.includes(o.zone)) continue;
+            // Gonti, Canny Acquisitor: "Spells you cast but don't own"
+            if (e.notOwned && o.owner === pid) continue;
             // Centaur Omenreader: "As long as this creature is tapped, …"
             if (e.cond && !this._condMet(e.cond, { controller: src.controller, obj: src })) continue;
             /* Goblin Warchief: "Goblin spells" (a changeling is every creature
@@ -4203,7 +4209,7 @@
         const impulsed = (o.zone === 'exile' && this._impulseOpen(o, playerId)) ||
           // back from an adventure: the creature, for its cost
           (o.zone === 'exile' && o.adventureBy === playerId && (o.face || 0) === 0);
-        if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts) };
+        if (o.grantedFlashback && o.zone === 'graveyard') return { ok: true, cost: this.castCost(o, opts, playerId) };
         /* A card with flashback is cast for its flashback cost, not for
            the cost printed in its corner — so casting it from the
            graveyard has to say which way in it is using. */
@@ -4325,7 +4331,7 @@
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       if (!opts && this.battlefield.some(s => s.controller === playerId && !s.phasedOut &&
         (this._staticOp(s, 'freeSpells') || null) && this._cardFitsWords(o, this._staticOp(s, 'freeSpells').filter || 'card'))) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
-      const base = this.castCost(o, opts);
+      const base = this.castCost(o, opts, playerId);
       const gTax = /^\{\d+\}$/.test(flashTax) ? parseInt(flashTax.slice(1), 10) : 0;
       const plainCost = gTax ? this._addGeneric(base, gTax) : base + flashTax;
       /* Trinisphere: the price the table shows, and whether it can be paid,
@@ -4460,7 +4466,7 @@
     castCostFor(playerId, objId, opts) {
       const o = this.obj(objId);
       if (!o) return '';
-      let cost = this.castCost(o, opts || {});
+      let cost = this.castCost(o, opts || {}, playerId);
       const mt = this._multiOf(o.analysis());
       const got = mt ? Math.max(0, ((opts || {}).targets || []).length - mt.fixed) : 0;
       if (mt && mt.spec.multi.perExtra && got > 1) cost += mt.spec.multi.perExtra.repeat(got - 1);
@@ -4760,6 +4766,13 @@
             /* Falco Spara, Pactweaver: "by removing a counter from a creature you control in addition to paying their
                other costs" — only with a counter to remove, and a leave with no such cost is used first */
             if (ef.removeCounterCost) { if (!costly && this._counterCostPairs(playerId).length) costly = ef; continue; }
+            /* Noctis, Prince of Lucis: "by paying 3 life in addition to paying their other costs" — only with the
+               life to pay, and a leave with no such cost is used first (lifeCost) */
+            if (ef.lifeCost) {
+              const pl = this.player(playerId);
+              if (!costly && pl && pl.life >= ef.lifeCost && !this._lifeFrozen(pl) && !this._lifeSacCostBan()) costly = Object.assign({}, ef, { srcId: src.id });
+              continue;
+            }
             return ef;
           }
         }
@@ -5631,12 +5644,14 @@
     }
 
     /** Manifest (CR 701.40): a card put onto the battlefield face down as a 2/2 creature, under this player's control. */
-    _manifestCard(c, pid) {
+    _manifestCard(c, pid, cloak) {
       c.faceDown = true;
       this.moveObject(c, 'battlefield', { controller: pid });
       if (c.zone !== 'battlefield') return;
       c.faceDown = true;
       c.manifested = true;
+      // Cloak (CR 701.58a): "as a 2/2 creature with ward {2}" — for as long as it stays face down
+      if (cloak) c.faceDownWard = '{2}';
     }
 
     /**
@@ -6386,6 +6401,8 @@
         via = this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via);
         if (via && (via.via === 'evoke' || via.via === 'dash')) o._via = via.via;
         if (via && via.faceDown) o.faceDown = true;      // it goes on the stack face down
+        // Disguise (CR 702.168a): "as a 2/2 creature with ward {2}" while it is face down, as cloak
+        if (via && via.faceDown) o.faceDownWard = via.morphKind === 'disguise' ? '{2}' : null;
         if (via && via.via === 'bestow') o._bestowing = true;
         if (via && via.via === 'warp') o._via = 'warp';
         o._webSlinging = !!(via && via.alt && via.alt.webSlinging);
@@ -6608,7 +6625,7 @@
         const floor = fl ? (this._staticOp(fl, 'costFloor').n || 3) : 0;
         /* convoke, improvise and delve pay for the spell rather than make it
            cheaper (CR 702.51b), so what they would pay is still in its price */
-        const paidOther = floor && !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts)
+        const paidOther = floor && !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId)
           ? Math.max(0, (this._reductionRoom(playerId, o) || {}).left || 0) : 0;
         const total = MANA.cmc(String(cost || '').replace(/\{X\}/g, '{' + (opts.x || 0) + '}')) + paidOther;
         if (floor && total < floor) {
@@ -6633,7 +6650,7 @@
          player chose (checked before any mana goes), or the cheapest there
          is. Whatever they chose not to use is paid in mana. */
       // (only when the cost is the one with the discount in it: not Omniscience's nothing)
-      const reduces = !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts);
+      const reduces = !opts.free && !via && opts.costOverride == null && chkBase === this.castCost(o, opts, playerId);
       const plan = reduces ? this._reductionPlan(playerId, o, opts) : null;
       if (plan && plan.error) return this.fail(plan.error);
       if (plan && plan.unused) cost = this._addGeneric(cost, plan.unused);
@@ -6742,6 +6759,7 @@
       }
       /* Lurrus, Kess: the once-a-turn leave this cast used up, and where the
          spell goes afterwards */
+      o._enterFinality = null;
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
         // Falco Spara, Pactweaver: the counter, removed as the spell is cast (chosen with it)
@@ -6750,6 +6768,12 @@
         if (rco && rco.zone === 'battlefield' && Number((rco.counters || {})[rc.kind]) > 0) {
           this.addCounters(rco, rc.kind, -1);
           this.logEvent('counters', `${p.name} removes a ${rc.kind} counter from ${rco.name} to cast ${o.name}.`);
+        }
+        // Noctis, Prince of Lucis: "by paying 3 life …", and "that artifact enters with a finality counter on it" (lifeCost)
+        if (lv && lv.lifeCost && o.zone === 'graveyard') {
+          this.changeLife(p, -lv.lifeCost, 'cost');
+          this.logEvent('life', `${p.name} pays ${lv.lifeCost} life to cast ${o.name} from their graveyard.`);
+          if (lv.finality) o._enterFinality = true;
         }
         if (lv && lv.srcId) {
           const ls = this.obj(lv.srcId);
@@ -7054,6 +7078,8 @@
       // Minthara, Merciless Soul: "ward {X}, where X is the number of experience counters you have" — as it is now
       const wx = this._staticOp(o, 'wardX');
       if (wx) { const k = this._countValue(wx.n, o.controller, o, true); if (k > 0) out.push('{' + k + '}'); }
+      // a cloaked permanent: "a 2/2 creature with ward {2}", while it is face down (CR 701.58a)
+      if (o.faceDown && o.faceDownWard) out.push(o.faceDownWard);
       return out;
     }
 
@@ -7788,6 +7814,8 @@
       // Summon: Fenrir: "enters with an additional +1/+1 counter"
       // (Torgal, A Fine Hound: only as the spell they were promised to resolves — not a countered card brought back later)
       if (o._enterPlusCounters) { const k = o._enterPlusCounters; o._enterPlusCounters = 0; if (o.enteredFrom === 'stack') this.addCounters(o, '+1/+1', k); }
+      // Noctis, Prince of Lucis: "If you cast a spell this way, that artifact enters with a finality counter on it."
+      if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -11668,6 +11696,12 @@
     _tsOf(o) { return o && o.ts != null ? o.ts : 0; }
     /** An effect's timestamp, provisional (newer than everything) if it has none yet. */
     _effTs(e, i) { return e.ts != null ? e.ts : (this._tsSeq || 0) + 0.5 + (i || 0) / 1024; }
+    /** Whether a keyword counter of this kind outlasts an effect taking every ability away, stamped at loseTs (counterTs). */
+    _counterNewer(o, kind, loseTs) {
+      if (loseTs === -Infinity) return true;
+      const ts = (o.counterTs || {})[kind];
+      return ts != null && ts > loseTs;
+    }
 
     /**
      * Layer 2 (CR 613.1b): who controls each permanent, with every
@@ -13642,10 +13676,10 @@
         if (x.grantMana) grantMana.push(...x.grantMana);
       }
       /* Keyword counters (CR 122.1b): a flying counter is flying, for as
-         long as it is there (and nothing has taken every ability away). */
-      if (loseTs === -Infinity) {
-        for (const k of KEYWORD_COUNTERS) if (Number(o.counters[k]) > 0) kw.add(k);
-      }
+         long as it is there (and nothing has taken every ability away since
+         it was put there — Abigale, Eloquent First-Year: "loses all
+         abilities. Put a flying counter … on that creature": counterTs). */
+      for (const k of KEYWORD_COUNTERS) if (Number(o.counters[k]) > 0 && this._counterNewer(o, k, loseTs)) kw.add(k);
       for (const k of cantHave) kw.delete(k);
 
       // layer 7a, then 7b, each oldest first
@@ -13726,7 +13760,7 @@
         const s = lb && lb.special ? lb.st.get(o.id) : null;
         const loseTs = s && s.lost ? s.loseTs : -Infinity;
         if (loseTs === -Infinity && !printedNone) return false;
-        if (loseTs === -Infinity && KEYWORD_COUNTERS.some(k => Number((o.counters || {})[k]) > 0)) return false;
+        if (KEYWORD_COUNTERS.some(k => Number((o.counters || {})[k]) > 0 && this._counterNewer(o, k, loseTs))) return false;
         const effs = o.effects || [];
         for (let i = 0; i < effs.length; i++) {
           const e = effs[i];
@@ -14152,6 +14186,8 @@
       }
       this.bumpBoard();
       const wasK = Number(o.counters[kind]) || 0;
+      // a keyword counter's ability is as new as the counter (Abigale, Eloquent First-Year): counterTs
+      if (n > 0 && wasK <= 0 && o.zone === 'battlefield' && KEYWORD_COUNTERS.includes(kind)) (o.counterTs = o.counterTs || {})[kind] = this._stampNew();
       o.counters[kind] = wasK + n;
       if (o.counters[kind] <= 0 && kind !== 'loyalty' && kind !== 'defense') delete o.counters[kind];
       /* A Siege's last defense counter removed: "exile it, then you may cast it transformed without
@@ -14440,7 +14476,7 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
-        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o._stackKw = null;
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o.counterTs = null; o._stackKw = null;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
@@ -14449,7 +14485,7 @@
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
-        o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
@@ -27767,6 +27803,32 @@
           // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
           this._lastPut = top.id;
           this.logEvent('rules', `${who.name} manifests the top card of their library.`);
+          break;
+        }
+        /* Cloak (CR 701.58): manifested, with ward {2}. Cryptic Coat: "Cloak the top card of your library";
+           Vannifar, Evolved Enigma: "Cloak a card from your hand." — the one card in hand is no question */
+        case 'cloak': {
+          let c = null;
+          if (e.from === 'hand') {
+            const hand = this.zones[me.id].hand.slice();
+            if (!hand.length) break;
+            c = hand[0];
+            if (hand.length > 1) {
+              const got = this._choose({ playerId: me.id, purpose: 'manifestFromHand', kind: 'objects', zone: 'hand',
+                items: this._chooseItems(hand), min: 1, max: 1, prefer: 'worst',
+                prompt: `${ctx.name ? ctx.name + ': ' : ''}cloak a card from your hand. It is put onto the battlefield face down as a 2/2 creature with ward {2}; a creature card can be turned face up any time for its mana cost.` }, 'cloak');
+              if (got === SUSPEND) return SUSPEND;
+              const pick = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && hand.includes(x));
+              if (pick) c = pick;
+            }
+            if (c.zone !== 'hand' || c.owner !== me.id) break;
+          } else {
+            c = this.zones[me.id].library[0];
+            if (!c) break;
+          }
+          this._manifestCard(c, me.id, true);
+          this._lastPut = c.id;
+          this.logEvent('rules', `${me.name} cloaks a card from their ${e.from === 'hand' ? 'hand' : 'library'}.`);
           break;
         }
         /* Kozilek, the Broken Reality: "up to two target players each manifest two cards from their hands. For each

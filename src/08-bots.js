@@ -229,6 +229,8 @@
     let q = null;
     if (info.partner) q = `is:commander legal:${legalKey} o:"Partner" -o:"Partner with" -t:background`;
     else if (info.friendsForever) q = `is:commander legal:${legalKey} o:"Friends forever"`;
+    // Atreus, Impulsive Son: "Partner—Father & son" — one of the same kind
+    else if (info.partnerVariant) q = `is:commander legal:${legalKey} o:"${info.partnerVariant}"`;
     else if (info.background) q = `legal:${legalKey} t:background`;
     else if (info.doctor) q = `legal:${legalKey} t:doctor t:"time lord"`;
     // a Doctor is a whole commander on its own, so it only sometimes brings one
@@ -243,6 +245,7 @@
     if (info.background) pool = pool.filter(c => /Background/.test(c.type_line || ''));
     else if (info.partner) pool = pool.filter(c => MTG.formats.partnerInfo(c).partner);
     else if (info.friendsForever) pool = pool.filter(c => MTG.formats.partnerInfo(c).friendsForever);
+    else if (info.partnerVariant) pool = pool.filter(c => MTG.formats.partnerInfo(c).partnerVariant === info.partnerVariant);
     if (!pool.length) return null;
     const depth = U.clamp(cfg.poolDepth, 8, pool.length);
     return pool.slice(0, depth)[rng.int(Math.min(depth, pool.length))] || null;

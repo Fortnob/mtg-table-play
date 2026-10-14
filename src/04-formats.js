@@ -236,8 +236,12 @@
 
   function partnerInfo(card) {
     const t = card.oracle_text || '';
+    /* Partner—Survivors, —Character select (Atreus, Impulsive Son: "Partner—Father & son"): pairs only with
+       the same kind (Friends forever has its own flag) */
+    const variant = ((t.match(/^Partner\s*[\u2014-]\s*([A-Z][A-Za-z&' ]+?)\s*(?:\(|$)/m) || [])[1] || '').toLowerCase() || null;
     return {
-      partner: /\bPartner\b(?!\s+with)/i.test(t),
+      partner: /\bPartner\b(?!\s+with)/i.test(t) && !variant,
+      partnerVariant: variant === 'friends forever' ? null : variant,
       partnerWith: (t.match(/Partner with ([^\n(]+)/i) || [])[1] || null,
       friendsForever: /Friends forever/i.test(t),
       background: /Choose a Background/i.test(t),
@@ -383,13 +387,14 @@
         if (commanders.length > 1) {
           const infos = info0;
           const allPartner = infos.every(i => i.partner);
+          const sameKind = infos.every(i => i.partnerVariant && i.partnerVariant === infos[0].partnerVariant);
           const pairedWith = commanders.length === 2 && infos.some((i, k) =>
             i.partnerWith && U.normName(i.partnerWith) === U.normName(commanders[1 - k].name));
           const ff = infos.every(i => i.friendsForever);
           const bg = commanders.length === 2 && infos.some(i => i.background) && infos.some(i => i.isBackground);
           const dr = commanders.length === 2 && infos.some(i => i.doctor);
           if (commanders.length > 2) errors.push('At most two commanders.');
-          else if (!(allPartner || pairedWith || ff || bg || dr))
+          else if (!(allPartner || sameKind || pairedWith || ff || bg || dr))
             errors.push('Those two cards cannot be paired as commanders (needs Partner, Partner with, Friends forever, a Background, or a Doctor pairing).');
         }
       }
