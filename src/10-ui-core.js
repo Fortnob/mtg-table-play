@@ -1331,16 +1331,17 @@
     return cards.slice().sort((a, b) =>
       rarestFirst(b) - rarestFirst(a) ||
       UI.colorBucket(a) - UI.colorBucket(b) ||
-      (a.cmc || 0) - (b.cmc || 0) ||
+      MTG.mana.sortMv(a) - MTG.mana.sortMv(b) ||
       String(a.name).localeCompare(String(b.name)));
   };
 
   UI.sortCards = function (list, mode) {
     const key = {
-      cmc: (o) => [(o.card.cmc || 0), o.card.name],
+      // X costs last: what they cost is up to you
+      cmc: (o) => [MTG.mana.sortMv(o.card), o.card.name],
       name: (o) => [o.card.name],
-      type: (o) => [(o.card.type_line || ''), (o.card.cmc || 0)],
-      color: (o) => [(o.card.color_identity || []).join(''), (o.card.cmc || 0)],
+      type: (o) => [(o.card.type_line || ''), MTG.mana.sortMv(o.card)],
+      color: (o) => [(o.card.color_identity || []).join(''), MTG.mana.sortMv(o.card)],
     }[mode || 'cmc'] || ((o) => [o.card.name]);
     return list.slice().sort((a, b) => {
       const ka = key(a), kb = key(b);

@@ -283,14 +283,23 @@
     const cardOf = (n) => byName.get(U.normName(n)) || null;
     const body = el('div', { class: 'bracket-sheet' });
 
-    // the five, this deck's lit
-    body.appendChild(el('div', { class: 'bracket-steps', role: 'list' }, [1, 2, 3, 4, 5].map(n => el('div', {
-      class: `bracket-step b${n}` + (n === e.bracket ? ' on' : '') + (opts.table === n ? ' table' : ''), role: 'listitem',
-      title: B.BRACKETS[n].blurb,
-    }, [el('b', { text: String(n) }), el('span', { text: B.nameOf(n) }), opts.table === n ? el('i', { text: 'this table' }) : null].filter(Boolean)))));
-    body.appendChild(el('p', { class: 'small muted', text: B.BRACKETS[e.bracket].blurb }));
-    if (opts.table && e.min > opts.table)
-      body.appendChild(el('p', { class: 'bracket-over', text: B.overBy(deck, opts.table) }));
+    /* The five, this deck's lit. Each one is a button: what that bracket is,
+       and what in this deck keeps it out (or that nothing does). */
+    let shown = e.bracket;
+    const steps = el('div', { class: 'bracket-steps', role: 'group', 'aria-label': 'Brackets' });
+    const view = el('div', { class: 'bracket-view', 'aria-live': 'polite' });
+    const drawSteps = () => {
+      steps.innerHTML = '';
+      steps.append(...[1, 2, 3, 4, 5].map(n => el('button', {
+        type: 'button', class: `bracket-step b${n}` + (n === e.bracket ? ' on' : '') + (n === shown ? ' picked' : '') + (opts.table === n ? ' table' : ''),
+        'aria-pressed': n === shown ? 'true' : 'false', title: `${B.label(n)}: what it is, and what keeps this deck out of it`,
+        onclick: () => { if (shown === n) return; shown = n; drawSteps(); drawView(); },
+      }, [el('b', { text: String(n) }), el('span', { text: B.nameOf(n) }),
+        n === e.bracket ? el('i', { text: 'this deck' }) : opts.table === n ? el('i', { text: 'this table' }) : null].filter(Boolean))));
+    };
+    body.appendChild(steps);
+    body.appendChild(el('p', { class: 'tiny dim bracket-hint', text: 'Click a bracket to see what it allows and what in this deck keeps it out.' }));
+    body.appendChild(view);
 
     const cardRow = (n) => {
       const c = cardOf(n);
@@ -303,22 +312,31 @@
       return row;
     };
 
-    if (!e.reasons.length) {
-      body.appendChild(el('div', { class: 'bracket-none' }, [
-        el('b', { text: 'Nothing here goes past Bracket 1\u2019s rules.' }),
-        el('span', { text: ' No Game Changers, no mass land denial, no extra turns, no two-card combos. Most decks like this play at Bracket 2; one built to show off an idea more than to win plays at 1.' }),
-      ]));
-    }
-    for (const r of e.reasons) {
+    /* Why a reason keeps the deck out of bracket n, in that bracket's words,
+       and the combos that do (at 3 only the early ones). */
+    const blockWhy = (r, n) => {
+      const k = r.cards.length;
+      if (r.key === 'gc') return n >= 3
+        ? `Bracket 3 allows three Game Changers; this deck runs ${k}, ${k - 3} too many.`
+        : `Bracket ${n} has no Game Changers; this deck runs ${k === 1 ? 'one' : k}.`;
+      if (r.key === 'mld') return `Bracket ${n} has no mass land denial: taking every player’s lands (or their mana) away is for Bracket 4 and up.`;
+      if (r.key === 'turns') return n === 1
+        ? 'Bracket 1 has no extra turns.'
+        : `${k} cards that take extra turns, enough to chain them; Bracket ${n} takes one now and then, never one after another.`;
+      return n >= 3
+        ? 'Bracket 3 allows a two-card combo only when it comes together late; these can come together early.'
+        : `Bracket ${n} has no two-card combos.`;
+    };
+    const reasonSec = (r, why, combos) => {
       const sec = el('section', { class: 'bracket-reason' });
       sec.appendChild(el('div', { class: 'bracket-reason-head' }, [
         el('span', { class: `bracket-pill b${r.bracket} short static`, text: `B${r.bracket}` }),
-        el('b', { class: 'grow', text: `${r.title} \u00b7 ${r.key === 'combo' ? r.combos.length : r.cards.length}` }),
+        el('b', { class: 'grow', text: `${r.title} · ${r.key === 'combo' ? combos.length : r.cards.length}` }),
         opts.onMark ? el('button', { class: 'btn xs', text: 'Mark in the list', onclick: () => { api.close(); opts.onMark(r.key); } }) : null,
       ].filter(Boolean)));
-      sec.appendChild(el('p', { class: 'tiny muted', text: r.why }));
+      sec.appendChild(el('p', { class: 'tiny muted', text: why }));
       if (r.key === 'combo') {
-        for (const c of r.combos) {
+        for (const c of combos) {
           sec.appendChild(el('div', { class: 'bracket-combo' }, [
             el('div', { class: 'bracket-combo-head' }, [
               el('span', { class: 'pill ' + (c.early ? 'bad' : 'warn'), text: c.early ? 'early' : 'late' }),
@@ -331,8 +349,55 @@
       } else {
         sec.appendChild(el('div', { class: 'bracket-cards' }, r.cards.map(cardRow)));
       }
-      body.appendChild(sec);
-    }
+      return sec;
+    };
+
+    const drawView = () => {
+      const n = shown;
+      view.innerHTML = '';
+      view.appendChild(el('p', { class: 'small muted' }, [el('b', { text: B.label(n) + '. ' }), B.BRACKETS[n].blurb]));
+      if (n === e.bracket) {
+        // this deck's own: what puts it there
+        if (opts.table && e.min > opts.table)
+          view.appendChild(el('p', { class: 'bracket-over', text: B.overBy(deck, opts.table) }));
+        if (!e.reasons.length) {
+          view.appendChild(el('div', { class: 'bracket-none' }, [
+            el('b', { text: 'Nothing here goes past Bracket 1’s rules.' }),
+            el('span', { text: ' No Game Changers, no mass land denial, no extra turns, no two-card combos. Most decks like this play at Bracket 2; one built to show off an idea more than to win plays at 1.' }),
+          ]));
+        }
+        for (const r of e.reasons) view.appendChild(reasonSec(r, r.why, r.combos || []));
+        return;
+      }
+      const blocking = e.reasons.filter(r => r.bracket > n);
+      if (!blocking.length) {
+        view.appendChild(el('div', { class: 'bracket-none fits' }, n === 5
+          ? [el('b', { text: 'Nothing in the list keeps it out of Bracket 5.' }),
+            el('span', { text: ' Bracket 5 is a Bracket 4 deck tuned to win tournaments; that is about how it is built and played, which no list says.' })]
+          : n === 1
+            ? [el('b', { text: 'Nothing in the list keeps it out of Bracket 1.' }),
+              el('span', { text: ' Bracket 1 is for decks built to show off an idea more than to win; whether this is one is up to you.' })]
+            : [el('b', { text: `Nothing in the list keeps it out of Bracket ${n}.` }),
+              el('span', { text: n > e.bracket ? ' Everything this deck does is allowed there, so it can sit at that table; it will just be playing below it.' : '' })]));
+        return;
+      }
+      view.appendChild(el('p', { class: 'bracket-over', text: `Kept out of Bracket ${n} by ${blocking.map(r => (r.key === 'gc' ? r.title : r.title.toLowerCase())).join(', ')}.` }));
+      for (const r of blocking) view.appendChild(reasonSec(r, blockWhy(r, n), (r.combos || []).filter(c => n >= 3 ? c.early : true)));
+      // the fewest cards that bring it down (commanders stay)
+      const cut = [...B.excess(deck, n)].map(x => (cardOf(x) || { name: x }).name);
+      if (cut.length) {
+        view.appendChild(el('section', { class: 'bracket-reason bracket-cut' }, [
+          el('div', { class: 'bracket-reason-head' }, [el('b', { class: 'grow', text: `To fit Bracket ${n}, take out ${cut.length === 1 ? 'this card' : 'these ' + cut.length}` })]),
+          el('div', { class: 'bracket-cards' }, cut.map(cardRow)),
+        ]));
+      }
+      // a card of a kind the bracket has none of that is the commander can't be cut
+      const allGo = (r) => r.key === 'mld' || (r.key === 'gc' && n < 3) || (r.key === 'turns' && n < 2);
+      if (blocking.some(r => allGo(r) && (deck.commanders || []).some(c => r.cards.some(x => U.normName(x) === U.normName(c.name)))))
+        view.appendChild(el('p', { class: 'tiny dim', text: 'A commander is part of it, and a commander can’t be taken out: this deck can’t come down that far.' }));
+    };
+    drawSteps();
+    drawView();
     body.appendChild(el('p', { class: 'tiny dim bracket-foot', text: 'Read off the list: Game Changers, mass land denial, extra turns and two-card combos. Bracket 5 is a Bracket 4 deck tuned for tournament play, which no list says, so it is never given here.' }));
     const api = UI.modal({ title: `${deck.name ? deck.name + ': ' : ''}${B.label(e.bracket)}`, width: '560px', content: body, className: 'bracket-modal' });
     return api;

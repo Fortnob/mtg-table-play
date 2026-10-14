@@ -578,7 +578,7 @@
       for (const [k, name] of COLS) {
         const list = groups.get(k);
         if (!list.length) continue;
-        list.sort((a, b) => (a.cmc || 0) - (b.cmc || 0) || String(a.name).localeCompare(String(b.name)));
+        list.sort((a, b) => MTG.mana.sortMv(a) - MTG.mana.sortMv(b) || String(a.name).localeCompare(String(b.name)));
         const col = el('div', { class: 'pool-col col-' + k.toLowerCase() }, [
           el('div', { class: 'pool-col-head' }, [
             k === 'L' ? el('span', { class: 'pool-col-name', text: name })

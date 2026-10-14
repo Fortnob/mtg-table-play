@@ -494,6 +494,8 @@
       let mode = null, local = null, ids = null, at = 0;
       let gi = 0, url = null;
       const buf = [], seen = new Set();
+      // a colour's X costs, held back to come after the rest of it (Scryfall sorts them by what X is not)
+      let held = [];
       const p = {
         done: false,
         /** How many in all, when that is known (from the card database). */
@@ -530,11 +532,16 @@
               url = '/cards/search?' + params.toString();
             }
             const data = await self._fetch(url, { signal });
+            const groupDone = () => { gi++; url = null; buf.push(...held); held = []; };
             // nothing in this colour (Scryfall says so with a 404): on to the next
-            if (!data) { gi++; url = null; continue; }
-            for (const c of noAnte(await self._store(data.data || []))) if (!seen.has(c.id)) { seen.add(c.id); buf.push(c); }
+            if (!data) { groupDone(); continue; }
+            for (const c of noAnte(await self._store(data.data || []))) {
+              if (seen.has(c.id)) continue;
+              seen.add(c.id);
+              (colourWise && MTG.mana.hasX(c) ? held : buf).push(c);
+            }
             if (data.has_more && data.next_page) url = data.next_page;
-            else { gi++; url = null; }
+            else groupDone();
           }
           const out = buf.splice(0, per);
           if (!buf.length && gi >= GROUPS.length) p.done = true;

@@ -2748,7 +2748,8 @@
       const isLandCard = (c) => /\bLand\b/.test(String((c.card_faces && c.card_faces[0] && c.card_faces[0].type_line) || c.type_line || ''));
       const mv = (c) => (c.cmc != null ? c.cmc : ((c.card_faces && c.card_faces[0] && c.card_faces[0].cmc) || 0));
       const byColour = (a, b) => (isLandCard(a) - isLandCard(b)) || (order[colourOf(a)] - order[colourOf(b)]);
-      const byMv = (a, b) => mv(a) - mv(b);
+      // X costs after the rest
+      const byMv = (a, b) => (MTG.mana.hasX(a) - MTG.mana.hasX(b)) || mv(a) - mv(b);
       const byName = (a, b) => a.name.localeCompare(b.name);
       const SORTS = {
         color: (a, b) => byColour(a, b) || byMv(a, b) || byName(a, b),

@@ -540,6 +540,15 @@ const MANA = MTG.mana = {
     while ((m = re.exec(cost))) out.push(m[1]);
     return out;
   },
+  /** Whether a card's cost (its front's) has an X in it. */
+  hasX(card) {
+    const cost = (card && (card.mana_cost || (card.card_faces && card.card_faces[0] && card.card_faces[0].mana_cost))) || '';
+    return /\{X\}/.test(String(cost).split(' // ')[0]);
+  },
+  /** A card's place in a sort by mana value: X costs after everything else, by mana value among themselves. */
+  sortMv(card) {
+    return (MANA.hasX(card) ? 1000 : 0) + ((card && card.cmc) || 0);
+  },
   // Mana value of a cost string
   cmc(cost) {
     let v = 0;

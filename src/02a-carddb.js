@@ -664,7 +664,9 @@
         // white, blue, black, red, green, then several colours, then none; by mana value within each
         case 'colormv': {
           const grp = (b) => { const n = popcount(b); return n === 0 ? 6 : n > 1 ? 5 : [1, 2, 4, 8, 16].indexOf(b); };
-          cmp = (a, b) => (grp(r(a).cs[0]) - grp(r(b).cs[0])) || (r(a).cmc - r(b).cmc) || byName(a, b);
+          // X costs after the rest of their colour
+          const mv = (pi) => (/\{X\}/.test(String(r(pi).mana || '').split(' // ')[0]) ? 1000 : 0) + r(pi).cmc;
+          cmp = (a, b) => (grp(r(a).cs[0]) - grp(r(b).cs[0])) || (mv(a) - mv(b)) || byName(a, b);
           break;
         }
         case 'usd': cmp = num(price); break;

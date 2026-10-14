@@ -153,7 +153,7 @@
     h.feature = spells.map(e => e.card).sort((x, y) => (RARE[y.rarity] || 1) - (RARE[x.rarity] || 1) || (y.cmc || 0) - (x.cmc || 0))[0]
       || (h.cards[0] && h.cards[0].card) || null;
     const rank = (c) => (MTG.sealed ? MTG.sealed.typeRank(c) : (isLandCard(c) ? 9 : isCreature(c) ? 0 : 1));
-    h.cards.sort((x, y) => rank(x.card) - rank(y.card) || (x.card.cmc || 0) - (y.card.cmc || 0) || String(x.card.name).localeCompare(String(y.card.name)));
+    h.cards.sort((x, y) => rank(x.card) - rank(y.card) || MTG.mana.sortMv(x.card) - MTG.mana.sortMv(y.card) || String(x.card.name).localeCompare(String(y.card.name)));
     return h;
   }
 

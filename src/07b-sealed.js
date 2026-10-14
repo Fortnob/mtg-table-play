@@ -110,7 +110,7 @@
     const i = TYPE_RANK.findIndex(t => new RegExp('\\b' + t + '\\b').test(tl));
     return i < 0 ? TYPE_RANK.length : i;
   }
-  const byTypeThenCost = (a, b) => typeRank(a) - typeRank(b) || (a.cmc || 0) - (b.cmc || 0) || String(a.name).localeCompare(String(b.name));
+  const byTypeThenCost = (a, b) => typeRank(a) - typeRank(b) || MTG.mana.sortMv(a) - MTG.mana.sortMv(b) || String(a.name).localeCompare(String(b.name));
 
   /**
    * The pool in columns: [{ key, label, items }], empty columns left out.

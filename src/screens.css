@@ -1578,6 +1578,12 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
   box-shadow: 0 0 16px color-mix(in srgb, var(--bc) 28%, transparent);
 }
 :root[data-theme="light"] .bracket-step { border-color: var(--line); }
+.bracket-step { background: none; color: var(--ink); font: inherit; cursor: pointer; transition: opacity var(--fast), border-color var(--fast); }
+.bracket-step:hover { opacity: .9; }
+.bracket-step.picked { opacity: 1; border-style: solid; border-color: var(--bc); outline: 2px solid color-mix(in srgb, var(--bc) 55%, transparent); outline-offset: 1px; }
+.bracket-hint { margin: -4px 0 8px; text-align: center; }
+.bracket-view > p.small { margin: 0 0 8px; }
+.bracket-none.fits { border-color: color-mix(in srgb, var(--good, #6fbf8a) 40%, transparent); }
 .bracket-over { color: var(--bad); font-size: 13px; margin: 0 0 6px; }
 .bracket-none { padding: 10px 12px; border-radius: 10px; font-size: 13px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07); }
 .bracket-reason { margin-top: 16px; }
