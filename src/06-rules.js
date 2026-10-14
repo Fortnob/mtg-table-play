@@ -2235,7 +2235,7 @@
       this._lastPut = null; this._lastSearched = null;
       this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
       this._exileUntil = null; this._exiledChosen = null;
-      this._chosenCard = null;
+      this._chosenCard = null; this._attachedAnyTo = null;
       this.passedInSuccession.clear();
       this.emit('sfx', 'resolve');
       this.emit('stack:resolve', item);
@@ -19182,8 +19182,10 @@
         /* A one-sided fight: it hits, nothing hits back. */
         case 'bite': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
-          const biter = objs[0];
-          if (!biter) { this.logEvent('rules', 'Nothing to deal the damage.'); break; }
+          // (Thorin, Mountain-king: "that creature deals damage equal to its power to up to one target creature" — biter reflexObject)
+          const biter = e.biter === 'reflexObject' ? this.obj((ctx.triggerData || {}).objectId) : objs[0];
+          if (e.biter && objs.length) objs.unshift(biter);
+          if (!biter || (e.biter && biter.zone !== 'battlefield')) { this.logEvent('rules', 'Nothing to deal the damage.'); break; }
           if (e.counterFirst && !this._doneHere('ctr')) this.addCounters(biter, e.counterFirst, 1);
           const amount = this.powerOf(biter) * (e.mult || 1);      // Punishing Punch: twice its power
           // Origin of Thor: "to each opponent"
@@ -20688,8 +20690,10 @@
             (!pay.exileSelf || !!(src && src.zone !== 'exile' && src.zone !== 'stack')) &&
             (!pay.exileGrave || this.zones[ctx.controller].graveyard.filter(c => c !== src && this._cardFitsWords(c, pay.exileGrave.filter)).length >= (pay.exileGrave.n || 1)) &&
             (!pay.energy || (me.energy || 0) >= pay.energy) &&
-            (!pay.tapUntapped || this._tapCostPool(ctx.controller, pay.tapUntapped, src, false).length >= (pay.tapUntapped.n || 1));
-          if (!able && (pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+            (!pay.tapUntapped || this._tapCostPool(ctx.controller, pay.tapUntapped, src, false).length >= (pay.tapUntapped.n || 1)) &&
+            // Timothar, Baron of Bats: "pay {1} and exile it" — not when the card that died has left the graveyard (exileTriggerCard)
+            (!pay.exileTriggerCard || ((c0) => !!(c0 && c0.zone === 'graveyard'))(this.obj((ctx.triggerData || {}).objectId)));
+          if (!able && (pay.exileTriggerCard || pay.forage || pay.evidence || pay.energy || pay.removeCounter || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")
@@ -20835,6 +20839,14 @@
           }
           if (pay.mana && !pay.discard) {
             if (!this.payMana(ctx.controller, pay.mana, { auto: true })) { this._spliceNext(e.otherwise); break; }
+            // (Timothar, Baron of Bats: "and exile it" — the card that died; "the exiled card" from here on)
+            if (pay.exileTriggerCard) {
+              const c1 = this.obj((ctx.triggerData || {}).objectId);
+              if (!c1 || c1.zone !== 'graveyard') { this._spliceNext(e.otherwise); break; }
+              this.moveObject(c1, 'exile');
+              this._lastExiled = c1.id;
+              this.logEvent('exile', `${c1.name} is exiled.`);
+            }
             this._spliceNext(e.then);
             break;
           }
@@ -23198,11 +23210,14 @@
           if (e.madeObject && !madeOne) break;
           // (Evie Frye: "When you discard a creature card this way" — of that kind)
           if (e.discardFilter && !this._cardFitsWords(this.obj(tossed), e.discardFilter)) break;
+          // Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way" — "that creature" is the host
+          const attachedTo = e.ifAttached ? ((this._attachedAnyTo || {}).n ? this._attachedAnyTo.host : null) : null;
+          if (e.ifAttached && !attachedTo) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
             effects: e.effects || [], auto: true, abilityText: rText, optional: false,
-            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}) });
+            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {}) });
           break;
         }
         case 'delayed': {
@@ -25112,6 +25127,42 @@
           if (total) this.logEvent('counters', `${me.name} removes ${total} counter${total === 1 ? '' : 's'}.`);
           break;
         }
+        /* Sensational Spider-Man: "you may remove up to three stun counters from among all permanents" — each counter
+           there is one thing to pick, up to three of them; how many came off is "removed this way" (removeCountersAmong) */
+        /* Timothar, Baron of Bats: the Bat's "sacrifice it and return the exiled card to the battlefield tapped" — the
+           card its making exiled, under the control of this ability's controller (linkedCard) */
+        case 'returnLinkedCard': {
+          const c = src && src.linkedCard && this.obj(src.linkedCard);
+          if (!c || c.zone !== 'exile') break;
+          this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          if (e.tapped && c.zone === 'battlefield') this._markTapped(c);
+          this.logEvent('rules', `${c.name} returns to the battlefield${e.tapped ? ' tapped' : ''}.`);
+          break;
+        }
+        case 'removeCountersAmong': {
+          this._lastRemovedCounters = 0;
+          const opts = [];
+          for (const o of this.battlefield) {
+            if (o.phasedOut) continue;
+            const k = Number((o.counters || {})[e.kind]) || 0;
+            for (let i = 0; i < k; i++) opts.push({ label: k > 1 ? `${o.name} (${e.kind} counter ${i + 1} of ${k})` : o.name, ids: [o.id], mine: o.controller === ctx.controller });
+          }
+          if (!opts.length) break;
+          const most = Math.min(e.max || 1, opts.length);
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeCountersAmong', kind: 'options', options: opts, min: 0, max: most, optional: true,
+            counterKind: e.kind, prompt: `${ctx.name ? ctx.name + ': ' : ''}remove up to ${most} ${e.kind} counter${most === 1 ? '' : 's'} from among all permanents.` }, 'rca');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          for (const i of ((got && got.picks) || []).slice(0, most)) {
+            const o = opts[i] && this.obj(opts[i].ids[0]);
+            if (!o || o.zone !== 'battlefield' || !((Number((o.counters || {})[e.kind]) || 0) > 0)) continue;
+            this.addCounters(o, e.kind, -1);
+            total++;
+          }
+          this._lastRemovedCounters = total;
+          if (total) this.logEvent('counters', `${me.name} removes ${total} ${e.kind} counter${total === 1 ? '' : 's'}.`);
+          break;
+        }
         // Lily Bowen, Raging Grandma: "remove all but one +1/+1 counter from it" — how many came off is "removed this way"
         case 'removeAllButCounters': {
           this._lastRemovedCounters = 0;
@@ -26325,6 +26376,21 @@
         }
         /* "Exile the top two cards of your library. Choose one of them." —
            the one chosen is what "that card" means from here on */
+        /* Illuna, Apex of Wishes: "Put that card onto the battlefield or into your hand." — the nonland permanent card
+           the exiling stopped at; its controller says which (battlefieldOrHand) */
+        case 'exileHitTo': {
+          const x = this.obj(((this._exileUntil || {}).hits || [])[0]);
+          if (!x || x.zone !== 'exile') break;
+          const opts = [{ label: `Put ${x.name} onto the battlefield`, to: 'battlefield' }, { label: `Put ${x.name} into your hand`, to: 'hand' }];
+          const got = this._choose({ playerId: ctx.controller, purpose: 'battlefieldOrHand', kind: 'options', options: opts, min: 1, max: 1,
+            targetId: x.id, prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${x.name} onto the battlefield or into your hand?` }, 'hitTo');
+          if (got === SUSPEND) return SUSPEND;
+          const to = (opts[(got && got.picks && got.picks[0]) || 0] || opts[0]).to;
+          if (to === 'battlefield') this.moveObject(x, 'battlefield', { controller: ctx.controller });
+          else this.moveObject(x, 'hand');
+          this.logEvent('rules', `${me.name} puts ${x.name} ${to === 'battlefield' ? 'onto the battlefield' : 'into their hand'}.`);
+          break;
+        }
         case 'chooseExiled': {
           const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []))
             .filter((id, i, a) => a.indexOf(id) === i && this.obj(id) && this.obj(id).zone === 'exile');
@@ -26915,6 +26981,8 @@
             if (hostO) hostO.attachments = (hostO.attachments || []).filter(y => y !== x.id).concat(x.id);
             moved.push(x.name);
           }
+          // (Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way" — reflexive ifAttached)
+          this._attachedAnyTo = { host: hostId, n: moved.length };
           if (moved.length) {
             this.logEvent('rules', `${moved.join(', ')} ${moved.length === 1 ? 'is' : 'are'} attached to ${hostName}.`);
             this.bumpBoard();
@@ -29622,6 +29690,8 @@
           this.combat.blockers.push(o.id);
         }
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
+        // Timothar, Baron of Bats: "return the exiled card" — the card the payment for this token exiled (linkExiled)
+        if (e.linkExiled && this._lastExiled) o.linkedCard = this._lastExiled;
         this.battlefield.push(o);
         /* "…create a token. It gains haste." — the token is what the next
            sentence is talking about. */

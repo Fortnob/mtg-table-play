@@ -1563,6 +1563,16 @@
       const i = (s.options || []).findIndex(o => o && o.unlock);
       return { picks: [i < 0 ? 0 : i] };
     },
+    /* Sensational Spider-Man: every counter taken off is a card; ours first, then theirs */
+    removeCountersAmong(s) {
+      const order = (s.options || []).map((o, i) => ({ i, mine: !!(o && o.mine) })).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
+      return { picks: order.slice(0, s.max).map(x => x.i) };
+    },
+    /* Illuna, Apex of Wishes: a permanent on the battlefield now is worth more than one in hand */
+    battlefieldOrHand(s) {
+      const i = (s.options || []).findIndex(o => o && o.to === 'battlefield');
+      return { picks: [i < 0 ? 0 : i] };
+    },
     /* Sleight of Mind, Mind Bend: the word its text uses most is the one worth changing */
     textFrom(s) {
       const i = (s.options || []).findIndex(o => o && o.present);

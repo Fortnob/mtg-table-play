@@ -1645,8 +1645,14 @@
     { re: /^Attach any number of Auras and Equipment you control to target permanent or player\.?$/i,
       make: () => ({ op: 'attachAnyTo', targets: [{ type: 'any', filter: 'permanent or player', zone: 'battlefield', anyOf: ['permanent'] }] }) },
     // Beatrix, Loyal General: "attach any number of Equipment you control to target creature you control" (attachAnyTo onlyEquipment)
-    { re: /^Attach any number of Equipment you control to (target creature you control)\.?$/i,
+    // (Thorin, Mountain-king: "attach any number of target Equipment you control to target creature you control" — picked as it resolves)
+    { re: /^Attach any number of (?:target )?Equipment you control to (target creature you control)\.?$/i,
       make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'attachAnyTo', onlyEquipment: true, targets: [sp] } : null; } },
+    /* Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way, that creature deals
+       damage equal to its power to up to one target creature." — a reflexive trigger, only if any was (ifAttached) */
+    { re: /^When one or more Equipment become attached to that creature this way, that creature deals damage equal to its power to up to one target creature\.?$/i,
+      make: (m) => ({ op: 'reflexive', ifAttached: true, text: m[0],
+        effects: [{ op: 'bite', biter: 'reflexObject', targets: [{ type: 'creature', upTo: true }], text: 'That creature deals damage equal to its power to up to one target creature.' }] }) },
     // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
     { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
       make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
@@ -2337,6 +2343,12 @@
     // Garnet, Princess of Alexandria: "you may remove a lore counter from each of any number of Sagas you control" (removeCountersChosen)
     { re: /^(?:You may )?remove an? ([a-z+\-0-9/]+) counter from each of any number of ([A-Z][a-z]+)s you control\.?$/i,
       make: (m) => ({ op: 'removeCountersChosen', kind: m[1].toLowerCase(), n: 1, what: m[2], who: 'you' }) },
+    // …and its Bat: "sacrifice it and return the exiled card to the battlefield tapped" (returnLinkedCard)
+    { re: /^Sacrifice (?:it|this token) and return the exiled card to the battlefield( tapped)?\.?$/i,
+      make: (m) => [{ op: 'sacrificeSelf' }, Object.assign({ op: 'returnLinkedCard' }, m[1] ? { tapped: true } : {})] },
+    // Sensational Spider-Man: "Then you may remove up to three stun counters from among all permanents." — counted as "removed this way"
+    { re: /^(?:Then )?you may remove up to (one|two|three|four|five|\d+) ([a-z+\-0-9/]+) counters from among all permanents\.?$/i,
+      make: (m) => ({ op: 'removeCountersAmong', kind: m[2].toLowerCase(), max: num(m[1]) }) },
     // Sin, Unending Cataclysm: "remove all counters from any number of artifacts, creatures, and enchantments" — anybody's
     { re: /^Remove all counters from any number of artifacts, creatures, and enchantments\.?$/i,
       make: () => ({ op: 'removeCountersChosen', all: true, whatAny: ['artifact', 'creature', 'enchantment'], who: 'all',
@@ -4253,6 +4265,8 @@
       } },
     { re: /^Exile cards from the top of your library until you exile an? ((?:(?:non)?(?:legendary|artifact|creature|enchantment|instant|sorcery|planeswalker|permanent|land)(?:,? or |, | ))+)card( with lesser mana value)?\.?$/i,
       make: (m) => Object.assign({ op: 'exileTop', who: 'you', untilWords: m[1].trim().replace(/,? or |, /g, ' or ').toLowerCase() }, m[2] ? { lesserMv: true } : {}) },
+    // Illuna, Apex of Wishes: "Put that card onto the battlefield or into your hand." — the card the exiling stopped at (exileHitTo)
+    { re: /^Put that card onto the battlefield or into your hand\.?$/i, make: () => ({ op: 'exileHitTo' }) },
     // Gríma, Saruman's Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order." (exileUntil)
     { re: /^Then (?:that player puts|put) the exiled cards that weren'?t cast this way on the bottom of (?:their|that|your) library in a random order\.?$/i,
       make: () => ({ op: 'restToBottom', random: true }) },
@@ -10552,6 +10566,8 @@
      A cost the card asks you to pay ("discard a card", "sacrifice a creature",
      "pay 3 life") becomes a real cost, so Y only happens if X actually did. */
   const COST_PHRASES = [
+    // Timothar, Baron of Bats: "you may pay {1} and exile it. If you do, …" — the card that died, in the price (exileTriggerCard)
+    { re: /^pay ((?:\{[0-9WUBRGC]\})+) and exile it$/i, make: (m) => ({ mana: m[1], exileTriggerCard: true }) },
     { re: /^discard (a|one|two|three|\d+) ([a-z ]*?)cards?$/i,
       make: (m) => ({ discard: num(m[1]), filter: (m[2] || '').trim() || 'card' }) },
     { re: /^sacrifice (a|an|one|two|three|\d+) ([-a-z ]+?)$/i,
@@ -11397,6 +11413,12 @@
         }
         const thenPart = parseSentenceList(splitSentences(thenText));
         i += more;
+        /* Timothar, Baron of Bats: "create a … Bat … token … It gains "… return the exiled card …"" — the token remembers
+           the card the price exiled (linkExiled) */
+        if (cost && cost.exileTriggerCard) thenPart.effects.forEach((x, k) => {
+          const g0 = thenPart.effects[k + 1];
+          if (x && x.op === 'createToken' && g0 && g0.op === 'grantAbility' && /\bthe exiled card\b/i.test(g0.ability || '')) x.linkExiled = true;
+        });
         if (cost) {
           effects.push({ op: 'mayPay', pay: cost, then: thenPart.effects, text: (thenMay && may[0] === s ? 'You may ' + thenMay[2] + '.' : s) + ' ' + next });
           if (!thenPart.auto) auto = false;
