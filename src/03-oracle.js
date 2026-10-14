@@ -1470,6 +1470,9 @@
         }
         return out;
       } },
+    // The Ringhart Crest: "Spend this mana only to cast a creature spell of the chosen type or a legendary creature spell." (orWords)
+    { re: /^Spend this mana only to cast a creature spell of the chosen type or an? (legendary|artifact|colorless|multicolored) creature spell\.?$/i,
+      make: (m) => ({ op: 'spendOnly', words: 'creature spell', chosenType: true, orWords: m[1].toLowerCase() + ' creature spell' }) },
     // Freya Crescent: "Spend this mana only to cast an Equipment spell or activate an equip ability."
     { re: /^Spend this mana only to cast an? (Equipment|artifact) spell or activate an equip ability\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
@@ -2596,6 +2599,10 @@
     { re: /^Untap up to (one|two|three|four|five|six|seven|\d+) target ([a-z][a-z '-]*?)s\.?$/i,
       make: (m) => ({ op: 'untap', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2]), { upTo: true })) }) },
+    // Raph & Leo, Sibling Rivals: "untap one or two target attacking creatures" — the second one optional
+    { re: /^Untap one or two target ([a-z][a-z '-]*?)s\.?$/i,
+      make: (m) => { const one = () => targetSpec('target ' + m[1]); return one() && !one().unknown
+        ? { op: 'untap', targets: [Object.assign(one(), { distinct: true }), Object.assign(one(), { upTo: true, distinct: true })] } : null; } },
     { re: /^Return up to (one|two|three|\d+) target ([a-z][a-z '-]*?) cards? from your graveyard to your hand\.?$/i,
       make: (m) => ({ op: 'regrowth', targets: Array.from({ length: num(m[1]) },
         () => Object.assign(targetSpec(m[2], 'graveyard'), { upTo: true, controller: 'you' })) }) },
@@ -5780,6 +5787,12 @@
        Cryptic Coat: "Cloak the top card of your library" (cloak) */
     { re: /^Cloak the top card of your library\.?$/i, make: () => ({ op: 'cloak', from: 'top' }) },
     { re: /^Cloak a card from your hand\.?$/i, make: () => ({ op: 'cloak', from: 'hand' }) },
+    // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — the player hit's card, under your control (libOf)
+    { re: /^Cloak the top card of that player'?s library\.?$/i, make: () => ({ op: 'manifest', cloak: true, libOf: 'triggerPlayer' }) },
+    /* Etrata, Deadly Fugitive: "Turn this creature face up. If you can't, exile it, then you may cast the exiled card
+       without paying its mana cost." — an instant or sorcery card can't be (turnSelfFaceUp, faceUpFailedCast) */
+    { re: /^Turn (?:this creature|CARDNAME) face up\.?$/i, make: () => ({ op: 'turnSelfFaceUp' }) },
+    { re: /^If you can'?t, exile it, then you may cast the exiled card without paying its mana cost\.?$/i, make: () => ({ op: 'faceUpFailedCast' }) },
     { re: /^(?:That creature'?s controller|Its controller) sacrifices it\.?$/i, make: () => ({ op: 'sacAttached' }) },
     // (Palinchron, Time Spiral: "untap up to seven lands", "You untap up to six lands")
     { re: /^(?:You )?[Uu]ntap (up to )?(one|two|three|four|five|six|seven|eight|nine|ten|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/,
@@ -13080,6 +13093,9 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to one or more players(?:,| )', 'i'),
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     // Edric, Spymaster of Trest; Gix: "Whenever a creature deals combat damage to one of your opponents," — anyone's creature
+    // Etrata, Deadly Fugitive: "Whenever an Assassin you control deals combat damage to an opponent," (hitYourOpponent)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' deals? combat damage to an opponent(?:,| )', 'i'),
+      event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
     /* Nelly Borca, Impulsive Accuser: "Whenever one or more creatures an opponent controls deal combat damage to one or
@@ -17310,6 +17326,12 @@
     { re: /^((?:Artifacts|Creatures|Lands|Permanents|Nonland permanents|Nonbasic lands|Snow lands)(?:,? (?:and )?(?:artifacts|creatures|lands|nonbasic lands))*) your opponents control enter (?:the battlefield )?tapped\.?$/i,
       make: (m) => ({ op: 'replace', id: 'etbTapOpp', event: 'enters', who: 'opponents', how: 'tapped',
         whatAny: m[1].toLowerCase().replace(/^nonland permanents$/, 'nonland').split(/,? and |, /).filter(Boolean).map(w => w.replace(/s$/, '')) }) },
+    /* Archelos, Lagoon Mystic: "As long as Archelos is tapped, other permanents enter tapped." / "As long as Archelos
+       is untapped, other permanents enter untapped." — everyone's, not itself (whileSelfTapped; untappedAll is the
+       entering permanent's controller's pick over another "enters tapped", and undoes "put onto the battlefield tapped") */
+    { re: /^As long as CARDNAME is (tapped|untapped), other permanents enter (?:the battlefield )?(tapped|untapped)\.?$/i,
+      make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'replace', id: 'etbAsSelf' + m[1].toLowerCase(), event: 'enters', who: 'all',
+        how: /^un/i.test(m[2]) ? 'untappedAll' : 'tapped', whatAny: ['permanent'], notSelf: true, whileSelfTapped: !/^un/i.test(m[1]) } : null) },
     // Possessed Skaab: "If this creature would die, exile it instead."
     { re: /^If (?:CARDNAME|this creature) would die, exile it instead\.?$/i,
       make: () => ({ op: 'replace', id: 'selfDieExile', event: 'zoneChange', who: 'all', self: true, fromZone: 'battlefield', toZone: 'graveyard', how: 'toZone', zone: 'exile' }) },
@@ -19400,8 +19422,10 @@
   /* Yedora, Grave Gardener: "It's a Forest land. (It has no other types or abilities.)" — face down, a land of
      that basic type and nothing more; its {T}: Add {G} comes with the type (CR 305.6) */
   const FACE_DOWN_LANDS = {};
-  function faceDownAnalysis(land) {
-    if (!land) return analyze(FACE_DOWN_CARD);
+  // a cloaked card (CR 701.58a): the same 2/2, with ward {2}
+  const CLOAKED_CARD = Object.assign({}, FACE_DOWN_CARD, { id: '__cloaked__', oracle_id: '__cloaked__', oracle_text: 'Ward {2}', keywords: ['Ward'] });
+  function faceDownAnalysis(land, cloaked) {
+    if (!land) return analyze(cloaked ? CLOAKED_CARD : FACE_DOWN_CARD);
     const card = FACE_DOWN_LANDS[land] || (FACE_DOWN_LANDS[land] = Object.assign({}, FACE_DOWN_CARD,
       { id: '__facedown_' + land.toLowerCase() + '__', oracle_id: '__facedown_' + land.toLowerCase() + '__', type_line: 'Land — ' + land, power: undefined, toughness: undefined }));
     return analyze(card);

@@ -114,7 +114,7 @@
     analysis() {
       // face down, it is a 2/2 with no text — and that is what it is to
       // every rule that asks (CR 708.2)
-      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand) : O.analyze(this.textCard, this.face);
+      const base = this.faceDown ? O.faceDownAnalysis(this.faceDownLand, this.cloaked) : O.analyze(this.textCard, this.face);
       /* On the battlefield a permanent can be more than its printed text:
          an ability handed to it in quotation marks, a god that is not a
          creature while your devotion is short, a land Blood Moon has made a
@@ -9872,6 +9872,8 @@
       if (!spell) return false;
       // "Spend this mana only to activate abilities."
       if (spendOnly.noSpells) return false;
+      // The Ringhart Crest: "or a legendary creature spell" — either will do (orWords)
+      if (spendOnly.orWords && this._cardFitsWords(spell, spendOnly.orWords)) return true;
       // (Helga, Skittish Seer: "or creature spells with {X} in their mana costs" — spendBigOrX)
       // (Klauth, Unrivaled Ancient: "only to cast spells" — any spell)
       if (spendOnly.words && spendOnly.words !== 'spell' && !this._cardFitsWords(spell, spendOnly.words) &&
@@ -11494,6 +11496,8 @@
       if (ef.onYours && ev.controller !== src.controller) return false;
       // Benevolent Hydra: "another creature"
       if (ef.notSelf && ev.object && ev.object.id === src.id) return false;
+      // Archelos, Lagoon Mystic: "As long as Archelos is tapped (untapped)"
+      if (ef.whileSelfTapped != null && !!src.tapped !== ef.whileSelfTapped) return false;
       // Mowu, Loyal Companion: only counters on this one (selfCountersPlus)
       if (ef.selfOnly && !(ev.object && ev.object.id === src.id)) return false;
       // Gond Gate: "Gates you control" — the words, as a card reads them
@@ -11606,6 +11610,8 @@
         case 'skip': ev.cancelled = true; break;
         case 'tapped': ev.tapped = true; break;
         case 'untapped': ev.untapped = true; break;
+        // Archelos, Lagoon Mystic: untapped, whatever else would have it enter tapped
+        case 'untappedAll': ev.untapped = true; ev.untapAll = true; break;
         // Angel of Suffering: the damage is prevented, and its controller mills (twice) that many
         case 'millInstead': {
           if (!((ev.n || 0) > 0)) break;
@@ -12172,7 +12178,7 @@
 
     /** What a permanent printed, and was handed in quotation marks, before the layers. */
     _baseAnalysis(o) {
-      const base = o.faceDown ? O.faceDownAnalysis(o.faceDownLand) : O.analyze(o.textCard, o.face);
+      const base = o.faceDown ? O.faceDownAnalysis(o.faceDownLand, o.cloaked) : O.analyze(o.textCard, o.face);
       if (!base || o.zone !== 'battlefield') return base;
       return this._dynamicAnalysis(o, base);
     }
@@ -14508,7 +14514,7 @@
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
-        o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
+        o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
@@ -14559,9 +14565,13 @@
           // Farseek, Cultivate: put onto the battlefield tapped by what put it there (no paying to untap it)
           o._effectTapped = !!(opts && opts.tapped);
           // Spelunking: "Lands you control enter untapped"
-          o._keepUntapped = !!entEv.untapped && !o._forcedTapped;
+          // (Archelos, Lagoon Mystic: its controller picks untapped over another "enters tapped" — untapAll)
+          o._keepUntapped = !!entEv.untapped && (!o._forcedTapped || !!entEv.untapAll);
           if (o._keepUntapped) o.tapped = false;
-          if (o._forcedTapped) o.tapped = true;
+          if (o._forcedTapped && !o._keepUntapped) o.tapped = true;
+          /* Archelos: "put onto the battlefield tapped" by an effect enters untapped too — the effect taps it once
+             moved, so it is untapped again once that effect is done (_untapGuard, in _runEffect) */
+          if (entEv.untapAll) (this._untapGuard = this._untapGuard || []).push(o.id);
           if (a.isPlaneswalker) {
             o.counters.loyalty = parseInt(a.loyalty, 10) || 0;
             // Doubling Season: a planeswalker's loyalty counters are put on it as it enters (CR 306.5b)
@@ -15954,6 +15964,17 @@
     }
 
     _runEffect(e, ctx) {
+      this._effDepth = (this._effDepth || 0) + 1;
+      try { return this._runEffectBody(e, ctx); } finally {
+        this._effDepth--;
+        // Archelos, Lagoon Mystic: what entered untapped stays so, though the effect that put it there tapped it
+        if (!this._effDepth && (this._untapGuard || []).length) {
+          for (const id of this._untapGuard) { const x = this.obj(id); if (x && x.zone === 'battlefield' && x.tapped && x._keepUntapped) x.tapped = false; }
+          this._untapGuard = [];
+        }
+      }
+    }
+    _runEffectBody(e, ctx) {
       // countered by ward as it resolved: nothing more of it happens (_wardOnResolve)
       if (ctx.wardCountered || (this.resolving && this.resolving.ctx && this.resolving.ctx.wardCountered)) return null;
       const me = this.player(ctx.controller);
@@ -27895,14 +27916,48 @@
         /* Reality Shift: the top card of a library, face down, as a 2/2 */
         case 'manifest': {
           const who = e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
-          const top = this.zones[who.id].library[0];
+          // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — theirs, under your control (libOf)
+          const libP = e.libOf === 'triggerPlayer' ? triggerPlayer() : who;
+          if (!libP) break;
+          const top = this.zones[libP.id].library[0];
           if (!top) break;
-          this.zones[who.id].library.shift();
+          this.zones[libP.id].library.shift();
           top.zone = 'library';
           this._manifestCard(top, who.id);
+          // Cloak (CR 701.58a): ward {2} while it is face down
+          if (e.cloak && top.zone === 'battlefield') { top.cloaked = true; top._chr = null; }
           // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
           this._lastPut = top.id;
-          this.logEvent('rules', `${who.name} manifests the top card of their library.`);
+          this.logEvent('rules', `${who.name} ${e.cloak ? 'cloaks' : 'manifests'} the top card of ${libP === who ? 'their' : libP.name + "'s"} library.`);
+          break;
+        }
+        /* Etrata, Deadly Fugitive: "Turn this creature face up. If you can't, exile it, then you may cast the exiled card
+           without paying its mana cost." — an instant or sorcery card stays face down, revealed (and so does one face
+           up already, which can't be turned face up); then it is exiled and may be cast */
+        case 'turnSelfFaceUp': {
+          this._faceUpFailed = false;
+          if (!src || src.zone !== 'battlefield') break;
+          const real = src.faceDown ? ((src.trueAnalysis ? src.trueAnalysis() : null) || {}) : null;
+          if (!real || real.isInstant || real.isSorcery) {
+            this._faceUpFailed = true;
+            if (real) this.logEvent('rules', `${me.name} reveals ${src.card.name}, which can't be turned face up.`);
+            break;
+          }
+          src.faceDown = false; src.faceDownLand = null; src.cloaked = false; src._chr = null;
+          this.logEvent('rules', `${me.name} turns ${src.name} face up.`);
+          this.emit('sfx', 'transform');
+          this._fire('turnedFaceUp', ctx.controller, { object: src, source: src });
+          this.bumpBoard();
+          break;
+        }
+        case 'faceUpFailedCast': {
+          if (!this._faceUpFailed || !src || src.zone !== 'battlefield') break;
+          this._faceUpFailed = false;
+          this.moveObject(src, 'exile');
+          if (src.zone !== 'exile') break;
+          this.logEvent('exile', `${me.name} exiles ${src.name}.`);
+          this._lastExiled = src.id; this._lastExiledList = [src.id];
+          this._spliceNext([{ op: 'castFree', text: 'You may cast the exiled card without paying its mana cost.' }]);
           break;
         }
         /* Cloak (CR 701.58): manifested, with ward {2}. Cryptic Coat: "Cloak the top card of your library";
