@@ -30214,4 +30214,39 @@ module.exports = (test) => {
     M.nextTurn('B');
     t.no(g._cantAttackYou(bearB, 'A'), 'The Second Doctor: only during that next turn');
   });
+
+  test('Commanders: Joshua, Phoenix\'s Dominant — loot on entering; becomes Phoenix: 2 to each opponent twice, then creatures back and Joshua again', (mk, t) => {
+    t.auto("Joshua, Phoenix's Dominant // Phoenix, Warden of Fire");
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    const name = "Joshua, Phoenix's Dominant // Phoenix, Warden of Fire";
+    const jo = M.bf('A', name);
+    const giant = M.grave('A', 'Hill Giant');
+    const bear = M.grave('A', 'Grizzly Bears');
+    const wurm = M.grave('A', 'Craw Wurm');
+    M.nextTurn('A');
+    // {3}{R}{W}, {T}: exile it, back transformed — Phoenix, chapter I
+    M.mana('A', '3RW');
+    M.activate('A', jo, 0);
+    const ph = M.bfOf('A').find(o => o.name === name || /Phoenix/.test(o.name));
+    t.ok(ph && ph.face === 1, 'Joshua: back as Phoenix, Warden of Fire');
+    t.eq(M.life('B'), 18, 'Phoenix: chapter I, 2 to B');
+    t.eq(M.life('C'), 18, 'Phoenix: and to C');
+    t.eq(M.life('A'), 24, 'Phoenix: lifelink');
+    M.nextTurn('A');
+    t.eq(M.life('B'), 16, 'Phoenix: chapter II');
+    // chapter III: up to 6 total mana value — the Wurm alone, or the Giant and the Bears
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [giant.id, bear.id] }; });
+    M.answer('pickCard', () => ({ cardIds: [] }));
+    M.nextTurn('A');
+    t.ok(asked && /any number of creature cards with total mana value 6 or less/.test(asked.prompt), 'Phoenix: asked which to return');
+    t.ok(asked && (asked.constraints || []).some(c => c.kind === 'sum' && c.max === 6), 'Phoenix: held to a total of 6');
+    t.zone(giant, 'battlefield', 'Phoenix: Hill Giant returned');
+    t.zone(bear, 'battlefield', 'Phoenix: Grizzly Bears returned');
+    t.zone(wurm, 'graveyard', 'Phoenix: Craw Wurm stays');
+    const back = M.bfOf('A').find(o => (o.card || {}).name === name);
+    t.ok(back && !back.face, 'Phoenix: returned front face up, Joshua');
+    t.eq(M.life('B'), 16, 'Phoenix: chapter III deals nothing');
+  });
 };

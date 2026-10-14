@@ -4653,6 +4653,10 @@
        or less from your graveyard to the battlefield." Chosen, not targeted. */
     { re: /^Return up to (two|three|four) ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: num(m[1]), what: m[2].toLowerCase(), totalMv: +m[3] }) },
+    /* Phoenix, Warden of Fire: "Return any number of target creature cards with total mana value 6 or less from your
+       graveyard to the battlefield." — picked as it resolves, as "any number of target" is here (anyNumber) */
+    { re: /^Return any number of target ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimateChosen', n: 'any', what: m[1].toLowerCase(), totalMv: +m[2] }) },
     /* "Put target creature on the top or bottom of its owner's library":
        the one who resolves it chooses; "its owner puts it on their choice
        of the top or bottom" is the owner's choice */

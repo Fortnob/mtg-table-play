@@ -17289,9 +17289,12 @@
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._matchesCategory(c, e.what) &&
             (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv));
           if (!pool.length) break;
-          const got = this._choose({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
-            items: this._chooseItems(pool), min: 0, max: Math.min(n(e.n) || 1, pool.length),
-            prompt: `Return up to ${n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') + ' to the battlefield.' }, 'pick');
+          // (Phoenix, Warden of Fire: "any number of" — n 'any'; the total mana value held to as they are picked)
+          const anyR = e.n === 'any';
+          const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: 0, max: anyR ? pool.length : Math.min(n(e.n) || 1, pool.length),
+            prompt: `Return ${anyR ? 'any number of' : 'up to ' + n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') + ' to the battlefield.' },
+            e.totalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'mana value' }] } : {}), 'pick');
           if (got === SUSPEND) return SUSPEND;
           let total = 0;
           for (const id of (got && got.picks) || []) {
