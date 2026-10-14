@@ -1169,6 +1169,12 @@
       this.touch();
     }
 
+    /** Skullbriar, the Walking Grave: does this card keep its counters as it moves (keepCounters)? */
+    _keepsCounters(o, from) {
+      const a = from === 'battlefield' ? o.analysis() : (o.trueAnalysis ? o.trueAnalysis() : o.analysis());
+      return !!a && (a.abilities || []).some(ab => ab.kind === 'static' && (ab.effects || []).some(e => e && e.op === 'keepCounters'));
+    }
+
     _untapStep() {
       const ap = this.activePlayer;
       let n = 0;
@@ -12922,6 +12928,8 @@
         }
         case 'selfUntapped': return !!src && !src.tapped;
         case 'selfTapped': return !!src && !!src.tapped;
+        // Shirei, Shizo's Caretaker: "if Shirei is still on the battlefield" (with boundSelf, the same object)
+        case 'selfOnBattlefield': return !!src && src.zone === 'battlefield';
         // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — this object, since it last entered (marked in _evDamage)
         case 'selfNoDamageYet': return !!src && !src._dealtDamage;
         case 'selfAttacking': return !!src && !!src.attacking;
@@ -14486,6 +14494,10 @@
       const vanishes = o.isToken && from === 'battlefield' && toZone !== 'battlefield';
       const comesBack = from === 'battlefield' && toZone === 'graveyard' && !vanishes &&
         (o.effects || []).find(e => e.returnOnDeath && (e.retBy == null || e.retBy === o.owner));
+      /* Skullbriar, the Walking Grave: "Counters remain on Skullbriar as it moves to any zone other than a player's hand
+         or library" — its own words, wherever it is (not face down, nor once it has lost its abilities there) */
+      const keptCounters = toZone !== 'battlefield' && toZone !== 'hand' && toZone !== 'library' && !o.isToken && !o.faceDown &&
+        Object.keys(o.counters || {}).length && this._keepsCounters(o, from) ? Object.assign({}, o.counters) : null;
       if (toZone !== 'battlefield') {
         if (!opts.fromStack) o.wasCast = null;
         if (toZone !== 'stack' && from === 'battlefield' && o.card.card_faces && o.card.layout !== 'split') { o.face = 0; o.flipped = false; }
@@ -14510,7 +14522,7 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
-        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false;
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = keptCounters || {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;

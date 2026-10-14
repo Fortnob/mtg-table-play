@@ -6421,6 +6421,11 @@
     { re: /^At the beginning of your next end step, CARDNAME deals (\d+) damage to each opponent for each of those cards that are still exiled\.?$/,
       make: (m) => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', subject: 'self', heldExiled: true,
         name: 'Damage for each card still exiled', effects: [{ op: 'damage', each: 'opponent', n: { stillExiled: true, mult: +m[1] } }] }) },
+    /* Shirei, Shizo's Caretaker: "return that card to the battlefield at the beginning of the next end step if Shirei
+       is still on the battlefield" — asked of the same Shirei as the delayed trigger resolves (boundSelf) */
+    { re: /^Return that card to the battlefield at the beginning of the next end step if CARDNAME is still on the battlefield\.?$/i,
+      make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
+        effects: [{ op: 'ifCond', cond: { kind: 'selfOnBattlefield' }, boundSelf: true, then: [{ op: 'returnThat', yours: true }] }] }) },
     /* (Daretti's emblem: "return that card to the battlefield at the
        beginning of the next end step" — with nobody named, under your control) */
     { re: /^Return (it|that (?:card|creature|permanent)) to the battlefield( tapped)?( under (?:its owner'?s|your) control)?( with an? ([+\-0-9/a-z]+) counter on it)? at the beginning of the next end step\.?$/i,
@@ -9789,10 +9794,12 @@
        now, as this resolves, paying its mana cost */
     /* (Tinybones, the Pickpocket: "cast target nonland permanent card from that player's graveyard, and
        mana of any type can be spent to cast that spell" — the player it hit, any mana: anyMana) */
-    { re: /^(You may )?cast target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|that player'?s) graveyard(, and mana of any type can be spent to cast that spell)?\.(?: If that (?:spell|card) would be put into (?:your|a) graveyard,? exile it instead\.)?$/i,
+    { re: /^(You may )?cast target ([a-z ,]+?) card(?: with mana value (\d+) or less)? from (your|that player'?s|a) graveyard(, and mana of any type can be spent to cast that spell)?\.(?: If that (?:spell|card) would be put into (?:your|a) graveyard,? exile it instead\.)?$/i,
       make: (m) => {
         const words = m[2].replace(/,? or /g, ' or ').replace(/, /g, ' or ').toLowerCase();
-        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard', controller: /^your/i.test(m[4]) ? 'you' : 'triggerPlayer' }, m[3] ? { maxMv: +m[3] } : {});
+        // (Quistis Trepe: "from a graveyard" — anyone's)
+        const spec = Object.assign(targetSpec('target ' + words + ' card', 'graveyard'), { zone: 'graveyard' },
+          /^a$/i.test(m[4]) ? {} : { controller: /^your/i.test(m[4]) ? 'you' : 'triggerPlayer' }, m[3] ? { maxMv: +m[3] } : {});
         if (spec.unknown) return null;
         // (a trigger's "you may" is asked as it triggers: what is left is a must)
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
@@ -13044,8 +13051,9 @@
       } },
     /* Nether Traitor, Bridge from Below: "is put into your graveyard / an
        opponent's graveyard from the battlefield" — dying, with whose it was */
+    // (Shirei, Shizo's Caretaker: "your graveyard" is whose card it is — one you own that dies under another's control too: owned)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
-      event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) f.who = /your/i.test(m[2]) ? 'you' : 'opponent'; return f; } },
+      event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) { if (/your/i.test(m[2])) f.owned = true; else f.notOwned = true; } return f; } },
     // Suki, Courageous Rescuer: "Whenever another permanent you control leaves the battlefield during your turn" (leavesYourTurn)
     { re: new RegExp('^Whenever ' + SUBJ + ' leaves the battlefield during your turn,? ', 'i'), event: 'permLeaves', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Jenova, Ancient Calamity, Vogar: "Whenever a Mutant you control dies during your turn" (diesYourTurn)
@@ -18530,6 +18538,8 @@
       // Kruphix, Horizon Stone, Omnath, Ozai: "If you would lose unspent mana, that mana becomes colorless (red, black) instead."
       { re: /^If you would lose unspent mana, that mana becomes (colorless|white|blue|black|red|green) instead\.?$/i,
         make: (m) => ({ op: 'manaBecomes', color: { colorless: 'C', white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },
+      // Skullbriar, the Walking Grave: "Counters remain on Skullbriar as it moves to any zone other than a player's hand or library." (keepCounters)
+      { re: /^Counters remain on CARDNAME as it moves to any zone other than a player'?s hand or library\.?$/i, make: () => ({ op: 'keepCounters' }), auto: true },
       // Yurlok of Scorch Thrash: "A player losing unspent mana causes that player to lose that much life." (manaBurn)
       { re: /^A player losing unspent mana causes that player to lose that much life\.?$/i, make: () => ({ op: 'manaBurn' }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
