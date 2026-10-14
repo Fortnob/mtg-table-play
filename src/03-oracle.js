@@ -2870,10 +2870,12 @@
         return emblemText(text) ? Object.assign({ op: 'getEmblem', emblemText: text }, /^You may play cards exiled with /i.test(text) ? { linkSource: true } : {}) : null;
       } },
     // Ob Nixilis Reignited: "Target opponent gets an emblem with '…'"; Chandra, Awakened Inferno: "Each opponent gets …"
-    { re: /^(Target opponent|Target player|Each opponent) gets an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
+    // (Chandra, Roaring Flame: "Each player dealt damage this way gets an emblem with …" — dealtThisWay)
+    { re: /^(Target opponent|Target player|Each opponent|Each player dealt damage this way) gets an emblem with ("[^"]+"(?:,? and "[^"]+")*)\.?$/i,
       make: (m) => {
         const text = [...m[2].matchAll(/"([^"]+)"/g)].map(x => x[1].trim()).join('\n');
         if (!emblemText(text)) return null;
+        if (/this way/i.test(m[1])) return { op: 'getEmblem', emblemText: text, who: 'dealtThisWay' };
         const each = /^Each/i.test(m[1]);
         return Object.assign({ op: 'getEmblem', emblemText: text, who: each ? 'opponents' : 'target' },
           each ? {} : { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] });
@@ -3670,6 +3672,8 @@
     // Pantlaza: "discover X, where X is that creature's toughness"
     // (Dinosaur Egg: "When this creature dies, you may discover X, where X is its toughness")
     { re: /^Discover X, where X is (?:that creature'?s|its) (power|toughness)\.?$/i, make: (m) => ({ op: 'discover', n: { ofTrigger: m[1].toLowerCase() } }) },
+    // Aloy, Savior of Meridian: "discover X, where X is the greatest power among them" — the attackers in the lot (batchMaxPower)
+    { re: /^Discover X, where X is the greatest power among them\.?$/i, make: () => ({ op: 'discover', n: { batchMaxPower: true } }) },
     { re: /^[Ee]arthbend (one|two|three|four|five|six|\d+|X)\.?$/,
       make: (m) => ({ op: 'earthbend', n: num(m[1]), targets: [{ type: 'land', controller: 'you', filter: 'land you control' }] }) },
     // (Aang, Airbending Master: "airbend another target creature" — airbendAnother)
@@ -5646,7 +5650,7 @@
     // Elesh Norn: "Exile CARDNAME, then return it to the battlefield transformed under its owner's control."
     // (Ajani, Nacatl Pariah; Sorin of House Markov: "return him … under his owner's control")
     // (Jecht, Reluctant Guardian: "you may exile it, then return it …" — "it" is Jecht, the one dealing the damage)
-    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent|it), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
+    { re: /^Exile (?:CARDNAME|this creature|this artifact|this enchantment|this permanent|it|him|her), then return (?:it|him|her) to the battlefield transformed under ((?:its|his|her) owner'?s|your) control\.?$/i,
       make: (m) => ({ op: 'blinkTransformed', ownerControl: /owner/i.test(m[1]) }) },
     // Sheoldred // The True Scriptures, Elesh Norn // The Argent Etchings: "Exile this Saga, then return it to the battlefield (front face up)." (sagaFrontFace)
     { re: /^Exile this Saga, then return it to the battlefield(?: \(?front face up\)?)?\.?$/i, make: () => ({ op: 'blinkTransformed', front: true, ownerControl: true }) },
@@ -7242,9 +7246,10 @@
     { re: /^(?:Then )?[Dd]raw half X cards, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'draw', n: { half: 'X', up: /up/i.test(m[1]) } }) },
     // Unstoppable Slasher: "they lose half their life, rounded up"
-    { re: /^(They|That player|Each opponent|Target player|Target opponent) loses? half (?:their|his or her) life, rounded (up|down)\.?$/i,
+    // (Alpharael, Stonechosen: "defending player loses half their life, rounded up")
+    { re: /^(They|That player|Each opponent|Target player|Target opponent|Defending player) loses? half (?:their|his or her) life, rounded (up|down)\.?$/i,
       make: (m) => {
-        const who = /^each/i.test(m[1]) ? 'opponents' : /^target/i.test(m[1]) ? 'target' : 'triggerPlayer';
+        const who = /^each/i.test(m[1]) ? 'opponents' : /^target/i.test(m[1]) ? 'target' : /^defending/i.test(m[1]) ? 'defending' : 'triggerPlayer';
         return Object.assign({ op: 'loseLife', who, n: { halfLife: who, up: /up/i.test(m[2]) } },
           who === 'target' ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {});
       } },
@@ -12038,20 +12043,21 @@
     // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
     // (The Ancient One: "Descend 8 \u2014 \u2026" \u2014 a number after the word)
     // (Captain America, First Avenger: "... Catch — At the beginning of combat …" — a label that starts with an ellipsis)
-    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    const m = String(line).match(/^((?:(?:\.\.\.|\u2026) ?)?(?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.,' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
-    if (/^[IVX]+$/.test(m[1].trim()) || NOT_ABILITY_WORDS.has(word)) return line;
+    if (/^[IVX]+(?:,\s*[IVX]+)*$/.test(m[1].trim()) || NOT_ABILITY_WORDS.has(word)) return line;
     /* A flavour word ("Avoidance \u2014", "Siege Monster \u2014") is an ability word
        in all but name: any short label in front of a trigger or a static
        rule goes, unless it is one of the keywords above. */
     // (Martha Jones: "Woman Who Walked the Earth —", five words: labelWords)
-    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= 5 &&
+    const flavour = !NOT_ABILITY_WORDS.has(word) && word.split(/\s+/).length <= (/,/.test(word) ? 6 : 5) &&
       !KEYWORD_PATTERNS.some(re => re.test(m[1].trim())) &&
       // (Diamond Weapon: "Immune — Prevent all combat damage …")
       // (Alisaie Leveilleur: "Dualcast — The second spell you cast each turn costs {2} less")
       // (The Fourth Doctor: "Would You Like A...? — Once each turn, …")
+    // (Aloy, Savior of Meridian: "In You, All Things Are Possible — Whenever …" — a comma, and six words, in the label)
       // (Banon, the Returners' Leader: "Pray — Once during each of your turns, …"; Wolverine, Best There Is: "Unrivaled Lethality — Double all damage …")
       (/^(?:When|Whenever|At the|As long as|If |Once during |Once each turn, |\{|Each |Creatures |You |This |Other |CARDNAME|Target |Your |Prevent |Enchanted |Equipped |All |Players |Spells |Lands |Permanents |Commanders |Double |The (?:first|second|third|next) |[A-Z][a-z]+s you control |[A-Z][a-z]+(?: (?:and|or) [a-z]+)? spells |[A-Z][a-z]+s and [a-z]+s (?:you|your opponents) control )/.test(m[2].trim()) ||
         // M.O.D.O.K.: "Mental Organism — Pay 3 life: …" — an activated ability whose cost starts with a word
@@ -12542,6 +12548,8 @@
     [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
+    // Chandra, Fire of Kaladesh: "Chandra has dealt 3 or more damage this turn" (selfDealtDamage)
+    [/^(?:this creature|CARDNAME) has dealt (\w+) or more damage this turn$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'selfDealtDamage', n: num(m[1]) } : null)],
     // Wolverine, Best There Is: "if Wolverine dealt damage to another creature this turn" (selfDamagedCreatureThisTurn)
     [/^(?:it|this creature|CARDNAME) dealt damage to another creature this turn$/i, () => ({ kind: 'selfDamagedCreatureThisTurn' })],
     // Clockwork Beast, Kjeldoran Home Guard: "this creature attacked or blocked this combat"
@@ -12989,6 +12997,8 @@
     // Ebondeath, Dracolich: "a creature not named Ebondeath, Dracolich died this turn" — its own name (morbidOtherName)
     [/^a creature not named CARDNAME died this turn$/i, () => ({ kind: 'morbidOtherName' })],
     [/^a permanent you controlled left the battlefield this turn$/i, () => ({ kind: 'revolt' })],
+    // void (Alpharael, Stonechosen): "a nonland permanent left the battlefield this turn or a spell was warped this turn"
+    [/^a nonland permanent left the battlefield this turn or a spell was warped this turn$/i, () => ({ kind: 'void' })],
     [/^you attacked (?:with a creature )?this turn$/i, () => ({ kind: 'raid' })],
     [/^you had a land enter(?: the battlefield)?(?: under your control)? this turn$/i, () => ({ kind: 'landfall' })],
     [/^you'?ve cast (\w+) or more spells this turn$/i, (m) => ({ kind: 'spellsCast', n: num(m[1]) })],

@@ -7120,6 +7120,8 @@
       if (opts.hold || (apCfg && apCfg.fullControl)) this.holdFor = playerId;
 
       const castData = { spell: item, object: o, stackId: item.id, playerId };
+      // void (Alpharael, Stonechosen): "or a spell was warped this turn" — cast for its warp cost
+      if (item.via === 'warp') { const hw = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); hw.warped = true; }
       this._fire('youCastSpell', playerId, castData);
       if (p.spellsCastThisTurn === 1) this._fire('firstSpellEachTurn', playerId, castData);
       if (p.spellsCastThisTurn === 2) this._fire('anySecondSpell', null, castData);
@@ -13067,6 +13069,8 @@
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
+        // Chandra, Fire of Kaladesh: "has dealt 3 or more damage this turn" (_noteNoncombatDamage keeps the tally)
+        case 'selfDealtDamage': return !!src && !!src._dealtDmg && src._dealtDmg.turn === this.turn && src._dealtDmg.n >= (cond.n || 1);
         // Wolverine, Best There Is: "dealt damage to another creature this turn"
         case 'selfDamagedCreatureThisTurn': return !!src && src._hurtCreatureTurn === this.turn;
         case 'selfBlockedThisTurn': return !!src && src.blockedTurn === this.turn;
@@ -13500,6 +13504,8 @@
         case 'morbid': return (h.creaturesDied || 0) > 0;
         case 'morbidOtherName': return (h.diedNames || []).some(nm => !src || U.normName(nm) !== U.normName(src.name));
         case 'revolt': return (h.permanentsLeft || 0) > 0;
+        // void: a nonland permanent left the battlefield, or a spell was cast for its warp cost, this turn
+        case 'void': return (h.nonlandLeft || 0) > 0 || !!h.warped;
         case 'raid': return !!h.attacked;
         case 'spellsCast': return !!me && at(me.spellsCastThisTurn || 0);
         /* "If you control a commander": one of your commanders is on the
@@ -14319,6 +14325,11 @@
        noncombat damage this turn" — what each player's sources of each
        colour dealt this turn, outside combat */
     _noteNoncombatDamage(source, amount, combat) {
+      // Chandra, Fire of Kaladesh: "If Chandra has dealt 3 or more damage this turn" — what each source has dealt this turn, combat too
+      if (source && amount > 0) {
+        if (!source._dealtDmg || source._dealtDmg.turn !== this.turn) source._dealtDmg = { turn: this.turn, n: 0 };
+        source._dealtDmg.n += amount;
+      }
       if (combat || !source || source.controller == null || !(amount > 0)) return;
       const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
       const all = h.noncombatByColor || (h.noncombatByColor = {});
@@ -14374,6 +14385,8 @@
       p.damageTaken.n += amount;
       this._noteNoncombatDamage(source, amount, combat);
       this._lifelinkFrom(source, amount, combat);
+      // Chandra, Roaring Flame: "Each player dealt damage this way" — the players the resolving spell or ability hit (dealtThisWay)
+      if (this.resolving && !combat && !(this.resolving._dmgPlayers = this.resolving._dmgPlayers || []).includes(p.id)) this.resolving._dmgPlayers.push(p.id);
       // toxic (CR 702.164): combat damage to a player gives poison counters as well
       const tox = combat && source ? this._toxicTotal(source) : 0;
       if (source && this.hasKw(source, 'infect')) { this.addPoison(p, amount + tox, source.controller); return amount; }
@@ -14768,6 +14781,8 @@
         const wasA = o._lkiAnalysis || o.analysis();
         const h = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
         h.permanentsLeft++;
+        // void (Alpharael, Stonechosen): "if a nonland permanent left the battlefield this turn"
+        if (!(wasA && wasA.isLand)) h.nonlandLeft = (h.nonlandLeft || 0) + 1;
         if (wasA && wasA.isCreature && toZone === 'graveyard') {
           h.creaturesDied++;
           // Gadrak, the Crown-Scourge: "each nontoken creature that died this turn"
@@ -16818,7 +16833,9 @@
           return v.up ? Math.ceil(k / 2) : Math.floor(k / 2);
         }
         if (v && typeof v === 'object' && v.halfLife) {
-          const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : v.halfLife === 'you' ? me : null;
+          const p = v.halfLife === 'triggerPlayer' ? triggerPlayer() : v.halfLife === 'target' ? firstPlayer() : v.halfLife === 'you' ? me
+            // Alpharael, Stonechosen: the player it attacks
+            : v.halfLife === 'defending' ? this.player(this._defendingPid || ((src && this._defenderOf(src)) || {}).id || (triggerPlayer() || {}).id) : null;
           const life = p ? Math.max(0, p.life) : 0;
           // (Dire Fleet Ravager: "a third of their life" — div)
           const dv = v.div || 2;
@@ -16959,6 +16976,12 @@
           const td = ctx.triggerData || {};
           return (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(Boolean)
             .reduce((k, c) => Math.max(k, (c.card && c.card.cmc) || 0), 0) * (v.mult || 1);
+        }
+        // Aloy, Savior of Meridian: "the greatest power among them" — the attackers the trigger is about (batchMaxPower)
+        if (v && typeof v === 'object' && v.batchMaxPower) {
+          const td = ctx.triggerData || {};
+          return (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield')
+            .reduce((k, c) => Math.max(k, this.powerOf(c)), 0);
         }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
@@ -18042,7 +18065,10 @@
           }
           // Ob Nixilis Reignited, Chandra: an emblem for someone else
           const getters = e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(p => !p.hasLost)
-            : e.who === 'target' ? [firstPlayer()].filter(Boolean) : [me];
+            : e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            // Chandra, Roaring Flame: "Each player dealt damage this way gets an emblem" (dealtThisWay)
+            : e.who === 'dealtThisWay' ? (((this.resolving || {})._dmgPlayers) || []).map(id => this.player(id)).filter(p => p && !p.hasLost) : [me];
+          if (e.who === 'dealtThisWay' && !getters.length) break;
           if (getters.length !== 1 || getters[0] !== me) {
             for (const g of getters) {
               const em2 = this._register(new GObj(Object.assign({}, card), g.id, 'command'));
