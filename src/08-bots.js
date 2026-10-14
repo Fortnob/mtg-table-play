@@ -1520,7 +1520,9 @@
     // Gix, Yawgmoth Praetor: "Exile the top X cards of target opponent's library"
     'exileTop',
     // Ulrich, Uncontested Alpha: "have it fight target …"; Ravager of the Fells: "2 damage to … and 2 damage to …"
-    'fightSelf', 'damageSplit']);
+    'fightSelf', 'damageSplit',
+    // Yosei, the Morning Star: "target player skips their next untap step"
+    'skipUntap']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;

@@ -597,7 +597,8 @@
     };
     if ((m = s.match(/^ with "([^"]+)"/))) {
       e.grantedText = m[1]; s = s.slice(m[0].length);
-    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?) and "([^"]+)"/))) {
+    // (The Sentry, Golden Guardian: 'with flying, indestructible, and "…"' — a list's last comma)
+    } else if ((m = s.match(/^ with ([a-z0-9 ,']+?),? and "([^"]+)"/))) {
       const k = kwText(m[1]);
       if (!k) return null;
       e.keywords = k; e.grantedText = m[2]; s = s.slice(m[0].length);
@@ -2529,6 +2530,13 @@
     // Sunfall: "Incubate X, where X is the number of creatures exiled this way."
     { re: /^Incubate X, where X is the number of (?:creatures|permanents) (?:exiled|destroyed) this way\.?$/i,
       make: () => ({ op: 'createNamedToken', token: 'Incubator', n: 1, withCounters: 'lastSweep' }) },
+    // Glissa, Herald of Predation: "Incubate 2 twice." — two Incubators, each with its own counters
+    { re: /^Incubate (one|two|three|four|five|\d+) (twice|three times|four times)\.?$/i,
+      make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[2]) ? 2 : num(m[2].split(' ')[0]) },
+        () => ({ op: 'createNamedToken', token: 'Incubator', n: 1, withCounters: num(m[1]) })) }) },
+    // Glissa, Herald of Predation: "Transform all Incubator tokens you control." (as The Argent Etchings)
+    { re: /^Transform all Incubator tokens you control\.?$/i,
+      make: () => ({ op: 'transformAll', scope: { who: 'you', what: 'artifact', token: true, subtype: 'incubator' } }) },
     /* Unearth-style: it gets itself back. */
     { re: /^Return (?:CARDNAME|this card) from your graveyard to the battlefield( tapped)?( with a finality counter on (?:it|him|her|them))?\.?$/i,
       make: (m) => (m[2] ? { op: 'returnSelfFromGrave', tapped: !!m[1], counter: 'finality' } : { op: 'returnSelfFromGrave', tapped: !!m[1] }) },
@@ -7236,6 +7244,9 @@
     // Chronosavant, Unstable Hulk: "You skip your next turn."
     { re: /^(You|Target player|Target opponent) skips? (?:your|their) next turn\.?$/i,
       make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipTurn', who: 'you' } : { op: 'skipTurn', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Yosei, the Morning Star: "target player skips their next untap step."
+    { re: /^(You|Target player|Target opponent) skips? (?:your|their) next untap step\.?$/i,
+      make: (m) => (/^you$/i.test(m[1]) ? { op: 'skipUntap', who: 'you' } : { op: 'skipUntap', who: 'target', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
     // Chronostutter: "Put target creature into its owner's library second from the top."
     // (Teferi, Hero of Dominaria: "third from the top"; Commit: "target spell or nonland permanent", off the stack)
     { re: /^Put (target [a-z ]+?) into its owner'?s library (second|third) from the top\.?$/i,
@@ -8228,6 +8239,9 @@
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
     if ((m = p.match(/^(opponents?|players?) (?:that|who) (?:was|were) dealt combat damage this turn$/i)))
       return { combatHitPlayers: /^opp/i.test(m[1]) ? 'opponents' : 'players', mult: k };
+    // Estinien Varlineau: "your opponents who were dealt combat damage by Estinien Varlineau or a Dragon this turn" (hitBySelfOr)
+    if ((m = p.match(/^(?:your )?opponents? (?:that|who) (?:was|were) dealt combat damage by CARDNAME or an? ([A-Z][a-z]+) this turn$/)))
+      return { combatHitPlayers: 'opponents', hitBySelfOr: m[1].toLowerCase(), mult: k };
     // Gadrak, the Crown-Scourge: "for each nontoken creature that died this turn"
     if (/^nontoken creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, nontoken: true, mult: k };
     // Kinbinding: "the number of creatures that entered the battlefield under your control this turn"
@@ -10937,6 +10951,15 @@
       make: (m) => [{ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: true }] },
     { re: /^Exile the top (?:(\w+) )?cards? of your library\. You may play (?:that card|them|those cards) this turn\.?$/i,
       make: (m) => [{ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: true, duration: 'eot' }] },
+    /* Yosei, the Morning Star: "target player skips their next untap step. Tap up to five target permanents that
+       player controls." — one choice of targets, each permanent the first player's (sameControllerAsPrev, in a chain
+       from the player), all tapped as it resolves (tapTargets) */
+    { re: /^(Target player|Target opponent) skips their next untap step\. Tap up to (one|two|three|four|five) target permanents that player controls\.?$/i,
+      make: (m) => [{ op: 'skipUntap', who: 'target', tapTargets: true, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }].concat(
+        Array.from({ length: num(m[2]) }, () => ({ type: 'permanent', filter: 'permanent', zone: 'battlefield', upTo: true, distinct: true, sameControllerAsPrev: true }))) }] },
+    // Norin, Swift Survivalist: "Whenever a creature you control becomes blocked, you may exile it. You may play that card from exile this turn."
+    { re: /^(?:You may )?exile it\. You may play that card from exile this turn\.?$/i,
+      make: () => [{ op: 'exile', scope: 'triggerObject' }, { op: 'impulseLast', duration: 'eot' }] },
     { re: /^Destroy target creature\. Its controller (?:loses|gains) (\w+) life\.?$/i,
       make: (m) => [{ op: 'destroy', targets: [{ type: 'creature' }] },
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
@@ -19048,7 +19071,8 @@
         make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
           m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
       // Thranduil, the Elvenking: "Thranduil has all activated abilities of all Elf cards in your graveyard." (borrowActivated graveyard)
-      { re: /^(?:CARDNAME|This creature) has all activated abilities of all ([A-Z][a-z]+|creature) cards in your graveyard\.?$/,
+      // (Trazyn the Infinite: "As long as Trazyn is on the battlefield, it has all activated abilities of all artifact cards in your graveyard.")
+      { re: /^(?:CARDNAME|This creature|As long as CARDNAME is on the battlefield, it) has all activated abilities of all ([A-Z][a-z]+|creature|artifact) cards in your graveyard\.?$/,
         make: (m) => ({ op: 'borrowActivated', who: 'you', graveyard: true, words: m[1].toLowerCase() }), auto: true },
       /* Koh, the Face Stealer: "Koh has all activated and triggered abilities of the last chosen card." — the card
          chosen with its own ability, while it is still in exile (borrowChosen) */

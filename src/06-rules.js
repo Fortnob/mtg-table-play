@@ -1188,7 +1188,10 @@
       /* Stasis, "Skip your untap step": nothing untaps, but what has been
          under its controller's control since the turn began can still
          attack (CR 302.6) */
-      if (this._skipsStep(ap.id, 'untap')) {
+      // Yosei, the Morning Star: "target player skips their next untap step" — once for each time (skipUntaps)
+      const skipOnce = !this._skipsStep(ap.id, 'untap') && ap.skipUntaps > 0;
+      if (skipOnce) ap.skipUntaps--;
+      if (skipOnce || this._skipsStep(ap.id, 'untap')) {
         for (const o of this.battlefield) if (o.controller === ap.id) o.summoningSick = false;
         this.logEvent('step', `${ap.name} skips their untap step.`);
         this.checkStateBasedActions();
@@ -3847,6 +3850,11 @@
       // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
       if (v.opponentsBelowHalfLife) return this.opponentsOf(pid).filter(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20)).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
+      // Estinien Varlineau: "dealt combat damage by Estinien Varlineau or a Dragon this turn" — by it, or a creature of that type (hitBySelfOr)
+      if (v.combatHitPlayers && v.hitBySelfOr) {
+        return this.opponentsOf(pid).filter(q => { const h = q.combatHitThisTurn;
+          return h && h.turn === this.turn && (h.by || []).some(x => (src && x.id === src.id) || (x.types || []).includes('*') || (x.types || []).includes(v.hitBySelfOr)); }).length * mult;
+      }
       if (v.combatHitPlayers) { const hit = ((this.turnHistory || {}).combatHit) || []; return hit.filter(id => v.combatHitPlayers === 'players' || this.opponentsOf(pid).some(q => q.id === id)).length * mult; }
       // Hobgoblin Bandit Lord: "the number of Goblins that entered the battlefield under your control this turn" (enteredTypes)
       if (v.enteredTypeYours) { const by = (((this.turnHistory || {}).enteredBy) || {})[pid] || {}; return ((by['sub:' + v.enteredTypeYours] || 0) + (by['sub:*'] || 0)) * mult; }
@@ -28308,6 +28316,19 @@
           if (!p || p.hasLost) break;
           p.skipTurns = (p.skipTurns || 0) + 1;
           this.logEvent('turn', `${p.name} will skip their next turn.`);
+          break;
+        }
+        // Yosei, the Morning Star: "target player skips their next untap step." (skipUntaps)
+        case 'skipUntap': {
+          const p = e.who === 'target' ? firstPlayer() : me;
+          if (!p || p.hasLost) break;
+          p.skipUntaps = (p.skipUntaps || 0) + 1;
+          this.logEvent('turn', `${p.name} will skip their next untap step.`);
+          // "Tap up to five target permanents that player controls."
+          if (e.tapTargets) for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            if (o && o.zone === 'battlefield' && o.controller === p.id && !o.tapped) { this._markTapped(o); this.emit('sfx', 'tap'); }
+          }
           break;
         }
         // Wall of Tears: back to its owner's hand as combat ends
