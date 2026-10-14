@@ -918,6 +918,8 @@
           o.effects = o.effects.filter(e => e.untilTurnOf !== this.turnOrder[this.activeIndex]);
           o._chr = null;
         }
+        // Taskmaster, Mercenary Mimic: a copy "until your next turn" (copyUntilTurnOf)
+        if (o.copyUntilTurnOf != null && o.copyUntilTurnOf === this.turnOrder[this.activeIndex] && o.printedCard) this._copyEnds(o);
       }
       // (Tamiyo, Seasoned Scholar: an "until your next turn, whenever …" emblem — untilTurnOf)
       for (const p of this.players) {
@@ -1418,13 +1420,7 @@
         }
         /* A copy that lasts until end of turn is what it was again: itself,
            or a Clone that was already a copy before Mirrorweave (CR 707). */
-        if (o.copyUntilTurn != null && o.printedCard) {
-          const back = o.copyBefore;
-          if (back && back.card && back.card !== o.printedCard) { o.card = back.card; o.face = back.face || 0; o.copyOf = back.copyOf || back.card; }
-          else { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
-          o.copyUntilTurn = null; o.copyBefore = null; o._chr = null;
-          this.bumpBoard();
-        }
+        if (o.copyUntilTurn != null && o.printedCard) this._copyEnds(o);
         o.removedFromCombat = false;
         o.attacking = null; o.blocking = []; o.blockedBy = []; o.blockOrder = [];
       }
@@ -3736,6 +3732,8 @@
         return ids.size * mult;
       }
       // Rose, Cutthroat Raider: "for each opponent you attacked" this turn (opponentsAttacked)
+      // Zedruu the Greathearted: "permanents you own that your opponents control"
+      if (v.ownedOppControlled) return this.battlefield.filter(o => !o.phasedOut && o.owner === pid && o.controller !== pid && this.opponentsOf(pid).some(q => q.id === o.controller)).length * mult;
       if (v.opponentsAttacked) { const at = ((((this.turnHistory || {}).attackedPlayersBy) || {})[pid]) || []; return this.opponentsOf(pid).filter(q => at.includes(q.id)).length * mult; }
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
@@ -14489,7 +14487,7 @@
         o.noMaxHandFor = null;
         o.faceDown = false; o.manifested = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
-        o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.ts = null;
+        o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.ts = null;
         o.encoded = null;                // cipher: a new object remembers nothing encoded on the old one
         o.leaveExile = false;
         if (vanishes) this.emit('object:gone', o);
@@ -15214,6 +15212,11 @@
           if (ab.sourceColor && !(data.object && this._cardFitsWords(data.object, ab.sourceColor))) continue;
           // Ghyrson Starn, Kelermorph: "deals exactly 1 damage"
           if (ab.exactAmount != null && (Number(data.amount) || 0) !== ab.exactAmount) continue;
+          // Taii Wakeen, Perfect Shot: "to a creature equal to that creature's toughness" — as the damage is dealt
+          if (ab.equalToughness) {
+            const vT = data.victimId && this.obj(data.victimId);
+            if (!vT || vT.zone !== 'battlefield' || !(this.characteristics(vT) || {}).isCreature || this.toughnessOf(vT) !== (Number(data.amount) || 0)) continue;
+          }
           // Kaya's Ghostform: exile counts only for "dies or is put into exile"
           if (data.exiledFromBattlefield && !ab.orExiled) continue;
           // "leave the battlefield without dying", "is exiled from the battlefield"
@@ -15260,6 +15263,15 @@
             const lp = this.player(data.player);
             if (!lp || (lp.lifeLostThisTurn || 0) !== data.amount) continue;
             if (ab.theirTurn && !(this.activePlayer && this.activePlayer.id === data.player)) continue;
+          }
+          /* Volo, Guide to Monsters: "a creature spell that doesn't share a creature type with a creature you control or a
+             creature card in your graveyard" — as it is cast (noSharedTypeYoursOrGy) */
+          if (ab.noSharedTypeYoursOrGy) {
+            const sp = data.object;
+            if (!sp) continue;
+            const kin = this.battlefield.filter(c => c.controller === o.controller && !c.phasedOut && (this.characteristics(c) || {}).isCreature)
+              .concat(((this.zones[o.controller] || {}).graveyard || []).filter(c => (c.analysis() || {}).isCreature));
+            if (kin.some(c => c !== sp && this._shareCreatureType(sp, c))) continue;
           }
           // Folk Hero: "a spell that shares a creature type with this creature"
           if (ab.sharesTypeWithSelf) {
@@ -15834,6 +15846,15 @@
      * anything that copies it later copies them too. `own` is the card whose
      * words made it a copy: its name, and its lines.
      */
+    /** A copy that lasted for a while is what it was again: itself, or a Clone that was already a copy (CR 707). */
+    _copyEnds(o) {
+      const back = o.copyBefore;
+      if (back && back.card && back.card !== o.printedCard) { o.card = back.card; o.face = back.face || 0; o.copyOf = back.copyOf || back.card; }
+      else { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
+      o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyBefore = null; o._chr = null;
+      this.bumpBoard();
+    }
+
     _copyExcept(card, own, e) {
       own = own || {};
       card = this._copiable(card);
@@ -15887,6 +15908,8 @@
           card = Object.assign({}, card, { id: card.id + ':this:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
         }
       }
+      // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — that type line (setTypeLine)
+      if (e.setTypeLine) card = Object.assign({}, card, { id: card.id + ':types:' + U.hash(e.setTypeLine), type_line: e.setTypeLine, card_faces: null });
       // Superior Spider-Man: "he's a 4/4 …" — that size (copyPt)
       if (e.copyPt) {
         const [pw, tg] = e.copyPt.split('/');
@@ -16507,7 +16530,7 @@
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         if (v && typeof v === 'object' && (v.totalMvOf || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -24293,18 +24316,20 @@
           const was = who.card, wasName = who.name;
           /* a copy until end of turn over one that lasts: what it was comes back after
              (Mirrorweave's way); a lasting copy outlives one that was to end */
-          if (e.eot && who.copyUntilTurn == null && who.printedCard) who.copyBefore = { card: who.card, face: who.face || 0, copyOf: who.copyOf || null };
-          if (!e.eot) who.copyBefore = null;
+          if ((e.eot || e.untilNextTurn) && who.copyUntilTurn == null && who.copyUntilTurnOf == null && who.printedCard) who.copyBefore = { card: who.card, face: who.face || 0, copyOf: who.copyOf || null };
+          if (!e.eot && !e.untilNextTurn) who.copyBefore = null;
           who.printedCard = who.printedCard || who.card;
           who.copyOf = t.card;
           who.card = this._copyExcept(t.card, was, e);
           who.face = t.face || 0;
           who.copyUntilTurn = e.eot ? this.turn : null;
+          // Taskmaster, Mercenary Mimic: "until your next turn" — over as that turn begins (copyUntilTurnOf)
+          who.copyUntilTurnOf = e.untilNextTurn ? ctx.controller : null;
           // (a line kept the old way, by a game saved before: the card carries it now)
           who.effects = (who.effects || []).filter(x => !x.keepsCopyLine);
           who._chr = null;
           this.bumpBoard();
-          this.logEvent('rules', `${wasName} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : ''}.`);
+          this.logEvent('rules', `${wasName} becomes a copy of ${t.name}${e.eot ? ' until end of turn' : e.untilNextTurn ? ' until its controller\'s next turn' : ''}.`);
           // Gogo: "If you do, …"
           if ((e.then || []).length) this._spliceNext(e.then);
           break;
@@ -25695,6 +25720,13 @@
             if (!tp) break;
             ef = Object.assign({}, e.ef, { victimPlayer: tp.id });
             this.logEvent('rules', `Until ${me.name}'s next turn, damage to ${tp.name} and permanents ${tp.name} controls is doubled.`);
+          }
+          // Taii Wakeen, Perfect Shot: "it deals that much damage plus X instead" — the X paid (addX); none, nothing changes
+          if (e.addX) {
+            const kx = Number(n('X')) || 0;
+            if (kx <= 0) break;
+            ef = Object.assign({}, ef, { n: kx });
+            this.logEvent('rules', `This turn, noncombat damage from ${me.name}'s sources is ${kx} more.`);
           }
           // Jeska, Thrice Reborn: "if that creature would deal combat damage …" — the one chosen, as this object (sourceLastTarget)
           if (e.sourceLastTarget) {
@@ -29451,7 +29483,7 @@
         this._removeFromZone(o);
         o.zone = 'exile';
         o.tapped = false; o.damage = 0; o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
-        o.faceDown = false; o.controller = o.owner; o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null;
+        o.faceDown = false; o.controller = o.owner; o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null;
         if (o.printedCard) { o.card = o.printedCard; o.printedCard = null; o.copyOf = null; }
         this.zones[o.owner].exile.push(o);
         // a melded permanent is two cards, and both go (CR 712.4)
@@ -30527,6 +30559,12 @@
         const pL = !sL ? 0 : sL.zone === 'battlefield' ? this.powerOf(sL) : (sL._lastPower || 0);
         return this._legalTargetsFor(Object.assign({}, spec, { lesserPowerThanSource: false }), controllerId, sourceId)
           .filter(t => { const x = t.kind === 'object' && this.obj(t.id); return !!x && this.powerOf(x) < pL; });
+      }
+      /* Taskmaster, Mercenary Mimic: "target creature on the battlefield or creature card in a graveyard" — either
+         (orGraveyardCard) */
+      if (spec.orGraveyardCard) {
+        const bf = this._legalTargetsFor(Object.assign({}, spec, { orGraveyardCard: false }), controllerId, sourceId);
+        return bf.concat(this._legalTargetsFor({ type: 'creature', filter: 'creature', zone: 'graveyard' }, controllerId, sourceId));
       }
       // Pain for All: "any other target" — not the creature this Aura enchants
       if (spec.notAttached && sourceId) {

@@ -762,6 +762,10 @@
         e.copyPt = c[1] + '/' + c[2]; e.addTypes = c[3].split(' ');
       }
       else if ((c = ex.match(/^it isn'?t legendary/i))) e.nonLegendary = true;
+      // Taskmaster, Mercenary Mimic: "he's a legendary Human Mercenary Villain creature" — those types and no others (setTypeLine)
+      else if ((c = ex.match(/^(?:it|he|she)'?s an? (legendary )?((?:[A-Z][a-z]+ )+)creature(?! in addition)/))) {
+        e.setTypeLine = (c[1] ? 'Legendary ' : '') + 'Creature \u2014 ' + c[2].trim();
+      }
       // Sakashima the Impostor, Chameleon: "its name is CARDNAME", "it's legendary in addition to its other types"
       else if ((c = ex.match(/^(?:its|his|her) name is CARDNAME/i))) e.keepName = true;
       else if ((c = ex.match(/^it'?s legendary in addition to its other types/i))) e.addLegendary = true;
@@ -3311,6 +3315,9 @@
       } },
     /* Heroes in a Half Shell: "Whenever one or more Mutants, Ninjas, and/or Turtles you control deal combat damage to a
        player, put a +1/+1 counter on each of those creatures and draw a card." — the lot that hit (triggerBatch) */
+    // Zedruu the Greathearted: "you gain X life and draw X cards, where X is the number of permanents you own that your opponents control"
+    { re: /^You gain X life and draw X cards, where X is the number of (.+?)\.?$/i,
+      make: (m) => { const c = countOf(m[1]); return c ? [{ op: 'gainLife', n: c, who: 'you' }, { op: 'draw', n: c, who: 'you' }] : null; } },
     { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
       make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
     /* Unbreakable Formation: "each of those creatures" */
@@ -4173,6 +4180,10 @@
        Lorehold's power from among them without paying its mana cost." — the cards looked at, one picked or none (pickOne) */
     { re: /^You may cast an? (instant or sorcery|instant|sorcery|creature|artifact|enchantment|noncreature|nonland|permanent) spell with mana value less than or equal to (CARDNAME'?s power|CARDNAME'?s toughness) from among them without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'looked', upTo: 1, pickOne: true, filter: m[1].toLowerCase(), maxMv: { ofSelf: /power/i.test(m[2]) ? 'power' : 'toughness' } }) },
+    /* Kiora, Sovereign of the Deep: "You may cast a spell with mana value less than X from among them without paying its
+       mana cost." — X the mana value of the spell the trigger is about (lesserMv), from the cards just looked at */
+    { re: /^You may cast a spell with mana value less than X from among them without paying its mana cost\.?$/i,
+      make: () => ({ op: 'castFree', upTo: 1, from: 'looked', lesserMv: true }) },
     { re: /^You may cast (?:a|up to one) spell( with mana value (X|\d+) or less)? from among (?:them|those cards|the revealed cards|cards revealed this way|the exiled cards|cards exiled this way) without paying its mana cost\.?$/i,
       // (Sunbird's Invocation: cards revealed, not exiled — the ones just looked at)
       make: (m) => Object.assign({ op: 'castFree', upTo: 1 }, m[2] ? { maxMv: num(m[2]) } : {},
@@ -5034,6 +5045,10 @@
     { re: /^Until your next turn, if that creature would deal combat damage to one of your opponents, it deals (double|triple) that damage to that player instead\.?$/i,
       make: (m) => ({ op: 'floatingReplace', until: 'yourNextTurn', sourceLastTarget: true,
         ef: { op: 'replace', id: 'dmgThatCreature', event: 'damage', who: 'any', how: m[1].toLowerCase(), combatOnly: true, toOpponent: true, toPlayerOnly: true } }) },
+    /* Taii Wakeen, Perfect Shot: "{X}, {T}: If a source you control would deal noncombat damage to a permanent or
+       player this turn, it deals that much damage plus X instead." — for the turn, X as paid (addX) */
+    { re: /^If a source you control would deal noncombat damage to a permanent or player this turn, it deals that much damage plus X instead\.?$/i,
+      make: () => ({ op: 'floatingReplace', addX: true, ef: { op: 'replace', id: 'dmgPlusXTurn', event: 'damage', who: 'you', noncombat: true, how: 'add' } }) },
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
@@ -5941,6 +5956,16 @@
         // (Sakashima of a Thousand Faces' "other abilities" are for one entering as a copy)
         if (m[5] && (!copyExceptions(m[5], e) || e.keepOwn)) return null;
         return /^(?:then )?you may/i.test(m[1] || '') ? { op: 'may', then: [e] } : e;
+      } },
+    /* Taskmaster, Mercenary Mimic: "until your next turn, Taskmaster becomes a copy of up to one target creature on
+       the battlefield or creature card in a graveyard, except …" — either zone (orGraveyardCard), until its
+       controller's next turn (untilNextTurn) */
+    { re: /^[Uu]ntil your next turn, CARDNAME becomes a copy of up to one target creature on the battlefield or creature card in a graveyard(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const e = { op: 'becomeCopy', untilNextTurn: true,
+          targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', upTo: true, orGraveyardCard: true }] };
+        if (m[1] && (!copyExceptions(m[1], e) || e.keepOwn)) return null;
+        return e;
       } },
     /* Shuri, Wakandan Inventor: "Target artifact you control becomes a copy of a second target artifact you control
        until end of turn, except it isn't legendary." — the first target changes (subjectTarget) */
@@ -7663,6 +7688,8 @@
     if (/^creatures? that died this turn$/i.test(p)) return { diedThisTurn: true, mult: k };
     // The Balrog, Durin's Bane: "for each permanent sacrificed this turn" — by anyone (sacrificedThisTurn, byAnyone)
     if (/^permanents? sacrificed this turn$/i.test(p)) return { sacrificedThisTurn: 'permanent', byAnyone: true, mult: k };
+    // Zedruu the Greathearted: "the number of permanents you own that your opponents control" (ownedOppControlled)
+    if (/^permanents? you own that (?:your opponents|an opponent) controls?$/i.test(p)) return { ownedOppControlled: true, mult: k };
     // Rose, Cutthroat Raider: "for each opponent you attacked (this turn)" (opponentsAttacked)
     if (/^opponents? you attacked(?: this turn)?$/i.test(p)) return { opponentsAttacked: true, mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
@@ -12898,6 +12925,13 @@
     // Melek, Izzet Paragon: "Whenever you cast an instant or sorcery spell from your library" (castFromLibraryOnly)
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature )?spell from your library,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ castFromLibraryOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
+    /* Volo, Guide to Monsters: "Whenever you cast a creature spell that doesn't share a creature type with a creature you
+       control or a creature card in your graveyard" (noSharedTypeYoursOrGy) */
+    { re: /^Whenever you cast a creature spell that doesn'?t share a creature type with a creature you control or a creature card in your graveyard,? /i,
+      event: 'youCastSpell', extra: { spellFilter: 'creature', noSharedTypeYoursOrGy: true } },
+    // Kiora, Sovereign of the Deep: "Whenever you cast a Kraken, Leviathan, Octopus, or Serpent spell from your hand" (fromHandOnly)
+    { re: /^Whenever you cast an? ((?:[A-Z][a-z]+, )+(?:or |and\/or )[A-Z][a-z]+) spell from your hand,? /, event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' '),
+      extra: { fromHandOnly: true } },
     // Rivaz of the Claw: "Whenever you cast a Dragon creature spell from your graveyard"
     { re: /^Whenever you cast an? ([a-zA-Z -]+?) spell from your graveyard,? /i, event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' '),
       extra: { fromGraveyardOnly: true } },
@@ -13508,6 +13542,10 @@
     { re: /^When(?:ever)? an? (white|blue|black|red|green) source you control deals damage to one or more permanents and\/or players,? /i,
       event: 'yourSourceDealsDamage',
       extraOf: (m) => ({ sourceColor: m[1].toLowerCase(), batch: true, batchPerSource: true }) },
+    /* Taii Wakeen, Perfect Shot: "Whenever a source you control deals noncombat damage to a creature equal to that
+       creature's toughness" — the damage dealt at once against its toughness, whatever was marked before (equalToughness) */
+    { re: /^Whenever a source you control deals noncombat damage to a creature equal to that creature'?s toughness,? /i, event: 'yourSourceDealsDamage',
+      extra: { noncombatOnly: true, equalToughness: true } },
     // Surveillance Monitor: "Whenever you collect evidence"
     { re: /^When(?:ever)? you collect evidence(?:,| )/i, event: 'youCollectEvidence' },
     // Corpseberry Cultivator: "Whenever you forage"
