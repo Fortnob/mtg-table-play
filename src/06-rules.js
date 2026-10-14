@@ -4920,7 +4920,7 @@
           this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
-      /* A standing grant of flashback, from a permanent (or emblem) of this player's; Iroh, Grand Lotus: "During your
+      /* A standing grant (flashback, encore), from a permanent (or emblem) of this player's; Iroh, Grand Lotus: "During your
          turn, …" (yourTurn) */
       const fbGrant = (op, fits) => {
         for (const x of this._withEmblems(this.battlefield)) {
@@ -4929,6 +4929,18 @@
         }
         return null;
       };
+      /* Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana
+         cost." — offered when the card has no emerge of its own (grantEmerge) */
+      if (o.zone === 'hand' && a.isCreature && a.manaCost && !out.some(u => u.via === 'emerge') && this._anyStaticOf(playerId, 'grantEmerge') &&
+          this.battlefield.some(x => x.controller === playerId && !x.phasedOut && (this.characteristics(x) || {}).isCreature)) {
+        out.push({ kind: 'cast', via: 'emerge', cost: a.manaCost, label: 'Emerge ' + a.manaCost });
+      }
+      /* Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value."
+         — offered when the card has no encore of its own (grantEncoreMv) */
+      if (o.zone === 'graveyard' && o.owner === playerId && !out.some(u => u.kind === 'encore')) {
+        const ge = fbGrant('grantEncoreMv', e => this._cardFitsWords(o, e.words));
+        if (ge) { const c = '{' + (Number(o.card && o.card.cmc) || 0) + '}'; out.push({ kind: 'encore', cost: c, label: 'Encore ' + c }); }
+      }
       // Lier: each instant and sorcery card in your graveyard has flashback, for its mana cost
       // (Iroh, Grand Lotus: "each non-Lesson instant and sorcery card" — notSubtype)
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) && o.flashbackTurn !== this.turn &&
@@ -6728,7 +6740,8 @@
         const w = O.wardPrice(arg);
         // (a price the table can't take leaves the card to its players: the reading says so)
         if (!w) continue;
-        if (w.discard || w.sacrifice) {
+        // (Auntie Ool, Cursewretch: "Ward—Blight 2" — the creature is the payer's choice too)
+        if (w.discard || w.sacrifice || w.blight) {
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
             name: `${o.name} \u2014 ward`, auto: true, abilityText: `Ward\u2014${arg}`,
@@ -6799,6 +6812,8 @@
     /** What a ward that asks for cards or permanents could be paid with: the payer's cards in hand of the kind it
         names, or their permanents of that kind that can be sacrificed. */
     _wardChoicePool(pid, w) {
+      // (Auntie Ool, Cursewretch: "Ward—Blight 2" — a creature of theirs to put the counters on)
+      if (w.blight) return this._blightPool(pid);
       const words = String(w.words || (w.discard ? 'card' : 'permanent'));
       return w.discard ? this.zones[pid].hand.filter(x => words === 'card' || this._cardFitsWords(x, words))
         : this.battlefield.filter(x => !x.phasedOut && x.controller === pid && this._cardFitsWords(x, words) && this._canSacrifice(x));
@@ -6838,7 +6853,8 @@
         while (xs.length < need && left.length) xs.push(left.splice(Math.floor(this.rng.next() * left.length), 1)[0]);
       } else xs = ((got && got.ids) || []).map(id => pool.find(x => x.id === id)).filter(Boolean);
       if (xs.length !== need) return false;
-      if (w.discard) this._discardNow(pid, xs); else this._sacrificeNow(pid, xs, null);
+      if (w.blight) this._blightOn(xs[0], w.blight, pid);
+      else if (w.discard) this._discardNow(pid, xs); else this._sacrificeNow(pid, xs, null);
       return true;
     }
 
@@ -6857,7 +6873,7 @@
       if (w.evidence && this._evidenceTotal(pid, null) < w.evidence) return false;
       if (w.waterbend && !this._waterbendPlan(pid, null, {}, w.waterbend)) return false;
       if (w.mana && !this.couldPay(pid, w.mana, this.manaSources(pid))) return false;
-      if ((w.discard || w.sacrifice) && this._wardChoicePool(pid, w).length < (w.discard || w.sacrifice)) return false;
+      if ((w.discard || w.sacrifice || w.blight) && this._wardChoicePool(pid, w).length < (w.discard || w.sacrifice || 1)) return false;
       return true;
     }
 
@@ -11896,6 +11912,12 @@
         case 'triggerObjFromGraveyard': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && x.owner === ctx.controller && (x.enteredFrom === 'graveyard' || (x.wasCast === this.turn && x.castFromZone === 'graveyard'));
+        }
+        // Auntie Ool, Cursewretch: "if you control that creature" — now, or as it last was
+        case 'triggerObjYours': {
+          const td = (ctx && ctx.triggerData) || {};
+          const x = td.objectId && this.obj(td.objectId);
+          return !!me && (x && x.zone === 'battlefield' ? x.controller === me.id : td.objController === me.id);
         }
         case 'triggerObjNotCastFromHand': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
@@ -18421,6 +18443,14 @@
           break;
         }
         // Hex Magic: the hand exiled (remembered for "cards exiled this way"), then as many drawn
+        // Herigast, Erupting Nullkite: "exile your hand"
+        case 'exileHand': {
+          const hand = this.zones[ctx.controller].hand.slice();
+          for (const c of hand) this.moveObject(c, 'exile');
+          this._lastExiledList = hand.map(c => c.id);
+          this.logEvent('exile', `${me.name} exiles their hand (${hand.length}).`);
+          break;
+        }
         case 'exileHandDraw': {
           const hand = this.zones[ctx.controller].hand.slice();
           for (const c of hand) this.moveObject(c, 'exile');
@@ -28500,6 +28530,9 @@
       if (f.minToughness != null && tg() < f.minToughness) return false;
       if (f.maxToughness != null && tg() > f.maxToughness) return false;
       if (f.minMv != null && ((x.card && x.card.cmc) || 0) < f.minMv) return false;
+      // Mizzix of the Izmagnus: "with mana value greater than the number of experience counters you have"
+      if (f.mvAboveExperience && !((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) >
+        (Number((this.player(src ? src.controller : ctrl) || {}).experience) || 0))) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;

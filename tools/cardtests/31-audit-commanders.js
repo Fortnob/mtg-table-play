@@ -295,7 +295,8 @@ module.exports = (test) => {
   test('Audit: a ward price no part of the table takes leaves the card to its players', (mk, t) => {
     const a = (n) => mk().MTG.oracle.analyze(require('../harness').card(n));
     t.no(a('Titania, Rugged Rumbler').fullyAutomated, '"Discard a card or pay {2}"');
-    t.no(a('Auntie Ool, Cursewretch').fullyAutomated, '"Blight 2"');
+    // ("Ward—Blight 2" is taken now: Auntie Ool, Cursewretch)
+    t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('Blight 2')), '{"blight":2}');
     // and "Ward {1}, haste" is {1}, the haste its own keyword
     t.ok(a('Colorstorm Stallion').fullyAutomated, 'Colorstorm Stallion stays automated');
     t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('{1}, haste')), '{"mana":"{1}"}');

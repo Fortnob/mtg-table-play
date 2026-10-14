@@ -220,6 +220,8 @@
       const n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
       return typeof n === 'number' ? { sacrifice: n, words: n > 1 ? m[2].replace(/s$/, '') : m[2] } : null;
     }
+    // Auntie Ool, Cursewretch: "Ward—Blight 2." — two -1/-1 counters on a creature the payer controls
+    if ((m = s.match(/^blight (\d+)$/i))) return { blight: +m[1] };
     // Westgate Regent: "Discard a card."; Saruman of Many Colors: "Discard an enchantment, instant, or sorcery card."
     if ((m = s.match(/^discard (a|an|one|two|\d+) ([a-z ,-]*?)\s*cards?( at random)?$/i))) {
       const n = /^an?$/i.test(m[1]) ? 1 : num(m[1]);
@@ -1958,6 +1960,12 @@
     { re: /^That player gains (one|two|three|four|five|six|\d+) life\.?$/i, make: (m) => ({ op: 'gainLife', who: 'triggerPlayer', n: num(m[1]) }) },
     // Ragged Veins: "its controller loses that much life" — the creature the trigger is about
     { re: /^Its controller loses that much life\.?$/i, make: () => ({ op: 'loseLife', who: 'triggerObjController', n: 'triggerAmount' }) },
+    /* Auntie Ool, Cursewretch: "draw a card if you control that creature. If you don't control it, its controller
+       loses 1 life." (triggerObjYours) */
+    { re: /^[Dd]raw a card if you control that creature\.?$/,
+      make: () => ({ op: 'ifCond', cond: { kind: 'triggerObjYours' }, then: [{ op: 'draw', n: 1, who: 'you' }] }) },
+    { re: /^If you don'?t control it, its controller loses (\d+) life\.?$/,
+      make: (m) => ({ op: 'ifCond', cond: { kind: 'not', cond: { kind: 'triggerObjYours' } }, then: [{ op: 'loseLife', who: 'triggerObjController', n: +m[1] }] }) },
     // Instigator: "Creatures target player controls attack this turn if able."
     { re: /^Creatures target player controls attack this turn if able\.?$/i,
       make: () => ({ op: 'restrict', flag: 'mustAttackEot', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
@@ -2979,6 +2987,8 @@
     { re: /^Proliferate\.?$/i, make: () => ({ op: 'proliferate' }) },
     // Hex Magic: "Exile all the cards from your hand, then draw that many cards."
     { re: /^Exile (?:all the cards from |all cards from )?your hand, then draw that many cards\.?$/i, make: () => ({ op: 'exileHandDraw' }) },
+    // Herigast, Erupting Nullkite: "you may exile your hand. If you do, draw three cards." — an empty hand too (its ruling)
+    { re: /^Exile your hand\.?$/i, make: () => ({ op: 'exileHand' }) },
     // Lord Skitter's Blessing, Lord Windgrace: "(you) draw an additional card" — one more card, now
     { re: /^(?:You )?[Dd]raw an additional card\.?$/, make: () => ({ op: 'draw', n: 1, who: 'you' }) },
     // Well of Ideas: "that player draws an additional card" — the player whose step it is
@@ -11799,6 +11809,10 @@
     { re: /^Whenever (?:this creature|CARDNAME) deals combat damage, /i, event: 'dealsDamage', self: true, extra: { combatOnly: true } },
     // Crystallization, Illusionary Armor: "When enchanted creature becomes the target of a spell or ability"
     { re: /^When(?:ever)? enchanted creature becomes the target of a spell or ability,? /i, event: 'becomesTarget', extra: { ofEnchanted: true } },
+    /* Mizzix of the Izmagnus: "Whenever you cast an instant or sorcery spell with mana value greater than the number
+       of experience counters you have" — the spell's mana value on the stack, X and all (mvAboveExperience) */
+    { re: /^Whenever you cast an instant or sorcery spell with mana value greater than the number of experience counters you have,? /,
+      event: 'youCastSpell', filt: () => ({ words: 'instant or sorcery', mvAboveExperience: true }) },
     // Mr. House, President and CEO: "Whenever you roll a 4 or higher" — each die that comes up so (minRoll)
     { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
     // Brazen Dwarf: "Whenever you roll one or more dice"
@@ -12496,6 +12510,9 @@
       filt: (m) => ({ words: m[2].toLowerCase(), who: 'you', other: /another/i.test(m[1]) }), extra: { counterKind: '+1/+1' } },
     { re: /^When(?:ever)? you put one or more \+1\/\+1 counters on (?:a|another) creature you control(?:,| )/i, event: 'countersPut',
       filt: (m) => ({ words: 'creature', who: 'you', other: /another/i.test(m[0]) }), extra: { counterKind: '+1/+1' } },
+    // Auntie Ool, Cursewretch: "Whenever one or more -1/-1 counters are put on a creature" — anyone's, by anyone
+    { re: /^Whenever one or more -1\/-1 counters are put on a creature, /i, event: 'countersPut', aboutObject: true,
+      filt: () => ({ words: 'creature' }), extra: { counterKind: '-1/-1' } },
     /* Hapatra, Nest of Scarabs: "Whenever you put one or more -1/-1 counters on
        a creature"; Generous Patron: "counters on a creature you don't control" */
     // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
@@ -17340,6 +17357,11 @@
       // Lier, Disciple of the Drowned: "Spells can't be countered."
       { re: /^Spells can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all' }, auto: true },
       // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."
+      // Herigast, Erupting Nullkite: "Each creature spell you cast has emerge. The emerge cost is equal to its mana cost." (grantEmerge)
+      { re: /^Each creature spell you cast has emerge\. The emerge cost is equal to its mana cost\.?$/i, eff: { op: 'grantEmerge' }, auto: true },
+      // Sliver Gravemother: "Each Sliver creature card in your graveyard has encore {X}, where X is its mana value." (grantEncoreMv)
+      { re: /^Each ([A-Z][a-z]+) creature card in your graveyard has encore \{X\}, where X is its mana value\.?$/,
+        make: (m) => ({ op: 'grantEncoreMv', words: m[1].toLowerCase() + ' creature' }), auto: true },
       // Tam, Mindful First-Year: "Each other creature you control has hexproof from each of its colors." (hexproofFromOwnColors)
       { re: /^Each other creature you control has hexproof from each of its colors\.?$/i, eff: { op: 'hexproofFromOwnColors', other: true }, auto: true },
       { re: /^Each instant and sorcery card in your graveyard has flashback\. The flashback cost is equal to that card'?s mana cost\.?$/i,
