@@ -901,6 +901,8 @@
       this.bumpBoard();
       // morbid, revolt, raid and their relatives all ask what has already
       // happened this turn, so the turn keeps a short memory
+      // Ephara, God of the Polis: "if you had another creature enter the battlefield under your control last turn" (creaturesInLastTurn)
+      this.creaturesInLastTurn = (this.turnHistory || {}).creaturesIn || {};
       this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false };
       for (const o of this.battlefield) o.noRegenThisTurn = false;
       // one loyalty ability per planeswalker each turn (CR 606.3): a new turn, a new one
@@ -997,8 +999,11 @@
       }
       this._stepAgain = 0;
       this.stepIndex++;
+      // Obeka, Splitter of Seconds: an additional upkeep step has no draw step after it
+      if (this._upkeepOnly && this.phaseIndex === 0 && this.stepIndex > 1) this.stepIndex = this.phase.steps.length;
       if (this.stepIndex >= this.phase.steps.length) {
-        this.phaseIndex = this._nextPhaseIndex(); this.stepIndex = 0;
+        this._upkeepOnly = false;
+        this.phaseIndex = this._nextPhaseIndex(); this.stepIndex = this._upkeepOnly ? 1 : 0;
         if (this.phaseIndex >= PHASES.length) { this._endTurn(); return; }
       }
       // combat phase can be skipped entirely if nobody can attack - we still
@@ -1023,6 +1028,8 @@
       this._combatOnlyAttack = null;
       if (this._phaseQueue && this._phaseQueue.length) {
         const nx = this._phaseQueue.shift();
+        // Obeka, Splitter of Seconds: an additional upkeep step, alone (upkeepOnly)
+        if (nx && typeof nx === 'object' && nx.upkeepOnly) { this._upkeepOnly = true; return nx.ph; }
         if (nx && typeof nx === 'object') { this._combatOnlyAttack = { turn: this.turn, words: nx.onlyAttack }; return nx.ph; }
         return nx;
       }
@@ -1032,8 +1039,8 @@
 
     _endTurn() {
       const ap = this.activePlayer;
-      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = []; this._combatOnlyAttack = null;
-      this._checkDayNight();          // day/night flips between turns
+      this._phaseQueue = null; this._resumePhase = null; this._extraPhases = []; this._extraSteps = []; this._combatOnlyAttack = null; this._upkeepOnly = false;
+      this._checkDayNight();         // day/night flips between turns
       this.spellsThisTurn = 0;
       // cleanup already ran as a step
       this.emit('turn:end', ap);
@@ -2314,7 +2321,7 @@
         }
         this.combat.attackers = []; this.combat.blockers = [];
       }
-      this._phaseQueue = null; this._resumePhase = null;
+      this._phaseQueue = null; this._resumePhase = null; this._upkeepOnly = false;
       this._extraPhases = (this._extraPhases || []).filter(x => x.turn !== this.turn);
       this._extraSteps = (this._extraSteps || []).filter(x => x.turn !== this.turn);
       this.logEvent('rules', 'The turn ends.');
@@ -12509,6 +12516,8 @@
         case 'castAnotherSpell': return !!me && (me.spellObjsThisTurn || []).some(x => x !== src);
         // Rise of the Witch-king: "If you sacrificed a creature this way" (sacrificedThisWay)
         case 'youSacrificedThisWay': return !!me && ((this.resolving || {})._sacBy || []).some(s => s.pid === me.id && (!cond.what || (s.types || []).includes(cond.what)));
+        // Ephara, God of the Polis: "you had another creature enter the battlefield under your control last turn"
+        case 'creatureEnteredLastTurn': return !!me && ((this.creaturesInLastTurn || {})[me.id] || []).some(id => !src || id !== src.id);
         case 'enteredTypeThisTurn': {
           const by = ((this.turnHistory || {}).enteredBy || {})[me ? me.id : ''] || {};
           // Éowyn, Shieldmaiden: "another Human" — one more than this one, if it came in this turn as well (enteredOther)
@@ -14114,6 +14123,8 @@
         for (const t of ['creature', 'artifact', 'land']) if (a['is' + t[0].toUpperCase() + t.slice(1)]) by[t] = (by[t] || 0) + 1;
         // Gyome, Master Chef: the nontoken creatures among them (enteredNontoken)
         if (a.isCreature && !o.isToken) by['nontoken creature'] = (by['nontoken creature'] || 0) + 1;
+        // Ephara, God of the Polis: which creatures entered, so "another" can leave one out next turn (creaturesInLastTurn)
+        if (a.isCreature) ((h.creaturesIn = h.creaturesIn || {})[o.controller] = h.creaturesIn[o.controller] || []).push(o.id);
         // Hobgoblin Bandit Lord, Lilypad Village: which creature types entered (a changeling is every one) (enteredTypes)
         if (a.isCreature) {
           for (const t of a.subtypes || []) by['sub:' + t.toLowerCase()] = (by['sub:' + t.toLowerCase()] || 0) + 1;
@@ -20997,6 +21008,26 @@
           this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
           break;
         }
+        // Yuffie, Materia Hunter: "Then you may attach an Equipment you control to Yuffie." — chosen as it resolves
+        case 'attachYoursToSelf': {
+          if (!src || src.zone !== 'battlefield' || !(this.characteristics(src) || {}).isCreature) break;
+          const eqs = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && o !== src && o.attachedTo !== src.id &&
+            (o.analysis() || {}).isEquipment && this._attachableTo(o, src, null));
+          if (!eqs.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'attachOneOfTaken', kind: 'objects', items: this._chooseItems(eqs), min: 0, max: 1, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may attach an Equipment you control to ${src.name}.` }, 'ays');
+          if (got === SUSPEND) return SUSPEND;
+          const eq = this.obj(((got && got.picks) || [])[0]);
+          if (!eq || !eqs.includes(eq)) break;
+          const was = eq.attachedTo && this.obj(eq.attachedTo);
+          if (was) was.attachments = (was.attachments || []).filter(id => id !== eq.id);
+          eq.attachedTo = src.id;
+          eq.ts = this._stampNew();
+          src.attachments = (src.attachments || []).filter(id => id !== eq.id).concat(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${src.name}.`);
+          break;
+        }
         case 'attachPutToChosen': {
           const eq = this._lastPut && this.obj(this._lastPut);
           if (!eq || eq.zone !== 'battlefield') break;
@@ -22474,6 +22505,17 @@
         }
         /* Y'shtola Rhul: "Then if it's the first end step of the turn, there is an
            additional end step after this step." — in the second, it isn't */
+        /* Obeka, Splitter of Seconds: "you get that many additional upkeep steps after this phase" — each an
+           upkeep step alone, with no untap or draw step around it (upkeepOnly) */
+        case 'extraUpkeeps': {
+          const k = Math.max(0, n(e.n) || 0);
+          if (!k) break;
+          const phases = [];
+          for (let i = 0; i < k; i++) phases.push({ ph: 0, upkeepOnly: true });
+          (this._extraPhases = this._extraPhases || []).push({ turn: this.turn, after: this.phaseIndex, phases });
+          this.logEvent('rules', `There ${k > 1 ? 'are ' + k + ' additional upkeep steps' : 'is an additional upkeep step'} after this phase.`);
+          break;
+        }
         case 'extraEndStep': {
           if (!this.phase || this.step !== 'end') break;
           const begun = this._endSteps && this._endSteps.turn === this.turn ? this._endSteps.n : 0;
@@ -23448,11 +23490,13 @@
         /* Arvinox, the Mind Flail: "exile the bottom card of each opponent's library face down" — you may look at what
            went face down (the leave to cast follows: mayPlayExiled) */
         case 'exileBottomEach': {
-          const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [me];
+          // Ixhel, Scion of Atraxa: "each opponent who has three or more poison counters exiles the top card" (minPoison, top)
+          const who = (e.who === 'opponents' ? this.opponentsOf(ctx.controller).filter(q => !q.hasLost) : [me])
+            .filter(q => !e.minPoison || (q.poison || 0) >= e.minPoison);
           const out = [];
           for (const pl of who) {
             const lib = this.zones[pl.id].library;
-            const c = lib[lib.length - 1];
+            const c = e.top ? lib[0] : lib[lib.length - 1];
             if (!c) continue;
             this.moveObject(c, 'exile');
             if (c.zone !== 'exile') continue;
@@ -23461,7 +23505,7 @@
           }
           this._lastExiledList = out;
           this._lastExiled = out.length ? out[out.length - 1] : null;
-          this.logEvent('exile', `${me.name} exiles the bottom card of ${who.length === 1 ? who[0].name + "'s library" : "each opponent's library"}${e.faceDown ? ' face down' : ''}.`);
+          if (who.length || !e.minPoison) this.logEvent('exile', `${me.name} exiles the ${e.top ? 'top' : 'bottom'} card of ${who.length === 1 ? who[0].name + "'s library" : "each opponent's library"}${e.faceDown ? ' face down' : ''}.`);
           break;
         }
         case 'exileTop': {
@@ -26858,7 +26902,8 @@
         }
         if (src.controller !== o.controller) continue;
         if (e.cause === 'enterOrLeave') { if (gandalf) extra++; }
-        else if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent')) extra++;
+        else if (e.cause === 'enter' && ENTER.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'permanent') &&
+          !(e.yours && data.object.controller !== src.controller)) extra++;
         else if (e.cause === 'die' && DIE.includes(event) && data.object && this._cardFitsWords(data.object, e.what || 'creature')) extra++;
         else if (e.cause === 'any' && e.sourceChosenType && o !== src && src.chosenType &&
           this.characteristics(o).isCreature && this._hasCreatureType(o, src.chosenType)) extra++;

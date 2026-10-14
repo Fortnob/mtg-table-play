@@ -1533,6 +1533,8 @@
     // Kemba, Kha Enduring: "attach up to one target Equipment you control to that creature" — the one that entered (attachToThat)
     { re: /^Attach (up to one )?target Equipment you control to that creature\.?$/i,
       make: (m) => ({ op: 'attachTargetToSelf', toTrigger: true, targets: [Object.assign({ type: 'permanent', controller: 'you', filter: 'Equipment you control', subtypes: ['equipment'] }, m[1] ? { upTo: true } : {})] }) },
+    // Yuffie, Materia Hunter: "Then you may attach an Equipment you control to Yuffie." (attachYoursToSelf)
+    { re: /^(?:Then )?you may attach an Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachYoursToSelf' }) },
     // Balan, Wandering Knight: "Attach all Equipment you control to CARDNAME." (attachAllToSelf)
     { re: /^Attach all Equipment you control to (?:CARDNAME|this creature)\.?$/i, make: () => ({ op: 'attachAllToSelf' }) },
     // Raubahn, Bull of Ala Mhigo: "attach up to one target Equipment you control to target attacking creature" (attachEquipmentAttacking)
@@ -4865,6 +4867,8 @@
     // Y'shtola Rhul: "Then if it's the first end step of the turn, there is an additional end step after this step."
     { re: /^(?:Then )?if it'?s the first end step of the turn, there is an additional end step after this step\.?$/i,
       make: () => ({ op: 'extraEndStep', ifFirst: true }) },
+    // Obeka, Splitter of Seconds: "you get that many additional upkeep steps after this phase" (extraUpkeeps)
+    { re: /^You get that many additional upkeep steps after this phase\.?$/i, make: () => ({ op: 'extraUpkeeps', n: 'triggerAmount' }) },
     { re: /^After this (?:main )?phase, there are (two|three) additional combat phases( followed by an additional main phase)?\.?$/i,
       make: (m) => ({ op: 'extraCombat', count: num(m[1]), withMain: !!m[2] }) },
     { re: /^Untap all creatures (?:you control )?that attacked this turn\.?$/i, make: () => ({ op: 'untapAttackedThisTurn' }) },
@@ -6739,6 +6743,13 @@
       make: (m) => ({ op: 'exileBottomEach', who: 'opponents', faceDown: !!m[1] }) },
     { re: /^For as long as those cards remain exiled, you may look at them, you may cast (permanent |creature |)spells from among them, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
       make: (m) => Object.assign({ op: 'mayPlayExiled', castOnly: true, anyMana: true, duration: 'exiled' }, m[1].trim() ? { filter: m[1].trim().toLowerCase() } : {}) },
+    /* Ixhel, Scion of Atraxa: "each opponent who has three or more poison counters exiles the top card of their
+       library face down. You may look at and play those cards for as long as they remain exiled, and you may spend
+       mana as though it were mana of any color to cast those spells." (exileBottomEach: top, minPoison) */
+    { re: /^Each opponent who has (\w+) or more poison counters exiles the top card of their library face down\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'exileBottomEach', who: 'opponents', faceDown: true, top: true, minPoison: num(m[1]) } : null) },
+    { re: /^You may look at and play those cards for as long as they remain exiled, and you may spend mana as though it were mana of any colou?r to cast those spells\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', anyMana: true, duration: 'exiled' }) },
     /* Ulalek, Fused Atrocity: "copy all spells you control, then copy all other activated and triggered abilities you
        control. You may choose new targets for the copies." — every copy is offered new targets as it is made (allMine) */
     { re: /^Copy all spells you control, then copy all other activated and triggered abilities you control\.?$/i,
@@ -11322,6 +11333,8 @@
     // Oath of Liliana, Raging Battle Mouse: "a creature (two or more nonland permanents) entered the battlefield under your control this turn"
     [/^(an?|one|two|three|four) (?:or more )?(nonland permanents?|creatures?|permanents?|artifacts?|lands?) entered the battlefield under your control this turn$/i,
       (m) => ({ kind: 'enteredThisTurn', n: num(m[1].replace(/^an?$/i, 'one')), what: m[2].toLowerCase().replace(/s$/, '') })],
+    // Ephara, God of the Polis: "you had another creature enter the battlefield under your control last turn"
+    [/^you had (?:another|a) creature enter the battlefield under your control last turn$/i, () => ({ kind: 'creatureEnteredLastTurn' })],
     // Lilypad Village: "a Bird, Frog, Otter, or Rat entered the battlefield under your control this turn"
     [/^an? ((?:[A-Z][a-z]+, )*(?:[A-Z][a-z]+,? or )?[A-Z][a-z]+) entered the battlefield under your control this turn$/,
       (m) => ({ kind: 'enteredTypeThisTurn', types: m[1].split(/,? or |, /).map(t => t.toLowerCase()) })],
@@ -17920,8 +17933,9 @@
         make: (m) => ({ op: 'noEnterTriggers', what: /creature/i.test(m[1]) ? 'creature' : 'permanent',
           dying: !!m[2], opponentsOnly: !!m[3] }), auto: true },
       /* Panharmonicon and its kin: one cause, one more trigger */
-      { re: /^If an? ((?:[a-z]+ or )?[a-z]+) entering(?: the battlefield)? causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
-        make: (m) => ({ op: 'triggerDouble', cause: 'enter', what: m[1].toLowerCase() }), auto: true },
+      // (Naban, Dean of Iteration: "If a Wizard you control entering …" — yours)
+      { re: /^If an? ((?:[a-z]+ or )?[a-z]+)( you control)? entering(?: the battlefield)? causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
+        make: (m) => Object.assign({ op: 'triggerDouble', cause: 'enter', what: m[1].toLowerCase() }, m[2] ? { yours: true } : {}), auto: true },
       { re: /^If an? ((?:[a-z]+ or )?[a-z]+) dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time\.?$/i,
         make: (m) => ({ op: 'triggerDouble', cause: 'die', what: m[1].toLowerCase() }), auto: true },
       /* Gandalf the White: "If a legendary permanent or an artifact entering or leaving the battlefield causes a
