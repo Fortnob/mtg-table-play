@@ -2805,10 +2805,11 @@
     /* A one-sided fight: it hits, and nothing hits it back. */
     /* Rabid Bite; Fall of the Hammer's "another target creature" (any
        creature but the one dealing it); "target creature you don't control" */
-    { re: /^Target creature you control deals damage equal to its power to (another )?(target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/i,
+    // (Itzquinth, Firstborn of Gishath: "target Dinosaur you control")
+    { re: /^Target (creature|[A-Z][a-z]+) you control deals damage equal to its power to (another )?(target creature(?: or planeswalker)?(?: you don'?t control| an opponent controls)?)\.?$/,
       make: (m) => ({ op: 'bite',
-        targets: [{ type: 'creature', controller: 'you' },
-          Object.assign(targetSpec(m[2]), m[1] ? { distinct: true } : {})] }) },
+        targets: [m[1] === 'creature' ? { type: 'creature', controller: 'you' } : Object.assign(targetSpec('target ' + m[1] + ' you control'), { type: 'creature' }),
+          Object.assign(targetSpec(m[3]), m[2] ? { distinct: true } : {})] }) },
     /* Gravitic Punch: "to target player"; Soul's Fire: "to any target", a
        creature or planeswalker as much as a player; Origin of Thor: "to each
        opponent", every one of them */
@@ -4840,6 +4841,14 @@
         : { op: 'massReanimate', filter: m[1].trim().toLowerCase(), maxMv: +m[2], yours: true }) },
     { re: /^(?:Then )?[Rr]eturn all ((?:land|creature|artifact|enchantment|permanent|nonland permanent)(?: (?:and\/or|and) (?:land|creature|artifact|enchantment))?) cards from your graveyard to the battlefield( tapped)?(?: under your control)?\.?$/,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/ (?:and\/or|and) /g, ' or '), yours: true, tapped: !!m[2] }) },
+    /* The Ancient One: "Draw a card, then discard a card. When you discard a card this way, target player mills
+       cards equal to its mana value." — a reflexive trigger about the card discarded, none if none was (ifDiscarded) */
+    { re: /^When you discard a card this way, (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(U.titleCase(m[1].charAt(0)) + m[1].slice(1)));
+        if (!inner.auto || !inner.effects.length) return null;
+        return { op: 'reflexive', ifDiscarded: true, effects: inner.effects, text: m[0] };
+      } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
     { re: /^When you do, (.+)$/i,
@@ -5862,11 +5871,13 @@
       make: (m) => ({ op: 'discardUpToDraw', n: num(m[1]) }) },
     { re: /^Target creature can'?t be regenerated this turn\.?$/i, make: () => ({ op: 'noRegen', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }) },
     /* "Target creature becomes black until end of turn." */
-    { re: /^(Target creature|Target permanent|This creature|CARDNAME) becomes (white|blue|black|red|green|colorless)( until end of turn)?\.?$/i,
+    // (Tam, Mindful First-Year: "Target creature you control becomes all colors until end of turn.")
+    { re: /^(Target creature(?: you control)?|Target permanent|This creature|CARDNAME) becomes (white|blue|black|red|green|colorless|all colors)( until end of turn)?\.?$/i,
       make: (m) => {
-        const col = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null }[m[2].toLowerCase()];
+        const all = /^all colors$/i.test(m[2]);
+        const col = all ? null : { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G', colorless: null }[m[2].toLowerCase()];
         const tgt = /^target/i.test(m[1]);
-        return { op: 'becomes', duration: m[3] ? 'eot' : 'permanent', eff: { setColors: col ? [col] : [] },
+        return { op: 'becomes', duration: m[3] ? 'eot' : 'permanent', eff: { setColors: all ? ['W', 'U', 'B', 'R', 'G'] : col ? [col] : [] },
           targets: tgt ? [targetSpec(m[1])] : null, scope: tgt ? null : 'self' };
       } },
     { re: /^(?:You may )?[Rr]eturn another (creature|permanent|land|artifact|enchantment) you control to its owner'?s hand\.?$/,
@@ -10583,7 +10594,8 @@
     // (Knight Paladin: "Rapid-fire Battle Cannon — …" — a hyphen inside the label; Squirrel Girl: "Do You Like Squirrels? —")
     // (The Eleventh Doctor: "I. AM. TALKING! — Whenever …" — full stops inside the label)
     // (Spider-Man India: "Pavitr's Sevā — …" — a letter with a mark on it: abilityWordAccent)
-    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
+    // (The Ancient One: "Descend 8 \u2014 \u2026" \u2014 a number after the word)
+    const m = String(line).match(/^((?:\d{1,3}(?:,\d{3})* )?[A-Za-z\u00C0-\u024F][A-Za-z\u00C0-\u024F.' -]{2,30}?(?: \d{1,2})?[!?]?)\s*(?:\u2014|--|-)\s+([\s\S]+)$/);
     if (!m) return line;
     const word = m[1].trim().toLowerCase().replace(/\s+\d+$/, '');
     // a Saga's chapter numbers are not labels, and some labels are rules
@@ -17310,8 +17322,17 @@
       // Lier, Disciple of the Drowned: "Spells can't be countered."
       { re: /^Spells can'?t be countered\.?$/i, eff: { op: 'uncounterable', who: 'all' }, auto: true },
       // Lier: "Each instant and sorcery card in your graveyard has flashback. The flashback cost is equal to that card's mana cost."
+      // Tam, Mindful First-Year: "Each other creature you control has hexproof from each of its colors." (hexproofFromOwnColors)
+      { re: /^Each other creature you control has hexproof from each of its colors\.?$/i, eff: { op: 'hexproofFromOwnColors', other: true }, auto: true },
       { re: /^Each instant and sorcery card in your graveyard has flashback\. The flashback cost is equal to that card'?s mana cost\.?$/i,
         eff: { op: 'grantFlashbackInstSorc' }, auto: true },
+      /* Iroh, Grand Lotus: "During your turn, each non-Lesson instant and sorcery card in your graveyard has flashback.
+         The flashback cost is equal to that card's mana cost." (yourTurn, notSubtype) */
+      { re: /^During your turn, each non-([A-Z][a-z]+) instant and sorcery card in your graveyard has flashback\. The flashback cost is equal to that card'?s mana cost\.?$/,
+        make: (m) => ({ op: 'grantFlashbackInstSorc', yourTurn: true, notSubtype: m[1] }), auto: true },
+      // Iroh, Grand Lotus: "During your turn, each Lesson card in your graveyard has flashback {1}." (grantFlashbackCost)
+      { re: /^(During your turn, )?[Ee]ach ([A-Z][a-z]+) card in your graveyard has flashback ((?:\{[^}]+\})+)\.?$/,
+        make: (m) => ({ op: 'grantFlashbackCost', words: m[2].toLowerCase(), cost: m[3], yourTurn: !!m[1] }), auto: true },
       // Tannuk, Steadfast Second: "Artifact cards and red creature cards in your hand have warp {2}{R}." (grantWarp)
       { re: /^([a-z]+(?: [a-z]+)?) cards(?: and ([a-z]+(?: [a-z]+)?) cards)? in your hand have warp ((?:\{[^}]+\})+)\.?$/i,
         make: (m) => ({ op: 'grantWarp', words: [m[1], m[2]].filter(Boolean).map(w => w.toLowerCase()), cost: m[3] }), auto: true },
@@ -17819,6 +17840,10 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {});
         }, auto: true },
+      /* Kagha, Shadow Archdruid: "Once during each of your turns, you may play a land or cast a permanent spell from among
+         cards in your graveyard that were put there from your library this turn." — one leave for either (fromLibThisTurn) */
+      { re: /^Once during each of your turns, you may play a land or cast a permanent spell from among cards in your graveyard that were put there from your library this turn\.?$/,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'any', spellFilter: 'permanent', duringYourTurn: true, oncePerTurn: true, fromLibThisTurn: true }, auto: true },
       // Raul, Trouble Shooter: "Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn." (milledThisTurn)
       { re: /^Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn\.?$/,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: null, milledThisTurn: true }, auto: true },

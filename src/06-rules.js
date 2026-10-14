@@ -3095,6 +3095,11 @@
       const c = this.characteristics(o);
       for (const k of ((c && c.keywords) || [])) { const m = String(k).match(/^hexproof from (.+)$/i); if (m) qs.push(...m[1].toLowerCase().split(/,? and from /)); }
       for (const k of ((o.analysis() || {}).keywords || [])) { const m = String(k.keyword || '').match(/^hexproof from (.+)$/i); if (m && k.arg == null) qs.push(...m[1].toLowerCase().split(/,? and from /)); }
+      // Tam, Mindful First-Year: "Each other creature you control has hexproof from each of its colors." (hexproofFromOwnColors)
+      if (c && c.isCreature && this.battlefield.some(x => x !== o && x.controller === o.controller && !x.phasedOut && this._staticOp(x, 'hexproofFromOwnColors'))) {
+        const CW = { W: 'white', U: 'blue', B: 'black', R: 'red', G: 'green' };
+        for (const col of ((o.analysis() || {}).colors || [])) if (CW[col]) qs.push(CW[col]);
+      }
       if (!qs.length) return false;
       const sa = source.analysis() || {};
       const n = (sa.colors || []).length;
@@ -4585,6 +4590,8 @@
             if (ef.oncePerTurn && src._playFromTurn === this.turn) continue;
             // Raul, Trouble Shooter: "from among cards in your graveyard that were milled this turn"
             if (ef.milledThisTurn && o._milledTurn !== this.turn) continue;
+            // Kagha, Shadow Archdruid: "that were put there from your library this turn"
+            if (ef.fromLibThisTurn && o._toGraveFromLib !== this.turn) continue;
             if (ef.maxMv != null && ((o.card && o.card.cmc) || 0) > ef.maxMv) continue;
             // Glarb, Calamity's Augur: "cast spells with mana value 4 or greater" — the lands any
             if (ef.spellMinMv != null && kind !== 'land' && ((o.card && o.card.cmc) || 0) < ef.spellMinMv) continue;
@@ -4913,11 +4920,26 @@
           this._anyStaticOf(playerId, 'grantRetraceNonlandPermanents') && !out.some(u => u.via === 'retrace')) {
         out.push({ kind: 'cast', via: 'retrace', cost: a.manaCost || '', after: null, discard: 'land', label: 'Retrace (discard a land)' });
       }
+      /* A standing grant of flashback, from a permanent (or emblem) of this player's; Iroh, Grand Lotus: "During your
+         turn, …" (yourTurn) */
+      const fbGrant = (op, fits) => {
+        for (const x of this._withEmblems(this.battlefield)) {
+          const e = x.controller === playerId && !x.phasedOut && this._staticOp(x, op);
+          if (e && (!e.yourTurn || (this.activePlayer && this.activePlayer.id === playerId)) && fits(e)) return e;
+        }
+        return null;
+      };
       // Lier: each instant and sorcery card in your graveyard has flashback, for its mana cost
+      // (Iroh, Grand Lotus: "each non-Lesson instant and sorcery card" — notSubtype)
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) && o.flashbackTurn !== this.turn &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^flashback$/i.test(ab.keyword || '')) &&
-          this._anyStaticOf(playerId, 'grantFlashbackInstSorc') && !out.some(u => u.via === 'flashback')) {
+          fbGrant('grantFlashbackInstSorc', e => !e.notSubtype || !(a.subtypes || []).includes(e.notSubtype)) && !out.some(u => u.via === 'flashback')) {
         out.push({ kind: 'cast', via: 'flashback', cost: a.manaCost || '', after: 'exile', label: 'Flashback ' + (a.manaCost || '') });
+      }
+      // Iroh, Grand Lotus: "each Lesson card in your graveyard has flashback {1}" (grantFlashbackCost)
+      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand && !out.some(u => u.via === 'flashback')) {
+        const fc = fbGrant('grantFlashbackCost', e => this._cardFitsWords(o, e.words));
+        if (fc) out.push({ kind: 'cast', via: 'flashback', cost: fc.cost, after: 'exile', label: 'Flashback ' + fc.cost });
       }
       // Chainer: one creature spell from your graveyard this turn
       if (o.zone === 'graveyard' && o.owner === playerId && a.isCreature && (this.player(playerId) || {}).graveCreatureTurn === this.turn &&
@@ -12456,6 +12478,8 @@
           const list = (z && z.graveyard) || [];
           // "instant and/or sorcery cards": either kind
           if (cond.anyOf) return at(list.filter(o => cond.anyOf.some(w => this._matchesCategory(o, w))).length);
+          // (The Ancient One: "eight or more permanent cards" — a card that would be a permanent, not an instant)
+          if (cond.what === 'permanent') return at(list.filter(o => !!(o.analysis() || {}).isPermanent).length);
           return at(cond.what ? list.filter(o => this._matchesCategory(o, cond.what)).length : list.length);
         }
         case 'graveyardTypes': {
@@ -18801,7 +18825,8 @@
         case 'drawDiscard': {
           const drew = n(e.n), toss = e.discard == null ? drew : n(e.discard);
           // (drawn once, however many times this resumes)
-          if (!this._doneHere('ddDraw')) this._drawCards(me, drew);
+          // (The Ancient One: "When you discard a card this way" — none yet: ifDiscarded)
+          if (!this._doneHere('ddDraw')) { this._lastDiscarded = []; this._drawCards(me, drew); }
           const can = Math.min(toss, this.zones[ctx.controller].hand.length);
           if (can > 0) {
             /* Frantic Search, Jace, Vryn's Prodigy: the discard is waited for, so what comes after it
@@ -21452,11 +21477,14 @@
            put on the stack once this is done, its targets chosen then */
         case 'reflexive': {
           const so = ctx.obj || (ctx.objId && this.obj(ctx.objId)) || null;
+          // The Ancient One: "When you discard a card this way" — only if one was, and "its" is that card (ifDiscarded)
+          const tossed = e.ifDiscarded ? (this._lastDiscarded || [])[0] : null;
+          if (e.ifDiscarded && !tossed) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
             effects: e.effects || [], auto: true, abilityText: rText, optional: false,
-            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }) });
+            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}) });
           break;
         }
         case 'delayed': {
