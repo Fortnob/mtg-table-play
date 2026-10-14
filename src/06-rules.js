@@ -5791,6 +5791,8 @@
           const hit = (opts.targets || []).some(t => {
             const x = this.obj((t && t.id) || t);
             if (!x || x.zone !== 'battlefield') return false;
+            // (Kopala, Warden of Waves: "that target a Merfolk you control" — yoursOnly)
+            if (ef.yoursOnly && x.controller !== s0.controller) return false;
             return ef.commanderYours ? !!x.isCommander && x.controller === s0.controller : this._matchesCategory(x, ef.filter);
           });
           if (hit) d += ef.amount || 0;
@@ -7968,6 +7970,16 @@
               if (e.setZero && (e.who !== 'you' || o.controller === src.controller)) return '';
               if (e.loyalty && ab.kind !== 'loyalty') continue;
               if (e.who === 'you' && o.controller !== src.controller) continue;
+              /* Kopala, Warden of Waves: "Abilities your opponents activate that target a Merfolk you control cost
+                 {2} more to activate" (targetsYour) */
+              if (e.targetsYour) {
+                if (!this.opponentsOf(src.controller).some(q => q.id === o.controller)) continue;
+                const hit = (targets || []).some(t => {
+                  const x = t && this.obj(typeof t === 'string' ? t : t.id);
+                  return !!x && x.zone === 'battlefield' && x.controller === src.controller && this._matchesCategory(x, e.targetsYour);
+                });
+                if (!hit) continue;
+              }
               if (e.scope && e.scope.attached) { if (src.attachedTo !== o.id) continue; }
               else if (e.scope && (o.zone !== 'battlefield' || !this._scopeHit(e.scope, o, oa, src.controller, src))) continue;
               d += Number(e.amount) || 0;
@@ -8066,7 +8078,8 @@
         if (cost.tap) o.tapped = true;
         const paid = this.payMana(playerId, abMana, Object.assign({}, opts, { forAbility: o }, ab.xColor ? { xColor: ab.xColor } : {}));
         if (cost.tap) o.tapped = wasTapped;
-        if (!paid) return this.fail(`Not enough mana (${cost.mana}).`);
+        // (what it costs now, with every change to the price: Kopala's {2} more)
+        if (!paid) return this.fail(`Not enough mana (${abMana}).`);
       }
       if (cost.tap) { this._markTapped(o); this.emit('sfx', 'tap'); }
       if (cost.exert) o.noUntapNext = true;

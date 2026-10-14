@@ -28764,4 +28764,34 @@ module.exports = (test) => {
     M.nextTurn('A');
     t.ok(g.characteristics(tithe).isCreature, 'Zur: for good');
   });
+
+  test('Commanders: Kopala, Warden of Waves — opponents\' spells and abilities aimed at your Merfolk cost {2} more', (mk, t) => {
+    t.auto('Kopala, Warden of Waves');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const kop = M.bf('A', 'Kopala, Warden of Waves');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const pyro = M.bf('B', 'Prodigal Pyromancer');
+    M.g.passPriority('A', true);
+    // B's Lightning Bolt at Kopala: {R} is not enough, {2}{R} is
+    const bolt = M.hand('B', 'Lightning Bolt');
+    M.mana('B', 'R');
+    t.no(g.castSpell('B', bolt.id, { auto: true, targets: [{ kind: 'object', id: kop.id }] }), 'Kopala: {2} more for a spell');
+    // its ability at Kopala: {2} more; at the Grizzly Bears, not
+    t.no(g.activateAbility('B', pyro.id, 0, { auto: true, targets: [{ kind: 'object', id: kop.id }] }), 'Kopala: {2} more for an ability');
+    M.activate('B', pyro, 0, { targets: [bear.id] });
+    t.eq(bear.damage, 1, 'Kopala: not a Merfolk, no tax');
+    M.g.passPriority('A', true);
+    M.mana('B', '2');
+    M.cast('B', bolt, { targets: [kop.id] });
+    t.zone(kop, 'graveyard', 'Kopala: paid for, and it resolves');
+  });
+  test('Commanders: Kopala, Warden of Waves — your own spells at your Merfolk cost nothing more', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Kopala, Warden of Waves');
+    const mer = M.bf('A', 'Merfolk Looter');
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Swords to Plowshares'), { targets: [mer.id] });
+    t.zone(mer, 'exile', 'Kopala: only opponents');
+  });
 };

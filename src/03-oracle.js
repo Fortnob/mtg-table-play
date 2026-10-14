@@ -15645,6 +15645,12 @@
         make: (m) => ({ op: 'targetCostMod', who: 'you', filter: m[1].toLowerCase(), amount: -m[2] }), auto: true },
       { re: /^Spells your opponents cast that target one or more commanders you control cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetCostMod', who: 'opponents', commanderYours: true, amount: +m[1] }), auto: true },
+      /* Kopala, Warden of Waves: "Spells your opponents cast that target a Merfolk you control cost {2} more to
+         cast." / "Abilities your opponents activate that target a Merfolk you control cost {2} more to activate." */
+      { re: /^Spells your opponents cast that target an? ([A-Z][a-z]+|creature|permanent) you control cost \{(\d+)\} more to cast\.?$/,
+        make: (m) => ({ op: 'targetCostMod', who: 'opponents', filter: m[1].toLowerCase(), yoursOnly: true, amount: +m[2] }), auto: true },
+      { re: /^Abilities your opponents activate that target an? ([A-Z][a-z]+|creature|permanent) you control cost \{(\d+)\} more to activate\.?$/,
+        make: (m) => ({ op: 'abilityCostMod', who: 'opponents', targetsYour: m[1].toLowerCase(), amount: +m[2] }), auto: true },
       // Icefall Regent: "Spells your opponents cast that target this creature cost {2} more to cast."
       { re: /^Spells your opponents cast that target (?:this creature|CARDNAME|this permanent) cost \{(\d+)\} more to cast\.?$/i,
         make: (m) => ({ op: 'targetManaTax', amount: +m[1] }), auto: true },
