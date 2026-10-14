@@ -104,6 +104,8 @@ declare namespace MTG {
     band?: string | null;
     /** soulbond: the id of the creature it is paired with */
     pairedWith?: Id | null;
+    /** meld: the names of the two cards a melded permanent is (Gisela and Bruna, as Brisela) */
+    melded?: string[];
     note?: string | null;
     /** the turn it entered */
     entered?: number | null;

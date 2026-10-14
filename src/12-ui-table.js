@@ -563,7 +563,7 @@
       n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
@@ -633,6 +633,11 @@
         const mate = this.objIn(o.pairedWith);
         n.appendChild(el('div', { class: 'cv-mark cv-paired', text: '⚭ Paired',
           title: mate && mate.card ? `Paired with ${mate.card.name} (soulbond)` : 'Paired (soulbond)' }));
+      }
+      // meld: one permanent that is two cards (Brisela, Voice of Nightmares is Gisela and Bruna)
+      if (o.melded && o.melded.length) {
+        n.appendChild(el('div', { class: 'cv-mark cv-paired cv-melded', text: '\u29d3 Melded',
+          title: `Melded from ${o.melded.join(' and ')}: it leaves the battlefield as those two cards` }));
       }
       if (o.prepared) {
         const sp = preparedFace(o);

@@ -28869,4 +28869,402 @@ module.exports = (test) => {
     t.no(stone.counters['+1/+1'], 'Ao: not another artifact');
     t.no(theirs.counters['+1/+1'], "Ao: not B's");
   });
+
+  test('Meld: Gisela, the Broken Blade and Bruna, the Fading Light — Brisela, Voice of Nightmares at the end step', (mk, t) => {
+    t.auto('Gisela, the Broken Blade');
+    t.auto('Bruna, the Fading Light');
+    t.auto('Brisela, Voice of Nightmares');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const gis = M.bf('A', 'Gisela, the Broken Blade');
+    const bru = M.bf('A', 'Bruna, the Fading Light');
+    M.toMain('A', 'end');
+    M.resolve();
+    const bf = M.bfOf('A');
+    t.eq(bf.length, 1, 'Brisela: one permanent');
+    const bri = bf[0];
+    t.eq(bri.name, 'Brisela, Voice of Nightmares');
+    t.ok([gis, bru].includes(bri), 'Brisela: one of the two objects carries it');
+    t.eq(g.powerOf(bri), 9);
+    t.eq(g.toughnessOf(bri), 10);
+    t.eq(bri.analysis().mv, 11, 'Brisela: mana value 4 + 7');
+    t.ok(g.log.some(l => /melds Gisela, the Broken Blade and Bruna, the Fading Light into Brisela/.test(l.text)), 'Brisela: logged');
+    t.ok(g.viewFor('A').battlefield.find(v => v.id === bri.id).melded, 'Brisela: the view says melded');
+    // Your opponents can't cast spells with mana value 3 or less
+    M.nextTurn('B');
+    M.mana('B', 'R');
+    t.no(g.castSpell('B', M.hand('B', 'Lightning Bolt').id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), "Brisela: B can't cast Lightning Bolt");
+    M.mana('B', '3R');
+    M.cast('B', M.hand('B', 'Hill Giant'));
+    t.ok(M.bfOf('B').some(o => o.name === 'Hill Giant'), 'Brisela: a 4-drop is fine');
+    // dies: two cards in the graveyard
+    M.nextTurn('A');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [bri.id] });
+    t.zone(gis, 'graveyard', 'Brisela dies: Gisela');
+    t.zone(bru, 'graveyard', 'Brisela dies: Bruna');
+    t.eq(gis.name, 'Gisela, the Broken Blade');
+    t.eq(bru.name, 'Bruna, the Fading Light');
+    t.eq(M.zone('A', 'graveyard').filter(o => o === gis || o === bru).length, 2);
+  });
+
+  test('Meld: Gisela, the Broken Blade — nothing melds without Bruna, or with Bruna under another player', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const gis = M.bf('A', 'Gisela, the Broken Blade');
+    M.toMain('A', 'end');
+    M.resolve();
+    t.zone(gis, 'battlefield');
+    t.eq(gis.name, 'Gisela, the Broken Blade', 'Gisela alone: no meld');
+    const bru = M.bf('B', 'Bruna, the Fading Light');
+    M.nextTurn('A');
+    M.toMain('A', 'end');
+    M.resolve();
+    t.eq(gis.name, 'Gisela, the Broken Blade', "Gisela: B's Bruna doesn't meld");
+    t.eq(bru.name, 'Bruna, the Fading Light');
+    t.zone(bru, 'battlefield');
+    // owned by B, controlled by A: still not
+    bru.controller = 'A';
+    g.bumpBoard();
+    M.nextTurn('A');
+    M.toMain('A', 'end');
+    M.resolve();
+    t.eq(gis.name, 'Gisela, the Broken Blade', "Gisela: a Bruna A controls but doesn't own doesn't meld");
+    t.zone(bru, 'battlefield');
+  });
+
+  test('Meld: Brisela bounced — both cards to the hand; a copy is Brisela with mana value 0', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const gis = M.bf('A', 'Gisela, the Broken Blade');
+    const bru = M.bf('A', 'Bruna, the Fading Light');
+    M.toMain('A', 'end');
+    M.resolve();
+    const bri = [gis, bru].find(o => o.zone === 'battlefield');
+    M.nextTurn('B');
+    M.mana('B', '3U');
+    M.cast('B', M.hand('B', 'Clone'));
+    const clone = M.bfOf('B')[0];
+    t.ok(clone, 'Clone entered');
+    t.eq(clone.name, 'Brisela, Voice of Nightmares', 'Clone copies Brisela');
+    t.eq(clone.analysis().mv, 0, 'a copy of a melded permanent has mana value 0');
+    t.eq(g.powerOf(clone), 9);
+    t.eq(bri.analysis().mv, 11, 'the melded permanent itself is still 11');
+    // (B's Brisela stops A's Unsummon: gone first)
+    g.moveObject(clone, 'graveyard');
+    t.eq(clone.name, 'Clone', 'the Clone in the graveyard is a Clone');
+    M.nextTurn('A');
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Unsummon'), { targets: [bri.id] });
+    t.zone(gis, 'hand', 'Brisela bounced: Gisela');
+    t.zone(bru, 'hand', 'Brisela bounced: Bruna');
+    t.eq(g.zones.A.hand.filter(o => o === gis || o === bru).length, 2);
+  });
+
+  test('Meld: Graf Rats and Midnight Scavengers — Chittering Host at the beginning of combat, the others get +1/+0 and menace', (mk, t) => {
+    t.auto('Graf Rats');
+    t.auto('Midnight Scavengers');
+    t.auto('Chittering Host');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const rats = M.bf('A', 'Graf Rats');
+    // B's Midnight Scavengers: nothing melds
+    const theirs = M.bf('B', 'Midnight Scavengers');
+    M.toMain('A', 'beginCombat');
+    M.resolve();
+    t.eq(rats.name, 'Graf Rats', "Graf Rats: B's Scavengers don't meld");
+    t.zone(theirs, 'battlefield');
+    const sc = M.bf('A', 'Midnight Scavengers');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.nextTurn('A');
+    M.toMain('A', 'beginCombat');
+    M.resolve();
+    const host = [rats, sc].find(o => o.zone === 'battlefield');
+    t.ok(host, 'Chittering Host on the battlefield');
+    t.eq(host.name, 'Chittering Host');
+    t.eq([rats, sc].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.eq(host.analysis().mv, 7, 'Chittering Host: 2 + 5');
+    t.eq(g.powerOf(host), 5);
+    t.eq(g.powerOf(bear), 3, 'Chittering Host: the Bears get +1/+0');
+    t.ok(g.hasKw(bear, 'menace'), 'Chittering Host: and menace');
+    t.ok(g.hasKw(host, 'haste'), 'Chittering Host: haste');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [host.id] });
+    t.zone(rats, 'graveyard', 'Chittering Host dies: Graf Rats');
+    t.zone(sc, 'graveyard', 'Chittering Host dies: Midnight Scavengers');
+  });
+
+  test('Meld: Hanweir Battlements and Hanweir Garrison — Hanweir, the Writhing Township, its two attacking Eldrazi Horrors', (mk, t) => {
+    t.auto('Hanweir Battlements');
+    t.auto('Hanweir Garrison');
+    t.auto('Hanweir, the Writhing Township');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const bat = M.bf('A', 'Hanweir Battlements');
+    // without the Garrison: paid for, and nothing melds
+    M.mana('A', '3RR');
+    M.activate('A', bat, 2);
+    t.zone(bat, 'battlefield');
+    t.eq(bat.name, 'Hanweir Battlements', 'Battlements alone: no meld');
+    const gar = M.bf('A', 'Hanweir Garrison');
+    M.nextTurn('A');
+    M.mana('A', '3RR');
+    M.activate('A', bat, 2);
+    const host = [bat, gar].find(o => o.zone === 'battlefield');
+    t.eq(host.name, 'Hanweir, the Writhing Township');
+    t.eq([bat, gar].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.eq(host.analysis().mv, 3, 'Hanweir: 0 + 3');
+    t.ok(host.analysis().isCreature && !host.analysis().isLand, 'Hanweir: a creature, not a land');
+    t.eq(g.powerOf(host), 7);
+    M.answer('declareAttackers', () => [{ attackerId: host.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    const horrors = M.bfOf('A').filter(o => o.isToken && o.name === 'Eldrazi Horror');
+    t.eq(horrors.length, 2, 'Hanweir attacks: two Eldrazi Horrors');
+    t.eq(M.life('B'), 20 - 7 - 3 - 3, 'Hanweir: the Horrors attacked too');
+    M.nextTurn('A');
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Unsummon'), { targets: [host.id] });
+    t.zone(bat, 'hand', 'Hanweir bounced: Battlements');
+    t.zone(gar, 'hand', 'Hanweir bounced: Garrison');
+  });
+
+  test('Meld: Urza, Lord Protector and The Mightstone and Weakstone — Urza, Planeswalker, two loyalty abilities a turn', (mk, t) => {
+    t.auto('Urza, Lord Protector');
+    t.auto('The Mightstone and Weakstone');
+    t.auto('Urza, Planeswalker');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const urza = M.bf('A', 'Urza, Lord Protector');
+    const stone = M.bf('B', 'The Mightstone and Weakstone');
+    M.mana('A', '7');
+    M.activate('A', urza, 0);
+    t.eq(urza.name, 'Urza, Lord Protector', "Urza: B's Mightstone doesn't meld");
+    t.zone(stone, 'battlefield');
+    const mine = M.bf('A', 'The Mightstone and Weakstone');
+    M.nextTurn('A');
+    M.mana('A', '7');
+    M.activate('A', urza, 0);
+    const pw = [urza, mine].find(o => o.zone === 'battlefield');
+    t.eq(pw.name, 'Urza, Planeswalker');
+    t.eq([urza, mine].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.eq(pw.analysis().mv, 8, 'Urza, Planeswalker: 3 + 5');
+    t.eq(pw.counters.loyalty, 7, 'Urza, Planeswalker: loyalty 7');
+    // +2: artifact spells cost {2} less this turn, 2 life
+    M.activate('A', pw, 0);
+    t.eq(M.life('A'), 22, 'Urza +2: 2 life');
+    t.eq(pw.counters.loyalty, 9);
+    M.cast('A', M.hand('A', 'Mind Stone'));
+    t.ok(M.bfOf('A').some(o => o.name === 'Mind Stone'), 'Urza +2: Mind Stone for nothing');
+    // +1 the same turn: draw two, discard one
+    const hand0 = M.zone('A', 'hand').length;
+    M.activate('A', pw, 1);
+    t.eq(M.zone('A', 'hand').length, hand0 + 1, 'Urza +1: two drawn, one discarded');
+    t.eq(pw.counters.loyalty, 10);
+    t.no(g.activateAbility('A', pw.id, 2, { auto: true, targets: [] }), 'Urza: not a third time');
+    // next turn: 0 — two Soldiers; −3 on B's Mightstone
+    M.nextTurn('A');
+    M.activate('A', pw, 2);
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Soldier').length, 2, 'Urza 0: two Soldiers');
+    M.activate('A', pw, 3, { targets: [stone.id] });
+    t.zone(stone, 'exile', 'Urza −3: exiled');
+    // −10: A's artifacts and planeswalkers survive; the rest is destroyed
+    const giant = M.bf('B', 'Hill Giant');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.nextTurn('A');
+    pw.counters.loyalty = 12;
+    M.activate('A', pw, 4);
+    t.zone(giant, 'graveyard', 'Urza −10: Hill Giant destroyed');
+    t.zone(bear, 'graveyard', 'Urza −10: Grizzly Bears destroyed');
+    t.zone(pw, 'battlefield', 'Urza −10: Urza indestructible');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Soldier').length, 2, 'Urza −10: the Soldiers are artifacts');
+    // no loyalty left: two cards in the graveyard
+    pw.counters.loyalty = 0;
+    g.checkStateBasedActions();
+    M.resolve();
+    t.zone(urza, 'graveyard', 'Urza gone: Urza, Lord Protector');
+    t.zone(mine, 'graveyard', 'Urza gone: The Mightstone and Weakstone');
+  });
+
+  test('Meld: Mishra, Claimed by Gix and Phyrexian Dragon Engine — Mishra, Lost to Phyrexia enters tapped and attacking', (mk, t) => {
+    t.auto('Mishra, Claimed by Gix');
+    t.auto('Phyrexian Dragon Engine');
+    t.auto('Mishra, Lost to Phyrexia');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const mi = M.bf('A', 'Mishra, Claimed by Gix');
+    const eng = M.bf('A', 'Phyrexian Dragon Engine');
+    // Mishra attacks alone: X is 1, nothing melds
+    M.answer('declareAttackers', () => [{ attackerId: mi.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(mi.name, 'Mishra, Claimed by Gix', 'Mishra alone attacking: no meld');
+    t.eq(M.life('B'), 20 - 1 - 3);
+    t.eq(M.life('A'), 21);
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: mi.id, defenderId: 'B' }, { attackerId: eng.id, defenderId: 'B' }]);
+    M.answer('mode', { modes: [1, 4, 5] });
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
+    M.toMain('A', 'declareBlockers');
+    const host = [mi, eng].find(o => o.zone === 'battlefield');
+    t.ok(host, 'Mishra, Lost to Phyrexia on the battlefield');
+    t.eq(host.name, 'Mishra, Lost to Phyrexia');
+    t.eq([mi, eng].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.ok(host.tapped, 'Mishra: enters tapped');
+    t.eq(host.attacking, 'B', 'Mishra: and attacking');
+    t.eq(host.analysis().mv, 7, 'Mishra: 4 + 3');
+    M.toMain('A', 'endCombat');
+    // 16 - 2 (Mishra, Claimed by Gix) - 3 (Mishra deals 3) - 9 (combat)
+    t.eq(M.life('B'), 16 - 2 - 3 - 9, 'Mishra, Lost to Phyrexia: 3 damage and 9 in combat');
+    t.eq(M.bfOf('A').filter(o => o.isToken && o.name === 'Powerstone' && o.tapped).length, 2, 'Mishra: two tapped Powerstones');
+    M.nextTurn('A');
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Unsummon'), { targets: [host.id] });
+    t.zone(mi, 'hand', 'Mishra bounced: Mishra, Claimed by Gix');
+    t.zone(eng, 'hand', 'Mishra bounced: Phyrexian Dragon Engine');
+  });
+
+  test('Meld: Titania, Voice of Gaea and Argoth, Sanctum of Nature — Titania, Gaea Incarnate with four lands in the graveyard', (mk, t) => {
+    t.auto('Titania, Voice of Gaea');
+    t.auto('Argoth, Sanctum of Nature');
+    t.auto('Titania, Gaea Incarnate');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const ti = M.bf('A', 'Titania, Voice of Gaea');
+    const ar = M.bf('A', 'Argoth, Sanctum of Nature');
+    for (let i = 0; i < 4; i++) M.bf('A', 'Forest');
+    for (let i = 0; i < 3; i++) M.grave('A', 'Forest');
+    // three land cards: not yet
+    M.nextTurn('A');
+    t.eq(ti.name, 'Titania, Voice of Gaea', 'Titania: three lands in the graveyard, no meld');
+    M.grave('A', 'Mountain');
+    M.nextTurn('A');
+    const host = [ti, ar].find(o => o.zone === 'battlefield');
+    t.eq(host.name, 'Titania, Gaea Incarnate');
+    t.eq([ti, ar].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.eq(host.analysis().mv, 3, 'Titania: 3 + 0');
+    t.eq(M.zone('A', 'graveyard').filter(o => (o.analysis() || {}).isLand).length, 0, 'Titania enters: the lands come back');
+    const lands = M.bfOf('A').filter(o => (o.analysis() || {}).isLand);
+    t.eq(lands.length, 8, 'Titania: eight lands');
+    t.eq(g.powerOf(host), 8, 'Titania: power the number of lands');
+    t.eq(g.toughnessOf(host), 8);
+    // {3}{G}: a land becomes a 0/0 with four +1/+1 counters and haste
+    const fo = lands.find(o => o.name === 'Forest');
+    M.mana('A', '3G');
+    M.activate('A', host, 0, { targets: [fo.id] });
+    t.ok((fo.analysis() || {}).isCreature, 'Titania: the Forest is a creature');
+    t.eq(g.powerOf(fo), 4);
+    t.ok(g.hasKw(fo, 'haste'));
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [host.id] });
+    t.zone(ti, 'graveyard', 'Titania dies: Titania, Voice of Gaea');
+    t.zone(ar, 'graveyard', 'Titania dies: Argoth');
+  });
+
+  test("Meld: Fang, Fearless l'Cie and Vanille, Cheerful l'Cie — pay {3}{B}{G} for Ragnarok, Divine Deliverance", (mk, t) => {
+    t.auto("Fang, Fearless l'Cie");
+    t.auto("Vanille, Cheerful l'Cie");
+    t.auto('Ragnarok, Divine Deliverance');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const fang = M.bf('A', "Fang, Fearless l'Cie");
+    const van = M.bf('A', "Vanille, Cheerful l'Cie");
+    for (const n of ['Swamp', 'Forest', 'Island', 'Island', 'Island']) M.bf('A', n);
+    // declined: nothing melds
+    M.answer('confirm', { yes: false });
+    M.nextTurn('A');
+    t.eq(van.name, "Vanille, Cheerful l'Cie", 'Vanille: not paid, no meld');
+    t.zone(fang, 'battlefield');
+    M.answer('confirm', { yes: true });
+    M.nextTurn('A');
+    const host = [fang, van].find(o => o.zone === 'battlefield');
+    t.eq(host.name, 'Ragnarok, Divine Deliverance');
+    t.eq([fang, van].filter(o => o.zone === 'battlefield').length, 1, 'one permanent');
+    t.eq(host.analysis().mv, 7, 'Ragnarok: 3 + 4');
+    t.eq(M.bfOf('A').filter(o => o.tapped).length, 5, 'Ragnarok: {3}{B}{G} paid');
+    for (const k of ['reach', 'vigilance', 'menace', 'trample', 'haste']) t.ok(g.hasKw(host, k), 'Ragnarok: ' + k);
+    // dies: destroy target permanent, return a nonlegendary permanent card
+    const giant = M.bf('B', 'Hill Giant');
+    const bear = M.grave('A', 'Grizzly Bears');
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [host.id] });
+    t.zone(fang, 'graveyard', 'Ragnarok dies: Fang');
+    t.zone(van, 'graveyard', 'Ragnarok dies: Vanille');
+    t.zone(giant, 'graveyard', 'Ragnarok dies: Hill Giant destroyed');
+    t.zone(bear, 'battlefield', 'Ragnarok dies: Grizzly Bears back');
+  });
+
+  test('Meld: a commander melded — the melded permanent is the commander, its damage counted, and the commander goes home alone', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const gis = M.bf('A', 'Gisela, the Broken Blade');
+    const bru = M.bf('A', 'Bruna, the Fading Light');
+    // Bruna the commander: Gisela's trigger, but Bruna's object carries Brisela
+    bru.isCommander = true;
+    g.config.commanderDamage = 21;
+    g.player('B').commanderDamage[bru.id] = 0;
+    g.player('A').commanderCasts[bru.id] = 1;
+    M.toMain('A', 'end');
+    M.resolve();
+    t.zone(bru, 'battlefield', 'the commander carries the melded permanent');
+    t.eq(bru.name, 'Brisela, Voice of Nightmares');
+    t.ok(bru.isCommander);
+    t.zone(gis, 'merged');
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: bru.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(g.player('B').commanderDamage[bru.id], 9, 'Brisela: 9 commander damage');
+    M.nextTurn('A');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [bru.id] });
+    t.zone(bru, 'command', 'Brisela dies: Bruna to the command zone');
+    t.zone(gis, 'graveyard', 'Brisela dies: Gisela to the graveyard');
+    t.eq(bru.name, 'Bruna, the Fading Light');
+    t.eq(g._commanderTax(bru).mana, 2, 'the tax carries on');
+  });
+
+  test('Meld: a melded permanent survives a save and an undo, and goes onto the library as two cards its owner orders', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const gis = M.bf('A', 'Gisela, the Broken Blade');
+    const bru = M.bf('A', 'Bruna, the Fading Light');
+    M.toMain('A', 'end');
+    M.resolve();
+    const hostId = [gis, bru].find(o => o.zone === 'battlefield').id;
+    // through JSON and back: the game a save resumes
+    g.restore(JSON.parse(JSON.stringify(g.snapshot())));
+    const host = g.obj(hostId);
+    t.eq(host.name, 'Brisela, Voice of Nightmares', 'restored: still Brisela');
+    t.eq(host.analysis().mv, 11);
+    const other = g.obj(host.meld.partner);
+    t.zone(other, 'merged', 'restored: the other card still inside it');
+    t.ok(g.viewFor('A').battlefield.find(v => v.id === hostId).melded.length === 2, 'restored: the view has both names');
+    // on top of the library: both cards, in the order A says
+    M.nextTurn('A');
+    M.answer('choose', (ch) => ({ picks: [other.id] }));
+    M.mana('A', '3U');
+    M.cast('A', M.hand('A', 'Griptide'), { targets: [hostId] });
+    const lib = g.zones.A.library;
+    t.zone(host, 'library', 'Griptide: Gisela/Bruna to the library');
+    t.zone(other, 'library');
+    t.ok(M.asked.some(ch => ch.purpose === 'meldOrder'), 'A is asked which goes on top');
+    t.eq(lib[0], other, 'the one A picked is on top');
+    t.eq(lib[1], host);
+  });
+
+  test('Meld: a bot pays for Hanweir Battlements only with the Garrison there', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Mountain') });
+    const g = M.g;
+    const B = M.MTG.bots;
+    const bat = M.bf('A', 'Hanweir Battlements');
+    for (let i = 0; i < 5; i++) M.bf('A', 'Mountain');
+    const bot = new B.BotPlayer(g, 'A', 8);
+    const a = bat.analysis();
+    const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
+    const meldIx = all.findIndex(x => (x.effects || []).some(e => e.op === 'meld'));
+    t.eq(meldIx, 2);
+    t.no(bot._abilityCandidate(bat, a, all[meldIx], meldIx, 'main1', bot.manaSources()), 'bot: no Garrison, no meld');
+    M.bf('A', 'Hanweir Garrison');
+    t.ok(bot._abilityCandidate(bat, a, all[meldIx], meldIx, 'main1', bot.manaSources()), 'bot: with the Garrison, worth it');
+  });
 };

@@ -450,6 +450,8 @@
       case 'addManaPer': return 1.2;
       case 'transformSelf': return 0.5;
       case 'ringTempts': return 0.7;
+      // Meld (CR 701.42): two cards made one bigger permanent (Hanweir Battlements, Urza, Lord Protector)
+      case 'meld': return 4;
       case 'manual': return -3;
       case 'modal': {
         const vals = (e.modes || []).map(m => U.sum((m.effects || []).map(x => effectWorth(x, d))))
@@ -3571,12 +3573,15 @@
       if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.n || 1)) return null;
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';
       if (sorcery && !(myTurn && g.isMain && g.stackEmpty)) return null;
-      if (ab.kind === 'loyalty' && o.activatedLoyaltyThisTurn) return null;
+      if (ab.kind === 'loyalty' && g._loyaltyUsedUp(o)) return null;
       // (Drana and Linvala: a borrowed ability's colours paid with any mana)
       if (cost.mana && !g.couldPay(this.pid, ab.spendAnyColor ? g._abilityMana(o, ab) : cost.mana, sources)) return null;
       const effects = ab.effects || [];
       const flat = flatEffects(effects);
       if (!flat.length || flat.some(e => e.op === 'manual')) return null;
+      // Hanweir Battlements, Urza, Lord Protector: paid for only with the other card there to meld with
+      const meldE = flat.find(e => e.op === 'meld');
+      if (meldE && !g._meldPartner(o, meldE, this.pid).partner) return null;
       const label = MTG.oracle.abilityLabel ? MTG.oracle.abilityLabel(ab, o) : (ab.text || '');
 
       // equipment: onto the best creature that is not already carrying it
@@ -4908,7 +4913,7 @@
       const sources = this.manaSources();
       const out = [];
       for (const o of g.battlefield) {
-        if (o.controller !== this.pid || o.activatedLoyaltyThisTurn) continue;
+        if (o.controller !== this.pid || g._loyaltyUsedUp(o)) continue;
         const a = o.analysis();
         if (!a || !a.isPlaneswalker) continue;
         const all = a.manaAbilities.concat(a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty'));
