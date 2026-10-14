@@ -952,6 +952,8 @@
         o.phasedOut = true; o.phasedOutBy = ap.id; o.phasedTurn = this.turn;
         for (const id of (o.attachments || [])) { const at = this.obj(id); if (at) { at.phasedOut = true; at.phasedOutBy = ap.id; at.phasedTurn = this.turn; } }
       }
+      // The War Doctor: "Whenever one or more other permanents phase out" (permPhasesOut)
+      for (const o of phasers) this._fire('permPhasesOut', null, { object: o, objController: o.controller });
       /* "You may play an additional land this turn" lasts for this turn
          only; the standing ones are counted as they are asked about. */
       for (const p of this.players) p.maxLands = 1;
@@ -5016,7 +5018,8 @@
         }
         /* Mutate (CR 702.140): cast for its mutate cost onto a non-Human
            creature you own, and the two become one. */
-        if (o.zone === 'hand' && arg && k === 'mutate') {
+        // (Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." — mutateFromGrave)
+        if ((o.zone === 'hand' || (o.zone === 'graveyard' && o.owner === playerId && this._staticOp(o, 'mutateFromGrave'))) && arg && k === 'mutate') {
           out.push({ kind: 'cast', via: 'mutate', cost: arg, mutate: true,
             label: 'Mutate ' + arg });
         }
@@ -6056,9 +6059,10 @@
         }
       }
       /* Kotis, Sibsig Champion: "by exiling three other cards from your graveyard" — which three, asked with the
-         cast when there are more than that (exileGrave) */
-      if (opts.via === 'graveExile' && !(opts.choices && opts.choices.exileGrave)) {
-        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === 'graveExile');
+         cast when there are more than that (exileGrave). So too escape ("Exile N other cards from your graveyard")
+         and Squee, Dubious Monarch ("exiling four other cards from your graveyard"); a bot exiles its least useful. */
+      if ((opts.via === 'graveExile' || opts.via === 'escape' || opts.via === 'graveAlt') && !(opts.choices && opts.choices.exileGrave)) {
+        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === opts.via);
         const pool = ((this.zones[playerId] || {}).graveyard || []).filter(c => c.id !== o.id);
         const n = gv ? gv.exileGrave : 0;
         if (gv && pool.length > n && this._castChoose(playerId, o, opts, { purpose: 'exileGrave', kind: 'objects', zone: 'graveyard',
@@ -14732,6 +14736,8 @@
       if (toZone === 'exile' && (from === 'graveyard' || from === 'battlefield') && !o.isToken) this._fire('cardExiledGyBf', null, { object: o, objController: o.owner, fromZone: from });
       // Laelia: cards exiled from a library or graveyard, one trigger for the lot
       if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
+      // The War Doctor: "one or more other cards are put into exile from anywhere" — cards, not tokens or copies
+      if (toZone === 'exile' && from !== 'exile' && !o.isToken && !o.isCopy) this._fire('cardExiledAny', null, { object: o, objController: o.owner, fromZone: from });
       // "if you descended this turn": a permanent card went to your graveyard
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
@@ -15123,6 +15129,8 @@
           // Voracious Brood: "put that many +1/+1 counters" — one for each card in the lot
           // (Screeching Scorchbeast: "create that many" — each nonland card milled)
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
+          // Primo, the Unbounded: "equal to the damage dealt" — what the whole lot dealt that player
+          if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — each player the lot hit (batchPlayers)
@@ -23583,6 +23591,7 @@
             o._tapOnPhaseIn = !!e.tapIn;
             for (const id of (o.attachments || [])) { const at = this.obj(id); if (at) { at.phasedOut = true; at.phasedOutBy = 'held:' + src.id; } }
             this.logEvent('rules', `${o.name} phases out.`);
+            this._fire('permPhasesOut', null, { object: o, objController: o.controller });   // (The War Doctor)
           }
           this.bumpBoard();
           break;
@@ -24125,8 +24134,15 @@
           break;
         }
 
-        case 'restToBottom': case 'restToGraveyard': {
+        case 'restToBottom': case 'restToGraveyard': case 'restToHand': {
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
+          // Nine-Fingers Keene: "put the rest into your hand" (restToHand)
+          if (e.op === 'restToHand') {
+            for (const o of pool) this.moveObject(o, 'hand');
+            if (pool.length) this.logEvent('rules', `${pool.length} card${pool.length === 1 ? ' goes' : 's go'} into ${(this.player(ctx.controller) || {}).name}'s hand.`);
+            this._looked = null;
+            break;
+          }
           /* Jodah, the Unifier: "Put the rest on the bottom of your library in a random order."; Gríma, Saruman's
              Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their
              library in a random order." — what the digging exiled and is still there, to its owner's library (exileUntil) */
@@ -27912,6 +27928,7 @@
           }
           this.bumpBoard();
           this.logEvent('rules', `${list.length} permanent${list.length === 1 ? '' : 's'} phase out.`);
+          for (const o of list) this._fire('permPhasesOut', null, { object: o, objController: o.controller });   // (The War Doctor)
           break;
         }
         /* Victimize: sacrifice, and only if you did, the rest happens */
@@ -30721,6 +30738,8 @@
       if (f.renowned && !x.renowned) return false;
       // Fecund Greenshell: "with toughness greater than its power"
       if (f.toughGtPow && !(this.toughnessOf(x) > this.powerOf(x))) return false;
+      // Primo, the Unbounded: "with base power 0" — what layers 7a and 7b make it (basePower)
+      if (f.basePower != null && ((this.characteristics(x) || {}).basePower || 0) !== f.basePower) return false;
       return true;
     }
 

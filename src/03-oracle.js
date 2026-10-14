@@ -2202,6 +2202,10 @@
        and it loses all other card types." — only a Treasure artifact as it enters, its supertypes and abilities kept (enterRider) */
     { re: /^It'?s a Treasure artifact with "\{T\}, Sacrifice this artifact: Add one mana of any color,?" and it loses all other card types\.?$/,
       make: () => ({ op: 'manual', enterRider: { setTypes: ['Artifact'], addSubtypes: ['Treasure'], grantText: '{T}, Sacrifice this artifact: Add one mana of any color.' } }) },
+    /* Primo, the Unbounded: "create a 0/0 … Fractal creature token. Put a number of +1/+1 counters on it equal to the
+       damage dealt." — the token just made (thatToken), all the lot dealt that player */
+    { re: /^Put (?:a number of|X) (\+1\/\+1) counters on it(?: equal to|, where X is) the damage dealt\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1], n: 'triggerAmount', scope: 'self' }) },
     // Hungering Hydra: "put that many +1/+1 counters on it"
     { re: /^Put that many ([+\-0-9/a-z]+) counters on (it|CARDNAME|this creature)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 'triggerAmount', scope: /^it$/i.test(m[2]) ? 'lastTarget' : 'self' }) },
@@ -4670,6 +4674,9 @@
       make: (m) => ({ op: 'discard', who: 'triggerPlayer', n: num(m[1]) }) },
     { re: /^You lose life equal to (?:its|that card'?s|that permanent'?s|that creature'?s|the exiled card'?s) (?:mana value|converted mana cost)\.?$/i,
       make: () => ({ op: 'loseLife', who: 'you', n: { ofLast: 'mv' } }) },
+    // Hidetsugu and Kairi: "exile the top card of your library. Target opponent loses life equal to its mana value."
+    { re: /^Target (opponent|player) loses life equal to (?:its|that card'?s|the exiled card'?s) mana value\.?$/i,
+      make: (m) => ({ op: 'loseLife', who: 'target', n: { ofLast: 'mv' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
 
     /* ===== blink, in the longer phrasings ===== */
     { re: /^Exile (up to one )?((?:other |another )?target [a-z0-9 '-]+?), then return (?:it|that card) to the battlefield under (?:its owner'?s|your) control\.?$/i,
@@ -9538,6 +9545,16 @@
         { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
           otherwise: [{ op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', mustTake: true, rest: 'keep' }] },
         { op: 'restToBottom', random: true }] },
+    /* Nine-Fingers Keene: "look at the top nine cards of your library. You may put a Gate card from among them onto the
+       battlefield. Then if you control nine or more Gates, put the rest into your hand. Otherwise, put the rest on the
+       bottom of your library in a random order." (restToHand) */
+    { re: /^Look at the top (\w+) cards of your library\. You may put an? ([A-Za-z]+) card from among them onto the battlefield\. Then if (you control \w+ or more [A-Za-z]+), put the rest into your hand\. Otherwise, put the rest on the bottom of your library in a random order\.$/i,
+      make: (m) => {
+        const cond = condOf(m[3]);
+        return cond && [{ op: 'lookAt', n: num(m[1]), keep: 0 },
+          { op: 'takeFromLooked', n: 1, filter: m[2].toLowerCase(), to: 'battlefield', optional: true, rest: 'keep' },
+          { op: 'ifCond', cond, then: [{ op: 'restToHand' }], otherwise: [{ op: 'restToBottom', random: true }] }];
+      } },
     /* Eladamri, Korvecdal: "Reveal a card from your hand or the top card of your library. If you reveal a
        creature card this way, put it onto the battlefield." — one card, from either place (revealHandOrTop) */
     { re: /^Reveal a card from your hand or the top card of your library\. If you reveal an? ([a-z]+) card this way, put it onto the battlefield\.( Activate only during your turn\.)?$/i,
@@ -12667,6 +12684,9 @@
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         // Luminous Broodmoth: "a creature you control without flying"
         f.noKeyword = m[1].toLowerCase(); p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with base power (\d+)$/i))) {
+        // Primo, the Unbounded: "one or more creatures you control with base power 0" (basePower)
+        f.basePower = +m[1]; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with an? mana ability$/i))) {
         // Raggadragga, Goreguts Boss: "a creature you control with a mana ability" (withManaAbility)
         f.withManaAbility = true; p = p.slice(0, m.index);
@@ -13451,6 +13471,10 @@
       event: 'cardExiledGyBf', extraOf: (m) => Object.assign({ batch: true }, m[1] ? { yourTurnOnly: true } : {}) },
     // Laelia, the Blade Reforged: "Whenever one or more cards are put into exile from your library and/or your graveyard"
     { re: /^Whenever one or more cards are put into exile from your library and\/or your graveyard,? /i, event: 'youExileFromLibGy', extra: { batch: true } },
+    /* The War Doctor: "whenever one or more other cards are put into exile from anywhere" — anybody's, one trigger
+       for the lot (cardExiledAny); "Whenever one or more other permanents phase out" (permPhasesOut) */
+    { re: /^Whenever one or more other cards are put into exile from anywhere,? /i, event: 'cardExiledAny', extra: { batch: true, notSelf: true } },
+    { re: /^Whenever one or more other permanents phase out,? /i, event: 'permPhasesOut', extra: { batch: true, notSelf: true } },
     // Kishla Skimmer, Along the Crooked Way: "Whenever a (creature) card leaves your graveyard (during your turn)," (leftGraveyard)
     { re: /^Whenever (one or more|a|an) ((?:artifact|creature|land|instant|sorcery|enchantment|permanent|nonland) )?cards? leaves? your graveyard( during your turn)?,? /i,
       event: 'leftGraveyard', filt: (m) => Object.assign({ who: 'you', words: (m[2] || 'card').trim().toLowerCase() }, /one or more/i.test(m[1]) ? { batch: true } : {}),
@@ -18032,6 +18056,8 @@
          cards from your graveyard rather than paying its mana cost." — escape by another name (graveAltCost) */
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard by paying ((?:\{[^}]+\})+) and exiling (two|three|four|five|six|seven|eight) other cards from your graveyard rather than paying its mana cost\.?$/i,
         make: (m) => ({ op: 'graveAltCost', cost: m[1], exileGrave: num(m[2].toLowerCase()) }), auto: true },
+      // Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." (mutateFromGrave)
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },
