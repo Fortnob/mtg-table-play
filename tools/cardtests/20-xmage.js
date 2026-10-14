@@ -32311,4 +32311,122 @@ module.exports = (test) => {
     t.eq(g.player('A').ringLevel, 2, '2 life is not enough');
     t.eq(M.zone('A', 'hand').length, hand);
   });
+
+  test('Commanders: Neriv, Heart of the Storm — creatures that entered this turn deal double damage', (mk, t) => {
+    t.auto('Neriv, Heart of the Storm');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    M.bf('A', 'Neriv, Heart of the Storm');
+    const old = M.bf('A', 'Grizzly Bears');
+    const dreadmaw = M.bf('B', 'Colossal Dreadmaw');
+    // Flametongue Kavu entered this turn: 8 to the Dreadmaw
+    M.mana('A', 'R3');
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: dreadmaw.id }] });
+    M.cast('A', M.hand('A', 'Flametongue Kavu'));
+    t.zone(dreadmaw, 'graveyard', '4 doubled: a 6/6 dies');
+    // a haste creature that entered this turn, and one that didn't
+    M.mana('A', 'R');
+    const gob = M.hand('A', 'Raging Goblin');
+    M.cast('A', gob);
+    M.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'B' }, { attackerId: old.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 16, 'Raging Goblin 2, Grizzly Bears 2');
+    // a creature of B's that entered this turn: not doubled
+    M.nextTurn('B');
+    M.mana('B', 'R');
+    const bg = M.hand('B', 'Raging Goblin');
+    M.cast('B', bg);
+    M.answer('declareAttackers', () => [{ attackerId: bg.id, defenderId: 'A' }]);
+    M.toMain('B', 'endCombat');
+    t.eq(M.life('A'), 19, 'B\'s Raging Goblin: 1');
+    // next turn: the Goblin entered before this turn
+    M.nextTurn('A');
+    M.answer('declareAttackers', () => [{ attackerId: gob.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 15, 'Raging Goblin a turn later: 1');
+  });
+
+  test('Commanders: Elenda, Saint of Dusk — hexproof from instants, bigger with life above the starting total', (mk, t) => {
+    t.auto('Elenda, Saint of Dusk');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    const g = M.g;
+    const el = M.bf('A', 'Elenda, Saint of Dusk');
+    t.ok(g.hasKw(el, 'lifelink'));
+    t.eq(g.powerOf(el), 4); t.no(g.hasKw(el, 'menace'), 'at the starting life total: no menace');
+    g.changeLife('A', 1); g.bumpBoard();
+    t.eq(g.powerOf(el), 5); t.eq(g.toughnessOf(el), 5); t.ok(g.hasKw(el, 'menace'), 'above: +1/+1 and menace');
+    g.changeLife('A', 8); g.bumpBoard();
+    t.eq(g.powerOf(el), 5, '9 above: not yet');
+    g.changeLife('A', 1); g.bumpBoard();
+    t.eq(g.powerOf(el), 10, '10 above: an additional +5/+5'); t.eq(g.toughnessOf(el), 10);
+    // hexproof from instants: B's Lightning Bolt can't target it, a sorcery can
+    M.nextTurn('B');
+    M.mana('B', 'R');
+    t.no(g.castSpell('B', M.hand('B', 'Lightning Bolt').id, { targets: [{ kind: 'object', id: el.id }] }), 'an instant can\'t target Elenda');
+    M.mana('B', 'R');
+    t.ok(g.castSpell('B', M.hand('B', 'Flame Slash').id, { targets: [{ kind: 'object', id: el.id }] }), g.lastError);
+  });
+
+  test('Commanders: Mm\'menon, the Right Hand — artifacts tap for {U}, spent only on spells cast from anywhere but the hand', (mk, t) => {
+    t.auto('Mm\'menon, the Right Hand');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Mm\'menon, the Right Hand');
+    const r1 = M.bf('A', 'Darksteel Relic');
+    M.bf('A', 'Darksteel Relic');
+    t.ok(r1.analysis().manaAbilities.length >= 1, 'the Relic has the granted mana ability');
+    // a Millstone in hand: the artifacts' mana can't pay for it
+    const inHand = M.hand('A', 'Millstone');
+    t.no(g.castSpell('A', inHand.id, { auto: true }), 'not from the hand');
+    t.zone(inHand, 'hand');
+    // a Millstone on top of the library: cast with it
+    const top = M.top('A', 'Millstone');
+    M.cast('A', top);
+    t.zone(top, 'battlefield', 'cast from the top of the library with the artifacts\' mana');
+  });
+
+  test('Commanders: Sin, Unending Cataclysm — all counters off any number of permanents, twice that many on Sin; its counters passed on as it dies', (mk, t) => {
+    t.auto('Sin, Unending Cataclysm');
+    const M = mk({ library: Array(30).fill('Forest') });
+    const g = M.g;
+    const bears = M.bf('B', 'Grizzly Bears', { counters: { '+1/+1': 2 } });
+    const chalice = M.bf('B', 'Everflowing Chalice', { counters: { charge: 3 } });
+    const giant = M.bf('A', 'Hill Giant', { counters: { '-1/-1': 1 } });
+    const land = M.bf('B', 'Forest');
+    land.counters.ice = 1;
+    M.answer('choose', (ch) => {
+      t.eq(ch.purpose, 'removeCountersChosen');
+      t.ok(ch.optional);
+      t.eq(ch.items.map(x => x.id).sort().join(), [bears.id, chalice.id, giant.id].sort().join(), 'artifacts, creatures and enchantments with counters — not the land');
+      return { picks: [bears.id, chalice.id] };
+    });
+    M.mana('A', 'GU5');
+    const sin = M.hand('A', 'Sin, Unending Cataclysm');
+    M.cast('A', sin);
+    t.eq(bears.counters['+1/+1'] || 0, 0, 'Grizzly Bears: both off');
+    t.eq(chalice.counters.charge || 0, 0, 'Everflowing Chalice: all three off');
+    t.eq(giant.counters['-1/-1'], 1, 'not chosen');
+    t.eq(sin.counters['+1/+1'], 10, 'five removed: ten +1/+1 counters');
+    t.eq(g.powerOf(sin), 15);
+    // Sin dies: its counters to the Hill Giant, Sin into its owner's library
+    M.nextTurn('B');
+    M.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    M.mana('B', '1BB');
+    M.cast('B', M.hand('B', 'Murder'), { targets: [sin.id] });
+    t.zone(sin, 'library', 'shuffled into its owner\'s library');
+    t.eq(giant.counters['+1/+1'], 9, 'its ten counters on the Hill Giant, one cancelling its -1/-1 counter');
+    // the bot: everything of the opponent's, and its own only where the counters hurt
+    const M2 = mk({ library: Array(30).fill('Forest') });
+    const b2 = M2.bf('B', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    const own = M2.bf('A', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    const hurt = M2.bf('A', 'Gray Ogre', { counters: { '-1/-1': 1 } });
+    M2.answer('choose', (ch) => {
+      const bot = new M2.MTG.bots.BotPlayer(M2.g, 'A', 8);
+      const a = bot.chooseGeneric(ch);
+      t.eq(a.picks.slice().sort().join(), [b2.id, hurt.id].sort().join(), 'bot: B\'s Bears and its own shrunken Ogre');
+      return a;
+    });
+    M2.mana('A', 'GU5');
+    M2.cast('A', M2.hand('A', 'Sin, Unending Cataclysm'));
+    t.eq(own.counters['+1/+1'], 1);
+  });
 };

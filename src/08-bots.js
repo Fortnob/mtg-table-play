@@ -1627,6 +1627,17 @@
       while (left-- > 0 && sink) picks.push(sink.i);
       return { picks };
     },
+    /* Garnet, Princess of Alexandria: a lore counter off each of our Sagas, a +1/+1 counter each. Sin, Unending
+       Cataclysm: every counter off the opponents' things, and off ours only where they were doing harm
+       (removeCountersChosen) */
+    removeCountersChosen(s) {
+      const g = this.game;
+      if (s.counterKind) return { picks: (s.items || []).map(x => x.id) };
+      const BAD = /^(?:-1\/-1|stun|age|doom|bounty|hit)$/;
+      const picks = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).filter(o => o.controller !== this.pid ||
+        Object.keys(o.counters || {}).filter(k => Number(o.counters[k]) > 0).every(k => BAD.test(k)));
+      return { picks: picks.map(o => o.id) };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

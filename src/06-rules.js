@@ -8892,6 +8892,8 @@
       if (spendOnly.words && spendOnly.words !== 'spell' && !this._cardFitsWords(spell, spendOnly.words) &&
         !((spendOnly.orX || (spendOnly.orXCreature && this._cardFitsWords(spell, 'creature'))) && /\{X\}/.test(((spell.card || {}).mana_cost) || ''))) return false;   // (Troyan: spendAnyOrX)
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
+      // Mm'menon, the Right Hand: "only to cast a spell from anywhere other than your hand" — paid for while it is still there
+      if (spendOnly.notFromHand && spell.zone === 'hand') return false;
       return true;
     }
 
@@ -10475,6 +10477,8 @@
         // The Sound of Drums, Inquisitor's Flail: combat damage from (or to) the creature it's attached to
         if (ef.combatOnly && !ev.combat) return false;
         if (ef.fromAttached && !(ev.source && src.attachedTo === ev.source.id)) return false;
+        // Neriv, Heart of the Storm: "a creature you control that entered this turn"
+        if (ef.sourceEnteredThisTurn && !(ev.source && ev.source.zone === 'battlefield' && ev.source.entered === this.turn)) return false;
         // Sokrates, Athenian Teacher: "If this creature would deal combat damage" — the one that has it
         if (ef.fromSelf && !(ev.source && ev.source.id === src.id)) return false;
         if (ef.toAttached && !(ev.victimId && src.attachedTo === ev.victimId)) return false;

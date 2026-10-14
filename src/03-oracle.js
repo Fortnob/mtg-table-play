@@ -1380,6 +1380,8 @@
     { re: /^Spend this mana only to cast an? (Equipment|artifact) spell or activate an equip ability\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
+    // Mm'menon, the Right Hand: "Spend this mana only to cast a spell from anywhere other than your hand." (notFromHand)
+    { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
     { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
     // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
@@ -2084,6 +2086,14 @@
     // Garnet, Princess of Alexandria: "you may remove a lore counter from each of any number of Sagas you control" (removeCountersChosen)
     { re: /^(?:You may )?remove an? ([a-z+\-0-9/]+) counter from each of any number of ([A-Z][a-z]+)s you control\.?$/i,
       make: (m) => ({ op: 'removeCountersChosen', kind: m[1].toLowerCase(), n: 1, what: m[2], who: 'you' }) },
+    // Sin, Unending Cataclysm: "remove all counters from any number of artifacts, creatures, and enchantments" — anybody's
+    { re: /^Remove all counters from any number of artifacts, creatures, and enchantments\.?$/i,
+      make: () => ({ op: 'removeCountersChosen', all: true, whatAny: ['artifact', 'creature', 'enchantment'], who: 'all',
+        prompt: 'remove all counters from any number of artifacts, creatures, and enchantments.' }) },
+    /* Sin, Unending Cataclysm: "Sin enters with X +1/+1 counters on it, where X is twice the number of counters removed
+       this way." — read where "as Sin enters" is its arrival */
+    { re: /^CARDNAME enters with X (\+1\/\+1) counters on it, where X is twice the number of counters removed this way\.?$/,
+      make: (m) => ({ op: 'counters', kind: m[1], n: { removedCounters: true, mult: 2 }, scope: 'self' }) },
     // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
     { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
@@ -10597,6 +10607,9 @@
       ? [{ kind: 'hand', n: num(m[1]), cmp: 'atLeast' }, { kind: 'hand', n: num(m[1]), cmp: 'atMost' }] : null)],
     // Righteous Valkyrie: "you have at least 7 life more than your starting life total"
     [/^you have at least (\w+) life more than your starting life total$/i, (m) => ({ kind: 'lifeAboveStart', n: num(m[1]) })],
+    // Elenda, Saint of Dusk: "your life total is greater than your starting life total", "… is at least 10 greater than …"
+    [/^your life total is greater than your starting life total$/i, () => ({ kind: 'lifeAboveStart', n: 1 })],
+    [/^your life total is at least (\w+) greater than your starting life total$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'lifeAboveStart', n: num(m[1]) } : null)],
     // Blowfly Infestation: "it had a -1/-1 counter on it" — the creature that died, as it last was
     [/^it had an? ([+\-0-9/a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjHadCounter', counter: m[1].toLowerCase() })],
     // Visions of Beyond: "a graveyard has twenty or more cards in it"
@@ -14170,7 +14183,7 @@
       // "can't be blocked" granted as a word the table reads; "annihilator 2", "afflict 1": the keyword with its number
       if (/^unblockable$/i.test(w) || IMPLEMENTED_LOWER.has(w.toLowerCase().replace(/\s+\d+$/, ''))) return true;
       const pm = w.match(/^protection from (.+)$/i);
-      if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
+      if (/^hexproof from (?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*$/i.test(w)) return true;
       if (pm) return PROT_Q.test(pm[1].trim()) || pm[1].split(/,? and from |,? from | and /i).every(q => PROT_Q.test(q.trim()));
       return false;
     };
@@ -15583,6 +15596,9 @@
        instead"; "If another creature would deal combat damage to equipped creature" */
     { re: /^If (enchanted|equipped) creature would deal combat damage(?: to a permanent or player)?, it deals double that damage instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgAttachedDouble', event: 'damage', who: 'any', how: 'double', fromAttached: true, combatOnly: true }) },
+    // Neriv, Heart of the Storm: "If a creature you control that entered this turn would deal damage, it deals twice that much damage instead."
+    { re: /^If a creature you control that entered this turn would deal damage, it deals (twice|three times) that much damage instead\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgEnteredDouble', event: 'damage', who: 'you', how: /twice/i.test(m[1]) ? 'double' : 'triple', sourceWords: 'creature', sourceEnteredThisTurn: true }) },
     /* Sokrates, Athenian Teacher (the ability it hands out): "If this creature would deal combat damage to a player,
        prevent that damage. This creature's controller and that player each draw half that many cards, rounded down." */
     { re: /^If (?:this creature|CARDNAME) would deal combat damage to a player, prevent that damage\. (?:This creature|CARDNAME)'s controller and that player each draw half that many cards, rounded down\.?$/i,
@@ -15821,6 +15837,12 @@
       return x && y && x.auto && y.auto ? Object.assign({}, x, { text: line, effects: (x.effects || []).concat(y.effects || []) }) : null;
     };
     let mm2;
+    /* Elenda, Saint of Dusk: "As long as …, Elenda gets +1/+1 and has menace. Elenda gets an additional +5/+5 as long
+       as …" — two standing rules, the second on top of the first */
+    if ((mm2 = String(line).match(/^(As long as [^.]+, CARDNAME gets [^.]+\.) CARDNAME gets an additional ([+-]\d+\/[+-]\d+ as long as [^.]+\.?)$/))) {
+      const r = both(mm2[1], 'CARDNAME gets ' + mm2[2]);
+      if (r) return r;
+    }
     // Avatar of Slaughter: "All creatures have double strike and attack each combat if able."
     if ((mm2 = String(line).match(/^(All creatures|Creatures you control|Other creatures you control) have ([a-z ]+?) and attack each combat if able\.?$/i))) {
       const r = both(mm2[1] + ' have ' + mm2[2] + '.', mm2[1] + ' attack each combat if able.');
@@ -16842,8 +16864,12 @@
       // Nevinyrral, Urborg Tyrant: "Hexproof from artifacts, creatures, and enchantments" (hexproofFromList)
       { re: /^Hexproof from ((?:artifacts|creatures|enchantments|planeswalkers)(?:, (?:artifacts|creatures|enchantments|planeswalkers))*,? and (?:artifacts|creatures|enchantments|planeswalkers))$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and |, /) }), auto: true },
-      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts)(?:,? and from (?:white|blue|black|red|green))*)$/i,
+      { re: /^Hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*)$/i,
         make: (m) => ({ op: 'hexproofFrom', q: m[1].toLowerCase().split(/,? and from /) }), auto: true },
+      /* Elenda, Saint of Dusk: "Lifelink, hexproof from instants"; Sporeweb Weaver: "Reach, hexproof from blue" — the
+         keywords before it come from the card's keyword list */
+      { re: /^((?:[A-Z][a-z]+(?: [a-z]+)?, )+)hexproof from ((?:white|blue|black|red|green|monocolored|multicolored|colorless|artifacts|instants|sorceries)(?:,? and from (?:white|blue|black|red|green))*)$/,
+        make: (m) => (m[1].split(/,\s*/).filter(Boolean).every(k => kwKnown(k)) ? { op: 'hexproofFrom', q: m[2].toLowerCase().split(/,? and from /) } : null), auto: true },
       // Dragonfire Blade: "Equipped creature gets +2/+2 and has hexproof from monocolored."
       { re: /^(Equipped|Enchanted) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?has hexproof from (white|blue|black|red|green|monocolored|multicolored)\.?$/i,
         make: (m) => {
