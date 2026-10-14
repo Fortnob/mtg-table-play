@@ -248,6 +248,8 @@ def steps(quick):
         Step('tutorials', node(TOOLS / 'tutorialtest.js'), judge_exit, 300, needs_bulk=True),
         # the command zone on a real table: Yuriko's commander ninjutsu, Derevi's ability from there, a companion's {3} into hand
         Step('command zone', node(TOOLS / 'commandzonetest.js'), judge_exit, 300, needs_bulk=True),
+        # a player out of a game of three or more: their board no longer to be looked at, by any of the ways there are
+        Step('eliminations', node(TOOLS / 'eliminationtest.js'), judge_exit, 300, needs_bulk=True),
         # what keywords mean, beside an enlarged card: every keyword explained, no box a card should not have
         Step('glossary', node(TOOLS / 'glossarytest.js'), judge_exit, 120),
         # printings whose words play differently from the card's today, and the printing shown instead

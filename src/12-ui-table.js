@@ -712,7 +712,12 @@
       this.arena.classList.toggle('multi', multi);
       this.arena.classList.toggle('split', split);
       this.renderOppStrip(multi ? others : []);
-      let shown = !multi || split ? others : others.filter(p => p.id === this.focusSeat);
+      /* A player out of the game keeps a nameplate, marked defeated, but
+         their board is no longer one to look at (CR 800.4a took everything
+         on it away): only those still playing are shown, side by side or
+         one at a time. */
+      const playing = multi ? others.filter(p => !p.hasLost) : others;
+      let shown = !multi ? others : split ? playing : playing.filter(p => p.id === this.focusSeat);
       /* With room to spare, the boards either side of the one in view peek
          in from the edges, smaller: you see what the rest of the table has
          without leaving the board you are looking at, and a card there can
@@ -720,21 +725,21 @@
       const peek = multi && !split && !watching && !MTG.isPhone() && MTG.settings.peekOpponents !== false &&
         (this.sizeOf(this.arena).w || 0) >= 1150;
       const peekSide = new Map();
-      if (peek) {
-        const i = Math.max(0, others.findIndex(p => p.id === this.focusSeat));
-        const n = others.length;
-        const left = others[(i - 1 + n) % n], right = others[(i + 1) % n];
+      if (peek && playing.length > 1) {
+        const i = Math.max(0, playing.findIndex(p => p.id === this.focusSeat));
+        const n = playing.length;
+        const left = playing[(i - 1 + n) % n], right = playing[(i + 1) % n];
         // two opponents: the other one sits on whichever side it does round the table
         if (n === 2) peekSide.set((i === 0 ? right : left).id, i === 0 ? 'right' : 'left');
         else { peekSide.set(left.id, 'left'); peekSide.set(right.id, 'right'); }
-        const at = (side) => others.find(p => peekSide.get(p.id) === side);
-        shown = [at('left'), others[i], at('right')].filter(Boolean);
+        const at = (side) => playing.find(p => peekSide.get(p.id) === side);
+        shown = [at('left'), playing[i], at('right')].filter(Boolean);
       }
       let below = null;
       if (watching && multi && !split) {
-        // nobody is sitting here, so the near side shows the next seat round
-        const i = others.findIndex(p => p.id === this.focusSeat);
-        below = others[(i + 1) % others.length];
+        // nobody is sitting here, so the near side shows the next seat round still playing
+        const i = playing.findIndex(p => p.id === this.focusSeat);
+        below = playing.length ? playing[(i + 1) % playing.length] : null;
         if (below && below.id === this.focusSeat) below = null;
       } else if (watching && !multi) {
         shown = [];
@@ -814,7 +819,9 @@
     _chooseFocus(others) {
       const v = this.view;
       const alive = others.filter(p => !p.hasLost);
-      const ids = others.map(p => p.id);
+      /* only a board still in the game can be looked at: one being looked
+         at whose player has just lost goes back to the table's own choice */
+      const ids = (alive.length ? alive : others).map(p => p.id);
       if (this._pinned && (this._pinned.turn !== v.turn || !ids.includes(this._pinned.id))) this._pinned = null;
       if (this._pinned) { this.focusSeat = this._pinned.id; return; }
       let want = null;
@@ -853,6 +860,9 @@
           plate.append(plate._num, plate._orb, el('span', { class: 'op-who' }, [plate._name, plate._sub]), plate._flags);
           plate.addEventListener('click', (e) => {
             e.stopPropagation();
+            // out of the game: nothing of theirs to look at, aim at or attack
+            const now = this.view.players.find(x => x.id === p.id);
+            if (now && now.hasLost) return;
             if (this.targeting) {
               const pl = this.view.players.find(x => x.id === p.id);
               if (pl && this.isTargetablePlayer(pl)) return this.aimAtPlayer(p.id);
@@ -872,11 +882,12 @@
         }
         const seatNo = order.indexOf(p.id) + 1;
         plate._num.textContent = String(seatNo);
-        plate.title = `${p.name} \u2014 seat ${seatNo} (press ${seatNo} to look at this board)`;
-        plate.setAttribute('aria-selected', this.focusSeat === p.id ? 'true' : 'false');
+        plate.title = p.hasLost ? `${p.name} \u2014 seat ${seatNo}, out of the game` : `${p.name} \u2014 seat ${seatNo} (press ${seatNo} to look at this board)`;
+        plate.setAttribute('aria-selected', this.focusSeat === p.id && !p.hasLost ? 'true' : 'false');
+        if (p.hasLost) plate.setAttribute('aria-disabled', 'true'); else plate.removeAttribute('aria-disabled');
         this.paintOrb(plate._orb, p);
         plate._name.textContent = p.name;
-        plate._sub.textContent = p.hasLost ? 'out of the game' : `${p.handSize} in hand \u00b7 ${p.librarySize} in library`;
+        plate._sub.textContent = p.hasLost ? 'Out' : `${p.handSize} in hand \u00b7 ${p.librarySize} in library`;
         const flags = [];
         if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn']);
         if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you']);
@@ -893,7 +904,7 @@
           plate._flags.innerHTML = '';
           for (const [cls, text] of flags) plate._flags.appendChild(el('i', { class: cls, text }));
         }
-        plate.classList.toggle('focused', this.focusSeat === p.id && !this.arena.classList.contains('split'));
+        plate.classList.toggle('focused', this.focusSeat === p.id && !p.hasLost && !this.arena.classList.contains('split'));
         plate.classList.toggle('turn', v.activePlayer === p.id);
         plate.classList.toggle('dead', !!p.hasLost);
         plate.classList.toggle('pinned', !!(this._pinned && this._pinned.id === p.id));
@@ -913,10 +924,13 @@
 
     /** Look at the next or previous opponent's board. */
     cycleFocus(dir) {
-      const others = this._opponents();
-      if (others.length < 2) return;
-      const i = Math.max(0, others.findIndex(p => p.id === this.focusSeat));
-      const next = others[(i + dir + others.length) % others.length];
+      const all = this._opponents();
+      if (all.length < 2) return;
+      // round the players still in the game; a defeated seat is passed over
+      const others = all.filter(p => !p.hasLost);
+      if (!others.length) return;
+      const i = others.findIndex(p => p.id === this.focusSeat);
+      const next = others[i < 0 ? (dir > 0 ? 0 : others.length - 1) : (i + dir + others.length) % others.length];
       this.setFocus(next.id, true);
     }
 
@@ -3361,9 +3375,16 @@
     /* For the app: it asks a table to close its side panel on a layout change. */
     closeSide() { this.toggleDrawer(false); }
 
+    /** Whether a player's board can be brought forward: not once they are out of the game. */
+    canLookAt(id) {
+      const p = this.view && this.view.players.find(x => x.id === id);
+      return !!p && !p.hasLost;
+    }
+
     /** Bring an opponent's board forward; a choice you make holds until the turn changes. */
     setFocus(id, pin) {
       if (!id) { this._pinned = null; this.render(); return; }
+      if (!this.canLookAt(id)) return;
       if (pin) this._pinned = { id, turn: this.view ? this.view.turn : 0 };
       if (this.focusSeat === id) { if (pin) this.render(); return; }
       this.focusSeat = id;

@@ -1184,7 +1184,7 @@
   animation: defeatStamp .55s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes defeatStamp { from { opacity: 0; transform: translate(-50%, -50%) rotate(-7deg) scale(1.9); } }
 .seat.mine.dead::after { content: 'You were defeated'; letter-spacing: .12em; }
-.oplate.dead { position: relative; }
+.oplate.dead { position: relative; cursor: default; }
 .oplate.dead::before { content: 'Defeated'; position: absolute; right: 6px; top: 50%; transform: translateY(-50%) rotate(-6deg); pointer-events: none;
   padding: 2px 7px; border: 2px solid rgba(226, 86, 74, .9); border-radius: 6px; font: 800 10px/1 var(--font); letter-spacing: .12em;
   text-transform: uppercase; color: #ff9484; background: rgba(24, 8, 8, .75); }
