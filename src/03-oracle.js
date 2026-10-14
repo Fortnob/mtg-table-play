@@ -2049,6 +2049,9 @@
     { re: /^(Target (?:attacking )?creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
 
+    // Alania, Divergent Storm: "you may have target opponent draw a card. If you do, copy that spell."
+    { re: /^You may have target opponent draw a card\. If you do, copy that spell\.?$/i,
+      make: () => ({ op: 'may', then: [{ op: 'draw', n: 1, who: 'target', targets: [{ type: 'player', opponent: true }] }, { op: 'copyThatSpell' }] }) },
     /* "…copy that spell." */
     { re: /^Copy that spell\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
     { re: /^You may copy that spell\.?$/i, make: () => ({ op: 'may', then: [{ op: 'copyThatSpell' }] }) },
@@ -5779,6 +5782,12 @@
       make: (m) => ({ op: 'restrict', flag: 'mustBlock', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
     { re: /^(Target creature|It|That creature) attacks this turn if able\.?$/i,
       make: (m) => ({ op: 'restrict', flag: 'mustAttackEot', targets: /^target/i.test(m[1]) ? [{ type: 'creature' }] : null, scope: /^target/i.test(m[1]) ? null : 'lastTarget' }) },
+    // Karazikar, the Eye Tyrant: "you and the attacking player each draw a card and lose 1 life"
+    { re: /^You and the attacking player each draw a card and lose (\d+) life\.?$/i,
+      make: (m) => [{ op: 'draw', n: 1 }, { op: 'draw', n: 1, who: 'triggerPlayer' }, { op: 'loseLife', who: 'you', n: +m[1] }, { op: 'loseLife', who: 'triggerPlayer', n: +m[1] }] },
+    // Karazikar, the Eye Tyrant: "tap target creature that player controls and goad it"
+    { re: /^Tap (target creature(?: an opponent controls| that player controls)?) and goad it\.?$/i,
+      make: (m) => [{ op: 'tap', targets: [targetSpec(m[1])] }, { op: 'goad', scope: 'lastTarget' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
@@ -11082,6 +11091,10 @@
     // (Ojer Pakpatiq: "an instant spell", "a sorcery spell"; Jodah, the Unifier: "a legendary spell")
     { re: /^Whenever you cast an? (instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
+    /* Alania, Divergent Storm: "Whenever you cast a spell, if it's the first instant spell, the first sorcery spell, or
+       the first Otter spell other than Alania you've cast this turn," — first of any of those kinds (firstOfKinds) */
+    { re: /^Whenever you cast a spell, if it'?s the first ([a-z]+) spell, the first ([a-z]+) spell, or the first ([A-Za-z]+) spell( other than CARDNAME)? you'?ve cast this turn,? /i,
+      event: 'youCastSpell', extraOf: (m) => Object.assign({ firstOfKinds: [m[1], m[2], m[3]].map(x => x.toLowerCase()) }, m[4] ? { firstOfKindsNotSelfName: true } : {}) },
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
       extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
@@ -11669,13 +11682,16 @@
     /* Norn's Decree, Suppressor Skyguard, Trouble in Pairs: "Whenever a player
        attacks", "Whenever a player attacks you", "Whenever an opponent attacks
        you with two or more creatures" */
+    // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
+    { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
         m[3] && !m[2] ? { minAttackers: num(m[3]) } : {}) },
     // Merry, Esquire of Rohan: "Whenever you attack with Merry and another legendary creature" (withSelfAnd)
     { re: /^Whenever you attack with (?:CARDNAME|this creature) and another ([a-z ]+?), /i, event: 'youAttack', extraOf: (m) => ({ withSelfAnd: m[1].toLowerCase() }) },
-    // Horizon Explorer: "Whenever you attack a player" (read as any attack you make)
-    { re: /^Whenever you attack a player,? /i, event: 'youAttack' },
+    /* Horizon Explorer, Karazikar, the Eye Tyrant: "Whenever you attack a player" — once for each player attacked,
+       "that player" the one attacked (attackerIsYou) */
+    { re: /^Whenever you attack a player,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsYou: true } },
     { re: /^When(?:ever)? you attack(?:,| )/i, event: 'youAttack' },
     { re: /^When(?:ever)? (?:a|one or more) creatures? you control attacks?(?:,| )/i, event: 'yourCreatureAttacks' },
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) becomes blocked(?:,| )/i, event: 'becomesBlocked', self: true },
@@ -14173,8 +14189,11 @@
     // Curse of Death's Hold: "Creatures enchanted player controls"
     const WE = rest.match(/ enchanted (?:player|opponent) controls$/i);
     if (WE) { sc.who = 'enchantedPlayer'; rest = rest.slice(0, WE.index); }
+    // Laughing Jasper Flint: "Creatures you control but don't own" (notOwned)
+    const WN = !WE && rest.match(/ you control but don'?t own$/i);
+    if (WN) { sc.who = 'you'; sc.notOwned = true; rest = rest.slice(0, WN.index); }
     // (Mjölnir, Storm Hammer: "each opponent … that opponent controls" — that player)
-    const W = !WE && rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls|that opponent controls)$/i);
+    const W = !WE && !WN &&rest.match(/ (you control|your opponents control|your team controls|you don'?t control|an opponent controls|target player controls|target opponent controls|defending player controls|that player controls|that opponent controls)$/i);
     if (W) {
       sc.who = /^(?:you control|your team)/i.test(W[1]) ? 'you' : /^(?:target|that player|that opponent)/i.test(W[1]) ? 'target' : 'opponents';
       // Cavern-Hoard Dragon: "for each artifact that player controls"
@@ -14699,6 +14718,13 @@
         const scope = eachScope(m[1]);
         if (!scope || scope.self || scope.attached) return null;
         return { op: 'continuous', layer: 4, scope, addTypes: ['Land'], addSubtypes: [U.titleCase(m[2])] };
+      } },
+    // Laughing Jasper Flint: "Creatures you control but don't own are Mercenaries in addition to their other types."
+    { re: /^((?:[A-Za-z]+ )*[Cc]reatures [a-z' ]+?) are ([A-Z][a-z]+) in addition to their other types\.?$/,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached || /^(?:Plains|Islands|Swamps|Mountains|Forests)$/.test(m[2])) return null;
+        return { op: 'continuous', layer: 4, scope, addSubtypes: [U.titleCase(singularType(m[2]))] };
       } },
     { re: /^(.+?) (?:is|are) (?:an? )?(?:artifact )?creatures? with (?:base )?power and toughness each equal to (?:its|their) mana value\.?$/i,
       make: (m) => {
@@ -15933,6 +15959,10 @@
       // Sphere of Safety: "… pays {X} for each of those creatures, where X is the number of enchantments you control."
       { re: /^Creatures can'?t attack you( or planeswalkers you control)? unless their controller pays \{X\} for each (?:creature they control that'?s attacking you|of those creatures), where X is (.+?)\.?$/i,
         make: (m) => { const per = amountOf(m[2]); return per != null && typeof per === 'object' ? { op: 'attackTax', amount: '{0}', per, walkers: !!m[1] } : null; }, auto: true },
+      /* Nils, Discipline Enforcer: "Each creature with one or more counters on it can't attack you or planeswalkers you
+         control unless its controller pays {X}, where X is the number of counters on that creature." (countersOnAttacker) */
+      { re: /^Each creature with one or more counters on it can'?t attack you( or planeswalkers you control)? unless its controller pays \{X\}, where X is the number of counters on that creature\.?$/i,
+        make: (m) => ({ op: 'attackTax', amount: '{0}', countersOnAttacker: true, walkers: !!m[1], scope: { who: 'all', what: 'creature', withAnyCounter: true } }), auto: true },
       // Elephant Grass: "Nonblack creatures can't attack you unless…" — only those
       { re: /^((?:[A-Za-z]+ )?creatures(?: with [a-z0-9 ]+)?) can'?t attack you( or planeswalkers you control)? unless their controller pays \{(\d+)\} for each (?:creature they control that'?s attacking you|of those creatures)\.?$/i,
         make: (m) => { const scope = scopeOf(m[1]); return scope ? { op: 'attackTax', amount: '{' + m[3] + '}', walkers: !!m[2], scope } : null; }, auto: true },

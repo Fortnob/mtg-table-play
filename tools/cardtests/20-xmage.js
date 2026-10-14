@@ -30249,4 +30249,135 @@ module.exports = (test) => {
     t.ok(back && !back.face, 'Phoenix: returned front face up, Joshua');
     t.eq(M.life('B'), 16, 'Phoenix: chapter III deals nothing');
   });
+
+  test('Commanders: Laughing Jasper Flint — creatures you control but don\'t own are Mercenaries; upkeep exiles X of an opponent\'s cards to cast', (mk, t) => {
+    t.auto('Laughing Jasper Flint');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const jas = M.bf('A', 'Laughing Jasper Flint');
+    const mine = M.bf('A', 'Grizzly Bears');
+    const stolen = M.bf('B', 'Grizzly Bears');
+    g._runEffects([{ op: 'gainControl', until: null, targets: [] }], { controller: 'A', obj: jas, name: 'Test', kind: 'spell', targets: [{ kind: 'object', id: stolen.id }] });
+    M.settle();
+    t.eq(stolen.controller, 'A');
+    t.ok(g._hasSubtype(stolen, 'Mercenary'), 'Laughing Jasper Flint: the stolen Bears is a Mercenary');
+    t.ok(g._hasSubtype(stolen, 'Bear'), 'Laughing Jasper Flint: in addition to its other types');
+    t.no(g._hasSubtype(mine, 'Mercenary'), "Laughing Jasper Flint: A's own Bears is not");
+    t.no(g._hasSubtype(jas, 'Mercenary'));
+    // upkeep: X is 2 (Jasper is a Rogue, the Bears a Mercenary)
+    M.nextTurn('B');
+    const bolt = M.top('B', 'Lightning Bolt');
+    const opt = M.top('B', 'Opt');
+    const third = g.zones.B.library[2];
+    M.nextTurn('A');
+    t.zone(opt, 'exile', 'Laughing Jasper Flint: the top card exiled');
+    t.zone(bolt, 'exile', 'Laughing Jasper Flint: and the second');
+    t.zone(third, 'library', 'Laughing Jasper Flint: only two');
+    // cast with mana of any type
+    M.mana('A', 'G');
+    M.cast('A', bolt, { targets: ['B'] });
+    t.eq(M.life('B'), 17, 'Laughing Jasper Flint: Lightning Bolt cast with {G}');
+  });
+
+  test('Commanders: Karazikar, the Eye Tyrant — attacking a player taps and goads one of theirs; opponents attacking each other draw and lose 1', (mk, t) => {
+    t.auto('Karazikar, the Eye Tyrant');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    const kara = M.bf('A', 'Karazikar, the Eye Tyrant');
+    const bearB = M.bf('B', 'Grizzly Bears');
+    const giantC = M.bf('C', 'Hill Giant');
+    const toMain2 = () => {
+      for (let i = 0; i < 80; i++) {
+        M.settle();
+        if (g.phase.id === 'postcombat' && g.step === 'main' && !g.stack.length && g.priorityPlayer.id === g.activePlayer.id) return;
+        g.passPriority(g.priorityPlayer.id, true);
+      }
+    };
+    // A attacks B: a creature B controls, tapped and goaded
+    M.answer('declareAttackers', () => [{ attackerId: kara.id, defenderId: 'B' }]);
+    toMain2();
+    t.eq(M.life('B'), 15);
+    t.ok(bearB.tapped, 'Karazikar: the Bears tapped');
+    t.eq(bearB.goadedBy, 'A', 'Karazikar: and goaded');
+    t.no(giantC.tapped, "Karazikar: not C's creature");
+    t.no(giantC.goadedBy);
+    // B attacks C: A and B each draw and lose 1
+    const hA = M.zone('A', 'hand').length;
+    M.nextTurn('B');
+    const hB = M.zone('B', 'hand').length;
+    M.answer('declareAttackers', () => [{ attackerId: bearB.id, defenderId: 'C' }]);
+    toMain2();
+    t.eq(M.life('C'), 18);
+    t.eq(M.zone('A', 'hand').length, hA + 1, 'Karazikar: A draws');
+    t.eq(M.zone('B', 'hand').length, hB + 1, 'Karazikar: the attacking player draws');
+    t.eq(M.life('A'), 19, 'Karazikar: A loses 1');
+    t.eq(M.life('B'), 14, 'Karazikar: B loses 1');
+    // C attacks A: not another opponent
+    M.nextTurn('C');
+    M.answer('declareAttackers', () => [{ attackerId: giantC.id, defenderId: 'A' }]);
+    toMain2();
+    t.eq(M.life('A'), 16, 'Karazikar: 3 from the Giant, nothing more');
+    t.eq(M.life('C'), 18, 'Karazikar: attacking A, no trigger');
+  });
+
+  test('Commanders: Nils, Discipline Enforcer — end step counters for each player; a creature with counters pays {X} to attack you', (mk, t) => {
+    t.auto('Nils, Discipline Enforcer');
+    const M = mk({ library: Array(30).fill('Island') });
+    const nils = M.bf('A', 'Nils, Discipline Enforcer');
+    const bear = M.bf('B', 'Grizzly Bears');
+    const giant = M.bf('B', 'Hill Giant');
+    // A's end step: up to one creature of each player — Nils, and B's Bears
+    M.answer('choose', () => ({ picks: [nils.id] }));
+    M.answer('choose', () => ({ picks: [bear.id] }));
+    M.nextTurn('B');
+    t.eq(nils.counters['+1/+1'] || 0, 1, 'Nils: a counter on a creature of A');
+    t.eq(bear.counters['+1/+1'] || 0, 1, 'Nils: and on one of B');
+    t.eq(giant.counters['+1/+1'] || 0, 0);
+    bear.counters.shield = 1;
+    // B's Bears has two counters: {2} to attack A; the Giant has none
+    const seen = {};
+    M.answer('declareAttackers', (ch, g) => {
+      seen.free = g.declareAttackers('B', [{ attackerId: bear.id, defenderId: 'A' }]);
+      g.player('B').pool.add('C', 1);
+      seen.one = g.declareAttackers('B', [{ attackerId: bear.id, defenderId: 'A' }]);
+      g.player('B').pool.add('C', 1);
+      return [{ attackerId: bear.id, defenderId: 'A' }, { attackerId: giant.id, defenderId: 'A' }];
+    });
+    M.toMain('B', 'endCombat');
+    t.no(seen.free, "Nils: the Bears can't attack for nothing");
+    t.no(seen.one, 'Nils: nor for {1}');
+    t.eq(M.life('A'), 20 - 3 - 3, 'Nils: {2} paid for the Bears, the Giant free');
+  });
+
+  test('Commanders: Alania, Divergent Storm — the first instant, sorcery or Otter spell each turn: an opponent draws and the spell is copied', (mk, t) => {
+    t.auto('Alania, Divergent Storm');
+    const M = mk({ library: Array(30).fill('Island') });
+    M.bf('A', 'Alania, Divergent Storm');
+    const hB = () => M.zone('B', 'hand').length;
+    // the first instant: B draws, Lightning Bolt twice
+    const b0 = hB();
+    M.answer('confirm', () => ({ yes: true }));
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    t.eq(hB(), b0 + 1, 'Alania: B draws');
+    t.eq(M.life('B'), 14, 'Alania: Lightning Bolt copied');
+    // the second instant: nothing
+    const a0 = M.asked.length;
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Shock'), { targets: ['B'] });
+    t.eq(M.life('B'), 12, 'Alania: the second instant is not copied');
+    t.no(M.asked.slice(a0).some(ch => ch.type === 'confirm'), 'Alania: not asked');
+    // the first sorcery: declined — no draw, no copy
+    M.answer('confirm', () => ({ yes: false }));
+    M.mana('A', 'R');
+    const b1 = hB();
+    M.cast('A', M.hand('A', 'Lava Spike'), { targets: ['B'] });
+    t.eq(M.life('B'), 9, 'Alania: declined, Lava Spike once');
+    t.eq(hB(), b1, 'Alania: and B draws nothing');
+    // a creature spell that isn't an Otter: nothing
+    const a1 = M.asked.length;
+    M.mana('A', '1G');
+    M.cast('A', M.hand('A', 'Grizzly Bears'));
+    t.no(M.asked.slice(a1).some(ch => ch.type === 'confirm'), 'Alania: Grizzly Bears is no Otter');
+  });
 };

@@ -9145,6 +9145,8 @@
             if (ef.scope) { const at = this.obj(d.attackerId); if (!at || !this._scopeHit(ef.scope, at, at.analysis() || {}, o.controller, o)) continue; }
             // Norn's Annex: a Phyrexian symbol, paid as itself (mana or 2 life)
             if (/^\{[WUBRG]\/P\}$/.test(String(ef.amount || ''))) { symTax.set(d, symTax.get(d) + ef.amount); k += 1; continue; }
+            // Nils, Discipline Enforcer: "{X}, where X is the number of counters on that creature" (countersOnAttacker)
+            if (ef.countersOnAttacker) { const at = this.obj(d.attackerId); k += at ? Object.values(at.counters || {}).reduce((acc, c) => acc + (Number(c) || 0), 0) : 0; continue; }
             k += ef.per != null ? Math.max(0, Number(this._countValue(ef.per, o.controller, o)) || 0)
               : parseInt(String(ef.amount || '{2}').replace(/[{}]/g, ''), 10) || 0;
           }
@@ -13309,6 +13311,14 @@
             const mine = (this.player(o.controller) || {}).spellObjsThisTurn || [];
             if (mine.some(x => x !== data.object && this._cardFitsWords(x, ab.spellFilter || 'spell'))) continue;
           }
+          /* Alania, Divergent Storm: the first instant, the first sorcery or the first Otter spell (not one named as it is)
+             this turn (firstOfKinds) */
+          if (ab.firstOfKinds) {
+            const sp = data.object;
+            const mineK = (this.player(o.controller) || {}).spellObjsThisTurn || [];
+            const counts = (x, k) => this._cardFitsWords(x, k) && !(ab.firstOfKindsNotSelfName && x.name === o.name);
+            if (!sp || !ab.firstOfKinds.some(k => counts(sp, k) && !mineK.some(x => x !== sp && counts(x, k)))) continue;
+          }
           // Sidisi: "put into your graveyard from your library"
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
           // Crawling Infestation: "during your turn"
@@ -13422,6 +13432,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Karazikar, the Eye Tyrant: "Whenever you attack a player" (attackerIsYou)
+          if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
           if (ab.attackedIsYourOpponent && !this.opponentsOf(o.controller).some(q => q.id === data.attackedPlayer)) continue;
           // Jolene, the Plunder Queen: an attack on at least one of this player's opponents
@@ -14033,7 +14045,8 @@
         /* "Destroy target artifact that player controls": the player the
            trigger is about, whoever that turns out to be. */
         const td = ctx.triggerData || {};
-        const tp = ctx.chosenPlayer || td.drawer || td.player || td.deadController || td.playerId || '-';
+        // (Karazikar, the Eye Tyrant: "target creature that player controls" — the player attacked)
+        const tp = ctx.chosenPlayer || td.drawer || td.player || td.attackedPlayer || td.deadController || td.playerId || '-';
         const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
           ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
           // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
@@ -24296,6 +24309,8 @@
       if (sc.nameSelf && !(src && o.name === src.name)) return false;
       if ((sc.who === 'you' || sc.who === 'target') && o.controller !== pid) return false;
       if (sc.who === 'opponents' && o.controller === pid) return false;
+      // Laughing Jasper Flint: "you control but don't own"
+      if (sc.notOwned && o.owner === o.controller) return false;
       if (sc.who === 'enchantedPlayer' && !(src && src.attachedTo && o.controller === src.attachedTo)) return false;
       // (Elturel Survivors: in a standing rule, the player its source is attacking)
       if (sc.defending) { const dp = this._defendingPid || ((src && this._defenderOf(src)) || {}).id; if (dp && o.controller !== dp) return false; }
