@@ -9805,6 +9805,17 @@
         if (!each.auto || !each.effects.length) return null;
         return [{ op: 'parley', filter: m[1].toLowerCase(), each: each.effects }, { op: 'draw', n: 1, who: 'each' }];
       } },
+    /* Phabine, Boss's Confidant: "For each land card revealed this way, you create a 1/1 green and white Citizen creature
+       token. Then creatures you control get +1/+1 until end of turn for each nonland card revealed this way." — two
+       counts of the same cards (alsoFor) */
+    { re: /^Each player reveals the top card of their library\. For each (nonland|land) card revealed this way, ([^.]+)\. Then ([^.]+?) for each (nonland|land) card revealed this way\. Then each player draws a card\.$/i,
+      make: (m) => {
+        const each = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
+        const then = parseSentenceList(splitSentences(m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.'));
+        if (!each.auto || !each.effects.length || !then.auto || !then.effects.length) return null;
+        return [{ op: 'parley', filter: m[1].toLowerCase(), each: each.effects, alsoFor: { filter: m[4].toLowerCase(), each: then.effects } },
+          { op: 'draw', n: 1, who: 'each' }];
+      } },
     /* Goblin Welder: "Choose target artifact a player controls and target
        artifact card in that player's graveyard. If both targets are still
        legal as this ability resolves, that player simultaneously sacrifices
@@ -10804,6 +10815,18 @@
     { re: /^Search your library for an? ([a-z ]+?) card with mana value X or less, where X is (one|two|three|\d+) plus the sacrificed creature'?s mana value\. Put that card onto the battlefield, then shuffle\.( Exile CARDNAME\.)?$/i,
       make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', maxMv: { ofSacrificed: 'mv', plus: num(m[2]) },
         prompt: 'Search your library for a ' + m[1].toLowerCase() + ' card.' }].concat(m[3] ? [{ op: 'exileSelf' }] : []) },
+    /* Journey to the Oracle: "… Then if you control eight or more lands, you may discard a card. If you do, return
+       Journey to the Oracle to its owner's hand." — the "if you do" inside the condition, after the "may" it answers */
+    { re: /^(.+?\.) Then if ([^,.]+), (you may [^.]+)\. If you do, ([^.]+)\.$/,
+      make: (m) => {
+        const cond = condOf(m[2]);
+        const head = parseSentenceList(splitSentences(m[1]));
+        const tail = parseSentenceList(splitSentences(U.titleCase(m[3].charAt(0)) + m[3].slice(1) + '. If you do, ' + m[4] + '.'));
+        if (!cond || !head.auto || !tail.auto || !head.effects.length || tail.effects.length !== 1) return null;
+        // ("You may put any number of land cards …": none is the "no" — one pick, not a yes/no first)
+        const first = head.effects.map(e => (e && e.op === 'may' && (e.then || []).length === 1 && e.then[0].op === 'permanentFromHand' && e.then[0].any ? e.then[0] : e));
+        return first.concat([{ op: 'ifCond', cond, then: tail.effects }]);
+      } },
     /* Willowdusk, Essence Seer: "Choose another target creature. Put a number of +1/+1 counters on it equal to the amount
        of life you gained this turn or the amount of life you lost this turn, whichever is greater." */
     { re: /^Choose ((?:another )?target creature(?: you control)?)\. Put (?:a number of (\+1\/\+1) counters on it equal to (.+?)|X (\+1\/\+1) counters on it, where X is (.+?))\.(?: Activate only as a sorcery\.)?$/i,
@@ -11017,6 +11040,11 @@
         { op: 'loseLife', n: num(m[1]), who: 'targetController' }] },
     { re: /^Draw a card\. You lose (\w+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'loseLife', n: num(m[1]), who: 'you' }] },
+    /* Jadzi, Oracle of Arcavios: "reveal the top card of your library. If it's a nonland card, you may cast it by paying
+       {1} rather than paying its mana cost. If it's a land card, put it onto the battlefield." (altMana, revealedOnly) */
+    { re: /^Reveal the top card of your library\. If it'?s a nonland card, you may cast it by paying ((?:\{[0-9WUBRGC]\})+) rather than paying its mana cost\. If it'?s a land card, put it onto the battlefield\.?$/i,
+      make: (m) => [{ op: 'reveal', n: 1, from: 'library' }, { op: 'castFree', from: 'revealed', upTo: 1, altMana: m[1] },
+        { op: 'topLandOrDraw', revealedOnly: true }] },
     /* Neera, Wild Mage: "you may put it on the bottom of its owner's library. If you do, reveal cards from the top of
        your library until you reveal a nonland card. You may cast that card without paying its mana cost. Then put all
        revealed cards not cast this way on the bottom of your library in a random order." — "it" is the spell cast */
@@ -11199,6 +11227,9 @@
     // Dyadrine, Synthesis Amalgam: "remove a +1/+1 counter from each of two creatures you control" (removeEach)
     { re: /^remove an? ([+\-0-9/a-z]+) counter from each of (two|three) creatures you control$/i,
       make: (m) => ({ removeEach: { n: num(m[2]), kind: m[1].toLowerCase(), filter: 'creature' } }) },
+    // Overseer of Vault 76: "remove three quest counters from among permanents you control" (removeAmong)
+    { re: /^remove (two|three|four|five|\d+) ([+\-0-9/a-z]+) counters from among permanents you control$/i,
+      make: (m) => ({ removeAmong: { n: num(m[1]), kind: m[2].toLowerCase(), filter: 'permanent' } }) },
   ];
 
   function asCost(phrase) {
@@ -15224,6 +15255,16 @@
         autoLines++;
         continue;
       }
+      /* Tetzimoc, Primal Death: "{B}, Reveal this card from your hand: Put a prey counter on target creature. Activate
+         only during your turn." — an ability from the hand that keeps the card, through channel's door (reveal, yourTurn) */
+      const rvh = line.match(/^((?:\{[^}]+\})+),\s*Reveal (?:this card|CARDNAME) from your hand:\s*([\s\S]+?)(\s*Activate only during your turn\.)?$/i);
+      if (rvh) {
+        const parsed = parseEffects(stripReminder(rvh[2]).trim());
+        out.channel = { cost: rvh[1], keep: true, reveal: true, yourTurn: !!rvh[3], effects: parsed.effects };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Reveal from hand', arg: rvh[1], text: line, auto: parsed.auto, effects: [] });
+        if (parsed.auto) autoLines++;
+        continue;
+      }
       /* The Licids: "{1}{W}, {T}: This creature loses this ability and becomes an Aura enchantment with
          enchant creature. Attach it to target creature. You may pay {W} to end this effect." — two
          abilities: the one that turns it into an Aura, and the special action that turns it back */
@@ -19155,6 +19196,9 @@
       { re: /^(?:CARDNAME|This creature) has all activated abilities of (?:all )?(legendary )?creatures (you|your opponents) control( that don'?t have the same name as (?:this creature|CARDNAME))?\.( You may spend mana as though it were mana of any colou?r to activate those abilities\.)?$/i,
         make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
           m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
+      // Experiment Kraj: "Experiment Kraj has all activated abilities of each other creature with a +1/+1 counter on it." (withCounter)
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of each other creature with an? (\+1\/\+1|[a-z]+) counter on it\.?$/i,
+        make: (m) => ({ op: 'borrowActivated', who: 'all', withCounter: m[1].toLowerCase() }), auto: true },
       // Thranduil, the Elvenking: "Thranduil has all activated abilities of all Elf cards in your graveyard." (borrowActivated graveyard)
       // (Trazyn the Infinite: "As long as Trazyn is on the battlefield, it has all activated abilities of all artifact cards in your graveyard.")
       { re: /^(?:CARDNAME|This creature|As long as CARDNAME is on the battlefield, it) has all activated abilities of all ([A-Z][a-z]+|creature|artifact) cards in your graveyard\.?$/,

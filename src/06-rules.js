@@ -5442,11 +5442,12 @@
       if (o.zone === 'hand' && a.forecast && this.activePlayer && this.activePlayer.id === playerId && this.step === 'upkeep' && o._forecastTurn !== this.turn) {
         out.push({ kind: 'cycle', channel: true, forecast: true, cost: a.forecast.cost || '', label: 'Forecast ' + (a.forecast.cost || '{0}') });
       }
-      if (o.zone === 'hand' && a.channel) {
+      // (Tetzimoc, Primal Death: "Activate only during your turn." — yourTurn)
+      if (o.zone === 'hand' && a.channel && !(a.channel.yourTurn && !(this.activePlayer && this.activePlayer.id === playerId))) {
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
         out.push({ kind: 'cycle', channel: true, cost,
-          label: a.channel.exile ? 'Exile for mana' : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
+          label: a.channel.exile ? 'Exile for mana' : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
       }
       /* Overload (CR 702.96): pay more and every "target" becomes "each". */
       if (o.zone === 'hand' && a.overloadEffects) {
@@ -6055,7 +6056,8 @@
         x,
       };
       this.stack.push(item);
-      this.logEvent('ability', `${this.player(playerId).name} channels ${o.name}.`);
+      // (Tetzimoc, Primal Death: shown from the hand, and kept — reveal)
+      this.logEvent('ability', a.channel.reveal ? `${this.player(playerId).name} reveals ${o.name} from their hand.` : `${this.player(playerId).name} channels ${o.name}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
       this._resetPriority();
@@ -14050,6 +14052,8 @@
       const exiledWith = () => spec.exiledCounter ? this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
         .filter(c => Number((c.counters || {})[spec.exiledCounter]) > 0) : [];
       if (spec.exiledCounter) sig += '|x' + exiledWith().map(c => c.id).join(',');
+      // (Experiment Kraj: which creatures have the counter — withCounter)
+      if (spec.withCounter) sig += '|c' + this.battlefield.filter(x => Number((x.counters || {})[spec.withCounter]) > 0).map(x => x.id).join(',');
       if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
       busy.add(o.id);
       let res = null;
@@ -14091,7 +14095,9 @@
         }
         for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
-          if (spec.who === 'opponents' ? !opp.has(x.controller) : x.controller !== o.controller) continue;
+          if (spec.who === 'opponents' ? !opp.has(x.controller) : spec.who !== 'all' && x.controller !== o.controller) continue;
+          // Experiment Kraj: "each other creature with a +1/+1 counter on it" — anyone's (withCounter)
+          if (spec.withCounter && !(Number((x.counters || {})[spec.withCounter]) > 0)) continue;
           const xa = x.analysis();
           if (!xa || !xa.isCreature) continue;
           if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
@@ -21235,6 +21241,7 @@
             (pay.life == null || me.life > pay.life || this.config.rulesEnforcement !== 'full') &&
             (!pay.removeCounter || (src && (Number(src.counters[pay.removeCounter.kind]) || 0) >= (pay.removeCounter.n || 1))) &&
             (!pay.removeEach || this._counterCostPool(ctx.controller, pay.removeEach, null).length >= pay.removeEach.n) &&
+            (!pay.removeAmong || this._counterCostPool(ctx.controller, pay.removeAmong, null).reduce((t, o) => t + (Number(o.counters[pay.removeAmong.kind]) || 0), 0) >= pay.removeAmong.n) &&
             (!pay.discard || this.zones[ctx.controller].hand.length > 0) &&
             (!pay.blight || this._blightPool(ctx.controller).length > 0) &&
             (!pay.process || this._processPool(ctx.controller).length >= pay.process) &&
@@ -21250,7 +21257,7 @@
           /* Depala, Pilot Exemplar, Stark's Ingenuity: "you may pay {X}. If you do, …" — one question, how much X,
              with nothing for no; X is that for the rest (mayPayX) */
           if (pay.mana && /\{X\}/i.test(pay.mana) && !e.noAsk && pay.life == null && !pay.discard && !pay.sacrifice && !pay.energy &&
-              !pay.tapUntapped && !pay.removeCounter && !pay.removeEach && !pay.exileTriggerCard) {
+              !pay.tapUntapped && !pay.removeCounter && !pay.removeEach && !pay.removeAmong && !pay.exileTriggerCard) {
             const restCost = String(pay.mana).replace(/\{X\}/gi, '');
             const srcsX = this.manaSources(ctx.controller);
             let capX = 0;
@@ -21268,7 +21275,7 @@
             this._spliceNext(e.then);
             break;
           }
-          if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.removeAmong || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
           // (a "you may" already asked as the trigger resolved)
           const yes = e.noAsk ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
             // (Koskun Falls: "Tap one" / "Sacrifice it")
@@ -21316,6 +21323,25 @@
               o.counters[k] -= 1; if (o.counters[k] <= 0) delete o.counters[k];
               o._chr = null;
               this.logEvent('counters', `A ${k} counter is removed from ${o.name}.`);
+            }
+            this.bumpBoard();
+            this._spliceNext(e.then);
+            break;
+          }
+          /* Overseer of Vault 76: "you may remove three quest counters from among permanents you control. When you do,
+             …" — the most from those that have the most (removeAmong) */
+          if (pay.removeAmong) {
+            const k = pay.removeAmong.kind;
+            const pool = this._counterCostPool(ctx.controller, pay.removeAmong, null).sort((x, y) => (Number(y.counters[k]) || 0) - (Number(x.counters[k]) || 0));
+            let left = pay.removeAmong.n;
+            if (pool.reduce((t, o) => t + (Number(o.counters[k]) || 0), 0) < left) { this._spliceNext(e.otherwise); break; }
+            for (const o of pool) {
+              const take = Math.min(left, Number(o.counters[k]) || 0);
+              if (!take) continue;
+              o.counters[k] -= take; if (o.counters[k] <= 0) delete o.counters[k];
+              o._chr = null; left -= take;
+              this.logEvent('counters', `${take} ${k} counter${take === 1 ? ' is' : 's are'} removed from ${o.name}.`);
+              if (!left) break;
             }
             this.bumpBoard();
             this._spliceNext(e.then);
@@ -22485,11 +22511,13 @@
         }
         // Thrasios: the top card, onto the battlefield if it is a land; otherwise a card drawn
         case 'topLandOrDraw': {
-          const top = this.zones[ctx.controller].library[0];
-          if (!top) break;
-          this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
+          /* Jadzi, Oracle of Arcavios: "If it's a land card, put it onto the battlefield." — the card already revealed,
+             still in the library; nothing drawn otherwise (revealedOnly) */
+          const top = e.revealedOnly ? this.obj(this._lastRevealed) : this.zones[ctx.controller].library[0];
+          if (!top || top.zone !== 'library') break;
+          if (!e.revealedOnly) this.logEvent('reveal', `${me.name} reveals ${top.name}.`);
           if ((top.analysis() || {}).isLand) { this.moveObject(top, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) top.tapped = true; }
-          else this._drawCards(me, 1);
+          else if (!e.revealedOnly) this._drawCards(me, 1);
           break;
         }
         /* Eladamri, Korvecdal: "Reveal a card from your hand or the top card of your library. If you reveal
@@ -23093,15 +23121,18 @@
         }
         // Parley: everybody's top card shown, and something for each that fits
         case 'parley': {
-          let k = 0;
+          let k = 0, k2 = 0;
           for (const q of this.players.filter(p => !p.hasLost)) {
             const top = this.zones[q.id].library[0];
             if (!top) continue;
             this.logEvent('reveal', `${q.name} reveals ${top.name}.`);
             if (this._cardFitsWords(top, e.filter || 'nonland')) k++;
+            // Phabine, Boss's Confidant: "Then … for each nonland card revealed this way" (alsoFor)
+            if (e.alsoFor && this._cardFitsWords(top, e.alsoFor.filter)) k2++;
           }
           const list = [];
           for (let i = 0; i < k; i++) list.push(...JSON.parse(JSON.stringify(e.each || [])));
+          for (let i = 0; i < k2; i++) list.push(...JSON.parse(JSON.stringify(e.alsoFor.each || [])));
           if (list.length) this._spliceNext(list);
           break;
         }
@@ -26624,6 +26655,8 @@
             // Rashmi and Ragavan: "if it's a spell with mana value less than the number of artifacts you control" (belowMv)
             if (e.belowMv != null && !(((c.card && c.card.cmc) || 0) < n(e.belowMv))) continue;
             if (r && r.marks[slot + 'done' + k]) continue;
+            // (Jadzi, Oracle of Arcavios: "by paying {1}" — not asked when it can't be paid: altMana)
+            if (e.altMana && !this.couldPay(ctx.controller, e.altMana, this.manaSources(ctx.controller))) continue;
             // (The Infamous Cruelclaw: "by discarding a card" — with no card in hand, no way to pay it: not asked)
             if (e.discardCost && !this.zones[ctx.controller].hand.length && !(r && r.marks[slot + 'disc' + k])) continue;
             // (Oskar: paying its costs — what can't be paid for is not asked about)
@@ -26632,6 +26665,7 @@
             // (a card picked as this resolved — Diviner of Mist, Tasha, the Witch Queen — is already a yes)
             const yes = e.must || e.pickOne || e.from === 'graveyard' || e.from === 'exiledCounter' || e.from === 'handOrGraveyard' ? true : this._ask({ type: 'confirm', playerId: ctx.controller,
               prompt: e.pay ? `Cast ${c.name}, paying its mana cost?` : e.discardCost ? `Cast ${c.name} by discarding a card rather than paying its mana cost?`
+                : e.altMana ? `Cast ${c.name} by paying ${e.altMana} rather than paying its mana cost?`
                 : `Cast ${c.name} without paying its mana cost?` }, 'fc' + k);
             if (yes === SUSPEND) return SUSPEND;
             const want = yes === null ? true : !!yes;
@@ -26652,7 +26686,7 @@
             // Anrakyr the Traveller: life equal to its mana value, rather than its mana cost (payLifeMv)
             const lifeMv = e.payLifeMv ? ((c.card && c.card.cmc) || 0) : 0;
             if (e.payLifeMv && !this._canPayLifeMv(me, lifeMv)) continue;
-            const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
+            const ok = this.castSpell(ctx.controller, c.id, Object.assign(e.pay ? {} : e.altMana ? { costOverride: e.altMana } : { free: true }, { alternative: 'resolution', targets: tg, auto: true }));
             if (!ok) { if (e.anyMana && c.zone !== 'stack') c.impulseAnyMana = null; continue; }
             if (lifeMv > 0) this.changeLife(me, -lifeMv, 'cost');
             if (r) r.marks[slot + 'n']++;
