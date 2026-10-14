@@ -1460,8 +1460,9 @@
         (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
+        // (Coram, the Undertaker: other players' graveyards too)
         const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId))
-          .filter(o => this._playFromRule(playerId, o, 'land'));
+          .filter(o => this._playFromRule(playerId, o, 'land')).concat(this._borrowedGraveyard(playerId, 'land'));
         for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
           const a = o.analysis();
           if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
@@ -3323,6 +3324,7 @@
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
+      if (leave && leave.srcId && leave.oncePerKind) this._usePlayFromKind(leave.srcId, 'land');
       // Muldrotha, the Gravetide: this turn's land from the graveyard
       if (leave && leave.srcId && leave.perType) this._usePlayFromType(leave.srcId, 'land');
       if (back) o.face = 1;
@@ -3606,6 +3608,8 @@
         for (const o of this._scopeList(v.greatestToughness, pid, src, null, inLayers)) best = Math.max(best, this.toughnessOf(o));
         return best * mult;
       }
+      // Coram, the Undertaker: "the greatest power among creature cards in all graveyards"
+      if (v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * mult;
       if (v.cardsInAllGraveyards) {
         let k = 0;
         for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) if (this._cardFitsWords(c, v.cardsInAllGraveyards)) k++;
@@ -4617,11 +4621,13 @@
       const exiled = !!(o && o.zone === 'exile' && o.exiledWithId);
       // Tinybones, Bauble Burglar: "cards you don't own with stash counters on them" — in exile, with a counter (exiledCounter)
       const countered = !!(o && o.zone === 'exile' && Object.keys(o.counters || {}).some(k => Number(o.counters[k]) > 0));
-      if (!z || !o || (o.owner !== playerId && !exiled && !countered)) return null;
+      // Coram, the Undertaker: "from among cards in graveyards" — somebody else's too (anyGraveyard)
+      const foreignGy = !!(o && o.zone === 'graveyard' && o.owner !== playerId);
+      if (!z || !o || (o.owner !== playerId && !exiled && !countered && !foreignGy)) return null;
       const where = o.zone === 'library' ? (z.library[0] === o ? 'top' : null) : o.zone === 'graveyard' ? 'graveyard' : exiled ? 'exiledWith' : null;
       if (!where && !countered) return null;
       // Yawgmoth's Will: leave for the rest of this turn
-      const grant = where && ((this.player(playerId) || {}).playFromGrants || [])
+      const grant = where && !foreignGy && ((this.player(playerId) || {}).playFromGrants || [])
         .find(g => g.turn === this.turn && g.zone === where && (g.what === 'any' || g.what === kind));
       // (Gwenom, Remorseless: "pay life equal to its mana value rather than pay its mana cost" — payLife)
       if (grant) return Object.assign({ op: 'playFrom', zone: where, what: grant.what }, grant.payLife ? { payLife: true } : {});
@@ -4635,9 +4641,12 @@
             if (ef.zone === 'exiledCounter') {
               if (!countered || !(Number((o.counters || {})[ef.counter]) > 0) || (ef.notOwned && o.owner === playerId)) continue;
             } else if ((ef.zone || 'top') !== where) continue;
+            if (foreignGy && !ef.anyGraveyard) continue;
             if (where === 'exiledWith' && o.exiledWithId !== src.id) continue;
             const what = ef.what || 'any';
             if (what !== 'any' && what !== kind) continue;
+            // Coram, the Undertaker: "a land and a spell" — each once a turn (oncePerKind)
+            if (ef.oncePerKind && kind !== 'any' && src._playFromKinds && src._playFromKinds.turn === this.turn && src._playFromKinds[kind]) continue;
             if (ef.filter && !this._cardFitsWords(o, ef.filter)) continue;
             // Crystal Skull: one filter for the lands, another for the spells
             const kf = kind === 'land' ? ef.landFilter : ef.spellFilter;
@@ -4660,7 +4669,7 @@
               if (!freeTypes.length) continue;
               return Object.assign({}, ef, { srcId: src.id, freeTypes });
             }
-            if (ef.oncePerTurn || ef.exileAfter) return Object.assign({}, ef, { srcId: src.id });
+            if (ef.oncePerTurn || ef.exileAfter || ef.oncePerKind) return Object.assign({}, ef, { srcId: src.id });
             // Realmwalker: of the chosen creature type
             if (ef.chosenType && !(src.chosenType && this._hasCreatureType(o, src.chosenType))) continue;
             // Augur of Autumn, The Reality Chip: only while the condition holds
@@ -5135,16 +5144,32 @@
         (!g.ids || g.ids.includes(o.id)) &&
         (!g.filter || this._cardFitsWords(o, g.filter))) || null;
     }
-    /** The cards in other players' graveyards this player may cast this turn (The Great Work). */
-    _borrowedGraveyard(playerId) {
+    /** The cards in other players' graveyards this player may cast this turn (The Great Work; Coram, the Undertaker). */
+    _borrowedGraveyard(playerId, kind) {
       const p = this.player(playerId);
-      if (!p || !(p.graveCastGrants || []).some(g => g.turn === this.turn && g.any)) return [];
+      const granted = !!(p && (p.graveCastGrants || []).some(g => g.turn === this.turn && g.any)) && kind !== 'land';
+      const coram = this._anyGyLeave(playerId);
+      if (!p || (!granted && !coram)) return [];
       const out = [];
       for (const q of this.players) {
         if (q.id === playerId) continue;
-        for (const o of ((this.zones[q.id] || {}).graveyard || [])) if (this._graveGrant(playerId, o)) out.push(o);
+        for (const o of ((this.zones[q.id] || {}).graveyard || [])) {
+          if ((granted && this._graveGrant(playerId, o)) || (coram && this._playFromRule(playerId, o, kind || 'spell'))) out.push(o);
+        }
       }
       return out;
+    }
+    /** Coram, the Undertaker: does a permanent of this player's let it play from other players' graveyards? */
+    _anyGyLeave(playerId) {
+      return this.battlefield.some(src => src.controller === playerId && !src.phasedOut &&
+        ((src.analysis() || {}).abilities || []).some(ab => (ab.effects || []).some(ef => ef && ef.op === 'playFrom' && ef.anyGraveyard)));
+    }
+    /** Coram, the Undertaker: "a land and a spell" — this one used up for the turn. */
+    _usePlayFromKind(srcId, kind) {
+      const s = this.obj(srcId);
+      if (!s) return;
+      if (!s._playFromKinds || s._playFromKinds.turn !== this.turn) s._playFromKinds = { turn: this.turn, land: false, spell: false };
+      s._playFromKinds[kind] = true;
     }
 
     /**
@@ -5818,8 +5843,8 @@
         }
       }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
-      if (a && a.readAhead > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
-        const opts2 = Array.from({ length: a.readAhead }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
+      if (a && this._readAheadOf(o, playerId) > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
+        const opts2 = Array.from({ length: this._readAheadOf(o, playerId) }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
         if (this._castChoose(playerId, o, opts, { purpose: 'readAhead', kind: 'options', min: 1, max: 1, options: opts2,
           prompt: `${o.name}: read ahead — which chapter does it start at?` }) === 'asked') return 'asked';
       }
@@ -6527,6 +6552,7 @@
         if (lv && lv.srcId) {
           const ls = this.obj(lv.srcId);
           if (ls && lv.oncePerTurn) ls._playFromTurn = this.turn;
+          if (lv.oncePerKind) this._usePlayFromKind(lv.srcId, 'spell');
           if (lv.exileAfter) o._exileFromStack = true;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
           if (lv.perType) {
@@ -9979,6 +10005,8 @@
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
       // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
       for (const id of ch.candidates) { const o = this.obj(id); if (o && this._goaders(o).length) o._goadedAttack = this.turn; }
+      // (Jin Sakai, Ghost of Tsushima: who else attacks that player, declared before or after — aloneAttackingThatPlayer)
+      this._declaringAttackers = declarations.map(d => ({ attackerId: d.attackerId, defenderId: d.defenderId }));
       for (const d of declarations) {
         const o = this.obj(d.attackerId);
         const a = o.analysis();
@@ -10006,6 +10034,7 @@
         this._fire('permAttacks', null, { object: o, objController: o.controller, attacker: o, defenderId: d.defenderId,
           player: this.player(d.defenderId) ? d.defenderId : (this.obj(d.defenderId) || {}).controller });
       }
+      this._declaringAttackers = null;
       if (declarations.length) {
         (this.turnHistory || (this.turnHistory = {})).attacked = true;
         this.turnHistory.attackers = (this.turnHistory.attackers || 0) + declarations.length;
@@ -12577,6 +12606,17 @@
           const itP = tgP && this.obj(tgP.id);
           return !!itP && itP.zone === 'battlefield' && this._cardFitsWords(itP, cond.what);
         }
+        /* Jin Sakai, Ghost of Tsushima: "if no other creatures are attacking that player" — every attacker declared
+           counts, those declared after it too (_declaringAttackers, while they are being declared) */
+        case 'aloneAttackingThatPlayer': {
+          const td = (ctx && ctx.triggerData) || {};
+          const pid = td.player;
+          if (!pid || !this.player(pid)) return false;
+          const decl = this._declaringAttackers;
+          const others = decl ? decl.filter(d => d.defenderId === pid && d.attackerId !== td.objectId)
+            : this.battlefield.filter(o => o.attacking === pid && o.id !== td.objectId);
+          return !others.length;
+        }
         case 'itIs': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const milled = (this._lastMilled || []).slice(-1)[0];
@@ -12845,6 +12885,8 @@
         const whose = v.typesInGraveyards || (/all graveyards/i.test(v.per) ? 'all' : /opponents/i.test(v.per) ? 'opponents' : 'you');
         return this._typesAmongGraveyards((src || o).controller, whose) * (v.mult || 1);
       }
+      // Coram, the Undertaker: the greatest power among creature cards in all graveyards
+      if (typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
       // Necrogoyf: creature cards in all graveyards
       if (typeof v === 'object' && v.cardsInAllGraveyards) {
         let k = 0;
@@ -14050,7 +14092,8 @@
           // a Saga arrives with its first chapter already counted (CR 714.2)
           if (a.isSaga) {
             // read ahead: the chapters before the one chosen are passed over
-            const start = (a.readAhead && o._readAhead && o.wasCast === this.turn) ? Math.min(o._readAhead, a.readAhead) : 1;
+            const ra = this._readAheadOf(o, o.controller);
+            const start = (ra && o._readAhead && o.wasCast === this.turn) ? Math.min(o._readAhead, ra) : 1;
             o._readAhead = null;
             o.counters.lore = start - 1; this._advanceSaga(o, 1);
           }
@@ -14114,7 +14157,7 @@
         // (Gisa, Glorious Resurrector: a trigger of the old one still knows them — _exiledWithGone, _leftSeq)
         o._leftSeq = this._uid('lv');
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
-        o._playFromTurn = null; o.playFromTypes = null;
+        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
@@ -15687,6 +15730,8 @@
         // Fists of Flame: "for each card you've drawn this turn"
         if (v && typeof v === 'object' && v.drawnThisTurn === 'opponents') return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && v.lookedToGraveyard) return (this._lookedToGraveyard || 0) * (v.mult || 1);
+        // (Search for Blex: "for each card you put into your hand this way")
+        if (v && typeof v === 'object' && v.lookedToHand) return (this._lookedToHand || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
@@ -15844,6 +15889,7 @@
           for (const o of this._scopeList(v.greatestPower, ctx.controller, src)) best = Math.max(best, this.powerOf(o));
           return best;
         }
+        if (v && typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
         /* "for each creature you control with a +1/+1 counter on it" — and
            "those creatures" in the next sentence are the ones counted */
         if (v && typeof v === 'object' && v.scope) {
@@ -17730,6 +17776,32 @@
           break;
         }
 
+        /* Mog, Moogle Warrior: "each player may discard a card. Each player who discarded a card this way draws a
+           card." — each chooses in turn order, none or one; the cards go together, then those players draw */
+        case 'eachMayRummage': {
+          const ps = this._turnOrderFrom((this.activePlayer || me).id);
+          const picks = [];
+          for (const p of ps) {
+            const hand = (this.zones[p.id] || {}).hand || [];
+            if (!hand.length) continue;
+            const got = this._choose({ playerId: p.id, purpose: 'eachMayRummage', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: 0, max: 1, optional: true, prefer: 'worst',
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may discard a card. If you do, draw a card.` }, 'rum' + p.id);
+            if (got === SUSPEND) return SUSPEND;
+            const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && hand.includes(x));
+            if (c) picks.push({ p, c });
+          }
+          if (this._doneHere('rumDone')) break;
+          for (const { p, c } of picks) {
+            this.moveObject(c, 'graveyard');
+            this.logEvent('discard', `${p.name} discards ${c.name}.`);
+          }
+          for (const { p, c } of picks) this._afterDiscard(p.id, c);
+          this._lastDiscarded = picks.map(x => x.c.id);
+          for (const { p } of picks) this._drawCards(p, 1);
+          if (!picks.length) this.logEvent('rules', 'Nobody discards.');
+          break;
+        }
         /* Recruit: draw a card, then discard a card; a nonland card discarded
            makes a 1/1 white Human Soldier (the draw kept across a pause for the question) */
         case 'recruit': {
@@ -22015,6 +22087,7 @@
         case 'takeFromLooked': {
           if (e.rest === 'graveyard') this._lookedToGraveyard = 0;
           if (e.to === 'battlefield') this._takenOntoBf = [];
+          this._lookedToHand = 0;
           const pool = (this._looked || []).map(id => this.obj(id)).filter(o => o && o.zone === 'library');
           if (!pool.length) break;
           const want = n(e.n);
@@ -22118,7 +22191,7 @@
               // "You may play the exiled card this turn"
               if (e.to === 'exile' && e.playable) { o.impulseBy = ctx.controller; o.impulseUntil = this.turn; }
             }
-            else { o.zone = 'library'; this.moveObject(o, 'hand'); }
+            else { o.zone = 'library'; this.moveObject(o, 'hand'); if (o.zone === 'hand') this._lookedToHand++; }
           }
           const rest = pool.filter(o => !taken.includes(o) && o.zone === 'library');
           /* "Put one into your hand, one on the bottom, and exile one": the
@@ -27591,6 +27664,25 @@
       }
       return out;
     }
+    /** Coram, the Undertaker: the greatest printed power among cards of a kind in every graveyard (0 for none, or a "*"). */
+    _greatestPowerInGraveyards(words) {
+      let best = 0;
+      for (const p of this.players) for (const c of ((this.zones[p.id] || {}).graveyard || [])) {
+        if (!this._cardFitsWords(c, words || 'creature')) continue;
+        best = Math.max(best, parseInt((c.card || {}).power, 10) || 0);
+      }
+      return best;
+    }
+
+    /** Read ahead: its last chapter, from its own keyword or from Barbara Wright ("Sagas you control have read ahead"); 0 for none. */
+    _readAheadOf(o, playerId) {
+      const a = o && o.analysis();
+      if (!a || !a.isSaga) return 0;
+      if (a.readAhead) return a.readAhead;
+      if (!this._anyStaticOf(playerId, 'grantReadAhead')) return 0;
+      return Math.max(1, ...a.abilities.filter(x => x.kind === 'chapter').flatMap(x => x.chapters || [1]));
+    }
+
     _anyStaticOf(playerId, op) {
       // an emblem's standing rule is its owner's as much as a permanent's is
       for (const o of this._withEmblems(this.battlefield)) {

@@ -1642,6 +1642,11 @@
     },
     /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
     loreAddOrRemove() { return { picks: [0] }; },
+    /* Mog, Moogle Warrior: a weak card for a fresh one */
+    eachMayRummage() {
+      const w = this.worstInHand(1)[0];
+      return { picks: w && this.rating(w) < 3 ? [w.id] : [] };
+    },
     /* Scent of Ivy, the Seers: show them all, it costs nothing */
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */

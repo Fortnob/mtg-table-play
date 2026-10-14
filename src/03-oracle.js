@@ -894,6 +894,12 @@
       });
     }
     if (!scope) return;
+    /* Jin Sakai, Ghost of Tsushima: "choose one — • Standoff — It gains double strike …" — each mode on its own,
+       "it" still the creature the trigger is about */
+    if ((effects || []).length === 1 && effects[0] && effects[0].op === 'modal') {
+      for (const md of effects[0].modes || []) itIsTheTrigger(md.effects, scope);
+      return;
+    }
     /* "Whenever this creature attacks, it gains double strike until end of
        turn": with nothing before it, "it" is what the trigger is about */
     const g0 = (effects || [])[0];
@@ -935,7 +941,8 @@
        on Gwenna and untap it" */
     let prevSelf = false;
     if (scope === 'triggerObject') walk(effects, (e) => {
-      if (e.scope === 'self' && ops.includes(e.op) && !prevSelf && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b|CARDNAME/.test(e.text || '')) e.scope = scope;
+      // (Jin Sakai, Ghost of Tsushima: "It can't be blocked this turn" — "this turn" is no "this")
+      if (e.scope === 'self' && ops.includes(e.op) && !prevSelf && /\b(?:it|that (?:creature|permanent|land))\b/i.test(e.text || '') && !/\bthis\b(?! turn\b)|CARDNAME/.test(e.text || '')) e.scope = scope;
       // (Blistercoil Weird: "This creature gets +1/+1 … Untap it." — "This" with a capital too)
       prevSelf = e.scope === 'self' && /\bthis\b|CARDNAME/i.test(e.text || '');
     });
@@ -5548,7 +5555,8 @@
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
        your graveyard." */
-    { re: /^Put any number of ([a-z]+ )?cards from among them into your hand and the rest into your graveyard\.?$/i,
+    // (Search for Blex: "You may put any number of them into your hand and the rest into your graveyard.")
+    { re: /^(?:Put any number of ([a-z]+ )?cards from among them|You may put any number of them) into your hand and the rest into your graveyard\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'graveyard',
         prompt: `Choose any number of ${(m[1] || '').trim().toLowerCase() || 'the'} cards to put into your hand. The rest go into your graveyard.` }) },
     // Genesis Wave: "Reveal the top X cards of your library."
@@ -7009,6 +7017,9 @@
       make: (m) => { const c = countOf(m[2], num(m[1])); return c ? { op: 'gainLife', who: 'you', n: c } : null; } },
     { re: /^Each opponent loses (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?)\.?$/i,
       make: (m) => { const c = countOf(m[2], num(m[1])); return c ? { op: 'loseLife', who: 'opponents', n: c } : null; } },
+    // Search for Blex: "You lose 3 life for each card you put into your hand this way."
+    { re: /^You lose (one|two|three|four|five|\d+) life for each ([-a-zA-Z0-9+/ ]+?)\.?$/i,
+      make: (m) => { const c = countOf(m[2], num(m[1])); return c ? { op: 'loseLife', who: 'you', n: c } : null; } },
     { re: /^Add (\{[^}]+\}) for each ([-a-zA-Z0-9+/' ]+?)\.?$/i,
       make: (m) => {
         const c = countOf(m[2]);
@@ -7435,6 +7446,8 @@
     if (/^1 life your opponents have lost this turn$/i.test(p)) return { opponentsLifeLost: true, mult: k };
     // Dihada, Binder of Wills: "for each card put into your graveyard this way" — the rest of the cards looked at
     if (/^card put into your graveyard this way$/i.test(p)) return { lookedToGraveyard: true, mult: k };
+    // Search for Blex: "for each card you put into your hand this way" — the cards taken from among those looked at
+    if (/^card you put into your hand this way$/i.test(p)) return { lookedToHand: true, mult: k };
     if (/^card you'?ve drawn this turn$/i.test(p)) return { drawnThisTurn: 'you', mult: k };
     // Heliod, the Warped Eclipse: "for each card your opponents have drawn this turn"
     if (/^card your opponents have drawn this turn$/i.test(p)) return { drawnThisTurn: 'opponents', mult: k };
@@ -7631,6 +7644,8 @@
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestMv: sc }) : null;
     }
+    // Coram, the Undertaker: "the greatest power among creature cards in all graveyards" (greatestPowerInGraveyards)
+    if (/^the greatest power among creature cards in all graveyards$/i.test(p)) return done({ greatestPowerInGraveyards: 'creature' });
     if ((m = p.match(/^the greatest power among ((?:other )?creatures you control|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
@@ -8440,6 +8455,13 @@
        other types." — not targeted; the player attacked picks (chooser 'defending') */
     { re: /^[Dd]efending player chooses an? ([a-z ]+?) card in your graveyard\. You return that card to the battlefield with an additional \+1\/\+1 counter on it\. The creature is an? ([A-Z][a-z]+) in addition to its other types\.?$/,
       make: (m) => [{ op: 'reanimateChosen', chooser: 'defending', byWords: true, n: 1, what: m[1], counter: '+1/+1', enterEff: { addSubtypes: [m[2]] } }] },
+    /* Mog, Moogle Warrior: "each player may discard a card. Each player who discarded a card this way draws a card." —
+       chosen in turn order, discarded together; "discarded this way" after it is every card discarded (eachMayRummage) */
+    { re: /^each player may discard a card\. Each player who discarded a card this way draws a card\.(?:\s+([\s\S]+))?$/i,
+      make: (m) => {
+        const rest = m[1] ? parseSentenceList(splitSentences(m[1])) : { auto: true, effects: [] };
+        return rest.auto ? [{ op: 'eachMayRummage' }].concat(rest.effects) : null;
+      } },
     /* Omnath, Locus of All: "look at the top card of your library. You may reveal that card if it has three or more
        colored mana symbols in its mana cost. If you do, add three mana in any combination of its colors and put it into
        your hand. If you don't reveal it, put it into your hand." (revealTopForMana) */
@@ -11572,6 +11594,8 @@
     [/^you have more life than an opponent$/i, () => ({ kind: 'moreLifeThanAnOpponent' })],
     // Thickest in the Thicket: "you control the creature with the greatest power or tied for the greatest power"
     [/^you control the creature with the greatest power or tied for the greatest power$/i, () => ({ kind: 'greatestPowerYours' })],
+    // Jin Sakai, Ghost of Tsushima: "if no other creatures are attacking that player" — the player the creature attacks
+    [/^no other creatures are attacking that player$/i, () => ({ kind: 'aloneAttackingThatPlayer' })],
     // Canyon Crab: "you haven't cast a spell from your hand this turn"
     [/^you haven'?t cast a spell from your hand this turn$/i, () => ({ kind: 'noSpellFromHandThisTurn' })],
     /* Druidic Satchel, Topple the Statue: "if it's a creature card", "if
@@ -12418,6 +12442,9 @@
     { re: /^Whenever (?:equipped|enchanted) creature attacks alone,? /i, event: 'attacksAlone', filt: () => ({ words: 'creature', equipped: true }) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks alone,? ', 'i'),
       event: 'attacksAlone', filt: (m) => subjectFilter(m[1]) },
+    // Jin Sakai, Ghost of Tsushima: "Whenever a creature you control attacks a player" — not a planeswalker or battle
+    { re: /^Whenever a creature you control attacks a player,? /i, event: 'permAttacks',
+      filt: () => ({ words: 'creature', who: 'you' }), extra: { attacksPlayer: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks?(?:,| )', 'i'),
       event: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     // Kediss: "Whenever a commander you control deals combat damage to an opponent"
@@ -13760,7 +13787,8 @@
            comma in it of its own ("named Bruna, the Fading Light, exile them"), so the clause ends where the
            meld (or its payment) begins (meldPair) */
         const meldIf = body.match(/^if (.*?\byou both own and control .+? named .+?), ((?:exile them|you may pay)\b.+)$/i);
-        const iff = meldIf && condOf(meldIf[1]) ? meldIf : body.match(/^if (.+?), (.+)$/i);
+        // (Jin Sakai, Ghost of Tsushima: "if …, choose one —" and its modes, over more than one line)
+        const iff = meldIf && condOf(meldIf[1]) ? meldIf : body.match(/^if (.+?), ([\s\S]+)$/i);
         if (iff) {
           const c = condOf(iff[1]);
           if (c) { condition = c; body = iff[2].replace(/^(\w)/, (ch) => ch.toUpperCase()); }
@@ -15890,7 +15918,7 @@
         const defending = /defending player/i.test(m[4]);
         const k = amountOf(m[4]);
         if (defending && !(k && k.scope && k.scope.defending)) return null;
-        const OK = ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'countersOnSelf', 'greatestMv', 'party', 'playerStat', 'devotion', 'typesInGraveyards', 'cardsInAllGraveyards'];
+        const OK = ['scope', 'cardsInHand', 'cardsInGraveyard', 'opponents', 'domain', 'countersOnSelf', 'greatestMv', 'party', 'playerStat', 'devotion', 'typesInGraveyards', 'cardsInAllGraveyards', 'greatestPowerInGraveyards'];
         if (!k || typeof k !== 'object' || k.plus || !OK.some(x => k[x])) return null;
         if ((m[1] === '-') !== (m[2] === '-') && m[3] === 'X') return null;
         const signed = Object.assign({}, k, { mult: (k.mult || 1) * (m[1] === '-' ? -1 : 1) });
@@ -17048,6 +17076,8 @@
       { re: /^As (?:CARDNAME|this (?:artifact|creature|permanent)) enters, you may have it become a copy of any creature on the battlefield until end of turn(, except it has haste)?\.?$/i,
         make: (m) => Object.assign({ op: 'etbAsCopy', what: 'creature', eot: true }, m[1] ? { haste: true } : {}), auto: true },
       { re: /^Creatures you control can boast twice during each of your turns rather than once\.?$/i, eff: { op: 'boastTwice' }, auto: true },
+      // Barbara Wright: "Sagas you control have read ahead." (grantReadAhead)
+      { re: /^Sagas you control have read ahead\.?$/i, eff: { op: 'grantReadAhead' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
       { re: /^(Each opponent|Each player|Your opponents) can'?t draw more than one card each turn\.?$/i,
@@ -18286,6 +18316,11 @@
          cards in your graveyard that were put there from your library this turn." — one leave for either (fromLibThisTurn) */
       { re: /^Once during each of your turns, you may play a land or cast a permanent spell from among cards in your graveyard that were put there from your library this turn\.?$/,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'any', spellFilter: 'permanent', duringYourTurn: true, oncePerTurn: true, fromLibThisTurn: true }, auto: true },
+      /* Coram, the Undertaker: "During each of your turns, you may play a land and cast a spell from among cards in
+         graveyards that were put there from libraries this turn." — anybody's graveyard; a land and a spell, each
+         once a turn (anyGraveyard, oncePerKind) */
+      { re: /^During each of your turns, you may play a land and cast a spell from among cards in graveyards that were put there from libraries this turn\.?$/i,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'any', duringYourTurn: true, oncePerKind: true, anyGraveyard: true, fromLibThisTurn: true }, auto: true },
       // Raul, Trouble Shooter: "Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn." (milledThisTurn)
       { re: /^Once during each of your turns, you may cast a spell from among cards in your graveyard that were milled this turn\.?$/,
         eff: { op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: null, milledThisTurn: true }, auto: true },
