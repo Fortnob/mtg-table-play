@@ -28604,4 +28604,32 @@ module.exports = (test) => {
     t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Mothman: lands only, nothing');
     t.eq(bear.counters['+1/+1'], 2);
   });
+
+  test('Commanders: Rikku, Resourceful Guardian — steal a counter; a creature you put counters on can\'t be blocked this turn', (mk, t) => {
+    t.auto('Rikku, Resourceful Guardian');
+    const M = mk({ library: Array(30).fill('Island') });
+    const rikku = M.bf('A', 'Rikku, Resourceful Guardian');
+    const bear = M.bf('A', 'Grizzly Bears');
+    const theirs = M.bf('B', 'Hill Giant', { counters: { '+1/+1': 1, flying: 1 } });
+    const blocker = M.bf('B', 'Hill Giant');
+    // a counter of B's, of the kind A chooses, onto A's Grizzly Bears
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.find(o => o.label === '+1/+1').i] }; });
+    M.mana('A', '1');
+    M.activate('A', rikku, 0, { targets: [theirs.id, bear.id] });
+    t.ok(asked && asked.options.length === 2, 'Rikku: which counter to move');
+    t.eq(bear.counters['+1/+1'], 1, 'Rikku: the +1/+1 counter moved');
+    t.no(theirs.counters['+1/+1'], 'Rikku: off the Hill Giant');
+    t.eq(theirs.counters.flying, 1, 'Rikku: the other one stays');
+    // the moved counter was put on by A: the Grizzly Bears can't be blocked this turn
+    t.no(M.g.couldBlock(blocker, bear, 'B'), 'Rikku: the Grizzly Bears can\'t be blocked');
+    // the next turn it can be
+    M.nextTurn('A');
+    t.ok(M.g.couldBlock(blocker, bear, 'B'), 'Rikku: until end of turn');
+    // only as a sorcery: not with something on the stack
+    M.mana('A', 'R');
+    M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: ['B'], resolve: false });
+    M.mana('A', '1');
+    t.no(M.g.activateAbility('A', rikku.id, 0, { auto: true, targets: [{ kind: 'object', id: theirs.id }, { kind: 'object', id: bear.id }] }), 'Rikku: only as a sorcery');
+  });
 };

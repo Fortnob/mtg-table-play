@@ -3422,6 +3422,12 @@
     /* Nesting Grounds */
     { re: /^Move a counter from (target permanent you control) onto a second target permanent\.?$/i,
       make: () => ({ op: 'moveCounter', targets: [{ type: 'permanent', controller: 'you', filter: 'permanent you control' }, { type: 'permanent', filter: 'permanent' }] }) },
+    // Rikku, Resourceful Guardian: "Move a counter from target creature an opponent controls onto target creature you control."
+    { re: /^Move a counter from (target [a-z ]+?) onto (target [a-z ]+?)\.?$/i,
+      make: (m) => {
+        const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && b && !a.unknown && !b.unknown ? { op: 'moveCounter', targets: [a, Object.assign({}, b, { distinct: true })] } : null;
+      } },
     /* Ghostly Flicker and its kin */
     { re: /^Exile (two|three) target ((?:artifacts|creatures|lands|enchantments)(?:,? (?:and\/or |or )?(?:artifacts|creatures|lands|enchantments))*) you control, then return (?:those cards|them) to the battlefield under your control\.?$/i,
       make: (m) => {
@@ -4734,6 +4740,10 @@
       make: () => ({ op: 'pump', p: 'triggerAmount', t: 'triggerAmount', duration: 'eot', scope: 'self' }) },
     { re: /^(?:CARDNAME|This creature) gains ([a-z ]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grant', keywords: [U.titleCase(m[1].trim())], scope: 'self' }) },
+    /* Rikku, Resourceful Guardian: "until end of turn, that creature can't be blocked by creatures your
+       opponents control" — only opponents' creatures could block it, so it can't be blocked */
+    { re: /^(?:Until end of turn, (?:that creature|it) can'?t be blocked(?: by creatures your opponents control)?|(?:That creature|It) can'?t be blocked by creatures your opponents control this turn)\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'unblockable', scope: 'triggerObject' }) },
     { re: /^Up to one target creature can'?t be blocked this turn\.?$/i,
       make: () => ({ op: 'restrict', flag: 'unblockable', targets: [{ type: 'creature', upTo: true, filter: 'creature' }] }) },
     { re: /^Target creature can'?t be blocked this turn\.?$/i,

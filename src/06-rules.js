@@ -9015,7 +9015,8 @@
       if (blocker.controller !== defPid) return false;
       // evasion
       const A = (k) => this.hasKw(attacker, k), B = (k) => this.hasKw(blocker, k);
-      if (A('unblockable')) return false;
+      // ("can't be blocked this turn": the rule laid on it, as well as the keyword it was given)
+      if (A('unblockable') || this._hasFlag(attacker, 'unblockable')) return false;
       // The Black Gate: "can't be blocked by creatures that player controls this turn"
       if ((attacker.effects || []).some(e => e && e.unblockableBy === blocker.controller)) return false;
       // Skrelv: "can't be blocked by creatures of that color this turn"
@@ -22719,11 +22720,20 @@
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [from, to] = objs;
           if (!from || !to || from === to) break;
-          const kind = Object.keys(from.counters || {}).find(k => Number(from.counters[k]) > 0);
-          if (!kind) break;
+          // (Rikku, Resourceful Guardian: of several kinds, the one to move is chosen)
+          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0);
+          if (!kinds.length) break;
+          let kind = kinds[0];
+          if (kinds.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'counterKind', kind: 'options', min: 1, max: 1,
+              options: kinds.map((k, i) => ({ i, label: k })), prompt: `Move which counter from ${from.name} to ${to.name}?` }, 'mck');
+            if (got === SUSPEND) return SUSPEND;
+            kind = kinds[(got && got.picks[0]) || 0] || kinds[0];
+          }
           from.counters[kind] = Number(from.counters[kind]) - 1;
           if (!from.counters[kind] && kind !== 'loyalty') delete from.counters[kind];
-          this.addCounters(to, kind, 1, { noReplace: true });
+          // a counter moved is put on (by whoever moved it): "whenever you put one or more counters" sees it
+          this.addCounters(to, kind, 1, { noReplace: true, by: ctx.controller });
           from._chr = null; this.bumpBoard();
           this.logEvent('counters', `A ${kind} counter moves from ${from.name} to ${to.name}.`);
           break;
