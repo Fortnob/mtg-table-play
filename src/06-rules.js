@@ -3201,6 +3201,8 @@
       if (o.impulseFilter && !this._cardFitsWords(o, o.impulseFilter)) return false;
       // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
       if (o.impulseIfAttackedToken && (this.player(playerId) || {}).attackedWithTokenTurn !== this.turn) return false;
+      // Gandalf, Goblins' Bane (Flameshape): "you may play them if you control a Wizard" (impulseIfControl)
+      if (o.impulseIfControl && !this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._cardFitsWords(x, o.impulseIfControl))) return false;
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
     }
     /**
@@ -14296,7 +14298,7 @@
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null;
-        o.faceDownExile = false; o.lookableBy = null;
+        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null;
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
@@ -16253,6 +16255,12 @@
           for (const id of (this._lastGroup || []).slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
           return;
         }
+        // Heroes in a Half Shell: "one or more Mutants … deal combat damage to a player, put a +1/+1 counter on each of those creatures" (triggerBatch)
+        if (e2.scope === 'triggerBatch') {
+          const td = ctx.triggerData || {};
+          for (const id of (td.batchIds || (td.objectId ? [td.objectId] : []))) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
+          return;
+        }
         // (Jaxis: or the copy just made, as grantLast reads it)
         if (e2.scope === 'lastAffected') { const x = (this._lastAffected && this.obj(this._lastAffected.id)) || this._lastCopy; if (x && x.zone === 'battlefield') fn(x); return; }
         /* "Permanents you control", "other attacking creatures", "each
@@ -17260,7 +17268,7 @@
           // Ring of Valkas: "on equipped creature if it's red"
           else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
           // (thatToken: Wild Hypothesis, "Put X +1/+1 counters on it" — the token just made)
-          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
+          else if (e.scope === 'triggerObject' || e.scope === 'attached' || e.scope === 'lastGroup' || e.scope === 'triggerBatch' || e.scope === 'lastTarget' || e.scope === 'thatObject' || e.scope === 'eachTarget' || e.scope === 'thatToken') applyToScope(e, (o) => this.addCounters(o, e.kind, cnt));
           else if (e.scope && typeof e.scope === 'object') {
             // (The Fifth Doctor: "Untap those creatures" are these — idleOrNew)
             const listC = this._scopeList(e.scope, ctx.controller, src, (firstPlayer() || me).id);
@@ -23311,6 +23319,8 @@
             if (e.anyMana) c.impulseAnyMana = pid;
             // Arvinox, the Mind Flail: "you may cast permanent spells from among them" (impulseFilter)
             c.impulseFilter = e.filter || null;
+            // Gandalf, Goblins' Bane (Flameshape): "if you control a Wizard" — asked each time it is played (impulseIfControl)
+            c.impulseIfControl = e.ifControl || null;
             if (group) c.impulseGroup = group;
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             // Nashi: "If you cast a spell this way, pay life equal to its mana value rather than paying its mana cost."
@@ -24760,6 +24770,8 @@
             this._lastExiled = o.id;
             this._lastExiledList.push(o.id);
             if (e.play) { o.impulseUntil = until; o.impulseBy = ctx.controller; }
+            // "exile the top two cards of your library face down" (Gandalf, Goblins' Bane — Flameshape: "Look at …" first: look)
+            if (e.faceDown) { o.faceDownExile = true; o.lookableBy = e.look ? ctx.controller : null; }
             // "cards exiled with this enchantment" (Valakut Exploration)
             if (src) o.exiledWithId = src.id;
           }

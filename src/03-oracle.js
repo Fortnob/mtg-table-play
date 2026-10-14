@@ -1685,6 +1685,9 @@
       make: () => [{ op: 'untap', scope: 'self' }, { op: 'goad', scope: 'self' }, { op: 'restrict', flag: 'unsacrificable', scope: 'self' }] },
     // Varchild, Betrayer of Kjeldor: "gain control of all Survivors" — whoever controls them (stealAll, words)
     { re: /^Gain control of all ([A-Z][a-z]+?)s\.?$/, make: (m) => ({ op: 'stealAll', words: m[1] }) },
+    // Karrthus, Tyrant of Jund: "gain control of all Dragons, then untap all Dragons."
+    { re: /^Gain control of all ([A-Z][a-z]+?)s, then untap all \1s\.?$/,
+      make: (m) => [{ op: 'stealAll', words: m[1] }, { op: 'untapAll', scope: { who: 'all', subtype: m[1].toLowerCase(), what: 'permanent' } }] },
     /* Varchild, Betrayer of Kjeldor: "that player creates that many 1/1 red Survivor creature tokens" — the player the
        trigger is about (createToken who triggerPlayer) */
     { re: /^[Tt]hat player creates (.+)$/, make: (m) => {
@@ -3306,6 +3309,10 @@
         else g.scope = 'lastGroup';
         return g;
       } },
+    /* Heroes in a Half Shell: "Whenever one or more Mutants, Ninjas, and/or Turtles you control deal combat damage to a
+       player, put a +1/+1 counter on each of those creatures and draw a card." — the lot that hit (triggerBatch) */
+    { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
+      make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
     /* Unbreakable Formation: "each of those creatures" */
     { re: /^Put a \+1\/\+1 counter on each of those creatures and they gain ([a-z ,]+?) until end of turn\.?$/i,
       make: (m) => {
@@ -4526,8 +4533,14 @@
       make: (m) => Object.assign({ op: 'lookAt', n: 'triggerAmount', keep: 0 }, /^reveal/i.test(m[1]) ? { reveal: true } : {}) },
     { re: /^Reveal the top (a|one|two|three|four|five|\d+) cards? of your library and put (?:that card|them) into your hand\.?$/i,
       make: (m) => ({ op: 'drawFromTop', n: num(m[1]) }) },
-    { re: /^Exile the top (a|one|two|three|\d+)? ?cards? of your library face down\.?$/i,
-      make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false, faceDown: true }) },
+    // (Gandalf, Goblins' Bane — Flameshape: "Look at the top two cards of your library and exile them face down.")
+    { re: /^(?:Look at the top (a|one|two|three|\d+)? ?cards? of your library and exile (?:it|them)|Exile the top (a|one|two|three|\d+)? ?cards? of your library) face down\.?$/i,
+      make: (m) => Object.assign({ op: 'impulse', n: (m[1] || m[2]) ? num(m[1] || m[2]) : 1, play: false, faceDown: true }, /^Look/i.test(m[0]) ? { look: true } : {}) },
+    // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
+    { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
+    // Gandalf, Goblins' Bane (Flameshape): "For as long as they remain exiled, you may play them if you control a Wizard." (ifControl)
+    { re: /^For as long as (?:they|it|those cards|that card) remains? exiled, you may play (?:them|it) if you control an? ([A-Z][a-z]+)\.?$/,
+      make: (m) => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', ifControl: m[1] }) },
     /* Gonti, Lord of Luxury: "look at the top four cards of target opponent's library, exile one of them
        face down, then put the rest on the bottom of that library in a random order"; Rev, Tithe
        Extractor: "look at the top card of that player's library and exile it face down"; Gonti, Night
