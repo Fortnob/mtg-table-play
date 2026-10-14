@@ -5027,6 +5027,23 @@
           out.push({ kind: 'cast', via: 'grantAlt', cost: tax ? this._addGeneric(mana, tax) : mana, alt: { mana, label: 'Pay ' + mana }, label: `Pay ${mana} instead (${gs.name})` });
         }
       }
+      /* Amazing Spider-Man: "Each legendary spell you cast that's one or more colors has web-slinging {G}{W}{U}." —
+         from the hand or the command zone (a commander's tax on top), with a tapped creature of yours to return
+         (grantWebSlinging) */
+      if ((o.zone === 'hand' || o.zone === 'command') && !a.isLand && (a.colors || []).length) {
+        const web = { n: 1, filter: 'creature', tapped: true };
+        for (const x of this.battlefield) {
+          if (x.controller !== playerId || x.phasedOut) continue;
+          const gw = this._staticOp(x, 'grantWebSlinging');
+          if (!gw || (gw.words && !this._cardFitsWords(o, gw.words))) continue;
+          if (out.some(u => u.alt && u.alt.webSlinging && u.alt.mana === gw.mana)) continue;
+          if (this._thingCostBlocked(playerId, { returnOwn: web }, o, null)) continue;
+          const tax = this._commanderTax(o).mana;
+          out.push({ kind: 'cast', via: 'grantWeb', cost: tax ? this._addGeneric(gw.mana, tax) : gw.mana,
+            alt: { mana: gw.mana, webSlinging: true, returnOwn: web, label: 'Web-slinging ' + gw.mana }, label: `Web-slinging ${gw.mana} (${x.name})` });
+          break;
+        }
+      }
       /* Channel: discard it from your hand for its ability. The table
          offers it where it offers cycling, which is the same act. */
       // Forecast: in your upkeep, once each turn, from the hand (it goes through channel's door, and stays)
@@ -12277,6 +12294,13 @@
           return t < (cond.n || 1);
         }
         /* Tribute to the World Tree: the creature that set it off */
+        // Anax, Hardened in the Forge: "If the creature had power 4 or greater" — as it last was on the battlefield
+        case 'triggerPowerLki': {
+          const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          if (!x) return false;
+          const pw = x.zone === 'battlefield' ? this.powerOf(x) : (x._lastPower != null ? x._lastPower : parseInt((x.card && x.card.power) || '0', 10) || 0);
+          return pw >= (cond.n || 0);
+        }
         case 'triggerPower': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
           return !!x && this.powerOf(x) >= (cond.n || 0);

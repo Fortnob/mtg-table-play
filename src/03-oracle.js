@@ -3259,6 +3259,10 @@
     // (Vivien's Talent: "put a loyalty counter on enchanted planeswalker")
     { re: /^Put (a|an|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z]+) counters? on (?:equipped|enchanted) (?:creature|planeswalker)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: num(m[1]), scope: 'attached' }) },
+    /* Anax, Hardened in the Forge: "If the creature had power 4 or greater, create two of those tokens instead." — the
+       one that died, as it last was (triggerPowerLki); the tokens the sentence before made (copyPrevN) */
+    { re: /^If the creature had power (\w+) or greater, create (two|three|four) of those tokens instead\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'noop', insteadOf: { cond: { kind: 'triggerPowerLki', n: num(m[1]) }, effects: [{ op: 'createToken', copyPrevN: num(m[2]) }] } } : null) },
     /* Rite of Replication's kicker */
     { re: /^If this spell was kicked, create (two|three|four|five|\d+) of those tokens instead\.?$/i,
       make: (m) => ({ op: 'noop', insteadOf: { cond: { kind: 'kicked', n: 1 }, effects: [{ op: 'copyPermanent', n: num(m[1]), targets: [{ type: 'creature' }] }] } }) },
@@ -4855,7 +4859,8 @@
     { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
     // Tifa, Martial Artist: "If it's the first combat phase of your turn, there is an additional combat phase after this phase."
-    { re: /^If it'?s the first combat phase of your turn, there is an additional combat phase after this phase\.?$/i,
+    // (Raiyuu, Storm's Edge: "of the turn" — an attack is the active player's)
+    { re: /^If it'?s the first combat phase of (?:your|the) turn, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true, firstOnly: true }) },
     // Y'shtola Rhul: "Then if it's the first end step of the turn, there is an additional end step after this step."
     { re: /^(?:Then )?if it'?s the first end step of the turn, there is an additional end step after this step\.?$/i,
@@ -10782,6 +10787,14 @@
            player mills ten cards instead" — the same player, chosen once */
         if (prev && prev.who === 'target' && prev.targets) {
           for (const x of e.insteadOf.effects) if (x.who === 'triggerPlayer' && x.op === prev.op && !x.targets) { x.who = 'target'; x.targets = prev.targets; }
+        }
+        // (Anax, Hardened in the Forge: "create two of those tokens instead" — the tokens the sentence before made: copyPrevN)
+        for (const x of e.insteadOf.effects) {
+          if (x.copyPrevN == null) continue;
+          const k = x.copyPrevN;
+          delete x.copyPrevN;
+          if (prev && prev.op === 'createToken') Object.assign(x, JSON.parse(JSON.stringify(prev)), { n: k });
+          else x.op = 'manual';
         }
         // (Court of Ardenvale: "return that card to the battlefield instead" — the same target)
         for (const x of e.insteadOf.effects) if (x.sameAsPrevTarget) { delete x.sameAsPrevTarget; if (prev && (prev.targets || []).length) x.targets = prev.targets; else x.op = 'manual'; }
@@ -16810,6 +16823,10 @@
       // Fist of Suns, Jodah, Leyline of Mutation: another price for every spell you cast (grantAltCost)
       { re: /^You may pay ((?:\{[WUBRG]\})+) rather than pay the mana cost for spells (?:that )?you cast\.?$/i,
         make: (m) => ({ op: 'grantAltCost', mana: m[1] }), auto: true },
+      /* Amazing Spider-Man: "Each legendary spell you cast that's one or more colors has web-slinging {G}{W}{U}." —
+         another way to cast it, returning a tapped creature you control (grantWebSlinging) */
+      { re: /^Each ([a-z]+) spell you cast that'?s one or more colou?rs has web-slinging ((?:\{[^}]+\})+)\.?$/i,
+        make: (m) => ({ op: 'grantWebSlinging', words: m[1].toLowerCase(), colored: true, mana: m[2] }), auto: true },
       // Dracogenesis: "You may cast Dragon spells without paying their mana costs."
       { re: /^You may cast ([A-Z][a-z]+|creature|artifact|enchantment|instant|sorcery) spells without paying their mana costs\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: m[1].toLowerCase() }), auto: true },
