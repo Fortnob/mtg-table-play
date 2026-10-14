@@ -11177,6 +11177,10 @@
     { re: new RegExp('^Whenever ' + SUBJ + ' dies during your turn,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Boneyard Scourge: "Whenever a Dragon you control dies while this card is in your graveyard"
     { re: new RegExp('^Whenever ' + SUBJ + ' dies while this card is in your graveyard,? ', 'i'), event: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    /* Athreos, Shroud-Veiled: "Whenever a creature with a coin counter on it dies or is put into exile" —
+       its dying, or its leaving for exile (exileLeave) */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or is put into exile(?: from the battlefield)?(?:,| )', 'i'),
+      event: 'permDies', also: 'permLeaves', extra: { exileLeave: true }, filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:dies|die|is put into a graveyard from the battlefield|are put into a graveyard from the battlefield)(?:,| )', 'i'),
       event: 'permDies', filt: (m) => subjectFilter(m[1]) },
     // Dour Port-Mage: "leave the battlefield without dying"; Soulherder: "is exiled from the battlefield"

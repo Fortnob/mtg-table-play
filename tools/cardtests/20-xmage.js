@@ -29670,4 +29670,45 @@ module.exports = (test) => {
     M.resolve();
     t.eq(M.player('A').pool.G || 0, 1, 'Warring Triad: A adds {G}');
   });
+
+  test('Commanders: Athreos, Shroud-Veiled — a coin counter at A\'s end step; a creature with one that dies or is exiled returns under A\'s control', (mk, t) => {
+    t.auto('Athreos, Shroud-Veiled');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const ath = M.bf('A', 'Athreos, Shroud-Veiled');
+    t.no(g.characteristics(ath).isCreature, 'Athreos: devotion 2, not a creature');
+    const bear = M.bf('B', 'Grizzly Bears');
+    const ogre = M.bf('B', 'Gray Ogre');
+    // A's end step: a coin counter on another target creature
+    let offered = null;
+    M.answer('pickTarget', (ch) => { offered = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
+    M.toMain('A', 'end');
+    M.resolve();
+    t.ok(offered && !offered.options[0].some(x => x.id === ath.id), 'Athreos: another target creature');
+    t.eq(bear.counters.coin, 1, 'Athreos: a coin counter on the Grizzly Bears');
+    // it dies: back under A's control
+    M.nextTurn('A');
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [bear.id] });
+    t.zone(bear, 'battlefield', 'Athreos: the Grizzly Bears return');
+    t.eq(bear.controller, 'A', "Athreos: under A's control");
+    t.no(bear.counters.coin, 'Athreos: a new object, no coin counter');
+    // with no coin counter, it stays dead
+    M.mana('A', '1BB');
+    M.cast('A', M.hand('A', 'Murder'), { targets: [ogre.id] });
+    t.zone(ogre, 'graveyard', 'Athreos: no coin counter, no return');
+    // exiled with a coin counter: back too
+    const elf = M.bf('B', 'Llanowar Elves');
+    g.addCounters(elf, 'coin', 1);
+    M.mana('A', 'W');
+    M.cast('A', M.hand('A', 'Swords to Plowshares'), { targets: [elf.id] });
+    t.zone(elf, 'battlefield', 'Athreos: exiled, it returns');
+    t.eq(elf.controller, 'A');
+    // returned to the hand: not dying, not exile
+    const bear2 = M.bf('B', 'Grizzly Bears');
+    g.addCounters(bear2, 'coin', 1);
+    M.mana('A', 'U');
+    M.cast('A', M.hand('A', 'Unsummon'), { targets: [bear2.id] });
+    t.zone(bear2, 'hand', 'Athreos: bounced, it stays in the hand');
+  });
 };

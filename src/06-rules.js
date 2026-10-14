@@ -13230,6 +13230,8 @@
           // "leave the battlefield without dying", "is exiled from the battlefield"
           if (ab.notDying && data.toZone === 'graveyard') continue;
           if (ab.toZoneOnly && data.toZone !== ab.toZoneOnly) continue;
+          // Athreos, Shroud-Veiled: "dies or is put into exile" — of its leaving, only for exile (exileLeave)
+          if (ab.exileLeave && event === 'permLeaves' && data.toZone !== 'exile') continue;
           // a Room's door: only its own unlocking
           if (ab.door != null && data.door !== ab.door) continue;
           // Double Vision: the first spell of that kind this turn (this one not yet counted)
