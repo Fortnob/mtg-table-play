@@ -243,6 +243,41 @@ module.exports = (test) => {
     t.eq(T2.life('B'), T2.g.powerOf(r2) - 1, 'and no life paid');
   });
 
+  test('Audit: Axebane Ferox — "Ward—Collect evidence 4"; The Unagi — "Ward—Waterbend {4}"', (mk, t) => {
+    t.auto('Axebane Ferox'); t.auto('The Unagi of Kyoshi Island');
+    // evidence: B's graveyard holds 5 mana value; the Ferox's ward takes the biggest first
+    const T = mk();
+    T.toMain('B');
+    const fx = T.bf('A', 'Axebane Ferox');
+    const big = T.grave('B', 'Craw Wurm'), small = T.grave('B', 'Llanowar Elves');
+    T.mana('B', '1BB');
+    T.cast('B', T.hand('B', 'Murder'), { targets: [fx] });
+    t.zone(big, 'exile', 'evidence collected: Craw Wurm (6)'); t.zone(small, 'graveyard', 'no more than needed');
+    t.zone(fx, 'graveyard', 'and Murder resolves');
+    const T2 = mk();
+    T2.toMain('B');
+    const fx2 = T2.bf('A', 'Axebane Ferox');
+    T2.grave('B', 'Llanowar Elves');
+    T2.mana('B', '1BB');
+    T2.cast('B', T2.hand('B', 'Murder'), { targets: [fx2] });
+    t.zone(fx2, 'battlefield', 'too little evidence: countered');
+    // waterbend {4}: two mana and two creatures tapped
+    const W = mk();
+    W.toMain('B');
+    const un = W.bf('A', 'The Unagi of Kyoshi Island');
+    const helpers = [W.bf('B', 'Grizzly Bears'), W.bf('B', 'Hill Giant')];
+    W.mana('B', '1BB'); W.mana('B', '2');
+    W.cast('B', W.hand('B', 'Murder'), { targets: [un] });
+    t.ok(helpers.every(o => o.tapped), 'two creatures tapped to help');
+    t.zone(un, 'graveyard', 'waterbent {4}: Murder resolves');
+    const W2 = mk();
+    W2.toMain('B');
+    const un2 = W2.bf('A', 'The Unagi of Kyoshi Island');
+    W2.mana('B', '1BB');
+    W2.cast('B', W2.hand('B', 'Murder'), { targets: [un2] });
+    t.zone(un2, 'battlefield', 'nothing to waterbend with: countered');
+  });
+
   test('Audit: ward counters an activated ability that targets it, too', (mk, t) => {
     t.auto('Gavony Dawnguard');
     const T = mk();
@@ -260,7 +295,7 @@ module.exports = (test) => {
   test('Audit: a ward price no part of the table takes leaves the card to its players', (mk, t) => {
     const a = (n) => mk().MTG.oracle.analyze(require('../harness').card(n));
     t.no(a('Titania, Rugged Rumbler').fullyAutomated, '"Discard a card or pay {2}"');
-    t.no(a('Axebane Ferox').fullyAutomated, '"Collect evidence 4"');
+    t.no(a('Auntie Ool, Cursewretch').fullyAutomated, '"Blight 2"');
     // and "Ward {1}, haste" is {1}, the haste its own keyword
     t.ok(a('Colorstorm Stallion').fullyAutomated, 'Colorstorm Stallion stays automated');
     t.eq(JSON.stringify(mk().MTG.oracle.wardPrice('{1}, haste')), '{"mana":"{1}"}');

@@ -208,6 +208,9 @@
     if ((m = s.match(/^((?:\{[^}]+\})+),\s*[a-z]+(?: [a-z]+)?$/i))) return { mana: m[1] };
     if (/^\d+$/.test(s)) return { mana: '{' + s + '}' };
     if ((m = s.match(/^pay (\d+) life$/i))) return { life: +m[1] };
+    // Axebane Ferox: "Collect evidence 4."; The Unagi of Kyoshi Island: "Waterbend {4}."
+    if ((m = s.match(/^collect evidence (\d+)$/i))) return { evidence: +m[1] };
+    if ((m = s.match(/^waterbend ((?:\{[^}]+\})+)$/i))) return { waterbend: m[1] };
     // Raubahn, Bull of Ala Mhigo, Phyrexian Fleshgorger: "Pay life equal to CARDNAME's power."
     if (/^pay life equal to (?:CARDNAME|this creature)'s power$/i.test(s)) return { lifePower: true };
     // Spectral Snatcher: "Get five poison counters."; Hexing Squelcher's kin: "You get two poison counters."

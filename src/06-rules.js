@@ -6553,6 +6553,31 @@
           this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} can't pay ${life} life.`);
           continue;
         }
+        // Axebane Ferox: "Ward—Collect evidence 4" — the biggest cards first, so as few go as can
+        if (w.evidence) {
+          if (this._evidenceTotal(item.controller, null) >= w.evidence && this._collectEvidence(item.controller, w.evidence, null)) {
+            this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+          } else {
+            item.countered = true;
+            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not collect evidence ${w.evidence}.`);
+            continue;
+          }
+        }
+        // The Unagi of Kyoshi Island: "Ward—Waterbend {4}" — mana, or artifacts and creatures tapped for {1} each
+        if (w.waterbend) {
+          const plan = this._waterbendPlan(item.controller, null, {}, w.waterbend);
+          if (plan && plan.tap.length) {
+            for (const x of plan.tap) this._markTapped(x);
+            this.logEvent('rules', `${caster.name} waterbends, tapping ${plan.tap.map(x => x.name).join(', ')}.`);
+          }
+          if (plan && (!plan.mana || this.payMana(item.controller, plan.mana, { auto: true }))) {
+            this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
+          } else {
+            item.countered = true;
+            this.logEvent('ward', `${item.name} is countered by ${o.name}'s ward \u2014 ${caster.name} could not waterbend ${w.waterbend}.`);
+            continue;
+          }
+        }
         if (w.mana) {
           if (this.payMana(item.controller, w.mana, { auto: true })) {
             this.logEvent('ward', `${caster.name} pays ${o.name}'s ward cost.`);
