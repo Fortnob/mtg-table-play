@@ -3461,8 +3461,13 @@
     { re: /^(?:Until the end of your next turn, you may play (?:that card|it|those cards|them)|You may play (?:that card|it|those cards|them) until the end of your next turn)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextTurn' }) },
     // Neyali, Suns' Vanguard: "During any turn you attacked with a token, you may play that card." — while it stays exiled
-    { re: /^During any turn you attacked with a token, you may play (?:that card|it|those cards|them)\.?$/i,
-      make: () => ({ op: 'impulseLast', duration: 'exiled', ifAttackedToken: true }) },
+    // (Neriv, Crackling Vanguard: "During any turn you attacked with a commander, you may play those cards." — ifAttackedCommander)
+    { re: /^During any turn you attacked with a (token|commander), you may play (?:that card|it|those cards|them)\.?$/i,
+      make: (m) => (/token/i.test(m[1]) ? { op: 'impulseLast', duration: 'exiled', ifAttackedToken: true }
+        : { op: 'impulseLast', duration: 'exiled', ifAttackedCommander: true }) },
+    // Neriv, Crackling Vanguard: "exile a number of cards from the top of your library equal to the number of differently named tokens you control"
+    { re: /^Exile a number of cards from the top of your library equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[1]); return k ? { op: 'exileTop', who: 'you', n: k } : null; } },
     // Rocco, Street Chef: "Until your next end step, each player may play the card they exiled this way." — each its owner (owners)
     { re: /^Until your next end step, each player may play the card they exiled this way\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextEnd', owners: true }) },
@@ -8939,7 +8944,9 @@
        helps whatever is picked, so choosing and targeting differ in
        nothing but the word. */
     const pick = !depth && !/\b(?:target|each|all|another|other)\b/i.test(s) &&
-      s.match(/^(.*?\b)an? ((?:[a-z]+ )?(?:creature|artifact|enchantment|land|planeswalker|permanent)) (you control)\b(.*)$/i);
+      (s.match(/^(.*?\b)an? ((?:[a-z]+ )?(?:creature|artifact|enchantment|land|planeswalker|permanent)) (you control)\b(.*)$/i) ||
+        // (Wick, the Whorled Mind: "put a +1/+1 counter on a Snail you control" — a creature type, capitalised)
+        s.match(/^(.*?\b)an? ([A-Z][a-z]+) (you control)\b(.*)$/));
     if (pick) {
       const again = parseEffectSentence(pick[1] + 'target ' + pick[2] + ' ' + pick[3] + pick[4], 1);
       // a counter that helps: +1/+1, or a keyword one (Titan of Industry's shield counter)
@@ -10806,6 +10813,8 @@
       return cond ? { amount: (+lead[4].match(/\{(\d+)\}/)[1]) * (/less/i.test(lead[4]) ? -1 : 1), cond } : null;
     }
     let m = s.match(/^(?:This spell|CARDNAME) costs \{(\d+)\} (less|more) to cast for each (.+)$/i);
+    // Thrasta, Tempest's Roar: "for each other spell cast this turn" — anyone's (allSpellsThisTurn)
+    if (m && /^other spells? cast this turn$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { allSpellsThisTurn: true } };
     if (m) {
       let phrase = m[3].trim();
       const field = / on the battlefield$/i.test(phrase);
@@ -13755,6 +13764,9 @@
       event: 'anySacrifice', aboutObject: true,
       filt: (m) => ({ words: (m[2] ? 'nontoken ' : '') + m[3].toLowerCase() }),
       extraOf: (m) => (/opponent/i.test(m[1]) ? { activatorIsOpponent: true } : {}) },
+    // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed," — anyone's (permDestroyed)
+    { re: /^Whenever an? (noncreature artifact|artifact|creature|permanent|nontoken permanent) is sacrificed or destroyed,? /i,
+      event: 'anySacrifice', also: 'permDestroyed', aboutObject: true, filt: (m) => ({ words: m[1].toLowerCase() }) },
     /* Tergrid, God of Fright: "Whenever an opponent sacrifices a nontoken permanent or discards a
        permanent card" — either one, and the card it was (sacOrDiscardAny) */
     { re: /^Whenever an opponent sacrifices a nontoken permanent or discards a permanent card,? /i,
@@ -18212,6 +18224,12 @@
       // Brisela, Voice of Nightmares: "Your opponents can't cast spells with mana value 3 or less." (opponentsCantCastMv)
       { re: /^Your opponents can'?t cast spells with mana value (\d+) or (less|greater)\.?$/i,
         make: (m) => (/less/i.test(m[2]) ? { op: 'opponentsCantCastMv', max: +m[1] } : { op: 'opponentsCantCastMv', min: +m[1] }), auto: true },
+      // Thrasta, Tempest's Roar: "Trample over planeswalkers" (trampleOverWalkers; the combat damage step reads it)
+      { re: /^Trample over planeswalkers\.?$/i, eff: { op: 'trampleOverWalkers' }, auto: true },
+      /* Gaddock Teeg: "Noncreature spells with mana value 4 or greater can't be cast." and
+         "Noncreature spells with {X} in their mana costs can't be cast." (spellsCantBeCast) */
+      { re: /^Noncreature spells with (?:mana value (\d+) or greater|\{X\} in their mana costs) can'?t be cast\.?$/i,
+        make: (m) => Object.assign({ op: 'spellsCantBeCast', noncreature: true }, m[1] ? { minMv: +m[1] } : { hasX: true }), auto: true },
       // Urza, Planeswalker: "You may activate the loyalty abilities of Urza twice each turn rather than only once." (loyaltyTwice)
       { re: /^You may activate the loyalty abilities of (?:CARDNAME|this planeswalker) twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice' }, auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },

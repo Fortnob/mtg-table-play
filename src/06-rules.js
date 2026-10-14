@@ -3222,6 +3222,8 @@
       if (o.impulseFilter && !this._cardFitsWords(o, o.impulseFilter)) return false;
       // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
       if (o.impulseIfAttackedToken && (this.player(playerId) || {}).attackedWithTokenTurn !== this.turn) return false;
+      // Neriv, Crackling Vanguard: "During any turn you attacked with a commander"
+      if (o.impulseIfAttackedCommander && (this.player(playerId) || {}).attackedWithCommanderTurn !== this.turn) return false;
       // Gandalf, Goblins' Bane (Flameshape): "you may play them if you control a Wizard" (impulseIfControl)
       if (o.impulseIfControl && !this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._cardFitsWords(x, o.impulseIfControl))) return false;
       /* Gwen Stacy: "for as long as you control this creature" — over once it has left (moveObject) or changed hands;
@@ -3674,6 +3676,8 @@
       if (v.typesInGraveyards) return this._typesAmongGraveyards(pid, v.typesInGraveyards) * mult;
       // Summon: Bahamut: "the total mana value of other permanents you control"
       if (v.spellsCastThisTurn) return (((this.player(pid) || {}).spellsCastThisTurn) || 0) * mult;
+      // Thrasta, Tempest's Roar: "each other spell cast this turn" — by any player; the one being cast is not yet counted
+      if (v.allSpellsThisTurn) return (this.spellsThisTurn || 0) * mult;
       // Rionya: only the spells of some kind
       if (v.spellsCastWords) return (((this.player(pid) || {}).spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.spellsCastWords)).length * mult;
       // Call Forth the Tempest: the mana values of the spells cast this turn (on the stack, X counted)
@@ -4278,6 +4282,17 @@
         const mv = (o.card && o.card.cmc) || 0;
         if (e1.max != null && mv <= e1.max) return { ok: false, reason: `${bv.name}: you can't cast spells with mana value ${e1.max} or less.` };
         if (e1.min != null && mv >= e1.min) return { ok: false, reason: `${bv.name}: you can't cast spells with mana value ${e1.min} or greater.` };
+      }
+      // Gaddock Teeg: noncreature spells with mana value 4 or greater, or with {X} in their mana costs, can't be cast — by anyone
+      for (const s2 of this.battlefield) {
+        if (s2.phasedOut) continue;
+        for (const e2 of this._staticOpsAll(s2, 'spellsCantBeCast')) {
+          if (e2.noncreature && a.isCreature) continue;
+          if (e2.minMv != null && ((o.card && o.card.cmc) || 0) >= e2.minMv)
+            return { ok: false, reason: `${s2.name}: noncreature spells with mana value ${e2.minMv} or greater can't be cast.` };
+          if (e2.hasX && /\{X\}/.test(a.manaCost || ''))
+            return { ok: false, reason: `${s2.name}: noncreature spells with {X} in their mana costs can't be cast.` };
+        }
       }
       // Lavinia, Azorius Renegade: no noncreature spell with mana value greater than the caster's lands (mvLandCap)
       if (!(o.analysis() || {}).isCreature) {
@@ -10554,6 +10569,8 @@
         o.attackedTurn = this.turn;
         // Neyali, Suns' Vanguard: "During any turn you attacked with a token"
         if (o.isToken) { const ap = this.player(o.controller); if (ap) ap.attackedWithTokenTurn = this.turn; }
+        // Neriv, Crackling Vanguard: "During any turn you attacked with a commander"
+        if (o.isCommander) { const ap = this.player(o.controller); if (ap) ap.attackedWithCommanderTurn = this.turn; }
         if (!this.hasKw(o, 'vigilance')) this._markTapped(o);
         // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
@@ -11308,6 +11325,20 @@
         if (this._hasFlag(o, 'noDamage') || this._hasFlag(o, 'noDamageAll')) continue;
 
         if (o.attacking) {
+          /* Thrasta, Tempest's Roar: "Trample over planeswalkers" — trample, and what is left after the planeswalker it
+             attacks has been dealt damage equal to its loyalty goes on to that planeswalker's controller (CR 702.19c) */
+          const overPw = !!this._staticOp(o, 'trampleOverWalkers');
+          const trample = overPw || this.hasKw(o, 'trample');
+          const toDefender = (amount, extra) => {
+            const d = o.attacking, pw = !this.player(d) && this.obj(d);
+            if (overPw && pw && pw.zone === 'battlefield' && (pw.analysis() || {}).isPlaneswalker) {
+              const toPw = Math.min(amount, Math.max(0, (pw.counters || {}).loyalty || 0));
+              if (toPw > 0) assignments.push(Object.assign({ source: o, targetKind: 'object', targetId: d, amount: toPw, a }, extra));
+              if (amount > toPw) assignments.push(Object.assign({ source: o, targetKind: 'player', targetId: pw.controller, amount: amount - toPw, a }, extra));
+              return;
+            }
+            assignments.push(Object.assign({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount, a }, extra));
+          };
           const blockers = o.blockOrder.map(bid => this.obj(bid)).filter(b => b && b.zone === 'battlefield' && b.blocking.includes(o.id));
           if (o._asUnblockedAt === asUnblockedKey && this._hasFlag(o, 'asUnblocked')) {
             const d = o.attacking;
@@ -11317,11 +11348,10 @@
                gone (CR 509.1h): it deals no combat damage, unless it has
                trample (CR 702.19e). Fencing Ace's second blow after the
                first killed its blocker; Curtain of Light. */
-            if (((o.blockedBy || []).length || o.blockedNoBlocker === this.turn) && !this.hasKw(o, 'trample')) continue;
+            if (((o.blockedBy || []).length || o.blockedNoBlocker === this.turn) && !trample) continue;
             // unblocked: damage to the defender
-            const d = o.attacking;
-            assignments.push({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount: power, a });
-          } else if (blockers.some(b => this._hasBanding(b)) && !this.hasKw(o, 'trample')) {
+            toDefender(power);
+          } else if (blockers.some(b => this._hasBanding(b)) && !trample) {
             /* Banding (CR 702.22j): with a creature with banding among its blockers, the defending
                player divides this attacker's damage among them as they like — where it kills least */
             const pick = this._bandingSoak(blockers, power, this.hasKw(o, 'deathtouch'));
@@ -11332,15 +11362,11 @@
             for (const b of blockers) {
               if (left <= 0) break;
               const lethal = this.hasKw(o, 'deathtouch') ? 1 : this._lethalLeft(b);
-              const give = (b === blockers[blockers.length - 1] && this.hasKw(o, 'trample')) ? Math.min(left, lethal) : Math.min(left, Math.max(lethal, 0) || left);
               const amount = Math.min(left, Math.max(1, lethal || left));
               assignments.push({ source: o, targetKind: 'object', targetId: b.id, amount, a });
               left -= amount;
             }
-            if (left > 0 && this.hasKw(o, 'trample')) {
-              const d = o.attacking;
-              assignments.push({ source: o, targetKind: this.player(d) ? 'player' : 'object', targetId: d, amount: left, a, trample: true });
-            }
+            if (left > 0 && trample) toDefender(left, { trample: true });
           }
         } else if (o.blocking.length) {
           const targets = o.blocking.map(aid => this.obj(aid)).filter(x => x && x.zone === 'battlefield');
@@ -14485,6 +14511,9 @@
         this.logEvent('rules', `${o.name} can't enter the battlefield from a graveyard.`);
         return o;
       }
+      // (destroyed: _regenerated let it go — permDestroyed, below)
+      const destroyed = from === 'battlefield' && toZone !== 'battlefield' && !!o._destroyPending;
+      if (o._destroyPending) o._destroyPending = false;
       // The Master, Multiplied: "Triggered abilities you control can't cause you to … exile creature tokens you control."
       if (from === 'battlefield' && toZone === 'exile' && this._spareFromTrigger(o)) {
         this.logEvent('rules', `${o.name} stays: a triggered ability of its controller can't exile it.`);
@@ -14505,7 +14534,7 @@
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
-        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null; o.impulseLess = null;
+        o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null;
         o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
       }
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
@@ -14878,6 +14907,8 @@
         if (toZone === 'exile') this._fire('exiledFromBf', lastCtrl, { object: o, source: o });
         this._lastLeft = o.id;
         this._fire('permLeaves', null, { object: o, objController: lastCtrl, toZone });
+        // Jaws, Relentless Predator: "Whenever a noncreature artifact is sacrificed or destroyed"
+        if (destroyed) this._fire('permDestroyed', null, { object: o, objController: lastCtrl });
       }
       // (meldTo, above: gone as the melded permanent, its two cards are their front faces again, side by side)
       if (meldTo && o.meld) this._meldOut(o, meldTo, opts);
@@ -17602,7 +17633,7 @@
           }
           if (e.scope === 'attached') {
             const x = src && src.attachedTo && this.obj(src.attachedTo);
-            if (x && !this.hasKw(x, 'indestructible') && !this._totemArmor(x) && !(!e.noRegen && this._regenerated(x))) this.moveObject(x, 'graveyard');
+            if (x && !this.hasKw(x, 'indestructible') && !this._totemArmor(x) && !this._regenerated(x, e.noRegen)) this.moveObject(x, 'graveyard');
             break;
           }
           this._noteLastAffected(targets);
@@ -17615,7 +17646,7 @@
             if (this.hasKw(o, 'indestructible')) { this.logEvent('rules', `${o.name} is indestructible.`); continue; }
             if (this._totemArmor(o)) continue;
             // "It can't be regenerated."
-            if (!e.noRegen && this._regenerated(o)) continue;
+            if (this._regenerated(o, e.noRegen)) continue;
             this.moveObject(o, 'graveyard');
           }
           break;
@@ -18533,7 +18564,7 @@
           for (const x of victims) {
             if (x.zone !== 'battlefield') continue;
             if (e.op === 'destroyAll' && this._totemArmor(x)) continue;
-            if (e.op === 'destroyAll' && !e.noRegen && this._regenerated(x)) continue;
+            if (e.op === 'destroyAll' && this._regenerated(x, e.noRegen)) continue;
             this.moveObject(x, zone);
             n++;
           }
@@ -25963,7 +25994,7 @@
           for (const x of chosen) {
             if (x.zone !== 'battlefield' || this.hasKw(x, 'indestructible')) continue;
             if (this._totemArmor(x)) continue;
-            if (!e.noRegen && this._regenerated(x)) continue;
+            if (this._regenerated(x, e.noRegen)) continue;
             this.moveObject(x, 'graveyard');
           }
           this._leavingTogether = null;
@@ -26325,6 +26356,7 @@
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             c.impulseIfAttackedToken = !!e.ifAttackedToken;
+            c.impulseIfAttackedCommander = !!e.ifAttackedCommander;
             c.impulseWhileSrc = e.duration === 'whileControl' ? src.id : null;
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             if (e.payLife) c.impulsePayLife = ctx.controller;
@@ -29216,7 +29248,8 @@
         if (!a) continue;
         // Sage's Reverie: only those attached to a creature
         if (spec.attachedToCreature) { const h = o.attachedTo && this.obj(o.attachedTo); if (!h || !(this.characteristics(h) || {}).isCreature) continue; }
-        const hit = wants.some(want => want === 'permanent' ||
+        // (Neriv, Crackling Vanguard: "differently named tokens" — any token, whatever its types)
+        const hit = wants.some(want => want === 'permanent' || (want === 'token' && o.isToken) ||
           (a.types || []).some(x => x.toLowerCase() === want) ||
           (a.subtypes || []).some(x => x.toLowerCase() === want) ||
           // Hagra Mauling: "basic lands", more than one word
@@ -29259,10 +29292,14 @@
       return false;
     }
 
-    _regenerated(o) {
+    /* Not saved, so destroyed (noRegen: "It can't be regenerated", asked only to note that): the move that follows is
+       a destruction — Jaws, Relentless Predator: "Whenever a noncreature artifact is … destroyed" (_destroyPending, permDestroyed) */
+    _regenerated(o, noRegen) {
+      if (noRegen) { if (o) o._destroyPending = true; return false; }
       if (this._shieldCounter(o)) return true;
-      if (!o || !o.shields) return false;
-      if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); return false; }
+      if (!o) return false;
+      if (!o.shields) { o._destroyPending = true; return false; }
+      if (o.noRegenThisTurn) { this.logEvent('rules', `${o.name} can't be regenerated this turn.`); o._destroyPending = true; return false; }
       o.shields--;
       o.tapped = true;
       o.damage = 0;
@@ -29298,6 +29335,19 @@
       return !!st && (!st.ringBearerOnly || (this.player(at.controller) || {}).ringBearer === at.id);
     }
 
+    /** Every static effect with this op on a permanent (Gaddock Teeg: two lines, one op). */
+    _staticOpsAll(o, op) {
+      const a = o && o.analysis(), out = [];
+      if (!a) return out;
+      for (const ab of (a.abilities || [])) {
+        if (ab.kind && ab.kind !== 'static') continue;
+        for (const e of (ab.effects || [])) {
+          if (e.op === op) out.push(e);
+          if (e.op === 'sequence') for (const x of (e.list || [])) if (x && x.op === op) out.push(x);
+        }
+      }
+      return out;
+    }
     _staticOp(o, op) {
       const a = o && o.analysis();
       if (!a) return null;
@@ -29691,6 +29741,8 @@
     /* ---------- state-based actions (CR 704) ---------- */
     checkStateBasedActions() {
       this._unattachWatch();
+      // a destruction noted but never carried out (a replacement kept it) is forgotten (_destroyPending)
+      for (const o of this.battlefield) if (o._destroyPending) o._destroyPending = false;
       // a melded permanent's two cards put into a library: their owner orders them, once nothing else is going on
       if (this._meldOrderAsk && !this.resolving) this._askMeldOrder();
       let repeat = true, guard = 0;
@@ -31571,6 +31623,7 @@
           // how that leave may be used (Nashi: one of a lot, for life; Gonti: any mana; Inti: until the end step) and who may see a card face down in exile
           impulseCastOnly: !!o.impulseCastOnly, impulseAnyMana: o.impulseAnyMana || null, impulseGroup: o.impulseGroup || null,
           impulsePayLife: o.impulsePayLife || null, impulseBeforeEnd: !!o.impulseBeforeEnd, impulseIfAttackedToken: !!o.impulseIfAttackedToken,
+          impulseIfAttackedCommander: !!o.impulseIfAttackedCommander,
           faceDownExile: !!o.faceDownExile, lookableBy: o.lookableBy || null, exileStamp: o.exileStamp == null ? null : o.exileStamp,
           _diedCounters: o._diedCounters ? Object.assign({}, o._diedCounters) : null,
           // a promised gift, a copy for the turn, leave to cast from elsewhere
@@ -31628,6 +31681,7 @@
           speed: p.speed || 0, speedTurn: p.speedTurn == null ? null : p.speedTurn,
           turnsTaken: p.turnsTaken || 0, hexproofTurn: p.hexproofTurn == null ? null : p.hexproofTurn,
           attackedWithTokenTurn: p.attackedWithTokenTurn == null ? null : p.attackedWithTokenTurn,
+          attackedWithCommanderTurn: p.attackedWithCommanderTurn == null ? null : p.attackedWithCommanderTurn,
           draftNotes: p.draftNotes || null, backupHands: p.backupHands || null,
           companionUsed: !!p.companionUsed,
           // Urza, Planeswalker's +2: what costs less for the rest of the turn
