@@ -17970,12 +17970,20 @@
           const effects = ((parsed && parsed.effects) || [{ op: 'manual', text: room.text }]).slice();
           // the last room: once its ability is done, the dungeon is completed (CR 309.7)
           if (!room.leads.length) effects.push({ op: 'completeDungeon' });
-          this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: ctx.controller,
-            name: d.name + ' \u2014 ' + room.name, effects, auto: !!(parsed && parsed.auto), abilityText: room.text });
+          /* Hama Pashar, Ruin Seeker: "Room abilities of dungeons you own trigger an additional time." — once more for
+             each; the last room's dungeon is completed as the last of them is done (roomsLeft) */
+          const times = 1 + this.battlefield.filter(x => !x.phasedOut && x.controller === me.id && this._staticOp(x, 'roomExtra')).length;
+          if (!room.leads.length) d.roomsLeft = times;
+          for (let k = 0; k < times; k++) {
+            this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: ctx.controller,
+              name: d.name + ' \u2014 ' + room.name, effects: JSON.parse(JSON.stringify(effects)), auto: !!(parsed && parsed.auto), abilityText: room.text });
+          }
           this.touch();
           break;
         }
         case 'completeDungeon':
+          // (Hama Pashar, Ruin Seeker: the last room's ability triggered more than once — not until the last is done)
+          if (me.dungeon && me.dungeon.roomsLeft > 1) { me.dungeon.roomsLeft--; break; }
           if (me.dungeon) {
             me.dungeonsCompleted = (me.dungeonsCompleted || []).concat(me.dungeon.name);
             this.logEvent('rules', `${me.name} completes ${me.dungeon.name}.`);
@@ -22448,6 +22456,8 @@
           }
           // (Goldberry: "If you do, draw a card.")
           if (moved.length && (e.then || []).length) this._spliceNext(JSON.parse(JSON.stringify(e.then)));
+          // (Black Panther, Wakandan King: "you gain that much life and draw a card")
+          if (moved.length && e.gainMoved) this._spliceNext([{ op: 'gainLife', n: moved.reduce((s, x) => s + x[1], 0), who: 'you' }, { op: 'draw', n: 1, who: 'you' }]);
           for (const [k, m] of moved) {
             const left = (Number(from.counters[k]) || 0) - m;
             if (left > 0 || k === 'loyalty') from.counters[k] = Math.max(0, left); else delete from.counters[k];
@@ -26598,6 +26608,12 @@
           if (e.mode === 'each') {
             for (let k = 0; k < counts[0]; k++) run.push(...e.thenA);
             for (let k = 0; k < counts[1]; k++) run.push(...e.thenB);
+          } else if (e.mode === 'count') {
+            // (Emissary Green: "a number of … equal to twice the number of profit votes" — n { votes, times })
+            for (const x of JSON.parse(JSON.stringify([...e.thenA, ...e.thenB]))) {
+              x.n = counts[x.n.votes] * (x.n.times || 1);
+              if (x.n > 0) run.push(x);
+            }
           } else if (counts[0] > counts[1]) run.push(...e.thenA);
           else if (counts[1] > counts[0] || e.tieB) run.push(...e.thenB);
           this.logEvent('rules', `The vote: ${e.choices[0]} ${counts[0]}, ${e.choices[1]} ${counts[1]}.`);
@@ -28479,16 +28495,20 @@
           // Etrata, Deadly Fugitive: "cloak the top card of that player's library" — theirs, under your control (libOf)
           const libP = e.libOf === 'triggerPlayer' ? triggerPlayer() : who;
           if (!libP) break;
-          const top = this.zones[libP.id].library[0];
-          if (!top) break;
-          this.zones[libP.id].library.shift();
-          top.zone = 'library';
-          this._manifestCard(top, who.id);
-          // Cloak (CR 701.58a): ward {2} while it is face down
-          if (e.cloak && top.zone === 'battlefield') { top.cloaked = true; top._chr = null; }
-          // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
-          this._lastPut = top.id;
-          this.logEvent('rules', `${who.name} ${e.cloak ? 'cloaks' : 'manifests'} the top card of ${libP === who ? 'their' : libP.name + "'s"} library.`);
+          // (Omarthis, Ghostfire Initiate: "manifest a number of cards from the top of your library equal to …" — one at a time)
+          const times = e.n == null ? 1 : Math.max(0, n(e.n) || 0);
+          for (let k = 0; k < times; k++) {
+            const top = this.zones[libP.id].library[0];
+            if (!top) break;
+            this.zones[libP.id].library.shift();
+            top.zone = 'library';
+            this._manifestCard(top, who.id);
+            // Cloak (CR 701.58a): ward {2} while it is face down
+            if (e.cloak && top.zone === 'battlefield') { top.cloaked = true; top._chr = null; }
+            // (Formless Nurturing: "put a +1/+1 counter on it" — the card just manifested)
+            this._lastPut = top.id;
+            this.logEvent('rules', `${who.name} ${e.cloak ? 'cloaks' : 'manifests'} the top card of ${libP === who ? 'their' : libP.name + "'s"} library.`);
+          }
           break;
         }
         /* Etrata, Deadly Fugitive: "Turn this creature face up. If you can't, exile it, then you may cast the exiled card

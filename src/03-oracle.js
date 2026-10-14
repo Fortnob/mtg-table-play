@@ -5926,6 +5926,9 @@
     { re: /^(?:A creature|Creatures) destroyed this way can'?t be regenerated\.?$/i, make: () => ({ op: 'noop', noRegenRider: true }) },
     { re: /^Its controller manifests the top card of their library\.?$/i, make: () => ({ op: 'manifest', who: 'targetController' }) },
     { re: /^Manifest the top card of your library\.?$/i, make: () => ({ op: 'manifest' }) },
+    // Omarthis, Ghostfire Initiate: "manifest a number of cards from the top of your library equal to the number of counters on it"
+    { re: /^Manifest a number of cards from the top of your library equal to the number of counters on (?:it|CARDNAME)\.?$/i,
+      make: () => ({ op: 'manifest', n: { countersOnSelf: '*', mult: 1 } }) },
     /* Cloak (CR 701.58): manifest, with ward {2} — Vannifar, Evolved Enigma: "Cloak a card from your hand.";
        Cryptic Coat: "Cloak the top card of your library" (cloak) */
     { re: /^Cloak the top card of your library\.?$/i, make: () => ({ op: 'cloak', from: 'top' }) },
@@ -9452,6 +9455,13 @@
         const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.'));
         return b && !b.unknown && then.auto ? [{ op: 'moveCountersAny', fromSelf: true, minOne: true, targets: [b], then: then.effects }] : null;
       } },
+    /* Black Panther, Wakandan King: "Move all +1/+1 counters from target land you control onto target creature. If one
+       or more +1/+1 counters are moved this way, you gain that much life and draw a card." (gainMoved) */
+    { re: /^Move all \+1\/\+1 counters from (target [a-z ]+?) onto (target [a-z ]+?)\. If one or more \+1\/\+1 counters are moved this way, you gain that much life and draw a card\.$/i,
+      make: (m) => {
+        const a = targetSpec(m[1]), b = targetSpec(m[2]);
+        return a && !a.unknown && b && !b.unknown ? [{ op: 'moveCountersAny', all: true, kind: '+1/+1', gainMoved: true, targets: [a, b] }] : null;
+      } },
     /* Lonis, Cryptozoologist: "Target opponent reveals the top X cards of their library. You may put a nonland
        permanent card with mana value X or less from among them onto the battlefield under your control. That player
        puts the rest on the bottom of their library in a random order." (lookAt libOf target) */
@@ -10152,6 +10162,21 @@
     // Tivit, Capital Punishment: "For each A vote, …. For each B vote, …."
     { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. For each \1 vote, (.+?)\. For each \2 vote, (.+?)\.?$/i,
       make: (m) => { const a = voteBody(m[3]), b = voteBody(m[4]); return a && b ? [{ op: 'vote', choices: [m[1], m[2]], mode: 'each', thenA: a, thenB: b }] : null; } },
+    /* Emissary Green: "You create a number of Treasure tokens equal to twice the number of profit votes. Put a number
+       of +1/+1 counters on each creature you control equal to the number of security votes." — each sentence once,
+       with its number of votes (mode count: n { votes, times }) */
+    { re: /^Starting with you, each player votes for ([a-z]+) or ([a-z]+)\. ([^.]+?a number of [^.]+? equal to (?:twice )?the number of (?:\1|\2) votes[^.]*)\. ([^.]+?a number of [^.]+? equal to (?:twice )?the number of (?:\1|\2) votes[^.]*)\.?$/i,
+      make: (m) => {
+        const thens = [[], []];
+        for (const s of [m[3], m[4]]) {
+          const v = /a number of (.+?) equal to (twice )?the number of ([a-z]+) votes/i.exec(s);
+          const i = [m[1], m[2]].indexOf(v[3].toLowerCase());
+          const body = voteBody(s.replace(v[0], 'X ' + v[1]).replace(/^You create\b/, 'create'));
+          if (i < 0 || !body || body.length !== 1 || body[0].n !== 'X') return null;
+          thens[i].push(Object.assign(body[0], { n: { votes: i, times: v[2] ? 2 : 1 } }));
+        }
+        return [{ op: 'vote', choices: [m[1], m[2]], mode: 'count', thenA: thens[0], thenB: thens[1] }];
+      } },
     /* Círdan the Shipwright: "Secret council — … each player secretly votes for a player, then those votes are revealed.
        Each player draws a card for each vote they received. Each player who received no votes may put a permanent card
        from their hand onto the battlefield." (votePlayers) */
@@ -13893,7 +13918,8 @@
        a creature"; Generous Patron: "counters on a creature you don't control" */
     // (Mikey & Leo, Chaos & Order: "Whenever you put a counter on a creature you control" — counterOnYours)
     // (The Great Goblin: "… on a Goblin, Orc, or Army you control" — counterOnTypes)
-    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) (creature|permanent|Goblin, Orc, or Army|Goblin)( you don'?t control| you control)?, /i,
+    // (Omarthis, Ghostfire Initiate: "on another colorless creature")
+    { re: /^Whenever you put (?:one or more (?:(\+1\/\+1|-1\/-1|[a-z]+) )?counters|a counter) on (a|another) ((?:colorless )?creature|permanent|Goblin, Orc, or Army|Goblin)( you don'?t control| you control)?, /i,
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
@@ -18979,6 +19005,8 @@
       // Tivit, Seller of Secrets: "While voting, you may vote an additional time."; Brago's Representative: "you get an additional vote"
       { re: /^While voting, you (may vote an additional time|get an additional vote)\.?$/i,
         make: (m) => ({ op: 'extraVote', optional: /may/i.test(m[1]) }), auto: true },
+      // Hama Pashar, Ruin Seeker: "Room abilities of dungeons you own trigger an additional time." (roomExtra)
+      { re: /^Room abilities of dungeons you own trigger an additional time\.?$/i, eff: { op: 'roomExtra' }, auto: true },
       // The Valeyard: "If an opponent would face a villainous choice, they face that choice an additional time." (villainousExtra)
       { re: /^If an opponent would face a villainous choice, they face that choice an additional time\.?$/i,
         eff: { op: 'villainousExtra' }, auto: true },
