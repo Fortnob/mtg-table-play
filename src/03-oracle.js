@@ -2667,6 +2667,9 @@
     /* Melt Terrain, Ionize: "… deals 2 damage to that land's controller" */
     { re: /^(?:CARDNAME|This (?:creature|artifact|enchantment|spell|Aura|Equipment)|It) deals (\d+|X) damage to that (?:spell|land|artifact|creature|permanent|enchantment|planeswalker)'s controller\.?$/i,
       make: (m) => ({ op: 'damage', n: num(m[1]), toAffectedController: true }) },
+    // Arcum Dagsson: "Target artifact creature's controller sacrifices it." — they sacrifice it, and are "that player" after
+    { re: /^(Target [a-z ]+?)'s controller sacrifices it\.?$/,
+      make: (m) => { const t = targetSpec(m[1].toLowerCase()); return t && !t.unknown && t.zone === 'battlefield' ? { op: 'sacrificeTargeted', targets: [t] } : null; } },
     /* "Destroy it." after a trigger about a permanent: that permanent */
     { re: /^Destroy (?:it|that land|that permanent|that artifact)\.?$/i,
       make: () => ({ op: 'destroy', scope: 'lastTarget' }) },
@@ -3257,6 +3260,9 @@
     // Neyali, Suns' Vanguard: "During any turn you attacked with a token, you may play that card." — while it stays exiled
     { re: /^During any turn you attacked with a token, you may play (?:that card|it|those cards|them)\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'exiled', ifAttackedToken: true }) },
+    // Rocco, Street Chef: "Until your next end step, each player may play the card they exiled this way." — each its owner (owners)
+    { re: /^Until your next end step, each player may play the card they exiled this way\.?$/i,
+      make: () => ({ op: 'impulseLast', duration: 'nextEnd', owners: true }) },
     // Inti: "You may play that card until your next end step."
     { re: /^You may play (?:that card|it|those cards|them) until your next end step\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'nextEnd' }) },
@@ -3753,6 +3759,8 @@
       make: () => ({ op: 'leaveExile' }) },
     // Tidehollow Sculler, the Champions: "return the exiled card to its owner's hand"
     { re: /^Return the exiled cards? to (?:its|their) owners?'?s?'? hands?\.?$/i, make: () => ({ op: 'returnHeld' }) },
+    // Hofri Ghostforge's Spirit: "When this token leaves the battlefield, return the exiled card to its owner's graveyard."
+    { re: /^Return the exiled card to its owner'?s graveyard\.?$/i, make: () => ({ op: 'returnHeld', to: 'graveyard' }) },
     // Ghostway, Eerie Interlude: "Return those cards to the battlefield under their owner's control at the beginning of the next end step."
     // (Yorion, Sky Nomad: "Return those cards to the battlefield at the beginning of the next end step." — their owner's, as ever)
     { re: /^Return (?:those cards|the exiled cards|them) to the battlefield(?: under (?:their|its) owner'?s'? control)? at the beginning of the next end step\.?$/i,
@@ -3962,6 +3970,8 @@
     { re: /^Exile the top card of each of those (?:opponents|players)'? libraries\.?$/i, make: () => ({ op: 'exileTop', who: 'batchPlayers', n: 1 }) },
     /* Etali, Villainous Wealth, Improvisation Capstone: cards exiled off
        the top of a library, and then cast from there for nothing. */
+    // Rocco, Street Chef: "each player exiles the top card of their library"
+    { re: /^Each player exiles the top card of their library\.?$/i, make: () => ({ op: 'exileTop', who: 'each', n: 1 }) },
     { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }) },
     { re: /^Each player exiles cards from the top of their library until they exile a nonland card\.?$/i,
@@ -4392,8 +4402,9 @@
        them onto the battlefield." — the rest wait for the next sentence (totalMv) */
     { re: /^Put any number of ([-a-z' ]*?)cards with total mana value (\d+) or less from among them onto the battlefield\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', totalMv: +m[2], to: 'battlefield', rest: 'keep' }) },
-    { re: /^Put (?:up to )?(a|one|two|three|\d+) ([-a-z' ]*?)cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'any',
+    // (Adéwalé, Breaker of Chains: "Put an Assassin, Pirate, or Vehicle card from among them …" — one of a list)
+    { re: /^Put (?:up to )?(an?|one|two|three|\d+) ([-a-z' ]*?|[A-Z][a-z]+(?:, [A-Z][a-z]+)*,? or [A-Z][a-z]+ )cards? from among them into your hand and the rest (?:on the bottom of your library|into your graveyard)[^.]*\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: num(m[1].replace(/^an$/i, 'a')), filter: (m[2] || '').trim().replace(/,? or |, /g, ' or ').toLowerCase() || 'any',
         to: 'hand', rest: /graveyard/i.test(m[0]) ? 'graveyard' : /in a random order/i.test(m[0]) ? 'bottomRandom' : 'bottom' }) },
     // (Farsight Ritual: "… the rest on the bottom of your library in a random order" — random, not in the order they were)
     { re: /^Put (one|two|three) of them into your hand and the rest on the bottom of your library(?: in any order| in a random order)?\.?$/i,
@@ -8660,6 +8671,17 @@
     { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
       make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
+    /* Hofri Ghostforge: "exile it. If you do, create a token that's a copy of that creature, except it's a Spirit in
+       addition to its other types and it has 'When this token leaves the battlefield, return the exiled card to its
+       owner's graveyard.'" — the copy only once the card was exiled (ifExiled), and it holds that card (holdExiled) */
+    { re: /^[Ee]xile it\. If you do, create a token that'?s a copy of that creature, except (.+?)\.?$/,
+      make: (m) => {
+        const e = { op: 'copyPermanent', n: 1, scope: 'lastTarget', ifExiled: true, grant: [] };
+        if (!copyExceptions(m[1].replace(/\bthis (?:token|creature)\b/g, 'CARDNAME'), e) || e.keepOwn || e.keepThis || e.keepName) return null;
+        if (e.addTypes) { e.addSubtypes = e.addTypes; delete e.addTypes; }
+        if ((e.addText || []).some(x => /\bthe exiled card\b/i.test(x))) e.holdExiled = true;
+        return [{ op: 'exileTriggerCard' }, e];
+      } },
     /* Liliana, Heretical Healer: "exile Liliana, then return her to the
        battlefield transformed under her owner's control. If you do, create a
        2/2 black Zombie creature token." */
@@ -12247,6 +12269,9 @@
     // Prosper, Tome-Bound: "Whenever you play a card from exile"; Pia Nalaar: "… play a land from exile or cast a spell from exile"
     { re: /^Whenever you play a card from exile,? |^Whenever you play a land from exile or cast a spell from exile,? /i,
       event: 'youCastSpell', also: 'youPlayLand', extra: { fromExileOnly: true } },
+    // Rocco, Street Chef: "Whenever a player plays a land from exile or casts a spell from exile"
+    { re: /^Whenever a player plays a land from exile or casts a spell from exile,? /i,
+      event: 'anyCastSpell', also: 'anyPlayLand', extra: { fromExileOnly: true } },
     // Nalfeshnee: "Whenever you cast a spell from exile"
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
@@ -17323,6 +17348,8 @@
       // Firion, Wild Rose Warrior's copies: "This Equipment's equip abilities cost {2} less to activate." — its own (selfOnly)
       { re: /^This Equipment'?s equip abilities cost \{(\d+)\} less to activate\.?$/i,
         make: (m) => ({ op: 'abilityCostMod', equip: true, selfOnly: true, amount: -(+m[1]) }), auto: true },
+      // Pramikon, Sky Rampart: "Each player may attack only the nearest opponent in the chosen direction and planeswalkers controlled by that opponent."
+      { re: /^Each player may attack only the nearest opponent in the chosen direction and planeswalkers controlled by that opponent\.?$/i, eff: { op: 'attackOnlyNearest' }, auto: true },
       // Baeloth Barrityl, Entertainer: "Creatures your opponents control with power less than Baeloth Barrityl's power are goaded."
       { re: /^Creatures your opponents control with power less than CARDNAME'?s power are goaded\.?$/i, eff: { op: 'goadWeaker' }, auto: true },
       // Fighter Class, Arms Scavenger: "Equip abilities you activate cost {1} less to activate."

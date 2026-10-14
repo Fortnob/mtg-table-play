@@ -38509,4 +38509,188 @@ module.exports = (test) => {
     t.zone(bear, 'battlefield', "Rune-Tail's Essence: the damage to the Bears is prevented");
     t.eq(bear.damage || 0, 0);
   });
+
+  test("Commanders: Ivy, Gleeful Spellthief — the spell gone from the stack before the trigger resolves: copied as it last existed", (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const ivy = M.bf('A', 'Ivy, Gleeful Spellthief');
+    const bear = M.bf('B', 'Grizzly Bears');
+    const p = g.powerOf(ivy);
+    M.nextTurn('B');
+    const gg = M.hand('B', 'Giant Growth');
+    M.mana('B', 'G'); M.cast('B', gg, { targets: [bear], resolve: false });
+    t.eq(g.stack.length, 2, 'Ivy: the trigger above the spell');
+    g.passPriority('B', true); M.settle();
+    M.mana('A', '1U'); M.cast('A', M.hand('A', 'Unsubstantiate'), { targets: [M.stackTarget(gg)] });
+    t.zone(gg, 'hand', 'Ivy: the original returned to its hand');
+    t.eq(g.powerOf(bear), 2, 'Ivy: the bear untouched');
+    t.eq(g.powerOf(ivy), p + 3, 'Ivy: the copy all the same, on Ivy');
+    t.eq(g.stack.length, 0);
+  });
+  test('Commanders: Hofri Ghostforge — another nontoken creature of yours dies: exiled, and a Spirit copy that sends it back to the graveyard as it leaves', (mk, t) => {
+    t.auto('Hofri Ghostforge');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Hofri Ghostforge');
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [bear] });
+    t.zone(bear, 'exile', 'Hofri: the card exiled');
+    const tok = M.bfOf('A').find(o => o.isToken && o.name === 'Grizzly Bears');
+    t.ok(tok, 'Hofri: a token copy');
+    t.ok(/Spirit/.test(tok.card.type_line), 'Hofri: a Spirit too');
+    t.eq(g.powerOf(tok), 3, 'Hofri: +1/+1 for a Spirit');
+    t.ok(g.hasKw(tok, 'Haste') && g.hasKw(tok, 'Trample'), 'Hofri: trample and haste');
+    // the token dies: no new copy (a token), and the card goes to the graveyard
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Lightning Bolt'), { targets: [tok] });
+    t.zone(bear, 'graveyard', 'Hofri: the exiled card returns to the graveyard');
+    t.no(M.bfOf('A').some(o => o.isToken), 'Hofri: a token dying makes nothing');
+  });
+  test("Commanders: Hofri Ghostforge — not an opponent's creature, not Hofri; the card gone from the graveyard: no copy", (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const hofri = M.bf('A', 'Hofri Ghostforge');
+    const theirs = M.bf('B', 'Grizzly Bears');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [theirs] });
+    t.zone(theirs, 'graveyard', "Hofri: an opponent's creature stays");
+    t.no(g.battlefield.some(o => o.isToken), 'Hofri: no copy of it');
+    // the card leaves the graveyard before the trigger resolves: not exiled, so no token
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.mana('A', 'R'); M.cast('A', M.hand('A', 'Shock'), { targets: [bear], resolve: false });
+    for (let i = 0; i < 20 && bear.zone !== 'graveyard'; i++) { M.settle(); g.passPriority(g.priorityPlayer.id, true); }
+    M.settle();
+    t.zone(bear, 'graveyard');
+    g.moveObject(bear, 'hand');
+    M.resolve();
+    t.zone(bear, 'hand', 'Hofri: the card stays in the hand');
+    t.no(g.battlefield.some(o => o.isToken), 'Hofri: "If you do" — no copy');
+    M.mana('A', '1BB'); M.cast('A', M.hand('A', 'Murder'), { targets: [hofri] });
+    t.zone(hofri, 'graveyard', 'Hofri: Hofri herself is not exiled');
+  });
+  test('Commanders: Pramikon, Sky Rampart — each player may attack only the nearest opponent in the chosen direction and their planeswalkers', (mk, t) => {
+    t.auto('Pramikon, Sky Rampart');
+    const M = mk({ players: ['A', 'B', 'C', 'D'], library: Array(30).fill('Island') });
+    const g = M.g;
+    let asked = null;
+    M.answer('choose', (ch) => { asked = ch; return { picks: [1] }; });
+    M.mana('A', 'URW'); M.cast('A', M.hand('A', 'Pramikon, Sky Rampart'));
+    t.ok(asked && asked.purpose === 'chooseDirection', 'Pramikon: left or right asked');
+    const bear = M.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    const walkerD = M.bf('D', 'Chandra, Torch of Defiance', { counters: { loyalty: 4 } });
+    const walkerB = M.bf('B', 'Chandra, Torch of Defiance', { counters: { loyalty: 4 } });
+    // turn order A → B → C → D: to the right of A is D
+    const ids = g._legalDefenders('A').map(d => d.id).sort();
+    t.eq(ids.join(','), ['D', walkerD.id].sort().join(','), 'Pramikon: only D and D\'s planeswalker');
+    t.no(g._legalDefenders('A').some(d => d.id === walkerB.id), "Pramikon: not B's planeswalker");
+    // and for B the nearest to the right is A
+    t.eq(g._legalDefenders('B').map(d => d.id).join(','), 'A', 'Pramikon: B may attack only A');
+    let seen = null;
+    M.answer('declareAttackers', (ch) => { seen = ch.defenders.map(d => d.id); return [{ attackerId: bear.id, defenderId: 'D' }]; });
+    M.toMain('A', 'endCombat');
+    t.no(seen.includes('B') || seen.includes('C'), 'Pramikon: B and C are not offered');
+    t.eq(M.life('D'), 18, 'Pramikon: the attack on D');
+  });
+  test('Commanders: Pramikon, Sky Rampart — two players: the one opponent either way', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.mana('A', 'URW'); M.cast('A', M.hand('A', 'Pramikon, Sky Rampart'));
+    t.no(M.asked.some(ch => ch.purpose === 'chooseDirection'), 'Pramikon: nothing to ask');
+    t.eq(g._legalDefenders('A').map(d => d.id).join(','), 'B');
+    t.eq(g._legalDefenders('B').map(d => d.id).join(','), 'A');
+  });
+  test("Commanders: Rocco, Street Chef — your end step: each player exiles their top card and may play it until your next end step; each play from exile feeds Rocco's side", (mk, t) => {
+    t.auto('Rocco, Street Chef');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const rocco = M.bf('A', 'Rocco, Street Chef');
+    const bears = M.top('A', 'Grizzly Bears');
+    const mtn = M.top('B', 'Mountain');
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(bears, 'exile', 'Rocco: A exiles their top card'); t.zone(mtn, 'exile', 'Rocco: so does B');
+    const foods = () => M.bfOf('A').filter(o => o.name === 'Food').length;
+    M.nextTurn('B');
+    const before = M.bfOf('B').length;
+    M.playLand('B', mtn);
+    t.zone(mtn, 'battlefield', 'Rocco: B plays the land they exiled');
+    t.eq(M.bfOf('B').length, before + 1);
+    M.resolve();
+    t.eq(rocco.counters['+1/+1'] || 0, 1, 'Rocco: a +1/+1 counter for the land from exile');
+    t.eq(foods(), 1, "Rocco: and a Food, for Rocco's controller");
+    // a land from the hand does nothing
+    M.nextTurn('A');
+    M.playLand('A', M.hand('A', 'Forest')); M.resolve();
+    t.eq(foods(), 1, 'Rocco: not from the hand');
+    M.mana('A', '1G'); M.cast('A', bears);
+    t.zone(bears, 'battlefield', 'Rocco: A casts the card they exiled');
+    t.eq(foods(), 2, 'Rocco: a spell from exile too');
+  });
+  test("Commanders: Rocco, Street Chef — the leave ends as Rocco's controller's next end step begins; not another player's card", (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.bf('A', 'Rocco, Street Chef');
+    const giant = M.top('B', 'Hill Giant');
+    const bolt = M.top('A', 'Lightning Bolt');
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(giant, 'exile');
+    t.eq(giant.impulseBy, 'B', "Rocco: B's own card is B's to play");
+    t.eq(bolt.impulseBy, 'A');
+    M.nextTurn('A');
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(bolt, 'exile', 'Rocco: not played');
+    M.mana('A', 'R');
+    t.no(g.castSpell('A', bolt.id, { targets: [{ kind: 'player', id: 'B' }], auto: true }), 'Rocco: no longer playable at the next end step');
+  });
+  test("Commanders: Arcum Dagsson — the artifact creature's controller sacrifices it and may search for a noncreature artifact, onto the battlefield", (mk, t) => {
+    t.auto('Arcum Dagsson');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const arcum = M.bf('A', 'Arcum Dagsson'); arcum.summoningSick = false;
+    const thopter = M.bf('B', 'Ornithopter');
+    const ring = M.top('B', 'Sol Ring');
+    const myRing = M.top('A', 'Mind Stone');
+    let asked = null;
+    M.answer('pickCard', (ch) => { asked = ch; return { cardIds: [ch.cards.find(c => c.name === 'Sol Ring').id] }; });
+    M.activate('A', arcum, 0, { targets: [thopter] });
+    t.zone(thopter, 'graveyard', 'Arcum: sacrificed by B');
+    t.ok(asked && asked.playerId === 'B', 'Arcum: B searches, B chooses');
+    t.zone(ring, 'battlefield', 'Arcum: the Sol Ring onto the battlefield');
+    t.eq(ring.controller, 'B');
+    t.zone(myRing, 'library', 'Arcum: not from my library');
+  });
+  test('Commanders: Arcum Dagsson — the search may find nothing; only an artifact creature can be targeted', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const arcum = M.bf('A', 'Arcum Dagsson'); arcum.summoningSick = false;
+    const bear = M.bf('B', 'Grizzly Bears');
+    t.no(g.activateAbility('A', arcum.id, 0, { targets: [{ kind: 'object', id: bear.id }] }), 'Arcum: not a plain creature');
+    const golem = M.bf('A', 'Bottle Golems');
+    const ring = M.top('A', 'Sol Ring');
+    M.answer('pickCard', () => ({ cardIds: [] }));
+    M.activate('A', arcum, 0, { targets: [golem] });
+    t.zone(golem, 'graveyard', 'Arcum: my own, sacrificed');
+    t.zone(ring, 'library', 'Arcum: declined');
+  });
+  test('Commanders: Adéwalé, Breaker of Chains — enters: an Assassin, Pirate or Vehicle card from the top six into the hand, the rest to the bottom', (mk, t) => {
+    t.auto('Adéwalé, Breaker of Chains');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const copter = M.top('A', "Smuggler's Copter");
+    const knave = M.top('A', 'Ruthless Knave');
+    const bear = M.top('A', 'Grizzly Bears');
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name).sort(); return { cardIds: [ch.cards.find(c => c.name === "Smuggler's Copter").id] }; });
+    M.mana('A', '1UB'); M.cast('A', M.hand('A', 'Adéwalé, Breaker of Chains'));
+    t.eq(String(offered), String(["Ruthless Knave", "Smuggler's Copter"]), 'Adéwalé: only the Pirate and the Vehicle offered');
+    t.zone(copter, 'hand', 'Adéwalé: the Vehicle into the hand');
+    t.zone(knave, 'library'); t.zone(bear, 'library');
+    const lib = M.zone('A', 'library');
+    t.ok(lib.indexOf(bear) >= lib.length - 5 && lib.indexOf(knave) >= lib.length - 5, 'Adéwalé: the rest on the bottom');
+  });
+  test('Commanders: Adéwalé, Breaker of Chains — none of those kinds: nothing taken', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const bear = M.top('A', 'Grizzly Bears');
+    M.mana('A', '1UB'); M.cast('A', M.hand('A', 'Adéwalé, Breaker of Chains'));
+    t.zone(bear, 'library', 'Adéwalé: a Bear stays');
+    t.eq(M.zone('A', 'hand').length, 0, 'Adéwalé: nothing into the hand');
+    t.no(M.asked.some(c => c.type === 'pickCard' && c.cards.length), 'Adéwalé: nothing to pick from');
+  });
 };

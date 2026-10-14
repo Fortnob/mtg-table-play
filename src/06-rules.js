@@ -3352,7 +3352,7 @@
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
       this._fire('youPlayLand', playerId, { object: o, fromZone });
       // Horn of Greed, Burgeoning: "whenever a player / an opponent plays a land"
-      this._fire('anyPlayLand', null, { object: o, playerId });
+      this._fire('anyPlayLand', null, { object: o, playerId, fromZone });
       this._fire('opponentPlaysLand', null, { object: o, playerId, except: playerId });
       this.emit('sfx', 'land');
     }
@@ -6713,7 +6713,7 @@
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
-      this._fire('anyCastSpell', null, { object: o, stackId: item.id, playerId, mv: MANA.cmc(cost || '') });
+      this._fire('anyCastSpell', null, { object: o, spell: item, stackId: item.id, playerId, mv: MANA.cmc(cost || '') });
       /* "When you cast this spell, …": the spell's own trigger, which goes
          on the stack above it and resolves first. */
       if (a && !item.isCopy) {
@@ -7131,6 +7131,36 @@
       return null;
     }
     /** Gogo, Master of Mimicry: "This ability can't be copied" — copying it makes nothing. */
+    /* A spell as it last existed on the stack (CR 608.2h), for a copy made after it has left — Ivy, Gleeful
+       Spellthief: "you may copy that spell" copies a countered spell all the same. Plain data, the last few. */
+    _noteSpellLki(item) {
+      if (!item || item.kind !== 'spell' || !item.obj || item.isCopy) return;
+      const rec = {};
+      for (const k of Object.keys(item)) {
+        if (k === 'obj' || k === 'triggerData') continue;
+        const c = _plainData(item[k], 0);
+        if (c !== NOT_PLAIN) rec[k] = c;
+      }
+      const o = item.obj;
+      rec.was = { card: o.card, owner: o.owner, face: o.face || 0, chosenX: o.chosenX || 0, giftTo: o.giftTo || null,
+        kickedTimes: o.kickedTimes || 0, wasKicked: !!o.wasKicked, kickPaid: o.kickPaid ? o.kickPaid.slice() : null };
+      const all = this._spellLki = this._spellLki || {};
+      all[item.id] = rec;
+      const ids = Object.keys(all);
+      if (ids.length > 8) delete all[ids[0]];
+    }
+    /** That spell as it was, to copy: a stack item with a stand-in object, or null. */
+    _spellAsItWas(stackId) {
+      const rec = stackId && this._spellLki && this._spellLki[stackId];
+      if (!rec) return null;
+      const w = rec.was;
+      const obj = new GObj(w.card, w.owner, 'stack');
+      obj.id = rec.objId || obj.id;
+      Object.assign(obj, { face: w.face, chosenX: w.chosenX, giftTo: w.giftTo, kickedTimes: w.kickedTimes, wasKicked: w.wasKicked, kickPaid: w.kickPaid });
+      const item = JSON.parse(JSON.stringify(Object.assign({}, rec, { was: undefined })));
+      item.obj = obj;
+      return item;
+    }
     _uncopyable(item) {
       return !!item && (item.effects || []).some(e => e && e.uncopyable);
     }
@@ -9844,6 +9874,25 @@
         if (a.isBattle) { if (this._defPid(o.id) !== attackerPid) out.push({ kind: 'object', id: o.id, name: o.name }); continue; }
         if (o.controller === attackerPid) continue;
         if (a.isPlaneswalker) out.push({ kind: 'object', id: o.id, name: o.name });
+      }
+      /* Pramikon, Sky Rampart: "Each player may attack only the nearest opponent in the chosen direction and
+         planeswalkers controlled by that opponent." — each one in play narrows it (attackOnlyNearest) */
+      const order = this.turnOrder.filter(id => { const q = this.player(id); return q && !q.hasLost; });
+      const foes = new Set(this.opponentsOf(attackerPid).map(q => q.id));
+      for (const s of this.battlefield) {
+        if (s.phasedOut || !this._staticOp(s, 'attackOnlyNearest')) continue;
+        const step = s.chosenDirection === 'right' ? -1 : 1;
+        const i = order.indexOf(attackerPid);
+        let near = null;
+        for (let k = 1; i >= 0 && k < order.length && !near; k++) {
+          const q = order[((i + step * k) % order.length + order.length) % order.length];
+          if (foes.has(q)) near = q;
+        }
+        for (let j = out.length - 1; j >= 0; j--) {
+          const d = out[j];
+          const ok = d.kind === 'player' ? d.id === near : (this.obj(d.id) || {}).controller === near && !!((this.obj(d.id).analysis() || {}).isPlaneswalker);
+          if (!ok) out.splice(j, 1);
+        }
       }
       return out;
     }
@@ -13808,7 +13857,7 @@
         }
       } else if (o.zone === 'stack') {
         const i = this.stack.findIndex(s => s.objId === o.id);
-        if (i >= 0) this.stack.splice(i, 1);
+        if (i >= 0) { this._noteSpellLki(this.stack[i]); this.stack.splice(i, 1); }
       } else {
         const z = this.zones[o.owner];
         if (z && z[o.zone]) {
@@ -17907,6 +17956,8 @@
             dir = ((got && got.picks) || [0])[0] === 1 ? 'right' : 'left';
           }
           ctx.chosenDirection = dir;
+          // (Pramikon, Sky Rampart: "As Pramikon enters, choose left or right." — the permanent keeps it)
+          if (src && src.zone === 'battlefield') src.chosenDirection = dir;
           this.logEvent('rules', `${me.name} chooses ${dir}.`);
           break;
         }
@@ -18113,7 +18164,8 @@
           let made = r && r.marks[slot];
           if (!made) {
             made = [];
-            const item = id ? this.stack.find(st => st.id === id) : null;
+            // (Ivy: a spell gone from the stack is copied as it last existed — _spellAsItWas)
+            const item = id ? this.stack.find(st => st.id === id) || (e.toSelf ? this._spellAsItWas(id) : null) : null;
             if (!item || !item.obj) { this.logEvent('rules', 'That spell is no longer on the stack.'); break; }
             const have = item.targets || [];
             const specs = this._specsOf(item, have.length);
@@ -20227,6 +20279,8 @@
             source = td.objectId ? this.obj(td.objectId) : null;
           }
           if (!source) break;
+          // Hofri Ghostforge: "exile it. If you do, create a token …" — only the card exiled just now (ifExiled)
+          if (e.ifExiled && (source.zone !== 'exile' || this._lastExiled !== source.id)) break;
           // Hazel of the Rootbloom: "If that token is a Squirrel, instead create two tokens that are copies of it." (twiceIfType)
           const cnt = e.twiceIfType && this._hasCreatureType(source, e.twiceIfType) ? 2 : nVar(e.n);
           // "except the token isn't legendary" (Helm of the Host)
@@ -20312,6 +20366,8 @@
             copy.entered = this.turn;
             copy.summoningSick = true;
             copy.face = faceUp;
+            // (Hofri Ghostforge: the token's "the exiled card" is the card it was made from — holdExiled)
+            if (e.holdExiled) copy.holds = [source.id];
             if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
             // Skyclave Relic: "two tapped tokens"
             if (e.tapped) copy.tapped = true;
@@ -21651,6 +21707,18 @@
           else if (x && e.fromExile && x.zone === 'exile' && x.exileStamp === e.stamp) { this.moveObject(x, 'hand'); this.logEvent('zone', `${x.name} returns to its owner's hand.`); }
           break;
         }
+        /* Arcum Dagsson: "Target artifact creature's controller sacrifices it. That player may search …" — a
+           sacrifice by its controller, who is "that player" afterwards (_lastAffected) */
+        case 'sacrificeTargeted': {
+          for (const x of targets.filter(t => t.kind === 'object').map(t => this.obj(t.id))) {
+            if (!x || x.zone !== 'battlefield') continue;
+            const pid = x.controller;
+            this._lastAffected = { id: x.id, controller: pid, owner: x.owner, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
+              mv: (x.card && x.card.cmc) || 0 };
+            this._sacrificeNow(pid, [x]);
+          }
+          break;
+        }
         case 'sacrificeThat': {
           const x = ctx.obj || (ctx.objId && this.obj(ctx.objId));
           if (x && x.zone === 'battlefield' && this._canSacrifice(x)) {
@@ -21879,11 +21947,14 @@
         // Tidehollow Sculler: what this card exiled goes back to its owner's hand
         case 'returnHeld': {
           if (!src) break;
+          // (Hofri Ghostforge's Spirit: "return the exiled card to its owner's graveyard" — the card it was made from: holds)
+          const held = src.holds || [];
+          const where = e.to === 'graveyard' ? 'graveyard' : 'hand';
           for (const o of Array.from(this.objects.values())) {
-            if (o.heldBy !== src.id || o.zone !== 'exile') continue;
+            if ((o.heldBy !== src.id && !held.includes(o.id)) || o.zone !== 'exile') continue;
             o.heldBy = null;
-            this.moveObject(o, 'hand');
-            this.logEvent('zone', `${o.name} returns to ${this.player(o.owner).name}'s hand.`);
+            this.moveObject(o, where);
+            this.logEvent('zone', `${o.name} returns to ${this.player(o.owner).name}'s ${where}.`);
           }
           break;
         }
@@ -24804,7 +24875,7 @@
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
-            c.impulseBy = ctx.controller; c.impulseUntil = until;
+            c.impulseBy = e.owners ? c.owner : ctx.controller; c.impulseUntil = until;
             /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
