@@ -384,6 +384,8 @@
       }
       // Void Attendant: a Processor's price as a cost
       if (/^Put a card an opponent owns from exile into that player'?s graveyard$/i.test(p)) { cost.process = 1; continue; }
+      // Shelob, Dread Weaver: "Put a creature card exiled with Shelob into its owner's graveyard" (processWith)
+      if ((m = p.match(/^Put an? ([a-z]+) card exiled with CARDNAME into its owner'?s graveyard$/i))) { cost.processWith = { filter: m[1].toLowerCase() }; continue; }
       // Hatchet Bully: "Put a -1/-1 counter on a creature you control" is blight 1
       if (/^Put a -1\/-1 counter on a creature you control$/i.test(p)) { cost.blight = (cost.blight || 0) + 1; continue; }
       // Fain, the Broker: "Remove a counter from a creature you control"
@@ -2419,6 +2421,10 @@
     // Gisa, Glorious Resurrector: "put all creature cards exiled with Gisa onto the battlefield under your control" (exiledWithToBattlefield)
     { re: /^Put all (creature) cards exiled with CARDNAME onto the battlefield under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase() }) },
+    /* Shelob, Dread Weaver: "Put target creature card with mana value X exiled with Shelob onto the battlefield tapped
+       under your control." — the one card picked as it resolves, among those with that mana value (mvX) */
+    { re: /^Put target ([a-z]+) card with mana value X exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
+      make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), mvX: true, one: true, tapped: !!m[2] }) },
     // (Witch-king of Angmar: "Tap him.")
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|him|her|~)\.?$/i,
       make: () => ({ op: 'tap', scope: 'self' }) },
@@ -5081,6 +5087,10 @@
       make: (m) => ({ op: 'meld', partner: m[2], partnerType: m[1].toLowerCase(), into: m[3], bothAttacking: true }) },
     // Gisela, the Broken Blade, Graf Rats: the pair is the trigger's "if" clause, filled in after (meldPair)
     { re: /^Exile them, then meld them into (.+?)\.?$/i, make: (m) => ({ op: 'meld', into: m[1] }) },
+    /* Will, Scion of Peace: "Spells you cast this turn that are white and/or blue cost {X} less to cast, where X is the
+       amount of life you gained this turn." — X counted once, as it resolves (costModTurn, lessX) */
+    { re: /^Spells you cast this turn that are (white|blue|black|red|green) and\/or (white|blue|black|red|green) cost \{X\} less to cast, where X is (.+?)\.?$/i,
+      make: (m) => { const a = amountOf(m[3]); return a == null ? null : { op: 'costModTurn', mod: { op: 'costMod', who: 'you', words: m[1].toLowerCase() + ' or ' + m[2].toLowerCase(), amount: 0 }, lessX: a }; } },
     // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast." (costModTurn)
     { re: /^(.+? spells you cast) this turn cost (\{\d+\}) less to cast\.?$/i,
       make: (m) => {
@@ -7130,6 +7140,8 @@
     if ((m = p.match(/^([A-Z][a-z]+) that entered the battlefield under your control this turn$/))) {
       const t = m[1].toLowerCase(); return { enteredTypeYours: t === 'elves' ? 'elf' : t.replace(/s$/, ''), mult: k };
     }
+    // Vren, the Relentless: "the number of creatures that were exiled under your opponents' control this turn" (exiledOppThisTurn)
+    if (/^creatures? that (?:were|was) exiled under your opponents'? control this turn$/i.test(p)) return { exiledOppThisTurn: true, mult: k };
     // Season of Loss: "for each creature that died under your control this turn"
     if (/^creatures? that died under your control this turn$/i.test(p)) return { diedThisTurn: true, yours: true, mult: k };
     // Fountain of Cho: "for each storage counter removed this way"
@@ -11230,6 +11242,8 @@
     }],
     // Marcus, Mutant Mayor: "if that creature has a +1/+1 counter on it" (triggerObjCounter)
     [/^that creature has an? (\+1\/\+1|[a-z]+) counter on it$/i, (m) => ({ kind: 'triggerObjCounter', counter: m[1].toLowerCase() })],
+    // Ramses, Assassin Lord: "if they were attacked this turn by an Assassin you controlled" (triggerPlayerAttackedBy)
+    [/^(?:they were|that player was) attacked this turn by an? ([A-Z][a-z]+) you controlled$/, (m) => ({ kind: 'triggerPlayerAttackedBy', subtype: m[1].toLowerCase() })],
     // M'Baku, Jabari Chieftain: "if that player is the monarch" — the player the trigger is about (triggerPlayerMonarch)
     [/^that player is the monarch$/i, () => ({ kind: 'triggerPlayerMonarch' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
@@ -11496,6 +11510,9 @@
         f.minMv = +m[1]; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with (?:mana value|converted mana cost) (\d+) or less$/))) {
         f.maxMv = +m[1]; p = p.slice(0, m.index);
+      } else if ((m = p.match(/ with (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender|flash) or (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender|flash)$/i))) {
+        // Shadow the Hedgehog: "another creature you control with flash or haste" (keywordAny)
+        f.keywordAny = [m[1].toLowerCase(), m[2].toLowerCase()]; p = p.slice(0, m.index);
       } else if ((m = p.match(/ with (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
         f.keyword = m[1].toLowerCase(); p = p.slice(0, m.index);
       } else if ((m = p.match(/ without (flying|deathtouch|lifelink|trample|haste|first strike|vigilance|menace|reach|defender)$/i))) {
@@ -12210,6 +12227,8 @@
       filt: (m) => subjectFilter(m[1]) },
     // Zenos yae Galvus: "When the chosen creature leaves the battlefield, transform Zenos." (chosenObjOnly)
     { re: /^When(?:ever)? the chosen creature leaves the battlefield,? /i, event: 'permLeaves', extra: { chosenObjOnly: true } },
+    // Ramses, Assassin Lord: "Whenever a player loses the game" (playerLoses)
+    { re: /^Whenever a player loses the game,? /i, event: 'playerLoses' },
     // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game." (chosenPlayerLoses)
     { re: /^When(?:ever)? the chosen player loses the game,? /i, event: 'chosenPlayerLoses' },
     /* Khârn the Betrayer: "When you lose control of Khârn the Betrayer, draw two cards." — it leaves, or another player
@@ -16615,6 +16634,9 @@
       { re: /^(?:(white|blue|black|red|green) )?instant and sorcery spells you control have (lifelink|deathtouch)\.?$/i,
         make: (m) => ({ op: 'spellKeyword', keyword: m[2].toLowerCase(),
           words: m[1] ? m[1].toLowerCase() + ' instant or ' + m[1].toLowerCase() + ' sorcery' : 'instant or sorcery' }), auto: true },
+      // Shadow the Hedgehog: "Each spell you cast has split second if mana from an artifact was spent to cast it." (ifArtifactMana)
+      { re: /^Each spell you cast has split second if mana from an artifact was spent to cast it\.?$/i,
+        eff: { op: 'spellKeyword', keyword: 'split second', words: 'spell', ifArtifactMana: true }, auto: true },
       // Chief Engineer, Dazzling Theater: "Artifact spells you cast have convoke."
       // Party Thrasher: "Noncreature spells you cast from exile have convoke."
       { re: /^([A-Za-z ]*?)spells you cast from exile have (convoke|improvise|delve)\.?$/i,
@@ -17332,6 +17354,8 @@
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
+      // Sigarda, Host of Herons: "Spells and abilities your opponents control can't cause you to sacrifice permanents." (oppsCantMakeYouSac)
+      { re: /^Spells and abilities your opponents control can'?t cause you to sacrifice permanents\.?$/i, eff: { op: 'oppsCantMakeYouSac' }, auto: true },
       // The Master, Multiplied: "Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control."
       { re: /^Triggered abilities you control can'?t cause you to sacrifice or exile creature tokens you control\.?$/i, eff: { op: 'triggersSpareTokens' }, auto: true },
       // Cadric, Council of Reeds, Sliver Gravemother: "… doesn't apply to tokens / creatures / Slivers you control"

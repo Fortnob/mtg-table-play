@@ -929,7 +929,7 @@
       /* What happened last turn, for the cards that ask (the werewolves). */
       this.spellsLastTurn = {};
       for (const p of this.players) this.spellsLastTurn[p.id] = p.spellsCastThisTurn || 0;
-      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
+      for (const p of this.players) { p.pool.clear(); p.restricted = []; p.creatureMana = null; p.treasureMana = null; p.artifactMana = null; p.spellsCastThisTurn = 0; p.spellObjsThisTurn = []; p.drawnThisTurn = 0; p.lifeLostThisTurn = 0; p.lifeGainedThisTurn = 0; }
       for (const o of this.battlefield) o._afflicted = false;
       this.phaseIndex = 0; this.stepIndex = 0; this._stepAgain = 0;
       this.logEvent('turn', `--- Turn ${this.turn}: ${ap.name} ---`);
@@ -964,7 +964,7 @@
         if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
         if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool.symbols()}).`); }
         p.pool.clear();
-        p.creatureMana = null; p.treasureMana = null;
+        p.creatureMana = null; p.treasureMana = null; p.artifactMana = null;
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
         if (carry) p.pool[becomes.color] = (Number(p.pool[becomes.color]) || 0) + carry;
         // (Klauth, Unrivaled Ancient: what was set aside to be kept until end of turn — keepMana)
@@ -4004,7 +4004,8 @@
       return this.stack.some(it => {
         if (!it.obj || it.kind !== 'spell') return false;
         const a = it.obj.analysis();
-        return !!(a && a.keywordSet && a.keywordSet.has('split second'));
+        // (Shadow the Hedgehog: "Each spell you cast has split second if …" — a standing rule's)
+        return !!(a && a.keywordSet && a.keywordSet.has('split second')) || this._spellKeywordFrom(it.obj, 'split second');
       });
     }
 
@@ -4234,7 +4235,8 @@
          controller's to say: what creatures made goes first on a creature spell, last on anything else
          (manaFromCreatures); Kalain, Reclusive Painter: "for each mana from a Treasure spent to cast them" the
          same way (manaFromTreasure) */
-      for (const [tag, acc] of [['creatureMana', 'creature'], ['treasureMana', 'treasure']]) {
+      // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — what artifacts made goes first, manaFromArtifact)
+      for (const [tag, acc] of [['creatureMana', 'creature'], ['treasureMana', 'treasure'], ['artifactMana', 'artifact']]) {
         if (!(plan && p && p[tag])) continue;
         const lentBy = this._lentNow && this._lentNow.pid === p.id ? this._lentNow.by : {};
         const forCreature = !!(this._payingFor && (this._payingFor.analysis() || {}).isCreature);
@@ -4244,7 +4246,7 @@
           const unres = Math.max(0, (Number(p.pool[c]) || 0) + k - (lentBy[c] || 0));
           const have = Math.min(p[tag][c] || 0, unres);
           const spent = Math.min(k, unres);
-          const take = forCreature ? Math.min(spent, have) : Math.max(0, spent - (unres - have));
+          const take = forCreature || acc === 'artifact' ? Math.min(spent, have) : Math.max(0, spent - (unres - have));
           p[tag][c] = have - take;
           fromC += take;
         }
@@ -6278,6 +6280,8 @@
         o.manaFromCreatures = this._spentAcc.creature || 0;
         // Kalain, Reclusive Painter: and how much Treasures made (manaFromTreasure)
         o.manaFromTreasure = this._spentAcc.treasure || 0;
+        // Shadow the Hedgehog: and how much artifacts made (manaFromArtifact)
+        o.manaFromArtifact = this._spentAcc.artifact || 0;
         o._phyLife = this._spentAcc.life || 0;
         // Devour: what it will eat
         o._devourPicks = ((opts.choices || {}).devour || {}).picks || null;
@@ -7698,6 +7702,9 @@
       for (const x of (ab.effects || [])) {
         // Gogo, Master of Mimicry: "X can't be 0"
         if (x && x.xMin && (opts.x || 0) < x.xMin) return this.fail(`X can't be 0 for ${o.name}.`);
+        // Shelob, Dread Weaver: "target creature card with mana value X exiled with Shelob" — there must be one to target (mvX)
+        if (x && x.op === 'exiledWithToBattlefield' && x.mvX && !this._exiledWithPool(o, x.words).some(c => ((c.card && c.card.cmc) || 0) === (opts.x || 0)))
+          return this.fail(`No ${x.words || 'card'} card with mana value ${opts.x || 0} is exiled with ${o.name}.`);
         if (!x || x.op !== 'xCap') continue;
         const most = this._countValue(x.n, playerId, o);
         if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
@@ -7936,6 +7943,9 @@
           foods: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._hasSubtype(x, 'Food')).map(x => x.id) });
         if (c.revealHand) out.push({ kind: 'reveal', label: 'Reveal ' + c.revealHand.filter + ' cards', key: 'revealIds', need: c.revealHand.n,
           candidates: this.zones[pid].hand.filter(x => x !== self && this._cardFitsWords(x, c.revealHand.filter)).map(x => x.id) });
+        // Shelob, Dread Weaver: which card exiled with it goes to its owner's graveyard (processWith)
+        if (c.processWith && self) out.push({ kind: 'processWith', label: `Put a ${c.processWith.filter} card exiled with ${self.name} into its owner's graveyard`, key: 'exileIds', need: 1,
+          candidates: this._exiledWithPool(self, c.processWith.filter).map(x => x.id) });
         if (c.exileOwn) out.push({ kind: 'exileOwn', label: 'Exile ' + c.exileOwn.filter + ' you control', key: 'exileIds', need: 1,
           candidates: this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(c.exileOwn.another && x === self) && this._cardFitsWords(x, c.exileOwn.filter)).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
@@ -7985,6 +7995,18 @@
       if (!exile || (x.zone !== 'hand' && x.zone !== 'battlefield')) return;
       this.moveObject(x, 'exile');
       if (holder) x.heldBy = holder.id;
+    }
+    /* The cards exiled with this object (Gisa, Glorious Resurrector; Shelob, Dread Weaver) that fit the words — once it
+       has left, the ones its last time on the battlefield exiled (_exiledWithGone) */
+    _exiledWithPool(src, words) {
+      if (!src) return [];
+      const gone = src.zone !== 'battlefield';
+      const list = [];
+      for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) {
+        const mine = gone ? !!(c._exiledWithGone && c._exiledWithGone.id === src.id && c._exiledWithGone.n === src._leftSeq) : c.exiledWithId === src.id;
+        if (mine && this._cardFitsWords(c, words || 'card')) list.push(c);
+      }
+      return list;
     }
     /** Cards opponents own in exile, face up, that a Processor could put into their graveyards. */
     _processPool(pid) {
@@ -8187,7 +8209,15 @@
     }
     /** Alexios, Deimos of Kosmos, Hithlain Rope: "can't be sacrificed" — not a choice, and not gone if picked anyway. */
     // (Slicer, Hired Muscle: "it can't be sacrificed this turn" — the flag till end of turn)
-    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && (this._staticOp(x, 'unsacrificable') || this._hasFlag(x, 'unsacrificable') || this._spareFromTrigger(x))); }
+    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && (this._staticOp(x, 'unsacrificable') || this._hasFlag(x, 'unsacrificable') || this._spareFromTrigger(x) || this._spareFromOpponents(x))); }
+    /* Sigarda, Host of Herons: "Spells and abilities your opponents control can't cause you to sacrifice permanents." —
+       an opponent's spell or ability resolving now: what it would have you sacrifice, you don't, nor may you choose to
+       (oppsCantMakeYouSac) */
+    _spareFromOpponents(x) {
+      const c = this.resolving && this.resolving.ctx;
+      if (!c || !c.controller || c.controller === x.controller) return false;
+      return this.battlefield.some(s => s.controller === x.controller && !s.phasedOut && this._staticOp(s, 'oppsCantMakeYouSac'));
+    }
     /** The Master, Multiplied: does its controller have "Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control"? */
     _sparesTokens(pid) {
       return this.battlefield.some(s => s.controller === pid && !s.phasedOut && this._staticOp(s, 'triggersSpareTokens'));
@@ -8307,6 +8337,8 @@
       }
       if (cost.exileOwn && !this.battlefield.some(x => x.controller === pid && !x.phasedOut && !(cost.exileOwn.another && x === self) && this._cardFitsWords(x, cost.exileOwn.filter))) return `No ${cost.exileOwn.filter} of yours to exile.`;
       if (cost.process && this._processPool(pid).length < cost.process) return 'No card an opponent owns in exile.';
+      // Shelob, Dread Weaver: "Put a creature card exiled with Shelob into its owner's graveyard" (processWith)
+      if (cost.processWith && !(self && self.zone === 'battlefield' && this._exiledWithPool(self, cost.processWith.filter).length)) return `No ${cost.processWith.filter} card exiled with ${self ? self.name : 'it'}.`;
       if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
       if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
         .reduce((k, x) => k + Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0), 0) < (cost.removeCounterFrom.n || 1)) return 'No counter to remove.';
@@ -8473,6 +8505,12 @@
       }
       // Void Attendant: one card an opponent owns, from exile to its owner's graveyard
       if (cost.process) for (const c of this._processPool(pid).slice(0, cost.process)) this.moveObject(c, 'graveyard');
+      // Shelob, Dread Weaver: the card the player named, or the one of least mana value (processWith)
+      if (cost.processWith && self) {
+        const pool = this._exiledWithPool(self, cost.processWith.filter);
+        const c = (opts.exileIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean)[0] || this._cheapestFirst(pool)[0];
+        if (c) { this.moveObject(c, 'graveyard'); this.logEvent('rules', `${this.player(pid).name} puts ${c.name} from exile into its owner's graveyard.`); }
+      }
       // Fain: a counter off a creature of yours
       for (let rc = 0; cost.removeCounterFrom && rc < (cost.removeCounterFrom.n || 1); rc++) {
         const pool = this._counterCostPool(pid, cost.removeCounterFrom, self);
@@ -9128,8 +9166,10 @@
       const fromCreature = !!o && o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
       // Kalain, Reclusive Painter: "mana from a Treasure" — sacrificed to pay for it, the Treasure as it last was (manaFromTreasure)
       const fromTreasure = !!o && this._hasSubtype(o, 'Treasure');
+      // Shadow the Hedgehog: "mana from an artifact" (manaFromArtifact)
+      const fromArtifact = fromTreasure || (!!o && this._matchesCategory(o, 'artifact'));
       const tagPool = () => {
-        for (const [yes, tag] of [[fromCreature, 'creatureMana'], [fromTreasure, 'treasureMana']]) {
+        for (const [yes, tag] of [[fromCreature, 'creatureMana'], [fromTreasure, 'treasureMana'], [fromArtifact, 'artifactMana']]) {
           if (!yes) continue;
           const cm = p[tag] || (p[tag] = {});
           for (const c of Object.keys(own)) if (own[c] > 0) cm[c] = (cm[c] || 0) + own[c];
@@ -9751,6 +9791,15 @@
         // Rose, Cutthroat Raider: which players each player attacked this turn (opponentsAttacked)
         const apb = this.turnHistory.attackedPlayersBy || (this.turnHistory.attackedPlayersBy = {});
         for (const d of declarations) if (this.player(d.defenderId) && !(apb[playerId] || []).includes(d.defenderId)) (apb[playerId] = apb[playerId] || []).push(d.defenderId);
+        /* Ramses, Assassin Lord: "attacked this turn by an Assassin you controlled" — what each creature attacking a player
+           was as it was declared (playerAttacks; a planeswalker of theirs is not them) */
+        const pat = this.turnHistory.playerAttacks || (this.turnHistory.playerAttacks = []);
+        for (const d of declarations) {
+          const o = this.obj(d.attackerId);
+          if (!o || !this.player(d.defenderId)) continue;
+          const oa = o.analysis() || {};
+          pat.push({ def: d.defenderId, by: o.controller, subtypes: (oa.subtypes || []).map(x => x.toLowerCase()), all: this.hasKw(o, 'changeling'), id: o.id });
+        }
         this.emit('sfx', 'attack');
         this._attackKeywords(declarations.map(d => this.obj(d.attackerId)).filter(Boolean));
         this.logEvent('combat', `${this.player(playerId).name} attacks with ${declarations.map(d => this.obj(d.attackerId).name).join(', ')}.`);
@@ -10657,7 +10706,8 @@
       for (const src of this.battlefield) {
         if (src.controller !== o.controller || src.phasedOut) continue;
         const e = this._staticOp(src, 'spellKeyword');
-        if (e && e.keyword === k && this._cardFitsWords(o, e.words)) return true;
+        // (Shadow the Hedgehog: "if mana from an artifact was spent to cast it" — manaFromArtifact)
+        if (e && e.keyword === k && this._cardFitsWords(o, e.words) && (!e.ifArtifactMana || o.manaFromArtifact > 0)) return true;
       }
       return false;
     }
@@ -12169,6 +12219,13 @@
         case 'triggerObjEntered': { const tdE = (ctx && ctx.triggerData) || {}; const x = tdE.objectId && this.obj(tdE.objectId); return !!x && x.zone === 'battlefield' && x.entered === this.turn; }
         // M'Baku, Jabari Chieftain: "if that player is the monarch" (triggerPlayerMonarch)
         // (Fall from Favor, a standing rule: "that player" is the enchanted creature's controller)
+        // Ramses, Assassin Lord: "if they were attacked this turn by an Assassin you controlled" (triggerPlayerAttackedBy)
+        case 'triggerPlayerAttackedBy': {
+          const tdA = (ctx && ctx.triggerData) || {};
+          const who = tdA.player || tdA.playerId;
+          if (!me || !who || who === me.id || me.hasLost) return false;
+          return (((this.turnHistory || {}).playerAttacks) || []).some(x => x.def === who && x.by === me.id && (x.all || x.subtypes.includes(cond.subtype)));
+        }
         case 'triggerPlayerMonarch': {
           const tdM = (ctx && ctx.triggerData) || {};
           const host = !tdM.player && !tdM.playerId && src && src.attachedTo && this.obj(src.attachedTo);
@@ -13442,6 +13499,8 @@
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
         o._lastBasePower = lc ? lc.basePower : 0;
+        // and its keywords (Shadow the Hedgehog: "another creature you control with flash or haste dies")
+        o._lastKeywords = lc && lc.keywords ? [...lc.keywords] : [];
         // Éowyn, Fearless Knight: "each of that creature's colors" after it has gone
         o._lastColors = ((was || {}).colors || []).slice();
         // Sarkhan, Soul Aflame: "become a copy of it" after it has gone — its copiable values as it last was
@@ -13484,6 +13543,8 @@
           h.diedBy = h.diedBy || {};
           h.diedBy[o.controller] = (h.diedBy[o.controller] || 0) + 1;
         }
+        // Vren, the Relentless: "creatures that were exiled under your opponents' control this turn" (exiledBy)
+        if (wasA && wasA.isCreature && toZone === 'exile') { h.exiledBy = h.exiledBy || {}; h.exiledBy[o.controller] = (h.exiledBy[o.controller] || 0) + 1; }
       }
       // what it was wearing, for "whenever equipped creature dies"
       const heldBy = from === 'battlefield' ? (o.attachments || []).slice() : [];
@@ -15223,6 +15284,11 @@
         if (v && typeof v === 'object' && v.colorsSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).colorsSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.manaSpent) return ((this._spentOn(v.of, src, ctx.triggerData) || {}).manaSpent || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.diedThisTurn && v.nontoken) return ((this.turnHistory || {}).nontokenDied || 0) * (v.mult || 1);
+        // Vren, the Relentless: "creatures that were exiled under your opponents' control this turn" (exiledOppThisTurn)
+        if (v && typeof v === 'object' && v.exiledOppThisTurn) {
+          const eb = (this.turnHistory || {}).exiledBy || {};
+          return Object.keys(eb).filter(pid => pid !== ctx.controller).reduce((t, pid) => t + eb[pid], 0) * (v.mult || 1);
+        }
         if (v && typeof v === 'object' && v.diedThisTurn) return (v.yours ? ((((this.turnHistory || {}).diedBy) || {})[ctx.controller] || 0) : ((this.turnHistory || {}).creaturesDied || 0)) * (v.mult || 1);
         if (v && typeof v === 'object' && v.half != null) { const k = n(v.half); return v.up ? Math.ceil(k / 2) : Math.floor(k / 2); }
         // Prophet of the Scarab: "…, whichever is greater" (maxOf)
@@ -20131,15 +20197,20 @@
            control" — the cards that Gisa exiled, still so if Gisa has left since this triggered (_exiledWithGone) */
         case 'exiledWithToBattlefield': {
           if (!src) break;
-          const gone = src.zone !== 'battlefield';
-          const list = [];
-          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) {
-            const mine = gone ? !!(c._exiledWithGone && c._exiledWithGone.id === src.id && c._exiledWithGone.n === src._leftSeq) : c.exiledWithId === src.id;
-            if (mine && this._cardFitsWords(c, e.words || 'card')) list.push(c);
+          let list = this._exiledWithPool(src, e.words);
+          // Shelob, Dread Weaver: "target creature card with mana value X exiled with Shelob" — one, of the X paid (mvX)
+          if (e.mvX) list = list.filter(c => ((c.card && c.card.cmc) || 0) === (ctx.x || 0));
+          if (e.one && list.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'exiledWithToBattlefield', kind: 'objects', zone: 'exile',
+              items: this._chooseItems(list), min: 1, max: 1,
+              prompt: `Put which ${e.words || 'card'} card with mana value ${ctx.x || 0} onto the battlefield${e.tapped ? ' tapped' : ''} under your control?` }, 'ewtb');
+            if (got === SUSPEND) return SUSPEND;
+            list = [((got && got.picks) || []).map(id => this.obj(id)).find(c => c && list.includes(c)) || list[0]];
           }
           const moved = [];
-          for (const c of list) {
-            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+          for (const c of list.slice(0, e.one ? 1 : list.length)) {
+            this.moveObject(c, 'battlefield', Object.assign({ controller: ctx.controller }, e.tapped ? { tapped: true } : {}));
+            if (e.tapped && c.zone === 'battlefield') c.tapped = true;
             if (c.zone === 'battlefield') moved.push(c.id);
           }
           this._lastGroup = moved;          // "They gain decayed."
@@ -20587,6 +20658,8 @@
           if (!x || x.zone !== 'graveyard' || x.isToken) break;
           this.moveObject(x, 'exile');
           this._lastExiled = x.id;
+          // (Shelob, Dread Weaver: "exile it" — a card exiled with the permanent whose ability it was, CR 607.2a)
+          if (src && src.zone === 'battlefield' && x.zone === 'exile' && x !== src) x.exiledWithId = src.id;
           // Mari, the Killing Quill: "exile it with a hit counter on it"
           if (e.counter && x.zone === 'exile') {
             x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
@@ -23850,7 +23923,10 @@
         // Urza, Planeswalker: "Artifact, instant, and sorcery spells you cast this turn cost {2} less to cast."
         case 'costModTurn': {
           if (!me || !e.mod) break;
-          me.turnCostMods = (me.turnCostMods || []).filter(x => x.turn === this.turn).concat(Object.assign({}, e.mod, { turn: this.turn }));
+          // (Will, Scion of Peace: "{X} less …, where X is the amount of life you gained this turn" — counted now, lessX)
+          const lessX = e.lessX != null ? Math.max(0, n(e.lessX) || 0) : null;
+          if (lessX === 0) break;
+          me.turnCostMods = (me.turnCostMods || []).filter(x => x.turn === this.turn).concat(Object.assign({}, e.mod, { turn: this.turn }, lessX != null ? { amount: -lessX } : {}));
           break;
         }
         case 'craft': {
@@ -27216,6 +27292,8 @@
       };
       // Shinryu, Transcendent Rival: "When the chosen player loses the game, you win the game."
       this._fire('chosenPlayerLoses', null, { player: p.id });
+      // Ramses, Assassin Lord: "Whenever a player loses the game" (playerLoses)
+      this._fire('playerLoses', null, { player: p.id, playerId: p.id });
       for (const o of this.battlefield.slice()) if (o.owner === p.id) leave(o);
       for (const it of this.stack.slice()) {
         if (it.kind === 'spell' && it.obj && !it.isCopy && it.obj.owner === p.id) leave(it.obj);
@@ -28087,8 +28165,12 @@
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"
       if (f.mvBelowSelfPower && !(src && ((x.card && x.card.cmc) || 0) < this.powerOf(src))) return false;
-      if (f.keyword && !this.hasKw(x, f.keyword)) return false;
-      if (f.noKeyword && this.hasKw(x, f.noKeyword)) return false;
+      // (one that has died is judged by the keywords it had as it went — _lastKeywords)
+      const kwOf = (k) => (gone && x._lastKeywords ? x._lastKeywords.includes(k) : this.hasKw(x, k));
+      if (f.keyword && !kwOf(f.keyword)) return false;
+      // Shadow the Hedgehog: "with flash or haste" (keywordAny)
+      if (f.keywordAny && !f.keywordAny.some(kwOf)) return false;
+      if (f.noKeyword && kwOf(f.noKeyword)) return false;
       /* a creature that has died is judged by the counters it had as it went;
          The Swarmlord: "with a counter on it" — any kind */
       if (f.withCounter) {

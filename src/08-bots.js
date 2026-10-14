@@ -3728,6 +3728,8 @@
       if (cost.tap && this._isCreature(o) && o.summoningSick && !g.hasKw(o, 'haste')) return null;
       if (cost.life && this.me.life <= cost.life + 5) return null;
       if (cost.removeCounters && (Number(o.counters[String(cost.removeCounters.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0) < (cost.removeCounters.n || 1)) return null;
+      // Shelob, Dread Weaver: a card exiled with it to put into a graveyard (processWith)
+      if (cost.processWith && !g._exiledWithPool(o, cost.processWith.filter).length) return null;
       const sorcery = ab.sorcerySpeed || ab.kind === 'loyalty';
       if (sorcery && !(myTurn && g.isMain && g.stackEmpty)) return null;
       if (ab.kind === 'loyalty' && g._loyaltyUsedUp(o)) return null;
@@ -3802,6 +3804,15 @@
       if (xMin && x == null) {
         if (!g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + xMin + '}'), sources)) return null;
         x = xMin;
+      }
+      // Shelob, Dread Weaver: "target creature card with mana value X exiled with Shelob" — the X of the best one it can pay for (mvX)
+      const ewX = flat.find(e => e.op === 'exiledWithToBattlefield' && e.mvX);
+      if (ewX && x == null) {
+        const able = g._exiledWithPool(o, ewX.words).filter(c => g.couldPay(this.pid, String(cost.mana || '').replace(/\{X\}/g, '{' + ((c.card && c.card.cmc) || 0) + '}'), sources));
+        const best = able.sort((p, q) => this.rating(q) - this.rating(p))[0];
+        if (!best) return null;
+        x = (best.card && best.card.cmc) || 0;
+        v += 1 + this.rating(best) * 0.6;
       }
       // targets: chosen as for a spell, and an ability with nothing worth pointing at waits
       const targets = this.chooseTargetsForEffects(effects.concat((ab.targets || []).map(spec => ({ op: flat[0].op, targets: [spec] }))), o);
