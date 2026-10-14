@@ -1704,8 +1704,10 @@
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'sequence', list: [{ op: 'reanimate', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] },
         { op: 'counters', kind: '+1/+1', n: num(m[2]), scope: 'lastTarget' }] } : null; } },
     // Chthonian Nightmare: "Return target creature card with mana value X from your graveyard to the battlefield."
-    { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?\.?$/i,
-      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // (Rydia, Summoner of Mist: "target Saga card with mana value X … with a finality counter on it")
+    { re: /^Return (target [a-z ]+?) card with mana value (\d+|X) from your graveyard to the battlefield( tapped)?(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? Object.assign({ op: 'reanimate', tapped: !!m[3], targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] },
+        m[4] ? { counter: m[4].toLowerCase() } : {}) : null; } },
     // Yuna, Hope of Spira: "return up to one target enchantment card from your graveyard to the battlefield with a finality counter on it"
     { re: /^Return (up to one )?(target [a-z ]+?) card from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[2]); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' }, m[1] ? { upTo: true } : {})] } : null; } },
@@ -5058,7 +5060,8 @@
     // (Palinchron, Time Spiral: "untap up to seven lands", "You untap up to six lands")
     { re: /^(?:You )?[Uu]ntap (up to )?(one|two|three|four|five|six|seven|eight|nine|ten|\d+) (lands|creatures|artifacts|permanents)( you control)?\.?$/,
       make: (m) => ({ op: 'untapChosen', n: num(m[2]), upTo: !!m[1], filter: m[3].replace(/s$/, '') }) },
-    { re: /^(?:Then )?[Ii]f (.+?), (.+)$/,
+    // (Old Rutstein: "If a noncreature, nonland card is milled this way, …" — the comma in a list of "non-" words is the condition's)
+    { re: /^(?:Then )?[Ii]f (.+?), (?!non[a-z]+ [a-z]+ (?:is|was) )(.+)$/,
       make: (m) => {
         const cond = condOf(m[1]);
         if (!cond) return null;
@@ -5094,7 +5097,8 @@
 
 
     /* ===== the sentences that come up most often across the whole card pool ===== */
-    { re: /^Put the rest on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
+    // (Winota, Joiner of Forces: "Put the rest of the cards on the bottom …")
+    { re: /^Put the rest(?: of the cards)? on the bottom(?: of your library)? in (?:a random|any) order\.?$/i,
       make: (m) => ({ op: "restToBottom", random: /random/i.test(m[0]) }) },
     { re: /^Put the rest into your graveyard\.?$/i, make: () => ({ op: 'restToGraveyard' }) },
     /* Dihada, Binder of Wills: "Put any number of legendary cards from among them into your hand and the rest into
@@ -5128,9 +5132,10 @@
       make: (m) => [m[1], m[2]].map(k => ({ op: 'takeFromLooked', n: 1, filter: k.toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
         prompt: `You may put ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k.toLowerCase()} card onto the battlefield.` })) },
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
-    { re: /^You may put an? ([-a-z ]*?)card from among them onto the battlefield( tapped)?\.?$/i,
-      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
-        to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }) },
+    // (Winota, Joiner of Forces: "a Human creature card … tapped and attacking" — where the attacker is, for "It gains …")
+    { re: /^You may put an? ([-a-zA-Z ]*?)card from among them onto the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => (m[3] && !m[2] ? null : Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'battlefield', tapped: !!m[2], optional: true, rest: 'keep' }, m[3] ? { attacking: true } : {})) },
     // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
     { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
     // Grafted Exoskeleton: the permanent it was attached to, if you still control it
@@ -7817,6 +7822,15 @@
     { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
       make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
         { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
+    /* Zara, Renegade Recruiter: "look at defending player's hand. You may put a creature card from it onto the
+       battlefield under your control tapped and attacking that player or a planeswalker they control." — the look and
+       the pick one question (putFromTheirHand); "Return that creature …" is the one put */
+    { re: /^Look at defending player'?s hand\. You may put an? ([a-z ]+?) card from it onto the battlefield under your control tapped and attacking that player(?: or a planeswalker they control)?\. (.+)$/i,
+      make: (m) => {
+        const rest = parseSentenceList(splitSentences(m[2]));
+        if (!rest.auto || !rest.effects.length) return null;
+        return [{ op: 'putFromTheirHand', who: 'defending', filter: m[1].toLowerCase(), tapped: true, attacking: true }].concat(rest.effects);
+      } },
     /* Faramir, Prince of Ithilien: "choose an opponent. At the beginning of that player's next end step, you draw a
        card if they didn't attack you that turn. Otherwise, create three …" — their end step, not yours (forPlayer
        chosen); attacking a planeswalker of yours is not attacking you (playerAttackedYou) */
@@ -10793,7 +10807,8 @@
     [/^you (milled|revealed|discarded) an? ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[1].toLowerCase(), filter: m[2].toLowerCase() })],
     // Mastermind Plum, Locke: "a creature card was exiled (milled, revealed, discarded) this way"
-    [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
+    // (Old Rutstein: "a noncreature, nonland card is milled this way" — both at once)
+    [/^(?:at least one|an?) ((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|legendary|permanent)(?: or (?:non)?(?:land|creature|artifact|enchantment|instant|sorcery)|, non(?:land|creature|artifact|enchantment))?) card (?:was|is) (exiled|milled|revealed|discarded) this way$/i,
       (m) => ({ kind: 'didThisWay', how: m[2].toLowerCase(), filter: m[1].toLowerCase() })],
     // Battle Cry Goblin: "you attacked with creatures with total power 6 or greater this combat"
     [/^you attacked with creatures with total power (\d+) or greater this combat$/i, (m) => ({ kind: 'attackedTotalPower', n: +m[1] })],

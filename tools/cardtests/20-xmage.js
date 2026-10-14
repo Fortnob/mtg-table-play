@@ -31460,4 +31460,111 @@ module.exports = (test) => {
     M.nextTurn('A');
     t.eq(b2.counters.time, 3, 'Taigam: one off at the upkeep');
   });
+
+  test('Commanders: Winota, Joiner of Forces — a non-Human attacks: a Human from the top six, tapped, attacking and indestructible', (mk, t) => {
+    t.auto('Winota, Joiner of Forces');
+    const M = mk({ library: Array(20).fill('Island') });
+    const win = M.bf('A', 'Winota, Joiner of Forces');
+    const bear = M.bf('A', 'Grizzly Bears');
+    // the top six, from the top: Llanowar Elves, Elite Vanguard, Island …
+    const vang = M.top('A', 'Elite Vanguard');
+    const elves = M.top('A', 'Llanowar Elves');
+    let offered = null;
+    M.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.id); return { cardIds: [vang.id] }; });
+    M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: win.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    t.ok(offered && offered.includes(vang.id) && !offered.includes(elves.id), 'Winota: only the Human creature card');
+    t.eq(M.asked.filter(ch => ch.type === 'pickCard').length, 1, 'Winota: once, for the Bear, not for Winota');
+    t.zone(vang, 'battlefield');
+    t.ok(vang.tapped, 'Winota: tapped');
+    t.eq(vang.attacking, 'B', 'Winota: attacking');
+    t.ok(M.g.hasKw(vang, 'Indestructible'), 'Winota: indestructible');
+    const lib = M.zone('A', 'library');
+    t.ok(lib.indexOf(elves) >= lib.length - 5, 'Winota: the rest on the bottom');
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 20 - 2 - 4 - 2, 'Winota: the Human deals its damage');
+  });
+
+  test("Commanders: Zara, Renegade Recruiter — attacks: a creature card from the defending player's hand, attacking, back to their hand at the end step", (mk, t) => {
+    t.auto('Zara, Renegade Recruiter');
+    const M = mk();
+    const zara = M.bf('A', 'Zara, Renegade Recruiter');
+    const giant = M.hand('B', 'Hill Giant');
+    const bolt = M.hand('B', 'Lightning Bolt');
+    let asked = null;
+    M.answer('pickCard', (ch) => { asked = ch; return { cardIds: [giant.id] }; });
+    M.answer('declareAttackers', () => [{ attackerId: zara.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    t.ok(asked && asked.cards.length === 1 && asked.cards[0].id === giant.id, 'Zara: only the creature card to pick');
+    t.ok(/Lightning Bolt/.test(asked.prompt), "Zara: the whole hand named");
+    t.zone(giant, 'battlefield');
+    t.eq(giant.controller, 'A', 'Zara: under A\'s control');
+    t.ok(giant.tapped, 'Zara: tapped');
+    t.eq(giant.attacking, 'B', 'Zara: attacking B');
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 20 - 4 - 3, 'Zara: both dealt damage');
+    M.toMain('A', 'end'); M.resolve();
+    t.zone(giant, 'hand', 'Zara: back to its owner\'s hand');
+    t.ok(M.zone('B', 'hand').includes(giant), "Zara: B's hand");
+    t.zone(bolt, 'hand');
+  });
+  test("Commanders: Zara, Renegade Recruiter — no creature card: only a look", (mk, t) => {
+    const M = mk();
+    const zara = M.bf('A', 'Zara, Renegade Recruiter');
+    M.hand('B', 'Lightning Bolt');
+    M.answer('declareAttackers', () => [{ attackerId: zara.id, defenderId: 'B' }]);
+    M.toMain('A', 'declareBlockers');
+    t.no(M.asked.some(ch => ch.type === 'pickCard'), 'Zara: nothing to pick, no pick');
+    t.eq(M.bfOf('A').length, 1, 'Zara: nothing put');
+  });
+
+  test('Commanders: Rydia, Summoner of Mist — Summon: a Saga card with mana value X back, a finality counter and haste', (mk, t) => {
+    t.auto('Rydia, Summoner of Mist');
+    const M = mk();
+    const ry = M.bf('A', 'Rydia, Summoner of Mist');
+    const choco = M.grave('A', 'Summon: Choco/Mog');
+    const bear = M.grave('A', 'Grizzly Bears');
+    M.mana('A', '3');
+    t.no(M.g.activateAbility('A', ry.id, 0, { auto: true, x: 2, targets: [M.tgt(choco)] }), 'Rydia: not with X 2 for mana value 3');
+    t.no(M.g.activateAbility('A', ry.id, 0, { auto: true, x: 2, targets: [M.tgt(bear)] }), 'Rydia: not a creature that is no Saga');
+    M.activate('A', ry, 0, { x: 3, targets: [choco] });
+    t.zone(choco, 'battlefield');
+    t.eq(choco.counters.finality, 1, 'Rydia: a finality counter');
+    t.ok(M.g.hasKw(choco, 'Haste'), 'Rydia: haste');
+    t.ok(ry.tapped, 'Rydia: tapped');
+  });
+  test('Commanders: Rydia, Summoner of Mist — landfall: you may discard a card, then draw', (mk, t) => {
+    const M = mk({ library: Array(10).fill('Island') });
+    M.bf('A', 'Rydia, Summoner of Mist');
+    const junk = M.hand('A', 'Grizzly Bears');
+    const land = M.hand('A', 'Forest');
+    M.answer('discard', () => ({ cardIds: [junk.id] }));
+    M.playLand('A', land);
+    t.zone(junk, 'graveyard');
+    t.eq(M.zone('A', 'hand').length, 1, 'Rydia: a card drawn');
+  });
+
+  test('Commanders: Old Rutstein — mill a card: a Treasure for a land, an Insect for a creature, Blood for anything else', (mk, t) => {
+    t.auto('Old Rutstein');
+    const M = mk({ library: Array(10).fill('Island') });
+    const tokens = (name) => M.bfOf('A').filter(o => o.isToken && o.name === name).length;
+    M.top('A', 'Forest');
+    M.bf('A', 'Old Rutstein', { etb: true });
+    M.resolve();
+    t.eq(tokens('Treasure'), 1, 'Old Rutstein: a land milled, a Treasure');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'Old Rutstein: only that');
+    // A's next upkeep: B's turn first, then the top card
+    M.nextTurn('B');
+    M.top('A', 'Grizzly Bears');
+    M.nextTurn('A');
+    const ins = M.bfOf('A').filter(o => o.isToken && M.g._hasCreatureType(o, 'Insect'));
+    t.eq(ins.length, 1, 'Old Rutstein: a creature milled, an Insect');
+    t.eq(M.g.powerOf(ins[0]), 1, 'Old Rutstein: 1/1');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 2, 'Old Rutstein: nothing else');
+    M.nextTurn('B');
+    M.top('A', 'Lightning Bolt');
+    M.nextTurn('A');
+    t.eq(tokens('Blood'), 1, 'Old Rutstein: an instant milled, a Blood');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 3, 'Old Rutstein: one token each time');
+  });
 };

@@ -11585,7 +11585,8 @@
             : cond.how === 'discarded' ? (this._lastDiscarded || [])
             : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || []));
           const f = String(cond.filter || '');
-          return ids.some(id => { const c = this.obj(id); return c && (/ or /.test(f) ? f.split(' or ').some(w => this._itFits(c, w)) : this._itFits(c, f)); });
+          return ids.some(id => { const c = this.obj(id); return c && (/ or /.test(f) ? f.split(' or ').some(w => this._itFits(c, w))
+            : /, /.test(f) ? f.split(', ').every(w => this._itFits(c, w)) : this._itFits(c, f)); });
         }
         case 'attackedTotalPower': {
           if (!me) return false;
@@ -20281,7 +20282,19 @@
           if (e.to === 'battlefield') this._takenOntoBf = taken.map(o => o.id);
           for (const o of taken) {
             this._removeFromZone(o);
-            if (e.to === 'battlefield') { o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true; }
+            if (e.to === 'battlefield') {
+              o.zone = 'library'; this.moveObject(o, 'battlefield', { controller: ctx.controller, tapped: !!(e.tapped) }); if (e.tapped) o.tapped = true;
+              /* Winota, Joiner of Forces: "onto the battlefield tapped and attacking" — at whoever the creature that
+                 set it off attacks, during combat; never declared; "It gains …" is this one */
+              if (e.attacking && o.zone === 'battlefield') {
+                if (this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+                  const by = this.obj((ctx.triggerData || {}).objectId);
+                  const def = (by && by.attacking) || (this.opponentsOf(o.controller)[0] || {}).id;
+                  if (def) { o.attacking = def; this.combat.attackers.push(o.id); }
+                }
+                this._noteLastAffected([{ kind: 'object', id: o.id }]);
+              }
+            }
             else if (e.to === 'top') { o.zone = 'library'; z.library.unshift(o); }
             else if (e.to === 'exile' || e.to === 'graveyard') {
               o.zone = 'library';
@@ -21188,6 +21201,42 @@
           break;
         }
 
+        /* Zara, Renegade Recruiter: "look at defending player's hand. You may put a creature card from it onto the
+           battlefield under your control tapped and attacking that player" — one question: the hand named, the
+           creature cards to pick from (none, a look and no more); "that creature" after is this one (_lastPut) */
+        case 'putFromTheirHand': {
+          const victim = e.who === 'defending' ? triggerPlayer() : firstPlayer();
+          if (!victim || victim.id === ctx.controller) break;
+          const hand = this.zones[victim.id].hand;
+          const pool = hand.filter(o => this._cardFitsWords(o, e.filter || 'creature'));
+          const named = hand.map(o => o.name).join(', ') || 'no cards';
+          let pick = null;
+          if (!pool.length) {
+            if (hand.length) {
+              const seen = this._choose({ playerId: ctx.controller, kind: 'objects', min: 0, max: 0,
+                items: hand.map(o => ({ id: o.id, name: o.name, card: o.card })), prompt: `${victim.name}'s hand.` }, 'pfthLook');
+              if (seen === SUSPEND) return SUSPEND;
+            }
+          } else {
+            const got = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+              cards: pool.map(o => ({ id: o.id, name: o.name, card: o.card })),
+              prompt: `${victim.name}'s hand: ${named}. You may put a ${e.filter || 'creature'} card from it onto the battlefield under your control tapped and attacking ${victim.name}.` }, 'pfth');
+            if (got === SUSPEND) return SUSPEND;
+            pick = ((got || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'hand'))[0] || null;
+          }
+          this.logEvent('reveal', `${me.name} looks at ${victim.name}'s hand.`);
+          if (!pick) break;
+          this.moveObject(pick, 'battlefield', { controller: ctx.controller, tapped: !!e.tapped });
+          if (pick.zone !== 'battlefield') break;
+          if (e.tapped) pick.tapped = true;
+          if (e.attacking && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+            pick.attacking = victim.id; this.combat.attackers.push(pick.id);
+          }
+          this._lastPut = pick.id;
+          this._noteLastAffected([{ kind: 'object', id: pick.id }]);
+          this.logEvent('rules', `${me.name} puts ${pick.name} onto the battlefield from ${victim.name}'s hand, attacking.`);
+          break;
+        }
         /* "Target opponent reveals their hand. You choose a card from it.
             That player discards that card." — three sentences, one act. */
         case 'chooseFromHand': {
