@@ -4349,6 +4349,10 @@
       make: (m) => ({ op: 'createNamedToken', token: U.titleCase(m[2]), n: /^an?$/i.test(m[1]) ? 1 : num(m[1]), who: 'triggerPlayer' }) },
     // Mathemagics: "Target player draws 2ˣ cards." — two to the power of X
     { re: /^Target player draws 2ˣ cards\.?$/i, make: () => ({ op: 'draw', n: { twoToX: true }, who: 'target', targets: [{ type: 'player' }] }) },
+    /* Zurzoth, Chaos Rider: "you and those players each draw a card, then discard a card at random" — the players
+       the Devils are attacking (youAndAttackedBy) */
+    { re: /^[Yy]ou and those players each draw a card, then discard a card at random\.?$/,
+      make: () => [{ op: 'draw', n: 1, who: 'youAndAttackedBy' }, { op: 'discard', n: 1, who: 'youAndAttackedBy', random: true }] },
     // Gallia of the Endless Dance: "discard a card at random"
     { re: /^Discard (a|one|two|three|\d+) cards? at random\.?$/i, make: (m) => ({ op: 'discard', n: num(m[1]), who: 'you', random: true }) },
     /* Liliana, Waker of the Dead, Entropic Battlecruiser: "Each opponent who
@@ -4790,7 +4794,8 @@
 
     /* ===== keyword actions ===== */
     { re: /^(?:Then )?[Aa]mass ([A-Za-z]+ )?(\d+|X)\.?$/i,
-      make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: (m[1] || 'Zombie').trim() }) },
+      // (Grishnákh, Brash Instigator: "amass Orcs 2" makes an Orc Army, the type singular — CR 701.47a)
+      make: (m) => ({ op: 'amass', n: m[2] === 'X' ? 'X' : +m[2], kind: m[1] ? U.titleCase(singularType(m[1].trim())) : 'Zombie' }) },
     { re: /^(?:Then )?[Cc]onnive\.?$/i, make: () => ({ op: 'connive', n: 1 }) },
     /* Recruit (Esgaroth Garrison, Lake-town Lookout, The Queen of Dale): "Draw a card, then discard a
        card. If you discarded a nonland card, create a 1/1 white Human Soldier creature token." */
@@ -4902,10 +4907,17 @@
       } },
     /* Dragonlord Atarka: "it deals 5 damage divided as you choose among any number of target creatures and/or
        planeswalkers your opponents control" \u2014 picked as it resolves (anyFrom), no more of them than the damage */
-    { re: /^(?:CARDNAME|It) deals (one|two|three|four|five|six|\d+) damage divided as you choose among any number of target creatures( and\/or planeswalkers)? (your opponents control|an opponent controls)\.?$/i,
-      make: (m) => ({ op: 'damageDivided', n: num(m[1]),
-        anyFrom: Object.assign(targetSpec('target creature' + (m[2] ? ' or planeswalker' : '') + ' an opponent controls'), { upTo: true }),
-        anyPrompt: `choose any number of creatures${m[2] ? ' and/or planeswalkers' : ''} your opponents control to divide ${num(m[1])} damage among` }) },
+    // (Ureni, the Song Unending: "X damage …, where X is the number of lands you control" — counted as it resolves)
+    { re: /^(?:CARDNAME|It) deals (one|two|three|four|five|six|\d+|X) damage divided as you choose among any number of target creatures( and\/or planeswalkers)? (your opponents control|an opponent controls)(?:, where X is (.+?))?\.?$/i,
+      make: (m) => {
+        const x = /^X$/i.test(m[1]);
+        if (x !== !!m[4]) return null;
+        const k = x ? amountOf(m[4]) : num(m[1]);
+        if (!k) return null;
+        return { op: 'damageDivided', n: k,
+          anyFrom: Object.assign(targetSpec('target creature' + (m[2] ? ' or planeswalker' : '') + ' an opponent controls'), { upTo: true }),
+          anyPrompt: `choose any number of creatures${m[2] ? ' and/or planeswalkers' : ''} your opponents control to divide ${x ? 'X' : num(m[1])} damage among` };
+      } },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (one|two|three|four|five|six|\d+|X) damage divided as you choose among (?:one or two targets|one, two, or three targets|any number of targets?|any number of target creatures(?: and\/or planeswalkers)?|two or three targets)\.?$/i,
       make: (m) => ({ op: 'damageDivided', n: num(m[1]) }) },
     { re: /^(?!(?:When|Whenever|If|As|After|Unless|Until|Otherwise|Each|All|Target|Another|For|From|Enchanted|Equipped)\b)(?:[A-Za-z](?:(?![.,] | and | then )[-A-Za-z0-9',\u2019. ]){0,44}?\s)?deals? (X|\d+) damage divided evenly, rounded down, among any number of targets\.?$/i,
@@ -5813,6 +5825,10 @@
         const k = amountOf(m[1]);
         return k && typeof k === 'object' && (k.greatestPower || k.scope || k.countersAmong || k.domain) && !k.plus ? { op: 'noop', abilityDiscount: { amount: 1, per: k } } : null;
       } },
+    /* Grishnákh, Brash Instigator: "When you do, until end of turn, gain control of target nonlegendary creature an
+       opponent controls with power less than or equal to the amassed Army's power." — the Army as it is now (maxPowerAmassed) */
+    { re: /^(?:When you do, )?[Uu]ntil end of turn, gain control of (target [a-z ]+?) with power less than or equal to the amassed Army'?s power\.?$/,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'gainControl', until: 'eot', targets: [Object.assign(t, { maxPowerAmassed: true })] } : null; } },
     // Sire of Stagnation: "That player exiles the top two cards of their library and you draw two cards."
     { re: /^(?:That player|They) exiles? the top (a|one|two|three|four|five|\d+) cards? of their library(?: and you draw (a|one|two|three|\d+) cards?)?\.?$/i,
       make: (m) => (m[2] ? { op: 'sequence', list: [{ op: 'exileTop', n: num(m[1]), who: 'triggerPlayer' }, { op: 'draw', who: 'you', n: num(m[2]) }] }
@@ -8811,6 +8827,11 @@
         return [Object.assign({ op: 'castFree', from: 'targets', upTo: 1, pay: true, must: !m[1], exileAfter: /exile it instead/i.test(m[0]), targets: [spec] },
           m[5] ? { anyMana: true } : {})];
       } },
+    /* Kotis, the Fangkeeper: "exile the top X cards of their library, where X is the amount of damage dealt. You may
+       cast any number of spells with mana value X or less from among them without paying their mana costs." — the
+       player it hit, X the damage (triggerAmount) */
+    { re: /^Exile the top X cards of their library, where X is the amount of damage dealt\. You may cast any number of spells with mana value X or less from among them without paying their mana costs\.?$/i,
+      make: () => [{ op: 'exileTop', who: 'triggerPlayer', n: 'triggerAmount' }, { op: 'castFree', maxMv: 'triggerAmount' }] },
     /* Gale, Waterdeep Prodigy: "you may cast up to one target card of the other type from your graveyard. If a
        spell cast from your graveyard this way would be put into your graveyard, exile it instead." — the other of
        instant and sorcery than the spell the trigger is about, paying for it; the pick may be left empty (otherSpellType) */
@@ -11434,6 +11455,9 @@
     // Meriadoc Brandybuck: "Whenever one or more Halflings you control attack a player" (attackersOfTypeYours)
     // (Attuma, Atlantean Warlord: "one or more Merfolk" — a plural with no s: attackersOfTypeMerfolk)
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'youAttack', extraOf: (m) => ({ attackersOfType: singularType(m[1]) }) },
+    // Zurzoth, Chaos Rider: "Whenever one or more Devils you control attack one or more players" (attackersOfType, at a player)
+    { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack one or more players,? /, event: 'youAttack',
+      extraOf: (m) => ({ attackersOfType: singularType(m[1]), attackersOfTypeAtPlayer: true }) },
     // Neyali, Suns' Vanguard: "Whenever one or more tokens you control attack a player" (attackersFit)
     { re: /^Whenever one or more tokens you control attack a player,? /i, event: 'youAttack', extra: { attackersFit: 'token', attackPlayerOnly: true } },
     // Zuko, Firebending Master: "Whenever you cast a spell during combat" (duringCombat)
@@ -11812,8 +11836,9 @@
     { re: /^When(?:ever)? (?:equipped|enchanted) creature deals damage to (a player|an opponent)(?:,| )/i, event: 'equippedDealsDamage',
       extraOf: (m) => (/opponent/i.test(m[1]) ? { toOpponent: true } : {}) },
     { re: /^When(?:ever)? (?:equipped|enchanted) creature attacks(?:,| )/i, event: 'permAttacks', filt: () => ({ words: 'creature', equipped: true }) },
-    { re: /^When(?:ever)? an opponent draws their (second|third) card each turn(?:,| )/i, event: 'opponentDraw',
-      extraOf: (m) => ({ drawNth: /second/i.test(m[1]) ? 2 : 3 }) },
+    // (Zurzoth, Chaos Rider: "draws their first card each turn")
+    { re: /^When(?:ever)? an opponent draws their (first|second|third) card each turn(?:,| )/i, event: 'opponentDraw',
+      extraOf: (m) => ({ drawNth: /first/i.test(m[1]) ? 1 : /second/i.test(m[1]) ? 2 : 3 }) },
     // Valgavoth, Harrower of Souls: "Whenever an opponent loses life for the first time during each of their turns"
     { re: /^When(?:ever)? an opponent loses life for the first time during each of their turns,? /i, event: 'opponentLosesLife',
       extra: { firstLossThisTurn: true, theirTurn: true } },
@@ -16903,6 +16928,10 @@
         make: (m) => ({ op: 'grantWarp', words: [m[1], m[2]].filter(Boolean).map(w => w.toLowerCase()), cost: m[3] }), auto: true },
       // Green Goblin: "Each nonland card in your graveyard has mayhem. The mayhem cost is equal to its mana cost." (grantMayhem)
       { re: /^Each nonland card in your graveyard has mayhem\. The mayhem cost is equal to its mana cost\.?$/i, eff: { op: 'grantMayhem' }, auto: true },
+      /* Underworld Breach, The Master of Keys: "Each enchantment card in your graveyard has escape. The escape cost is
+         equal to the card's mana cost plus exile three other cards from your graveyard." (grantEscape, words) */
+      { re: /^Each (nonland|enchantment|creature|artifact|instant and sorcery|permanent) card in your graveyard has escape\. The escape cost is equal to (?:the card'?s|its) mana cost plus exile (\w+) other cards from your graveyard\.?$/i,
+        make: (m) => (typeof num(m[2]) === 'number' ? { op: 'grantEscape', exile: num(m[2]), words: m[1].toLowerCase().replace(' and ', ' or ') } : null), auto: true },
       // Wrenn and Six's emblem: "Instant and sorcery cards in your graveyard have retrace."
       { re: /^Instant and sorcery cards in your graveyard have retrace\.?$/i, eff: { op: 'grantRetraceInstSorc' }, auto: true },
       // Veyran, Voice of Duality

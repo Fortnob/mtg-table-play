@@ -3670,6 +3670,17 @@
       if (chb && ta.length) return true;
       return ta.some(t => tb.some(u => u.toLowerCase() === t.toLowerCase()));
     }
+    /* Zurzoth, Chaos Rider: "those players" — every player a creature of that type this player controls is attacking */
+    _playersAttackedByType(pid, type) {
+      const out = [];
+      for (const id of ((this.combat && this.combat.attackers) || [])) {
+        const x = this.obj(id);
+        const p = x && x.zone === 'battlefield' && x.controller === pid && this._hasCreatureType(x, type) && this.player(x.attacking);
+        if (p && !p.hasLost && !out.includes(p)) out.push(p);
+      }
+      return out;
+    }
+
     _hasCreatureType(o, type) {
       const a = o.analysis();
       if (!a || !type) return false;
@@ -4761,12 +4772,14 @@
           else if (MANA.cmc(g0.cost) < MANA.cmc(out[own].cost)) out[own] = use;
         }
       }
-      /* Underworld Breach: every nonland card in your graveyard has escape */
-      if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand &&
-          this.battlefield.some(x => x.controller === playerId && this._staticOp(x, 'grantEscape')) &&
-          !out.some(u => u.via === 'escape')) {
-        out.push({ kind: 'cast', via: 'escape', cost: a.manaCost || '', after: null, exileGrave: 3,
-          label: 'Escape (Underworld Breach)' });
+      /* Underworld Breach: every nonland card in your graveyard has escape
+         (The Master of Keys: "Each enchantment card" — words; its own count of other cards to exile) */
+      const breach = o.zone === 'graveyard' && o.owner === playerId && !a.isLand && !out.some(u => u.via === 'escape') &&
+        this.battlefield.find(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'grantEscape') &&
+          (!this._staticOp(x, 'grantEscape').words || this._cardFitsWords(o, this._staticOp(x, 'grantEscape').words)));
+      if (breach) {
+        out.push({ kind: 'cast', via: 'escape', cost: a.manaCost || '', after: null, exileGrave: this._staticOp(breach, 'grantEscape').exile || 3,
+          label: `Escape (${breach.name})` });
       }
       if (o.zone === 'graveyard' && o.owner === playerId && !a.isLand) {
         for (const ab of (a.abilities || [])) {
@@ -12124,7 +12137,8 @@
         case 'notYourTurn': return !!me && this.activePlayer && this.activePlayer.id !== me.id;
         case 'notTheirTurn': {
           const d = (ctx && ctx.triggerData) || {};
-          const who = d.player || d.playerId || d.caster;
+          // (Zurzoth, Chaos Rider: "an opponent draws …, if it's not their turn" — the one who drew)
+          const who = d.player || d.playerId || d.caster || d.drawer;
           return !!who && !!this.activePlayer && this.activePlayer.id !== who;
         }
         case 'selfRenowned': return !!src && !!src.renowned;
@@ -14207,6 +14221,8 @@
           if (ab.unreadWhile || (ab.whileCond && !this._condMet(ab.whileCond, { controller: o.controller, obj: o }))) continue;
           // Gahiji, Honored One: only an attack on one of this player's opponents (or their planeswalkers) (attacksYourOpp)
           if (ab.attacksYourOpp) { const dp = data.object && this._defenderOf(data.object); if (!dp || !this.opponentsOf(o.controller).some(q => q.id === dp.id)) continue; }
+          // Zurzoth, Chaos Rider: "attack one or more players" — a Devil of yours at a player, not only at a planeswalker
+          if (ab.attackersOfTypeAtPlayer && !this._playersAttackedByType(o.controller, ab.attackersOfType).length) continue;
           // Hermes: "with one or more Birds"
           if (ab.attackersOfType && !((this.combat && this.combat.attackers) || []).some(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); })) continue;
           // Bitter Work: one of yours with power 4 or greater, attacking a player (attackersMinPower)
@@ -14761,7 +14777,10 @@
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
         if (!pool.length) return null;
         // (Dragonlord Atarka: "5 damage divided as you choose among any number of …" — no more of them than there is damage, CR 601.2d)
-        const cap = e.op === 'damageDivided' && typeof e.n === 'number' ? Math.min(pool.length, e.n) : pool.length;
+        // (Ureni, the Song Unending: "X damage …, where X is the number of lands you control" — counted now)
+        const dmgN = e.op !== 'damageDivided' ? null : typeof e.n === 'number' ? e.n : e.n && e.n.scope ? this._countValue(e.n, ctx.controller, src || null) : null;
+        const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
+        if (cap <= 0) return null;
         const got = this._choose({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
           items: this._chooseItems(pool), min: 0, max: cap, optional: true,
           harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(e.op) || ((e.op === 'counters' || e.op === 'countersDivided') && /^-|stun/.test(e.kind || '')),
@@ -14927,6 +14946,9 @@
           // a Curse: "that player" is the one it enchants
           (src && src.attachedTo && this.player(src.attachedTo)) || null;
       };
+      // the triggered ability this is resolving, as its card reads it (Zurzoth, Chaos Rider: the type of attacker)
+      const triggerAbility = () => (ctx.obj && ctx.abilityIndex != null && ctx.abilityIndex >= 0 && !ctx.activated
+        ? ((ctx.obj.analysis() || {}).abilities || [])[ctx.abilityIndex] : null) || {};
       // "each creature that player controls": who "that player" is, for the group words
       // (or, with no player in it, the controller of what it targets: Public Execution)
       this._thatPlayer = ((triggerPlayer() || firstPlayer()) || {}).id ||
@@ -15548,6 +15570,8 @@
           // (Red Death, Shipwrecker: "goad target creature. That player draws a card." — the target's controller: drawTargetCtl)
           else if (e.who === 'targetController') { const fo = firstObj(); const p = this._lastAffectedController() || (fo && this.player(fo.controller)); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
+          // Zurzoth, Chaos Rider: "you and those players each draw a card" (youAndAttackedBy)
+          else if (e.who === 'youAndAttackedBy') for (const p of [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))) { if (!p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Baleful Mastery: "an opponent draws a card" — the caster picks which
           else if (e.who === 'anOpponent') {
@@ -15574,6 +15598,8 @@
           const who = e.who === 'opponents' ? this.opponentsOf(ctx.controller)
             : e.who === 'each' ? this.players.filter(p => !p.hasLost)
             : e.who === 'triggerPlayer' ? [triggerPlayer()]
+            // Zurzoth, Chaos Rider: "then discard a card at random" — you and those players (youAndAttackedBy)
+            : e.who === 'youAndAttackedBy' ? [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))
             // Alley Grifters: "defending player discards a card"
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
             // "Its controller discards a card": whoever controlled what was just destroyed,
@@ -21231,6 +21257,8 @@
             army = this.battlefield[this.battlefield.length - 1];
           }
           if (army) this.addCounters(army, '+1/+1', nVar(e.n));
+          // (Grishnákh, Brash Instigator: "the amassed Army" — for the sentence after)
+          if (army) this._lastAmassed = army.id;
           break;
         }
 
@@ -27774,6 +27802,12 @@
       if (spec.maxMvSourcePower) {
         const s0 = sourceId && this.obj(sourceId);
         return this._legalTargetsFor(Object.assign({}, spec, { maxMvSourcePower: false, maxMv: s0 ? Math.max(0, this.powerOf(s0)) : 0 }), controllerId, sourceId);
+      }
+      // Grishnákh, Brash Instigator: "with power less than or equal to the amassed Army's power", as it is now
+      if (spec.maxPowerAmassed) {
+        const army = this._lastAmassed && this.obj(this._lastAmassed);
+        return this._legalTargetsFor(Object.assign({}, spec, { maxPowerAmassed: false,
+          maxPower: army && army.zone === 'battlefield' ? this.powerOf(army) : (army ? army._lastPower || 0 : 0) }), controllerId, sourceId);
       }
       // Go-Shintai of Hidden Cruelty: "with toughness X or less, where X is the number of Shrines you control", counted now
       if (spec.maxToughnessCount) {
