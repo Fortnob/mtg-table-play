@@ -1384,6 +1384,9 @@
     { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
     { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
+    // Ashling, Rimebound: "Spend this mana only to cast spells with mana value 4 or greater."
+    { re: /^Spend this mana only to cast (creature )?spells with mana value (\d+) or greater\.?$/i,
+      make: (m) => ({ op: 'spendOnly', words: (m[1] ? 'creature ' : '') + 'spell with mana value ' + m[2] + ' or greater' }) },
     // Helga, Skittish Seer: "… creature spells with mana value 4 or greater or creature spells with {X} in their mana costs" (spendBigOrX)
     // (Troyan, Gutsy Explorer: "spells with mana value 5 or greater or spells with {X} in their mana costs" — spendAnyOrX)
     { re: /^Spend this mana only to cast (creature )?spells with mana value (\d+) or greater or (creature )?spells with \{X\} in their mana costs\.?$/i,
@@ -2005,6 +2008,10 @@
     // Malakir Bloodwitch: "Each opponent loses life equal to the number of Vampires you control."
     { re: /^Each opponent loses life equal to (the number of .+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'loseLife', who: 'opponents', n: k } : null; } },
+    /* Gollum, Obsessed Stalker: "each opponent dealt combat damage this game by a creature named Gollum, Obsessed Stalker
+       loses life equal to the amount of life you gained this turn" — who was hit is kept by name (hitByNamed) */
+    { re: /^Each opponent dealt combat damage this game by a creature named (CARDNAME|[^,]+(?:, [^,]+)?) loses life equal to (.+?)\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); return k ? { op: 'loseLife', who: 'opponents', n: k, hitByNamed: m[1] } : null; } },
     // Jaws of Defeat: "Target opponent loses life equal to the difference between that creature's power and its toughness."
     { re: /^Target (opponent|player) loses life equal to (.+?)\.?$/i,
       make: (m) => {
@@ -3140,6 +3147,13 @@
         if (n == null || n === false || !sp) return null;
         return { op: 'counters', kind: m[1].toLowerCase(), n, targets: [Object.assign(sp, m[3] ? { upTo: true } : {}, m[4] ? { another: true } : {})] };
       } },
+    // Betor, Ancestor's Voice: "put a number of +1/+1 counters on up to one other target creature you control equal to …" (read as "put X …, where X is …")
+    { re: /^Put X (\+1\/\+1|[a-z]+) counters on (up to one )?(other |another )?(target creature(?: you control)?), where X is (?!(?:CARDNAME|this creature)'?s power)(.+?)\.?$/i,
+      make: (m) => {
+        const n = amountOf(m[5]), sp = targetSpec(m[4]);
+        if (n == null || n === false || !sp) return null;
+        return { op: 'counters', kind: m[1].toLowerCase(), n, targets: [Object.assign(sp, m[2] ? { upTo: true } : {}, m[3] ? { another: true } : {})] };
+      } },
     { re: /^Put X (\+1\/\+1|[a-z]+) counters on ((?:another )?target creature(?: you control)?), where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: { ofSelf: 'power' }, targets: [targetSpec(m[2])] }) },
     // Hulk, Strongest There Is: "double the number of +1/+1 counters on each Gamma creature you control" (doubleCountersType)
@@ -3207,6 +3221,9 @@
        the battlefield." */
     { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent)) card with mana value less than or equal to (?:CARDNAME|this creature)'?s power from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvSourcePower: true }, m[1] ? { upTo: true } : {})] }) },
+    // Betor, Ancestor's Voice: "Return up to one target creature card with mana value less than or equal to the amount of life you lost this turn from your graveyard to the battlefield." (maxMvCount)
+    { re: /^Return (up to one )?target ([a-z ]*?(?:creature|permanent)) card with mana value less than or equal to (the amount of life you(?:'ve)? (?:lost|gained) this turn) from your graveyard to the battlefield\.?$/i,
+      make: (m) => { const k = amountOf(m[3]); return k ? { op: 'reanimate', targets: [Object.assign(targetSpec('target ' + m[2]), { zone: 'graveyard', controller: 'you', maxMvCount: k }, m[1] ? { upTo: true } : {})] } : null; } },
     /* Liquimetal Torque and friends: one more card type for the turn */
     { re: /^(target [a-z ]+?) becomes an? (artifact|enchantment|creature|land) in addition to its other types until end of turn\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'addTypes', types: [U.titleCase(m[2])], duration: 'eot', targets: [t] } : null; } },
@@ -16162,6 +16179,10 @@
       { re: /^Spells (you|your opponents) cast from (?:your |their )?graveyards? or from exile cost \{(\d+)\} (less|more) to cast\.?$/i,
         make: (m) => ({ op: 'taxSpells', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', amount: (/less/i.test(m[3]) ? -1 : 1) * +m[2],
           fromZones: ['graveyard', 'exile'] }), auto: true },
+      /* Fblthp, Lost on the Range: "The top card of your library has plot. The plot cost is equal to its mana cost." and
+         "You may plot nonland cards from the top of your library." (topPlot) */
+      { re: /^The top card of your library has plot\. The plot cost is equal to its mana cost\.?$/i, make: () => ({ op: 'topPlot' }), auto: true },
+      { re: /^You may plot nonland cards from the top of your library\.?$/i, make: () => ({ op: 'topPlot', nonland: true }), auto: true },
       // Doc Aurlock: "Plotting cards from your hand costs {2} less."
       { re: /^Plotting cards from your hand costs \{(\d+)\} less\.?$/i, make: (m) => ({ op: 'plotCostMod', amount: -(+m[1]) }), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."

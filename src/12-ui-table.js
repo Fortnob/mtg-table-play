@@ -399,6 +399,7 @@
       for (const p of v.players)
         for (const z of ['hand', 'graveyard', 'exile', 'command'])
           { const f = (p[z] || []).find(x => x.id === id); if (f) return f; }
+      for (const p of v.players) if (p.topCard && p.topCard.id === id) return p.topCard;
       return null;
     }
 
@@ -415,6 +416,8 @@
           const f = (p[z] || []).find(x => x.id === id);
           if (f) return { zone: z, player: p.id, o: f };
         }
+        // the top of a library, where it is shown (Fblthp, Lost on the Range: plotted from there)
+        if (p.topCard && p.topCard.id === id) return { zone: 'library', player: p.id, o: p.topCard };
       }
       return null;
     }
@@ -1263,7 +1266,13 @@
           type: 'button', class: 'pile ' + zone + (n ? '' : ' empty'),
           dataset: { pile: p.id + '/' + zone },
           title: `${label}: ${n}`, 'aria-label': `${p.name} ${label.toLowerCase()}, ${n} card${n === 1 ? '' : 's'}`,
-          onclick: () => { if (zone !== 'library') this.openZone(p, zone); },
+          onclick: (e) => {
+            if (zone !== 'library') return this.openZone(p, zone);
+            /* the top card of your library, when it can be played or plotted from there (Fblthp, Lost on the Range) */
+            const live = this.live || this.view;
+            const tc = top && mine && ((live.playable || []).includes(top.id) || ((live.uses || {})[top.id] || []).length) ? top : null;
+            if (tc) this.cardMenu(tc.id, e);
+          },
         }, [
           el('div', { class: 'pile-card' + (top ? '' : ' back') }),
           el('span', { class: 'pile-n', text: String(n) }),
@@ -3160,6 +3169,12 @@
           if (use.kind === 'cast') items.push([use.label, () => this.castUse(o, a, use)]);
           if (use.kind === 'encore') items.push([use.label, () => this.send({ kind: 'encore', objId: o.id })]);
         }
+      } else if (loc.zone === 'library' && mine) {
+        // the top of your library: played from there, or plotted (Fblthp, Lost on the Range)
+        if ((live.playable || []).includes(o.id) && !((live.uses || {})[o.id] || []).length) {
+          items.push([a && a.isLand ? 'Play this land' : 'Cast it', () => this.playFromHand(o)]);
+        }
+        for (const use of ((live.uses || {})[o.id] || [])) if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
       } else if (loc.zone === 'command' && mine && o.companion) {
         // the companion, revealed outside the game: {3} into your hand, once a game, when you could cast a sorcery
         items.push(['Put it into your hand ({3})', () => this.useCompanion(o)]);

@@ -1441,7 +1441,9 @@
         if (!/Instant/.test(sp.type_line || '') && this._sorcerySpeedBlock(playerId)) continue;
         out.push({ kind: 'cast', objId: o.id, via: 'prepared' });
       }
-      const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell'));
+      const fromTop = z.library.slice(0, 1).filter(o => this._playFromRule(playerId, o, 'spell') ||
+        // Fblthp, Lost on the Range: plotted from the top of your library (topPlot)
+        this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'topPlot')));
       // (The Great Work: the instants and sorceries in other players' graveyards too)
       for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, this._borrowedGraveyard(playerId))) {
         /* Cycling and flashback are things you can do with this card that
@@ -4588,6 +4590,14 @@
         const f1 = o.card.card_faces[1];
         out.push({ kind: 'cast', via: 'aftermath', cost: f1.mana_cost || '', after: 'exile', face: 1, label: 'Aftermath: ' + f1.name + ' ' + (f1.mana_cost || '') });
       }
+      /* Fblthp, Lost on the Range: "The top card of your library has plot. The plot cost is equal to its mana cost." —
+         and "You may plot nonland cards from the top of your library", for that cost or the card's own plot cost (topPlot) */
+      const topPlot = o.zone === 'library' && o.owner === playerId && !a.isLand && (this.zones[playerId] || {}).library[0] === o &&
+        this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._staticOp(x, 'topPlot'));
+      if (topPlot) {
+        const pc = String(a.manaCost || '').replace(/\{X\}/gi, '');
+        out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, disturb: 'exile', unearth: 'exile', embalm: 'exile', eternalize: 'exile',
         madness: null };
@@ -4628,10 +4638,10 @@
         /* Plot (CR 702.169): pay on one turn, cast for nothing on a later
            one. Warp (CR 702.180): cheap now, exiled at end of turn, and
            castable again from there afterwards. */
-        if (o.zone === 'hand' && arg && k === 'plot') {
+        if ((o.zone === 'hand' || topPlot) && arg && k === 'plot') {
           // Doc Aurlock: plotting costs less
           let pc = arg;
-          for (const x of this.battlefield) {
+          for (const x of o.zone === 'hand' ? this.battlefield : []) {
             if (x.controller !== playerId || x.phasedOut) continue;
             const pm = this._staticOp(x, 'plotCostMod');
             if (pm && pm.amount < 0) pc = this._addGeneric(pc, pm.amount) || '';
@@ -4965,8 +4975,13 @@
      */
     plotCard(playerId, objId, opts) {
       const o = this.obj(objId);
-      if (!o || o.zone !== 'hand' || o.controller !== playerId) return this.fail('That is not in your hand.');
-      const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'plot');
+      // (Fblthp, Lost on the Range: the top card of your library too — topPlot)
+      const top = o && o.zone === 'library' && o.owner === playerId && this.zones[playerId].library[0] === o;
+      if (!o || !(top || (o.zone === 'hand' && o.controller === playerId))) return this.fail('That is not in your hand.');
+      const uses = this.altUsesFor(playerId, objId).filter(x => x.kind === 'plot');
+      // Fblthp: its mana cost, or the card's own plot cost — the cheaper one that can be paid now
+      const mv = (c) => (String(c || '').match(/\{[^}]+\}/g) || []).reduce((k, x) => k + (/^\{\d+\}$/.test(x) ? +x.slice(1, -1) : 1), 0);
+      const use = uses.filter(x => this.canPayNow(playerId, x.cost, { forSpell: o })).sort((x, y) => mv(x.cost) - mv(y.cost))[0] || uses[0];
       if (!use) return this.fail('That card cannot be plotted.');
       const why = this._sorcerySpeedBlock(playerId);
       if (why) return this.fail(why);
@@ -10218,6 +10233,9 @@
             for (const foe of this.opponentsOf(as.source.controller)) this.changeLife(foe, -3, 'ring');
             this.logEvent('rules', `${as.source.name} carries the Ring: each opponent loses 3 life.`);
           }
+          // Gollum, Obsessed Stalker: the names of the creatures that dealt this player combat damage this game (hitByNamed)
+          { const hp = this.player(as.targetId), nm = as.source.name;
+            if (hp && nm && !(hp.combatHitByNames || []).includes(nm)) hp.combatHitByNames = (hp.combatHitByNames || []).concat(nm); }
           this._fire('combatDamageToPlayer', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId });
           this._cipherHits(as.source);
           this._fire('yourCreatureCombatDamage', as.source.controller, { source: as.source, amount: as.amount, player: as.targetId, object: as.source });
@@ -15185,6 +15203,19 @@
               break;
             }
           }
+          /* Ashling, Rimebound: "add two mana of any one color" as a trigger resolves (not a mana ability: it used the
+             stack) — a person names the colour; a bot keeps to the one it wants most */
+          if (this.resolving && this.resolving.ctx === ctx && !me.isBot && !(ctx.manaChoice && pool.includes(ctx.manaChoice)) && pool.length > 1) {
+            const NAMES = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+            const got = this._choose({ playerId: ctx.controller, purpose: 'manaColor', kind: 'options', min: 1, max: 1,
+              options: pool.map((x, i) => ({ i, label: `{${x}} ${NAMES[x]}` })),
+              prompt: `You add ${amt === 1 ? 'one mana' : amt + ' mana'} of any${amt > 1 ? ' one' : ''} colour: choose the colour.` }, 'mcol');
+            if (got === SUSPEND) return SUSPEND;
+            const c = pool[(got && got.picks && got.picks[0]) || 0] || color;
+            for (let i = 0; i < amt; i++) me.pool.add(c);
+            this.logEvent('mana', `${me.name} adds ${('{' + c + '}').repeat(amt)}.`);
+            break;
+          }
           for (let i = 0; i < amt; i++) me.pool.add(color);
           break;
         }
@@ -15444,6 +15475,11 @@
               const k = ((this.combat && this.combat.attackers) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.attacking === p.id).length;
               if (k > 0) this.changeLife(p, -k);
             }
+          }
+          // Gollum, Obsessed Stalker: "each opponent dealt combat damage this game by a creature named Gollum" (hitByNamed)
+          else if (e.who === 'opponents' && e.hitByNamed) {
+            const nm = e.hitByNamed === 'CARDNAME' ? src && src.name : e.hitByNamed;
+            for (const p of this.opponentsOf(ctx.controller)) if ((p.combatHitByNames || []).includes(nm) && cnt > 0) this.changeLife(p, -cnt);
           }
           // Tinybones, Trinket Thief: "Each opponent with no cards in hand" (emptyHanded)
           else if (e.who === 'opponents' && e.emptyHanded) { for (const p of this.opponentsOf(ctx.controller)) if (!((this.zones[p.id] || {}).hand || []).length) this.changeLife(p, -cnt); }
@@ -28434,7 +28470,9 @@
           const prepared = this.battlefield.filter(o => o.controller === playerId && o.prepared);
           // (the command zone too: Yuriko's commander ninjutsu)
           // (The Great Work: an opponent's instant or sorcery card that may be cast from their graveyard)
-          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), this._borrowedGraveyard(playerId), prepared, z.command || [])) {
+          // (Fblthp, Lost on the Range: the top card of your library, while you may look at it — topPlot)
+          const top = z.library.length && this._topCardShown(playerId, playerId) ? z.library.slice(0, 1) : [];
+          for (const o of z.hand.concat(z.graveyard, z.exile, this._borrowedExile(playerId), this._borrowedGraveyard(playerId), prepared, z.command || [], top)) {
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
