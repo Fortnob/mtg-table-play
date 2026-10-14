@@ -3384,6 +3384,8 @@
             // Krosan Drover: "with mana value 6 or greater"; Warden of Evos Isle: "with flying"
             if (e.minMv != null && !(((o.card && o.card.cmc) || 0) >= e.minMv)) continue;
             if (e.withKeyword && !(a.keywordSet && a.keywordSet.has(e.withKeyword))) continue;
+            // Doran, Besieged by Time: "with toughness greater than its power", as the spell is
+            if (e.toughGtPower && !(parseInt(a.toughness, 10) > parseInt(a.power, 10))) continue;
             // Savvy Trader: "from anywhere other than your hand"
             if (e.notFromZones && e.notFromZones.includes(o.zone)) continue;
             // Centaur Omenreader: "As long as this creature is tapped, …"
@@ -17878,7 +17880,8 @@
           const trigIt = e.maxMvTrigger ? (tdT.objectId && this.obj(tdT.objectId)) : null;
           const yourNames = e.notNamedYour ? new Set(this.battlefield.filter(o => !o.phasedOut && o.controller === seeker.id && this._cardFitsWords(o, e.notNamedYour)).map(o => o.name)) : null;
           // Bribery: a search of an opponent's library, for the searcher
-          const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : seeker.id];
+          // (Thada Adel, Acquisitor: "search that player's library" — the player the trigger is about)
+          const z = this.zones[e.libOf === 'target' ? ((firstPlayer() || seeker).id) : e.libOf === 'triggerPlayer' ? ((triggerPlayer() || seeker).id) : seeker.id];
           const want = String(e.filter || 'any').toLowerCase();
           const mvOf = (c) => (c.card && c.card.cmc) || 0;
           const matches = (c) => {
@@ -18017,6 +18020,8 @@
               if (c.zone === 'battlefield' && taken.length === 1 && !(ctx.resolvedTargets || []).length) ctx.resolvedTargets = [{ kind: 'object', id: c.id }];
             }
             else if (where === 'graveyard') this.moveObject(c, 'graveyard', { controller: seeker.id });
+            // Thada Adel, Acquisitor: "and exile it" — the card the next sentence may let you play
+            else if (where === 'exile') { this.moveObject(c, 'exile'); this._lastExiled = c.id; this._lastExiledList = [c.id]; }
             // Praetor's Grasp: face down in exile, for the searcher to look at and play
             else if (where === 'exilePlayable') {
               this.moveObject(c, 'exile');
@@ -18127,22 +18132,26 @@
         /* Lively Dirge: "up to two creature cards with total mana value 4 or
            less" — chosen as it resolves; whatever would go over is left */
         case 'reanimateChosen': {
+          // (Nethroi, Apex of Death: "with total power 10 or less" — totalPower)
+          const pw = (c) => Math.max(0, this.powerOf(c) || 0);
           const pool = this.zones[ctx.controller].graveyard.filter(c => this._matchesCategory(c, e.what) &&
-            (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv));
+            (e.totalMv == null || ((c.card && c.card.cmc) || 0) <= e.totalMv) && (e.totalPower == null || pw(c) <= e.totalPower));
           if (!pool.length) break;
           // (Phoenix, Warden of Fire: "any number of" — n 'any'; the total mana value held to as they are picked)
           const anyR = e.n === 'any';
           const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'reanimate', kind: 'objects', zone: 'graveyard',
             items: this._chooseItems(pool), min: 0, max: anyR ? pool.length : Math.min(n(e.n) || 1, pool.length),
-            prompt: `Return ${anyR ? 'any number of' : 'up to ' + n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') + ' to the battlefield.' },
-            e.totalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'mana value' }] } : {}), 'pick');
+            prompt: `Return ${anyR ? 'any number of' : 'up to ' + n(e.n)} ${e.what} cards` + (e.totalMv != null ? ` with total mana value ${e.totalMv} or less` : '') +
+              (e.totalPower != null ? ` with total power ${e.totalPower} or less` : '') + ' to the battlefield.' },
+            e.totalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'mana value' }] }
+              : e.totalPower != null ? { constraints: [{ kind: 'sum', key: 'power', max: e.totalPower, label: 'power' }] } : {}), 'pick');
           if (got === SUSPEND) return SUSPEND;
           let total = 0;
           for (const id of (got && got.picks) || []) {
             const x = this.obj(id);
             if (!x || !pool.includes(x) || x.zone !== 'graveyard') continue;
-            const mv = (x.card && x.card.cmc) || 0;
-            if (e.totalMv != null && total + mv > e.totalMv) continue;
+            const mv = e.totalPower != null ? pw(x) : (x.card && x.card.cmc) || 0;
+            if ((e.totalPower != null ? e.totalPower : e.totalMv) != null && total + mv > (e.totalPower != null ? e.totalPower : e.totalMv)) continue;
             total += mv;
             this.moveObject(x, 'battlefield', { controller: ctx.controller });
             this.logEvent('reanimate', `${me.name} returns ${x.name} to the battlefield.`);

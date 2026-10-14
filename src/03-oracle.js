@@ -1291,6 +1291,9 @@
     /* --- searching a library, in all the shapes it gets printed in --- */
     { re: /^(?:You may )?[Ss]earch your library for .+$/, make: (m) => parseSearch(m[0]) },
     { re: /^Search target opponent'?s library for .+$/i, make: (m) => parseSearch(m[0]) },
+    // Thada Adel, Acquisitor: "search that player's library for an artifact card and exile it" (libOf triggerPlayer)
+    { re: /^Search that player'?s library for an? ([a-z ]+?) card and exile it\.?$/i,
+      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), libOf: 'triggerPlayer', to: 'exile' }) },
     { re: /^Its controller (?:may )?search(?:es)? their library for .+$/i, make: (m) => parseSearch(m[0]) },
     { re: /^That player (?:may )?search(?:es)? their library for .+$/i, make: (m) => parseSearch(m[0]) },
 
@@ -4845,6 +4848,9 @@
        graveyard to the battlefield." — picked as it resolves, as "any number of target" is here (anyNumber) */
     { re: /^Return any number of target ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: 'any', what: m[1].toLowerCase(), totalMv: +m[2] }) },
+    // Nethroi, Apex of Death: "return any number of target creature cards with total power 10 or less from your graveyard to the battlefield" (totalPower)
+    { re: /^Return any number of target creature cards with total power (\d+) or less from your graveyard to the battlefield\.?$/i,
+      make: (m) => ({ op: 'reanimateChosen', n: 'any', what: 'creature', totalPower: +m[1] }) },
     /* "Put target creature on the top or bottom of its owner's library":
        the one who resolves it chooses; "its owner puts it on their choice
        of the top or bottom" is the owner's choice */
@@ -6442,7 +6448,8 @@
       m[2] ? { addTypes: [U.titleCase(m[2])] } : {}) },
     /* Bonehoard Dracosaur: "If you exiled a land card this way, create …" */
     // (Ardyn, the Usurper: "If you exiled a card this way" — any card, the "up to one" not left at none)
-    { re: /^If you exiled an? (?:(land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) )?card this way, (.+?)\.?$/i,
+    // (Cait Sith, Fortune Teller: "When you exile a card this way, …" — a reflexive trigger, read as "if you do")
+    { re: /^(?:If you exiled|When you exile) an? (?:(land|nonland|creature|noncreature|artifact|instant|sorcery|instant or sorcery) )?card this way, (.+?)\.?$/i,
       make: (m) => {
         const then = parseEffects(m[2].charAt(0).toUpperCase() + m[2].slice(1) + '.');
         if (!then.auto) return null;
@@ -7114,7 +7121,8 @@
     if ((m = p.match(/^the (power|toughness|mana value) of the sacrificed (?:creature|artifact|permanent|land)$/i)))
       return done({ ofSacrificed: STAT[m[1].toLowerCase()] });
     // Jaws of Defeat: "the difference between that creature's power and its toughness" (ofTrigger 'ptDiff')
-    if (/^the difference between (?:that creature|its)'?s? power and its toughness$/i.test(p)) return done({ ofTrigger: 'ptDiff' });
+    // (Doran, Besieged by Time: "the difference between its power and toughness")
+    if (/^the difference between (?:that creature|its)'?s? power and (?:its )?toughness$/i.test(p)) return done({ ofTrigger: 'ptDiff' });
     // the creature the trigger is about: "that creature's power", "its power"
     if ((m = p.match(/^(?:its|that creature's|that permanent's|the creature's|that spell's) (power|toughness|mana value)$/i)))
       return done({ ofTrigger: STAT[m[1].toLowerCase()] });
@@ -9320,6 +9328,9 @@
        Warden of Evos Isle: "Creature spells with flying you cast";
        Gravebreaker Lamia: "Spells you cast from your graveyard";
        Savvy Trader: "Spells you cast from anywhere other than your hand" */
+    // Doran, Besieged by Time: "Each creature spell you cast with toughness greater than its power" (toughGtPower)
+    const tgp = s.match(/ with toughness greater than its power(?= costs?)/i);
+    if (tgp) s = s.replace(tgp[0], '');
     const mvq = s.match(/ with mana value (\d+) or greater(?= costs?)/i);
     if (mvq) s = s.replace(mvq[0], '');
     const flq = s.match(/ spells with flying(?= you cast )/i);
@@ -9330,7 +9341,8 @@
     const otherQ = /^Other /.test(s);
     if (otherQ) s = s.replace(/^Other (.)/, (x, c) => c.toUpperCase());
     const extra = Object.assign({}, mvq ? { minMv: +mvq[1] } : {}, flq ? { withKeyword: 'flying' } : {},
-      fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {});
+      fromq ? (/graveyard/i.test(fromq[1]) ? { fromZones: ['graveyard'] } : { notFromZones: ['hand'] }) : {}, otherQ ? { other: true } : {},
+      tgp ? { toughGtPower: true } : {});
     const m = s.match(/^(?:Each )?([A-Za-z ,]*?)\s*spells? (you cast |your opponents cast |each opponent casts |an opponent casts )?(of the chosen type )?(?:that'?s ([a-z ,]+?) )?costs? \{(\d+|[WUBRG])\} (more|less) to cast$/i);
     if (!m) return null;
     const CARD_WORD = /^(?:or|creature|noncreature|artifact|nonartifact|enchantment|instant|sorcery|legendary|historic|white|blue|black|red|green|colorless|multicolored|planeswalker|land|aura|equipment|vehicle|kindred|commander)$/;
@@ -11602,6 +11614,9 @@
     // Amulet of Vigor: "Whenever a permanent you control enters tapped"
     { re: /^When(?:ever)? a permanent you control enters tapped,? /i, event: 'permEnters',
       filt: () => ({ who: 'you', words: 'permanent' }), extra: { enteredTapped: true } },
+    // Doran, Besieged by Time: "Whenever a creature you control attacks or blocks"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks or blocks(?:,| )', 'i'),
+      event: 'permAttacks', also: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
