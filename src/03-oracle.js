@@ -7262,6 +7262,16 @@
       // ("other than Shaun" is "another")
       make: (m) => { const spec = targetSpec(m[1].replace(/^target (.+?) other than (?:CARDNAME|this creature)$/, 'another target $1')); return spec && !spec.unknown
         ? { op: 'copyPermanent', n: 1, grant: [], tapped: true, attacking: true, nonLegendary: true, addSubtypes: [m[2]], addTypes: ['Artifact', 'Creature'], targets: [spec] } : null; } },
+    /* Saheeli, Radiant Creator: "create a token that's a copy of target permanent you control, except it's a 5/5
+       artifact creature in addition to its other types and has haste." */
+    { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ((?:artifact |enchantment )*)creature in addition to its other types(?: and has ([a-z ,]+?))?\.?$/i,
+      make: (m) => {
+        const spec = targetSpec(m[1]);
+        const kws = m[5] ? keywordList(m[5]) : [];
+        if (!spec || spec.unknown || spec.zone !== 'battlefield' || !kws.every(kwKnown)) return null;
+        const types = m[4].trim().split(/\s+/).filter(Boolean).map(x => x.charAt(0).toUpperCase() + x.slice(1)).concat('Creature');
+        return { op: 'copyPermanent', n: 1, targets: [spec], setPt: m[2] + '/' + m[3], addTypes: types, grant: kws };
+      } },
     // Firion, Wild Rose Warrior: "create a token that's a copy of it, except it has "…"" — the Equipment the trigger is about
     { re: /^Create a token that'?s a copy of it, except it has "([^"]+)"\.?$/i,
       make: (m) => (grantableText(m[1]) ? { op: 'copyPermanent', n: 1, grant: [], addText: [m[1]], scope: 'triggerObject' } : null) },
@@ -9196,6 +9206,13 @@
         const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Artifact — Equipment', oracle_text: text, keywords: [U.titleCase(m[2])], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
         return [{ op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Artifact — Equipment', text } }];
+      } },
+    /* Saheeli, Radiant Creator: "you may pay {E}{E}{E}. When you do, create a token that's a copy of …. Sacrifice it at
+       the beginning of the next end step." — the sacrifice is the reflexive trigger's too: nothing made, nothing to sacrifice */
+    { re: /^you may pay ((?:\{[0-9WUBRGCE]\})+)\. When you do, ([^.]+\.) (Sacrifice (?:it|that token) at the beginning of the next end step\.)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1) + ' ' + m[3]));
+        return inner.auto && inner.effects.length ? [{ op: 'mayPay', pay: { mana: m[1].toUpperCase() }, then: inner.effects }] : null;
       } },
     // Scheming Symmetry: "Choose two target players. Each of them searches their library for a card, then shuffles and puts that card on top."
     { re: /^Choose two target players\. Each of them searches their library for a card, then shuffles and puts that card on top\.$/i,
@@ -13421,6 +13438,8 @@
       event: 'youCastSpell', filt: (m) => spellFilter(m[1] + ' of the chosen type') },
     // The Twelfth Doctor: "Whenever you copy a spell"
     { re: /^Whenever you copy a spell,? /i, event: 'youCopySpell' },
+    // Kalamax, the Stormsire: "Whenever you copy an instant spell"
+    { re: /^Whenever you copy (?:a|an) ([a-zA-Z ,-]+?) spell,? /i, event: 'youCopySpell', filt: (m) => spellFilter(m[1] + ' ') },
     { re: /^When(?:ever)? you cast or copy (?:a|an) ([a-zA-Z ,-]*?)spell, /i,
       event: 'youCastSpell', also: 'youCopySpell', filt: (m) => spellFilter(m[1]) },
     // Dragonlord Kolaghan: "Whenever an opponent casts a creature or planeswalker spell with the same name as a card in their graveyard" (sameNameInGraveyard)
