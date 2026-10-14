@@ -3687,6 +3687,12 @@
       make: (m) => ({ op: 'exile', sameGraveyard: true, targets: Array.from({ length: num(m[1]) }, (_, i) => Object.assign({ type: 'permanent', filter: 'card', zone: 'graveyard', controller: 'opponent', distinct: true }, i ? { sameControllerAsPrev: true } : {})) }) },
     // Gruul Charm: "Gain control of all permanents you own."
     { re: /^Gain control of all permanents you own\.?$/i, make: () => ({ op: 'gainControlOwned' }) },
+    // Tevesh Szat, Doom of Fools: "Gain control of all commanders. Put all commanders from the command zone onto the battlefield under your control."
+    { re: /^Gain control of all commanders\.?$/i, make: () => ({ op: 'gainControlCommanders' }) },
+    { re: /^Put all commanders from the command zone onto the battlefield under your control\.?$/i, make: () => ({ op: 'commandersToBattlefield' }) },
+    // Tevesh Szat: "draw two cards, then draw another card if the sacrificed permanent was a commander"
+    { re: /^Draw (a card|two cards|three cards), then draw another card if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[2]); return c ? [{ op: 'draw', n: num(m[1].split(' ')[0]) || 1, who: 'you' }, { op: 'ifCond', cond: c, then: [{ op: 'draw', n: 1, who: 'you' }] }] : null; } },
     // Rustler Rampage: "Untap all creatures target player controls."
     { re: /^Untap all creatures target player controls\.?$/i,
       make: () => ({ op: 'untapAll', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
@@ -4490,6 +4496,9 @@
       make: (m) => ({ op: 'extraCombat', count: 1, withMain: !!m[1], inMain: true }) },
     { re: /^If it'?s your combat phase, there is an additional combat phase after this phase\.?$/i,
       make: () => ({ op: 'extraCombat', count: 1, inCombat: true }) },
+    // Tifa, Martial Artist: "If it's the first combat phase of your turn, there is an additional combat phase after this phase."
+    { re: /^If it'?s the first combat phase of your turn, there is an additional combat phase after this phase\.?$/i,
+      make: () => ({ op: 'extraCombat', count: 1, inCombat: true, firstOnly: true }) },
     // Y'shtola Rhul: "Then if it's the first end step of the turn, there is an additional end step after this step."
     { re: /^(?:Then )?if it'?s the first end step of the turn, there is an additional end step after this step\.?$/i,
       make: () => ({ op: 'extraEndStep', ifFirst: true }) },
@@ -5911,6 +5920,9 @@
     // Allosaurus Shepherd: "Until end of turn, each Elf creature you control has base power and toughness 5/5 and becomes a Dinosaur in addition to its other creature types."
     { re: /^Until end of turn, each ([A-Z][a-z]+) creature you control has base power and toughness (\d+)\/(\d+)(?: and becomes an? ([A-Z][a-z]+) in addition to its other creature types)?\.?$/,
       make: (m) => Object.assign({ op: 'setBaseAll', p: +m[2], t: +m[3], subtype: m[1] }, m[4] ? { addSubtype: m[4] } : {}) },
+    // Sephiroth, Fallen Hero: "Until end of turn, each modified creature you control has base power and toughness 7/5." — those modified now
+    { re: /^Until end of turn, each modified creature you control has base power and toughness (\d+)\/(\d+)\.?$/i,
+      make: (m) => ({ op: 'setBaseAll', p: +m[1], t: +m[2], modified: true }) },
     // All Is Dust: "Each player sacrifices all permanents they control that are one or more colors."
     { re: /^Each player sacrifices all permanents they control that are one or more colou?rs\.?$/i, make: () => ({ op: 'sacrificeColored' }) },
     // Fell the Mighty: "Destroy all creatures with power greater than target creature's power."
@@ -9483,7 +9495,8 @@
         const usesX = JSON.stringify(tp.effects).includes('"X"');
         if (tp.auto && (!usesX || xv)) {
           swapX(tp.effects);
-          effects.push({ op: 'may', text: s + ' ' + next, then: [{ op: 'sacThen', filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects }] });
+          // (one question: which to sacrifice, or none — not a yes and then a pick)
+          effects.push({ op: 'sacThen', optional: true, filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects, text: s + ' ' + next });
           i++;
           continue;
         }
@@ -10335,7 +10348,8 @@
     [/^(?:CARDNAME|this creature|this permanent|it) (is|isn'?t|is not) a token$/i, (m) => ({ kind: 'selfIsToken', not: !/^is$/i.test(m[1]) })],
     // Nasty End: "the sacrificed creature was legendary"
     // (Falkenrath Aristocrat, Evereth, Hellish Sideswipe: "was a Human", "was a Treasure", "was a Vehicle" — sacrificedSubtype)
-    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
+    // (Tevesh Szat, Doom of Fools: "the sacrificed permanent was a commander")
+    [/^the sacrificed (?:creature|permanent|artifact) was (legendary|an? (?:artifact|creature|enchantment|commander)|an? [A-Z][a-z]+)$/, (m) => ({ kind: 'sacrificedWas', what: m[1].replace(/^an? /i, '').toLowerCase() })],
     // Twenty-Toed Toad: "there are twenty or more counters on it or you have twenty or more cards in hand"
     [/^there are (\w+) or more counters on (?:it|CARDNAME|this (?:creature|artifact|permanent))(?: or you have (\w+) or more cards in hand)?$/i, (m) => {
       const k = num(m[1]);
@@ -12501,8 +12515,12 @@
         /* "…this way" points back at the sentence before it, so the two
            halves have to be read together rather than one at a time. */
         const linked = /\b(?:If you (?:do|don'?t)|When you do)\b/i.test(body) || /\bthis way\b/i.test(body);
-        const optional = !linked && /^you may /i.test(body);
-        const parsed = parseEffects(optional ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
+        /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, each modified
+           creature …" — the second sentence happens either way: only the first step is asked (mayStep) */
+        const mayFirst = !linked && /^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body);
+        const optional = !linked && !mayFirst && /^you may /i.test(body);
+        const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
+        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
         // the pair the "if" clause names is the pair that melds (meldPair)
         const meldPair = [].concat(condition || []).find(c => c && c.kind === 'meldPair');
         if (meldPair) {
@@ -16436,6 +16454,8 @@
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },
       { re: /^The "legend rule" doesn'?t apply to permanents you control\.?$/i, eff: { op: 'noLegendRule' }, auto: true },
+      // The Master, Multiplied: "Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control."
+      { re: /^Triggered abilities you control can'?t cause you to sacrifice or exile creature tokens you control\.?$/i, eff: { op: 'triggersSpareTokens' }, auto: true },
       // Cadric, Council of Reeds, Sliver Gravemother: "… doesn't apply to tokens / creatures / Slivers you control"
       { re: /^The "legend rule" doesn'?t apply to ((?:creature )?tokens|creatures|artifacts|[A-Z][a-z]+s) you control\.?$/,
         make: (m) => ({ op: 'noLegendRule', words: m[1].toLowerCase() }), auto: true },

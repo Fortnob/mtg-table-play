@@ -1213,7 +1213,8 @@
       for (const o of this.battlefield.slice()) {
         if (o.sacAtEndOfTurn === this.turn) {
           o.sacAtEndOfTurn = null;
-          if (!this._canSacrifice(o)) continue;
+          // (The Master, Multiplied: the sacrifice at the next end step is a delayed trigger of its controller's)
+          if (!this._canSacrifice(o) || this._spareFromTrigger(o, true)) continue;
           this.logEvent('sacrifice', `${o.name} is sacrificed at end of turn.`);
           this.moveObject(o, 'graveyard');
           continue;
@@ -7734,7 +7735,20 @@
     }
     /** Alexios, Deimos of Kosmos, Hithlain Rope: "can't be sacrificed" — not a choice, and not gone if picked anyway. */
     // (Slicer, Hired Muscle: "it can't be sacrificed this turn" — the flag till end of turn)
-    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && (this._staticOp(x, 'unsacrificable') || this._hasFlag(x, 'unsacrificable'))); }
+    _canSacrifice(x) { return !(x && x.zone === 'battlefield' && (this._staticOp(x, 'unsacrificable') || this._hasFlag(x, 'unsacrificable') || this._spareFromTrigger(x))); }
+    /** The Master, Multiplied: does its controller have "Triggered abilities you control can't cause you to sacrifice or exile creature tokens you control"? */
+    _sparesTokens(pid) {
+      return this.battlefield.some(s => s.controller === pid && !s.phasedOut && this._staticOp(s, 'triggersSpareTokens'));
+    }
+    /** …and is this a creature token of theirs that a triggered ability of theirs, resolving now (or one due at a step: delayed), would sacrifice or exile? */
+    _spareFromTrigger(x, delayed) {
+      if (!x || x.zone !== 'battlefield' || !x.isToken) return false;
+      if (!delayed) {
+        const c = this.resolving && this.resolving.ctx;
+        if (!c || !c.triggered || c.controller !== x.controller) return false;
+      }
+      return this._sparesTokens(x.controller) && !!(this.characteristics(x) || {}).isCreature;
+    }
     /** The cards in hand a discard cost could take. */
     _discardPool(pid, spec, self, opts) {
       const hand = ((this.zones[pid] || {}).hand || []).filter(c => !self || c.id !== self.id);
@@ -8093,6 +8107,8 @@
         if (!x || x.zone !== 'battlefield') continue;
         snaps.push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x),
           mv: (x.card && x.card.cmc) || 0, types: ((x.analysis() || {}).types || []).slice(), legendary: !!(x.analysis() || {}).isLegendary,
+          // (Tevesh Szat, Doom of Fools: "if the sacrificed permanent was a commander")
+          commander: !!x.isCommander,
           // (Falkenrath Aristocrat: "if the sacrificed creature was a Human" — sacrificedSubtype)
           subtypes: ((x.analysis() || {}).subtypes || []).slice(),
           // (a changeling is every creature type, as it was sacrificed: CR 702.73a, 608.2h)
@@ -10049,11 +10065,13 @@
       // myriad's copies
       for (const o of this.battlefield.slice()) {
         if (!o.exileAtEndOfCombat) continue;
+        // (The Master, Multiplied: "exile the tokens at end of combat" is a triggered ability of their controller's)
+        if (this._spareFromTrigger(o, true)) { o.exileAtEndOfCombat = false; this.logEvent('rules', `${o.name} stays: a triggered ability of its controller can't exile it.`); continue; }
         this.moveObject(o, 'exile');
         this.logEvent('rules', `${o.name} is exiled at end of combat.`);
       }
       for (const o of this.battlefield.slice()) {
-        if (!o.sacAtEndOfCombat || !this._canSacrifice(o)) continue;
+        if (!o.sacAtEndOfCombat || !this._canSacrifice(o) || this._spareFromTrigger(o, true)) continue;
         this.moveObject(o, 'graveyard');
         this.logEvent('sacrifice', `${o.name} is sacrificed at end of combat.`);
       }
@@ -10972,6 +10990,7 @@
           const sn = ((ctx && ctx.sacrificed) || (ctx && ctx.item && ctx.item.sacrificed) || this._lastSacrificed || [])[0];
           if (!sn) return false;
           if (cond.what === 'legendary') return !!sn.legendary;
+          if (cond.what === 'commander') return !!sn.commander;
           if ((sn.types || []).concat(sn.subtypes || []).some(t => t.toLowerCase() === cond.what)) return true;
           // a changeling sacrificed was a Human, a Goblin, every creature type (CR 702.73a)
           return !!sn.everyCreatureType && CREATURE_TYPES_LOWER.has(cond.what);
@@ -12455,6 +12474,11 @@
       opts = opts || {};
       if (!o) return;
       const from = o.zone;
+      // The Master, Multiplied: "Triggered abilities you control can't cause you to … exile creature tokens you control."
+      if (from === 'battlefield' && toZone === 'exile' && this._spareFromTrigger(o)) {
+        this.logEvent('rules', `${o.name} stays: a triggered ability of its controller can't exile it.`);
+        return o;
+      }
       // Ugin, the Ineffable: the Spirit leaving brings its exiled card to its controller's hand
       if (from === 'battlefield' && toZone !== 'battlefield' && o._uginCard) {
         const c = this.obj(o._uginCard);
@@ -14451,6 +14475,15 @@
          may be 0, and then nothing happens; only a missing number means one */
       const nVar = (v) => (v == null ? 1 : typeof v === 'number' ? (v || 1) : Math.max(0, Number(n(v)) || 0));
 
+      /* Sephiroth, Fallen Hero: "you may put a cell counter on target creature. Until end of turn, …" — only the
+         first sentence is the choice; the rest happens either way (mayStep) */
+      if (e.mayStep && !((e.targets || []).length && !targets.length)) {
+        const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+          prompt: `${ctx.name || (src && src.name) || 'Effect'}: ${whole(String(e.text || 'do it').replace(/\.$/, ''), 90)}?` }, 'mayStep');
+        if (yes === SUSPEND) return SUSPEND;
+        if (!yes) { this.logEvent('rules', `${me.name} declines.`); return; }
+      }
+
       switch (e.op) {
         /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
            instant and sorcery spells" after a triggered ability or spell made
@@ -16429,6 +16462,27 @@
           break;
         }
         // Gruul Charm: everything you own that someone else controls comes back, for good
+        // Tevesh Szat, Doom of Fools: "Gain control of all commanders." — for good
+        case 'gainControlCommanders': {
+          for (const x of this.battlefield) {
+            if (!x.isCommander || x.controller === ctx.controller || x.phasedOut) continue;
+            x.effects.push({ control: ctx.controller, until: null, ts: this._stampNew() });
+            this.logEvent('control', `${me.name} gains control of ${x.name}.`);
+          }
+          this._refreshControl();
+          break;
+        }
+        // …"Put all commanders from the command zone onto the battlefield under your control." — every player's
+        case 'commandersToBattlefield': {
+          for (const q of this.players) {
+            for (const x of ((this.zones[q.id] || {}).command || []).slice()) {
+              if (!x.isCommander || x.zone !== 'command') continue;
+              this.moveObject(x, 'battlefield', { controller: ctx.controller });
+              if (x.zone === 'battlefield') this.logEvent('zone', `${x.name} comes from the command zone under ${me.name}'s control.`);
+            }
+          }
+          break;
+        }
         case 'gainControlOwned': {
           for (const x of this.battlefield) {
             if (x.owner !== ctx.controller || x.controller === ctx.controller || x.phasedOut) continue;
@@ -16444,6 +16498,8 @@
           for (const x of this.creaturesOf(ctx.controller, 'yourCreatures')) {
             // Allosaurus Shepherd: each Elf, which becomes a Dinosaur as well
             if (e.subtype && !this._hasCreatureType(x, e.subtype)) continue;
+            // Sephiroth, Fallen Hero: only those modified as it resolves (counters, or its controller's Equipment or Aura)
+            if (e.modified && !this._scopeHit({ modified: true }, x, x.analysis() || {}, ctx.controller, src)) continue;
             x.effects.push(Object.assign({ setPt: { p, t }, until: 'eot' }, e.allTypes ? { keywords: ['Changeling'] } : {},
               e.addSubtype ? { addSubtypes: [e.addSubtype] } : {}));
           }
@@ -20388,6 +20444,8 @@
         case 'extraCombat': {
           // "if it's your combat phase, …"
           if (e.inCombat && !(this.phase && this.phase.id === 'combat' && this.activePlayer.id === ctx.controller)) break;
+          // Tifa, Martial Artist: "the first combat phase of your turn"
+          if (e.firstOnly && !this._condMet({ kind: 'firstCombat' }, ctx)) break;
           // Overpowering Attack: "if it's your main phase, …"
           if (e.inMain && !(this.phase && /^(?:precombat|postcombat)$/.test(this.phase.id) && this.activePlayer.id === ctx.controller)) break;
           const phases = [];
@@ -23744,11 +23802,11 @@
           if (e.optional) {
             if (!pool.length && ctx._sacBefore == null) break;
             if (ctx._sacBefore == null) ctx._sacBefore = this._sacCount || 0;
-            const tail = (String(e.text || '').match(/\bWhen you do, ([^\n]+)/i) || [])[1];
+            const tm = String(e.text || '').match(/\b(When|If) you do, ([^\n]+)/i), tail = tm && tm[2];
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true, filter: e.filter || 'creature',
               candidates: pool.map(o => o.id), purpose: 'sacrificeForReward',
               prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice ${e.saddledSelf ? 'a creature that saddled it this turn' : e.other ? 'another ' + (e.filter || 'creature') : this._aCard(e.filter || 'creature')}?` +
-                (tail ? ' When you do, ' + tail.replace(/\s*[-—]+\s*$/, '.') : '') }, 'osac');
+                (tail ? ' ' + tm[1] + ' you do, ' + tail.replace(/\s*[-—]+\s*$/, '.') : '') }, 'osac');
             if (got === SUSPEND) return SUSPEND;
             const madeIt = (this._sacCount || 0) > ctx._sacBefore;
             ctx._sacBefore = null;

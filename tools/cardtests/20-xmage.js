@@ -29838,4 +29838,130 @@ module.exports = (test) => {
     t.zone(oni, 'battlefield');
     t.no(M.asked.slice(a0).some(ch => ch.type === 'pickCard' && (ch.cards || []).length === 3), 'Satoru: only once each turn');
   });
+
+  test('Commanders: The Master, Multiplied — myriad copies stay after combat; A\'s triggers can\'t sacrifice its creature tokens', (mk, t) => {
+    t.auto('The Master, Multiplied');
+    const M = mk({ players: ['A', 'B', 'C'], library: Array(30).fill('Island') });
+    const g = M.g;
+    const ms = M.bf('A', 'The Master, Multiplied');
+    ms.summoningSick = false;
+    M.answer('declareAttackers', () => [{ attackerId: ms.id, defenderId: 'B' }]);
+    M.toMain('A', 'end');
+    const copies = g.battlefield.filter(o => o.isToken && o.controller === 'A' && o.name === 'The Master, Multiplied');
+    t.eq(copies.length, 1, 'The Master: a myriad copy, kept past end of combat');
+    t.zone(ms, 'battlefield', 'The Master: the legend rule spares it and its copy');
+    t.eq(M.life('C'), 16, 'The Master: the copy hit C');
+    // Eldrazi Monument at A's upkeep: a token can't be the creature sacrificed
+    const bear = M.bf('A', 'Grizzly Bears');
+    M.bf('A', 'Eldrazi Monument');
+    M.nextTurn('A');
+    t.zone(copies[0], 'battlefield', 'The Master: the token not sacrificed');
+    t.ok(bear.zone === 'graveyard' || ms.zone === 'graveyard', 'The Master: a nontoken creature sacrificed instead');
+  });
+
+  test('Commanders: Tifa, Martial Artist — power 7 or more connecting: untap all, and one more combat after the first only', (mk, t) => {
+    t.auto('Tifa, Martial Artist');
+    const M = mk({ library: Array(30).fill('Island'), life: 40 });
+    const g = M.g;
+    M.bf('A', 'Tifa, Martial Artist');
+    const bron = M.bf('A', 'Ancient Brontodon'); bron.summoningSick = false;
+    const bear = M.bf('A', 'Grizzly Bears'); bear.summoningSick = false;
+    let combats = 0;
+    M.answer('declareAttackers', () => { combats++; return [{ attackerId: bron.id, defenderId: 'B' }]; });
+    M.answer('declareAttackers', () => { combats++; return [{ attackerId: bron.id, defenderId: 'B' }]; });
+    M.toMain('A', 'end');
+    t.eq(combats, 2, 'Tifa: a second combat');
+    t.eq(g.combatsThisTurn, 2, 'Tifa: and no third');
+    t.eq(M.life('B'), 22, 'Tifa: the Brontodon hit twice');
+    t.no(bron.tapped, 'Tifa: untapped after the second hit too');
+    // a smaller creature connecting: nothing
+    M.nextTurn('A');
+    let n2 = 0;
+    M.answer('declareAttackers', () => { n2++; return [{ attackerId: bear.id, defenderId: 'B' }]; });
+    M.toMain('A', 'end');
+    t.eq(n2, 1, 'Tifa: power 2, no extra combat');
+    t.ok(bear.tapped, 'Tifa: and no untap');
+  });
+
+  test('Commanders: Sephiroth, Fallen Hero — a cell counter if A likes, then modified creatures are 7/5; back from the graveyard for a modified one', (mk, t) => {
+    t.auto('Sephiroth, Fallen Hero');
+    const M = mk({ library: Array(30).fill('Island'), life: 40 });
+    const g = M.g;
+    const seph = M.bf('A', 'Sephiroth, Fallen Hero'); seph.summoningSick = false;
+    const bear = M.bf('A', 'Grizzly Bears');
+    const elf = M.bf('A', 'Llanowar Elves');
+    const ogre = M.bf('B', 'Gray Ogre');
+    let asked = null;
+    M.answer('declareAttackers', () => [{ attackerId: seph.id, defenderId: 'B' }]);
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    M.answer('confirm', (ch) => { asked = ch; return { yes: true }; });
+    M.toMain('A', 'declareBlockers');
+    t.ok(asked && /cell counter/.test(asked.prompt), 'Sephiroth: asked about the counter');
+    t.eq(bear.counters.cell, 1, 'Sephiroth: a cell counter on the Grizzly Bears');
+    t.eq(g.powerOf(bear), 7); t.eq(g.toughnessOf(bear), 5, 'Sephiroth: a modified creature is 7/5');
+    t.eq(g.powerOf(elf), 1, 'Sephiroth: not one without a modification');
+    // next turn: it is over; declined, the Grizzly Bears (still modified) are 7/5 again, and nothing else gets a counter
+    M.nextTurn('A');
+    t.eq(g.powerOf(bear), 2, 'Sephiroth: until end of turn');
+    M.answer('declareAttackers', () => [{ attackerId: seph.id, defenderId: 'B' }]);
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ogre.id }] }));
+    M.answer('confirm', () => ({ yes: false }));
+    M.toMain('A', 'declareBlockers');
+    t.no(ogre.counters.cell, 'Sephiroth: declined, no counter');
+    t.eq(g.powerOf(bear), 7, 'Sephiroth: the 7/5 either way');
+    t.eq(g.powerOf(ogre), 2, "Sephiroth: not B's creature");
+    // The Reunion: from the graveyard, {3} and a modified creature sacrificed
+    M.nextTurn('A');
+    g.moveObject(seph, 'graveyard');
+    M.mana('A', '3');
+    M.activate('A', seph, 0);
+    t.zone(bear, 'graveyard', 'Sephiroth: the modified Grizzly Bears sacrificed');
+    t.zone(seph, 'battlefield', 'Sephiroth: back from the graveyard');
+    t.ok(seph.tapped, 'Sephiroth: tapped');
+    t.zone(elf, 'battlefield');
+  });
+
+  test('Commanders: Tevesh Szat, Doom of Fools — +1 sacrifices for two cards (three for a commander); −10 takes every commander', (mk, t) => {
+    t.auto('Tevesh Szat, Doom of Fools');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    const tev = M.bf('A', 'Tevesh Szat, Doom of Fools');
+    tev.counters.loyalty = 3;
+    const bear = M.bf('A', 'Grizzly Bears'); bear.isCommander = true;
+    const elf = M.bf('A', 'Llanowar Elves');
+    // +1: the Grizzly Bears, a commander — three cards
+    const h0 = g.zones.A.hand.length;
+    const a0 = M.asked.length;
+    M.answer('sacrifice', () => ({ cardIds: [bear.id] }));
+    M.activate('A', tev, 1);
+    t.ok(bear.zone !== 'battlefield', 'Tevesh Szat: the Grizzly Bears sacrificed');
+    t.eq(g.zones.A.hand.length, h0 + 3, 'Tevesh Szat: a commander, three cards');
+    t.eq(M.asked.slice(a0).filter(ch => ch.type === 'confirm').length, 0, 'Tevesh Szat: one question, not a yes and then a pick');
+    // next turn: the Llanowar Elves, not a commander — two
+    M.nextTurn('A');
+    const h1 = g.zones.A.hand.length;
+    M.answer('sacrifice', () => ({ cardIds: [elf.id] }));
+    M.activate('A', tev, 1);
+    t.zone(elf, 'graveyard');
+    t.eq(g.zones.A.hand.length, h1 + 2, 'Tevesh Szat: two cards');
+    // declined: nothing
+    M.nextTurn('A');
+    M.bf('A', 'Gray Ogre');
+    const h2 = g.zones.A.hand.length;
+    M.answer('sacrifice', () => ({ cardIds: [] }));
+    M.activate('A', tev, 1);
+    t.eq(g.zones.A.hand.length, h2, 'Tevesh Szat: no sacrifice, no cards');
+    // −10: B's commander on the battlefield, and every commander in a command zone
+    M.nextTurn('A');
+    tev.counters.loyalty = 10;
+    const giant = M.bf('B', 'Hill Giant'); giant.isCommander = true;
+    const yur = M.put('B', "Yuriko, the Tiger's Shadow", 'command'); yur.isCommander = true;
+    const elfB = M.bf('B', 'Llanowar Elves');
+    M.activate('A', tev, 2);
+    t.eq(giant.controller, 'A', "Tevesh Szat: B's commander is A's");
+    t.zone(yur, 'battlefield', 'Tevesh Szat: from the command zone');
+    t.eq(yur.controller, 'A');
+    t.zone(bear, 'battlefield', "Tevesh Szat: A's own commander too");
+    t.eq(elfB.controller, 'B', 'Tevesh Szat: not a commander');
+  });
 };

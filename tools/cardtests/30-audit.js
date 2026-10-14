@@ -1754,7 +1754,7 @@ module.exports = (test) => {
     t.auto('Ziatora, the Incinerator');
     T.bf('A', 'Ziatora, the Incinerator');
     const b = T.bf('A', 'Grizzly Bears');
-    T.answer('confirm', { yes: true });
+    T.answer('sacrifice', () => ({ cardIds: [b.id] }));
     T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
     T.toMain('A', 'end'); T.settle(); T.resolve();
     t.zone(b, 'graveyard');
@@ -1763,7 +1763,7 @@ module.exports = (test) => {
     T = mk();
     t.auto('Heart-Piercer Manticore');
     const w = T.bf('A', 'Craw Wurm');
-    T.answer('confirm', { yes: true });
+    T.answer('sacrifice', () => ({ cardIds: [w.id] }));
     T.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
     T.mana('A', 'RR2');
     T.cast('A', T.hand('A', 'Heart-Piercer Manticore'));

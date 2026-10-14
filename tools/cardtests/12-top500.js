@@ -57,7 +57,8 @@ module.exports = (test) => {
   test('Disciple of Freyalise: sacrifice, then life and cards equal to its power', (mk, t) => {
     const T = mk();
     t.auto('Disciple of Freyalise');
-    T.bf('A', 'Craw Wurm');
+    const w = T.bf('A', 'Craw Wurm');
+    T.answer('sacrifice', () => ({ cardIds: [w.id] }));
     const h0 = T.zone('A', 'hand').length;
     T.put('A', 'Disciple of Freyalise', 'battlefield', { etb: true });
     T.resolve();
