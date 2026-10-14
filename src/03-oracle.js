@@ -7001,7 +7001,10 @@
     if (tm) spec.minToughness = +tm[1];
     /* "target creature with flying", "target creature without flying" */
     const KW = 'flying|first strike|double strike|deathtouch|lifelink|menace|reach|trample|vigilance|haste|defender|indestructible|hexproof|shroud|flash|infect|wither|shadow|fear|intimidate|horsemanship|skulk|changeling|islandwalk|swampwalk|forestwalk|mountainwalk|plainswalk';
-    const wk = p.match(new RegExp('with (?:' + KW + ')\\b'));
+    // Minsc & Boo, Timeless Heroes: "target creature with trample or haste" — either one (withKeywordAny)
+    const wk2 = p.match(new RegExp('with (' + KW + ') or (' + KW + ')\\b'));
+    const wk = !wk2 && p.match(new RegExp('with (?:' + KW + ')\\b'));
+    if (wk2) spec.withKeywordAny = [wk2[1], wk2[2]];
     if (wk) spec.withKeyword = wk[0].replace(/^with /, '');
     const wo = p.match(new RegExp("without (?:" + KW + ")\\b"));
     if (wo) spec.withoutKeyword = wo[0].replace(/^without /, '');
@@ -7023,7 +7026,7 @@
     if (mx) spec.mv = +mx[1];
     const withClause = (orig.match(/\s+(?:with|without)\s+.*$/i) || [''])[0];
     const known = spec.maxMv != null || spec.minMv != null || spec.mv != null || spec.maxPower != null || spec.minPower != null ||
-      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withoutKeyword || spec.withCounter || spec.withAnyCounter || spec.noCounters ||
+      spec.maxToughness != null || spec.minToughness != null || spec.withKeyword || spec.withKeywordAny || spec.withoutKeyword || spec.withCounter || spec.withAnyCounter || spec.noCounters ||
       spec.maxPtSum != null || spec.maxPowerOrToughness != null || spec.minPowerOrToughness != null;
     /* A "with ..." clause nobody above claimed is a restriction this cannot
        read. Saying so is better than quietly offering an illegal target. */
@@ -7034,7 +7037,7 @@
       let left = withClause.toLowerCase();
       for (const re of [/with(?:out)? (?:mana value|converted mana cost) (?:\d+|x)(?: or (?:less|greater|more))?/g,
         /with power (?:\d+|x) or (?:less|greater|more)/g, /with toughness \d+ or (?:less|greater|more)/g,
-        new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
+        new RegExp('with (?:' + KW + ') or (?:' + KW + ')\\b', 'g'), new RegExp('with(?:out)? (?:' + KW + ')\\b', 'g'), /with an? [+\-0-9/a-z]+ counter on it/g, /with no counters on it/g, /with (?:a|one or more) counters? on (?:it|them)/g,
         /with total power and toughness \d+ or less/g, /with power or toughness \d+ or (?:less|greater|more)/g]) left = left.replace(re, ' ');
       // "target creature with flying an opponent controls"
       const lc = left.match(/\s(you control|you don'?t control|an opponent controls|your opponents control|defending player controls)\s*$/);
@@ -7257,6 +7260,7 @@
     if (spec.maxToughness != null && tou() > spec.maxToughness) return false;
     if (spec.minToughness != null && tou() < spec.minToughness) return false;
     if (spec.withKeyword && !kw(spec.withKeyword)) return false;
+    if (spec.withKeywordAny && !spec.withKeywordAny.some(kw)) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
     if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
@@ -9566,6 +9570,11 @@
        sacrificed, which the player is asked for before the rest goes on */
     folded.forEach((e, i) => {
       if (e && i > 0 && folded.slice(0, i).some(x => x && x.op === 'sacrificeChoice')) sacrificedIsThat([e]);
+      /* Minsc & Boo, Timeless Heroes: "Sacrifice a creature. When you do, … X damage …, where X is that
+         creature's power. If the sacrificed creature was a Hamster, draw X cards." — the same X */
+      if (e && e.op === 'ifCond' && e.cond && e.cond.kind === 'sacrificedWas' && folded.slice(0, i).some(x => x && x.op === 'sacThen')) {
+        for (const d of e.then || []) for (const k of ['n', 'p', 't']) if (d && d[k] && typeof d[k] === 'object' && d[k].ofTrigger && /\bX\b/.test(d.text || '')) d[k] = { ofSacrificed: d[k].ofTrigger };
+      }
     });
     /* Wild Hypothesis, Fractal Anomaly, G'raha Tia: "Create a 0/0 … Fractal
        creature token. Put X +1/+1 counters on it." — the token just made,
@@ -11827,12 +11836,13 @@
        a spell with mana value 5 or greater, draw a card." Two triggers that
        do the same thing: read as two lines. */
     for (let i = 0; i < lines.length; i++) {
-      const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and (whenever [^,"]+?), ([^"]+)$/);
+      // (Minsc & Boo, Timeless Heroes: "When Minsc & Boo enters and at the beginning of your upkeep, …")
+      const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and ((?:whenever|at the beginning of) [^,"]+?), ([^"]+)$/);
       if (!two) continue;
       // (Ivora, Insatiable Heir: "When Ivora enters and whenever it deals combat damage …" — "it" is the card: beanstalkIt)
       const second = /\bthis creature\b/.test(two[1]) ? two[2].replace(/^whenever it /i, 'whenever this creature ')
         : /\bCARDNAME\b/.test(two[1]) ? two[2].replace(/^whenever it /i, 'whenever CARDNAME ') : two[2];
-      lines.splice(i, 1, two[1] + ', ' + two[3], 'W' + second.slice(1) + ', ' + two[3]);
+      lines.splice(i, 1, two[1] + ', ' + two[3], second.charAt(0).toUpperCase() + second.slice(1) + ', ' + two[3]);
       i++;
     }
     /* Trouble in Pairs: "Whenever an opponent attacks you with two or more

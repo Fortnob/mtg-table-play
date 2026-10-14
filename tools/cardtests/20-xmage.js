@@ -28710,4 +28710,38 @@ module.exports = (test) => {
     t.eq(giant2.counters.lifelink, 1, 'Sorin: a lifelink counter');
     t.ok(g.hasKw(giant2, 'lifelink'));
   });
+
+  test('Commanders: Minsc & Boo, Timeless Heroes — Boo as it enters and each upkeep; +1 on a creature with trample or haste; −2 flings', (mk, t) => {
+    t.auto('Minsc & Boo, Timeless Heroes');
+    const M = mk({ library: Array(40).fill('Island') });
+    const g = M.g;
+    let asked = 0;
+    M.answer('confirm', () => { asked++; return { yes: true }; });
+    const mb = M.put('A', 'Minsc & Boo, Timeless Heroes', 'battlefield', { etb: true });
+    M.resolve();
+    const boos = () => M.bfOf('A').filter(o => o.isToken && o.name === 'Boo');
+    t.eq(asked, 1, 'Minsc & Boo: you may');
+    t.eq(boos().length, 1, 'Minsc & Boo: Boo as it enters');
+    const boo = boos()[0];
+    t.ok(g.hasKw(boo, 'trample') && g.hasKw(boo, 'haste') && g._hasCreatureType(boo, 'Hamster'), 'Minsc & Boo: a 1/1 Hamster with trample and haste');
+    // +1: not on the Grizzly Bears, on Boo
+    const bear = M.bf('A', 'Grizzly Bears');
+    t.no(g.activateAbility('A', mb.id, 0, { auto: true, targets: [{ kind: 'object', id: bear.id }] }), 'Minsc & Boo: neither trample nor haste');
+    M.activate('A', mb, 0, { targets: [boo.id] });
+    t.eq(boo.counters['+1/+1'], 3, 'Minsc & Boo: three +1/+1 counters');
+    // −2 next turn: sacrifice Boo (4/4) — 4 damage, and 4 cards for a Hamster; the upkeep Boo declined
+    M.answer('confirm', () => ({ yes: false }));
+    M.nextTurn('A');
+    t.eq(boos().length, 1, 'Minsc & Boo: declined at upkeep');
+    const hand = M.zone('A', 'hand').length;
+    M.answer('*', (ch) => (ch.type === 'sacrifice' ? { cardIds: [boo.id] } : { picks: [boo.id] }));
+    M.activate('A', mb, 1, { targets: ['B'] });
+    t.no(boo.zone === 'battlefield', 'Minsc & Boo: Boo sacrificed');
+    t.eq(M.life('B'), 16, "Minsc & Boo: X is Boo's power");
+    t.eq(M.zone('A', 'hand').length, hand + 4, 'Minsc & Boo: a Hamster, so four cards');
+    // the next upkeep: another Boo
+    M.answer('confirm', () => ({ yes: true }));
+    M.nextTurn('A');
+    t.eq(boos().length, 1, 'Minsc & Boo: Boo at the beginning of the upkeep');
+  });
 };
