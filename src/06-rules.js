@@ -992,6 +992,14 @@
         let carry = 0;
         if (becomes) for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) carry += Math.max(0, (Number(p.pool[c]) || 0) - (kept[c] || 0));
         if (!p.pool.isEmpty() && !keptAny && !carry) { this.logEvent('mana', `${p.name}'s mana pool empties (${p.pool.symbols()}).`); }
+        /* Yurlok of Scorch Thrash: "A player losing unspent mana causes that player to lose that much life." — as it is
+           lost, off the stack; however many say so, once (manaBurn) */
+        const burnt = p.pool.total() - Object.values(kept).reduce((s, v) => s + v, 0) - carry +
+          (p.restricted || []).filter(r => !(r.keepTurn === this.turn && this.step !== 'cleanup')).length;
+        if (burnt > 0 && !p.hasLost && this.battlefield.some(x => !x.phasedOut && this._staticOp(x, 'manaBurn'))) {
+          this.logEvent('mana', `${p.name} loses ${burnt} unspent mana, and as much life.`);
+          this.changeLife(p, -burnt, 'mana burn');
+        }
         p.pool.clear();
         p.creatureMana = null; p.treasureMana = null; p.artifactMana = null;
         for (const c of Object.keys(kept)) p.pool[c] = kept[c];
@@ -2198,6 +2206,7 @@
       const item = this.stack.pop();
       if (!item) { this._resetPriority(); return; }
       this._lastLifeLost = 0;   // "gain life equal to the life lost this way" counts within one resolution
+      this._exchangeLost = 0;   // (Mister Negative: "If you lost life this way" — by the exchange)
       this._lastDamageDealt = 0;
       this._lastExcess = 0; this._excessOn = {};
       this._dealtThisWay = [];
@@ -3199,6 +3208,12 @@
       if (o.impulseIfAttackedToken && (this.player(playerId) || {}).attackedWithTokenTurn !== this.turn) return false;
       // Gandalf, Goblins' Bane (Flameshape): "you may play them if you control a Wizard" (impulseIfControl)
       if (o.impulseIfControl && !this.battlefield.some(x => x.controller === playerId && !x.phasedOut && this._cardFitsWords(x, o.impulseIfControl))) return false;
+      /* Gwen Stacy: "for as long as you control this creature" — over once it has left (moveObject) or changed hands;
+         transformed into Ghost-Spider it is the same creature */
+      if (o.impulseWhileSrc) {
+        const s0 = this.obj(o.impulseWhileSrc);
+        if (!s0 || s0.zone !== 'battlefield' || s0.controller !== playerId) return false;
+      }
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
     }
     /**
@@ -12896,6 +12911,8 @@
         }
         case 'selfUntapped': return !!src && !src.tapped;
         case 'selfTapped': return !!src && !!src.tapped;
+        // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — this object, since it last entered (marked in _evDamage)
+        case 'selfNoDamageYet': return !!src && !src._dealtDamage;
         case 'selfAttacking': return !!src && !!src.attacking;
         // Tromokratis: "unless it's attacking or blocking"
         case 'selfInCombat': return !!src && src.zone === 'battlefield' && !!(src.attacking || (src.blocking && src.blocking.length));
@@ -14296,7 +14313,13 @@
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseAffinity = null;
-        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null;
+        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
+      }
+      // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
+      if (from === 'battlefield' && from !== toZone) {
+        for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) {
+          if (c.impulseWhileSrc === o.id) { c.impulseBy = null; c.impulseUntil = null; c.impulseWhileSrc = null; }
+        }
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
@@ -14476,7 +14499,7 @@
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
-        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o.counterTs = null; o._stackKw = null;
+        o.tapped = false; o.damage = 0; o.dealtDeathtouch = false; o.counters = {}; o.counterTs = null; o._stackKw = null; o._dealtDamage = false;
         // Alchemy: what was done to it perpetually stays with the card, wherever it goes
         o.effects = (o.effects || []).filter(e => e && e.perpetual); o.attacking = null; o.blocking = []; o.blockedBy = [];
         o.licid = false; o.bandId = null;
@@ -16567,6 +16590,7 @@
         if (v && typeof v === 'object' && v.domain) return this._domainOf(ctx.controller) * (v.mult || 1);
         if (v && typeof v === 'object' && v.colorsAmongYours) return this._colorsAmongYours(ctx.controller).length * (v.mult || 1);
         if (v === 'lastLifeLost') return this._lastLifeLost || 0;
+        if (v === 'exchangeLost') return this._exchangeLost || 0;
         // Rug of Smothering: the spells that player has cast this turn
         // (Magebane Lizard: "noncreature spells they've cast this turn" — words)
         if (v && typeof v === 'object' && v.triggerPlayerSpells) { const p = triggerPlayer(); return (v.words ? ((p && p.spellObjsThisTurn) || []).filter(x => this._cardFitsWords(x, v.words)).length : ((p && p.spellsCastThisTurn) || 0)) * (v.mult || 1); }
@@ -16694,6 +16718,15 @@
         case 'addMana': {
           // Magus of the Vineyard: "that player adds {G}{G}" (who 'triggerPlayer')
           // (Belbe, Corrupted Observer: "the active player adds {C}{C} for each of your opponents who lost life this turn" — who 'active', times)
+          // Yurlok of Scorch Thrash: "Each player adds {B}{R}{G}." (who 'each')
+          if (e.who === 'each') {
+            for (const p of this.players) {
+              if (p.hasLost) continue;
+              for (const s of e.symbols) p.pool.add(MANA.COLORS.concat('C').find(x => s.includes(x)) || 'C');
+            }
+            this.logEvent('mana', `Each player adds ${e.symbols.map(x => '{' + x + '}').join('')}.`);
+            break;
+          }
           const into = e.who === 'triggerPlayer' ? (triggerPlayer() || me) : e.who === 'active' ? (this.activePlayer || me) : me;
           const times = e.times ? Math.max(0, n(e.times) || 0) : 1;
           if (!times) break;
@@ -20190,6 +20223,8 @@
           }
           const a0 = me.life, b0 = other.life;
           if (a0 !== b0) { this.changeLife(me, b0 - a0); this.changeLife(other, a0 - b0); }
+          // Mister Negative: "If you lost life this way, draw that many cards." — what this exchange took from you
+          this._exchangeLost = Math.max(0, a0 - me.life);
           this.logEvent('life', `${me.name} and ${other.name} exchange life totals.`);
           break;
         }
@@ -22785,13 +22820,16 @@
           // The Ancient One: "When you discard a card this way" — only if one was, and "its" is that card (ifDiscarded)
           const tossed = e.ifDiscarded ? (this._lastDiscarded || [])[0] : null;
           if (e.ifDiscarded && !tossed) break;
+          // Ratonhnhaké꞉ton: "create … token. When you do, …" — only if one was made, and "that token" is it (madeObject)
+          const madeOne = e.madeObject ? (this._madeThisResolution || []).slice(-1)[0] : null;
+          if (e.madeObject && !madeOne) break;
           // (Evie Frye: "When you discard a creature card this way" — of that kind)
           if (e.discardFilter && !this._cardFitsWords(this.obj(tossed), e.discardFilter)) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
             effects: e.effects || [], auto: true, abilityText: rText, optional: false,
-            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}) });
+            triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}) });
           break;
         }
         case 'delayed': {
@@ -24108,6 +24146,21 @@
           hostA.attachments.push(eq.id);
           this.bumpBoard();
           this.logEvent('rules', `${eq.name} is attached to ${hostA.name}.`);
+          break;
+        }
+        /* Ratonhnhaké꞉ton: "return target Equipment card from your graveyard to the battlefield, then attach it to that
+           token" — the card just returned, onto the permanent the trigger is about; one that can't be attached stays */
+        case 'attachItTo': {
+          const eq = this._lastAffected && this.obj(this._lastAffected.id);
+          const host = this.obj((ctx.triggerData || {}).objectId);
+          if (!eq || eq.zone !== 'battlefield' || !host || host.zone !== 'battlefield' || eq === host) break;
+          if (!this._attachLegal(eq, eq.analysis() || {}, host)) break;
+          if (eq.attachedTo) { const old = this.obj(eq.attachedTo); if (old) old.attachments = old.attachments.filter(x => x !== eq.id); }
+          eq.attachedTo = host.id;
+          eq.ts = this._stampNew();
+          host.attachments.push(eq.id);
+          this.bumpBoard();
+          this.logEvent('rules', `${eq.name} is attached to ${host.name}.`);
           break;
         }
         case 'attachThat': {
@@ -25859,7 +25912,9 @@
           const ids = (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : [this._lastExiled]).filter(Boolean);
           // "until your next end step": this turn's, if it is yours and that step is still to come
           const mineNow = this.activePlayer && this.activePlayer.id === ctx.controller && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
-          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' ? 99999
+          // Gwen Stacy: "for as long as you control this creature" — till it leaves or changes hands (impulseWhileSrc)
+          if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
+          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' ? 99999
             : e.duration === 'nextEnd' ? (mineNow ? this.turn : this._endOfNextTurnOf(ctx.controller)) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
@@ -25869,6 +25924,7 @@
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             c.impulseIfAttackedToken = !!e.ifAttackedToken;
+            c.impulseWhileSrc = e.duration === 'whileControl' ? src.id : null;
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             if (e.payLife) c.impulsePayLife = ctx.controller;
             if (c.faceDownExile) c.lookableBy = ctx.controller;

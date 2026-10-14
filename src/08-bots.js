@@ -2772,6 +2772,17 @@
       }
       if (/Pay \d+ life to keep a card/i.test(prompt)) return this.me.life > 12;
       const e = this._resolvingEffect();
+      /* Mister Negative: "you may exchange life totals with target opponent. If you lost life this way, draw that
+         many cards." — yes when theirs is higher; lower, only while we stay out of reach and can draw the cards */
+      if (e && e.op === 'may' && (e.then || []).some(x => x && x.op === 'exchangeLife')) {
+        const r = g.resolving;
+        const t = ((r && r.ctx && r.ctx.targets) || []).find(x => x && x.kind === 'player');
+        const other = t && g.player(t.id);
+        if (other) {
+          const lose = this.me.life - other.life;
+          return lose <= 0 || (other.life >= 10 && lose <= Math.max(0, (g.zones[this.pid].library || []).length - 5));
+        }
+      }
       if (e && (e.op === 'may' || e.op === 'mayPay')) {
         const v = U.sum(flatEffects(e.then).map(x => this._contextWorth(x)));
         if (v < 0) return false;

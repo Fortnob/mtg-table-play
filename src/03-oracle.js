@@ -1391,6 +1391,9 @@
     // Magus of the Vineyard, Eladamri's Vineyard: "that player adds {G}{G}" — into the pool of the player whose main phase it is
     { re: /^That player adds ((?:\{[WUBRGC]\})+)\.?$/i,
       make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'triggerPlayer' }) },
+    // Yurlok of Scorch Thrash: "Each player adds {B}{R}{G}." (who 'each')
+    { re: /^Each player adds ((?:\{[WUBRGC]\})+)\.?$/i,
+      make: (m) => ({ op: 'addMana', symbols: MANA.parse(m[1]), who: 'each' }) },
     { re: /^Add (\{[^}]+\}) or (\{[^}]+\})\.?$/i,
       make: (m) => ({ op: 'addManaChoice', choices: [MANA.parse(m[1]), MANA.parse(m[2])] }) },
     { re: /^Add (\{[^}]+\}), (\{[^}]+\}), or (\{[^}]+\})\.?$/i,
@@ -2316,6 +2319,8 @@
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
 
     { re: /^You gain life equal to the life lost this way\.?$/i, make: () => ({ op: 'gainLife', n: 'lastLifeLost', who: 'you' }) },
+    // Mister Negative: "you may exchange life totals with target opponent. If you lost life this way, draw that many cards." (exchangeLost)
+    { re: /^If you lost life this way, draw that many cards\.?$/i, make: () => ({ op: 'draw', n: 'exchangeLost', who: 'you' }) },
     { re: /^You gain (?:that much|the same amount of) life\.?$/i, make: () => ({ op: 'gainLife', n: 'lastLifeLost', who: 'you' }) },
     /* "Whenever you gain life, target opponent loses that much life." —
        the amount is the one that set the trigger off. */
@@ -3380,6 +3385,9 @@
       make: () => ({ op: 'impulseLast', duration: 'nextEnd' }) },
     { re: /^You may play (?:that card|it|those cards|them) for as long as (?:it remains|they remain) exiled\.?$/i,
       make: () => ({ op: 'impulseLast', duration: 'exiled' }) },
+    // Gwen Stacy: "You may play that card for as long as you control this creature." (whileControl)
+    { re: /^You may play (?:that card|it|those cards|them) for as long as you control (?:this creature|CARDNAME)\.?$/i,
+      make: () => ({ op: 'impulseLast', duration: 'whileControl' }) },
     { re: /^Untap them\.?$/i, make: () => ({ op: 'untap', scope: 'lastGroup' }) },
     // (Sudden Storm, Lorthos: "Those creatures don't untap during their controllers' next untap steps.")
     { re: /^(?:Those creatures|Those permanents|They) don'?t untap during their controllers?'?s? next untap steps?\.?$/i, make: () => ({ op: 'noUntap', scope: 'lastGroup' }) },
@@ -5204,6 +5212,15 @@
         return { op: 'reflexive', text: m[0], effects: [{ op: 'unlessPays', who: 'spellController', cost: { selfDamage: k },
           targets: [{ type: 'creature', upTo: true }], then: [{ op: 'damage', n: k, text: 'it deals that much damage to that creature.' }],
           text: m[0].replace(/^When you do, /i, '') }] };
+      } },
+    /* Ratonhnhaké꞉ton: "create a 1/1 black Assassin creature token with menace. When you do, return target Equipment
+       card from your graveyard to the battlefield, then attach it to that token." — a reflexive trigger about the token
+       made (madeObject), its target chosen then */
+    { re: /^When you do, return target (Equipment|Aura) card from your graveyard to the battlefield, then attach it to that token\.?$/i,
+      make: (m) => {
+        const back = parseEffectSentence('Return target ' + m[1] + ' card from your graveyard to the battlefield.', 1);
+        return back && back.op === 'reanimate' ? { op: 'reflexive', madeObject: true, text: m[0],
+          effects: [back, { op: 'attachItTo', host: 'reflexObject' }] } : null;
       } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
@@ -7094,6 +7111,9 @@
         return inner.auto && inner.effects.length ? { op: 'ifCopyIs', what: m[1].toLowerCase(), then: inner.effects } : null; } },
     // Orvar, the All-Form: "create a token that's a copy of one of those permanents" — those the spell targets (of spellTargets)
     { re: /^Create a token that'?s a copy of one of those permanents\.?$/i, make: () => ({ op: 'copyPermanent', n: 1, grant: [], of: 'spellTargets' }) },
+    // Ran and Shaw: "create a token that's a copy of Ran and Shaw, except it's not legendary"
+    { re: /^Create a token that'?s a copy of (?:CARDNAME|this creature), except (?:the token isn'?t|it isn'?t|it'?s not|it is not) legendary\.?$/i,
+      make: () => ({ op: 'copyPermanent', self: true, n: 1, grant: [], nonLegendary: true }) },
     // Miirym: "create a token that's a copy of it, except the token isn't legendary"
     { re: /^Create a token that'?s a copy of (?:it|that creature), except (?:the token|it) isn'?t legendary\.?$/i,
       make: () => ({ op: 'copyPermanent', n: 1, scope: 'lastTarget', grant: [], nonLegendary: true }) },
@@ -11838,6 +11858,8 @@
     [/^excess damage was dealt(?: to (?:a|that|the) (?:creature|permanent|planeswalker))?(?: this way)?$/i, () => ({ kind: 'lastExcess' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is untapped$/i, () => ({ kind: 'selfUntapped' })],
     [/^(?:this|CARDNAME|this permanent|this creature|this artifact|this land) is tapped$/i, () => ({ kind: 'selfTapped' })],
+    // Ratonhnhaké꞉ton: "As long as Ratonhnhaké꞉ton hasn't dealt damage yet" — since it entered (selfNoDamageYet)
+    [/^(?:CARDNAME|this creature) hasn'?t dealt damage yet$/i, () => ({ kind: 'selfNoDamageYet' })],
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
@@ -12047,7 +12069,9 @@
     [/^you control (\w+) or more other ([A-Za-z]+?)s$/i, (m) => ({ kind: 'control', what: m[2], n: num(m[1]) + 1 })],
     [/^you created a token this turn$/i, () => ({ kind: 'createdToken' })],
     [/^creatures you control have total power (\d+) or greater$/i, (m) => ({ kind: 'totalPower', n: +m[1] })],
-    [/^you cast it$/i, () => ({ kind: 'wasCast' })],
+    [/^you cast (?:it|them)$/i, () => ({ kind: 'wasCast' })],
+    // Ran and Shaw: "if you cast them and there are three or more Dragon and/or Lesson cards in your graveyard"
+    [/^you cast (?:it|them) and (there (?:are|is) .+)$/i, (m) => { const b = condOf(m[1]); return b ? [{ kind: 'wasCast' }].concat(b) : null; }],
     // Eshki, Temur's Roar: "If that spell's power is 4 or greater" (spellPowerAtLeast)
     [/^that spell'?s power is (\d+) or greater$/i, (m) => ({ kind: 'spellPowerAtLeast', n: +m[1] })],
     // Preston, the Vanisher: "if it wasn't cast" — the creature the trigger is about (notCastTrigger)
@@ -16859,6 +16883,13 @@
         if (!kws.every(k => kwKnown(k))) return null;
         return { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, grant: kws, cond: { kind: 'yourTurn' } };
       } },
+    // Ratonhnhaké꞉ton: "it has hexproof and can't be blocked" (under the "As long as" the wrapper puts on it)
+    { re: /^CARDNAME has ([a-z ,']+?) and can'?t be blocked\.?$/,
+      make: (m) => {
+        const kws = keywordList(m[1]);
+        if (!kws.length || !kws.every(kwKnown)) return null;
+        return { op: 'continuous', layer: 6, scope: { self: true, what: 'creature' }, grant: kws.concat('Unblockable') };
+      } },
     // "<scope> can't be blocked and has shroud."
     { re: /^(.+?) can'?t be blocked(?: and (?:has|have) ([a-z, '{}0-9]+?))?\.?$/i,
       make: (m) => {
@@ -18460,6 +18491,8 @@
       // Kruphix, Horizon Stone, Omnath, Ozai: "If you would lose unspent mana, that mana becomes colorless (red, black) instead."
       { re: /^If you would lose unspent mana, that mana becomes (colorless|white|blue|black|red|green) instead\.?$/i,
         make: (m) => ({ op: 'manaBecomes', color: { colorless: 'C', white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] }), auto: true },
+      // Yurlok of Scorch Thrash: "A player losing unspent mana causes that player to lose that much life." (manaBurn)
+      { re: /^A player losing unspent mana causes that player to lose that much life\.?$/i, make: () => ({ op: 'manaBurn' }), auto: true },
       // Rooftop Storm: "You may pay {0} rather than pay the mana cost for Zombie creature spells you cast."
       { re: /^You may pay \{0\} rather than pay the mana cost for ((?:[A-Z][a-z]+ )?(?:creature |artifact |enchantment )?)spells you cast\.?$/,
         make: (m) => ({ op: 'freeSpells', filter: (m[1] || 'card').trim().toLowerCase() || 'card' }), auto: true },

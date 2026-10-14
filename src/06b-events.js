@@ -125,6 +125,8 @@
     /** Called from the damage routines, once the damage is really going to be dealt. */
     _evDamage(source, target, amount, combat) {
       if (!(amount > 0)) return;
+      // Ratonhnhaké꞉ton: "hasn't dealt damage yet" — the permanent remembers it has
+      if (source && source.zone === 'battlefield') source._dealtDamage = true;
       this._ev('damage', {
         source: source ? source.id : null, sourceName: source ? source.name : null,
         target, amount, combat: !!combat,

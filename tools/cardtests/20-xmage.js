@@ -42294,4 +42294,168 @@ module.exports = (test) => {
     M.cast('A', M.hand('A', 'Opt'));
     t.eq(g.stack.length, 0, 'Volo: not for a noncreature spell');
   });
+
+  test("Commanders: Ratonhnhaké꞉ton — hexproof and can't be blocked until it deals damage; on combat damage an Assassin, then an Equipment from the graveyard onto it", (mk, t) => {
+    t.auto('Ratonhnhaké꞉ton');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    M.toMain('A');
+    const rat = M.bf('A', 'Ratonhnhaké꞉ton');
+    rat.summoningSick = false;
+    const wall = M.bf('B', 'Wall of Omens');
+    t.ok(g.hasKw(rat, 'hexproof'), 'Ratonhnhaké꞉ton: hexproof before it has dealt damage');
+    t.no(g.canBlock(wall, rat), "Ratonhnhaké꞉ton: can't be blocked yet");
+    const sword = M.grave('A', 'Bonesplitter'), aura = M.grave('A', 'Pacifism');
+    M.answer('declareAttackers', () => [{ attackerId: rat.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 17);
+    const tok = M.bfOf('A').find(o => o.isToken && /Assassin/.test(o.name));
+    t.ok(tok && g.hasKw(tok, 'menace'), 'Ratonhnhaké꞉ton: a 1/1 Assassin with menace');
+    t.zone(sword, 'battlefield', 'Ratonhnhaké꞉ton: the Equipment returned');
+    t.eq(sword.attachedTo, tok && tok.id, 'Ratonhnhaké꞉ton: attached to that token');
+    t.zone(aura, 'graveyard', 'Ratonhnhaké꞉ton: not an Aura');
+    t.no(g.hasKw(rat, 'hexproof'), 'Ratonhnhaké꞉ton: it has dealt damage — no hexproof');
+    t.ok(g.canBlock(wall, rat), 'Ratonhnhaké꞉ton: and it can be blocked');
+    // a new object has dealt no damage
+    g.moveObject(rat, 'hand');
+    const back = M.bf('A', 'Ratonhnhaké꞉ton');
+    t.ok(g.hasKw(back, 'hexproof'), 'Ratonhnhaké꞉ton: back on the battlefield, a new object — hexproof again');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Ratonhnhaké꞉ton — no Equipment in the graveyard: just the token', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    M.toMain('A');
+    const rat = M.bf('A', 'Ratonhnhaké꞉ton');
+    rat.summoningSick = false;
+    M.answer('declareAttackers', () => [{ attackerId: rat.id, defenderId: 'B' }]);
+    M.toMain('A', 'endCombat');
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 1, 'Ratonhnhaké꞉ton: the Assassin all the same');
+    t.eq(g.stack.length, 0);
+  });
+  test('Commanders: Yurlok of Scorch Thrash — {1}, {T}: each player adds {B}{R}{G}; mana lost unspent is life lost', (mk, t) => {
+    t.auto('Yurlok of Scorch Thrash');
+    const M = mk({ library: Array(30).fill('Swamp'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    M.toMain('A');
+    const yur = M.bf('A', 'Yurlok of Scorch Thrash');
+    yur.summoningSick = false;
+    M.mana('A', '1');
+    t.ok(g.tapForMana('A', yur.id, 0), 'Yurlok: activated');
+    for (const pid of ['A', 'B', 'C']) {
+      const pool = g.player(pid).pool;
+      t.ok(pool.B === 1 && pool.R === 1 && pool.G === 1 && pool.total() === 3, `Yurlok: ${pid} adds {B}{R}{G}`);
+    }
+    M.mana('A', 'B');
+    g.player('A').pool.pay('{B}');
+    M.toMain('A', 'beginCombat');
+    t.eq(M.life('A'), 17, 'Yurlok: A loses 3 life for the three mana unspent');
+    t.eq(M.life('B'), 17); t.eq(M.life('C'), 17);
+    t.eq(g.player('B').pool.total(), 0);
+    // gone, no burn
+    g.moveObject(yur, 'graveyard');
+    M.mana('B', 'RR');
+    M.toMain('A', 'endCombat');
+    t.eq(M.life('B'), 17, 'Yurlok: without it, unspent mana is just lost');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Gwen Stacy // Ghost-Spider — the card exiled may be played for as long as you control her, Ghost-Spider too', (mk, t) => {
+    t.auto('Gwen Stacy // Ghost-Spider');
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.toMain('A');
+    const bolt = M.top('A', 'Lightning Bolt');
+    const gwen = M.bf('A', 'Gwen Stacy', { etb: true });
+    M.resolve();
+    t.zone(bolt, 'exile', 'Gwen Stacy: the top card exiled');
+    M.mana('A', 'R');
+    t.ok(g.playableNow('A').some(x => x.objId === bolt.id), 'Gwen Stacy: it may be played');
+    M.nextTurn('B');
+    M.nextTurn('A');
+    M.mana('A', 'R');
+    t.ok(g.playableNow('A').some(x => x.objId === bolt.id), 'Gwen Stacy: still, a turn later');
+    // transformed, she is the same creature
+    M.mana('A', '2URW');
+    M.activate('A', gwen, 0);
+    t.eq(gwen.face || 0, 1, 'Gwen Stacy: transformed into Ghost-Spider');
+    M.mana('A', 'R');
+    t.ok(g.playableNow('A').some(x => x.objId === bolt.id), 'Gwen Stacy: Ghost-Spider is the same creature — still playable');
+    M.cast('A', bolt, { targets: ['B'] });
+    t.eq(gwen.counters['+1/+1'] || 0, 1, 'Ghost-Spider: a spell cast from exile — a +1/+1 counter');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Gwen Stacy — once she leaves, the exiled card can no longer be played', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island') });
+    const g = M.g;
+    M.toMain('A');
+    const bolt = M.top('A', 'Lightning Bolt');
+    const gwen = M.bf('A', 'Gwen Stacy', { etb: true });
+    M.resolve();
+    t.zone(bolt, 'exile');
+    g.moveObject(gwen, 'hand');
+    M.mana('A', 'R');
+    t.no(g.playableNow('A').some(x => x.objId === bolt.id), 'Gwen Stacy: gone — no longer playable');
+    g.moveObject(gwen, 'battlefield', { controller: 'A' });
+    M.resolve();
+    t.no(g.playableNow('A').some(x => x.objId === bolt.id), 'Gwen Stacy: back again, a new object — still not');
+  });
+  test('Commanders: Ran and Shaw — cast with three Dragon and/or Lesson cards in the graveyard: a token copy, not legendary', (mk, t) => {
+    t.auto('Ran and Shaw');
+    const M = mk({ library: Array(30).fill('Mountain') });
+    const g = M.g;
+    M.toMain('A');
+    M.grave('A', 'Shivan Dragon'); M.grave('A', 'Shivan Dragon'); M.grave('A', 'Environmental Sciences');
+    const rs = M.hand('A', 'Ran and Shaw');
+    M.mana('A', '3RR');
+    M.cast('A', rs);
+    const copies = M.bfOf('A').filter(o => o.name === 'Ran and Shaw');
+    t.eq(copies.length, 2, 'Ran and Shaw: a token copy');
+    const tok = copies.find(o => o.isToken);
+    t.ok(tok && !(tok.analysis().supertypes || []).includes('Legendary'), 'Ran and Shaw: the copy is not legendary');
+    t.zone(rs, 'battlefield', 'Ran and Shaw: both stay (no legend rule)');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Ran and Shaw — two such cards, or not cast: no copy', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Mountain') });
+    M.toMain('A');
+    M.grave('A', 'Shivan Dragon'); M.grave('A', 'Environmental Sciences'); M.grave('A', 'Lightning Bolt');
+    const rs = M.hand('A', 'Ran and Shaw');
+    M.mana('A', '3RR');
+    M.cast('A', rs);
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 0, 'Ran and Shaw: only two Dragon and/or Lesson cards — no copy');
+    M.grave('A', 'Shivan Dragon');
+    M.bf('A', 'Ran and Shaw', { etb: true });
+    M.resolve();
+    t.eq(M.bfOf('A').filter(o => o.isToken).length, 0, 'Ran and Shaw: put onto the battlefield, not cast — no copy');
+  });
+  test('Commanders: Mister Negative — exchange life totals with target opponent; draw as many cards as you lost', (mk, t) => {
+    t.auto('Mister Negative');
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    M.toMain('A');
+    g.player('A').life = 30; g.player('B').life = 12;
+    const hand0 = M.zone('A', 'hand').length;
+    M.bf('A', 'Mister Negative', { etb: true });
+    M.resolve();
+    t.eq(M.life('A'), 12, 'Mister Negative: A takes B\'s 12'); t.eq(M.life('B'), 30, 'Mister Negative: B takes A\'s 30');
+    t.eq(M.zone('A', 'hand').length - hand0, 18, 'Mister Negative: lost 18 life — draws 18');
+    t.eq(M.manualLines().length, 0);
+  });
+  test('Commanders: Mister Negative — gaining life by the exchange, or declining it: no cards', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Plains') });
+    const g = M.g;
+    M.toMain('A');
+    g.player('A').life = 5;
+    const hand0 = M.zone('A', 'hand').length;
+    const first = M.bf('A', 'Mister Negative', { etb: true });
+    M.resolve();
+    t.eq(M.life('A'), 20); t.eq(M.life('B'), 5);
+    t.eq(M.zone('A', 'hand').length, hand0, 'Mister Negative: no life lost — no cards');
+    g.moveObject(first, 'graveyard');
+    M.answer('confirm', { yes: false });
+    g.player('A').life = 40;
+    M.bf('A', 'Mister Negative', { etb: true });
+    M.resolve();
+    t.eq(M.life('A'), 40, 'Mister Negative: declined'); t.eq(M.zone('A', 'hand').length, hand0, 'Mister Negative: and nothing drawn');
+  });
 };
