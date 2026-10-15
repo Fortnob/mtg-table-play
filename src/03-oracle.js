@@ -8788,7 +8788,8 @@
         return { op: 'ifCond', cond, then: [{ op: 'grantKeyword', keywords: kws, duration: 'eot', scope: 'lastTarget' }] };
       } },
     // The Locust God: "When this dies, return it to its owner's hand at the beginning of the next end step."
-    { re: /^Return (?:CARDNAME|it) to (its owner'?s hand|the battlefield under (?:its owner'?s|your) control) at the beginning of the next end step\.?$/i,
+    // (Ghoulish Impetus: "return this card to the battlefield at the beginning of the next end step" — an Aura, which chooses what it enchants as it enters)
+    { re: /^Return (?:CARDNAME|it|this card) to (its owner'?s hand|the battlefield(?: under (?:its owner'?s|your) control)?) at the beginning of the next end step\.?$/i,
       make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'self', name: /hand/i.test(m[1]) ? 'Return it to hand' : 'Return it to the battlefield',
         effects: [{ op: 'selfFromGraveyard', to: /hand/i.test(m[1]) ? 'hand' : 'battlefield' }] }) },
     // Humble Defector: "Target opponent gains control of this creature."
@@ -9166,6 +9167,12 @@
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) creature in addition to its other types\.?$/,
       make: (m) => { const spec = targetSpec(m[1]); return spec && !spec.unknown
         ? { op: 'copyPermanent', n: 1, grant: [], setPt: m[2] + '/' + m[3], addSubtypes: [m[4]], addTypes: ['Creature'], targets: [spec] } : null; } },
+    /* Astral Dragon: "create two tokens that are copies of target noncreature permanent, except they're 3/3 Dragon
+       creatures in addition to their other types, and they have flying." */
+    { re: /^Create (two|three|four) tokens that are copies of (target [a-z ]+?), except they'?re (\d+)\/(\d+) ([A-Z][a-z]+) creatures in addition to their other types(?:,? and they have (flying|haste|trample|vigilance|deathtouch|lifelink|menace|reach))?\.?$/,
+      make: (m) => { const spec = targetSpec(m[2]); return spec && !spec.unknown
+        ? Object.assign({ op: 'copyPermanent', n: num(m[1]), grant: [], setPt: m[3] + '/' + m[4], addSubtypes: [m[5]], addTypes: ['Creature'], targets: [spec] },
+          m[6] ? { addText: [m[6][0].toUpperCase() + m[6].slice(1)] } : {}) : null; } },
     /* Mishra, Eminent One: "create a token that's a copy of target noncreature artifact you control, except its name is
        Mishra's Warform and it's a 4/4 Construct artifact creature in addition to its other types" (setName) */
     { re: /^Create a token that'?s a copy of (target [a-z ]+?), except its name is ([A-Z][^,.]*?) and it'?s an? (\d+)\/(\d+) ([A-Z][a-z]+) (artifact )?creature in addition to its other types\.?$/,
@@ -12597,6 +12604,17 @@
        equal to its mana value. You may repeat this process any number of times." */
     { re: /^Reveal the top card of your library and put that card into your hand\. You lose life equal to its mana value\. You may repeat this process any number of times\.$/i,
       make: () => [{ op: 'revealLoseLoop' }] },
+    /* Protean Hulk: "search your library for any number of creature cards with total mana value 6 or less, put them onto
+       the battlefield, then shuffle." (tutor totalMv) */
+    { re: /^Search your library for any number of ([a-z ]+?) cards with total mana value (\d+) or less, put them onto the battlefield, then shuffle\.?$/i,
+      make: (m) => [{ op: 'tutor', n: 99, filter: m[1].toLowerCase(), totalMv: +m[2], to: 'battlefield',
+        prompt: `Search your library for any number of ${m[1].toLowerCase()} cards with total mana value ${m[2]} or less.` }] },
+    /* Scholar of New Horizons: "Search your library for a Plains card and reveal it. If an opponent controls more lands
+       than you, you may put that card onto the battlefield tapped. If you don't put the card onto the battlefield, put it
+       into your hand. Then shuffle." — the battlefield offered only while the condition holds (tutor mayField, fieldIf) */
+    { re: /^Search your library for an? ([A-Za-z ]+?) card and reveal it\. If ([^,.]+), you may put that card onto the battlefield( tapped)?\. If you don'?t put the card onto the battlefield, put it into your hand\. Then shuffle\.?$/i,
+      make: (m) => { const cond = condOf(m[2]); return cond ? [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), reveal: true, to: 'mayField', fieldIf: cond, tapped: !!m[3],
+        prompt: `Search your library for ${/^[aeiou]/i.test(m[1]) ? 'an' : 'a'} ${m[1]} card.` }] : null; } },
     /* Scapeshift: "Sacrifice any number of lands. Search your library for up to that many land cards,
        put them onto the battlefield tapped, then shuffle." */
     { re: /^Sacrifice any number of lands\. Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle\.$/i,
@@ -23642,6 +23660,11 @@
       // Redemption Arc: "Enchanted creature has indestructible and is goaded."
       { re: /^(?:Enchanted|Equipped) creature has ([a-z ,]+?) and is goaded\.?$/i,
         make: (m) => { const kws = keywordList(m[1]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
+          { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws }] } : null; }, auto: true },
+      // Ghoulish Impetus: "Enchanted creature gets +1/+1, has deathtouch, and is goaded."
+      { re: /^(?:Enchanted|Equipped) creature gets ([+-]\d+)\/([+-]\d+), has ([a-z ,]+?),? and is goaded\.?$/i,
+        make: (m) => { const kws = keywordList(m[3]); return kws.length && kws.every(kwKnown) ? { op: 'sequence', list: [{ op: 'goadAttached' },
+          { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } },
           { op: 'continuous', layer: 6, scope: { attached: true, what: 'creature' }, grant: kws }] } : null; }, auto: true },
       { re: /^(?:Enchanted|Equipped) creature (?:gets ([+-]\d+)\/([+-]\d+) and )?is goaded\.?$/i,
         make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'goadAttached' }, { op: 'continuous', layer: 7, scope: { attached: true, what: 'creature' }, pt: { p: +m[1], t: +m[2] } }] } : { op: 'goadAttached' }), auto: true },

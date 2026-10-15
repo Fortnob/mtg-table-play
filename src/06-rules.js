@@ -25209,7 +25209,25 @@
           // (nothing it could find: no search, no shuffle — mayPick)
           if (e.mayPick && !legal.length) break;
           let taken = [];
-          if (want_n > 0) {
+          /* Protean Hulk: "any number of creature cards with total mana value 6 or less" — one pick, the mana values
+             adding up to no more than that (totalMv) */
+          if (e.totalMv != null) {
+            const fit = legal.filter(c => mvOf(c) <= e.totalMv);
+            if (fit.length) {
+              const got = this._choose({ playerId: ctlAgent ? ctlAgent.controller : seeker.id, purpose: 'tutorTotalMv', kind: 'objects', zone: 'library',
+                panel: true, items: this._chooseItems(fit).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id) || {}) })),
+                min: 0, max: fit.length, optional: true, forPlayer: seeker.id,
+                constraints: [{ kind: 'sum', key: 'mv', max: e.totalMv, label: 'total mana value' }],
+                prompt: (e.prompt || `Search your library for any number of ${want} cards with total mana value ${e.totalMv} or less.`).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it') }, 'tutorMv');
+              if (got === SUSPEND) return SUSPEND;
+              let sum = 0;
+              for (const id of (got && got.picks) || []) {
+                const c = this.obj(id);
+                if (!c || !fit.includes(c) || taken.includes(c) || sum + mvOf(c) > e.totalMv) continue;
+                sum += mvOf(c); taken.push(c);
+              }
+            }
+          } else if (want_n > 0) {
             const picked = this._ask({ type: 'pickCard', playerId: ctlAgent ? ctlAgent.controller : seeker.id, count: want_n,
               cards: legal.map(o => ({ id: o.id, name: o.name, card: o.card })),
               optional: true, fromLibrary: true,
@@ -25252,6 +25270,15 @@
             const toGrave = !!(got && got.picks && got.picks[0] === 1);
             for (const c of taken) toField.add((toGrave ? 'grave:' : 'hand:') + c.id);
           }
+          /* Scholar of New Horizons: "If an opponent controls more lands than you, you may put that card onto the battlefield
+             tapped. If you don't put the card onto the battlefield, put it into your hand." — asked only while the
+             condition holds (mayField, fieldIf) */
+          if (dest === 'mayField' && taken.length && (!e.fieldIf || this._condMet(e.fieldIf, ctx))) {
+            const yes = this._ask({ type: 'confirm', playerId: seeker.id, purpose: 'tutorMayField', yesLabel: 'Onto the battlefield', noLabel: 'Into your hand',
+              prompt: `Put ${taken.map(c => c.name).join(', ')} onto the battlefield${e.tapped ? ' tapped' : ''}? If you don't, put ${taken.length === 1 ? 'it' : 'them'} into your hand.` }, 'mayf');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) for (const c of taken) toField.add('field:' + c.id);
+          }
           if (dest === 'split' && taken.length) {
             const k = Math.min((e.split && e.split.battlefield) || 1, taken.length);
             if (taken.length > k) {
@@ -25285,6 +25312,7 @@
             const where = dest === 'handGrave' || dest === 'handOrGrave' ? (toField.has('grave:' + c.id) ? 'graveyard' : 'hand')
               : dest === 'split' ? (toField.has(c.id) ? 'battlefield' : 'hand')
               : dest === 'landField' ? ((c.analysis() || {}).isLand ? 'battlefield' : 'hand')
+              : dest === 'mayField' ? (toField.has('field:' + c.id) ? 'battlefield' : 'hand')
               // Nazahn, Revered Bladesmith: "If you reveal a card named Hammer of Nazahn …, put it onto the battlefield. Otherwise, … into your hand" (namedField)
               : dest === 'namedField' ? (c.name === e.fieldNamed ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
