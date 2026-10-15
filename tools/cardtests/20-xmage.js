@@ -61838,4 +61838,155 @@ module.exports = (test) => {
     T.resolve();
     t.eq(T.zone('A', 'hand').length, h0 + 1, 'Hawkeye: the Bears he never hurt — nothing');
   });
+  test('Commanders: The Fantastic Four — enters, and spells with power, toughness or mana value 4: a mode not chosen this turn', (mk, t) => {
+    t.auto('The Fantastic Four');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const offered = [];
+    const pick = (re) => (ch) => { offered.push(ch.options.length); return { modes: [ch.options.find(o => re.test(o.label)).i] }; };
+    T.answer('mode', pick(/damage/));
+    const ff = T.bf('A', 'The Fantastic Four', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(offered[0], 4, 'Fantastic Four: four modes on entering');
+    t.eq(T.life('B'), 17, 'Fantastic Four: 3 damage to each opponent');
+    // Grizzly Bears: 2/2, mana value 2 — no trigger
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(offered.length, 1, 'Fantastic Four: Grizzly Bears does not trigger');
+    // Wall of Omens: toughness 4
+    const hand0 = T.zone('A', 'hand').length;
+    T.answer('mode', pick(/Draw/));
+    T.mana('A', '1W');
+    T.cast('A', T.hand('A', 'Wall of Omens'));
+    t.eq(offered[1], 3, 'Fantastic Four: the damage mode not offered again this turn');
+    t.eq(T.zone('A', 'hand').length, hand0 + 2, 'Fantastic Four (toughness 4): drew a card (and Wall of Omens one)');
+    // Air Elemental: power 4
+    const bear = T.bfOf('A').find(o => o.name === 'Grizzly Bears');
+    T.answer('mode', pick(/counters/));
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: bear.id }] });
+    T.mana('A', '3UU');
+    T.cast('A', T.hand('A', 'Air Elemental'));
+    t.eq(offered[2], 2, 'Fantastic Four: two modes left');
+    t.eq(bear.counters['+1/+1'], 2, 'Fantastic Four (power 4): two +1/+1 counters on the target');
+    // Concentrate: mana value 4 — the last mode, without asking
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Concentrate'));
+    t.eq(offered.length, 3, 'Fantastic Four: one mode left — chosen without asking');
+    const walls = () => T.bfOf('A').filter(o => o.isToken && o.name === 'Wall');
+    t.eq(walls().length, 1, 'Fantastic Four (mana value 4): a Wall token');
+    t.ok(g.hasKw(walls()[0], 'defender') && g.toughnessOf(walls()[0]) === 4, 'Fantastic Four: a 0/4 Wall with defender');
+    // all four used: nothing more this turn
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Concentrate'));
+    t.eq(walls().length, 1, 'Fantastic Four: every mode chosen this turn — nothing');
+    t.eq(T.life('B'), 17, 'Fantastic Four: no more damage');
+    // next turn: the modes are back
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.answer('mode', pick(/damage/));
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Concentrate'));
+    t.eq(offered[3], 4, 'Fantastic Four: a new turn, all four modes again');
+    t.eq(T.life('B'), 14, 'Fantastic Four: 3 damage again');
+    t.ok(ff.zone === 'battlefield');
+  });
+  test('Commanders: Szadek, Lord of Secrets — combat damage to a player becomes +1/+1 counters and that many cards milled', (mk, t) => {
+    t.auto('Szadek, Lord of Secrets');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const sz = T.bf('A', 'Szadek, Lord of Secrets');
+    T.toMain('A');
+    const lib0 = T.zone('B', 'library').length;
+    T.answer('declareAttackers', () => [{ attackerId: sz.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 20, 'Szadek: no damage to the player');
+    t.eq(sz.counters['+1/+1'], 5, 'Szadek: five +1/+1 counters instead');
+    t.eq(T.zone('B', 'library').length, lib0 - 5, 'Szadek: that player mills five');
+    t.eq(T.zone('B', 'graveyard').length, 5, "Szadek: into B's graveyard");
+    // blocked: the damage to a creature is dealt as ever
+    T.nextTurn('B'); T.nextTurn('A');
+    const wall = T.bf('B', 'Giant Spider');
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: sz.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: wall.id, attackerIds: [sz.id] }]);
+    T.toMain('A', 'endCombat');
+    t.eq(sz.counters['+1/+1'], 5, 'Szadek: blocked — no counters');
+    t.zone(wall, 'graveyard', 'Szadek: the damage dealt to the blocking Giant Spider');
+  });
+  test('Commanders: Whiplash, Vengeful Engineer — enters tapped; attacks equipped: drain X, X the Equipment on him', (mk, t) => {
+    t.auto('Whiplash, Vengeful Engineer');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    const wp = T.bf('A', 'Whiplash, Vengeful Engineer', { etb: true });
+    T.resolve();
+    t.ok(wp.tapped, 'Whiplash: enters tapped');
+    // unequipped: no trigger
+    T.nextTurn('B'); T.nextTurn('A'); T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: wp.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 18, 'Whiplash: unequipped — only his combat damage');
+    t.eq(T.life('A'), 20, 'Whiplash: unequipped — no life gained');
+    T.nextTurn('B'); T.nextTurn('A');
+    const e1 = T.bf('A', 'Bonesplitter'), e2 = T.bf('A', 'Short Sword');
+    g._attachAura(e1, wp); g._attachAura(e2, wp);
+    T.toMain('A');
+    T.answer('declareAttackers', () => [{ attackerId: wp.id, defenderId: 'B' }]);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('A'), 22, 'Whiplash: two Equipment — gain 2');
+    t.eq(T.life('B'), 18 - 2 - 5, 'Whiplash: B loses 2, then 5 combat damage (2 +2 +1)');
+  });
+  test("Commanders: Nashi, Moon's Legacy — attacks: a legendary or Rat card exiled from your graveyard, and its copy may be cast", (mk, t) => {
+    t.auto("Nashi, Moon's Legacy");
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    T.toMain('A');
+    const ns = T.bf('A', "Nashi, Moon's Legacy");
+    for (let k = 0; k < 4; k++) T.bf('A', 'Swamp');
+    const rat = T.grave('A', 'Typhoid Rats'), leg = T.grave('A', 'Isamaru, Hound of Konda'), bear = T.grave('A', 'Grizzly Bears');
+    let opts = null;
+    T.answer('pickTarget', (ch) => { opts = (ch.options[0] || []).map(x => x.id); return { targets: [(ch.options[0] || []).find(x => x.id === rat.id)] }; });
+    T.answer('declareAttackers', () => [{ attackerId: ns.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.ok(opts && opts.includes(rat.id) && opts.includes(leg.id) && !opts.includes(bear.id), 'Nashi: a Rat or a legendary card, not a Bears');
+    t.zone(rat, 'exile', 'Nashi: Typhoid Rats exiled');
+    const copy = T.bfOf('A').find(o => o.name === 'Typhoid Rats');
+    t.ok(copy && copy.isToken, 'Nashi: its copy cast — a token');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Swamp' && o.tapped).length, 1, 'Nashi: paid for ({B})');
+    // declined: the card stays exiled, no copy
+    T.nextTurn('B'); T.nextTurn('A');
+    ns.tapped = false;
+    T.answer('pickTarget', (ch) => ({ targets: [(ch.options[0] || []).find(x => x.id === leg.id)] }));
+    T.answer('confirm', { yes: false });
+    T.answer('declareAttackers', () => [{ attackerId: ns.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    t.zone(leg, 'exile', 'Nashi: Isamaru exiled');
+    t.no(T.bfOf('A').some(o => o.name === 'Isamaru, Hound of Konda'), 'Nashi: declined — no copy');
+    t.eq(T.manualLines().length, 0);
+  });
+  test('Commanders: The Spot, Living Portal — enters: a nonland permanent and a nonland permanent card exiled; dies: to the bottom, and they return to hand', (mk, t) => {
+    t.auto('The Spot, Living Portal');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const ox = T.bf('B', 'Ornithopter'), bear = T.bf('B', 'Grizzly Bears');
+    const land = T.bf('B', 'Forest');
+    const dead = T.grave('B', 'Hill Giant'), bolt = T.grave('B', 'Lightning Bolt');
+    let o1 = null, o2 = null;
+    T.answer('pickTarget', (ch) => { o1 = (ch.options[0] || []).map(x => x.id); o2 = (ch.options[1] || []).map(x => x.id); return { targets: [bear, dead].map(x => ({ kind: 'object', id: x.id })) }; });
+    const sp = T.bf('A', 'The Spot, Living Portal', { etb: true });
+    T.settle(); T.resolve();
+    t.ok(o1 && o1.includes(ox.id) && o1.includes(bear.id) && !o1.includes(land.id), 'The Spot: a nonland permanent, not a land');
+    t.ok(o2 && o2.includes(dead.id) && !o2.includes(bolt.id), 'The Spot: a nonland permanent card, not an instant');
+    t.zone(bear, 'exile', 'The Spot: Grizzly Bears exiled');
+    t.zone(dead, 'exile', 'The Spot: Hill Giant exiled');
+    T.toMain('B');
+    T.mana('B', '1BB');
+    T.cast('B', T.hand('B', 'Murder'), { targets: [sp] });
+    t.zone(sp, 'library', 'The Spot: dies — on the bottom of the library');
+    t.eq(T.zone('A', 'library')[T.zone('A', 'library').length - 1], sp, 'The Spot: the bottom card');
+    t.zone(bear, 'hand', "The Spot: Grizzly Bears back to its owner's hand");
+    t.zone(dead, 'hand', "The Spot: Hill Giant back to its owner's hand");
+    t.eq(T.manualLines().length, 0);
+  });
 };

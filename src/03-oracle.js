@@ -2198,6 +2198,11 @@
     // Narset, Enlightened Exile: "Exile target noncreature, nonland card with mana value less than Narset's power from a graveyard" (maxMvBelowSourcePower)
     { re: /^Exile (target [a-z, ]+? card) with mana value less than (?:CARDNAME|this creature)'?s power from a graveyard\.?$/i,
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', maxMvBelowSourcePower: true })] } : null; } },
+    /* The Spot, Living Portal: "exile up to one target nonland permanent and up to one target nonland permanent card from a
+       graveyard." — either, both or none, exiled with it */
+    { re: /^Exile up to one target nonland permanent and up to one target nonland permanent card from a graveyard\.?$/i,
+      make: () => { const a = targetSpec('target nonland permanent'), b = targetSpec('target nonland permanent card', 'graveyard');
+        return a && !a.unknown && b && !b.unknown ? { op: 'exile', targets: [Object.assign(a, { upTo: true }), Object.assign(b, { zone: 'graveyard', upTo: true })] } : null; } },
     // Quintorius, Loremaster: "exile target noncreature, nonland card from your graveyard" — both at once
     { re: /^Exile (target non[a-z]+, non[a-z]+ card) from your graveyard\.?$/i,
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
@@ -9349,7 +9354,8 @@
     if ((m = p.match(/^different mana value among (?:(?:([a-z]+) (?:and\/or|or|and) ([a-z]+)|([a-z]+)) )?cards in your graveyard$/i)))
       return { graveMvDistinct: m[3] ? m[3].toLowerCase() : m[1] ? m[1].toLowerCase() + ' or ' + m[2].toLowerCase() : 'card', mult: k };
     // Kor Spiritdancer: "for each Aura attached to it"
-    if ((m = p.match(/^(Aura|Equipment) attached to (?:it|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
+    // (Whiplash, Vengeful Engineer: "the number of Equipment attached to him")
+    if ((m = p.match(/^(Aura|Equipment) attached to (?:it|him|her|this creature|CARDNAME)$/))) return { attachedOf: m[1], mult: k };
     // Thran Power Suit: "for each Aura and Equipment attached to it"
     if (/^Aura and Equipment attached to (?:it|this creature|CARDNAME)$/.test(p)) return { attachedOf: ['Aura', 'Equipment'], mult: k };
     /* Multani: "for each land you control and each land card in your
@@ -10104,8 +10110,10 @@
     // Jacob Frye: "an Assassin card or card with freerunning" (subtypeOrKeyword)
     if (spec.subtypeOrKeyword && !((a.subtypes || []).some(t => String(t).toLowerCase() === spec.subtypeOrKeyword.subtype) ||
       kw(spec.subtypeOrKeyword.keyword) || (a.keywords || []).some(x => String(x).toLowerCase() === spec.subtypeOrKeyword.keyword))) return false;
+    // Nashi, Moon's Legacy: "a legendary or Rat card" (legendaryOrSubtype)
+    if (spec.legendaryOrSubtype && !((a.supertypes || []).includes('Legendary') || (a.subtypes || []).some(t => String(t).toLowerCase() === spec.legendaryOrSubtype))) return false;
     if (spec.withoutKeyword && kw(spec.withoutKeyword)) return false;
-    if (spec.withCounter && !(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
+    if (spec.withCounter &&!(Number((obj.counters || {})[spec.withCounter]) > 0)) return false;
     if (spec.withoutCounter && Number((obj.counters || {})[spec.withoutCounter]) > 0) return false;
     if (spec.withAnyCounter && !Object.values(obj.counters || {}).some(v => Number(v) > 0)) return false;
     // Spear of Heliod: one that has dealt damage to the one choosing, this turn
@@ -12545,6 +12553,15 @@
       make: (m) => [{ op: 'exile', targets: [{ type: 'card', filter: `${m[1]} card or card with ${m[2]}`, zone: 'graveyard', controller: 'you', upTo: true,
         subtypeOrKeyword: { subtype: m[1].toLowerCase(), keyword: m[2].toLowerCase() } }] },
         { op: 'castCopy', of: 'last', pay: true, fromRes: true }] },
+    // Nashi, Moon's Legacy: "exile up to one target legendary or Rat card from your graveyard and copy it. You may cast the copy." (likewise; legendaryOrSubtype)
+    { re: /^[Ee]xile up to one target legendary or ([A-Z][a-z]+) card from your graveyard and copy it\. You may cast the copy\.?$/,
+      make: (m) => [{ op: 'exile', targets: [{ type: 'card', filter: `legendary or ${m[1]} card`, zone: 'graveyard', controller: 'you', upTo: true,
+        legendaryOrSubtype: m[1].toLowerCase() }] },
+        { op: 'castCopy', of: 'last', pay: true, fromRes: true }] },
+    /* The Spot, Living Portal: "When The Spot dies, put him on the bottom of his owner's library. If you do, return the
+       exiled cards to their owners' hands." — from the graveyard only; the cards its last time on the battlefield exiled */
+    { re: /^[Pp]ut (?:it|him|her|CARDNAME) on the bottom of (?:its|his|her) owner'?s library\. If you do, return the exiled cards to their owners'? hands\.?$/,
+      make: () => [{ op: 'selfToLibrary', bottom: true, fromGraveyard: true, then: [{ op: 'exiledWithToHand' }] }] },
     /* Quintorius, Loremaster: "Choose target card exiled with Quintorius. You may cast that card this turn without paying
        its mana cost. If that spell would be put into a graveyard, put it on the bottom of its owner's library instead."
        (exiledWithSource, ofTarget, bottomAfter) */
@@ -14742,7 +14759,7 @@
     [/^an opponent has more life than you$/i, () => ({ kind: 'opponentMoreLife' })],
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
     // Merry, Esquire of Rohan: "it's equipped"
-    [/^(?:it'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
+    [/^(?:it'?s|he'?s|she'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" (selfAttackedThisCombat)
@@ -15661,6 +15678,9 @@
     // Jackal, Genius Geneticist: "Whenever you cast a creature spell with mana value equal to Jackal's power" (mvEqualsSelfPower)
     { re: /^Whenever you cast a creature spell with mana value equal to (?:CARDNAME|this creature)'?s power,? /,
       event: 'youCastSpell', filt: () => ({ words: 'creature', mvEqualsSelfPower: true }) },
+    // The Fantastic Four: "whenever you cast a spell with power, toughness, or mana value 4" — any of the three (ptOrMv)
+    { re: /^Whenever you cast a spell with power, toughness, or mana value (\d+),? /,
+      event: 'youCastSpell', filt: (m) => ({ words: 'spell', ptOrMv: +m[1] }) },
     // Mr. House, President and CEO: "Whenever you roll a 4 or higher" — each die that comes up so (minRoll)
     { re: /^Whenever you roll a (\d+) or higher,? /i, event: 'youRoll', extraOf: (m) => ({ minRoll: +m[1] }) },
     // Starscream, Seeker Leader: "Whenever you become the monarch"
@@ -17127,7 +17147,8 @@
        do the same thing: read as two lines. */
     for (let i = 0; i < lines.length; i++) {
       // (Minsc & Boo, Timeless Heroes: "When Minsc & Boo enters and at the beginning of your upkeep, …")
-      const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and ((?:whenever|at the beginning of) [^,"]+?), ([^"]+)$/);
+      // (The Fantastic Four: "… and whenever you cast a spell with power, toughness, or mana value 4, …" — its list's commas)
+      const two = lines[i].match(/^(When(?:ever)? [^,"]+?) and ((?:whenever|at the beginning of) (?:[^,"]|, (?=toughness, or mana value)|, or (?=mana value))+?), (?!toughness, or mana value|or mana value)([^"]+)$/);
       if (!two) continue;
       // (Ivora, Insatiable Heir: "When Ivora enters and whenever it deals combat damage …" — "it" is the card: beanstalkIt)
       const second = /\bthis creature\b/.test(two[1]) ? two[2].replace(/^whenever it /i, 'whenever this creature ')
@@ -20672,6 +20693,10 @@
        prevent that damage. This creature's controller and that player each draw half that many cards, rounded down." */
     { re: /^If (?:this creature|CARDNAME) would deal combat damage to a player, prevent that damage\. (?:This creature|CARDNAME)'s controller and that player each draw half that many cards, rounded down\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgPreventDrawHalf', event: 'damage', who: 'any', how: 'preventDrawHalf', fromSelf: true, combatOnly: true, toPlayerOnly: true, prevention: true }) },
+    /* Szadek, Lord of Secrets: "If Szadek would deal combat damage to a player, instead put that many +1/+1 counters on
+       Szadek and that player mills that many cards." — not a prevention (selfCountersMill) */
+    { re: /^If CARDNAME would deal combat damage to a player, instead put that many \+1\/\+1 counters on CARDNAME and that player mills that many cards\.?$/i,
+      make: () => ({ op: 'replace', id: 'dmgSelfCountersMill', event: 'damage', who: 'any', how: 'selfCountersMill', fromSelf: true, combatOnly: true, toPlayerOnly: true }) },
     { re: /^If another creature would deal combat damage to (enchanted|equipped) creature, it deals double that damage to (?:enchanted|equipped) creature instead\.?$/i,
       make: () => ({ op: 'replace', id: 'dmgToAttachedDouble', event: 'damage', who: 'any', how: 'double', toAttached: true, combatOnly: true, sourceWords: 'creature' }) },
     /* Furnace of Rath, Dictate of the Twin Gods: any source, any victim;

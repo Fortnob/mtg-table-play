@@ -13705,6 +13705,24 @@
           for (const p of [me, them]) if (p && !p.hasLost) this._drawCards(p, half);
           break;
         }
+        /* Szadek, Lord of Secrets: "instead put that many +1/+1 counters on Szadek and that player mills that many
+           cards" — a replacement, not a prevention: it happens even when damage can't be prevented (selfCountersMill) */
+        case 'selfCountersMill': {
+          const k = ev.n || 0;
+          if (!(k > 0)) break;
+          ev.n = 0; ev.cancelled = true;
+          if (src.zone === 'battlefield') this.addCounters(src, '+1/+1', k);
+          const them = this.player(ev.victimController);
+          if (!them || them.hasLost) break;
+          const evM = this._replace({ kind: 'mill', n: k, controller: them.id });
+          if (evM.cancelled) break;
+          const lib = this.zones[them.id].library;
+          const ids = [];
+          for (let i = 0; i < evM.n && lib.length; i++) { const c = lib[0]; ids.push(c.id); this.moveObject(c, 'graveyard'); }
+          this.logEvent('mill', `${src.name}: ${k} +1/+1 counter${k === 1 ? '' : 's'} instead of the damage; ${them.name} mills ${ids.length}.`);
+          this._noteMilled(them.id, ids);
+          break;
+        }
         // Nine Lives, Force Bubble: the damage becomes counters on the permanent instead
         case 'countersOnSelf': {
           const k = ef.perDamage ? (ev.n || 0) : (ef.n || 1);
@@ -29506,6 +29524,8 @@
           if (e.shuffle) this.rng.shuffle(z);
           src._wentToLibrary = true;
           this._toLibraryNote(src, fz);
+          // The Spot, Living Portal: "If you do, return the exiled cards to their owners' hands." (then)
+          if (e.then && e.then.length) this._spliceNext(e.then);
           break;
         }
         /* "Return it to the battlefield under its owner's control": the card
@@ -37670,6 +37690,11 @@
       // Jackal, Genius Geneticist: "with mana value equal to Jackal's power" — as the spell is cast (mvEqualsSelfPower)
       if (f.mvEqualsSelfPower && !(src && (x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) === this.powerOf(src))) return false;
       if (f.maxMv != null && ((x.card && x.card.cmc) || 0) > f.maxMv) return false;
+      // The Fantastic Four: "a spell with power, toughness, or mana value 4" — X and all; a spell without power has none (ptOrMv)
+      if (f.ptOrMv != null) {
+        const hasPt = x.card && x.card.power != null;
+        if (!((x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) === f.ptOrMv || (hasPt && (pw() === f.ptOrMv || tg() === f.ptOrMv)))) return false;
+      }
       // Rendmaw, Creaking Nest: "a card with two or more card types"
       if (f.minCardTypes && this._cardTypesOf(x).length < f.minCardTypes) return false;
       // Pollywog Prodigy: "mana value less than this creature's power"
