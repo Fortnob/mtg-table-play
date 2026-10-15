@@ -8698,6 +8698,8 @@
       if (this._staticOp(o, 'exchangeTextOnEnter')) this._exchangeOnEnter(o);
       // Indominus Rex, Alpha: "As Indominus Rex enters, discard any number of creature cards." (discardForKwCounters)
       if (this._staticOp(o, 'discardForKwCounters')) this._discardForKwCountersOnEnter(o, this._staticOp(o, 'discardForKwCounters'));
+      // Mimeoplasm, Revered One: "exile up to X creature cards from your graveyard" as it enters (exileGraveForCounters)
+      if (this._staticOp(o, 'exileGraveForCounters')) this._exileGraveForCountersOnEnter(o, this._staticOp(o, 'exileGraveForCounters'));
       /* Devour: the creatures chosen as it was cast, sacrificed as it enters,
          and N +1/+1 counters for each */
       if (a.devour && o._devourPicks) {
@@ -13523,6 +13525,30 @@
       if (p.isBot) { const got = this._decideChoose(p.id, spec); this._kwCountersFromDiscard(o, (got && got.picks) || [], spec.keywords); return; }
       this.queueChoice(spec);
     }
+    /* Mimeoplasm, Revered One: "exile up to X creature cards from your graveyard. It enters with three +1/+1 counters on
+       it for each creature card exiled this way." — the X it was cast for; the cards exiled with it */
+    _exileGraveForCountersOnEnter(o, rule) {
+      const p = this.player(o.controller);
+      const x = o.enteredFrom === 'stack' ? (o.chosenX || 0) : 0;
+      const cards = p && x > 0 ? this.zones[p.id].graveyard.filter(c => this._cardFitsWords(c, rule.words || 'creature')) : [];
+      if (!cards.length) return;
+      const spec = MTG.choice.normalize({ playerId: p.id, purpose: 'exileGraveForCounters', kind: 'objects', zone: 'graveyard',
+        items: this._chooseItems(cards), min: 0, max: Math.min(x, cards.length), objId: o.id, n: rule.n || 1, words: rule.words || 'creature',
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card, confirmLabel: 'Exile',
+        prompt: `${o.name}: exile up to ${MTG.oracle.nounCount(x, (rule.words || 'creature') + ' card')} from your graveyard. It enters with ${rule.n || 1} +1/+1 ${(rule.n || 1) === 1 ? 'counter' : 'counters'} on it for each one exiled this way.` });
+      // (it stays on the battlefield while the question is open, whatever its size: _enteringPending)
+      o._enteringPending = true;
+      if (p.isBot) { const got = this._decideChoose(p.id, spec); this._exileGraveForCounters(o, (got && got.picks) || [], spec); return; }
+      this.queueChoice(spec);
+    }
+    _exileGraveForCounters(o, ids, spec) {
+      o._enteringPending = false;
+      const list = (ids || []).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && c.owner === o.controller).slice(0, spec.max);
+      for (const c of list) { this.moveObject(c, 'exile'); if (c.zone === 'exile') c.exiledWithId = o.id; }
+      const k = list.filter(c => c.zone === 'exile').length;
+      if (k) this.logEvent('exile', `${o.name} exiles ${list.map(c => c.name).join(', ')} from the graveyard.`);
+      if (k && o.zone === 'battlefield') this.addCounters(o, '+1/+1', k * (spec.n || 1));
+    }
     _kwCountersFromDiscard(o, ids, keywords) {
       const list = (ids || []).map(id => this.obj(id)).filter(c => c && c.zone === 'hand' && c.owner === o.controller);
       if (!list.length) return;
@@ -14736,6 +14762,8 @@
         case 'morbid': return (h.creaturesDied || 0) > 0;
         case 'morbidOtherName': return (h.diedNames || []).some(nm => !src || U.normName(nm) !== U.normName(src.name));
         case 'revolt': return (h.permanentsLeft || 0) > 0;
+        // Ennis, Debate Moderator: "if one or more cards were put into exile this turn"
+        case 'cardsExiledThisTurn': return (h.cardsExiled || 0) > 0;
         // void: a nonland permanent left the battlefield, or a spell was cast for its warp cost, this turn
         case 'void': return (h.nonlandLeft || 0) > 0 || !!h.warped;
         case 'raid': return !!h.attacked;
@@ -16184,6 +16212,11 @@
       // every card a resolution exiles, from anywhere: "you may play that card" points back at them
       // (Haldan, Avid Arcanist: "cards you exiled" — whose spell or ability exiled it: exiledByPlayer)
       if (toZone === 'exile' && from !== 'exile') o.exiledByPlayer = (this.resolving && this.resolving.ctx && this.resolving.ctx.controller) || null;
+      // Ennis, Debate Moderator: "if one or more cards were put into exile this turn" — cards, not tokens or copies (cardsExiled)
+      if (toZone === 'exile' && from !== 'exile' && !o.isToken && !o.isCopy) {
+        const hx = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false });
+        hx.cardsExiled = (hx.cardsExiled || 0) + 1;
+      }
       if (toZone === 'exile' && this.resolving) {
         (this._resExiled = this._resExiled || []).push(o.id);
         // Skyclave Apparition: "the exiled card" is what this permanent's own ability exiled
@@ -16777,6 +16810,7 @@
     _fireDelayed(event, activePlayerId, controllerId, data) {
       if (!this.delayedTriggers.length) return;
       const keep = [];
+      let firedGroups = null;
       for (const d of this.delayedTriggers) {
         /* Cosima, God of the Voyage: a trigger it carries in exile, gone once that card is not there (whileExiled);
            "a land you control" — the controller of the event (eventController) */
@@ -16803,8 +16837,10 @@
           effects: d.effects || [], auto: true, abilityText: d.name || '', delayed: true,
         });
         if (!d.once) keep.push(d);
+        // (Merieke Ri Berit: "leaves the battlefield or becomes untapped" — the first of a group to fire ends the rest: group)
+        else if (d.group) (firedGroups = firedGroups || new Set()).add(d.group);
       }
-      this.delayedTriggers = keep;
+      this.delayedTriggers = firedGroups ? keep.filter(d => !(d.group && firedGroups.has(d.group))) : keep;
       if (this.pendingTriggers.length) this.emit('sfx', 'trigger');
     }
 
@@ -18473,7 +18509,8 @@
         const short = String(own.name || '').split(',')[0];
         const lines = String(own.oracle_text || '').split('\n')
           // (Kimahri, Valiant Guardian: "it has vigilance and this ability")
-          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:it|she|he) has (?:[a-z ]+ and )?this ability\b/i.test(l))
+          // (Mimeoplasm, Revered One: "except it's 0/0 and has this ability")
+          .filter(l => /\ba copy of\b/i.test(l) && /\b(?:(?:it|she|he) )?has (?:[a-z ]+ and )?this ability\b/i.test(l))
           /* (Kimahri, Valiant Guardian: its name kept, its short name made whole — a copy of a creature that isn't
              legendary doesn't go by a short name) */
           .map(l => (!own.name ? l : e.keepName ? l.split(own.name).join('\u0000').split(short).join(own.name).split('\u0000').join(own.name)
@@ -28598,7 +28635,8 @@
             const c = x && x.zone === 'exile' && !x.isToken && (x.printedCard || x.card);
             t = c ? { card: c, face: 0, name: c.name || x.name, zone: 'exile' } : null;
           }
-          if (!who || who.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !((e._forcedId || e.of === 'lastExiled') && t.zone === 'exile'))) break;
+          // (Mimeoplasm, Revered One: "target creature card exiled with it" — fromExile)
+          if (!who || who.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !((e._forcedId || e.of === 'lastExiled' || e.fromExile) && t.zone === 'exile'))) break;
           const was = who.card, wasName = who.name;
           /* a copy until end of turn over one that lasts: what it was comes back after
              (Mirrorweave's way); a lasting copy outlives one that was to end */
@@ -28651,8 +28689,20 @@
           break;
         }
 
+        /* Nick Fury, Agent of S.H.I.E.L.D.: "If it's a double-faced card, you may transform it." — the card just put onto
+           the battlefield from among those looked at; one that can transform (CR 701.28c) */
+        case 'mayTransformTaken': {
+          const x = (this._takenOntoBf || []).map(id => this.obj(id)).find(o => o && o.zone === 'battlefield');
+          if (!x || !x.card.card_faces || x.card.card_faces.length < 2 || x.meld || !/^(?:transform|flip)$/.test(x.card.layout || '')) break;
+          const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'transformTaken', objId: x.id,
+            prompt: `${(src && src.name) || ctx.name || 'Effect'}: transform ${x.name}?` }, 'mtt');
+          if (yes === SUSPEND) return SUSPEND;
+          if (yes) this._runEffect({ op: 'transform', _forcedId: x.id }, ctx);
+          break;
+        }
         case 'transform': {
-          const x = e.self ? src : (targets[0] && this.obj(targets[0].id));
+          // (Nick Fury, Agent of S.H.I.E.L.D.: the card it was told — _forcedId)
+          const x = e._forcedId ? this.obj(e._forcedId) : e.self ? src : (targets[0] && this.obj(targets[0].id));
           if (!x || !x.card.card_faces || x.card.card_faces.length < 2) break;
           // a melded permanent can't be transformed: it isn't a transforming double-faced card (CR 701.28c)
           if (x.meld) { this.logEvent('rules', `${x.name} is melded and can't transform.`); break; }          /* Aang, at the Crossroads: a delayed transform does nothing to a permanent that has left since, or has
@@ -30803,6 +30853,30 @@
           if (!src || src.zone !== 'battlefield' || !ids.length) break;
           this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: src.id, watchObj: src.id, watchLeaving: true, watchLeftSeq: src._leftSeq || null,
             name: `Exile those tokens (${src.name} left the battlefield)`, effects: [{ op: 'exileListed', ids }] });
+          break;
+        }
+        /* Merieke Ri Berit: "When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature. It
+           can't be regenerated." — two notes on it as it is now, the first to come cancelling the other (group);
+           the creature as it was taken (seq) */
+        case 'destroyWhenSelfLeavesOrUntaps': {
+          const w = firstObj();
+          if (!src || src.zone !== 'battlefield' || !w || w.zone !== 'battlefield') break;
+          const group = this._uid('dg');
+          const name = `Destroy ${w.name} (${src.name} left the battlefield or became untapped)`;
+          const effects = [{ op: 'destroyListed', ids: [w.id], seqs: [w._leftSeq || null], noRegen: !!e.noRegen }];
+          this.scheduleDelayed({ event: 'ltb', once: true, group, controller: ctx.controller, objId: src.id, watchObj: src.id, watchLeaving: true, watchLeftSeq: src._leftSeq || null, name, effects });
+          this.scheduleDelayed({ event: 'becomesUntapped', once: true, group, controller: ctx.controller, objId: src.id, watchObj: src.id, watchLeftSeq: src._leftSeq || null, name, effects });
+          break;
+        }
+        // (Merieke Ri Berit: each one only while it is the permanent it was — seqs)
+        case 'destroyListed': {
+          (e.ids || []).forEach((id, i) => {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield' || (e.seqs && ((x._leftSeq || null) !== (e.seqs[i] || null)))) return;
+            if (this.hasKw(x, 'indestructible')) { this.logEvent('rules', `${x.name} is indestructible.`); return; }
+            if (this._totemArmor(x) || this._regenerated(x, e.noRegen)) return;
+            this.moveObject(x, 'graveyard');
+          });
           break;
         }
         case 'exileListed': {
@@ -34387,6 +34461,7 @@
           const a = o.analysis();
           if (!a || !a.isCreature) return false;
           const t = this.toughnessOf(o);
+          if (t <= 0 && o._enteringPending) return false;
           return t <= 0 || ((this._hasLethalDamage(o) || (o.dealtDeathtouch && o.damage > 0)) && !this.hasKw(o, 'indestructible'));
         });
         if (!this._leavingTogether.length) this._leavingTogether = null;
@@ -34397,6 +34472,8 @@
           if (!a || o.phasedOut) continue;
           if (a.isCreature) {
             const t = this.toughnessOf(o);
+            // (Mimeoplasm, Revered One: not while what it enters with is still being chosen — _enteringPending)
+            if (t <= 0 && o._enteringPending) continue;
             if (t <= 0) { this.logEvent('sba', `${o.name} is put into the graveyard (toughness ${t}).`); this.moveObject(o, 'graveyard'); repeat = true; continue; }
             // (Zilortha, Strength Incarnate: by its power — _hasLethalDamage)
             const lethal = this._hasLethalDamage(o);
@@ -34863,6 +34940,7 @@
             break;
           }
           if (ch.purpose === 'discardForKwCounters') { const o = this.obj(ch.objId); if (o) this._kwCountersFromDiscard(o, got.picks, ch.keywords); break; }
+          if (ch.purpose === 'exileGraveForCounters') { const o = this.obj(ch.objId); if (o) this._exileGraveForCounters(o, got.picks, ch); break; }
           if (ch.purpose === 'giveControl') { this._giveControl(this.obj(ch.objId), got.picks[0]); this.checkStateBasedActions(); break; }
           // Ruxa, Patient Professor: the ones that deal their damage as though unblocked, then the damage (asUnblocked)
           if (ch.purpose === 'asUnblocked') {

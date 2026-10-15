@@ -56083,4 +56083,156 @@ module.exports = (test) => {
     T.nextTurn('B');
     t.eq(lz.name, 'Lazav, Wearer of Faces', 'until end of turn');
   });
+  test('Commanders: Polukranos Reborn // Polukranos, Engine of Ruin — {6}{W/P}: transform; it or another nontoken Hydra dies: two 3/3 Phyrexian Hydras', (mk, t) => {
+    t.auto('Polukranos Reborn // Polukranos, Engine of Ruin');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const pk = T.bf('A', 'Polukranos Reborn // Polukranos, Engine of Ruin');
+    T.mana('A', 'W6');
+    T.activate('A', pk, 0);
+    t.eq(pk.face, 1, 'transformed: Polukranos, Engine of Ruin');
+    t.ok(g.hasKw(pk, 'lifelink') && g.hasKw(pk, 'reach'), 'reach and lifelink');
+    const hydras = () => g.battlefield.filter(o => o.controller === 'A' && o.isToken && o.name === 'Phyrexian Hydra');
+    const brood = T.bf('A', 'Hydra Broodmaster');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [brood] });
+    t.eq(hydras().length, 2, 'another nontoken Hydra dies: two tokens');
+    const reach = hydras().find(o => g.hasKw(o, 'reach')), life = hydras().find(o => g.hasKw(o, 'lifelink'));
+    t.ok(reach && life && reach !== life, 'one with reach, one with lifelink');
+    t.eq(g.powerOf(reach) + '/' + g.toughnessOf(reach), '3/3', '3/3');
+    t.ok((reach.analysis().colors || []).includes('G') && (reach.analysis().colors || []).includes('W'), 'green and white');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [reach] });
+    t.eq(hydras().length, 1, 'a token Hydra dying: nothing');
+    const theirs = T.bf('B', 'Hydra Broodmaster');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [theirs] });
+    t.eq(hydras().length, 1, "an opponent's Hydra: nothing");
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [pk] });
+    t.eq(hydras().length, 3, 'Polukranos himself: two more');
+  });
+  test('Commanders: Mimeoplasm, Revered One — enters: exile up to X creature cards, three counters each; {2}: a 0/0 copy of one of them', (mk, t) => {
+    t.auto('Mimeoplasm, Revered One');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const wurm = T.grave('A', 'Craw Wurm'), giant = T.grave('A', 'Hill Giant'), bears = T.grave('A', 'Grizzly Bears');
+    T.grave('A', 'Lightning Bolt');
+    const theirs = T.grave('B', 'Serra Angel');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [wurm.id, giant.id] }; });
+    const mim = T.hand('A', 'Mimeoplasm, Revered One');
+    T.mana('A', 'BGU2');
+    T.cast('A', mim, { x: 2 });
+    t.zone(mim, 'battlefield', 'a 0/0 waiting on the question stays');
+    t.ok(q && q.max === 2 && q.min === 0, 'up to X = 2');
+    t.eq(q.items.length, 3, 'your three creature cards: not the Bolt, not B\'s Angel');
+    t.zone(wurm, 'exile', 'the Wurm exiled'); t.zone(giant, 'exile', 'the Giant exiled'); t.zone(bears, 'graveyard', 'the Bears stay');
+    t.eq(mim.counters['+1/+1'], 6, 'three +1/+1 counters for each');
+    t.eq(g.powerOf(mim) + '/' + g.toughnessOf(mim), '6/6', '6/6');
+    // {2}: a copy of a creature card exiled with it, 0/0 and with this ability — the counters stay
+    t.no(g.activateAbility('A', mim.id, 0, { auto: true, targets: [{ kind: 'object', id: bears.id }] }), 'the Bears in the graveyard: not exiled with it');
+    T.mana('A', '2');
+    T.activate('A', mim, 0, { targets: [wurm.id] });
+    t.eq(mim.name, 'Craw Wurm', 'a copy of the Wurm');
+    t.eq(g.powerOf(mim) + '/' + g.toughnessOf(mim), '6/6', 'except 0/0: its counters make it 6/6');
+    T.mana('A', '2');
+    T.activate('A', mim, 0, { targets: [giant.id] });
+    t.eq(mim.name, 'Hill Giant', 'with this ability: the Giant now');
+    // X = 0: nothing exiled, a 0/0 dies
+    const mim2 = T.hand('A', 'Mimeoplasm, Revered One');
+    const n0 = T.asked.length;
+    T.mana('A', 'BGU');
+    T.cast('A', mim2, { x: 0 });
+    t.no(T.asked.slice(n0).some(ch => ch.purpose === 'exileGraveForCounters'), 'X = 0: nothing asked');
+    t.zone(mim2, 'graveyard', 'a 0/0 with no counters dies');
+  });
+  test('Commanders: Merieke Ri Berit — {T}: gain control of a creature; she untaps or leaves: destroy it, no regeneration', (mk, t) => {
+    t.auto('Merieke Ri Berit');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const mer = T.bf('A', 'Merieke Ri Berit');
+    const giant = T.bf('B', 'Hill Giant'), wurm = T.bf('B', 'Craw Wurm');
+    T.activate('A', mer, 0, { targets: [giant.id] });
+    t.eq(giant.controller, 'A', 'the Giant is yours');
+    // she doesn't untap during your untap step: the Giant stays
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(mer.tapped, 'Merieke stays tapped');
+    t.eq(giant.controller, 'A', 'still yours');
+    // she becomes untapped: the Giant is destroyed
+    g._markUntapped(mer);
+    T.resolve();
+    t.zone(giant, 'graveyard', 'untapped: the Giant destroyed');
+    // again, then she leaves: destroyed, once
+    T.activate('A', mer, 0, { targets: [wurm.id] });
+    t.eq(wurm.controller, 'A', 'the Wurm is yours');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [mer] });
+    T.resolve();
+    t.zone(wurm, 'graveyard', 'Merieke left: the Wurm destroyed');
+    t.eq(g.delayedTriggers.filter(d => d.group).length, 0, 'the other note gone with it');
+  });
+  test('Commanders: Nick Fury, Agent of S.H.I.E.L.D. — power-up: two counters, a Hero, Equipment or Vehicle from the top seven, transformed if you like', (mk, t) => {
+    t.auto('Nick Fury, Agent of S.H.I.E.L.D.');
+    for (const flip of [true, false]) {
+      const T = mk({ library: Array(20).fill('Island') });
+      const g = T.g;
+      const nf = T.bf('A', 'Nick Fury, Agent of S.H.I.E.L.D.');
+      const giant = T.top('A', 'Hill Giant'), bruce = T.top('A', 'Bruce Banner // The Incredible Hulk'), heir = T.top('A', 'Neglected Heirloom // Ashmouth Blade');
+      let pq = null, cq = null;
+      T.answer('pickCard', (ch) => { pq = ch; return { cardIds: [heir.id] }; });
+      T.answer('confirm', (ch) => { cq = ch; return { yes: flip }; });
+      T.mana('A', 'WUBRG');
+      T.activate('A', nf, 0);
+      t.eq(nf.counters['+1/+1'], 2, 'two +1/+1 counters');
+      const ids = (pq && (pq.candidates || pq.cards.map(c => c.id))) || [];
+      t.ok(ids.includes(heir.id) && ids.includes(bruce.id), 'an Equipment or a Hero to pick');
+      t.no(ids.includes(giant.id), 'not the Giant');
+      t.zone(heir, 'battlefield', 'the Heirloom onto the battlefield');
+      t.ok(cq && /transform Neglected Heirloom/i.test(cq.prompt), 'asked whether to transform it');
+      t.eq(heir.face || 0, flip ? 1 : 0, flip ? 'transformed: Ashmouth Blade' : 'left as it is');
+      t.zone(giant, 'library', 'the rest to the bottom');
+      t.ok(g.zones.A.library.indexOf(giant) >= g.zones.A.library.length - 6, 'at the bottom');
+      t.no(g.activateAbility('A', nf.id, 0, { auto: true }), 'power-up: only once');
+    }
+    // a modal double-faced card can't transform: nothing to ask
+    const T = mk({ library: Array(20).fill('Island') });
+    const nf = T.bf('A', 'Nick Fury, Agent of S.H.I.E.L.D.');
+    const bruce = T.top('A', 'Bruce Banner // The Incredible Hulk');
+    T.answer('pickCard', { cardIds: [bruce.id] });
+    T.mana('A', 'WUBRG');
+    T.activate('A', nf, 0);
+    t.zone(bruce, 'battlefield', 'Bruce Banner onto the battlefield');
+    t.no(T.asked.some(ch => ch.purpose === 'transformTaken'), 'modal: not asked to transform');
+  });
+  test('Commanders: Ennis, Debate Moderator — enters: flicker another creature of yours at end step; end step: a counter if cards were exiled this turn', (mk, t) => {
+    t.auto('Ennis, Debate Moderator');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Llanowar Elves');
+    let tq = null;
+    T.answer('pickTarget', (ch) => { tq = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    const en = T.put('A', 'Ennis, Debate Moderator', 'battlefield', { etb: true });
+    T.resolve();
+    t.no(tq && tq.options[0].some(x => x.id === en.id), 'another creature: not Ennis');
+    t.zone(bears, 'exile', 'the Bears exiled');
+    T.toMain('B');
+    t.zone(bears, 'battlefield', 'back at the end step');
+    t.eq(en.counters['+1/+1'], 1, 'a card was exiled this turn: a +1/+1 counter');
+    // a turn with nothing exiled: no counter
+    T.nextTurn('A'); T.toMain('B');
+    t.eq(en.counters['+1/+1'], 1, 'nothing exiled: no counter');
+    // a token exiled is not a card
+    T.nextTurn('A');
+    const tok = T.bf('A', 'Grizzly Bears'); tok.isToken = true;
+    g.moveObject(tok, 'exile');
+    T.toMain('B');
+    t.eq(en.counters['+1/+1'], 1, 'a token exiled: no counter');
+    // a card exiled from a graveyard counts
+    T.nextTurn('A');
+    g.moveObject(T.grave('B', 'Hill Giant'), 'exile');
+    T.toMain('B');
+    t.eq(en.counters['+1/+1'], 2, 'a card from a graveyard: a counter');
+  });
 };

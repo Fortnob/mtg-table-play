@@ -6673,6 +6673,11 @@
     { re: /^You may put an? ([a-z]+) card and\/or an? ([a-z]+) card from among them onto the battlefield( tapped)?\.?$/i,
       make: (m) => [m[1], m[2]].map(k => ({ op: 'takeFromLooked', n: 1, filter: k.toLowerCase(), to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep',
         prompt: `You may put ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k.toLowerCase()} card onto the battlefield.` })) },
+    // Nick Fury, Agent of S.H.I.E.L.D.: "You may put a Hero, Equipment, or Vehicle card from among them onto the battlefield."
+    { re: /^You may put an? ([A-Z][a-z]+), ([A-Z][a-z]+),? or ([A-Z][a-z]+) card from among them onto the battlefield\.?$/,
+      make: (m) => ({ op: 'takeFromLooked', n: 1, filter: [m[1], m[2], m[3]].map(x => x.toLowerCase()).join(' or '), to: 'battlefield', optional: true, rest: 'keep' }) },
+    // (Nick Fury, Agent of S.H.I.E.L.D.: "If it's a double-faced card, you may transform it." — the card just put there)
+    { re: /^If it'?s a double-faced card, you may transform it\.?$/i, make: () => ({ op: 'mayTransformTaken' }) },
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
     // (Winota, Joiner of Forces: "a Human creature card … tapped and attacking" — where the attacker is, for "It gains …")
     // (Jet, Rebel Leader: "a creature card with mana value 3 or less from among them … tapped and attacking" — maxMv)
@@ -6810,6 +6815,15 @@
         if (!spec || spec.unknown || spec.zone !== 'battlefield') return null;
         const e = { op: 'becomeCopy', untilNextTurn: true, targets: [spec] };
         if (m[2] && (!copyExceptions(m[2], e) || e.keepOwn)) return null;
+        return e;
+      } },
+    /* Mimeoplasm, Revered One: "{2}: Mimeoplasm becomes a copy of target creature card exiled with it, except it's 0/0 and
+       has this ability." — a card in exile, linked to it (exiledWithSource) */
+    { re: /^CARDNAME becomes a copy of target ([a-z]+) card exiled with it(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const kind = m[1].toLowerCase();
+        const e = { op: 'becomeCopy', fromExile: true, targets: [{ type: 'card', filter: kind + ' card', zone: 'exile', exiledWithSource: true }] };
+        if (m[2] && (!copyExceptions(m[2].replace(/^it'?s (\d+\/\d+) and has /i, "it's $1 and it has "), e) || e.keepOwn)) return null;
         return e;
       } },
     /* Niko, Light of Hope: "Exile target nonlegendary creature you control. Shards you control become copies of it
@@ -7674,6 +7688,15 @@
     // Madame Vastra: "create a Clue token and a Food token" (twoNamedTokens)
     { re: /^[Cc]reate an? (Clue|Food|Treasure|Blood|Map|Powerstone) token and an? (Clue|Food|Treasure|Blood|Map|Powerstone) token\.?$/,
       make: (m) => [{ op: 'createNamedToken', n: 1, token: m[1] }, { op: 'createNamedToken', n: 1, token: m[2] }] },
+    /* Polukranos, Engine of Ruin: "create a 3/3 green and white Phyrexian Hydra creature token with reach and a 3/3 green
+       and white Phyrexian Hydra creature token with lifelink" — two tokens, each as it says */
+    { re: /^[Cc]reate (an? \d+\/\d+ [a-zA-Z ]+? creature token(?: with [a-z ]+?)?) and (an? \d+\/\d+ [a-zA-Z ]+? creature token(?: with [a-z ]+?)?)\.?$/,
+      make: (m) => { const a = parseTokenSentence('Create ' + m[1] + '.'), b = parseTokenSentence('Create ' + m[2] + '.');
+        return a && b && a.op === 'createToken' && b.op === 'createToken' ? [a, b] : null; } },
+    /* Merieke Ri Berit: "When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature. It can't
+       be regenerated." — the creature just taken, whichever comes first (destroyWhenSelfLeavesOrUntaps) */
+    { re: /^When CARDNAME leaves the battlefield or becomes untapped, destroy that creature\.?$/,
+      make: () => ({ op: 'destroyWhenSelfLeavesOrUntaps' }) },
     // Gerrard Capashen: "you gain 1 life for each card in target opponent's hand" (lifePerTargetHand)
     { re: /^[Yy]ou gain (1|one) life for each card in target (opponent|player)'?s hand\.?$/,
       make: (m) => ({ op: 'gainLife', who: 'you', n: { cardsInHand: 'target', mult: 1 }, targets: [{ type: 'player', opponent: /opponent/i.test(m[2]) }] }) },
@@ -13718,7 +13741,8 @@
         continue;
       }
       if (e && e.noRegenRider) {
-        const hits = (x) => x && (x.op === 'damage' || x.op === 'destroy' || x.op === 'destroyAll');
+        // (Merieke Ri Berit: the destruction to come — destroyWhenSelfLeavesOrUntaps)
+        const hits = (x) => x && (x.op === 'damage' || x.op === 'destroy' || x.op === 'destroyAll' || x.op === 'destroyWhenSelfLeavesOrUntaps');
         for (let i = out.length - 1; i >= 0; i--) {
           // "…destroy target creature and …" read as a sequence: the destruction inside it
           const inner = out[i].op === 'sequence' ? (out[i].list || []).slice().reverse().find(hits) : null;
@@ -13981,6 +14005,8 @@
     [/^an opponent lost life this turn$/i, () => ({ kind: 'lostLife', who: 'opponent', n: 1 })],
     // Ludevic, Necro-Alchemist: "a player other than you lost life this turn" (who other)
     [/^a player other than you lost life this turn$/i, () => ({ kind: 'lostLife', who: 'other', n: 1 })],
+    // Ennis, Debate Moderator: "if one or more cards were put into exile this turn"
+    [/^one or more cards were put into exile this turn$/i, () => ({ kind: 'cardsExiledThisTurn' })],
     // Vengevine: "if it's the second creature spell you cast this turn"
     [/^it'?s the (second|third) creature spell you(?:'ve)? cast this turn$/i, (m) => ({ kind: 'nthCreatureSpell', n: /second/i.test(m[1]) ? 2 : 3 })],
     // the Backgrounds: "if no opponent has more life than that player"
@@ -17845,7 +17871,8 @@
     const noReminder = text.replace(/\([^)]*\)/g, '');
     // Banquet Guests: "enters with twice X +1/+1 counters on it"
     if (/enters with twice X \+1\/\+1 counters/i.test(noReminder) && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: { xTimes: 2 } };
-    let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
+    // (not Mimeoplasm, Revered One's "three +1/+1 counters on it for each creature card exiled this way": exileGraveForCounters)
+    let etbm = /counters? on it for each [a-z]+ card exiled this way/i.test(noReminder) ? null : noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
     // Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." (escapeN)
     const escN = out.entersWithCounters && noReminder.match(/\. It escapes with (\w+) \+1\/\+1 counters on it instead\./i);
@@ -17854,7 +17881,7 @@
     // (Astral Cornucopia, Lightning Serpent: "X charge counters", "X +1/+0 counters" — the X paid)
     etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (-1\/-1|\+1\/\+0|[a-z ]+?) counters?/i);
     // (not Indominus Rex, Alpha's "a flying counter on it if a card discarded this way has flying": discardForKwCounters)
-    if (etbm && !out.entersWithCounters && !/counter on it if a card discarded this way has/i.test(noReminder)) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
+    if (etbm && !out.entersWithCounters && !/counter on it if a card discarded this way has|counters? on it for each [a-z]+ card exiled this way/i.test(noReminder)) out.entersWithCounters = { kind: etbm[2].trim(), n: num(etbm[1]) };
     /* Graft N (CR 702.58): it enters with N +1/+1 counters, and may hand
        one to each other creature as that creature enters */
     const graftN = out.keywords.some(k => k.keyword === 'Graft') && text.match(/(?:^|\n)Graft (\d+)/);
@@ -20191,6 +20218,10 @@
           const kws = [m[1]].concat(m[2].split(/,\s*(?:and )?/)).map(x => x.trim().toLowerCase()).filter(Boolean);
           return kws.every(kwKnown) ? { op: 'discardForKwCounters', keywords: kws } : null;
         }, auto: true },
+      /* Mimeoplasm, Revered One: "As Mimeoplasm enters, exile up to X creature cards from your graveyard. It enters with
+         three +1/+1 counters on it for each creature card exiled this way." — the X paid (exileGraveForCounters) */
+      { re: /^As (?:CARDNAME|this creature) enters, exile up to X ([a-z]+) cards from your graveyard\. It enters with (an?|one|two|three|four|five|\d+) \+1\/\+1 counters? on it for each \1 card exiled this way\.?$/i,
+        make: (m) => ({ op: 'exileGraveForCounters', words: m[1].toLowerCase(), n: /^an?$/i.test(m[2]) ? 1 : num(m[2]) }), auto: true },
       { re: /^((?:Other )?[A-Z][a-z]+s|(?:Other )?creatures) you control have each of the chosen abilities\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, grantChosen: true } : null; }, auto: true },
       // Serra's Emissary: "You and creatures you control have protection from the chosen card type."

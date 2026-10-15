@@ -2907,6 +2907,8 @@
       if (ch.purpose === 'leyline') return true;
       // a Treasure spent for mana: a bot is never asked, and would say yes (sacMana)
       if (ch.purpose === 'sacMana') return true;
+      // Nick Fury, Agent of S.H.I.E.L.D.: a double-faced Hero put onto the battlefield — its other face is the point
+      if (ch.purpose === 'transformTaken') return true;
       // Atemsis, All-Seeing: revealing a hand of six mana values wins
       if (ch.purpose === 'revealHandMvLose') return true;
       // Kellan, Daring Traveler: a revealed card off the top into the graveyard — a land kept only when lands are short
