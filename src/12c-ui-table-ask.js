@@ -130,7 +130,7 @@
       if (live.priorityPlayer === this.meId && (live.stack || []).length && !this.isTop()) {
         const top = live.stack[live.stack.length - 1];
         const who = v.players.find(p => p.id === top.controller);
-        return set('respond', `${escapeHtml(possessive(who ? who.name : 'Someone'))} ${escapeHtml(top.name)} is on the stack`,
+        return set('respond', `${escapeHtml(possessive(who ? who.name : 'Someone'))} ${escapeHtml(this.stackName(top))} is on the stack`,
           (live.playable || []).length ? 'Respond with an instant or ability, or press <b>Resolve</b>.' : 'Press <b>Resolve</b> to let it happen.');
       }
       off();
@@ -1345,7 +1345,7 @@
                   this.render();
                 } }, [
                 el('span', { class: 'mode-dot', text: on ? '✓' : '' }),
-                el('span', { class: 'mode-text', html: `${MTG.mana.html(m.cost || '')} ${MTG.mana.textHtml(truncate(String(m.label || '').replace(/CARDNAME/g, steps.o.card.name), 90))}` }),
+                el('span', { class: 'mode-text', html: `${MTG.mana.html(m.cost || '')} ${MTG.mana.textHtml(String(m.label || '').replace(/CARDNAME/g, steps.o.card.name))}` }),
               ]));
             }
             // escalate: every mode past the first costs this much more

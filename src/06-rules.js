@@ -12017,7 +12017,8 @@
         if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
         if (rider.minMv != null && ((so.card && so.card.cmc) || 0) + this._xMv(item) < rider.minMv) return;
         this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
-          name: truncate(rider.text || 'Mana rider', 60), effects: rider.effects, auto: true, abilityText: truncate(rider.text || '', 80) });
+          // (its words whole: the stack shows them all, wrapped)
+          name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '' });
         return;
       }
       // Arena of Glory: a creature spell paid with it arrives with haste

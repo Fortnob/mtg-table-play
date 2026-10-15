@@ -448,23 +448,32 @@
 .hslot > .cv.chosen .cv-body { box-shadow: 0 0 0 3px var(--atk), 0 0 24px 6px rgba(255,91,69,.6); }
 
 /* ---------- the stack ---------- */
-.stack-col { position: absolute; z-index: 30; right: 16px; top: 50%; translate: 0 -54%;
-  width: calc(var(--side-w) - 24px); display: flex; flex-direction: column; align-items: center; gap: 6px;
-  max-height: 62%; pointer-events: none; }
-.stack-col::before { content: 'The stack'; font: 600 10px/1 var(--font); letter-spacing: .14em; text-transform: uppercase;
-  color: rgba(246,220,140,.75); margin-bottom: 4px; opacity: 0; transition: opacity .2s; }
+/* Down the side, from under the corner buttons to just above the dock (--dock-h, measured), every item whole: an
+   ability's full text and each item's caption (who, the modes chosen, the targets) wrap, nothing overlaps, and a
+   stack taller than the room scrolls. Short, it sits in the middle of that room (the auto margins), as it did. */
+.stack-col { position: absolute; z-index: 30; right: 16px; top: calc(var(--board-top) + 44px); bottom: calc(var(--dock-h, 220px) + 16px + 10px);
+  width: calc(var(--side-w) - 24px); display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 8px 4px 12px; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  scrollbar-color: rgba(246,220,140,.35) transparent; pointer-events: none; }
+.stack-col::before { content: 'The stack'; flex: none; margin-top: auto; font: 600 10px/1 var(--font); letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(246,220,140,.75); opacity: 0; transition: opacity .2s; }
 .stack-col.on::before { opacity: 1; }
-.stack-item { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto;
+.stack-item { position: relative; flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto;
   animation: stackIn .3s cubic-bezier(.3,.7,.3,1); }
-.stack-item:not(.top) { margin-top: -38px; opacity: .85; scale: .9; }
-.stack-item > .cv { --w: 104px; }
+.stack-item:last-child { margin-bottom: auto; }
+.stack-item:not(.top) { opacity: .88; }
+.stack-item > .cv { --w: 88px; }
 .stack-item.top > .cv { --w: 128px; }
 .stack-item.top > .cv .cv-body { box-shadow: 0 0 0 2px rgba(246,220,140,.7), 0 0 26px 6px rgba(246,200,110,.35), 0 12px 26px rgba(0,0,0,.7); }
 .stack-item.countered > .cv .cv-body, .stack-item.countered .ability-chip { filter: grayscale(1) brightness(.6); }
 .stack-ph { width: 104px; height: 40px; }
-.stack-cap { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; max-width: 210px; text-align: center;
-  font-size: 11px; color: #c9d1de; line-height: 1.35; }
-.stack-item:not(.top) .stack-cap { display: none; }
+.stack-cap { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 6px; max-width: 100%; text-align: center;
+  font-size: 11px; color: #c9d1de; line-height: 1.35; overflow-wrap: anywhere; }
+.stack-cap > span { min-width: 0; max-width: 100%; }
+/* (over the board, so it reads against whatever is under it) */
+.stack-cap { padding: 2px 7px; border-radius: 8px; background: rgba(10,12,18,.72); }
+.stack-cap .pip { width: 12px; height: 12px; font-size: 8px; }
+.stack-item:not(.top) .stack-cap { font-size: 10.5px; }
 .stack-cap .who { font-weight: 700; color: #fff; }
 .stack-item.theirs .stack-cap .who { color: #9cc7ff; }
 /* a batch of the same trigger: how many, and "Resolve the rest" / "Decline the rest" */
@@ -475,13 +484,13 @@
 .stack-act:hover { background: rgba(40,46,58,.96); border-color: rgba(246,220,140,.8); color: #fff; }
 .stack-cap .next { width: 100%; color: var(--gold-hi); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 @keyframes stackIn { from { opacity: 0; translate: 30px 0; } }
-.ability-chip { display: flex; gap: 8px; align-items: stretch; width: 210px; padding: 6px; border-radius: 12px;
+.ability-chip { display: flex; gap: 8px; align-items: stretch; width: min(210px, 100%); padding: 6px; border-radius: 12px;
   background: linear-gradient(180deg, rgba(36,40,52,.97), rgba(20,23,31,.97));
   border: 1px solid rgba(212,175,71,.45); box-shadow: 0 8px 22px rgba(0,0,0,.6); text-align: left; cursor: default; }
 .ac-art { width: 48px; flex: none; border-radius: 8px; background: #222 center / cover no-repeat; min-height: 48px; }
-.ac-text { min-width: 0; }
-.ac-name { font: 600 12.5px/1.25 var(--serif); color: #f6eedb; }
-.ac-body { font-size: 11px; line-height: 1.35; color: #c3cad6; margin-top: 2px; }
+.ac-text { flex: 1 1 auto; min-width: 0; }
+.ac-name { font: 600 12.5px/1.25 var(--serif); color: #f6eedb; overflow-wrap: anywhere; }
+.ac-body { font-size: 11px; line-height: 1.35; color: #c3cad6; margin-top: 2px; overflow-wrap: anywhere; }
 .ac-body .pip { width: 13px; height: 13px; font-size: 9px; }
 
 /* ---------- the card held up in the middle ---------- */
@@ -493,7 +502,7 @@
 .spot-card > .cv { --w: min(250px, calc(27 * var(--vh))); }
 .spot-card > .cv .cv-body { box-shadow: 0 0 0 2px rgba(246,220,140,.75), 0 0 50px 10px rgba(246,200,110,.35), 0 24px 50px rgba(0,0,0,.8); }
 .spot-card > .ability-chip { width: 300px; scale: 1.15; }
-.spot-cap { max-width: 280px; animation: capIn .35s cubic-bezier(.3,.7,.3,1) .1s both; }
+.spot-cap { max-width: 280px; overflow-wrap: anywhere; animation: capIn .35s cubic-bezier(.3,.7,.3,1) .1s both; }
 .spot-who { font: 600 12px/1 var(--font); letter-spacing: .14em; text-transform: uppercase; color: #9cc7ff; }
 .spot-name { font: 600 30px/1.1 var(--serif); color: #fff8e4; margin-top: 6px; text-shadow: 0 2px 14px rgba(0,0,0,.8); }
 .spot-tg { font-size: 15px; color: var(--aim); margin-top: 8px; }
@@ -944,20 +953,33 @@
 /* (its height is the desktop's least, and grows with a long question rather than cut it off, as .bb-sub says) */
 :root[data-phone] .big-btn { font-size: 14px; }
 :root[data-phone] .phase-strip, :root[data-phone] .dock-turn { display: none; }
-:root[data-phone] .stack-col { right: 6px; width: 120px; }
-:root[data-phone] .stack-item > .cv { --w: 60px; }
+/* a phone's stack: a narrow column down the right, below the opponent's nameplate and above the dock, scrolling */
+:root[data-phone] .stack-col { right: 4px; width: 136px; gap: 8px; padding: 6px 2px 10px;
+  top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 6px); bottom: calc(var(--dock-h, 200px) + var(--hand-peek) + 6px + 8px); }
+/* (the question asked up top, under the opponent's nameplate: the stack starts below it) */
+:root[data-phone] .arena:has(.arena-banner.on) .stack-col { top: calc(var(--board-top) + var(--opp-hud-h, 64px) + 4px + var(--banner-h, 0px) + 6px); }
+:root[data-phone] .dr-art { width: 34px; height: 28px; }
+:root[data-phone] .stack-item > .cv { --w: 56px; }
 :root[data-phone] .stack-item.top > .cv { --w: 76px; }
-/* a triggered ability on a phone's stack: the width of the column, its name and its art (the whole text is a tap away) */
-:root[data-phone] .stack-col .ability-chip { width: 120px; gap: 5px; padding: 4px; }
-:root[data-phone] .stack-col .ac-art { width: 26px; min-height: 26px; }
-:root[data-phone] .stack-col .ac-name { font-size: 10.5px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-:root[data-phone] .stack-col .ac-body { display: none; }
-:root[data-phone] .stack-col .stack-item:not(.top) { margin-top: -22px; }
+/* a triggered ability on a phone's stack: its art and name on one line, its whole text under them across the column */
+:root[data-phone] .stack-col .ability-chip { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; gap: 4px 5px; padding: 5px; }
+:root[data-phone] .stack-col .ac-text { display: contents; }
+:root[data-phone] .stack-col .ac-art { width: 22px; height: 22px; min-height: 22px; border-radius: 6px; }
+:root[data-phone] .stack-col .ac-name { font-size: 11px; }
+:root[data-phone] .stack-col .ac-body { grid-column: 1 / -1; margin-top: 0; font-size: 10.5px; line-height: 1.35; }
+:root[data-phone] .stack-col .ac-body .pip { width: 12px; height: 12px; font-size: 8px; }
+:root[data-phone] .stack-cap { font-size: 10px; }
 :root[data-phone] .stack-act { font-size: 10.5px; padding: 4px 7px; }
 :root[data-phone] .hand-fan { width: calc(100% - 20px); }
 :root[data-phone] .arena-preview { display: none !important; }
-:root[data-phone] .spot-card > .cv { --w: 150px; }
 :root[data-phone] .spot-name { font-size: 20px; }
+/* a phone's spotlight: the card above its caption, the caption the width of the screen, so a long ability reads in a few lines */
+:root[data-phone] .spotlight { flex-direction: column; gap: 10px; width: calc(100% - 24px); text-align: center; }
+:root[data-phone] .spot-card > .cv { --w: 104px; }
+:root[data-phone] .spot-card > .ability-chip { width: 100%; scale: 1; }
+:root[data-phone] .spot-cap { max-width: 100%; padding: 8px 12px 10px; border-radius: 14px; background: rgba(8,10,14,.9); box-shadow: 0 10px 30px rgba(0,0,0,.6); }
+:root[data-phone] .spot-ab { max-width: none; font-size: 13px; line-height: 1.4; }
+:root[data-phone] .spot-tg { font-size: 13px; }
 :root[data-phone] .arena-banner { bottom: calc(var(--hand-peek) + 70px); max-width: 92%; }
 
 :root[data-reduce-motion] .arena *, :root[data-reduce-motion] .arena *::before, :root[data-reduce-motion] .arena *::after {
@@ -1066,7 +1088,7 @@
 .arena.multi { --board-top: 70px; }
 .arena.split { --board-top: 40px; }
 .arena { --board-mid: calc(var(--board-top) + (100% - var(--board-top) - var(--hand-peek) - 6px) / 2); }
-.spotlight, .table-caption, .stack-col { top: var(--board-mid); }
+.spotlight, .table-caption { top: var(--board-mid); }
 .fx-turn { top: var(--board-mid); }
 /* on a phone the app's own corner buttons sit over the far side, so the board starts below them,
    and the question being asked goes up top where it does not cover the button that answers it */
@@ -1306,8 +1328,9 @@
 .dr-art { width: 54px; height: 40px; flex: none; border-radius: 7px; background: #1b1f28 center 30% / cover no-repeat; box-shadow: 0 0 0 1px rgba(255,255,255,.15); }
 .dr-text { display: grid; gap: 1px; min-width: 0; }
 .dr-who { font-size: 11px; color: #c9b8a8; }
-.dr-name { font: 600 14px/1.15 var(--serif); color: #fff1dc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.dr-aim { font-size: 11.5px; color: #ffb39c; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* (its name and what it is aimed at whole, wrapped: never cut short) */
+.dr-name { font: 600 14px/1.15 var(--serif); color: #fff1dc; overflow-wrap: anywhere; }
+.dr-aim { font-size: 11.5px; color: #ffb39c; overflow-wrap: anywhere; }
 .dr-could { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: #9aa4b6; }
 .dr-row { display: flex; flex-wrap: wrap; gap: 5px; }
 .dr-opt { position: relative; display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 3px 9px 3px 3px; border-radius: 99px; cursor: pointer;

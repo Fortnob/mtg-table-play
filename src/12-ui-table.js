@@ -349,6 +349,16 @@
         }
         if (changed && !this._destroyed) this._onResize();
       }) : null;
+      /* The stack runs down the side from the top to just above the dock, scrolling past that (and on a phone from
+         under the question asked up top); how tall the dock is (a respond panel, a long question on its button) and
+         the question are told to the stylesheet, which needs no render for it. */
+      this._dockRO = window.ResizeObserver ? new ResizeObserver(() => {
+        for (const [n, prop] of [[this.dock, '--dock-h'], [this.banner, '--banner-h']]) {
+          const h = n.offsetHeight;
+          if (h !== n._seenH) { n._seenH = h; this.arena.style.setProperty(prop, h + 'px'); }
+        }
+      }) : null;
+      if (this._dockRO) { this._dockRO.observe(this.dock); this._dockRO.observe(this.banner); }
       window.addEventListener('resize', this._onResize);
     }
 
@@ -371,6 +381,7 @@
     /** @this {MTG.TableInstance} */
     destroy() {
       if (this._ro) this._ro.disconnect();
+      if (this._dockRO) this._dockRO.disconnect();
       document.removeEventListener('keydown', this._onKey);
       window.removeEventListener('resize', this._onResize);
       document.removeEventListener('pointermove', this._onAimMove);
@@ -1623,6 +1634,9 @@
         return w;
       });
       this.place(this.stackCol, kids);
+      // something new on top: the column, scrolled down to read what is under it, comes back up to show it
+      const topId = items.length ? items[0].id : null;
+      if (topId !== this._stackTop) { this._stackTop = topId; if (topId) this.stackCol.scrollTop = 0; }
       this.stackCol.classList.toggle('on', items.length > 0);
       this.stackCol.dataset.n = String(items.length);
     }
@@ -1632,7 +1646,7 @@
       return el('div', { class: 'stack-cap' }, [
         el('span', { class: 'who', text: who ? (who.id === this.meId ? 'You' : who.name) : '' }),
         // (a spell's or a trigger's modes, chosen as it went on the stack: whole, never cut short)
-        (s.modes || []).length ? el('span', { class: 'tg', text: s.modes.join('; ') }) : null,
+        (s.modes || []).length ? el('span', { class: 'tg', html: MTG.mana.textHtml(s.modes.join('; ')) }) : null,
         targets.length ? el('span', { class: 'tg', text: '→ ' + targets.join(', ') }) : null,
         top ? el('span', { class: 'next', text: s.countered ? 'countered' : 'resolves next' }) : null,
       ].filter(Boolean));
@@ -1660,15 +1674,38 @@
       ]));
     }
 
+    /** An ability on the stack: where it came from, and every word of what it does (the column scrolls, the text wraps). */
     _abilityChip(s) {
       const url = s.card ? MTG.scry.imageUrl(s.card, 'art_crop', 0) : '';
+      const name = this.stackName(s) || 'Ability';
+      const text = s.abilityText || '';
       return el('div', { class: 'ability-chip', dataset: { stack: s.id } }, [
         el('div', { class: 'ac-art', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
         el('div', { class: 'ac-text' }, [
-          el('div', { class: 'ac-name', text: s.name || (s.card ? s.card.name : 'Ability') }),
-          el('div', { class: 'ac-body', html: MTG.mana.textHtml(truncate(s.abilityText || '', 140)) }),
-        ]),
+          el('div', { class: 'ac-name', text: name }),
+          // (a trigger named by its own words, a mana rider's, says them once)
+          text && text !== name ? el('div', { class: 'ac-body', html: MTG.mana.textHtml(text) }) : null,
+        ].filter(Boolean)),
       ]);
+    }
+
+    /**
+     * What a spell or ability on the stack is called at the table. The engine names an ability by its source and
+     * the start of its words ("Atraxa, Grand Unifier — When Atraxa, Grand Unifier enters, reveal the t…"); where
+     * those words are the ability's own, cut short or not, it is called by its source alone, and its whole text
+     * is shown beside it rather than the start of it.
+     */
+    stackName(s) {
+      if (!s) return '';
+      const name = String(s.name || '');
+      const src = s.card && s.card.name;
+      if (s.kind === 'ability' && name.includes(' \u2014 ')) {
+        const at = name.indexOf(' \u2014 ');
+        const head = name.slice(0, at), rest = name.slice(at + 3).replace(/\u2026$/, '').trim().toLowerCase();
+        const words = String(s.abilityText || '').toLowerCase();
+        if (!rest || (words && words.startsWith(rest)) || /\u2026$/.test(name)) return head || src || name;
+      }
+      return name || src || '';
     }
 
     /* ---- the card held up in the middle ---- */
@@ -1691,7 +1728,9 @@
         el('div', { class: 'spot-cap' }, [
           el('div', { class: 'spot-who', text: `${who ? (who.id === this.meId ? 'You' : who.name) : 'Someone'} ${verb}` }),
           el('div', { class: 'spot-name', text: item.kind === 'ability' && item.card ? item.card.name : (item.name || (item.card ? item.card.name : '')) }),
-          item.kind === 'ability' && item.abilityText ? el('div', { class: 'spot-ab', html: MTG.mana.textHtml(truncate(item.abilityText, 160)) }) : null,
+          // (all of it: a long trigger, Emrakul's or Sen Triplets', is read here as it arrives)
+          item.kind === 'ability' && item.abilityText ? el('div', { class: 'spot-ab', html: MTG.mana.textHtml(item.abilityText) }) : null,
+          (item.modes || []).length ? el('div', { class: 'spot-ab', html: MTG.mana.textHtml(item.modes.join('; ')) }) : null,
           targets.length ? el('div', { class: 'spot-tg', text: 'targeting ' + targets.join(', ') }) : null,
         ].filter(Boolean)),
       ]);
@@ -1874,7 +1913,7 @@
         art,
         el('div', { class: 'dr-text' }, [
           el('span', { class: 'dr-who', text: `${who ? who.name : 'An opponent'} ${top.kind === 'spell' || !top.kind ? 'casts' : 'uses'}` }),
-          el('b', { class: 'dr-name', text: top.name || (card && card.name) || 'something' }),
+          el('b', { class: 'dr-name', text: this.stackName(top) || (card && card.name) || 'something' }),
           aims.length ? el('span', { class: 'dr-aim', text: '\u2192 ' + aims.join(', ') }) : null,
         ].filter(Boolean)),
       ]);
@@ -2027,7 +2066,7 @@
         const top = live.stack[live.stack.length - 1];
         const mine = top.controller === this.meId;
         // someone else's spell: you are being asked whether to answer it
-        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: top.name, timer: !mine,
+        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: this.stackName(top), timer: !mine,
           title: 'Let the top of the stack resolve (Space)',
           secondary: { label: 'Pass until response', title: 'Keep passing until somebody adds to the stack (Enter)', fn: () => this.send({ kind: 'yield', mode: 'response' }) } };
       }
@@ -2226,7 +2265,8 @@
         const cv = e.target.closest('.cv');
         const chip = e.target.closest('.ability-chip, .hist-item');
         if (cv) this.hoverCard(cv, e);
-        else if (chip && chip.dataset.preview) this.hoverCard(chip, e);
+        // (an ability on the stack: the card it came from, with the ability's words)
+        else if (chip && (chip.dataset.preview || chip.dataset.stack)) this.hoverCard(chip, e);
       });
       a.addEventListener('pointerout', (e) => {
         const cv = e.target.closest('.cv, .ability-chip, .hist-item');
@@ -2879,7 +2919,7 @@
       }
       if (t.kind === 'stack') {
         const s = (this.view.stack || []).find(x => x.id === t.id);
-        return s ? s.name : 'a spell';
+        return s ? this.stackName(s) : 'a spell';
       }
       const o = this.objIn(t.id);
       return o && o.card ? o.card.name : 'something';
@@ -3424,9 +3464,14 @@
       }
       const main = el('div', { class: 'pv-main' }, [imgs]);
       const notes = this.cardNotes(o);
-      if (notes.length || MTG.settings.alwaysCardText || o.abilityText) {
+      // a modal spell or trigger on the stack: the modes chosen for it, as its caption says them
+      const onStack = node.closest('.stack-col, .spotlight') ? (this.view.stack || []).find(x => (node.dataset.stack && x.id === node.dataset.stack) ||
+        (node.dataset.id && x.objId === node.dataset.id)) : null;
+      const modes = onStack && (onStack.modes || []).length ? 'Chosen: ' + onStack.modes.join('; ') : '';
+      if (notes.length || MTG.settings.alwaysCardText || o.abilityText || modes) {
         main.appendChild(el('div', { class: 'pv-notes' }, [
           o.abilityText ? el('div', { class: 'pv-ab', html: MTG.mana.textHtml(o.abilityText) }) : null,
+          modes ? el('div', { class: 'pv-ab', html: MTG.mana.textHtml(modes) }) : null,
           ...notes.map(noteNode),
           MTG.settings.alwaysCardText ? UI.cardTextBlock(o.card, o.face || 0) : null,
         ].filter(Boolean)));
