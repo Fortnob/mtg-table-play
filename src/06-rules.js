@@ -17178,6 +17178,9 @@
            other than as a spell resolving, X is 0 and it wasn't kicked (CR 107.3m, 702.33d) */
         if (!opts.fromStack) { o.chosenX = 0; o.kickedTimes = 0; o.wasKicked = false; }
         o._lkiAnalysis = null; o._lkiCard = null;
+        /* a card arriving from another zone is a new object: the counters it had there stay behind (CR 122.2, 400.7) —
+           a time counter on a suspended card, a counter put on it in exile — unless it says they remain (Skullbriar) */
+        if (from !== 'battlefield' && Object.keys(o.counters || {}).length && !(!o.faceDown && this._keepsCounters(o, from))) { o.counters = {}; o.counterTs = null; }
         if (o._impendingN) { o.counters.time = o._impendingN; o._impendingN = 0; }
         /* A daybound permanent makes it day if it is neither, and arrives
            as its night side if it is night (CR 702.145d). */
