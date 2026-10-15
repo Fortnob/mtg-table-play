@@ -4338,6 +4338,19 @@
     { re: /^When its power becomes (\d+) this way, (?:it|CARDNAME) deals (\d+) damage to any target\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] },
         then: [{ op: 'reflexive', effects: [{ op: 'damage', n: +m[2], targets: [targetSpec('any target')] }], text: m[0] }] }) },
+    /* Ancient Bronze Dragon, Ancient Brass Dragon: "roll a d20. When you do, put X +1/+1 counters on each of up to two
+       target creatures, where X is the result." — a trigger of its own, its targets chosen then, X the roll as it was
+       (reflexive, rollAmount: the amount it carries) */
+    { re: /^When you do, (.+), where X is the result\.?$/i,
+      make: (m) => {
+        const pe = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1).replace(/\bX\b/g, '99') + '.'));
+        if (!pe.auto || !pe.effects.length) return null;
+        let seen = false;
+        const swap = (v, k) => (k === 'text' ? String(v).replace(/\b99\b/g, 'X') : v === 99 || v === '99' ? (seen = true, 'triggerAmount') : Array.isArray(v) ? v.map(x => swap(x))
+          : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k2, x]) => [k2, swap(x, k2)])) : v);
+        const effects = swap(pe.effects);
+        return seen ? { op: 'reflexive', rollAmount: true, text: m[0], effects } : null;
+      } },
     // Amalia Benavides Aguirre: "Then destroy all other creatures if its power is exactly 20." (selfPowerIs)
     { re: /^(?:Then )?destroy all other creatures if its power is exactly (\d+)\.?$/i,
       make: (m) => { const inner = parseEffectSentence('Destroy all other creatures.', 1); return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'selfPowerIs', n: +m[1] }, then: [inner] } : null; } },
@@ -6743,6 +6756,9 @@
        graveyard to the battlefield." — picked as it resolves, as "any number of target" is here (anyNumber) */
     { re: /^Return any number of target ([a-z]+) cards with total mana value (\d+) or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: 'any', what: m[1].toLowerCase(), totalMv: +m[2] }) },
+    // Ancient Brass Dragon: "put any number of target creature cards with total mana value X or less from graveyards onto the battlefield under your control" (allGraveyards)
+    { re: /^Put any number of target ([a-z]+) cards with total mana value (\d+) or less from graveyards onto the battlefield under your control\.?$/i,
+      make: (m) => ({ op: 'reanimateChosen', n: 'any', what: m[1].toLowerCase(), totalMv: +m[2], allGraveyards: true }) },
     // Orcus, Prince of Undeath: "Return up to X target creature cards with total mana value X or less …" — X as paid
     { re: /^Return up to X target ([a-z]+) cards with total mana value X or less from your graveyard to the battlefield\.?$/i,
       make: (m) => ({ op: 'reanimateChosen', n: 'X', what: m[1].toLowerCase(), totalMv: 'X' }) },
@@ -8089,6 +8105,8 @@
     // (Hellcat, Undying Vigilante: "return her … under her owner's control with a +1/+1 counter on her")
     { re: /^Return (?:it|him|her|that card|(one of them)) to the battlefield( tapped)? under ((?:its|his|her) owner'?s|your) control( with an? ([+\-0-9/a-z]+) counter on (?:it|him|her|CARDNAME))?\.?$/i,
       make: (m) => Object.assign({ op: 'returnTriggerCard', yours: /your/i.test(m[3]) }, m[1] ? { oneOfBatch: true } : {}, m[2] ? { tapped: true } : {}, m[4] ? { counter: m[5].toLowerCase() } : {}) },
+    // Colossal Grave-Reaver: "put one of them onto the battlefield" — one card of the lot milled, under your control (oneOfBatch, put)
+    { re: /^Put one of them onto the battlefield\.?$/i, make: () => ({ op: 'returnTriggerCard', yours: true, oneOfBatch: true, put: true }) },
     { re: /^(?:Put|Return) (?:that card|it) into your hand at the beginning of your next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'yourEndStep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget',
         name: 'Put it into your hand', effects: [{ op: 'toHandThat' }] }) },
@@ -9772,6 +9790,10 @@
     if ((m = p.match(/^opponents? (?:who|that) controls? an? (artifact|creature|enchantment|planeswalker|land)$/i))) return { opponentsControlling: m[1].toLowerCase(), mult: k };
     // Teysa, Opulent Oligarch, Kaito, Gev: "opponent who lost life this turn" (opponentsLostLife)
     if (/^opponents? (?:who|that) lost life this turn$/i.test(p)) return { opponentsLostLife: true, mult: k };
+    // Smuggler's Share: "for each opponent who drew two or more cards this turn" (opponentsDrewAtLeast)
+    if ((m = p.match(/^opponents? (?:who|that) drew (two|three|four|\d+) or more cards this turn$/i))) return { opponentsDrewAtLeast: num(m[1]), mult: k };
+    // (Smuggler's Share: "opponent who had two or more lands enter the battlefield under their control this turn" — opponentsLandsEntered)
+    if ((m = p.match(/^opponents? (?:who|that) had (two|three|four|\d+) or more lands enter the battlefield under their control this turn$/i))) return { opponentsLandsEntered: num(m[1]), mult: k };
     // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
     if (/^opponents? whose life totals? (?:is|are) less than half their starting life totals?$/i.test(p)) return { opponentsBelowHalfLife: true, mult: k };
     // Tymna the Weaver, Moonshae Pixie: "opponents that were dealt combat damage this turn"; Vivien's Stampede: "player who was …" (combatHitPlayers)
@@ -15660,6 +15682,9 @@
     [/^you have (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     [/^(?:there are )?(\w+) or more card types (?:are )?among cards in your graveyard$/i,
       (m) => ({ kind: 'graveyardTypes', n: num(m[1]) })],
+    // Matzalantli, the Great Door: "there are four or more permanent types among cards in your graveyard" (permanentOnly)
+    [/^(?:there are )?(\w+) or more permanent types (?:are )?among cards in your graveyard$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveyardTypes', n: num(m[1]), permanentOnly: true } : null)],
     // Dark Petition, spell mastery: "there are two or more instant and/or sorcery cards in your graveyard"
     // (the sentence reader has already made "and/or" between card types plain "or")
     // (Octavia, Living Thesis: "you have eight or more instant and/or sorcery cards in your graveyard")

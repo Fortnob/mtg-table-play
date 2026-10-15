@@ -4561,6 +4561,10 @@
       if (v.opponentsControlling) return this.opponentsOf(pid).filter(q => !q.hasLost && this.battlefield.some(x => x.controller === q.id && !x.phasedOut && this._matchesCategory(x, v.opponentsControlling))).length * mult;
       // Teysa, Opulent Oligarch: "for each opponent who lost life this turn" (opponentsLostLife)
       if (v.opponentsLostLife) return this.opponentsOf(pid).filter(q => (q.lifeLostThisTurn || 0) > 0).length * mult;
+      // Smuggler's Share: "for each opponent who drew two or more cards this turn" (opponentsDrewAtLeast)
+      if (v.opponentsDrewAtLeast) return this.opponentsOf(pid).filter(q => (q.drawnThisTurn || 0) >= v.opponentsDrewAtLeast).length * mult;
+      // (Smuggler's Share: "who had two or more lands enter the battlefield under their control this turn" — opponentsLandsEntered)
+      if (v.opponentsLandsEntered) { const by = ((this.turnHistory || {}).enteredBy) || {}; return this.opponentsOf(pid).filter(q => ((by[q.id] || {}).land || 0) >= v.opponentsLandsEntered).length * mult; }
       // Anya, Merciless Angel: "for each opponent whose life total is less than half their starting life total" (opponentsBelowHalfLife)
       if (v.opponentsBelowHalfLife) return this.opponentsOf(pid).filter(q => !q.hasLost && q.life * 2 < ((this.config && this.config.startingLife) || 20)).length * mult;
       // Tymna the Weaver: "the number of opponents that were dealt combat damage this turn" (combatHitPlayers)
@@ -16186,7 +16190,9 @@
         case 'graveyardTypes': {
           if (!me) return false;
           const seen = new Set();
-          for (const o of this.zones[me.id].graveyard) for (const t of ((o.analysis() || {}).types || [])) seen.add(t);
+          for (const o of this.zones[me.id].graveyard) for (const t of ((o.analysis() || {}).types || [])) seen.add(String(t).toLowerCase());
+          // (Matzalantli, the Great Door: "permanent types" — artifact, battle, creature, enchantment, land and planeswalker: permanentOnly)
+          if (cond.permanentOnly) for (const t of Array.from(seen)) if (!['artifact', 'battle', 'creature', 'enchantment', 'land', 'planeswalker'].includes(t)) seen.delete(t);
           return seen.size >= (cond.n || 4);
         }
         case 'hand': {
@@ -21263,7 +21269,7 @@
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
         // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
         if (v && typeof v === 'object' && (v.totalMvOf || v.greatestMvGrave || v.attackedCreatures || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
-          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
+          v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsDrewAtLeast || v.opponentsLandsEntered || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
         // Felisa, Fang of Silverquill: every counter the creature the trigger is about had (as it went)
@@ -25332,9 +25338,12 @@
           // (Nethroi, Apex of Death: "with total power 10 or less" — totalPower)
           const pw = (c) => Math.max(0, this.powerOf(c) || 0);
           // (Orcus, Prince of Undeath: "up to X … with total mana value X or less" — the X paid)
-          const tmv = e.totalMv == null ? null : e.totalMv === 'X' ? Math.max(0, Number(n('X')) || 0) : e.totalMv;
+          // (Ancient Brass Dragon: "X or less … where X is the result" — the roll the trigger carries: triggerAmount)
+          const tmv = e.totalMv == null ? null : typeof e.totalMv === 'string' ? Math.max(0, Number(n(e.totalMv)) || 0) : e.totalMv;
           if (e.n === 'X' && !(Number(n('X')) > 0)) break;
-          const pool = this.zones[ctx.controller].graveyard.filter(c => (e.byWords ? this._cardFitsWords(c, e.what) : this._matchesCategory(c, e.what)) &&
+          // (Ancient Brass Dragon: "from graveyards" — every one of them, onto the battlefield under your control: allGraveyards)
+          const yards = e.allGraveyards ? [].concat(...this.players.map(q => (this.zones[q.id] || {}).graveyard || [])) : this.zones[ctx.controller].graveyard;
+          const pool = yards.filter(c => (e.byWords ? this._cardFitsWords(c, e.what) : this._matchesCategory(c, e.what)) &&
             (tmv == null || ((c.card && c.card.cmc) || 0) <= tmv) && (e.totalPower == null || pw(c) <= e.totalPower));
           if (!pool.length) break;
           /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
@@ -29333,7 +29342,9 @@
               // Strax, Sontaran Nurse: "that player" — the one chosen at random (toChosenPlayer)
               e.toChosenPlayer ? { player: ctx.chosenPlayer || null } : {},
               // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
-              e.amountX ? { amount: Number(ctx.x) || 0 } : {}) });
+              e.amountX ? { amount: Number(ctx.x) || 0 } : {},
+              // Ancient Bronze Dragon: "where X is the result" — the roll as it was (rollAmount)
+              e.rollAmount ? { amount: this._lastRoll || 0 } : {}) });
           break;
         }
         case 'delayed': {
@@ -30863,7 +30874,7 @@
             const pool = (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(c => c && c.zone === 'graveyard' && !c.isToken);
             if (!pool.length) break;
             const got = this._choose({ playerId: ctx.controller, purpose: 'returnOneOfBatch', kind: 'objects', zone: 'graveyard',
-              items: this._chooseItems(pool), min: 1, max: 1, prompt: 'Return one of them to the battlefield.' }, 'rob');
+              items: this._chooseItems(pool), min: 1, max: 1, prompt: e.put ? 'Put one of them onto the battlefield.' : 'Return one of them to the battlefield.' }, 'rob');
             if (got === SUSPEND) return SUSPEND;
             x = ((got && got.picks) || []).map(id => this.obj(id)).find(c => c && pool.includes(c));
           }
