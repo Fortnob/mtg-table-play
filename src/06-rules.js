@@ -2054,6 +2054,15 @@
     }
 
     /** "For each color among permanents you control" — Bloom Tender. */
+    /* How many activated abilities an object has (mana abilities too with withMana): its activated and loyalty
+       abilities, and the keywords that are activated abilities (cycling, ninjutsu, unearth …) — Tazri, Stalwart Survivor */
+    _activatedCount(o, withMana) {
+      const a = o && o.analysis();
+      if (!a) return 0;
+      const KW = /^(?:\w*cycling|ninjutsu|commander ninjutsu|unearth|embalm|eternalize|encore|scavenge|transmute|forecast|bloodrush|reinforce|transfigure|equip|fortify|crew|reconfigure|level up|outlast|boast|exhaust|plot|craft|channel|auto-?load)$/i;
+      return (a.abilities || []).filter(x => x.kind === 'activated' || x.kind === 'loyalty' || (x.kind === 'castModifier' && KW.test(String(x.keyword || '')))).length +
+        (withMana ? (a.manaAbilities || []).length : 0);
+    }
     _colorsAmongYours(pid) {
       const out = new Set();
       for (const x of this.battlefield) {
@@ -2584,7 +2593,7 @@
         else if (item.viaAfter === 'exile') {
           // flashback and friends exile the card instead (CR 702.33a)
           this.moveObject(item.obj, 'exile');
-          this.logEvent('rules', `${item.name} is exiled (${item.via}).`);
+          this.logEvent('rules', `${item.name} is exiled${item.via ? ' (' + item.via + ')' : ''}.`);
         }
         /* Feather, the Redeemed: "exile that card instead of putting it into your graveyard as it resolves. If you
            do, return it to your hand at the beginning of the next end step." — resolved, not countered (featherBy) */
@@ -14749,6 +14758,8 @@
         case 'opponentPoison': return !!me && this.opponentsOf(me.id).some(p => (p.poison || 0) >= (cond.n || 0));
         case 'opponentGraveyard': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].graveyard.length >= (cond.n || 0));
         case 'selfEnteredThisTurn': return !!src && src.entered === this.turn;
+        // Tazri, Stalwart Survivor: "Activate only if this creature has another activated ability." — mana abilities count
+        case 'selfHasOtherActivated': return !!src && this._activatedCount(src, true) >= 2;
         case 'drawnAtLeast': return !!me && (me.drawnThisTurn || 0) >= (cond.n || 1);
         case 'selfAttackedThisTurn': return !!src && src.attackedTurn === this.turn;
         // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" — this one, not an earlier combat this turn
@@ -18427,10 +18438,12 @@
         if (!asked.length) continue;
         // The Lord of Pain: "another target player" with one player to choose is no choice (onlyOnePlayer)
         const forced = asked.length === 1 && !asked[0].multi && !!(plan.units[asked[0].ui].spec || {}).notTriggerPlayer && asked[0].options.length === 1;
+        // Power Pack: "target instant or sorcery card from your graveyard chosen at random" — nobody's choice (atRandom)
+        const rnd = !forced && asked.length === 1 && !asked[0].multi && !!(plan.units[asked[0].ui].spec || {}).atRandom;
         const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
         // the first of a batch: what each target could be for every copy still to go on the stack (_aimSame)
         const sameTargets = !forced && gi === 0 && !groups[gi].solo && item.batch ? this._aimSame(item, asked, chosenModes) : null;
-        const said = forced ? [asked[0].options[0]] : this._ask({
+        const said = forced ? [asked[0].options[0]] : rnd ? [asked[0].options[this.rng.int(asked[0].options.length)]] : this._ask({
           type: 'pickTarget', playerId: pid, purpose: 'triggerTargets', stackId: item.id,
           remember: 'targets', ...(sameTargets ? { sameTargets } : {}),
           specs: asked.map(sl => sl.spec), options: asked.map(sl => sl.options), count: asked.length, sourceId: srcId,
@@ -21678,6 +21691,8 @@
               (!e.mvParity || (((o.card && o.card.cmc) || 0) % 2 === 0) === (e.mvParity === 'even')) &&
               // The Fifteenth Doctor: "with mana value 2 or 3" (mvIn)
               (!e.mvIn || e.mvIn.includes((o.card && o.card.cmc) || 0)) &&
+              // Tazri, Stalwart Survivor: "with activated abilities that aren't mana abilities" (nonManaActivated)
+              (!e.nonManaActivated || this._activatedCount(o, false) > 0) &&
               // Rosheen, Roaring Prophet: "a card with {X} in its mana cost" (xCost)
               (!e.xCost || /\{X\}/.test(((o.card || {}).mana_cost) || '') || (((o.card || {}).card_faces) || []).some(f => f && /\{X\}/.test(f.mana_cost || ''))));
           if (!pool.length) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
@@ -30592,6 +30607,8 @@
               : e.from === 'selfFromGrave' ? [src && src.id].filter(id => id && (this.obj(id) || {}).zone === 'graveyard')
               // Scarlet Witch, Chaotic Avenger: "from among cards exiled with Scarlet Witch" — this time's and before (exiledWith)
               : e.from === 'exiledWith' ? (src ? [].concat(...this.players.map(q => this.zones[q.id].exile)).filter(c => c.exiledWithId === src.id).map(c => c.id) : [])
+              // Power Pack: "you may cast that card" — the card a delayed trigger is about, still in exile (delayedObj)
+              : e.from === 'delayedObj' ? [(ctx.obj && ctx.obj.id) || ctx.objId].filter(id => id && (this.obj(id) || {}).zone === 'exile')
               : (this._lastExiledList && this._lastExiledList.length ? this._lastExiledList : (this._resExiled || [])).slice();
             // Plargg and Nassari: "from among the other cards exiled this way" — not the one an opponent chose (exceptChosen)
             if (e.exceptChosen && Array.isArray(pool)) pool = pool.filter(id => id !== this._exiledChosen);

@@ -1609,8 +1609,9 @@
     { re: /^(?:You )?draw a card, gain (\d+) life, and put an? \+1\/\+1 counter on (?:CARDNAME|this creature)\.?$/i,
       make: (m) => [{ op: 'draw', n: 1, who: 'you' }, { op: 'gainLife', n: +m[1], who: 'you' }, { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
     // Steelswarm Operator, Sunken Citadel, Shang-Chi: "Spend this mana only to activate abilities of artifact sources."
-    { re: /^Spend this mana only to activate abilities of (artifact|land|creature) sources\.?$/i,
-      make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: m[1].toLowerCase() }) },
+    // (Tazri, Stalwart Survivor: "Spend this mana only to activate an ability of a creature.")
+    { re: /^Spend this mana only to activate (?:abilities of (artifact|land|creature) sources|an ability of an? (artifact|land|creature))\.?$/i,
+      make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: (m[1] || m[2]).toLowerCase() }) },
     // Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." — only for coloured symbols (noGenericMana)
     { re: /^This mana can'?t be spent to pay generic mana costs\.?$/i, make: () => ({ op: 'noGenericMana' }) },
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
@@ -3552,6 +3553,11 @@
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
     { re: /^Gain control of (target [a-z' ]+?) until end of turn\. Untap (?:it|that creature)\.?$/i,
       make: (m) => ({ op: 'gainControl', until: 'eot', untap: true, targets: [targetSpec(m[1])] }) },
+    /* Yasova Dragonclaw: "gain control of target creature an opponent controls with power less than Yasova Dragonclaw's
+       power until end of turn, untap that creature, and it gains haste until end of turn." — Act of Treason in one breath */
+    { re: /^Gain control of (target [a-z' ]+?) until end of turn, untap that creature, and it gains haste until end of turn\.?$/i,
+      make: (m) => { const t = tgt(m[1]); return t ? [{ op: 'gainControl', until: 'eot', targets: [t] }, { op: 'untap', scope: 'lastTarget' },
+        { op: 'grantLast', keywords: ['Haste'], until: 'eot', plural: false }] : null; } },
     /* What a creature is, for the rest of the turn: Turn to Frog, Ovinize,
        Animate Land, Merfolk Trickster's "It loses all abilities until end of
        turn". Each part in its layer (becomesEff). (Halsin, Emerald Archdruid: "target token you control") */
@@ -3772,9 +3778,10 @@
     // --- copying a spell ---
     // (Expansion: "… with mana value 4 or less")
     // (Myojin of Cryptic Dreams: "Copy target permanent spell you control three times." — times)
-    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
+    // (Venser, Fervent Forger: "Copy target instant or sorcery spell an opponent controls twice.")
+    { re: /^Copy target (instant or sorcery|instant|sorcery|permanent|creature|artifact|enchantment|noncreature) spell( you control| an opponent controls)?(?: with mana value (\d+) or less)?( twice| (?:three|four|five) times)?\.?(?: You may choose new targets for the cop(?:y|ies)\.?)?$/i,
       make: (m) => Object.assign({ op: 'copySpell', targets: [Object.assign({ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() },
-        m[2] ? { controller: 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
+        m[2] ? { controller: /opponent/i.test(m[2]) ? 'opponent' : 'you' } : {}, m[3] ? { maxMv: +m[3] } : {})] }, m[4] ? { times: /twice/i.test(m[4]) ? 2 : num(m[4].trim().split(' ')[0].toLowerCase()) } : {}) },
     // Errant, Street Artist: "Copy target spell you control that wasn't cast." — a copy, say (notCast)
     { re: /^Copy target spell you control that wasn'?t cast\.?(?: You may choose new targets for the copy\.?)?$/i,
       make: () => ({ op: 'copySpell', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', controller: 'you', notCast: true }] }) },
@@ -4566,9 +4573,11 @@
     // (Yorion, Sky Nomad: "Return those cards to the battlefield at the beginning of the next end step." — their owner's, as ever)
     { re: /^Return (?:those cards|the exiled cards|them) to the battlefield(?: under (?:their|its) owner'?s'? control)? at the beginning of the next end step\.?$/i,
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'exiledNow', name: 'Return them at end of turn', effects: [{ op: 'returnThat' }] }) },
-    { re: /^(Exile|Sacrifice) (?:them|those (?:creatures|tokens)) at the beginning of the next end step\.?$/i,
-      make: (m) => ({ op: 'delayed', event: 'eachEndStep', subject: 'made', name: m[1] + ' them at end of turn',
-        effects: [/^exile/i.test(m[1]) ? { op: 'exile', scope: 'thatObject' } : { op: 'sacrificeThat' }] }) },
+    // (Venser, Fervent Forger: "At the beginning of the next end step, sacrifice them.")
+    { re: /^(?:(Exile|Sacrifice) (?:them|those (?:creatures|tokens)) at the beginning of the next end step|At the beginning of the next end step, (exile|sacrifice) (?:them|those (?:creatures|tokens)))\.?$/i,
+      make: (m) => { const verb = U.titleCase((m[1] || m[2]).toLowerCase());
+        return { op: 'delayed', event: 'eachEndStep', subject: 'made', name: verb + ' them at end of turn',
+          effects: [/^exile/i.test(verb) ? { op: 'exile', scope: 'thatObject' } : { op: 'sacrificeThat' }] }; } },
     // Farrel's Zealot, Laccolith Titan: "This creature assigns no combat damage this turn."
     { re: /^(?:CARDNAME|This creature|It) assigns no combat damage this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'self', flags: ['noDamage'] }) },
@@ -12282,6 +12291,10 @@
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' },
         { op: 'takeFromMilled', n: 1, filter: m[3].replace(/,? or /g, ' or ').replace(/, /g, ' or ').trim() || 'any', optional: !!m[2] }] },
+    /* Tazri, Stalwart Survivor: "Mill five cards. Put all creature cards with activated abilities that aren't mana
+       abilities from among the milled cards into your hand." (all, nonManaActivated) */
+    { re: /^Mill (two|three|four|five|six|seven|eight|nine|ten|\d+) cards\. Put all creature cards with activated abilities that aren'?t mana abilities from among the milled cards into your hand\.?$/i,
+      make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', all: true, n: 1, filter: 'creature', nonManaActivated: true }] },
     // Beluna Grandsquall // Seek Thrills: "Mill seven cards. Then put all cards that have an Adventure from among the milled cards into your hand." (all)
     { re: /^Mill (two|three|four|five|six|seven|eight|nine|ten|\d+) cards\. Then put all cards that have an Adventure from among the milled cards into your hand\.?$/i,
       make: (m) => [{ op: 'mill', n: num(m[1]), who: 'you' }, { op: 'takeFromMilled', all: true, n: 1, filter: 'adventure' }] },
@@ -12346,6 +12359,18 @@
        ever once as a creature */
     { re: /^[Ii]f it was a creature, return it to the battlefield under its owner'?s control\. It'?s an enchantment\.?$/,
       make: () => [{ op: 'returnAsEnchantment' }] },
+    /* Power Pack: "exile target instant or sorcery card from your graveyard chosen at random. At the beginning of your
+       next upkeep, you may cast that card without paying its mana cost. If that spell would be put into your graveyard,
+       exile it instead." — the target nobody's choice (atRandom); the card cast only if it is still that card in exile */
+    { re: /^[Ee]xile (target [a-z ]+? card from your graveyard) chosen at random\. At the beginning of your next upkeep, you may cast that card without paying its mana cost\. If that spell would be put into your graveyard, exile it instead\.?$/,
+      make: (m) => {
+        const first = parseSentenceList(splitSentences('Exile ' + m[1] + '.'));
+        const ex = first.auto && first.effects.length === 1 && first.effects[0].op === 'exile' && (first.effects[0].targets || []).length === 1 ? first.effects[0] : null;
+        if (!ex) return null;
+        ex.targets[0].atRandom = true;
+        return [ex, { op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, subject: 'lastTarget', whileExiled: true,
+          name: 'You may cast that card', effects: [{ op: 'castFree', from: 'delayedObj', exileAfter: true }] }];
+      } },
     /* Pact of Negation: the bill comes next turn. */
     { re: /^At the beginning of your next upkeep, pay ((?:\{[^}]+\})+)\. If you don'?t, you lose the game\.?$/i,
       make: (m) => [{ op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, name: 'Pay ' + m[1] + ' or lose the game',
@@ -14583,6 +14608,8 @@
     [/^(?:it|this creature|this Vehicle|CARDNAME) attacked or blocked this (?:combat|turn)$/i, () => ({ kind: 'any', of: [{ kind: 'selfAttackedThisTurn' }, { kind: 'selfBlockedThisTurn' }] })],
     // Crew Captain: "it entered this turn"
     [/^(?:it|this creature|CARDNAME) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
+    // Tazri, Stalwart Survivor: "Activate only if this creature has another activated ability."
+    [/^(?:this creature|CARDNAME) has another activated ability$/i, () => ({ kind: 'selfHasOtherActivated' })],
     // Mirrex: "Activate only if this land entered this turn."
     [/^this (?:land|artifact|enchantment|permanent|Aura|Equipment|Vehicle|Saga) entered (?:the battlefield )?this turn$/i, () => ({ kind: 'selfEnteredThisTurn' })],
     // Messenger Hawk: "you've drawn two or more cards this turn"

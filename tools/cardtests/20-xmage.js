@@ -60464,4 +60464,127 @@ module.exports = (test) => {
     T.activate('A', v, 0, { targets: [giant.id] });
     t.eq(g.powerOf(giant) + '/' + g.toughnessOf(giant), '2/4', 'Vhati: base power 1 the other time');
   });
+  test("Commanders: Tazri, Stalwart Survivor — your creatures tap for their colours to pay creatures' abilities, if they have another; mill five, the creatures with activated abilities to hand", (mk, t) => {
+    t.auto('Tazri, Stalwart Survivor');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const tz = T.bf('A', 'Tazri, Stalwart Survivor');
+    const boa = T.bf('A', 'Mire Boa');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const pool = g.player('A').pool;
+    t.ok(g.tapForMana('A', boa.id, 0) !== false && (g.player('A').restricted || []).length === 1 && (g.player('A').restricted[0].color === 'G'), 'Tazri: the Mire Boa (which has another ability) taps for {G}');
+    t.no(g.castSpell('A', T.hand('A', 'Giant Growth').id, { auto: true, targets: [{ kind: 'object', id: bears.id }] }), 'Tazri: not for a spell');
+    T.activate('A', boa, 1);   // (its granted mana ability is index 0)
+    t.eq(pool.total() + (g.player('A').restricted || []).length, 0, "Tazri: spent on the Boa's own ability");
+    g.tapForMana('A', bears.id, 0);
+    t.eq(pool.total() + (g.player('A').restricted || []).length, 0, 'Tazri: the Bears have no other activated ability — no mana');
+    t.ok(!bears.tapped, 'Tazri: the Bears stay untapped');
+    // mill five
+    for (const nm of ['Mire Boa', 'Street Wraith', 'Grizzly Bears', 'Llanowar Elves', 'Island', 'Stoneforge Mystic'].reverse()) T.top('A', nm);
+    T.mana('A', 'WUBRG');
+    const before = T.zone('A', 'hand').map(c => c.name);
+    t.eq(tz.analysis().manaAbilities.length, 1, 'Tazri: she has the mana ability too');
+    T.activate('A', tz, 1);
+    const got = T.zone('A', 'hand').map(c => c.name).filter(n => !before.includes(n) || n === 'Giant Growth').filter(n => n !== 'Giant Growth').sort();
+    t.eq(got.join(), 'Mire Boa,Street Wraith', 'Tazri: the Boa and the cycler; not the Elves (a mana ability) nor the Bears');
+    t.eq(T.zone('A', 'graveyard').filter(c => ['Llanowar Elves', 'Grizzly Bears', 'Stoneforge Mystic'].includes(c.name)).length, 2, 'Tazri: five milled — the Stoneforge was the sixth, unmilled');
+  });
+  test("Commanders: Yasova Dragonclaw — beginning of combat: pay {1}{U/R}{U/R} to take a creature with less power than hers until end of turn, untapped, with haste", (mk, t) => {
+    t.auto('Yasova Dragonclaw');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Yasova Dragonclaw');
+    const lands = [T.bf('A', 'Island'), T.bf('A', 'Mountain'), T.bf('A', 'Swamp')];
+    const giant = T.bf('B', 'Hill Giant', { tapped: true, sick: true });
+    const bears = T.bf('B', 'Grizzly Bears');
+    const wurm = T.bf('B', 'Craw Wurm');
+    let q = null;
+    T.answer('confirm', { yes: true });
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    const offered = q ? [].concat(...(q.options || [])).map(o => o.id) : [];
+    t.ok(offered.includes(giant.id) && offered.includes(bears.id) && !offered.includes(wurm.id), 'Yasova: power less than 4 — not the Wurm');
+    t.eq(giant.controller, 'A', 'Yasova: the Giant is hers');
+    t.no(giant.tapped, 'Yasova: untapped');
+    t.ok(g.hasKw(giant, 'haste'), 'Yasova: with haste');
+    t.ok(lands.every(l => l.tapped), 'Yasova: paid');
+    T.nextTurn('B');
+    t.eq(giant.controller, 'B', 'Yasova: back at end of turn');
+    // declined: nothing
+    T.nextTurn('A');
+    T.answer('confirm', { yes: false });
+    T.toMain('A', 'beginCombat');
+    T.resolve();
+    t.eq(bears.controller, 'B', 'Yasova: declined — nothing taken');
+  });
+  test("Commanders: Venser, Fervent Forger — enters: copy an opponent's instant or sorcery twice, or two hasty token copies of an opponent's permanent, sacrificed at end step", (mk, t) => {
+    t.auto('Venser, Fervent Forger');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    // the first mode: B's Bolt, copied twice
+    T.nextTurn('B');
+    T.mana('B', 'R');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    T.cast('B', bolt, { targets: [{ kind: 'player', id: 'A' }], resolve: false });
+    T.answer('mode', { modes: [0] });
+    T.answer('*', (ch) => {
+      if (ch.type === 'pickTarget') return { targets: [{ kind: 'player', id: 'B' }] };
+      if (ch.type === 'confirm') return { yes: true };
+      return undefined;
+    });
+    T.answer('*', (ch) => {
+      if (ch.type === 'pickTarget') return { targets: [{ kind: 'player', id: 'B' }] };
+      if (ch.type === 'confirm') return { yes: true };
+      return undefined;
+    });
+    T.bf('A', 'Venser, Fervent Forger', { etb: true });
+    T.resolve();
+    t.eq(T.asked.filter(q => q.type === 'pickTarget' && /New targets for the copy/.test(q.prompt || '')).length, 2, 'Venser: new targets for each copy');
+    t.eq(T.life('B'), 14, 'Venser: two copies, each 3 to B');
+    t.eq(T.life('A'), 17, "Venser: B's Bolt still hits A");
+    // the second mode: two hasty copies of B's Hill Giant, gone at the end step
+    T.nextTurn('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.bf('B', 'Forest');
+    T.answer('mode', { modes: [1] });
+    T.answer('pickTarget', { targets: [{ kind: 'object', id: giant.id }] });
+    T.bf('A', 'Venser, Fervent Forger', { etb: true });
+    T.resolve();
+    const copies = T.bfOf('A').filter(o => o.name === 'Hill Giant');
+    t.eq(copies.length, 2, 'Venser: two token copies');
+    t.ok(copies.every(o => o.isToken && g.hasKw(o, 'haste')), 'Venser: tokens with haste');
+    t.eq(giant.controller, 'B', 'Venser: the Giant itself stays');
+    T.toMain('A', 'end');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Hill Giant').length, 0, 'Venser: sacrificed at the end step');
+    t.zone(giant, 'battlefield');
+  });
+  test('Commanders: Power Pack — combat damage to a player: an instant or sorcery from your graveyard exiled at random, cast free at your next upkeep, then exiled', (mk, t) => {
+    t.auto('Power Pack');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const pp = T.bf('A', 'Power Pack');
+    const div = T.grave('A', 'Divination'), tt = T.grave('A', 'Think Twice');
+    T.grave('A', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: pp.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'endCombat');
+    t.eq(T.life('B'), 16, 'Power Pack: 4 combat damage');
+    t.eq(T.asked.filter(q => q.type === 'pickTarget').length, 0, 'Power Pack: the card chosen at random — nobody asked');
+    const ex = [div, tt].filter(c => c.zone === 'exile');
+    t.eq(ex.length, 1, 'Power Pack: one of the two exiled');
+    const card = ex[0];
+    t.zone(T.zone('A', 'graveyard').find(c => c.name === 'Grizzly Bears'), 'graveyard', 'Power Pack: not the creature card');
+    T.nextTurn('B');
+    t.zone(card, 'exile', 'Power Pack: not on an opponent\'s upkeep');
+    let offered = null;
+    T.answer('confirm', (ch) => { offered = ch.prompt; return { yes: true }; });
+    const hand0 = T.zone('A', 'hand').length;
+    T.nextTurn('A');
+    t.ok(/without paying its mana cost/.test(offered || ''), 'Power Pack: asked at the upkeep');
+    t.ok(T.zone('A', 'hand').length > hand0 + 1, 'Power Pack: the spell resolved (cards drawn)');
+    t.ok(g.log.some(l => new RegExp('casts ' + card.name).test(l.text)), 'Power Pack: cast, unpaid');
+    t.zone(card, 'exile', 'Power Pack: exiled rather than put into the graveyard');
+  });
 };
