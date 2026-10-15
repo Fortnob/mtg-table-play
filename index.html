@@ -8062,6 +8062,7 @@ const defaultSettings = {
   autoPassUntilStackChange: true,
   alwaysFullControl: false,      // nothing is ever passed for you
   orderMyTriggers: false,        // choose the order your own triggers go on the stack
+  keepSeenOnTop: true,           // a scry showing only the cards you already kept on top, untouched since, keeps them without asking
   stops: null,                   // null means "use the defaults below"
   confirmAttacks: true,
   showPhaseBar: true,
@@ -8209,6 +8210,8 @@ MTG.autoPassConfig = function () {
     fullControl: !!S.alwaysFullControl,
     fullControlSticky: !!S.alwaysFullControl,
     orderTriggers: !!S.orderMyTriggers,
+    // a scry or surveil showing exactly what you already kept on top, with nothing done to the library since, isn't asked
+    keepSeenOnTop: S.keepSeenOnTop !== false,
     // stop only at your stops and when somebody else acts, not wherever you could
     smart: S.stopWhenAble !== true,
   };
@@ -36343,8 +36346,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         rulesEnforcement: 'full',      // 'full' | 'relaxed'
       }, config || {});
       this.rng = new MTG.RNG(this.config.seed);
-      // a shuffled library is in an order nobody knows (_forgetOrder)
-      this.rng.onShuffle = (arr) => this._forgetOrder(arr);
+      /* a shuffled library is in an order nobody knows (_forgetOrder), and a library touched, even when it
+         happens to come out the same way (_keepsSeenOnTop) */
+      this.rng.onShuffle = (arr) => { this._forgetOrder(arr); this._libraryShuffled(arr); };
       this.players = [];
       this.zones = {};                 // playerId -> {library, hand, graveyard, exile, command}
       this.battlefield = [];
@@ -37432,11 +37436,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       const maxHand = Math.max(0, base + this._handSizeMod(ap.id));
       if (hand.length > maxHand && !ap.isBot) {
-        this.pendingChoice = {
+        const ask = {
           type: 'discardToHandSize', playerId: ap.id,
           count: hand.length - maxHand,
           prompt: `Discard down to ${maxHand} cards.`,
         };
+        // a hand of identical cards, or a maximum of none: nothing to choose (_settledAnswer)
+        const settled = this._settledAnswer(ask);
+        if (settled) { this._applySettled(ask, settled); this._finishCleanup(); return; }
+        this.pendingChoice = ask;
         this.emit('choice', this.pendingChoice);
         this.touch();
         return;
@@ -44129,7 +44137,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (this._isRingBearer(o) && (this.player(o.controller) || {}).ringLevel >= 2) {
           const owner = this.player(o.controller);
           this._drawCards(owner, 1);
-          this.queueChoice({
+          this._queueUnlessSettled({
             type: 'discard', playerId: owner.id, count: 1,
             prompt: 'The Ring: discard a card.',
           });
@@ -44168,7 +44176,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const d = o.attacking;
           const dpid = this._defPid(d);
           if (dpid) {
-            this.queueChoice({
+            this._queueUnlessSettled({
               type: 'sacrifice', playerId: dpid, count: ann, filter: 'permanent',
               prompt: `${o.name} has annihilator ${ann} \u2014 sacrifice ${ann} permanent${ann === 1 ? '' : 's'}.`,
             });
@@ -45551,7 +45559,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         } else if (cost.sacrifice.upTo) pick = pick || [];
         else if (need > 0 && pick.length < need) {
           // (the ones the second part can't use go first)
-          if (auto || pool.length === need) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
+          // (only as many as it needs, or all of them alike — two untouched Treasures: nothing to choose)
+          if (auto || pool.length === need || (!also && this._alike(pool))) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
           else {
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
@@ -45566,7 +45575,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const need2 = Math.min(pool2.length, n2);
           let pick2 = (opts.sacrificeAlsoIds || []).map(id => pool2.find(x => x.id === id)).filter(Boolean).slice(0, need2);
           if (need2 > 0 && pick2.length < need2) {
-            if (auto || pool2.length === need2) pick2 = this._cheapestFirst(pool2).slice(0, need2);
+            if (auto || pool2.length === need2 || this._alike(pool2)) pick2 = this._cheapestFirst(pool2).slice(0, need2);
             else {
               pick2 = null;
               ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
@@ -45582,7 +45591,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const need = cost.discard.n === 'all' ? pool.length : Math.min(pool.length, this._costCount(cost.discard.n, opts));
         let pick = (opts.discardIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need) pick = this._cheapestFirst(pool).slice(0, need);
+          if (auto || pool.length === need || this._alike(pool)) pick = this._cheapestFirst(pool).slice(0, need);
           else {
             pick = null;
             ask({ type: 'discard', count: need, candidates: pool.map(x => x.id),
@@ -45595,7 +45604,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const pool = this._exileCostPool(pid, cost.exile, self);
         const need = Math.min(pool.length, this._costCount(cost.exile.n, opts));
         if (need > 0) {
-          if (auto || pool.length === need) {
+          if (auto || pool.length === need || this._alike(pool)) {
             for (const c of this._cheapestFirst(pool).slice(0, need)) this.moveObject(c, 'exile');
           } else {
             ask({ type: 'pickCard', count: need, purpose: 'exileCost', candidates: pool.map(x => x.id),
@@ -45695,7 +45704,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
           !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
         const need = Math.min(cost.returnOwn.n || 1, pool.length);
-        if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) {
+        if (pool.length && (auto || pool.length === need || this._alike(pool))) for (const x of this._cheapestFirst(pool).slice(0, need)) {
           // Scarlet Spider: the mana value of what went back
           if (self) self._returnedMv = (x.card && x.card.cmc) || 0;
           this.moveObject(x, 'hand');
@@ -45719,7 +45728,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (named.length && sum(named) >= want) this._tapForCost(pid, named, item);
         else {
           const auto2 = this._crewPick(pool, want);
-          if (auto || !item || !auto2 || pool.length === auto2.length) { if (auto2) this._tapForCost(pid, auto2, item); }
+          if (auto || !item || !auto2 || pool.length === auto2.length || this._alike(pool)) { if (auto2) this._tapForCost(pid, auto2, item); }
           else ask({ type: 'pickCard', count: pool.length, purpose: 'tapCost', totalPower: want, worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
             prompt: `Tap untapped creatures you control with total power ${want} or more.` });
@@ -45729,7 +45738,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const need = Math.min(pool.length, this._costCount(cost.tapCreatures.n, opts));
         let pick = (opts.tapCostIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need || !item) pick = this._tapCostOrder(pool).slice(0, need);
+          if (auto || pool.length === need || !item || this._alike(pool)) pick = this._tapCostOrder(pool).slice(0, need);
           else {
             pick = null;
             ask({ type: 'pickCard', count: need, purpose: 'tapCost', worst: true, candidates: pool.map(x => x.id),
@@ -51278,6 +51287,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // Whip of Erebos: "if it would leave the battlefield, exile it instead"
         if (from === 'battlefield' && toZone !== 'battlefield' && toZone !== 'exile' && (o.leaveExile || this._staticOp(o, 'leaveExileSelf'))) toZone = 'exile';
       }
+      // a card taken from a library or put into one: what its owner knew of its top is out of date (_keepsSeenOnTop)
+      if (from === 'library' || toZone === 'library') this._libraryTouched(o.owner);
       /* A mutated pile is several cards; each of them goes where the
          permanent went (CR 702.140f). */
       if (from === 'battlefield' && toZone !== 'battlefield' && o.mutateCards) {
@@ -51815,6 +51826,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
         const o = this.battlefield.some(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawFromBottom')) ? z.library.pop() : z.library.shift();
         o.zone = 'hand';
+        this._libraryTouched(p.id);
         // (Sylvan Library: "cards in your hand drawn this turn")
         o.drawnTurn = this.turn;
         z.hand.push(o);
@@ -53192,6 +53204,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         for (const k of ['remember', 'rememberBatch', 'sameTargets', 'payCost']) delete choice[k];
         if (auto) choice.auto = this._autoShown(auto);
       }
+      // nothing to decide: answered on the spot, and said (_settledAnswer) — after an answer remembered, which is the player's own
+      const settled = this._settledAnswer(choice);
+      if (settled) return (r.answers[key] = this._applySettled(choice, settled));
       /* Whoever is asked should be able to see what is asking: the card the
          effect belongs to travels with the question, unless it says otherwise. */
       const src = r.ctx && r.ctx.obj;
@@ -53398,6 +53413,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (s.kind !== 'number' && !s.optional && !s.repeat && !s.ordered && s.min === all.length && s.max === all.length) {
         const got = C.check(s, { picks: all }, hooks);
         if (got.ok) return { picks: got.picks, number: null, order: null };
+      }
+      // one legal answer, or answers that all come to the same thing: made, said, and kept for a resumption
+      const only = r ? this._settledChoose(s, hooks) : null;
+      if (only) {
+        const p = this.player(s.playerId);
+        this.logEvent('choice', only.alike ? `${p.name}'s choices are all alike: ${only.what}.` : `${p.name} has only one choice: ${only.what}.`);
+        const ans = { picks: only.picks, number: null, order: s.ordered ? only.picks.slice() : null };
+        r.answers[r.index + (sub ? ':' + sub : '')] = ans;
+        return ans;
       }
       if (!r) return this._decideChoose(s.playerId, s);
       return this._ask(s, sub);
@@ -55868,6 +55892,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.logEvent(e.op, `${who.name} has no cards to ${e.op}.`);
             break;
           }
+          /* Rumor Gatherer's scry 1 again and again: the very cards this player last chose to keep on top, in
+             that order, with nothing done to their library since, are nothing new to decide — they stay */
+          if (this._keepsSeenOnTop(who.id, e.op, cards)) {
+            if (r) r.answers[r.index + ':' + e.op] = { top: cards.map(c => c.id), bottom: [], seen: true };
+            this.logEvent(e.op, `${who.name} keeps ${cards.length === 1 ? '1 card' : cards.length + ' cards'} on top (seen already).`);
+            this._afterScry(e.op, who.id, cards.length);
+            break;
+          }
           const q = { type: e.op, playerId: who.id, count: cards.length, cards,
             prompt: (e.op === 'scry' ? 'Scry ' : 'Surveil ') + want + '.' };
           if (r) { if (this._ask(q, e.op) === SUSPEND) return SUSPEND; break; }
@@ -58174,6 +58206,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const k = Math.max(1, n(e.n) || 1);
           const cards = this._topOfLibrary(ctx.controller, k);
           if (!cards.length) break;
+          // the cards this player last put on top in this very order, untouched since: they stay as they are
+          if (this._keepsSeenOnTop(ctx.controller, 'arrange', cards)) {
+            this.logEvent('rules', `${me.name} keeps ${cards.length === 1 ? '1 card' : cards.length + ' cards'} on top (seen already).`);
+            break;
+          }
           const order = this._ask({ type: 'arrange', playerId: ctx.controller, count: cards.length, cards,
             prompt: `Put the top ${cards.length === 1 ? 'card' : cards.length + ' cards'} back in any order.` }, 'arr');
           if (order === SUSPEND) return SUSPEND;
@@ -58183,6 +58220,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           for (const o of top) if (!want.includes(o)) want.push(o);
           z.library.splice(0, top.length, ...want);
           for (const o of want) { o.knownTo = null; this._setKnown(o, [ctx.controller]); }
+          this._rememberKeptOnTop(ctx.controller, 'arrange', want.map(o => o.id));
           this.logEvent('rules', `${me.name} puts the top ${top.length} back in the order they choose.`);
           break;
         }
@@ -58289,6 +58327,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const s0 = (e.then || [])[0];
           if (s0 && s0.op === 'sacrificeChoice' && s0.who === 'you' && !this.battlefield.some(x => x.controller === ctx.controller && !x.phasedOut &&
             this._canSacrifice(x) && !(s0.other && src && x.id === src.id) && (!s0.filter || s0.filter === 'permanent' || this._cardFitsWords(x, s0.filter)))) break;
+          // Artist's Talent: "you may discard a card. If you do, draw a card." — with an empty hand, the same
+          if (s0 && s0.op === 'rummage' && (e.then || []).length === 1 && !e.who && !((this.zones[ctx.controller] || {}).hand || []).length) break;
           // Edric: "its controller may draw a card" — whoever controls what it is about decides
           const who = e.who === 'target' ? (firstPlayer() || me) : e.who === 'targetController' ? (this._lastAffectedController() || me) : me;
           // (asked of another player: the card's name and the question, "Edric, Spymaster of Trest: Draw a card?")
@@ -58381,6 +58421,32 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             break;
           }
           if (!able && (pay.exileTriggerCard || pay.forage|| pay.evidence || pay.energy || pay.removeCounter || pay.removeEach || pay.removeAmong || pay.blight || pay.process || pay.behold || pay.exileSelf || pay.exileGrave || pay.tapUntapped || (pay.mana && (pay.life != null || pay.discard)))) { this._spliceNext(e.otherwise); break; }
+          // what could be sacrificed or discarded to pay, and how many it takes
+          const givable = () => {
+            const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
+            const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
+            const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
+            return { need: pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1,
+              zone: pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
+                : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter)) };
+          };
+          /* A price there is no paying is no question either — saying yes could only fail: Mana Vault's {4} with
+             no mana to pay it, Artist's Talent's discard with an empty hand, Scavenger's Talent's three
+             permanents with two to give */
+          if (!e.noAsk) {
+            const parts = Object.keys(pay).filter(k => pay[k] != null && pay[k] !== false);
+            const only = parts.length === 1 ? parts[0] : null;
+            const hopeless = only === 'mana' ? !/\{X\}/i.test(pay.mana) && !this.canPayNow(ctx.controller, pay.mana)
+              : only === 'life' ? (me.life <= pay.life && this.config.rulesEnforcement === 'full') || (pay.life > 0 && this._lifeFrozen(me))
+              : only === 'sacrifice' || only === 'discard' ? (() => { const gv = givable(); return gv.zone.length < gv.need; })()
+              : false;
+            if (hopeless) {
+              const what = only === 'mana' ? pay.mana : only === 'life' ? pay.life + ' life' : only === 'discard' ? 'a card to discard' : 'enough to sacrifice';
+              this.logEvent('rules', `${(src && src.name) || ctx.name || 'Effect'}: ${me.name} cannot pay ${what}.`);
+              this._spliceNext(e.otherwise);
+              break;
+            }
+          }
           // (a "you may" already asked as the trigger resolved)
           // ("you may pay {1}": always, or never, for the rest of the turn — a price that is mana, life or energy alone)
           const plainPay = Object.keys(pay).every(k => k === 'mana' || k === 'life' || k === 'energy' || pay[k] == null) && (pay.mana || pay.life != null || pay.energy);
@@ -58586,12 +58652,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           /* Scavenger's Talent: "you may sacrifice three other nonland
              permanents" — as many as it says, never the source itself */
-          const sf = pay.sacrifice ? String(pay.sacrifice.filter || 'permanent') : '';
-          const sOther = /^other /i.test(sf) || !!(pay.sacrifice && pay.sacrifice.another);
-          const sWords = sf.replace(/^other /i, '').replace(/s$/, '');
-          const need = pay.sacrifice ? Math.max(1, Number(pay.sacrifice.n) || 1) : 1;
-          const zone = pay.sacrifice ? this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !(sOther && o === src) && (this._matchesFilter(o, sWords) || this._cardFitsWords(o, sWords)))
-            : this.zones[ctx.controller].hand.filter(o => this._matchesFilter(o, pay.discard && pay.discard.filter));
+          const { need, zone } = givable();
           // not enough to give up, or not all picked: it wasn't paid (Giant Opportunity: "Otherwise, create three Food tokens")
           if (zone.length < need) { this._spliceNext(e.otherwise); break; }
           const picked = (me.isBot && need > 1) ? this._cheapestFirst(zone).slice(0, need).map(o => o.id)
@@ -69032,24 +69093,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         case 'vote': return this.castVote(playerId, (data && data.choice) || ch.options[0]);
         case 'discard': case 'discardToHandSize': {
-          const ids = (data && data.cardIds) || [];
-          const z = this.zones[playerId];
-          const tossed = [];
-          /* A discard that is owed is made in full, from the cards the
-             question allows. */
-          const pool = ch.candidates ? z.hand.filter(x => ch.candidates.includes(x.id)) : z.hand.slice();
-          const want = Math.min(ch.count || 0, pool.length);
-          let pick = ids.map(id => pool.find(x => x.id === id)).filter(Boolean);
-          pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
-          if (!ch.optional && pick.length < want) {
-            for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
-          }
-          for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
-          const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
-          if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
-          this._lastDiscarded = tossed.map(o => o.id);
-          this.logEvent('discard', `${this.player(playerId).name} discards ${tossed.length ? tossed.map(o => o.name).join(', ') : 'nothing'}.`);
-          for (const o of tossed) this._afterDiscard(playerId, o);
+          this._discardAnswer(ch, playerId, data);
           if (ch.type === 'discardToHandSize') { this.pendingChoice = null; this._finishCleanup(); return true; }
           break;
         }
@@ -69071,39 +69115,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           for (let i = rest.length - 1; i >= 0; i--) { rest[i].zone = 'library'; z.library.unshift(rest[i]); }
           // (what stays on top is known to the one who looked, in the order they chose; what went under, to nobody)
           for (const o of looked) if (o.zone === 'library') { o.knownTo = null; if (rest.includes(o)) this._setKnown(o, [playerId]); }
+          this._rememberKeptOnTop(playerId, ch.type, rest.map(o => o.id));
           this.logEvent(ch.type, `${this.player(playerId).name} ${ch.type === 'scry' ? 'scries' : 'surveils'} ${ch.count}.`);
-          // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
-          this._fire(ch.type === 'scry' ? 'youScry' : 'youSurveil', playerId, { playerId, amount: looked.length });
-          // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
-          this._fire('opponentScrySurveil', null, { except: playerId, player: playerId, playerId });
+          this._afterScry(ch.type, playerId, looked.length);
           break;
         }
         case 'sacrifice': {
-          /* Only what the question allows counts, however it was clicked;
-             and a sacrifice that is owed is made in full — what was left
-             out is made up from whatever matters least. */
-          const pool = ch.candidates
-            ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId)
-            : this._sacrificePool(playerId, { filter: ch.filter || 'permanent' }, null);
-          const want = Math.min(ch.count || 1, pool.length);
-          const ids = (data && data.cardIds) || [];
-          let pick = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
-          pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
-          if (!ch.optional && pick.length < want) {
-            for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
-          }
-          const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
-          // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
-          if (ch.exileInstead) {
-            for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
-            break;
-          }
-          this._sacrificeNow(playerId, pick, item);
-          // "When this creature exploits a creature"
-          if (ch.purpose === 'exploit' && pick.length) {
-            const ex = this.obj(ch.sourceId);
-            if (ex) this._fire('exploits', ex.controller, { source: ex, object: pick[0] });
-          }
+          this._sacrificeAnswer(ch, playerId, data);
           break;
         }
         case 'riot': {
@@ -70254,6 +70272,307 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const z = this.zones[playerId];
       if (!z) return [];
       return z.library.slice(0, Math.max(0, n)).map(o => ({ id: o.id, name: o.name, card: o.card }));
+    }
+
+    /* ---------- what a player already knows about the top of their library ----------
+       Rumor Gatherer scries 1 every time a creature of yours enters: keep the card on top, and the next scry
+       shows you the same card again, and the next. A scry or surveil that would show exactly the cards this
+       player last chose to keep on top, in the same order, with nothing done to their library since, has
+       nothing new to decide, and they stay where they are (keepSeenOnTop, a setting of theirs, on unless
+       they turn it off). "Nothing done" is a count of everything that took a card from that library or put
+       one into it, and every shuffle (_libTouches), with the order of the whole library besides, so a card
+       drawn and put back, or the library reordered by hand, is something new. */
+    _libraryTouched(pid) {
+      if (pid == null) return;
+      const t = this._libTouches = this._libTouches || {};
+      t[pid] = (t[pid] || 0) + 1;
+    }
+    _libraryShuffled(arr) {
+      for (const pid of Object.keys(this.zones || {})) if (this.zones[pid] && this.zones[pid].library === arr) this._libraryTouched(pid);
+    }
+    /** Where a library stands: how often it has been touched, and its order (a hash of it: a snapshot carries it). */
+    _libraryMark(pid) {
+      const z = this.zones[pid];
+      return ((this._libTouches || {})[pid] || 0) + ':' + U.hash(z ? z.library.map(o => o.id).join(',') : '');
+    }
+    /** The cards a player has just kept on top, in order (scry, surveil or arrange), and the library as it stood then. */
+    _rememberKeptOnTop(pid, kind, ids) {
+      const all = this._keptOnTop = this._keptOnTop || {};
+      const mine = all[pid] = all[pid] || {};
+      if (ids && ids.length) mine[kind] = { ids: ids.slice(), mark: this._libraryMark(pid) };
+      else delete mine[kind];
+    }
+    /**
+     * Whether `cards` (the top of this player's library, about to be shown to them by a `kind` — scry, surveil
+     * or arrange) are the very ones they last kept on top, in that order, with nothing done since. A scry's
+     * cards must have been kept by a scry and a surveil's by a surveil: putting a card on the bottom is not the
+     * same choice as putting it into the graveyard. Putting them back in any order is a choice any of the
+     * three has made already. A bot has no use for this; asking it changes nothing.
+     */
+    _keepsSeenOnTop(pid, kind, cards) {
+      const p = this.player(pid);
+      if (!p || p.isBot || !cards || !cards.length) return false;
+      const cfg = ((this.config && this.config.autoPass) || {})[pid];
+      if (cfg && cfg.keepSeenOnTop === false) return false;
+      const mine = (this._keptOnTop || {})[pid];
+      if (!mine) return false;
+      const mark = this._libraryMark(pid);
+      return (kind === 'arrange' ? ['scry', 'surveil', 'arrange'] : [kind]).some(k => {
+        const m = mine[k];
+        return !!m && m.mark === mark && cards.length <= m.ids.length && cards.every((c, i) => c.id === m.ids[i]);
+      });
+    }
+    /** What follows a scry or surveil however it was made: the triggers that count them. */
+    _afterScry(kind, pid, n) {
+      // (Celeborn the Wise: "for each card looked at while scrying this way" — selfPumpEach)
+      this._fire(kind === 'scry' ? 'youScry' : 'youSurveil', pid, { playerId: pid, amount: n });
+      // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
+      this._fire('opponentScrySurveil', null, { except: pid, player: pid, playerId: pid });
+    }
+
+    /* ---------- questions with nothing to decide ----------
+       A question is worth asking only when there is something to decide. One with a single legal answer —
+       the only cards in hand to discard, the only creature to sacrifice, a trigger's only legal target, the
+       copy's only target — or whose answers all come to the same thing (which of two untouched Treasures
+       goes) is answered as it comes up, and the log says what was done. Whatever a player could want
+       differently is still asked: a "may", an "up to", anything optional, a choice between things that
+       differ, and any question that shows them cards they could not see otherwise (a look at a library, an
+       opponent's hand), since the question is the only way they get to see them. */
+
+    /**
+     * The answer to a question that has only one, or whose answers all come to the same, as
+     * { data, what, alike } — `data` as resolveChoice would be given it, `what` the words for the log —
+     * or null when it is a real choice and must be asked.
+     */
+    _settledAnswer(ch) {
+      if (!ch || ch.optional) return null;
+      const pid = ch.playerId;
+      if (!this.player(pid)) return null;
+      const names = (list) => list.map(o => o.name).join(', ');
+      // (all of a pool, or any `want` of a pool whose members are all alike)
+      const fromPool = (pool, want, verb) => {
+        if (!want) return { data: { cardIds: [] }, what: null };
+        if (want >= pool.length) return { data: { cardIds: pool.map(o => o.id) }, what: verb + ' ' + names(pool) };
+        if (this._alike(pool)) { const pick = pool.slice(0, want); return { data: { cardIds: pick.map(o => o.id) }, what: verb + ' ' + names(pick), alike: true }; }
+        return null;
+      };
+      switch (ch.type) {
+        case 'discard': case 'discardToHandSize': {
+          const hand = (this.zones[pid] || {}).hand || [];
+          const pool = ch.candidates ? hand.filter(x => ch.candidates.includes(x.id)) : hand.slice();
+          return fromPool(pool, Math.min(ch.count || 0, pool.length), 'discard');
+        }
+        case 'sacrifice': {
+          const pool = ch.candidates
+            ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === pid)
+            : this._sacrificePool(pid, { filter: ch.filter || 'permanent' }, null);
+          return fromPool(pool, Math.min(ch.count || 1, pool.length), ch.exileInstead ? 'exile' : 'sacrifice');
+        }
+        /* One legal target for each target it must have (none "up to", none of them the same): a target an
+           ability must have is not a choice when there is one. A trigger that only may do something is still
+           asked, though the target is all it could be. */
+        case 'pickTarget': {
+          if (ch.purpose === 'cascadeCast') return null;
+          const opts = ch.options || [], specs = ch.specs || [];
+          if (!opts.length || opts.some(l => !Array.isArray(l) || l.length !== 1 || !l[0])) return null;
+          if (specs.some(sp => sp && (sp.upTo || sp.multi))) return null;
+          const keys = opts.map(l => (l[0].kind || '') + ':' + (l[0].id != null ? l[0].id : l[0]));
+          if (new Set(keys).size !== keys.length) return null;
+          if (ch.stackId) {
+            const it = this.stack.find(s => s.id === ch.stackId);
+            if (!it || it.optional || /"op":"(?:may|mayPay)"|"optional":true|"upTo":true/.test(JSON.stringify(it.effects || []))) return null;
+          }
+          const targets = opts.map(l => l[0]);
+          return { data: { targets }, what: 'target ' + targets.map(t => this.describeTarget(typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).join(', ') };
+        }
+        /* The one card it must take, or any of identical ones, every one of them where the player can see it
+           anyway. Several different cards are asked about even when it takes them all: the order they are
+           picked in can be the order they go somewhere in (Brainstorm's top of the library). A question with
+           a purpose of its own does more with the answer than pass it on, and is asked. */
+        case 'pickCard': {
+          if (ch.purpose) return null;
+          const cards = ch.cards || [];
+          if (!cards.length) return null;
+          const objs = cards.map(c => this.obj(c.id));
+          if (objs.some(o => !this._openTo(o, pid))) return null;
+          if (objs.length === 1) return { data: { cardIds: [objs[0].id] }, what: objs[0].name };
+          const want = Math.min(Math.max(1, ch.count || 1), objs.length);
+          if (!this._alike(objs)) return null;
+          const pick = objs.slice(0, want);
+          return { data: { cardIds: pick.map(o => o.id) }, what: names(pick), alike: true };
+        }
+        // "Choose two —" with two modes to choose from
+        case 'mode': {
+          if (ch.purpose || ch.repeatable) return null;
+          const opts = ch.options || [];
+          const min = ch.min != null ? ch.min : Math.max(1, ch.count || 1);
+          if (!opts.length || min < opts.length) return null;
+          return { data: { modes: opts.map((o, k) => (o.i != null ? o.i : k)) }, what: opts.map(o => o.label).join('; ') };
+        }
+        default: return null;
+      }
+    }
+
+    /**
+     * A generic question (docs/choices.md) with only one legal answer, or whose answers all come to the same
+     * thing: { picks, what, alike }, or null when it is a real choice. Anything optional, a number, an order
+     * of more than one thing, and objects the player could not see without being asked are always asked.
+     */
+    _settledChoose(s, hooks) {
+      const C = MTG.choice;
+      if (s.kind === 'number' || s.optional || !(s.min >= 1) || s.repeat) return null;
+      const all = C.candidates(s);
+      if (!all.length || (s.ordered && all.length > 1)) return null;
+      let objs = null;
+      if (s.kind === 'objects') {
+        objs = all.map(id => this.obj(id));
+        if (objs.some(o => !this._openTo(o, s.playerId))) return null;
+      }
+      const say = (picks) => picks.map(p => {
+        const e = C.entryFor(s, p) || {};
+        return s.kind === 'options' ? e.label : (e.name || (this.obj(p) || this.player(p) || {}).name || '?');
+      }).join(', ');
+      // every legal answer, until there are two (a small question only: a big one is a choice anyway)
+      if (all.length <= 12) {
+        const found = [];
+        let steps = 0;
+        const walk = (start, picks) => {
+          if (found.length > 1 || ++steps > 3000) return;
+          if (picks.length >= s.min && C.check(s, { picks }, hooks).ok) found.push(picks);
+          if (picks.length >= s.max) return;
+          for (let j = start; j < all.length && found.length < 2; j++) walk(j + 1, picks.concat([all[j]]));
+        };
+        walk(0, []);
+        if (steps <= 3000 && found.length === 1) return { picks: found[0], what: say(found[0]) };
+      }
+      // which of several identical things: any legal answer is as good as another
+      if (objs && s.min === s.max && this._alike(objs)) {
+        const any = C.solve(s, { hooks });
+        if (any && any.picks && any.picks.length) return { picks: any.picks, what: say(any.picks), alike: true };
+      }
+      return null;
+    }
+
+    /** Make a settled answer as resolveChoice would, say so, and give back what the waiting effect wants. */
+    _applySettled(ch, settled) {
+      const p = this.player(ch.playerId);
+      if (settled.what) {
+        this.logEvent('choice', settled.alike ? `${p.name}'s choices are all alike: ${settled.what}.` : `${p.name} has only one choice: ${settled.what}.`);
+      }
+      if (ch.type === 'discard' || ch.type === 'discardToHandSize') this._discardAnswer(ch, ch.playerId, settled.data);
+      else if (ch.type === 'sacrifice') this._sacrificeAnswer(ch, ch.playerId, settled.data);
+      return this._answerFor(ch, settled.data);
+    }
+
+    /** A question asked outside a resolution (nothing waits for its answer), unless there is nothing to decide. */
+    _queueUnlessSettled(ch) {
+      const settled = this._settledAnswer(ch);
+      if (settled) this._applySettled(ch, settled);
+      else this.queueChoice(ch);
+    }
+
+    /** Whether this player can see this card where it is without being shown it. */
+    _openTo(o, pid) {
+      if (!o) return false;
+      switch (o.zone) {
+        case 'battlefield': return !o.faceDown || o.controller === pid;
+        case 'graveyard': case 'stack': case 'command': return true;
+        case 'hand': return o.owner === pid;
+        case 'exile': return !o.faceDown && !o.faceDownExile;
+        default: return false;
+      }
+    }
+
+    /**
+     * Whether these are all the same thing in the same state, so that which of them is chosen makes no
+     * difference: the same card, the same counters, damage, tapped or not, the same effects on them, and
+     * nothing else in the game pointing at one of them in particular (a spell's target, a delayed trigger,
+     * an Aura, an exile that remembers it). When they entered matters only as "this turn", when a card was
+     * drawn only in the draw step, and summoning sickness only to a creature.
+     */
+    _alike(objs) {
+      objs = (objs || []).filter(Boolean);
+      if (objs.length < 2) return objs.length === 1;
+      if (objs.some(o => !o.card || o.zone !== objs[0].zone)) return false;
+      const turn = this.turn, drawStep = this.step === 'draw';
+      const OWN = /^(?:id|game|card|printedCard|ts|exileStamp|_chr|_dyn|_borrow|_lki\w*|_analysis)$/;
+      const sig = (o) => {
+        const creature = o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
+        const body = JSON.stringify(o, function (k, v) {
+          if (this === o) {
+            if (OWN.test(k)) return undefined;
+            if (k === 'entered') return v === turn;
+            // (only Sylvan Library asks, in the draw step)
+            if (k === 'drawnTurn') return drawStep ? v === turn : undefined;
+            if (k === 'summoningSick') return creature ? v : undefined;
+          }
+          if (k === 'game') return undefined;
+          return v;
+        });
+        return (o.card.oracle_id || o.card.name) + '|' + o.name + '|' + body;
+      };
+      try {
+        const first = sig(objs[0]);
+        if (objs.some(o => sig(o) !== first)) return false;
+        const ids = new Set(objs.map(o => o.id));
+        const skip = (k, v) => (k === 'game' || k === 'card' || k === 'printedCard' || k === 'pool' || k === 'deck' || k === 'sideboard' ||
+          k === 'spellObjsThisTurn' || /^_(?:chr|dyn|borrow|lki\w*|analysis)$/.test(k) ? undefined : v);
+        const others = [];
+        for (const o of this.objects.values()) if (!ids.has(o.id)) others.push(o);
+        const elsewhere = JSON.stringify([this.stack, this.pendingTriggers, this.delayedTriggers, this.combat, this.prevention, this.players, others], skip);
+        for (const id of ids) if (elsewhere.includes('"' + id + '"')) return false;
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /** A discard asked for, made: what was picked, made up to what is owed from the cards allowed. */
+    _discardAnswer(ch, playerId, data) {
+      const ids = (data && data.cardIds) || [];
+      const z = this.zones[playerId];
+      const tossed = [];
+      /* A discard that is owed is made in full, from the cards the
+         question allows. */
+      const pool = ch.candidates ? z.hand.filter(x => ch.candidates.includes(x.id)) : z.hand.slice();
+      const want = Math.min(ch.count || 0, pool.length);
+      let pick = ids.map(id => pool.find(x => x.id === id)).filter(Boolean);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      if (!ch.optional && pick.length < want) {
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+      }
+      for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
+      const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
+      if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
+      this._lastDiscarded = tossed.map(o => o.id);
+      this.logEvent('discard', `${this.player(playerId).name} discards ${tossed.length ? tossed.map(o => o.name).join(', ') : 'nothing'}.`);
+      for (const o of tossed) this._afterDiscard(playerId, o);
+    }
+    /** A sacrifice asked for, made: only what the question allows, and in full when it is owed. */
+    _sacrificeAnswer(ch, playerId, data) {
+      /* Only what the question allows counts, however it was clicked;
+         and a sacrifice that is owed is made in full — what was left
+         out is made up from whatever matters least. */
+      const pool = ch.candidates
+        ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId)
+        : this._sacrificePool(playerId, { filter: ch.filter || 'permanent' }, null);
+      const want = Math.min(ch.count || 1, pool.length);
+      const ids = (data && data.cardIds) || [];
+      let pick = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      if (!ch.optional && pick.length < want) {
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+      }
+      const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
+      // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
+      if (ch.exileInstead) {
+        for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
+        return;
+      }
+      this._sacrificeNow(playerId, pick, item);
+      // "When this creature exploits a creature"
+      if (ch.purpose === 'exploit' && pick.length) {
+        const ex = this.obj(ch.sourceId);
+        if (ex) this._fire('exploits', ex.controller, { source: ex, object: pick[0] });
+      }
     }
 
     /** Reduce a raw choice reply to the one value the waiting effect wants. */
@@ -120303,6 +120622,7 @@ Sideboard
       toggle('autoPassUntilStackChange', 'Stop when something new goes on the stack', 'Otherwise you only stop at the steps below.', pushAutoPass),
       toggle('alwaysFullControl', 'Never pass priority for me (full control)', 'Nothing is ever passed for you. At the table, Ctrl turns it on for one step and Ctrl+Shift locks it on.', pushAutoPass),
       toggle('orderMyTriggers', 'Let me order my own triggers', 'When several of your triggers go on the stack at once, choose the order instead of having it chosen for you.', pushAutoPass),
+      toggle('keepSeenOnTop', 'Don\u2019t ask again about cards I kept on top', 'When a scry or surveil would show you exactly the cards you last chose to keep on top, in the same order, and nothing has been done to your library since, they stay on top without asking. The log says so.', pushAutoPass),
       el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Always stop at' }),
         el('div', { class: 'opt-help', text: 'Tap a square to stop there — or click a step on the phase strip at the table. Space passes, Enter yields until somebody responds, Shift+Enter yields the turn, Ctrl keeps priority for this step. ? at the table lists every key.' }),
