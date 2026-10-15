@@ -365,6 +365,8 @@
         }
         else if ((m = what.match(/^(a|an|one|two|three|four|five|X|\d+)\s*([-a-z' ]*?)\s*cards? from your graveyard$/i)))
           ex = { what: 'graveyard', n: WORDN(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' };
+        // Araumi of the Dead Tide: "Exile cards from your graveyard equal to the number of opponents you have" (n 'opponents')
+        else if (/^cards from your graveyard equal to the number of opponents you have$/i.test(what)) ex = { what: 'graveyard', n: 'opponents', filter: 'card' };
         // Osgir, the Reconstructor: "Exile an artifact card with mana value X from your graveyard" — X the one paid (mvX)
         else if ((m = what.match(/^(?:a|an) ([a-z]+) card with mana value X from your graveyard$/i)))
           ex = { what: 'graveyard', n: 1, filter: m[1].toLowerCase(), mvX: true };
@@ -1530,6 +1532,8 @@
     { re: /^Spend this mana only to cast (?:a spell|spells) from anywhere other than your hand\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell', notFromHand: true }) },
     // Klauth, Unrivaled Ancient: "Spend this mana only to cast spells." — any spell, no ability
     { re: /^Spend this mana only to cast spells\.?$/i, make: () => ({ op: 'spendOnly', words: 'spell' }) },
+    // Jasmine Boreal of the Seven: "Spend this mana only to cast creature spells with no abilities." (noAbilities)
+    { re: /^Spend this mana only to cast creature spells with no abilities\.?$/i, make: () => ({ op: 'spendOnly', words: 'creature spell', noAbilities: true }) },
     // Ashling, Rimebound: "Spend this mana only to cast spells with mana value 4 or greater."
     { re: /^Spend this mana only to cast (creature )?spells with mana value (\d+) or greater\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: (m[1] ? 'creature ' : '') + 'spell with mana value ' + m[2] + ' or greater' }) },
@@ -5870,6 +5874,10 @@
         return k == null ? null : [{ op: 'draw', n: 1, who: 'you' },
           { op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: k, tapped: true, attacking: true }];
       } },
+    /* Arni Metalbrow: "you may put a creature card with mana value less than that creature's mana value from your hand
+       onto the battlefield tapped and attacking" — the attacker the trigger is about (maxMv ofTrigger) */
+    { re: /^you may put an? ([a-z]+) card with mana value less than that creature'?s mana value from your hand onto the battlefield tapped and attacking\.?$/i,
+      make: (m) => ({ op: 'permanentFromHand', filter: m[1].toLowerCase(), who: 'you', maxMv: { ofTrigger: 'mv', plus: -1 }, tapped: true, attacking: true, atTriggerDefender: true }) },
     /* Maralen of the Mornsong: "that player loses 3 life, searches their library for a card, puts it into their hand,
        then shuffles." — the player whose draw step it is, and their own choice of card */
     { re: /^that player loses (\d+) life, searches their library for a card, puts it into their hand, then shuffles\.?$/i,
@@ -6443,7 +6451,16 @@
     /* ===== flashback granted to something in a graveyard ===== */
     { re: /^[Tt]arget instant or sorcery card in your graveyard gains flashback until end of turn\.?$/i,
       make: () => ({ op: 'grantFlashback', targets: [{ type: 'any', zone: 'graveyard', filter: 'instant or sorcery' }] }) },
-    { re: /^The flashback cost is equal to its mana cost\.?$/i, make: () => ({ op: 'noop' }) },
+    { re: /^The (?:flashback|encore) cost is equal to its mana cost\.?$/i, make: () => ({ op: 'noop' }) },
+    /* Emrakul, the Exigent Doom: "Target land gains "{T}: Add {C}{C}" until this card is cast from exile." — not for a
+       card that leaves exile some other way: the land keeps it (the rulings; untilCastFromExile) */
+    { re: /^Target land gains "(\{T\}: Add (?:\{[WUBRGC]\})+\.?)" until this card is cast from exile\.?$/i,
+      make: (m) => ({ op: 'grantAbility', ability: m[1].replace(/\.?$/, '.'), duration: 'untilCastFromExile', targets: [targetSpec('target land')] }) },
+    // Emrakul, the Exigent Doom: "You may cast this card for as long as it remains exiled." (selfCastFromExile)
+    { re: /^You may cast (?:this card|CARDNAME) for as long as it remains exiled\.?$/i, make: () => ({ op: 'selfCastFromExile' }) },
+    // Araumi of the Dead Tide: "Target creature card in your graveyard gains encore until end of turn. The encore cost is equal to its mana cost."
+    { re: /^Target creature card in your graveyard gains encore until end of turn\.?$/i,
+      make: () => ({ op: 'grantEncore', targets: [Object.assign(targetSpec('target creature card', 'graveyard'), { controller: 'you' })] }) },
 
     /* ===== mana that arrives later ===== */
     { re: /^At the beginning of your next main phase, add an amount of (\{[^}]+\}) equal to that spell'?s mana value\.?$/i,
@@ -11561,6 +11578,14 @@
   };
 
   function parseModal(cleaned) {
+    /* Genku, Future Shaper: "choose one that hasn't been chosen this turn. Create a creature token with those
+       characteristics. • 2/2 white Fox with vigilance. …" — each mode the token it describes */
+    const tc = cleaned.match(/^(Choose one that hasn'?t been chosen(?: this turn)?)\. Create a creature token with those characteristics\.\s*((?:[\u2022*]\s*\d+\/\d+ [a-z]+ [A-Z][a-z]+(?: with [a-z ]+)?\.\s*)+)$/i);
+    if (tc) {
+      const modes = tc[2].split(/[\u2022*]/).map(x => x.trim()).filter(Boolean)
+        .map(x => x.replace(/^(\d+\/\d+ [a-z]+ [A-Z][a-z]+)( with [a-z ]+)?\.$/, (w, a, b) => 'Create a ' + a + ' creature token' + (b || '') + '.'));
+      return parseModal(tc[1] + ' \u2014\n' + modes.map(x => '\u2022 ' + x).join('\n'));
+    }
     /* Monument to Endurance: "choose one that hasn't been chosen (this turn)" —
        each mode once, for good or until the turn ends */
     const nc = cleaned.match(/^Choose one that hasn'?t been chosen( this turn)?(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
@@ -14538,6 +14563,10 @@
     // Doran, Besieged by Time: "Whenever a creature you control attacks or blocks"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks or blocks(?:,| )', 'i'),
       event: 'permAttacks', also: 'permBlocks', filt: (m) => subjectFilter(m[1]) },
+    /* Arni Metalbrow: "Whenever a creature you control attacks or enters attacking" — entering only counts once it is
+       attacking, which is known as the trigger goes on the stack (enteredAttackingOnly) */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' attacks or enters attacking(?:,| )', 'i'),
+      event: 'permAttacks', also: 'permEnters', filt: (m) => subjectFilter(m[1]), extra: { enteredAttackingOnly: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
@@ -15862,12 +15891,15 @@
       }
       /* "Exile this card from your hand: Add {R}." The Spirit Guides: a
          mana ability that works from the hand, the card itself the cost. */
-      const guide = line.match(/^Exile (?:this card|CARDNAME) from your hand:\s*([\s\S]+)$/i);
+      /* (Emrakul, the Exigent Doom: "{3}, Exile this card from your hand: Target land gains …" — paid for, and an
+         ability that uses the stack) */
+      const guide = line.match(/^(?:((?:\{[^}]+\})+),\s*)?Exile (?:this card|CARDNAME) from your hand:\s*([\s\S]+)$/i);
       if (guide) {
-        const parsed = parseEffects(guide[1]);
-        const okg = parsed.auto && parsed.effects.length > 0 && parsed.effects.every(e => MANA_OPS.has(e.op));
-        out.channel = { cost: '', effects: parsed.effects, exile: true, mana: okg };
-        out.abilities.push({ kind: 'castModifier', keyword: 'Exile from hand', arg: '', text: line, auto: okg, effects: [] });
+        const parsed = parseEffects(guide[2]);
+        const mana = parsed.auto && parsed.effects.length > 0 && parsed.effects.every(e => MANA_OPS.has(e.op));
+        const okg = mana ? !guide[1] : parsed.auto && parsed.effects.length > 0 && !parsed.effects.some(e => MANA_OPS.has(e.op));
+        out.channel = { cost: guide[1] || '', effects: parsed.effects, exile: true, mana };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Exile from hand', arg: guide[1] || '', text: line, auto: okg, effects: [] });
         if (okg) autoLines++;
         continue;
       }
@@ -21095,6 +21127,9 @@
       // Cloud, Midgar Mercenary: "As long as Cloud is equipped, if a triggered ability of Cloud or an Equipment attached to it triggers, …" (selfOrEquipment)
       { re: /^As long as (?:CARDNAME|this creature) is equipped, if a triggered ability of (?:CARDNAME|this creature) or an Equipment attached to it triggers, that ability triggers an additional time\.?$/i,
         eff: { op: 'triggerDouble', cause: 'selfOrEquipment' }, auto: true },
+      // Jasmine Boreal of the Seven: "Creatures you control with no abilities can't be blocked by creatures with abilities." (noAbilities)
+      { re: /^Creatures you control with no abilities can'?t be blocked by creatures with abilities\.?$/i,
+        eff: { op: 'groupEvasion', noAbilities: true }, auto: true },
       // Delney: "Creatures you control with power 2 or less can't be blocked by creatures with power 3 or greater."
       { re: /^Creatures you control with power (\d+) or less can'?t be blocked by creatures with power (\d+) or greater\.?$/i,
         make: (m) => ({ op: 'groupEvasion', maxPower: +m[1], maxBlockerPower: +m[2] - 1 }), auto: true },

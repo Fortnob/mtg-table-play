@@ -5623,6 +5623,11 @@
         const ge = fbGrant('grantEncoreMv', e => this._cardFitsWords(o, e.words));
         if (ge) { const c = '{' + (Number(o.card && o.card.cmc) || 0) + '}'; out.push({ kind: 'encore', cost: c, label: 'Encore ' + c }); }
       }
+      // Araumi of the Dead Tide: encore until end of turn, for its mana cost (grantEncore)
+      if (o.zone === 'graveyard' && o.owner === playerId && o.encoreTurn === this.turn && a.isCreature) {
+        const c = a.manaCost || '{0}';
+        if (!out.some(u => u.kind === 'encore' && u.cost === c)) out.push({ kind: 'encore', cost: c, label: 'Encore ' + c });
+      }
       // Lier: each instant and sorcery card in your graveyard has flashback, for its mana cost
       // (Iroh, Grand Lotus: "each non-Lesson instant and sorcery card" — notSubtype)
       if (o.zone === 'graveyard' && o.owner === playerId && (a.isInstant || a.isSorcery) && o.flashbackTurn !== this.turn &&
@@ -5727,7 +5732,7 @@
         let cost = a.channel.cost || '';
         if (a.channel.reduce) cost = this._addGeneric(cost, -a.channel.reduce.amount * this._countValue(a.channel.reduce.per, playerId, o));
         out.push({ kind: 'cycle', channel: true, cost,
-          label: a.channel.exile ? 'Exile for mana' : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
+          label: a.channel.exile ? (a.channel.mana ? 'Exile for mana' : 'Exile it ' + (cost || '{0}')) : a.channel.reveal ? 'Reveal it ' + (cost || '{0}') : a.channel.keep ? 'Put onto the battlefield ' + (cost || '{0}') : 'Channel ' + (cost || '{0}') });
       }
       /* Overload (CR 702.96): pay more and every "target" becomes "each". */
       if (o.zone === 'hand' && a.overloadEffects) {
@@ -7504,6 +7509,8 @@
       // Nashi, Moon Sage's Scion: "one of those cards" — the others' leave is used up
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
       const fromZone = o.zone;
+      // Emrakul, the Exigent Doom: "until this card is cast from exile" — cast, what it gave is over (untilCastFromExile)
+      if (fromZone === 'exile') this._endUntilCast(o, true);
       // (Prowl, Stoic Strategist: "a card exiled with Prowl", cast — _leftExileWith)
       o._leftExileWith = fromZone === 'exile' ? (o.exiledWithId || null) : null;
       this._removeFromZone(o);
@@ -9635,8 +9642,10 @@
       if (plural) return phrase.replace(/(card|counter)$/, '$1s');
       return (/^[aeiou]/i.test(phrase) ? 'an ' : 'a ') + phrase;
     }
-    _costCount(n, opts) {
+    _costCount(n, opts, pid) {
       if (n === 'X') return Math.max(0, (opts && opts.x) || 0);
+      // Araumi of the Dead Tide: "equal to the number of opponents you have"
+      if (n === 'opponents') return this.opponentsOf(pid).filter(q => !q.hasLost).length;
       return n == null ? 1 : n;
     }
 
@@ -9685,7 +9694,7 @@
         if (this._discardPool(pid, cost.discard, self, opts).length < need) return 'Not enough cards in hand to discard.';
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && !cost.exile.viaAbility) {
-        const need = this._costCount(cost.exile.n, opts);
+        const need = this._costCount(cost.exile.n, opts, pid);
         // Osgir, the Reconstructor: "with mana value X" — the X paid, once it is known (mvX)
         const pool = this._exileCostPool(pid, cost.exile, self).filter(c => !cost.exile.mvX || !opts || opts.x == null || ((c.card && c.card.cmc) || 0) === opts.x);
         if (pool.length < need) return cost.exile.mvX ? `No ${cost.exile.filter} card with mana value ${opts && opts.x != null ? opts.x : 'X'} in your graveyard.` : 'Not enough cards in your graveyard.';
@@ -9858,7 +9867,7 @@
       }
       if (cost.exile && cost.exile.what === 'graveyard' && cost.exile.n != null && cost.spellExile) {
         const pool = this._exileCostPool(pid, cost.exile, self);
-        const need = Math.min(pool.length, this._costCount(cost.exile.n, opts));
+        const need = Math.min(pool.length, this._costCount(cost.exile.n, opts, pid));
         if (need > 0) {
           if (auto || pool.length === need || this._alike(pool)) {
             for (const c of this._cheapestFirst(pool).slice(0, need)) this.moveObject(c, 'exile');
@@ -10322,7 +10331,10 @@
             const named = ((opts && opts.exileIds) || []).map(id => yard.find(c => c.id === id)).filter(Boolean);
             yard = named.concat(yard.filter(c => !named.includes(c)));
           }
-          const want = ex.n || 1;
+          // (Araumi of the Dead Tide: what the ability targets goes last — exiled, it would leave the ability nothing to do)
+          const aimed = new Set(((opts && opts.targets) || []).map(t => t && t.id));
+          if (aimed.size) yard = yard.filter(c => !aimed.has(c.id)).concat(yard.filter(c => aimed.has(c.id)));
+          const want = ex.n === 'opponents' ? this._costCount(ex.n, opts, playerId) : (ex.n || 1);
           if (yard.length < want) return this.fail(`Not enough ${ex.filter === 'card' ? 'cards' : ex.filter + ' cards'}${ex.mvX ? ' with mana value ' + ((opts && opts.x) || 0) : ''} in your graveyard.`);
           this._costExiledNow = yard.slice(0, want).map(c => c.id);
           for (const c of yard.slice(0, want)) this.moveObject(c, 'exile');
@@ -10706,6 +10718,8 @@
       if (spendOnly.chosenType && !(src && this._hasCreatureType(spell, src.chosenType))) return false;
       // Mm'menon, the Right Hand: "only to cast a spell from anywhere other than your hand" — paid for while it is still there
       if (spendOnly.notFromHand && spell.zone === 'hand') return false;
+      // Jasmine Boreal of the Seven: "creature spells with no abilities"
+      if (spendOnly.noAbilities && !this._hasNoAbilities(spell)) return false;
       return true;
     }
 
@@ -11480,7 +11494,8 @@
       for (const s of this.battlefield) {
         if (s.controller !== attacker.controller || s.phasedOut) continue;
         const g = this._staticOp(s, 'groupEvasion');
-        if (g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
+        if (g && g.noAbilities ? this._hasNoAbilities(attacker) && !this._hasNoAbilities(blocker)
+          : g && this.powerOf(attacker) <= g.maxPower && this.powerOf(blocker) > g.maxBlockerPower) return false;
         if (this._staticOp(s, 'smallCantBlock') && this.powerOf(blocker) < this.powerOf(s)) return false;
         // Bower Passage: "Creatures with flying can't block creatures you control." (cantBlockYours)
         const cb = this._staticOp(s, 'cantBlockYours');
@@ -12670,6 +12685,19 @@
           return true;
         });
         if (o.effects.length !== before) { o._chr = null; this.bumpBoard(); }
+      }
+    }
+    /**
+     * Emrakul, the Exigent Doom: "until this card is cast from exile" — cast, the effects it gave end; leaving exile any
+     * other way, they last for good (the rulings).
+     */
+    _endUntilCast(card, cast) {
+      for (const o of this.battlefield) {
+        if (!(o.effects || []).some(e => e && e.untilCastOf === card.id)) continue;
+        if (cast) o.effects = o.effects.filter(e => !(e && e.untilCastOf === card.id));
+        else for (const e of o.effects) if (e && e.untilCastOf === card.id) delete e.untilCastOf;
+        o._chr = null;
+        this.bumpBoard();
       }
     }
     /** An effect "for as long as it has a … counter on it" still applies: the counter is still there (whileCounter). */
@@ -15520,6 +15548,8 @@
       if (from !== toZone) {
         for (const s of this.stack) for (const t of (s.targets || [])) if (t && t.kind === 'object' && t.id === o.id) t.gone = true;
       }
+      // Emrakul, the Exigent Doom: out of exile without being cast — the land keeps "{T}: Add {C}{C}" (untilCastFromExile)
+      if (from === 'exile' && toZone !== 'exile') this._endUntilCast(o, false);
       /* A card that changes zones is a new object (CR 400.7): leave to play it from exile, and its being
          face down there, stay behind (Gonti, Lord of Luxury: "for as long as it remains exiled") */
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
@@ -15741,6 +15771,8 @@
         o._toGraveTurn = toZone === 'graveyard' ? this.turn : null;
         // The Master, Transcendent: "that was milled this turn" — marked as it is milled (_noteMilled), a new object forgets
         o._milledTurn = null; o.damageToCountersTurn = null;
+        // (Araumi of the Dead Tide: encore granted to the card that was there)
+        o.encoreTurn = null;
         // what a resolving spell or ability exiles, for "return those cards" after it
         if (toZone === 'exile' && from === 'battlefield' && this.resolving && !vanishes) (this._exiledNow = this._exiledNow || []).push(o.id);
         // (a deathtouch mark goes with the damage: a new object remembers neither)
@@ -16402,6 +16434,7 @@
               o.xformN ? { srcXf: o.xformN } : {}),
             lossExactly: ab.lossExactly || undefined,
             minTotal: ab.minTotal || undefined,
+            enteredAttackingOnly: ab.enteredAttackingOnly || undefined,
             // (Grothama, All-Devouring: "fight Grothama" — the permanent that handed the ability out: grantedBy)
             grantedBy: ab.grantedBy || undefined,
           });
@@ -16894,6 +16927,9 @@
         Object.values((t.triggerData || {}).lossBy || {}).some(n => n === t.lossExactly));
       // Spinneret and Spiderling: "deals 4 or more damage" — less, all told, and it never triggered (minTotal)
       this.pendingTriggers = this.pendingTriggers.filter(t => !t.minTotal || (Number((t.triggerData || {}).amount) || 0) >= t.minTotal);
+      // Arni Metalbrow: "or enters attacking" — one that entered but isn't attacking never triggered it (enteredAttackingOnly)
+      this.pendingTriggers = this.pendingTriggers.filter(t => !t.enteredAttackingOnly || (t.triggerData || {}).event !== 'permEnters' ||
+        !!((this.obj((t.triggerData || {}).objectId) || {}).attacking));
       if (!this.pendingTriggers.length) return;
       // APNAP order (CR 603.3b): active player's triggers go on the stack first
       const order = [];
@@ -20199,7 +20235,9 @@
           (spellG && spellG.zone === 'stack' ? (f) => f(spellG) : (f) => applyToScope(e, f))((o) => {
             /* the ability written out already (a translated card), or its words to read */
             // Quicksmith Spy: "for as long as you control this creature"
-            const lasting = e.duration === 'whileControl' && src ? { whileFrom: src.id, whileControl: ctx.controller } : {};
+            const lasting = e.duration === 'whileControl' && src ? { whileFrom: src.id, whileControl: ctx.controller }
+              // Emrakul, the Exigent Doom: "until this card is cast from exile" (untilCastFromExile)
+              : e.duration === 'untilCastFromExile' && src && src.zone === 'exile' ? { untilCastOf: src.id } : {};
             o.effects.push(Object.assign(e.abilities ? { grantAbilities: e.abilities, until: e.duration === 'eot' ? 'eot' : null }
               : { grantText: e.ability, until: e.duration === 'eot' ? 'eot' : null }, lasting));
             o._chr = null;
@@ -22822,6 +22860,14 @@
               this._spliceNext(e.otherwise);
               break;
             }
+            /* Arni Metalbrow: "you may pay {1}{R}. If you do, you may put a creature card with mana value less than that
+               creature's mana value from your hand …" — with no such card in hand, paying buys nothing: not asked */
+            const putOnly = (e.then || []).length === 1 && e.then[0].op === 'permanentFromHand' && e.then[0].who === 'you' && !e.then[0].from ? e.then[0] : null;
+            if (putOnly) {
+              const capP = putOnly.maxMv != null ? n(putOnly.maxMv) : null;
+              if (!this.zones[ctx.controller].hand.some(o => (o.analysis() || {}).isPermanent && this._fitsFilter(o, putOnly.filter === 'any' ? '' : putOnly.filter) &&
+                  (capP == null || ((o.card && o.card.cmc) || 0) <= capP))) { this._spliceNext(e.otherwise); break; }
+            }
           }
           // (a "you may" already asked as the trigger resolved)
           // ("you may pay {1}": always, or never, for the rest of the turn — a price that is mana, life or energy alone)
@@ -23393,6 +23439,21 @@
           break;
         }
 
+        // Araumi of the Dead Tide: "gains encore until end of turn. The encore cost is equal to its mana cost."
+        case 'grantEncore': {
+          for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            if (o && o.zone === 'graveyard') { o.encoreTurn = this.turn; this.logEvent('rules', `${o.name} gains encore until end of turn.`); }
+          }
+          break;
+        }
+        // Emrakul, the Exigent Doom: "You may cast this card for as long as it remains exiled."
+        case 'selfCastFromExile': {
+          if (!src || src.zone !== 'exile') break;
+          src.impulseBy = src.owner; src.impulseUntil = 99999; src.impulseCastOnly = true;
+          this.logEvent('rules', `${src.owner === me.id ? me.name : (this.player(src.owner) || me).name} may cast ${src.name} for as long as it remains exiled.`);
+          break;
+        }
         case 'grantFlashback': {
           for (const t of targets) {
             if (t.kind !== 'object') continue;
@@ -26648,7 +26709,9 @@
               /* Ilharg: "tapped and attacking" — at whoever the creature that brought it is attacking
                  (or the first opponent), during combat */
               if (e.attacking && o.zone === 'battlefield' && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
-                const def = (src && src.attacking) || (this.opponentsOf(p.id)[0] || {}).id;
+                // (Arni Metalbrow: at whoever the attacker the trigger is about attacks — atTriggerDefender)
+                const tAt = e.atTriggerDefender && (this.obj((ctx.triggerData || {}).objectId) || {}).attacking;
+                const def = tAt || (src && src.attacking) || (this.opponentsOf(p.id)[0] || {}).id;
                 if (def) { o.attacking = def; this.combat.attackers.push(o.id); }
               }
               this._lastPut = o.id;
