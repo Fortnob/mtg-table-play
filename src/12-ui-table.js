@@ -4158,6 +4158,19 @@
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  Table.helpers = { stepKey, idNum, truncate, possessive, tokenArtUrl, escapeHtml, STEP_WORDS, CARD_RATIO, VIEW_SPEC_CTX };
+  /**
+   * The name of the face a card shows: "Emeritus of Woe", not "Emeritus of Woe // Demonic Tutor"; a transformed
+   * card's back face; the whole name for a split card (both halves are its face). `o`: an object with card and face.
+   */
+  function faceName(o) {
+    const c = o && o.card;
+    if (!c) return null;
+    const faces = c.card_faces;
+    if (!faces || faces.length < 2 || c.layout === 'split') return c.name;
+    const f = faces[o.face === 1 ? 1 : 0];
+    return (f && f.name) || c.name;
+  }
+
+  Table.helpers = { stepKey, idNum, truncate, possessive, tokenArtUrl, escapeHtml, faceName, STEP_WORDS, CARD_RATIO, VIEW_SPEC_CTX };
   UI.Table = Table;
 })(window.MTG);

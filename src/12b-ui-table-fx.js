@@ -26,7 +26,7 @@
   const { el, util: U } = MTG;
   const UI = MTG.ui;
   const Table = UI.Table;
-  const { stepKey, idNum, truncate, possessive, CARD_RATIO } = Table.helpers;
+  const { stepKey, idNum, truncate, possessive, faceName, CARD_RATIO } = Table.helpers;
   const EASE = 'cubic-bezier(.22,.8,.24,1)';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   // why a player is out, in words (src/06b-events.js)
@@ -149,7 +149,7 @@
       if (attackers.length && !atkPrev) {
         const who = attackers[0].controller;
         b.events.push({ kind: 'attack', who, card: attackers[0].card, name: `${attackers.length} attacker${attackers.length === 1 ? '' : 's'}`,
-          text: `${name(who)} attack${who === me ? '' : 's'} with ${attackers.length === 1 ? attackers[0].card.name : attackers.length + ' creatures'}` });
+          text: `${name(who)} attack${who === me ? '' : 's'} with ${attackers.length === 1 ? faceName(attackers[0]) : attackers.length + ' creatures'}` });
         hold(900);
       }
       const blk = (v) => v.battlefield.filter(o => (o.blocking || []).length).length;
@@ -157,7 +157,7 @@
         const bl = next.battlefield.filter(o => (o.blocking || []).length);
         const who = bl[0].controller;
         b.events.push({ kind: 'block', who, card: bl[0].card, name: `${bl.length} blocker${bl.length === 1 ? '' : 's'}`,
-          text: `${name(who)} block${who === me ? '' : 's'} with ${bl.length === 1 ? bl[0].card.name : bl.length + ' creatures'}` });
+          text: `${name(who)} block${who === me ? '' : 's'} with ${bl.length === 1 ? faceName(bl[0]) : bl.length + ' creatures'}` });
         hold(900);
       } else if (attackers.length && atkPrev && prev.step === 'declareAttackers' && next.step !== 'declareAttackers' && !blk(next)) {
         // no blocks is news too, if you are the one attacking
@@ -174,7 +174,7 @@
         if (o.power == null && where === 'graveyard' && !(this.analysis(o) || {}).isCreature && (this.analysis(o) || {}).isLand) continue;
         const verb = where === 'graveyard' ? (o.power != null ? 'dies' : 'is put into a graveyard')
           : where === 'exile' ? 'is exiled' : where === 'hand' ? 'returns to hand' : where === 'library' ? 'goes into a library' : 'leaves';
-        b.events.push({ kind: where === 'graveyard' && o.power != null ? 'died' : 'left', who: o.controller, card: o.card, name: o.card.name, text: `${o.card.name} ${verb}` });
+        b.events.push({ kind: where === 'graveyard' && o.power != null ? 'died' : 'left', who: o.controller, card: o.card, name: faceName(o), text: `${faceName(o)} ${verb}` });
         hold(420);
       }
       // what arrived without passing through the stack: lands, tokens, things put onto it
@@ -184,11 +184,11 @@
         if (prevIds.has(o.id) || stackObjs.has(o.id)) continue;
         const a = this.analysis(o);
         if (a && a.isLand) {
-          if (o.controller !== me) { b.events.push({ kind: 'land', who: o.controller, card: o.card, name: o.card.name, text: `${name(o.controller)} plays ${o.card.name}` }); hold(500); }
+          if (o.controller !== me) { b.events.push({ kind: 'land', who: o.controller, card: o.card, name: faceName(o), text: `${name(o.controller)} plays ${faceName(o)}` }); hold(500); }
           continue;
         }
-        if (o.isToken) { b.events.push({ kind: 'token', who: o.controller, card: o.card, name: o.card.name, text: `${name(o.controller)} create${o.controller === me ? '' : 's'} ${o.card.name}` }); hold(320); continue; }
-        b.events.push({ kind: 'enter', who: o.controller, card: o.card, name: o.card.name, text: `${o.card.name} enters the battlefield` });
+        if (o.isToken) { b.events.push({ kind: 'token', who: o.controller, card: o.card, name: faceName(o), text: `${name(o.controller)} create${o.controller === me ? '' : 's'} ${faceName(o)}` }); hold(320); continue; }
+        b.events.push({ kind: 'enter', who: o.controller, card: o.card, name: faceName(o), text: `${faceName(o)} enters the battlefield` });
         hold(380);
       }
 
@@ -219,7 +219,9 @@
       const s = (pid) => (pid === me ? '' : 's');
       const known = (id) => this.objIn(id, next) || this.objIn(id, prev);
       const cardOf = (e) => e.card || (known(e.objId) || {}).card || null;
-      const cardName = (id) => { const o = known(id); return o && o.card ? o.card.name : null; };
+      const cardName = (id) => { const o = known(id); return o && o.card ? faceName(o) : null; };
+      // the face it shows (faceName), else the card's name
+      const nameOf = (id, c) => cardName(id) || (c ? c.name : null);
       const liveStack = new Set((next.stack || []).map(x => x.id));
       for (const e of next.events) {
         switch (e.type) {
@@ -246,7 +248,7 @@
             const first = e.attackers[0];
             const c = cardOf({ objId: first.objId });
             b.events.push({ kind: 'attack', who: e.player, card: c, name: `${e.attackers.length} attacker${e.attackers.length === 1 ? '' : 's'}`,
-              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (c ? c.name : 'a creature') : e.attackers.length + ' creatures'}` });
+              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.attackers.length + ' creatures'}` });
             hold(900);
             break;
           }
@@ -254,7 +256,7 @@
             const first = e.blocks[0];
             const c = cardOf({ objId: first.objId });
             b.events.push({ kind: 'block', who: e.player, card: c, name: `${e.blocks.length} blocker${e.blocks.length === 1 ? '' : 's'}`,
-              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (c ? c.name : 'a creature') : e.blocks.length + ' creatures'}` });
+              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.blocks.length + ' creatures'}` });
             hold(900);
             break;
           }
@@ -265,7 +267,9 @@
             if (!e.died && e.to === 'graveyard' && a && a.isLand && !a.isCreature) break;
             const verb = e.died ? 'dies' : e.to === 'graveyard' ? 'is put into a graveyard' : e.to === 'exile' ? 'is exiled'
               : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : 'leaves';
-            const nm = c ? c.name : (cardName(e.objId) || 'A permanent');
+            // (the face it showed as it left: a transformed card dies as its back face)
+            const was = this.objIn(e.objId, prev);
+            const nm = (was && was.card ? faceName(was) : null) || nameOf(e.objId, c) || 'A permanent';
             b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, text: `${nm} ${verb}` });
             hold(420);
             break;
@@ -274,7 +278,7 @@
             if (e.from === 'stack') break;               // it was cast, and said so then
             const c = cardOf(e);
             const a = c ? MTG.oracle.analyze(c, 0) : null;
-            const nm = c ? c.name : 'A permanent';
+            const nm = nameOf(e.objId, c) || 'A permanent';
             if (a && a.isLand) {
               if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, text: `${name(e.controller)} plays ${nm}` }); hold(500); }
               break;
@@ -285,7 +289,7 @@
           }
           case 'token': {
             const c = cardOf(e);
-            const nm = c ? c.name : 'a token';
+            const nm = nameOf(e.objId, c) || 'a token';
             b.events.push({ kind: 'token', who: e.controller, card: c, name: nm, text: `${name(e.controller)} create${s(e.controller)} ${nm}` });
             hold(320);
             break;
