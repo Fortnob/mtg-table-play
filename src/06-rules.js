@@ -3666,7 +3666,9 @@
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
             // Monk Class: the second spell this turn (counting the ones already cast)
             // (Momo, Friendly Flier: "the first non-Lemur creature spell with flying" — the earlier ones counted by all of it: nthKw)
-            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words)) &&
+            // Kadena, Slinking Sorcerer: "The first face-down creature spell" — this one face down, and none before it (faceDownOnly)
+            if (e.faceDownOnly && !o.faceDown) continue;
+            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!e.faceDownOnly || x._castFaceDown) && (!words || words === 'spell' || this._cardFitsWords(x, words)) &&
               (!e.nthKw || ((!e.withKeyword || (((x.analysis() || {}).keywordSet) || new Set()).has(e.withKeyword)) &&
                 (!e.notCreatureType || !this._hasCreatureType(x, e.notCreatureType))))).length !== e.nthEachTurn - 1) continue;
             // Momo, Friendly Flier: "non-Lemur"
@@ -6627,6 +6629,16 @@
         if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
         return ok;
       }
+      /* Morph, disguise: turned face down to be cast that way — a cast that doesn't happen (not enough mana) leaves
+         the card face up, as it was */
+      if (opts.via && !opts._fdSet) {
+        const so = this.obj(objId);
+        if (so && !so.faceDown && so.zone !== 'battlefield' && so.zone !== 'stack') {
+          const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _fdSet: true }));
+          if (!ok && so.faceDown && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.faceDown = false; so.faceDownWard = null; so._chr = null; }
+          return ok;
+        }
+      }
       /* Run Away Together: "two target creatures controlled by different
          players" — a pair the same player controls is no legal choice */
       {
@@ -7464,6 +7476,8 @@
       if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (its mana value as it was cast, X included: Rhino, Barreling Brute — castMvNoted)
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
+      // (Kadena, Slinking Sorcerer: whether it was cast face down, whatever it is later — castFaceDown)
+      o._castFaceDown = !!o.faceDown;
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -13966,6 +13980,8 @@
           for (const o of this.battlefield) {
             if (o.controller !== me.id) continue;
             if (cond.other && src && o.id === src.id) continue;
+            // (Venser, Corpse Puppet: "a creature named The Hollow Sentinel" — creature)
+            if (cond.creature && !(this.characteristics(o) || {}).isCreature) continue;
             if ((o.name || '').toLowerCase() === want) k++;
           }
           return at(k);
@@ -32094,6 +32110,8 @@
       if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       // (its mana value as it was cast, X included — castMvNoted)
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
+      // (Kadena, Slinking Sorcerer: whether it was cast face down, whatever it is later — castFaceDown)
+      o._castFaceDown = !!o.faceDown;
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)

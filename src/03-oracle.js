@@ -11672,6 +11672,9 @@
       return { op: 'costMod', who: 'you', words: 'creature', chosenType: false, amount: -(+nthFly[2]), nthEachTurn: 1, nthKw: true,
         withKeyword: 'flying', notCreatureType: nthFly[1], yourTurn: true };
     }
+    // Kadena, Slinking Sorcerer: "The first face-down creature spell you cast each turn costs {3} less to cast." (faceDownOnly)
+    const nthFd = s.match(/^The first face-down creature spell you cast each turn costs \{(\d+)\} less to cast$/i);
+    if (nthFd) return { op: 'costMod', who: 'you', words: 'creature', chosenType: false, amount: -(+nthFd[1]), nthEachTurn: 1, faceDownOnly: true };
     /* Eluge, the Shoreless Sea: "The first instant or sorcery spell you cast each turn costs {U} (or {1}) less to
        cast for each land you control with a flood counter on it" — each {U} of its cost first, then {1}s (lessOrGeneric) */
     const nthOr = s.match(/^The first ((?:[a-z]+ (?:or [a-z]+ )?){0,2})spell you cast each turn costs \{([WUBRG])\} or \{1\} less to cast for each (.+)$/i);
@@ -13478,6 +13481,8 @@
     [/^you control a legendary creature$/i, () => ({ kind: 'controlLegend' })],
     [/^you control another creature named (?:CARDNAME|.+)$/i,
       () => ({ kind: 'controlNamed', name: 'CARDNAME', other: true, n: 1 })],
+    // Venser, Corpse Puppet: "you don't control a creature named The Hollow Sentinel"
+    [/^you don'?t control a creature named ([A-Z][A-Za-z' -]+)$/, (m) => ({ kind: 'not', cond: { kind: 'controlNamed', name: m[1], creature: true, n: 1 } })],
     // the graveyard
     [/^there are (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     // Ketramose, the New Dawn: "unless there are seven or more cards in exile" — everybody's (exileTotal)
