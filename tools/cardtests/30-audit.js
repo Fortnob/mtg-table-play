@@ -6600,4 +6600,19 @@ module.exports = (test) => {
     t.eq(O.nounCount(2, 'artifact or creature'), '2 artifacts or creatures');
     t.eq(O.nounCount(1, 'creature'), '1 creature');
   });
+
+  test('Audit: grandeur — Korlash discards another Korlash to fetch two Swamps', (mk, t) => {
+    t.auto('Korlash, Heir to Blackblade');
+    const T = mk();
+    const k = T.bf('A', 'Korlash, Heir to Blackblade');
+    const other = T.hand('A', 'Korlash, Heir to Blackblade');
+    T.top('A', 'Swamp'); T.top('A', 'Swamp'); T.top('A', 'Island');
+    const a = k.analysis();
+    const idx = a.abilities.filter(x => x.kind === 'activated' || x.kind === 'loyalty').findIndex(x => /Discard another card named/i.test(x.text || ''));
+    t.ok(idx >= 0, 'the grandeur ability is there');
+    const before = T.bfOf('A').filter(o => o.name === 'Swamp').length;
+    T.activate('A', k, idx);
+    t.zone(other, 'graveyard', 'the other Korlash is discarded');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Swamp').length, before + 2, 'two Swamps put onto the battlefield');
+  });
 };
