@@ -5079,12 +5079,15 @@
         if (drawn.length) out.push({ blockerId: b.id, attackerIds: [drawn[0].id] });
       }
       // "must be blocked if able": the least of our creatures that can
+      // (Gorm the Great: "by two or more creatures" — two of them)
       for (const aid of ch.attackers) {
         const at = g.obj(aid);
-        if (!at || !g._mustBeBlocked(at) || out.some(d => d.attackerIds.includes(aid))) continue;
+        const need = at ? g._mustBeBlockedBy(at) : 0;
+        let have = out.filter(d => d.attackerIds.includes(aid)).length;
+        if (have >= need) continue;
         const free = ch.candidates.map(id => g.obj(id)).filter(b => b && !out.some(d => d.blockerId === b.id) && g.canBlock(b, at))
           .sort((x, y) => this.permanentValue(x) - this.permanentValue(y));
-        if (free.length) out.push({ blockerId: free[0].id, attackerIds: [aid] });
+        while (have < need && free.length) { out.push({ blockerId: free.shift().id, attackerIds: [aid] }); have++; }
       }
       return out;
     }

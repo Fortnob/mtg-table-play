@@ -12476,12 +12476,15 @@
         }
         /* "This creature must be blocked if able": by one creature at least,
            when one could that isn't blocking anything else */
+        // (Gorm the Great: "must be blocked by two or more creatures if able" — as many as can, up to two: minBlockers)
         for (const aid of this.combat.attackers) {
           const at = this.obj(aid);
-          if (!this._mustBeBlocked(at)) continue;
-          if (declarations.some(d => d.attackerIds.includes(aid))) continue;
+          const need = this._mustBeBlockedBy(at);
+          if (!need) continue;
+          const have = declarations.filter(d => d.attackerIds.includes(aid)).length;
+          if (have >= need) continue;
           const free = this.battlefield.filter(o => o.controller === blockerPid && !declarations.some(d => d.blockerId === o.id) && this.canBlock(o, at));
-          if (free.length) return this.fail(`${at.name} must be blocked if able.`);
+          if (free.length) return this.fail(have ? `${at.name} must be blocked by two or more creatures if able.` : `${at.name} must be blocked if able.`);
         }
         // "blocks this creature if able", and lures: must block one of those it is drawn to
         for (const o of this.battlefield) {
@@ -21242,7 +21245,12 @@
         }
         case 'createToken': {
           // Stangg, Echo Warrior: "create Stangg Twin" — named for the card's short name
-          if (e.name && /CARDNAME/.test(e.name)) e = Object.assign({}, e, { name: e.name.replace(/CARDNAME/g, String((src && src.name) || '').split(',')[0].trim()) });
+          // (Tuktuk the Explorer: "create Tuktuk the Returned" — the words before "the" are its short name)
+          if (e.name && /CARDNAME/.test(e.name)) {
+            const full = String((src && src.name) || '');
+            const short = full.includes(',') ? full.split(',')[0].trim() : ((/^(.+?) (?:of|the|from|to) /.exec(full) || [])[1] || full);
+            e = Object.assign({}, e, { name: e.name.replace(/CARDNAME/g, short) });
+          }
           // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — by this ability's controller (goadForever)
           if (e.goadForever === true) e = Object.assign({}, e, { goadForever: ctx.controller });
           // Ellie, Brick Master: "that's attacking that opponent" — the player the trigger's attack was at (attackingWho)
@@ -27254,13 +27262,19 @@
              cards into your hand" — one pick of any number, each card standing for a different one of its card
              types (a card of two types takes up only one of them) */
           else if (e.perCardType) {
-            const typed = legal.filter(o => this._cardTypesOf(o).length);
+            /* Hurkyl, Master Wizard: "For each card type among noncreature spells you've cast this turn" — only those types
+               count (castTypesOnly) */
+            const castTypes = e.castTypesOnly ? [...new Set(((this.player(ctx.controller) || {}).spellObjsThisTurn || [])
+              .filter(x => this._cardFitsWords(x, e.castTypesOnly)).flatMap(x => this._cardTypesOf(x)))] : null;
+            const typesOf = (o) => this._cardTypesOf(o).filter(ty => !castTypes || castTypes.includes(ty));
+            const typed = legal.filter(o => typesOf(o).length);
             if (typed.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'perCardType', kind: 'objects', zone: 'library',
-                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: this._cardTypesOf(this.obj(it.id)) })),
-                min: 0, max: typed.length, optional: true,
+                panel: true, reveal: true, items: this._chooseItems(typed).map(it => Object.assign(it, { types: typesOf(this.obj(it.id)) })),
+                min: 0, max: castTypes ? Math.min(typed.length, castTypes.length) : typed.length, optional: true,
                 constraints: [{ kind: 'distinctTypes', key: 'types', label: 'card type' }],
-                prompt: `${ctx.name ? ctx.name + ': ' : ''}for each card type, you may put a card of that type from among the revealed cards into your hand. Each card you choose stands for one of its card types, no two for the same type.` }, 'perType');
+                prompt: castTypes ? `${ctx.name ? ctx.name + ': ' : ''}for each card type among noncreature spells you've cast this turn (${castTypes.map(ty => ty.toLowerCase()).join(', ')}), you may put a card of that type from among the revealed cards into your hand. Each card you choose stands for one of those types, no two for the same type.`
+                  : `${ctx.name ? ctx.name + ': ' : ''}for each card type, you may put a card of that type from among the revealed cards into your hand. Each card you choose stands for one of its card types, no two for the same type.` }, 'perType');
               if (got === SUSPEND) return SUSPEND;
               taken = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && typed.includes(o));
             }
@@ -34540,6 +34554,13 @@
       return !!st && (!st.ringBearerOnly || (this.player(at.controller) || {}).ringBearer === at.id);
     }
 
+    /** How many creatures must block it if able: none, one, or two for Gorm the Great ("by two or more": minBlockers). */
+    _mustBeBlockedBy(at) {
+      if (!this._mustBeBlocked(at)) return 0;
+      const st = this._staticOp(at, 'mustBeBlocked');
+      return Math.max(1, (st && st.minBlockers) || 1);
+    }
+
     /** Every static effect with this op on a permanent (Gaddock Teeg: two lines, one op). */
     _staticOpsAll(o, op) {
       const a = o && o.analysis(), out = [];
@@ -34911,6 +34932,8 @@
         Heartwood: { type: 'Token Artifact — Heartwood', text: '{T}: Add {R} or {G}.', colors: ['R', 'G'] },
         // T'Challa, the Black Panther: "an artifact with indestructible and "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.""
         Vibranium: { type: 'Token Artifact — Vibranium', text: 'Indestructible\n{T}: Add {C}. This mana can’t be spent to cast a nonartifact spell.' },
+        // Ginger, Queen of Sweets: "a Gingerbrute token. (It's a {1} 1/1 Food Golem artifact creature with haste, …)"
+        Gingerbrute: { type: 'Token Artifact Creature — Food Golem', manaCost: '{1}', cmc: 1, power: 1, toughness: 1, text: 'Haste\n{1}: This creature can’t be blocked this turn except by creatures with haste.\n{2}, {T}, Sacrifice this creature: You gain 3 life.' },
       };
       /* Academy Manufactor: a Clue, Food or Treasure becomes one of each */
       if (['Clue', 'Food', 'Treasure'].includes(e.token) && !e._trio) {
@@ -34931,6 +34954,8 @@
       };
       // Disa the Restless: a creature token of its own words — a Tarmogoyf, green, */1+*
       if (d.power != null) { card.power = String(d.power); card.toughness = String(d.toughness); }
+      // (a Gingerbrute token: "a {1} 1/1 …" — a mana cost of its own)
+      if (d.manaCost) { card.mana_cost = d.manaCost; card.cmc = d.cmc || 0; }
       /* Incubate (CR 701.53): an Incubator token's back face is a 0/0 colorless Phyrexian artifact creature — it
          transforms with its counters (Elesh Norn // The Argent Etchings: "transform all Incubator tokens") */
       if (e.token === 'Incubator' && !e.def) {

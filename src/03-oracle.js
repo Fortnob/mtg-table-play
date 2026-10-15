@@ -574,8 +574,9 @@
        card making it: "CARDNAME Twin" is left to a person) */
     // (Tolsimir, Friend to Wolves: "Create Voja, Friend to Elves, a legendary …" — a name with an epithet: namedTokenEpithet)
     // (Nissa, Sage Animist: "Create Ashaya, the Awoken World, a legendary …" — an epithet with "the")
+    // (Tuktuk the Explorer: "create Tuktuk the Returned, a legendary …" — named after the card's short name, filled in as it is made)
     const named = s.match(/^Create ([A-Z][A-Za-z' -]*?(?:, (?:the )?[A-Z][A-Za-z' -]*?)?), an? (legendary )?(.+)$/);
-    if (named && !/CARDNAME/.test(named[1])) {
+    if (named && (!/CARDNAME/.test(named[1]) || /^CARDNAME(?: [A-Z][a-z]+| the [A-Z][a-z]+)$/.test(named[1]))) {
       const e = parseTokenSentence('Create a ' + named[3], named[1].trim());
       if (!e) return null;
       if (named[2]) e.legendary = true;
@@ -5540,7 +5541,7 @@
        same Treasure as "a Treasure token", and some arrive tapped. */
     // Ghyrson Starn, Kelermorph: "Ghyrson Starn deals 2 damage to that permanent or player." — what the trigger's source hit (toVictim)
     { re: /^(?:CARDNAME|this creature) deals (\d+) damage to that permanent or player\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toVictim: true }) },
-    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen|Vibranium) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen|Vibranium|Gingerbrute) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
     /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
        it deals 2 damage to any target" and "{T}: Add one mana of any color."" — a token of its own, its words read
@@ -6686,6 +6687,9 @@
     // Atraxa, Grand Unifier: "For each card type, you may put a card of that type from among the revealed cards into your hand."
     { re: /^For each card type, you may put a card of that type from among (?:the revealed cards|them) into your hand\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 99, filter: 'any', to: 'hand', optional: true, rest: 'keep', perCardType: true }) },
+    // Hurkyl, Master Wizard: "For each card type among noncreature spells you've cast this turn, you may put a card of that type …" (castTypesOnly)
+    { re: /^For each card type among noncreature spells you'?ve cast this turn, you may put a card of that type from among (?:the revealed cards|them) into your hand\.?$/i,
+      make: () => ({ op: 'takeFromLooked', n: 99, filter: 'any', to: 'hand', optional: true, rest: 'keep', perCardType: true, castTypesOnly: 'noncreature' }) },
     /* Niv-Mizzet Reborn: "For each color pair, choose a card that's exactly those colors from among them. Put the
        chosen cards into your hand and the rest on the bottom of your library in a random order." */
     { re: /^For each color pair, choose a card that'?s exactly those colors from among them\.?$/i,
@@ -22079,6 +22083,9 @@
         }, auto: true },
       // "This creature must be blocked if able."
       { re: /^(?:CARDNAME|This creature) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked' }, auto: true },
+      // Gorm the Great: "Gorm must be blocked if able, and Gorm must be blocked by two or more creatures if able." (minBlockers)
+      { re: /^(?:CARDNAME|This creature) must be blocked if able, and (?:CARDNAME|it) must be blocked by two or more creatures if able\.?$/i,
+        eff: { op: 'mustBeBlocked', minBlockers: 2 }, auto: true },
       // Frodo Baggins: "As long as Frodo Baggins is your Ring-bearer, it must be blocked if able." (ringBearerOnly)
       { re: /^As long as (?:CARDNAME|this creature) is your Ring-bearer, (?:it|CARDNAME) must be blocked if able\.?$/i, eff: { op: 'mustBeBlocked', ringBearerOnly: true }, auto: true },
       // Bower Passage: "Creatures with flying can't block creatures you control."; Heat Wave: "Blue creatures can't …" (cantBlockYours)
