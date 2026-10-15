@@ -8835,7 +8835,8 @@
         if (!sc || !KW_LIST.test(m[2].replace(/ and /g, ', ')) || !a.length || a.join() !== b.join()) return null;
         return { op: 'loseKeyword', keywords: a, cantHave: true, duration: 'eot', scope: sc };
       } },
-    { re: /^You and target opponent each draw (a|one|two|three) cards?\.?$/i,
+    // (Splinter, Aging Champion: "you and another target player each draw a card" — any player but you)
+    { re: /^You and (?:target opponent|another target player) each draw (a|one|two|three) cards?\.?$/i,
       make: (m) => ({ op: 'sequence', list: [{ op: 'draw', n: num(m[1]), who: 'you' },
         { op: 'draw', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }] }) },
     { re: /^Attach (?:CARDNAME|it|this Equipment) to (target [a-zA-Z ,'-]+)\.?$/,
@@ -9568,7 +9569,7 @@
   /* Words a target phrase can carry that this knows how to check. Anything
      else marks the phrase unknown, because a target this cannot check is
      one it would offer wrongly. */
-  const SPEC_FLAGS = new Set(['attacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
+  const SPEC_FLAGS = new Set(['attacking', 'nonattacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
     'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'modified', 'equipped', 'enchanted',
     // The Golden-Gear Colossus: "target double-faced artifact you control" (doubleFaced)
@@ -9762,6 +9763,8 @@
       }
       if (SPEC_FLAGS.has(lw)) {
         if (lw === 'attacking') spec.attacking = true;
+        // Spider-Man, To the Rescue: "another target nonattacking creature you control"
+        else if (lw === 'nonattacking') spec.nonattacking = true;
         else if (lw === 'blocking') spec.blocking = true;
         else if (lw === 'tapped') spec.tapped = true;
         else if (lw === 'untapped') spec.tapped = false;
@@ -9927,6 +9930,7 @@
     // Sidisi, Regent of the Mire: "with mana value X plus 1" (mvXPlus)
     if (spec.mvXPlus != null && ctx && ctx.x != null && (obj.card.cmc || 0) !== ctx.x + spec.mvXPlus) return false;
     if (spec.attacking && !obj.attacking) return false;
+    if (spec.nonattacking && obj.attacking) return false;
     if (spec.attackingYou && me != null && obj.attacking !== me) return false;
     if (spec.unblocked && ((obj.blockedBy || []).length || obj.blockedNoBlocker)) return false;
     // (modifiedTarget: what is on it, as the game reads it)
@@ -13442,6 +13446,17 @@
         sacrificedIsThat(tp.effects);
         if (tp.auto && !JSON.stringify(tp.effects).includes('"X"')) {
           effects.push({ op: 'sacThen', filter: sacMust[2].trim().toLowerCase(), other: /another/i.test(sacMust[1]), then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
+      /* Mister Hyde, Monster Within: "Remove a counter from a creature you control. If you do, draw a card." — any
+         kind, off one of yours; with none to remove, nothing follows (removeCounterThen) */
+      const rcMust = !may && ifDo && s.match(/^Remove a counter from an? (creature|permanent|artifact) you control\.$/i);
+      if (rcMust) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp.auto) {
+          effects.push({ op: 'removeCounterThen', filter: rcMust[1].toLowerCase(), then: tp.effects, text: s + ' ' + next });
           i++;
           continue;
         }
@@ -21717,6 +21732,9 @@
          asked as combat damage is assigned */
       { re: /^For each creature you control with no abilities, you may have that creature assign its combat damage as though it weren'?t blocked\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { who: 'you', what: 'creature', noAbilities: true }, flag: 'asUnblocked' }, auto: true },
+      // Wolverine, Claws Out: "You may have Wolverine assign his combat damage as though he weren't blocked." (asUnblocked)
+      { re: /^You may have CARDNAME assign (?:his|her) combat damage as though (?:he|she) weren'?t blocked\.?$/i,
+        eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'asUnblocked' }, auto: true },
       { re: /^You may have (?:CARDNAME|this creature) assign its combat damage as though it weren'?t blocked\.?$/i,
         make: () => ({ op: 'continuous', layer: 6, scope: { self: true }, grant: ['Trample'] }), auto: true },
       { re: /^Creatures with power less than (?:CARDNAME'?s?|this creature'?s) power can'?t block it\.?$/i,
@@ -21968,6 +21986,8 @@
       // Ashling, the Limitless: "Elemental permanent spells you cast from your hand gain evoke {4} as you cast them." (grantEvoke)
       { re: /^([A-Z][a-z]+) permanent spells you cast from your hand gain evoke ((?:\{[^}]+\})+) as you cast them\.?$/,
         make: (m) => ({ op: 'grantEvoke', subtype: m[1], cost: m[2] }), auto: true },
+      // Jo Grant: "Each historic card in your hand has cycling {2}{W}." (grantHandCycling)
+      { re: /^Each ([a-z]+) card in your hand has cycling ((?:\{[^}]+\})+)\.?$/i, make: (m) => ({ op: 'grantHandCycling', filter: m[1].toLowerCase(), cost: m[2] }), auto: true },
       // Satoru Umezawa: "Each creature card in your hand has ninjutsu {2}{U}{B}." (grantHandNinjutsu)
       { re: /^Each creature card in your hand has ninjutsu ((?:\{[^}]+\})+)\.?$/i, make: (m) => ({ op: 'grantHandNinjutsu', cost: m[1] }), auto: true },
       // Mana Vortex, Drop of Honey: "When there are no lands on the battlefield, sacrifice this enchantment."

@@ -5716,6 +5716,18 @@
         if (gf) { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, reduce: gf.reduce || 0, label: 'Foretell ' + (fp || '{0}') }); }
       }
       // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
+      // Jo Grant: "Each historic card in your hand has cycling {2}{W}." (grantHandCycling)
+      if (o.zone === 'hand') {
+        for (const x of this.battlefield) {
+          if (x.controller !== playerId || x.phasedOut) continue;
+          for (const gc of this._staticOpsAll(x, 'grantHandCycling')) {
+            if (!this._cardFitsWords(o, gc.filter || 'card')) continue;
+            // (Gavi, Nest Warden: {0} for the first card cycled each turn)
+            const cyc = this.player(playerId) && this.player(playerId).cycledTurn !== this.turn && this._anyStaticOf(playerId, 'freeFirstCycle') ? '{0}' : gc.cost;
+            if (!out.some(u => u.kind === 'cycle' && !u.fetch && u.cost === cyc)) out.push({ kind: 'cycle', cost: cyc, label: 'Cycle ' + cyc });
+          }
+        }
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, unearth: 'exile', madness: null };
       for (const ab of (a.abilities || [])) {
@@ -30018,6 +30030,26 @@
           this.moveObject(c, 'battlefield', { controller: ctx.controller });
           if (e.tapped && c.zone === 'battlefield') this._markTapped(c);
           this.logEvent('rules', `${c.name} returns to the battlefield${e.tapped ? ' tapped' : ''}.`);
+          break;
+        }
+        /* Mister Hyde, Monster Within: "Remove a counter from a creature you control. If you do, draw a card." — one
+           question: which counter off which of yours; none there, nothing follows (removeCounterThen) */
+        case 'removeCounterThen': {
+          const pool = this.battlefield.filter(o => !o.phasedOut && o.controller === ctx.controller && this._cardFitsWords(o, e.filter || 'creature') &&
+            Object.values(o.counters || {}).some(c => Number(c) > 0));
+          const opts = [];
+          for (const o of pool) for (const [kind, c] of Object.entries(o.counters || {})) if (Number(c) > 0) opts.push({ id: o.id, kind });
+          if (!opts.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeCounterPick', kind: 'options', min: 1, max: 1,
+            options: opts.map((o, i) => ({ i, label: `a ${o.kind} counter from ${this.obj(o.id).name}`, kind: o.kind, objId: o.id })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}remove a counter from a ${e.filter || 'creature'} you control.` }, 'rct');
+          if (got === SUSPEND) return SUSPEND;
+          const pick = opts[(got && got.picks && got.picks[0]) || 0] || opts[0];
+          const x = this.obj(pick.id);
+          if (!x || x.zone !== 'battlefield' || !(Number((x.counters || {})[pick.kind]) > 0)) break;
+          this.addCounters(x, pick.kind, -1);
+          this.logEvent('counters', `A ${pick.kind} counter is removed from ${x.name}.`);
+          this._spliceNext(e.then || []);
           break;
         }
         // Rhys, the Evermore: "Remove any number of counters from target creature you control." — each counter, one pick

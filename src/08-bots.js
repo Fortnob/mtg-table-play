@@ -1682,6 +1682,14 @@
       const theirs = x && x.controller !== this.pid;
       return { picks: (s.options || []).map((o, i) => ({ i, k: o && o.kind })).filter(o => theirs ? !BAD.test(o.k) : BAD.test(o.k)).map(o => o.i) };
     },
+    /* Mister Hyde, Monster Within: a counter doing harm first, then any but a +1/+1 counter (removeCounterPick) */
+    removeCounterPick(s) {
+      const BAD = /^(?:-1\/-1|stun|age|doom|bounty|hit)$/;
+      const opts = s.options || [];
+      let i = opts.findIndex(o => o && BAD.test(o.kind));
+      if (i < 0) i = opts.findIndex(o => o && o.kind !== '+1/+1');
+      return { picks: [i < 0 ? 0 : i] };
+    },
     /* Wan Shi Tong, All-Knowing: our own permanent second from the top, to draw again soon; nobody else's is asked of us */
     secondOrBottom(s) {
       const i = (s.options || []).findIndex(o => o && o.where === 'second');
