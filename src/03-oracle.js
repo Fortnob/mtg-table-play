@@ -1892,6 +1892,20 @@
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    /* Kellan, Planar Trailblazer: "If Kellan is a Scout, it becomes a Human Faerie Detective and gains "Whenever …"";
+       "If Kellan is a Detective, it becomes a 3/2 Human Faerie Rogue and gains double strike." — for good, the
+       creature types instead of its own (setCreatureTypes), what it gained before kept */
+    { re: /^If CARDNAME is an? ([A-Z][a-z]+), it becomes an? (?:(\d+)\/(\d+) )?((?:[A-Z][a-z]+ )*[A-Z][a-z]+) and gains (?:"([^"]+)"|([a-z ]+?))\.?$/,
+      make: (m) => {
+        if (m[5] && !grantableText(m[5])) return null;
+        const kws = m[6] ? keywordList(m[6]) : [];
+        if (m[6] && !kws.every(kwKnown)) return null;
+        const eff = Object.assign({ setCreatureTypes: m[4].split(' ') }, m[2] ? { setPt: { p: +m[2], t: +m[3] } } : {}, kws.length ? { keywords: kws } : {});
+        const then = [{ op: 'becomes', duration: 'permanent', scope: 'self', eff }];
+        // (its own name in the quote is the creature itself: "this creature", as a granted line reads)
+        if (m[5]) then.push({ op: 'grantAbility', ability: m[5].replace(/\bCARDNAME\b/g, 'this creature'), duration: 'permanent', scope: 'self' });
+        return { op: 'ifCond', cond: { kind: 'selfIs', what: 'subtype:' + m[1] }, then };
+      } },
     /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '{T}: Add {R},
        {G}, or {W}.'"" — a standing line of its own, the inner quotes made double */
     { re: /^This (?:Saga|enchantment|artifact) gains "(.+'.+'.*)"\.?$/,
@@ -6790,6 +6804,9 @@
     // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
+    // Neo Exdeath, Dimension's End: "Neo Exdeath's power is equal to the number of permanent cards in your graveyard."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in your graveyard\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 }, t: null, keepToughness: true } }) },
     // Towering Gibbon: "CARDNAME's power is equal to the greatest mana value among creatures you control."
     { re: /^(?:CARDNAME|This creature)'?s (power is|power and toughness are each) equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
       make: (m) => {
@@ -9683,6 +9700,16 @@
     { re: /^for each card you'?ve discarded this turn, create a token that'?s a copy of CARDNAME, except the token isn'?t legendary\. The tokens enter tapped and attacking\. Exile the tokens at the beginning of the next end step\.?$/i,
       make: () => [{ op: 'copyPermanent', self: true, n: { discardedThisTurn: 'you', mult: 1 }, grant: [], nonLegendary: true, tapped: true, attacking: true },
         { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Exile them at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
+    /* Cait, Cage Brawler: "you and defending player each draw a card, then discard a card. Put two +1/+1 counters on
+       Cait if you discarded the card with the greatest mana value among those cards or tied for greatest." */
+    { re: /^you and defending player each draw a card, then discard a card\. Put two \+1\/\+1 counters on CARDNAME if you discarded the card with the greatest mana value among those cards or tied for greatest\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'youAndDefending' }, { op: 'discard', n: 1, who: 'youAndDefending' },
+        { op: 'countersIfGreatestDiscard', counter: '+1/+1', n: 2 }] },
+    /* Lorcan, Warlock Collector: "you may pay life equal to its mana value. If you do, put it onto the battlefield under
+       your control. It's a Warlock in addition to its other types." — the card the trigger is about, from that graveyard */
+    { re: /^you may pay life equal to its mana value\. If you do, put it onto the battlefield under your control\. It'?s an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => [{ op: 'mayPay', pay: { life: { ofTrigger: 'mv' } }, text: m[0],
+        then: [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, fromGrave: true, enterEff: { addSubtypes: [m[1]] } }] }] },
     /* The Beamtown Bullies: "Target opponent whose turn it is puts target nonlegendary creature card from your graveyard
        onto the battlefield under their control. It gains haste. Goad it. At the beginning of the next end step, exile
        it." — only on an opponent's turn, that player (activeOnly); goaded by you (toPlayerTarget) */
@@ -11486,6 +11513,13 @@
     if (rnd) {
       const inner = parseModal('Choose one \u2014 ' + rnd[1]);
       if (inner) Object.assign(inner.effects[inner.effects.length - 1], { random: true, text: cleaned });
+      return inner;
+    }
+    // Typhoid Mary, Fractured: "choose one at random. If you discarded a card this turn, you choose one instead." (randomUnless)
+    const rndU = cleaned.match(/^Choose one at random\. If you discarded a card this turn, you choose one instead\.?\s*([\s\S]*)$/i);
+    if (rndU) {
+      const inner = parseModal('Choose one \u2014 ' + rndU[1]);
+      if (inner) Object.assign(inner.effects[inner.effects.length - 1], { random: true, randomUnless: { kind: 'discardedThisTurn', who: 'you' }, text: cleaned });
       return inner;
     }
     const m = cleaned.match(/^Choose ([a-z ]+?)(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
@@ -18965,6 +18999,10 @@
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
         how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'] }, m[1] ? { nontoken: true } : {}) },
+    // Lorcan, Warlock Collector: "If a Warlock you control would die, exile it instead."
+    { re: /^If an? ([A-Z][a-z]+) you control would die, exile it instead\.?$/,
+      make: (m) => ({ op: 'replace', id: 'dieExileYours' + m[1], event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+        how: 'toZone', zone: 'exile', who: 'you', what: 'creature', whatAny: [m[1].toLowerCase()] }) },
     // Bruvac the Grandiloquent: "If an opponent would mill one or more cards, they mill twice that many cards instead."
     { re: /^If an opponent would mill one or more cards, they mill twice that many cards instead\.?$/i,
       make: () => ({ op: 'replace', id: 'millDouble', event: 'mill', who: 'opponents', how: 'double' }) },

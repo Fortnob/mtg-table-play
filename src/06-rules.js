@@ -13440,6 +13440,8 @@
           if (cond.what === 'nontoken') return !src.isToken;
           // "if this permanent is an enchantment": what it is right now
           if (String(cond.what).startsWith('type:')) return (src.analysis() && (src.analysis().types || []).some(t => t.toLowerCase() === cond.what.slice(5))) || false;
+          // Kellan, Planar Trailblazer: "If Kellan is a Scout" — its creature types right now
+          if (String(cond.what).startsWith('subtype:')) return src.zone === 'battlefield' && this._hasCreatureType(src, cond.what.slice(8));
           const att = (src.attachments || []).map(id => this.obj(id)).filter(Boolean);
           const kinds = att.map(x => O.analyze(x.card, x.face) || {});
           if (cond.what === 'equipped') return kinds.some(k => (k.subtypes || []).includes('Equipment'));
@@ -13766,6 +13768,8 @@
           const h = this.turnHistory || {};
           // Tinybones, Trinket Thief: "if an opponent discarded a card this turn" (discardsBy)
           if (cond.who === 'opponent') return !!me && this.opponentsOf(me.id).some(q => ((h.discardsBy || {})[q.id] || 0) > 0);
+          // Typhoid Mary, Fractured: "If you discarded a card this turn"
+          if (cond.who === 'you') return !!me && ((h.discardsBy || {})[me.id] || 0) > 0;
           return (h.discards || 0) > 0;
         }
         case 'didThisWay': {
@@ -16906,7 +16910,8 @@
       let chosenModes = null, usedModes = null;
       if (top && plan0.ok) {
         const m = top.modal, modes = m.modes || [];
-        const label = (i) => truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90);
+        // (Typhoid Mary, Fractured: "Typhoid Mary — Draw a card." — a mode named for the card, its name back)
+        const label = (i) => truncate(String(modes[i].label || modes[i].text || ('Mode ' + (i + 1))).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it'), 90);
         let picks = null;
         if (m.pawprint) {
           const budget = Math.max(1, n(m.pawprint) || 1);
@@ -16919,7 +16924,8 @@
           picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
         } else if (m.upToX && !(n(m.count) > 0)) picks = [];
         // Cult of Skaro: "choose one at random" — chosen as it goes on the stack, by nobody (random)
-        else if (m.random) picks = [this.rng.int(modes.length)];
+        // (Typhoid Mary, Fractured: "If you discarded a card this turn, you choose one instead." — randomUnless)
+        else if (m.random && !(m.randomUnless && this._condMet(m.randomUnless, item))) picks = [this.rng.int(modes.length)];
         else {
           let want = Math.min(n(m.count) || 1, modes.length);
           const least = m.min != null ? Math.min(m.min, want) : want;
@@ -16979,9 +16985,9 @@
         item.effects = effects;
         item.aimed = true;
         if (chosenModes) {
-          const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean);
+          const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean).map(l => String(l).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it'));
           item.modes = labels;
-          this.logEvent('rules', top.modal.random ? `${name}: ${labels.join('; ')}, chosen at random.`
+          this.logEvent('rules', top.modal.random && !(top.modal.randomUnless && this._condMet(top.modal.randomUnless, item)) ? `${name}: ${labels.join('; ')}, chosen at random.`
             : `${me.name} chooses for ${name}: ${labels.length ? labels.join('; ') : 'no modes'}.`);
           if (usedModes && src && top.modal.notChosen) {
             const key = top.modal.notChosen === 'turn' ? 't' + this.turn : 'ever';
@@ -18796,6 +18802,8 @@
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Zurzoth, Chaos Rider: "you and those players each draw a card" (youAndAttackedBy)
           else if (e.who === 'youAndAttackedBy') for (const p of [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))) { if (!p.hasLost) this._drawCards(p, cnt); }
+          // Cait, Cage Brawler: "you and defending player each draw a card" (youAndDefending)
+          else if (e.who === 'youAndDefending') for (const p of [me, this._defenderOf(src) || triggerPlayer()]) { if (p && !p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Baleful Mastery: "an opponent draws a card" — the caster picks which
           else if (e.who === 'anOpponent') {
@@ -18826,6 +18834,8 @@
             : e.who === 'youAndAttackedBy' ? [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))
             // Alley Grifters: "defending player discards a card"
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
+            // Cait, Cage Brawler: "then discard a card" — you, then defending player (youAndDefending)
+            : e.who === 'youAndDefending' ? [me, this._defenderOf(src) || triggerPlayer()]
             // "Its controller discards a card": whoever controlled what was just destroyed,
             // or what the trigger is about (Bereavement: "whenever a green creature dies")
             : e.who === 'targetController' ? [this._lastAffectedController() ||
@@ -22248,6 +22258,17 @@
             const hit = disc.some(d => d.pid === p.id && this._cardFitsWords(this.obj(d.id) || { analysis: () => null }, e.filter || 'card'));
             if (!hit) this.changeLife(p, -(e.n || 0), 'card');
           }
+          break;
+        }
+        /* Cait, Cage Brawler: "Put two +1/+1 counters on Cait if you discarded the card with the greatest mana value
+           among those cards or tied for greatest." — the cards discarded as this resolved (_discBy) */
+        case 'countersIfGreatestDiscard': {
+          const disc = (((this.resolving || {})._discBy) || []).map(d => ({ pid: d.pid, o: this.obj(d.id) })).filter(d => d.o);
+          const mv = (c) => (c.card && c.card.cmc) || 0;
+          const mine = disc.filter(d => d.pid === ctx.controller);
+          if (!mine.length || !src || src.zone !== 'battlefield') break;
+          const top = Math.max(...disc.map(d => mv(d.o)));
+          if (mine.some(d => mv(d.o) >= top)) this.addCounters(src, e.counter || '+1/+1', e.n || 2);
           break;
         }
         /* Danitha, Benalia's Hope: an Aura or Equipment card from your hand
