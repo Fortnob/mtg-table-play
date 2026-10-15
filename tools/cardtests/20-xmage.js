@@ -52797,4 +52797,71 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Sphinx of Jwar Isle'));
     t.ok(T.bfOf('A').some(o => o.name === 'Sphinx of Jwar Isle'), 'a Sphinx for {1} less');
   });
+  test('Commanders: Torsten, Founder of Benalia — enters: reveal seven, any creature and land cards to hand, the rest to the bottom; dies: seven Soldiers', (mk, t) => {
+    t.auto('Torsten, Founder of Benalia');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const top = ['Grizzly Bears', 'Lightning Bolt', 'Forest', 'Hill Giant', 'Divination', 'Plains', 'Opt'].reverse().map(n => T.top('A', n));
+    let q = null;
+    T.answer('pickCard', (ch) => { q = ch; return { cardIds: ch.cards.filter(c => c.name !== 'Plains').map(c => c.id) }; });
+    const tor = T.put('A', 'Torsten, Founder of Benalia', 'battlefield', { etb: true });
+    T.resolve();
+    t.ok(q && q.cards.length === 4 && q.optional, 'the creature and land cards offered, any number: ' + (q && q.cards.map(c => c.name).join()));
+    t.eq(T.names(T.zone('A', 'hand')).sort().join(), 'Forest,Grizzly Bears,Hill Giant', 'those chosen to hand');
+    const lib = T.zone('A', 'library');
+    t.eq(T.names(lib.slice(-4)).sort().join(), 'Divination,Lightning Bolt,Opt,Plains', 'the rest on the bottom');
+    t.ok(top.every(c => c.zone !== 'library' || lib.indexOf(c) >= lib.length - 4), 'none left on top');
+    g.moveObject(tor, 'graveyard');
+    T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.isToken && /Soldier/.test(o.name)).length, 7, 'seven Soldiers');
+  });
+  test('Commanders: Amy Pond — combat damage to a player: that many time counters off a suspended card you own', (mk, t) => {
+    t.auto('Amy Pond');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const amy = T.bf('A', 'Amy Pond');
+    const sus = (name, k) => { const c = T.hand('A', name); g.moveObject(c, 'exile'); c.counters.time = k; c.suspendedBy = 'A'; return c; };
+    const bears = sus('Lotus Bloom', 3), giant = sus('Greater Gargadon', 3);
+    const odd = T.hand('A', 'Craw Wurm'); g.moveObject(odd, 'exile'); odd.counters.time = 2;
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [bears.id] }; });
+    T.answer('declareAttackers', () => [{ attackerId: amy.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    T.resolve();
+    t.ok(q && q.items.length === 2 && /remove 2 time counters/.test(q.prompt), 'asked, the suspended cards only: ' + (q && q.prompt));
+    t.eq(bears.counters.time, 1, 'two off Lotus Bloom');
+    t.eq(giant.counters.time, 3, 'the Gargadon untouched');
+    t.eq(odd.counters.time, 2, 'not suspended: untouched');
+    // the last ones off: cast
+    T.nextTurn('A');
+    t.zone(bears, 'battlefield', 'the upkeep took the last: cast');
+    T.answer('declareAttackers', () => [{ attackerId: amy.id, defenderId: 'B' }]);
+    T.toMain('A', 'end');
+    T.resolve();
+    t.zone(giant, 'battlefield', 'one suspended card: no question; the last two off: cast');
+  });
+  test('Commanders: Ashnod the Uncaring — an artifact or creature ability paid for with a sacrifice: you may copy it', (mk, t) => {
+    t.auto('Ashnod the Uncaring');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    T.bf('A', 'Ashnod the Uncaring');
+    const mf = T.bf('A', 'Mogg Fanatic');
+    T.activate('A', mf, 0, { targets: ['B'] });
+    t.zone(mf, 'graveyard', 'Mogg Fanatic sacrificed');
+    t.eq(T.life('B'), 18, 'the ability and its copy: 2 damage');
+    // no sacrifice: no copy
+    const pyro = T.bf('A', 'Prodigal Pyromancer');
+    T.activate('A', pyro, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 17, 'a tap ability: 1 damage only');
+    // an enchantment's ability: not an artifact or creature
+    const gb = T.bf('A', 'Goblin Bombardment');
+    T.bf('A', 'Grizzly Bears');
+    T.activate('A', gb, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 16, 'Goblin Bombardment: 1 damage only');
+    // declined
+    const mf2 = T.bf('A', 'Mogg Fanatic');
+    T.answer('confirm', { yes: false });
+    T.activate('A', mf2, 0, { targets: ['B'] });
+    t.eq(T.life('B'), 15, 'declined: 1 damage');
+  });
 };

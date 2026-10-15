@@ -4629,6 +4629,9 @@
        paying its mana cost." — anybody's, one of them (exiledCounter) */
     { re: /^(?:You may )?cast a spell from among cards in exile with ([a-z]+) counters on them without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'exiledCounter', counter: m[1].toLowerCase(), upTo: 1 }) },
+    // Amy Pond: "choose a suspended card you own and remove that many time counters from it." (removeTimeFromSuspended)
+    { re: /^Choose a suspended card you own and remove that many time counters from it\.?$/i,
+      make: () => ({ op: 'removeTimeFromSuspended', n: 'triggerAmount' }) },
     // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand." (exiledCounteredToHand)
     { re: /^Put all exiled cards you own with ([a-z]+) counters on them into your hand\.?$/i,
       make: (m) => ({ op: 'exiledCounteredToHand', counter: m[1].toLowerCase() }) },
@@ -6460,6 +6463,12 @@
     { re: /^(?:Put any number of ([a-z]+ )?cards from among them|You may put any number of them) into your hand and the rest into your graveyard\.?$/i,
       make: (m) => ({ op: 'takeFromLooked', n: 99, filter: (m[1] || '').trim().toLowerCase() || 'any', to: 'hand', optional: true, rest: 'graveyard',
         prompt: `Choose any number of ${(m[1] || '').trim().toLowerCase() || 'the'} cards to put into your hand. The rest go into your graveyard.` }) },
+    /* Torsten, Founder of Benalia: "Put any number of creature and/or land cards from among them into your hand and the
+       rest on the bottom of your library in a random order." */
+    { re: /^Put any number of ([a-z]+(?: (?:and\/)?or [a-z]+)?) cards from among them into your hand and the rest on the bottom of your library in a random order\.?$/i,
+      make: (m) => { const f = m[1].replace(/ and\/or /i, ' or ').toLowerCase();
+        return { op: 'takeFromLooked', n: 99, filter: f, to: 'hand', optional: true, rest: 'bottomRandom',
+          prompt: `Choose any number of ${m[1].toLowerCase()} cards to put into your hand. The rest go on the bottom of your library in a random order.` }; } },
     // Genesis Wave: "Reveal the top X cards of your library."
     { re: /^Reveal the top (X|a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards? of your library\.?$/i,
       make: (m) => ({ op: 'lookAt', n: num(m[1]), keep: 0, reveal: true }) },
@@ -14323,6 +14332,10 @@
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
     { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
+    /* Ashnod the Uncaring: "Whenever you activate an ability of an artifact or creature that isn't a mana ability, if one
+       or more permanents were sacrificed to activate it," — a sacrifice in its cost (sacPaidOnly) */
+    { re: /^Whenever you activate an ability of an artifact or creature that isn'?t a mana ability, if one or more permanents were sacrificed to activate it,? /i,
+      event: 'youActivateAbility', filt: () => ({ words: 'artifact or creature' }), extra: { sacPaidOnly: true } },
     // (Leori, Sparktouched Hunter's turn: "an ability of a Jace planeswalker" — the type chosen, written in)
     { re: /^Whenever you activate an ability of an? ((?:[A-Z][a-z]+ )?(?:artifact|creature|artifact or creature|planeswalker))(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i,
       event: 'youActivateAbility', filt: (m) => ({ words: m[1].toLowerCase() }) },

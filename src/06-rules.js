@@ -4593,7 +4593,8 @@
       /* A spell cast while something else is being cast or resolving
          (cascade, "you may cast it without paying its mana cost") ignores
          when it could normally be cast (CR 608.2g). */
-      const midway = opts === 'cascade' || opts === 'resolution';
+      // (suspend: the last time counter off in the upkeep, cast then and there — Lotus Bloom, Amy Pond's cards)
+      const midway = opts === 'cascade' || opts === 'resolution' || opts === 'suspend';
       // Drannith Magistrate: nothing from anywhere but the hand
       // Void Winnower: "Your opponents can't cast spells with even mana values."
       for (const q of this.opponentsOf(playerId)) {
@@ -5987,7 +5988,8 @@
 
     /** A time counter comes off each suspended card at its owner's upkeep. */
     _tickSuspended(playerId) {
-      for (const o of (this.zones[playerId] || {}).exile || []) {
+      // (a copy of the list: one cast from here leaves it, and the next one must not be skipped)
+      for (const o of ((this.zones[playerId] || {}).exile || []).slice()) {
         if (o.suspendedBy !== playerId || !o.counters.time) continue;
         o.counters.time--;
         // Aeon Chronicler: "whenever a time counter is removed from this card while it's exiled"
@@ -6005,6 +6007,22 @@
       const r = this.castSpell(playerId, o.id,
         { free: true, costOverride: '', alternative: this.resolving ? 'resolution' : 'suspend', auto: true, targets: [] });
       if (r === false) this.logEvent('rules', `${o.name} could not be cast from suspend.`);
+    }
+    /** Time counters off a card in exile, as an effect resolves (Alaundo the Seer, Amy Pond): the last one off is its
+        trigger — suspend's, or the one Alaundo gave it (timeCastBy) — after this */
+    _takeTimeCounters(x, k) {
+      for (let i = 0; i < k && (Number(x.counters.time) || 0) > 0; i++) {
+        x.counters.time--;
+        this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
+      }
+      x._chr = null;
+      this.logEvent('counters', `${x.name}: ${k === 1 ? 'a time counter' : k + ' time counters'} removed (${x.counters.time}).`);
+      if (x.counters.time === 0 && (x.suspendedBy != null || x.timeCastBy != null)) {
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
+          controller: x.owner, name: `${x.name} — ${x.suspendedBy != null ? 'suspend' : 'last time counter'}`, auto: true,
+          effects: [{ op: 'timeCounterGone', zone: 'exile' }], abilityText: x.suspendedBy != null ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
+            : "When the last time counter is removed from this card, if it's exiled, you may cast it without paying its mana cost.", triggerData: { event: 'timeCounterGone', objectId: x.id } });
+      }
     }
 
     /**
@@ -9089,7 +9107,9 @@
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid });
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid,
+          // (Ashnod the Uncaring: "if one or more permanents were sacrificed to activate it" — its cost, not mana for it: sacPaid)
+          sacPaid: !!(ab.cost && (ab.cost.sacSelf || (ab.cost.sacrifice && !ab.cost.sacrifice.upTo))) || !!(item.sacrificed && item.sacrificed.length) });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -16649,6 +16669,8 @@
           // (Magus Lucea Kane: an ability activated — {X} in its activation cost: xCost)
           // Verrak, Warped Sengir: "if life was paid to activate it" (lifePaidOnly)
           if (ab.lifePaidOnly && !(data.lifePaid > 0)) continue;
+          // Ashnod the Uncaring: "if one or more permanents were sacrificed to activate it" (sacPaidOnly)
+          if (ab.sacPaidOnly && !data.sacPaid) continue;
           if (ab.xSpell && event === 'youActivateAbility') { if (!data.xCost) continue; }
           else if (ab.xSpell) {
             const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
@@ -30751,17 +30773,23 @@
         case 'removeTimeEachExiled': {
           for (const x of this.zones[me.id].exile.slice()) {
             if (x.owner !== me.id || (e.other && x.id === ctx._timeExiled) || !((Number(x.counters.time) || 0) > 0)) continue;
-            x.counters.time--;
-            x._chr = null;
-            this._fire('timeCounterRemoved', x.owner, { object: x, source: x });
-            this.logEvent('counters', `${x.name}: a time counter removed (${x.counters.time}).`);
-            if (x.counters.time === 0 && (x.suspendedBy != null || x.timeCastBy != null)) {
-              this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: x, objId: x.id, abilityIndex: -1,
-                controller: x.owner, name: `${x.name} — ${x.suspendedBy != null ? 'suspend' : 'last time counter'}`, auto: true,
-                effects: [{ op: 'timeCounterGone', zone: 'exile' }], abilityText: x.suspendedBy != null ? 'When the last time counter is removed from it, cast it without paying its mana cost.'
-                  : "When the last time counter is removed from this card, if it's exiled, you may cast it without paying its mana cost.", triggerData: { event: 'timeCounterGone', objectId: x.id } });
-            }
+            this._takeTimeCounters(x, 1);
           }
+          this.bumpBoard();
+          break;
+        }
+        /* Amy Pond: "choose a suspended card you own and remove that many time counters from it." — asked only when there
+           is more than one */
+        case 'removeTimeFromSuspended': {
+          const pool = this.zones[me.id].exile.filter(x => x.owner === me.id && x.suspendedBy != null && (Number(x.counters.time) || 0) > 0);
+          const k = Math.max(0, n(e.n));
+          if (!pool.length || !k) break;
+          const got = pool.length === 1 ? { picks: [pool[0].id] } : this._choose({ playerId: me.id, purpose: 'removeTimeFrom', kind: 'objects', zone: 'exile',
+            items: this._chooseItems(pool), min: 1, max: 1,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}choose a suspended card you own to remove ${MTG.oracle.nounCount(k, 'time counter')} from.` }, 'rts');
+          if (got === SUSPEND) return SUSPEND;
+          const x = pool.find(c => ((got && got.picks) || []).includes(c.id)) || pool[0];
+          this._takeTimeCounters(x, Math.min(k, Number(x.counters.time) || 0));
           this.bumpBoard();
           break;
         }
