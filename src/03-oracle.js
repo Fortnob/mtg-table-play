@@ -20195,6 +20195,10 @@
          cards from your graveyard rather than paying its mana cost." — escape by another name (graveAltCost) */
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard by paying ((?:\{[^}]+\})+) and exiling (two|three|four|five|six|seven|eight) other cards from your graveyard rather than paying its mana cost\.?$/i,
         make: (m) => ({ op: 'graveAltCost', cost: m[1], exileGrave: num(m[2].toLowerCase()) }), auto: true },
+      /* Rona, Sheoldred's Faithful: "You may cast this card from your graveyard by discarding two cards in addition to
+         paying its other costs." (graveCastDiscard) */
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard by discarding (two|three|\d+) cards in addition to paying its other costs\.?$/i,
+        make: (m) => ({ op: 'graveCastDiscard', n: num(m[1]) }), auto: true },
       // Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." (mutateFromGrave)
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
       // Sabin, Master Monk: "You may cast this card from your graveyard using its blitz ability." (blitzFromGrave)

@@ -5622,6 +5622,10 @@
             !(o._silenceAfterCast && ((this.player(playerId) || {}).spellsCastThisTurn || 0) > 0)) {
           out.push({ kind: 'cast', via: 'granted', cost: a.manaCost || '', label: 'Cast it from your graveyard' });
         }
+        // Rona, Sheoldred's Faithful: "by discarding two cards in addition to paying its other costs" (graveCastDiscard)
+        const gcd = this._staticOp(o, 'graveCastDiscard');
+        if (gcd) out.push({ kind: 'cast', via: 'graveDiscard', cost: a.manaCost || '', after: null, discardN: gcd.n,
+          label: `Cast it from your graveyard (discard ${gcd.n} cards)` });
         // Squee, Dubious Monarch: "by paying {3}{R} and exiling four other cards from your graveyard" (graveAltCost)
         const gac = this._staticOp(o, 'graveAltCost');
         if (gac) out.push({ kind: 'cast', via: 'graveAlt', cost: gac.cost, after: null, exileGrave: gac.exileGrave,
@@ -6741,6 +6745,16 @@
           items: this._chooseItems(pool), min: n, max: n, prefer: 'worst',
           prompt: `${o.name}: exile which ${n} other cards from your graveyard?` }) === 'asked') return 'asked';
       }
+      /* Rona, Sheoldred's Faithful: "by discarding two cards" — which two, asked with the cast when there is a choice
+         (discardCost) */
+      if (opts.via === 'graveDiscard' && !(opts.choices && opts.choices.discardCost)) {
+        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === opts.via);
+        const pool = ((this.zones[playerId] || {}).hand || []).filter(c => c.id !== o.id);
+        const n = gv ? gv.discardN : 0;
+        if (gv && pool.length > n && !this._alike(pool) && this._castChoose(playerId, o, opts, { purpose: 'discardCost', kind: 'objects', zone: 'hand',
+          items: this._chooseItems(pool), min: n, max: n, prefer: 'worst',
+          prompt: `${o.name}: discard which ${n} cards?` }) === 'asked') return 'asked';
+      }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
       if (a && this._readAheadOf(o, playerId) > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
         const opts2 = Array.from({ length: this._readAheadOf(o, playerId) }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
@@ -7239,6 +7253,14 @@
           ? 'No land card in hand to discard.' : 'No card in hand to discard.');
         toDiscard = (opts.discardId && legal.find(c => c.id === opts.discardId)) || legal[0];
       }
+      // Rona, Sheoldred's Faithful: "by discarding two cards" — the ones chosen with the cast, or the least useful (discardN)
+      let toDiscardN = [];
+      if (via && via.discardN) {
+        const hand = ((this.zones[playerId] || {}).hand || []).filter(c => c.id !== o.id);
+        if (hand.length < via.discardN) return this.fail(`That needs ${via.discardN} cards in hand to discard.`);
+        const picked = (((opts.choices || {}).discardCost || {}).picks || []).map(id => hand.find(c => c.id === id)).filter(Boolean);
+        toDiscardN = picked.length === via.discardN ? picked : this._cheapestFirst(hand).slice(0, via.discardN);
+      }
       // Tenacious Underdog: "Blitz—{2}{B}{B}, Pay 2 life." — only with that much life (CR 119.4)
       if (via && via.life && (p.life < via.life && this.config.rulesEnforcement === 'full')) return this.fail(`You need ${via.life} life to pay.`);
 
@@ -7536,6 +7558,11 @@
         this.moveObject(toDiscard, 'graveyard');
         this.logEvent('discard', `${p.name} discards ${toDiscard.name}.`);
         this._afterDiscard(playerId, toDiscard);
+      }
+      if (toDiscardN.length) {
+        for (const c of toDiscardN) this.moveObject(c, 'graveyard');
+        this.logEvent('discard', `${p.name} discards ${toDiscardN.map(c => c.name).join(' and ')} to cast ${o.name}.`);
+        for (const c of toDiscardN) this._afterDiscard(playerId, c);
       }
       // (Tenacious Underdog: "Pay 2 life" — the blitz cost's life)
       if (via && via.life) {

@@ -54914,4 +54914,25 @@ module.exports = (test) => {
     const c2 = T.hand('A', 'Clara Oswald');
     t.eq((c2.analysis().colors || []).length, 0, 'not a commander: colourless');
   });
+  test('Commanders: Rona, Sheoldred\'s Faithful — cast from the graveyard by discarding two cards; instants and sorceries drain', (mk, t) => {
+    t.auto("Rona, Sheoldred's Faithful");
+    const T = mk();
+    const g = T.g;
+    const rona = T.grave('A', "Rona, Sheoldred's Faithful");
+    const isl = T.hand('A', 'Island');
+    T.mana('A', '1UBB');
+    t.no(g.castSpell('A', rona.id, { auto: true, targets: [], via: 'graveDiscard' }), 'one card in hand: can\'t pay');
+    const bolt = T.hand('A', 'Lightning Bolt'), bears = T.hand('A', 'Grizzly Bears');
+    t.ok(g.altUsesFor('A', rona.id).some(u => u.via === 'graveDiscard' && u.discardN === 2), 'offered from the graveyard');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [isl.id, bears.id] }; });
+    t.ok(g.castSpell('A', rona.id, { targets: [], via: 'graveDiscard' }) !== false, 'cast');
+    T.resolve();
+    t.ok(q && q.purpose === 'discardCost' && q.min === 2 && q.items.length === 3, 'asked which two of three');
+    t.zone(rona, 'battlefield', 'Rona cast from the graveyard');
+    t.zone(isl, 'graveyard', 'the Island discarded'); t.zone(bears, 'graveyard', 'the Bears discarded'); t.zone(bolt, 'hand', 'the Bolt kept');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.eq(T.life('B'), 16, 'Bolt and a life for the instant');
+  });
 };
