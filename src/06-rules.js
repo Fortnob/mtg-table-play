@@ -27574,7 +27574,13 @@
             const x = this.obj((ctx.triggerData || {}).objectId);
             if (x && x.zone !== 'battlefield' && x._lkiCard) t = { card: x._lkiCard.card, face: x._lkiCard.face, name: x._lkiCard.card.name, zone: 'battlefield' };
           }
-          if (!who || who.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !(e._forcedId && t.zone === 'exile'))) break;
+          // Lazav, Familiar Stranger: "a copy of that card" — the card just exiled from a graveyard (of lastExiled)
+          if (e.of === 'lastExiled') {
+            const x = this._lastExiled && this.obj(this._lastExiled);
+            const c = x && x.zone === 'exile' && !x.isToken && (x.printedCard || x.card);
+            t = c ? { card: c, face: 0, name: c.name || x.name, zone: 'exile' } : null;
+          }
+          if (!who || who.zone !== 'battlefield' || !t || (t.zone !== 'battlefield' && t.zone !== 'graveyard' && !((e._forcedId || e.of === 'lastExiled') && t.zone === 'exile'))) break;
           const was = who.card, wasName = who.name;
           /* a copy until end of turn over one that lasts: what it was comes back after
              (Mirrorweave's way); a lasting copy outlives one that was to end */
@@ -28172,6 +28178,8 @@
             if (e.play) { o.impulseUntil = until; o.impulseBy = ctx.controller; }
             // "exile the top two cards of your library face down" (Gandalf, Goblins' Bane — Flameshape: "Look at …" first: look)
             if (e.faceDown) { o.faceDownExile = true; o.lookableBy = e.look ? ctx.controller : null; }
+            // Flamewar, Streetwise Operative: "Put an intel counter on each of them." (counter)
+            if (e.counter && o.zone === 'exile') { o.counters = o.counters || {}; o.counters[e.counter] = (Number(o.counters[e.counter]) || 0) + 1; }
             // "cards exiled with this enchantment" (Valakut Exploration)
             if (src) o.exiledWithId = src.id;
           }
@@ -29879,7 +29887,8 @@
         case 'createAuraToken': {
           const host = firstObj();
           // (Estrid, the Masked: "enchant permanent" \u2014 enchant)
-          if (!host || host.zone !== 'battlefield' || (e.enchant !== 'permanent' && !this.characteristics(host).isCreature)) break;
+          // (Preston Garvey, Minuteman: "enchant land")
+          if (!host || host.zone !== 'battlefield' || (e.enchant === 'land' ? !this._cardFitsWords(host, 'land') : e.enchant !== 'permanent' && !this.characteristics(host).isCreature)) break;
           const card = { id: 'aura:' + e.name, name: e.name, layout: 'token', mana_cost: '', cmc: 0,
             type_line: 'Token Enchantment \u2014 Aura', oracle_text: 'Enchant ' + (e.enchant || 'creature') + '\n' + e.words,
             colors: (e.colors || []).slice(), color_identity: (e.colors || []).slice(), keywords: [], rarity: 'common', set: 'tkn', set_name: 'Token',
@@ -31803,6 +31812,51 @@
           this._leavingTogether = null;
           for (const p of live) for (const c of exiled[p.id]) if (c.zone === 'exile') this.moveObject(c, 'battlefield', { controller: p.id });
           this.logEvent('rules', 'Living Death: the dead and the living change places.');
+          break;
+        }
+        /* Queen Kayla bin-Kroog: "You may choose an artifact or creature card with mana value 1 you discarded this way,
+           then do the same for artifact or creature cards with mana values 2 and 3. Return those cards to the
+           battlefield." — one question for each mana value that has a card to choose, then all of them together */
+        case 'returnDiscardedByMv': {
+          const disc = (((this.resolving || {})._discBy) || []).filter(d => d.pid === ctx.controller).map(d => this.obj(d.id))
+            .filter(c => c && c.zone === 'graveyard' && this._cardFitsWords(c, e.filter || 'card'));
+          const picked = [];
+          for (const mv of (e.mvs || [])) {
+            const fits = disc.filter(c => ((c.card && c.card.cmc) || 0) === mv);
+            if (!fits.length) continue;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'returnDiscarded', kind: 'objects', zone: 'graveyard',
+              items: this._chooseItems(fits), min: 0, max: 1, optional: true,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}you may choose ${/^[aeiou]/i.test(e.filter || '') ? 'an' : 'a'} ${e.filter || 'card'} card with mana value ${mv} you discarded this way. It returns to the battlefield.` }, 'rdm' + mv);
+            if (got === SUSPEND) return SUSPEND;
+            for (const id of ((got && got.picks) || [])) { const c = fits.find(x => x.id === id); if (c) picked.push(c); }
+          }
+          for (const c of picked) this.moveObject(c, 'battlefield', { controller: c.owner });
+          if (picked.length) this.logEvent('reanimate', `${picked.map(c => c.name).join(', ')} return${picked.length === 1 ? 's' : ''} to the battlefield.`);
+          break;
+        }
+        // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand."
+        case 'exiledCounteredToHand': {
+          const got = this.zones[ctx.controller].exile.filter(c => c.owner === ctx.controller && Number((c.counters || {})[e.counter]) > 0);
+          for (const c of got) this.moveObject(c, 'hand');
+          if (got.length) this.logEvent('rules', `${me.name} puts ${got.length === 1 ? 'a card' : got.length + ' cards'} with ${e.counter} counters from exile into their hand.`);
+          break;
+        }
+        /* Lazav, Familiar Stranger: "Then you may exile a card from a graveyard." — any graveyard, chosen as it resolves
+           (not targeted); what went is "exiled this way" (_lastExiled) */
+        case 'exileGraveChoice': {
+          this._lastExiledList = [];
+          const pool = [].concat(...this.players.map(q => this.zones[q.id].graveyard));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'exileFromAnyGraveyard', kind: 'objects', zone: 'graveyard',
+            items: this._chooseItems(pool), min: e.optional ? 0 : 1, max: 1, optional: !!e.optional,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}${e.optional ? 'you may exile' : 'exile'} a card from a graveyard.` }, 'xag');
+          if (got === SUSPEND) return SUSPEND;
+          const c = pool.find(x => ((got && got.picks) || []).includes(x.id) && x.zone === 'graveyard');
+          if (!c) break;
+          this.moveObject(c, 'exile');
+          this._lastExiled = c.id;
+          this._lastExiledList = [c.id];
+          this.logEvent('exile', `${me.name} exiles ${c.name} from a graveyard.`);
           break;
         }
         /* Rise of the Dark Realms */

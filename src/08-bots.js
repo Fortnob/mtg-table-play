@@ -1592,6 +1592,18 @@
       }
       return have.size >= need ? { picks } : { picks: [] };
     },
+    /* Queen Kayla bin-Kroog: a card of ours back onto the battlefield for nothing — the best one */
+    returnDiscarded(s) {
+      const items = (s.items || []).map(it => ({ it, v: it.card ? rateCard(it.card, { prior: 0 }) : 0 })).sort((a, b) => b.v - a.v);
+      return { picks: items.length ? [items[0].it.id] : [] };
+    },
+    /* Lazav, Familiar Stranger: the best creature card in any graveyard (to become a copy of), else an opponent's best card */
+    exileFromAnyGraveyard(s) {
+      const g = this.game;
+      const items = (s.items || []).map(it => ({ it, o: g.obj(it.id), v: it.card ? rateCard(it.card, { prior: 0 }) : 0 })).filter(x => x.o).sort((a, b) => b.v - a.v);
+      const best = items.find(x => (x.o.analysis() || {}).isCreature) || items.find(x => x.o.owner !== this.pid);
+      return { picks: best ? [best.it.id] : [] };
+    },
     /* Marina Vendrell: unlock a shut door (its words and its trigger) rather than lock an open one */
     roomDoor(s) {
       const i = (s.options || []).findIndex(o => o && o.unlock);

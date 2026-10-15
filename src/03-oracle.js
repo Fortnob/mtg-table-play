@@ -4629,6 +4629,9 @@
        paying its mana cost." — anybody's, one of them (exiledCounter) */
     { re: /^(?:You may )?cast a spell from among cards in exile with ([a-z]+) counters on them without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'exiledCounter', counter: m[1].toLowerCase(), upTo: 1 }) },
+    // Flamewar, Brash Veteran: "Put all exiled cards you own with intel counters on them into your hand." (exiledCounteredToHand)
+    { re: /^Put all exiled cards you own with ([a-z]+) counters on them into your hand\.?$/i,
+      make: (m) => ({ op: 'exiledCounteredToHand', counter: m[1].toLowerCase() }) },
     // Tinybones, Bauble Burglar: "Whenever an opponent discards a card, exile it from their graveyard with a stash counter on it."
     { re: /^Exile (?:it|that card) from (?:their|its owner'?s) graveyard with an? ([a-z]+) counter on it\.?$/i,
       make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
@@ -5177,6 +5180,13 @@
       } },
     { re: /^Exile a card from a graveyard\.?$/i,
       make: () => ({ op: 'exile', targets: [{ type: 'permanent', filter: 'card', zone: 'graveyard' }] }) },
+    /* Lazav, Familiar Stranger: "Then you may exile a card from a graveyard. If a creature card was exiled this way, you
+       may have Lazav become a copy of that card until end of turn." — not targeted: chosen as it resolves; the copy is
+       of the card exiled (of lastExiled) */
+    { re: /^Then you may exile a card from a graveyard\.?$/i, make: () => ({ op: 'exileGraveChoice', optional: true }) },
+    { re: /^If a creature card was exiled this way, you may have CARDNAME become a copy of that card until end of turn\.?$/i,
+      make: () => ({ op: 'ifCond', cond: { kind: 'didThisWay', how: 'exiled', filter: 'creature' },
+        then: [{ op: 'may', then: [{ op: 'becomeCopy', of: 'lastExiled', eot: true }], text: 'You may have CARDNAME become a copy of that card until end of turn.' }] }) },
     /* "Exile up to two target cards from a single graveyard": whichever
        graveyard the first one is in, the others must share */
     { re: /^Exile up to (two|three|four|five) target cards from a single graveyard\.?$/i,
@@ -10310,6 +10320,11 @@
           then: [{ op: 'discard', n: 'all', who: 'you' }] },
         { op: 'draw', who: 'you', n: { discardedThisRes: true } },
         { op: 'ifCond', cond: { kind: 'enduringStory' }, then: [{ op: 'damage', n: { discardedThisRes: true }, each: 'opponent' }] }] }] },
+    /* Queen Kayla bin-Kroog: "Discard all the cards in your hand, then draw that many cards. You may choose an artifact or
+       creature card with mana value 1 you discarded this way, then do the same for artifact or creature cards with mana
+       values 2 and 3. Return those cards to the battlefield." (returnDiscardedByMv) */
+    { re: /^Discard all the cards in your hand, then draw that many cards\. You may choose an artifact or creature card with mana value 1 you discarded this way, then do the same for artifact or creature cards with mana values 2 and 3\. Return those cards to the battlefield\.(?: Activate only as a sorcery\.)?$/i,
+      make: () => [{ op: 'wheel', who: 'you', n: 'sameDiscarded' }, { op: 'returnDiscardedByMv', filter: 'artifact or creature', mvs: [1, 2, 3] }] },
     /* Sanwell, Avenger Ace: "exile the top six cards of your library. You may cast a Vehicle or artifact creature spell
        from among them. Then put the rest on the bottom of your library in a random order." — one pick among those it
        could pay for, paying its costs (castFree pay), the rest of the exiled cards to the bottom (ofExiled) */
@@ -11479,6 +11494,10 @@
     { re: /^shuffle (?:it|this card) into your library from your graveyard\. If you'?ve cycled a card named CARDNAME (\w+) or more times this game, put it onto the battlefield from your graveyard instead\.?$/i,
       make: (m) => (typeof num(m[1].toLowerCase()) === 'number' ? [{ op: 'ifCond', cond: { kind: 'cycledNamedSelf', n: num(m[1].toLowerCase()) },
         then: [{ op: 'selfFromGraveyard', to: 'battlefield' }], otherwise: [{ op: 'selfFromGraveyard', to: 'library' }] }] : null) },
+    /* Flamewar, Streetwise Operative: "exile that many cards from the top of your library face down. Put an intel counter
+       on each of them. Convert Flamewar." — the damage dealt (impulse triggerAmount, counter) */
+    { re: /^exile that many cards from the top of your library face down\. Put an? ([a-z]+) counter on each of them\. (Convert|Transform) CARDNAME\.?$/i,
+      make: (m) => [{ op: 'impulse', n: 'triggerAmount', play: false, faceDown: true, counter: m[1].toLowerCase() }, { op: 'transformSelf' }] },
     /* Bre of Clan Stoutarm: "exile cards from the top of your library until you exile a nonland card. You may cast
        that card without paying its mana cost if the spell's mana value is less than or equal to the amount of life you
        gained this turn. Otherwise, put it into your hand." (castFree maxMv, elseHand from exile) */
@@ -11498,6 +11517,11 @@
     { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to ((?:another )?target permanent)\. The token has enchant permanent and (umbra armor|totem armor)\.?$/i,
       make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
         enchant: 'permanent', words: m[4].charAt(0).toUpperCase() + m[4].slice(1).toLowerCase(), targets: [targetSpec(m[3])] }] },
+    /* Preston Garvey, Minuteman: "create a green Aura enchantment token named Settlement attached to up to one target land
+       you control. It has enchant land and "Enchanted land has '{T}: Add one mana of any color.'"" (createAuraToken, enchant) */
+    { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to (up to one )?(target land you control)\. It has enchant land and "(Enchanted land has ['‘]\{T\}: Add [^'’"]+?\.['’])"\.?$/i,
+      make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
+        enchant: 'land', words: m[5].replace(/['‘’]/g, '"'), targets: [Object.assign(targetSpec(m[4]), m[3] ? { upTo: true } : {})] }] },
     /* Scriv, the Obligator's Contract: "Whenever enchanted creature attacks, it gets +2/+0 until end of turn if it's
        attacking one of your opponents. Otherwise, its controller loses 2 life." */
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn if it'?s attacking one of your opponents\. Otherwise, its controller loses (\d+) life\.?$/i,
