@@ -21172,7 +21172,8 @@
             if (rb && rb.zone === 'battlefield' && rb.controller === me.id) this.addCounters(rb, e.kind, cnt);
           }
           // Ring of Valkas: "on equipped creature if it's red"
-          else if (e.ifHost && e.scope === 'attached') applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
+          // (Teyo, Lightshield Expert: "on it if it's a creature" — the permanent just targeted: lastTarget)
+          else if (e.ifHost && (e.scope === 'attached' || e.scope === 'lastTarget')) applyToScope(e, (o) => { if (this._cardFitsWords(o, e.ifHost)) this.addCounters(o, e.kind, cnt); });
           /* Zethi, Arcane Blademaster: "exile up to X target instant cards from your graveyard … Put a kick counter on each
              of them." — the cards this exiled, in exile (not a permanent, so nothing replaces it) */
           else if (e.scope === 'eachTarget' && targets.some(t => t.kind === 'object' && (this.obj(t.id) || {}).zone === 'exile')) {
@@ -22686,7 +22687,8 @@
           break;
         }
         case 'chooseOpponent': {
-          const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+          // (Strax, Sontaran Nurse: "Choose a player at random" — any player, you too: anyPlayer)
+          const opps = e.anyPlayer ? this.players.filter(p => !p.hasLost) : this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
           // Vial Smasher the Fierce: "choose an opponent at random" — nobody's choice (random)
           if (e.random) {
             const pick = opps.length ? opps[this.rng.int(opps.length)] : null;
@@ -28267,6 +28269,8 @@
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
               putOne ? { objectId: putOne } : {},
               sacN ? { amount: sacN } : {}, discN ? { amount: discN } : {},
+              // Strax, Sontaran Nurse: "that player" — the one chosen at random (toChosenPlayer)
+              e.toChosenPlayer ? { player: ctx.chosenPlayer || null } : {},
               // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
               e.amountX ? { amount: Number(ctx.x) || 0 } : {}) });
           break;
@@ -32056,6 +32060,16 @@
         }
         // the en-Kor: a shield on this creature that sends the next damage to the target
         case 'redirectNextDamage': {
+          // Razia, Boros Archangel: the first target shielded, the second takes the damage (ofFirstTarget)
+          if (e.ofFirstTarget) {
+            // (either one gone or no longer legal: nothing to shield, or nowhere for it to go)
+            const tt = targets.map(x => x && x.kind === 'object' ? this.obj(x.id) : null);
+            const from = tt[0], to2 = tt[1];
+            if (tt.length !== 2 || !from || !to2 || from === to2 || from.zone !== 'battlefield' || to2.zone !== 'battlefield') break;
+            (from.redirectNext = from.redirectNext || []).push({ n: n(e.n) || 1, to: to2.id, turn: this.turn });
+            this.logEvent('rules', `The next ${n(e.n) || 1} damage to ${from.name} this turn goes to ${to2.name} instead.`);
+            break;
+          }
           const to = firstObj();
           if (!src || src.zone !== 'battlefield' || !to) break;
           (src.redirectNext = src.redirectNext || []).push({ n: n(e.n) || 1, to: to.id, turn: this.turn });

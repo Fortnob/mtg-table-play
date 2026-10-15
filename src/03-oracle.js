@@ -2244,6 +2244,10 @@
       // (with no number of its own, the difference is between that player's hand and yours: Sandstone Oracle)
       make: (m) => ({ op: 'draw', who: 'you', n: m[1] ? { handTo: num(m[1]) } : { handDiff: true } }) },
     // the Rings: "put a +1/+1 counter on equipped creature if it's red"
+    /* Teyo, Lightshield Expert: "Put a +1/+1 counter on it if it's a creature. Put a loyalty counter on it if it's a
+       planeswalker." — the permanent just targeted, if it is that (ifHost) */
+    { re: /^Put an? (\+1\/\+1|loyalty|shield) counter on it if it'?s an? (creature|planeswalker|artifact|enchantment|land)\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget', ifHost: m[2].toLowerCase() }) },
     { re: /^Put an? ([+\-0-9/a-z]+) counter on (equipped|enchanted) creature if it'?s (white|blue|black|red|green|an? [A-Z][a-z]+)\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'attached', ifHost: m[3].replace(/^an? /i, '').toLowerCase() }) },
     // Sacrifice: "Add an amount of {B} equal to the sacrificed creature's mana value."
@@ -6107,6 +6111,11 @@
     // the en-Kor: "The next 1 damage that would be dealt to this creature this turn is dealt to target creature you control instead."
     { re: /^The next (\w+) damage that would be dealt to (?:this creature|CARDNAME) this turn is dealt to target creature you control instead\.?$/i,
       make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), targets: [{ type: 'creature', controller: 'you' }] } : null) },
+    /* Razia, Boros Archangel: "The next 3 damage that would be dealt to target creature you control this turn is dealt to
+       another target creature instead." — the first target shielded, the second takes it (ofFirstTarget) */
+    { re: /^The next (\w+) damage that would be dealt to target creature you control this turn is dealt to another target creature instead\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'redirectNextDamage', n: num(m[1]), ofFirstTarget: true,
+        targets: [{ type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' }, { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] } : null) },
     /* Spellskite: "Change a target of target spell or ability to this
        creature." Hydroelectric Specimen: "change the target of target instant
        or sorcery spell with a single target to this creature" */
@@ -7591,6 +7600,12 @@
       make: (m) => ({ op: 'voyageFromExile', counter: m[1].toLowerCase() }) },
     // Vial Smasher the Fierce: "choose an opponent at random" — "that player" afterwards is the one it falls on
     { re: /^Choose an opponent at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true }) },
+    /* Strax, Sontaran Nurse: "Choose a player at random. When you do, Strax fights another target creature that player
+       controls." — any player, you too (anyPlayer); the reflexive trigger aimed at that player's creatures (toChosenPlayer) */
+    { re: /^Choose a player at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true, anyPlayer: true }) },
+    { re: /^When you do, CARDNAME fights another target creature that player controls\.?$/,
+      make: () => ({ op: 'reflexive', toChosenPlayer: true, effects: [{ op: 'fightSelf',
+        targets: [{ type: 'creature', filter: 'creature that player controls', zone: 'battlefield', controller: 'triggerPlayer', another: true }] }] }) },
     // Ruhan of the Fomori: "Ruhan attacks that player this combat if able." — the opponent just chosen (mustAttackChosen)
     { re: /^CARDNAME attacks that player this combat if able\.?$/, make: () => ({ op: 'mustAttackChosen' }) },
     // Zaffai, Thunder Conductor: "Zaffai deals 10 damage to an opponent chosen at random." (toRandomOpponent)
@@ -11419,6 +11434,15 @@
         if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
         return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn',
           effects: [m[2] ? { op: 'returnThatCounterSource' } : Object.assign({ op: 'returnThat' }, m0[2] ? { counter: '+1/+1' } : {})] }];
+      } },
+    /* Koya, Death from Above: "exile up to one other target creature. At the beginning of the next end step, you may pay
+       {3}{B}. If you don't, return that card to the battlefield under its owner's control." — paid, it stays exiled */
+    { re: /^(Exile (?:up to one )?(?:other )?target [a-z ]+?)\. At the beginning of the next end step, you may pay ((?:\{[^}]+\})+)\. If you don'?t, return that card to the battlefield under its owner'?s control\.$/i,
+      make: (m) => {
+        const ex = parseSentenceList(splitSentences(m[1] + '.'));
+        if (!ex.auto || ex.effects.length !== 1 || ex.effects[0].op !== 'exile') return null;
+        return [ex.effects[0], { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Pay ' + m[2] + ' or return it',
+          effects: [{ op: 'mayPay', pay: { mana: m[2] }, then: [], otherwise: [{ op: 'returnThat' }] }] }];
       } },
     /* Call the Coppercoats (strive): "Choose any number of target opponents.
        Create X 1/1 white Human Soldier creature tokens, where X is the number

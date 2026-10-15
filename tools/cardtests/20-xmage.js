@@ -63268,4 +63268,86 @@ module.exports = (test) => {
     t.no(ra.tapped, 'Radiant: not Radiant herself');
     t.ok(g.hasKw(ra, 'protection from red'), 'Radiant: protection from red');
   });
+  test('Commanders: Razia, Boros Archangel — the next 3 damage to a creature you control goes to another target creature', (mk, t) => {
+    t.auto('Razia, Boros Archangel');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const rz = T.bf('A', 'Razia, Boros Archangel');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    T.activate('A', rz, 0, { targets: [bear, giant] });
+    T.resolve();
+    t.ok(rz.tapped, 'Razia: tapped');
+    const bolt = T.hand('B', 'Lightning Bolt');
+    g.dealDamageToObject(bear, 4, bolt, false);
+    g.checkStateBasedActions();
+    t.eq(bear.damage, 1, 'Razia: the Bears take only what is over 3');
+    t.zone(giant, 'graveyard', 'Razia: the Hill Giant took 3');
+    t.zone(bear, 'battlefield');
+  });
+  test('Commanders: Koya, Death from Above — exile up to one other creature; at the next end step pay {3}{B} or it returns', (mk, t) => {
+    t.auto('Koya, Death from Above');
+    for (const pay of [true, false]) {
+      const T = mk({ library: Array(30).fill('Island') });
+      const giant = T.bf('B', 'Hill Giant');
+      T.bf('B', 'Grizzly Bears');
+      if (pay) for (let i = 0; i < 4; i++) T.bf('A', 'Swamp');
+      T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+      T.bf('A', 'Koya, Death from Above', { etb: true });
+      T.resolve();
+      t.zone(giant, 'exile', 'Koya: the Hill Giant exiled');
+      T.toMain('A', 'end');
+      T.resolve();
+      t.zone(giant, pay ? 'exile' : 'battlefield', pay ? 'Koya: paid — it stays exiled' : 'Koya: not paid — it returns');
+      if (!pay) t.eq(giant.controller, 'B', "Koya: under its owner's control");
+    }
+  });
+  test('Commanders: Strax, Sontaran Nurse — Grenades!: a player at random, Strax fights another creature of theirs; damage to a creature: +1/+1 counter', (mk, t) => {
+    t.auto('Strax, Sontaran Nurse');
+    for (const who of ['B', 'A']) {
+      const T = mk({ library: Array(30).fill('Island') });
+      const g = T.g;
+      const st = T.bf('A', 'Strax, Sontaran Nurse');
+      const art = T.bf('A', 'Ornithopter');
+      const lions = T.bf('A', 'Savannah Lions'), bear = T.bf('A', 'Grizzly Bears');
+      const giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+      const rint = g.rng.int.bind(g.rng);
+      g.rng.int = (k) => (k === 2 ? (who === 'A' ? 0 : 1) : rint(k));
+      let q = null;
+      const mine = who === 'A' ? lions : giant;
+      T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: mine.id }] }; });
+      T.mana('A', '2');
+      T.activate('A', st, 0, { sacrificeIds: [art.id] });
+      T.resolve();
+      g.rng.int = rint;
+      t.zone(art, 'graveyard', who + ': the artifact sacrificed');
+      const ids = q ? [].concat(...q.options).map(x => x.id) : [];
+      const theirs = who === 'A' ? [lions, bear] : [giant, elf];
+      t.ok(theirs.every(o => ids.includes(o.id)), who + ': creatures the chosen player controls');
+      t.no(ids.includes(st.id), who + ': not Strax');
+      t.no(ids.some(id => !theirs.some(o => o.id === id)), who + ": no one else's");
+      t.zone(mine, 'graveyard', who + ': fought and died');
+      t.eq(st.counters['+1/+1'], 1, who + ': Glory of Battle — a +1/+1 counter');
+    }
+  });
+  test('Commanders: Teyo, Lightshield Expert — hexproof for a permanent you control, a +1/+1 counter on a creature, loyalty on a planeswalker', (mk, t) => {
+    t.auto('Teyo, Lightshield Expert');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const pw = T.bf('A', 'Jace Beleren');
+    const loy = pw.counters.loyalty;
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    const ty = T.bf('A', 'Teyo, Lightshield Expert', { etb: true });
+    T.resolve();
+    t.ok(g.hasKw(bear, 'hexproof'), 'Teyo: hexproof');
+    t.eq(bear.counters['+1/+1'], 1, 'Teyo: a +1/+1 counter on the creature');
+    t.no(bear.counters.loyalty, 'Teyo: no loyalty counter on a creature');
+    t.no(ty.counters['+1/+1'], 'Teyo: not on Teyo');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: pw.id }] }));
+    T.bf('A', 'Teyo, Lightshield Expert', { etb: true });
+    T.resolve();
+    t.eq(pw.counters.loyalty, loy + 1, 'Teyo: a loyalty counter on the planeswalker');
+    t.no(pw.counters['+1/+1'], 'Teyo: no +1/+1 counter on a planeswalker');
+  });
 };
