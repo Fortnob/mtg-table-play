@@ -2316,6 +2316,10 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 
 /* their HUD, across the top of their side */
 .seat-hud { display: flex; align-items: center; justify-content: center; gap: 12px; height: var(--hud-h); flex: none; padding: 0 8px; }
+/* what does not fit across goes onto another row rather than under its neighbours; their name gives way first,
+   down to a few letters, before anything wraps */
+.seat-hud { flex-wrap: wrap; align-content: center; row-gap: 6px; height: auto; min-height: var(--hud-h); }
+.seat-hud .hud-who { flex: 1 1 56px; max-width: max-content; }
 .hud-who { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hud-name { font: 600 15px/1.2 var(--serif); color: #f4f0e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
 .hud-sub { font-size: 11.5px; color: #a8b2c3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; min-height: 1.3em; }
@@ -2352,7 +2356,7 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .hud-flags .flag.dungeon { color: #d8c3ff; border-color: rgba(170,140,240,.45); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-flags .flag.bad, .hud-flags .flag.cmd { color: #ffb0a6; border-color: rgba(255,107,92,.45); }
 .hud-flags .flag.pool .pip { width: 16px; height: 16px; font-size: 10px; }
-.ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; }
+.ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; flex: none; }
 .ohand .cv { --w: 38px; margin-left: -27px; cursor: default; }
 .ohand .cv:nth-child(odd) { rotate: -3deg; }
 /* a hand played revealed: face up, a little larger and further apart, each readable on hover */
@@ -2368,6 +2372,15 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   font: 700 11px/18px var(--font); min-width: 18px; text-align: center; border-radius: 9px;
   background: #1b1f28; border: 1px solid rgba(255,255,255,.2); color: #fff; }
 .ohand[data-n="0"]::after { display: none; }
+/* a hand shown face up with no room beside the rest of their HUD (a phone, seats side by side): a row of its own under
+   it, the cards spread across the row (side by side while they fit, overlapping no further than a strip of each),
+   the count after the last card (fitOppHand in src/12-ui-table.js) */
+.seat-hud.hand-row { padding-block: 4px 10px; }
+.seat-hud.hand-row .ohand { order: 1; flex: 1 1 100%; max-width: 100%; height: auto; min-height: 66px; padding-left: 0;
+  justify-content: center; flex-wrap: wrap; row-gap: 6px; }
+.seat-hud.hand-row .ohand .cv { margin-left: clamp(-34px, calc((100% - var(--n, 7) * var(--w) - 30px) / max(1, var(--n, 7) - 1)), 6px); }
+.seat-hud.hand-row .ohand .cv:first-child { margin-left: 0; }
+.seat-hud.hand-row .ohand::after { position: static; align-self: flex-end; margin-left: 6px; }
 /* a hidden card somebody knows: an eye, and on a card big enough to read it, what kind of knowing */
 .cv-seen { position: absolute; right: 6%; top: -9px; z-index: 3; pointer-events: auto; white-space: nowrap;
   display: inline-flex; align-items: center; gap: .3em; font: 700 max(9px, calc(var(--w, 90px) * .1))/1.5 var(--font);
@@ -2936,7 +2949,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 :root[data-phone] .me-hud .hud-who, :root[data-phone] .seat-hud .hud-who .hud-sub { display: none; }
 :root[data-phone] .pile { width: 28px; height: 39px; }
 :root[data-phone] .action-dock { width: 150px; right: 8px; bottom: calc(var(--hand-peek) + 6px); }
-:root[data-phone] .big-btn { height: 48px; font-size: 14px; }
+/* (its height is the desktop's least, and grows with a long question rather than cut it off, as .bb-sub says) */
+:root[data-phone] .big-btn { font-size: 14px; }
 :root[data-phone] .phase-strip, :root[data-phone] .dock-turn { display: none; }
 :root[data-phone] .stack-col { right: 6px; width: 120px; }
 :root[data-phone] .stack-item > .cv { --w: 60px; }
@@ -3069,7 +3083,7 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 :root[data-phone] .arena.multi { --board-top: 104px; }
 :root[data-phone] .arena.multi .arena-board { top: 104px; }
 :root[data-phone] .opp-strip { top: 50px; height: 48px; }
-:root[data-phone] .arena-banner { top: calc(var(--board-top) + var(--hud-h) + 4px); bottom: auto; padding: 7px 14px; }
+:root[data-phone] .arena-banner { top: calc(var(--board-top) + var(--opp-hud-h, var(--hud-h)) + 4px); bottom: auto; padding: 7px 14px; }
 :root[data-phone] .ab-title { font-size: 14px; }
 :root[data-phone] .ab-sub { font-size: 11.5px; }
 :root[data-phone] .arena:has(.hand-fan.choosing) .arena-banner { bottom: auto; }
@@ -3173,6 +3187,22 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .net-chip.rejoining .net-chip-dot { animation: chipBlink 1s ease-in-out infinite; }
 @keyframes chipBlink { 50% { opacity: .25; } }
 :root[data-phone] .net-chip { left: 60px; top: 10px; font-size: 10px; max-width: 40%; }
+/* Mindslaver: controlling another player, or being controlled, said across the top of the table */
+.ctl-bar { position: absolute; z-index: 5; left: 50%; top: 50%; translate: -50% calc(-100% - 34px); display: flex; align-items: center; gap: 12px;
+  width: max-content; max-width: min(760px, calc(100% - 40px)); padding: 7px 10px 7px 16px; border-radius: 14px;
+  font: 500 13px/1.35 var(--font); color: #efe6ff; background: rgba(40,22,62,.92); border: 1px solid rgba(190,140,255,.6);
+  box-shadow: 0 6px 24px rgba(0,0,0,.45), 0 0 18px rgba(160,100,255,.25); }
+.ctl-bar b { font-weight: 700; color: #fff; }
+.ctl-bar.acting { border-color: rgba(255,201,77,.8); background: rgba(52,36,14,.94); color: #fbecc8; }
+.ctl-bar.controlled { border-color: rgba(232,103,94,.75); background: rgba(58,20,22,.94); color: #f6d6d3; }
+/* (the board under it can still be clicked through the words; only the buttons take a click) */
+.ctl-bar { pointer-events: none; }
+.ctl-text { flex: 1 1 auto; min-width: 0; }
+.ctl-btns { flex: none; display: flex; gap: 6px; pointer-events: auto; }
+.arena.acting-for .my-wrap { box-shadow: inset 0 0 0 2px rgba(255,201,77,.35); border-radius: 18px; }
+:root[data-phone] .ctl-bar { left: 6px; right: 6px; translate: 0 calc(-100% - 44px); width: auto; max-width: none; padding: 5px 6px 5px 10px;
+  font-size: 11px; gap: 8px; }
+
 
 /* ---------- a phone: the same table, cheaper to draw ----------
    Glows that pulse are repainted on every frame, and a phone has eight or
@@ -15761,6 +15791,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Crescent Island Temple: "For each Shrine you control, create a 1/1 red Monk creature token with prowess."
     { re: /^For each ([^,]+? you control), (create [^.]+?)\.?$/i,
       make: (m) => { const e = parseEffectSentence(m[2].charAt(0).toUpperCase() + m[2].slice(1) + ' for each ' + m[1] + '.'); return e && e.op === 'createToken' && e.count ? e : null; } },
+    /* Diaochan, Artful Beauty: "Destroy target creature of your choice, then destroy target creature of an opponent's
+       choice." — the second target chosen by an opponent as it is activated (chosenBy) */
+    { re: /^Destroy target creature of your choice, then destroy target creature of an opponent'?s choice\.?$/i,
+      make: () => [{ op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] },
+        { op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', chosenBy: 'opponent' }] }] },
     // Go-Shintai of Hidden Cruelty: "Destroy target creature with toughness X or less, where X is the number of Shrines you control."
     { re: /^Destroy target creature with toughness X or less, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && (k.scope || k.per) ? { op: 'destroy', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield', maxToughnessCount: k }] } : null; } },
@@ -15776,7 +15811,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Each player loses (half|a third of) their life, rounded (up|down)\.?$/i,
       make: (m) => ({ op: 'forEachPlayer', then: [{ op: 'loseLife', who: 'you', n: { halfLife: 'you', up: /up/i.test(m[2]), div: /third/i.test(m[1]) ? 3 : 2 } }] }) },
     // Blessed Wind: "Target player's life total becomes 20."
-    { re: /^Target player'?s life total becomes (\d+)\.?$/i, make: (m) => ({ op: 'setLife', n: +m[1], who: 'target', targets: [{ type: 'player' }] }) },
+    // (Sorin Markov: "Target opponent's life total becomes 10.")
+    { re: /^Target (player|opponent)'?s life total becomes (\d+)\.?$/i,
+      make: (m) => ({ op: 'setLife', n: +m[2], who: 'target', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
     /* Wrathful Raptors: "it deals that much damage to any target that isn't a
        Dinosaur" — the creature that was dealt damage, passing it on
        (Black Panther, Most Dangerous: "he deals that much damage to any other target") */
@@ -16569,11 +16606,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     // (Blaster, Morale Booster: "That artifact gains haste until end of turn." — the one just aimed at)
     // (Seifer, Balamb Rival: "that attacking creature gains deathtouch until end of turn" — the one the trigger is about)
-    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (Aradesh, the Founder: "the creature that attacked gains double strike until end of turn" — the one the trigger is about)
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|The creature that attacked|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that attacking creature|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that attacking creature|the creature that attacked|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* Fire Nation Palace: "Target creature you control gains firebending 4
        until end of turn" — a keyword with a number, which adds up */
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gains (firebending|annihilator|afflict|toxic) (\d+) until end of turn\.?$/i,
@@ -18649,6 +18687,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Target player takes an extra turn after this one\.?$/i, make: () => ({ op: 'extraTurn', who: 'target', targets: [{ type: 'player' }] }) },
     // Time Stretch: "Target player takes two extra turns after this one."
     { re: /^Target player takes (two|three) extra turns after this one\.?$/i, make: (m) => ({ op: 'extraTurn', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
+    /* Mindslaver, Worst Fears, Sorin Markov: "You control target player during that player's next turn."; Emrakul, the
+       Promised End: "you gain control of target opponent during that player's next turn." (controlPlayer; CR 722) */
+    { re: /^You (?:gain )?control (?:of )?target (player|opponent) during that player'?s next turn\.?$/i,
+      make: (m) => ({ op: 'controlPlayer', targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] }) },
+    // Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the turn just controlled (extraAfter)
+    { re: /^After that turn, that player takes an extra turn\.?$/i, make: () => ({ op: 'manual', controlExtraRider: true }) },
     { re: /^Untap all (creatures|lands|permanents) you control\.?$/i, make: (m) => ({ op: 'untapAll', what: m[1] }) },
     { re: /^Shuffle your library\.?$/i, make: () => ({ op: 'shuffle' }) },
 
@@ -26998,6 +27042,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Thrasta, Tempest's Roar: "for each other spell cast this turn" — anyone's (allSpellsThisTurn)
     if (m && /^other spells? cast this turn$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { allSpellsThisTurn: true } };
     // Licia, Sanguine Tribune: "for each 1 life you gained this turn" — the life gained (playerStat)
+    // Emrakul, the Promised End: "for each card type among cards in your graveyard" (typesInGraveyards)
+    if (m && /^card type among cards in your graveyard$/i.test(m[3].trim())) return { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: { typesInGraveyards: 'you', mult: 1 } };
     if (m && /^1 life you(?:'ve)? gained this turn$/i.test(m[3].trim())) {
       const a = amountOf('the amount of life you gained this turn');
       return a && typeof a === 'object' ? { amount: (+m[1]) * (/less/i.test(m[2]) ? -1 : 1), per: a } : null;
@@ -28110,6 +28156,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         out.push({ op: 'manual', text: e.text || '' });
         continue;
       }
+      // (Emrakul, the Promised End: "After that turn, that player takes an extra turn." — the controlled turn before it)
+      if (e && e.controlExtraRider) {
+        if (prevE && prevE.op === 'controlPlayer' && !prevE.extraAfter) { prevE.extraAfter = true; continue; }
+        out.push({ op: 'manual', text: e.text || '' });
+        continue;
+      }
       // (Kang the Conqueror: "During that turn, power-up abilities can't be activated." — the extra turn before it)
       if (e && e.noPowerUpRider) {
         if (prevE && prevE.op === 'extraTurn' && !prevE.noPowerUp) { prevE.noPowerUp = true; continue; }
@@ -28989,6 +29041,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^the exploited creature had power (\w+) or greater$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'triggerPowerLki', n: num(m[1]) } : null)],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
     [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
+    // Aradesh, the Founder: "if it enlisted a creature this combat" — the attacker the trigger is about (triggerObjEnlisted)
+    [/^it enlisted a creature this combat$/i, () => ({ kind: 'triggerObjEnlisted' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
     [/^its power was different from its base power$/i, () => ({ kind: 'triggerPowerChanged' })],
     // Barrin, Tolarian Archmage: "if a permanent was put into your hand from the battlefield this turn" (bouncedToHand)
@@ -32849,12 +32903,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Myriad',
         effects: [{ op: 'myriad' }], auto: true });
     }
-    /* Enlist (CR 702.154): as it attacks, another creature of yours may be
-       tapped to lend it that creature's power */
-    if (out.keywords.some(k => k.keyword === 'Enlist')) {
-      out.abilities.push({ kind: 'triggered', event: 'attacks', self: true, text: 'Enlist',
-        effects: [{ op: 'enlist' }], auto: true });
-    }
+    /* Enlist (CR 702.154): an optional cost of attacking, paid as attackers are declared — the engine asks it there
+       (declareAttackers) and puts its "When you do" trigger on the stack */
     /* Ravenous (CR 702.156): X +1/+1 counters as it enters, and a card if X
        was 5 or more */
     if (out.keywords.some(k => k.keyword === 'Ravenous')) {
@@ -36881,8 +36931,21 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
          library face down instead." (drawExilesInstead) */
       { re: /^If you would draw a card, exile the top (card|two cards|three cards) of your library( face down)? instead\.(?: (You may play those cards this turn)\.)?$/i,
         make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
+      /* Jinnie Fay, Jetmir's Second: "If you would create one or more tokens, you may instead create that many 2/2 green
+         Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance." (tokenSwapAnimals) */
+      { re: /^If you would create one or more tokens, you may instead create that many 2\/2 green Cat creature tokens with haste or that many 3\/1 green Dog creature tokens with vigilance\.?$/i,
+        eff: { op: 'tokenSwapAnimals' }, auto: true },
+      /* Esix, Fractal Bloom: "The first time you would create one or more tokens during each of your turns, you may
+         instead choose a creature other than Esix and create that many tokens that are copies of that creature."
+         (tokenCopyFirst) */
+      { re: /^The first time you would create one or more tokens during each of your turns, you may instead choose a creature other than (?:CARDNAME|Esix) and create that many tokens that are copies of that creature\.?$/i,
+        eff: { op: 'tokenCopyFirst' }, auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
+      /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead. Put
+         one of those cards into your hand and the rest on the bottom of your library in any order." (drawLooksInstead) */
+      { re: /^If you would draw a card, look at the top (two|three|four|five) cards of your library instead\. Put one of (?:those cards|them) into your hand and the rest on the bottom of your library in any order\.?$/i,
+        make: (m) => ({ op: 'drawLooksInstead', n: num(m[1]) }), auto: true },
       /* Clara Oswald: "Impossible Girl — If Clara Oswald is your commander, choose a color before the game begins. Clara
          Oswald is the chosen color." — asked as the game begins (impossibleGirl) */
       { re: /^If CARDNAME is your commander, choose a colou?r before the game begins\. CARDNAME is the chosen colou?r\.?$/i,
@@ -38981,6 +39044,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      only ever a return value inside one resolution, so it never needs to
      survive a snapshot. */
   const SUSPEND = Symbol('suspend');
+  /* The makers of token copies a making can call again later, by name, with plain arguments, once what replaces
+     them (Jinnie Fay, Esix) has been decided against (_copyTokenCount, _tokenMake) */
+  const TOKEN_MAKERS = new Set(['_encoreCopy', '_offspringCopy', '_myriadCopy', '_auraCopyOnto', '_copyTokenOne']);
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
   const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy', 'phaseOut', 'exileUntilLeaves']);
@@ -39220,7 +39286,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.id = cfg.id || MTG.uid('p');
       this.name = cfg.name || 'Player';
       this.seat = cfg.seat || 0;
-      this.isBot = !!cfg.isBot;
+      this.isBot = !!cfg.isBot;          // the seat's own (_bot); read back, it says who decides for them (below)
       this.botDifficulty = cfg.botDifficulty || 5;
       this.botPersonality = cfg.botPersonality || null;
       this.avatarColor = cfg.avatarColor || null;
@@ -39252,6 +39318,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.ringLevel = 0;
       this.ringBearer = null;
     }
+    /* Whether a bot makes this player's decisions: the seat's own nature, unless another player controls them this
+       turn (Mindslaver, CR 722) — then whatever that player is. Everything that decides for a bot or asks a person
+       reads this, so a controlled player's questions go to whoever is in charge of them. */
+    get isBot() {
+      const g = this.game;
+      const by = g && g.playerController ? g.playerController(this.id) : null;
+      const c = by && g.player(by);
+      return c ? !!c._bot : !!this._bot;
+    }
+    set isBot(v) { this._bot = !!v; }
     get zones() { return this.game.zones[this.id]; }
     lib() { return this.game.zones[this.id].library; }
     hand() { return this.game.zones[this.id].hand; }
@@ -39265,7 +39341,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      what is worked out again (the _chr, _dyn, _borrow caches and the epochs they are checked against), and,
      for a player, the deck it sat down with (not game state, and large). */
   const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
-  const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
+  const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn|_bot)$/;
   const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring|_sacGate)$/;
   const NOT_PLAIN = Symbol('not plain data');
   /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
@@ -39893,6 +39969,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     _nextTurn() {
       if (this.over) return;
       const endingTurnOf = this.turn > 0 ? this.activePlayer : null;
+      // Mindslaver, Emrakul, the Promised End: a controlled turn is over, and Emrakul's extra turn comes next (CR 722)
+      if (endingTurnOf) this._controlTurnEnds(endingTurnOf);
       // (Medomai the Ageless: "during extra turns" — extraTurnNow)
       this.isExtraTurn = false;
       // extra turns first
@@ -39960,6 +40038,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const ap = this.activePlayer;
       ap.landsPlayed = 0;
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
+      // Mindslaver: "during that player's next turn" — this one (_controlNextTurn)
+      this._controlTurnBegins(ap);
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
       if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
       // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" — this one (silenceOn)
@@ -41338,7 +41418,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      * is not the judge of what they can do.
      */
     _shouldAutoPass(playerId) {
-      const cfg = (this.config.autoPass || {})[playerId];
+      // (a controlled player is passed for as the one at the controls likes: Mindslaver, CR 722)
+      const cfg = (this.config.autoPass || {})[this.deciderOf(playerId)];
       const p = this.player(playerId);
       if (!p || p.isBot || p.hasLost) return false;    // bots have their own runner
       if (this.mulliganPhase || this.pendingChoice || this.over) return false;
@@ -42548,6 +42629,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this._castingSpell = null;
       const must = (sp) => sp && !sp.upTo && !(sp.multi && !(sp.multi.min > 0));
       if (md.engineChose ? !options.some(l => l.length) : !specs.some((sp, i) => must(sp) && options[i].length)) return false;
+      /* Kozilek's Command for X = 0: "target creature with mana value X or less" with none to be had — a target the
+         spell must have and can't is no question to ask; the modes can't be cast as they are */
+      if (specs.some((sp, i) => must(sp) && !options[i].length)) return false;
       const keep = JSON.parse(JSON.stringify(Object.assign({}, opts, { modes: md.picks, _modesAsked: true, _targetsAsked: true })));
       const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
       this.queueChoice(Object.assign({ type: 'pickTarget', playerId, purpose: 'castTargets', objId: o.id, castOpts: keep,
@@ -45379,19 +45463,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.moveObject(o, 'exile');
       let made = 0;
       for (const foe of this.opponentsOf(playerId)) {
-        for (let k = this._copyTokenCount(playerId, 1, card.type_line); k > 0; k--) {
-          const copy = this._register(new GObj(card, playerId, 'battlefield'));
-          copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
-          copy.entered = this.turn; copy.summoningSick = false;
-          copy.effects.push({ keywords: ['Haste'], until: null });
-          copy.mustAttackPlayer = foe.id;
-          copy.sacAtEndOfTurn = this.turn;
-          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-          this.battlefield.push(copy);
-          this.bumpBoard();
-          this._onEnter(copy);
-          this._fireEnters(copy);
-          this._fire('youCreateToken', playerId, { object: copy });
+        for (let k = this._copyTokenCount(playerId, 1, card.type_line, { method: '_encoreCopy', args: [playerId, card, face, foe.id] }); k > 0; k--) {
+          this._encoreCopy(playerId, card, face, foe.id);
           made++;
         }
       }
@@ -45400,6 +45473,22 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.checkStateBasedActions();
       this._resetPriority();
       return true;
+    }
+
+    /** Encore: a copy that attacks `foeId` this turn if able, with haste, sacrificed at the end step (TOKEN_MAKERS). */
+    _encoreCopy(playerId, card, face, foeId) {
+      const copy = this._register(new GObj(card, playerId, 'battlefield'));
+      copy.isToken = true; copy.zone = 'battlefield'; copy.face = face;
+      copy.entered = this.turn; copy.summoningSick = false;
+      copy.effects.push({ keywords: ['Haste'], until: null });
+      copy.mustAttackPlayer = foeId;
+      copy.sacAtEndOfTurn = this.turn;
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      this._onEnter(copy);
+      this._fireEnters(copy);
+      this._fire('youCreateToken', playerId, { object: copy });
     }
 
     /**
@@ -48332,18 +48421,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const copies = (o._offspring ? 1 : 0) + (o._squad || 0);
         const small = !!o._offspring && !o._squad;
         o._offspring = false; o._squad = 0;
-        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line);
-        for (let i = 0; i < madeCopies; i++) {
-          const copy = this._register(new GObj(o.card, o.controller, 'battlefield'));
-          copy.isToken = true; copy.zone = 'battlefield';
-          copy.entered = this.turn; copy.summoningSick = true; copy.face = o.face || 0;
-          if (small) copy.effects.push({ setPt: { p: 1, t: 1 }, until: null });
-          copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-          this.battlefield.push(copy);
-          this.bumpBoard();
-          this._fireEnters(copy);
-          this._fire('youCreateToken', o.controller, { object: copy });
-        }
+        const madeCopies = this._copyTokenCount(o.controller, copies, o.card.type_line, { method: '_offspringCopy', args: [o.controller, o.card, o.face || 0, small] });
+        for (let i = 0; i < madeCopies; i++) this._offspringCopy(o.controller, o.card, o.face || 0, small);
         this.logEvent('token', `${o.name} brings ${copies} copy${copies === 1 ? '' : 'ies'} along.`);
       }
 
@@ -48825,10 +48904,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const card = tx && tx.kind !== 'player' && this.obj(tx.id);
         if (card) opts = Object.assign({}, opts, { x: ((card.card && card.card.cmc) || 0) - specsX[ix].mvXPlus });
       }
+      /* Diaochan, Artful Beauty: "target creature of an opponent's choice" — a target another player chooses as it is
+         activated: the activator's own targets first, then that one asked (_askOtherTarget, chosenBy) */
+      const otherAt = ab.kind !== 'mana' && !opts._otherDone ? effectSpecs(ab.effects).findIndex(sp => sp && sp.chosenBy === 'opponent') : -1;
       // every target checked against what it was chosen for, before any cost is paid
       if (ab.kind !== 'mana') {
         this._specX = opts.x || 0;
-        const bad = this._illegalTargets(effectSpecs(ab.effects), opts.targets, playerId, o);
+        const bad = this._illegalTargets(effectSpecs(ab.effects).filter((_, i) => i !== otherAt), opts.targets, playerId, o);
         this._specX = null;
         if (bad) return this.fail(bad);
         /* Mishra's Helix: "{X}, {T}: Tap X target lands" — as many targets as X */
@@ -48861,6 +48943,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (ab.kind === 'loyalty' && this._loyaltyDelta(ab, opts, playerId) < 0 && (Number(o.counters.loyalty) || 0) < -this._loyaltyDelta(ab, opts, playerId))
           return this.fail(`${o.name} does not have enough loyalty.`);
       }
+
+      if (otherAt >= 0) return this._askOtherTarget(playerId, o, abilityIndex, ab, otherAt, opts);
 
       // the storage lands: how many counters come off is the X of what it makes
       const rc = ab.cost && ab.cost.removeCounters;
@@ -49001,6 +49085,42 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
       this._resetPriority();
+      return true;
+    }
+
+    /**
+     * Diaochan, Artful Beauty: "target creature of an opponent's choice" (CR 601.2c, 602.2b) — chosen as the ability is
+     * activated, before anything is paid: its activator says which opponent when there are several (purpose
+     * 'otherChooser', opts._otherChooser), and that opponent picks the target among those legal for the activator's
+     * ability (purpose 'otherTarget'); the activation then starts again with every target (opts._otherDone).
+     */
+    _askOtherTarget(playerId, o, abilityIndex, ab, at, opts) {
+      const foes = this.opponentsOf(playerId).filter(q => !q.hasLost);
+      if (!foes.length) return this.fail('There is no opponent to choose a target.');
+      const sp = effectSpecs(ab.effects)[at];
+      const plain = Object.assign({}, sp, { chosenBy: null });
+      this._specX = opts.x || 0;
+      const legal = this._legalTargetsFor(plain, playerId, o.id);
+      this._specX = null;
+      if (!legal.length) return this.fail(`${o.name} needs a target for an opponent to choose.`);
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts)));
+      delete keep._otherChooser;
+      const what = (ab.effects || []).find(e => (e.targets || []).includes(sp)) || {};
+      const chooser = foes.find(q => q.id === opts._otherChooser) || (foes.length === 1 ? foes[0] : null);
+      const about = { objId: o.id, abilityIndex, actOpts: keep, sourceId: o.id, sourceName: o.name, sourceCard: o.card };
+      if (!chooser) {
+        this.queueChoice(Object.assign(MTG.choice.normalize({ type: 'choose', playerId, purpose: 'otherChooser', kind: 'players',
+          items: this._choosePlayers(foes), min: 1, max: 1,
+          sourceText: what.text || ab.text || null,
+          prompt: `${o.name}: choose an opponent. They choose its target ${sp.filter || 'creature'} of an opponent's choice.` }), about));
+        return true;
+      }
+      const me = this.player(playerId);
+      this.queueChoice(Object.assign({ type: 'pickTarget', playerId: chooser.id, purpose: 'otherTarget', activator: playerId, at, op: what.op || null,
+        specs: [plain], options: [legal], count: 1,
+        // (the ability, whole, goes with it: sourceText)
+        sourceText: what.text || ab.text || null,
+        prompt: `${me.name}'s ${o.name}: choose its target ${sp.filter || 'creature'} of an opponent's choice.` }, about));
       return true;
     }
 
@@ -51413,6 +51533,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         (o.attachments || []).some(id => { const at = this.obj(id); return at && this._staticOp(at, 'goadAttached'); });
     }
 
+    /** Enlist (CR 702.154a): what could be tapped for an attacker's enlist — an untapped creature of its controller's
+        that isn't attacking and has haste or has been theirs since the turn began, none tapped for another (`used`). */
+    enlistCandidates(playerId, declarations, used) {
+      const atk = new Set((declarations || []).map(d => d.attackerId));
+      return this.battlefield.filter(o => o.controller === playerId && !o.tapped && !o.phasedOut && !atk.has(o.id) && !(used && used.has(o.id)) &&
+        !!(this.characteristics(o) || {}).isCreature && (!o.summoningSick || this.hasKw(o, 'haste')));
+    }
+
     declareAttackers(playerId, declarations, opts) {
       const ch = this.pendingChoice;
       if (!ch || ch.type !== 'declareAttackers' || ch.playerId !== playerId) return this.fail('Not declaring attackers.');
@@ -51511,7 +51639,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return k;
       };
       const taxed = declarations.filter(d => taxFor(d) > 0 || lifeTax.get(d) > 0);
-      if (taxed.length && this.config.rulesEnforcement === 'full') {
+      // (paid already, when the declaration comes back from an enlist question: attackCostsPaid)
+      if (taxed.length && this.config.rulesEnforcement === 'full' && !(opts && opts.attackCostsPaid)) {
         let generic = 0, syms = '', life = 0;
         for (const d of taxed) { const k = taxFor(d); const s = symTax.get(d) || ''; syms += s; generic += k - (s.match(/\{/g) || []).length; life += lifeTax.get(d) || 0; }
         const bill = (generic > 0 || !syms ? '{' + generic + '}' : '') + syms;
@@ -51588,12 +51717,58 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           bands.delete(k);
         }
       }
+      /* Enlist (CR 702.154): an optional cost paid as attackers are declared — for each attacker with enlist, a
+         creature that isn't attacking may be tapped (enlistCandidates). A declaration may name it (`enlist`: its id,
+         or null for none); for an attacker whose declaration doesn't, its player is asked, one attacker at a time,
+         before anything of the attack happens (_enlistWait, purpose 'enlist') */
+      {
+        const used = new Set();
+        const isBot = !!(this.player(playerId) || {}).isBot;
+        for (const d of declarations) {
+          if (d.enlist == null) continue;
+          const o = this.obj(d.attackerId);
+          const x = typeof d.enlist === 'string' ? this.obj(d.enlist) : null;
+          if (!o || !this.hasKw(o, 'enlist') || !x || !this.enlistCandidates(playerId, declarations, used).includes(x)) {
+            if (!isBot) return this.fail(`${x ? x.name : 'That'} can't be tapped for ${o ? o.name + "'s" : 'an'} enlist.`);
+            d.enlist = null;
+            continue;
+          }
+          used.add(x.id);
+        }
+        for (const d of declarations) {
+          if (d.enlist !== undefined) continue;
+          const o = this.obj(d.attackerId);
+          if (!o || !this.hasKw(o, 'enlist')) continue;
+          const pool = this.enlistCandidates(playerId, declarations, used);
+          if (!pool.length) { d.enlist = null; continue; }
+          this._enlistWait = { declarations: JSON.parse(JSON.stringify(declarations)), attackerId: o.id, choice: ch,
+            opts: Object.assign(JSON.parse(JSON.stringify(opts || {})), { attackCostsPaid: true }) };
+          this.pendingChoice = MTG.choice.normalize({ type: 'choose', playerId, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+            prompt: `${o.name} attacks: enlist? You may tap a creature you control that isn't attacking. If you do, ${o.name} gets +X/+0 until end of turn, where X is that creature's power.` });
+          this.emit('choice', this.pendingChoice);
+          this.touch();
+          return true;
+        }
+      }
       this.pendingChoice = null;
       for (const o of this.battlefield) if (o.controller === playerId) o.bandId = null;
       for (const [k, ds] of bands) if (ds.length >= 2) for (const d of ds) { const o = this.obj(d.attackerId); if (o) o.bandId = 'band:' + this.turn + ':' + k; }
       if (bands.size) for (const [, ds] of bands) if (ds.length >= 2) this.logEvent('combat', `${ds.map(d => (this.obj(d.attackerId) || {}).name).join(', ')} attack as a band.`);
       // (Vengeful Ancestor: "a goaded creature" attacking — goad itself lasts until the goader's next turn, CR 701.15a)
       for (const id of ch.candidates) { const o = this.obj(id); if (o && this._goaders(o).length) o._goadedAttack = this.turn; }
+      /* Enlist: the creatures tapped for it, and each attacker's "When you do, add its power to this creature's until
+         end of turn." — a trigger, on the stack once attackers are declared; what enlisted is kept for "if it enlisted
+         a creature this combat" (Aradesh, the Founder: _enlisted) */
+      for (const d of declarations) {
+        const o = this.obj(d.attackerId), x = d.enlist ? this.obj(d.enlist) : null;
+        if (!o || !x || x.tapped || x.zone !== 'battlefield') continue;
+        this._markTapped(x, false, 'enlist');
+        o._enlisted = { id: x.id, power: this.powerOf(x), turn: this.turn, combat: this.combatsThisTurn || 1 };
+        this.logEvent('combat', `${o.name} enlists ${x.name}.`);
+        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
+          name: `${o.name} \u2014 enlist`, auto: true, abilityText: 'Enlist', optional: false, effects: [{ op: 'enlist', enlistedId: x.id }] });
+      }
       // (Jin Sakai, Ghost of Tsushima: who else attacks that player, declared before or after — aloneAttackingThatPlayer)
       this._declaringAttackers = declarations.map(d => ({ attackerId: d.attackerId, defenderId: d.defenderId }));
       for (const d of declarations) {
@@ -54521,6 +54696,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const h = x && x._hadToAttack;
           return !!h && h.turn === this.turn && h.combat === (this.combatsThisTurn || 1);
         }
+        // Aradesh, the Founder: "if it enlisted a creature this combat" — as attackers were declared (_enlisted)
+        case 'triggerObjEnlisted': {
+          const tdE = (ctx && ctx.triggerData) || {};
+          const x = tdE.objectId && this.obj(tdE.objectId);
+          const en = x && x._enlisted;
+          return !!en && en.turn === this.turn && en.combat === (this.combatsThisTurn || 1);
+        }
         // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the one that died as it last was, against him now
         case 'triggerPowerOverSelf': {
           const tdP = (ctx && ctx.triggerData) || {}; const x = tdP.objectId && this.obj(tdP.objectId);
@@ -56766,10 +56948,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
 
     _drawCards(p, n, silent) {
+      /* Tomorrow, Azami's Familiar: while a replaced draw waits on its player's answer, every draw after it waits
+         too, and they are made in turn once it is answered (_drawWait, _drawResume) */
+      if (this._drawWait) { this._drawWait.queue.push({ pid: p.id, n, silent: !!silent }); return; }
+      this._drawRun(p, { left: n, extras: 0, drawnNow: 0 }, silent);
+    }
+    /** The draws of one _drawCards, from where `st` says they had got to: { left, extras, drawnNow }. */
+    _drawRun(p, st, silent) {
       const z = this.zones[p.id];
       /* Thought Reflection and kin: a draw made two, each source doubling
          again; the extra cards are part of that draw, not draws of their own */
-      let left = n, extras = 0, drawnNow = 0;
+      let left = st.left, extras = st.extras, drawnNow = st.drawnNow;
+      // (a draw replaced by one of another player's that has to wait: the rest of these wait behind it)
+      const parked = () => { this._drawWait.queue.unshift({ pid: p.id, st: { left, extras, drawnNow }, silent: !!silent }); };
       const doubled = () => {
         const firstInStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
         let k = 0;
@@ -56794,6 +56985,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.logEvent('draw', `${thief.name}: ${p.name} skips a draw, and ${this.player(thief.controller).name} draws instead.`);
           this._stealDepth = (this._stealDepth || 0) + 1;
           try { this._drawCards(this.player(thief.controller), 1, silent); } finally { this._stealDepth--; }
+          if (this._drawWait) { parked(); return; }
           continue;
         }
         /* Urabrask, Heretic Praetor: the next draw this turn exiles the top card instead, and they may play it
@@ -56847,6 +57039,22 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (ex) { left += ex; extras += ex; }
         }
         if (this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id) p._drawStepTurn = this.turn;
+        /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead.
+           Put one of those cards into your hand and the rest on the bottom of your library in any order." — not a
+           draw (nothing that watches draws sees it, and an empty library loses nothing); a choice among two or more
+           waits for its player, and the draws after it wait with it (drawLooksInstead) */
+        const tm = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawLooksInstead'));
+        if (tm) {
+          const look = z.library.slice(0, Math.max(1, Number(this._staticOp(tm, 'drawLooksInstead').n) || 3));
+          if (look.length < 2) { this._drawLookKeep(p, tm.name, look, look.length ? look[0].id : null); continue; }
+          this._know(look, p.id);
+          this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, cards: look.map(o => o.id), src: tm.name, queue: [], resume: false };
+          this.queueChoice({ type: 'pickCard', purpose: 'drawLook', playerId: p.id, count: 1,
+            candidates: look.map(o => o.id), cards: look.map(o => ({ id: o.id, name: o.name, card: o.card })),
+            sourceId: tm.id, sourceName: tm.name, sourceCard: tm.card,
+            prompt: `${tm.name}: instead of drawing, put one of the top ${O.nounCount(look.length, 'card')} of your library into your hand. The rest go on the bottom of your library.` });
+          return;
+        }
         if (!z.library.length) {
           /* Ormos, Archive Keeper: "instead put five +1/+1 counters on Ormos" — each draw from the empty library
              (countersOnEmptyDraw) */
@@ -56892,6 +57100,37 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         this.emit('sfx', 'draw');
       }
       this.emit('draw', { player: p, n: drawnNow });
+    }
+    /** Tomorrow, Azami's Familiar: the card kept from a look that replaced a draw, the rest to the bottom. */
+    _drawLookKeep(p, srcName, look, keepId) {
+      const z = this.zones[p.id];
+      const here = look.filter(o => o && o.zone === 'library' && o.owner === p.id);
+      const keep = here.find(o => o.id === keepId) || here[0];
+      if (!keep) { this.logEvent('draw', `${srcName}: ${p.name} has no cards to look at instead of drawing.`); return; }
+      this.moveObject(keep, 'hand');
+      const rest = here.filter(o => o !== keep);
+      for (const o of rest) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+      this.logEvent('draw', rest.length ? `${srcName}: instead of drawing, ${p.name} looks at the top ${O.nounCount(here.length, 'card')} of their library and puts one into their hand and the rest on the bottom.`
+        : `${srcName}: instead of drawing, ${p.name} puts the top card of their library into their hand.`);
+    }
+    /** The look a draw waited on has been answered: the draws after it, in turn, then whatever was waiting on them. */
+    _drawResume() {
+      const w = this._drawWait;
+      if (!w) return;
+      this._drawWait = null;
+      const queue = [{ pid: w.pid, st: w.st, silent: w.silent }].concat(w.queue || []);
+      while (queue.length) {
+        const q = queue.shift();
+        const p = this.player(q.pid);
+        if (!p || p.hasLost) continue;
+        this._drawRun(p, q.st || { left: q.n, extras: 0, drawnNow: 0 }, q.silent);
+        if (this._drawWait) {
+          this._drawWait.queue.push(...queue);
+          this._drawWait.resume = this._drawWait.resume || w.resume;
+          return;
+        }
+      }
+      if (w.resume && this.resolving) this._pumpResolution();
     }
     drawCards(pid, n) { this._drawCards(this.player(pid), n); this.checkStateBasedActions(); this.touch(); }
 
@@ -58317,6 +58556,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const r = this.resolving;
       if (!r) return;
       while (r.index < r.effects.length) {
+        /* Tomorrow, Azami's Familiar: a draw waiting on its player's look holds up the rest of the card (_drawWait); so
+           do tokens waiting to hear what they are made as (Jinnie Fay, Esix: _tokenWait) */
+        if (this._heldUp()) return;
         const e = r.effects[r.index];
         if (e.op === 'manual') {
           // done by hand by its controller, who the rest of the card waits for (_byHand)
@@ -58364,10 +58606,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
-        if (out === SUSPEND) return;            // waiting on somebody; resume later
+        if (out === SUSPEND) { this._heldUp(); return; }            // waiting on somebody; resume later
         r.index++;
       }
+      if (this._heldUp()) return;
       this._finishResolution();
+    }
+
+    /** Is a draw or a making waiting on a player (_drawWait, _tokenWait)? Then the resolution goes on once it is done. */
+    _heldUp() {
+      let held = false;
+      for (const w of [this._drawWait, this._tokenWait]) if (w) { w.resume = true; held = true; }
+      return held;
     }
 
     /**
@@ -63782,6 +64032,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // (drawn once, however many times this resumes)
           // (The Ancient One: "When you discard a card this way" — none yet: ifDiscarded)
           if (!this._doneHere('ddDraw')) { this._lastDiscarded = []; this._drawCards(me, drew); }
+          // (Tomorrow, Azami's Familiar: the discard waits for the cards a look keeps — _drawWait)
+          if (this._drawWait) return SUSPEND;
           const can = Math.min(toss, this.zones[ctx.controller].hand.length);
           if (can > 0) {
             /* Frantic Search, Jace, Vryn's Prodigy: the discard is waited for, so what comes after it
@@ -65199,46 +65451,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           // Embalm, eternalize (CR 702.128, 702.129): "with no mana cost" — and so a mana value of 0 (noManaCost)
           if (e.noManaCost) card = Object.assign({}, card, { id: card.id + ':nocost', mana_cost: '', cmc: 0, card_faces: null });
-          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
-          for (let i = 0; i < made; i++) {
-            const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
-            copy.isToken = true;
-            copy.controller = ctx.controller;
-            copy.zone = 'battlefield';
-            copy.entered = this.turn;
-            copy.summoningSick = true;
-            copy.face = faceUp;
-            // (Hofri Ghostforge: the token's "the exiled card" is the card it was made from — holdExiled)
-            if (e.holdExiled) copy.holds = [source.id];
-            if (e.grant && e.grant.length) copy.effects.push({ keywords: e.grant, until: null });
-            // Skyclave Relic: "two tapped tokens"
-            if (e.tapped) copy.tapped = true;
-            /* Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it is
-               attacking (Ilharg's way), during combat; never declared, so nothing "whenever attacks" sees it */
-            if (e.attacking && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
-              const def = e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id;
-              if (def) { copy.attacking = def; this.combat.attackers.push(copy.id); }
-            }
-            copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
-            // Stangg, Echo Warrior: "a copy of it attached to Stangg Twin" (attachToId)
-            const hostTo = e.attachToId && this.obj(e.attachToId);
-            if (hostTo && hostTo.zone === 'battlefield') { copy.attachedTo = hostTo.id; hostTo.attachments = (hostTo.attachments || []).concat(copy.id); }
-            this.battlefield.push(copy);
-            this.bumpBoard();
-            // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
-            const cpa = copy.analysis();
-            if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
-            this._onEnter(copy);
-            // (Esper Terra: a copy of a Saga arrives with its lore counter too, CR 714.3a)
-            if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
-            this._fireEnters(copy);
-            // the copy is what any later sentence is talking about
-            this._lastCopy = copy;
-            (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
-            // Orthion: "They gain haste." — every copy made
-            if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
-            this._fire('youCreateToken', ctx.controller, { object: copy });
-          }
+          /* what each copy is made with, as plain words, so that a copy can be made later too (Jinnie Fay, Esix:
+             _copyTokenOne) — Delina, Wild Mage: "a tapped and attacking token" — at whoever the creature that made it
+             is attacking (Ilharg's way) */
+          const how = { holds: e.holdExiled ? [source.id] : null, grant: e.grant && e.grant.length ? e.grant : null, tapped: !!e.tapped,
+            attackingDef: e.attacking ? (e.attackingId || (src && src.attacking) || (this.opponentsOf(ctx.controller)[0] || {}).id || null) : null,
+            attachToId: e.attachToId || null };
+          const made = this._copyTokenCount(ctx.controller, cnt, card.type_line, { method: '_copyTokenOne', args: [ctx.controller, card, faceUp, how] });
+          for (let i = 0; i < made; i++) this._copyTokenOne(ctx.controller, card, faceUp, how, i, made);
           this.logEvent('token', `${me.name} copies ${source.name}.`);
           this.emit('sfx', 'play_card');
           break;
@@ -72064,39 +72284,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const defPid = at ? at.controller : src.attacking;
           for (const p of this.opponentsOf(ctx.controller)) {
             if (p.hasLost || p.id === defPid) continue;
-            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line); k > 0; k--) {
-              const copy = this._register(new GObj(src.card, ctx.controller, 'battlefield'));
-              Object.assign(copy, { isToken: true, controller: ctx.controller, zone: 'battlefield', entered: this.turn,
-                summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
-              copy.ts = this._stampNew();
-              this.battlefield.push(copy);
-              copy.attacking = p.id;
-              this.combat.attackers.push(copy.id);
-              this.bumpBoard();
-              this._onEnter(copy);
-              this._fireEnters(copy);
-              this._fire('youCreateToken', ctx.controller, { object: copy });
-              this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
-            }
+            for (let k = this._copyTokenCount(ctx.controller, 1, src.card.type_line, { method: '_myriadCopy', args: [ctx.controller, src.id, p.id] }); k > 0; k--) this._myriadCopy(ctx.controller, src.id, p.id);
           }
           break;
         }
-        /* Enlist: another untapped creature of yours that could have attacked
-           is tapped, and this one gets +X/+0, X its power */
+        /* Enlist: "When you do, add its power to this creature's until end of turn." — the creature tapped for it as
+           attackers were declared (declareAttackers), its power now, or as it last was */
         case 'enlist': {
           if (!src || src.zone !== 'battlefield') break;
-          const pool = this.battlefield.filter(o => o.controller === ctx.controller && o.id !== src.id && !o.tapped && !o.phasedOut &&
-            !o.attacking && this.characteristics(o).isCreature && (!o.summoningSick || this.hasKw(o, 'haste')));
-          if (!pool.length) break;
-          const got = this._choose({ playerId: ctx.controller, purpose: 'enlist', kind: 'objects', zone: 'battlefield',
-            items: this._chooseItems(pool), min: 0, max: 1, prompt: `${src.name}: enlist? Tap a creature to add its power.` }, 'enlist');
-          if (got === SUSPEND) return SUSPEND;
-          const x = got && got.picks.length ? this.obj(got.picks[0]) : null;
-          if (!x || x.tapped || x.zone !== 'battlefield') break;
-          this._markTapped(x);
-          const k = this.powerOf(x);
+          const x = this.obj(e.enlistedId);
+          const en = src._enlisted && src._enlisted.id === e.enlistedId ? src._enlisted : null;
+          const k = x && x.zone === 'battlefield' ? this.powerOf(x) : ((en && en.power) || 0);
           if (k) src.effects.push({ p: k, t: 0, until: 'eot' });
-          this.logEvent('rules', `${src.name} enlists ${x.name} (+${k}/+0).`);
+          this.logEvent('rules', `${src.name} gets +${k}/+0 from enlisting ${x ? x.name : 'a creature'}.`);
           this.bumpBoard();
           break;
         }
@@ -72451,15 +72651,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const hosts = (this.combat.attackers || []).map(id => this.obj(id)).filter(o => o && o !== src && o.zone === 'battlefield' &&
             o.controller === ctx.controller && (this.characteristics(o) || {}).isCreature);
           for (const host of hosts) {
-            const made = this._copyTokenCount(ctx.controller, 1, card.type_line);
-            for (let i = 0; i < made; i++) {
-              if (host.zone !== 'battlefield') break;
-              const o = this._createAuraToken(ctx.controller, card, host, true);
-              if (!o) break;
-              (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
-              this.logEvent('token', `${me.name} creates a copy of ${card.name} attached to ${host.name}.`);
-              this._fire('youCreateToken', ctx.controller, { object: o });
-            }
+            const made = this._copyTokenCount(ctx.controller, 1, card.type_line, { method: '_auraCopyOnto', args: [ctx.controller, card, host.id] });
+            for (let i = 0; i < made; i++) if (!this._auraCopyOnto(ctx.controller, card, host.id)) break;
           }
           break;
         }
@@ -74982,6 +75175,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.logEvent('rules', `${who.name} takes an extra turn.`);
           break;
         }
+        /* Mindslaver: "You control target player during that player's next turn." Emrakul, the Promised End: "…
+           After that turn, that player takes an extra turn." (extraAfter; CR 722) */
+        case 'controlPlayer': {
+          const who = firstPlayer();
+          if (!who || who.hasLost) break;
+          this._controlNextTurn(me.id, who.id, src ? src.name : null, !!e.extraAfter);
+          break;
+        }
         // "You gain hexproof until end of turn."
         case 'hexproofYou': me.hexproofTurn = this.turn; this.logEvent('keyword', `${me.name} gains hexproof until end of turn.`); break;
         /* Gift (CR 702.174): the opponent who was promised it gets it. */
@@ -75953,6 +76154,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         tokenTypes: (e.noncreature ? [] : ['Creature']).concat(e.addTypes || [], [String(e.subtypes || '')]).join(' ') });
       if (ev.cancelled) return;
       n = ev.n;
+      // Jinnie Fay, Esix: made as other tokens instead, or waiting to hear which (_tokenSwap)
+      if (!e._noSwap && n > 0 && !this._tokenSwap(controller, n, { road: 'spec', e: Object.assign({}, e, { n: undefined, countBy: null }) })) { this._tokenExtras(controller, ev, n); return; }
       // Divine Visitation: whatever creature tokens they were to be, they are 4/4 Angels
       if (!e.noncreature && this._anyStaticOf(controller, 'tokensBecomeAngels')) {
         e = Object.assign({}, e, { pt: '4/4', colorWords: ['white'], subtypes: 'Angel', addTypes: [], keywords: ['Flying', 'Vigilance'],
@@ -76040,11 +76243,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* Parallel Lives, Doubling Season, Chatterfang: a token that's a copy (Kiki-Jiki, myriad,
        offspring, squad, encore) is a token created like any other, so what changes token-making
        applies to it too (CR 111.1). How many to make; 0 when none are. */
-    _copyTokenCount(controller, n, typeLine) {
+    /* (Jinnie Fay, Esix: `maker` is how to make one of them later, when what replaces them waits on an answer —
+       { method, args }, one of TOKEN_MAKERS called with (…args, i, n); without one, nobody waits to be asked) */
+    _copyTokenCount(controller, n, typeLine, maker) {
       const tev = this._replace({ kind: 'createToken', n, controller, tokenTypes: String(typeLine || '') });
       if (tev.cancelled || !(tev.n > 0)) return 0;
       this._tokenExtras(controller, tev, tev.n);
       (this.player(controller) || {}).tokensMadeTurn = this.turn;
+      if (!this._tokenSwap(controller, tev.n, maker ? { road: 'method', method: maker.method, args: maker.args || [] } : { road: 'none' })) return 0;
       return tev.n;
     }
 
@@ -76055,6 +76261,258 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (x.named) this._createNamedToken(controller, { token: x.named, n: k, _noRep: true });
         else if (x.spec) this._createToken(controller, Object.assign({}, x.spec, { n: k, _noRep: true }));
       }
+    }
+
+    /* ---------- tokens made as other tokens instead ----------
+       Jinnie Fay, Jetmir's Second: "If you would create one or more tokens, you may instead create that many 2/2 green
+       Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance." (tokenSwapAnimals);
+       Esix, Fractal Bloom: "The first time you would create one or more tokens during each of your turns, you may
+       instead choose a creature other than Esix and create that many tokens that are copies of that creature."
+       (tokenCopyFirst). Every road that makes tokens comes here once it knows how many (after Doubling Season and the
+       like). True: make them as they are. False: there is nothing for the road to make — what replaced them has been
+       made, or it waits on its controller's answer (_tokenWait), and the rest of the resolution waits with it. `recipe`
+       is how to make them as they are later: { road: 'spec' | 'named', e }, or a copy's maker { road: 'method',
+       method, args } (TOKEN_MAKERS); `ev` is the event so far ({ done: what has been offered, first: the first of the
+       turn's own }). Whatever else the making said — tapped, attacking, gone at end of combat — goes for what replaces
+       it (Jinnie Fay's ruling). */
+    _tokenSwap(controller, n, recipe, ev) {
+      const p = this.player(controller);
+      if (!p || p.hasLost || !(n > 0)) return true;
+      if (!ev) {
+        const own = !!this.activePlayer && this.activePlayer.id === controller;
+        // (Esix: "the first time … during each of your turns" — whatever made them, and whether or not it was replaced)
+        ev = { done: [], first: own && p._ownTurnTokens !== this.turn };
+        if (own) p._ownTurnTokens = this.turn;
+      }
+      const ask = this._tokenSwapQuestion(controller, n, recipe, ev);
+      if (!ask) return true;
+      if (!p.isBot) {
+        // (a maker the table can't call again later: nobody is asked)
+        if (recipe.road !== 'spec' && recipe.road !== 'named' && recipe.road !== 'method' && recipe.road !== 'copyOf') return true;
+        if (this._tokenWait) { this._tokenWait.queue.push({ controller, n, recipe, ev }); this._lastTokenGroup = []; return false; }
+        this._tokenWait = { controller, n, recipe, ev, which: ask.which, queue: [], resume: false };
+        this._lastTokenGroup = [];
+        this.queueChoice(ask.spec);
+        return false;
+      }
+      const got = this._decideChoose(controller, ask.spec);
+      return this._tokenSwapAnswer(controller, n, recipe, ev, ask.which, (got && got.picks) || []);
+    }
+    /** What may replace this making now, asked as a generic question ({ which, spec }), or null. */
+    _tokenSwapQuestion(controller, n, recipe, ev) {
+      const mine = (op) => this.battlefield.find(x => x.controller === controller && !x.phasedOut && this._staticOp(x, op));
+      const what = this._tokenRecipeWords(n, recipe);
+      const esix = ev.first && !ev.done.includes('esix') && mine('tokenCopyFirst');
+      const pool = esix ? this.battlefield.filter(x => x !== esix && !x.phasedOut && !!(this.characteristics(x) || {}).isCreature) : [];
+      if (esix && pool.length) {
+        return { which: 'esix', spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenCopyFirst', kind: 'objects', zone: 'battlefield',
+          items: this._chooseItems(pool), min: 0, max: 1, optional: true, noneLabel: 'Make them as they are',
+          sourceId: esix.id, sourceName: esix.name, sourceCard: esix.card, orig: this._tokenRecipeLooks(recipe),
+          prompt: `${esix.name}: you would create ${what}. You may instead choose a creature other than ${esix.name} and create that many tokens that are copies of it.` }) };
+      }
+      const jf = !ev.done.includes('jinnie') && mine('tokenSwapAnimals');
+      if (jf) {
+        const say = (w) => (n === 1 ? 'a ' + w : O.nounCount(n, w));
+        return { which: 'jinnie', spec: MTG.choice.normalize({ type: 'choose', playerId: controller, purpose: 'tokenSwapAnimals', kind: 'options', min: 1, max: 1,
+          options: [{ label: `Create ${what}` }, { label: `Create ${say('2/2 green Cat creature token')} with haste instead` },
+            { label: `Create ${say('3/1 green Dog creature token')} with vigilance instead` }],
+          sourceId: jf.id, sourceName: jf.name, sourceCard: jf.card, orig: this._tokenRecipeLooks(recipe),
+          prompt: `${jf.name}: you would create ${what}. You may instead create that many 2/2 green Cat creature tokens with haste or that many 3/1 green Dog creature tokens with vigilance.` }) };
+      }
+      return null;
+    }
+    /** The answer to it: true when they are to be made as they are by whoever was making them. */
+    _tokenSwapAnswer(controller, n, recipe, ev, which, picks) {
+      ev.done.push(which);
+      const flags = this._tokenRecipeFlags(recipe);
+      if (which === 'esix') {
+        const x = this.obj(picks[0]);
+        if (x && x.zone === 'battlefield') {
+          this.logEvent('token', `${(this.player(controller) || {}).name} creates copies of ${x.name} instead.`);
+          const rec = { road: 'copyOf', sourceId: x.id, flags };
+          if (this._tokenSwap(controller, n, rec, ev)) this._tokenMake(controller, n, rec);
+          return false;
+        }
+      }
+      if (which === 'jinnie' && (picks[0] === 1 || picks[0] === 2)) {
+        const cat = picks[0] === 1;
+        this._createToken(controller, Object.assign({}, flags, { n, pt: cat ? '2/2' : '3/1', colorWords: ['green'], subtypes: cat ? 'Cat' : 'Dog',
+          keywords: [cat ? 'Haste' : 'Vigilance'], _noRep: true, _noSwap: true }));
+        return false;
+      }
+      // as they are: what else may replace them still may
+      return this._tokenSwap(controller, n, recipe, ev);
+    }
+    /** Make them as the recipe says, nothing replacing them any more. */
+    _tokenMake(controller, n, recipe) {
+      if (!(n > 0)) return;
+      if (recipe.road === 'spec') this._createToken(controller, Object.assign({}, recipe.e, { n, countBy: null, _noRep: true, _noSwap: true }));
+      else if (recipe.road === 'named') this._createNamedToken(controller, Object.assign({}, recipe.e, { n, _noRep: true, _noSwap: true }));
+      else if (recipe.road === 'copyOf') this._makeCopyTokens(controller, this.obj(recipe.sourceId), n, recipe.flags || {});
+      else if (recipe.road === 'method' && TOKEN_MAKERS.has(recipe.method)) for (let i = 0; i < n; i++) this[recipe.method](...(recipe.args || []), i, n);
+    }
+    /** "that many tokens that are copies of that creature" (Esix, Fractal Bloom), with whatever else the making said. */
+    _makeCopyTokens(controller, source, n, flags) {
+      if (!source || !(n > 0)) return;
+      const card = this._copiable(source.card);
+      this._lastTokenGroup = [];
+      for (let i = 0; i < n; i++) {
+        const copy = this._register(new GObj(card, controller, 'battlefield'));
+        Object.assign(copy, { isToken: true, controller, zone: 'battlefield', entered: this.turn, summoningSick: true, face: source.face || 0 });
+        if (flags.tapped) copy.tapped = true;
+        if (flags.temporary === 'combat') copy.sacAtEndOfCombat = true;
+        if (flags.goadForever) copy.goadForever = flags.goadForever;
+        if (flags.attacking && this.combat && this.combat.attackers) {
+          const def = (flags.attackingId && this.player(flags.attackingId)) || this.opponentsOf(controller)[0];
+          if (def) { copy.attacking = def.id; this.combat.attackers.push(copy.id); }
+        }
+        copy.ts = this._stampNew();
+        this.battlefield.push(copy);
+        this._lastTokenGroup.push(copy.id);
+        this._noteLastAffected([{ kind: 'object', id: copy.id }]);
+        (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
+        this.bumpBoard();
+        const cpa = copy.analysis();
+        if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
+        this._onEnter(copy);
+        if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
+        this._fireEnters(copy);
+        this._fire('youCreateToken', controller, { object: copy });
+      }
+      this.logEvent('token', `${(this.player(controller) || {}).name} creates ${n === 1 ? 'a token that is a copy' : n + ' tokens that are copies'} of ${source.name}.`);
+    }
+    /** Offspring, squad: a copy of the creature as it lands, an offspring one a 1/1 (TOKEN_MAKERS). */
+    _offspringCopy(controller, card, face, small) {
+      const copy = this._register(new GObj(card, controller, 'battlefield'));
+      copy.isToken = true; copy.zone = 'battlefield';
+      copy.entered = this.turn; copy.summoningSick = true; copy.face = face;
+      if (small) copy.effects.push({ setPt: { p: 1, t: 1 }, until: null });
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      this._fireEnters(copy);
+      this._fire('youCreateToken', controller, { object: copy });
+    }
+    /** Myriad: a copy tapped and attacking another opponent, exiled as combat ends (TOKEN_MAKERS). */
+    _myriadCopy(controller, srcId, foeId) {
+      const src = this.obj(srcId), p = this.player(foeId);
+      if (!src || !p || !this.combat) return;
+      const copy = this._register(new GObj(src.card, controller, 'battlefield'));
+      Object.assign(copy, { isToken: true, controller, zone: 'battlefield', entered: this.turn,
+        summoningSick: true, face: src.face || 0, tapped: true, exileAtEndOfCombat: true });
+      copy.ts = this._stampNew();
+      this.battlefield.push(copy);
+      copy.attacking = p.id;
+      this.combat.attackers.push(copy.id);
+      this.bumpBoard();
+      this._onEnter(copy);
+      this._fireEnters(copy);
+      this._fire('youCreateToken', controller, { object: copy });
+      this.logEvent('token', `${src.name}: a copy attacks ${p.name} (myriad).`);
+    }
+    /** Three Dog: a copy of the Aura attached to that creature; null when it could not be (TOKEN_MAKERS). */
+    _auraCopyOnto(controller, card, hostId) {
+      const host = this.obj(hostId);
+      if (!host || host.zone !== 'battlefield') return null;
+      const o = this._createAuraToken(controller, card, host, true);
+      if (!o) return null;
+      (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
+      this.logEvent('token', `${(this.player(controller) || {}).name} creates a copy of ${card.name} attached to ${host.name}.`);
+      this._fire('youCreateToken', controller, { object: o });
+      return o;
+    }
+    /** A token copy (copyPermanent), the `i`th of `made`, with what the making said (`how`) (TOKEN_MAKERS). */
+    _copyTokenOne(controller, card, faceUp, how, i, made) {
+      const copy = this._register(new GObj(card, controller, 'battlefield'));
+      copy.isToken = true;
+      copy.controller = controller;
+      copy.zone = 'battlefield';
+      copy.entered = this.turn;
+      copy.summoningSick = true;
+      copy.face = faceUp;
+      // (Hofri Ghostforge: the token's "the exiled card" is the card it was made from — holdExiled)
+      if (how.holds) copy.holds = how.holds.slice();
+      if (how.grant) copy.effects.push({ keywords: how.grant.slice(), until: null });
+      // Skyclave Relic: "two tapped tokens"
+      if (how.tapped) copy.tapped = true;
+      // (attacking, during combat; never declared, so nothing "whenever attacks" sees it)
+      if (how.attackingDef && this.phase && this.phase.id === 'combat' && this.combat && this.combat.attackers) {
+        copy.attacking = how.attackingDef; this.combat.attackers.push(copy.id);
+      }
+      copy.ts = this._stampNew();      // its timestamp (CR 613.7d)
+      // Stangg, Echo Warrior: "a copy of it attached to Stangg Twin" (attachToId)
+      const hostTo = how.attachToId && this.obj(how.attachToId);
+      if (hostTo && hostTo.zone === 'battlefield') { copy.attachedTo = hostTo.id; hostTo.attachments = (hostTo.attachments || []).concat(copy.id); }
+      this.battlefield.push(copy);
+      this.bumpBoard();
+      // Yenna, Redtooth Regent: a copy of an Aura chooses what it enchants as it arrives (CR 303.4f)
+      const cpa = copy.analysis();
+      if (cpa && cpa.isAura && cpa.auraSpec && !copy.attachedTo) copy._needsHost = true;
+      this._onEnter(copy);
+      // (Esper Terra: a copy of a Saga arrives with its lore counter too, CR 714.3a)
+      if (cpa && cpa.isSaga) { copy.counters.lore = 0; this._advanceSaga(copy, 1); }
+      this._fireEnters(copy);
+      // the copy is what any later sentence is talking about
+      this._lastCopy = copy;
+      (this._madeThisResolution = this._madeThisResolution || []).push(copy.id);
+      // Orthion: "They gain haste." — every copy made
+      if (made > 1) this._lastGroup = (i ? this._lastGroup || [] : []).concat(copy.id);
+      this._fire('youCreateToken', controller, { object: copy });
+    }
+    /** How a making is said in a question: "2 Treasure tokens", "a 1/1 white Soldier creature token". */
+    _tokenRecipeWords(n, recipe) {
+      const e = recipe.e || {};
+      if (recipe.road === 'named') return n === 1 ? `${/^[AEIOU]/i.test(e.token || 'artifact') ? 'an' : 'a'} ${e.token || 'artifact'} token` : O.nounCount(n, `${e.token || 'artifact'} token`);
+      if (recipe.road === 'spec') {
+        const sub = String(e.subtypes || '').replace(/\s*\bcreature\s*$/i, '').trim();
+        const words = [e.pt, (e.colorWords || []).join(' and '), e.name || sub, ...(e.addTypes || []).map(t => String(t).toLowerCase()), e.noncreature ? null : 'creature']
+          .filter(Boolean).join(' ') + ' token';
+        return n === 1 ? (/^(?:[aeiou]|8|11\/|18\/)/i.test(words) ? 'an ' : 'a ') + words : O.nounCount(n, words);
+      }
+      const src = recipe.road === 'copyOf' ? this.obj(recipe.sourceId) : null;
+      const of = src ? src.name : ((recipe.args || []).map(a => (a && a.name) || null).find(Boolean) || 'a permanent');
+      return n === 1 ? `a token that's a copy of ${of}` : `${n} tokens that are copies of ${of}`;
+    }
+    /** For the bots: what the tokens would be as they are. */
+    _tokenRecipeLooks(recipe) {
+      const e = recipe.e || {};
+      if (recipe.road === 'spec') {
+        const [pw, tg] = String(e.pt || '').split('/').map(x => parseInt(x, 10) || 0);
+        return { creature: !e.noncreature, power: pw, toughness: tg };
+      }
+      if (recipe.road === 'named') return { creature: false, name: e.token || null };
+      return { creature: true, copy: true };
+    }
+    /** What else the making said, for what is made instead. */
+    _tokenRecipeFlags(recipe) {
+      const e = recipe.e || recipe.flags || {};
+      const out = {};
+      for (const k of ['tapped', 'attacking', 'attackingId', 'temporary', 'goadForever']) if (e[k] != null && e[k] !== false) out[k] = e[k];
+      return out;
+    }
+    /** The question a making waited on has its answer: the making, then the ones that waited behind it, then the rest
+        of the resolution. */
+    _tokenAnswered(picks) {
+      const w = this._tokenWait;
+      if (!w) return;
+      this._tokenWait = null;
+      if (this.player(w.controller) && !this.player(w.controller).hasLost &&
+          this._tokenSwapAnswer(w.controller, w.n, w.recipe, w.ev, w.which, picks || [])) this._tokenMake(w.controller, w.n, w.recipe);
+      this._tokenGoOn(w);
+    }
+    _tokenGoOn(w) {
+      const queue = (w.queue || []).slice();
+      while (true) {
+        if (this._tokenWait) {
+          this._tokenWait.queue.push(...queue);
+          this._tokenWait.resume = this._tokenWait.resume || w.resume;
+          return;
+        }
+        const j = queue.shift();
+        if (!j) break;
+        if (this._tokenSwap(j.controller, j.n, j.recipe, j.ev)) this._tokenMake(j.controller, j.n, j.recipe);
+      }
+      if (w.resume && this.resolving) this._pumpResolution();
     }
 
     _createNamedToken(controller, e) {
@@ -76114,6 +76572,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (ev.cancelled) return;
       n = ev.n;
       this._tokenExtras(controller, ev, n);
+      // Jinnie Fay, Esix: made as other tokens instead, or waiting to hear which (_tokenSwap)
+      if (!e._noSwap && n > 0 && !this._tokenSwap(controller, n, { road: 'named', e: Object.assign({}, e, { n: undefined }) })) return;
       for (let i = 0; i < n; i++) {
         const o = this._register(new GObj(card, controller, 'battlefield'));
         o.isToken = true; o.zone = 'battlefield'; o.entered = this.turn;
@@ -76538,6 +76998,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this._nextChoice();
         }
       }
+      // Tomorrow, Azami's Familiar: their look will not be answered — the draws waiting behind it go on (_drawWait)
+      if (this._drawWait && this._drawWait.pid === p.id) this._drawResume();
+      // Jinnie Fay, Esix: their tokens will not be made — what waited behind them goes on (_tokenWait)
+      if (this._tokenWait && this._tokenWait.controller === p.id) { const w = this._tokenWait; this._tokenWait = null; this._tokenGoOn(w); }
       this.emit('player:lost', p);
     }
 
@@ -76552,6 +77016,74 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (this.activePlayer.id === playerId && !this.over) this._nextTurn();
       this.checkStateBasedActions();
       this.touch();
+    }
+
+    /* ---------- controlling another player (CR 722) ----------
+       Mindslaver, Worst Fears, Sorin Markov, Emrakul, the Promised End: "you control target player during that
+       player's next turn". The controlled player is still the one acting — their spells, their mana, their cards —
+       but every choice and decision they would make is made by the player controlling them, who sees everything
+       they could see. Kept as plain data on the controlled player: controlNext, the effects waiting for their next
+       turn ({ by, src, extra }), and controlledBy, the one running now ({ by, turn, src, extra }). */
+    /** The player making this player's decisions right now, or null when they make their own. */
+    playerController(pid) {
+      const p = this.player(pid);
+      const r = p && p.controlledBy;
+      if (!r || r.turn !== this.turn || p.hasLost || this.over) return null;
+      const c = this.player(r.by);
+      // (gaining control of yourself does nothing; a controller who has left the game controls nobody: CR 800.4a)
+      if (!c || c.id === pid || c.hasLost) return null;
+      return c.id;
+    }
+    /** Who decides for this player: whoever controls them, else they themselves. */
+    deciderOf(pid) { return this.playerController(pid) || pid; }
+    /** The players this one is controlling right now. */
+    controlledPlayers(pid) { return this.players.filter(p => p.id !== pid && this.playerController(p.id) === pid).map(p => p.id); }
+    /** "You control target player during that player's next turn" — the last such effect is the one that counts. */
+    _controlNextTurn(byId, pid, src, extra) {
+      const p = this.player(pid), by = this.player(byId);
+      if (!p || !by || p.hasLost) return;
+      (p.controlNext = p.controlNext || []).push({ by: by.id, src: src || null, extra: extra ? 1 : 0 });
+      if (by.id !== p.id) this.logEvent('rules', `${by.name} will control ${p.name} during ${p.name}'s next turn.`);
+      if (extra) this.logEvent('rules', `${p.name} takes an extra turn after that one.`);
+    }
+    /* A turn begins: what was waiting for this player's next turn takes hold (the newest one; each Emrakul's extra turn
+       still counts), and a turn that ends lets go, with the extra turn Emrakul promised coming straight after it — unless
+       that player has left the game (Emrakul's ruling). */
+    _controlTurnEnds(p) {
+      const r = p && p.controlledBy;
+      if (!r) return;
+      p.controlledBy = null;
+      const by = this.player(r.by);
+      if (by && by.id !== p.id) this.logEvent('rules', `${by.name} no longer controls ${p.name}.`);
+      if (!p.hasLost) for (let k = 0; k < (r.extra || 0); k++) this.extraTurnsQueue.unshift(p.id);
+    }
+    _controlTurnBegins(p) {
+      const recs = p.controlNext;
+      if (!recs || !recs.length) return;
+      p.controlNext = null;
+      const last = recs[recs.length - 1];
+      p.controlledBy = { by: last.by, turn: this.turn, src: last.src, extra: recs.reduce((t, r) => t + (r.extra || 0), 0) };
+      const by = this.playerController(p.id);
+      if (by) this.logEvent('rules', `${this.player(by).name} controls ${p.name} during this turn${last.src ? ` (${last.src})` : ''}.`);
+    }
+    /**
+     * Who an intent from `senderId` acts as, or null when it is refused (the reason said through fail). An intent
+     * may carry `as`, the player it is made for: allowed only to the one controlling that player right now. A
+     * controlled player's own intents are refused, except to talk, to concede (CR 722.6: nobody can make them) and
+     * to say how they like to be passed for.
+     */
+    intentActor(senderId, intent) {
+      const kind = intent && intent.kind;
+      const as = intent && intent.as != null ? String(intent.as) : null;
+      if (as != null && as !== senderId) {
+        const p = this.player(as);
+        if (!p || this.playerController(as) !== senderId) return this.fail(`You are not controlling ${p ? p.name : 'that player'}.`) || null;
+        if (kind === 'concede' || kind === 'leave' || kind === 'autoPass') return this.fail(`You can't make ${p.name} do that.`) || null;
+        return as;
+      }
+      const by = this.playerController(senderId);
+      if (by && !['chat', 'concede', 'leave', 'autoPass'].includes(kind)) return this.fail(`${this.player(by).name} is controlling you this turn.`) || null;
+      return senderId;
     }
 
     /* ---------- choices ---------- */
@@ -76654,6 +77186,35 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (!got.ok) return this.fail(got.reason);
           }
           data = Object.assign({ picks: got.picks, number: got.number, order: got.order }, got.name ? { name: this._canonName(got.name) } : {});
+          /* Enlist: the creature tapped for an attacker's enlist, or none — and the declaration goes on, asking about
+             the next attacker with enlist, or done (_enlistWait) */
+          if (ch.purpose === 'enlist' && this._enlistWait) {
+            const w = this._enlistWait;
+            this._enlistWait = null;
+            const d = w.declarations.find(x => x.attackerId === w.attackerId);
+            if (d) d.enlist = got.picks.length ? got.picks[0] : null;
+            this.pendingChoice = w.choice;
+            // (refused now, something having changed: the attackers are declared again)
+            if (!this.declareAttackers(playerId, w.declarations, w.opts)) { this.emit('choice', this.pendingChoice); this.touch(); }
+            return true;
+          }
+          // Jinnie Fay, Esix: what the tokens are made as — then whatever waited on them (_tokenWait)
+          if ((ch.purpose === 'tokenSwapAnimals' || ch.purpose === 'tokenCopyFirst') && this._tokenWait) {
+            this.pendingChoice = null;
+            this._tokenAnswered(got.picks);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
+          // Diaochan, Artful Beauty: the opponent who chooses the other target — the activation starts again (_askOtherTarget)
+          if (ch.purpose === 'otherChooser') {
+            this.pendingChoice = null;
+            if (!this.activateAbility(playerId, ch.objId, ch.abilityIndex, Object.assign({}, ch.actOpts, { _otherChooser: got.picks[0] })))
+              this.logEvent('rules', `${(this.player(playerId) || {}).name} can't activate ${(this.obj(ch.objId) || {}).name || 'that'}: ${String(this.lastError || 'not now').replace(/\.$/, '')}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'backupPlan') { this._keepBackupHand(playerId, got.picks[0] || 0); break; }
           if (ch.purpose === 'meldOrder') { this._meldOrder(ch, got.picks[0]); break; }
           // Deadpool, Trading Card: the creature picked as it entered, if any, exchanges text boxes with it
@@ -76733,6 +77294,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         case 'pickCard': {
           let ids = (data && data.cardIds) || (data && data.cardId ? [data.cardId] : []);
+          /* Tomorrow, Azami's Familiar: the card kept from the look that replaced a draw; then the draws that waited
+             on it, and whatever was waiting on them (_drawWait) */
+          if (ch.purpose === 'drawLook') {
+            const w = this._drawWait;
+            const p = this.player(playerId);
+            const look = ((w && w.cards) || ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
+            this.pendingChoice = null;
+            if (p) this._drawLookKeep(p, (w && w.src) || ch.sourceName || 'Tomorrow', look, ids.find(id => (ch.candidates || []).includes(id)));
+            this._drawResume();
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'moxDiamond') {
             const mox = this.obj(ch.objId);
             const ok = ids.some(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand');
@@ -77110,6 +77684,23 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // targets for the spell cascade found, which is cast now
         case 'pickTarget': {
+          /* Diaochan, Artful Beauty: the target an opponent chose for another player's ability — its activation starts
+             again with it, in its place among the others (_askOtherTarget) */
+          if (ch.purpose === 'otherTarget') {
+            const raw = ((data && data.targets) || [])[0];
+            const t = typeof raw === 'string' ? (this.player(raw) ? { kind: 'player', id: raw } : { kind: 'object', id: raw }) : raw;
+            const ok = t && ((ch.options || [])[0] || []).some(x => x && x.kind === t.kind && x.id === t.id);
+            if (!ok) return this.fail('Choose one of the targets offered.');
+            this.pendingChoice = null;
+            const tg = ((ch.actOpts && ch.actOpts.targets) || []).slice();
+            tg.splice(Math.min(ch.at, tg.length), 0, { kind: t.kind, id: t.id });
+            this.logEvent('rules', `${(this.player(playerId) || {}).name} chooses ${this.describeTarget(t)} for ${(this.obj(ch.objId) || {}).name || 'that'}.`);
+            if (!this.activateAbility(ch.activator, ch.objId, ch.abilityIndex, Object.assign({}, ch.actOpts, { targets: tg, _otherDone: true })))
+              this.logEvent('rules', `${(this.player(ch.activator) || {}).name} can't activate ${(this.obj(ch.objId) || {}).name || 'that'}: ${String(this.lastError || 'not now').replace(/\.$/, '')}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           // the targets of a modal spell's chosen modes, asked as it is cast: the cast starts again with them
           if (ch.purpose === 'castTargets') {
             const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).filter(Boolean);
@@ -78527,7 +79118,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         rngState: this.rng.s,   // so undoing a shuffle really rewinds it
         objs,
         players: this.players.map(p => ({
-          id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
+          id: p.id, name: p.name, seat: p.seat, isBot: !!p._bot, botDifficulty: p.botDifficulty,
           botPersonality: p.botPersonality || null,
           avatarColor: p.avatarColor, life: p.life, poison: p.poison, energy: p.energy,
           preventShield: p.preventShield || 0,
@@ -79042,7 +79633,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           !(o.hiddenBy && (this.obj(o.hiddenBy) || {}).controller === playerId));
     }
 
-    viewFor(playerId) {
+    viewFor(playerId, opts) {
+      /* Mindslaver (CR 722): a player controlled by another decides nothing for themselves — no plays offered, their
+         questions shown as waiting — and the one controlling them is sent their seat as well (`controlling`: the
+         view that player would have, with `seat` set), from which to act for them. */
+      const seat = !!(opts && opts.seat);
+      const decides = seat || this.deciderOf(playerId) === playerId;
       /* A face-down card is its controller's to see (CR 708.5), and in
          exile its owner's; anybody else is sent a blank 2/2 in its place,
          so the card cannot be read off the wire. */
@@ -79132,7 +79728,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use
         gained: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._gainedAbilitiesView(o) : null,
       };
-      return {
+      const view = {
         v: this.stateVersion,
         you: playerId,
         config: this.config,
@@ -79143,7 +79739,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         turnOrder: this.turnOrder,
         over: this.over, winners: this.winners,
         mulliganPhase: this.mulliganPhase,
-        canUndo: this.canUndo(playerId), undoLabel: this.undoLabel(),
+        canUndo: decides && this.canUndo(playerId), undoLabel: this.undoLabel(),
         holding: this.holdFor === playerId,
         /* What the table is doing on your behalf, so it can say so: full
            control on, or a yield running. */
@@ -79154,20 +79750,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
            back (autoAnswer) — yours alone */
         autoAnswers: ((this.player(playerId) || {}).autoAnswers || []).filter(x => x.turn === this.turn)
           .map(x => Object.assign({ id: x.id, kind: x.kind, text: x.text }, x.batch ? { batch: x.batch } : {})),
-        playable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
+        playable: decides && (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).map(x => x.objId) : [],
         /* Split cards in hand: which halves can be cast now (0 left, 1 right),
            for the table to offer each; cast with the intent's `face`. (A
            modal double-faced card with a spell on its back, too: mdfcBack.) */
         splitFaces: (() => {
           const out = {};
-          if (!(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
+          if (!decides || !(this.priorityPlayer && this.priorityPlayer.id === playerId)) return out;
           for (const x of this.playableNow(playerId)) if (x.kind === 'cast' && x.face != null) (out[x.objId] = out[x.objId] || []).push(x.face);
           for (const k of Object.keys(out)) out[k].sort();
           return out;
         })(),
         // split cards with fuse that can be cast with both halves now (the cast intent's `fuse`)
-        fusable: (this.priorityPlayer && this.priorityPlayer.id === playerId)
+        fusable: decides && (this.priorityPlayer && this.priorityPlayer.id === playerId)
           ? this.playableNow(playerId).filter(x => x.fuse).map(x => x.objId) : [],
         /* Why each card in your hand cannot be played just now, so the
            table can say so when you point at one. */
@@ -79224,7 +79820,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         castModes: (() => {
           const out = {};
           const z = this.zones[playerId];
-          if (!z || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
+          if (!z || !decides || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
           // (a card face down in exile is nobody's to read: only the ones face up, and those you may play from another's exile)
           // (Sen Triplets: and the hand of the opponent chosen this turn)
           for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId), this._oppHandCards(playerId))) {
@@ -79262,7 +79858,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         monarch: (this.players.find(p => p.monarch) || {}).id || null,
         initiative: (this.players.find(p => p.initiative) || {}).id || null,
         isDay: this.isDay === undefined ? null : this.isDay,
-        pendingChoice: this.pendingChoice && this.pendingChoice.playerId === playerId ? this.pendingChoice : (this.pendingChoice ? { type: this.pendingChoice.type, playerId: this.pendingChoice.playerId, waiting: true } : null),
+        pendingChoice: this.pendingChoice && this.pendingChoice.playerId === playerId && decides ? this.pendingChoice : (this.pendingChoice ? { type: this.pendingChoice.type, playerId: this.pendingChoice.playerId, waiting: true } : null),
         stack: this.stack.map(s => ({
           id: s.id, kind: s.kind, name: s.name, controller: s.controller,
           cardId: s.obj ? (secret(s.obj) ? FACE_DOWN_VIEW.id : s.obj.card.id) : null,
@@ -79282,6 +79878,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         players: this.players.map(p => ({
           id: p.id, name: p.name, seat: p.seat, isBot: p.isBot, botDifficulty: p.botDifficulty,
           botPersonality: p.botPersonality || null,
+          // Mindslaver: who is controlling them this turn, for everyone to see (said only of a controlled player)
+          controlledBy: this.playerController(p.id) || undefined,
           life: p.life, poison: p.poison, energy: p.energy, experience: p.experience,
           pool: p.pool.snapshot(), landsPlayed: p.landsPlayed, maxLands: this.landAllowance(p),
           hasLost: p.hasLost, hasWon: p.hasWon, lossReason: p.lossReason, lossFrom: p.lossFrom || null, connected: p.connected,
@@ -79310,7 +79908,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           /* …and a card revealed from it, or seen by a player who looked at the hand, stays face up to those who
              know it for as long as it stays there; `seenBy` says who besides its owner knows it */
           // (Sen Triplets: "plays with their hand revealed" this turn — every card of it seen by all, its owner told so)
-          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
+          // (and the hand of a player this one controls: CR 722.3)
+          hand: p.id === playerId || this._handShown(p.id, playerId) || this.playerController(p.id) === playerId ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
             : this.zones[p.id].hand.map(o => this._knows(o, playerId) ? known(o) : ser(o, true)),
           // Sen Triplets: "can't cast spells or activate abilities" this turn (said only of such a player)
           lockedOut: p.abilityLockTurn === this.turn && p.silencedTurn === this.turn ? true : undefined,
@@ -79326,6 +79925,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         })),
         log: this.log.slice(-200),
       };
+      // the seats of the players this one controls, without what the view around them already carries
+      const ctl = seat ? [] : this.controlledPlayers(playerId);
+      if (ctl.length) view.controlling = ctl.map(id => {
+        const sv = this.viewFor(id, { seat: true });
+        sv.config = {};
+        sv.log = [];
+        return { id, name: this.player(id).name, view: sv };
+      });
+      return view;
     }
   }
 
@@ -85719,7 +86327,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature."
     'sacrificeTargeted',
     // Sen Triplets: "that player can't cast spells … You may play lands and cast spells from that player's hand"
-    'oppHandThisTurn']);
+    'oppHandThisTurn',
+    // Mindslaver: "You control target player during that player's next turn."
+    'controlPlayer']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -85764,6 +86374,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
         .sort((a, b) => ((b.controller === this.pid) - (a.controller === this.pid)) || (a.tapped - b.tapped) || ((a.attachments || []).length - (b.attachments || []).length));
       return os.length ? { picks: [os[0].id] } : null;
+    },
+    /* Jinnie Fay, Jetmir's Second: as they are (option 0), Cats (1) or Dogs (2) — a creature token of 4 power and
+       toughness or more, and a Treasure while lands are short, as they are; else a hasty Cat in our own first main
+       phase, a Dog otherwise (orig: what they would be) */
+    tokenSwapAnimals(s) {
+      const g = this.game;
+      const o = s.orig || {};
+      if (o.creature && !o.copy && (o.power || 0) + (o.toughness || 0) >= 4) return { picks: [0] };
+      if (o.copy) return { picks: [0] };
+      if (o.name === 'Treasure' && this.landsInPlay() < 5) return { picks: [0] };
+      const mine = g.activePlayer && g.activePlayer.id === this.pid && g.phase && g.phase.id === 'precombat';
+      return { picks: [mine ? 1 : 2] };
+    },
+    /* Esix, Fractal Bloom: copies of the creature worth most, not a legendary one (they would die to the legend rule),
+       when it is worth more than what they would be; else as they are (none) */
+    tokenCopyFirst(s) {
+      const g = this.game;
+      const o = s.orig || {};
+      const floor = o.creature ? Math.max(1.5, ((o.power || 0) + (o.toughness || 0)) / 2) : 2.5;
+      const best = (s.items || []).map(it => g.obj(it.id)).filter(x => x && !/\bLegendary\b/.test(String((x.card || {}).type_line || '')))
+        .sort((a, b) => this.permanentValue(b) - this.permanentValue(a))[0];
+      return { picks: best && this.permanentValue(best) > floor ? [best.id] : [] };
     },
     /* Klaw, Sonic Subjugator; Blackmail: the cards of ours to reveal, one of which the other player makes us discard —
        the ones worth least */
@@ -86801,6 +87433,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (this.busy || g.over) return false;
       const me = this.me;
       if (!me || me.hasLost) return false;
+      // Mindslaver (CR 722): somebody else makes this bot's decisions this turn
+      if (g.playerController(this.pid)) return false;
       this.busy = true;
       /* "It acted" has to mean the game moved, not that it tried. A pass
          the engine refuses (there is a question on the table for somebody
@@ -86833,8 +87467,60 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (this.doPriority(move)) await this.pause();
           return moved();
         }
+        // …and the decisions of a player this bot controls this turn
+        if (await this._controlTick()) return moved();
       } finally { this.busy = false; }
       return false;
+    }
+
+    /** Mindslaver: a decision of a player this bot controls, if one is waiting (true when it acted). */
+    async _controlTick() {
+      const g = this.game;
+      for (const pid of g.controlledPlayers(this.pid)) {
+        const ch = g.pendingChoice;
+        if (ch && ch.playerId === pid) { await this.pause(); if (g.pendingChoice === ch) this._controlChoice(ch, pid); return true; }
+        if (!ch && g.priorityPlayer && g.priorityPlayer.id === pid) { g.passPriority(pid); return true; }
+      }
+      return false;
+    }
+
+    /* Mindslaver (CR 722): this bot controls another player this turn and makes their decisions — for its own good,
+       not theirs. Nothing of theirs is cast or activated (priority is passed: tick), nothing of theirs attacks that
+       need not, they give up and throw away the best they have, say no to whatever they may do or pay for, and look
+       at the worst of their library first. Anything else is answered as this bot would answer it for itself. */
+    _controlChoice(ch, pid) {
+      const g = this.game;
+      const theirs = (o) => this.permanentValue(o);
+      const best = (list, n) => list.slice().sort((x, y) => theirs(y) - theirs(x)).slice(0, n);
+      switch (ch.type) {
+        case 'declareAttackers': {
+          const must = (ch.candidates || []).map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
+            .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || ch.defenders[0].id }));
+          if (g.declareAttackers(pid, [])) return true;
+          return g.declareAttackers(pid, must);
+        }
+        case 'declareBlockers': {
+          if (g.declareBlockers(pid, [])) return true;
+          return g.declareBlockers(pid, this._mustBlockPlan(ch));
+        }
+        case 'discard': case 'discardToHandSize': {
+          const hand = g.zones[pid].hand.slice().sort((x, y) => this.cardValue(y) - this.cardValue(x));
+          return g.resolveChoice(pid, { cardIds: hand.slice(0, ch.count || 1).map(o => o.id) });
+        }
+        case 'sacrifice': {
+          const allowed = ch.candidates ? new Set(ch.candidates) : null;
+          const pool = g.battlefield.filter(o => o.controller === pid && (allowed ? allowed.has(o.id) : !ch.filter || ch.filter === 'permanent' || g._matchesCategory(o, ch.filter)));
+          if (ch.optional) return g.resolveChoice(pid, { cardIds: [] });
+          return g.resolveChoice(pid, { cardIds: best(pool, ch.count || 1).map(o => o.id) });
+        }
+        case 'confirm': return g.resolveChoice(pid, { yes: false });
+        case 'payOrDont': case 'payOrCounter': return g.resolveChoice(pid, { pay: false });
+        case 'scry': case 'surveil': {
+          const ids = (ch.cards || []).map(c => g.obj(c.id)).filter(Boolean).sort((x, y) => this.drawValue(x) - this.drawValue(y)).map(o => o.id);
+          return g.resolveChoice(pid, { top: ids, bottom: [] });
+        }
+        default: return this.doChoice(ch, null, pid);
+      }
     }
     pause() {
       const ms = (MTG.settings.botSpeed == null) ? this.thinkMs : MTG.settings.botSpeed;
@@ -87006,8 +87692,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
 
     /** Answer the question on the table. `plan`, when given, is an answer already worked out (a look ahead's). */
-    doChoice(ch, plan) {
+    doChoice(ch, plan, as) {
       const g = this.game;
+      // (answered for a player this bot controls, Mindslaver: in their name, judged as this bot sees it — _controlChoice)
+      const who = as || this.pid;
       switch (ch.type) {
         case 'declareAttackers': {
           /* A plan the engine refuses is worse than a bad plan: nothing
@@ -87019,6 +87707,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             try { plan = this.chooseAttacks(ch); } catch (e) { console.warn('[bot] attack plan', e); plan = []; }
           }
           if (plan.length) this._did('attack', null, `attacks with ${plan.length}`);
+          plan = this._withEnlist(plan);
           if (g.declareAttackers(this.pid, plan)) return true;
           const compelled = ch.candidates.map(id => g.obj(id)).filter(o => o && g.mustAttack(o) && g.canAttack(o))
             .map(o => ({ attackerId: o.id, defenderId: g._mustAttackPlayerOf(o) || (plan[0] || {}).defenderId || ch.defenders[0].id }));
@@ -87050,7 +87739,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         case 'discard': case 'discardToHandSize': {
           const ids = this.worstInHand(ch.count).map(o => o.id);
-          return g.resolveChoice(this.pid, { cardIds: ids });
+          return g.resolveChoice(who, { cardIds: ids });
         }
         case 'scry': case 'surveil': {
           // the cards the question showed, not whatever is on top by now
@@ -87060,7 +87749,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           for (const o of lib) (this.wantToDraw(o, top.length) ? top : bottom).push(o.id);
           // the best of what stays goes first
           top.sort((x, y) => this.drawValue(g.obj(y)) - this.drawValue(g.obj(x)));
-          return g.resolveChoice(this.pid, { top, bottom });
+          return g.resolveChoice(who, { top, bottom });
         }
         case 'sacrifice': {
           // give up the least valuable of what the question allows
@@ -87080,14 +87769,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }).sort((a, b) => this.permanentValue(a) - this.permanentValue(b));
           // an optional sacrifice (exploit and friends) is only made when there is fodder
           // (Caesar, Legion's Emperor: two modes for it — a small creature is worth giving up: sacrificeForReward)
-          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > (ch.purpose === 'sacrificeForReward' ? 4.5 : 3))) return g.resolveChoice(this.pid, { cardIds: [] });
-          return g.resolveChoice(this.pid, { cardIds: pool.slice(0, ch.count).map(o => o.id) });
+          if (ch.optional && (!pool.length || this.permanentValue(pool[0]) > (ch.purpose === 'sacrificeForReward' ? 4.5 : 3))) return g.resolveChoice(who, { cardIds: [] });
+          return g.resolveChoice(who, { cardIds: pool.slice(0, ch.count).map(o => o.id) });
         }
         case 'riot': {
           // haste when it can attack into an open board or we are racing
           const opp = this.mainOpponent();
           const racing = opp && (opp.life <= 8 || this._racing(opp));
-          return g.resolveChoice(this.pid, { haste: !!racing || this.d <= 3 });
+          return g.resolveChoice(who, { haste: !!racing || this.d <= 3 });
         }
         /* The engine wants a target for something that has already started
            resolving — a trigger, or a mode that was chosen. The options come
@@ -87109,35 +87798,35 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const ok = best && list.some(x => x.kind === best.kind && x.id === best.id);
             out.push(ok ? best : this._leastBad(list, e));
           });
-          return g.resolveChoice(this.pid, { targets: out });
+          return g.resolveChoice(who, { targets: out });
         }
 
-        case 'confirm': return g.resolveChoice(this.pid, { yes: this.confirmChoice(ch) });
+        case 'confirm': return g.resolveChoice(who, { yes: this.confirmChoice(ch) });
 
         case 'payOrDont': {
           /* Cumulative upkeep: pay while the permanent is worth more than
              the mana, and let it go once the counters have piled up. */
           if (ch.purpose === 'cumulativeUpkeep') {
             const o = g.obj(ch.objId);
-            if (ch.life) return g.resolveChoice(this.pid, { pay: this.me.life > ch.life + 6 && o && this.permanentValue(o) > 2 });
-            if (ch.energy) return g.resolveChoice(this.pid, { pay: (this.me.energy || 0) >= ch.energy });
+            if (ch.life) return g.resolveChoice(who, { pay: this.me.life > ch.life + 6 && o && this.permanentValue(o) > 2 });
+            if (ch.energy) return g.resolveChoice(who, { pay: (this.me.energy || 0) >= ch.energy });
             const cost = MTG.mana.cmc(ch.cost || '');
             const worth = o ? this.permanentValue(o) * 1.2 : 0;
             const affordable = g.couldPay(this.pid, ch.cost || '', this.manaSources());
-            return g.resolveChoice(this.pid, { pay: affordable && cost <= Math.max(1, worth) });
+            return g.resolveChoice(who, { pay: affordable && cost <= Math.max(1, worth) });
           }
-          return g.resolveChoice(this.pid, { pay: this.payChoice(ch) });
+          return g.resolveChoice(who, { pay: this.payChoice(ch) });
         }
 
-        case 'mode': return g.resolveChoice(this.pid, { modes: this.chooseModes(ch) });
+        case 'mode': return g.resolveChoice(who, { modes: this.chooseModes(ch) });
 
         case 'arrange': {
           // best first is the order you want to draw them in
           const ids = (ch.cards || []).slice().sort((x, y) => this.drawValue(g.obj(y.id)) - this.drawValue(g.obj(x.id))).map(c => c.id);
-          return g.resolveChoice(this.pid, { top: ids });
+          return g.resolveChoice(who, { top: ids });
         }
 
-        case 'pickCard': return g.resolveChoice(this.pid, { cardIds: this.pickCards(ch) });
+        case 'pickCard': return g.resolveChoice(who, { cardIds: this.pickCards(ch) });
 
         case 'vote': {
           /* Everyone at the table voting for whatever was printed first is
@@ -87145,26 +87834,26 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
              otherwise picks one rather than following the card's order. */
           const opts = ch.options || [];
           const pick = opts.length ? opts[Math.floor(this.rand() * opts.length)] : null;
-          return g.resolveChoice(this.pid, { choice: pick });
+          return g.resolveChoice(who, { choice: pick });
         }
         case 'payOrCounter': {
           // pay to keep a spell that matters, if the mana is there
           const item = g.stack.find(st => st.id === ch.stackId);
           const worth = item && item.obj ? this.rating(item.obj) >= 3 : true;
           const can = g.couldPay(this.pid, ch.cost || '', this.manaSources());
-          return g.resolveChoice(this.pid, { pay: can && (worth || this.d <= 3) });
+          return g.resolveChoice(who, { pay: can && (worth || this.d <= 3) });
         }
-        case 'orderTriggers': return g.resolveChoice(this.pid, {});
+        case 'orderTriggers': return g.resolveChoice(who, {});
         /* The generic question: whatever it is for, a scored answer that
            keeps to its rules; and if that is refused, the first legal one,
            so a bot never leaves the table waiting. */
         case 'choose': {
           let ans = null;
           try { ans = this.chooseGeneric(ch); } catch (e) { console.warn('[bot] choose', e); }
-          if (ans && g.resolveChoice(this.pid, ans)) return true;
-          return g.resolveChoice(this.pid, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
+          if (ans && g.resolveChoice(who, ans)) return true;
+          return g.resolveChoice(who, MTG.choice.solve(ch, { hooks: this._chooseHooks() }) || { picks: [] });
         }
-        default: return g.resolveChoice(this.pid, {});
+        default: return g.resolveChoice(who, {});
       }
     }
 
@@ -87475,6 +88164,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (e && (e.op === 'sacrificeChoice' || e.op === 'handToTop' || e.op === 'returnOwn')) worst = true;
       const mine = cards.length && cards.every(o => o.owner === this.pid || o.controller === this.pid);
       if (ch.purpose === 'discardFromHand' || ch.purpose === 'exileFromHand') worst = false;
+      // Tomorrow, Azami's Familiar: the card we would most like to draw of the ones looked at (drawLook)
+      if (ch.purpose === 'drawLook') return cards.sort((x, y) => this.drawValue(y) - this.drawValue(x)).slice(0, 1).map(o => o.id);
       // Eladamri, Korvecdal: the best creature on offer, which then goes onto the battlefield free (revealHandOrTop)
       if (ch.purpose === 'revealHandOrTop') {
         const fits = cards.filter(o => g._cardFitsWords(o, (e && e.filter) || 'creature'));
@@ -87518,6 +88209,23 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // an optional pick of our own worst thing is declined when even that is worth keeping
       if (ch.optional && worst && cards.length && value(cards[0]) > 4) return [];
       return cards.slice(0, want).map(o => o.id);
+    }
+
+    /**
+     * Enlist, decided with the attack (CR 702.154): for each attacker with enlist, the strongest creature staying
+     * home if it adds 2 or more (the biggest, then the next) — or none, said so (enlist: null).
+     */
+    _withEnlist(plan) {
+      const g = this.game;
+      if (!g.enlistCandidates || !plan.some(d => g.hasKw(g.obj(d.attackerId), 'enlist'))) return plan;
+      const used = new Set();
+      return plan.map(d => {
+        if (!g.hasKw(g.obj(d.attackerId), 'enlist')) return d;
+        const best = g.enlistCandidates(this.pid, plan, used).sort((a, b) => g.powerOf(b) - g.powerOf(a))[0];
+        const ok = best && g.powerOf(best) >= 2;
+        if (ok) used.add(best.id);
+        return Object.assign({}, d, { enlist: ok ? best.id : null });
+      });
     }
 
     /** The cards we would most happily lose from hand. */
@@ -88538,7 +89246,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const mana = MTG.mana.cmc(cost.mana || '');
         // a creature that taps for value is not attacking or blocking
         if (cost.tap && this._isCreature(o)) {
-          if (myTurn && window === 'main1') return null;
+          // (Diaochan, Artful Beauty: "Activate only during your turn, before attackers are declared" — then or never)
+          if (myTurn && window === 'main1' && !(ab.only && ab.only.when === 'beforeAttackers')) return null;
           if (!myTurn && window !== 'theirEnd') return null;
           v -= this.threatValue(o) * 0.15;
         }
@@ -88655,6 +89364,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (e.op === 'untap' || e.op === 'tap' && !(e.targets || []).length) continue;
         if (e.op === 'gainLife' && !this.underPressure()) { v += base * 0.4; continue; }
         if (e.op === 'draw' && this.hand().length >= 7) { v += base * 0.3; continue; }
+        /* Diaochan, Artful Beauty: "destroy target creature of an opponent's choice" — they will point it at our best
+           creature (chosenBy) */
+        if ((e.targets || []).some(sp => sp && sp.chosenBy)) {
+          if (!isHarmful(e)) { v += base * 0.3; continue; }
+          // (as much less as our best is worth less than the best of theirs we point the other at)
+          const ours = this.myCreatures().map(c => this.threatValue(c)).sort((a, b) => b - a)[0];
+          const t0 = flat.find(x => x !== e && (x.targets || []).length && !x.targets.some(sp => sp && sp.chosenBy));
+          const pick = t0 && this.pickTarget(t0.targets[0], t0, null, {});
+          const theirs = pick && pick.kind === 'object' && g.obj(pick.id) ? this.threatValue(g.obj(pick.id)) : 0;
+          if (ours != null) v -= Math.min(base, 1 + ours * 0.4) * Math.min(1, (1 + ours * 0.4) / (1 + theirs * 0.4));
+          continue;
+        }
         if ((e.targets || []).length) {
           const t = this.pickTarget(e.targets[0], e, null, {});
           if (!t) return -1;
@@ -88745,6 +89466,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const e of (effects || [])) {
         if (e.op === 'modal') continue;              // its targets are asked for once a mode is chosen
         for (const spec of (e.targets || [])) {
+          // (Diaochan, Artful Beauty: "of an opponent's choice" — theirs to choose, asked as it is activated: chosenBy)
+          if (spec && spec.chosenBy) continue;
           /* "X target creatures", strive: as many as X allows (or, for strive,
              the one it must have) */
           if (spec && spec.multi) {
@@ -90074,8 +90797,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (this.stopped || g.over || g.mulliganPhase) { this._stuck = null; return; }
       if (this._running || this.busy()) { setTimeout(() => { if (!this.stopped) this.kick(); }, 120); return; }
       const ch = g.pendingChoice;
-      const waiting = ch ? (this.bots.has(ch.playerId) ? ch.playerId : null)
-        : (g.priorityPlayer && this.bots.has(g.priorityPlayer.id) ? g.priorityPlayer.id : null);
+      // (one of ours deciding for a player it controls counts as ours: Mindslaver; a bot somebody else controls does not)
+      const ours = (pid) => this.bots.has(g.deciderOf(pid));
+      const waiting = ch ? (ours(ch.playerId) ? ch.playerId : null)
+        : (g.priorityPlayer && ours(g.priorityPlayer.id) ? g.priorityPlayer.id : null);
       if (!waiting) { this._stuck = null; return; }
       const v = g.stateVersion;
       if (!this._stuck || this._stuck.version !== v) this._stuck = { version: v, tries: 0 };
@@ -96498,6 +97223,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (this.busy || g.over) return false;
       const me = this.me;
       if (!me || me.hasLost) return false;
+      // (Mindslaver: a turn somebody else controls is theirs to play, CR 722)
+      if (g.playerController(this.pid)) return false;
       const was = g.stateVersion;
       this.busy = true;
       try {
@@ -96515,6 +97242,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           g.passPriority(this.pid);
           return g.stateVersion !== was;
         }
+        // (a player it controls, Mindslaver: decided for as any bot would)
+        if (await this._controlTick()) return g.stateVersion !== was;
       } finally { this.busy = false; }
       return false;
     }
@@ -111631,7 +112360,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (!v || !v.over) return;
     const key = (v.game || '') + ':' + ((v.match && v.match.gameNumber) || 0);
     if (table._tourneySeen === key) return;
-    const res = T.resultFromView(v, table.meId);
+    const res = T.resultFromView(v, table.ownId || table.meId);
     if (!res) return;
     table._tourneySeen = key;
     // a match against a bot is played here, and known by the table it was set up as
@@ -114780,6 +115509,9 @@ Sideboard
     ].filter(Boolean));
   }
 
+  /* What a player controlling another (Mindslaver) still only ever does as themselves: no `as` on these (CR 722.6). */
+  const OWN_INTENTS = new Set(['chat', 'concede', 'leave', 'autoPass', 'setDeck', 'profile']);
+
   class Table {
     /**
      * @param {HTMLElement} root
@@ -114788,8 +115520,14 @@ Sideboard
      */
     constructor(root, meId, send) {
       this.root = root;
+      /* Mindslaver (CR 722): while this player controls another, the table can sit in that player's seat (_actAs):
+         meId is then theirs, the view shown is the one they would have, and what is done is sent for them (`as`).
+         ownId is always this table's own player. */
+      this.ownId = meId;
       this.meId = meId;
-      this.send = send;
+      this._actAs = null;
+      this.raw = null;               // the newest view as it came, before a seat in it was chosen
+      this.send = (intent) => send(this._actAs && intent && !OWN_INTENTS.has(intent.kind) ? Object.assign({}, intent, { as: this._actAs }) : intent);
       this.view = null;              // what is on screen
       this.live = null;              // the newest view to arrive
       this.queue = [];               // views waiting to be shown
@@ -114993,10 +115731,134 @@ Sideboard
       if (!this.live && MTG.net && MTG.net.isClient && view && !view.spectating) {
         this.send({ kind: 'autoPass', cfg: MTG.autoPassConfig() });
       }
+      // Mindslaver: the seat to show, of this player's own and those it controls (_followSeat)
+      this.raw = view;
+      const was = this._actAs;
+      this._followSeat(view);
+      view = this._seatView(view);
+      if (this._actAs !== was && this.view) { this._seatChanged(view); return; }
       this.live = view;
       this.queue.push(view);
       if (!this.view) { this._pump(); return; }
       this._pump();
+    }
+
+    /* ---- Mindslaver: acting for a player this one controls (CR 722) ----
+       The table follows whoever has the decision to make — this player, or one they control — and moves to that seat
+       when it changes hands; the bar at the top switches seats by hand in between. */
+    _followSeat(raw) {
+      const ids = ((raw && raw.controlling) || []).map(c => c.id);
+      if (this._actAs && !ids.includes(this._actAs)) this._setSeat(null);
+      if (!ids.length) { this._decider = null; return; }
+      const ch = raw.pendingChoice;
+      const decider = raw.over || raw.mulliganPhase ? null : ch ? ch.playerId : raw.priorityPlayer;
+      if (decider === this._decider) return;
+      this._decider = decider;
+      if (ids.includes(decider)) this._setSeat(decider);
+      else if (decider === this.ownId) this._setSeat(null);
+    }
+    _setSeat(pid) {
+      this._actAs = pid && pid !== this.ownId ? pid : null;
+      this.meId = this._actAs || this.ownId;
+    }
+    /** The view to show: this player's own, or the seat of the player it is acting for (with the parts they share). */
+    _seatView(raw) {
+      const c = this._actAs && ((raw && raw.controlling) || []).find(x => x.id === this._actAs);
+      if (!c) return raw;
+      return Object.assign({}, c.view, {
+        config: raw.config, log: raw.log, events: raw.events, eventSeq: raw.eventSeq, game: raw.game,
+        match: raw.match, clock: raw.clock, spectating: raw.spectating, controlling: raw.controlling, seatOf: raw.you,
+      });
+    }
+    /** Sit in another seat: a cut, not a flight, with nothing half done in the old one carried over. */
+    _seatChanged(v) {
+      this.targeting = null; this.paying = null; this.convoking = null; this.asking = null;
+      this.attackPlan = null; this.blockPlan = null; this.discardSel = []; this.sacSel = [];
+      this.focusSeat = null; this.spot = null;
+      this.closePopover();
+      this.hidePreview();
+      for (const st of this.seats.values()) st.root.remove();
+      this.seats.clear();
+      for (const n of this.els.values()) n.remove();
+      this.els.clear();
+      for (const w of this.wraps.values()) w.remove();
+      this.wraps.clear();
+      this.meHud.innerHTML = '';
+      this.meHud._built = false;
+      this.queue.length = 0;
+      this.view = v;
+      this.live = v;
+      this._noMotionOnce = true;
+      this.render();
+    }
+    /** Act for a player this one controls, or (null) as itself again. */
+    actAs(pid) {
+      if (!this.raw) return;
+      const was = this._actAs;
+      this._setSeat(pid);
+      if (this._actAs !== was) this._seatChanged(this._seatView(this.raw));
+    }
+    /** A player this one controls whose decision is the one to make now, while the table is in its own seat. */
+    _ctlDecider() {
+      const live = this.live;
+      if (this._actAs || !live || !live.controlling || live.over) return null;
+      const ch = live.pendingChoice;
+      const d = ch ? ch.playerId : live.priorityPlayer;
+      return live.controlling.find(c => c.id === d) || null;
+    }
+    /** Is this table's own player controlled by somebody else right now (and so can do nothing)? */
+    controlledNow() {
+      const v = this.view;
+      if (!v || v.seatOf) return null;
+      const me = v.players.find(p => p.id === this.ownId);
+      return me && me.controlledBy ? (v.players.find(p => p.id === me.controlledBy) || { id: me.controlledBy, name: 'Another player' }) : null;
+    }
+    /** The bar across the top while anyone at this table is being controlled by, or controlling, this player. */
+    renderControl() {
+      const v = this.view;
+      const ctl = (v && !v.over && v.controlling) || [];
+      const by = this.controlledNow();
+      let bar = this._ctlBar;
+      if (!ctl.length && !by) {
+        this.arena.classList.remove('acting-for', 'controlled');
+        if (bar) { bar.remove(); this._ctlBar = null; }
+        return;
+      }
+      if (!bar) {
+        // (on the line between the two sides of the table, clear of everybody's life and name)
+        bar = this._ctlBar = el('div', { class: 'ctl-bar', role: 'status', 'aria-live': 'polite' });
+        this.board.appendChild(bar);
+      }
+      this.arena.classList.toggle('acting-for', !!this._actAs);
+      this.arena.classList.toggle('controlled', !!by);
+      const acting = this._actAs && ctl.find(c => c.id === this._actAs);
+      const sig = by ? 'by:' + by.id : (acting ? 'as:' + acting.id : 'own') + '|' + ctl.map(c => c.id + ':' + c.name).join(',');
+      if (bar._sig === sig) return;
+      bar._sig = sig;
+      bar.innerHTML = '';
+      if (by) {
+        bar.className = 'ctl-bar controlled';
+        bar.append(el('div', { class: 'ctl-text' }, [
+          el('b', { text: `${by.name} is controlling you this turn.` }),
+          el('span', { text: ` ${by.name} makes all your decisions until the turn ends. You can still concede.` }),
+        ]));
+        return;
+      }
+      bar.className = 'ctl-bar' + (acting ? ' acting' : '');
+      const names = ctl.map(c => c.name);
+      bar.append(el('div', { class: 'ctl-text' }, acting ? [
+        el('b', { text: `You are controlling ${acting.name} this turn.` }),
+        el('span', { text: ` This is ${possessive(acting.name)} seat: what you do here, ${acting.name} does, with ${possessive(acting.name)} cards and mana.` }),
+      ] : [
+        el('b', { text: `You are controlling ${names.join(' and ')} this turn.` }),
+        el('span', { text: ' You make their decisions; the table moves to their seat when one is theirs to make.' }),
+      ]));
+      const btns = el('div', { class: 'ctl-btns' });
+      if (acting) btns.append(el('button', { type: 'button', class: 'btn sm', text: 'Your own seat', title: 'Back to your own hand and board', onclick: () => this.actAs(null) }));
+      for (const c of ctl) if (!acting || c.id !== acting.id) {
+        btns.append(el('button', { type: 'button', class: 'btn sm primary', text: `Act as ${c.name}`, title: `Sit in ${possessive(c.name)} seat: their hand, their board, their decisions`, onclick: () => this.actAs(c.id) }));
+      }
+      bar.append(btns);
     }
 
     get me() { return this.view && this.view.players.find(p => p.id === this.meId); }
@@ -115084,6 +115946,7 @@ Sideboard
       this.renderMeHud();
       this.renderDock();
       this.renderBanner();
+      this.renderControl();
       this.renderDecision();
       this.renderRail();
       if (this.drawerOpen) this.renderDrawer();
@@ -115417,6 +116280,14 @@ Sideboard
         kids.push(s.root);
       }
       this.place(this.oppWrap, kids);
+      // how tall the HUD across from you is on a phone, rows wrapped and all: the prompt banner sits under it
+      const tall = shown.map(p => this.seats.get(p.id)).find(s => s && s.hud && s.hud._h);
+      const hudH = tall ? tall.hud._h + 'px' : '';
+      if (this._oppHudH !== hudH) {
+        this._oppHudH = hudH;
+        if (hudH) this.arena.style.setProperty('--opp-hud-h', hudH);
+        else this.arena.style.removeProperty('--opp-hud-h');
+      }
       /* Another board brought forward comes in from its side of the table,
          the short way round (the next seat along from the right), settling
          as it arrives: you can see which way you turned. */
@@ -115746,6 +116617,42 @@ Sideboard
       this.renderPiles(hud._piles, p, false);
       this.renderCommand(hud._cmd, p, false);
       this.paintFlags(hud._flags, p);
+      this.fitOppHand(hud, s, shown, backs.length, p.name + (MTG.isPhone() ? '' : '|' + sub));
+    }
+
+    /**
+     * A hand shown face up is wide. Where their row has no room for it beside
+     * the rest (a phone, a seat side by side with others), it takes a row of
+     * its own under them, its cards spread across that row, so it covers
+     * neither their command zone nor their flags and every card in it can be
+     * read and tapped. On a phone the HUD's height is kept too (what does not
+     * fit across wraps onto another row, and the prompt banner sits under
+     * it). Measured only when something that changes the answer does: the
+     * seat's width, the cards, the command zone, the flags, the name.
+     */
+    fitOppHand(hud, s, shown, n, who) {
+      hud._hand.style.setProperty('--n', String(Math.max(1, n)));
+      const phone = MTG.isPhone();
+      if (!(shown && n) && !phone) {
+        hud._fitSig = null;
+        hud._h = 0;
+        hud.classList.remove('hand-row');
+        return;
+      }
+      const seatW = this.sizeOf(s.root).w || 0;
+      const sig = [seatW, shown ? 'shown' : '', n, hud._cmd.childElementCount, hud._flags.textContent, who].join('|');
+      if (!seatW || hud._fitSig === sig) return;
+      hud._fitSig = sig;
+      hud.classList.remove('hand-row');
+      if (shown && n) {
+        // laid out in one row: does it all fit across?
+        const cs = getComputedStyle(hud);
+        let need = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0), k = 0;
+        for (const c of hud.children) { const w = c.offsetWidth; if (w) { need += w; k++; } }
+        need += Math.max(0, k - 1) * (parseFloat(cs.columnGap) || 0) + 10;   // and the count beside the hand
+        hud.classList.toggle('hand-row', need > hud.clientWidth);
+      }
+      hud._h = phone ? hud.offsetHeight : 0;
     }
 
     seatSub(p) {
@@ -116380,6 +117287,12 @@ Sideboard
       if (v.over) return { label: 'Game over', disabled: true, cls: 'idle' };
       if (v.spectating || v.replay || !this.me) return { label: v.replay ? 'Replay' : 'Watching', disabled: true, cls: 'idle' };
       if (v.mulliganPhase) return { label: 'Mulligan', disabled: true, cls: 'idle', sub: 'choose your opening hand' };
+      // Mindslaver: somebody else is making your decisions this turn
+      const by = this.controlledNow();
+      if (by) return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: `${by.name} is controlling you` };
+      // …or the decision is one you make for a player you control, from their seat
+      const cd = this._ctlDecider();
+      if (cd) return { label: `Act as ${cd.name}`, cls: 'go', sub: `${possessive(cd.name)} decision to make` };
       if (this.targeting) {
         const t = this.targeting;
         const upTo = (t.specs || []).some(sp => sp && sp.upTo);
@@ -116436,7 +117349,9 @@ Sideboard
       }
       if (ch && ch.waiting) {
         const who = v.players.find(p => p.id === ch.playerId);
-        return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: `${who ? who.name : 'someone'} is deciding` };
+        // (Mindslaver: a controlled player's decisions are their controller's to make)
+        const by = who && who.controlledBy ? v.players.find(p => p.id === who.controlledBy) : null;
+        return { label: 'Waiting', disabled: true, cls: 'idle wait', sub: by ? `${by.name} is deciding for ${who.name}` : `${who ? who.name : 'someone'} is deciding` };
       }
       if (live.priorityPlayer !== this.meId) {
         const pp = v.players.find(p => p.id === live.priorityPlayer);
@@ -116468,7 +117383,9 @@ Sideboard
     /** @this {MTG.TableInstance} */
     primaryAction() {
       const v = this.view, live = this.live || v;
-      if (!v || v.over || v.mulliganPhase) return;
+      if (!v || v.over || v.mulliganPhase || this.controlledNow()) return;
+      const cd = this._ctlDecider();
+      if (cd) { this.actAs(cd.id); return; }
       if (this.targeting) {
         const t = this.targeting;
         if ((t.specs || []).some(sp => sp && sp.upTo) && t.chosen.length >= (t.minChosen || 0)) { this.targeting = null; t.onDone(t.chosen); this.render(); }
@@ -117395,7 +118312,8 @@ Sideboard
         for (const e of (list || [])) {
           if (!e) continue;
           if (e.op === 'sequence') { walk(e.list); continue; }
-          for (const s of (e.targets || [])) if (s) out.push(s);
+          // (Diaochan, Artful Beauty: "of an opponent's choice" — theirs to choose, asked once it is activated: chosenBy)
+          for (const s of (e.targets || [])) if (s && !s.chosenBy) out.push(s);
         }
       };
       walk(effects);
@@ -119655,6 +120573,9 @@ Sideboard
       }
       if (ch && ch.waiting) {
         const who = v.players.find(p => p.id === ch.playerId);
+        // (Mindslaver: a controlled player's decisions are their controller's to make)
+        const by = who && who.controlledBy ? v.players.find(p => p.id === who.controlledBy) : null;
+        if (by) return set('wait', `${escapeHtml(by.id === this.ownId ? 'You are' : by.name + ' is')} deciding for ${escapeHtml(who.id === this.ownId ? 'you' : who.name)}…`, '');
         return set('wait', `${escapeHtml(who ? who.name : 'Someone')} is deciding…`, '');
       }
       if (live.priorityPlayer === this.meId && (live.stack || []).length && !this.isTop()) {
@@ -126883,7 +127804,7 @@ Sideboard
     const t = App.table;
     if (!t) return;
     if (net.online) { net.chat(App.myName, '::emote:' + id); return; }
-    UI.showEmote(t.meId, id);
+    UI.showEmote(t.ownId || t.meId, id);
     const bot = App.session && App.session.roster.find(r => r.kind === 'bot');
     const reply = { hello: 'hello', luck: 'luck', gg: 'gg', nice: 'thanks', thanks: 'nice', oops: 'wow' }[id];
     if (bot && reply && Math.random() < 0.6) setTimeout(() => UI.showEmote(bot.id, reply), 1100 + Math.random() * 900);
@@ -131442,13 +132363,20 @@ Sideboard
         return;
       }
       if (!g) return;
+      /* Mindslaver (CR 722): an intent sent for a player this seat controls (`as`) acts as that player; a controlled
+         player's own are refused, but for talking and conceding (intentActor) */
+      const sender = actorId;
+      const who = g.intentActor(actorId, intent);
+      if (who == null) { this._lastActor = null; return; }
+      actorId = who;
       /* A card in somebody else's hand is theirs: cast or played by another seat only with the game's leave (Sen
          Triplets: "You may play lands and cast spells from that player's hand this turn"). Checked before anything is
-         done, so a guest's intent naming another player's card does nothing. */
+         done, so a guest's intent naming another player's card does nothing. (A controlled player's own card, played
+         for them by the player controlling them, is theirs: actorId is theirs by now.) */
       if (intent.kind === 'cast' || intent.kind === 'playLand') {
         const o = g.obj(intent.objId);
         if (o && o.zone === 'hand' && o.owner !== actorId && !g._oppHandGrant(actorId, o)) {
-          if (actorId === 'me') UI.error("That card is in another player's hand.");
+          if (sender === 'me') UI.error("That card is in another player's hand.");
           return;
         }
       }
@@ -131533,7 +132461,15 @@ Sideboard
           typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of colors": a colour letter for each, chosen at the table
           Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
-        case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
+        /* each attacker: what it attacks, its band, and (enlist) the creature tapped for its enlist or null — the engine
+           checks them; anything else said is dropped */
+        case 'declareAttackers': g.declareAttackers(actorId, (Array.isArray(intent.declarations) ? intent.declarations : []).slice(0, 500).map(d => {
+          if (!d || typeof d !== 'object') return {};
+          const out = { attackerId: d.attackerId, defenderId: d.defenderId };
+          if (d.band != null) out.band = String(d.band);
+          if (typeof d.enlist === 'string' || d.enlist === null) out.enlist = d.enlist;
+          return out;
+        })); break;
         case 'declareBlockers': g.declareBlockers(actorId, intent.declarations || []); break;
         case 'choice': g.resolveChoice(actorId, choiceData(intent.data)); break;
         case 'concede': g.concede(actorId); break;
@@ -131827,7 +132763,7 @@ Sideboard
       const myId = view.you || findMe(view);
       const game = view.game || (view.config ? view.config.seed : null);
       // a new game in the match is a new table: nothing on the old one carries over
-      if (App.screen !== 'table' || !App.table || App.table.meId !== myId || App.table._game !== game) {
+      if (App.screen !== 'table' || !App.table || (App.table.ownId || App.table.meId) !== myId || App.table._game !== game) {
         showScreen('table');
         if (App.table) App.table.destroy();
         App.table = new UI.Table(screens.table, myId, (i) => net.intent(i));
