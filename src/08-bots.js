@@ -3416,6 +3416,8 @@
         /* A creature you cannot pay for is still a 2/2 for three if it has
            morph — which is what morph is for. */
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
+          // (Zaffai and the Tempests: free from hand once a turn — worth it even when it could be paid for)
+          if (use.kind === 'cast' && use.via === 'freeHandOnce') { consider(o, use); continue; }
           if (use.kind !== 'cast' || !/^(morph|evoke|dash|blitz|warp|bestow|spectacle)$/.test(use.via)) continue;
           if (out.some(x => x.o.id === o.id && !x.via)) continue;
           consider(o, use);

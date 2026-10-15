@@ -3521,6 +3521,8 @@
       // Nashi, Moon Sage's Scion: "one of those cards" — a land played is the one
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
       this._landPlayed(p, o);
+      // (The Eighth Doctor: a historic land played this way leaves for exile — leaveExileAfter)
+      if (leave && leave.leaveExileAfter && o.zone === 'battlefield') o.leaveExile = true;
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
          does something as it enters has just triggered. Those triggers go on
@@ -5572,6 +5574,13 @@
         const ab = (a.abilities || []).find(x => x.kind === 'castModifier' && /^overload$/i.test(x.keyword || '') && x.arg);
         if (ab) out.push({ kind: 'cast', via: 'overload', cost: ab.arg, overload: true, label: 'Overload ' + ab.arg });
       }
+      /* Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand
+         without paying its mana cost." — a way to cast it, once each turn for each one that grants it (freeFromHandOnce) */
+      if (o.zone === 'hand' && !a.isLand && this.activePlayer && this.activePlayer.id === playerId) {
+        const zt = this.battlefield.find(s => s.controller === playerId && !s.phasedOut && s._freeHandOnceTurn !== this.turn &&
+          this._staticOp(s, 'freeFromHandOnce') && this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
+        if (zt) out.push({ kind: 'cast', via: 'freeHandOnce', cost: '', srcId: zt.id, label: `Cast it without paying its mana cost (${zt.name})` });
+      }
       if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
         out.push({ kind: 'cast', via: 'free', cost: '', label: 'Cast it for free' });
       }
@@ -6798,6 +6807,8 @@
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         // Maralen, Fae Ascendant: "Once each turn" — used up
         if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
+        // Zaffai and the Tempests: "Once during each of your turns" — used up (freeHandOnce)
+        if (via && via.via === 'freeHandOnce') { const zx = this.obj(via.srcId); if (zx) zx._freeHandOnceTurn = this.turn; }
         // Kotis, Sibsig Champion: "Once during each of your turns" — used up (graveCastExile)
         if (via && via.via === 'graveExile') { const kx = this.obj(via.srcId); if (kx) kx._graveExileTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
@@ -7200,6 +7211,7 @@
          spell goes afterwards */
       o._enterFinality = null;
       o._enterTappedCast = null;
+      o._leaveExileCast = null;
       o._enterPlusCounters = 0;
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
@@ -7226,6 +7238,8 @@
           if (lv.exileAfter) o._exileFromStack = true;
           // Edgar, Master Machinist: "that artifact enters tapped" (enterTapped)
           if (lv.enterTapped) o._enterTappedCast = true;
+          // The Eighth Doctor: "it gains "If this permanent would leave the battlefield, exile it instead …"" (leaveExileAfter)
+          if (lv.leaveExileAfter) o._leaveExileCast = true;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
           if (lv.perType) {
             const pick = (((opts.choices || {}).permanentType || {}).picks || [])[0];
@@ -8291,6 +8305,7 @@
       if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
+      if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -12180,6 +12195,8 @@
         if (ef.sourceId && !(ev.source && ev.source.id === ef.sourceId && ev.source.zone === 'battlefield' && ev.source.ts === ef.sourceTs)) return false;
         // Gisela: "to you or a permanent you control"
         if (ef.toYou && ev.victimController !== src.controller) return false;
+        // Djeru, With Eyes Open: "to a planeswalker you control" (victimWords)
+        if (ef.victimWords && !(ev.victimId && !ev.toPlayer && this.obj(ev.victimId) && this._cardFitsWords(this.obj(ev.victimId), ef.victimWords))) return false;
         // a prevention is no prevention when damage can't be prevented
         if (ef.prevention && this._noPrevention(ev.combat)) return false;
         // Fiendish Duo: "to an opponent" — the player, not their permanents
@@ -15623,7 +15640,7 @@
         o._leftPrev = o._leftSeq || null;
         o._leftSeq = this._uid('lv');
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
-        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null;
+        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null; o._freeHandOnceTurn = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
@@ -23444,7 +23461,25 @@
              choice sees what an earlier one did (CR 701.55): the ones still to choose wait in _vq, after the choice */
           let queue = e._vq;
           if (!queue) {
-            let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
+            // (The Master, Gallifrey's End: "If you do" — the card the trigger is about, exiled just now: ifExiled)
+            const tx = e.ifExiled && this.obj((ctx.triggerData || {}).objectId);
+            if (e.ifExiled && !(tx && tx.zone === 'exile' && this._lastExiled === tx.id)) break;
+            // ("choose an opponent with the most life among your opponents" — a tie is the controller's to settle: mostLifeOpp)
+            let most = null;
+            if (e.who === 'mostLifeOpp') {
+              const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+              const top = Math.max(...opps.map(q => q.life));
+              const tied = opps.filter(q => q.life === top);
+              most = tied[0] || null;
+              if (tied.length > 1) {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players', items: this._choosePlayers(tied), min: 1, max: 1,
+                  prompt: `${ctx.name ? ctx.name + ': ' : ''}choose an opponent with the most life among your opponents.` }, 'vcm');
+                if (got === SUSPEND) return SUSPEND;
+                most = (got && got.picks.length && this.player(got.picks[0])) || most;
+              }
+            }
+            let who = e.who === 'mostLifeOpp' ? [most]
+              : e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
               : e.who === 'triggerPlayer' ? [triggerPlayer()]
               : e.who === 'defending' ? [(src && this._defenderOf(src)) || triggerPlayer()]
               : this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller && this.opponentsOf(ctx.controller).includes(q));

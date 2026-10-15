@@ -9993,6 +9993,17 @@
     { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
       make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
+    /* The Master, Gallifrey's End: "you may exile it. If you do, choose an opponent with the most life among your
+       opponents. That player faces a villainous choice — They lose 4 life, or you create a token that's a copy of that
+       card." — only once the card is exiled (ifExiled); a tie for the most life is yours to settle (mostLifeOpp) */
+    { re: /^you may exile it\. If you do, choose an opponent with the most life among your opponents\. That player faces a villainous choice — (.+?), or you create a token that'?s a copy of that card\.?$/i,
+      make: (m) => {
+        const p = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
+        if (!p.auto || !p.effects.length) return null;
+        const options = [{ label: m[1].charAt(0).toUpperCase() + m[1].slice(1), effects: p.effects },
+          { label: "You create a token that's a copy of that card", effects: [{ op: 'copyPermanent', n: 1, scope: 'triggerObject', ifExiled: true, grant: [] }] }];
+        return [{ op: 'may', then: [{ op: 'exileTriggerCard' }, { op: 'villainousChoice', who: 'mostLifeOpp', ifExiled: true, options }] }];
+      } },
     /* Myrkul, Lord of Bones: "you may exile it. If you do, create a token that's a copy of that card, except it's an
        enchantment and loses all other card types." — its supertypes and abilities kept (setCardTypes) */
     { re: /^([Yy]ou may e|[Ee])xile it\. If you do, create a token that'?s a copy of that (?:creature|card), except it'?s an? (artifact|enchantment) and (?:it )?loses all other card types\.?$/,
@@ -15979,8 +15990,7 @@
            creature …" — the second sentence happens either way: only the first step is asked (mayStep) */
         const mayFirst = !linked && /^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body);
         const optional = !linked && !mayFirst && /^you may /i.test(body);
-        const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
-        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
+        const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
         // Disa the Restless: "… card is put into your graveyard from …, put it onto the battlefield" — that card
         if (trig.event === 'cardToGraveyardAny' && /^put it onto the battlefield\.?$/i.test(body.trim())) {
           parsed.effects = [{ op: 'batchToBattlefield', filter: 'permanent', text: 'Put it onto the battlefield.' }];
@@ -18861,6 +18871,9 @@
     // Valkmira, Protector's Shield: "If a source an opponent controls would deal damage to you or a permanent you control, prevent 1 of that damage." (subtract)
     { re: /^If a source an opponent controls would deal damage to you or a permanent you control, prevent (one|two|three|\d+) of that damage\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgPreventSomeOpp', event: 'damage', who: 'opponents', how: 'subtract', n: num(m[1]), toYou: true, prevention: true }) },
+    // Djeru, With Eyes Open: "If a source would deal damage to a planeswalker you control, prevent 1 of that damage." (victimWords)
+    { re: /^If a source would deal damage to a planeswalker you control, prevent (one|two|three|\d+) of that damage\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgPreventSomePw', event: 'damage', who: 'any', how: 'subtract', n: num(m[1]), toYou: true, victimWords: 'planeswalker', prevention: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -19458,6 +19471,9 @@
       // Barbara Wright: "Sagas you control have read ahead." (grantReadAhead)
       { re: /^Sagas you control have read ahead\.?$/i, eff: { op: 'grantReadAhead' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
+      // Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost."
+      { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment) spell from your hand without paying its mana cost\.?$/i,
+        make: (m) => ({ op: 'freeFromHandOnce', filter: m[1].toLowerCase() }), auto: true },
       // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
       { re: /^Players can'?t draw cards\.?$/i, eff: { op: 'noDraws', who: 'each' }, auto: true },
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
@@ -20886,6 +20902,11 @@
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {}, /enters tapped/.test(m[0]) ? { enterTapped: true } : {});
         }, auto: true },
+      /* The Eighth Doctor: "Once during each of your turns, you may play a historic land or cast a historic permanent spell
+         from your graveyard. If you do, it gains "If this permanent would leave the battlefield, exile it instead of
+         putting it anywhere else."" — one leave for either; what it lets in leaves for exile (leaveExileAfter) */
+      { re: /^Once during each of your turns, you may play a historic land or cast a historic permanent spell from your graveyard\. If you do, it gains "If this permanent would leave the battlefield, exile it instead of putting it anywhere else\."$/,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'any', landFilter: 'historic land', spellFilter: 'historic permanent', duringYourTurn: true, oncePerTurn: true, leaveExileAfter: true }, auto: true },
       /* Arcade Gannon: "Once during each of your turns, you may cast an artifact or Human spell from your graveyard with
          mana value less than or equal to the number of quest counters on Arcade Gannon." — counted as it is cast (maxMvCounters) */
       { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell from your graveyard with mana value less than or equal to the number of ([a-z]+) counters on CARDNAME\.$/,
