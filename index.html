@@ -2673,6 +2673,22 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   box-shadow: inset 0 0 0 1px rgba(212,175,71,.18); color: #ece3cc; font-size: 13px; line-height: 1.45; }
 .dp-buttons { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
 .dp-buttons .btn { min-width: 110px; padding: 10px 18px; font-size: 14px; border-radius: 12px; }
+/* which mana a source tapped by hand adds (Kibo's Banana, Birds of Paradise): the mana itself, a button each */
+.dpanel.mana-ask { min-width: min(340px, 92%); }
+.mana-picks { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.mana-pick { min-width: 56px; height: 56px; padding: 0 12px; border-radius: 28px; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; gap: 3px;
+  background: rgba(10,12,18,.82); border: 1px solid rgba(255,255,255,.16);
+  transition: transform var(--fast) var(--ease), box-shadow var(--fast) var(--ease), border-color var(--fast) var(--ease); }
+.mana-pick .pip { width: 32px; height: 32px; font-size: 16px; margin: 0; vertical-align: 0; }
+.mana-pick.wide .pip { width: 26px; height: 26px; font-size: 13px; }
+.mana-pick:hover, .mana-pick:focus-visible { border-color: var(--gold-hi); transform: translateY(-2px);
+  box-shadow: 0 0 0 2px rgba(246,220,140,.25), 0 0 16px rgba(246,220,140,.35); outline: none; }
+.mana-pick:active { transform: translateY(0); }
+/* (a phone: all five colours on one row, each still a thumb wide) */
+:root[data-phone] .mana-picks { gap: 8px; }
+:root[data-phone] .mana-pick { min-width: 50px; height: 50px; padding: 0 9px; }
+:root[data-phone] .mana-pick .pip { width: 28px; height: 28px; font-size: 14px; }
 .mode-list, .extras { display: flex; flex-direction: column; gap: 8px; }
 .mode-opt { display: flex; gap: 12px; align-items: center; text-align: left; width: 100%; padding: 11px 14px; border-radius: 12px; cursor: pointer;
   font: 500 14px/1.4 var(--font); color: #e9edf4; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.14);
@@ -13976,7 +13992,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       else if (ab.kind === 'static') {
         const effs = (ab.effects || []).flatMap(e => (e.op === 'sequence' ? e.list : [e]));
         // (Vnwxt, Verbose Host: "Max speed — If you would draw a card, draw two cards instead" — the engine asks drawDouble's condition too)
-        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble')) { ok = false; ab.auto = false; }
+        // (Far Fortune, End Boss: "Max speed — If a source you control would deal damage …" — a replacement asks it too: _replaceMatches)
+        if (!effs.every(e => e.op === 'continuous' || e.op === 'drawDouble' || e.op === 'replace')) { ok = false; ab.auto = false; }
         ab.effects = effs.map(e => Object.assign({}, e, { cond: both(e.cond) }));
       } else { ok = false; ab.auto = false; }
       out.abilities.push(ab);
@@ -14991,6 +15008,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^When one or more Equipment become attached to that creature this way, that creature deals damage equal to its power to up to one target creature\.?$/i,
       make: (m) => ({ op: 'reflexive', ifAttached: true, text: m[0],
         effects: [{ op: 'bite', biter: 'reflexObject', targets: [{ type: 'creature', upTo: true }], text: 'That creature deals damage equal to its power to up to one target creature.' }] }) },
+    /* Ellie, Brick Master: "that attacking player creates a tapped 1/1 black Fungus Zombie creature token named Cordyceps
+       Infected that's attacking that opponent." — the player attacked (attackingWho) */
+    { re: /^That attacking player creates (an? .+? creature token(?: named [A-Z][A-Za-z' ,-]+?)?) that'?s attacking that (?:opponent|player)\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.');
+        return tok && tok.op === 'createToken' && tok.n === 1 ? Object.assign(tok, { who: 'triggerPlayer', attacking: true, attackingWho: 'attackedPlayer' }) : null; } },
+    /* Three Dog, Galaxy News DJ: "you may pay {2} and sacrifice an Aura attached to Three Dog. When you sacrifice an Aura
+       this way, for each other attacking creature you control, create a token that's a copy of that Aura attached to that
+       creature." (paySacAttachedAura; a reflexive trigger, ifSacAura) */
+    { re: /^You may pay ((?:\{[^}]+\})+) and sacrifice an Aura attached to (?:CARDNAME|this creature)\.?$/i, make: (m) => ({ op: 'paySacAttachedAura', mana: m[1] }) },
+    { re: /^When you sacrifice an Aura this way, for each other attacking creature you control, create a token that'?s a copy of that Aura attached to that creature\.?$/i,
+      make: (m) => ({ op: 'reflexive', ifSacAura: true, text: m[0], effects: [{ op: 'copyAuraOntoAttackers' }] }) },
     // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
     { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
       make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
@@ -15177,6 +15205,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'tokenForExiled', color: m[1].toLowerCase(), subtype: m[2] }) },
     // Summon: Primal Odin: "This creature gains "Whenever …"" — for good
     { re: /^(?:This creature|CARDNAME) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'self' } : null) },
+    /* Kellan, Planar Trailblazer: "If Kellan is a Scout, it becomes a Human Faerie Detective and gains "Whenever …"";
+       "If Kellan is a Detective, it becomes a 3/2 Human Faerie Rogue and gains double strike." — for good, the
+       creature types instead of its own (setCreatureTypes), what it gained before kept */
+    { re: /^If CARDNAME is an? ([A-Z][a-z]+), it becomes an? (?:(\d+)\/(\d+) )?((?:[A-Z][a-z]+ )*[A-Z][a-z]+) and gains (?:"([^"]+)"|([a-z ]+?))\.?$/,
+      make: (m) => {
+        if (m[5] && !grantableText(m[5])) return null;
+        const kws = m[6] ? keywordList(m[6]) : [];
+        if (m[6] && !kws.every(kwKnown)) return null;
+        const eff = Object.assign({ setCreatureTypes: m[4].split(' ') }, m[2] ? { setPt: { p: +m[2], t: +m[3] } } : {}, kws.length ? { keywords: kws } : {});
+        const then = [{ op: 'becomes', duration: 'permanent', scope: 'self', eff }];
+        // (its own name in the quote is the creature itself: "this creature", as a granted line reads)
+        if (m[5]) then.push({ op: 'grantAbility', ability: m[5].replace(/\bCARDNAME\b/g, 'this creature'), duration: 'permanent', scope: 'self' });
+        return { op: 'ifCond', cond: { kind: 'selfIs', what: 'subtype:' + m[1] }, then };
+      } },
     /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '{T}: Add {R},
        {G}, or {W}.'"" — a standing line of its own, the inner quotes made double */
     { re: /^This (?:Saga|enchantment|artifact) gains "(.+'.+'.*)"\.?$/,
@@ -15338,6 +15380,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     { re: /^Exile (target [a-z ]+?) card with mana value (\d+|X) from your graveyard\.?$/i,
       make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2]); return t ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Shiko, Paragon of the Way: "exile target nonland card with mana value 3 or less from your graveyard"
+    { re: /^Exile (target [a-z, ]+? card with mana value \d+ or less) from your graveyard\.?$/i,
+      make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown && t.maxMv != null ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Ashling the Pilgrim: "remove all +1/+1 counters from Ashling, and it deals that much damage to each creature and each player"
+    { re: /^remove all \+1\/\+1 counters from CARDNAME, and it deals that much damage to each creature and each player\.?$/i,
+      make: () => ({ op: 'sequence', list: [{ op: 'removeAllButCounters', kind: '+1/+1', keep: 0 },
+        { op: 'damage', n: { removedCounters: true, mult: 1, thisWay: true }, each: 'creature and each player' }] }) },
     // Counterbore, Sowing Salt, Quash: the rest of that card's name, from everywhere it could be
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },
@@ -15793,6 +15842,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         effects: [{ op: 'destroyThat' }] }) },
     // Geist of Saint Traft: "Exile that token at end of combat."
     { re: /^Exile (?:that token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
+    // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
+    { re: /^Exile (?:that token|those tokens) when (?:CARDNAME|this creature) leaves the battlefield\.?$/i, make: () => ({ op: 'exileMadeWhenSelfLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
     { re: /^Its owner gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
@@ -17141,8 +17192,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^[Mm]anifest dread (twice|three times)\.?$/, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'manifestDread' })) }) },
     // Unwanted Remake, Fear of Impostors: "Its controller manifests dread." — the controller of what was destroyed or countered
     { re: /^Its controller manifests dread\.?$/i, make: () => ({ op: 'manifestDread', who: 'targetController' }) },
-    { re: /^(?:Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
-      make: (m) => (/^target/i.test(m[1]) ? { op: 'suspect', targets: [targetSpec(m[1])] } : { op: 'suspect', scope: 'lastTarget' }) },
+    { re: /^If it'?s suspected, exile it\.?$/i, make: () => ({ op: 'ifCond', cond: { kind: 'itSuspected' }, then: [{ op: 'exile', scope: 'lastTarget' }] }) },
+    // (Agrus Kos, Spirit of Justice: "If it's suspected, exile it. Otherwise, suspect it." — the other branch: otherwiseOf)
+    { re: /^(Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
+      make: (m) => (/^target/i.test(m[2]) ? { op: 'suspect', targets: [targetSpec(m[2])] }
+        : m[1] ? { op: 'noop', otherwiseOf: [{ op: 'suspect', scope: 'lastTarget' }] } : { op: 'suspect', scope: 'lastTarget' }) },
     { re: /^(?:CARDNAME|This creature|It) endures (one|two|three|four|five|\d+|X)\.?$/i,
       make: (m) => ({ op: 'endure', n: num(m[1]), scope: /^It$/i.test(m[0].split(' ')[0]) ? 'triggerObject' : 'self' }) },
     // Warden of the Grove: "it endures X, where X is the number of counters on this creature"
@@ -17606,6 +17660,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Spinal Parasite: "Remove a counter from target permanent."
     { re: /^Remove (a|an|one|two|three|\d+) ((?:[+\-0-9/a-z]+ )?)counters? from (target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), kind: (m[2] || '').trim().toLowerCase() || null, targets: [targetSpec(m[3])] }) },
+    // Rhys, the Evermore: "Remove any number of counters from target creature you control." — each counter there, one pick
+    { re: /^Remove any number of counters from (target [a-z ]+?)\.?$/i,
+      make: (m) => { const t = targetSpec(m[1]); return t && !t.unknown ? { op: 'removeAnyCounters', targets: [t] } : null; } },
     // Fire Prophecy: "Put a card from your hand on the bottom of your library."
     { re: /^Put (a|one|two) cards? from your hand on the bottom of your library\.?$/i,
       make: (m) => ({ op: 'handToBottom', n: num(m[1]) }) },
@@ -17792,6 +17849,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Gríma, Saruman's Footman: "Then that player puts the exiled cards that weren't cast this way on the bottom of their library in a random order." (exileUntil)
     { re: /^Then (?:that player puts|put) the exiled cards that weren'?t cast this way on the bottom of (?:their|that|your) library in a random order\.?$/i,
       make: () => ({ op: 'restToBottom', random: true }) },
+    // Codie, Vociferous Codex: "Put each other card exiled this way on the bottom of your library in a random order." — not the one it stopped at (exceptHit)
+    { re: /^Put each other card exiled this way on the bottom of your library in a random order\.?$/i,
+      make: () => ({ op: 'restToBottom', random: true, exceptHit: true }) },
     /* Plargg and Nassari: "An opponent chooses a nonland card exiled this way. You may cast up to two spells from
        among the other cards exiled this way without paying their mana costs." (exceptChosen) */
     { re: /^An opponent chooses a nonland card exiled this way\.?$/i, make: () => ({ op: 'opponentChoosesExiled', filter: 'nonland' }) },
@@ -18391,6 +18451,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
     /* ===== graveyards ===== */
     { re: /^Each player exiles their graveyard\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
+    /* Augusta, Order Returned: "each player exiles a card from their graveyard." — each chooses (eachExileGraveCard); "When one
+       or more nonland cards are exiled this way, put that many +1/+1 counters on target attacking creature." — a reflexive
+       trigger, the count kept as the cards go (ifExiledNonland) */
+    { re: /^Each player exiles a card from their graveyard\.?$/i, make: () => ({ op: 'eachExileGraveCard' }) },
+    { re: /^When one or more nonland cards are exiled this way, put that many (\+1\/\+1) counters on (target [a-z ]+?)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[2]); return sp && !sp.unknown ? { op: 'reflexive', ifExiledNonland: true, text: m[0],
+        effects: [{ op: 'counters', kind: m[1], n: 1, targets: [sp], scope: null }] } : null; } },
     { re: /^Target player exiles (a|one|two|\d+) cards? from their graveyard\.?$/i,
       make: (m) => ({ op: 'exileFromGraveyard', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
     /* "Exile target card from a graveyard": the card is chosen as a
@@ -18539,6 +18606,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Legendary Artifact — Equipment', oracle_text: text, keywords: [], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
         return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text } };
+      } },
+    /* (Icingdeath, Frost Tyrant: "create Icingdeath, Frost Tongue, a legendary white Equipment artifact token with "Equipped
+       creature gets +2/+0," "Whenever equipped creature attacks, …," and equip {2}" — a color, several quoted abilities) */
+    { re: /^(?:You )?[Cc]reate ([A-Z][A-Za-z' ,-]*?), a legendary (colorless|white|blue|black|red|green) Equipment artifact token with ((?:"[^"]+" )+)and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
+      make: (m) => {
+        const quoted = (m[3].match(/"[^"]+"/g) || []).map(q => q.slice(1, -1).replace(/,$/, '').replace(/([^."])$/, '$1.'));
+        const text = quoted.join('\n') + '\nEquip ' + m[4];
+        const colors = { white: ['W'], blue: ['U'], black: ['B'], red: ['R'], green: ['G'] }[m[2].toLowerCase()] || [];
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[1] + text), name: m[1], type_line: 'Token Legendary Artifact — Equipment', oracle_text: text, colors, keywords: [], layout: 'token' });
+        if (!probe || !probe.fullyAutomated) return null;
+        return { op: 'createNamedToken', n: 1, token: m[1], def: { type: 'Token Legendary Artifact — Equipment', text, colors } };
       } },
     /* Volo, Itinerant Scholar: "create Volo's Journal, a legendary colorless Book artifact token with hexproof and
        "Whenever you cast a creature spell, note one of its creature types that hasn't been noted for Volo's Journal."" —
@@ -19915,7 +19993,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return e;
       } },
     // Thancred Waters: "another target legendary permanent you control gains indestructible for as long as you control Thancred Waters"
-    { re: /^((?:another )?target [a-z ]+? you control) gains (indestructible|hexproof|shroud|flying|vigilance|trample|lifelink|first strike|deathtouch|haste) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
+    // (Kyodai, Soul of Kamigawa: "another target permanent gains indestructible for as long as you control Kyodai" — anyone's)
+    { re: /^((?:another )?target [a-z ]+?(?: you control)?) gains (indestructible|hexproof|shroud|flying|vigilance|trample|lifelink|first strike|deathtouch|haste) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
       make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'grantKeyword', keywords: [U.titleCase(m[2].toLowerCase())], duration: 'whileControl', targets: [sp] } : null; } },
     // Quicksmith Spy: "target artifact you control gains '{T}: Draw a card' for as long as you control this creature"
     { re: /^(target [a-z ]+?) gains "([^"]+)" for as long as you control (?:this creature|CARDNAME|this artifact|this enchantment|this permanent)\.?$/i,
@@ -20038,6 +20117,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Necrogoyf: "CARDNAME's power is equal to the number of creature cards in all graveyards."
     { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in all graveyards\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInAllGraveyards: m[1].toLowerCase() }, t: null, keepToughness: true } }) },
+    // Neo Exdeath, Dimension's End: "Neo Exdeath's power is equal to the number of permanent cards in your graveyard."
+    { re: /^(?:CARDNAME|This creature)'?s power is equal to the number of ([a-z]+) cards in your graveyard\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: { cardsInGraveyard: true, filter: m[1].toLowerCase(), mult: 1 }, t: null, keepToughness: true } }) },
     // Towering Gibbon: "CARDNAME's power is equal to the greatest mana value among creatures you control."
     { re: /^(?:CARDNAME|This creature)'?s (power is|power and toughness are each) equal to the greatest mana value among ([a-z ]+? you control)\.?$/i,
       make: (m) => {
@@ -20087,6 +20169,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'voyageFromExile', counter: m[1].toLowerCase() }) },
     // Vial Smasher the Fierce: "choose an opponent at random" — "that player" afterwards is the one it falls on
     { re: /^Choose an opponent at random\.?$/i, make: () => ({ op: 'chooseOpponent', random: true }) },
+    // Zaffai, Thunder Conductor: "Zaffai deals 10 damage to an opponent chosen at random." (toRandomOpponent)
+    { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to an opponent chosen at random\.?$/i,
+      make: (m) => ({ op: 'damage', n: +m[1], toRandomOpponent: true }) },
     // Vial Smasher the Fierce: "deals damage equal to that spell's mana value to that player or a planeswalker that player controls"
     { re: /^(?:CARDNAME|This creature|It) deals damage equal to (.+?) to that player or a planeswalker that player controls\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k ? { op: 'damagePlayerOrWalker', n: k } : null; } },
@@ -20591,6 +20676,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Tap that creature and goad it\.?$/i, make: () => [{ op: 'tap', scope: 'triggerObject' }, { op: 'goad', scope: 'triggerObject' }] },
     { re: /^Goad (target creature(?: an opponent controls| that player controls)?)\.?$/i,
       make: (m) => ({ op: 'goad', targets: [targetSpec(m[1])] }) },
+    // Kitt Kanto, Mayhem Diva: "Goad that creature." — the one just targeted
+    { re: /^Goad that creature\.?$/i, make: () => ({ op: 'goad', scope: 'lastTarget' }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // (Kefnet's Monument: "target creature an opponent controls")
@@ -20899,7 +20986,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           text: 'Whenever a creature dies, each creature other than the one that made this gets -' + m[1] + '/-' + m[2] + ' until end of turn.',
           effects: [{ op: 'pump', p: -(+m[1]), t: -(+m[2]), duration: 'eot', scope: { who: 'all', what: 'creature', exceptId: '$src' } }] }] }) },
     // one sentence of a longer text: "Whenever a creature dies this turn, …"
-    { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$/i, make: (m) => turnTrigger(m[0]) },
+    // (Najal, the Storm Runner: "If you do, when you next cast an instant or sorcery spell this turn, copy it." — the paid-for half)
+    { re: /^(?:Until end of turn|This turn|Until your next turn), whenever .+$|^(?:Whenever|At the beginning of) [^,"]+? this turn, .+$|^When you next cast [^,"]+? this turn, .+$|^When you cast your next [^,"]+? this turn, .+$/i,
+      make: (m) => turnTrigger(m[0]) },
     // Charming Prince: "Exile another target creature you own."
     { re: /^Exile (another )?target (creature|permanent|nonland permanent) you own\.?$/i,
       make: (m) => ({ op: 'exile', targets: [Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].toLowerCase()), { owner: 'you' })] }) },
@@ -21119,7 +21208,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       } },
     /* Zada, Hedron Grinder: "copy that spell for each other creature you control that the spell could target.
        Each copy targets a different one of those creatures." */
-    { re: /^Copy that spell for each other creature you control that the spell could target\.?$/i,
+    // (Agrus Kos, Eternal Soldier: "copy that ability for each other creature you control that ability could target")
+    { re: /^Copy that (?:spell|ability) for each other creature you control that (?:the )?(?:spell|ability) could target\.?$/i,
       make: () => ({ op: 'copySpellEachOther', what: 'creature' }) },    { re: /^Each copy targets a different one of those creatures\.?$/i, make: () => ({ op: 'noop' }) },
     // Rings of Brighthearth: "copy that ability" — the one whose activation set this off
     // (Magus Lucea Kane: "copy that spell or ability")
@@ -21165,6 +21255,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^You may choose new targets for the copies\.?$/i, make: () => ({ op: 'noop' }) },
     // a spell-cast trigger's "copy it": the spell that was cast
     { re: /^Copy it\.?$/i, make: () => ({ op: 'copyThatSpell' }) },
+    // Shiko, Paragon of the Way: "Copy it, then you may cast the copy without paying its mana cost." — the card just exiled
+    { re: /^Copy it, then you may cast the copy without paying its mana cost\.?$/i, make: () => ({ op: 'castCopy', of: 'last', fromRes: true }) },
     // The Sixth Doctor: "copy it, except the copy isn't legendary" — a legendary permanent spell's copy, a token that isn't
     { re: /^Copy it, except the copy isn'?t legendary\.?$/i, make: () => ({ op: 'copyThatSpell', nonLegendary: true }) },
     // Tawnos, the Toymaker: "copy it, except the copy is an artifact in addition to its other types"
@@ -21425,6 +21517,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'restrict', flag: /block/i.test(m[1]) ? 'cantBlock' : 'cantAttack', duration: 'nextTurn', scope: 'lastGroup' }) },
     // Orim's Chant, kicked: "creatures can't attack this turn"
     { re: /^Creatures can'?t attack this turn\.?$/i, make: () => ({ op: 'noAttacksTurn' }) },
+    // Azor, the Lawbringer: "each opponent can't cast instant or sorcery spells during that player's next turn." (silenceOn)
+    { re: /^each opponent can'?t cast instant or sorcery spells during that player'?s next turn\.?$/i,
+      make: () => ({ op: 'silence', who: 'opponents', instantSorcery: true, duration: 'theirNextTurn' }) },
     // Ranger-Captain of Eos: only the noncreature ones
     { re: /^Your opponents can'?t cast noncreature spells this turn\.?$/i, make: () => ({ op: 'silence', who: 'opponents', noncreature: true }) },
     /* Hope of Ghirapur: "Until your next turn, target player who was dealt combat damage by Hope of Ghirapur this turn
@@ -21619,6 +21714,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* Sylvan Awakening: "Until your next turn, all lands you control become
        2/2 Elemental creatures with reach, indestructible, and haste." —
        read as "until end of turn", then made to last */
+    /* Hydro-Man, Fluid Felon: "Until your next turn, he becomes a land and gains "{T}: Add {U}." (He's not a creature
+       during that time.)" — a land only, its creature types gone with the type, and legendary still */
+    { re: /^Until your next turn, CARDNAME becomes a land and gains "\{T\}: Add \{([WUBRGC])\}\.?"\.?$/i,
+      make: (m) => ({ op: 'becomes', duration: 'nextTurn', scope: 'self', eff: { setTypes: ['Land'],
+        grantMana: [{ kind: 'mana', auto: true, granted: true, cost: parseCost('{T}'), text: '{T}: Add {' + m[1].toUpperCase() + '}.', effects: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }] }] } }) },
     { re: /^Until your next turn, (.+? (?:become|becomes) [^.]+?)\.?$/i,
       make: (m) => {
         const e = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + ' until end of turn.');
@@ -21978,6 +22078,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }
     // Coram, the Undertaker: "the greatest power among creature cards in all graveyards" (greatestPowerInGraveyards)
     if (/^the greatest power among creature cards in all graveyards$/i.test(p)) return done({ greatestPowerInGraveyards: 'creature' });
+    // Skanos Dragonheart: "the greatest power among other Dragons you control and Dragon cards in your graveyard" (alsoGrave)
+    if ((m = p.match(/^the greatest power among (other [A-Z][a-z'-]+s you control) and ([A-Z][a-z'-]+) cards in your graveyard$/))) {
+      const sc = scopeOf(m[1]);
+      return sc ? done({ greatestPower: sc, alsoGrave: m[2].toLowerCase() }) : null;
+    }
     // (Alena, Kessig Trapper: "the greatest power among creatures you control that entered this turn")
     if ((m = p.match(/^the greatest power among ((?:other )?creatures you control(?: that entered this turn)?|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
@@ -22580,6 +22685,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return again;
       }
     }
+    /* Kitt Kanto, Mayhem Diva: "target creature that player controls gets +2/+2 and gains trample until end of turn" — the
+       same as "Target creature …", of the player the trigger is about */
+    if (!depth && /^Target creature that player controls /.test(s)) {
+      const again = parseEffectSentence(s.replace(/^Target creature that player controls /, 'Target creature '), 1);
+      if (again && again.op !== 'manual') {
+        const mark = (e) => { if (!e || typeof e !== 'object') return; (e.targets || []).forEach(t => { if (t && t.type === 'creature') Object.assign(t, { controller: 'triggerPlayer', filter: 'creature that player controls' }); }); (e.list || []).forEach(mark); };
+        (Array.isArray(again) ? again : [again]).forEach(mark);
+        return again;
+      }
+    }
     /* "You create a Treasure token" is "Create a Treasure token" said by
        somebody: read it without the subject. */
     if (!depth && /^You (?:create|draw|put|exile|return|sacrifice|search|scry|surveil|mill|look|reveal|discard|untap|tap|proliferate|investigate|amass|shuffle|choose|destroy|counter|copy|attach)\b/.test(s)) {
@@ -22780,6 +22895,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return pe.auto && pe.effects.length ? pe.effects : null;
   };
   const COMBO_RULES = [
+    /* Vislor Turlough: "you may have an opponent gain control of it. If you do, it's goaded for as long as they control it."
+       — the opponent chosen (or the one there is), the goad held by that control effect (giveSelfGoaded) */
+    { re: /^You may have an opponent gain control of (?:it|CARDNAME|this creature)\. If you do, it'?s goaded for as long as they control it\.?$/i,
+      make: () => [{ op: 'giveSelfGoaded' }] },
     // Rex, Cyber-Hound: "Choose target creature card in a graveyard. Exile it with a brain counter on it."
     { re: /^Choose (target [a-z ]+? card) in a graveyard\. Exile it with an? ([a-z]+) counter on it\.(?: Activate only as a sorcery\.)?$/i,
       make: (m) => {
@@ -22871,6 +22990,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
     { re: /^choose target opponent\. Until end of turn, that player can'?t cast spells, you may look at the top card of their library any time, you may play the top card of their library, and you may spend mana as though it were mana of any color to cast spells this way\.?$/i,
       make: () => [{ op: 'oppTopThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target' }] },
+    /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with power
+       less than or equal to Grenzo's power, put it onto the battlefield." (bottomToGraveReanimate) */
+    { re: /^Put the bottom card of your library into your graveyard\. If it'?s a creature card with power less than or equal to (?:CARDNAME|this creature)'?s power, put it onto the battlefield\.?$/i,
+      make: () => [{ op: 'bottomToGraveReanimate' }] },
     /* Sapling of Colfenor: "reveal the top card of your library. If it's a creature card, you gain life equal to that
        card's toughness, lose life equal to its power, then put it into your hand." (topCreatureLife) */
     { re: /^reveal the top card of your library\. If it'?s a creature card, you gain life equal to that card'?s toughness, lose life equal to its power, then put it into your hand\.?$/i,
@@ -22884,6 +23007,31 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const one = { op: 'copyPermanent', n: 1, grant: [], of: 'saddledSelf', tapped: true, attacking: true };
         return [one, Object.assign({}, one), { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Sacrifice it at end of turn', effects: [{ op: 'sacrificeThat' }] }];
       } },
+    /* Living Laser: "for each card you've discarded this turn, create a token that's a copy of Living Laser, except the
+       token isn't legendary. The tokens enter tapped and attacking. Exile the tokens at the beginning of the next end
+       step." (discardedThisTurn) */
+    { re: /^for each card you'?ve discarded this turn, create a token that'?s a copy of CARDNAME, except the token isn'?t legendary\. The tokens enter tapped and attacking\. Exile the tokens at the beginning of the next end step\.?$/i,
+      make: () => [{ op: 'copyPermanent', self: true, n: { discardedThisTurn: 'you', mult: 1 }, grant: [], nonLegendary: true, tapped: true, attacking: true },
+        { op: 'delayed', event: 'eachEndStep', subject: 'made', name: 'Exile them at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
+    /* Cait, Cage Brawler: "you and defending player each draw a card, then discard a card. Put two +1/+1 counters on
+       Cait if you discarded the card with the greatest mana value among those cards or tied for greatest." */
+    { re: /^you and defending player each draw a card, then discard a card\. Put two \+1\/\+1 counters on CARDNAME if you discarded the card with the greatest mana value among those cards or tied for greatest\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'youAndDefending' }, { op: 'discard', n: 1, who: 'youAndDefending' },
+        { op: 'countersIfGreatestDiscard', counter: '+1/+1', n: 2 }] },
+    /* Lorcan, Warlock Collector: "you may pay life equal to its mana value. If you do, put it onto the battlefield under
+       your control. It's a Warlock in addition to its other types." — the card the trigger is about, from that graveyard */
+    { re: /^you may pay life equal to its mana value\. If you do, put it onto the battlefield under your control\. It'?s an? ([A-Z][a-z]+) in addition to its other types\.?$/,
+      make: (m) => [{ op: 'mayPay', pay: { life: { ofTrigger: 'mv' } }, text: m[0],
+        then: [{ op: 'returnTriggerCard', yours: true, triggerOnly: true, fromGrave: true, enterEff: { addSubtypes: [m[1]] } }] }] },
+    /* The Beamtown Bullies: "Target opponent whose turn it is puts target nonlegendary creature card from your graveyard
+       onto the battlefield under their control. It gains haste. Goad it. At the beginning of the next end step, exile
+       it." — only on an opponent's turn, that player (activeOnly); goaded by you (toPlayerTarget) */
+    { re: /^Target opponent whose turn it is puts (target nonlegendary creature card) from your graveyard onto the battlefield under their control\. It gains haste\. Goad it\. At the beginning of the next end step, exile it\.?$/i,
+      make: () => [{ op: 'reanimate', toPlayerTarget: true, targets: [{ type: 'player', opponent: true, activeOnly: true },
+        { type: 'creature', filter: 'creature', zone: 'graveyard', controller: 'you', nonlegendary: true }] },
+      { op: 'grantKeyword', keywords: ['Haste'], duration: 'permanent', scope: 'lastTarget' },
+      { op: 'goad', scope: 'lastTarget' },
+      { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Exile it at end of turn', effects: [{ op: 'exile', scope: 'thatObject' }] }] },
     /* Drana, the Last Bloodchief: "defending player chooses a nonlegendary creature card in your graveyard. You return
        that card to the battlefield with an additional +1/+1 counter on it. The creature is a Vampire in addition to its
        other types." — not targeted; the player attacked picks (chooser 'defending') */
@@ -23045,6 +23193,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Return (?:it|that card) to the battlefield face down under (its owner'?s|your) control\. It'?s an? (Plains|Island|Swamp|Mountain|Forest) land\.$/i,
       make: (m) => [{ op: 'returnTriggerCard', yours: /your/i.test(m[1]), triggerOnly: true, fromGrave: true,
         faceDownLand: m[2].charAt(0).toUpperCase() + m[2].slice(1).toLowerCase() }] },
+    /* Yarus, Roar of the Old Gods: "return it to the battlefield face down under its owner's control if it's a permanent card,
+       then turn it face up." (faceDownThenUp, permanentOnly) */
+    { re: /^Return it to the battlefield face down under its owner'?s control if it'?s a permanent card, then turn it face up\.?$/i,
+      make: () => [{ op: 'returnTriggerCard', triggerOnly: true, fromGrave: true, permanentOnly: true, faceDownThenUp: true }] },
     /* Missy: "return it to the battlefield under your control face down and tapped. It's a 2/2 Cyberman artifact
        creature." — face down as that, and nothing more (faceDownLand, a whole type line) */
     { re: /^[Rr]eturn (?:it|that card) to the battlefield under your control face down( and tapped)?\. It'?s a 2\/2 ([A-Z][a-z]+) artifact creature\.$/,
@@ -23081,6 +23233,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const md = parseModal(m[2].charAt(0).toUpperCase() + m[2].slice(1));
         if (!md || !md.auto) return null;
         return [{ op: 'mayPay', pay: { mana: m[1] }, then: md.effects }];
+      } },
+    /* Kitt Kanto, Mayhem Diva: "you may tap two untapped creatures you control. When you do, target creature that player
+       controls gets +2/+2 and gains trample until end of turn. Goad that creature." — the goad the reflexive trigger's too */
+    { re: /^you may (tap (?:two|three|an?) untapped [a-z]+ you control)\. (When you do, (target creature that player controls [^.]+)\. Goad that creature\.)$/i,
+      make: (m) => {
+        const pay = asCost(m[1]);
+        const tp = parseSentenceList([m[3].charAt(0).toUpperCase() + m[3].slice(1) + '.', 'Goad that creature.']);
+        return pay && tp.auto ? [{ op: 'mayPay', pay, then: tp.effects, text: m[0] }] : null;
       } },
     /* Caesar, Legion's Emperor: "you may sacrifice another creature. When you do, choose two — …" — the sacrifice
        is the only question until it is made (an optional sacThen); the modes follow it */
@@ -23205,6 +23365,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^[Yy]ou may exile it\. If you do, create a token that'?s a copy of that creature, except it'?s (\d+)\/(\d+) and it'?s an? ([A-Z][a-z]+) in addition to its other types\.$/,
       make: (m) => [{ op: 'may', then: [{ op: 'exileTriggerCard' },
         { op: 'copyPermanent', n: 1, scope: 'lastTarget', setPt: m[1] + '/' + m[2], addSubtypes: [m[3]], grant: [] }] }] },
+    /* The Master, Gallifrey's End: "you may exile it. If you do, choose an opponent with the most life among your
+       opponents. That player faces a villainous choice — They lose 4 life, or you create a token that's a copy of that
+       card." — only once the card is exiled (ifExiled); a tie for the most life is yours to settle (mostLifeOpp) */
+    { re: /^you may exile it\. If you do, choose an opponent with the most life among your opponents\. That player faces a villainous choice — (.+?), or you create a token that'?s a copy of that card\.?$/i,
+      make: (m) => {
+        const p = parseEffects(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
+        if (!p.auto || !p.effects.length) return null;
+        const options = [{ label: m[1].charAt(0).toUpperCase() + m[1].slice(1), effects: p.effects },
+          { label: "You create a token that's a copy of that card", effects: [{ op: 'copyPermanent', n: 1, scope: 'triggerObject', ifExiled: true, grant: [] }] }];
+        return [{ op: 'may', then: [{ op: 'exileTriggerCard' }, { op: 'villainousChoice', who: 'mostLifeOpp', ifExiled: true, options }] }];
+      } },
     /* Myrkul, Lord of Bones: "you may exile it. If you do, create a token that's a copy of that card, except it's an
        enchantment and loses all other card types." — its supertypes and abilities kept (setCardTypes) */
     { re: /^([Yy]ou may e|[Ee])xile it\. If you do, create a token that'?s a copy of that (?:creature|card), except it'?s an? (artifact|enchantment) and (?:it )?loses all other card types\.?$/,
@@ -23614,6 +23785,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        during their next turn." (noAttackNext) */
     { re: /^Each player may draw a card\. Each opponent who does can'?t attack you or permanents you control during their next turn\.?$/i,
       make: () => [{ op: 'eachMay', draw: 1, noAttackNext: true }] },
+    /* Willie Lumpkin, Postman: "you draw a card and that player may draw a card. If they do, that player can't attack you or
+       permanents you control during their next turn." — the player dealt the damage (eachMay who triggerPlayer, noAttackNext) */
+    { re: /^You draw a card and that player may draw a card\. If they do, that player can'?t attack you or permanents you control during their next turn\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'eachMay', draw: 1, who: 'triggerPlayer', noAttackNext: true }] },
     // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
     { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
       make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
@@ -23637,14 +23812,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^(?:You may )?put a commander you own from the command zone onto the battlefield\. It gains haste\. Return it to the command zone at the beginning of the next end step\.$/i,
       make: () => [{ op: 'commanderVisit' }] },
     /* Containment Construct: "you may exile that card from your graveyard.
-       If you do, you may play that card this turn." */
-    { re: /^You may exile that card from your graveyard\. If you do, you may play that card this turn\.$/i,
-      make: () => [{ op: 'may', then: [{ op: 'exileTriggerCardPlayable' }] }] },
+       If you do, you may play that card this turn." — Moonstone, Harsh Mistress: "until the end of your next turn" */
+    { re: /^You may exile that card from your graveyard\. If you do, (?:you may play that card this turn|(until the end of your next turn), you may play that card)\.$/i,
+      make: (m) => [{ op: 'may', then: [Object.assign({ op: 'exileTriggerCardPlayable' }, m[1] ? { duration: 'nextTurn' } : {})] }] },
     /* Praetor's Grasp: "Search target opponent's library for a card and exile
        it face down. Then that player shuffles. You may look at and play that
        card for as long as it remains exiled." */
     { re: /^Search target opponent'?s library for a card and exile it face down\. Then that player shuffles\. You may (?:look at and )?play that card for as long as it remains exiled\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'any', libOf: 'target', to: 'exilePlayable', targets: [targetSpec('target opponent')], prompt: "Search their library for a card." }] },
+    /* Intet, the Dreamer: "you may pay {2}{U}. If you do, exile the top card of your library face down. You may look at
+       that card for as long as it remains exiled. You may play that card without paying its mana cost for as long as
+       Intet remains on the battlefield." — all of it only if paid (impulseLast whileHere, free) */
+    { re: /^you may pay ((?:\{[^}]+\})+)\. If you do, exile the top card of your library face down\. You may look at that card for as long as it remains exiled\. You may play that card without paying its mana cost for as long as CARDNAME remains on the battlefield\.$/i,
+      make: (m) => [{ op: 'mayPay', pay: { mana: m[1] }, then: [{ op: 'impulse', n: 1, play: false, faceDown: true, look: true },
+        { op: 'impulseLast', duration: 'whileHere', free: true }] }] },
     // Moonsilver Key: "Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle."
     { re: /^Search your library for an artifact card with a mana ability or a basic land card, reveal it, put it into your hand, then shuffle\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'artifact or basic land', manaArtifactOrBasic: true, to: 'hand', prompt: 'Search your library for an artifact with a mana ability or a basic land.' }] },
@@ -24647,6 +24828,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (inner) Object.assign(inner.effects[inner.effects.length - 1], { random: true, text: cleaned });
       return inner;
     }
+    // Typhoid Mary, Fractured: "choose one at random. If you discarded a card this turn, you choose one instead." (randomUnless)
+    const rndU = cleaned.match(/^Choose one at random\. If you discarded a card this turn, you choose one instead\.?\s*([\s\S]*)$/i);
+    if (rndU) {
+      const inner = parseModal('Choose one \u2014 ' + rndU[1]);
+      if (inner) Object.assign(inner.effects[inner.effects.length - 1], { random: true, randomUnless: { kind: 'discardedThisTurn', who: 'you' }, text: cleaned });
+      return inner;
+    }
     const m = cleaned.match(/^Choose ([a-z ]+?)(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
     if (!m) return null;
     const word = m[1].trim().toLowerCase().replace(/^(one|two|three|four) or more$/, '$1 or more');
@@ -24863,6 +25051,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return { op: 'costMod', who: 'you', words: 'creature', chosenType: false, amount: -(+nthFly[2]), nthEachTurn: 1, nthKw: true,
         withKeyword: 'flying', notCreatureType: nthFly[1], yourTurn: true };
     }
+    // Kadena, Slinking Sorcerer: "The first face-down creature spell you cast each turn costs {3} less to cast." (faceDownOnly)
+    const nthFd = s.match(/^The first face-down creature spell you cast each turn costs \{(\d+)\} less to cast$/i);
+    if (nthFd) return { op: 'costMod', who: 'you', words: 'creature', chosenType: false, amount: -(+nthFd[1]), nthEachTurn: 1, faceDownOnly: true };
     /* Eluge, the Shoreless Sea: "The first instant or sorcery spell you cast each turn costs {U} (or {1}) less to
        cast for each land you control with a flood counter on it" — each {U} of its cost first, then {1}s (lessOrGeneric) */
     const nthOr = s.match(/^The first ((?:[a-z]+ (?:or [a-z]+ )?){0,2})spell you cast each turn costs \{([WUBRG])\} or \{1\} less to cast for each (.+)$/i);
@@ -25554,6 +25745,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           continue;
         }
       }
+      // Verrak, Warped Sengir: "you may pay that much life again. If you do, copy that ability." — the life paid to activate it (lifePaid)
+      if (may && ifDo && /^pay that much life again$/i.test(may[1])) {
+        const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
+        if (tp.auto && tp.effects.length) {
+          effects.push({ op: 'mayPay', pay: { life: { lifePaid: true } }, then: tp.effects, text: s + ' ' + next });
+          i++;
+          continue;
+        }
+      }
       // Niv-Mizzet, Ghost Counsel: "you may pay that much life. If you do, draw that many cards." — as much as the trigger is about
       if (may && ifDo && /^pay that much life$/i.test(may[1])) {
         const tp = parseSentenceList(splitSentences(U.titleCase(ifDo[1].charAt(0)) + ifDo[1].slice(1)));
@@ -25591,6 +25791,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           while (/^(?:The token|That token|It) /.test(sentences[i + 2 + more] || '') ||
             // (Cadric, Soul Kindler: "Sacrifice it …" — declined, nothing of yours is sacrificed)
             /^(?:Exile|Sacrifice) (?:it|the token|that token) at the beginning of the next end step\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
+        } else if (/^When you (?:next cast|cast your next) /i.test(thenText)) {
+          // Najal, the Storm Runner: "… copy it. You may choose new targets for the copy." — the copy's own words
+          while (/^You may choose new targets for the cop(?:y|ies)\.?$/i.test(sentences[i + 2 + more] || '')) { thenText += ' ' + sentences[i + 2 + more]; more++; }
         } else if (/\btarget creature'?s?\b/i.test(thenText)) {
           /* Neyith of the Dire Hunt: "If you do, double target creature's power until end of turn. That creature must
              be blocked this combat if able." — what is said of that creature only happens if it was paid for */
@@ -26666,6 +26869,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^you control a legendary creature$/i, () => ({ kind: 'controlLegend' })],
     [/^you control another creature named (?:CARDNAME|.+)$/i,
       () => ({ kind: 'controlNamed', name: 'CARDNAME', other: true, n: 1 })],
+    // Venser, Corpse Puppet: "you don't control a creature named The Hollow Sentinel"
+    [/^you don'?t control a creature named ([A-Z][A-Za-z' -]+)$/, (m) => ({ kind: 'not', cond: { kind: 'controlNamed', name: m[1], creature: true, n: 1 } })],
     // the graveyard
     [/^there are (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     // Ketramose, the New Dawn: "unless there are seven or more cards in exile" — everybody's (exileTotal)
@@ -26736,6 +26941,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Agrus Kos, Spirit of Justice: "If it's suspected" — the creature targeted
+    [/^it'?s suspected$/i, () => ({ kind: 'itSuspected' })],
     // Proft's Eidetic Memory: "you've drawn more than one card this turn"
     [/^you'?ve drawn more than (one|two|three) cards? this turn$/i, (m) => ({ kind: 'drawnAtLeast', n: num(m[1]) + 1 })],
     // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
@@ -26803,8 +27010,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^this spell was cast from your hand$/i, () => ({ kind: 'castFromHand' })],
     [/^this spell was cast from anywhere other than your hand$/i, () => ({ kind: 'castFromHand', not: true })],
     // Fading Hope: "its mana value was 3 or less"; Prohibit: "its mana value is 2 or less"
-    [/^(?:its|that (?:creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
-      (m) => ({ kind: 'itMv', n: +m[1], cmp: /less/i.test(m[2]) ? 'atMost' : 'atLeast' })],
+    // (Zaffai, Thunder Conductor: "that spell's" — a cast trigger's spell, whatever was made in between: ofTrigger)
+    [/^(?:its|that (creature|permanent|spell|card)'?s) mana value (?:was|is) (\d+) or (less|greater)$/i,
+      (m) => Object.assign({ kind: 'itMv', n: +m[2], cmp: /less/i.test(m[3]) ? 'atMost' : 'atLeast' }, /spell/i.test(m[1] || '') ? { ofTrigger: true } : {})],
     // Ozai, the Phoenix King: "you have six or more unspent mana" (unspentMana)
     [/^you have (\w+) or more unspent mana$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'unspentMana', n: num(m[1]) } : null)],
     // Elanor Gardner: "you sacrificed a Food this turn"; Phoenix Fleet Airship: "… a permanent …"; Briarbridge Patrol: "three or more Clues" (sacrificedThisTurn)
@@ -26918,7 +27126,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Lavaborn Muse, Shrieking Affliction: "if that player has two or fewer cards in hand"
     [/^that player has (one|two|three|four|\d+) or (fewer|more) cards in hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[2]) ? 'atMost' : 'atLeast', who: 'triggerPlayer' })],
-    [/^you have (\w+) or (?:more|fewer) cards in hand$/i,
+    [/^you have (\w+) or (?:more|fewer) cards in (?:your )?hand$/i,
       (m) => ({ kind: 'hand', n: num(m[1]), cmp: /fewer/i.test(m[0]) ? 'atMost' : 'atLeast' })],
     [/^you have (\d+) or (?:more|less) life$/i,
       (m) => ({ kind: 'life', n: +m[1], cmp: /less/i.test(m[0]) ? 'atMost' : 'atLeast' })],
@@ -27357,6 +27565,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^Whenever you activate a ninjutsu ability,? /i, event: 'youActivateAbility', extra: { abilityLabel: 'ninjutsu' } },
     // Ertha Jo, Frontier Mentor: "Whenever you activate an ability that targets a creature or player" (abTargetsCreatureOrPlayer)
     { re: /^Whenever you activate an ability that targets a creature or player,? /i, event: 'youActivateAbility', extra: { abTargetsCreatureOrPlayer: true } },
+    // Dream Devourer: "Whenever you foretell a card," (youForetell)
+    { re: /^Whenever you foretell a card,? /i, event: 'youForetell' },
+    // Verrak, Warped Sengir: "Whenever you activate an ability that isn't a mana ability, if life was paid to activate it," (lifePaidOnly)
+    { re: /^Whenever you activate an ability that isn'?t a mana ability, if life was paid to activate it,? /i, event: 'youActivateAbility', extra: { lifePaidOnly: true } },
     { re: /^Whenever you activate an ability(?! of )(?: that isn'?t a mana ability|, if it isn'?t a mana ability)?,? /i, event: 'youActivateAbility' },
     // Elrond, Moon-Reader: "Whenever you activate an ability of a creature" — its mana abilities too (youActivateManaAbility)
     { re: /^Whenever you activate an ability of a creature,? /i, event: 'youActivateAbility', also: 'youActivateManaAbility', filt: () => ({ words: 'creature' }) },
@@ -27549,6 +27761,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        activated one as it is activated, a triggered one as its targets are chosen (anyAbility) */
     { re: /^Whenever a player or permanent becomes the target of an ability you control,? /i,
       event: 'becomesTarget', extra: { targetedByYou: true, anyAbility: true } },
+    // Agrus Kos, Eternal Soldier: "Whenever Agrus Kos becomes the target of an ability that targets only it" (byAbilityOnly, targetsOnlySelf)
+    { re: /^Whenever (?:this creature|CARDNAME) becomes the target of an ability that targets only it,? /i,
+      event: 'becomesTarget', self: true, extra: { byAbilityOnly: true, targetsOnlySelf: true } },
     // (Opaline Sliver's granted "this permanent")
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes the target of a spell(?: or ability)?(?: an opponent controls)?(?:,| )/i,
       event: 'becomesTarget', self: true, extraOf: (m) => ({ bySpellOnly: !/or ability/i.test(m[0]), byOpponent: /opponent/i.test(m[0]) }) },
@@ -27629,6 +27844,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       filt: (m) => ({ words: m[1].toLowerCase(), who: 'you' }), extra: { filterOnlyOn: 'permDies', selfOnEnter: true } },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or dies(?:,| )', 'i'),
       event: 'permEnters', also: 'permDies', filt: (m) => subjectFilter(m[1]) },
+    // Millicent, Restless Revenant: "Whenever Millicent or another nontoken Spirit you control dies or deals combat damage to a player"
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or deals combat damage to a player(?:,| )', 'i'),
+      event: 'permDies', also: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
       event: 'permEnters', filt: (m) => {
         const f = subjectFilter(m[1]);
@@ -27716,6 +27934,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       event: 'permCombatDamage', filt: (m) => subjectFilter(m[1]), extra: { hitYourOpponent: true } },
     { re: /^Whenever a creature deals combat damage to one of your opponents, /i,
       event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitYourOpponent: true } },
+    // The Beast, Deathless Prince: "Whenever a creature deals combat damage to its owner," — anyone's creature (hitItsOwner)
+    { re: /^Whenever a creature deals combat damage to its owner,? /i,
+      event: 'permCombatDamage', aboutObject: true, filt: () => ({ words: 'creature' }), extra: { hitItsOwner: true } },
     /* Puppet Master, String Puller: "Whenever one or more goaded creatures deal combat damage to one of your opponents," —
        anyone's goaded creatures, once for each opponent hit (batchPerPlayer, hitYourOpponent) */
     { re: /^Whenever one or more goaded creatures deal combat damage to one of your opponents,? /i,
@@ -27920,6 +28141,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) deals combat damage to an opponent,? /i, event: 'combatDamageToPlayer', self: true },
     { re: /^At the beginning of each opponent's end step,? /i, event: 'eachEndStep', extra: { notYourTurn: true } },
     { re: /^At the beginning of combat on each opponent's turn,? /i, event: 'eachCombatBegin', extra: { notYourTurn: true } },
+    // Kitt Kanto, Mayhem Diva: "At the beginning of combat on each player's turn," — "that player" whose turn it is
+    { re: /^At the beginning of combat on each player's turn,? /i, event: 'eachCombatBegin' },
     { re: /^When(?:ever)? you(?:'re| are) dealt damage,? /i, event: 'playerDealtDamage', extra: { youOnly: true } },
     { re: /^When(?:ever)? you lose life,? /i, event: 'youLoseLife' },
     { re: /^At the beginning of each player's (?:first|precombat) main phase,? /i, event: 'eachMain1' },
@@ -28143,6 +28366,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       event: 'countersPut', aboutObject: true,
       filt: (m) => ({ words: m[3].toLowerCase(), other: /another/i.test(m[2]), who: m[4] ? (/don/i.test(m[4]) ? 'opponent' : 'you') : undefined }),
       extraOf: (m) => Object.assign({ putByYou: true }, m[1] ? { counterKind: m[1].toLowerCase() } : {}) },
+    /* Invisible Woman, Sue Storm: "Whenever you put one or more +1/+1 counters on one or more other Heroes you control" — one
+       trigger for the lot (batch) */
+    { re: /^Whenever you put one or more (\+1\/\+1) counters on one or more other ([A-Z][a-z]+?)(?:e?s) you control, /,
+      event: 'countersPut', aboutObject: true,
+      filt: (m) => ({ words: m[2].toLowerCase(), other: true, who: 'you', batch: true }),
+      extraOf: (m) => ({ putByYou: true, counterKind: m[1] }) },
     // Aragorn, Company Leader: "Whenever you put one or more counters on Aragorn" — of any kind, by you (putByYou)
     { re: /^Whenever you put one or more counters on (?:CARDNAME|this creature),? /i, event: 'countersPut', self: true, extra: { putByYou: true } },
     // Sigurd, Jarl of Ravensthorpe: "Whenever you put a lore counter on a Saga you control" — once for each counter
@@ -29161,8 +29390,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
            creature …" — the second sentence happens either way: only the first step is asked (mayStep) */
         const mayFirst = !linked && /^you may [^.]+\. Until end of turn, each [^.]+\.?$/i.test(body);
         const optional = !linked && !mayFirst && /^you may /i.test(body);
-        const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);
-        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
+        const parsed = parseEffects(optional || mayFirst ? body.replace(/^you may /i, '').replace(/^(\w)/, (c) => c.toUpperCase()) : body);        if (mayFirst && parsed.effects.length === 2) parsed.effects[0].mayStep = true;
         // Disa the Restless: "… card is put into your graveyard from …, put it onto the battlefield" — that card
         if (trig.event === 'cardToGraveyardAny' && /^put it onto the battlefield\.?$/i.test(body.trim())) {
           parsed.effects = [{ op: 'batchToBattlefield', filter: 'permanent', text: 'Put it onto the battlefield.' }];
@@ -30244,6 +30472,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (/enters with twice X \+1\/\+1 counters/i.test(noReminder) && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: { xTimes: 2 } };
     let etbm = noReminder.match(/enters with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) \+1\/\+1 counters?/i);
     if (etbm && !out.entersWithCounters) out.entersWithCounters = { kind: '+1/+1', n: num(etbm[1]) };
+    // Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." (escapeN)
+    const escN = out.entersWithCounters && noReminder.match(/\. It escapes with (\w+) \+1\/\+1 counters on it instead\./i);
+    if (escN && out.entersWithCounters.kind === '+1/+1' && typeof num(escN[1]) === 'number') out.entersWithCounters.escapeN = num(escN[1]);
     // (Loch Mare, Moonlit Lamenter: "-1/-1 counters" as well as named ones)
     // (Astral Cornucopia, Lightning Serpent: "X charge counters", "X +1/+0 counters" — the X paid)
     etbm = noReminder.match(/enters(?: tapped)? with (a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (-1\/-1|\+1\/\+0|[a-z ]+?) counters?/i);
@@ -32040,6 +32271,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Valkmira, Protector's Shield: "If a source an opponent controls would deal damage to you or a permanent you control, prevent 1 of that damage." (subtract)
     { re: /^If a source an opponent controls would deal damage to you or a permanent you control, prevent (one|two|three|\d+) of that damage\.?$/i,
       make: (m) => ({ op: 'replace', id: 'dmgPreventSomeOpp', event: 'damage', who: 'opponents', how: 'subtract', n: num(m[1]), toYou: true, prevention: true }) },
+    // Djeru, With Eyes Open: "If a source would deal damage to a planeswalker you control, prevent 1 of that damage." (victimWords)
+    { re: /^If a source would deal damage to a planeswalker you control, prevent (one|two|three|\d+) of that damage\.?$/i,
+      make: (m) => ({ op: 'replace', id: 'dmgPreventSomePw', event: 'damage', who: 'any', how: 'subtract', n: num(m[1]), toYou: true, victimWords: 'planeswalker', prevention: true }) },
     { re: /^If a source would deal damage to you or a permanent you control, prevent half that damage, rounded up\.?$/i,
       make: () => ({ op: 'replace', id: 'dmghalfYou', event: 'damage', who: 'any', how: 'half', toYou: true, prevention: true }) },
     // Horizon Explorer, Gond Gate: "Lands you control enter untapped.", "Gates you control enter untapped."
@@ -32078,6 +32312,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\.?$/i,
       make: (m) => Object.assign({ op: 'replace', id: 'dieExileOpp', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
         how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'] }, m[1] ? { nontoken: true } : {}) },
+    // Lorcan, Warlock Collector: "If a Warlock you control would die, exile it instead."
+    { re: /^If an? ([A-Z][a-z]+) you control would die, exile it instead\.?$/,
+      make: (m) => ({ op: 'replace', id: 'dieExileYours' + m[1], event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+        how: 'toZone', zone: 'exile', who: 'you', what: 'creature', whatAny: [m[1].toLowerCase()] }) },
     // Bruvac the Grandiloquent: "If an opponent would mill one or more cards, they mill twice that many cards instead."
     { re: /^If an opponent would mill one or more cards, they mill twice that many cards instead\.?$/i,
       make: () => ({ op: 'replace', id: 'millDouble', event: 'mill', who: 'opponents', how: 'double' }) },
@@ -32637,6 +32875,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Barbara Wright: "Sagas you control have read ahead." (grantReadAhead)
       { re: /^Sagas you control have read ahead\.?$/i, eff: { op: 'grantReadAhead' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
+      // Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost."
+      { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment) spell from your hand without paying its mana cost\.?$/i,
+        make: (m) => ({ op: 'freeFromHandOnce', filter: m[1].toLowerCase() }), auto: true },
       // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
       { re: /^Players can'?t draw cards\.?$/i, eff: { op: 'noDraws', who: 'each' }, auto: true },
       // Narset, Parter of Veils, Leovold, Spirit of the Labyrinth: "Each opponent can't draw more than one card each turn."
@@ -32691,6 +32932,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       { re: /^You may plot nonland cards from the top of your library\.?$/i, make: () => ({ op: 'topPlot', nonland: true }), auto: true },
       // Doc Aurlock: "Plotting cards from your hand costs {2} less."
       { re: /^Plotting cards from your hand costs \{(\d+)\} less\.?$/i, make: (m) => ({ op: 'plotCostMod', amount: -(+m[1]) }), auto: true },
+      /* Bohn, Beguiling Balladeer, Dream Devourer: "Each nonland card in your hand without foretell has foretell. Its
+         foretell cost is equal to its mana cost reduced by {2}." (grantForetell) */
+      { re: /^Each nonland card in your hand without foretell has foretell\. Its foretell cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
+        make: (m) => ({ op: 'grantForetell', reduce: +m[1] }), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
@@ -33159,6 +33404,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         make: (m) => (!/mana spent/i.test(m[1]) && (plainCount(countOf(m[1])) || (countOf(m[1]) || {}).spellsCastWords || (countOf(m[1]) || {}).commanderCasts || /^creature that died this turn$/i.test(m[1])) ? { op: 'noop' } : null), auto: true },
       { re: /^(?:CARDNAME|This (?:creature|permanent|land|artifact|enchantment|Vehicle)|It) enters(?: the battlefield)? with (?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|X|twice X|\d+) [+\-0-9/a-z' ]+ counters? on (?:it|him|her|them)\.?$/i,
         eff: { op: 'noop' }, auto: true },
+      // Polukranos, Unchained: "… It escapes with twelve +1/+1 counters on it instead." (escapeN, with the card-level scan)
+      { re: /^CARDNAME enters with (?:six|seven|eight|nine|ten|\d+) \+1\/\+1 counters on it\. It escapes with (?:\w+) \+1\/\+1 counters on it instead\.?$/i,
+        eff: { op: 'noop' }, auto: true },
       // with a condition the card-level scan could read
       { re: /^(?:CARDNAME|This creature) enters(?: the battlefield)? with (?:a|an|one|two|three|four|\d+) [+\-0-9/a-z]+ counters? on it if ([^.]+)\.?$/i,
         make: (m) => (condOf(m[1]) ? { op: 'noop' } : null), auto: true },
@@ -33333,6 +33581,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Khârn the Betrayer: "If damage would be dealt to CARDNAME, prevent that damage and an opponent of your choice gains control of it."
       { re: /^If damage would be dealt to (?:CARDNAME|this creature), prevent that damage and an opponent of your choice gains control of (?:it|him|her)\.?$/i,
         eff: { op: 'damageGivesControl' }, auto: true },
+      // Polukranos, Unchained: "If damage would be dealt to CARDNAME while it has a +1/+1 counter on it, prevent that damage and remove that many +1/+1 counters from it."
+      { re: /^If damage would be dealt to CARDNAME while it has a \+1\/\+1 counter on it, prevent that damage and remove that many \+1\/\+1 counters from it\.?$/i,
+        eff: { op: 'damageEatsCounters' }, auto: true },
       /* Anti-Venom: "If damage would be dealt to CARDNAME, prevent that damage and put that many +1/+1
          counters on him"; Phytohydra: "… put that many +1/+1 counters on it instead"; Jared Carthalion:
          "… while you're the monarch, …" (damageToCounters) */
@@ -33516,7 +33767,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Llawan, Cephalid Empress: "Your opponents can't cast blue creature spells." (opponentsCantCastKind)
       { re: /^Your opponents can'?t cast ((?:white|blue|black|red|green) (?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase(), who: 'opponents' }), auto: true },
-      { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker)) spells\.?$/i,
+      // (Codie, Vociferous Codex: "You can't cast permanent spells.")
+      { re: /^You can'?t cast ((?:non)?(?:creature|artifact|enchantment|instant|sorcery|planeswalker|permanent)) spells\.?$/i,
         make: (m) => ({ op: 'youCantCast', words: m[1].toLowerCase() }), auto: true },
       // Dosan the Falling Leaf: "Players can cast spells only during their own turns."
       { re: /^Players can cast spells only during their own turns\.?$/i, eff: { op: 'castOnlyOwnTurn' }, auto: true },
@@ -34058,6 +34310,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return Object.assign({ op: 'playFrom', zone: 'graveyard', what: 'spell', duringYourTurn: true, oncePerTurn: true, filter: filter.toLowerCase() || null },
             m[2] ? { maxMv: +m[2] } : {}, /exile it instead/.test(m[0]) ? { exileAfter: true } : {}, /enters tapped/.test(m[0]) ? { enterTapped: true } : {});
         }, auto: true },
+      /* The Eighth Doctor: "Once during each of your turns, you may play a historic land or cast a historic permanent spell
+         from your graveyard. If you do, it gains "If this permanent would leave the battlefield, exile it instead of
+         putting it anywhere else."" — one leave for either; what it lets in leaves for exile (leaveExileAfter) */
+      { re: /^Once during each of your turns, you may play a historic land or cast a historic permanent spell from your graveyard\. If you do, it gains "If this permanent would leave the battlefield, exile it instead of putting it anywhere else\."$/,
+        eff: { op: 'playFrom', zone: 'graveyard', what: 'any', landFilter: 'historic land', spellFilter: 'historic permanent', duringYourTurn: true, oncePerTurn: true, leaveExileAfter: true }, auto: true },
       /* Arcade Gannon: "Once during each of your turns, you may cast an artifact or Human spell from your graveyard with
          mana value less than or equal to the number of quest counters on Arcade Gannon." — counted as it is cast (maxMvCounters) */
       { re: /^Once during each of your turns, you may cast (?:a|an) ((?:[A-Za-z]+ )*?)spell from your graveyard with mana value less than or equal to the number of ([a-z]+) counters on CARDNAME\.$/,
@@ -36974,6 +37231,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       ap.turnsTaken = (ap.turnsTaken || 0) + 1;
       // The Second Doctor: "during their next turn" — this one; one spent already is over (noAttackOn)
       if (ap.noAttackOn) { ap.noAttackOn = ap.noAttackOn.filter(r => r.on == null); for (const r of ap.noAttackOn) r.on = this.turn; if (!ap.noAttackOn.length) ap.noAttackOn = null; }
+      // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" — this one (silenceOn)
+      if (ap.silenceOn) { ap.silenceOn = ap.silenceOn.filter(r => r.on == null); for (const r of ap.silenceOn) r.on = this.turn; if (!ap.silenceOn.length) ap.silenceOn = null; }
       /* "until your next turn" is over, and what phased out phases back in */
       if (ap.protection && ap.protection.setTurn < this.turn) ap.protection = null;
       if (ap.lifeLocked && ap.lifeLocked.setTurn < this.turn) ap.lifeLocked = null;
@@ -37551,7 +37810,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       /* Cards set aside earlier that are now yours to cast: plotted last
          turn, or left in exile by warp. */
       const waiting = (z.exile || []).filter(o =>
-        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId);
+        (o.plottedTurn != null && o.plottedTurn < this.turn) || o.warpExiled || o.adventureBy === playerId || (o.foretold && o.foretold.turn < this.turn));
       if (this.activePlayer && this.activePlayer.id === playerId && this.isMain &&
           this.stackEmpty && p.landsPlayed < this.landAllowance(p)) {
         // (Coram, the Undertaker: other players' graveyards too; Grolnok, the Omnivore: your own cards in exile with croak counters on them)
@@ -37588,6 +37847,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             out.push({ kind: 'cycle', objId: o.id });
           } else if (use.kind === 'plot') {
             if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'plot', objId: o.id });
+          } else if (use.kind === 'foretell') {
+            // (allowed whenever you have priority on your turn; offered as playable in a main phase only, not to stop every step)
+            if (!this._sorcerySpeedBlock(playerId)) out.push({ kind: 'foretell', objId: o.id });
           } else if (use.kind === 'suspend') {
             out.push({ kind: 'suspend', objId: o.id });
           } else if (use.kind === 'encore') {
@@ -37799,6 +38061,143 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
       }
       return { produces, any, amount: Math.max(amount, (produces.size || any) ? 1 : 0) };
+    }
+
+    /** The colours "one mana of any color" may be right now: all five, or only those of the commander's identity,
+        or the ones the card allows (Omnath, Locus of All: allowedColors). The addManaAny op and the choice offered
+        to a person both read it here. */
+    _manaAnyPool(e, pid) {
+      const allowed = e.allowedColors ? e.allowedColors.filter(c => MANA.COLORS.includes(c))
+        : e.commanderIdentity ? MANA.COLORS.filter(c => this._commanderColors(pid).has(c)) : MANA.COLORS;
+      return allowed.length ? allowed : MANA.COLORS.slice();
+    }
+
+    /** Which of "Add {W}{W}, {W}{U}, or {U}{U}" a manaChoice asks for: a whole bundle by its letters ('WU'), else
+        the first that has the colour named ('U'), else the first. */
+    _manaChoiceBundle(e, want) {
+      const choices = e.choices || [];
+      const letters = (ch) => ch.map(s => MANA.COLORS.concat('C').find(x => s.includes(x)) || 'C').join('');
+      if (want) {
+        const exact = choices.find(ch => letters(ch) === want);
+        if (exact) return exact;
+        if (want.length === 1) { const hit = choices.find(ch => ch.some(s => s.includes(want))); if (hit) return hit; }
+      }
+      return choices[0] || [];
+    }
+
+    /**
+     * What a person tapping this mana ability by hand gets to choose between, as one choice that goes with the
+     * tap (a mana ability can't stop to ask): each option a key the engine takes as the manaChoice ('R'; a whole
+     * bundle such as 'WW' or 'UB'), and the mana it adds. Empty when there is nothing to choose: one option only,
+     * or mana chosen another way (a colour for each of several: manaSplit). Read off the same helpers the
+     * addMana ops use, so what is offered is what they accept.
+     */
+    manaChoicesFor(pid, o, ab) {
+      if (!ab || !o) return [];
+      const L = MANA.COLORS.concat('C');
+      const letter = (s) => L.find(x => String(s).includes(x)) || 'C';
+      const sym = (c, k) => ('{' + c + '}').repeat(Math.max(1, k || 1));
+      const amountOf = (v) => (typeof v === 'number' ? v : v && typeof v === 'object' ? Math.max(0, this._countValue(v, pid, o)) : 1);
+      const out = [];
+      const add = (key, mana) => { if (key && !out.some(x => x.key === key)) out.push({ key, mana }); };
+      let effects = [];
+      const walk = (list) => {
+        for (const e of (list || [])) {
+          if (!e) continue;
+          if (e.op === 'ifCond') { walk(this._condMet(e.cond, { controller: pid, obj: o }) ? (e.then || []) : (e.otherwise || [])); continue; }
+          if (e.op === 'sequence') { walk(e.list); continue; }
+          effects.push(e);
+        }
+      };
+      walk(ab.effects);
+      // "Add two mana in any combination of {U}, {B}, and/or {R}" (Relic of Sauron): one effect a mana — each
+      // combination a bundle, the k-th effect taking the k-th letter
+      const singles = effects.filter(e => e.op === 'addManaChoice' && e.n == null && (e.choices || []).every(ch => ch.length === 1));
+      if (singles.length > 1 && singles.length <= 5 && singles.every(e => JSON.stringify(e.choices) === JSON.stringify(singles[0].choices))) {
+        const opts = singles[0].choices.map(ch => letter(ch[0]));
+        const combos = (from, left) => (left === 0 ? [''] : [].concat(...opts.slice(from).map((c, k) => combos(from + k, left - 1).map(r => c + r))));
+        for (const k of combos(0, singles.length)) add(k, k.split('').map(c => sym(c)).join(''));
+        return out.length > 1 ? out : [];
+      }
+      // "Choose a color. Add an amount of mana of that color equal to your devotion to that color." (Nykthos): the
+      // mana it adds says more of what is worth choosing than the bare colour
+      const ranked = effects.filter(e => e.op !== 'chooseColor').concat(effects.filter(e => e.op === 'chooseColor'));
+      for (const e of ranked) {
+        let got = null;
+        if (e.op === 'addManaAny') {
+          if (e.who === 'target' || e.distinct) continue;
+          const amt = e.amount === 'X' ? null : amountOf(e.amount);
+          // "three mana in any combination of colors": a colour for each, sent as a split
+          if (amt == null || (amt > 1 && !e.sameColor)) continue;
+          if (amt <= 0) return [];
+          got = this._manaAnyPool(e, pid).map(c => [c, sym(c, amt)]);
+        } else if (e.op === 'addManaAmong') {
+          const amt = e.ifCounter && (Number((o.counters || {})[e.ifCounter.counter]) || 0) > 0 ? e.ifCounter.amount : (Number(e.amount) || 1);
+          got = this._manaAmong(e, o, pid).map(c => [c, sym(c, amt)]);
+        } else if (e.op === 'addManaChoice') {
+          if (e.n != null) {
+            // Brigid, Doun's Mind: "X {G} or X {W}" — all of one; any other split is a number sent with it
+            if (!e.oneColor) continue;
+            const k = e.n === 'X' ? 1 : amountOf(e.n);
+            // (no mana to make: nothing to choose)
+            if (k <= 0) return [];
+            got = e.choices.map(ch => [letter(ch[0]), sym(letter(ch[0]), k)]);
+          } else got = e.choices.map(ch => { const ls = ch.map(letter); return [ls.join(''), ls.map(c => sym(c)).join('')]; });
+        } else if (e.op === 'addManaX' && !e.symbol) {
+          // (Food Chain: as much as the creature exiled to pay is worth, not known yet — the colour is still asked)
+          const later = e.amount === 'triggerAmount' || !!(e.amount && e.amount.ofExiledCost);
+          const k = later ? 1 : this._manaXValue(e, o, pid);
+          if (k <= 0) return [];
+          got = MANA.COLORS.map(c => [c, sym(c, k)]);
+        } else if (e.op === 'addManaDevotion') {
+          got = MANA.COLORS.map(c => [c, this.devotionOf(pid, c)]).filter(x => x[1] > 0).map(([c, k]) => [c, sym(c, k)]);
+        } else if (e.op === 'addManaChosen' && e.orSymbol) {
+          const col = o.chosenColor;
+          got = [[e.orSymbol, sym(e.orSymbol, e.n)]].concat(col && col !== e.orSymbol ? [[col, sym(col, e.n)]] : []);
+        } else if (e.op === 'chooseColor') {
+          got = MANA.COLORS.map(c => [c, sym(c)]);
+        }
+        if (!got) continue;
+        for (const [key, mana] of got) add(key, mana);
+        // one choice goes with a tap: the first effect that offers one
+        break;
+      }
+      return out.length > 1 ? out : [];
+    }
+
+    /** manaChoicesFor, by the index tapForMana takes (the printed mana abilities, then the ones it was given). */
+    manaChoicesAt(pid, o, index) {
+      const c = this.characteristics(o);
+      if (c && c.setMana && !c.abilitiesLost) return [];
+      return this.manaChoicesFor(pid, o, this.manaAbilitiesOf(o)[index || 0]);
+    }
+
+    /** A manaChoice is legal when it is one of those offered, or, the way the auto-tapper and bots name it, a
+        colour one of them has; anything else is ignored (the engine chooses as it would have). */
+    _legalManaChoice(pid, o, ab, want) {
+      if (want == null || want === '') return undefined;
+      if (typeof want !== 'string' || !/^[WUBRGC]{1,6}$/.test(want)) return undefined;
+      const opts = this.manaChoicesFor(pid, o, ab);
+      if (!opts.length) return want;
+      if (opts.some(x => x.key === want)) return want;
+      if (want.length === 1 && opts.some(x => x.key.includes(want))) return want;
+      return undefined;
+    }
+
+    /* The table's view of a permanent's mana choices, for its controller only: each mana ability (by
+       tapForMana's index) that would ask, with what it offers */
+    _manaChoicesView(o, playerId) {
+      if (o.zone !== 'battlefield' || o.controller !== playerId) return null;
+      const list = this.manaAbilitiesOf(o);
+      if (!list.length) return null;
+      const CHOOSY = /^(addManaAny|addManaAmong|addManaChoice|addManaX|addManaDevotion|addManaChosen|chooseColor|ifCond|sequence)$/;
+      const out = [];
+      list.forEach((ab, i) => {
+        if (!(ab.effects || []).some(e => e && CHOOSY.test(e.op))) return;
+        const options = this.manaChoicesAt(playerId, o, i);
+        if (options.length > 1) out.push({ i, options });
+      });
+      return out.length ? out : null;
     }
 
     /**
@@ -38516,7 +38915,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (item.via === 'bestow') o.bestowed = true;
           }
         }
+        // (Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." — known as it enters)
+        o._escaping = item.via === 'escape';
         this.moveObject(o, 'battlefield', { fromStack: true, spellItem: item });
+        o._escaping = false;
         // (sent somewhere else as it would have entered: attached to nothing)
         if (o.zone !== 'battlefield' && o.attachedTo) {
           const h1 = this.obj(o.attachedTo);
@@ -39362,7 +39764,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
          transformed into Ghost-Spider it is the same creature */
       if (o.impulseWhileSrc) {
         const s0 = this.obj(o.impulseWhileSrc);
-        if (!s0 || s0.zone !== 'battlefield' || s0.controller !== playerId) return false;
+        // (Intet, the Dreamer: "for as long as Intet remains on the battlefield" — whoever controls it: impulseWhileHere)
+        if (!s0 || s0.zone !== 'battlefield' || (!o.impulseWhileHere && s0.controller !== playerId)) return false;
       }
       return !(o.impulseBeforeEnd && o.impulseUntil === this.turn && this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
     }
@@ -39540,6 +39943,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Nashi, Moon Sage's Scion: "one of those cards" — a land played is the one
       if (o.zone === 'exile') this._impulseUsed(o, playerId);
       this._landPlayed(p, o);
+      // (The Eighth Doctor: a historic land played this way leaves for exile — leaveExileAfter)
+      if (leave && leave.leaveExileAfter && o.zone === 'battlefield') o.leaveExile = true;
       this.checkStateBasedActions();
       /* Playing a land is a special action and uses no stack, but a land that
          does something as it enters has just triggered. Those triggers go on
@@ -39683,7 +40088,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (e.firstEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, words))) continue;
             // Monk Class: the second spell this turn (counting the ones already cast)
             // (Momo, Friendly Flier: "the first non-Lemur creature spell with flying" — the earlier ones counted by all of it: nthKw)
-            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!words || words === 'spell' || this._cardFitsWords(x, words)) &&
+            // Kadena, Slinking Sorcerer: "The first face-down creature spell" — this one face down, and none before it (faceDownOnly)
+            if (e.faceDownOnly && !o.faceDown) continue;
+            if (e.nthEachTurn && ((this.player(pid) || {}).spellObjsThisTurn || []).filter(x => x !== o && (!e.faceDownOnly || x._castFaceDown) && (!words || words === 'spell' || this._cardFitsWords(x, words)) &&
               (!e.nthKw || ((!e.withKeyword || (((x.analysis() || {}).keywordSet) || new Set()).has(e.withKeyword)) &&
                 (!e.notCreatureType || !this._hasCreatureType(x, e.notCreatureType))))).length !== e.nthEachTurn - 1) continue;
             // Momo, Friendly Flier: "non-Lemur"
@@ -40552,6 +40959,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Hope of Ghirapur: "Until your next turn, … can't cast noncreature spells" (silenceUntil)
       if (!a.isCreature && ((this.player(playerId) || {}).silenceUntil || []).some(x => x.noncreature))
         return { ok: false, reason: "You can't cast noncreature spells until the next turn of the player who stopped you." };
+      // Azor, the Lawbringer: "can't cast instant or sorcery spells during that player's next turn" (silenceOn)
+      if ((a.isInstant || a.isSorcery) && ((this.player(playerId) || {}).silenceOn || []).some(x => x.on === this.turn && x.instantSorcery))
+        return { ok: false, reason: "You can't cast instant or sorcery spells this turn." };
       // (an offering is cast any time you could cast an instant — CR 702.48a)
       const instantSpeed = midway || (!this._sorceryOnly(playerId) && (a.isInstant || a.has('flash') || opts === 'offering' || this._flashFor(playerId, o)));
       // Saproling Symbiosis: flash, for {2} more
@@ -41179,6 +41589,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const pc = String(a.manaCost || '').replace(/\{X\}/gi, '');
         out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
       }
+      /* Bohn, Beguiling Balladeer: "Each nonland card in your hand without foretell has foretell. Its foretell cost is
+         equal to its mana cost reduced by {2}." — the cost kept with the card once foretold (grantForetell) */
+      if (o.zone === 'hand' && !a.isLand && this._foretellWindow(playerId, o) &&
+          !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^foretell$/i.test(ab.keyword || ''))) {
+        const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
+        if (gf) out.push({ kind: 'foretell', cost: '{2}', reduce: gf.reduce || 0, label: 'Foretell {2}' });
+      }
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
         escape: null, unearth: 'exile', embalm: 'exile', eternalize: 'exile',
         madness: null };
@@ -41228,6 +41645,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (pm && pm.amount < 0) pc = this._addGeneric(pc, pm.amount) || '';
           }
           out.push({ kind: 'plot', cost: pc, label: 'Plot ' + (pc || '{0}') });
+        }
+        /* Foretell (CR 702.143): during your turn, pay {2} and exile it face down; cast it on a later turn for its
+           foretell cost */
+        if (o.zone === 'hand' && arg && k === 'foretell' && this._foretellWindow(playerId, o)) {
+          out.push({ kind: 'foretell', cost: '{2}', foretellCost: arg, label: 'Foretell {2}' });
         }
         /* Awaken N—{cost} (CR 702.113): cast for that cost, and the spell
            also puts N +1/+1 counters on a land you control, which becomes a
@@ -41591,6 +42013,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const ab = (a.abilities || []).find(x => x.kind === 'castModifier' && /^overload$/i.test(x.keyword || '') && x.arg);
         if (ab) out.push({ kind: 'cast', via: 'overload', cost: ab.arg, overload: true, label: 'Overload ' + ab.arg });
       }
+      /* Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand
+         without paying its mana cost." — a way to cast it, once each turn for each one that grants it (freeFromHandOnce) */
+      if (o.zone === 'hand' && !a.isLand && this.activePlayer && this.activePlayer.id === playerId) {
+        const zt = this.battlefield.find(s => s.controller === playerId && !s.phasedOut && s._freeHandOnceTurn !== this.turn &&
+          this._staticOp(s, 'freeFromHandOnce') && this._cardFitsWords(o, this._staticOp(s, 'freeFromHandOnce').filter || 'card'));
+        if (zt) out.push({ kind: 'cast', via: 'freeHandOnce', cost: '', srcId: zt.id, label: `Cast it without paying its mana cost (${zt.name})` });
+      }
       if (o.zone === 'exile' && o.freeCastBy === playerId && (o.freeCastTurn === this.turn || (o.freeCastUntil != null && o.freeCastUntil >= this.turn)) && !a.isLand) {
         out.push({ kind: 'cast', via: 'free', cost: '', label: 'Cast it for free' });
       }
@@ -41612,8 +42041,38 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (o.warpExiled) {
           out.push({ kind: 'cast', via: 'warpExile', cost: a.manaCost || '', label: 'Cast (warped)' });
         }
+        // Foretell: from the turn after, for the foretell cost it was foretold with (Bohn's: its mana cost, {2} less)
+        if (o.foretold && o.foretold.turn < this.turn) {
+          const fc = o.foretold.cost != null ? o.foretold.cost : this._addGeneric(a.manaCost || '', -(o.foretold.reduce || 0));
+          out.push({ kind: 'cast', via: 'foretell', cost: fc, label: 'Cast (foretold) ' + (fc || '{0}') });
+        }
       }
       return out;
+    }
+    /** Foretell (CR 702.143a): "During your turn" — a card of this player's own hand, any time they have priority on their turn. */
+    _foretellWindow(playerId, o) {
+      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer && this.activePlayer.id === playerId);
+    }
+    /**
+     * Foretell (CR 702.143a): a special action — pay {2} and exile the card from your hand face down. From a later
+     * turn on, it may be cast from exile for its foretell cost (altUses: via 'foretell').
+     */
+    foretellCard(playerId, objId, opts) {
+      const o = this.obj(objId);
+      if (!o || o.zone !== 'hand' || o.owner !== playerId) return this.fail('That is not in your hand.');
+      const use = this.altUsesFor(playerId, objId).find(x => x.kind === 'foretell');
+      if (!use) return this.fail('That card cannot be foretold now (only during your turn).');
+      if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return this.fail('You do not have priority.');
+      if (!this.payMana(playerId, use.cost, Object.assign({ auto: true }, opts || {}))) return this.fail(`Not enough mana to foretell (${use.cost}).`);
+      this.moveObject(o, 'exile');
+      if (o.zone !== 'exile') return true;
+      o.faceDownExile = true; o.lookableBy = playerId;
+      o.foretold = { turn: this.turn, cost: use.foretellCost != null ? use.foretellCost : null, reduce: use.reduce || 0 };
+      this.logEvent('rules', `${this.player(playerId).name} foretells a card.`);
+      // Dream Devourer: "Whenever you foretell a card"
+      this._fire('youForetell', playerId, { object: o, playerId });
+      this._resetPriority();
+      return true;
     }
 
     /** The Great Work: this turn's leave for this player to cast this card from the graveyard it is in, if any. */
@@ -42637,6 +43096,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (!ok && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.face = was; so._chr = null; }
         return ok;
       }
+      /* Morph, disguise: turned face down to be cast that way — a cast that doesn't happen (not enough mana) leaves
+         the card face up, as it was */
+      if (opts.via && !opts._fdSet) {
+        const so = this.obj(objId);
+        if (so && !so.faceDown && so.zone !== 'battlefield' && so.zone !== 'stack') {
+          const ok = this.castSpell(playerId, objId, Object.assign({}, opts, { _fdSet: true }));
+          if (!ok && so.faceDown && so.zone !== 'stack' && !(this.pendingChoice && this.pendingChoice.objId === so.id)) { so.faceDown = false; so.faceDownWard = null; so._chr = null; }
+          return ok;
+        }
+      }
       /* Run Away Together: "two target creatures controlled by different
          players" — a pair the same player controls is no legal choice */
       {
@@ -42817,6 +43286,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (via && via.via === 'graveCreature') p.graveCreatureTurn = null;
         // Maralen, Fae Ascendant: "Once each turn" — used up
         if (via && via.via === 'exiledWithFree') { const mx = this.obj(via.srcId); if (mx) mx._castExiledTurn = this.turn; }
+        // Zaffai and the Tempests: "Once during each of your turns" — used up (freeHandOnce)
+        if (via && via.via === 'freeHandOnce') { const zx = this.obj(via.srcId); if (zx) zx._freeHandOnceTurn = this.turn; }
         // Kotis, Sibsig Champion: "Once during each of your turns" — used up (graveCastExile)
         if (via && via.via === 'graveExile') { const kx = this.obj(via.srcId); if (kx) kx._graveExileTurn = this.turn; }
         // Conduit of Worlds: "If you do, you can't cast additional spells this turn."
@@ -43219,6 +43690,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
          spell goes afterwards */
       o._enterFinality = null;
       o._enterTappedCast = null;
+      o._leaveExileCast = null;
       o._enterPlusCounters = 0;
       if ((o.zone === 'graveyard' || o.zone === 'library') && !opts.via && !opts.free) {
         const lv = this._playFromRule(playerId, o, 'spell');
@@ -43245,6 +43717,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (lv.exileAfter) o._exileFromStack = true;
           // Edgar, Master Machinist: "that artifact enters tapped" (enterTapped)
           if (lv.enterTapped) o._enterTappedCast = true;
+          // The Eighth Doctor: "it gains "If this permanent would leave the battlefield, exile it instead …"" (leaveExileAfter)
+          if (lv.leaveExileAfter) o._leaveExileCast = true;
           // Muldrotha, the Gravetide: the type it was cast as, chosen with the cast when it had a choice (permanentType)
           if (lv.perType) {
             const pick = (((opts.choices || {}).permanentType || {}).picks || [])[0];
@@ -43469,6 +43943,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!item.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (its mana value as it was cast, X included: Rhino, Barreling Brute — castMvNoted)
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
+      // (Kadena, Slinking Sorcerer: whether it was cast face down, whatever it is later — castFaceDown)
+      o._castFaceDown = !!o.faceDown;
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       this._fire('opponentFirstSpell', null, Object.assign({ except: playerId, caster: p }, castData));
       /* "Whenever this creature becomes the target of a spell": each
@@ -44310,6 +44786,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o._enterFinality) { o._enterFinality = null; if (o.enteredFrom === 'stack') this.addCounters(o, 'finality', 1); }
       // Edgar, Master Machinist: "If you cast a spell this way, that artifact enters tapped."
       if (o._enterTappedCast) { o._enterTappedCast = null; if (o.enteredFrom === 'stack') o.tapped = true; }
+      if (o._leaveExileCast) { o._leaveExileCast = null; if (o.enteredFrom === 'stack') o.leaveExile = true; }
       /* entering with counters is having them put on it (CR 122.6): Hardened Scales and Doubling
          Season change how many, once for the counters it enters with and any extra ones of the kind
          (Metallic Mimic) — put on together below (enterCounters) */
@@ -44317,7 +44794,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (a.entersWithCounters && !(a.entersWithCounters.ifKicked && !o.wasKicked) &&
           !(a.entersWithCounters.cond && !this._condMet(a.entersWithCounters.cond, { controller: o.controller, obj: o }))) {
         // "enters with X +1/+1 counters" resolves against the X actually paid
-        const raw = a.entersWithCounters.n;
+        // (Polukranos, Unchained: "It escapes with twelve +1/+1 counters on it instead." — escapeN)
+        const raw = o._escaping && a.entersWithCounters.escapeN != null ? a.entersWithCounters.escapeN : a.entersWithCounters.n;
         const n = (raw === 'X') ? (o.chosenX || 0) : (raw === 'kicked') ? (o.kickedTimes || 0)
           // Banquet Guests: "twice X"
           : (raw && typeof raw === 'object' && raw.xTimes) ? (o.chosenX || 0) * raw.xTimes
@@ -44620,8 +45098,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!a) return;
       const hadPlus = (o._diedCounters && o._diedCounters['+1/+1']) || 0;
       const hadMinus = (o._diedCounters && o._diedCounters['-1/-1']) || 0;
-      const undying = a.keywordSet.has('undying') && hadPlus === 0;
-      const persist = a.keywordSet.has('persist') && hadMinus === 0;
+      const had = (k) => a.keywordSet.has(k) || (o._leftKw || []).includes(k);
+      const undying = had('undying') && hadPlus === 0;
+      const persist = had('persist') && hadMinus === 0;
       if (undying || persist) {
         this.pendingTriggers.push({
           id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, controller: o.controller,
@@ -44766,7 +45245,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const accWas = this._spentAcc;
       this._spentAcc = {};
       this._costExiledNow = null;
+      // (Verrak, Warped Sengir: "if life was paid to activate it" — the life paid, Phyrexian mana's too: lifePaid)
+      const lifeAccWas = this._costLifeAcc;
+      this._costLifeAcc = 0;
       const payOk = this._payAbilityCost(playerId, o, ab, opts);
+      const lifePaid = this._costLifeAcc;
+      this._costLifeAcc = lifeAccWas;
       // Osgir, the Reconstructor: "the exiled card" — the one exiled to pay (costExiled)
       const costExiled = this._costExiledNow;
       this._costExiledNow = null;
@@ -44806,6 +45290,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
       if (isMana) {
         // mana abilities do not use the stack (CR 605.3a)
+        // (the colour sent with it, kept only when it is one this ability offers)
+        if (opts.manaChoice != null) opts = Object.assign({}, opts, { manaChoice: this._legalManaChoice(playerId, o, ab, opts.manaChoice) });
         /* Food Chain: the creature exiled to pay is what the mana is counted
            from, so that price is paid first and remembered */
         if (ab.cost && ab.cost.exileOwn) {
@@ -44853,7 +45339,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Rings of Brighthearth, Illusionist's Bracers: "whenever you activate an ability" (not a mana ability)
       if (!opts.copyOf) {
         this._fire('youActivateAbility', playerId, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
-          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom });
+          label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid });
         this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
       }
       this.emit('sfx', 'cast');
@@ -46135,6 +46621,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return true;
       }
       const a = o.analysis();
+      // the colour (or bundle) sent with the tap, kept only when it is one this ability offers
+      manaChoice = this._legalManaChoice(playerId, o, this.manaAbilitiesOf(o)[abilityIndex || 0], manaChoice);
       /* A land that only taps for mana because something else says so — an
          Urborg, a Chromatic Lantern — has nothing printed to activate, so
          the mana it was handed is used directly. */
@@ -46815,6 +47303,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o.goadedBy != null) out.push(o.goadedBy);
       // (Rendmaw, Creaking Nest: "goaded for the rest of the game")
       if (o.goadForever != null && !out.includes(o.goadForever)) out.push(o.goadForever);
+      // (Vislor Turlough: "goaded for as long as they control it" — the control effect that carries the goad, while it holds)
+      for (const e of (o.effects || [])) if (e && e.goadBy != null && e.control === o.controller && !out.includes(e.goadBy)) out.push(e.goadBy);
       if ((o.zone !== 'battlefield' && !leaving) || !(this.characteristics(o) || {}).isCreature) return out;
       for (const s of this.battlefield) {
         if (s.phasedOut || s.controller === o.controller || out.includes(s.controller)) continue;
@@ -48128,6 +48618,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
     _replaceMatches(ef, src, ev) {
       if (ef.event !== ev.kind) return false;
+      // Far Fortune, End Boss: "Max speed — If a source you control would deal damage …" — only while that holds (cond)
+      if (ef.cond && !this._condMet(ef.cond, { controller: src.controller, obj: src })) return false;
       const who = ef.who || 'you';
       // counters on a player only for what says "or player"
       if (ev.kind === 'counters' && ev.player && !ef.players) return false;
@@ -48196,6 +48688,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (ef.sourceId && !(ev.source && ev.source.id === ef.sourceId && ev.source.zone === 'battlefield' && ev.source.ts === ef.sourceTs)) return false;
         // Gisela: "to you or a permanent you control"
         if (ef.toYou && ev.victimController !== src.controller) return false;
+        // Djeru, With Eyes Open: "to a planeswalker you control" (victimWords)
+        if (ef.victimWords && !(ev.victimId && !ev.toPlayer && this.obj(ev.victimId) && this._cardFitsWords(this.obj(ev.victimId), ef.victimWords))) return false;
         // a prevention is no prevention when damage can't be prevented
         if (ef.prevention && this._noPrevention(ev.combat)) return false;
         // Fiendish Duo: "to an opponent" — the player, not their permanents
@@ -49367,6 +49861,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (cond.what === 'nontoken') return !src.isToken;
           // "if this permanent is an enchantment": what it is right now
           if (String(cond.what).startsWith('type:')) return (src.analysis() && (src.analysis().types || []).some(t => t.toLowerCase() === cond.what.slice(5))) || false;
+          // Kellan, Planar Trailblazer: "If Kellan is a Scout" — its creature types right now
+          if (String(cond.what).startsWith('subtype:')) return src.zone === 'battlefield' && this._hasCreatureType(src, cond.what.slice(8));
           const att = (src.attachments || []).map(id => this.obj(id)).filter(Boolean);
           const kinds = att.map(x => O.analyze(x.card, x.face) || {});
           if (cond.what === 'equipped') return kinds.some(k => (k.subtypes || []).includes('Equipment'));
@@ -49682,7 +50178,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'itMv': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && (t.kind === 'object' || t.kind === 'stack'));
           const td = (ctx && ctx.triggerData) || {};
-          let it = tg && (tg.kind === 'stack' ? (this.stack.find(x => x.id === tg.id) || {}).obj : this.obj(tg.id));
+          let it = cond.ofTrigger && td.objectId ? this.obj(td.objectId) : null;
+          if (!it) it = tg && (tg.kind === 'stack' ? (this.stack.find(x => x.id === tg.id) || {}).obj : this.obj(tg.id));
           if (!it) it = (this._lastAffected && this.obj(this._lastAffected.id)) || (td.objectId && this.obj(td.objectId)) || null;
           if (!it || !it.card) return false;
           const mv = it.card.cmc || 0;
@@ -49692,6 +50189,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const h = this.turnHistory || {};
           // Tinybones, Trinket Thief: "if an opponent discarded a card this turn" (discardsBy)
           if (cond.who === 'opponent') return !!me && this.opponentsOf(me.id).some(q => ((h.discardsBy || {})[q.id] || 0) > 0);
+          // Typhoid Mary, Fractured: "If you discarded a card this turn"
+          if (cond.who === 'you') return !!me && ((h.discardsBy || {})[me.id] || 0) > 0;
           return (h.discards || 0) > 0;
         }
         case 'didThisWay': {
@@ -49833,6 +50332,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             : this.battlefield.filter(o => o.attacking === pid && o.id !== td.objectId);
           return !others.length;
         }
+        // Agrus Kos, Spirit of Justice: "If it's suspected" — the creature targeted
+        case 'itSuspected': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const it = tg && this.obj(tg.id);
+          return !!(it && it.zone === 'battlefield' && (it.effects || []).some(f => f && f.suspected));
+        }
         case 'itIs': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const milled = (this._lastMilled || []).slice(-1)[0];
@@ -49958,6 +50463,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           for (const o of this.battlefield) {
             if (o.controller !== me.id) continue;
             if (cond.other && src && o.id === src.id) continue;
+            // (Venser, Corpse Puppet: "a creature named The Hollow Sentinel" — creature)
+            if (cond.creature && !(this.characteristics(o) || {}).isCreature) continue;
             if ((o.name || '').toLowerCase() === want) k++;
           }
           return at(k);
@@ -50664,6 +51171,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return 0;
         }
       }
+      /* Polukranos, Unchained: "If damage would be dealt to Polukranos while it has a +1/+1 counter on it, prevent that
+         damage and remove that many +1/+1 counters from it." — all of it prevented, as many as there are removed; damage
+         that can't be prevented is dealt, and the counters still come off (damageEatsCounters) */
+      const eat = o.zone === 'battlefield' && (Number(o.counters['+1/+1']) || 0) > 0 && this._staticOp(o, 'damageEatsCounters');
+      if (eat) {
+        const off = Math.min(amount, Number(o.counters['+1/+1']) || 0);
+        const prevent = !this._noPrevention(isCombat);
+        this.addCounters(o, '+1/+1', -off);
+        this.logEvent('damage', `${prevent ? amount + ' damage to ' + o.name + ' is prevented, and ' : ''}${off === 1 ? 'a +1/+1 counter comes' : off + ' +1/+1 counters come'} off ${o.name}.`);
+        if (prevent) return 0;
+      }
       /* Khârn the Betrayer: "If damage would be dealt to Khârn, prevent that damage and an opponent of your choice
          gains control of it." — the control change is part of the replacement, so it happens even where the damage
          can't be prevented (CR 615.12) (damageGivesControl) */
@@ -50965,6 +51483,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         p.gained = (p.gained || 0) + delta;      // "if you gained 3 or more life this turn"
       }
       p.life += delta;
+      // (Verrak, Warped Sengir: the life paid while an ability's cost is paid — lifePaid)
+      if (delta < 0 && reason === 'cost' && this._costLifeAcc != null) this._costLifeAcc += -delta;
       if (delta < 0) {
         this._lastLifeLost = (this._lastLifeLost || 0) + (-delta);
         p.lifeLostThisTurn = (p.lifeLostThisTurn || 0) + (-delta);
@@ -51232,12 +51752,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (from !== toZone && (o.impulseBy || o.faceDownExile || o.lookableBy || o.impulseAnyMana)) {
         o.impulseBy = null; o.impulseUntil = null; o.impulseCastOnly = false; o.impulseAnyMana = null; o.impulseFilter = null;
         o.impulseGroup = null; o.impulsePayLife = null; o.impulseBeforeEnd = false; o.impulseIfAttackedToken = false; o.impulseIfAttackedCommander = false; o.impulseAffinity = null; o.impulseLess = null; o.impulseUndaunted = null;
-        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null;
+        o.impulseIfControl = null; o.faceDownExile = false; o.lookableBy = null; o.impulseWhileSrc = null; o.impulseWhileHere = false;
       }
+      if (from !== toZone && o.freeCastWhileSrc) { o.freeCastBy = null; o.freeCastUntil = null; o.freeCastWhileSrc = null; }
+      // (foretold: a card that leaves exile is foretold no more)
+      if (from !== toZone && o.foretold) o.foretold = null;
       // Gwen Stacy: "for as long as you control this creature" — once it has left, that leave is over for good
       if (from === 'battlefield' && from !== toZone) {
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) {
           if (c.impulseWhileSrc === o.id) { c.impulseBy = null; c.impulseUntil = null; c.impulseWhileSrc = null; }
+          // (Intet, the Dreamer: "without paying its mana cost for as long as Intet remains on the battlefield")
+          if (c.freeCastWhileSrc === o.id) { c.freeCastBy = null; c.freeCastTurn = null; c.freeCastUntil = null; c.freeCastWhileSrc = null; }
         }
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
@@ -51311,6 +51836,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         o._lkiAnalysis = was !== O.analyze(o.card, o.face) || o.printedCard || meldTo || (o.face || 0) !== 0 ? was : null;
         const lc = this.characteristics(o);
         o._leftAsCreature = !!(lc && lc.isCreature);
+        // Rhys, the Evermore: "gains persist until end of turn" — a keyword it was given still counts as it dies
+        o._leftKw = lc ? ['persist', 'undying'].filter(k => lc.keywords.has(k)) : [];
         // its power as it last existed, for "equal to its power" after it has gone
         o._lastPower = lc ? lc.power : 0;
         o._lastToughness = lc ? lc.toughness : 0;
@@ -51453,6 +51980,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         o.shields = 0; o.preventShield = 0; o.noUntapNext = false; o.goadedBy = null; o.goadForever = null; o.mustAttackPw = null;
         o.summoningSick = true; o.activatedLoyaltyThisTurn = false;
         o.noMaxHandFor = null;
+        // Yarus, Roar of the Old Gods: "Whenever a face-down creature you control dies" — as it left (wasFaceDown)
+        o._wasFaceDown = from === 'battlefield' && !!o.faceDown;
         o.faceDown = false; o.manifested = false; o.cloaked = false; o.faceDownLand = null; o.faceDownWard = null; o.controller = o.owner; o.giftTo = null; o.prototyped = false;
         // a new object (CR 400.7): no control effect, no copy, no timestamp of its own yet
         o.ctlBase = null; o.copyBefore = null; o.copyUntilTurn = null; o.copyUntilTurnOf = null; o.copyEndsAt = null; o.ts = null;
@@ -51613,9 +52142,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /* Valgavoth, Terror Eater: back again it is a new object (CR 400.7), and the cards exiled
            with the old one are no longer its to play; Lurrus, Muldrotha: nor is the leave it used up */
         // (Gisa, Glorious Resurrector: a trigger of the old one still knows them — _exiledWithGone, _leftSeq)
+        o._leftPrev = o._leftSeq || null;
         o._leftSeq = this._uid('lv');
         for (const q of this.players) for (const c of ((this.zones[q.id] || {}).exile || [])) if (c.exiledWithId === o.id) { c.exiledWithId = null; c._exiledWithGone = { id: o.id, n: o._leftSeq }; }
-        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null;
+        o._playFromTurn = null; o.playFromTypes = null; o._playFromKinds = null; o._freeHandOnceTurn = null;
         this._fire('ltb', lastCtrl, { object: o, source: o });
         if (lastCtrl != null) this._lostControl(o, lastCtrl);
         // God-Eternal Oketra: "dies or is put into exile from the battlefield" (exiledFromBf)
@@ -51952,8 +52482,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (d.eventController != null && d.event === event && controllerId !== d.eventController) { keep.push(d); continue; }
         // (Kelsien, the Plague: "this turn" over, gone; only that creature dying, as the one it was — watchObj)
         if (d.untilTurn != null && this.turn !== d.untilTurn) continue;
+        // (Mysterio: leaving as the permanent it was when the note was left — watchLeaving, _leftPrev)
         if (d.watchObj && !(d.event === event && data && data.object && data.object.id === d.watchObj &&
-          (data.object._leftSeq || null) === d.watchLeftSeq)) { keep.push(d); continue; }
+          ((d.watchLeaving ? data.object._leftPrev : data.object._leftSeq) || null) === d.watchLeftSeq)) { keep.push(d); continue; }
         const mine = d.event === event &&
           (d.controller == null || d.forPlayer == null || d.forPlayer === activePlayerId) &&
           // "your next end step" must not be the one we are already in
@@ -52024,6 +52555,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         hitController: data.hitController, hitExcess: data.hitExcess,
         // Orvar, the All-Form: what the spell cast targets, as it was cast (spellTargets)
         spellTargets: data.spell && data.spell.targets ? data.spell.targets.map(t => ({ kind: t.kind, id: t.id })) : undefined,
+        // Verrak, Warped Sengir: the life paid to activate the ability (lifePaid)
+        lifePaid: data.lifePaid || undefined,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -52353,6 +52886,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Zaxara: a spell with {X} in its mana cost (xSpell); Zuko: one cast during combat (duringCombat)
           // (the cost of the face being cast: a split card's half, an adventure, an MDFC's back; both halves fused)
           // (Magus Lucea Kane: an ability activated — {X} in its activation cost: xCost)
+          // Verrak, Warped Sengir: "if life was paid to activate it" (lifePaidOnly)
+          if (ab.lifePaidOnly && !(data.lifePaid > 0)) continue;
           if (ab.xSpell && event === 'youActivateAbility') { if (!data.xCost) continue; }
           else if (ab.xSpell) {
             const xo = data.object, xItem = data.stackId ? this.stack.find(st => st.id === data.stackId) : null;
@@ -52439,6 +52974,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
+          // The Beast, Deathless Prince: "deals combat damage to its owner" (hitItsOwner)
+          if (ab.hitItsOwner && !(data.player && data.object && data.object.owner === data.player)) continue;
           // Harbin, Vanguard Aviator: "with five or more Soldiers" (attackersOfTypeMin)
           if (ab.attackersOfTypeMin && ((this.combat && this.combat.attackers) || []).filter(id => { const x = this.obj(id); return x && this._hasCreatureType(x, ab.attackersOfType); }).length < ab.attackersOfTypeMin) continue;
           // The Chief Warg: "while you control a creature with power 4 or greater" (attackWhile)
@@ -52464,6 +53001,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // The Ozolith: "if it had counters on it"
           if (ab.hadCounters && !(data.object && Object.values(data.object._diedCounters || {}).some(v => Number(v) > 0))) continue;
           if (ab.bySpellOnly && event === 'becomesTarget' && !data.bySpell) continue;
+          /* Agrus Kos, Eternal Soldier: "becomes the target of an ability that targets only it" — an ability, with no target
+             but this permanent (byAbilityOnly, targetsOnlySelf) */
+          if (ab.byAbilityOnly && event === 'becomesTarget' && !data.byAbility) continue;
+          if (ab.targetsOnlySelf && event === 'becomesTarget') {
+            const it = data.stackId && this.stack.find(st => st.id === data.stackId);
+            const tg = (it && it.targets) || [];
+            if (!tg.length || !tg.every(x => x && x.kind === 'object' && x.id === o.id)) continue;
+          }
           if (event === 'becomesTarget' && data.onStack && !ab.spellsToo) continue;
           // Nicanzil, Current Conductor: "explores a land card", "explores a nonland card" (exploreKind)
           if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
@@ -52786,7 +53331,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       let chosenModes = null, usedModes = null;
       if (top && plan0.ok) {
         const m = top.modal, modes = m.modes || [];
-        const label = (i) => truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90);
+        // (Typhoid Mary, Fractured: "Typhoid Mary — Draw a card." — a mode named for the card, its name back)
+        const label = (i) => truncate(String(modes[i].label || modes[i].text || ('Mode ' + (i + 1))).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it'), 90);
         let picks = null;
         if (m.pawprint) {
           const budget = Math.max(1, n(m.pawprint) || 1);
@@ -52799,7 +53345,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
         } else if (m.upToX && !(n(m.count) > 0)) picks = [];
         // Cult of Skaro: "choose one at random" — chosen as it goes on the stack, by nobody (random)
-        else if (m.random) picks = [this.rng.int(modes.length)];
+        // (Typhoid Mary, Fractured: "If you discarded a card this turn, you choose one instead." — randomUnless)
+        else if (m.random && !(m.randomUnless && this._condMet(m.randomUnless, item))) picks = [this.rng.int(modes.length)];
         else {
           let want = Math.min(n(m.count) || 1, modes.length);
           const least = m.min != null ? Math.min(m.min, want) : want;
@@ -52859,9 +53406,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         item.effects = effects;
         item.aimed = true;
         if (chosenModes) {
-          const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean);
+          const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean).map(l => String(l).replace(/CARDNAME/g, src ? U.frontName(src.name) : 'it'));
           item.modes = labels;
-          this.logEvent('rules', top.modal.random ? `${name}: ${labels.join('; ')}, chosen at random.`
+          this.logEvent('rules', top.modal.random && !(top.modal.randomUnless && this._condMet(top.modal.randomUnless, item)) ? `${name}: ${labels.join('; ')}, chosen at random.`
             : `${me.name} chooses for ${name}: ${labels.length ? labels.join('; ') : 'no modes'}.`);
           if (usedModes && src && top.modal.notChosen) {
             const key = top.modal.notChosen === 'turn' ? 't' + this.turn : 'ever';
@@ -54055,6 +54602,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (v && typeof v === 'object' && v.xDoubleAtLeast) { const x = n('X'); return x >= v.xDoubleAtLeast ? 2 * x : x; }
         // Captain Howler, Sea Scourge: "+2/+0 … for each card discarded this way" — the cards in the lot, times two
         if (v && typeof v === 'object' && v.triggerAmount) return n('triggerAmount') * (v.mult || 1);
+        // Verrak, Warped Sengir: "pay that much life again" — the life paid to activate the ability (lifePaid)
+        if (v && typeof v === 'object' && v.lifePaid) return Number((ctx.triggerData || {}).lifePaid) || 0;
         // Pitiless Carnage: "that many" — how many were just sacrificed
         if (v && typeof v === 'object' && v.lastSacCount) return (this._lastSacCount || 0) * (v.mult || 1);
         // "… minus four": never less than zero
@@ -54173,7 +54722,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           return o ? (v.ofTarget === 'power' ? this.powerOf(o) : v.ofTarget === 'toughness' ? this.toughnessOf(o) : ((o.card && o.card.cmc) || 0)) : 0;
         }
         // Fountain of Cho: "for each storage counter removed this way"
-        if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
+        // (Ashling the Pilgrim: "that much" — what this resolution removed, never an X: thisWay)
+        if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null && !v.thisWay ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
         // Thousand-Year Storm: spells of that kind cast this turn before the one copied
         if (v && typeof v === 'object' && v.castBefore) {
           const list = (me && me.spellObjsThisTurn) || [];
@@ -54233,6 +54783,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (v && typeof v === 'object' && v.greatestPower) {
           let best = 0;
           for (const o of this._scopeList(v.greatestPower, ctx.controller, src)) best = Math.max(best, this.powerOf(o));
+          // Skanos Dragonheart: "and Dragon cards in your graveyard" — the printed power (alsoGrave)
+          if (v.alsoGrave) for (const c of ((this.zones[ctx.controller] || {}).graveyard || [])) {
+            if (this._cardFitsWords(c, v.alsoGrave)) best = Math.max(best, parseInt((c.card || {}).power, 10) || 0);
+          }
           return best;
         }
         if (v && typeof v === 'object' && v.greatestPowerInGraveyards) return this._greatestPowerInGraveyards(v.greatestPowerInGraveyards) * (v.mult || 1);
@@ -54495,9 +55049,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const amt = n(e.amount);
           /* "any color in your commander's color identity" is only those */
           // (Omnath, Locus of All: "in any combination of its colors" — allowedColors)
-          const allowed = e.allowedColors ? e.allowedColors.filter(c => MANA.COLORS.includes(c))
-            : e.commanderIdentity ? Array.from(this._commanderColors(ctx.controller)) : MANA.COLORS;
-          const pool = allowed.length ? allowed : MANA.COLORS;
+          const pool = this._manaAnyPool(e, ctx.controller);
           /* The Warring Triad: "Target player adds one mana of any color" —
              into that player's pool, in a colour the ability's controller
              picks as it resolves (a bot: the one that player wants most) */
@@ -54646,12 +55198,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             this.logEvent('mana', `${me.name} adds ${k} mana.`);
             break;
           }
-          const want = ctx.manaChoice;
-          let choice = e.choices[0];
-          if (want) {
-            const hit = e.choices.find(ch => ch.some(s => s.includes(want)));
-            if (hit) choice = hit;
+          /* the choice sent with the tap: a bundle by its letters ('WU' of "{W}{W}, {W}{U}, or {U}{U}"), a colour
+             ('R' of "{R} or {G}"), or — "two mana in any combination of {U}, {B}, and/or {R}", one effect a
+             mana — a letter for each of them in turn ('UB') */
+          let want = typeof ctx.manaChoice === 'string' ? ctx.manaChoice : null;
+          if (want && want.length > 1 && !(e.choices || []).some(ch => ch.length > 1)) {
+            const k = ctx._manaSeq || 0;
+            ctx._manaSeq = k + 1;
+            want = want[k % want.length];
           }
+          const choice = this._manaChoiceBundle(e, want);
           for (const s of choice) {
             const c = MANA.COLORS.concat('C').find(x => s.includes(x));
             me.pool.add(c || 'C');
@@ -54669,6 +55225,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           else if (e.who === 'each') for (const p of this.players) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Zurzoth, Chaos Rider: "you and those players each draw a card" (youAndAttackedBy)
           else if (e.who === 'youAndAttackedBy') for (const p of [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))) { if (!p.hasLost) this._drawCards(p, cnt); }
+          // Cait, Cage Brawler: "you and defending player each draw a card" (youAndDefending)
+          else if (e.who === 'youAndDefending') for (const p of [me, this._defenderOf(src) || triggerPlayer()]) { if (p && !p.hasLost) this._drawCards(p, cnt); }
           else if (e.who === 'opponents') for (const p of this.opponentsOf(ctx.controller)) { if (!p.hasLost) this._drawCards(p, cnt); }
           // Baleful Mastery: "an opponent draws a card" — the caster picks which
           else if (e.who === 'anOpponent') {
@@ -54699,6 +55257,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             : e.who === 'youAndAttackedBy' ? [me].concat(this._playersAttackedByType(ctx.controller, triggerAbility().attackersOfType))
             // Alley Grifters: "defending player discards a card"
             : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()]
+            // Cait, Cage Brawler: "then discard a card" — you, then defending player (youAndDefending)
+            : e.who === 'youAndDefending' ? [me, this._defenderOf(src) || triggerPlayer()]
             // "Its controller discards a card": whoever controlled what was just destroyed,
             // or what the trigger is about (Bereavement: "whenever a green creature dies")
             : e.who === 'targetController' ? [this._lastAffectedController() ||
@@ -54965,6 +55525,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Inferno Elemental: "deals 3 damage to that creature" — the one the trigger is about
           // Stuffy Doll: "to the chosen player"
           if (e.toChosenPlayer) { const p = src && this.player(src.chosenPlayer); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
+          // Zaffai, Thunder Conductor: "to an opponent chosen at random" — nobody's choice (toRandomOpponent)
+          if (e.toRandomOpponent) {
+            const opps = this.opponentsOf(ctx.controller).filter(p => !p.hasLost);
+            const p = opps.length ? opps[this.rng.int(opps.length)] : null;
+            if (p) { this.logEvent('rules', `${p.name} is chosen at random.`); this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
+            break;
+          }
           // "deals 1 damage to itself"
           if (e.toSelf2) { if (src && src.zone === 'battlefield') this.dealDamageToObject(src, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerObject) { const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId); if (x && x.zone === 'battlefield') this.dealDamageToObject(x, cnt, dsrc); this.emit('sfx', 'damage'); break; }
@@ -55158,7 +55725,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           /* "Exile it at the beginning of the next end step": the object a
              delayed note was taken about, or what the trigger is about */
-          if ((e.scope === 'thatObject' || e.scope === 'triggerObject') && !(e.targets && e.targets.length)) {
+          // (Agrus Kos, Spirit of Justice: "If it's suspected, exile it." — the creature targeted: lastTarget)
+          if ((e.scope === 'thatObject' || e.scope === 'triggerObject' || e.scope === 'lastTarget') && !(e.targets && e.targets.length)) {
             // Necropotence: "exile that card from your graveyard" — the card just discarded, where it went
             if (e.fromGraveyard) {
               const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
@@ -56023,6 +56591,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'createToken': {
           // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — by this ability's controller (goadForever)
           if (e.goadForever === true) e = Object.assign({}, e, { goadForever: ctx.controller });
+          // Ellie, Brick Master: "that's attacking that opponent" — the player the trigger's attack was at (attackingWho)
+          if (e.attackingWho === 'attackedPlayer') e = Object.assign({}, e, { attackingId: (ctx.triggerData || {}).attackedPlayer || null });
           const owner = e.who === 'targetController'
             ? (this._lastAffectedController() || me)
             // Genesis Chamber: "that creature's controller creates …" — the one that entered
@@ -57901,7 +58471,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (x) {
               // Kenrith: "under its owner's control"
               // (Xu-Ifit, Osteoharmonist: "It's a Skeleton … and has no abilities" — so as it enters: enterEff)
-              this.moveObject(x, 'battlefield', Object.assign({ controller: e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
+              // The Beamtown Bullies: "Target opponent … puts … onto the battlefield under their control" (toPlayerTarget)
+              const toP = e.toPlayerTarget ? firstPlayer() : null;
+              if (e.toPlayerTarget && (!toP || toP.hasLost)) continue;
+              this.moveObject(x, 'battlefield', Object.assign({ controller: toP ? toP.id : e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (e.tapped) x.tapped = true;
               /* Olivia, Crimson Bride; Alesha, Who Smiles at Death: "tapped and attacking" — at whoever the creature that set it off attacks,
@@ -58108,6 +58681,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const hit = disc.some(d => d.pid === p.id && this._cardFitsWords(this.obj(d.id) || { analysis: () => null }, e.filter || 'card'));
             if (!hit) this.changeLife(p, -(e.n || 0), 'card');
           }
+          break;
+        }
+        /* Cait, Cage Brawler: "Put two +1/+1 counters on Cait if you discarded the card with the greatest mana value
+           among those cards or tied for greatest." — the cards discarded as this resolved (_discBy) */
+        case 'countersIfGreatestDiscard': {
+          const disc = (((this.resolving || {})._discBy) || []).map(d => ({ pid: d.pid, o: this.obj(d.id) })).filter(d => d.o);
+          const mv = (c) => (c.card && c.card.cmc) || 0;
+          const mine = disc.filter(d => d.pid === ctx.controller);
+          if (!mine.length || !src || src.zone !== 'battlefield') break;
+          const top = Math.max(...disc.map(d => mv(d.o)));
+          if (mine.some(d => mv(d.o) >= top)) this.addCounters(src, e.counter || '+1/+1', e.n || 2);
           break;
         }
         /* Danitha, Benalia's Hope: an Aura or Equipment card from your hand
@@ -58337,13 +58921,21 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const ask = d1 && String(e.text || '').replace(/^(?:its|that [a-z]+'?s) controller may /i, '').replace(/\.$/, '');
           // Slicer, Hired Muscle: lending itself to the player whose upkeep it is (lendSelf, for the bots)
           const lend = (e.then || []).some(x => x && x.op === 'giveControl' && x.self);
+          /* Containment Construct, Moonstone: "you may exile that card from your graveyard" — by its name, with
+             several discarded at once; nothing to ask once it has left the graveyard */
+          let named = null;
+          if (s0 && s0.op === 'exileTriggerCardPlayable') {
+            const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
+            if (!x || x.zone !== 'graveyard') break;
+            named = `${nm}: ${String(e.text || '').replace(/^you may e/i, 'E').replace(/that card/i, x.name).replace(/\.(?= |$)/, '?')}`;
+          }
           const yes = this._ask({ type: 'confirm', playerId: who.id, ...(lend ? { purpose: 'lendSelf' } : {}),
             // (the same answer for the rest of the turn, or — an optional trigger's own "you may" — for the rest of a batch)
             remember: 'may', rememberBatch: !!e.optionalTrigger,
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
             // (Ral, Obzedat: "Exile CARDNAME …?" — by its name)
-            prompt: (e.prompt && e.prompt.replace(/CARDNAME/g, U.frontName(nm))) || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
+            prompt: named || (e.prompt && e.prompt.replace(/CARDNAME/g, U.frontName(nm))) || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${whole(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           // ("Do this only once each turn": a yes uses it up for the turn — mayOncePerTurn)
@@ -59406,7 +59998,25 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
              choice sees what an earlier one did (CR 701.55): the ones still to choose wait in _vq, after the choice */
           let queue = e._vq;
           if (!queue) {
-            let who = e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
+            // (The Master, Gallifrey's End: "If you do" — the card the trigger is about, exiled just now: ifExiled)
+            const tx = e.ifExiled && this.obj((ctx.triggerData || {}).objectId);
+            if (e.ifExiled && !(tx && tx.zone === 'exile' && this._lastExiled === tx.id)) break;
+            // ("choose an opponent with the most life among your opponents" — a tie is the controller's to settle: mostLifeOpp)
+            let most = null;
+            if (e.who === 'mostLifeOpp') {
+              const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+              const top = Math.max(...opps.map(q => q.life));
+              const tied = opps.filter(q => q.life === top);
+              most = tied[0] || null;
+              if (tied.length > 1) {
+                const got = this._choose({ playerId: ctx.controller, purpose: 'chooseOpponent', kind: 'players', items: this._choosePlayers(tied), min: 1, max: 1,
+                  prompt: `${ctx.name ? ctx.name + ': ' : ''}choose an opponent with the most life among your opponents.` }, 'vcm');
+                if (got === SUSPEND) return SUSPEND;
+                most = (got && got.picks.length && this.player(got.picks[0])) || most;
+              }
+            }
+            let who = e.who === 'mostLifeOpp' ? [most]
+              : e.who === 'target' ? targets.filter(t => t.kind === 'player').map(t => this.player(t.id))
               : e.who === 'triggerPlayer' ? [triggerPlayer()]
               : e.who === 'defending' ? [(src && this._defenderOf(src)) || triggerPlayer()]
               : this._turnOrderFrom(ctx.controller).filter(q => q.id !== ctx.controller && this.opponentsOf(ctx.controller).includes(q));
@@ -59667,7 +60277,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
         case 'eachMay': {
-          const order = this.players.filter(q => !q.hasLost);
+          // (Willie Lumpkin, Postman: "that player may draw a card" — the one the trigger is about: who triggerPlayer)
+          const order = e.who === 'triggerPlayer' ? [triggerPlayer()].filter(q => q && !q.hasLost) : this.players.filter(q => !q.hasLost);
           const yes = [];
           for (const q of order) {
             const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}` +
@@ -59707,6 +60318,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           break;
         }
         // Thrasios: the top card, onto the battlefield if it is a land; otherwise a card drawn
+        /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with
+           power less than or equal to Grenzo's power, put it onto the battlefield." — Grenzo as it last was, if gone */
+        case 'bottomToGraveReanimate': {
+          const lib = this.zones[ctx.controller].library;
+          const bot = lib[lib.length - 1];
+          if (!bot) break;
+          this.moveObject(bot, 'graveyard');
+          this.logEvent('rules', `${me.name} puts ${bot.name} from the bottom of their library into their graveyard.`);
+          if (bot.zone !== 'graveyard' || !(bot.analysis() || {}).isCreature) break;
+          const mine = !src ? 0 : src.zone === 'battlefield' ? this.powerOf(src) : (src._lastPower != null ? src._lastPower : 0);
+          if ((parseInt((bot.card || {}).power, 10) || 0) <= mine) this.moveObject(bot, 'battlefield', { controller: ctx.controller });
+          break;
+        }
         case 'topLandOrDraw': {
           /* Jadzi, Oracle of Arcavios: "If it's a land card, put it onto the battlefield." — the card already revealed,
              still in the library; nothing drawn otherwise (revealedOnly) */
@@ -60623,8 +61247,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
           if (!x || x.zone !== 'graveyard') break;
           this.moveObject(x, 'exile');
-          x.impulseBy = ctx.controller; x.impulseUntil = this.turn;
-          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it this turn.`);
+          // (Moonstone, Harsh Mistress: "until the end of your next turn")
+          const next = e.duration === 'nextTurn';
+          x.impulseBy = ctx.controller; x.impulseUntil = next ? this._endOfNextTurnOf(ctx.controller) : this.turn;
+          this.logEvent('rules', `${me.name} exiles ${x.name} and may play it ${next ? 'until the end of their next turn' : 'this turn'}.`);
           break;
         }
         // Cultivator Colossus: a land from hand, a card, and again — until you stop or run out
@@ -61353,10 +61979,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way" — "that creature" is the host
           const attachedTo = e.ifAttached ? ((this._attachedAnyTo || {}).n ? this._attachedAnyTo.host : null) : null;
           if (e.ifAttached && !attachedTo) break;
+          // (Three Dog, Galaxy News DJ: "When you sacrifice an Aura this way" — only if one was, and "that Aura" is it: ifSacAura)
+          const sacAura = e.ifSacAura ? this._sacAuraThisWay : null;
+          if (e.ifSacAura && !sacAura) break;
+          // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
+          const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
+          if (e.ifExiledNonland && !exN) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
-            effects: e.effects || [], auto: true, abilityText: rText, optional: false,
+            effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
+              : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {}) });
           break;
         }
@@ -61764,6 +62397,36 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           break;
         }
+        /* Augusta, Order Returned: "each player exiles a card from their graveyard" — each chooses, in turn order; then
+           "When one or more nonland cards are exiled this way, put that many +1/+1 counters on target attacking creature." */
+        case 'eachExileGraveCard': {
+          const picks = [];
+          for (const p of this._turnOrderFrom(ctx.controller)) {
+            if (p.hasLost) continue;
+            const gy = this.zones[p.id].graveyard.slice();
+            if (!gy.length) continue;
+            let c = gy[0];
+            if (gy.length > 1) {
+              const got = this._choose({ playerId: p.id, purpose: 'eachExileGraveCard', kind: 'objects', zone: 'graveyard', forPlayer: ctx.controller,
+                items: this._chooseItems(gy), min: 1, max: 1, prompt: `Exile a card from your graveyard (${src ? src.name : me.name}).` }, 'eg:' + p.id);
+              if (got === SUSPEND) return SUSPEND;
+              const x = this.obj(got && got.picks && got.picks[0]);
+              if (x && gy.includes(x)) c = x;
+            }
+            picks.push(c);
+          }
+          let k = 0;
+          for (const c of picks) {
+            if (c.zone !== 'graveyard') continue;
+            const nonland = !(c.analysis() || {}).isLand;
+            this.moveObject(c, 'exile');
+            if (c.zone !== 'exile') continue;
+            this.logEvent('exile', `${this.player(c.owner).name} exiles ${c.name} from their graveyard.`);
+            if (nonland) k++;
+          }
+          this._exiledNonlandN = k;
+          break;
+        }
         case 'exileFromGraveyard': {
           const cnt = n(e.n) || 1;
           const from = e.who === 'target' ? [firstPlayer()].filter(Boolean) : this.players;
@@ -61804,7 +62467,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             : e.who === 'targetController' ? [this._lastAffectedController()].filter(Boolean) : this.players)) {
             // Hope of Ghirapur: "Until your next turn" — over as that turn begins (silenceUntil)
             if (e.duration === 'nextTurn') { (p.silenceUntil = p.silenceUntil || []).push({ by: ctx.controller, noncreature: !!e.noncreature }); continue; }
+            // Azor, the Lawbringer: "during that player's next turn" — set going as that turn begins (silenceOn)
+            if (e.duration === 'theirNextTurn') { (p.silenceOn = p.silenceOn || []).push({ on: null, instantSorcery: !!e.instantSorcery }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+          }
+          if (e.duration === 'theirNextTurn') {
+            this.logEvent('rules', `${me.name}'s opponents can't cast instant or sorcery spells during their next turns.`);
+            break;
           }
           if (e.duration === 'nextTurn') {
             const who = e.who === 'target' ? firstPlayer() : null;
@@ -62710,12 +63379,23 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!x || (x.zone !== 'graveyard' && x.zone !== 'exile') || x.isToken) break;
           // Tergrid, God of Fright: "from a graveyard" — not from exile (sacOrDiscardAny)
           if (e.fromGrave && x.zone !== 'graveyard') break;
+          // (Yarus, Roar of the Old Gods: "if it's a permanent card" — permanentOnly)
+          if (e.permanentOnly && !(x.analysis() || {}).isPermanent) break;
+          if (e.faceDownThenUp) x.faceDown = true;
           // Yedora, Grave Gardener: "face down … It's a Forest land." — it enters as one, landfall and all (faceDownLand)
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
           // (Vraska, the Silencer: "It's a Treasure artifact …" — what it is as it enters: enterEff)
           this.moveObject(x, 'battlefield', Object.assign({ controller: e.yours ? ctx.controller : x.owner }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
           if (x.zone !== 'battlefield') break;
           if (e.faceDownLand) { x.faceDown = true; x.faceDownLand = e.faceDownLand; }
+          // (Yarus: "then turn it face up" — entered face down, a 2/2 with no enters abilities; turned up, "when turned face up" sees it)
+          if (e.faceDownThenUp && x.faceDown) {
+            x.faceDown = false; x.faceDownLand = null; x._chr = null;
+            this.logEvent('rules', `${me.name} turns ${x.name} face up.`);
+            this.emit('sfx', 'transform');
+            this._fire('turnedFaceUp', x.controller, { object: x, source: x });
+            this.bumpBoard();
+          }
           if (e.tapped) x.tapped = true;
           if (e.counter) this.addCounters(x, e.counter, 1);
           break;
@@ -62790,7 +63470,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             break;
           }
           if (!pool.length && e.op === 'restToBottom' && this._exileUntil) {
-            const rest = this._exileUntil.ids.map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
+            // (Codie, Vociferous Codex: "each other card exiled this way" — the one it stopped at stays: exceptHit)
+            const hit = e.exceptHit ? this._exileUntil.hits : [];
+            const rest = this._exileUntil.ids.filter(id => !hit.includes(id)).map(id => this.obj(id)).filter(o => o && o.zone === 'exile');
             this._exileUntil = null;
             if (!rest.length) break;
             for (const o of (e.random ? this.rng.shuffle(rest.slice()) : rest)) this.moveObject(o, 'library', { toBottom: true });
@@ -63527,6 +64209,30 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.moveObject(c, 'battlefield', { controller: ctx.controller });
           if (e.tapped && c.zone === 'battlefield') this._markTapped(c);
           this.logEvent('rules', `${c.name} returns to the battlefield${e.tapped ? ' tapped' : ''}.`);
+          break;
+        }
+        // Rhys, the Evermore: "Remove any number of counters from target creature you control." — each counter, one pick
+        case 'removeAnyCounters': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const opts = [];
+          for (const [kind, c] of Object.entries(x.counters || {})) {
+            const k = Number(c) || 0;
+            for (let i = 0; i < k; i++) opts.push({ label: k > 1 ? `a ${kind} counter (${i + 1} of ${k})` : `a ${kind} counter`, kind });
+          }
+          if (!opts.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'removeAnyCounters', kind: 'options', options: opts.map((o, i) => ({ i, label: o.label, kind: o.kind })),
+            min: 0, max: opts.length, optional: true, objId: x.id,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}remove any number of counters from ${x.name}.` }, 'rac');
+          if (got === SUSPEND) return SUSPEND;
+          let total = 0;
+          for (const i of ((got && got.picks) || [])) {
+            const o = opts[i];
+            if (!o || x.zone !== 'battlefield' || !((Number((x.counters || {})[o.kind]) || 0) > 0)) continue;
+            this.addCounters(x, o.kind, -1);
+            total++;
+          }
+          if (total) this.logEvent('counters', `${total} counter${total === 1 ? '' : 's'} removed from ${x.name}.`);
           break;
         }
         case 'removeCountersAmong': {
@@ -64858,21 +65564,30 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const mineNow = this.activePlayer && this.activePlayer.id === ctx.controller && !(this.step && /^(?:end|cleanup)$/.test(this.step.id || this.step));
           // Gwen Stacy: "for as long as you control this creature" — till it leaves or changes hands (impulseWhileSrc)
           if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
-          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' ? 99999
+          // Intet, the Dreamer: "for as long as Intet remains on the battlefield" — whoever controls it (whileHere)
+          const here = e.duration === 'whileHere';
+          if (here && !(src && src.zone === 'battlefield')) break;
+          const until = e.duration === 'nextTurn' ? this._endOfNextTurnOf(ctx.controller) : e.duration === 'exiled' || e.duration === 'whileControl' || here ? 99999
             : e.duration === 'nextEnd' ? (mineNow ? this.turn : this._endOfNextTurnOf(ctx.controller)) : this.turn;
           for (const id of ids) {
             const c = this.obj(id);
             if (!c || c.zone !== 'exile') continue;
+            if (c.faceDownExile) c.lookableBy = ctx.controller;
+            // (Intet: "play that card without paying its mana cost" — a spell for free, a land simply played: freeCastWhileSrc)
+            if (e.free && !(c.analysis() || {}).isLand) {
+              c.freeCastBy = ctx.controller; c.freeCastTurn = this.turn; c.freeCastUntil = until; c.freeCastWhileSrc = here ? src.id : null;
+              continue;
+            }
             c.impulseBy = e.owners ? c.owner : ctx.controller; c.impulseUntil = until;
             /* Dragonhawk, Fate's Tempest, Inti: "until your next end step" — up to it, not through it
                (impulseBeforeEnd); Klaw: "Mana of any type can be spent to cast a spell this way." */
             if (e.duration === 'nextEnd') c.impulseBeforeEnd = true;
             c.impulseIfAttackedToken = !!e.ifAttackedToken;
             c.impulseIfAttackedCommander = !!e.ifAttackedCommander;
-            c.impulseWhileSrc = e.duration === 'whileControl' ? src.id : null;
+            c.impulseWhileSrc = e.duration === 'whileControl' || here ? src.id : null;
+            c.impulseWhileHere = here;
             if (e.anyMana) c.impulseAnyMana = ctx.controller;
             if (e.payLife) c.impulsePayLife = ctx.controller;
-            if (c.faceDownExile) c.lookableBy = ctx.controller;
           }
           break;
         }
@@ -65222,6 +65937,19 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           this.bumpBoard();
           break;
         }
+        /* Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." — one delayed trigger,
+           watching this permanent as it is now; gone already, it never triggers (ruling) */
+        case 'exileMadeWhenSelfLeaves': {
+          const ids = (this._madeThisResolution || []).filter(id => { const x = this.obj(id); return x && x.zone === 'battlefield'; });
+          if (!src || src.zone !== 'battlefield' || !ids.length) break;
+          this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: src.id, watchObj: src.id, watchLeaving: true, watchLeftSeq: src._leftSeq || null,
+            name: `Exile those tokens (${src.name} left the battlefield)`, effects: [{ op: 'exileListed', ids }] });
+          break;
+        }
+        case 'exileListed': {
+          for (const id of e.ids || []) { const x = this.obj(id); if (x && x.zone === 'battlefield') { this.moveObject(x, 'exile'); this.logEvent('rules', `${x.name} is exiled.`); } }
+          break;
+        }
         case 'exileMadeEoc': {
           for (const id of (this._madeThisResolution || [])) { const x = this.obj(id); if (x && x.zone === 'battlefield') x.exileAtEndOfCombat = true; }
           break;
@@ -65231,6 +65959,33 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const h = src && src.attachedTo && this.obj(src.attachedTo);
           if (h) h.attachments = (h.attachments || []).filter(id => id !== src.id);
           if (src) { src.attachedTo = null; src._chr = null; this.logEvent('rules', `${src.name} becomes unattached.`); }
+          this.bumpBoard();
+          break;
+        }
+        /* Vislor Turlough: "you may have an opponent gain control of it. If you do, it's goaded for as long as they control it."
+           — one question: which opponent (or whether, with only one); goaded by you while that control lasts (goadBy) */
+        case 'giveSelfGoaded': {
+          if (!src || src.zone !== 'battlefield' || src.controller !== ctx.controller) break;
+          const opps = this.opponentsOf(ctx.controller).filter(q => !q.hasLost);
+          if (!opps.length) break;
+          let to = null;
+          if (opps.length === 1) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller, purpose: 'lendSelf',
+              prompt: `${src.name}: Have ${opps[0].name} gain control of ${src.name}? It's goaded for as long as they control it.` }, 'q');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) to = opps[0];
+          } else {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'giveSelfGoaded', kind: 'players', items: this._choosePlayers(opps),
+              min: 0, max: 1, optional: true,
+              prompt: `${src.name}: You may have an opponent gain control of ${src.name}. It's goaded for as long as they control it.` }, 'q');
+            if (got === SUSPEND) return SUSPEND;
+            to = this.player(got && got.picks && got.picks[0]);
+            if (to && !opps.includes(to)) to = null;
+          }
+          if (!to) { this.logEvent('rules', `${me.name} keeps ${src.name}.`); break; }
+          src.effects.push({ control: to.id, until: null, ts: this._stampNew(), goadBy: ctx.controller });
+          this._refreshControl();
+          this.logEvent('control', `${to.name} gains control of ${src.name}; it's goaded for as long as they control it.`);
           this.bumpBoard();
           break;
         }
@@ -65315,6 +66070,55 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
            opponent controls. The token has enchant creature and "…"" */
+        /* Three Dog, Galaxy News DJ: "you may pay {2} and sacrifice an Aura attached to Three Dog." — not offered with no Aura of
+           yours on it or no way to pay; with several, which one is the answer */
+        case 'paySacAttachedAura': {
+          this._sacAuraThisWay = null;
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = (src.attachments || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === ctx.controller &&
+            !!(o.analysis() || {}).isAura);
+          if (!pool.length || !this.couldPay(ctx.controller, e.mana, this.manaSources(ctx.controller))) break;
+          let aura = null;
+          if (pool.length === 1) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+              prompt: `${src.name}: Pay ${e.mana} and sacrifice ${pool[0].name} (attached to ${src.name})?` }, 'q');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) aura = pool[0];
+          } else {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'paySacAttachedAura', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+              prompt: `${src.name}: You may pay ${e.mana} and sacrifice an Aura attached to ${src.name}.` }, 'q');
+            if (got === SUSPEND) return SUSPEND;
+            aura = this.obj(got && got.picks && got.picks[0]);
+            if (aura && !pool.includes(aura)) aura = null;
+          }
+          if (!aura) { this.logEvent('rules', `${me.name} declines.`); break; }
+          if (!this.payMana(ctx.controller, e.mana, { auto: true })) break;
+          const card = aura.card;
+          this._sacrificeNow(ctx.controller, [aura]);
+          if (aura.zone === 'battlefield') break;
+          this._sacAuraThisWay = JSON.parse(JSON.stringify(card));
+          break;
+        }
+        // (Three Dog: "for each other attacking creature you control, create a token that's a copy of that Aura attached to that creature")
+        case 'copyAuraOntoAttackers': {
+          const card = e.aura;
+          if (!card || !this.combat) break;
+          const hosts = (this.combat.attackers || []).map(id => this.obj(id)).filter(o => o && o !== src && o.zone === 'battlefield' &&
+            o.controller === ctx.controller && (this.characteristics(o) || {}).isCreature);
+          for (const host of hosts) {
+            const made = this._copyTokenCount(ctx.controller, 1, card.type_line);
+            for (let i = 0; i < made; i++) {
+              if (host.zone !== 'battlefield') break;
+              const o = this._createAuraToken(ctx.controller, card, host, true);
+              if (!o) break;
+              (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
+              this.logEvent('token', `${me.name} creates a copy of ${card.name} attached to ${host.name}.`);
+              this._fire('youCreateToken', ctx.controller, { object: o });
+            }
+          }
+          break;
+        }
         case 'createAuraToken': {
           const host = firstObj();
           // (Estrid, the Masked: "enchant permanent" \u2014 enchant)
@@ -67857,6 +68661,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       // (its mana value as it was cast, X included — castMvNoted)
       o._castMv = this._faceMv(o) + this._xMv(item);   // (adventureMv)
+      // (Kadena, Slinking Sorcerer: whether it was cast face down, whatever it is later — castFaceDown)
+      o._castFaceDown = !!o.faceDown;
       (p.spellObjsThisTurn = p.spellObjsThisTurn || []).push(o);
       if (!o.isCopy) { p.namesCast = p.namesCast || {}; p.namesCast[o.name] = (p.namesCast[o.name] || 0) + 1; }
       // (Miracle: for its miracle cost)
@@ -69859,7 +70665,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (f.token && !x.isToken) return false;
       /* Ygra: "Whenever a Food is put into a graveyard from the battlefield"
          — what it was as it left (CR 603.10), a Food only while Ygra said so */
-      const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis }) : x;
+      const asWas = x.zone !== 'battlefield' && x._lkiAnalysis ? Object.assign(Object.create(x), { analysis: () => x._lkiAnalysis, faceDown: !!x._wasFaceDown }) : x;
       if (f.words && !this._cardFitsWords(asWas, f.words)) return false;
       // Ares, God of War: "an attacking creature … dies" — attacking as it left (wasAttacking)
       if (f.wasAttacking && !(x.zone === 'battlefield' ? x.attacking : x._wasAttacking)) return false;
@@ -70036,6 +70842,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (spec.type === 'player' || spec.type === 'opponent') {
         return players().filter(t => (!(spec.type === 'opponent' || spec.opponent) || t.id !== controllerId) && t.id !== spec.notPlayer &&
           !(spec.notPlayers || []).includes(t.id) &&
+          // The Beamtown Bullies: "target opponent whose turn it is" (activeOnly)
+          !(spec.activeOnly && !(this.activePlayer && this.activePlayer.id === t.id)) &&
           // Hope of Ghirapur: "who was dealt combat damage by Hope of Ghirapur this turn" — by the source, as it last was (hitBySource)
           !(spec.hitBySource && !(tsrc && tsrc._hitPlayers && tsrc._hitPlayers.turn === this.turn && tsrc._hitPlayers.ids.includes(t.id))));
       }
@@ -71347,6 +72155,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         keywords: blank(o) ? [] : this._viewKeywords(o),
         // Yavimaya, Urborg: mana it makes beyond what is printed on it, by tapForMana's index
         manaExtra: o.zone === 'battlefield' && !secret(o) ? this._manaExtraView(o) : null,
+        /* Kibo's Banana, Birds of Paradise, Arcane Signet: what tapping it by hand lets its controller choose (the
+           colour goes with the tap), by tapForMana's index — said to its controller only */
+        manaChoices: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._manaChoicesView(o, playerId) : null,
         // Marvin, Drana and Linvala, an Equipment's "has '{T}: …'": abilities it has beyond its printed ones, for its controller to use
         gained: o.zone === 'battlefield' && !secret(o) && o.controller === playerId ? this._gainedAbilitiesView(o) : null,
       };
@@ -72707,7 +73518,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /** Everything that changes a game from outside it. */
   const MUTATORS = [
     'start', 'mulligan', 'keepHand', 'setAutoPass', 'setFullControl', 'setYield', 'autoAnswer', 'setHoldPriority',
-    'passPriority', 'playLand', 'encoreCard', 'plotCard', 'suspendCard', 'transmuteCard', 'turnFaceUp', 'companionToHand',
+    'passPriority', 'playLand', 'encoreCard', 'plotCard', 'foretellCard', 'suspendCard', 'transmuteCard', 'turnFaceUp', 'companionToHand',
     'cycleCard', 'castSpell', 'activateAbility', 'tapForMana', 'payMana', 'declareAttackers',
     'declareBlockers', 'changeLife', 'addPoison', 'addCounters', 'moveObject', 'drawCards',
     'checkStateBasedActions', 'playerLoses', 'concede', 'resolveChoice', 'manual', 'setConnected',
@@ -77841,6 +78652,23 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Vislor Turlough: lent out goaded — to the opponent with the least life (it draws, then loses life for its hand),
+       only with another opponent for it to attack */
+    giveSelfGoaded(s) {
+      const g = this.game;
+      if (g.opponentsOf(this.pid).filter(q => !q.hasLost).length < 2) return { picks: [] };
+      const ps = (s.items || []).map(it => g.player(it.id)).filter(Boolean).sort((a, b) => a.life - b.life);
+      return { picks: ps.length ? [ps[0].id] : [] };
+    },
+    /* Augusta, Order Returned: "each player exiles a card from their graveyard" — counters for each nonland card: ours the
+       least nonland card, an opponent's the least land (or the least card) */
+    eachExileGraveCard(s) {
+      const mine = s.forPlayer === this.pid;
+      const items = (s.items || []).map(it => ({ it, v: it.card ? rateCard(it.card, { prior: 0 }) : 0, land: /\bLand\b/.test((it.card || {}).type_line || '') }));
+      const pref = items.filter(x => x.land !== mine);
+      const pool = (pref.length ? pref : items).sort((a, b) => a.v - b.v);
+      return pool.length ? { picks: [pool[0].it.id] } : null;
+    },
     /* Winter, Cynical Opportunist: the best permanent card first, then the least of the rest that bring a card type the
        picks haven't got, until there are enough types among them */
     exileGraveTypes(s) {
@@ -77878,6 +78706,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     removeCountersAmong(s) {
       const order = (s.options || []).map((o, i) => ({ i, mine: !!(o && o.mine) })).sort((a, b) => (b.mine ? 1 : 0) - (a.mine ? 1 : 0));
       return { picks: order.slice(0, s.max).map(x => x.i) };
+    },
+    /* Rhys, the Evermore: off our creature, only the counters doing it harm (a -1/-1 counter lets persist work again) */
+    removeAnyCounters(s) {
+      const g = this.game, x = g.obj(s.objId);
+      const BAD = /^(?:-1\/-1|stun|age|doom|bounty|hit)$/;
+      const theirs = x && x.controller !== this.pid;
+      return { picks: (s.options || []).map((o, i) => ({ i, k: o && o.kind })).filter(o => theirs ? !BAD.test(o.k) : BAD.test(o.k)).map(o => o.i) };
     },
     /* Illuna, Apex of Wishes: a permanent on the battlefield now is worth more than one in hand */
     battlefieldOrHand(s) {
@@ -79680,6 +80515,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /* A creature you cannot pay for is still a 2/2 for three if it has
            morph — which is what morph is for. */
         for (const use of (g.altUsesFor(this.pid, o.id) || [])) {
+          // (Zaffai and the Tempests: free from hand once a turn — worth it even when it could be paid for)
+          if (use.kind === 'cast' && use.via === 'freeHandOnce') { consider(o, use); continue; }
           if (use.kind !== 'cast' || !/^(morph|evoke|dash|blitz|warp|bestow|spectacle)$/.test(use.via)) continue;
           if (out.some(x => x.o.id === o.id && !x.via)) continue;
           consider(o, use);
@@ -106582,6 +107419,8 @@ Sideboard
           if (this._ready()) this.send({ kind: 'yield', mode: e.shiftKey ? 'turn' : 'response' });
         } else if (e.key === 'Escape') {
           if (this.preview.classList.contains('on')) this.hidePreview();
+          // a question that only waits on a mana tap (which colour): put down, nothing tapped
+          if (this.asking && this.asking.escape) { this.asking = null; this.render(); return; }
           if (this.paying) { this.cancelPay(); return; }
           if (this.convoking) { this.convokeCancel(); return; }
           if (this.targeting && !this.targeting.legal) { this.cancelTargeting(); this.render(); return; }
@@ -108587,7 +109426,7 @@ Sideboard
           uses.push({ label: 'Add mana', text: MTG.oracle.abilityLabel(ab, o), mana: true, fn: () => this.tapMana(o, i, ab) });
         });
         // Yavimaya, Urborg: the mana a land type it was given adds (the engine's index for it)
-        if (!o.tapped) for (const m of (o.manaExtra || [])) uses.push({ label: 'Add mana', text: m.label, mana: true, fn: () => this.send({ kind: 'mana', objId: o.id, index: m.i }) });
+        if (!o.tapped) for (const m of (o.manaExtra || [])) uses.push({ label: 'Add mana', text: m.label, mana: true, fn: () => this.tapMana(o, m.i, null) });
         // prepared: a copy of the spell printed with it, cast from here
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind !== 'cast' || use.via !== 'prepared') continue;
@@ -108647,7 +109486,7 @@ Sideboard
          morph face down…): offered beside the ordinary cast, which comes
          first, rather than left in a right-click menu nobody opens. */
       if (o.zone === 'hand') {
-        const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot'].includes(u.kind));
+        const alts = ((live.uses || {})[o.id] || []).filter(u => ['cast', 'cycle', 'suspend', 'plot', 'foretell'].includes(u.kind));
         if (alts.length) {
           /* the ordinary cast, when it could be made right now: the engine's
              reason covers cost, and its timing is checked here because a card
@@ -108658,10 +109497,12 @@ Sideboard
           const items = alts.map(u => [u.label, () => (u.kind === 'cycle' ? this._cycleUse(o, a, u)
             : u.kind === 'suspend' ? this._suspendUse(o, u)
             : u.kind === 'plot' ? this.send({ kind: 'plot', objId: o.id })
+            : u.kind === 'foretell' ? this.send({ kind: 'foretell', objId: o.id })
             : u.via === 'morph' ? this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })
             : this.castUse(o, a, u))]);
           if (normal) items.unshift([`Cast it ${a.manaCost || o.card.mana_cost || ''}`.trim(), () => this.beginCast(o, a)]);
-          if (items.length === 1) return items[0][1]();
+          // (foretelling exiles the card: never done on a bare click, always picked from the menu)
+          if (items.length === 1 && alts[0].kind !== 'foretell') return items[0][1]();
           const n = this.els.get(o.id);
           const r = n ? n.getBoundingClientRect() : null; /* screen pixels, like a pointer */
           return UI.contextMenu(r ? { clientX: r.left + r.width / 2, clientY: r.top, preventDefault() {} } : null, items, { title: o.card.name });
@@ -109171,10 +110012,88 @@ Sideboard
      * they go with the tap. @this {MTG.TableInstance}
      */
     tapMana(o, i, ab) {
-      const mix = (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity &&
+      const mix = ab && (ab.effects || []).find(e => e && e.op === 'addManaAny' && !e.sameColor && !e.commanderIdentity &&
         typeof e.amount === 'number' && e.amount > 1);
       if (mix) return this._askColours(o.card.name, mix.amount, !!mix.distinct, (cols) => this.send({ kind: 'mana', objId: o.id, index: i, split: cols }), o.card);
-      this.send({ kind: 'mana', objId: o.id, index: i });
+      /* "Add {R} or {G}", "one mana of any color": which, chosen now and sent with the tap. While a spell
+         waits for mana, the one the cost still needs is taken without asking; otherwise, with more than one
+         to choose from, the person is asked (o.manaChoices: what the engine says this source offers). */
+      const opts = (((o.manaChoices || []).find(m => m.i === i)) || {}).options || [];
+      const go = (key) => this.send(Object.assign({ kind: 'mana', objId: o.id, index: i }, key ? { choice: key } : {}));
+      if (opts.length < 2) return go(null);
+      if (this.paying) return go(this._manaChoiceForPay(o, opts));
+      this._askManaChoice(o, opts, go);
+    }
+
+    /**
+     * Which of a source's options to take while a spell waits for mana (the paying banner): the one that
+     * lets what is owed be paid from the pool and the other glowing sources, else the one that pays most of
+     * the coloured part, else — any colour will do — the one the cards in hand want most. Among equals, the
+     * colour the other sources can't make. It only ever settles what the person would have had to pick
+     * anyway: whichever of equals is taken, the same is still owed. @this {MTG.TableInstance}
+     */
+    _manaChoiceForPay(o, opts) {
+      const p = this.paying;
+      /** @type {any} */
+      const me = this.me || {};
+      const cost = p && p.intent.x ? p.cost.replace(/\{X\}/g, '{' + p.intent.x + '}') : String((p && p.cost) || '');
+      const poolSrc = [];
+      for (const c of ['W', 'U', 'B', 'R', 'G', 'C']) for (let k = 0; k < ((me.pool || {})[c] || 0); k++) poolSrc.push(c === 'C' ? '' : c);
+      // the other sources that could still pay, by the mana their card says they make
+      const others = this.manaSources().filter(x => x.id !== o.id)
+        .map(x => (((x.card || {}).produced_mana) || []).filter(c => 'WUBRG'.indexOf(c) >= 0).join(''));
+      const payable = MTG.rules && MTG.rules.Game && MTG.rules.Game.prototype._payableFrom;
+      const coversWith = (key, more) => !!payable && payable.call(null, poolSrc.concat(key.split('').map(c => (c === 'C' ? '' : c)), more), cost);
+      // how many coloured pips are still unpaid, the pool (and this) spent on them first
+      const unpaid = (have) => {
+        const left = have.slice();
+        let n = 0;
+        const pips = MTG.mana.parse(cost).map(sym => sym.split('/').filter(c => 'WUBRG'.indexOf(c) >= 0))
+          .filter(cols => cols.length).sort((a, b) => a.length - b.length);
+        for (const cols of pips) {
+          const at = left.findIndex(c => c && cols.indexOf(c) >= 0);
+          if (at >= 0) left.splice(at, 1); else n++;
+        }
+        return n;
+      };
+      const before = unpaid(poolSrc);
+      const want = {};
+      for (const h of (me.hand || [])) for (const sym of MTG.mana.parse(((h && h.card) || {}).mana_cost || '')) for (const c of 'WUBRG') if (sym.indexOf(c) >= 0) want[c] = (want[c] || 0) + 1;
+      const scarce = (key) => key.split('').reduce((k, c) => k + others.filter(s => s.indexOf(c) >= 0).length, 0);
+      const rank = (x) => [
+        coversWith(x.key, []) ? 1 : 0,                               // pays it all now
+        coversWith(x.key, others) ? 1 : 0,                           // leaves it payable with what else glows
+        before - unpaid(poolSrc.concat(x.key.split(''))),             // coloured pips it pays
+        -scarce(x.key),                                               // a colour nothing else here makes
+        x.key.split('').reduce((k, c) => k + (want[c] || 0), 0),      // what the hand wants
+      ];
+      let best = opts[0], bestR = rank(opts[0]);
+      for (const x of opts.slice(1)) {
+        const r = rank(x);
+        for (let k = 0; k < r.length; k++) { if (r[k] === bestR[k]) continue; if (r[k] > bestR[k]) { best = x; bestR = r; } break; }
+      }
+      return best.key;
+    }
+
+    /**
+     * What a source tapped by hand adds, when it lets you choose (Kibo's Banana's {R} or {G}, Birds of
+     * Paradise, a filter land's {W}{W}, {W}{U} or {U}{U}): the mana a button each, with the card's art like
+     * every other question here. One press picks it and taps; Cancel or Esc leaves it untapped.
+     * @this {MTG.TableInstance}
+     */
+    _askManaChoice(o, opts, go) {
+      const name = (o.card && o.card.name) || 'Mana';
+      const key = 'manapick:' + o.id + ':' + opts.map(x => x.key).join(',');
+      const done = (k) => { this.asking = null; this.render(); MTG.sfx('click'); go(k); };
+      this.asking = { base: key, key, escape: true, build: () => this.panel(`${escapeHtml(name)}: add which mana?`,
+        opts.length === 5 ? 'Any colour.' : 'Choose what it adds.',
+        el('div', { class: 'mana-picks', role: 'group', 'aria-label': 'Mana to add' }, opts.map((x, k) => el('button', {
+          type: 'button', class: 'mana-pick' + (x.key.length > 1 || x.mana.length > 3 ? ' wide' : ''),
+          html: MTG.mana.html(x.mana), title: 'Add ' + x.mana, 'aria-label': 'Add ' + x.mana, 'data-mana': x.key,
+          autofocus: k === 0 ? true : null, onclick: () => done(x.key),
+        }))),
+        [{ label: 'Cancel', fn: () => { this.asking = null; this.render(); } }], { card: o.card, cls: 'mana-ask' }) };
+      this.render();
     }
 
     /**
@@ -109191,7 +110110,7 @@ Sideboard
       const key = 'cols:' + name + ':' + total;
       const title = `${escapeHtml(name)}: ${total} mana`;
       const sub = distinct ? `Choose ${total} different colours.` : 'Choose a colour for each; the same one as often as you like.';
-      this.asking = { base: key, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
+      this.asking = { base: key, escape: true, get key() { return key + ':' + sel.picks.join(','); }, build: () => {
         const pr = MTG.choice.progress(s, sel.picks);
         return this.panel(title, escapeHtml(sub) + `<br><span class="choose-status${pr.ok ? '' : ' short'}">${escapeHtml(pr.text)}</span>`,
           this.chooseBody(s, sel, {
@@ -109568,6 +110487,7 @@ Sideboard
         for (const use of ((live.uses || {})[o.id] || [])) {
           if (use.kind === 'cycle') items.push([use.label, () => this._cycleUse(o, a, use)]);
           else if (use.kind === 'plot') items.push([use.label, () => this.send({ kind: 'plot', objId: o.id })]);
+          else if (use.kind === 'foretell') items.push([use.label, () => this.send({ kind: 'foretell', objId: o.id })]);
           else if (use.kind === 'suspend') items.push([use.label, () => this._suspendUse(o, use)]);
           else if (use.kind === 'transmute') items.push([use.label, () => this.send({ kind: 'transmute', objId: o.id })]);
           else if (use.kind === 'cast' && use.via === 'morph') items.push([use.label, () => this.send({ kind: 'cast', objId: o.id, targets: [], via: 'morph' })]);
@@ -109607,7 +110527,7 @@ Sideboard
         const gActs = gained.filter(g => !g.mana), gMana = gained.filter(g => g.mana);
         a.manaAbilities.forEach((ab, i) => items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(ab, o), 42)}`, () => this.tapMana(o, i, ab)]));
         for (const g of gMana) items.push([`Mana: ${truncate(MTG.oracle.abilityLabel(g.ability, o), 42)}`, () => this.tapMana(o, g.i, g.ability)]);
-        for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.send({ kind: 'mana', objId: o.id, index: m.i })]);
+        for (const m of (o.manaExtra || [])) items.push([`Mana: ${truncate(m.label, 42)}`, () => this.tapMana(o, m.i, null)]);
         const actBase = o.gained ? o.gained.manaBase : a.manaAbilities.length;
         acts.concat(gActs.map(g => g.ability)).forEach((ab, k) => {
           const idx = k < acts.length ? actBase + k : gActs[k - acts.length].i;
@@ -122790,6 +123710,7 @@ Sideboard
         case 'suspend': g.suspendCard(actorId, intent.objId, { auto: true,
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(1, Math.min(99, Math.floor(+intent.x))) : undefined }); break;
         case 'transmute': g.transmuteCard(actorId, intent.objId, { auto: true }); break;
+        case 'foretell': g.foretellCard(actorId, intent.objId, { auto: true }); break;
         case 'encore': g.encoreCard(actorId, intent.objId, { auto: true }); break;
         case 'turnFaceUp': g.turnFaceUp(actorId, intent.objId, { auto: true }); break;
         // the companion: {3} to put it into your hand, once a game (CR 702.139)
@@ -122801,6 +123722,8 @@ Sideboard
           fromPool: payByHand(intent),
           // the X of an ability's cost: mana paid, or counters taken off
           x: Number.isFinite(+intent.x) && intent.x != null ? Math.max(0, Math.min(99, Math.floor(+intent.x))) : undefined,
+          // a mana ability's colour (or bundle of mana), chosen at the table as it was activated
+          manaChoice: typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of two colours": how much of the second
           // or, "in any combination of colors", a colour letter for each
           manaSplit: Array.isArray(intent.manaSplit) ? intent.manaSplit.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c))
@@ -122808,7 +123731,9 @@ Sideboard
           ...costPicksOf(intent),
           sacrificeIds: Array.isArray(intent.sacrificeIds) ? intent.sacrificeIds.slice(0, 20).map(String) : undefined,
           discardIds: Array.isArray(intent.discardIds) ? intent.discardIds.slice(0, 20).map(String) : undefined }); break;
-        case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0, intent.choice,
+        case 'mana': g.tapForMana(actorId, intent.objId, intent.index || 0,
+          // the colour (or bundle of mana) chosen at the table: a mana ability can't stop to ask
+          typeof intent.choice === 'string' && /^[WUBRGC]{1,6}$/.test(intent.choice) ? intent.choice : undefined,
           // "in any combination of colors": a colour letter for each, chosen at the table
           Array.isArray(intent.split) ? intent.split.slice(0, 99).map(String).filter(c => /^[WUBRG]$/.test(c)) : undefined); break;
         case 'declareAttackers': g.declareAttackers(actorId, intent.declarations || []); break;
