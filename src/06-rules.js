@@ -145,6 +145,14 @@
          Mountain, a creature Humility has taken everything from. The game
          works that out, layer by layer (CR 613). */
       if (base && this.zone === 'battlefield' && this.game) return this.game._layeredAnalysis(this, base);
+      // Blind Seer, Purelace: a spell on the stack made another colour (cached under _chr…, out of snapshots)
+      if (base && this.zone === 'stack' && this.effects && this.effects.length) {
+        const ce = this.effects.filter(x => x && x.setColors).pop();
+        if (ce) {
+          if (this._chrStkBase !== base || this._chrStkEff !== ce) { this._chrStkBase = base; this._chrStkEff = ce; this._chrStkA = Object.assign({}, base, { colors: ce.setColors.slice() }); }
+          return this._chrStkA;
+        }
+      }
       // Varolz, the Scar-Striped: a creature card in a graveyard can have an ability given to it there (grantScavenge)
       if (base && this.zone === 'graveyard' && this.game && base.isCreature) return this.game._graveAnalysis(this, base);
       return base;
@@ -13875,7 +13883,8 @@
             if (!e || e.control == null || !e.whileSrc) return true;
             const s0 = this.obj(e.whileSrc);
             // Sower of Temptation: only while it stays; Kellogg: while you still control it
-            return !!(s0 && s0.zone === 'battlefield' && (e.whileOnBf || s0.controller === e.control));
+            // (Rubinia Soulsinger: and while it stays tapped — whileSrcTapped)
+            return !!(s0 && s0.zone === 'battlefield' && (e.whileOnBf || s0.controller === e.control) && (!e.whileSrcTapped || s0.tapped));
           });
         }
         (o.effects || []).forEach((e, i) => {
@@ -23199,6 +23208,8 @@
               e.until === 'endNextTurn' ? { untilEndTurn: this._endOfNextTurnOf(ctx.controller) } : {},
               // Kellogg: "for as long as you control this creature"
               e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {},
+              // Rubinia Soulsinger: "and Rubinia Soulsinger remains tapped" (whileSrcTapped)
+              e.whileSrc && src && e.whileSrcTapped ? { whileSrcTapped: true } : {},
               // Garland, Royal Kidnapper: "for as long as they're the monarch" — the player the trigger is about (whileMonarch)
               e.whileMonarch ? { whileMonarch: (triggerPlayer() || {}).id || '-' } : {},
               // Eriette, the Beguiler: "for as long as that Aura is attached to it" (whileAttachedAura)
@@ -27704,13 +27715,16 @@
         }
         // Spiritmonger: the colour of its controller's choice, until end of turn
         case 'chooseColorFor': {
-          const x = src;
-          if (!x || x.zone !== 'battlefield') break;
+          // Blind Seer: "Target spell or permanent becomes the color of your choice" — a spell on the stack too (targets)
+          const x = e.targets ? targets.map(t => t.kind === 'stack' ? ((this.stack.find(s => s.id === t.id) || {}).obj || null)
+            : t.kind === 'object' ? this.obj(t.id) : null).find(o => o && (o.zone === 'battlefield' || o.zone === 'stack')) : src;
+          if (!x || !(x.zone === 'battlefield' || (e.targets && x.zone === 'stack'))) break;
           const COLS = [['W', 'white'], ['U', 'blue'], ['B', 'black'], ['R', 'red'], ['G', 'green']];
           const got = this._choose({ playerId: ctx.controller, purpose: 'color', kind: 'options', min: 1, max: 1,
             options: COLS.map((c, i) => ({ i, label: c[1] })), prompt: `${x.name} becomes the colour of your choice.` }, 'col');
           if (got === SUSPEND) return SUSPEND;
           const c = COLS[(got && got.picks && got.picks[0]) || 0] || COLS[0];
+          x.effects = x.effects || [];
           x.effects.push({ setColors: [c[0]], until: 'eot' });
           x._chr = null; this.bumpBoard();
           this.logEvent('rules', `${x.name} becomes ${c[1]}.`);
@@ -28460,6 +28474,8 @@
           }
           this._looked = null;
           this.logEvent('look', `${me.name} takes ${taken.length}.`);
+          // Munda, Ambush Leader: "put those cards on top of your library in any order" (arrangeTaken)
+          if (e.arrangeTaken && taken.filter(o => o.zone === 'library').length > 1) { this._looked = taken.map(o => o.id); this._spliceNext([{ op: 'putBackLooked' }]); }
           break;
         }
 
@@ -35513,6 +35529,8 @@
      */
     _markUntapped(o) {
       if (!o || !o.tapped) return false;
+      // Spider-Woman, Secret Agent: "That creature can't become untapped …" (cantBecomeUntapped)
+      if (o.zone === 'battlefield' && this._hasFlag(o, 'cantBecomeUntapped')) return false;
       /* A stun counter (CR 122.1d): "If a permanent with a stun counter would
          become untapped, instead remove a stun counter from it." */
       if (o.zone === 'battlefield' && (Number((o.counters || {}).stun) || 0) > 0) {

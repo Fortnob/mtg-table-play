@@ -1808,8 +1808,9 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'goad', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }
         : { op: 'goad', scope: { who: 'target', what: 'creature', thatPlayer: true } }) },
     // Kellogg, Merieke Ri Berit: "for as long as you control this creature"
-    { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)\.?$/i,
-      make: (m) => ({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }) },
+    // (Rubinia Soulsinger: "… and Rubinia Soulsinger remains tapped" — whileSrcTapped)
+    { re: /^(?:Gain|You gain) control of (target [a-z ]+?) for as long as you control (?:CARDNAME|this creature|this artifact|this enchantment|this permanent)( and (?:CARDNAME|this creature|this artifact) remains tapped)?\.?$/i,
+      make: (m) => Object.assign({ op: 'gainControl', until: null, whileSrc: true, targets: [targetSpec(m[1])] }, m[2] ? { whileSrcTapped: true } : {}) },
     // Amazing Acrobatics: "Tap one or two target creatures."
     { re: /^Tap one or two target creatures\.?$/i, make: () => ({ op: 'tap', targets: [{ type: 'creature' }, { type: 'creature', upTo: true, distinct: true }] }) },
     // Kheru Goldkeeper: "Put two +1/+1 counters and a flying counter on target creature."
@@ -2214,6 +2215,9 @@
     // Shiko, Paragon of the Way: "exile target nonland card with mana value 3 or less from your graveyard"
     { re: /^Exile (target [a-z, ]+? card with mana value \d+ or less) from your graveyard\.?$/i,
       make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown && t.maxMv != null ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // Gyrus, Waker of Corpses: "exile target creature card with lesser power from your graveyard" — lesser than Gyrus's
+    { re: /^Exile (target [a-z]+ card with lesser power) from your graveyard\.?$/i,
+      make: (m) => { const t = targetSpec(m[1], 'graveyard'); return t && !t.unknown && t.lesserPowerThanSource ? { op: 'exile', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Ashling the Pilgrim: "remove all +1/+1 counters from Ashling, and it deals that much damage to each creature and each player"
     { re: /^remove all \+1\/\+1 counters from CARDNAME, and it deals that much damage to each creature and each player\.?$/i,
       make: () => ({ op: 'sequence', list: [{ op: 'removeAllButCounters', kind: '+1/+1', keep: 0 },
@@ -2719,7 +2723,8 @@
       make: () => ({ op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Destroy it at end of turn',
         effects: [{ op: 'destroyThat' }] }) },
     // Geist of Saint Traft: "Exile that token at end of combat."
-    { re: /^Exile (?:that token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
+    // (Gyrus, Waker of Corpses: "Exile the token at end of combat.")
+    { re: /^Exile (?:that token|the token|it|them|those tokens) at end of combat\.?$/i, make: () => ({ op: 'exileMadeEoc' }) },
     // Dorothea's Retribution: "Sacrifice that token at end of combat." (sacMadeEoc)
     { re: /^Sacrifice (?:that token|those tokens) at end of combat\.?$/i, make: () => ({ op: 'sacMadeEoc' }) },
     // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
@@ -4444,11 +4449,17 @@
     // Spiritmonger: "This creature becomes the color of your choice until end of turn."
     { re: /^(?:This creature|CARDNAME) becomes the colou?r of your choice until end of turn\.?$/i,
       make: () => ({ op: 'chooseColorFor', scope: 'self' }) },
+    // Blind Seer: "Target spell or permanent becomes the color of your choice until end of turn."
+    { re: /^Target spell or permanent becomes the colou?r of your choice until end of turn\.?$/i,
+      make: () => ({ op: 'chooseColorFor', targets: [{ type: 'spellOrPermanent' }] }) },
     /* Phyrexian Gremlins, Icefall Regent: "It doesn't untap during its
        controller's untap step for as long as CARDNAME remains tapped" / "for
        as long as you control CARDNAME" */
     { re: /^(?:It|That creature|That permanent|That land|That artifact|They) (?:doesn'?t|don'?t) untap during (?:its|their) controllers?'?s? untap steps? for as long as (?:(you control) )?(?:CARDNAME|this creature|this artifact|this land|this enchantment)( remains tapped)?\.?$/i,
       make: (m) => (m[1] || m[2] ? { op: 'flagWhile', flag: 'noUntap', scope: 'lastTarget', whileTapped: !!m[2], whileControl: !!m[1] } : null) },
+    // Spider-Woman, Secret Agent: "That creature can't become untapped for as long as you control Spider-Woman." — by anything (cantBecomeUntapped)
+    { re: /^(?:It|That creature|That permanent) can'?t become untapped for as long as you control (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'flagWhile', flag: 'cantBecomeUntapped', scope: 'lastTarget', whileControl: true }) },
     // Flowstone Armor: "Target creature gets +1/-1 for as long as CARDNAME remains tapped."
     { re: /^(Target [a-z ]+?) gets ([+-]\d+)\/([+-]\d+) for as long as (?:CARDNAME|this creature|this artifact) remains tapped\.?$/i,
       make: (m) => { const t = tgt(m[1]); return t ? { op: 'flagWhile', pt: { p: pmNum(m[2]), t: pmNum(m[3]) }, targets: [t], whileTapped: true } : null; } },
@@ -5474,6 +5485,11 @@
     { re: /^Put up to one of them on top of your library and the rest on the bottom in a random order\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'bottomRandom',
         prompt: 'You may put one of them on top of your library. The rest go on the bottom in a random order.' }) },
+    /* Munda, Ambush Leader: "Reveal any number of Ally cards from among them, then put those cards on top of your library
+       in any order and the rest on the bottom in any order." — the revealed ones arranged on top (arrangeTaken) */
+    { re: /^Reveal any number of ([A-Za-z]+) cards from among them, then put those cards on top of your library in any order and the rest on the bottom in any order\.?$/i,
+      make: (m) => ({ op: 'takeFromLooked', n: 99, filter: m[1].toLowerCase(), to: 'top', reveal: true, rest: 'bottom', arrangeTaken: true,
+        prompt: `Reveal any number of ${m[1]} cards from among them to put on top of your library. The rest go on the bottom.` }) },
     // Sage of Days, Gutless Plunderer: "You may put one of those cards back on top of your library." — the rest wait for the next sentence
     { re: /^You may put one of (?:those cards|them) back on top of your library\.?$/i,
       make: () => ({ op: 'takeFromLooked', n: 1, filter: 'any', to: 'top', rest: 'keep', prompt: 'You may put one back on top of your library.' }) },
@@ -8579,6 +8595,10 @@
     { re: /^Create a tapped and attacking token that'?s a copy of that card, except it'?s an? (\d+)\/(\d+) (white|blue|black|red|green) ([A-Z][a-z]+) with (flying|menace|haste|trample|deathtouch|lifelink)\.?$/,
       make: (m) => ({ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', nowOnly: true, tapped: true, attacking: true,
         setPt: m[1] + '/' + m[2], setColor: m[3], setType: m[4], addText: [U.titleCase(m[5])] }) },
+    /* Gyrus, Waker of Corpses: "create a token that's a copy of that card and that's tapped and attacking" — the card
+       just exiled (nowOnly) */
+    { re: /^Create a token that'?s a copy of that card and that'?s tapped and attacking\.?$/i,
+      make: () => ({ op: 'copyPermanent', n: 1, grant: [], scope: 'lastTarget', nowOnly: true, tapped: true, attacking: true }) },
     /* Grist, the Plague Swarm: "For each creature card in your graveyard, create a token that's a copy of it, except
        it's a 1/1 black and green Insect." (copyEach) */
     { re: /^For each (creature|artifact|permanent) card in your graveyard, create a token that'?s a copy of it, except it'?s an? (\d+)\/(\d+) ((?:white|blue|black|red|green)(?: and (?:white|blue|black|red|green))?) ([A-Z][a-z]+)\.?$/,
@@ -9794,7 +9814,8 @@
     // Auron, Venerated Guardian: "target creature defending player controls with power less than CARDNAME's power" (lesserPowerThanSource)
     // (Mirko, Obsessive Theorist: "target creature card with power less than Mirko's" — no "power" after it)
     // (The Master, Mesmerist: "with power less than or equal to The Master's power" — orEqual)
-    const lesserPowM = String(phrase).match(/\s+with power less than (or equal to )?(?:CARDNAME|this creature)'s(?: power)?$/i);
+    // (Gyrus, Waker of Corpses: "target creature card with lesser power from your graveyard" — lesser than Gyrus's)
+    const lesserPowM = String(phrase).match(/\s+with (?:lesser power|power less than (or equal to )?(?:CARDNAME|this creature)'s(?: power)?)$/i);
     const lesserPow = lesserPowM ? (lesserPowM[1] ? 'orEqual' : true) : false;
     if (lesserPow) phrase = String(phrase).slice(0, lesserPowM.index);
     /* Flowstone Salamander, Knight of Dusk: "target creature blocking it (this creature)";
