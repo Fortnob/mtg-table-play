@@ -1413,11 +1413,15 @@
       }
       const maxHand = Math.max(0, base + this._handSizeMod(ap.id));
       if (hand.length > maxHand && !ap.isBot) {
-        this.pendingChoice = {
+        const ask = {
           type: 'discardToHandSize', playerId: ap.id,
           count: hand.length - maxHand,
           prompt: `Discard down to ${maxHand} cards.`,
         };
+        // a hand of identical cards, or a maximum of none: nothing to choose (_settledAnswer)
+        const settled = this._settledAnswer(ask);
+        if (settled) { this._applySettled(ask, settled); this._finishCleanup(); return; }
+        this.pendingChoice = ask;
         this.emit('choice', this.pendingChoice);
         this.touch();
         return;
@@ -8110,7 +8114,7 @@
         if (this._isRingBearer(o) && (this.player(o.controller) || {}).ringLevel >= 2) {
           const owner = this.player(o.controller);
           this._drawCards(owner, 1);
-          this.queueChoice({
+          this._queueUnlessSettled({
             type: 'discard', playerId: owner.id, count: 1,
             prompt: 'The Ring: discard a card.',
           });
@@ -8149,7 +8153,7 @@
           const d = o.attacking;
           const dpid = this._defPid(d);
           if (dpid) {
-            this.queueChoice({
+            this._queueUnlessSettled({
               type: 'sacrifice', playerId: dpid, count: ann, filter: 'permanent',
               prompt: `${o.name} has annihilator ${ann} \u2014 sacrifice ${ann} permanent${ann === 1 ? '' : 's'}.`,
             });
@@ -34330,7 +34334,7 @@
         return null;
       };
       switch (ch.type) {
-        case 'discard': {
+        case 'discard': case 'discardToHandSize': {
           const hand = (this.zones[pid] || {}).hand || [];
           const pool = ch.candidates ? hand.filter(x => ch.candidates.includes(x.id)) : hand.slice();
           return fromPool(pool, Math.min(ch.count || 0, pool.length), 'discard');
@@ -34432,9 +34436,16 @@
       if (settled.what) {
         this.logEvent('choice', settled.alike ? `${p.name}'s choices are all alike: ${settled.what}.` : `${p.name} has only one choice: ${settled.what}.`);
       }
-      if (ch.type === 'discard') this._discardAnswer(ch, ch.playerId, settled.data);
+      if (ch.type === 'discard' || ch.type === 'discardToHandSize') this._discardAnswer(ch, ch.playerId, settled.data);
       else if (ch.type === 'sacrifice') this._sacrificeAnswer(ch, ch.playerId, settled.data);
       return this._answerFor(ch, settled.data);
+    }
+
+    /** A question asked outside a resolution (nothing waits for its answer), unless there is nothing to decide. */
+    _queueUnlessSettled(ch) {
+      const settled = this._settledAnswer(ch);
+      if (settled) this._applySettled(ch, settled);
+      else this.queueChoice(ch);
     }
 
     /** Whether this player can see this card where it is without being shown it. */

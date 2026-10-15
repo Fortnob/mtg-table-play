@@ -321,6 +321,39 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Food').length, 1, 'one Food sacrificed');
   });
 
+  test('Nothing to decide: discarding to hand size from a hand of identical cards is not asked', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    emptyHand(T, 'A');
+    for (let i = 0; i < 9; i++) T.hand('A', 'Island');
+    T.nextTurn('B');
+    t.eq(asked(T, 'discardToHandSize'), 0, 'nine Islands: not asked');
+    t.eq(T.zone('A', 'hand').length, 7, 'down to seven');
+    t.ok(said(T, "A's choices are all alike: discard Island, Island."), 'the log says so');
+    T.hand('A', 'Grizzly Bears');
+    T.nextTurn('A');
+    T.nextTurn('B');
+    t.eq(asked(T, 'discardToHandSize'), 1, 'Islands and a Bears: asked');
+    t.eq(g.zones.A.hand.length, 7);
+  });
+
+  test('Nothing to decide: annihilator with permanents all alike is not asked; different ones are', (mk, t) => {
+    t.auto('It That Betrays');
+    const run = (setup) => {
+      const T = mk({ library: Array(30).fill('Island') });
+      const it = T.bf('A', 'It That Betrays');
+      setup(T);
+      T.answer('declareAttackers', () => [{ attackerId: it.id, defenderId: 'B' }]);
+      T.toMain('A', 'declareBlockers');
+      return T;
+    };
+    let T = run((T) => { T.bf('B', 'Forest'); T.bf('B', 'Forest'); T.bf('B', 'Forest'); });
+    t.eq(asked(T, 'sacrifice'), 0, 'three Forests: not asked');
+    t.eq(T.bfOf('B').length, 1, 'two go');
+    T = run((T) => { T.bf('B', 'Forest'); T.bf('B', 'Grizzly Bears'); T.bf('B', 'Forest'); });
+    t.eq(asked(T, 'sacrifice'), 1, 'Forests and a Bears: asked');
+  });
+
   test('Still asked: putting every card in hand on top, when they differ — the order is a choice', (mk, t) => {
     const T = mk({ library: Array(20).fill('Island') });
     const g = T.g;
