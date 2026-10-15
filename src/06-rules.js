@@ -10528,6 +10528,8 @@
     _discardPool(pid, spec, self, opts) {
       const hand = ((this.zones[pid] || {}).hand || []).filter(c => !self || c.id !== self.id);
       const f = String((spec && spec.filter) || 'card');
+      // Grandeur: "Discard another card named Linessa, Zephyr Mage" (namedSelf)
+      if (spec && spec.namedSelf) return hand.filter(c => !!self && c.name === self.name);
       if (/^(?:a )?card with mana value X$/i.test(f)) return hand.filter(c => ((c.card && c.card.cmc) || 0) === ((opts && opts.x) || 0));
       return /^(?:card|cards|a card)$/i.test(f) ? hand : hand.filter(c => this._cardFitsWords(c, f));
     }
@@ -32654,7 +32656,8 @@
            and dealt by that creature this turn" */
         case 'flagEot':
           // (Neyith of the Dire Hunt: "this combat" — the combat now, thisCombat)
-          applyToScope(e, (o) => { for (const f of (e.flags || [])) o.effects.push(Object.assign({ flag: f, until: 'eot' }, e.thisCombat ? { combatNo: this.combatsThisTurn } : {})); o._chr = null; });
+          // (Ma Chao, Western Warrior: "it can't be blocked this combat" — gone when the combat ends, untilEndOfCombat)
+          applyToScope(e, (o) => { for (const f of (e.flags || [])) o.effects.push(Object.assign({ flag: f, until: 'eot' }, e.thisCombat ? { combatNo: this.combatsThisTurn } : {}, e.untilEndOfCombat ? { untilEndOfCombat: true } : {})); o._chr = null; });
           this.bumpBoard();
           break;
         /* Second Harvest: a copy of each token you control */
@@ -35307,7 +35310,8 @@
              the one question (optional); with nothing to sacrifice, none is asked (come back to with the answer, the
              pool may be empty: the last one was what went) */
           if (e.optional) {
-            if (!pool.length && ctx._sacBefore == null) break;
+            // Crovax the Cursed: "If you don't, remove a +1/+1 counter" — nothing to sacrifice is not sacrificing (otherwise)
+            if (!pool.length && ctx._sacBefore == null) { if (e.otherwise) this._spliceNext(e.otherwise); break; }
             if (ctx._sacBefore == null) ctx._sacBefore = this._sacCount || 0;
             const tm = String(e.text || '').match(/\b(When|If) you do, ([^\n]+)/i), tail = tm && tm[2];
             const got = this._ask({ type: 'sacrifice', playerId: ctx.controller, count: 1, optional: true, filter: e.filter || 'creature',
@@ -35318,7 +35322,7 @@
             const madeIt = (this._sacCount || 0) > ctx._sacBefore;
             ctx._sacBefore = null;
             if (madeIt) this._spliceNext(e.then || []);
-            else this.logEvent('rules', `${me.name} declines.`);
+            else { this.logEvent('rules', `${me.name} declines.`); if (e.otherwise) this._spliceNext(e.otherwise); }
             break;
           }
           if (!pool.length) break;

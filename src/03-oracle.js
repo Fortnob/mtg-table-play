@@ -367,6 +367,8 @@
           another: /another/i.test(m[1]) || !!m[2] };
         continue;
       }
+      // Grandeur (Linessa, Zephyr Mage; Korlash, Heir to Blackblade): "Discard another card named CARDNAME" — by its name (namedSelf)
+      if (/^Discard another card named CARDNAME$/i.test(p)) { cost.discard = { n: 1, filter: 'card', namedSelf: true }; continue; }
       // (Gix, Yawgmoth Praetor: "Discard X cards" — the X chosen as it is activated)
       if ((m = p.match(/^Discard (a|an|your hand|two|three|\d+|X) ?(.*)$/i))) {
         cost.discard = { n: /^\d+$/.test(m[1]) ? +m[1] : /^(?:two|three)$/i.test(m[1]) ? num(m[1]) : /^X$/.test(m[1]) ? 'X' : (/hand/i.test(m[1]) ? 'all' : 1), filter: m[2] || 'card' };
@@ -2759,7 +2761,8 @@
     { re: /^CARDNAME enters with X (\+1\/\+1) counters on it, where X is twice the number of counters removed this way\.?$/,
       make: (m) => ({ op: 'counters', kind: m[1], n: { removedCounters: true, mult: 2 }, scope: 'self' }) },
     // Heartless Act, Glissa Sunslayer: "Remove up to three counters from target creature."
-    { re: /^Remove up to (one|two|three|four|\d+) counters? from (target [a-z ]+?)\.?$/i,
+    // (Mabel, Bitter Recluse: "from another target creature or planeswalker")
+    { re: /^Remove up to (one|two|three|four|\d+) counters? from ((?:another )?target [a-z ]+?)\.?$/i,
       make: (m) => ({ op: 'removeCountersFrom', n: num(m[1]), upTo: true, kind: null, targets: [targetSpec(m[2])] }) },
     // Quiet Disrepair: "Destroy enchanted creature."
     { re: /^Destroy enchanted (creature|permanent|artifact|land)\.?$/i, make: () => ({ op: 'destroy', scope: 'attached' }) },
@@ -4811,6 +4814,9 @@
       make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', targets: [{ type: 'creature', upTo: true }] }) },
     // Creeping Tar Pit: "It can't be blocked this turn." — itself, or the target before it
     { re: /^It can'?t be blocked this turn\.?$/i, make: () => ({ op: 'restrict', flag: 'unblockable', scope: 'self' }) },
+    // Ma Chao, Western Warrior: "Whenever Ma Chao attacks alone, it can't be blocked this combat." — the attacker, until combat ends
+    { re: /^(It|CARDNAME|This creature) can'?t be blocked this combat\.?$/i,
+      make: (m) => ({ op: 'flagEot', flags: ['unblockable'], untilEndOfCombat: true, scope: /^it$/i.test(m[1]) ? 'lastTarget' : 'self' }) },
     // Heroic Teamwork: "One or two target creatures each get +2/+1 until end of turn."
     { re: /^One or two target creatures each get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: pmNum(m[1]), t: pmNum(m[2]), duration: 'eot', targets: [{ type: 'creature' }, { type: 'creature', upTo: true }] }) },
@@ -6776,6 +6782,11 @@
     { re: /^(That player|Target player|Target opponent) returns an? ([a-z][a-z ]*?) they control to (?:its|their) owner'?s hand\.?$/i,
       make: (m) => Object.assign({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: 1, who: /^that/i.test(m[1]) ? 'triggerPlayer' : 'target' },
         /^target/i.test(m[1]) ? { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] } : {}) },
+    /* Linessa, Zephyr Mage: "Target player returns a creature they control to its owner's hand, then repeats this
+       process for an artifact, an enchantment, and a land." — one after another, each their choice */
+    { re: /^Target (player|opponent) returns an? ([a-z]+) they control to its owner'?s hand, then repeats this process for ((?:an? [a-z]+, )*an? [a-z]+,? and an? [a-z]+)\.?$/i,
+      make: (m) => [m[2]].concat(m[3].split(/,? and |, /).map(w => w.replace(/^an? /i, ''))).map((w, i) => Object.assign({ op: 'returnOwn', filter: w.toLowerCase(), n: 1, who: 'target' },
+        i ? {} : { targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] })) },
     { re: /^Return (two|three|\d+) ([a-z][a-z ]*?) you control to (?:its|their) owner'?s hand\.?$/i,
       make: (m) => ({ op: 'returnOwn', filter: m[2].trim().toLowerCase(), n: num(m[1]) }) },
     { re: /^Return (?:CARDNAME|this permanent|this creature|this land) to (?:its|their) owner'?s hand\.?$/i,
@@ -14189,12 +14200,16 @@
            creature this way, instead …" — the damage's own rider, part of what "when you do" does
            (Bolg of the North: "If excess damage was dealt this way, amass Goblins X, where X is that excess damage.") */
         const rider = /^If excess damage (?:would be dealt to that creature|was dealt) this way, /i.test(sentences[i + 2] || '') ? parseSentenceList([sentences[i + 2]]) : null;
-        if (tp.auto && (!usesX || xv) && (!rider || rider.auto)) {
+        // Crovax the Cursed: "If you don't, remove a +1/+1 counter from Crovax." — what declining does (otherwise)
+        const dontM = !rider && (sentences[i + 2] || '').match(/^If you don'?t, (.+)$/i);
+        const dont = dontM ? parseSentenceList(splitSentences(U.titleCase(dontM[1].charAt(0)) + dontM[1].slice(1))) : null;
+        if (tp.auto && (!usesX || xv) && (!rider || rider.auto) && (!dont || dont.auto)) {
           swapX(tp.effects);
           if (rider) tp.effects.push(...rider.effects);
           // (one question: which to sacrifice, or none — not a yes and then a pick)
-          effects.push({ op: 'sacThen', optional: true, filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects, text: s + ' ' + next + (rider ? ' ' + sentences[i + 2] : '') });
-          i += rider ? 2 : 1;
+          effects.push(Object.assign({ op: 'sacThen', optional: true, filter: sacMay[2].trim(), other: /another/i.test(sacMay[1]), then: tp.effects,
+            text: s + ' ' + next + (rider || dont ? ' ' + sentences[i + 2] : '') }, dont ? { otherwise: dont.effects } : {}));
+          i += rider || dont ? 2 : 1;
           continue;
         }
       }

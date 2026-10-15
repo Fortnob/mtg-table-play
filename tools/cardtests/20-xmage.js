@@ -65501,4 +65501,95 @@ module.exports = (test) => {
     t.eq(g.powerOf(lb), 4, 'Liu Bei: with Zhang Fei'); t.eq(g.toughnessOf(lb), 6);
     t.zone(theirs, 'battlefield');
   });
+  test('Commanders: Mabel, Bitter Recluse — enters: up to three counters off another creature or planeswalker', (mk, t) => {
+    t.auto('Mabel, Bitter Recluse');
+    const T = mk({ library: Array(20).fill('Island') });
+    const giant = T.bf('B', 'Hill Giant'); giant.counters['+1/+1'] = 4;
+    const bear = T.bf('A', 'Grizzly Bears'); bear.counters['+1/+1'] = 1;
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    const mb = T.bf('A', 'Mabel, Bitter Recluse', { etb: true });
+    T.resolve();
+    t.ok(q, 'Mabel: asked for a target');
+    t.no(JSON.stringify(q.targets || q.options || q).includes('"' + mb.id + '"'), 'Mabel: not herself');
+    t.eq(giant.counters['+1/+1'] || 0, 1, 'Mabel: three of the four counters removed');
+    t.eq(bear.counters['+1/+1'], 1, 'Mabel: the other creature keeps its counter');
+  });
+  test('Commanders: Crovax the Cursed — upkeep: sacrifice a creature for a counter, or lose one', (mk, t) => {
+    t.auto('Crovax the Cursed');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const cv = T.bf('A', 'Crovax the Cursed', { etb: true });
+    t.eq(cv.counters['+1/+1'], 4, 'Crovax: enters with four counters');
+    const bear = T.bf('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('sacrifice', (ch) => { q = ch; return { cardIds: [bear.id] }; });
+    T.nextTurn('B');
+    T.toMain('A');
+    t.ok(q && q.optional, 'Crovax: you may — asked');
+    t.zone(bear, 'graveyard', 'Crovax: the Bears sacrificed');
+    t.eq(cv.counters['+1/+1'], 5, 'Crovax: a counter on it');
+    // declined: a counter off
+    T.bf('A', 'Grizzly Bears');
+    T.answer('sacrifice', () => ({ cardIds: [] }));
+    T.nextTurn('B');
+    T.toMain('A');
+    t.eq(cv.counters['+1/+1'], 4, 'Crovax: declined — a counter removed');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 1, 'Crovax: declined — the Bears stay');
+    // {B}: flying
+    T.mana('A', 'B');
+    T.activate('A', cv, 0);
+    T.resolve();
+    t.ok(g.hasKw(cv, 'flying'), 'Crovax: flying');
+  });
+  test('Commanders: Crovax the Cursed — declining with only itself to sacrifice: a counter off', (mk, t) => {
+    const T = mk({ library: Array(30).fill('Island') });
+    const cv = T.bf('A', 'Crovax the Cursed', { etb: true });
+    T.answer('sacrifice', () => ({ cardIds: [] }));
+    T.nextTurn('B');
+    T.toMain('A');
+    t.eq(cv.counters['+1/+1'], 3, 'Crovax: a counter removed');
+  });
+  test('Commanders: Ma Chao, Western Warrior — attacking alone it can\'t be blocked this combat; not with company', (mk, t) => {
+    t.auto('Ma Chao, Western Warrior');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const mc = T.bf('A', 'Ma Chao, Western Warrior');
+    const bear = T.bf('A', 'Grizzly Bears');
+    const wei = T.bf('B', 'Wei Strike Force');
+    T.answer('declareAttackers', () => [{ attackerId: mc.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.no(g.canBlock(wei, mc), 'Ma Chao: alone — unblockable');
+    T.toMain('A', 'end');
+    t.no(g._hasFlag(mc, 'unblockable'), 'Ma Chao: over with the combat');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: mc.id, defenderId: 'B' }, { attackerId: bear.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    t.ok(g.canBlock(wei, mc), 'Ma Chao: not alone — blockable');
+  });
+  test('Commanders: Linessa, Zephyr Mage — X: bounce a creature with mana value X; grandeur: a creature, artifact, enchantment and land back', (mk, t) => {
+    t.auto('Linessa, Zephyr Mage');
+    const T = mk({ library: Array(30).fill('Island') });
+    const ln = T.bf('A', 'Linessa, Zephyr Mage');
+    const bear = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    const stone = T.bf('B', 'Mind Stone'), anthem = T.bf('B', 'Glorious Anthem'), isl = T.bf('B', 'Island');
+    T.mana('A', 'UU2');
+    T.activate('A', ln, 0, { x: 2, targets: [bear.id] });
+    T.resolve();
+    t.zone(bear, 'hand', 'Linessa: the mana value 2 creature bounced');
+    t.zone(giant, 'battlefield', 'Linessa: not the 4');
+    // grandeur
+    T.bf('B', 'Grizzly Bears');
+    const decoy = T.hand('A', 'Grizzly Bears');
+    t.no(T.g.activateAbility('A', ln.id, 1, { auto: true, targets: [{ kind: 'player', id: 'B' }], discardIds: [decoy.id] }), 'Linessa: grandeur needs another Linessa');
+    const other = T.hand('A', 'Linessa, Zephyr Mage');
+    const picks = [];
+    T.answer('pickCard', (ch) => { picks.push(ch); return { cardIds: [ch.cards[0].id] }; });
+    T.activate('A', ln, 1, { targets: ['B'], discardIds: [other.id] });
+    T.resolve();
+    t.zone(other, 'graveyard', 'Linessa: the other Linessa discarded');
+    t.eq(T.bfOf('B').length, 1, 'Linessa: one creature, the artifact, the enchantment and the land returned');
+    t.zone(stone, 'hand'); t.zone(anthem, 'hand'); t.zone(isl, 'hand');
+    t.ok(picks.length && picks[0].playerId === 'B' && picks[0].cards.length === 2, 'Linessa: B chooses which creature');
+  });
 };
