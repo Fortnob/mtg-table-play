@@ -276,12 +276,30 @@
     }
     const rowHooks = Object.assign({}, hooks, { onConsumed: consumed });
 
+    /* Where a Commander deck's suggestions come from (Options, Suggestions
+       too): both Recommander and EDHREC, or one of them. */
+    const FROM = [['both', 'Both'], ['recommander', 'Recommander'], ['edhrec', 'EDHREC']];
+    function fromPicker() {
+      const cur = FROM.some(x => x[0] === MTG.settings.suggestFrom) ? MTG.settings.suggestFrom : 'both';
+      return el('div', { class: 'row wrap sugg-from' }, [
+        el('span', { class: 'tiny dim', text: 'Suggest from' }),
+        el('div', { class: 'seg mini', role: 'group', 'aria-label': 'Suggest cards from' }, FROM.map(([v, label]) => el('button', {
+          type: 'button', class: 'seg-btn' + (cur === v ? ' on' : ''), text: label, 'aria-pressed': String(cur === v),
+          title: v === 'both' ? 'Recommander and EDHREC: the cards both suggest first, then the rest of each in turn'
+            : v === 'recommander' ? 'Recommander: what your list in particular is missing' : 'EDHREC: what other people play with your commander',
+          onclick: () => { if (cur === v) return; MTG.setSetting('suggestFrom', v); renderRecs(lastRecs, true); runNetwork(false); },
+        }))),
+      ]);
+    }
+    const isCommanderDeck = () => { const f = MTG.formats.get(getFormat()); return !!(f && f.commander); };
+
     function renderRecs(recs, loading) {
       recsBox.innerHTML = '';
       recsBox.appendChild(el('div', { class: 'row', style: { marginBottom: '6px' } }, [
         el('h3', { style: { margin: 0, flex: 1 }, text: 'Suggested cards' }),
         loading ? el('span', { class: 'spinner' }) : el('button', { class: 'btn xs', text: 'Refresh', onclick: () => runNetwork(true) }),
       ]));
+      if (isCommanderDeck()) recsBox.appendChild(fromPicker());
       if (!recs) {
         recsBox.appendChild(el('div', { class: 'empty-note', text: loading ? 'Working out what fits…' : 'Add a few cards and suggestions will appear.' }));
         return;
@@ -292,16 +310,30 @@
             + (MTG.isTouch() ? 'Tap a card\'s picture to read it.' : 'Hover a row to read the card.') }));
         // say what the advice was built from, so a thin list is explained
         const src = recs.sources || {};
-        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, src.recommander ? [
+        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, src.hybrid ? [
+          // the two lists blended: both credited, Recommander as its terms ask, with a way to its site
+          el('span', { class: 'pill good', text: 'Recommander' }),
+          el('span', { class: 'pill good', title: 'What other people play in this commander', text: 'EDHREC' }),
+          el('span', { class: 'tiny dim', text: 'The cards both suggest come first.' }),
+          el('a', { class: 'tiny src-link', href: MTG.recommander.SITE, target: '_blank', rel: 'noopener', text: 'Suggestions from recommander.cards' }),
+        ] : src.recommander ? [
           // Recommander's picks, credited as its terms ask, with a way to its site
           el('span', { class: 'pill good', text: 'Recommander' }),
+          src.missing === 'edhrec' ? el('span', { class: 'pill', text: 'EDHREC unavailable' }) : null,
           el('a', { class: 'tiny src-link', href: MTG.recommander.SITE, target: '_blank', rel: 'noopener', text: 'Suggestions from recommander.cards' }),
-        ] : [
+        ].filter(Boolean) : [
           el('span', { class: 'pill good', title: 'Read from the cards in your list', text: 'this deck' }),
           src.edhrec
             ? el('span', { class: 'pill good', title: 'What other people play in this commander', text: 'EDHREC' })
             : el('span', { class: 'pill', title: 'EDHREC was not reachable, or this format has no commander. Suggestions come from the deck alone.', text: 'EDHREC unavailable' }),
-        ]));
+          src.missing === 'recommander' ? el('span', { class: 'pill', text: 'Recommander unavailable' }) : null,
+        ].filter(Boolean)));
+        // one of the two asked for did not answer: the other's suggestions stand alone, and this says so
+        if (src.missing) recsBox.appendChild(el('div', { class: 'tiny dim src-note', style: { marginBottom: '8px' }, text: src.missing === 'edhrec'
+          ? 'EDHREC could not be reached, so these are Recommander\u2019s suggestions alone.'
+          : src.edhrec
+            ? 'Recommander could not be reached, so these come from EDHREC, weighed with the deck builder\u2019s own reading of your list.'
+            : 'Recommander could not be reached, and nor could EDHREC, so these come from the deck builder\u2019s own reading of your list.' }));
       }
       if (recs.comboCompletions.length) {
         recsBox.appendChild(el('div', { class: 'section-title', style: { margin: '4px 0 6px' }, text: 'Completes a combo' }));

@@ -1292,6 +1292,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .gap-num.over { color: var(--info); }
 .gap-hint { width: 78px; flex: none; }
 
+/* where a Commander deck's suggestions come from */
+.sugg-from { gap: 8px; margin-bottom: 10px; }
+
 /* suggestion rows */
 .sugg-row {
   display: flex; gap: 9px; align-items: center; padding: 6px;

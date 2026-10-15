@@ -92,6 +92,65 @@
   }
 
   /* ============================================================
+     Recommander and EDHREC together
+     Recommander knows what this list in particular is missing; EDHREC
+     knows what everyone else plays with the commander. A card both of
+     them name is the surest suggestion there is, so those come first,
+     the best of both ahead; then the rest of each list in turn, one from
+     Recommander and one from EDHREC, so the page fills even when they
+     agree on little. Each card says where it came from.
+     ============================================================ */
+  /** How strongly EDHREC backs a card: how many of the commander's decks run it, and a little for synergy. */
+  const edhStrength = (x) => (x.inclusion || 0) + 0.5 * U.clamp(x.synergy || 0, 0, 0.6);
+  /** "EDHREC 41% of decks", with the synergy when it is worth saying. */
+  function edhWords(x) {
+    const syn = Math.round((x.synergy || 0) * 100);
+    return `EDHREC ${Math.round((x.inclusion || 0) * 100)}% of decks` + (syn >= 15 ? `, +${syn}% synergy` : '');
+  }
+  /**
+   * blend(rec, edh, opts) -> [{ name, rec, edhrec, both, why }]
+   * rec: Recommander's picks, best first ([{ name }]); edh: EDHREC's
+   * ([{ name, inclusion, synergy }]). Either may be null or empty. `rec`
+   * is the pick's place in Recommander's list (0 for its first), `edhrec`
+   * EDHREC's entry for it. opts.skip(name): leave this card out (the deck
+   * has it already).
+   */
+  function blend(rec, edh, opts) {
+    opts = opts || {};
+    const key = (n) => U.normName(U.frontName(n));
+    const skip = opts.skip || (() => false);
+    const recAt = new Map();
+    (rec || []).forEach((x, i) => { if (x && x.name && !recAt.has(key(x.name))) recAt.set(key(x.name), { x, i }); });
+    const recN = Math.max(1, (rec || []).length);
+    const edhSorted = (edh || []).filter(x => x && x.name).slice().sort((a, b) => edhStrength(b) - edhStrength(a));
+    const edhAt = new Map();
+    for (const x of edhSorted) if (!edhAt.has(key(x.name))) edhAt.set(key(x.name), x);
+    const edhTop = Math.max(1e-6, ...edhSorted.map(edhStrength));
+    const out = [], both = [], recOnly = [], edhOnly = [];
+    for (const [k, { x, i }] of recAt) {
+      if (skip(x.name)) continue;
+      const e = edhAt.get(k);
+      const item = { name: x.name, rec: i, edhrec: e || null, both: !!e,
+        why: e ? `Recommander #${i + 1} · ${edhWords(e)}` : `Recommander #${i + 1}` };
+      // both: Recommander's place and EDHREC's backing, each out of one, weighed alike
+      if (e) { item.score = 0.5 * (1 - i / recN) + 0.5 * (edhStrength(e) / edhTop); both.push(item); }
+      else recOnly.push(item);
+    }
+    for (const [k, e] of edhAt) {
+      if (recAt.has(k) || skip(e.name)) continue;
+      edhOnly.push({ name: e.name, rec: null, edhrec: e, both: false, why: edhWords(e) });
+    }
+    both.sort((a, b) => b.score - a.score || a.rec - b.rec);
+    out.push(...both);
+    for (let i = 0; i < Math.max(recOnly.length, edhOnly.length); i++) {
+      if (recOnly[i]) out.push(recOnly[i]);
+      if (edhOnly[i]) out.push(edhOnly[i]);
+    }
+    for (const x of out) delete x.score;
+    return out;
+  }
+
+  /* ============================================================
      Themes - what a deck can be "about"
      `t` tests a single card; `q` is the Scryfall fragment used to find
      more of the same; `w` weights how strongly the theme identifies a deck.
@@ -364,13 +423,44 @@
        particular is missing (src/16b-recommander.js). When it answers, its
        order is the order of the suggestions, and the engine only says what
        each card would do here; when it cannot be asked, the engine's own
-       reading and EDHREC stand in, as before. */
+       reading and EDHREC stand in, as before.
+       Asked for both (the default: Options, Suggestions), Recommander and
+       EDHREC are asked at once, once each, and their lists are blended
+       (blend, above); when one of them does not answer, the other's
+       suggestions stand alone, and the panel says which was missing. */
     const commander = (deck.commanders || [])[0];
     const recPicks = [];
-    // (Options, Suggestions: EDHREC chosen instead, and Recommander is not asked)
-    const fromRec = opts.recommander !== false && (MTG.settings || {}).suggestFrom !== 'edhrec';
-    if (commander && fmt.commander && fromRec && MTG.recommander && MTG.recommander.ready()) {
-      const list = await MTG.recommander.top(deck).catch(() => null);
+    const from = opts.from || (MTG.settings || {}).suggestFrom || 'both';
+    const fromRec = opts.recommander !== false && from !== 'edhrec';
+    const fromBoth = from === 'both' && opts.edhrec !== false;
+    let recList = null, edhList = null, recAsked = false;
+    if (commander && fmt.commander) {
+      recAsked = fromRec;
+      [recList, edhList] = await Promise.all([
+        fromRec && MTG.recommander && MTG.recommander.ready() ? MTG.recommander.top(deck).catch(() => null) : null,
+        fromBoth ? edhrecFor(commander).catch(() => null) : null,
+      ]);
+    }
+    /* Both answered: one list of the two (the cards both name first), its
+       cards looked up together, each with where it came from. */
+    const hybPicks = [];
+    if (fromBoth && recList && recList.length && edhList && edhList.length) {
+      const wanted = blend(recList, edhList, { skip: (n) => owned.has(U.normName(U.frontName(n))) }).slice(0, Math.max(limit * 3, 60));
+      try {
+        const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
+        wanted.forEach((pick, i) => {
+          const card = cards[i];
+          if (!card || MTG.formats.isBasicLand(card)) return;
+          if (owned.has(U.normName(U.frontName(card.name)))) return;
+          if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
+          if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
+          hybPicks.push({ card, rank: hybPicks.length, why: pick.why, both: pick.both });
+        });
+      } catch (e) { /* each list on its own, below */ }
+    }
+    const hybridUsed = hybPicks.length > 0;
+    if (!hybridUsed) {
+      const list = recList;
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, Math.max(limit * 3, 60));
         try {
@@ -387,6 +477,11 @@
       }
     }
     const recommanderUsed = recPicks.length > 0;
+    /* asked of both (or of Recommander, which falls back to EDHREC) and one
+       of them missing: which one, so the panel can say so */
+    const missing = !commander || !fmt.commander || hybridUsed ? null
+      : fromBoth && recommanderUsed ? 'edhrec'
+      : recAsked && !recommanderUsed ? 'recommander' : null;
 
     /* --- 1. what to search for: the gaps, then the themes --- */
     const queries = [];
@@ -407,12 +502,13 @@
       queries.push({ q: `${base} o:"${prof.tribe}" -t:${prof.tribe}`, theme: 'tribal', why: `pays off your ${prof.tribe}s`, weight: 1.7 });
     }
     if (!queries.length) queries.push({ q: base, why: 'a strong card in your colours', weight: 1 });
-    // with Recommander's answer in hand, its picks are the pool and nothing else is searched for
-    if (recommanderUsed) queries.length = 0;
+    // with Recommander's answer in hand (or both lists blended), its picks are the pool and nothing else is searched for
+    if (recommanderUsed || hybridUsed) queries.length = 0;
 
     /* --- 2. run them --- */
     const pool = new Map();   // id -> {card, hits:[{why,weight,role,theme}], rank}
     for (const p of recPicks) pool.set(p.card.id, { card: p.card, hits: [], bestRank: 999, rec: p.rank });
+    for (const p of hybPicks) pool.set(p.card.id, { card: p.card, hits: [], bestRank: 999, hyb: p });
     for (const spec of queries) {
       let res = [];
       try { res = await MTG.scry.search(spec.q, { order: 'edhrec', unique: 'cards', max: opts.perQuery || 60 }); }
@@ -438,8 +534,9 @@
        them together. If EDHREC cannot be reached this simply adds
        nothing. */
     let edhrecUsed = false;
-    if (commander && fmt.commander && opts.edhrec !== false && !recommanderUsed) {
-      const list = await edhrecFor(commander).catch(() => null);
+    if (commander && fmt.commander && opts.edhrec !== false && !recommanderUsed && !hybridUsed) {
+      // (asked already, alongside Recommander, when both were asked for)
+      const list = fromBoth ? edhList : await edhrecFor(commander).catch(() => null);
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, 90);
         try {
@@ -470,6 +567,11 @@
       const reasons = [];
       let score = 0;
 
+      // the blended order stands, and says where each card came from
+      if (entry.hyb) {
+        score += (1000 - entry.hyb.rank) * 100;
+        reasons.push(entry.hyb.why);
+      }
       // Recommander's order stands: what follows only explains the card
       if (entry.rec != null) {
         score += (1000 - entry.rec) * 100;     // far past anything the notes below add
@@ -548,7 +650,9 @@
       queriesRun: queries.length,
       /* where the advice came from, so the panel can say so rather than
          quietly looking thinner when EDHREC is unreachable */
-      sources: { engine: true, edhrec: edhrecUsed, recommander: recommanderUsed },
+      // hybrid: Recommander's and EDHREC's blended; missing: the one asked for that did not answer
+      sources: { engine: !hybridUsed && !recommanderUsed, edhrec: edhrecUsed || hybridUsed, recommander: recommanderUsed || hybridUsed,
+        hybrid: hybridUsed, missing, from },
     };
   }
 
@@ -698,7 +802,7 @@
   }
 
   MTG.advisor = {
-    edhrecFor, edhrecSlug, readEdhrec,
+    edhrecFor, edhrecSlug, readEdhrec, blend,
     profile, recommend, suggestCuts, pairCuts, applySwap,
     THEMES, ROLES, targetsFor, colorLabel,
   };

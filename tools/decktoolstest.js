@@ -20,6 +20,9 @@
    - cards the deck's format will not have: why, in a few words, for
      each (banned, not legal, outside the commander's colours, too many
      copies, no commander), and the builder marking them red;
+   - Commander suggestions from Recommander and EDHREC together (the
+     advisor's blend): the cards both name first, then each in turn,
+     each saying why, and one of them missing said so;
    - the deck list's order (Sort by: type, mana value, name, colour,
      rarity, price; lands together, X costs last) and Show price, with
      the cards nobody has priced sorted last.
@@ -588,8 +591,79 @@ async function illegalChecks() {
   if (leave) { leave.querySelectorAll('button').find(x => x.textContent === 'Discard and leave').click(); await tick(); }
 }
 
+/* ================= suggestions from Recommander and EDHREC together =================
+   The blend: the cards both name first, ranked by the two together, then
+   the rest of each in turn; each card says where it came from; one list
+   missing leaves the other's. Then the advisor asking both, once each,
+   and saying which one did not answer. */
+async function hybridChecks() {
+  const { page, P } = builderPage();
+  const A = P.advisor;
+  const rec = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo'].map(name => ({ name, score: 1 }));
+  const edh = [{ name: 'Charlie', inclusion: 0.6, synergy: 0.2 }, { name: 'Foxtrot', inclusion: 0.5, synergy: 0 },
+    { name: 'Alpha', inclusion: 0.3, synergy: 0 }, { name: 'Golf', inclusion: 0.1, synergy: -0.1 }];
+  const order = (list) => list.map(x => x.name).join(', ');
+  const mixed = A.blend(rec, edh);
+  check(order(mixed) === 'Charlie, Alpha, Bravo, Foxtrot, Delta, Golf, Echo',
+    'blend: both first (by the two together), then one from each in turn', order(mixed));
+  check(mixed[0].both && mixed[1].both && !mixed[2].both, 'blend: the cards both name are marked so');
+  check(mixed[0].why === 'Recommander #3 · EDHREC 60% of decks, +20% synergy', 'blend: why, from both', mixed[0].why);
+  check(mixed[1].why === 'Recommander #1 · EDHREC 30% of decks', 'blend: why, with no synergy worth saying', mixed[1].why);
+  check(mixed[2].why === 'Recommander #2' && mixed[3].why === 'EDHREC 50% of decks', 'blend: why, from one of them', mixed[2].why + ' / ' + mixed[3].why);
+  check(order(A.blend(rec, edh, { skip: (n) => n === 'Charlie' || n === 'Bravo' })) === 'Alpha, Delta, Foxtrot, Echo, Golf', 'blend: cards in the deck already left out');
+  check(order(A.blend(null, edh)) === 'Charlie, Foxtrot, Alpha, Golf', 'blend: no Recommander, EDHREC’s list alone');
+  check(order(A.blend(rec, [])) === 'Alpha, Bravo, Charlie, Delta, Echo', 'blend: no EDHREC, Recommander’s list alone');
+  check(A.blend(null, null).length === 0, 'blend: neither, nothing');
+  check(order(A.blend([{ name: 'Fire // Ice' }], [{ name: 'Fire', inclusion: 0.4, synergy: 0 }])) === 'Fire // Ice', 'blend: a card named by its front face is the same card');
+
+  // the advisor, asking both
+  const atraxa = card("Atraxa, Praetors' Voice");
+  const deck = { format: 'commander', commanders: [atraxa], sideboard: [], main: [{ card: card('Forest'), qty: 30 }, { card: card('Sol Ring'), qty: 1 }] };
+  const recNames = ['Doubling Season', 'Smothering Tithe', 'Deepglow Skate', 'Sol Ring', 'Evolution Sage'];
+  const edhCards = [['Deepglow Skate', 0.55, 0.4], ['Rhystic Study', 0.5, 0.1], ['Doubling Season', 0.4, 0.05], ['Cultivate', 0.3, 0]];
+  let recCalls = 0, edhCalls = 0, recUp = true, edhUp = true;
+  P.recommander = { ready: () => true, top: async () => { recCalls++; return recUp ? recNames.map(name => ({ name, score: 1 })) : null; }, SITE: 'https://recommander.cards' };
+  page.fetch = async (url) => {
+    if (!/edhrec/.test(url)) throw new Error('offline');
+    edhCalls++;
+    if (!edhUp) return { ok: false, status: 503, json: async () => null };
+    return { ok: true, json: async () => ({ container: { json_dict: { cardlists: [{ header: 'Top Cards', cardviews: edhCards.map(([name, inc, synergy]) => ({ name, num_decks: inc * 1000, potential_decks: 1000, synergy })) }] } } }) };
+  };
+  P.scry.collection = async (ids) => ({ cards: ids.map(x => card(x.name)), notFound: [] });
+  P.scry.search = async () => [];
+  const ask = async () => { P.store.remove ? P.store.remove('edhrec:atraxa-praetors-voice') : P.store.set('edhrec:atraxa-praetors-voice', null); return A.recommend(deck, 'commander', { limit: 10 }); };
+  P.setSetting('suggestFrom', 'both');
+  let r = await ask();
+  check(r.sources.hybrid && r.sources.recommander && r.sources.edhrec && !r.sources.missing, 'both answered: blended', JSON.stringify(r.sources));
+  check(recCalls === 1 && edhCalls === 1, 'each asked once', recCalls + ' / ' + edhCalls);
+  check(r.cards.map(x => x.card.name).slice(0, 2).join(', ') === 'Deepglow Skate, Doubling Season', 'the cards both suggest first', r.cards.map(x => x.card.name).join(', '));
+  check(r.cards[0].reasons[0] === 'Recommander #3 · EDHREC 55% of decks, +40% synergy', 'each card says why', r.cards[0].reasons[0]);
+  check(!r.cards.some(x => x.card.name === 'Sol Ring'), 'a card in the deck already is not suggested');
+  check(r.cards.map(x => x.card.name).join(', ') === 'Deepglow Skate, Doubling Season, Smothering Tithe, Rhystic Study, Evolution Sage, Cultivate',
+    'then one from each in turn', r.cards.map(x => x.card.name).join(', '));
+  recUp = false; recCalls = 0; edhCalls = 0;
+  r = await ask();
+  check(!r.sources.hybrid && r.sources.edhrec && r.sources.missing === 'recommander', 'Recommander down: EDHREC, and it says so', JSON.stringify(r.sources));
+  check(recCalls === 1 && edhCalls === 1, 'still each asked only once', recCalls + ' / ' + edhCalls);
+  check(r.cards.length > 0 && r.cards.some(x => x.card.name === 'Rhystic Study'), 'EDHREC’s cards come through');
+  recUp = true; edhUp = false;
+  r = await ask();
+  check(!r.sources.hybrid && r.sources.recommander && r.sources.missing === 'edhrec', 'EDHREC down: Recommander, and it says so', JSON.stringify(r.sources));
+  check(r.cards[0].card.name === 'Doubling Season' && /Recommander's #1 pick/.test(r.cards[0].reasons[0]), 'Recommander’s order', r.cards[0].reasons[0]);
+  edhUp = true; recCalls = 0; edhCalls = 0;
+  P.setSetting('suggestFrom', 'recommander');
+  r = await ask();
+  check(r.sources.recommander && !r.sources.hybrid && !r.sources.missing && edhCalls === 0, 'Recommander only: EDHREC is not asked', JSON.stringify(r.sources) + ' ' + edhCalls);
+  recCalls = 0;
+  P.setSetting('suggestFrom', 'edhrec');
+  r = await ask();
+  check(r.sources.edhrec && !r.sources.recommander && !r.sources.missing && recCalls === 0, 'EDHREC only: Recommander is not asked', JSON.stringify(r.sources) + ' ' + recCalls);
+  P.setSetting('suggestFrom', 'both');
+}
+
 (async () => {
   importNameChecks();
+  await hybridChecks();
   await illegalChecks();
   await sortChecks();
   await practiceChecks();

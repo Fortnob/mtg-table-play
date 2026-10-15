@@ -5030,11 +5030,13 @@
     };
     const testBtn = el('button', { class: 'btn sm', text: 'Test', onclick: () => testBtn && test(testBtn) });
     return group('suggest', 'Suggestions', 'Card suggestions for a Commander deck in the deck builder. Other formats use the deck builder\u2019s own reading of your list.', [
-      pick('suggestFrom', 'Suggest cards from', [['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
+      pick('suggestFrom', 'Suggest cards from', [['both', 'Both'], ['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
         edhrec
           ? 'EDHREC: what other people most often play with your commander, weighed with the deck builder\u2019s own reading of your list.'
-          : 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.',
-        'recommander'),
+          : MTG.settings.suggestFrom === 'recommander'
+            ? 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.'
+            : 'Recommander (recommander.cards), which ranks what your list in particular is missing, and EDHREC, which knows what other people play with your commander, asked together. The cards both suggest come first, then the rest of each in turn. If one of them cannot be reached, the other\u2019s suggestions are used alone.',
+        'both'),
       edhrec ? null : el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Recommander relay' }),
         el('div', { class: 'opt-help', text: 'Recommander answers only its own website from a browser, so the app asks through a small relay of your own: a free Cloudflare Worker (the steps are in tools/recommander-relay/README.md). Paste its address here.' }),

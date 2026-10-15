@@ -271,7 +271,7 @@ const defaultSettings = {
   compactZones: false,
   showOracleOnHover: true,
   recommanderRelay: '',          // the relay Commander suggestions are asked through (src/16b-recommander.js); empty: the one built in
-  suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
+  suggestFrom: 'both',           // where Commander suggestions come from: 'both' | 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
@@ -308,6 +308,15 @@ MTG.settings = loadSettings();
 if (MTG.settings.botPaceV !== 2) {
   if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
   MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
+/* Suggestions: asking Recommander and EDHREC both became the default. The
+   'recommander' saved before then was the old default written out with
+   everything else, not a choice, so it becomes 'both', once; EDHREC alone
+   was chosen, and stays. */
+if (MTG.settings.suggestFromV !== 2) {
+  if (MTG.settings.suggestFrom === 'recommander') MTG.settings.suggestFrom = 'both';
+  MTG.settings.suggestFromV = 2;
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
 }
 MTG.saveSettings = function () {
