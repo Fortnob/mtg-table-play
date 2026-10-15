@@ -4338,6 +4338,13 @@
         x = (best.card && best.card.cmc) || 0;
         v += 1 + this.rating(best) * 0.6;
       }
+      // Sisters of Stone Death: "Put a creature card exiled with Sisters …" — only with one there
+      const ew1 = flat.find(e => e.op === 'exiledWithToBattlefield' && !e.mvX);
+      if (ew1) {
+        const best = g._exiledWithPool(o, ew1.words).sort((p, q) => this.rating(q) - this.rating(p))[0];
+        if (!best) return null;
+        v += 1 + this.rating(best) * 0.6;
+      }
       // Koh, the Face Stealer: "Choose a creature card exiled with Koh." — only for a better card than the one chosen
       const cxw = flat.find(e => e.op === 'chooseExiledWith');
       if (cxw) {

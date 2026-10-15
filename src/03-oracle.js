@@ -3061,6 +3061,9 @@
        under your control." — the one card picked as it resolves, among those with that mana value (mvX) */
     { re: /^Put target ([a-z]+) card with mana value X exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), mvX: true, one: true, tapped: !!m[2] }) },
+    // Sisters of Stone Death: "Put a creature card exiled with Sisters of Stone Death onto the battlefield under your control." (one)
+    { re: /^Put an? ([a-z]+) card exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
+      make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), one: true, tapped: !!m[2] }) },
     // (Witch-king of Angmar: "Tap him.")
     { re: /^Tap (?:CARDNAME|this (?:creature|permanent|artifact|land|enchantment)|it|him|her|~)\.?$/i,
       make: () => ({ op: 'tap', scope: 'self' }) },
@@ -5297,6 +5300,10 @@
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
 
     /* ===== looking at somebody's hand, and taking something out of it ===== */
+    // Namor, Atlantean King: "other creatures you control attacking that player get +2/+0 until end of turn" (attackingThatPlayer)
+    { re: /^(other )?creatures you control attacking that player get \+(\d+)\/\+(\d+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'pump', p: +m[2], t: +m[3], duration: 'eot',
+        scope: Object.assign({ who: 'you', what: 'creature', attacking: true, attackingThatPlayer: true }, m[1] ? { other: true } : {}) }) },
     /* Hit // Run: "Attacking creatures you control get +1/+0 until end of
        turn for each other attacking creature." — each counts the rest, so
        every one gets the same: one less than all that attack */
@@ -8226,6 +8233,11 @@
        becomes a Giant in addition to its other types." — X as paid (ptX) */
     { re: /^Until end of turn, (target creature(?: you control)?) has base power and toughness X\/X and becomes an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
       make: (m) => ({ op: 'becomes', duration: 'eot', ptX: 'X', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
+    /* Stegron the Dinosaur Man: "Until end of turn, target creature you control gets +3/+1 and becomes a Dinosaur in
+       addition to its other types." */
+    { re: /^Until end of turn, (target creature(?: you control)?) gets \+(\d+)\/\+(\d+) and becomes an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
+      make: (m) => [{ op: 'pump', p: +m[2], t: +m[3], duration: 'eot', targets: [targetSpec(m[1])] },
+        { op: 'becomes', duration: 'eot', eff: { addSubtypes: [m[4]] }, scope: 'lastTarget' }] },
     // Sephiroth, Fallen Hero: "Until end of turn, each modified creature you control has base power and toughness 7/5." — those modified now
     { re: /^Until end of turn, each modified creature you control has base power and toughness (\d+)\/(\d+)\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: +m[1], t: +m[2], modified: true }) },
@@ -15774,6 +15786,10 @@
     { re: /^Whenever you cast a spell from exile,? /i, event: 'youCastSpell', extra: { fromExileOnly: true } },
     // the Backgrounds: "Whenever this creature attacks a player", "enters or leaves the battlefield"
     // (Kaalia of the Vast: "Whenever Kaalia attacks an opponent" — a player, who is always an opponent)
+    /* Namor, Atlantean King: "Whenever Namor attacks a player who has more life than you," — as it attacks, not an
+       "if" asked again (onTrigger) */
+    { re: /^Whenever (?:this creature|CARDNAME) attacks a player who has more life than you,? /i, event: 'attacks', self: true,
+      extra: { attacksPlayer: true, condition: { kind: 'thatPlayerMoreLife', onTrigger: true } } },
     { re: /^Whenever (?:this creature|CARDNAME) attacks (?:a player|an opponent),? /i, event: 'attacks', self: true, extra: { attacksPlayer: true } },
     { re: /^When (?:this (?:creature|artifact|enchantment|permanent|land)|CARDNAME) enters or leaves the battlefield,? /i, event: 'etb', self: true, also: 'ltb' },
     // Flourishing Defenses: "Whenever a -1/-1 counter is put on a creature" — once for each counter
@@ -20342,6 +20358,9 @@
     // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
       make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
+    // Multani, Maro-Sorcerer: "the total number of cards in all players' hands" (cardsInHand all)
+    { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the total number of cards in all players'? hands\.?$/i,
+      make: () => { const k = { cardsInHand: 'all', mult: 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
     // Ms. Marvel, Kamala Khan: 'gains "Ms. Marvel's base power is equal to the number of cards in your hand."' — power only, layer 7b
     { re: /^(?:CARDNAME|This creature)'?s? base power is equal to the number of cards in your hand\.?$/i,
       make: () => ({ op: 'continuous', layer: 7, scope: { self: true }, setPt: { p: { cardsInHand: 'you', mult: 1 } } }) },
@@ -22863,7 +22882,8 @@
       // Bifur, Melodic Rider: "As long as you have an enduring story, if a triggered ability of a Dwarf you control triggers, …" (needStory)
       { re: /^As long as you have an enduring story, if a triggered ability of an? ([A-Z][a-z]+) you control triggers, that ability triggers an additional time\.?$/,
         make: (m) => ({ op: 'triggerDouble', cause: 'source', what: m[1].toLowerCase(), needStory: true }), auto: true },
-      { re: /^If a triggered ability of an? ((?:another )?[A-Za-z]+(?: (?:or (?:another )?)?[A-Za-z]+)*) you control triggers, that ability triggers an additional time\.?$/i,
+      // (Chief of the Wilds: "of another Wolf or battle you control")
+      { re: /^If a triggered ability of (?:an? )?((?:another )?[A-Za-z]+(?: (?:or (?:another )?)?[A-Za-z]+)*) you control triggers, that ability triggers an additional time\.?$/i,
         make: (m) => {
           const w = m[1].trim();
           if (/\bwith\b/i.test(w)) return null;

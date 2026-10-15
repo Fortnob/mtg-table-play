@@ -4284,6 +4284,8 @@
       if (v.mult === 0 && !v.plus) return 0;
       const mult = v.mult || 1;
       if (v.scope) return this._scopeList(v.scope, pid, src, null, inLayers).length * mult;
+      // (Multani, Maro-Sorcerer: "cards in all players' hands" — cardsInHand all)
+      if (v.cardsInHand === 'all') return this.players.filter(q => !q.hasLost).reduce((k, q) => k + (((this.zones[q.id] || {}).hand || []).length), 0) * mult;
       if (v.cardsInHand) return (((this.zones[pid] || {}).hand || []).length) * mult;
       if (v.playersInGame) return this.players.filter(p => !p.hasLost).length * mult;
       if (v.cardsInGraveyard) {
@@ -15165,6 +15167,11 @@
           const p = this.player(td.player || td.playerId);
           return !!p && (p.attackedLastTurn || []).includes(ctx.controller);
         }
+        // Namor, Atlantean King: "a player who has more life than you" — the one attacked
+        case 'thatPlayerMoreLife': {
+          const p = this.player(((ctx && ctx.triggerData) || {}).player), me2 = this.player(ctx && ctx.controller);
+          return !!p && !!me2 && p.life > me2.life;
+        }
         case 'thatPlayerLife': {
           const td = (ctx && ctx.triggerData) || {};
           const p = this.player(td.player || td.playerId || td.drawer);
@@ -18218,6 +18225,8 @@
       const a = o.analysis();
       const ab = a && a.abilities[item.abilityIndex];
       if (!ab || !ab.condition) return true;
+      // (Namor, Atlantean King: "attacks a player who has more life than you" — a trigger condition, not an "if" — onTrigger)
+      if (ab.condition.onTrigger) return true;
       return this._condMet(ab.condition, { controller: item.controller, obj: o, triggerData: item.triggerData });
     }
 
@@ -26377,7 +26386,7 @@
           if (e.one && list.length > 1) {
             const got = this._choose({ playerId: ctx.controller, purpose: 'exiledWithToBattlefield', kind: 'objects', zone: 'exile',
               items: this._chooseItems(list), min: 1, max: 1,
-              prompt: `Put which ${e.words || 'card'} card with mana value ${ctx.x || 0} onto the battlefield${e.tapped ? ' tapped' : ''} under your control?` }, 'ewtb');
+              prompt: `Put which ${e.words || 'card'} card${e.mvX ? ` with mana value ${ctx.x || 0}` : ''} onto the battlefield${e.tapped ? ' tapped' : ''} under your control?` }, 'ewtb');
             if (got === SUSPEND) return SUSPEND;
             list = [((got && got.picks) || []).map(id => this.obj(id)).find(c => c && list.includes(c)) || list[0]];
           }
@@ -35163,6 +35172,8 @@
       if (sc.notAttacking && o.attacking) return false;
       // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
+      // Namor, Atlantean King: "creatures you control attacking that player" — the player, not their planeswalkers
+      if (sc.attackingThatPlayer && !(o.attacking && o.attacking === this._thatPlayer)) return false;
       // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura
       if (sc.attachedToYours && !(o.attachedTo && (this.obj(o.attachedTo) || {}).controller === pid)) return false;
       // The Fifth Doctor: "that didn't attack or enter this turn" (idleOrNew)

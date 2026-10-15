@@ -61644,4 +61644,98 @@ module.exports = (test) => {
     t.eq(g.powerOf(bear), 2, 'Takeno: not a non-Samurai');
     t.eq(g.powerOf(theirs), 2, "Takeno: not an opponent's");
   });
+  test('Commanders: Sisters of Stone Death — exile a creature in combat with it; later, put a creature card exiled with it onto the battlefield under your control', (mk, t) => {
+    t.auto('Sisters of Stone Death');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const ss = T.bf('A', 'Sisters of Stone Death');
+    const giant = T.bf('B', 'Hill Giant'), bear = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: ss.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: giant.id, attackerIds: [ss.id] }]);
+    T.toMain('A', 'declareBlockers');
+    T.mana('A', 'BG');
+    let threw = false;
+    try { T.activate('A', ss, 1, { targets: [bear] }); } catch (err) { threw = true; }
+    t.ok(threw, 'Sisters: not a creature out of combat with it');
+    T.activate('A', ss, 1, { targets: [giant] });
+    t.zone(giant, 'exile', 'Sisters: the blocking Giant exiled');
+    T.toMain('A', 'endCombat');
+    T.mana('A', 'BBB');
+    T.activate('A', ss, 2);
+    t.zone(giant, 'battlefield', 'Sisters: the Giant back');
+    t.eq(giant.controller, 'A', 'Sisters: under A\'s control');
+    t.zone(bear, 'battlefield');
+  });
+  test('Commanders: Namor, Atlantean King — attacking a player with more life: the others attacking that player get +2/+0', (mk, t) => {
+    t.auto('Namor, Atlantean King');
+    const T = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    const na = T.bf('A', 'Namor, Atlantean King');
+    const b1 = T.bf('A', 'Grizzly Bears'), b2 = T.bf('A', 'Savannah Lions');
+    g.player('A').life = 15;
+    g.player('C').life = 10;
+    T.answer('declareAttackers', () => [{ attackerId: na.id, defenderId: 'B' }, { attackerId: b1.id, defenderId: 'B' }, { attackerId: b2.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareBlockers');
+    t.eq(g.powerOf(b1), 4, 'Namor: the Bears attacking B get +2/+0');
+    t.eq(g.toughnessOf(b1), 2, 'Namor: +0 toughness');
+    t.eq(g.powerOf(b2), 2, 'Namor: not one attacking C');
+    t.eq(g.powerOf(na), 2, 'Namor: not himself');
+    // a player with no more life than you: nothing
+    const T2 = mk({ library: Array(30).fill('Island') });
+    const na2 = T2.bf('A', 'Namor, Atlantean King');
+    const c1 = T2.bf('A', 'Grizzly Bears');
+    T2.answer('declareAttackers', () => [{ attackerId: na2.id, defenderId: 'B' }, { attackerId: c1.id, defenderId: 'B' }]);
+    T2.toMain('A', 'declareBlockers');
+    t.eq(T2.g.powerOf(c1), 2, 'Namor: equal life — nothing');
+    // a noncreature spell: a Merfolk
+    const T3 = mk({ library: Array(30).fill('Island') });
+    T3.bf('A', 'Namor, Atlantean King');
+    const bolt = T3.hand('A', 'Lightning Bolt');
+    T3.mana('A', 'R');
+    T3.cast('A', bolt, { targets: ['B'] });
+    t.eq(T3.bfOf('A').filter(o => o.isToken && T3.g._cardFitsWords(o, 'Merfolk')).length, 1, 'Namor: a Merfolk token');
+  });
+  test('Commanders: Chief of the Wilds — another Wolf entering: two counters; triggered abilities of other Wolves trigger twice', (mk, t) => {
+    t.auto('Chief of the Wilds');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const ch = T.bf('A', 'Chief of the Wilds');
+    T.bf('A', 'Ferocious Pup', { etb: true });
+    T.resolve();
+    const wolves = T.bfOf('A').filter(o => o.isToken && g._cardFitsWords(o, 'Wolf'));
+    t.eq(wolves.length, 2, "Chief: the Pup's trigger twice — two Wolf tokens");
+    t.eq(ch.counters['+1/+1'], 6, 'Chief: the Pup and both tokens — six counters, its own trigger once each');
+    T.bf('A', 'Grizzly Bears', { etb: true });
+    T.resolve();
+    t.eq(ch.counters['+1/+1'], 6, 'Chief: not a Wolf — nothing');
+  });
+  test('Commanders: Stegron the Dinosaur Man — discard it: a creature you control gets +3/+1 and becomes a Dinosaur until end of turn', (mk, t) => {
+    t.auto('Stegron the Dinosaur Man');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const st = T.hand('A', 'Stegron the Dinosaur Man');
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Savannah Lions');
+    T.mana('A', 'R1');
+    t.ok(g.cycleCard('A', st.id, { auto: true, channel: true, targets: [{ kind: 'object', id: bear.id }] }), 'Stegron: used ' + (g.lastError || ''));
+    T.resolve();
+    t.zone(st, 'graveyard', 'Stegron: discarded');
+    t.eq(g.powerOf(bear), 5, 'Stegron: +3 power');
+    t.eq(g.toughnessOf(bear), 3, 'Stegron: +1 toughness');
+    t.ok(g._hasCreatureType(bear, 'Dinosaur'), 'Stegron: a Dinosaur');
+    t.ok(g._hasCreatureType(bear, 'Bear'), 'Stegron: still a Bear');
+    T.toMain('B');
+    t.eq(g.powerOf(bear), 2, 'Stegron: until end of turn');
+    t.no(g._hasCreatureType(bear, 'Dinosaur'), 'Stegron: a Dinosaur no more');
+  });
+  test("Commanders: Multani, Maro-Sorcerer — power and toughness the cards in all players' hands", (mk, t) => {
+    t.auto('Multani, Maro-Sorcerer');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const mu = T.bf('A', 'Multani, Maro-Sorcerer');
+    const h = T.zone('A', 'hand').length + T.zone('B', 'hand').length;
+    T.hand('A', 'Island'); T.hand('B', 'Island'); T.hand('B', 'Forest');
+    t.eq(g.powerOf(mu), h + 3, 'Multani: power counts both hands');
+    t.eq(g.toughnessOf(mu), h + 3, 'Multani: toughness too');
+  });
 };
