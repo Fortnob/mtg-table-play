@@ -17814,10 +17814,19 @@
     }
 
     _drawCards(p, n, silent) {
+      /* Tomorrow, Azami's Familiar: while a replaced draw waits on its player's answer, every draw after it waits
+         too, and they are made in turn once it is answered (_drawWait, _drawResume) */
+      if (this._drawWait) { this._drawWait.queue.push({ pid: p.id, n, silent: !!silent }); return; }
+      this._drawRun(p, { left: n, extras: 0, drawnNow: 0 }, silent);
+    }
+    /** The draws of one _drawCards, from where `st` says they had got to: { left, extras, drawnNow }. */
+    _drawRun(p, st, silent) {
       const z = this.zones[p.id];
       /* Thought Reflection and kin: a draw made two, each source doubling
          again; the extra cards are part of that draw, not draws of their own */
-      let left = n, extras = 0, drawnNow = 0;
+      let left = st.left, extras = st.extras, drawnNow = st.drawnNow;
+      // (a draw replaced by one of another player's that has to wait: the rest of these wait behind it)
+      const parked = () => { this._drawWait.queue.unshift({ pid: p.id, st: { left, extras, drawnNow }, silent: !!silent }); };
       const doubled = () => {
         const firstInStep = this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id && p._drawStepTurn !== this.turn;
         let k = 0;
@@ -17842,6 +17851,7 @@
           this.logEvent('draw', `${thief.name}: ${p.name} skips a draw, and ${this.player(thief.controller).name} draws instead.`);
           this._stealDepth = (this._stealDepth || 0) + 1;
           try { this._drawCards(this.player(thief.controller), 1, silent); } finally { this._stealDepth--; }
+          if (this._drawWait) { parked(); return; }
           continue;
         }
         /* Urabrask, Heretic Praetor: the next draw this turn exiles the top card instead, and they may play it
@@ -17895,6 +17905,22 @@
           if (ex) { left += ex; extras += ex; }
         }
         if (this.step === 'draw' && this.activePlayer && this.activePlayer.id === p.id) p._drawStepTurn = this.turn;
+        /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead.
+           Put one of those cards into your hand and the rest on the bottom of your library in any order." — not a
+           draw (nothing that watches draws sees it, and an empty library loses nothing); a choice among two or more
+           waits for its player, and the draws after it wait with it (drawLooksInstead) */
+        const tm = this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawLooksInstead'));
+        if (tm) {
+          const look = z.library.slice(0, Math.max(1, Number(this._staticOp(tm, 'drawLooksInstead').n) || 3));
+          if (look.length < 2) { this._drawLookKeep(p, tm.name, look, look.length ? look[0].id : null); continue; }
+          this._know(look, p.id);
+          this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, cards: look.map(o => o.id), src: tm.name, queue: [], resume: false };
+          this.queueChoice({ type: 'pickCard', purpose: 'drawLook', playerId: p.id, count: 1,
+            candidates: look.map(o => o.id), cards: look.map(o => ({ id: o.id, name: o.name, card: o.card })),
+            sourceId: tm.id, sourceName: tm.name, sourceCard: tm.card,
+            prompt: `${tm.name}: instead of drawing, put one of the top ${O.nounCount(look.length, 'card')} of your library into your hand. The rest go on the bottom of your library.` });
+          return;
+        }
         if (!z.library.length) {
           /* Ormos, Archive Keeper: "instead put five +1/+1 counters on Ormos" — each draw from the empty library
              (countersOnEmptyDraw) */
@@ -17940,6 +17966,37 @@
         this.emit('sfx', 'draw');
       }
       this.emit('draw', { player: p, n: drawnNow });
+    }
+    /** Tomorrow, Azami's Familiar: the card kept from a look that replaced a draw, the rest to the bottom. */
+    _drawLookKeep(p, srcName, look, keepId) {
+      const z = this.zones[p.id];
+      const here = look.filter(o => o && o.zone === 'library' && o.owner === p.id);
+      const keep = here.find(o => o.id === keepId) || here[0];
+      if (!keep) { this.logEvent('draw', `${srcName}: ${p.name} has no cards to look at instead of drawing.`); return; }
+      this.moveObject(keep, 'hand');
+      const rest = here.filter(o => o !== keep);
+      for (const o of rest) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
+      this.logEvent('draw', rest.length ? `${srcName}: instead of drawing, ${p.name} looks at the top ${O.nounCount(here.length, 'card')} of their library and puts one into their hand and the rest on the bottom.`
+        : `${srcName}: instead of drawing, ${p.name} puts the top card of their library into their hand.`);
+    }
+    /** The look a draw waited on has been answered: the draws after it, in turn, then whatever was waiting on them. */
+    _drawResume() {
+      const w = this._drawWait;
+      if (!w) return;
+      this._drawWait = null;
+      const queue = [{ pid: w.pid, st: w.st, silent: w.silent }].concat(w.queue || []);
+      while (queue.length) {
+        const q = queue.shift();
+        const p = this.player(q.pid);
+        if (!p || p.hasLost) continue;
+        this._drawRun(p, q.st || { left: q.n, extras: 0, drawnNow: 0 }, q.silent);
+        if (this._drawWait) {
+          this._drawWait.queue.push(...queue);
+          this._drawWait.resume = this._drawWait.resume || w.resume;
+          return;
+        }
+      }
+      if (w.resume && this.resolving) this._pumpResolution();
     }
     drawCards(pid, n) { this._drawCards(this.player(pid), n); this.checkStateBasedActions(); this.touch(); }
 
@@ -19365,6 +19422,8 @@
       const r = this.resolving;
       if (!r) return;
       while (r.index < r.effects.length) {
+        // Tomorrow, Azami's Familiar: a draw waiting on its player's look holds up the rest of the card (_drawWait)
+        if (this._drawWait) { this._drawWait.resume = true; return; }
         const e = r.effects[r.index];
         if (e.op === 'manual') {
           // done by hand by its controller, who the rest of the card waits for (_byHand)
@@ -19412,9 +19471,10 @@
           if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
-        if (out === SUSPEND) return;            // waiting on somebody; resume later
+        if (out === SUSPEND) { if (this._drawWait) this._drawWait.resume = true; return; }            // waiting on somebody; resume later
         r.index++;
       }
+      if (this._drawWait) { this._drawWait.resume = true; return; }
       this._finishResolution();
     }
 
@@ -24830,6 +24890,8 @@
           // (drawn once, however many times this resumes)
           // (The Ancient One: "When you discard a card this way" — none yet: ifDiscarded)
           if (!this._doneHere('ddDraw')) { this._lastDiscarded = []; this._drawCards(me, drew); }
+          // (Tomorrow, Azami's Familiar: the discard waits for the cards a look keeps — _drawWait)
+          if (this._drawWait) return SUSPEND;
           const can = Math.min(toss, this.zones[ctx.controller].hand.length);
           if (can > 0) {
             /* Frantic Search, Jace, Vryn's Prodigy: the discard is waited for, so what comes after it
@@ -37586,6 +37648,8 @@
           this._nextChoice();
         }
       }
+      // Tomorrow, Azami's Familiar: their look will not be answered — the draws waiting behind it go on (_drawWait)
+      if (this._drawWait && this._drawWait.pid === p.id) this._drawResume();
       this.emit('player:lost', p);
     }
 
@@ -37781,6 +37845,19 @@
         }
         case 'pickCard': {
           let ids = (data && data.cardIds) || (data && data.cardId ? [data.cardId] : []);
+          /* Tomorrow, Azami's Familiar: the card kept from the look that replaced a draw; then the draws that waited
+             on it, and whatever was waiting on them (_drawWait) */
+          if (ch.purpose === 'drawLook') {
+            const w = this._drawWait;
+            const p = this.player(playerId);
+            const look = ((w && w.cards) || ch.candidates || []).map(id => this.obj(id)).filter(Boolean);
+            this.pendingChoice = null;
+            if (p) this._drawLookKeep(p, (w && w.src) || ch.sourceName || 'Tomorrow', look, ids.find(id => (ch.candidates || []).includes(id)));
+            this._drawResume();
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose === 'moxDiamond') {
             const mox = this.obj(ch.objId);
             const ok = ids.some(id => (ch.candidates || []).includes(id) && (this.obj(id) || {}).zone === 'hand');

@@ -3287,6 +3287,8 @@
       if (e && (e.op === 'sacrificeChoice' || e.op === 'handToTop' || e.op === 'returnOwn')) worst = true;
       const mine = cards.length && cards.every(o => o.owner === this.pid || o.controller === this.pid);
       if (ch.purpose === 'discardFromHand' || ch.purpose === 'exileFromHand') worst = false;
+      // Tomorrow, Azami's Familiar: the card we would most like to draw of the ones looked at (drawLook)
+      if (ch.purpose === 'drawLook') return cards.sort((x, y) => this.drawValue(y) - this.drawValue(x)).slice(0, 1).map(o => o.id);
       // Eladamri, Korvecdal: the best creature on offer, which then goes onto the battlefield free (revealHandOrTop)
       if (ch.purpose === 'revealHandOrTop') {
         const fits = cards.filter(o => g._cardFitsWords(o, (e && e.filter) || 'creature'));

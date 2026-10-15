@@ -65980,4 +65980,112 @@ module.exports = (test) => {
     t.zone(div, 'graveyard'); t.ok(g.zones.B.graveyard.includes(div));
     t.zone(sen, 'battlefield');
   });
+
+  test("Commanders: Tomorrow, Azami's Familiar — each draw is a look at three, one kept", (mk, t) => {
+    t.auto("Tomorrow, Azami's Familiar");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    // top of the library, in order: c1 … c6
+    const names = ['Grizzly Bears', 'Shock', 'Opt', 'Llanowar Elves', 'Giant Growth', 'Counterspell'];
+    const c = names.slice().reverse().map(n => T.top('A', n)).reverse();
+    const asked = [];
+    T.answer('pickCard', (ch) => { asked.push(ch); return { cardIds: [c[1].id] }; });
+    T.answer('pickCard', (ch) => { asked.push(ch); return { cardIds: [c[5].id] }; });
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.eq(asked.length, 2, 'Tomorrow: draw two is two looks');
+    t.eq(asked[0].purpose, 'drawLook');
+    t.eq(asked[0].cards.map(x => x.id).join(), [c[0], c[1], c[2]].map(o => o.id).join(), 'Tomorrow: the top three');
+    t.eq(asked[1].cards.map(x => x.id).join(), [c[3], c[4], c[5]].map(o => o.id).join(), 'Tomorrow: then the new top three');
+    t.ok(/instead of drawing/.test(asked[0].prompt), 'Tomorrow: says what it is');
+    t.zone(c[1], 'hand'); t.zone(c[5], 'hand');
+    const lib = T.zone('A', 'library');
+    t.eq(lib.slice(-4).map(o => o.id).join(), [c[0], c[2], c[3], c[4]].map(o => o.id).join(), 'Tomorrow: the rest on the bottom');
+    t.eq(g.player('A').drawnThisTurn || 0, 0, 'Tomorrow: nothing was drawn');
+  });
+
+  test("Commanders: Tomorrow, Azami's Familiar — what follows the draw waits for the looks", (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    const a = T.top('A', 'Shock'), b = T.top('A', 'Opt');
+    const keep = T.hand('A', 'Forest');
+    const order = [];
+    T.answer('pickCard', (ch) => { order.push('look'); t.eq(T.zone('A', 'hand').length, 1, 'Tomorrow: nothing discarded yet'); return { cardIds: [ch.cards[0].id] }; });
+    T.answer('pickCard', (ch) => { order.push('look'); return { cardIds: [ch.cards[0].id] }; });
+    T.answer('discard', (ch) => { order.push('discard'); return { cardIds: T.zone('A', 'hand').filter(o => o !== keep).map(o => o.id) }; });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Careful Study'));
+    t.eq(order.join(), 'look,look,discard', 'Careful Study: looks first, then the discard');
+    t.eq(T.names(T.zone('A', 'hand')).join(), 'Forest', 'Careful Study: the two kept cards could be discarded');
+    t.zone(b, 'graveyard'); t.zone(a, 'library');
+    t.eq(g.stack.length, 0);
+  });
+
+  test("Commanders: Tomorrow, Azami's Familiar — draw step, other players, doubling, empty library, bots", (mk, t) => {
+    const M = require('../harness').engine();
+    // the draw of the draw step
+    let T = mk({ library: Array(20).fill('Island') });
+    let g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    let seen = 0;
+    T.answer('pickCard', (ch) => { seen++; t.eq(ch.purpose, 'drawLook'); return { cardIds: [ch.cards[2].id] }; });
+    const before = T.zone('A', 'hand').length;
+    T.nextTurn('A');
+    t.eq(seen, 1, 'Tomorrow: the draw step draw is a look');
+    t.eq(T.zone('A', 'hand').length, before + 1);
+    // "each player draws": the opponent draws too, after the look
+    T = mk({ library: Array(20).fill('Island') });
+    g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    T.answer('pickCard', (ch) => { t.eq(T.zone('B', 'hand').length, 0, 'Vision Skeins: B waits'); return { cardIds: [ch.cards[0].id] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [ch.cards[0].id] }));
+    T.mana('A', '1U');
+    T.cast('A', T.hand('A', 'Vision Skeins'));
+    t.eq(T.zone('A', 'hand').length, 2, 'Vision Skeins: two looks');
+    t.eq(T.zone('B', 'hand').length, 2, 'Vision Skeins: B draws two');
+    // Thought Reflection: each of the two draws is a look
+    T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', "Tomorrow, Azami's Familiar"); T.bf('A', 'Thought Reflection');
+    let looks = 0;
+    for (let i = 0; i < 4; i++) T.answer('pickCard', (ch) => { looks++; return { cardIds: [ch.cards[0].id] }; });
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.eq(looks, 4, 'Thought Reflection: draw two is four draws, four looks');
+    // an empty library: nothing to look at, and no loss
+    T = mk();
+    g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    T.zone('A', 'library').length = 0;
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.no(g.player('A').drewFromEmpty, 'Tomorrow: no draw from an empty library');
+    g.checkStateBasedActions();
+    t.no(g.player('A').hasLost, 'Tomorrow: not lost');
+    // one card left: kept, without a question
+    T = mk();
+    g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    T.zone('A', 'library').length = 0;
+    const last = T.top('A', 'Shock');
+    let q = 0;
+    T.answer('pickCard', () => { q++; return {}; });
+    T.mana('A', '2U');
+    T.cast('A', T.hand('A', 'Divination'));
+    t.zone(last, 'hand'); t.eq(q, 0, 'Tomorrow: one card is no choice');
+    t.no(g.player('A').hasLost);
+    // a bot keeps the card it most wants
+    T = mk({ library: Array(20).fill('Island') });
+    g = T.g;
+    T.bf('A', "Tomorrow, Azami's Familiar");
+    T.player('A').isBot = true;
+    const bot = new M.bots.BotPlayer(g, 'A', 8);
+    T.top('A', 'Island'); const bolt = T.top('A', 'Lightning Bolt'); T.top('A', 'Island');
+    g.drawCards('A', 1);
+    t.ok(g.pendingChoice && g.pendingChoice.purpose === 'drawLook', 'Tomorrow: a bot is asked too');
+    bot.doChoice(g.pendingChoice);
+    t.no(g.pendingChoice);
+    t.zone(bolt, 'hand', 'Tomorrow: the bot keeps the spell');
+  });
 };

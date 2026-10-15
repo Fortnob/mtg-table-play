@@ -23558,6 +23558,10 @@
         make: (m) => ({ op: 'drawExilesInstead', n: /two/i.test(m[1]) ? 2 : /three/i.test(m[1]) ? 3 : 1, faceDown: !!m[2], play: !!m[3] }), auto: true },
       // River Song: "You draw cards from the bottom of your library rather than the top." (drawFromBottom)
       { re: /^You draw cards from the bottom of your library rather than the top\.?$/i, eff: { op: 'drawFromBottom' }, auto: true },
+      /* Tomorrow, Azami's Familiar: "If you would draw a card, look at the top three cards of your library instead. Put
+         one of those cards into your hand and the rest on the bottom of your library in any order." (drawLooksInstead) */
+      { re: /^If you would draw a card, look at the top (two|three|four|five) cards of your library instead\. Put one of (?:those cards|them) into your hand and the rest on the bottom of your library in any order\.?$/i,
+        make: (m) => ({ op: 'drawLooksInstead', n: num(m[1]) }), auto: true },
       /* Clara Oswald: "Impossible Girl — If Clara Oswald is your commander, choose a color before the game begins. Clara
          Oswald is the chosen color." — asked as the game begins (impossibleGirl) */
       { re: /^If CARDNAME is your commander, choose a colou?r before the game begins\. CARDNAME is the chosen colou?r\.?$/i,
