@@ -159,9 +159,8 @@
     /* asked as the spell is cast, as generic questions (docs/choices.md):
        how many copies, which cards' words to add, which creatures to tap */
     'Replicate', 'Splice', 'Conspire',
-    /* another player may pay part of it (CR 702.132): an offer, and with
-       nobody making it the spell is cast as printed */
-    'Assist',
+    /* (not assist, CR 702.132: no other player is ever offered a share of the
+       cost, so the spell is always cast as printed — that offer is the table's) */
     // {1} less to cast for each opponent
     'Undaunted']);
 
@@ -16516,6 +16515,20 @@
             cost.exile = { what: 'self', fromGraveyard: true };
             out.abilities.push({ kind: 'activated', cost, text: k.text, sorcerySpeed: true, auto: true, fromGraveyard: true,
               effects: [{ op: 'counters', kind: '+1/+1', n: +out.power, targets: [targetSpec('target creature')] }] });
+            autoLines += 1 / kws.length;
+            continue;
+          }
+          /* Embalm (CR 702.128) and eternalize (CR 702.129): an ability of the card in the graveyard, as a
+             sorcery — exile it, and a token copy of it, white (or a 4/4 black) Zombie as well as its own
+             types, with no mana cost. Not a spell: nothing is cast. */
+          if ((lower === 'embalm' || lower === 'eternalize') && k.arg && /^(?:\{[^}]+\})+$/.test(String(k.arg).trim())) {
+            const cost = parseCost(String(k.arg).trim());
+            cost.exile = { what: 'self', fromGraveyard: true };
+            const e = { op: 'copyPermanent', self: true, n: 1, grant: [], addSubtypes: ['Zombie'], noManaCost: true,
+              setColor: lower === 'embalm' ? 'white' : 'black' };
+            if (lower === 'eternalize') e.setPt = '4/4';
+            out.abilities.push({ kind: 'activated', cost, text: k.text, keyword: k.keyword, sorcerySpeed: true, auto: true, fromGraveyard: true,
+              effects: [e] });
             autoLines += 1 / kws.length;
             continue;
           }

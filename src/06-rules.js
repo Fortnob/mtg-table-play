@@ -5316,9 +5316,9 @@
         const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
         if (gf) out.push({ kind: 'foretell', cost: '{2}', reduce: gf.reduce || 0, label: 'Foretell {2}' });
       }
+      // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
-        escape: null, unearth: 'exile', embalm: 'exile', eternalize: 'exile',
-        madness: null };
+        escape: null, unearth: 'exile', madness: null };
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword) continue;
         const k = ab.keyword.toLowerCase();
@@ -23545,6 +23545,8 @@
             const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
             card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
           }
+          // Embalm, eternalize (CR 702.128, 702.129): "with no mana cost" — and so a mana value of 0 (noManaCost)
+          if (e.noManaCost) card = Object.assign({}, card, { id: card.id + ':nocost', mana_cost: '', cmc: 0, card_faces: null });
           const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
           for (let i = 0; i < made; i++) {
             const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
