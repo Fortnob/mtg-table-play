@@ -632,6 +632,10 @@
   const TOKEN_COLORS = /^(?:white|blue|black|red|green|colorless)$/i;
   function parseTokenSentence(sentence, nameHint) {
     let s = String(sentence).trim().replace(/\.$/, '');
+    /* The Skullspore Nexus: "create a green Fungus Dinosaur creature token with base power and toughness each equal to the
+       total power of those creatures" — read as "an X/X … token, where X is …" */
+    const eq = s.match(/^Create an? ([a-z]+(?: and [a-z]+)? (?:[A-Z][a-z]+ )+creature token) with base power and toughness each equal to (.+)$/);
+    if (eq) return parseTokenSentence('Create an X/X ' + eq[1] + ', where X is ' + eq[2], nameHint);
     /* Kari Zev: "Create Ragavan, a legendary 2/1 red Monkey creature token."
        — a token with a name of its own, said first (not one named after the
        card making it: "CARDNAME Twin" is left to a person) */
@@ -3199,6 +3203,11 @@
        under your control." — the one card picked as it resolves, among those with that mana value (mvX) */
     { re: /^Put target ([a-z]+) card with mana value X exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), mvX: true, one: true, tapped: !!m[2] }) },
+    /* The Darkness Crystal: "Put target creature card exiled with The Darkness Crystal onto the battlefield tapped under
+       your control with two additional +1/+1 counters on it." (exiledWithSource; enterCounters) */
+    { re: /^Put target ([a-z]+) card exiled with CARDNAME onto the battlefield( tapped)? under your control(?: with (an|two|three|four|five) additional \+1\/\+1 counters? on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'reanimate', tapped: !!m[2], targets: [{ type: 'card', filter: m[1].toLowerCase(), zone: 'exile', exiledWithSource: true }] },
+        m[3] ? { enterCounters: { kind: '+1/+1', n: m[3] === 'an' ? 1 : num(m[3]) } } : {}) },
     // Sisters of Stone Death: "Put a creature card exiled with Sisters of Stone Death onto the battlefield under your control." (one)
     { re: /^Put an? ([a-z]+) card exiled with CARDNAME onto the battlefield( tapped)? under your control\.?$/i,
       make: (m) => ({ op: 'exiledWithToBattlefield', words: m[1].toLowerCase(), one: true, tapped: !!m[2] }) },
@@ -5835,6 +5844,14 @@
 
     /* ===== graveyards ===== */
     { re: /^Each player exiles their graveyard\.?$/i, make: () => ({ op: 'exileGraveyard', who: 'all' }) },
+    /* Agatha's Soul Cauldron: "Exile target card from a graveyard. When a creature card is exiled this way, put a +1/+1
+       counter on target creature you control." — a reflexive trigger, only if the card exiled is one (ifExiledFilter) */
+    { re: /^When an? ([a-z]+) card is exiled this way, (.+)$/i,
+      make: (m) => {
+        const said = m[2].charAt(0).toUpperCase() + m[2].slice(1);
+        const r = parseSentenceList(splitSentences(said));
+        return r.auto && r.effects.length ? { op: 'reflexive', ifExiledFilter: m[1].toLowerCase(), text: m[0], effects: r.effects } : null;
+      } },
     /* Augusta, Order Returned: "each player exiles a card from their graveyard." — each chooses (eachExileGraveCard); "When one
        or more nonland cards are exiled this way, put that many +1/+1 counters on target attacking creature." — a reflexive
        trigger, the count kept as the cards go (ifExiledNonland) */
@@ -8115,6 +8132,8 @@
     { re: /^You may cast a creature spell from your graveyard this turn\.?$/i, make: () => ({ op: 'graveCreatureOnce' }) },
     // The Infinity Stones: "Harness CARDNAME."
     { re: /^Harness (?:CARDNAME|this [a-z]+)\.?$/i, make: () => ({ op: 'harness' }) },
+    // Cases: "To solve — …" read as "… solve CARDNAME." (solveCase)
+    { re: /^Solve CARDNAME\.?$/, make: () => ({ op: 'solveCase' }) },
     // Mordenkainen: "Exchange your hand and library, then shuffle."
     { re: /^Exchange your hand and library, then shuffle\.?$/i, make: () => ({ op: 'exchangeHandLibrary' }) },
     // Chandra, Dressed to Kill: "If it's red, you may cast it this turn.", "You may cast red spells from among them this turn."
@@ -9853,6 +9872,8 @@
     if (dc) return { ofDiscarded: /mana/i.test(dc[1]) ? 'mv' : dc[1].toLowerCase() };
     // Riku of Many Paths: "the number of times you chose a mode for that spell" (triggerSpellModes)
     if (/^the number of times you chose a mode for that spell$/i.test(p)) return { triggerSpellModes: true };
+    // The Skullspore Nexus: "the total power of those creatures" — the lot the trigger is about, as they last were (batchTotalPower)
+    if (/^the total power of those creatures$/i.test(p)) return { batchTotalPower: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     /* Odric, Blood-Cursed: "the number of abilities from among flying, first strike, …, and vigilance found among creatures
@@ -17833,9 +17854,14 @@
       /* The Infinity Stones: "∞ — …" is an ability that works only once the
          Stone is harnessed; the words after the mark are read as usual */
       const infinity = /^\u221e\s*[\u2014-]\s*/.test(line0);
-      const line = (/^This token(?:'s)?\b/.test(line0) && !/^[^.]*:/.test(line0) ? line0.replace(/^This token/, 'This creature') : line0)
-        .replace(/^\u221e\s*[\u2014-]\s*/, '');
-      lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines, infinity });
+      /* Cases (CR 719): "Solved \u2014 \u2026" is an ability that works only once the Case is solved (solved); "To solve \u2014 X" is
+         "At the beginning of your end step, if X and this Case isn't solved, it becomes solved" (toSolve) */
+      const solved = /^Solved\s*[\u2014-]\s*/.test(line0);
+      const toSolve = line0.match(/^To solve\s*[\u2014-]\s*(.+?)\.?$/);
+      let line = (/^This token(?:'s)?\b/.test(line0) && !/^[^.]*:/.test(line0) ? line0.replace(/^This token/, 'This creature') : line0)
+        .replace(/^\u221e\s*[\u2014-]\s*/, '').replace(/^Solved\s*[\u2014-]\s*/, '');
+      if (toSolve) line = 'At the beginning of your end step, if ' + toSolve[1].charAt(0).toLowerCase() + toSolve[1].slice(1) + ', solve CARDNAME.';
+      lineMarks.push({ text: line, ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines, infinity, solved, toSolve: toSolve ? line0 : null });
       totalLines++;
       /* "12+ | {G}, {T}: Add {G} for each creature you control." (station)
          and "Max speed — This creature has double strike." An ordinary
@@ -19080,6 +19106,24 @@
       const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length };
       for (const ab of out.abilities.slice(mk.ab, nx.ab)) ab.infinity = true;
       for (const ab of out.manaAbilities.slice(mk.mana, nx.mana)) ab.infinity = true;
+    });
+    // Tecutlan, the Searing Rift: "using mana produced by Tecutlan" — the promise rides on each mana ability's mana (manaSpentRider)
+    for (const ab of out.abilities) for (const e of (ab.effects || [])) {
+      if (!e || e.op !== 'manaSpentRider') continue;
+      for (const ma of out.manaAbilities) if (!ma.spendOnly) ma.spendOnly = { open: true, rider: { words: e.words, effects: e.effects, text: String(e.text).replace(/CARDNAME/g, out.name), aboutSpell: true } };
+    }
+    // Cases: a "Solved —" ability is left out until the Case is solved (solvedOnly); "To solve" only while it isn't (caseUnsolved)
+    lineMarks.forEach((mk, i) => {
+      if (!mk.solved && !mk.toSolve) return;
+      out.isCase = true;
+      const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length };
+      for (const ab of out.abilities.slice(mk.ab, nx.ab).concat(out.manaAbilities.slice(mk.mana, nx.mana))) {
+        if (mk.solved) ab.solvedOnly = true;
+        if (mk.toSolve && ab.kind === 'triggered') {
+          ab.condition = ab.condition ? [].concat(ab.condition, { kind: 'caseUnsolved' }) : { kind: 'caseUnsolved' };
+          ab.text = mk.toSolve;
+        }
+      }
     });
     const lineInfo = lineMarks.map((mk, i) => {
       const nx = lineMarks[i + 1] || { ab: out.abilities.length, mana: out.manaAbilities.length, auto: autoLines };
@@ -21427,6 +21471,10 @@
         return Object.assign({ op: 'replace', id: 'dieExileOppToken', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
           how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], alsoToken: Object.assign({}, tok, { n: 1 }) }, m[1] ? { nontoken: true } : {});
       } },
+    // The Darkness Crystal: "If a nontoken creature an opponent controls would die, instead exile it and you gain 2 life." (alsoGain)
+    { re: /^If a (nontoken )?creature an opponent controls would die, instead exile it and you gain (\d+) life\.?$/i,
+      make: (m) => Object.assign({ op: 'replace', id: 'dieExileOppGain', event: 'zoneChange', toZone: 'graveyard', fromZone: 'battlefield',
+        how: 'toZone', zone: 'exile', who: 'opponents', whatAny: ['creature'], alsoGain: +m[2] }, m[1] ? { nontoken: true } : {}) },
     /* Nemata, Primeval Warden: "If a creature an opponent controls would die, exile it instead. When you do, create a
        1/1 green Saproling creature token." — the token by a reflexive trigger, on the stack (reflexToken) */
     { re: /^If a (nontoken )?creature an opponent controls would die, exile it instead\. When you do, (create an? .+? token)\.?$/i,
@@ -22164,6 +22212,20 @@
          or to activate abilities of permanents you control but don't own." (spendAnyNotOwned) */
       { re: /^You may spend mana as though it were mana of any colou?r to cast spells you don'?t own or to activate abilities of permanents you control but don'?t own\.?$/i,
         eff: { op: 'spendAnyNotOwned' }, auto: true },
+      // Agatha's Soul Cauldron: "You may spend mana as though it were mana of any color to activate abilities of creatures you control." (spendAnyCreatureAbilities)
+      { re: /^You may spend mana as though it were mana of any colou?r to activate abilities of creatures you control\.?$/i,
+        eff: { op: 'spendAnyCreatureAbilities' }, auto: true },
+      /* Agatha's Soul Cauldron: "Creatures you control with +1/+1 counters on them have all activated abilities of all
+         creature cards exiled with Agatha's Soul Cauldron." (grantExiledActivated) */
+      { re: /^Creatures you control with \+1\/\+1 counters on them have all activated abilities of all creature cards exiled with CARDNAME\.?$/i,
+        eff: { op: 'grantExiledActivated', counter: '+1/+1', what: 'creature' }, auto: true },
+      /* Tecutlan, the Searing Rift: "Whenever you cast a permanent spell using mana produced by Tecutlan, discover X, where
+         X is that spell's mana value." — a promise its mana carries, kept when it pays for such a spell (manaSpentRider) */
+      { re: /^Whenever you cast an? ([a-z]+) spell using mana produced by CARDNAME, (.+)$/i,
+        make: (m) => {
+          const then = parseSentenceList(splitSentences(m[2].charAt(0).toUpperCase() + m[2].slice(1)));
+          return then.auto && then.effects.length ? { op: 'manaSpentRider', words: m[1].toLowerCase() + ' spell', effects: then.effects, text: m[0] } : null;
+        }, auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
@@ -23564,6 +23626,10 @@
       // Radha, Heart of Keld: "You may look at the top card of your library any time, and you may play lands from the top of your library." — both
       { re: /^You may look at the top card of your library any time, and you may play lands from the top of your library\.?$/i,
         make: () => [{ op: 'peekTop' }, { op: 'playFrom', zone: 'top', what: 'land' }], auto: true },
+      /* Case of the Locked Hothouse: "… and you may play lands and cast creature and enchantment spells from the top of your
+         library." — lands any, spells of those kinds (spellFilter) */
+      { re: /^You may look at the top card of your library any time, and you may play lands and cast ([a-z]+) and ([a-z]+) spells from the top of your library\.?$/i,
+        make: (m) => [{ op: 'peekTop' }, { op: 'playFrom', zone: 'top', what: 'any', spellFilter: m[1].toLowerCase() + ' or ' + m[2].toLowerCase() }], auto: true },
       { re: /^(?:CARDNAME|This land) enters tapped\. As it enters, choose a colou?r(?: other than (white|blue|black|red|green))?\.?$/i,
         make: (m) => ({ op: 'chooseColorOnEnter', except: m[1] ? { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] : null }), auto: true },
       // Kianne, Corrupted Memory: "As long as Kianne's power is even, you may cast noncreature spells as though they had flash." (selfPowerParity)

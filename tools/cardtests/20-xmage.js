@@ -66812,4 +66812,179 @@ module.exports = (test) => {
     t.zone(rb2, 'library', "Descendants' Path: declined");
     t.eq(lib[lib.length - 1], rb2, "Descendants' Path: declined, to the bottom");
   });
+
+  test('Cards: The Darkness Crystal — opponents\' nontoken creatures exiled with 2 life; one back tapped with two counters', (mk, t) => {
+    t.auto('The Darkness Crystal');
+    const T = mk();
+    const cr = T.bf('A', 'The Darkness Crystal');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    const mine = T.bf('A', 'Elvish Visionary');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [bears] });
+    t.zone(bears, 'exile', "Darkness Crystal: B's Bears exiled instead of dying");
+    t.eq(bears.exiledWithId, cr.id, 'Darkness Crystal: exiled with it');
+    t.eq(T.life('A'), 22, 'Darkness Crystal: A gains 2 life');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [mine] });
+    t.zone(mine, 'graveyard', "Darkness Crystal: A's own creature dies");
+    t.eq(T.life('A'), 22, 'Darkness Crystal: no life for its own');
+    // a token isn't exiled
+    T.mana('A', 'WW1'); T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const tok = T.bfOf('A').find(o => o.name === 'Soldier');
+    T.g.moveObject(tok, 'battlefield', { controller: 'B' });
+    tok.controller = 'B';
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [tok] });
+    t.eq(T.life('A'), 22, 'Darkness Crystal: a token dies as usual, no life');
+    T.mana('A', 'RR'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [giant] });
+    t.zone(giant, 'exile');
+    // the ability: the target among the cards exiled with it; tapped, under A's control, two counters
+    T.g.moveObject(T.grave('B', 'Craw Wurm'), 'exile');
+    const ab = cr.analysis().abilities.find(a => a.kind === 'activated');
+    const legal = T.g._legalTargetsFor(ab.effects[0].targets[0], 'A', cr.id).map(x => x.id);
+    t.eq(legal.sort().join(), [bears.id, giant.id].sort().join(), 'Darkness Crystal: only the cards exiled with it');
+    T.mana('A', 'BB4');
+    T.activate('A', cr, 0, { targets: [giant] });
+    t.zone(giant, 'battlefield', 'Darkness Crystal: Hill Giant back');
+    t.eq(giant.controller, 'A', 'Darkness Crystal: under A\'s control');
+    t.ok(giant.tapped, 'Darkness Crystal: tapped');
+    t.eq(giant.counters['+1/+1'], 2, 'Darkness Crystal: two +1/+1 counters');
+    t.eq(T.g.powerOf(giant), 5);
+    t.zone(bears, 'exile', 'Darkness Crystal: the other stays');
+  });
+
+  test("Cards: Agatha's Soul Cauldron — exiled creature cards' activated abilities on your creatures with +1/+1 counters, any color", (mk, t) => {
+    t.auto("Agatha's Soul Cauldron");
+    const T = mk();
+    const g = T.g;
+    const pot = T.bf('A', "Agatha's Soul Cauldron");
+    const bears = T.bf('A', 'Grizzly Bears');
+    const vis = T.bf('A', 'Elvish Visionary');
+    const theirs = T.bf('B', 'Hill Giant', { counters: { '+1/+1': 1 } });
+    const shivan = T.grave('B', 'Shivan Dragon');
+    const shock = T.grave('B', 'Shock');
+    // a noncreature card exiled: no trigger
+    T.activate('A', pot, 0, { targets: [shock] });
+    t.zone(shock, 'exile');
+    t.no(T.asked.some(c => c.purpose === 'triggerTargets'), 'Cauldron: Shock exiled, no counter');
+    pot.tapped = false;
+    let opts = null;
+    T.answer('pickTarget', (ch) => { opts = (ch.options || []).flat().map(x => x && x.id); return { targets: [{ kind: 'object', id: bears.id }] }; });
+    T.activate('A', pot, 0, { targets: [shivan] });
+    t.zone(shivan, 'exile');
+    t.eq(shivan.exiledWithId, pot.id, 'Cauldron: exiled with it');
+    t.ok(opts && opts.includes(vis.id) && !opts.includes(theirs.id), 'Cauldron: the counter goes on a creature A controls');
+    t.eq(bears.counters['+1/+1'], 1, 'Cauldron: a +1/+1 counter on the Bears');
+    const acts = (o) => o.analysis().abilities.filter(a => a.kind === 'activated').map(a => a.text);
+    t.ok(acts(bears).some(x => /\{R\}: /.test(x)), "Cauldron: the Bears have Shivan Dragon's ability");
+    t.no(acts(vis).some(x => /\{R\}: /.test(x)), 'Cauldron: not the Visionary, no counter');
+    t.no(acts(theirs).some(x => /\{R\}: /.test(x)), "Cauldron: not B's creature");
+    // paid with green: mana of any color for creatures' abilities
+    T.mana('A', 'G');
+    T.activate('A', bears, 0);
+    t.eq(g.powerOf(bears), 4, 'Cauldron: firebreathing paid with {G}');
+    // the Cauldron gone: the ability goes with it
+    g.moveObject(pot, 'graveyard');
+    t.no(acts(bears).some(x => /\{R\}: /.test(x)), 'Cauldron: gone, so is the ability');
+  });
+
+  test('Cards: Case of the Locked Hothouse — solved with seven lands at your end step; then lands, creatures and enchantments from the top', (mk, t) => {
+    t.auto('Case of the Locked Hothouse');
+    const T = mk({ library: Array(30).fill('Forest') });
+    const g = T.g;
+    const kase = T.bf('A', 'Case of the Locked Hothouse');
+    for (let i = 0; i < 5; i++) T.bf('A', 'Forest');
+    // unsolved: no lands from the top
+    const top = g.zones.A.library[0];
+    t.no(g.playLand('A', top.id), 'Hothouse: unsolved, no land from the top');
+    t.ok(T.playLand('A', T.hand('A', 'Forest')), 'Hothouse: a land from hand');
+    t.ok(T.playLand('A', T.hand('A', 'Forest')), 'Hothouse: an additional land');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Forest').length, 7);
+    // seven lands: solved at A's end step
+    T.bf('B', 'Forest');
+    T.nextTurn('B');
+    t.ok(kase.solved, 'Hothouse: solved at the end step with seven lands');
+    T.nextTurn('A');
+    T.toMain('A');
+    const t1 = g.zones.A.library[0];
+    t.ok(g.playLand('A', t1.id), 'Hothouse: solved, a land from the top: ' + g.lastError);
+    T.top('A', 'Grizzly Bears');
+    T.mana('A', 'G1');
+    t.ok(g.castSpell('A', g.zones.A.library[0].id, { auto: true, targets: [] }), 'Hothouse: a creature from the top: ' + g.lastError);
+    T.resolve();
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'));
+    const shock = T.top('A', 'Shock');
+    T.mana('A', 'R');
+    t.no(g.castSpell('A', shock.id, { auto: true, targets: [{ kind: 'player', id: 'B' }] }), 'Hothouse: not an instant from the top');
+    // six lands: not solved
+    const U = mk({ library: Array(30).fill('Forest') });
+    const k2 = U.bf('A', 'Case of the Locked Hothouse');
+    for (let i = 0; i < 6; i++) U.bf('A', 'Forest');
+    U.nextTurn('B');
+    t.no(k2.solved, 'Hothouse: six lands, not solved');
+  });
+
+  test("Cards: Brass's Tunnel-Grinder // Tecutlan, the Searing Rift — bore counters to transform; a permanent spell paid with its mana discovers", (mk, t) => {
+    t.auto("Brass's Tunnel-Grinder");
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    const f1 = T.hand('A', 'Forest');
+    const s1 = T.hand('A', 'Shock');
+    T.answer('choose', { picks: [f1.id, s1.id] });
+    const gr = T.bf('A', "Brass's Tunnel-Grinder", { etb: true });
+    T.resolve();
+    t.eq(g.zones.A.hand.length, 3, 'Tunnel-Grinder: two discarded, three drawn');
+    T.nextTurn('B');
+    t.eq(gr.counters.bore, 1, 'Tunnel-Grinder: descended (a Forest discarded), a bore counter');
+    T.nextTurn('A');
+    T.toMain('A');
+    gr.counters.bore = 2;
+    T.nextTurn('B');
+    t.eq(gr.counters.bore || 0, 2, 'Tunnel-Grinder: not descended this turn, no counter');
+    T.nextTurn('A');
+    T.toMain('A');
+    g.moveObject(T.hand('A', 'Forest'), 'graveyard');
+    T.nextTurn('B');
+    t.eq(gr.face, 1, 'Tunnel-Grinder: three bore counters, transformed');
+    t.eq(gr.name, 'Tecutlan, the Searing Rift');
+    t.no(gr.counters.bore, 'Tunnel-Grinder: the counters removed');
+    // Tecutlan: a permanent spell paid with its mana discovers X, its mana value
+    T.nextTurn('A');
+    T.toMain('A');
+    gr.tapped = false;
+    T.top('A', 'Llanowar Elves');
+    t.ok(g.tapForMana('A', gr.id, 0), 'Tecutlan: tapped for {R}');
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.ok(T.bfOf('A').some(o => o.name === 'Llanowar Elves'), 'Tecutlan: discover 2 — Llanowar Elves cast');
+    t.ok(T.bfOf('A').some(o => o.name === 'Grizzly Bears'));
+    // an instant paid with it: nothing
+    gr.tapped = false;
+    const elf2 = T.top('A', 'Llanowar Elves');
+    g.tapForMana('A', gr.id, 0);
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.zone(elf2, 'library', 'Tecutlan: an instant, no discover');
+    // a permanent spell paid with other mana: nothing
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.zone(elf2, 'library', 'Tecutlan: not its mana, no discover');
+  });
+
+  test('Cards: The Skullspore Nexus — nontoken creatures of yours dying together make one Fungus Dinosaur of their total power', (mk, t) => {
+    t.auto('The Skullspore Nexus');
+    const T = mk();
+    T.bf('A', 'The Skullspore Nexus');
+    T.bf('A', 'Grizzly Bears');
+    T.bf('A', 'Hill Giant');
+    T.mana('A', 'WW1'); T.cast('A', T.hand('A', 'Raise the Alarm'));
+    T.bf('B', 'Craw Wurm');
+    T.mana('A', 'WW2'); T.cast('A', T.hand('A', 'Wrath of God'));
+    const dinos = T.bfOf('A').filter(o => o.name === 'Fungus Dinosaur');
+    t.eq(dinos.length, 1, 'Skullspore Nexus: one token for the lot');
+    t.eq(T.g.powerOf(dinos[0]) + '/' + T.g.toughnessOf(dinos[0]), '5/5', 'Skullspore Nexus: 2 + 3, the tokens and B\'s Wurm not counted');
+    t.ok((dinos[0].analysis().colors || []).includes('G'), 'Skullspore Nexus: green');
+    // only tokens dying: nothing
+    T.mana('A', 'WW1'); T.cast('A', T.hand('A', 'Raise the Alarm'));
+    const sol = T.bfOf('A').find(o => o.name === 'Soldier');
+    T.mana('A', 'R'); T.cast('A', T.hand('A', 'Shock'), { targets: [sol] });
+    t.eq(T.bfOf('A').filter(o => o.name === 'Fungus Dinosaur').length, 1, 'Skullspore Nexus: a token dying makes nothing');
+  });
 };

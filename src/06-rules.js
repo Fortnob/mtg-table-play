@@ -194,6 +194,8 @@
   const EMPTY_SET = new Set();
   // Aeve, Progenitor Ooze: each analysis without its "Legendary", by the one with it (notLegendaryIfToken)
   const NOT_LEGENDARY = new WeakMap();
+  // Cases: each analysis without its "Solved —" abilities, by the one with them (solvedOnly)
+  const UNSOLVED = new WeakMap();
   // Varolz, the Scar-Striped: each analysis with the scavenge it is given, by the one without (grantScavenge)
   const GRAVE_SCAVENGE = new WeakMap();
 
@@ -11309,6 +11311,9 @@
       // Nathan Drake, Treasure Hunter: "… or to activate abilities of permanents you control but don't own" (spendAnyNotOwned)
       if (mana && o && o.zone === 'battlefield' && o.owner !== o.controller && this._anyStaticOf(o.controller, 'spendAnyNotOwned'))
         mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // Agatha's Soul Cauldron: "… to activate abilities of creatures you control" (spendAnyCreatureAbilities)
+      if (mana && /[WUBRG]/.test(mana) && o && o.zone === 'battlefield' && (this.characteristics(o) || {}).isCreature && this._anyStaticOf(o.controller, 'spendAnyCreatureAbilities'))
+        mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
       return this._abilityCostMods(o, ab, mana, targets);
     }
 
@@ -12121,9 +12126,11 @@
         const so = item.obj;
         if (!so || !this._cardFitsWords(so, rider.words || 'spell')) return;
         if (rider.minMv != null && ((so.card && so.card.cmc) || 0) + this._xMv(item) < rider.minMv) return;
-        this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
+        this.pendingTriggers.push(Object.assign({ id: this._uid('tr'), kind: 'ability', obj: null, objId: null, controller: playerId,
           // (its words whole: the stack shows them all, wrapped)
-          name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '' });
+          name: rider.text || 'Mana rider', effects: rider.effects, auto: true, abilityText: rider.text || '' },
+          // (Tecutlan, the Searing Rift: "that spell's mana value" — the spell it paid for: aboutSpell)
+          rider.aboutSpell ? { triggerData: { event: 'manaRider', objectId: so.id } } : {}));
         return;
       }
       // Arena of Glory: a creature spell paid with it arrives with haste
@@ -14228,6 +14235,8 @@
           if (ef.zone === 'exile' && src) ev.exiledWith = src.id;
           // Kalitas, Traitor of Ghet: "instead exile that card and create a 2/2 black Zombie" (dieExileToken)
           if (ef.alsoToken && src && src.controller != null) this._createToken(src.controller, Object.assign({}, ef.alsoToken));
+          // The Darkness Crystal: "instead exile it and you gain 2 life" (alsoGain)
+          if (ef.alsoGain && src && src.controller != null) this.changeLife(src.controller, ef.alsoGain);
           // Nemata, Primeval Warden: "When you do, create a 1/1 green Saproling creature token." — a reflexive trigger
           // (Valentin, Dean of the Vein: "you may pay {2}. If you do, create …" — reflexEffects)
           if ((ef.reflexToken || ef.reflexEffects) && src && src.controller != null) {
@@ -15474,6 +15483,8 @@
         case 'firstCombat': return (this.combatsThisTurn || 1) === 1 && this._combatTurn === this.turn;
         // Blitzwing, Cruel Tormentor: "If no life is lost this way" — within this resolution
         case 'noLifeLostThisWay': return !((this._lastLifeLost || 0) > 0);
+        // Cases: "To solve" only while the Case isn't solved
+        case 'caseUnsolved': return !!src && !src.solved;
         case 'levelRange': {
           if (!src) return false;
           const lv = Number(src.counters.level) || 0;
@@ -16345,6 +16356,15 @@
         }
         base = nl;
       }
+      /* Cases (CR 719): a "Solved —" ability isn't there until the Case is solved (solvedOnly; cached by analysis, as above) */
+      if (base.isCase && !o.solved) {
+        let un = UNSOLVED.get(base);
+        if (!un) {
+          un = Object.assign({}, base, { abilities: (base.abilities || []).filter(ab => !ab.solvedOnly), manaAbilities: (base.manaAbilities || []).filter(ab => !ab.solvedOnly) });
+          UNSOLVED.set(base, un);
+        }
+        base = un;
+      }
       if (this._dynBusy) return base;
       const own = (o.effects || []).filter(e => e && (e.grantText || e.grantAbilities));
       const sources = this._grantSources();
@@ -16457,11 +16477,19 @@
      * (two Dranas facing each other), so the asking always ends.
      */
     _borrowedAbilities(o, base) {
-      const spec = (() => {
+      let spec = (() => {
         for (const ab of (base.abilities || [])) if (ab.kind === 'static') for (const e of (ab.effects || [])) if (e && e.op === 'borrowActivated') return e;
         return null;
       })();
-      if (!spec || o.phasedOut || o.faceDown) return null;
+      /* Agatha's Soul Cauldron: "Creatures you control with +1/+1 counters on them have all activated abilities of all
+         creature cards exiled with Agatha's Soul Cauldron." — a creature of its controller's with the counter (grantExiledActivated) */
+      this._grantSources();
+      const pots = o.zone === 'battlefield' && base.isCreature ? (this._grantExiled || []).filter(g => g.src.controller === o.controller &&
+        !g.src.phasedOut && Number((o.counters || {})[g.ef.counter]) > 0) : [];
+      if ((!spec && !pots.length) || o.phasedOut || o.faceDown) return null;
+      const potCards = () => pots.flatMap(g => this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
+        .filter(c => c.exiledWithId === g.src.id && this._matchesCategory(c, g.ef.what)));
+      if (!spec) spec = { exiledOnly: true };
       const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
       const ss = lb && lb.st.get(o.id);
       if (ss && (ss.lost || ss.rulesLost)) return null;
@@ -16480,6 +16508,7 @@
       if (spec.exiledCounter) sig += '|x' + exiledWith().map(c => c.id).join(',');
       // (Experiment Kraj: which creatures have the counter — withCounter)
       if (spec.withCounter) sig += '|c' + this.battlefield.filter(x => Number((x.counters || {})[spec.withCounter]) > 0).map(x => x.id).join(',');
+      if (pots.length) sig += '|k' + potCards().map(c => c.id).join(',');
       if (top && o._borrowSig === sig && o._borrowBase === base) return o._borrowed;
       busy.add(o.id);
       let res = null;
@@ -16519,12 +16548,13 @@
         }
         /* Rex, Cyber-Hound: "all activated abilities of all cards in exile with brain counters on them" — anybody's
            cards, activated abilities only (exiledCounter) */
-        for (const c of exiledWith()) {
+        // (Agatha's Soul Cauldron: the creature cards exiled with it — mana abilities too)
+        for (const c of exiledWith().concat(pots.length ? potCards() : [])) {
           const ca = c.analysis();
           for (const ab of ((ca && ca.abilities) || [])) if (ab.kind === 'activated') take(acts, ab);
           for (const ab of ((ca && ca.manaAbilities) || [])) take(mana, ab);
         }
-        for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter ? [] : this.battlefield)) {
+        for (const x of (spec.chosenCard || spec.graveyard || spec.exiledCounter || spec.exiledOnly ? [] : this.battlefield)) {
           if (x === o || x.phasedOut || x.faceDown) continue;
           if (spec.who === 'opponents' ? !opp.has(x.controller) : spec.who !== 'all' && x.controller !== o.controller) continue;
           // Experiment Kraj: "each other creature with a +1/+1 counter on it" — anyone's (withCounter)
@@ -16546,6 +16576,8 @@
     _grantSources() {
       if (this._grantCache && this._grantEpoch === this._boardKey) return this._grantCache;
       const list = [];
+      // (Agatha's Soul Cauldron: the permanents handing out the abilities of the cards exiled with them — grantExiledActivated)
+      const fromExiled = [];
       // an emblem hands out abilities too (Koth of the Hammer's Mountains)
       for (const src of this._withEmblems(this.battlefield)) {
         if (src.phasedOut) continue;
@@ -16555,6 +16587,7 @@
         for (const ab of a.abilities) for (const ef of (ab.effects || [])) {
           const parts = ef.op === 'sequence' ? (ef.list || []) : [ef];
           for (const x of parts) if (x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
+          for (const x of parts) if (x.op === 'grantExiledActivated' && src.zone === 'battlefield') fromExiled.push({ ef: x, src });
         }
         /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '…'"" — a
            standing line it was given hands out its ability too */
@@ -16571,6 +16604,7 @@
         });
       }
       this._grantCache = list;
+      this._grantExiled = fromExiled;
       this._grantEpoch = this._boardKey;
       return list;
     }
@@ -17531,6 +17565,8 @@
       }
       // (Kodama of the East Tree's mark lasts only while the permanent stays)
       if (from === 'battlefield' && toZone !== 'battlefield') o._kodamaPut = null;
+      // (a Case that leaves is a new object, unsolved: solved)
+      if (from === 'battlefield' && toZone !== 'battlefield') o.solved = false;
       // (a card moved any other way than by a draw was not drawn this turn: drawnTurn)
       o.drawnTurn = null;
       // out of exile, an adventure is over (and the card is no longer "exiled with" anything)
@@ -21032,6 +21068,12 @@
           const td = ctx.triggerData || {};
           return (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield')
             .reduce((k, c) => Math.max(k, this.powerOf(c)), 0);
+        }
+        // The Skullspore Nexus: "the total power of those creatures" — the lot, each as it last was (batchTotalPower)
+        if (v && typeof v === 'object' && v.batchTotalPower) {
+          const td = ctx.triggerData || {};
+          return (td.batchIds || (td.objectId ? [td.objectId] : [])).map(id => this.obj(id)).filter(Boolean)
+            .reduce((k, c) => k + Math.max(0, c.zone === 'battlefield' ? this.powerOf(c) : (Number(c._lastPower) || 0)), 0);
         }
         if (v && typeof v === 'object' && v.triggerSpellX) { const td = ctx.triggerData || {}; const it = td.stackId && this.stack.find(s0 => s0.id === td.stackId); return (it && it.x) || 0; }
         if (v && typeof v === 'object' && v.opponents) return this.opponentsOf(ctx.controller).length * (v.mult || 1);
@@ -25087,6 +25129,8 @@
               if (e.toPlayerTarget && (!toP || toP.hasLost)) continue;
               // Winter Soldier, Reborn Avenger: "If a Hero enters this way, it enters with an additional +1/+1 counter on it." (extraCounterIf)
               if (e.extraCounterIf && this._hasCreatureType(x, e.extraCounterIf)) x._enterExtraCounter = { kind: '+1/+1', n: 1 };
+              // The Darkness Crystal: "with two additional +1/+1 counters on it" — as it enters (enterCounters)
+              if (e.enterCounters) x._enterExtraCounter = Object.assign({}, e.enterCounters);
               this.moveObject(x, 'battlefield', Object.assign({ controller: toP ? toP.id : e.ownerControl ? x.owner : ctx.controller, tapped: !!(e.tapped) },
                 e.enterEff ? { enterEffects: [e.enterEff] } : {}));
               if (x.zone !== 'battlefield') x._enterExtraCounter = null;
@@ -27740,6 +27784,8 @@
         }
         // The Infinity Stones: harnessed, its ∞ abilities work from now on
         case 'harness': if (src && src.zone === 'battlefield') { src.harnessed = true; this.logEvent('rules', `${src.name} is harnessed.`); } break;
+        // Cases (CR 719.3): "To solve — …" — solved, its "Solved —" abilities work from now on
+        case 'solveCase': if (src && src.zone === 'battlefield' && !src.solved) { src.solved = true; this.bumpBoard(); this.logEvent('rules', `${src.name} is solved.`); } break;
         // Goblin Welder: an artifact out, an artifact card from the same player's graveyard in
         case 'weldSwap': {
           const ts = targets.filter(t => t.kind === 'object');
@@ -29027,6 +29073,11 @@
           // (Three Dog, Galaxy News DJ: "When you sacrifice an Aura this way" — only if one was, and "that Aura" is it: ifSacAura)
           const sacAura = e.ifSacAura ? this._sacAuraThisWay : null;
           if (e.ifSacAura && !sacAura) break;
+          // Agatha's Soul Cauldron: "When a creature card is exiled this way" — the card just exiled, of that kind (ifExiledFilter)
+          if (e.ifExiledFilter) {
+            const ex = this._lastExiled && this.obj(this._lastExiled);
+            if (!ex || ex.zone !== 'exile' || !this._cardFitsWords(ex, e.ifExiledFilter)) break;
+          }
           // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
           const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
           if (e.ifExiledNonland && !exN) break;
