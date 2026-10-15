@@ -13181,6 +13181,10 @@
         if ((o.effects || []).some(e => e && e.control != null && e.whileMonarch)) {
           o.effects = o.effects.filter(e => !e || e.control == null || !e.whileMonarch || !!(this.player(e.whileMonarch) || {}).monarch);
         }
+        // Eriette, the Beguiler: "for as long as that Aura is attached to it" (whileAura)
+        if ((o.effects || []).some(e => e && e.control != null && e.whileAura)) {
+          o.effects = o.effects.filter(e => { if (!e || e.control == null || !e.whileAura) return true; const au = this.obj(e.whileAura); return !!(au && au.zone === 'battlefield' && au.attachedTo === o.id); });
+        }
         if ((o.effects || []).some(e => e && e.control != null && e.whileSrc)) {
           o.effects = o.effects.filter(e => {
             if (!e || e.control == null || !e.whileSrc) return true;
@@ -14545,6 +14549,11 @@
           if (!x || !self || self.zone !== 'battlefield') return false;
           const pw = x.zone !== 'battlefield' && x._lastPower != null ? x._lastPower : this.powerOf(x);
           return pw > this.powerOf(self);
+        }
+        // Farideh, Devil's Chosen: "If any of those results was 10 or higher" (triggerRollAtLeast)
+        case 'triggerRollAtLeast': {
+          const tdR = (ctx && ctx.triggerData) || {};
+          return (tdR.amounts || [tdR.amount]).some(v => Number(v) >= cond.n);
         }
         // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — as it last was, if it has died since
         case 'triggerObjExcess': {
@@ -16904,6 +16913,10 @@
         /* the spell that set this off, for "copy that spell" */
         stackId: data.stackId, objectId: data.object && data.object.id,
         amount: data.amount,
+        // Farideh, Devil's Chosen: every die rolled together ("any of those results")
+        amounts: data.amounts,
+        // Eriette, the Beguiler: the Aura that became attached ("that Aura")
+        auraId: event === 'auraAttached' && data.source ? data.source.id : undefined,
         // who controlled the permanent it is about (Bereavement: "its controller discards")
         objController: data.objController,
         // where a permanent that left went, as it went (Taeko: "if it didn't die" — leftToZone)
@@ -17344,6 +17357,11 @@
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
           // Mr. House, President and CEO: "Whenever you roll a 4 or higher" (minRoll)
           if (ab.minRoll != null && !(Number(data.amount) >= ab.minRoll)) continue;
+          // Farideh, Devil's Chosen: "Whenever you roll one or more dice" — once for the dice rolled together (anyDice)
+          if (ab.anyDice && data.dieIndex > 0) continue;
+          // Eriette, the Beguiler: "an Aura you control", on a permanent "with mana value less than or equal to that Aura's"
+          if (ab.auraYours && !(data.source && data.source.controller === o.controller)) continue;
+          if (ab.hostMvAtMostAura && !(data.object && data.source && (((data.object.analysis() || {}).mv) || 0) <= (((data.source.analysis() || {}).mv) || 0))) continue;
           // Karazikar, the Eye Tyrant: "Whenever you attack a player" (attackerIsYou)
           if (ab.attackerIsYou && data.playerId !== o.controller) continue;
           // Breena, the Demagogue: the player attacked is one of this player's opponents (attacksOneOfYourOpponents)
@@ -22049,7 +22067,9 @@
               // Kellogg: "for as long as you control this creature"
               e.whileSrc && src ? { whileSrc: src.id, whileOnBf: !!e.whileOnBf } : {},
               // Garland, Royal Kidnapper: "for as long as they're the monarch" — the player the trigger is about (whileMonarch)
-              e.whileMonarch ? { whileMonarch: (triggerPlayer() || {}).id || '-' } : {}));
+              e.whileMonarch ? { whileMonarch: (triggerPlayer() || {}).id || '-' } : {},
+              // Eriette, the Beguiler: "for as long as that Aura is attached to it" (whileAttachedAura)
+              e.whileAttachedAura ? { whileAura: (ctx.triggerData || {}).auraId || '-' } : {}));
             if (e.untap) this._markUntapped(x);
             this.logEvent('control', `${me.name} gains control of ${x.name}.`);
           }
@@ -26747,6 +26767,13 @@
           // Nyssa of Traken: "When you sacrifice one or more artifacts this way, … that many …" — only if some went (ifSacrificed)
           const sacN = e.ifSacrificed ? (this._lastSacCount || 0) : 0;
           if (e.ifSacrificed && !sacN) break;
+          // Gimli, Mournful Avenger: "When this ability resolves for the third time this turn" — counted on the object, by ability (nthResolution)
+          if (e.nthResolution) {
+            const holder = so || me, key = String(e.text || '');
+            if (!holder._nthRes || holder._nthRes.turn !== this.turn) holder._nthRes = { turn: this.turn, counts: {} };
+            holder._nthRes.counts[key] = (holder._nthRes.counts[key] || 0) + 1;
+            if (holder._nthRes.counts[key] !== e.nthResolution) break;
+          }
           const rText = String(e.whenText || e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
@@ -29367,6 +29394,8 @@
               const c = lib[0];
               this.moveObject(c, 'exile');
               out.push(c.id);
+              // Evelyn, the Covetous: "with a collection counter on it"
+              if (e.counter && c.zone === 'exile') { c.counters = c.counters || {}; c.counters[e.counter] = (Number(c.counters[e.counter]) || 0) + 1; this.bumpBoard(); }
               // Maralen, Fae Ascendant: "cards exiled with Maralen this turn" — which, and when (exiledBySrc)
               if (src && c.zone === 'exile' && this._staticOp(src, 'castExiledWithFree')) { c.exiledBySrc = src.id; c.exiledBySrcTurn = this.turn; c.exiledBySrcTs = src.ts; }
               const ca = c.analysis() || {};
@@ -32200,6 +32229,33 @@
           this.logEvent('counters', `A +1/+1 counter moves from ${src.name} to ${to.name}.`);
           break;
         }
+        /* Kathril, Aspect Warper: "put a flying counter on any creature you control if a creature card in your graveyard has
+           flying. Repeat this process for … Then put a +1/+1 counter on Kathril for each counter put on a creature this
+           way." — each creature picked before any counter goes on (kwCountersFromGrave) */
+        case 'kwCountersFromGrave': {
+          const gy = (this.zones[ctx.controller] || {}).graveyard || [];
+          const has = (k) => gy.some(c => { const a = c.analysis() || {}; return a.isCreature && a.keywordSet && a.keywordSet.has(k); });
+          const pool = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && (this.characteristics(o) || {}).isCreature);
+          const plan = [];
+          for (const k of e.keywords || []) {
+            if (!pool.length || !has(k)) continue;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'effectObject', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 1, max: 1,
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k} counter on a creature you control.` }, 'kwg:' + k);
+            if (got === SUSPEND) return SUSPEND;
+            const o = this.obj(got && got.picks && got.picks[0]);
+            if (o && pool.includes(o)) plan.push([o, k]);
+          }
+          let put = 0;
+          for (const [o, k] of plan) {
+            if (o.zone !== 'battlefield') continue;
+            this.addCounters(o, k, 1, { by: ctx.controller }); put++;
+            this.logEvent('counter', `${me.name} puts ${/^[aeiou]/i.test(k) ? 'an' : 'a'} ${k} counter on ${o.name}.`);
+          }
+          const self = ctx.obj;
+          if (put && self && self.zone === 'battlefield') this.addCounters(self, '+1/+1', put, { by: ctx.controller });
+          break;
+        }
         case 'moveCounter': {
           const objs = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
           const [from, to] = objs;
@@ -32239,9 +32295,12 @@
           const sides = n(e.sides) || 20;
           // Mr. House, President and CEO: one more die for each mana from Treasures spent on the ability (perTreasureSpent)
           const extraDice = e.perTreasureSpent ? Math.max(0, Number(ctx.manaFromTreasure) || 0) : 0;
-          for (let k = 0; k < extraDice; k++) this._fire('youRoll', ctx.controller, { amount: this._rollDie(me, sides), playerId: ctx.controller });
+          const rolled = [];
+          for (let k = 0; k < extraDice; k++) rolled.push(this._rollDie(me, sides));
           this._lastRoll = this._rollDie(me, sides);
-          this._fire('youRoll', ctx.controller, { amount: this._lastRoll, playerId: ctx.controller });
+          rolled.push(this._lastRoll);
+          // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
+          rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller }));
           // the results printed under the roll
           const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
           /* Delina, Wild Mage: "You may roll again." — the same die and the same results, read afresh (rollAgain) */

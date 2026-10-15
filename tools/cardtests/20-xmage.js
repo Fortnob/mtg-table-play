@@ -56345,4 +56345,151 @@ module.exports = (test) => {
     T.cast('A', gid);
     t.zone(gid, 'battlefield', 'Gideon, Ally of Zendikar for {1}{W}{W}');
   });
+  test('Commanders: Evelyn, the Covetous — a Vampire enters: the top card of each library, with a collection counter; one a turn, any mana', (mk, t) => {
+    t.auto('Evelyn, the Covetous');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bears = T.top('B', 'Grizzly Bears'), bolt = T.top('A', 'Lightning Bolt');
+    T.put('A', 'Evelyn, the Covetous', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(bears, 'exile'); t.zone(bolt, 'exile');
+    t.eq(bears.counters.collection, 1, 'a collection counter on the Bears'); t.eq(bolt.counters.collection, 1, 'and on the Bolt');
+    // another Vampire: two more
+    const opt = T.top('B', 'Opt');
+    T.put('A', 'Vampire Nighthawk', 'battlefield', { etb: true });
+    T.resolve();
+    t.zone(opt, 'exile'); t.eq(opt.counters.collection, 1, 'another Vampire: Opt exiled too');
+    // the Bears, cast with blue mana (any colour)
+    T.mana('A', 'UU');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield'); t.eq(bears.controller, 'A', "the opponent's Bears, cast with blue mana");
+    // once each turn
+    T.mana('A', 'U');
+    t.no(g.castSpell('A', opt.id, { auto: true, targets: [] }), 'only once each turn');
+    g.player('A').pool.clear && g.player('A').pool.clear();
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'U');
+    T.cast('A', opt);
+    t.zone(opt, 'graveyard', 'next turn: Opt');
+    // exiled by someone else's ability: not Evelyn's to give
+    const ox = T.put('B', 'Divination', 'exile');
+    ox.counters.collection = 1; ox.exiledByPlayer = 'B';
+    T.nextTurn('B'); T.nextTurn('A');
+    T.mana('A', 'UUU');
+    t.no(g.castSpell('A', ox.id, { auto: true, targets: [] }), 'not exiled by an ability A controlled');
+  });
+  test("Commanders: Farideh, Devil's Chosen — you roll: flying and menace; a 10 or higher: draw", (mk, t) => {
+    t.auto("Farideh, Devil's Chosen");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const rolls = [5, 12];
+    const real = g._rollDie.bind(g); g._rollDie = (p, s, o) => (rolls.length ? rolls.shift() : real(p, s, o));
+    const fa = T.bf('A', "Farideh, Devil's Chosen");
+    t.no(g.hasKw(fa, 'flying'), 'no flying yet');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', 'WWW');
+    T.cast('A', T.hand('A', 'Recruitment Drive'));
+    t.ok(g.hasKw(fa, 'flying') && g.hasKw(fa, 'menace'), 'a roll: flying and menace');
+    t.eq(T.zone('A', 'hand').length, h0, 'a 5: no card');
+    T.mana('A', 'WWW');
+    T.cast('A', T.hand('A', 'Recruitment Drive'));
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'a 12: a card');
+    T.nextTurn('B');
+    t.no(g.hasKw(fa, 'flying'), 'until end of turn');
+    // an opponent's roll: nothing
+    rolls.push(15);
+    T.mana('B', 'WWW');
+    T.cast('B', T.hand('B', 'Recruitment Drive'));
+    t.no(g.hasKw(fa, 'flying'), "an opponent's roll: no trigger");
+  });
+  test('Commanders: Gimli, Mournful Avenger — two died: indestructible; a counter for each, and a fight on the third', (mk, t) => {
+    t.auto('Gimli, Mournful Avenger');
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    const gi = T.bf('A', 'Gimli, Mournful Avenger');
+    const mine = [0, 1, 2].map(() => T.bf('A', 'Grizzly Bears'));
+    const ox = T.bf('B', 'Hill Giant'), wurm = T.bf('B', 'Craw Wurm');
+    const kill = (o) => { T.mana('A', 'BBC'); T.cast('A', T.hand('A', 'Murder'), { targets: [o] }); };
+    kill(mine[0]);
+    t.eq(gi.counters['+1/+1'], 1, 'one died: a counter');
+    t.no(g.hasKw(gi, 'indestructible'), 'one died: not yet indestructible');
+    const asked0 = T.asked.length;
+    kill(mine[1]);
+    t.eq(gi.counters['+1/+1'], 2, 'two counters');
+    t.ok(g.hasKw(gi, 'indestructible'), 'two died this turn: indestructible');
+    t.no(T.asked.slice(asked0).some(ch => ch.type === 'pickTarget'), 'no fight on the second');
+    T.answer('pickTarget', (ch) => {
+      const ids = [].concat(...ch.options).map(x => x.id);
+      t.ok(ids.includes(ox.id) && ids.includes(wurm.id) && !ids.includes(gi.id), "a creature you don't control");
+      return { targets: [{ kind: 'object', id: ox.id }] };
+    });
+    kill(mine[2]);
+    t.eq(gi.counters['+1/+1'], 3, 'three counters');
+    t.zone(ox, 'graveyard', 'the third: Gimli (6/5) fights the Hill Giant');
+    t.eq(gi.damage, 3, 'and takes 3');
+    // a fourth: a counter, no fight
+    const more = T.bf('A', 'Grizzly Bears');
+    const asked1 = T.asked.length;
+    kill(more);
+    t.eq(gi.counters['+1/+1'], 4, 'a fourth counter');
+    t.no(T.asked.slice(asked1).some(ch => ch.type === 'pickTarget'), 'no fight on the fourth');
+    // a new turn: not indestructible, the count starts again
+    T.nextTurn('B');
+    t.no(g.hasKw(gi, 'indestructible'), 'a new turn: none died yet');
+  });
+  test('Commanders: Kathril, Aspect Warper — enters: a counter for each keyword among creature cards in your graveyard, then +1/+1s', (mk, t) => {
+    t.auto('Kathril, Aspect Warper');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.grave('A', 'Serra Angel'); T.grave('A', 'Giant Spider');
+    T.grave('A', 'Lightning Bolt');
+    T.grave('B', 'Vampire Nighthawk');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const prompts = [];
+    const pick = (ch) => { prompts.push(ch.prompt); const ids = [].concat(...(ch.items || []).map(x => x.id));
+      t.ok(ids.includes(bears.id) && ids.length === 2, 'any creature you control: the Bears or Kathril');
+      return { picks: [/: put an? (flying|reach) counter/.test(ch.prompt) ? bears.id : ids.find(id => id !== bears.id)] }; };
+    for (let i = 0; i < 3; i++) T.answer('choose', pick);
+    const k = T.put('A', 'Kathril, Aspect Warper', 'battlefield', { etb: true });
+    T.resolve();
+    t.eq(prompts.length, 3, 'flying, reach, vigilance: three asked (' + prompts.join(' / ') + ')');
+    t.ok(g.hasKw(bears, 'flying') && g.hasKw(bears, 'reach'), 'the Bears: flying and reach counters');
+    t.eq(bears.counters.flying, 1, 'a flying counter');
+    t.ok(g.hasKw(k, 'vigilance'), 'Kathril: vigilance');
+    t.no(g.hasKw(k, 'lifelink') || g.hasKw(bears, 'lifelink'), "the opponent's Nighthawk does not count");
+    t.eq(k.counters['+1/+1'], 3, 'three counters put: three +1/+1 counters on Kathril');
+    // an empty graveyard: nothing
+    const N = mk({ library: Array(20).fill('Island') });
+    const k2 = N.put('A', 'Kathril, Aspect Warper', 'battlefield', { etb: true });
+    N.resolve();
+    t.eq(k2.counters['+1/+1'] || 0, 0, 'no keywords in the graveyard: no counters');
+  });
+  test("Commanders: Eriette, the Beguiler — your Aura on an opponent's permanent of no greater mana value: yours while it stays on", (mk, t) => {
+    t.auto('Eriette, the Beguiler');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    T.bf('A', 'Eriette, the Beguiler');
+    const bears = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    T.mana('A', 'WW');
+    const pac = T.hand('A', 'Pacifism');
+    T.cast('A', pac, { targets: [bears] });
+    t.eq(pac.attachedTo, bears.id, 'Pacifism on the Bears');
+    t.eq(bears.controller, 'A', 'mana value 2 against 2: A gains control of the Bears');
+    // a bigger one: not
+    T.mana('A', 'WW');
+    const pac2 = T.hand('A', 'Pacifism');
+    T.cast('A', pac2, { targets: [giant] });
+    t.eq(giant.controller, 'B', 'the Hill Giant (4) is more than Pacifism (2)');
+    // the Aura goes: so does the control
+    T.mana('A', 'GW');
+    T.cast('A', T.hand('A', 'Disenchant'), { targets: [pac] });
+    t.zone(pac, 'graveyard');
+    t.eq(bears.controller, 'B', 'the Aura is gone: the Bears go back');
+    // an opponent's Aura on their own permanent: nothing
+    T.nextTurn('B');
+    const bears2 = T.bf('B', 'Grizzly Bears');
+    T.mana('B', 'WW');
+    T.cast('B', T.hand('B', 'Pacifism'), { targets: [bears2] });
+    t.eq(bears2.controller, 'B', "not an Aura A controls");
+  });
 };

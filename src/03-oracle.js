@@ -3418,6 +3418,9 @@
       make: (m) => { const sc = scopeOf(m[3] + 's defending player controls'); if (!sc) return null;
         const per = (k) => (+k ? { scope: sc, mult: +k } : 0);
         return { op: 'pump', p: per(m[1]), t: per(m[2]), duration: 'eot', scope: 'self' }; } },
+    // Eriette, the Beguiler: "gain control of that permanent for as long as that Aura is attached to it" (whileAttachedAura)
+    { re: /^Gain control of that (creature|permanent|artifact) for as long as that Aura is attached to it\.?$/i,
+      make: () => ({ op: 'gainControl', until: null, whileAttachedAura: true, scope: 'triggerObject' }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -4615,8 +4618,9 @@
        the top of a library, and then cast from there for nothing. */
     // Rocco, Street Chef: "each player exiles the top card of their library"
     { re: /^Each player exiles the top card of their library\.?$/i, make: () => ({ op: 'exileTop', who: 'each', n: 1 }) },
-    { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library\.?$/i,
-      make: (m) => ({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }) },
+    // Evelyn, the Covetous: "exile the top card of each player's library with a collection counter on it" (counter)
+    { re: /^Exile the top (card|(two|three|four|five|X|\d+) cards) of each player'?s library( with an? ([a-z]+) counter on (?:it|each of them))?\.?$/i,
+      make: (m) => Object.assign({ op: 'exileTop', who: 'each', n: m[2] ? num(m[2]) : 1 }, m[4] ? { counter: m[4].toLowerCase() } : {}) },
     // Jeleva, Nephalia's Scourge: "each player exiles the top X cards of their library, where X is the amount of mana spent to cast Jeleva"
     { re: /^Each player exiles the top X cards of their library, where X is (.+?)\.?$/i,
       make: (m) => { const k = amountOf(m[1]); return k && typeof k === 'object' && !k.unread ? { op: 'exileTop', who: 'each', n: k } : null; } },
@@ -5887,6 +5891,14 @@
         const back = parseEffectSentence('Return target ' + m[1] + ' card from your graveyard to the battlefield.', 1);
         return back && back.op === 'reanimate' ? { op: 'reflexive', madeObject: true, text: m[0],
           effects: [back, { op: 'attachItTo', host: 'reflexObject' }] } : null;
+      } },
+    /* Gimli, Mournful Avenger: "When this ability resolves for the third time this turn, Gimli fights up to one target
+       creature you don't control." — a reflexive trigger, only on that resolution (nthResolution) */
+    { re: /^When this ability resolves for the (second|third|fourth|fifth) time this turn, (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1)));
+        if (!inner.auto || !inner.effects.length) return null;
+        return { op: 'reflexive', effects: inner.effects, nthResolution: { second: 2, third: 3, fourth: 4, fifth: 5 }[m[1].toLowerCase()], text: m[0] };
       } },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
@@ -10584,6 +10596,14 @@
        anyone's creatures; the pick and the price one question (copySpellEachOther payEach) */
     { re: /^(?:You may )?choose any number of other creatures that spell could target and pay (\{\d+\}) for each of those creatures\. If you do, for each of those creatures, copy that spell\. The copy targets that creature\.$/i,
       make: (m) => [{ op: 'copySpellEachOther', what: 'creature', anyones: true, payEach: m[1] }] },
+    /* Kathril, Aspect Warper: "put a flying counter on any creature you control if a creature card in your graveyard has
+       flying. Repeat this process for first strike, …, and vigilance. Then put a +1/+1 counter on Kathril for each
+       counter put on a creature this way." (kwCountersFromGrave) */
+    { re: /^Put an? ([a-z ]+?) counter on any creature you control if a creature card in your graveyard has \1\. Repeat this process for ((?:[a-z ]+, )+and [a-z ]+)\. Then put a \+1\/\+1 counter on CARDNAME for each counter put on a creature this way\.$/i,
+      make: (m) => {
+        const kws = [m[1]].concat(m[2].split(/,\s*(?:and )?/)).map(x => x.trim().toLowerCase()).filter(Boolean);
+        return kws.every(kwKnown) ? [{ op: 'kwCountersFromGrave', keywords: kws }] : null;
+      } },
     /* Stonehewer Giant: "Search your library for an Equipment card, put it
        onto the battlefield, attach it to a creature you control, then shuffle." */
     { re: /^Search your library for an? (Equipment|Aura) card, put it onto the battlefield, attach it to a creature you control, then shuffle\.$/i,
@@ -14213,6 +14233,8 @@
     [/^you'?ve cast another spell this turn$/i, () => ({ kind: 'castAnotherSpell' })],
     // Sméagol, Denethor: "a creature died under your control this turn"
     [/^an? (creature|permanent) died under your control this turn$/i, () => ({ kind: 'diedYoursThisTurn', n: 1 })],
+    // Gimli, Mournful Avenger: "two or more creatures died under your control this turn"
+    [/^(two|three|four|five) or more creatures died under your control this turn$/i, (m) => ({ kind: 'diedYoursThisTurn', n: num(m[1].toLowerCase()) })],
     // Brimaz, Blight of Oreskos: "a Phyrexian died under your control this turn" (diedTypeYours)
     [/^an? ([A-Z][a-z]+) died under your control this turn$/, (m) => ({ kind: 'diedTypeYours', type: m[1] })],
     // Banishing Slash: "you control an artifact and an enchantment"
@@ -14317,6 +14339,8 @@
     [/^you'?ve cast a spell with mana value (\d+) or greater this turn$/i, (m) => ({ kind: 'castMvThisTurn', n: +m[1] })],
     // Samut, Vizier of Naktamun: "that creature entered this turn" — the one the trigger is about (triggerObjEntered)
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
+    // Farideh, Devil's Chosen: "If any of those results was 10 or higher" — the dice the trigger is about (triggerRollAtLeast)
+    [/^any of those results was (\d+) or higher$/i, (m) => ({ kind: 'triggerRollAtLeast', n: +m[1] })],
     // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — the one the trigger is about (triggerObjExcess)
     [/^that creature was dealt excess damage this turn$/i, () => ({ kind: 'triggerObjExcess' })],
     // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the creature that died, as it last was (triggerPowerOverSelf)
@@ -14831,8 +14855,8 @@
     { re: /^Whenever you become the monarch,? /i, event: 'becomesMonarch' },
     // Garland, Royal Kidnapper: "Whenever an opponent becomes the monarch" (playerBecomesMonarch, toOpponent)
     { re: /^Whenever an opponent becomes the monarch,? /i, event: 'playerBecomesMonarch', extra: { toOpponent: true } },
-    // Brazen Dwarf: "Whenever you roll one or more dice"
-    { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll' },
+    // Brazen Dwarf: "Whenever you roll one or more dice" — once for the dice rolled together (anyDice)
+    { re: /^Whenever you roll one or more dice,? /i, event: 'youRoll', extra: { anyDice: true } },
     // Merfolk Cave-Diver, Wildgrowth Walker: "Whenever a creature you control explores"
     // Nicanzil, Current Conductor: "Whenever a creature you control explores a land card" / "a nonland card" (exploreKind)
     { re: /^Whenever a creature you control explores an? (land|nonland) card,? /i, event: 'youExplore', extraOf: (m) => ({ exploreKind: m[1].toLowerCase() }) },
@@ -15521,6 +15545,10 @@
     { re: /^When(?:ever)? enchanted creature dies(?:,| )/i, event: 'equippedDies' },
     // Grafted Exoskeleton: "Whenever this Equipment becomes unattached from a permanent, sacrifice that permanent."
     { re: /^Whenever (?:this Equipment|CARDNAME) becomes unattached from a permanent,/i, event: 'unattachedFrom', self: true },
+    /* Eriette, the Beguiler: "Whenever an Aura you control becomes attached to a nonland permanent an opponent controls
+       with mana value less than or equal to that Aura's mana value," (auraYours, hostMvAtMostAura) */
+    { re: /^Whenever an Aura you control becomes attached to a nonland permanent an opponent controls with mana value less than or equal to that Aura'?s mana value,? /i,
+      event: 'auraAttached', filt: () => ({ who: 'opponent', words: 'nonland permanent' }), extra: { auraYours: true, hostMvAtMostAura: true } },
     // Siona, Captain of the Pyleas: "Whenever an Aura you control becomes attached to a creature you control," (auraAttached)
     { re: /^Whenever an Aura you control becomes attached to an? (creature|permanent) you control,? /i, event: 'auraAttached',
       filt: (m) => ({ who: 'you', words: m[1].toLowerCase() }) },
@@ -21897,6 +21925,10 @@
         make: (m) => Object.assign({ op: 'playFrom', zone: 'exiledCounter', counter: m[2].toLowerCase(), exiledByYou: true, what: 'any', anyMana: true },
           m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}), auto: true },
       // Grolnok, the Omnivore: "You may play lands and cast spells from among cards you own in exile with croak counters on them." (owned)
+      /* Evelyn, the Covetous: "Once each turn, you may play a card from exile with a collection counter on it if it was exiled
+         by an ability you controlled, and you may spend mana as though it were mana of any color to cast it." (exiledByYou) */
+      { re: /^Once each turn, you may play a card from exile with an? ([a-z]+) counter on it if it was exiled by an ability you controlled, and you may spend mana as though it were mana of any colou?r to cast it\.?$/i,
+        make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), exiledByYou: true, what: 'any', anyMana: true, oncePerTurn: true }), auto: true },
       { re: /^You may play lands and cast spells from among cards you own in exile with ([a-z]+) counters on them\.?$/i,
         make: (m) => ({ op: 'playFrom', zone: 'exiledCounter', counter: m[1].toLowerCase(), owned: true, what: 'any' }), auto: true },
       { re: /^(During your turn, )?you may play lands from your graveyard\.?$/i,
