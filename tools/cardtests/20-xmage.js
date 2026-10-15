@@ -26017,6 +26017,8 @@ module.exports = (test) => {
     t.zone(giant, 'exile'); t.ok(giant.faceDownExile, 'Rev: face down');
     t.eq(T.zone('B', 'exile').length, 1, 'Rev: one card exiled');
     for (let i = 0; i < 4; i++) T.bf('A', 'Island');
+    // (the Treasure would pay the {R}: put it aside)
+    for (const o of T.bfOf('A').filter(o => o.isToken && /Treasure/.test(o.name))) T.g.moveObject(o, 'graveyard');
     t.no(T.g.castSpell('A', giant.id, { auto: true }), 'Rev: no "mana of any type" — four Islands do not pay {3}{R}');
     t.zone(giant, 'exile');
     T.nextTurn('A');

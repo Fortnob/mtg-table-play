@@ -10936,7 +10936,18 @@
     }
 
     /** Greedy solver: colored requirements first, generic last. */
+    /* Taps first; only when they can't cover it, a source that sacrifices itself for mana (a Treasure, Gold, Lotus
+       Petal) as well, the last thing spent: the spell is yours to cast with it, and auto-pass sees that you can. */
     _planAutoTap(playerId, sources, cost, opts) {
+      return this._planAutoTapWith(playerId, sources, cost, opts, false) ||
+        (sources.some(o => this.manaAbilitiesOf(o).some(ab => this._sacOnlyMana(ab))) ? this._planAutoTapWith(playerId, sources, cost, opts, true) : null);
+    }
+    /** A mana ability whose only cost beyond {T} is sacrificing itself (a Treasure's). */
+    _sacOnlyMana(ab) {
+      const c = ab && ab.cost;
+      return !!(c && c.sacSelf && !c.mana && !c.sacrifice && !c.discard && !c.mill && !c.exile && !c.removeCounters && !(c.other || []).length);
+    }
+    _planAutoTapWith(playerId, sources, cost, opts, withSac) {
       const p = this.player(playerId);
       const syms = MANA.parse(cost);
       const need = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
@@ -10969,7 +10980,8 @@
           if (!this._manaCostPayable(playerId, o, ab)) continue;
           // auto-tap spends taps, never permanents or cards: a source that
           // eats itself (or anything else) is only used when you say so
-          if (ab.cost && (ab.cost.sacSelf || ab.cost.sacrifice || ab.cost.discard || ab.cost.mill ||
+          const sacs = withSac && this._sacOnlyMana(ab);
+          if (!sacs && ab.cost && (ab.cost.sacSelf || ab.cost.sacrifice || ab.cost.discard || ab.cost.mill ||
               ab.cost.exile || ab.cost.removeCounters || (ab.cost.other || []).length)) continue;
           // mana that can only be spent on something else is not for this
           if (ab.spendOnly && !this._spendAllowed(ab.spendOnly, opts.forSpell, o) &&
@@ -10981,7 +10993,7 @@
           if (!opt.any && !opt.produces.size) continue;
           const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife') ? 1 : 0;
           cand.push({ obj: o, ability: ab, index: i, produces: opt.produces, any: opt.any, amount: opt.amount,
-            flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) });
+            flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
       }
       // prefer least flexible sources for colored needs, and the painless over the painful
