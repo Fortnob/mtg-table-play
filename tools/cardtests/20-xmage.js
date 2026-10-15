@@ -61406,4 +61406,98 @@ module.exports = (test) => {
     t.eq(T.life('C'), 18, 'Bob: each opponent');
     t.eq(T.life('A'), 22, 'Bob: you gain 2');
   });
+  test('Commanders: Mishra, Artificer Prodigy — an artifact spell: a card of its name from graveyard, hand or library onto the battlefield', (mk, t) => {
+    t.auto('Mishra, Artificer Prodigy');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Mishra, Artificer Prodigy');
+    const inLib = T.top('A', 'Ornithopter');
+    const inGy = T.grave('A', 'Ornithopter');
+    const inHand = T.hand('A', 'Ornithopter');
+    T.hand('A', 'Sol Ring');
+    const cast = T.hand('A', 'Ornithopter');
+    let offer = null;
+    T.answer('pickCard', (ch) => { offer = ch; return { cardIds: [inGy.id] }; });
+    const lib = T.zone('A', 'library').slice();
+    T.cast('A', cast);
+    t.ok(offer && offer.cards.length === 3 && offer.optional, 'Mishra: the three with its name, the pick a may');
+    t.zone(inGy, 'battlefield', 'Mishra: the one from the graveyard');
+    t.eq(T.zone('A', 'library').map(c => c.id).join(), lib.map(c => c.id).join(), 'Mishra: the library not searched — not shuffled');
+    // declined: nothing
+    let n = 0;
+    T.answer('pickCard', () => { n++; return { cardIds: [] }; });
+    T.cast('A', inHand);
+    t.eq(n, 1); t.zone(inLib, 'library', 'Mishra: declined');
+    // not an artifact spell: nothing asked
+    T.mana('A', '1G'); T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(n, 1, 'Mishra: only artifact spells');
+  });
+  test('Commanders: Chorus of the Conclave — creature spells: pay any amount of mana more, it enters with that many +1/+1 counters', (mk, t) => {
+    t.auto('Chorus of the Conclave');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Chorus of the Conclave');
+    const lands = []; for (let k = 0; k < 6; k++) lands.push(T.bf('A', 'Forest'));
+    const bears = T.hand('A', 'Grizzly Bears');
+    let asked = null;
+    T.answer('choose', (ch) => { asked = ch; return { number: 3 }; });
+    t.ok(g.castSpell('A', bears.id, {}), g.lastError);
+    T.settle(); T.resolve();
+    t.ok(asked && asked.purpose === 'chorusMana' && asked.number.max === 4, 'Chorus: up to the 4 mana left over');
+    t.zone(bears, 'battlefield');
+    t.eq(Number(bears.counters['+1/+1']), 3, 'Chorus: three counters for three mana');
+    t.eq(lands.filter(l => l.tapped).length, 5, 'Chorus: {1}{G} and {3} paid');
+    // a noncreature spell: not asked
+    asked = null;
+    for (const l of lands) l.tapped = false;
+    T.mana('A', 'G'); T.cast('A', T.hand('A', 'Giant Growth'), { targets: [bears] });
+    t.no(asked, 'Chorus: creature spells only');
+    // put onto the battlefield, not cast: nothing
+    const elf = T.bf('A', 'Llanowar Elves', { etb: true });
+    t.eq(Number(elf.counters['+1/+1'] || 0), 0, 'Chorus: not cast — no counters');
+    // the opponent's creature spells: not asked
+    T.nextTurn('B'); T.toMain('B');
+    T.mana('B', '1G'); T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.no(asked, "Chorus: not an opponent's");
+  });
+  test('Commanders: Arcades Sabboth — untapped creatures you control not attacking get +0/+2; upkeep: {G}{W}{U} or sacrifice it', (mk, t) => {
+    t.auto('Arcades Sabboth');
+    const T = mk({ library: Array(20).fill('Plains') });
+    const g = T.g;
+    const ar = T.bf('A', 'Arcades Sabboth');
+    const bears = T.bf('A', 'Grizzly Bears'), angel = T.bf('A', 'Serra Angel'); angel.summoningSick = false;
+    const theirs = T.bf('B', 'Grizzly Bears');
+    t.eq(g.toughnessOf(bears), 4, 'Arcades: untapped — +0/+2');
+    t.eq(g.toughnessOf(ar), 9, 'Arcades: itself too');
+    t.eq(g.toughnessOf(theirs), 2, "Arcades: not an opponent's");
+    bears.tapped = true; g.bumpBoard();
+    t.eq(g.toughnessOf(bears), 2, 'Arcades: tapped — no bonus');
+    T.answer('declareAttackers', () => [{ attackerId: angel.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers'); T.resolve();
+    t.ok(angel.attacking && !angel.tapped);
+    t.eq(g.toughnessOf(angel), 4, 'Arcades: attacking (vigilance, untapped) — no bonus');
+    T.nextTurn('B');
+    t.eq(g.toughnessOf(angel), 6, 'Arcades: combat over');
+    // upkeep: no mana — sacrificed
+    T.nextTurn('A');
+    t.zone(ar, 'graveyard', 'Arcades: {G}{W}{U} not paid — sacrificed');
+  });
+  test("Commanders: Dong Zhou, the Tyrant — enters: target creature an opponent controls deals damage equal to its power to that player", (mk, t) => {
+    t.auto('Dong Zhou, the Tyrant');
+    const T = mk({ library: Array(20).fill('Mountain'), players: ['A', 'B', 'C'] });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('B', 'Grizzly Bears');
+    const giant = T.bf('C', 'Hill Giant');
+    const mine = T.bf('A', 'Craw Wurm');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+    T.bf('A', 'Dong Zhou, the Tyrant', { etb: true }); T.resolve();
+    t.ok(q && !q.options.some(l => l.some(x => x && x.id === mine.id)), 'Dong Zhou: not your own creature');
+    t.eq(T.life('C'), 17, "Dong Zhou: the Giant's 3 to its controller");
+    t.eq(T.life('B'), 20, 'Dong Zhou: not the other opponent');
+    t.eq(giant.damage || 0, 0);
+  });
 };

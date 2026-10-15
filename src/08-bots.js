@@ -2002,6 +2002,8 @@
     adNauseam(s) { return { picks: [(s.life || 0) > 8 && (s.hand || 0) < 12 ? 0 : 1] }; },
     /* The Defilers: life for mana while life is plentiful */
     defiler(s) { return { picks: [(s.life || 0) > (s.n || 2) + 8 ? 0 : 1] }; },
+    // Chorus of the Conclave: mana to spare on a creature spell is counters on it — all of it
+    chorusMana(s) { return { number: s.number.max }; },
     /* A villainous choice (Davros, Dalek Creator): both options are bad for us; take the one that costs least,
        life counted dearer as it runs low */
     villainous(s) {

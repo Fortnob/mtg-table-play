@@ -7167,6 +7167,16 @@
             prompt: `${o.name}: pay ${dfl.life} life to cast it for {${dfl.symbol}} less?` }) === 'asked') return 'asked';
         }
       }
+      /* Chorus of the Conclave: "you may pay any amount of mana" on top of a creature spell — how much, a generic
+         question (purpose chorusMana), asked with the cast */
+      if (!o.isCopy && !(opts.choices && opts.choices.chorusMana) && this._chorusFor(playerId, o)) {
+        const base = opts.free ? '' : String(chk.cost || '').replace(/\{X\}/g, opts.x ? '{' + opts.x + '}' : '');
+        const purse = this.manaSources(playerId);
+        let most = 0;
+        while (most < 20 && this.couldPay(playerId, this._addGeneric(base, most + 1), purse)) most++;
+        if (most && this._castChoose(playerId, o, opts, { purpose: 'chorusMana', kind: 'number', number: { min: 0, max: most },
+          prompt: `${o.name}: pay any amount of mana as an additional cost? It enters with that many additional +1/+1 counters on it.` }) === 'asked') return 'asked';
+      }
       /* Replicate, splice onto Arcane and conspire are generic questions:
          asked one after another, each knowing what the last one added. */
       if (!o.isCopy) {
@@ -7834,6 +7844,9 @@
           this.logEvent('rules', `${fl.name}: ${o.name} costs ${floor} mana.`);
         }
       }
+      // Chorus of the Conclave: the mana chosen, on top; as many +1/+1 counters as it enters (chorusMana)
+      const chorusN = this._chorusFor(playerId, o) ? Math.max(0, Math.min(20, Number(((opts.choices || {}).chorusMana || {}).number) || 0)) : 0;
+      if (chorusN) { cost = this._addGeneric(cost || '', chorusN); o.chorusMana = chorusN; } else delete o.chorusMana;
       // The Defilers: paid in life, one less mana of that colour
       const dfl = !opts.free && ((((opts.choices || {}).defiler || {}).picks || [])[0] === 0) ? this._defilerFor(playerId, o) : null;
       if (dfl) {
@@ -8646,6 +8659,16 @@
       }
     }
 
+    /** Chorus of the Conclave: a standing offer of extra mana for counters on this player's creature spell, or null. */
+    _chorusFor(pid, o) {
+      if (!o || o.isCopy) return null;
+      for (const x of this.battlefield) {
+        if (x.controller !== pid || x.phasedOut) continue;
+        const e = this._staticOp(x, 'chorusMana');
+        if (e && this._cardFitsWords(o, e.words)) return e;
+      }
+      return null;
+    }
     /** A Defiler whose offer fits this spell: { symbol, life }, or null. */
     _defilerFor(pid, o) {
       for (const x of this.battlefield) {
@@ -9209,6 +9232,12 @@
         if (k > 0 && enterCounters && enterCounters.kind === (ex.counter || '+1/+1')) enterCounters.n += k;
         else if (k > 0) this.addCounters(o, ex.counter || '+1/+1', k);
       }
+      // Chorus of the Conclave: "that creature enters with that many additional +1/+1 counters on it" — cast, and just now
+      if (o.chorusMana > 0 && o.enteredFrom === 'stack') {
+        if (enterCounters && enterCounters.kind === '+1/+1') enterCounters.n += o.chorusMana;
+        else this.addCounters(o, '+1/+1', o.chorusMana);
+      }
+      delete o.chorusMana;
       // (Walking Ballista with Hardened Scales: X, and one more; with Doubling Season, twice X)
       if (enterCounters) this.addCounters(o, enterCounters.kind, enterCounters.n);
       /* Amplify N (CR 702.38): N +1/+1 counters for each card revealed from
@@ -20738,6 +20767,8 @@
             if (p) { this.logEvent('rules', `${p.name} is chosen at random.`); this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); }
             break;
           }
+          // Dong Zhou, the Tyrant: "… deals damage equal to its power to that player" — the target's controller (toTargetController)
+          if (e.toTargetController) { const x = firstObj(); const p = x && x.zone === 'battlefield' && this.player(x.controller); if (p && !p.hasLost) this.dealDamageToPlayer(p, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           // "deals 1 damage to itself"
           if (e.toSelf2) { if (src && src.zone === 'battlefield') this.dealDamageToObject(src, cnt, dsrc); this.emit('sfx', 'damage'); break; }
           if (e.toTriggerObject) { const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId); if (x && x.zone === 'battlefield') this.dealDamageToObject(x, cnt, dsrc); this.emit('sfx', 'damage'); break; }
@@ -23679,6 +23710,7 @@
           // Light-Paws, Emperor's Voice: "attached to Light-Paws" — an Aura that couldn't enchant it isn't one to find (attachSelf)
           const hostA = e.attachSelf ? (src && src.zone === 'battlefield' ? src : null) : null;
           const trigIt = e.maxMvTrigger ? (tdT.objectId && this.obj(tdT.objectId)) : null;
+          const trigSpellName = e.namedTriggerSpell ? (((tdT.objectId && this.obj(tdT.objectId)) || {}).card || {}).name || null : null;
           const yourNames = e.notNamedYour ? new Set(this.battlefield.filter(o => !o.phasedOut && o.controller === seeker.id && this._cardFitsWords(o, e.notNamedYour)).map(o => o.name)) : null;
           // Bribery: a search of an opponent's library, for the searcher
           // (Thada Adel, Acquisitor: "search that player's library" — the player the trigger is about)
@@ -23721,6 +23753,8 @@
             if (want === 'any' || want === '') return true;
             if (want === 'basic land') return !!(ca && ca.isBasicLand);
             if (e.named) return (c.card.name || '').toLowerCase() === String(e.named).toLowerCase();
+            // Mishra, Artificer Prodigy: "a card with the same name as that spell" (namedTriggerSpell)
+            if (e.namedTriggerSpell) return !!trigSpellName && (c.card.name || '') === trigSpellName;
             /* "an Island or Swamp card" is either one, and "a basic Forest
                card" is both words at once. */
             return this._cardFitsWords(c, want);
@@ -23806,6 +23840,8 @@
           }
           // "Search your library for a card, reveal it, put it into your hand": known there to everybody (text: as read)
           if (taken.length && (e.reveal || /\breveal/i.test(e.text || ''))) this._know(taken, '*');
+          // (Mishra, Artificer Prodigy: "If you search your library this way, shuffle." — shuffleIfFromLibrary)
+          const fromLib = taken.some(c => c.zone === 'library');
           for (const c of taken) {
             const i = z.library.indexOf(c);
             if (i >= 0) z.library.splice(i, 1);
@@ -23854,7 +23890,7 @@
           }
           this._lastSearched = taken.map(c => c.id);
           if (taken.length) this._noteLastAffected([{ kind: 'object', id: taken[taken.length - 1].id }]);
-          if (!taken.length || !(dest === 'top' || dest === 'bottom')) this.rng.shuffle(z.library);
+          if ((!taken.length || !(dest === 'top' || dest === 'bottom')) && !(e.shuffleIfFromLibrary && !fromLib)) this.rng.shuffle(z.library);
           const where = dest === 'graveyard' ? ' into their graveyard'
             : dest === 'top' ? (e.depth > 1 ? ` into their library ${e.depth === 2 ? 'second' : 'third'} from the top` : ' onto the top of their library')
             : dest === 'bottom' ? ' onto the bottom of their library'
@@ -35095,6 +35131,8 @@
       if (sc.tapped && !o.tapped) return false;
       if (sc.untapped && o.tapped) return false;
       if (sc.attacking && !o.attacking) return false;
+      // Arcades Sabboth: "as long as it's not attacking" (notAttacking)
+      if (sc.notAttacking && o.attacking) return false;
       // Arachnogenesis: "creatures attacking you" — you, or a planeswalker of yours
       if (sc.attackingYou && !(o.attacking && (o.attacking === pid || ((this.obj(o.attacking) || {}).controller === pid)))) return false;
       // Umbra Mystic: "Auras attached to permanents you control", whoever controls the Aura

@@ -3492,6 +3492,10 @@
       make: (m) => (/each/i.test(m[1]) ? { op: 'bite', toPlayer: true, eachOpponent: true, targets: [{ type: 'creature', controller: 'you' }] }
         : /any/i.test(m[1]) ? { op: 'bite', anyTarget: true, targets: [{ type: 'creature', controller: 'you' }, targetSpec('any target')] }
         : { op: 'bite', toPlayer: true, targets: [{ type: 'creature', controller: 'you' }, { type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    // Dong Zhou, the Tyrant: "target creature an opponent controls deals damage equal to its power to that player." (toTargetController)
+    { re: /^Target creature an opponent controls deals damage equal to its power to that player\.?$/i,
+      make: () => ({ op: 'damage', n: { ofTarget: 'power' }, fromTarget: true, toTargetController: true,
+        targets: [{ type: 'creature', controller: 'opponent' }] }) },
     // (Captivating Crew: "target creature an opponent controls")
     // (Sliver Overlord: "Gain control of target Sliver.")
     // (Empress Galina: "Gain control of target legendary permanent.")
@@ -12552,6 +12556,12 @@
     { re: /^(Target player|Target opponent) skips their next untap step\. Tap up to (one|two|three|four|five) target permanents that player controls\.?$/i,
       make: (m) => [{ op: 'skipUntap', who: 'target', tapTargets: true, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }].concat(
         Array.from({ length: num(m[2]) }, () => ({ type: 'permanent', filter: 'permanent', zone: 'battlefield', upTo: true, distinct: true, sameControllerAsPrev: true }))) }] },
+    /* Mishra, Artificer Prodigy: "you may search your graveyard, hand, and/or library for a card with the same name as that
+       spell and put it onto the battlefield. If you search your library this way, shuffle." — one pick from all three,
+       the library shuffled only if the card came from there (namedTriggerSpell, shuffleIfFromLibrary) */
+    { re: /^(?:you may )?search your graveyard, hand, and\/or library for a card with the same name as that spell and put it onto the battlefield\. If you search your library this way, shuffle\.?$/i,
+      make: () => [{ op: 'tutor', n: 1, filter: 'card', namedTriggerSpell: true, to: 'battlefield', alsoGraveyard: true, alsoHand: true, shuffleIfFromLibrary: true, mayPick: true,
+        prompt: 'Search your graveyard, hand, and/or library for a card with the same name as that spell.' }] },
     /* Nick Fury, Spymaster: "draw a card. Then you may put a creature card with mana value 3 or less from your hand onto
        the battlefield. It enters tapped and attacking and gains indestructible until end of turn." — at whoever the
        attacker the trigger is about attacks (atTriggerDefender), the keyword for the card put only (gains) */
@@ -18181,6 +18191,14 @@
         autoLines++;
         continue;
       }
+      /* Chorus of the Conclave: "As an additional cost to cast creature spells, you may pay any amount of mana. If you do,
+         that creature enters with that many additional +1/+1 counters on it." — a standing offer on your creature
+         spells, how much asked with the cast (chorusMana) */
+      if (/^As an additional cost to cast creature spells, you may pay any amount of mana\. If you do, that creature enters with that many additional \+1\/\+1 counters on it\.?$/i.test(line)) {
+        out.abilities.push({ kind: 'static', text: line, auto: true, effects: [{ op: 'chorusMana', words: 'creature' }] });
+        autoLines++;
+        continue;
+      }
       /* Hogaak, Arisen Necropolis: "You can't spend mana to cast this spell." — convoke, delve and the
          like pay all of it, or it isn't cast (noManaSpend) */
       if (/^You can't spend mana to cast this spell\.?$/i.test(line)) {
@@ -20399,6 +20417,9 @@
     { re: /^As long as an exiled creature card with an? ([a-z]+) counter on it has ([a-z ]+), CARDNAME has \2\. The same is true for ((?:[a-z ]+, )+and [a-z ]+)\.?$/i,
       make: (m) => ({ op: 'continuous', layer: 6, scope: { self: true, what: 'creature' },
         grantFromExiled: { counter: m[1].toLowerCase(), kws: [m[2]].concat(m[3].split(/, (?:and )?/)).map(k => k.trim().toLowerCase()) } }) },
+    // Arcades Sabboth: "Each untapped creature you control gets +0/+2 as long as it's not attacking." (untapped, notAttacking)
+    { re: /^Each untapped creature you control gets? ([+-]\d+)\/([+-]\d+) as long as it'?s not attacking\.?$/i,
+      make: (m) => ({ op: 'continuous', layer: 7, scope: { who: 'you', what: 'creature', untapped: true, notAttacking: true }, pt: { p: pmNum(m[1]), t: pmNum(m[2]) } }) },
     // "<scope> has flying as long as you control an Island."
     { re: /^(.+?) (?:has|have) ([a-z, '{}0-9]+?) as long as (.+?)\.?$/i,
       make: (m) => {
