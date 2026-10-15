@@ -3542,8 +3542,10 @@
         if (chk.lifeInstead && this.me.life - chk.lifeInstead < 10) return;
         // Gonti, Lord of Luxury: "mana of any type can be spent to cast that spell"
         const costStr = g._anyColorCost(this.pid, o, via ? (via.cost || '') : (chk.cost || ''));
-        if (!g.couldPay(this.pid, costStr, sources)) return;
-        const cost = MTG.mana.cmc(costStr);
+        // Hama, the Bloodbender: a waterbend cost — what tapping artifacts and creatures leaves to pay in mana
+        const wb = !via && chk.waterbend ? g._waterbendPlan(this.pid, o, {}, costStr) : null;
+        if (!wb && !g.couldPay(this.pid, costStr, sources)) return;
+        const cost = MTG.mana.cmc(wb ? wb.mana : costStr);
         if (cost > mana) return;
         if (!g._targetsAvailable(g._spellEffects(a), this.pid)) return;
         const v = this.spellWorth(o, a, when, cost);

@@ -2536,6 +2536,9 @@
     // Howlsquad Heavy: "That token attacks this combat if able."
     { re: /^(?:That token|It) attacks this combat if able\.?$/i,
       make: () => ({ op: 'restrict', flag: 'mustAttackEot', scope: 'thatToken' }) },
+    // The Celestial Toymaker: "each opponent loses 2 life for each spell or ability that caused … a pile this turn" (pileGuessTurn)
+    { re: /^Each opponent loses (\w+) life for each spell or ability that caused one or more players to guess or to group cards or permanents into a pile this turn\.?$/i,
+      make: (m) => (typeof num(m[1]) === 'number' ? { op: 'loseLife', who: 'opponents', n: { pileGuessTurn: true, mult: num(m[1]) } } : null) },
     // Archfiend of Despair: "each opponent loses life equal to the life that player lost this turn"
     { re: /^Each opponent loses life equal to the life that player lost this turn\.?$/i,
       make: () => ({ op: 'loseLife', who: 'opponents', n: { lifeLostBy: 'each' } }) },
@@ -3222,6 +3225,8 @@
       make: (m) => ({ op: 'takeFromMilled', n: 1, filter: (m[2] || '').trim() || 'any', mvParity: m[3].toLowerCase(), anyOwner: true, optional: !!m[1], to: 'battlefield',
         prompt: `Put a ${(m[2] || '').trim() ? m[2].trim() + ' ' : ''}card with an ${m[3].toLowerCase()} mana value from among the milled cards onto the battlefield under your control.` }) },
     { re: /^Target player mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player' }] }) },
+    // Hama, the Bloodbender: "target opponent mills three cards"
+    { re: /^Target opponent mills (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i, make: (m) => ({ op: 'mill', n: num(m[1]), who: 'target', targets: [{ type: 'player', opponent: true }] }) },
 
     // --- tokens ---
     /* Every creature token sentence, in one reading: how many, tapped or
@@ -3820,6 +3825,9 @@
       make: (m) => { const k = amountOf(m[2]); return k == null ? null : [{ op: 'counters', kind: m[1].toLowerCase(), n: k, scope: 'lastGroup' }, { op: 'gainLife', n: k, who: 'you' }]; } },
     { re: /^Put a \+1\/\+1 counter on each of those creatures and draw a card\.?$/i,
       make: () => [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'triggerBatch' }, { op: 'draw', n: 1, who: 'you' }] },
+    // Rose Tyler: "put a time counter on it for each suspended card you own and each other permanent you control with a time counter on it"
+    { re: /^Put a time counter on (?:it|CARDNAME) for each suspended card you own and each other permanent you control with a time counter on it\.?$/i,
+      make: () => ({ op: 'counters', kind: 'time', n: { suspendedAndTimed: true, mult: 1 }, scope: 'self' }) },
     // Tamiyo, Upriser Crowned: "tap those creatures and put a stun counter on each of them" — the ones that dealt the damage
     { re: /^Tap those creatures and put an? ([a-z]+) counter on each of them\.?$/i,
       make: (m) => [{ op: 'tap', scope: 'triggerBatch' }, { op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'triggerBatch' }] },
@@ -8617,6 +8625,8 @@
       make: (m) => Object.assign({ op: 'putLandFromHand', from: ['hand', 'graveyard'] }, m[1] ? { tapped: true } : {}) },
     { re: /^Exile the top (?:(\w+) )?cards? of your library\.?$/i,
       make: (m) => ({ op: 'impulse', n: m[1] ? num(m[1]) : 1, play: false }) },
+    // Feldon, Ronom Excavator: "Whenever Feldon is dealt damage, exile that many cards from the top of your library."
+    { re: /^Exile that many cards from the top of your library\.?$/i, make: () => ({ op: 'impulse', n: 'triggerAmount', play: false }) },
 
     /* ===== mass effects across two types ===== */
     { re: /^Destroy all (creatures|artifacts|enchantments|lands|planeswalkers) and (?:all )?(creatures|artifacts|enchantments|lands|planeswalkers)\.?(?: They can'?t be regenerated\.?)?$/i,
@@ -11702,6 +11712,11 @@
         return typeof k === 'number' ? [{ op: 'piles', n: k, separator: 'target', chooser: 'you', other: 'graveyard', faceDown: true,
           targets: [{ type: 'player', opponent: true }] }] : null;
       } },
+    /* The Celestial Toymaker: "look at the top three cards of your library. Exile any number of them in a face-down pile
+       and the rest in a face-up pile. Defending player chooses one of those piles. Put that pile into your hand." — the
+       other pile stays exiled (other 'exile') */
+    { re: /^Look at the top (\w+) cards of your library\. Exile any number of them in a face-down pile and the rest in a face-up pile\. Defending player chooses one of those piles\. Put that pile into your hand\.?$/i,
+      make: (m) => { const k = num(m[1]); return typeof k === 'number' ? [{ op: 'piles', n: k, separator: 'you', chooser: 'defending', other: 'exile', faceDown: true }] : null; } },
     /* The Great Work: "Until end of turn, you may cast instant and sorcery spells from any graveyard. If a spell
        cast this way would be put into a graveyard, exile it instead." — anyone's, cast as from a hand and paid for,
        and what is then left of the chapter after it (castFromGraveyardsTurn) */
@@ -11919,6 +11934,17 @@
     { re: /^Target creature card in your graveyard that'?s an artifact or that has mana value (\d+) or less gains escape until end of turn\. The escape cost is equal to its mana cost plus exile (\w+) other cards from your graveyard\.?$/i,
       make: (m) => (typeof num(m[2]) === 'number' ? [{ op: 'grantEscapeTarget', exile: num(m[2]),
         targets: [{ type: 'creature', filter: 'creature card', zone: 'graveyard', controller: 'you', artifactOrMaxMv: +m[1] }] }] : null) },
+    /* Hama, the Bloodbender: "Exile up to one noncreature, nonland card from that player's graveyard. For as long as you
+       control Hama, you may cast the exiled card during your turn by waterbending {X} rather than paying its mana cost,
+       where X is its mana value." — chosen as it resolves, exiled with Hama; the leave is Hama's while it stays
+       (exileTheirGyLinked; playFrom waterbendMv) */
+    { re: /^((?:[^.]+\.\s+)*?)Exile up to one ([a-z]+(?:, [a-z]+)*) card from that player'?s graveyard\. For as long as you control CARDNAME, you may cast the exiled card during your turn by waterbending \{X\} rather than paying its mana cost, where X is its mana value\.?$/i,
+      make: (m) => {
+        const pre = m[1] && m[1].trim() ? parseSentenceList(splitSentences(m[1].trim())) : { effects: [], auto: true };
+        if (!pre.auto) return null;
+        return [...pre.effects, { op: 'exileTheirGyLinked', words: m[2].replace(/,/g, '').toLowerCase(), label: m[2].toLowerCase() },
+          { op: 'playFrom', zone: 'exiledWith', what: 'spell', duringYourTurn: true, waterbendMv: true }];
+      } },
     // Parnesse, the Subtle Brush: "up to one target opponent may also copy that spell. They may choose new targets for that copy."
     { re: /^Up to one target opponent may also copy that spell\. They may choose new targets for that copy\.?$/i,
       make: () => [{ op: 'oppMayCopyThatSpell', targets: [{ type: 'player', opponent: true, upTo: true }] }] },

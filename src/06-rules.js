@@ -1666,7 +1666,9 @@
         })) out.push({ kind: 'cast', objId: o.id, face: 1 });
         const chk = this.canCast(playerId, o.id);
         // the same check castSpell's payment makes, so what is offered can be paid for
-        if (!chk.ok || !this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o })) continue;
+        // (Hama, the Bloodbender: a waterbend cost — artifacts and creatures to tap help pay it)
+        if (!chk.ok || (!this.canPayNow(playerId, String(chk.cost || '').replace(/\{X\}/g, ''), { forSpell: o }) &&
+          !(chk.waterbend && this._waterbendPlan(playerId, o, {}, chk.cost)))) continue;
         // a spell with nothing legal to point at is not a decision
         if (!this._targetsAvailable(this._spellEffects(o.analysis()), playerId)) continue;
         // an adventurer's creature half says which it is, beside the adventure (and a modal double-faced card's front)
@@ -5084,6 +5086,11 @@
         if (mv > 0 && this._lifeSacCostBan()) return { ok: false, reason: `${this._lifeSacCostBan().name}: life can't be paid to cast spells.` };
         return { ok: true, cost: '', lifeInstead: mv };
       }
+      // Hama, the Bloodbender: "by waterbending {X} rather than paying its mana cost, where X is its mana value" (waterbendMv)
+      if (leave && leave.waterbendMv) {
+        const mv = (o.card && o.card.cmc) || 0;
+        return { ok: true, cost: mv > 0 ? '{' + mv + '}' : '', waterbend: true };
+      }
       // Hauken's Insight: "without paying its mana cost" (a free leave)
       if (leave && leave.free) return { ok: true, cost: this._freePrice(playerId, o, ''), baseCost: this._freeCastPrice(o, playerId) };
       // Omniscience: without paying the mana cost, which leaves the taxes and Trinisphere's floor (CR 601.2f), shown as the cast will charge them
@@ -7784,6 +7791,17 @@
       if (a && a.noManaSpend && MANA.parse(cost || '').some(x => x !== '0'))
         return this.fail(`You can't spend mana to cast ${o.name}: convoke and delve have to pay all of it (${cost} is left).`);
       o._phyLife = 0;
+      /* Hama, the Bloodbender: "by waterbending {X} rather than paying its mana cost" — artifacts and creatures
+         tapped for {1} each where the mana falls short (waterbend) */
+      if (chk.waterbend && !opts.free && opts.costOverride == null) {
+        const wb = cost ? this._waterbendPlan(playerId, o, {}, cost) : null;
+        if (wb && wb.tap.length) {
+          for (const x of wb.tap) this._markTapped(x);
+          this.logEvent('rules', `${p.name} waterbends, tapping ${wb.tap.map(x => x.name).join(', ')}.`);
+          cost = wb.mana || '';
+        }
+        this._noteBend(playerId, 'water');
+      }
       if (!opts.free || cost) {
         // what taps for convoke is not there to tap for mana
         const held = (plan ? plan.tap : ccHeld).filter(x => !x.tapped);
@@ -18908,6 +18926,14 @@
       r.marks[k] = true;
       return false;
     }
+    /* The Celestial Toymaker: "each spell or ability that caused one or more players to guess or to group cards or
+       permanents into a pile this turn" — this resolution counted once (pileGuess) */
+    _notePileGuess() {
+      const r = this.resolving;
+      if (r) { r.marks = r.marks || {}; if (r.marks.pileGuess) return; r.marks.pileGuess = true; }
+      const was = this.pileGuess && this.pileGuess.turn === this.turn ? this.pileGuess.n : 0;
+      this.pileGuess = { turn: this.turn, n: was + 1 };
+    }
 
     /**
      * A copy with its exceptions (CR 707.9): `card` as copied, changed the
@@ -19602,6 +19628,17 @@
         // Fountain of Cho: "for each storage counter removed this way"
         // (Ashling the Pilgrim: "that much" — what this resolution removed, never an X: thisWay)
         if (v && typeof v === 'object' && v.removedCounters) return (ctx.x != null && !v.thisWay ? ctx.x : (this._lastRemovedCounters || 0)) * (v.mult || 1);
+        /* Rose Tyler: "for each suspended card you own and each other permanent you control with a time counter on it" —
+           a suspended card is in exile with suspend and a time counter (CR 702.62b) (suspendedAndTimed) */
+        if (v && typeof v === 'object' && v.suspendedAndTimed) {
+          const pid = (me && me.id) || ctx.controller;
+          const susp = ((this.zones[pid] || {}).exile || []).filter(c => (Number((c.counters || {}).time) || 0) > 0 &&
+            ((c.analysis() || {}).abilities || []).some(x => x.kind === 'castModifier' && String(x.keyword || '').toLowerCase() === 'suspend')).length;
+          const timed = this.battlefield.filter(x => x.controller === pid && x !== src && !x.phasedOut && (Number((x.counters || {}).time) || 0) > 0).length;
+          return (susp + timed) * (v.mult || 1);
+        }
+        // The Celestial Toymaker: the spells and abilities this turn that had players guess or make piles (pileGuessTurn)
+        if (v && typeof v === 'object' && v.pileGuessTurn) return (this.pileGuess && this.pileGuess.turn === this.turn ? this.pileGuess.n : 0) * (v.mult || 1);
         // Thousand-Year Storm: spells of that kind cast this turn before the one copied
         if (v && typeof v === 'object' && v.castBefore) {
           const list = (me && me.spellObjsThisTurn) || [];
@@ -22216,6 +22253,24 @@
           break;
         }
 
+        /* Hama, the Bloodbender: "Exile up to one noncreature, nonland card from that player's graveyard." — the player
+           the ability aims at; chosen as it resolves, exiled with it (exileTheirGyLinked) */
+        case 'exileTheirGyLinked': {
+          const tp = firstPlayer();
+          if (!tp) break;
+          const pool = ((this.zones[tp.id] || {}).graveyard || []).filter(c => this._cardFitsWords(c, e.words || 'card'));
+          if (!pool.length) break;
+          const picked = this._ask({ type: 'pickCard', playerId: ctx.controller, count: 1, optional: true,
+            cards: pool.map(c => ({ id: c.id, name: c.name, card: c.card })),
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}exile up to one ${e.label || e.words || ''} card from ${tp.name}'s graveyard.` }, 'etgl');
+          if (picked === SUSPEND) return SUSPEND;
+          const c = this.obj((picked || [])[0]);
+          if (!c || !pool.includes(c) || c.zone !== 'graveyard') break;
+          this.moveObject(c, 'exile');
+          if (c.zone === 'exile' && src && src.zone === 'battlefield') c.exiledWithId = src.id;
+          this.logEvent('exile', `${me.name} exiles ${c.name} from ${tp.name}'s graveyard.`);
+          break;
+        }
         // Desdemona, Freedom's Edge: "target creature card in your graveyard … gains escape until end of turn" (escapeGrant)
         case 'grantEscapeTarget': {
           const c = firstObj();
@@ -27188,6 +27243,7 @@
               options: [{ label: `Yes, it's ${land ? 'a land' : 'a nonland card'}` }, { label: `No, it's ${land ? 'a nonland card' : 'a land'}` }], min: 1, max: 1,
               prompt: `${me.name} chose ${word}. Is the top card of ${me.name}'s library a ${word} card?` }, 'gtkGuess');
             if (q2 === SUSPEND) return SUSPEND;
+            this._notePileGuess();
             yes = !!(q2 && q2.picks && q2.picks[0] === 0);
             if (!this._doneHere('gtkGuessed')) this.logEvent('rules', `${q.name} guesses ${yes ? 'it is' : 'it is not'} a ${word} card.`);
           }
@@ -27221,6 +27277,7 @@
                 options: [{ label: `Greater than ${count}` }, { label: `${count} or less` }], min: 1, max: 1,
                 prompt: `${me.name} chose a card in their hand. Is its mana value greater than ${count}, the number of ${e.count || 'artifact'}s they control?` }, 'ghmGuess');
               if (g2 === SUSPEND) return SUSPEND;
+              this._notePileGuess();
               saysMore = !!(g2 && g2.picks && g2.picks[0] === 0);
             }
             const right = !!q && saysMore === (mv > count);
@@ -30802,7 +30859,9 @@
           }
           const cards = ids.map(id => this.obj(id)).filter(c => c && c.zone === 'library');
           if (!cards.length) break;
-          const chooser = e.chooser === 'opponent' ? opp.id : ctx.controller;
+          // (The Celestial Toymaker: "Defending player chooses one of those piles" — defending)
+          const dfd = e.chooser === 'defending' ? (this._defendingPid || ((src && this._defenderOf(src)) || {}).id || opp.id) : null;
+          const chooser = dfd || (e.chooser === 'opponent' ? opp.id : ctx.controller);
           // (Atris: "into a face-down pile and a face-up pile" — the cards picked are the face-down pile)
           const split = cards.length < 2 && !e.faceDown ? { picks: cards.map(c => c.id) } : this._choose({ playerId: sep, purpose: 'pileSplit', kind: 'objects',
             zone: 'library', panel: true, reveal: !e.faceDown, items: this._chooseItems(cards), min: 0, max: cards.length, optional: true,
@@ -30810,6 +30869,7 @@
             prompt: e.faceDown ? `Separate the top ${O.nounCount(cards.length, 'card')} of ${me.name}'s library into a face-down pile and a face-up pile: pick the cards for the face-down pile, and the rest are face up.`
               : `Separate ${me.name}'s revealed cards into two piles: pick the cards for the first pile, and the rest are the second.` }, 'pileSplit');
           if (split === SUSPEND) return SUSPEND;
+          this._notePileGuess();
           const one = cards.filter(c => split && (split.picks || []).includes(c.id));
           const two = cards.filter(c => !one.includes(c));
           const words = (l) => (l.length ? l.map(c => c.name).join(', ') : 'nothing');
@@ -30831,6 +30891,13 @@
           const other = chosen === one ? two : one;
           for (const c of chosen) this.moveObject(c, 'hand');
           const rest = other.slice();
+          /* (The Celestial Toymaker: "Exile any number of them in a face-down pile and the rest in a face-up pile" — the
+             pile not chosen stays in exile, the face-down one face down: other 'exile') */
+          if (e.other === 'exile') {
+            for (const c of rest) { this.moveObject(c, 'exile'); if (c.zone === 'exile' && one.includes(c)) c.faceDownExile = true; }
+            this.logEvent('rules', `${me.name} puts ${chosen === one && e.faceDown ? O.nounCount(chosen.length, 'card') : words(chosen)} into their hand${rest.length ? ` and the other pile stays in exile` : ''}.`);
+            break;
+          }
           for (const c of rest) this.moveObject(c, e.other === 'bottom' ? 'library' : 'graveyard', e.other === 'bottom' ? { toBottom: true } : {});
           this.logEvent('rules', `${me.name} puts ${words(chosen)} into their hand${rest.length ? ` and ${words(rest)} ${e.other === 'bottom' ? 'on the bottom of their library' : 'into their graveyard'}` : ''}.`);
           break;
@@ -30847,6 +30914,7 @@
             forPlayer: tp.id, harmful: true, confirmLabel: 'These are one pile',
             prompt: `Separate ${tp.name}'s ${O.nounPlural(e.filter)} into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
           if (split === SUSPEND) return SUSPEND;
+          this._notePileGuess();
           const one = pool.filter(o => split && (split.picks || []).includes(o.id));
           const two = pool.filter(o => !one.includes(o));
           const words = (l) => (l.length ? l.map(o => o.name).join(', ') : 'nothing');
