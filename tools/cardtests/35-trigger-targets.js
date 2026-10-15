@@ -408,4 +408,15 @@ module.exports = (test) => {
     t.eq(JSON.stringify((it.targets || []).map(x => x.id)), JSON.stringify([bears.id]), 'and what it targets');
     t.ok(g.events.some(e => e.type === 'trigger' && e.stackId === tr.id && (e.targets || []).some(x => x.id === bears.id)), 'the event for it carries the target too');
   });
+  test('Trigger targets: the question names the card and carries the ability whole (its stack name is shortened)', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Swamp') });
+    const g = T.g;
+    T.bf('B', 'Grizzly Bears');
+    const n0 = T.asked.length;
+    chupacabra(T, 'A');
+    const q = T.asked.slice(n0).find(c => c.purpose === 'triggerTargets');
+    t.ok(!!q, 'asked for the trigger\'s target');
+    t.eq(q.sourceName, 'Ravenous Chupacabra', 'the card by its name');
+    t.ok(/destroy target creature an opponent controls/i.test(q.sourceText || ''), 'the ability whole: ' + q.sourceText);
+  });
 };

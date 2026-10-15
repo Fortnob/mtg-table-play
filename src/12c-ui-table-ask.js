@@ -45,13 +45,15 @@
         const what = spec && !t.legal ? specText(spec) : 'a target';
         // a target the kick, the gift or an "if" brought in: what it is for, as the button says (Jilt (kicked): …)
         const title = spec && spec.castWhy && t.label ? escapeHtml(t.label)
-          : t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}` : escapeHtml(t.label || 'Choose a target');
+          : t.cardName ? `${escapeHtml(t.cardName)}: choose ${escapeHtml(what)}`
+          : t.ability && t.sourceName ? `${escapeHtml(t.sourceName)}: choose ${t.need > 1 ? 'targets' : 'a target'}` : escapeHtml(t.label || 'Choose a target');
+        const ability = t.ability ? `<span class="ab-ability">${MTG.mana.textHtml(String(t.ability).replace(/CARDNAME/g, t.sourceName || 'this'))}</span>` : '';
         // "up to one": it can be left out (Return to Dust's second artifact)
         const skip = (t.specs || []).some(sp => sp && sp.upTo) && !((t.minChosen || 0) > t.chosen.length);
         return set('aim', title,
           `${t.need > 1 ? `Target ${t.chosen.length + 1} of ${t.need}. ` : ''}${press()} a highlighted card${who.length ? ' or player' : ''}` +
           (skip ? `, or press <b>${t.chosen.length ? 'Done' : 'No targets'}</b> to ${t.chosen.length ? 'stop there' : 'skip it'}.` : '.') +
-          (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.'));
+          (t.legal ? '' : ' <kbd>Esc</kbd> to cancel.') + ability);
       }
       if (this.convoking) {
         const b2 = this.convokeBanner();
@@ -298,6 +300,8 @@
             this.targeting = {
               need: ch.count || (ch.specs || []).length || 1, specs: ch.specs || [], chosen: [], legal, slots: ch.options || null,
               label: ch.prompt || 'Choose a target', source: ch.objId || null,
+              // the ability asking, whole, under the banner: a trigger's own name is shortened
+              ability: ch.sourceText || null, sourceName: ch.sourceName ? String(ch.sourceName).split(' \u2014 ')[0] : null,
               onDone: (targets) => { this.targeting = null; send({ targets }); },
             };
             setTimeout(() => this.render(), 0);

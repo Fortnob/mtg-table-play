@@ -16610,6 +16610,8 @@
           // what each target is for, which a bot weighs it by
           aimedBy: asked.map(sl => bare(plan.units[sl.ui].at[0].eff)),
           prompt: `${name}: ${asked.length === 1 ? 'choose a target' : 'choose targets'}.`,
+          // the card by its name, and the ability whole beside the question (the item's name is shortened)
+          sourceName: (src && src.name) || name, sourceText: item.abilityText || null,
         }, gi ? 'tgt' + gi : 'tgt');
         if (said === SUSPEND) return SUSPEND;
         const answer = (said || []).map(normTarget).filter(Boolean);
