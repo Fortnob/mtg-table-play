@@ -5410,6 +5410,10 @@
           if (!out.some(u => u.via === 'freerunning' && u.cost === g.cost)) out.push({ kind: 'cast', via: 'freerunning', cost: g.cost, label: 'Freerunning ' + g.cost });
         }
       }
+      // The Fugitive Doctor: flashback for the cost it gave, this turn (flashbackGrant)
+      if (o.zone === 'graveyard' && o.owner === playerId && o.flashbackGrant && o.flashbackGrant.turn === this.turn && !a.isLand) {
+        out.push({ kind: 'cast', via: 'flashback', cost: o.flashbackGrant.cost, after: 'exile', label: 'Flashback ' + o.flashbackGrant.cost });
+      }
       // Past in Flames: flashback until end of turn, for its mana cost
       if (o.zone === 'graveyard' && o.owner === playerId && o.flashbackTurn === this.turn && !a.isLand &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^flashback$/i.test(ab.keyword || '') && ab.arg)) {
@@ -8642,9 +8646,11 @@
             bl.effects.push({ p: -1, t: -1, until: 'eot' }); bl._chr = null;
             this.logEvent('keyword', `${bl.name} gets -1/-1 from flanking.`);
           }
+          // (Seifer, Balamb Rival: "by two or more creatures" — how many block it: blockers)
+          const nb = declarations.filter(x => x.attackerIds.includes(aid)).length;
           if (at._blockedFired !== this.turn) {
             at._blockedFired = this.turn;
-            if (!this._kwArg(at, 'afflict')) this._fire('becomesBlocked', at.controller, { source: at, object: at });
+            if (!this._kwArg(at, 'afflict')) this._fire('becomesBlocked', at.controller, { source: at, object: at, blockers: nb });
           }
           if (at._afflicted) continue;
           const n = this._kwArg(at, 'afflict');
@@ -8656,7 +8662,7 @@
             this.changeLife(dpid, -n, 'afflict');
             this.logEvent('keyword', `${at.name} afflicts ${this.player(dpid).name} for ${n}.`);
           }
-          this._fire('becomesBlocked', at.controller, { source: at, object: at });
+          this._fire('becomesBlocked', at.controller, { source: at, object: at, blockers: nb });
         }
       }
     }
@@ -14389,6 +14395,8 @@
           return cs.some(o => o.controller === me.id && this.powerOf(o) === best);
         }
         case 'opponentMoreHand': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].hand.length > this.zones[me.id].hand.length);
+        // Kosei, Penitent Warlord: "Kosei is enchanted" — an Aura on it
+        case 'selfEnchanted': return !!src && src.zone === 'battlefield' && (src.attachments || []).some(id => { const at = this.obj(id); return at && this._auraNow(at); });
         case 'selfEquipped': {
           // Awaken the Sleeper: in a spell, "it" is the creature it aimed at
           let x = src && src.zone === 'battlefield' ? src : null;
@@ -16141,7 +16149,7 @@
       // (Prowl, Stoic Strategist: "a card exiled with Prowl" is still known as it is played — _leftExileWith)
       o._leftExileWith = from === 'exile' && toZone !== 'exile' ? (o.exiledWithId || null) : null;
       // (Hildibrand Manderville: out of the graveyard, the leave to cast it from there is over — graveAdventure)
-      if (from === 'graveyard' && toZone !== 'graveyard') o.graveAdvBy = null;
+      if (from === 'graveyard' && toZone !== 'graveyard') { o.graveAdvBy = null; o.flashbackGrant = null; }
       if (from === 'exile' && toZone !== 'exile') { o.adventureBy = null; o.exiledWithId = null; o._exiledWithGone = null; o.exiledBySrc = null; o.exiledReturnCounters = null; }
       /* Vohar, Dire Fleet Daredevil: a spell cast with this leave goes to exile rather than a
          graveyard; the leave lasts only until the card goes somewhere other than the stack */
@@ -17439,6 +17447,9 @@
           if (ab.attacksYourOpponents && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && this.opponentsOf(o.controller).some(q => q.id === x.attacking))) continue;
           // Edric, Spymaster of Trest: only damage to one of this player's opponents
           if (ab.hitYourOpponent && !(data.player && this.opponentsOf(o.controller).some(p => p.id === data.player))) continue;
+          // Seifer, Balamb Rival: a creature attacking one of this player's opponents (a player), blocked by two or more
+          if (ab.attackingYourOppPlayer && !(data.object && this.opponentsOf(o.controller).some(p => p.id === data.object.attacking))) continue;
+          if (ab.blockedByMin && (Number(data.blockers) || 0) < ab.blockedByMin) continue;
           // The Beast, Deathless Prince: "deals combat damage to its owner" (hitItsOwner)
           if (ab.hitItsOwner && !(data.player && data.object && data.object.owner === data.player)) continue;
           // Harbin, Vanguard Aviator: "with five or more Soldiers" (attackersOfTypeMin)
@@ -24342,6 +24353,14 @@
           if (!src || src.zone !== 'exile') break;
           src.impulseBy = src.owner; src.impulseUntil = 99999; src.impulseCastOnly = true;
           this.logEvent('rules', `${src.owner === me.id ? me.name : (this.player(src.owner) || me).name} may cast ${src.name} for as long as it remains exiled.`);
+          break;
+        }
+        // The Fugitive Doctor: "gains flashback {2}{R}{G} until end of turn" — that cost, this turn (flashbackGrant)
+        case 'grantFlashbackCost': {
+          for (const t of targets) {
+            const o = t.kind === 'object' && this.obj(t.id);
+            if (o && o.zone === 'graveyard') { o.flashbackGrant = { turn: this.turn, cost: e.cost }; this.logEvent('rules', `${o.name} gains flashback ${e.cost} until end of turn.`); }
+          }
           break;
         }
         case 'grantFlashback': {
@@ -34646,6 +34665,8 @@
         Walker: { type: 'Token Creature — Zombie', text: '', colors: ['B'], power: 2, toughness: 2 },
         // Aerid Konstrari: "a red and green artifact with "{T}: Add {R} or {G}.""
         Heartwood: { type: 'Token Artifact — Heartwood', text: '{T}: Add {R} or {G}.', colors: ['R', 'G'] },
+        // T'Challa, the Black Panther: "an artifact with indestructible and "{T}: Add {C}. This mana can't be spent to cast a nonartifact spell.""
+        Vibranium: { type: 'Token Artifact — Vibranium', text: 'Indestructible\n{T}: Add {C}. This mana can’t be spent to cast a nonartifact spell.' },
       };
       /* Academy Manufactor: a Clue, Food or Treasure becomes one of each */
       if (['Clue', 'Food', 'Treasure'].includes(e.token) && !e._trio) {

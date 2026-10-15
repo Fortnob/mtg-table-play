@@ -223,7 +223,7 @@
       abilities: [{
         kind: 'triggered', event: 'etb', self: true, auto: true,
         text: 'When this creature enters, target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost.',
-        effects: [{ op: 'grantFlashback', targets: [{ type: 'any', zone: 'graveyard', controller: 'you', filter: 'instant or sorcery' }] }],
+        effects: [{ op: 'grantFlashback', targets: [{ type: 'permanent', zone: 'graveyard', controller: 'you', filter: 'instant or sorcery', spellish: true, cardTypes: ['instant', 'sorcery'] }] }],
       }],
       keepKeywords: true,
     },

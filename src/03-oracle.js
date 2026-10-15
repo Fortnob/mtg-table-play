@@ -3012,11 +3012,12 @@
     { re: /^Creatures you control get ([+-]\d+)\/([+-]\d+) until end of turn\.?$/i,
       make: (m) => ({ op: 'pump', p: +m[1], t: +m[2], duration: 'eot', scope: 'yourCreatures' }) },
     // (Blaster, Morale Booster: "That artifact gains haste until end of turn." — the one just aimed at)
-    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
+    // (Seifer, Balamb Rival: "that attacking creature gains deathtouch until end of turn" — the one the trigger is about)
+    { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|Target attacking creature|Target blocking creature|CARDNAME|This creature|It|That creature|That attacking creature|That artifact) gains ([a-z ,]+) until end of turn\.?$/i,
       make: (m) => ({ op: 'grantKeyword', keywords: m[2].split(/,| and /).map(s => U.titleCase(s.trim())).filter(Boolean),
         duration: 'eot',
         targets: /^(?:another )?target/i.test(m[1]) ? [targetSpec(m[1])] : null,
-        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
+        scope: /^(?:this|CARDNAME)/i.test(m[1]) ? 'self' : (/^(it|that creature|that attacking creature|that artifact)$/i.test(m[1]) ? 'lastTarget' : null) }) },
     /* Fire Nation Palace: "Target creature you control gains firebending 4
        until end of turn" — a keyword with a number, which adds up */
     { re: /^((?:Another )?[Tt]arget creature(?: you control| an opponent controls)?|CARDNAME|This creature|It|That creature) gains (firebending|annihilator|afflict|toxic) (\d+) until end of turn\.?$/i,
@@ -5463,7 +5464,7 @@
        same Treasure as "a Treasure token", and some arrive tapped. */
     // Ghyrson Starn, Kelermorph: "Ghyrson Starn deals 2 damage to that permanent or player." — what the trigger's source hit (toVictim)
     { re: /^(?:CARDNAME|this creature) deals (\d+) damage to that permanent or player\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toVictim: true }) },
-    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) (tapped )?(?:colorless |white |blue |black |red |green |legendary )*(Treasure|Clue|Food|Blood|Map|Junk|Powerstone|Incubator|Gold|Shard|Walker|Lander|Mutagen|Vibranium) (?:artifact |enchantment |creature )*tokens?(?: with "[^"]*")?\.?$/i,
       make: (m) => ({ op: 'createNamedToken', n: num(m[1]), token: m[3], tapped: !!m[2] }) },
     /* Roxanne, Starfall Savant: "create a tapped colorless artifact token named Meteorite with "When this token enters,
        it deals 2 damage to any target" and "{T}: Add one mana of any color."" — a token of its own, its words read
@@ -6678,8 +6679,11 @@
 
     /* ===== flashback granted to something in a graveyard ===== */
     { re: /^[Tt]arget instant or sorcery card in your graveyard gains flashback until end of turn\.?$/i,
-      make: () => ({ op: 'grantFlashback', targets: [{ type: 'any', zone: 'graveyard', filter: 'instant or sorcery' }] }) },
+      make: () => ({ op: 'grantFlashback', targets: [Object.assign(targetSpec('target instant or sorcery card', 'graveyard'), { controller: 'you' })] }) },
     { re: /^The (?:flashback|encore) cost is equal to its mana cost\.?$/i, make: () => ({ op: 'noop' }) },
+    // The Fugitive Doctor: "target instant or sorcery card in your graveyard gains flashback {2}{R}{G} until end of turn" (flashbackGrant)
+    { re: /^[Tt]arget instant or sorcery card in your graveyard gains flashback ((?:\{[^}]+\})+) until end of turn\.?$/i,
+      make: (m) => ({ op: 'grantFlashbackCost', cost: m[1], targets: [Object.assign(targetSpec('target instant or sorcery card', 'graveyard'), { controller: 'you' })] }) },
     /* Emrakul, the Exigent Doom: "Target land gains "{T}: Add {C}{C}" until this card is cast from exile." — not for a
        card that leaves exile some other way: the land keeps it (the rulings; untilCastFromExile) */
     { re: /^Target land gains "(\{T\}: Add (?:\{[WUBRGC]\})+\.?)" until this card is cast from exile\.?$/i,
@@ -12283,7 +12287,8 @@
       make: (m) => ({ process: num(m[1]) }) },
     // Academy Rector: "When this creature dies, you may exile it. If you do, …"
     { re: /^exile (?:it|this card|CARDNAME)(?: from your graveyard)?$/i, make: () => ({ exileSelf: true }) },
-    { re: /^exile (a|an|one|two|three) ([a-z ]*?)cards? from your graveyard$/i,
+    // (Kroxa and Kunoros: "you may exile five cards from your graveyard")
+    { re: /^exile (a|an|one|two|three|four|five|six|seven|eight|nine|ten) ([a-z ]*?)cards? from your graveyard$/i,
       make: (m) => ({ exileGrave: { n: num(m[1]), filter: (m[2] || '').trim().toLowerCase() || 'card' } }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*)$/i, make: (m) => ({ mana: m[1] }) },
     { re: /^pay (\{[^}]+\}(?:\{[^}]+\})*) and (\d+) life$/i, make: (m) => ({ mana: m[1], life: +m[2] }) },
@@ -15681,6 +15686,10 @@
     { re: /^Whenever one or more creatures you control fight or become blocked,? /i, event: 'creatureFights', also: 'becomesBlocked',
       filt: () => ({ who: 'you', words: 'creature', batch: true }) },
     { re: /^When(?:ever)? a creature you control becomes blocked,? /i, event: 'becomesBlocked', filt: () => ({ who: 'you', words: 'creature' }) },
+    /* Seifer, Balamb Rival: "Whenever a creature attacking one of your opponents becomes blocked by two or more creatures" —
+       anyone's, at a player who is your opponent, by that many (attackingYourOppPlayer, blockedByMin) */
+    { re: /^Whenever a creature attacking one of your opponents becomes blocked by two or more creatures,? /i, event: 'becomesBlocked',
+      filt: () => ({ words: 'creature' }), extra: { attackingYourOppPlayer: true, blockedByMin: 2, anyonesCreature: true } },
     // She-Hulk, Wallbreaker: "Whenever a Hero you control becomes blocked"
     // (Ib Halfheart, Goblin Tactician: "Whenever another Goblin you control becomes blocked" — other)
     { re: /^When(?:ever)? (an?|another) ([A-Z][a-z]+) you control becomes blocked,? /, event: 'becomesBlocked',
@@ -21700,6 +21709,11 @@
       // Diamond Weapon: "Prevent all combat damage that would be dealt to CARDNAME."
       { re: /^Prevent all combat damage that would be dealt to (?:CARDNAME|this creature)\.?$/i,
         eff: { op: 'continuous', layer: 6, scope: { self: true }, flag: 'noDamageTaken' }, auto: true },
+      /* Kosei, Penitent Warlord: "As long as Kosei is enchanted, equipped, and has a counter on it, Kosei has
+         "Whenever …"" — the three of them at once (all: selfEnchanted, selfEquipped, selfCountersTotal) */
+      { re: /^As long as CARDNAME is enchanted, equipped, and has a counter on it, CARDNAME has "([^"]+)"\.?$/i,
+        make: (m) => (grantableText(m[1]) ? { op: 'continuous', layer: 6, scope: { self: true }, grantText: m[1],
+          cond: { kind: 'all', of: [{ kind: 'selfEnchanted' }, { kind: 'selfEquipped' }, { kind: 'selfCountersTotal', n: 1 }] } } : null), auto: true },
       // Possessed Aven: "As long as …, this creature gets +1/+1, is black, and has '…'"
       { re: /^As long as ([^,]+), (?:this creature|CARDNAME) gets ([+-]\d+)\/([+-]\d+), is (white|blue|black|red|green), and has "([^"]+)"\.?$/i,
         make: (m) => {
