@@ -6155,6 +6155,8 @@
           const g = this._staticOp(src, 'grantCastKeyword');
           if (!g || g.keyword !== 'casualty' || !g.n) continue;
           if (g.filter && g.filter !== 'spell' && !this._cardFitsWords(o, g.filter)) continue;
+          // Anhelo, the Painter: "The first instant or sorcery spell you cast each turn" — none of that kind cast yet (firstEachTurn)
+          if (g.firstEachTurn && ((this.player(caster) || {}).spellObjsThisTurn || []).some(x => x !== o && this._cardFitsWords(x, g.filter || 'spell'))) continue;
           out.push({ kind: 'casualty', n: g.n, cost: '', label: 'Casualty ' + g.n });
           break;
         }
@@ -8811,13 +8813,18 @@
     }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
     // (The Capitoline Triad: "historic cards" only — filter)
-    _evidenceTotal(pid, self, filter) {
-      return this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).reduce((k, c) => k + ((c.card && c.card.cmc) || 0), 0);
+    _evidenceTotal(pid, self, filter, symbol) {
+      return this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).reduce((k, c) => k + this._evidenceValue(c, symbol), 0);
+    }
+    /** What a card counts for evidence: its mana value, or (Baron Helmut Zemo) the mana symbols of one colour in its cost. */
+    _evidenceValue(c, symbol) {
+      if (!symbol) return (c.card && c.card.cmc) || 0;
+      return (String((c.card && c.card.mana_cost) || '').match(/\{[^}]*\}/g) || []).filter(x => x.includes(symbol)).length;
     }
     /** Exile cards with total mana value N or more: the biggest first, so as few go as can. */
-    _collectEvidence(pid, need, self, ids, filter) {
-      const pool = this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).sort((x, y) => ((y.card && y.card.cmc) || 0) - ((x.card && x.card.cmc) || 0));
-      const mv = (c) => (c.card && c.card.cmc) || 0;
+    _collectEvidence(pid, need, self, ids, filter, symbol) {
+      const mv = (c) => this._evidenceValue(c, symbol);
+      const pool = this.zones[pid].graveyard.filter(c => c !== self && (!filter || this._cardFitsWords(c, filter))).sort((x, y) => mv(y) - mv(x));
       let k = 0;
       let picks = [];
       // the cards the player named, if they add up; the biggest first otherwise
@@ -8826,6 +8833,8 @@
       else for (const c of pool) { if (k >= need) break; picks.push(c); k += mv(c); }
       if (k < need) return false;
       for (const c of picks) this.moveObject(c, 'exile');
+      // (Baron Helmut Zemo: "Copy those exiled cards" — the cards that paid: costExiled)
+      this._costExiledNow = picks.map(c => c.id);
       // (The Capitoline Triad: an exile of that much, not evidence collected)
       if (filter) { this.logEvent('exile', `${this.player(pid).name} exiles ${picks.map(c => c.name).join(', ')} from their graveyard.`); return true; }
       this.logEvent('exile', `${this.player(pid).name} collects evidence ${need}:${picks.map(c => c.name).join(', ')}.`);
@@ -8880,8 +8889,9 @@
       const choices = cost.choice ? cost.choice : [cost];
       for (const c of choices) {
         if (!c) continue;
-        if (c.evidence) out.push({ kind: 'evidence', label: c.evidenceFilter ? `Exile ${c.evidenceFilter} cards with total mana value ${c.evidence} or greater` : 'Collect evidence ' + c.evidence,
-          key: 'evidenceIds', need: c.evidence,
+        if (c.evidence) out.push({ kind: 'evidence', label: c.evidenceSymbol ? `Exile ${c.evidenceFilter} cards with ${c.evidence} or more {${c.evidenceSymbol}} symbols among their mana costs`
+          : c.evidenceFilter ? `Exile ${c.evidenceFilter} cards with total mana value ${c.evidence} or greater` : 'Collect evidence ' + c.evidence,
+          key: 'evidenceIds', need: c.evidence, ...(c.evidenceSymbol ? { symbol: c.evidenceSymbol } : {}),
           candidates: this.zones[pid].graveyard.filter(x => x !== self && (!c.evidenceFilter || this._cardFitsWords(x, c.evidenceFilter))).map(x => x.id) });
         if (c.forage) out.push({ kind: 'forage', label: 'Forage', key: 'forageExileIds', need: 3, foodKey: 'forageFoodId',
           candidates: this.zones[pid].graveyard.filter(x => x !== self).map(x => x.id),
@@ -9305,7 +9315,9 @@
       if (cost.returnSelf && !(self && self.zone === 'battlefield')) return 'It is not on the battlefield.';
       if (cost.blight && !this._blightPool(pid).length) return 'No creature of yours to blight.';
       if (cost.forage && !this._canForage(pid, self)) return 'Nothing to forage: no Food, and fewer than three cards in your graveyard.';
-      if (cost.evidence && this._evidenceTotal(pid, self, cost.evidenceFilter) < cost.evidence) return `Not enough evidence: ${cost.evidenceFilter ? cost.evidenceFilter + ' ' : ''}cards with total mana value ${cost.evidence} are needed in your graveyard.`;
+      if (cost.evidence && this._evidenceTotal(pid, self, cost.evidenceFilter, cost.evidenceSymbol) < cost.evidence) return cost.evidenceSymbol
+        ? `Not enough ${cost.evidenceFilter} cards in your graveyard: ${cost.evidence} {${cost.evidenceSymbol}} symbols among their mana costs are needed.`
+        : `Not enough evidence: ${cost.evidenceFilter ? cost.evidenceFilter + ' ' : ''}cards with total mana value ${cost.evidence} are needed in your graveyard.`;
       if (cost.revealHand) {
         const need = this._costCount(cost.revealHand.n, opts);
         if (this.zones[pid].hand.filter(c => c !== self && this._cardFitsWords(c, cost.revealHand.filter)).length < need) return `Not enough ${cost.revealHand.filter} cards in your hand to reveal.`;
@@ -9492,7 +9504,13 @@
       // Forage: a Food if there is one, or three cards out of the graveyard
       if (cost.forage) this._forageAuto(pid, self, opts);
       // Collect evidence: the fewest cards that add up
-      if (cost.evidence) this._collectEvidence(pid, cost.evidence, self, opts.evidenceIds, cost.evidenceFilter);
+      if (cost.evidence) {
+        this._costExiledNow = null;
+        this._collectEvidence(pid, cost.evidence, self, opts.evidenceIds, cost.evidenceFilter, cost.evidenceSymbol);
+        // (Baron Helmut Zemo: "Copy those exiled cards" — the cards that paid: costExiled)
+        if (item && cost.evidenceSymbol && this._costExiledNow) item.costExiled = this._costExiledNow;
+        this._costExiledNow = null;
+      }
       // the Martyrs: shown, and kept
       if (cost.revealHand) {
         const need = this._costCount(cost.revealHand.n, opts);
@@ -19207,6 +19225,16 @@
           this.emit('sfx', n >= 3 ? 'wipe' : 'destroy', { size: n });
           break;
         }
+        // Augusta, Dean of Order: "then tap any number of creatures you control" — one pick, none at all allowed (tapAnyYours)
+        case 'tapAnyYours': {
+          const pool = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !o.tapped && this._cardFitsWords(o, e.filter || 'creature'));
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'tapAnyYours', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
+            min: 0, max: pool.length, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of ${e.filter || 'creature'}s you control.` }, 'tay');
+          if (got === SUSPEND) return SUSPEND;
+          for (const id of ((got && got.picks) || [])) { const o = pool.find(x => x.id === id); if (o && !o.tapped) this._markTapped(o); }
+          break;
+        }
         case 'tapAll': {
           if (e.scope && typeof e.scope === 'object') {
             // (Kiora Bests the Sea God: the target player's)
@@ -20095,6 +20123,8 @@
             const sacMv = e.mvBelowSacrificed ? (((ctx.sacrificed || this._lastSacrificed || [])[0] || {}).mv || 0) : null;
             for (let i = 0; i < lib.length && found.length < want; i++) {
               if (sacMv != null && !(((lib[i].card && lib[i].card.cmc) || 0) < sacMv)) continue;
+              // Plargg, Dean of Chaos: "with mana value 3 or less" (maxMv)
+              if (e.maxMv != null && ((lib[i].card && lib[i].card.cmc) || 0) > e.maxMv) continue;
               if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
@@ -22957,6 +22987,33 @@
           break;
         }
         // Mizzix's Mastery: each card exiled, and a copy of it cast for nothing if you like
+        /* Baron Helmut Zemo: "Copy those exiled cards. You may cast up to three of the copies without paying their
+           mana costs." — the cards exiled to pay; which to cast picked at once, then each one's targets */
+        case 'castCostExiledCopies': {
+          const pool = (ctx.costExiled || []).map(id => this.obj(id)).filter(c => c && c.card && c.zone === 'exile' && !(c.analysis() || {}).isLand);
+          if (!pool.length) break;
+          const most = Math.min(pool.length, e.upTo || 3);
+          const got = this._choose({ playerId: ctx.controller, purpose: 'castCopies', kind: 'objects', zone: 'exile', items: this._chooseItems(pool),
+            min: 0, max: most, optional: true,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}you may cast up to ${['zero', 'one', 'two', 'three', 'four'][e.upTo || 3] || e.upTo} of the copies without paying their mana costs.` }, 'cce');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => pool.find(c => c.id === id)).filter(Boolean).slice(0, most);
+          for (let k = 0; k < picks.length; k++) {
+            const c = picks[k];
+            const tg = this._askSpellTargets(ctx.controller, c, 'ccet' + k);
+            if (tg === SUSPEND) return SUSPEND;
+            if (this._doneHere('ccec' + k) || !tg) continue;
+            const dup = this._register(new GObj(c.card, ctx.controller, 'exile'));
+            dup.isCopy = true;
+            if ((c.analysis() || {}).isPermanent) dup.isToken = true;
+            this.zones[ctx.controller].exile.push(dup);
+            const ok = this.castSpell(ctx.controller, dup.id, { free: true, alternative: 'resolution', targets: tg, auto: true });
+            const st = this.stack.find(x => x.objId === dup.id);
+            if (ok && st) { st.isCopy = true; this.logEvent('copy', `${me.name} casts a copy of ${c.name}.`); }
+            else { this._removeFromZone(dup); dup.zone = null; }
+          }
+          break;
+        }
         case 'exileCopyCast': {
           const cards = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(x => x && (x.zone === 'graveyard' || x.zone === 'exile'));
           const yes = [];

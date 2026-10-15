@@ -348,6 +348,12 @@
       if ((m = p.match(/^Exile any number of ([a-z]+) cards from your graveyard with total mana value (\d+) or greater$/i))) {
         cost.evidence = +m[2]; cost.evidenceFilter = m[1].toLowerCase(); continue;
       }
+      /* Baron Helmut Zemo: "Exile any number of black cards from your graveyard with fifteen or more black mana symbols
+         among their mana costs" — the same, counting that colour's symbols (evidenceSymbol) */
+      if ((m = p.match(/^Exile any number of (white|blue|black|red|green) cards from your graveyard with (\w+) or more (white|blue|black|red|green) mana symbols among their mana costs$/i)) && typeof num(m[2]) === 'number') {
+        cost.evidence = num(m[2]); cost.evidenceFilter = m[1].toLowerCase();
+        cost.evidenceSymbol = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[3].toLowerCase()]; continue;
+      }
       if ((m = p.match(/^Exile (.+)$/i))) {
         /* The exile costs the table can pay by itself: the card doing the
            asking, or a few cards out of the graveyard. Anything else stays
@@ -2427,6 +2433,10 @@
     { re: /^Create an? (\d+)\/(\d+) colorless Vehicle artifact token(?: named ([A-Z][A-Za-z' -]+?))? with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/i,
       make: (m) => ({ op: 'createToken', n: 1, pt: m[1] + '/' + m[2], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
         noncreature: true, keywords: m[4] ? [U.titleCase(m[4])] : [], grantedText: 'Crew ' + m[5], name: m[3] || undefined }) },
+    // Setzer, Wandering Gambler: "create The Blackjack, a legendary 3/3 colorless Vehicle artifact token with flying and crew 2"
+    { re: /^Create ([A-Z][A-Za-z' -]+?), a legendary (\d+)\/(\d+) colorless Vehicle artifact token with (?:(flying|trample|vigilance|haste|reach) and )?crew (\d+)\.?$/,
+      make: (m) => ({ op: 'createToken', n: 1, pt: m[2] + '/' + m[3], colorWords: ['colorless'], subtypes: 'Vehicle', addTypes: ['Artifact'],
+        noncreature: true, keywords: m[4] ? [U.titleCase(m[4])] : [], grantedText: 'Crew ' + m[5], name: m[1], legendary: true }) },
     // Aetheric Amplifier: "Double the number of each kind of counter you have."
     { re: /^Double the number of each kind of counter you have\.?$/i, make: () => ({ op: 'doublePlayerCounters' }) },
     // Garnet, Princess of Alexandria: "Put a +1/+1 counter on Garnet for each lore counter removed this way."
@@ -3431,6 +3441,9 @@
       make: (m) => ({ op: 'copyPermanent', n: num(m[1].replace(/^a$/i, 'one')), of: 'sacrificed', grant: [] }) },
     { re: /^Tap all creatures your opponents control\.?$/i,
       make: () => ({ op: 'tapAll', what: 'creatures', who: 'opponents' }) },
+    // Augusta, Dean of Order: "untap each creature you control, then tap any number of creatures you control" (tapAnyYours)
+    { re: /^Untap each creature you control, then tap any number of (?:untapped )?creatures you control\.?$/i,
+      make: () => [{ op: 'untapAll', scope: { who: 'you', what: 'creature' } }, { op: 'tapAnyYours', filter: 'creature' }] },
     // Akki Battle Squad: "Untap all modified creatures you control." — any group the words name
     { re: /^Untap all ((?:[a-z]+ )+?(?:creatures|lands|artifacts|permanents)(?: you control)?)\.?$/,
       make: (m) => { const sc = scopeOf(m[1]); return sc && !sc.self ? { op: 'untapAll', scope: sc } : null; } },
@@ -10133,6 +10146,10 @@
        battlefield. If you search your library this way, shuffle." */
     { re: /^Search your library and\/or graveyard for an? ([-a-z ]+?) card with mana value (X|\d+) or less and put it onto the battlefield\. If you search your library this way, shuffle\.$/i,
       make: (m) => [{ op: 'tutor', n: 1, filter: m[1].toLowerCase(), maxMv: m[2] === 'X' ? 'X' : +m[2], to: 'battlefield', alsoGraveyard: true }] },
+    /* Baron Helmut Zemo: "Copy those exiled cards. You may cast up to three of the copies without paying their mana
+       costs." — the cards exiled to pay; one pick of those to cast (castCostExiledCopies) */
+    { re: /^Copy those exiled cards\. You may cast up to (two|three|four|\d+) of the copies without paying their mana costs\.?$/i,
+      make: (m) => [{ op: 'castCostExiledCopies', upTo: num(m[1]) }] },
     /* Mizzix's Mastery: "Exile target card that's an instant or sorcery from
        your graveyard. For each card exiled this way, copy it, and you may cast
        the copy without paying its mana cost. Exile CARDNAME." (overloaded,
@@ -11174,6 +11191,13 @@
         { op: 'revealUntil', who: 'you', filter: 'nonland', n: 1, dest: 'stay', rest: 'stay' },
         { op: 'castFree', from: 'revealed', upTo: 1 },
         { op: 'revealedToBottom' }] }] },
+    /* Plargg, Dean of Chaos: "Reveal cards from the top of your library until you reveal a nonlegendary, nonland card
+       with mana value 3 or less. You may cast that card without paying its mana cost. Put all revealed cards not cast
+       this way on the bottom of your library in a random order." — Neera's dig, with a ceiling (maxMv) */
+    { re: /^Reveal cards from the top of your library until you reveal an? ([a-z, ]+?) card(?: with mana value (\d+) or less)?\. You may cast that card without paying its mana cost\. (?:Then )?[Pp]ut all revealed cards not cast this way on the bottom of your library in a random order\.?$/,
+      make: (m) => [Object.assign({ op: 'revealUntil', who: 'you', filter: m[1].replace(/,/g, '').trim(), n: 1, dest: 'stay', rest: 'stay' }, m[2] ? { maxMv: +m[2] } : {}),
+        { op: 'castFree', from: 'revealed', upTo: 1 },
+        { op: 'revealedToBottom' }] },
     /* Shiko and Narset, Unified: "copy that spell if it targets a permanent or player, and you may choose new targets
        for the copy. If you don't copy a spell this way, draw a card." */
     { re: /^copy that spell if it targets a permanent or player, and you may choose new targets for the copy\. If you don'?t copy a spell this way, draw a card\.?$/i,
@@ -13990,7 +14014,8 @@
     // Gale, Waterdeep Prodigy, Taigam, Ojutai Master: "Whenever you cast an instant or sorcery spell from your hand"
     // (Ojer Pakpatiq: "an instant spell", "a sorcery spell"; Jodah, the Unifier: "a legendary spell")
     // (Lilah, Undefeated Slickshot: "a multicolored instant or sorcery spell from your hand")
-    { re: /^Whenever you cast an? (multicolored instant or sorcery |instant or sorcery |instant |sorcery |creature |noncreature |legendary )?spell from your hand,? /i, event: 'youCastSpell',
+    // (Baron Helmut Zemo: "a black spell from your hand")
+    { re: /^Whenever you cast an? (multicolored instant or sorcery |instant or sorcery |instant |sorcery |creature |noncreature |legendary |white |blue |black |red |green )?spell from your hand,? /i, event: 'youCastSpell',
       extraOf: (m) => Object.assign({ fromHandOnly: true }, m[1] ? { spellFilter: m[1].trim().toLowerCase() } : {}) },
     /* Alania, Divergent Storm: "Whenever you cast a spell, if it's the first instant spell, the first sorcery spell, or
        the first Otter spell other than Alania you've cast this turn," — first of any of those kinds (firstOfKinds) */
@@ -15456,7 +15481,8 @@
       }
 
       // Activated ability:  "cost: effect"
-      m = line.match(/^([^:\n]{1,120}):\s*([\s\S]+)$/);
+      // (Baron Helmut Zemo: a Boast cost longer than most — after its label)
+      m = line.match(/^([^:\n]{1,120}):\s*([\s\S]+)$/) || line.match(/^((?:Boast|Exhaust|Renew) — [^:\n"]{1,180}):\s*([\s\S]+)$/);
       /* A colon inside quotation marks belongs to an ability the card is
          handing out ("Lands you control have \"{T}: Add {G}.\""), not to an
          ability of the card itself. */
@@ -19445,6 +19471,9 @@
       // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1."
       { re: /^Each (instant and sorcery|[a-z]+) spell you cast has casualty (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase().replace(' and ', ' or ') }), auto: true },
+      // Anhelo, the Painter: "The first instant or sorcery spell you cast each turn has casualty 2." (firstEachTurn)
+      { re: /^The first (instant or sorcery|[a-z]+) spell you cast each turn has casualty (\d+)\.?$/i,
+        make: (m) => ({ op: 'grantCastKeyword', keyword: 'casualty', n: +m[2], filter: m[1].toLowerCase(), firstEachTurn: true }), auto: true },
       // Thrumming Stone: "Spells you cast have ripple 4."
       { re: /^([A-Za-z ]*?)spells you cast have ripple (\d+)\.?$/i,
         make: (m) => ({ op: 'grantCastKeyword', keyword: 'ripple', n: +m[2], filter: m[1].trim().toLowerCase().replace(/ and /, ' or ') || 'spell' }), auto: true },

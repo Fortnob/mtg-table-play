@@ -219,6 +219,8 @@ declare namespace MTG {
     foodKey?: string;
     /** Osgir, the Reconstructor: only the candidates with mana value X, the X paid */
     mvX?: boolean;
+    /** evidence counted in one colour's mana symbols rather than mana value (Baron Helmut Zemo: 'B') */
+    symbol?: string;
     /** remove a counter: the option naming which kind (counterKind) */
     kindKey?: string;
     [k: string]: any;

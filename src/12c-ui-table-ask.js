@@ -1583,7 +1583,7 @@
         const count = byValue ? null : (one(key) ? 1 : need);
         // nothing to decide: one way to pay, or not enough to choose between
         if (!ids.length || (!byValue && ids.length <= count)) return next();
-        this._pickPayers({ label: r.label || 'Choose what pays', ids, count, total: byValue ? need : null }, card, (chosen) => {
+        this._pickPayers({ label: r.label || 'Choose what pays', ids, count, total: byValue ? need : null, symbol: r.symbol || null }, card, (chosen) => {
           if (chosen) out[key] = one(key) ? chosen[0] : chosen;
           next();
         });
@@ -1595,7 +1595,9 @@
     _pickPayers(p, card, done) {
       const picked = [];
       const key = 'payers:' + p.label + ':' + p.ids.join(',');
-      const mv = (id) => { const x = this.objIn(id); return (x && x.card && x.card.cmc) || 0; };
+      // (Baron Helmut Zemo: one colour's mana symbols counted instead — symbol)
+      const mv = (id) => { const x = this.objIn(id); if (!x || !x.card) return 0;
+        return p.symbol ? (String(x.card.mana_cost || '').match(/\{[^}]*\}/g) || []).filter(s => s.includes(p.symbol)).length : (x.card.cmc || 0); };
       const enough = () => (p.total != null ? picked.reduce((n, id) => n + mv(id), 0) >= p.total : p.anyNumber ? picked.length <= p.count : picked.length === p.count);
       this.asking = { base: key, get key() { return key + ':' + picked.join(','); }, build: () => {
         const row = el('div', { class: 'pick-row' });
@@ -1603,7 +1605,7 @@
           const x = this.objIn(id);
           if (!x || !x.card) continue;
           const on = picked.includes(id);
-          row.appendChild(this.pickTile(x.card, { face: x.face || 0, cls: on ? 'chosen' : '', badge: p.total != null ? (x.card.cmc || 0) : (on ? picked.indexOf(id) + 1 : null),
+          row.appendChild(this.pickTile(x.card, { face: x.face || 0, cls: on ? 'chosen' : '', badge: p.total != null ? mv(id) : (on ? picked.indexOf(id) + 1 : null),
             onClick: () => {
               const at = picked.indexOf(id);
               if (at >= 0) picked.splice(at, 1);
@@ -1612,7 +1614,7 @@
             } }));
         }
         const sum = picked.reduce((n, id) => n + mv(id), 0);
-        const sub = p.total != null ? `Mana value ${sum} of ${p.total}.` : p.anyNumber ? `${picked.length} chosen.` : `${picked.length} of ${p.count} chosen.`;
+        const sub = p.total != null ? (p.symbol ? `{${p.symbol}} symbols: ${sum} of ${p.total}.` : `Mana value ${sum} of ${p.total}.`) : p.anyNumber ? `${picked.length} chosen.` : `${picked.length} of ${p.count} chosen.`;
         return this.panel(escapeHtml(p.label), sub, row, [
           { label: 'Let the game choose', fn: () => { this.asking = null; done(null); } },
           { label: p.anyNumber && !picked.length ? 'None' : 'Use these', cls: 'primary', disabled: !enough(), fn: () => { this.asking = null; done(picked.slice()); } },

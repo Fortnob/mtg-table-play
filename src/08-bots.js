@@ -1720,6 +1720,8 @@
     revealAny(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Myr Battlesphere: every Myr that can help */
     tapKin(s) { return { picks: (s.items || []).map(x => x.id) }; },
+    // Augusta, Dean of Order: the attackers tapped (+1/+0 tapped), the rest kept up to block (+0/+1 untapped)
+    tapAnyYours(s) { const g = this.game; return { picks: (s.items || []).filter(x => { const o = g.obj(x.id); return o && o.attacking; }).map(x => x.id) }; },
     /* Mantle of the Ancients: everything comes back */
     returnAttached(s) { return { picks: (s.items || []).map(x => x.id) }; },
     /* Ardenn, Intrepid Archaeologist: onto a creature of ours, the Equipment and the Auras that help; onto an
