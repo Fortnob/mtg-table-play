@@ -32449,6 +32449,23 @@
             name: `Exile those tokens (${src.name} left the battlefield)`, effects: [{ op: 'exileListed', ids }] });
           break;
         }
+        /* Stangg: "Sacrifice Stangg when that token leaves the battlefield." — the token as it is now; Stangg only while
+           still the permanent it was (sacrificeListed, seqs) */
+        case 'sacSelfWhenMadeLeaves': {
+          const tok = (this._madeThisResolution || []).map(id => this.obj(id)).find(x => x && x.zone === 'battlefield');
+          if (!src || src.zone !== 'battlefield' || !tok) break;
+          this.scheduleDelayed({ event: 'ltb', once: true, controller: ctx.controller, objId: src.id, watchObj: tok.id, watchLeaving: true, watchLeftSeq: tok._leftSeq || null,
+            name: `Sacrifice ${src.name} (${tok.name} left the battlefield)`, effects: [{ op: 'sacrificeListed', ids: [src.id], seqs: [src._leftSeq || null] }] });
+          break;
+        }
+        case 'sacrificeListed': {
+          (e.ids || []).forEach((id, i) => {
+            const x = this.obj(id);
+            if (!x || x.zone !== 'battlefield' || (e.seqs && ((x._leftSeq || null) !== (e.seqs[i] || null)))) return;
+            this._sacrificeNow(x.controller, [x]);
+          });
+          break;
+        }
         /* Merieke Ri Berit: "When Merieke Ri Berit leaves the battlefield or becomes untapped, destroy that creature. It
            can't be regenerated." — two notes on it as it is now, the first to come cancelling the other (group);
            the creature as it was taken (seq) */

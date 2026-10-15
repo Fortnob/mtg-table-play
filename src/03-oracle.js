@@ -2724,6 +2724,8 @@
     { re: /^Sacrifice (?:that token|those tokens) at end of combat\.?$/i, make: () => ({ op: 'sacMadeEoc' }) },
     // Mysterio, Master of Illusion: "Exile those tokens when Mysterio leaves the battlefield." (exileMadeWhenSelfLeaves)
     { re: /^Exile (?:that token|those tokens) when (?:CARDNAME|this creature) leaves the battlefield\.?$/i, make: () => ({ op: 'exileMadeWhenSelfLeaves' }) },
+    // Stangg: "Sacrifice Stangg when that token leaves the battlefield." (sacSelfWhenMadeLeaves)
+    { re: /^Sacrifice (?:CARDNAME|this creature) when that token leaves the battlefield\.?$/i, make: () => ({ op: 'sacSelfWhenMadeLeaves' }) },
     // Path of Peace: "Destroy target creature. Its owner gains 4 life."
     { re: /^Its owner gains (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life\.?$/i,
       make: (m) => ({ op: 'gainLife', n: num(m[1]), who: 'targetOwner' }) },
@@ -3642,6 +3644,17 @@
         if (ptX) out.ptX = ptX;
         return out;
       } },
+    /* Anthousa, Setessan Hero: "up to three target lands you control each become 2/2 Warrior creatures until end of turn."
+       — each target its own (distinct) */
+    { re: /^Up to (one|two|three|four|five) target (land|artifact)s( you control)? each become (\d+\/\d+(?: [A-Z][a-z]+)*) creatures( until end of turn)?\.?$/,
+      make: (m) => {
+        const eff = becomesEff('becomes a ' + m[4] + ' creature');
+        if (!eff || !eff.setPt) return null;
+        const spec = targetSpec('target ' + m[2] + (m[3] || ''));
+        if (!spec || spec.unknown) return null;
+        return { op: 'becomes', duration: m[5] ? 'eot' : 'permanent', eff,
+          targets: Array.from({ length: num(m[1]) }, () => Object.assign({}, spec, { upTo: true, distinct: true })) };
+      } },
     /* Iron Man, Futurist Paragon: "target artifact or creature becomes an artifact creature with base power and toughness
        5/5 and gains flying." — for good */
     { re: /^((?:another )?target [a-z ]+?) (becomes an? (?:(?:artifact|enchantment|land) )*creature with base power and toughness \d+\/\d+(?: and gains [a-z, ]+)?)\.?$/i,
@@ -3650,6 +3663,11 @@
        of its others (layer 4), for good; Boldwyr Intimidator's "… until end of turn" for the turn */
     { re: /^((?:[Tt]arget|[Aa]nother target) creature(?: that player controls| an opponent controls| you control)?) becomes an? ([A-Z][a-z]+)( until end of turn)?\.?$/,
       make: (m) => (/^(?:Creature|Artifact|Enchantment|Land|Planeswalker|Copy)$/.test(m[2]) ? null : becomesSubject(m[1], { setCreatureTypes: [m[2]] }, m[3] ? 'eot' : 'permanent')) },
+    // Donald Blake, Guise of Thor: "He becomes a God Warrior Hero. (He loses all other creature types.)" — for good
+    { re: /^CARDNAME becomes an? ((?:[A-Z][a-z]+ )*[A-Z][a-z]+)\.?$/,
+      make: (m) => { const ws = m[1].split(' ');
+        return ws.some(w => /^(?:Creature|Artifact|Enchantment|Land|Planeswalker|Copy|Legendary|Basic|Snow|Token|Battle|Instant|Sorcery|Kindred|Tribal)$/.test(w)) ? null
+          : becomesSubject('CARDNAME', { setCreatureTypes: ws }, 'permanent'); } },
     { re: /^(?:They'?re|It'?s) still (?:a land|lands)\.?$/i, make: () => ({ op: 'noop' }) },
     // Wakeroot Elemental: "Untap target land you control. It becomes a 5/5 Elemental creature with haste."
     { re: /^(It|That land|That creature|That artifact) becomes an? (\d+\/\d+ [A-Za-z ]*?creature(?: with [a-z, ]+?)?)(?: that'?s still an? (?:land|artifact))?( until end of turn)?\.?$/,
@@ -3861,6 +3879,9 @@
     /* Essence Flux */
     { re: /^If it'?s an? ([A-Z][a-z]+|creature|artifact), put a \+1\/\+1 counter on it\.?$/,
       make: (m) => ({ op: 'ifLastWas', filter: m[1].toLowerCase(), then: [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'lastTarget' }] }) },
+    // Teyo, Diamondblade Mage: "Put a +1/+1 counter on it if it's a creature. Put a loyalty counter on it if it's a planeswalker."
+    { re: /^Put an? (\+1\/\+1|loyalty) counter on it if it'?s an? (creature|planeswalker|artifact|land|enchantment)\.?$/i,
+      make: (m) => ({ op: 'ifLastWas', ofTarget: true, filter: m[2].toLowerCase(), then: [{ op: 'counters', kind: m[1].toLowerCase(), n: 1, scope: 'lastTarget' }] }) },
     /* Defile */
     { re: /^(Target creature) gets ([+-])(\d+)\/([+-])(\d+) until end of turn for each ([A-Za-z ]+?) you control\.?$/i,
       make: (m) => {
@@ -9279,6 +9300,11 @@
     const p = String(phrase || '').trim();
     const k = mult == null ? 1 : mult;
     let m;
+    // Wasp, Shrinking Savior: "for each creature with power less than 0 on the battlefield" — everybody's
+    if ((m = p.match(/^(.+?) on the battlefield$/i))) {
+      const c = countOf(m[1], mult);
+      if (c && c.scope) return Object.assign(c, { scope: Object.assign({}, c.scope, { who: 'all' }) });
+    }
     // Sage's Reverie: "Aura you control that's attached to a creature"
     if ((m = p.match(/^(Aura|Equipment)s? you control that(?:'s| are) attached to (?:a )?creatures?$/i)))
       return { per: m[1].toLowerCase(), who: 'you', attachedToCreature: true, mult: k };
@@ -19587,6 +19613,9 @@
       if ((m = rest.match(/ with power (\d+) or (greater|more|less)$/i))) {
         if (/less/i.test(m[2])) sc.maxPower = +m[1]; else sc.minPower = +m[1];
         rest = rest.slice(0, m.index);
+      } else if ((m = rest.match(/ with power less than (\d+)$/i))) {
+        // Wasp, Shrinking Savior: "each creature with power less than 0"
+        sc.maxPower = +m[1] - 1; rest = rest.slice(0, m.index);
       } else if ((m = rest.match(/ with toughness (\d+) or (greater|more|less)$/i))) {
         // Citywide Bust: "with toughness 4 or greater"
         if (/less/i.test(m[2])) sc.maxToughness = +m[1]; else sc.minToughness = +m[1];
