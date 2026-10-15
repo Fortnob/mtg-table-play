@@ -13810,6 +13810,12 @@
             : this.battlefield.filter(o => o.attacking === pid && o.id !== td.objectId);
           return !others.length;
         }
+        // Agrus Kos, Spirit of Justice: "If it's suspected" — the creature targeted
+        case 'itSuspected': {
+          const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
+          const it = tg && this.obj(tg.id);
+          return !!(it && it.zone === 'battlefield' && (it.effects || []).some(f => f && f.suspected));
+        }
         case 'itIs': {
           const tg = ((ctx && (ctx.resolvedTargets || ctx.targets)) || []).find(t => t && t.kind === 'object');
           const milled = (this._lastMilled || []).slice(-1)[0];
@@ -19137,7 +19143,8 @@
           }
           /* "Exile it at the beginning of the next end step": the object a
              delayed note was taken about, or what the trigger is about */
-          if ((e.scope === 'thatObject' || e.scope === 'triggerObject') && !(e.targets && e.targets.length)) {
+          // (Agrus Kos, Spirit of Justice: "If it's suspected, exile it." — the creature targeted: lastTarget)
+          if ((e.scope === 'thatObject' || e.scope === 'triggerObject' || e.scope === 'lastTarget') && !(e.targets && e.targets.length)) {
             // Necropotence: "exile that card from your graveyard" — the card just discarded, where it went
             if (e.fromGraveyard) {
               const x = (ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId);
@@ -20002,6 +20009,8 @@
         case 'createToken': {
           // Rendmaw, Creaking Nest: "The tokens are goaded for the rest of the game." — by this ability's controller (goadForever)
           if (e.goadForever === true) e = Object.assign({}, e, { goadForever: ctx.controller });
+          // Ellie, Brick Master: "that's attacking that opponent" — the player the trigger's attack was at (attackingWho)
+          if (e.attackingWho === 'attackedPlayer') e = Object.assign({}, e, { attackingId: (ctx.triggerData || {}).attackedPlayer || null });
           const owner = e.who === 'targetController'
             ? (this._lastAffectedController() || me)
             // Genesis Chamber: "that creature's controller creates …" — the one that entered
@@ -23646,7 +23655,8 @@
         }
         // Kwain, Will of the Jeskai: each player may; every answer first, then it happens
         case 'eachMay': {
-          const order = this.players.filter(q => !q.hasLost);
+          // (Willie Lumpkin, Postman: "that player may draw a card" — the one the trigger is about: who triggerPlayer)
+          const order = e.who === 'triggerPlayer' ? [triggerPlayer()].filter(q => q && !q.hasLost) : this.players.filter(q => !q.hasLost);
           const yes = [];
           for (const q of order) {
             const what = (e.discardHand ? 'discard your hand and ' : '') + `draw ${e.draw === 1 ? 'a card' : (e.draw || 1) + ' cards'}` +
@@ -25345,13 +25355,17 @@
           // Thorin, Mountain-king: "When one or more Equipment become attached to that creature this way" — "that creature" is the host
           const attachedTo = e.ifAttached ? ((this._attachedAnyTo || {}).n ? this._attachedAnyTo.host : null) : null;
           if (e.ifAttached && !attachedTo) break;
+          // (Three Dog, Galaxy News DJ: "When you sacrifice an Aura this way" — only if one was, and "that Aura" is it: ifSacAura)
+          const sacAura = e.ifSacAura ? this._sacAuraThisWay : null;
+          if (e.ifSacAura && !sacAura) break;
           // Augusta, Order Returned: "When one or more nonland cards are exiled this way, put that many …" (ifExiledNonland)
           const exN = e.ifExiledNonland ? (this._exiledNonlandN || 0) : 0;
           if (e.ifExiledNonland && !exN) break;
           const rText = String(e.text || 'When you do').replace(/CARDNAME/g, so ? so.name : me.name);
           this.pendingTriggers.push({ id: this._uid('tr'), kind: 'ability', obj: so, objId: so ? so.id : null, abilityIndex: -1,
             controller: ctx.controller, name: `${so ? so.name : me.name} — ${truncate(rText, 50)}`,
-            effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN })) : e.effects || [], auto: true, abilityText: rText, optional: false,
+            effects: exN ? (e.effects || []).map(x => Object.assign({}, x, { n: exN }))
+              : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {}) });
           break;
         }
@@ -29353,6 +29367,55 @@
         }
         /* Scriv, the Obligator: "create a white Aura enchantment token named Contract attached to target creature an
            opponent controls. The token has enchant creature and "…"" */
+        /* Three Dog, Galaxy News DJ: "you may pay {2} and sacrifice an Aura attached to Three Dog." — not offered with no Aura of
+           yours on it or no way to pay; with several, which one is the answer */
+        case 'paySacAttachedAura': {
+          this._sacAuraThisWay = null;
+          if (!src || src.zone !== 'battlefield') break;
+          const pool = (src.attachments || []).map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === ctx.controller &&
+            !!(o.analysis() || {}).isAura);
+          if (!pool.length || !this.couldPay(ctx.controller, e.mana, this.manaSources(ctx.controller))) break;
+          let aura = null;
+          if (pool.length === 1) {
+            const yes = this._ask({ type: 'confirm', playerId: ctx.controller,
+              prompt: `${src.name}: Pay ${e.mana} and sacrifice ${pool[0].name} (attached to ${src.name})?` }, 'q');
+            if (yes === SUSPEND) return SUSPEND;
+            if (yes) aura = pool[0];
+          } else {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'paySacAttachedAura', kind: 'objects', zone: 'battlefield',
+              items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+              prompt: `${src.name}: You may pay ${e.mana} and sacrifice an Aura attached to ${src.name}.` }, 'q');
+            if (got === SUSPEND) return SUSPEND;
+            aura = this.obj(got && got.picks && got.picks[0]);
+            if (aura && !pool.includes(aura)) aura = null;
+          }
+          if (!aura) { this.logEvent('rules', `${me.name} declines.`); break; }
+          if (!this.payMana(ctx.controller, e.mana, { auto: true })) break;
+          const card = aura.card;
+          this._sacrificeNow(ctx.controller, [aura]);
+          if (aura.zone === 'battlefield') break;
+          this._sacAuraThisWay = JSON.parse(JSON.stringify(card));
+          break;
+        }
+        // (Three Dog: "for each other attacking creature you control, create a token that's a copy of that Aura attached to that creature")
+        case 'copyAuraOntoAttackers': {
+          const card = e.aura;
+          if (!card || !this.combat) break;
+          const hosts = (this.combat.attackers || []).map(id => this.obj(id)).filter(o => o && o !== src && o.zone === 'battlefield' &&
+            o.controller === ctx.controller && (this.characteristics(o) || {}).isCreature);
+          for (const host of hosts) {
+            const made = this._copyTokenCount(ctx.controller, 1, card.type_line);
+            for (let i = 0; i < made; i++) {
+              if (host.zone !== 'battlefield') break;
+              const o = this._createAuraToken(ctx.controller, card, host, true);
+              if (!o) break;
+              (this._madeThisResolution = this._madeThisResolution || []).push(o.id);
+              this.logEvent('token', `${me.name} creates a copy of ${card.name} attached to ${host.name}.`);
+              this._fire('youCreateToken', ctx.controller, { object: o });
+            }
+          }
+          break;
+        }
         case 'createAuraToken': {
           const host = firstObj();
           // (Estrid, the Masked: "enchant permanent" \u2014 enchant)

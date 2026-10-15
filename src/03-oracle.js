@@ -1694,6 +1694,17 @@
     { re: /^When one or more Equipment become attached to that creature this way, that creature deals damage equal to its power to up to one target creature\.?$/i,
       make: (m) => ({ op: 'reflexive', ifAttached: true, text: m[0],
         effects: [{ op: 'bite', biter: 'reflexObject', targets: [{ type: 'creature', upTo: true }], text: 'That creature deals damage equal to its power to up to one target creature.' }] }) },
+    /* Ellie, Brick Master: "that attacking player creates a tapped 1/1 black Fungus Zombie creature token named Cordyceps
+       Infected that's attacking that opponent." — the player attacked (attackingWho) */
+    { re: /^That attacking player creates (an? .+? creature token(?: named [A-Z][A-Za-z' ,-]+?)?) that'?s attacking that (?:opponent|player)\.?$/i,
+      make: (m) => { const tok = parseTokenSentence('Create ' + m[1] + '.');
+        return tok && tok.op === 'createToken' && tok.n === 1 ? Object.assign(tok, { who: 'triggerPlayer', attacking: true, attackingWho: 'attackedPlayer' }) : null; } },
+    /* Three Dog, Galaxy News DJ: "you may pay {2} and sacrifice an Aura attached to Three Dog. When you sacrifice an Aura
+       this way, for each other attacking creature you control, create a token that's a copy of that Aura attached to that
+       creature." (paySacAttachedAura; a reflexive trigger, ifSacAura) */
+    { re: /^You may pay ((?:\{[^}]+\})+) and sacrifice an Aura attached to (?:CARDNAME|this creature)\.?$/i, make: (m) => ({ op: 'paySacAttachedAura', mana: m[1] }) },
+    { re: /^When you sacrifice an Aura this way, for each other attacking creature you control, create a token that'?s a copy of that Aura attached to that creature\.?$/i,
+      make: (m) => ({ op: 'reflexive', ifSacAura: true, text: m[0], effects: [{ op: 'copyAuraOntoAttackers' }] }) },
     // Breena, the Demagogue: "that attacking player draws a card and you put two +1/+1 counters on a creature you control" (attackerDrawsAndYou)
     { re: /^That attacking player draws a card and you (put .+ counters? on a creature you control)\.?$/i,
       make: (m) => { const rest = parseEffectSentence(m[1].charAt(0).toUpperCase() + m[1].slice(1) + '.');
@@ -3846,8 +3857,11 @@
     { re: /^[Mm]anifest dread (twice|three times)\.?$/, make: (m) => ({ op: 'sequence', list: Array.from({ length: /twice/i.test(m[1]) ? 2 : 3 }, () => ({ op: 'manifestDread' })) }) },
     // Unwanted Remake, Fear of Impostors: "Its controller manifests dread." — the controller of what was destroyed or countered
     { re: /^Its controller manifests dread\.?$/i, make: () => ({ op: 'manifestDread', who: 'targetController' }) },
-    { re: /^(?:Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
-      make: (m) => (/^target/i.test(m[1]) ? { op: 'suspect', targets: [targetSpec(m[1])] } : { op: 'suspect', scope: 'lastTarget' }) },
+    { re: /^If it'?s suspected, exile it\.?$/i, make: () => ({ op: 'ifCond', cond: { kind: 'itSuspected' }, then: [{ op: 'exile', scope: 'lastTarget' }] }) },
+    // (Agrus Kos, Spirit of Justice: "If it's suspected, exile it. Otherwise, suspect it." — the other branch: otherwiseOf)
+    { re: /^(Otherwise, )?[Ss]uspect (it|that creature|target creature(?: an opponent controls)?)\.?$/,
+      make: (m) => (/^target/i.test(m[2]) ? { op: 'suspect', targets: [targetSpec(m[2])] }
+        : m[1] ? { op: 'noop', otherwiseOf: [{ op: 'suspect', scope: 'lastTarget' }] } : { op: 'suspect', scope: 'lastTarget' }) },
     { re: /^(?:CARDNAME|This creature|It) endures (one|two|three|four|five|\d+|X)\.?$/i,
       make: (m) => ({ op: 'endure', n: num(m[1]), scope: /^It$/i.test(m[0].split(' ')[0]) ? 'triggerObject' : 'self' }) },
     // Warden of the Grove: "it endures X, where X is the number of counters on this creature"
@@ -10342,6 +10356,10 @@
        during their next turn." (noAttackNext) */
     { re: /^Each player may draw a card\. Each opponent who does can'?t attack you or permanents you control during their next turn\.?$/i,
       make: () => [{ op: 'eachMay', draw: 1, noAttackNext: true }] },
+    /* Willie Lumpkin, Postman: "you draw a card and that player may draw a card. If they do, that player can't attack you or
+       permanents you control during their next turn." — the player dealt the damage (eachMay who triggerPlayer, noAttackNext) */
+    { re: /^You draw a card and that player may draw a card\. If they do, that player can'?t attack you or permanents you control during their next turn\.?$/i,
+      make: () => [{ op: 'draw', n: 1, who: 'you' }, { op: 'eachMay', draw: 1, who: 'triggerPlayer', noAttackNext: true }] },
     // Will of the Jeskai, Wheel of Fortune kin: "Each player may discard their hand and draw five cards."
     { re: /^Each player may discard their hand and draw (\w+) cards\.$/i,
       make: (m) => [{ op: 'eachMay', discardHand: true, draw: num(m[1]) }] },
@@ -13464,6 +13482,8 @@
        revealed, milled or exiled */
     [/^it'?s (?:an? )?((?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|legendary|permanent|basic land)(?:,? (?:or|and) (?:an? )?(?:non)?(?:land|creature|artifact|enchantment|instant|sorcery|planeswalker|permanent))?(?: (?:non)?(?:creature|land))?)(?: card)?$/i,
       (m) => ({ kind: 'itIs', filter: m[1].toLowerCase().replace(/,? (or|and) an? /, ' $1 ') })],
+    // Agrus Kos, Spirit of Justice: "If it's suspected" — the creature targeted
+    [/^it'?s suspected$/i, () => ({ kind: 'itSuspected' })],
     // Proft's Eidetic Memory: "you've drawn more than one card this turn"
     [/^you'?ve drawn more than (one|two|three) cards? this turn$/i, (m) => ({ kind: 'drawnAtLeast', n: num(m[1]) + 1 })],
     // Battle Angels of Tyr: "that player has more cards in hand / controls more lands / has more life than each other player"
