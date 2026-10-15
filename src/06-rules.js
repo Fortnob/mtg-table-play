@@ -19061,6 +19061,13 @@
       // whoever set the trigger off, which the trigger recorded for us
       const triggerPlayer = () => {
         const d = ctx.triggerData || {};
+        /* Patron of the Nezumi: "Whenever a permanent is put into an opponent's graveyard, that player …" — whose
+           graveyard: the owner, though another controlled it (notOwned) */
+        if (!ctx.chosenPlayer && d.objectId && ctx.obj && ctx.abilityIndex != null && ctx.abilityIndex >= 0 && !ctx.activated) {
+          const ab0 = ((ctx.obj.analysis() || {}).abilities || [])[ctx.abilityIndex] || {};
+          const dead = ab0.event === 'permDies' && (ab0.objFilter || {}).notOwned && this.obj(d.objectId);
+          if (dead && this.player(dead.owner)) return this.player(dead.owner);
+        }
         // "choose an opponent. That player …": the one chosen, when there was a choice
         // (Massacre Wurm: "Whenever a creature an opponent controls dies, that player loses 2 life" — its controller)
         return this.player(ctx.chosenPlayer || d.drawer || d.player || d.deadController || d.playerId || d.objController) ||
@@ -23062,7 +23069,12 @@
             }
             else if (where === 'graveyard') this.moveObject(c, 'graveyard', { controller: seeker.id });
             // Thada Adel, Acquisitor: "and exile it" — the card the next sentence may let you play
-            else if (where === 'exile') { this.moveObject(c, 'exile'); this._lastExiled = c.id; this._lastExiledList = [c.id]; }
+            else if (where === 'exile') {
+              this.moveObject(c, 'exile'); this._lastExiled = c.id;
+              this._lastExiledList = (taken.indexOf(c) > 0 ? this._lastExiledList || [] : []).concat(c.id);
+              // Kaho, Minamo Historian: "exile them" — cards exiled with the permanent whose ability it was (withSelf)
+              if (e.withSelf && src && src.zone === 'battlefield' && c.zone === 'exile') c.exiledWithId = src.id;
+            }
             // Praetor's Grasp: face down in exile, for the searcher to look at and play
             else if (where === 'exilePlayable') {
               this.moveObject(c, 'exile');
@@ -26951,6 +26963,25 @@
           else { this.addCounters(x, 'lore', -1); this.logEvent('saga', `A lore counter is removed from ${x.name}.`); }
           break;
         }
+        /* Immard, the Stormcleaver: "put a charge counter on it or remove one from it. When you remove a counter this
+           way, …" — asked only when there is one to remove; the reflexive part only after one came off (thenRemoved) */
+        case 'selfCounterAddOrRemove': {
+          if (!src || src.zone !== 'battlefield') break;
+          const ck = e.counter || 'charge';
+          let add = true;
+          if (Number(src.counters[ck]) > 0) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'counterAddOrRemove', kind: 'options', min: 1, max: 1,
+              options: [{ i: 0, label: `Put a ${ck} counter on ${src.name}` }, { i: 1, label: `Remove a ${ck} counter from ${src.name}` }],
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}put a ${ck} counter on ${src.name} or remove one from it?` }, 'car');
+            if (got === SUSPEND) return SUSPEND;
+            add = !(got && (got.picks || [])[0] === 1);
+          }
+          if (add) { this.addCounters(src, ck, 1); break; }
+          this.addCounters(src, ck, -1);
+          this.logEvent('rules', `A ${ck} counter is removed from ${src.name}.`);
+          if (e.thenRemoved) this._spliceNext(e.thenRemoved);
+          break;
+        }
         /* Esper Terra: "If it's a Saga, put up to three lore counters on it." — the token copy just made; each
            chapter it reaches triggers (CR 714.2b) */
         case 'loreUpTo': {
@@ -29812,14 +29843,17 @@
              cards that may be cast, which may be left empty; nothing to pick, nothing asked (pickOne) */
           if (e.pickOne && Array.isArray(pool) && !(r && r.marks[slot + 'picked'])) {
             const mv1 = e.maxMv == null ? null : n(e.maxMv);
+            // Kaho, Minamo Historian: "a spell with mana value X" (exactMv)
+            const mvEq = e.exactMv == null ? null : n(e.exactMv);
             const able = pool.map(id => this.obj(id)).filter(c => c && c.zone !== 'stack' && c.zone !== 'battlefield' && !(c.analysis() || {}).isLand &&
               (!e.filter || this._cardFitsWords(c, e.filter)) && (mv1 == null || ((c.card && c.card.cmc) || 0) <= mv1) &&
+              (mvEq == null || ((c.card && c.card.cmc) || 0) === mvEq) &&
               // (Sanwell, Avenger Ace: paying its costs — only what could be paid for)
               (!e.pay || this.couldPay(ctx.controller, String(this._anyColorCost(ctx.controller, c, this.castCost(c, {}) || '')).replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
             let picks = [];
             if (able.length) {
               const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: e.from === 'hand' ? 'hand' : 'library', items: this._chooseItems(able),
-                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
+                min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''}${mvEq != null ? ' with mana value ' + mvEq : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
             }
@@ -29853,6 +29887,7 @@
             }
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             if (maxMv != null && ((c.card && c.card.cmc) || 0) > maxMv) continue;
+            if (e.exactMv != null && ((c.card && c.card.cmc) || 0) !== n(e.exactMv)) continue;
             if (below != null && !(((c.card && c.card.cmc) || 0) < below)) continue;
             // Yennett, Cryptic Sovereign: "if its mana value is odd" (mvOdd)
             if (e.mvOdd && ((c.card && c.card.cmc) || 0) % 2 !== 1) continue;
@@ -31314,7 +31349,10 @@
         // Wrong Turn: the target player gains control of the target permanent
         case 'giveControl': {
           // Alexios, Deimos of Kosmos: "that player gains control of Alexios" — whose upkeep it is, of itself
-          const p = e.to === 'triggerPlayer' ? triggerPlayer() : firstPlayer();
+          // Starke of Rath: "That permanent's controller gains control of Starke." — the target's, as it last was (targetController)
+          const tgo = e.to === 'targetController' ? firstObj() : null;
+          const p = e.to === 'triggerPlayer' ? triggerPlayer() : e.to === 'targetController'
+            ? (tgo ? this.player(tgo.zone === 'battlefield' ? tgo.controller : (tgo._leftController || tgo.controller)) : null) : firstPlayer();
           const x = e.self ? src : firstObj();
           if (!p || p.hasLost || !x || x.zone !== 'battlefield') break;
           // (Slicer, Hired Muscle: "until end of turn")

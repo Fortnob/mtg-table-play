@@ -1202,6 +1202,9 @@
       e.to = 'top';
     } else if ((m = s.match(/^,? (?:and )?put (?:it|that card) on top of your library/i))) {
       e.to = 'top';
+    } else if ((m = s.match(/^,? (?:and |then )?exile (?:it|them|that card|those cards)(?=,|$)/i))) {
+      // Kaho, Minamo Historian: "search your library for up to three instant cards, exile them, then shuffle" — exiled with it (withSelf)
+      e.to = 'exile'; e.withSelf = true;
     } else return null;
     s = s.slice(m[0].length);
     // Gamble's catch
@@ -1808,6 +1811,9 @@
     { re: /^That player gains control of CARDNAME, untaps it, and puts an? \+1\/\+1 counter on it\.?$/i,
       make: () => [{ op: 'giveControl', to: 'triggerPlayer', self: true }, { op: 'untap', scope: 'self' },
         { op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }] },
+    // Starke of Rath: "That permanent's controller gains control of Starke." (targetController)
+    { re: /^(?:That (?:permanent|creature|artifact)'?s|Its) controller gains control of CARDNAME\.?$/i,
+      make: () => ({ op: 'giveControl', to: 'targetController', self: true }) },
     // Jared Carthalion, True Heir: "You can't become the monarch this turn."
     { re: /^You can'?t become the monarch this turn\.?$/i, make: () => ({ op: 'noMonarchThisTurn' }) },
     // Karona, False God: "At the beginning of each player's upkeep, that player untaps Karona and gains control of it."
@@ -2771,6 +2777,9 @@
        counter went on, its own effect, over once the counter is gone, whatever became of what put it there (whileCounter) */
     { re: /^(?:It'?s|It is|That land is) an? (Plains|Island|Swamp|Mountain|Forest)( in addition to its other types)? for as long as it has an? ([a-z]+) counter on it\.?$/i,
       make: (m) => ({ op: 'whileCounter', counter: m[3].toLowerCase(), ef: m[2] ? { addSubtypes: [U.titleCase(m[1])] } : { setSubtypes: [U.titleCase(m[1])] } }) },
+    // Sauron, Dino Devotee: "It's a green Dinosaur with base power and toughness 5/5 for as long as it has a saurian counter on it." (whileCounter)
+    { re: /^It'?s (an? [A-Za-z ]+? with base power and toughness \d+\/\d+) for as long as it has an? ([a-z]+) counter on it\.?$/,
+      make: (m) => { const ef = becomesEff('is ' + m[1]); return ef ? { op: 'whileCounter', counter: m[2].toLowerCase(), ef } : null; } },
     /* Ultima, Origin of Oblivion: "For as long as that land has a blight counter on it, it loses all land types
        and abilities and has "{T}: Add {C}."" — its other card types and supertypes stay (whileCounter) */
     { re: /^For as long as that land has an? ([a-z]+) counter on it, it loses all land types and abilities and has "\{T\}: Add \{C\}\.?"\.?$/i,
@@ -4755,6 +4764,9 @@
        paying its mana cost" — any of them, one picked or none (exiledWith) */
     { re: /^(?:You may )?cast an? (instant or sorcery|instant|sorcery|creature|noncreature|nonland) spell from among cards exiled with CARDNAME without paying its mana cost\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true, filter: m[1].toLowerCase() }) },
+    // Kaho, Minamo Historian: "You may cast a spell with mana value X from among cards exiled with Kaho without paying its mana cost." (exactMv)
+    { re: /^You may cast a spell with mana value X from among cards exiled with CARDNAME without paying its mana cost\.?$/i,
+      make: () => ({ op: 'castFree', from: 'exiledWith', upTo: 1, pickOne: true, exactMv: 'X', among: 'the cards exiled with it' }) },
     /* Velomachus Lorehold: "You may cast an instant or sorcery spell with mana value less than or equal to Velomachus
        Lorehold's power from among them without paying its mana cost." — the cards looked at, one picked or none (pickOne) */
     { re: /^You may cast an? (instant or sorcery|instant|sorcery|creature|artifact|enchantment|noncreature|nonland|permanent) spell with mana value less than or equal to (CARDNAME'?s power|CARDNAME'?s toughness) from among them without paying its mana cost\.?$/i,
@@ -11796,6 +11808,15 @@
       make: (m0) => { const m = [m0[0], m0[1], m0[3]]; return [Object.assign({ op: 'preventSourceOnce' }, m0[2] ? { anyTarget: true } : {},
         m[1] ? { color: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] } : {},
         m[2] && /gain life/i.test(m[2]) ? { gainLife: true } : {}, m[2] && /deals that much/i.test(m[2]) ? { reflect: true } : {})]; } },
+    /* Immard, the Stormcleaver: "put a charge counter on it or remove one from it. When you remove a counter this way,
+       choose one — …" — the modes a reflexive trigger, only after a counter came off (selfCounterAddOrRemove) */
+    { re: /^Put an? ([a-z]+) counter on (?:it|CARDNAME) or remove one from it\. When you remove a counter this way, (choose one —[\s\S]+)$/i,
+      make: (m) => {
+        const inner = parseEffects('C' + m[2].slice(1));
+        if (!inner.auto || !inner.effects.length) return null;
+        return [{ op: 'selfCounterAddOrRemove', counter: m[1].toLowerCase(),
+          thenRemoved: [{ op: 'reflexive', effects: inner.effects, text: 'When you remove a counter this way, ' + m[2] }] }];
+      } },
     /* Sword of Wealth and Power: "Create a Treasure token. When you next
        cast an instant or sorcery spell this turn, copy that spell. …" —
        what comes first, then the turn's trigger */
@@ -15481,6 +15502,8 @@
     // (Shirei, Shizo's Caretaker: "your graveyard" is whose card it is — one you own that dies under another's control too: owned)
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' (?:is|are) put into (your|an opponent\'s) graveyard from the battlefield(?:,| )', 'i'),
       event: 'permDies', filt: (m) => { const f = subjectFilter(m[1]); if (f) { if (/your/i.test(m[2])) f.owned = true; else f.notOwned = true; } return f; } },
+    // Patron of the Nezumi: "Whenever a permanent is put into an opponent's graveyard" — a permanent is on the battlefield
+    { re: /^Whenever a permanent is put into an opponent'?s graveyard,? /i, event: 'permDies', filt: () => ({ words: 'permanent', notOwned: true }) },
     // Suki, Courageous Rescuer: "Whenever another permanent you control leaves the battlefield during your turn" (leavesYourTurn)
     { re: new RegExp('^Whenever ' + SUBJ + ' leaves the battlefield during your turn,? ', 'i'), event: 'permLeaves', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true } },
     // Jenova, Ancient Calamity, Vogar: "Whenever a Mutant you control dies during your turn" (diesYourTurn)
@@ -19405,6 +19428,17 @@
         const list = [Object.assign({ op: 'continuous', layer: 4, scope, addSubtypes: [m[2]] }, m[3] ? { addTypes: ['Artifact'] } : {})];
         if (m[4]) list.push({ op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: m[4] });
         return list.length === 1 ? list[0] : { op: 'sequence', list };
+      } },
+    /* Dan Lewis: "Noncreature, non-Equipment artifacts you control are Equipment in addition to their other types and
+       have "Equipped creature gets +1/+0" and equip {1}." — the type (layer 4), then the two abilities (layer 6) */
+    { re: /^(.+?) are Equipment in addition to their other types and have "([^"]+)" and equip (\{[^}]+\})\.?$/,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        const said = /\.$/.test(m[2]) ? m[2] : m[2] + '.';
+        if (!scope || scope.self || scope.attached || !grantableText(said)) return null;
+        return { op: 'sequence', list: [{ op: 'continuous', layer: 4, scope, addSubtypes: ['Equipment'] },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: said },
+          { op: 'continuous', layer: 6, scope: Object.assign({}, scope), grantText: 'Equip ' + m[3] }] };
       } },
     /* Opalescence, March of the Machines, Enchanted Evening: one kind of
        permanent is another kind as well (layer 4), perhaps with its power

@@ -1795,6 +1795,8 @@
     },
     /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
     loreAddOrRemove() { return { picks: [0] }; },
+    /* Immard, the Stormcleaver: a counter off whenever there is one — the modes come only that way */
+    counterAddOrRemove() { return { picks: [1] }; },
     /* Mog, Moogle Warrior: a weak card for a fresh one */
     eachMayRummage() {
       const w = this.worstInHand(1)[0];
