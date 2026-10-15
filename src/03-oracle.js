@@ -3401,8 +3401,9 @@
        graveyard and only as a sorcery": the sorcery half is read off the
        line by the ability itself. */
     // Gutterbones, Essence Anchor: "Activate only during your turn and only if an opponent lost life this turn."
-    { re: /^Activate (?:this ability )?only during your turn and only if (.+?)\.?$/i,
-      make: (m) => { const c = condOf(m[1]); return c ? { op: 'activateOnly', when: 'yourTurn', cond: c } : null; } },
+    // (Hakim, Loreweaver: "Activate only during your upkeep and only if Hakim isn't enchanted.")
+    { re: /^Activate (?:this ability )?only during your (turn|upkeep) and only if (.+?)\.?$/i,
+      make: (m) => { const c = condOf(m[2]); return c ? { op: 'activateOnly', when: /upkeep/i.test(m[1]) ? 'yourUpkeep' : 'yourTurn', cond: c } : null; } },
     { re: /^Activate (?:this ability )?only if (.+?) and only as a sorcery\.?$/i,
       make: (m) => { const c = condOf(m[1]); return c ? { op: 'activateOnly', cond: c } : null; } },
     { re: /^Activate (?:this ability )?only as a sorcery and only if (.+?)\.?$/i,
@@ -4339,6 +4340,9 @@
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase().replace(/s\b/g, '').replace(' and ', ' or '), exceptCommanders: true }) },
     { re: /^Destroy all (Equipment|Auras) attached to (?:that creature|it)\.?$/i,
       make: (m) => ({ op: 'destroyAttachedTo', kind: /aura/i.test(m[1]) ? 'Aura' : 'Equipment' }) },
+    // Hakim, Loreweaver: "Destroy all Auras attached to Hakim." (self)
+    { re: /^Destroy all (Equipment|Auras) attached to (?:CARDNAME|this creature)\.?$/i,
+      make: (m) => ({ op: 'destroyAttachedTo', kind: /aura/i.test(m[1]) ? 'Aura' : 'Equipment', self: true }) },
     // Tetsuko, Ivory Mask: "You have shroud."
     { re: /^You have shroud\.?$/i, make: () => ({ op: 'playerShroud' }) },
     /* Enter the Avatar State: "Until end of turn, target creature you control
@@ -6197,6 +6201,9 @@
       make: (m) => ({ op: 'spellUncounterable', targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase() }] }) },
     // Disrupting Shoal: "Counter target spell if its mana value is X."
     { re: /^Counter target spell if its mana value is (X|\d+)\.?$/i, make: (m) => ({ op: 'counterSpell', ifMv: /x/i.test(m[1]) ? 'X' : +m[1], targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }) },
+    // Hisoka, Minamo Sensei: "Counter target spell if it has the same mana value as the discarded card." (ofDiscarded)
+    { re: /^Counter target spell if it has the same mana value as the discarded card\.?$/i,
+      make: () => ({ op: 'counterSpell', ifMv: { ofDiscarded: 'mv' }, targets: [{ type: 'spell', zone: 'stack', filter: 'spell' }] }) },
     // Veil of Summer: "You and permanents you control gain hexproof from blue and from black until end of turn."
     { re: /^You and permanents you control gain hexproof from (white|blue|black|red|green)(?: and from (white|blue|black|red|green))? until end of turn\.?$/i,
       make: (m) => ({ op: 'hexproofFromTurn', q: [m[1], m[2]].filter(Boolean).map(x => x.toLowerCase()) }) },
@@ -8988,6 +8995,9 @@
     // Strongarm Tactics: "Then each player who didn't discard a creature card this way loses 4 life."; Kroxa: "… then each opponent who didn't discard a nonland card this way loses 3 life" (lifeUnlessDiscarded)
     { re: /^(?:Then )?each (opponent|player) who didn'?t discard an? (nonland|creature|land|noncreature) card this way loses (\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLifeUnlessDiscarded', who: /opponent/i.test(m[1]) ? 'opponents' : 'each', filter: m[2].toLowerCase(), n: +m[3] }) },
+    // Hakim, Loreweaver: "Return target Aura card from your graveyard to the battlefield attached to Hakim." (putAttachedToSelf, the target)
+    { re: /^Return target Aura card from your graveyard to the battlefield attached to (?:CARDNAME|this creature)\.?$/i,
+      make: () => ({ op: 'putAttachedToSelf', targets: [{ type: 'card', filter: 'Aura card', zone: 'graveyard', controller: 'you', subtypes: ['aura'] }] }) },
     // Danitha, Benalia's Hope: "put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to Danitha" (putAttachedToSelf)
     { re: /^Put an Aura or Equipment card from your hand or graveyard onto the battlefield attached to (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'putAttachedToSelf', from: ['hand', 'graveyard'], words: ['aura', 'equipment'] }) },
@@ -10111,6 +10121,8 @@
     }
     const types = [];
     if (/\battacking or blocking\b/i.test(rest)) { spec.inCombat = true; rest = rest.replace(/\battacking or blocking\b/i, ''); }
+    // Tetsuo Umezawa: "target tapped or blocking creature" — either will do (tappedOrBlocking)
+    if (/\btapped or blocking\b/i.test(rest)) { spec.tappedOrBlocking = true; rest = rest.replace(/\btapped or blocking\b/i, ''); }
     for (const w of rest.split(/[\s,]+/).filter(Boolean)) {
       const lw = w.toLowerCase();
       const bare = lw.replace(/s$/, '');
@@ -10313,6 +10325,7 @@
     if (spec.uniqueName && ctx && ctx.sharesName && ctx.sharesName(obj)) return false;
     if (spec.blocking && !(obj.blocking || []).length) return false;
     if (spec.inCombat && !obj.attacking && !(obj.blocking || []).length) return false;
+    if (spec.tappedOrBlocking && !obj.tapped && !(obj.blocking || []).length) return false;
     if (spec.tapped != null && !!obj.tapped !== spec.tapped) return false;
     if (spec.damagedThisTurn && !obj.damagedThisTurn) return false;
     if (spec.enteredThisTurn && !(ctx && obj.entered === ctx.turn)) return false;
@@ -11898,6 +11911,14 @@
     // Blitzwing, Adaptive Assailant: "choose flying or indestructible at random. Blitzwing gains that ability until end of turn." (keywordRandom)
     { re: /^choose ([a-z]+(?: [a-z]+)?) or ([a-z]+(?: [a-z]+)?) at random\. (?:CARDNAME|It|This creature) gains that ability until end of turn\.?$/i,
       make: (m) => [{ op: 'grantKeyword', keywords: [], keywordRandom: [m[1], m[2]].map(k => k.charAt(0).toUpperCase() + k.slice(1).toLowerCase()), duration: 'eot', targets: null, scope: 'self' }] },
+    /* Gabriel Angelfire: "choose flying, first strike, trample, or rampage 3. Gabriel Angelfire gains that ability until
+       your next upkeep." — asked as it resolves (keywordChoice), gone as that upkeep begins (nextUpkeep) */
+    { re: /^choose ((?:[a-z]+(?: [a-z]+)?(?: \d+)?, )+)or ([a-z]+(?: [a-z]+)?(?: \d+)?)\. CARDNAME gains that ability until (end of turn|your next upkeep)\.?$/i,
+      make: (m) => {
+        const kws = m[1].split(', ').filter(Boolean).concat(m[2]).map(k => k.replace(/\b\w/g, c => c.toUpperCase()));
+        return kws.every(k => (/\d/.test(k) ? grantableText(k) : kwKnown(k))) ? [{ op: 'grantKeyword', keywords: [], keywordChoice: kws,
+          duration: /upkeep/i.test(m[3]) ? 'nextUpkeep' : 'eot', targets: null, scope: 'self' }] : null;
+      } },
     /* The Cyber-Controller: "Put all creature cards milled this way onto the battlefield face down under your control.
        They're 2/2 Cyberman artifact creatures." — every one, whoever's (all, faceDownAs) */
     { re: /^Each opponent mills (X|\w+) cards\. Put all ([a-z]+) cards milled this way onto the battlefield face down under your control\. They'?re 2\/2 ([A-Z][a-z]+) artifact creatures\.?$/i,
@@ -14984,6 +15005,8 @@
     [/^(?:this creature|CARDNAME) is attacking$/i, () => ({ kind: 'selfAttacking' })],
     // what the permanent itself is: monstrous, equipped, enchanted, and its counters
     [/^(?:this creature|CARDNAME) is (monstrous|equipped|enchanted)$/i, (m) => ({ kind: 'selfIs', what: m[1].toLowerCase() })],
+    // Hakim, Loreweaver: "only if Hakim isn't enchanted"
+    [/^(?:this creature|CARDNAME) (?:isn'?t|is not) (equipped|enchanted)$/i, (m) => ({ kind: 'not', cond: { kind: 'selfIs', what: m[1].toLowerCase() } })],
     [/^it'?s not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
     // (The Notary Hobbits: "if they're not a token" — a card named as many)
     [/^they'?re not a token$/i, () => ({ kind: 'selfIs', what: 'nontoken' })],
@@ -15733,8 +15756,9 @@
     if ((m = p.match(/^(?:this creature|CARDNAME|this permanent|this artifact|this land|this enchantment) or (another .+)$/i))) { f.selfOk = true; p = m[1]; }
     // Long Feng, Grand Secretariat: "another creature you control or a land you control" — one or the other of yours
     if ((m = p.match(/^(another|an?) ([a-z]+) you control or an? ([a-z]+) you control$/i))) p = m[1] + ' ' + m[2] + ' or ' + m[3] + ' you control';
-    /* Kutzil: "creatures you control each with power greater than its base power" */
-    if (/ each with power greater than its base power$/i.test(p)) { f.pumped = true; p = p.replace(/ each with power greater than its base power$/i, ''); }
+    /* Kutzil: "creatures you control each with power greater than its base power"
+       (Ms. Marvel, Elastic Ally: "a creature you control with power greater than its base power") */
+    if (/ (?:each )?with power greater than its base power$/i.test(p)) { f.pumped = true; p = p.replace(/ (?:each )?with power greater than its base power$/i, ''); }
     if (/^another /i.test(p)) { f.other = true; p = p.replace(/^another /i, ''); }
     else if (/^one or more other /i.test(p)) { f.other = true; f.batch = true; p = p.replace(/^one or more other /i, ''); }
     else if (/^one or more /i.test(p)) { f.batch = true; p = p.replace(/^one or more /i, ''); }
@@ -22499,6 +22523,8 @@
       // Suq'Ata Firewalker: "can't be the target of red spells or abilities from red sources" — anyone's
       { re: /^(?:CARDNAME|This creature) can'?t be the target of (white|blue|black|red|green) spells or abilities from (white|blue|black|red|green) sources\.?$/i,
         make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', q: [m[1].toLowerCase()] } : null), auto: true },
+      // Tetsuo Umezawa, Bartel Runeaxe: "can't be the target of Aura spells" (auraSpells)
+      { re: /^(?:CARDNAME|This creature) can'?t be the target of Aura spells\.?$/i, eff: { op: 'untargetableBy', auraSpells: true }, auto: true },
       // Thrun, Breaker of Silence: "can't be the target of nongreen spells your opponents control or abilities from nongreen sources your opponents control" (nonColor, opponents)
       { re: /^(?:CARDNAME|This creature) can'?t be the target of non(white|blue|black|red|green) spells your opponents control or abilities from non(white|blue|black|red|green) sources your opponents control\.?$/i,
         make: (m) => (m[1].toLowerCase() === m[2].toLowerCase() ? { op: 'untargetableBy', nonColor: m[1].toLowerCase(), opponents: true } : null), auto: true },

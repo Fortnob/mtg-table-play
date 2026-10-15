@@ -1055,6 +1055,7 @@
       if (this.over) return;
       this.holdFor = null;          // holding priority lasts for one step only
       if (this.phase && this.phase.id === 'combat' && this.step === 'endCombat') this._endCombat();
+      if (this.step === 'upkeep') this._expireAtUpkeep(true);
       // clear mana pools between steps and phases (CR 500.4)
       for (const p of this.players) {
         /* …unless something said the mana keeps until combat is over. */
@@ -1152,6 +1153,19 @@
       this._nextTurn();
     }
 
+    /* Effects that last until a player's next upkeep, set in an earlier turn: Gabriel Angelfire's "until your next
+       upkeep" ends as it begins (untilUpkeepOf), Halfdane's "until the end of your next upkeep" as it ends (untilUpkeepEndOf). */
+    _expireAtUpkeep(end) {
+      const ap = this.activePlayer && this.activePlayer.id;
+      const key = end ? 'untilUpkeepEndOf' : 'untilUpkeepOf';
+      for (const o of this.battlefield) {
+        if (!(o.effects || []).some(e => e[key] === ap && e.setTurn < this.turn)) continue;
+        o.effects = o.effects.filter(e => !(e[key] === ap && e.setTurn < this.turn));
+        o._chr = null;
+        this.bumpBoard();
+      }
+    }
+
     _enterStep() {
       const step = this.step;
       this._expireFullControl();
@@ -1160,6 +1174,7 @@
       switch (step) {
         case 'untap': this._untapStep(); return;                // no priority
         case 'upkeep':
+          this._expireAtUpkeep(false);
           this._cumulativeUpkeep();
           this._tickSuspended(this.activePlayer.id);
           this._tickRefine(this.activePlayer.id);
@@ -3771,6 +3786,8 @@
     _untargetableHit(o, source, controllerId) {
       const e = o && source && this._staticOp(o, 'untargetableBy');
       if (!e) return false;
+      // Tetsuo Umezawa: "can't be the target of Aura spells" — an Aura not yet on the battlefield (auraSpells)
+      if (e.auraSpells) return source.zone !== 'battlefield' && !!(source.analysis() || {}).isAura;
       if (e.nonColor) {
         const who = controllerId != null ? controllerId : source.controller;
         if (e.opponents && (who == null || who === o.controller)) return false;
@@ -21992,6 +22009,20 @@
           // "That token gains haste." with no end to it is for good
           // Thancred Waters: "for as long as you control Thancred Waters" (whileControl)
           if (e.duration === 'whileControl' && !(src && src.zone === 'battlefield' && src.controller === ctx.controller)) break;
+          /* Gabriel Angelfire: "gains that ability until your next upkeep" (nextUpkeep: gone as that upkeep begins);
+             "rampage 3" is a triggered keyword, so it is handed over as its words (grantText) */
+          if (e.duration === 'nextUpkeep') {
+            const upto = { until: null, untilUpkeepOf: ctx.controller, setTurn: this.turn };
+            const trig = kws.filter(k => /^(?:bushido|rampage|afflict) \d+$/i.test(k));
+            applyToScope(e, (o) => {
+              if (kws.length > trig.length) o.effects.push(Object.assign({ keywords: kws.filter(k => !trig.includes(k)) }, upto));
+              for (const k of trig) o.effects.push(Object.assign({ grantText: k }, upto));
+              o._chr = null;
+            });
+            this.logEvent('keyword', `${me.name} chooses ${kws.join(', ').toLowerCase()}.`);
+            this.bumpBoard();
+            break;
+          }
           applyToScope(e, (o) => o.effects.push(e.duration === 'nextTurn'
             ? { keywords: kws, until: null, untilTurnOf: ctx.controller }
             : e.duration === 'whileControl' ? { keywords: kws, until: null, whileFrom: src.id, whileControl: ctx.controller }
@@ -24596,6 +24627,19 @@
            or graveyard onto the battlefield attached to it (putAttachedToSelf) */
         case 'putAttachedToSelf': {
           const host = src && src.zone === 'battlefield' ? src : null;
+          /* Hakim, Loreweaver: "Return target Aura card from your graveyard to the battlefield attached to Hakim." — the
+             target, which stays where it is if it couldn't enchant him (CR 303.4f) */
+          if ((e.targets || []).length) {
+            const c = firstObj();
+            if (!c || c.zone !== 'graveyard' || !host || !this._attachLegal(c, c.analysis() || {}, host)) break;
+            this.moveObject(c, 'battlefield', { controller: ctx.controller });
+            if (c.zone !== 'battlefield') break;
+            c.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(x => x !== c.id).concat(c.id);
+            this.logEvent('attach', `${c.name} enters attached to ${host.name}.`);
+            this.bumpBoard();
+            break;
+          }
           const pool = [];
           for (const zn of (e.from || ['hand'])) for (const c of (this.zones[ctx.controller][zn] || [])) {
             const ca = c.analysis() || {};
@@ -27707,7 +27751,9 @@
         }
         // Turn to Slag: the Equipment on the creature it just hit
         case 'destroyAttachedTo': {
-          const x = firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          // (Hakim, Loreweaver: "attached to Hakim" — self)
+          const x = e.self ? (src && src.zone === 'battlefield' ? src : null) : firstObj() || (this._lastAffected && this.obj(this._lastAffected.id));
+          if (e.self && !x) break;
           const ids = x ? (x.attachments || []).slice() : (this._lastAffected && this._lastAffected.attachments) || [];
           for (const id of ids) {
             const at = this.obj(id);
