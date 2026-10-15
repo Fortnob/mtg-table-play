@@ -57512,4 +57512,134 @@ module.exports = (test) => {
     t.eq(T.life('A'), la - 3, 'nothing more happens');
     t.no(T.asked.slice(n1).some(ch => ch.type === 'mode'), 'no modes left');
   });
+  test('Commanders: Okoye, Mighty and Adored — you become the monarch; a counter at combat, and double strike and trample at the monarch', (mk, t) => {
+    t.auto('Okoye, Mighty and Adored');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const ok = T.bf('A', 'Okoye, Mighty and Adored', { etb: true });
+    T.resolve();
+    t.ok(T.player('A').monarch, 'Okoye: A becomes the monarch');
+    const bears = T.bf('A', 'Grizzly Bears');
+    ok.summoningSick = false; ok.entered = g.turn - 1;
+    g.setMonarch('B', 'test');
+    t.ok(T.player('B').monarch, 'Okoye: B is the monarch now');
+    // the Bears at C, who isn't the monarch: a counter, nothing more
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: bears.id }] }));
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'C' }, { attackerId: ok.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(Number(bears.counters['+1/+1']) || 0, 1, 'Okoye: a +1/+1 counter on the Bears');
+    t.no(g.hasKw(bears, 'Double Strike'), 'Okoye: the Bears attacked C — no double strike');
+    t.no(g.hasKw(ok, 'Double Strike'), 'Okoye: Okoye attacked the monarch, but it wasn\'t the creature chosen');
+    // next turn: the Bears at the monarch
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    if (!T.player('B').monarch) g.setMonarch('B', 'test');
+    T.answer('pickTarget', (ch) => ({ targets: [{ kind: 'object', id: bears.id }] }));
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(Number(bears.counters['+1/+1']) || 0, 2, 'Okoye: another counter');
+    t.ok(g.hasKw(bears, 'Double Strike') && g.hasKw(bears, 'Trample'), 'Okoye: the Bears attacked the monarch — double strike and trample');
+    T.nextTurn('B');
+    t.no(g.hasKw(bears, 'Double Strike'), 'Okoye: until end of turn');
+  });
+  test('Commanders: Sensei Golden-Tail — a training counter; the creature gains bushido 1 and becomes a Samurai, for good', (mk, t) => {
+    t.auto('Sensei Golden-Tail');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const sg = T.bf('A', 'Sensei Golden-Tail');
+    const bears = T.bf('A', 'Grizzly Bears');
+    T.mana('A', 'W1');
+    T.activate('A', sg, 0, { targets: [bears] });
+    t.eq(Number(bears.counters.training) || 0, 1, 'Sensei: a training counter on the Bears');
+    t.ok(g._hasCreatureType(bears, 'Samurai') && g._hasCreatureType(bears, 'Bear'), 'Sensei: the Bears are Samurai Bears');
+    // bushido 1 on the Bears: blocking, +1/+1 until end of turn — still there turns later
+    T.nextTurn('B'); T.nextTurn('A'); T.nextTurn('B');
+    t.ok(g._hasCreatureType(bears, 'Samurai'), 'Sensei: still a Samurai');
+    const elves = T.bf('B', 'Llanowar Elves');
+    T.answer('declareAttackers', () => [{ attackerId: elves.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bears.id, attackerIds: [elves.id] }]);
+    T.toMain('B', 'declareBlockers');
+    T.resolve();
+    t.eq(g.powerOf(bears), 3, 'Sensei: bushido 1 — the Bears block as a 3/3');
+    // only as a sorcery
+    T.toMain('B', 'end');
+    T.mana('A', 'W1');
+    t.no(g.activateAbility('A', sg.id, 0, { auto: true, targets: [T.tgt(bears)] }), 'Sensei: not on an opponent\'s turn');
+  });
+  test('Commanders: Lucius the Eternal — dies: exiled, back when the creature chosen leaves the battlefield', (mk, t) => {
+    t.auto('Lucius the Eternal');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const lu = T.bf('A', 'Lucius the Eternal');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const elves = T.bf('B', 'Llanowar Elves');
+    T.bf('A', 'Savannah Lions');
+    let q = null;
+    T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: bears.id }] }; });
+    g.moveObject(lu, 'graveyard');
+    T.resolve();
+    t.ok(q && q.options[0].length === 2 && q.options[0].every(o => o.id !== lu.id), 'Lucius: a creature an opponent controls — the two of B\'s');
+    t.zone(lu, 'exile', 'Lucius: exiled');
+    // another creature leaving: nothing
+    g.moveObject(elves, 'graveyard');
+    T.resolve();
+    t.zone(lu, 'exile', 'Lucius: the Elves left — still exiled');
+    // the Bears bounced: Lucius back, under its owner's control
+    g.moveObject(bears, 'hand');
+    T.resolve();
+    t.zone(lu, 'battlefield', 'Lucius: the Bears left — back');
+    t.eq(lu.controller, 'A', 'Lucius: under its owner\'s control');
+    // dies again with the Bears back on the battlefield as a new object; Lucius taken out of exile first: never back
+    const bears2 = T.bf('B', 'Grizzly Bears');
+    g.moveObject(lu, 'graveyard');
+    T.resolve();
+    t.zone(lu, 'exile', 'Lucius: exiled again');
+    g.moveObject(lu, 'graveyard');
+    g.moveObject(bears2, 'graveyard');
+    T.resolve();
+    t.zone(lu, 'graveyard', 'Lucius: no longer the card exiled — it stays in the graveyard');
+    t.eq(g.delayedTriggers.length, 0, 'Lucius: nothing left waiting');
+  });
+  test('Commanders: Crimson Cowl, Master of Evil — nontoken Villains attack a player: a 2/1 Villain with menace, once for each such player', (mk, t) => {
+    t.auto('Crimson Cowl, Master of Evil');
+    const T = mk({ players: ['A', 'B', 'C'], library: Array(20).fill('Island') });
+    const g = T.g;
+    const cc = T.bf('A', 'Crimson Cowl, Master of Evil');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const villains = () => T.bfOf('A').filter(o => o.isToken && /Villain/.test(o.name));
+    // the Cowl (a Villain) at B, the Bears at C: one token, for B only
+    T.answer('declareAttackers', () => [{ attackerId: cc.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'C' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(villains().length, 1, 'Crimson Cowl: one Villain token — the Bears aren\'t a Villain');
+    const tok = villains()[0];
+    t.eq(g.powerOf(tok) + '/' + g.toughnessOf(tok), '2/1', 'Crimson Cowl: a 2/1');
+    t.ok(g.hasKw(tok, 'menace') || g.hasKw(tok, 'Menace'), 'Crimson Cowl: with menace');
+    // only the token Villain attacks: nothing
+    T.nextTurn('B'); T.nextTurn('C'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: tok.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(villains().length, 1, 'Crimson Cowl: a token Villain attacking — no token');
+  });
+  test('Commanders: Vision, Spectral Synthezoid — once during each of your turns, a noncreature or Robot spell from hand for free', (mk, t) => {
+    t.auto('Vision, Spectral Synthezoid');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Vision, Spectral Synthezoid');
+    const div = T.hand('A', 'Divination'), droid = T.hand('A', 'Clockwork Droid'), bears = T.hand('A', 'Grizzly Bears');
+    const isl = T.hand('A', 'Island');
+    const free = (o) => g.altUsesFor('A', o.id).find(u => u.via === 'freeHandOnce');
+    t.ok(free(div) && free(droid), 'Vision: offered for a noncreature spell and a Robot');
+    t.no(free(bears), 'Vision: not for a creature that isn\'t a Robot');
+    t.no(free(isl), 'Vision: not for a land');
+    T.cast('A', droid, { via: 'freeHandOnce' });
+    t.zone(droid, 'battlefield', 'Vision: the Droid cast for nothing');
+    t.no(free(div), 'Vision: once each turn');
+    T.nextTurn('B');
+    t.no(free(div), 'Vision: not on an opponent\'s turn');
+    T.nextTurn('A');
+    t.ok(free(div), 'Vision: again on your next turn');
+  });
 };

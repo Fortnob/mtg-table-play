@@ -17447,7 +17447,8 @@
              opponent" — among those at that one (attackersOfTypeHere) */
           // Landroval, Horizon Witness: "two or more creatures you control attack a player" — that many at that one (attackersHereMin)
           if (ab.attackersHereMin && (data.attackers || []).length < ab.attackersHereMin) continue;
-          if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
+          // (Crimson Cowl, Master of Evil: "nontoken Villains" — attackersHereNontoken)
+          if (ab.attackersOfTypeHere && !(data.attackers || []).some(x => x && typeof x === 'object' && !(ab.attackersHereNontoken && x.isToken) && this._hasCreatureType(x, ab.attackersOfTypeHere))) continue;
           // Mila, Crafty Companion: an attack on at least one of this player's planeswalkers (attacksYourPlaneswalkers)
           if (ab.attacksYourPlaneswalkers && !(data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => {
             const d = x && x.attacking && this.obj(x.attacking);
@@ -17470,6 +17471,8 @@
           if (ab.attacksYourOpp) { const dp = data.object && this._defenderOf(data.object); if (!dp || !this.opponentsOf(o.controller).some(q => q.id === dp.id)) continue; }
           // Maeve, Insidious Singer: "attacks one of your opponents" — the player, not a planeswalker of theirs (attacksYourOppPlayer)
           if (ab.attacksYourOppPlayer && !(data.defenderId && this.opponentsOf(o.controller).some(q => q.id === data.defenderId))) continue;
+          // Okoye, Mighty and Adored: "attacks the monarch" — the player who is the monarch (attacksMonarch)
+          if (ab.attacksMonarch && !(data.defenderId && (this.player(data.defenderId) || {}).monarch)) continue;
           // Zurzoth, Chaos Rider: "attack one or more players" — a Devil of yours at a player, not only at a planeswalker
           if (ab.attackersOfTypeAtPlayer && !this._playersAttackedByType(o.controller, ab.attackersOfType).length) continue;
           // Hermes: "with one or more Birds"
@@ -25979,6 +25982,18 @@
             x.counters = x.counters || {}; x.counters[e.counter] = (Number(x.counters[e.counter]) || 0) + 1; this.bumpBoard();
             this.logEvent('exile', `${x.name} is exiled with a ${e.counter} counter on it.`);
           } else this.logEvent('exile', `${x.name} is exiled.`);
+          break;
+        }
+        /* Lucius the Eternal: "When that creature leaves the battlefield, return this card from exile to the battlefield
+           under its owner's control." — that creature as it is now; only while this is the same card in exile */
+        case 'backWhenTargetLeaves': {
+          const w = firstObj();
+          const x = this._lastExiled && this.obj(this._lastExiled);
+          if (!w || w.zone !== 'battlefield' || !x || x.zone !== 'exile') break;
+          this.scheduleDelayed({ event: 'ltb', once: true, controller: x.owner, objId: x.id, whileExiled: x.exileStamp,
+            watchObj: w.id, watchLeaving: true, watchLeftSeq: w._leftSeq || null,
+            name: `Return ${x.name} from exile (${w.name} left the battlefield)`,
+            effects: [{ op: 'returnSelfFromGrave', fromZone: 'exile', owner: true }] });
           break;
         }
         /* Mari, the Killing Quill: "you may remove a hit counter from a card that player owns in exile. If you do, draw

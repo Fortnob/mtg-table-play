@@ -1975,6 +1975,12 @@
         return grantableText(text) ? { op: 'grantAbility', ability: text, duration: 'permanent', scope: 'self' } : null; } },
     // Olivia, Crimson Bride: "It gains '…'" — the creature the sentence before was about, for good
     { re: /^(?:It|That creature|That permanent) gains "([^"]+)"\.?$/, make: (m) => (grantableText(m[1]) ? { op: 'grantAbility', ability: m[1], duration: 'permanent', scope: 'lastTarget' } : null) },
+    /* Sensei Golden-Tail: "That creature gains bushido 1 and becomes a Samurai in addition to its other creature types." —
+       for good: bushido as an ability of its own (its trigger), the type added */
+    { re: /^That creature gains (bushido|rampage|afflict) (\d+) and becomes an? ([A-Z][a-z]+) in addition to its other creature types\.?$/,
+      make: (m) => { const kw = U.titleCase(m[1]) + ' ' + m[2];
+        return grantableText(kw) ? { op: 'sequence', list: [{ op: 'grantAbility', ability: kw, duration: 'permanent', scope: 'lastTarget' },
+          { op: 'addTypes', subtypes: [m[3]], scope: 'lastTarget' }] } : null; } },
     // Symbiote Spider-Man: "It gains this card's other abilities." — the card's other lines, read as it resolves (otherOfSource)
     { re: /^It gains this card'?s other abilities\.?$/i, make: () => ({ op: 'grantAbility', otherOfSource: true, duration: 'permanent', scope: 'lastTarget' }) },
     // Symbiote Spider-Man: "Put one of them into your hand and the rest into your graveyard." — after "look at that many"
@@ -4773,6 +4779,13 @@
       make: (m) => ({ op: 'bounce', withYourAuras: true, targets: [targetSpec(m[1])] }) },
     // (a dies trigger's "exile it", as the trigger reads it)
     { re: /^Exile the card that died\.?$/i, make: () => ({ op: 'exileTriggerCard' }) },
+    /* Lucius the Eternal: "When Lucius the Eternal dies, exile it and choose target creature an opponent controls. When
+       that creature leaves the battlefield, return this card from exile to the battlefield under its owner's control." —
+       the creature watched as it is now, the card back only while it is that card in exile (backWhenTargetLeaves) */
+    { re: /^Exile the card that died and choose (target creature an opponent controls)\.?$/i,
+      make: (m) => [{ op: 'exileTriggerCard' }, { op: 'noop', targets: [targetSpec(m[1])] }] },
+    { re: /^When that creature leaves the battlefield, return this card from exile to the battlefield under its owner'?s control\.?$/i,
+      make: () => ({ op: 'backWhenTargetLeaves' }) },
     // Mari, the Killing Quill: "exile it with a hit counter on it" — the card that died, a counter on it in exile
     { re: /^Exile the card that died with an? ([a-z]+) counter on it\.?$/i, make: (m) => ({ op: 'exileTriggerCard', counter: m[1].toLowerCase() }) },
     // Grolnok, the Omnivore: "Whenever a permanent card is put into your graveyard from your library, exile it with a croak counter on it."
@@ -7731,6 +7744,14 @@
         abilities: [{ kind: 'triggered', event: 'permAttacks', self: false, optional: false, auto: true, condition: null,
           objectIdIs: '$tgt', attacksYourOppPlayer: true, text: 'Whenever the chosen creature attacks one of your opponents, you draw a card.',
           effects: [{ op: 'draw', n: 1, who: 'you' }] }] }) },
+    /* Okoye, Mighty and Adored: "put a +1/+1 counter on target creature. Whenever that creature attacks the monarch this
+       turn, it gains double strike and trample until end of turn." — as Maeve's (attacksMonarch) */
+    { re: /^Whenever that creature attacks the monarch this turn, it gains double strike and trample until end of turn\.?$/i,
+      make: () => ({ op: 'getEmblem', thisTurn: true, name: 'Until end of turn', linkTarget: true,
+        emblemText: 'Whenever the chosen creature attacks the monarch this turn, it gains double strike and trample until end of turn.',
+        abilities: [{ kind: 'triggered', event: 'permAttacks', self: false, optional: false, auto: true, condition: null,
+          objectIdIs: '$tgt', attacksMonarch: true, text: 'Whenever the chosen creature attacks the monarch, it gains double strike and trample until end of turn.',
+          effects: [{ op: 'grantKeyword', keywords: ['Double Strike', 'Trample'], duration: 'eot', scope: 'triggerObject' }] }] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // (Kefnet's Monument: "target creature an opponent controls")
@@ -14963,6 +14984,9 @@
        Gornog, the Red Reaper: "target creature that player controls" — the one attacked (attackersOfTypeHere) */
     { re: /^Whenever one or more ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'anyPlayerAttacksPlayer',
       extraOf: (m) => ({ attackerIsYou: true, attackersOfTypeHere: singularType(m[1]) }) },
+    // Crimson Cowl, Master of Evil: "Whenever one or more nontoken Villains you control attack a player" (attackersHereNontoken)
+    { re: /^Whenever one or more nontoken ([A-Z][a-z]+?)s? you control attack a player,? /, event: 'anyPlayerAttacksPlayer',
+      extraOf: (m) => ({ attackerIsYou: true, attackersOfTypeHere: singularType(m[1]), attackersHereNontoken: true }) },
     // Landroval, Horizon Witness: "Whenever two or more creatures you control attack a player" — at that one (attackersHereMin)
     { re: /^Whenever (two|three|four|five) or more creatures you control attack a player,? /i, event: 'anyPlayerAttacksPlayer',
       extraOf: (m) => ({ attackerIsYou: true, attackersHereMin: num(m[1]) }) },
@@ -20558,7 +20582,8 @@
       { re: /^Sagas you control have read ahead\.?$/i, eff: { op: 'grantReadAhead' }, auto: true },
       { re: /^You may cast spells from your hand without paying their mana costs\.?$/i, eff: { op: 'freeFromHand' }, auto: true },
       // Zaffai and the Tempests: "Once during each of your turns, you may cast an instant or sorcery spell from your hand without paying its mana cost."
-      { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment) spell from your hand without paying its mana cost\.?$/i,
+      // (Vision, Spectral Synthezoid: "a noncreature or Robot spell")
+      { re: /^Once during each of your turns, you may cast an? (instant or sorcery|creature|noncreature|artifact|enchantment|noncreature or [A-Z][a-z]+) spell from your hand without paying its mana cost\.?$/i,
         make: (m) => ({ op: 'freeFromHandOnce', filter: m[1].toLowerCase() }), auto: true },
       // Maralen of the Mornsong: "Players can't draw cards." (noDraws)
       { re: /^Players can'?t draw cards\.?$/i, eff: { op: 'noDraws', who: 'each' }, auto: true },
