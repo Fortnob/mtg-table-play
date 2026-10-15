@@ -3144,7 +3144,8 @@
       // (Anrakyr the Traveller: "you may cast an artifact spell from your hand or graveyard …" — the same: handOrGraveyard)
       // (Jeleva, Nephalia's Scourge: "you may cast an instant or sorcery spell from among cards exiled with Jeleva" — pickOne)
       // (Lazav, Wearer of Faces: "you may have Lazav become a copy of a creature card exiled with it" — becomeExiledWithCopy)
-      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
+      // (Feather, Radiant Arbiter: "you may choose any number of other creatures … and pay {2} for each" — copySpellEachOther payEach)
+      const ownPick = item.optional && !item._asked && only && (only.op === 'permanentFromHand' || only.op === 'becomeExiledWithCopy' || (only.op === 'copySpellEachOther' && !!only.payEach) || (only.op === 'castFree' && (only.from === 'handOrGraveyard' || only.from === 'triggerObj' || only.pickOne))) && !once;
       const effects = gone || taken ? [] : ownPick ? [Object.assign({}, only, { optional: true })] : item.optional && !item._asked
         ? [Object.assign({ op: 'may', prompt: whole(item.abilityText || item.name, 100), then: item.effects || [], optionalTrigger: true }, once ? { onceMark: once } : {})]
         : (item.effects || []);
@@ -4197,6 +4198,12 @@
           const ch = this.characteristics(x) || {};
           for (const t of ((x.analysis() || {}).types || []).concat(ch.addTypes || [], ch.isCreature ? ['Creature'] : [])) seen.add(String(t).toLowerCase().replace(/^tribal$/, 'kindred'));
         }
+        return seen.size * mult;
+      }
+      // Tam, the Possibility: "the number of planeswalker types among planeswalkers you control" (subtypesAmongScope)
+      if (v.subtypesAmongScope) {
+        const seen = new Set();
+        for (const x of this._scopeList(v.subtypesAmongScope, pid, src, null, inLayers)) for (const t of (this.characteristics(x) || {}).subtypes || (x.analysis() || {}).subtypes || []) seen.add(String(t).toLowerCase());
         return seen.size * mult;
       }
       // Sisay, Weatherlight Captain: "each color among other legendary permanents you control" (colorsAmongScope)
@@ -5434,12 +5441,16 @@
         const k = ab.keyword.toLowerCase();
         const arg = ab.arg || '';
         if (o.zone === 'hand') {
-          if (k === 'cycling' && arg) out.push({ kind: 'cycle', cost: arg, label: 'Cycle ' + arg });
+          /* Gavi, Nest Warden: "You may pay {0} rather than pay the cycling cost of the first card you cycle each turn" —
+             {0}, never the worse price (cycledTurn) */
+          const cyc = (k === 'cycling' || /cycling$/.test(k)) && arg && this.player(playerId) && this.player(playerId).cycledTurn !== this.turn &&
+            this._anyStaticOf(playerId, 'freeFirstCycle') ? '{0}' : arg;
+          if (k === 'cycling' && arg) out.push({ kind: 'cycle', cost: cyc, label: 'Cycle ' + cyc });
           const typed = /^(.+?)cycling$/.exec(k);
           if (typed && arg) {
-            out.push({ kind: 'cycle', cost: arg,
+            out.push({ kind: 'cycle', cost: cyc,
               fetch: /^basic ?land$/.test(typed[1]) ? 'basic land' : typed[1],
-              label: ab.keyword + ' ' + arg });
+              label: ab.keyword + ' ' + cyc });
           }
         }
         if (o.zone === 'graveyard' && Object.prototype.hasOwnProperty.call(GRAVE, k) && arg) {
@@ -6432,7 +6443,7 @@
       this.moveObject(o, 'graveyard');
       this.logEvent('cycle', `${this.player(playerId).name} cycles ${o.name}.`);
       // Yidaro, Wandering Monster: "If you've cycled a card named Yidaro … four or more times this game" — by name (cycledNames)
-      { const cp = this.player(playerId); cp.cycledNames = Object.assign({}, cp.cycledNames); cp.cycledNames[o.name] = (cp.cycledNames[o.name] || 0) + 1; }
+      { const cp = this.player(playerId); cp.cycledNames = Object.assign({}, cp.cycledNames); cp.cycledNames[o.name] = (cp.cycledNames[o.name] || 0) + 1; cp.cycledTurn = this.turn; }
       this._fire('youCycle', playerId, { object: o, source: o });
       this._fire('anyCycle', null, { object: o, playerId });
       // cycling is discarding, for "whenever you discard a card"
@@ -14527,6 +14538,14 @@
           const h = x && x._hadToAttack;
           return !!h && h.turn === this.turn && h.combat === (this.combatsThisTurn || 1);
         }
+        // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the one that died as it last was, against him now
+        case 'triggerPowerOverSelf': {
+          const tdP = (ctx && ctx.triggerData) || {}; const x = tdP.objectId && this.obj(tdP.objectId);
+          const self = ctx && ctx.obj;
+          if (!x || !self || self.zone !== 'battlefield') return false;
+          const pw = x.zone !== 'battlefield' && x._lastPower != null ? x._lastPower : this.powerOf(x);
+          return pw > this.powerOf(self);
+        }
         // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — as it last was, if it has died since
         case 'triggerObjExcess': {
           const tdX = (ctx && ctx.triggerData) || {}; const x = tdX.objectId && this.obj(tdX.objectId);
@@ -19081,6 +19100,13 @@
           const dv = v.div || 2;
           return v.up ? Math.ceil(life / dv) : Math.floor(life / dv);
         }
+        // Drizzt Do'Urden: "equal to the difference" — the power of the one that died, as it last was, over his own now
+        if (v && typeof v === 'object' && v.triggerPowerOverSelf) {
+          const tdP = ctx.triggerData || {}; const x = tdP.objectId && this.obj(tdP.objectId);
+          if (!x || !src || src.zone !== 'battlefield') return 0;
+          const pw = x.zone !== 'battlefield' && x._lastPower != null ? x._lastPower : this.powerOf(x);
+          return Math.max(0, pw - this.powerOf(src));
+        }
         /* "that creature's power": the permanent the trigger is about, as it
            is now or as it last was */
         if (v && typeof v === 'object' && v.ofTrigger) {
@@ -19245,7 +19271,7 @@
         if (v && typeof v === 'object' && (v.sum || v.attachedOf)) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
-        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
+        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
@@ -21774,9 +21800,23 @@
             const slots = have.map((t, i) => (t.kind === 'object' && t.id === was ? i : -1)).filter(i => i >= 0);
             if (e.toSelf && this._uncopyable(item)) { this.logEvent('rules', `${item.name} can't be copied.`); break; }
             const fits = (c) => slots.length && slots.every(i => specs[i] && this._legalTargetsFor(specs[i], ctx.controller, item.objId).some(x => x.kind === 'object' && x.id === c.id));
-            const others = e.toSelf ? [src].filter(c => c && c.zone === 'battlefield' && !c.phasedOut && c.id !== was && fits(c))
-              : this.battlefield.filter(c => c.controller === ctx.controller && c.id !== src.id && !c.phasedOut &&
+            let others = e.toSelf ? [src].filter(c => c && c.zone === 'battlefield' && !c.phasedOut && c.id !== was && fits(c))
+              // (Feather, Radiant Arbiter: "any number of other creatures that spell could target" — anyone's: anyones)
+              : this.battlefield.filter(c => (e.anyones || c.controller === ctx.controller) && c.id !== src.id && !c.phasedOut &&
                 this._matchesCategory(c, e.what || 'creature') && fits(c));
+            /* Feather, Radiant Arbiter: "choose any number of … and pay {2} for each of those creatures" — as many as can
+               be paid for, chosen and paid at once (payEach) */
+            if (e.payEach && others.length) {
+              const each = Number((String(e.payEach).match(/\d+/) || [0])[0]) || 0;
+              const srcs = this.manaSources(ctx.controller);
+              let cap = 0;
+              for (let k = 1; k <= others.length && this.couldPay(ctx.controller, '{' + each * k + '}', srcs); k++) cap = k;
+              const got = !cap ? null : this._choose({ playerId: ctx.controller, purpose: 'copyForEachPaid', kind: 'objects', items: this._chooseItems(others),
+                min: 0, max: cap, objId: src.id, prompt: `${src.name}: choose any number of other creatures ${item.name} could target and pay ${e.payEach} for each of those creatures. For each of them, copy that spell; the copy targets that creature.` }, 'cfp');
+              if (got === SUSPEND) return SUSPEND;
+              const picks = ((got && got.picks) || []).map(pid => others.find(c => c.id === pid)).filter(Boolean).slice(0, cap);
+              others = picks.length && this.payMana(ctx.controller, '{' + each * picks.length + '}', { auto: true }) ? picks : [];
+            } else if (e.payEach) others = [];
             for (const c of others) {
               const copy = this._copyOnStack(item, ctx.controller);
               copy.targets = have.map((t, i) => (slots.includes(i) ? { kind: 'object', id: c.id } : t));

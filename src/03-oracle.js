@@ -2127,6 +2127,9 @@
     { re: /^Search its controller'?s graveyard, hand, and library for (?:all|any number of) cards with the same name as that (?:spell|card|permanent|land|creature) and exile them\.?$/i,
       make: () => ({ op: 'exileNamedEverywhere' }) },
     { re: /^Then that player shuffles\.?$/i, make: () => ({ op: 'noop' }) },
+    // Drizzt Do'Urden: "put a number of +1/+1 counters on Drizzt equal to the difference" — its power over his (triggerPowerOverSelf)
+    { re: /^[Pp]ut (?:a number of \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+) equal to the difference|X \+1\/\+1 counters on (?:CARDNAME|[A-Z][a-z']+), where X is the difference)\.?$/,
+      make: () => ({ op: 'counters', kind: '+1/+1', scope: 'self', n: { triggerPowerOverSelf: true } }) },
     // Kozilek: "if you have fewer than seven cards in hand, draw cards equal to the difference"
     { re: /^(?:If you have fewer than (\w+) cards in hand, )?draw cards equal to the difference\.?$/i,
       // (with no number of its own, the difference is between that player's hand and yours: Sandstone Oracle)
@@ -2510,6 +2513,9 @@
     // Maddening Cacophony: "each opponent mills half their library, rounded up" — each their own half
     { re: /^Each opponent mills half their library, rounded (down|up)\.?$/i,
       make: (m) => ({ op: 'mill', who: 'opponents', n: { halfLibrary: 'each', up: /up/i.test(m[1]) } }) },
+    // Taniwha: "all lands you control phase out"
+    { re: /^All ((?:nonland )?(?:lands|creatures|artifacts|enchantments|permanents)) you control phase out\.?$/i,
+      make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'phaseOut', scope: sc } : null; } },
     // Galadriel's Dismissal: "each creature target player controls phases out"
     { re: /^Each creature target player controls phases out\.?$/i,
       make: () => ({ op: 'phaseOut', scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player' }] }) },
@@ -8998,6 +9004,9 @@
     // Loot, the Key to Everything: "the number of card types among other nonland permanents you control" (typesAmongScope)
     { const ct = p.match(/^the number of card types among ((?:other )?(?:nonland )?permanents you control)$/i); const sc = ct && scopeOf(ct[1]);
       if (sc) return done({ typesAmongScope: sc, mult: 1 }); }
+    // Tam, the Possibility: "the number of planeswalker types among planeswalkers you control" (subtypesAmongScope)
+    { const pt = p.match(/^the number of planeswalker types among (planeswalkers you control)$/i); const sc = pt && scopeOf(pt[1]);
+      if (sc) return done({ subtypesAmongScope: sc, mult: 1 }); }
     let m;
     const STAT = { power: 'power', toughness: 'toughness', 'mana value': 'mv', 'converted mana cost': 'mv' };
     if ((m = p.match(/^the sacrificed (?:creature|artifact|permanent|land)'s (power|toughness|mana value)$/i)))
@@ -10570,6 +10579,11 @@
        Hammer of Nazahn this way, put it onto the battlefield. Otherwise, put that card into your hand." (namedField) */
     { re: /^Search your library for an Equipment card and reveal it\. If you reveal a card named Hammer of CARDNAME this way, put it onto the battlefield\. Otherwise, put that card into your hand\. Then shuffle\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'equipment', to: 'namedField', fieldNamed: 'Hammer of Nazahn', reveal: true, prompt: 'Search your library for an Equipment card.' }] },
+    /* Feather, Radiant Arbiter: "you may choose any number of other creatures that spell could target and pay {2} for each
+       of those creatures. If you do, for each of those creatures, copy that spell. The copy targets that creature." —
+       anyone's creatures; the pick and the price one question (copySpellEachOther payEach) */
+    { re: /^(?:You may )?choose any number of other creatures that spell could target and pay (\{\d+\}) for each of those creatures\. If you do, for each of those creatures, copy that spell\. The copy targets that creature\.$/i,
+      make: (m) => [{ op: 'copySpellEachOther', what: 'creature', anyones: true, payEach: m[1] }] },
     /* Stonehewer Giant: "Search your library for an Equipment card, put it
        onto the battlefield, attach it to a creature you control, then shuffle." */
     { re: /^Search your library for an? (Equipment|Aura) card, put it onto the battlefield, attach it to a creature you control, then shuffle\.$/i,
@@ -14305,6 +14319,8 @@
     [/^that creature entered (?:the battlefield )?this turn$/i, () => ({ kind: 'triggerObjEntered' })],
     // Maarika, Brutal Gladiator: "if that creature was dealt excess damage this turn" — the one the trigger is about (triggerObjExcess)
     [/^that creature was dealt excess damage this turn$/i, () => ({ kind: 'triggerObjExcess' })],
+    // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the creature that died, as it last was (triggerPowerOverSelf)
+    [/^it had power greater than CARDNAME'?s power$/i, () => ({ kind: 'triggerPowerOverSelf' })],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
     [/^that creature had to attack this combat$/i, () => ({ kind: 'triggerObjHadToAttack' })],
     // Jason Bright, Glowing Prophet: "if its power was different from its base power" — as it last was (powerWasChanged)
@@ -14957,6 +14973,9 @@
       extra: { spellFilter: 'instant or sorcery', targetsYourCreature: true } },
     // Heroic: "Whenever you cast a spell that targets this creature"
     { re: /^Whenever you cast a spell that targets (?:this creature|CARDNAME),? /i, event: 'youCastSpell', extra: { targetsSelf: true } },
+    // Feather, Radiant Arbiter: "Whenever you cast a noncreature spell that targets only Feather"
+    { re: /^Whenever you cast a noncreature spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
+      extra: { spellFilter: 'noncreature', targetsSelf: true, targetsOnlySelf: true } },
     // Zada, Hedron Grinder: "Whenever you cast an instant or sorcery spell that targets only Zada"
     { re: /^Whenever you cast an instant or sorcery spell that targets only (?:this creature|CARDNAME),? /i, event: 'youCastSpell',
       extra: { spellFilter: 'instant or sorcery', targetsSelf: true, targetsOnlySelf: true } },
@@ -20224,6 +20243,8 @@
         make: (m) => ({ op: 'exileGraveForCounters', words: m[1].toLowerCase(), n: /^an?$/i.test(m[2]) ? 1 : num(m[2]) }), auto: true },
       { re: /^((?:Other )?[A-Z][a-z]+s|(?:Other )?creatures) you control have each of the chosen abilities\.?$/,
         make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc && !sc.self ? { op: 'continuous', layer: 6, scope: sc, grantChosen: true } : null; }, auto: true },
+      // Gavi, Nest Warden: "You may pay {0} rather than pay the cycling cost of the first card you cycle each turn." (freeFirstCycle)
+      { re: /^You may pay \{0\} rather than pay the cycling cost of the first card you cycle each turn\.?$/i, eff: { op: 'freeFirstCycle' }, auto: true },
       // Serra's Emissary: "You and creatures you control have protection from the chosen card type."
       { re: /^You and creatures you control have protection from the chosen card type\.?$/i, eff: { op: 'protChosenCardType' }, auto: true },
       // Gor Muldrak, Amphinologist: "You and permanents you control have protection from Salamanders." (protFromSubtype)

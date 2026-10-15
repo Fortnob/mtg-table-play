@@ -56235,4 +56235,114 @@ module.exports = (test) => {
     T.toMain('B');
     t.eq(en.counters['+1/+1'], 2, 'a card from a graveyard: a counter');
   });
+  test('Commanders: Gavi, Nest Warden — the first card you cycle each turn for {0}; your second card drawn each turn: a 2/2 Dinosaur Cat', (mk, t) => {
+    t.auto('Gavi, Nest Warden');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Gavi, Nest Warden');
+    const c1 = T.hand('A', 'Renewed Faith'), c2 = T.hand('A', 'Renewed Faith');
+    const cats = () => g.battlefield.filter(o => o.controller === 'A' && o.isToken && g._hasCreatureType(o, 'Dinosaur') && g._hasCreatureType(o, 'Cat'));
+    t.eq(g.altUsesFor('A', c1.id).find(u => u.kind === 'cycle').cost, '{0}', 'the first cycle: {0}');
+    t.ok(g.cycleCard('A', c1.id, { auto: true }), 'cycled with no mana');
+    T.resolve();
+    t.eq(g.altUsesFor('A', c2.id).find(u => u.kind === 'cycle').cost, '{1}{W}', 'the second: its own cost');
+    t.no(g.cycleCard('A', c2.id, { auto: true }), 'no mana: no second cycle');
+    t.eq(cats().length, 0, 'one card drawn: no token yet');
+    T.mana('A', 'W1');
+    t.ok(g.cycleCard('A', c2.id, { auto: true }), 'cycled for {1}{W}');
+    T.resolve();
+    t.eq(cats().length, 1, 'the second card drawn this turn: a Dinosaur Cat');
+    t.eq(g.powerOf(cats()[0]) + '/' + g.toughnessOf(cats()[0]), '2/2', '2/2');
+    // next turn: free again
+    T.nextTurn('B'); T.nextTurn('A');
+    const c3 = T.hand('A', 'Renewed Faith');
+    t.eq(g.altUsesFor('A', c3.id).find(u => u.kind === 'cycle').cost, '{0}', 'a new turn: {0} again');
+  });
+  test('Commanders: Feather, Radiant Arbiter — a noncreature spell at Feather alone: pay {2} for each other creature it could target, a copy at each', (mk, t) => {
+    t.auto('Feather, Radiant Arbiter');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const fe = T.bf('A', 'Feather, Radiant Arbiter');
+    const giant = T.bf('A', 'Hill Giant'), elves = T.bf('A', 'Llanowar Elves'), bears = T.bf('B', 'Grizzly Bears');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [giant.id, bears.id] }; });
+    T.mana('A', 'G4');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [fe] });
+    t.ok(q && q.min === 0 && q.max === 2, 'up to as many as {4} pays for: ' + (q && q.max));
+    t.eq(q.items.length, 3, 'any other creature it could target, anyone\'s');
+    t.no(T.asked.some(ch => ch.type === 'confirm'), 'one question, not a yes first');
+    t.eq(g.powerOf(fe), 7, 'Feather +3/+3');
+    t.eq(g.powerOf(giant), 6, 'a copy at the Giant');
+    t.eq(g.powerOf(bears), 5, "a copy at B's Bears");
+    t.eq(g.powerOf(elves), 1, 'not chosen: no copy');
+    t.eq(T.player('A').pool.total(), 0, '{2} paid for each');
+    // nothing left to pay with: nothing asked
+    T.nextTurn('B'); T.nextTurn('A');
+    const n0 = T.asked.length;
+    T.mana('A', 'G');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [fe] });
+    t.no(T.asked.slice(n0).some(ch => ch.purpose === 'copyForEachPaid'), 'no mana for a copy: not asked');
+    // a spell at another creature: nothing
+    T.mana('A', 'G4');
+    T.cast('A', T.hand('A', 'Giant Growth'), { targets: [giant] });
+    t.no(T.asked.slice(n0).some(ch => ch.purpose === 'copyForEachPaid'), 'not at Feather: nothing');
+  });
+  test('Commanders: Taniwha — phasing; your upkeep: all lands you control phase out', (mk, t) => {
+    t.auto('Taniwha');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const tw = T.bf('A', 'Taniwha');
+    const i1 = T.bf('A', 'Island'), i2 = T.bf('A', 'Island'), theirs = T.bf('B', 'Island');
+    // your next untap step: Taniwha phases out (phasing), so no trigger
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(tw.phasedOut, 'Taniwha phased out');
+    t.ok(!i1.phasedOut && !i2.phasedOut, 'it was phased out at your upkeep: lands stay');
+    // the next: Taniwha phases in, and at your upkeep your lands phase out
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(tw.phasedOut, 'Taniwha phased in');
+    t.ok(i1.phasedOut && i2.phasedOut, 'your lands phase out');
+    t.no(theirs.phasedOut, "not an opponent's");
+    T.nextTurn('B'); T.nextTurn('A');
+    t.ok(!i1.phasedOut && !i2.phasedOut, 'they phase in at your next untap step');
+  });
+  test("Commanders: Drizzt Do'Urden — enters: Guenhwyvar; a stronger creature dies: counters for the difference", (mk, t) => {
+    t.auto("Drizzt Do'Urden");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const dz = T.put('A', "Drizzt Do'Urden", 'battlefield', { etb: true });
+    T.resolve();
+    const gw = g.battlefield.find(o => o.isToken && o.name === 'Guenhwyvar');
+    t.ok(gw, 'Guenhwyvar');
+    t.eq(g.powerOf(gw) + '/' + g.toughnessOf(gw), '4/1', '4/1');
+    t.ok(g.hasKw(gw, 'trample') && (gw.analysis().supertypes || []).includes('Legendary'), 'legendary, with trample');
+    t.eq(g.powerOf(dz), 3, 'Drizzt is 3 power');
+    const wurm = T.bf('B', 'Craw Wurm'), bears = T.bf('B', 'Grizzly Bears');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [bears] });
+    t.eq(dz.counters['+1/+1'] || 0, 0, 'the Bears were weaker: nothing');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [wurm] });
+    t.eq(dz.counters['+1/+1'], 3, 'the Wurm had 6 power: three counters');
+    t.eq(g.powerOf(dz), 6, 'now 6');
+    T.mana('A', 'BBC');
+    T.cast('A', T.hand('A', 'Murder'), { targets: [gw] });
+    t.eq(dz.counters['+1/+1'], 3, 'Guenhwyvar at 4: not greater');
+  });
+  test('Commanders: Tam, the Possibility — planeswalker spells cost {1} less; {W}{U}{B}{R}{G}, {T}: proliferate once for each planeswalker type you have', (mk, t) => {
+    t.auto('Tam, the Possibility');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const tam = T.bf('A', 'Tam, the Possibility');
+    const j1 = T.bf('A', 'Jace Beleren'), j2 = T.bf('A', 'Jace, the Mind Sculptor'), ch = T.bf('A', 'Chandra, Torch of Defiance');
+    const l0 = [j1, j2, ch].map(o => o.counters.loyalty);
+    T.mana('A', 'WUBRG');
+    T.activate('A', tam, 0);
+    t.eq([j1, j2, ch].map((o, i) => o.counters.loyalty - l0[i]).join(','), '2,2,2', 'two planeswalker types (Jace, Chandra): proliferate twice');
+    // the cost reduction
+    T.nextTurn('B'); T.nextTurn('A');
+    const gid = T.hand('A', 'Gideon, Ally of Zendikar');
+    T.mana('A', 'WW1');
+    T.cast('A', gid);
+    t.zone(gid, 'battlefield', 'Gideon, Ally of Zendikar for {1}{W}{W}');
+  });
 };
