@@ -59299,4 +59299,95 @@ module.exports = (test) => {
     t.zone(land, 'exile', 'Daredevil: the Mountain exiled');
     t.eq(T.life('A'), 19, 'Daredevil: mana value 0 — no damage');
   });
+  test('Commanders: Thanos, the Mad Titan — power-up: two counters, choose odd or even, destroy each other creature of that mana value', (mk, t) => {
+    t.auto('Thanos, the Mad Titan');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const th = T.bf('A', 'Thanos, the Mad Titan');
+    th.entered = g.turn - 1;
+    const bears = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), lions = T.bf('B', 'Savannah Lions'), elves = T.bf('A', 'Llanowar Elves');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [0] }; });
+    T.mana('A', 'CWUBRG');
+    T.activate('A', th, 0);
+    t.ok(q && q.purpose === 'parityPick' && (q.options || []).length === 2, 'Thanos: asked odd or even');
+    t.eq(th.counters['+1/+1'], 2, 'Thanos: two +1/+1 counters');
+    t.zone(lions, 'graveyard', 'Thanos: odd — the Lions (1) destroyed');
+    t.zone(elves, 'graveyard', 'Thanos: odd — the Elves (1) destroyed');
+    t.zone(th, 'battlefield', 'Thanos: not himself (3)');
+    t.zone(bears, 'battlefield', 'Thanos: the Bears (2) stay');
+    t.zone(giant, 'battlefield', 'Thanos: the Hill Giant (4) stays');
+    T.mana('A', 'CWUBRG');
+    t.no(g.activateAbility('A', th.id, 0, { auto: true, targets: [] }), 'Thanos: power-up only once');
+  });
+  test('Commanders: Lady Loki, Agent of Chaos — your first instant, sorcery or Villain spell each turn: exiled, cascade-like, damage of the difference, cast it free', (mk, t) => {
+    t.auto('Lady Loki, Agent of Chaos');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Lady Loki, Agent of Chaos');
+    const giant = T.top('A', 'Hill Giant');
+    const forest = T.top('A', 'Forest');
+    // a creature spell that is not a Villain: nothing
+    T.mana('A', 'G1');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.zone(giant, 'library', 'Lady Loki: the Bears are not an instant, sorcery or Villain');
+    let asked = 0;
+    T.answer('confirm', () => { asked++; return { yes: true }; });
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt, { targets: ['B'] });
+    t.zone(bolt, 'exile', 'Lady Loki: the Bolt exiled, never resolving');
+    t.zone(forest, 'exile', 'Lady Loki: the Forest exiled on the way');
+    t.eq(T.life('B'), 17, 'Lady Loki: 3 damage — the Hill Giant (4) less the Bolt (1)');
+    t.ok(asked >= 1, 'Lady Loki: asked to cast it');
+    t.zone(giant, 'battlefield', 'Lady Loki: the Hill Giant cast without paying');
+    // the second instant this turn: no trigger
+    const bolt2 = T.hand('A', 'Lightning Bolt');
+    T.mana('A', 'R');
+    T.cast('A', bolt2, { targets: ['B'] });
+    t.zone(bolt2, 'graveyard', 'Lady Loki: the second instant resolves');
+    t.eq(T.life('B'), 14, 'Lady Loki: the second Bolt hits');
+  });
+  test('Commanders: Captain America, Skybound — battalion: a +1/+1 counter on each attacking creature, and they gain indestructible', (mk, t) => {
+    t.auto('Captain America, Skybound');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const ca = T.bf('A', 'Captain America, Skybound');
+    const bears = T.bf('A', 'Grizzly Bears'), lions = T.bf('A', 'Savannah Lions'), elves = T.bf('A', 'Llanowar Elves');
+    for (const c of [ca, bears, lions, elves]) { c.summoningSick = false; c.entered = g.turn - 1; }
+    // only one other attacker: nothing
+    T.answer('declareAttackers', () => [{ attackerId: ca.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'B' }]);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    t.eq(ca.counters['+1/+1'] || 0, 0, 'Captain America: one other attacker — no battalion');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [ca, bears, lions].map(c => ({ attackerId: c.id, defenderId: 'B' })));
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    for (const c of [ca, bears, lions]) t.eq(c.counters['+1/+1'] || 0, 1, `Captain America: a counter on ${c.name}`);
+    t.eq(elves.counters['+1/+1'] || 0, 0, 'Captain America: none on the creature at home');
+    t.ok(g.hasKw(bears, 'indestructible') && g.hasKw(ca, 'indestructible'), 'Captain America: the attackers gain indestructible');
+    t.no(g.hasKw(elves, 'indestructible'), 'Captain America: not the Elves');
+  });
+  test('Commanders: Arni Brokenbrow — boast: base power becomes 1 plus the greatest power among your other creatures', (mk, t) => {
+    t.auto('Arni Brokenbrow');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const ar = T.bf('A', 'Arni Brokenbrow');
+    T.bf('A', 'Hill Giant'); T.bf('A', 'Grizzly Bears'); T.bf('B', 'Craw Wurm');
+    ar.counters['+1/+1'] = 1;
+    T.mana('A', '1');
+    t.no(g.activateAbility('A', ar.id, 0, { auto: true, targets: [] }), 'Arni: boast only once it attacked');
+    T.answer('declareAttackers', () => [{ attackerId: ar.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'declareBlockers');
+    T.resolve();
+    T.answer('confirm', () => ({ yes: true }));
+    T.mana('A', '1');
+    T.activate('A', ar, 0);
+    t.eq(g.powerOf(ar), 1 + 3 + 1, 'Arni: base power 4 (1 plus the Hill Giant\'s 3, not the Wurm\'s), and its counter');
+    t.eq(g.toughnessOf(ar), 4, 'Arni: toughness unchanged');
+    T.nextTurn('B');
+    t.eq(g.powerOf(ar), 4, 'Arni: back to 3, and the counter, after the turn');
+  });
 };

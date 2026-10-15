@@ -19643,6 +19643,15 @@
         }
         // The Celestial Toymaker: the spells and abilities this turn that had players guess or make piles (pileGuessTurn)
         if (v && typeof v === 'object' && v.pileGuessTurn) return (this.pileGuess && this.pileGuess.turn === this.turn ? this.pileGuess.n : 0) * (v.mult || 1);
+        /* Lady Loki, Agent of Chaos: "the difference between that spell's mana value and that nonland card's mana value" —
+           the spell the trigger is about, and the card the exile stopped at (spellMvDiffHit) */
+        if (v && typeof v === 'object' && v.spellMvDiffHit) {
+          const sp = this.obj((ctx.triggerData || {}).objectId);
+          const hit = this._exileUntil && this.obj(this._exileUntil.hits[this._exileUntil.hits.length - 1]);
+          if (!sp || !hit) return 0;
+          const spMv = sp._castMv != null ? sp._castMv : ((sp.card && sp.card.cmc) || 0);
+          return Math.abs(spMv - ((hit.card && hit.card.cmc) || 0));
+        }
         // Thousand-Year Storm: spells of that kind cast this turn before the one copied
         if (v && typeof v === 'object' && v.castBefore) {
           const list = (me && me.spellObjsThisTurn) || [];
@@ -20606,11 +20615,15 @@
           // (Riku of Many Paths: "Put a +1/+1 counter on Riku. It gains trample" — "it" is the one the counter went on)
           if (e.scope === 'self' && src) { this.addCounters(src, e.kind, cnt); this._noteLastAffected([{ kind: 'object', id: src.id }]); }
           else if (e.scope === 'yourMatching') {
+            const got = [];
             for (const o of this.battlefield) {
               if (o.controller !== ctx.controller) continue;
               if (!this._matchesCategory(o, e.filter)) continue;
               this.addCounters(o, e.kind, cnt);
+              got.push(o.id);
             }
+            // (Captain America, Skybound: "They gain indestructible" — these: group)
+            if (e.group) this._lastGroup = got;
           }
           else if (e.scope === 'yourCreatures') {
             // "those creatures" in the next sentence are these
@@ -21107,6 +21120,16 @@
           break;
         }
         // Expel the Interlopers: a number, chosen as it resolves, kept on the spell
+        // Thanos, the Mad Titan: "Choose odd or even." — for the sentence after (ctx.chosenParity)
+        case 'chooseParityNow': {
+          const opts = [{ label: 'Odd', parity: 'odd' }, { label: 'Even', parity: 'even' }];
+          const got = this._choose({ playerId: ctx.controller, purpose: 'parityPick', kind: 'options', options: opts, min: 1, max: 1,
+            exceptId: src ? src.id : null, prompt: `${ctx.name ? ctx.name + ': ' : ''}choose odd or even.` }, 'parity');
+          if (got === SUSPEND) return SUSPEND;
+          ctx.chosenParity = (opts[(got && got.picks && got.picks[0]) || 0] || opts[0]).parity;
+          this.logEvent('rules', `${me.name} chooses ${ctx.chosenParity}.`);
+          break;
+        }
         case 'chooseNumberNow': {
           const opts2 = [];
           for (let k = e.min || 0; k <= (e.max == null ? 10 : e.max); k++) opts2.push({ i: opts2.length, label: String(k), v: k });
@@ -21685,6 +21708,9 @@
             : this.battlefield.slice().filter(x => !x.phasedOut && match(x));
           const victims = pool.filter(x => {
             if (e.withoutCounter && (x.counters[e.withoutCounter] || 0) > 0) return false;
+            // Thanos, the Mad Titan: "each other creature with mana value of the chosen quality" (other, mvParity)
+            if (e.other && src && x.id === src.id) return false;
+            if (e.mvParity && (((x.card && x.card.cmc) || 0) % 2 === 0) !== ((e.mvParity === 'chosen' ? ctx.chosenParity : e.mvParity) === 'even')) return false;
             if (e.maxMv != null && ((x.card && x.card.cmc) || 0) > cap(e.maxMv)) return false;
             if (e.minMv != null && ((x.card && x.card.cmc) || 0) < cap(e.minMv)) return false;
             // Ugin: "that's one or more colors"
@@ -30978,6 +31004,18 @@
           break;
         }
         // Aven Interrupter: the spell leaves the stack for exile, plotted — its owner may cast it free on a later turn
+        /* Lady Loki, Agent of Chaos: "Whenever you cast …, exile it" — the spell the trigger is about, off the stack and
+           into exile (not countered: "can't be countered" doesn't stop it) */
+        case 'exileTriggerSpell': {
+          const d = ctx.triggerData || {};
+          const item = d.stackId && this.stack.find(s => s.id === d.stackId);
+          if (!item || item.kind !== 'spell' || !item.obj) break;
+          this.stack = this.stack.filter(x => x !== item);
+          if (item.isCopy) { item.obj.zone = null; break; }
+          this.moveObject(item.obj, 'exile');
+          this.logEvent('rules', `${item.obj.name} is exiled from the stack.`);
+          break;
+        }
         case 'plotSpell': {
           const t = targets.find(x => x.kind === 'stack');
           const item = t && this.stack.find(x => x.id === t.id);
@@ -34200,6 +34238,8 @@
           let eff = e.eff || {};
           // Destiny Spinner: "an X/X …, where X is the number of enchantments you control" — counted as it resolves
           if (e.ptX) { const k = Math.max(0, n(e.ptX)); eff = Object.assign({}, eff, { setPt: { p: k, t: k } }); }
+          // Arni Brokenbrow: "base power become 1 plus …" — the power only (powerX)
+          if (e.powerX != null) eff = Object.assign({}, eff, { setPt: { p: n(e.powerX) } });
           applyToScope(e, (o) => {
             if (!o || o.zone !== 'battlefield') return;
             const one = JSON.parse(JSON.stringify(eff));
@@ -36570,6 +36610,8 @@
         // "multicolored permanent", "green creature": colour words are words too
         if (want === 'multicolored') { if ((a.colors || []).length < 2) return false; continue; }
         if (want === 'colorles') { if ((a.colors || []).length) return false; continue; }
+        // Captain America, Skybound: "each attacking creature"
+        if (want === 'attacking') { if (!o.attacking) return false; continue; }
         const cw = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[want];
         if (cw) { if (!(a.colors || []).includes(cw)) return false; continue; }
         if (want.startsWith('non')) {

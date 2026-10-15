@@ -1687,6 +1687,17 @@
       const i = (s.options || []).findIndex(o => o && o.to === 'battlefield');
       return { picks: [i < 0 ? 0 : i] };
     },
+    /* Thanos, the Mad Titan: odd or even — the one that destroys more of theirs than of ours (parityPick) */
+    parityPick(s) {
+      const g = this.game, opts = s.options || [];
+      let best = 0, bestV = -1e9;
+      opts.forEach((o, i) => {
+        const v = g.battlefield.filter(x => x.id !== s.exceptId && (g.characteristics(x) || {}).isCreature &&
+          ((((x.card && x.card.cmc) || 0) % 2 === 0) === (o.parity === 'even'))).reduce((t, x) => t + (x.controller === this.pid ? -1 : 1), 0);
+        if (v > bestV) { bestV = v; best = i; }
+      });
+      return { picks: [best] };
+    },
     /* Sleight of Mind, Mind Bend: the word its text uses most is the one worth changing */
     textFrom(s) {
       const i = (s.options || []).findIndex(o => o && o.present);

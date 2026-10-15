@@ -4751,6 +4751,13 @@
       make: () => ({ op: 'exileTop', who: 'opponents', untilNonland: true }) },
     { re: /^Exile cards from the top of your library until you exile a nonland card\.?$/i,
       make: () => ({ op: 'exileTop', who: 'you', untilNonland: true }) },
+    /* Lady Loki, Agent of Chaos: "exile it, then exile cards from the top of your library until you exile a nonland card"
+       — "it" the spell the cast trigger is about (exileTriggerSpell) */
+    { re: /^Exile it, then exile cards from the top of your library until you exile a nonland card\.?$/i,
+      make: () => [{ op: 'exileTriggerSpell' }, { op: 'exileTop', who: 'you', untilNonland: true }] },
+    // Lady Loki: "deals damage to each opponent equal to the difference between that spell's mana value and that nonland card's mana value"
+    { re: /^(?:It|CARDNAME|This creature) deals damage to each opponent equal to the difference between that spell'?s mana value and that nonland card'?s mana value\.?$/i,
+      make: () => ({ op: 'damage', n: { spellMvDiffHit: true }, each: 'opponent' }) },
     { re: /^Exile cards from the top of your library until you exile cards with total mana value (\d+) or greater\.?$/i,
       make: (m) => ({ op: 'exileTop', who: 'you', totalMv: +m[1] }) },
     /* Gríma, Saruman's Footman, Dazzling Sphinx, Chaos Wand: "that player (target opponent) exiles cards from the
@@ -5117,6 +5124,11 @@
     { re: /^Destroy all ([a-z]+s) with power greater than or equal to the chosen number\.?$/i,
       make: (m) => ({ op: 'destroyAll', what: m[1].toLowerCase(), minPower: 'chosen' }) },
     { re: /^Choose a number between (\d+) and (\d+)\.?$/i, make: (m) => ({ op: 'chooseNumberNow', min: +m[1], max: +m[2] }) },
+    /* Thanos, the Mad Titan: "Choose odd or even. Destroy each other creature with mana value of the chosen quality."
+       — chosen as it resolves (chooseParityNow), for the sentence after (mvParity 'chosen') */
+    { re: /^Choose odd or even\.?$/i, make: () => ({ op: 'chooseParityNow' }) },
+    { re: /^Destroy each other creature with mana value of the chosen quality\.?$/i,
+      make: () => ({ op: 'destroyAll', what: 'creature', other: true, mvParity: 'chosen' }) },
     // Éowyn, Fearless Knight: "Legendary creatures you control gain protection from each of that creature's colors until end of turn."
     { re: /^([a-z ]*creatures you control) gain protection from each of that creature'?s colou?rs until end of turn\.?$/i,
       make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'grantProtColorsOf', scope: sc, duration: 'eot' } : null; } },
@@ -5397,6 +5409,10 @@
       make: (m) => ({ op: 'sequence', list: [
         { op: 'counters', kind: m[2], n: num(m[1]), scope: 'yourMatching', filter: m[3].toLowerCase() },
         { op: 'counters', kind: m[5], n: num(m[4]), scope: 'yourMatching', filter: m[6].toLowerCase() }] }) },
+    /* Captain America, Skybound: "put a +1/+1 counter on each attacking creature. They gain indestructible …" — the
+       attackers are the active player's, yours on your attack; "they" are those (group) */
+    { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d) counters? on each attacking creature\.?$/i,
+      make: (m) => ({ op: 'counters', kind: m[2], n: num(m[1]), scope: 'yourMatching', filter: 'attacking creature', group: true }) },
     { re: /^Put (a|one|two|three|\d+) ([+\-]\d\/[+\-]\d|[a-z ]+?) counters? on each ([-a-zA-Z' \/]+?) you control\.?$/i,
       // (a second "counter on each" in the words is a second clause, not part of the first)
       make: (m) => (/\bother\b|\bwith|\btarget\b|^of | you control |\bcounters? on\b/i.test(m[3]) ? null
@@ -6695,6 +6711,12 @@
        Tanazir Quandrix's power and toughness until end of turn" — its, as this resolves (srcPower, srcToughness) */
     { re: /^(?:You may )?have the base power and toughness of other creatures you control become equal to (?:CARDNAME|this creature)'s power and toughness until end of turn\.?$/i,
       make: () => ({ op: 'may', then: [{ op: 'setBaseAll', p: 'srcPower', t: 'srcToughness', other: true }] }) },
+    /* Arni Brokenbrow: "You may have Arni's base power become 1 plus the greatest power among other creatures you
+       control until end of turn." — counted as it resolves, the toughness left alone (becomes, powerX) */
+    { re: /^(You may )?have CARDNAME'?s base power become (.+?) until end of turn\.?$/i,
+      make: (m) => { const k = amountOf(m[2]); if (!k) return null;
+        const b = { op: 'becomes', scope: 'self', duration: 'eot', eff: {}, powerX: k };
+        return m[1] ? { op: 'may', then: [b] } : b; } },
     // Lord of the Nazgûl: "Wraiths you control have base power and toughness 9/9 until end of turn."
     { re: /^([A-Z][a-z]+) you control have base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
       make: (m) => (m[1] === 'Creatures' ? null : { op: 'setBaseAll', p: +m[2], t: +m[3], subtype: U.titleCase(singularType(m[1])) }) },
@@ -15395,6 +15417,9 @@
     // Double Vision: "Whenever you cast your first instant or sorcery spell each turn"
     { re: /^Whenever you cast your first ([a-z ]+?) spell each turn,? /i, event: 'youCastSpell',
       extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindYou: true }) },
+    // Lady Loki, Agent of Chaos: "your first instant, sorcery, or Villain spell each turn" — the first of any of them
+    { re: /^Whenever you cast your first ([a-z]+), ([a-z]+), or ([A-Z][a-z]+) spell each turn,? /, event: 'youCastSpell',
+      extraOf: (m) => ({ spellFilter: [m[1], m[2], m[3]].map(x => x.toLowerCase()).join(' or '), firstOfKindYou: true }) },
     // Iron Monger, Glorious Purpose: "Whenever a creature you control connives"
     { re: /^Whenever a creature you control connives,? /i, event: 'connives', aboutObject: true,
       filt: () => ({ words: 'creature', who: 'you' }) },
