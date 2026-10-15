@@ -4590,8 +4590,10 @@
       make: (m) => ({ op: 'massReanimate', filter: m[2].toLowerCase().replace(/,? and |, /g, ' or '), yours: true, tapped: !!m[1], fromBfThisTurn: true }) },
     { re: /^Each player returns to the battlefield all ([a-z ,]+?) cards in their graveyard that were put there from the battlefield this turn\.?$/i,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase().replace(/,? and |, /g, ' or '), yours: false, fromBfThisTurn: true }) },
-    { re: /^Put onto the battlefield under your control all creature cards in (all graveyards|your opponents'? graveyards) that were put there from the battlefield this turn\.?$/i,
-      make: (m) => ({ op: 'massReanimate', filter: 'creature', yours: false, mine: true, fromBfThisTurn: true, opponentsOnly: /opponents/i.test(m[1]) }) },
+    // (Myojin of Grim Betrayal: "… that were put there from anywhere this turn" — toGraveThisTurn)
+    { re: /^Put onto the battlefield under your control all creature cards in (all graveyards|your opponents'? graveyards) that were put there from (the battlefield|anywhere) this turn\.?$/i,
+      make: (m) => Object.assign({ op: 'massReanimate', filter: 'creature', yours: false, mine: true, opponentsOnly: /opponents/i.test(m[1]) },
+        /anywhere/i.test(m[2]) ? { toGraveThisTurn: true } : { fromBfThisTurn: true }) },
     // Garna, the Bloodflame: "… that were put there from anywhere this turn" (toGraveThisTurn)
     { re: /^Return (?:to your hand )?all creature cards in your graveyard that were put there from (the battlefield|anywhere) this turn(?: to your hand)?\.?$/i,
       make: (m) => (/anywhere/i.test(m[1]) ? { op: 'regrowthAll', filter: 'creature', toGraveThisTurn: true } : { op: 'regrowthAll', filter: 'creature', fromBfThisTurn: true }) },
@@ -7143,6 +7145,13 @@
     { re: /^Destroy that planeswalker\.?$/i, make: () => ({ op: 'destroy', scope: 'triggerVictim' }) },
     // Wall of Tears, Aether Membrane: "Return that creature to its owner's hand at end of combat."
     { re: /^Return that creature to its owner'?s hand at end of combat\.?$/i, make: () => ({ op: 'bounceAtEndOfCombat', scope: 'triggerObject' }) },
+    /* Drana, Kalastria Bloodchief: "Target creature gets -0/-X until end of turn and Drana gets +X/+0 until end of turn." —
+       the two halves, each read as a sentence of its own */
+    { re: /^(Target creature) gets ([+-](?:\d+|X)\/[+-](?:\d+|X)) until end of turn and CARDNAME gets ([+-](?:\d+|X)\/[+-](?:\d+|X)) until end of turn\.?$/,
+      make: (m) => {
+        const a = parseEffectSentence(m[1] + ' gets ' + m[2] + ' until end of turn.'), b = parseEffectSentence('CARDNAME gets ' + m[3] + ' until end of turn.');
+        return a && b && a.op === 'pump' && b.op === 'pump' ? [a, b] : null;
+      } },
     // Shared Animosity: "it gets +1/+0 until end of turn for each other attacking creature that shares a creature type with it"
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn for each other attacking creature that shares a creature type with it\.?$/i,
       make: (m) => ({ op: 'pumpPerKinAttacker', p: +m[1], t: +m[2] }) },
@@ -10219,6 +10228,9 @@
     // Asmodeus the Archfiend: "Return all cards exiled with Asmodeus to their owner's hand and you lose that much life."
     { re: /^Return all cards exiled with CARDNAME to their owner'?s hand and you lose that much life\.?$/i,
       make: () => [{ op: 'exiledWithToHand', loseLife: true }] },
+    // Gorex, the Tombshell: "choose a card at random exiled with Gorex and put that card into its owner's hand" (random)
+    { re: /^Choose a card at random exiled with CARDNAME and put that card into its owner'?s hand\.?$/i,
+      make: () => [{ op: 'exiledWithToHand', random: true }] },
     { re: /^(?:if there are cards exiled with (?:this enchantment|CARDNAME), )?put them into their owner'?s graveyard, then (?:this enchantment|CARDNAME) deals that much damage to each opponent\.$/i,
       make: () => [{ op: 'exiledWithToGraveyardDamage' }] },
     /* Pitiless Carnage, Reprocess, Last-Ditch Effort, Renounce, Landslide,
@@ -11068,6 +11080,11 @@
           Object.assign({ op: 'takeFromLooked', n: 1, filter: m[2].trim().toLowerCase(), to: /hand/i.test(m[4]) ? 'hand' : 'battlefield', rest: 'keep' },
             m[3] ? {} : { mustTake: true }, m[5] ? { tapped: true } : {}, otherwise ? { otherwise } : {})]);
       } },
+    /* Amareth, the Lustrous: "look at the top card of your library. If it shares a card type with that permanent, you
+       may reveal that card and put it into your hand." (sharesTypeWithTrigger) */
+    { re: /^Look at the top card of your library\. If it shares a card type with that permanent, you may reveal (?:it|that card) and put it into your hand\.?$/i,
+      make: () => [{ op: 'lookAt', n: 1, keep: 0 }, { op: 'takeFromLooked', n: 1, filter: 'any', to: 'hand', rest: 'keep', sharesTypeWithTrigger: true,
+        prompt: 'It shares a card type with the permanent that entered: you may reveal it and put it into your hand.' }] },
     /* Midnight Tilling: "Mill four cards, then you may return a permanent
        card from among them to your hand." */
     { re: /^Mill (two|three|four|five|six|\d+) cards(?:, then|\. Then|\.) (you may )?(?:put|return) (?:a|an) ([a-z, ]*?)card from among (?:them|the milled cards|the cards milled this way) (?:into|to) your hand\.?$/i,
@@ -11742,6 +11759,10 @@
      The sacrifices are chosen with the cast (sacForLess: what may go, and the mana each takes off); the
      second part is a reduction of the spell's own (selfCost). */
   function parseSacForLess(line) {
+    /* Gorex, the Tombshell: "As an additional cost to cast this spell, you may exile any number of creature cards from
+       your graveyard. This spell costs {2} less to cast for each card exiled this way." — the cards exiled with it (exileGrave) */
+    const g = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may exile any number of ([a-z]+) cards from your graveyard\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each card exiled this way\.?$/i);
+    if (g) return { sac: { filter: g[1].toLowerCase(), each: +g[2], exileGrave: true }, self: null };
     const m = String(line).match(/^As an additional cost to cast (?:this spell|CARDNAME), you may sacrifice any number of ([a-z ,/]+?)\. (?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each (?:[a-z]+) sacrificed this way(?: and \{(\d+)\} less to cast for each (.+?))?\.?$/i);
     if (!m) return null;
     const filter = m[1].replace(/\s+and\/or\s+|\s+or\s+|\s+and\s+/g, ' or ').replace(/s\b/g, '').trim();

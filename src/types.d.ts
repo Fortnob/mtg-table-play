@@ -213,7 +213,7 @@ declare namespace MTG {
     candidates?: Id[];
     /** the most of the cost they can pay between them */
     max?: number;
-    /** sacForLess (Torgaar, Dargo): the generic mana each one sacrificed takes off */
+    /** sacForLess (Torgaar, Dargo): the generic mana each one sacrificed (Gorex: each card exiled) takes off */
     each?: number;
     /** a cost the table would otherwise pick (evidence, forage, reveal, behold, blight…): the cast or activate
         option the chosen ids go in (evidenceIds, forageExileIds, revealIds, beholdIds, exileIds, counterFromId, blightId) */
@@ -476,7 +476,7 @@ declare namespace MTG {
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;
       /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
-      /** Torgaar, Dargo: the permanents sacrificed for a cheaper spell (an empty list: none); left out, the engine picks */
+      /** Torgaar, Dargo: the permanents sacrificed for a cheaper spell (Gorex, the Tombshell: the graveyard cards exiled; an empty list: none); left out, the engine picks */
       sacrificeIds?: Id[];
       /** a split card's half to cast: 0 left, 1 right */
       face?: number;

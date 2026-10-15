@@ -7090,7 +7090,12 @@
         if (reduces) this._payReduction(playerId, o, plan, ccHeld);
       }
       // (Torgaar, Dargo: the sacrifices, paid with the mana — sacForLess)
-      if (sacForLess.length) this._sacrificeNow(playerId, sacForLess.filter(x => x.zone === 'battlefield'), null);
+      // (Gorex, the Tombshell: exiled from the graveyard instead, and exiled with it — exileGrave)
+      if (sacForLess.length && ((a.sacForLess || {}).exileGrave)) {
+        const gone = sacForLess.filter(x => x.zone === 'graveyard');
+        for (const c of gone) { this.moveObject(c, 'exile'); if (c.zone === 'exile') c.exiledWithId = o.id; }
+        if (gone.length) this.logEvent('rules', `${p.name} exiles ${gone.map(x => x.name).join(', ')} from their graveyard to cast ${o.name}.`);
+      } else if (sacForLess.length) this._sacrificeNow(playerId, sacForLess.filter(x => x.zone === 'battlefield'), null);
       /* Sneak: the unblocked attacker goes back to hand as the spell is cast;
          what it was attacking, the sneaked creature attacks */
       if (via && via.via === 'sneak') {
@@ -8913,6 +8918,8 @@
     _sacForLessPool(pid, o) {
       const sf = o && (o.analysis() || {}).sacForLess;
       if (!sf) return [];
+      // Gorex, the Tombshell: creature cards in your graveyard, exiled instead (exileGrave)
+      if (sf.exileGrave) return this._cheapestFirst(((this.zones[pid] || {}).graveyard || []).filter(c => c !== o && this._cardFitsWords(c, sf.filter)));
       return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && x !== o &&
         this._cardFitsWords(x, sf.filter) && this._canSacrifice(x)));
     }
@@ -8923,7 +8930,8 @@
       const pool = this._sacForLessPool(pid, o);
       if (!pool.length) return [];
       const what = sf.filter.replace(/ or /g, ' and/or ').replace(/(\w+)(?= and\/or|$)/g, (w) => w + 's');
-      return [{ kind: 'sacForLess', label: `Sacrifice any number of ${what} ({${sf.each}} less for each)`, cost: '',
+      return [{ kind: 'sacForLess', label: sf.exileGrave ? `Exile any number of ${sf.filter} cards from your graveyard ({${sf.each}} less for each)`
+        : `Sacrifice any number of ${what} ({${sf.each}} less for each)`, cost: '',
         key: 'sacrificeIds', need: 0, max: pool.length, each: sf.each, candidates: pool.map(x => x.id) }];
     }
     /* Which of them go with this cast: the ones named (sacrificeIds, none at all for an empty list), or, named
@@ -8937,8 +8945,9 @@
         const list = [];
         for (const id of opts.sacrificeIds) {
           const x = pool.find(y => y.id === id);
-          if (!x) return { error: `${(this.obj(id) || {}).name || 'That'} can't be sacrificed for ${o.name}.` };
-          if (list.includes(x)) return { error: 'The same permanent cannot be sacrificed twice.' };
+          const ex = !!((o.analysis() || {}).sacForLess || {}).exileGrave;
+          if (!x) return { error: `${(this.obj(id) || {}).name || 'That'} can't be ${ex ? 'exiled' : 'sacrificed'} for ${o.name}.` };
+          if (list.includes(x)) return { error: ex ? 'The same card cannot be exiled twice.' : 'The same permanent cannot be sacrificed twice.' };
           list.push(x);
         }
         return { list, back: backFor(list.length) };
@@ -23494,8 +23503,10 @@
         // Asmodeus the Archfiend: "Return all cards exiled with Asmodeus to their owner's hand and you lose that much life."
         case 'exiledWithToHand': {
           if (!src) break;
-          const list = [];
-          for (const q of this.players) for (const c of (this.zones[q.id].exile || [])) if (c.exiledWithId === src.id) list.push(c);
+          // (Gorex, the Tombshell: "Whenever Gorex … dies" — the cards its last time on the battlefield exiled: _exiledWithPool)
+          let list = this._exiledWithPool(src);
+          // Gorex: "choose a card at random exiled with Gorex" (random)
+          if (e.random) list = list.length ? [list[this.rng.int(list.length)]] : [];
           let back = 0;
           for (const c of list) { c.faceDownExile = false; this.moveObject(c, 'hand'); if (c.zone === 'hand') back++; }
           if (back) this.logEvent('rules', `${back} card${back === 1 ? '' : 's'} exiled with ${src.name} return${back === 1 ? 's' : ''} to hand.`);
@@ -25096,6 +25107,12 @@
               const shares = this.battlefield.some(c => c.controller === ctx.controller && !c.phasedOut && this.characteristics(c).isCreature &&
                 (types.some(t => this._hasCreatureType(c, t)) || (all && (this.hasKw(c, 'changeling') || ((c.analysis() || {}).subtypes || []).some(x => this._isCreatureType(x))))));
               if (shares) return false;
+            }
+            // Amareth, the Lustrous: "If it shares a card type with that permanent" — the one that entered (sharesTypeWithTrigger)
+            if (e.sharesTypeWithTrigger) {
+              const tp = this.obj((ctx.triggerData || {}).objectId);
+              const theirs = tp ? this._cardTypesOf(tp) : [];
+              if (!this._cardTypesOf(o).some(x => theirs.includes(x))) return false;
             }
             // "a creature or land card": words, read the way a search reads them
             if (/\s/.test(String(e.filter || '').trim())) return this._cardFitsWords(o, e.filter);
@@ -30850,6 +30867,8 @@
               if (e.maxMv != null && ((c.card && c.card.cmc) || 0) > n(e.maxMv)) continue;
               // Faith's Reward: only what went there from the battlefield this turn (fromBfThisTurn)
               if (e.fromBfThisTurn && c._toGraveFromBf !== this.turn) continue;
+              // Myojin of Grim Betrayal: "that were put there from anywhere this turn" (toGraveThisTurn)
+              if (e.toGraveThisTurn && c._toGraveTurn !== this.turn) continue;
               // Bloodline Bidding: "of the chosen type"
               if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(c, src.chosenType))) continue;
               if (e.filter ? this._cardFitsWords(c, e.filter) : (c.analysis() || {}).isCreature) cards.push(c);
