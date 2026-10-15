@@ -2359,6 +2359,8 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .ohand.revealed { padding-left: 30px; }
 .ohand.revealed .cv { --w: 46px; margin-left: -24px; rotate: 0deg; translate: 0 0; cursor: zoom-in; transition: translate var(--fast); }
 .ohand.revealed .cv:hover { translate: 0 6px; z-index: 2; }
+/* Sen Triplets: a card of theirs you may cast or play this turn is clicked like one of your own */
+.ohand .cv.playable { cursor: pointer; z-index: 1; }
 .ohand .cv:nth-child(even) { rotate: 3deg; translate: 0 2px; }
 .ohand .cv .cv-body { box-shadow: -2px 1px 4px rgba(0,0,0,.7); }
 .ohand .cv-face.back .back-ring { width: 52%; }
@@ -13806,6 +13808,21 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           continue;
         }
       }
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control"; Novijen
+         Sages: "Remove two +1/+1 counters from among creatures you control"; Retribution of the Ancients: "Remove X …";
+         The Filigree Sylex: "… and sacrifice The Filigree Sylex" — counters of one kind, as many off each as the player
+         likes, adding up to the number (removeCounterSpread; 'any' with min 1 is "one or more", its X the amount) */
+      if ((m = p.match(/^Remove (one or more|X|a|an|one|two|three|four|five|six|seven|eight|nine|ten|\d+) ([a-z+\-0-9/]+) counters? from among (other )?([a-z, ]+?) you control( and sacrifice (?:CARDNAME|this [a-z]+))?$/i))) {
+        const kinds = m[4].replace(/,? and /g, ', ').split(/,\s*/).map(w => w.trim().replace(/s$/, '')).filter(Boolean);
+        const w = m[1].toLowerCase();
+        const k = w === 'one or more' ? 'any' : w === 'x' ? 'X' : /^\d+$/.test(w) ? +w : num(w.replace(/^an?$/, 'one'));
+        if (kinds.every(x => /^(?:artifact|creature|planeswalker|permanent|land|enchantment)$/i.test(x)) && (typeof k === 'number' ? k > 0 : true)) {
+          cost.removeCounterSpread = Object.assign({ n: k, kind: m[2].toLowerCase(), filter: kinds.join(' or ').toLowerCase() },
+            k === 'any' ? { min: 1 } : {}, m[3] ? { other: true } : {});
+          if (m[5]) cost.sacSelf = true;
+          continue;
+        }
+      }
       // "Exert this land": it does not untap during your next untap step
       if (/^Exert (?:this|CARDNAME|this (?:land|creature|artifact|permanent))$/i.test(p)) { cost.exert = true; continue; }
       // Sasaya, Orochi Ascendant: "Reveal your hand"
@@ -13897,6 +13914,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (e.op === 'damage') return !!e.toSelf;
       if (e.op === 'loseLife') return e.who === 'you';
       if (e.op === 'gainLife') return (e.who === 'you' || e.who === 'opponents') && typeof e.n === 'number';
+      // Harold and Bob, First Numens: "{T}: Add three mana of any one color. You get two rad counters."
+      if (e.op === 'rad') return e.who === 'you' && typeof e.n === 'number';
       if (e.op === 'ifCond') return !e.cond || e.cond.kind !== 'manual' ? branches(e).every(fits) : false;
       if (e.op === 'counters' || e.op === 'tap' || e.op === 'untap') return e.scope === 'self';
       // Cloudcrest Lake: "This land doesn't untap during your next untap step."
@@ -14990,8 +15009,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'spendOnly', noSpells: true, abilitiesOf: (m[1] || m[2]).toLowerCase() }) },
     // Jegantha, the Wellspring: "This mana can't be spent to pay generic mana costs." — only for coloured symbols (noGenericMana)
     { re: /^This mana can'?t be spent to pay generic mana costs\.?$/i, make: () => ({ op: 'noGenericMana' }) },
+    /* Jetfire, Ingenious Scientist; Karn, Legacy Reforged: "This mana can't be spent to cast nonartifact spells." — an
+       artifact spell, or anything that isn't a spell: any ability's cost too (anyAbility) */
     { re: /^This mana can'?t be spent to cast (?:a |an )?non(artifact|creature) spells?\.?$/i,
-      make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell' }) },
+      make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', anyAbility: true }) },
     { re: /^When that mana is spent to cast a creature spell that shares a creature type with your commander, scry 1\.?$/i,
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
     /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
@@ -15932,6 +15953,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       make: (m) => ({ op: 'manual', enterRider: { setTypes: ['Land'], setName: m[1] } }) },
     { re: /^(?:He|She)'?s an? ([A-Z][a-z]+) in addition to (?:his|her) other types\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]] } }) },
+    /* Harold and Bob, First Numens: "It's an Aura enchantment with enchant Forest you control and "Enchanted Forest has
+       '{T}: …'" Harold and Bob loses all other abilities." — only an Aura as it returns, everything it had gone and those
+       two handed to it after (enterRider, grantTexts) */
+    { re: /^It'?s an Aura enchantment with enchant ([A-Z][a-z]+(?: you control)?) and "(Enchanted [A-Z][a-z]+ has ['‘][^"]+['’])"\.? (?:CARDNAME|It) loses all other abilities\.?$/,
+      make: (m) => ({ op: 'manual', enterRider: { setTypes: ['Enchantment'], addSubtypes: ['Aura'], loseAll: true,
+        grantTexts: ['Enchant ' + m[1], m[2].replace(/['‘’]/g, '"')] } }) },
     { re: /^(?:They'?re|It'?s) an? (artifact|enchantment|land)\.?$/i,
       make: (m) => ({ op: 'manual', enterRider: { setTypes: [m[1].charAt(0).toUpperCase() + m[1].slice(1).toLowerCase()] } }) },
     /* Vraska, the Silencer: "It's a Treasure artifact with "{T}, Sacrifice this artifact: Add one mana of any color,"
@@ -18711,6 +18738,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Rasputin, the Oneiromancer: "{T}, Remove one or more dream counters from Rasputin: Add that much {C}." (removedCounters)
     { re: /^Add that much (\{[WUBRGC]\})\.?$/i,
       make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { removedCounters: true, mult: 1 }, thatMuch: true }) },
+    /* Jetfire, Ingenious Scientist: "Target player adds that much {C}." — the counters removed to pay, into that player's
+       pool (not a mana ability: it targets, CR 605.1a) */
+    { re: /^Target player adds that much (\{[WUBRGC]\})\.?$/i,
+      make: (m) => ({ op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: { removedCounters: true, mult: 1 }, thatMuch: true, who: 'target', targets: [{ type: 'player' }] }) },
     // anything else counted: "for each card named CARDNAME in each graveyard"
     { re: /^Add (\{[WUBRGC]\}) for each (.+?)\.?$/i,
       make: (m) => { const c = countOf(m[2]); return c ? { op: 'addManaPer', symbol: MANA.parse(m[1])[0], per: c } : null; } },
@@ -24324,6 +24355,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
     { re: /^choose target opponent\. Until end of turn, that player can'?t cast spells, you may look at the top card of their library any time, you may play the top card of their library, and you may spend mana as though it were mana of any color to cast spells this way\.?$/i,
       make: () => [{ op: 'oppTopThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target' }] },
+    /* Sen Triplets: "choose target opponent. This turn, that player can't cast spells or activate abilities and plays
+       with their hand revealed. You may play lands and cast spells from that player's hand this turn." (oppHandThisTurn;
+       silence abilities: mana abilities too) */
+    { re: /^choose target opponent\. This turn, that player can'?t cast spells or activate abilities and plays with their hand revealed\. You may play lands and cast spells from that player'?s hand this turn\.?$/i,
+      make: () => [{ op: 'oppHandThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target', abilities: true }] },
     /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with power
        less than or equal to Grenzo's power, put it onto the battlefield." (bottomToGraveReanimate) */
     { re: /^Put the bottom card of your library into your graveyard\. If it'?s a creature card with power less than or equal to (?:CARDNAME|this creature)'?s power, put it onto the battlefield\.?$/i,
@@ -31355,8 +31391,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             o.perTurn ? { perTurn: o.perTurn } : null);
           if (o.anyPlayer) ab.anyPlayer = true;
         }
+        /* Jetfire, Ingenious Scientist: "Target player adds that much {C}. This mana can't be spent to cast nonartifact
+           spells." — not a mana ability, so the restriction is a step of its own, on the mana just added */
+        const manaAt = ab.kind === 'mana' || !spend || spend.open ? -1 : effects.map(e => !!(e && MANA_OPS.has(e.op))).lastIndexOf(true);
+        if (manaAt >= 0) effects.splice(manaAt + 1, 0, spend);
         /* a rider with no restriction (Path of Ancestry) still travels with the mana */
-        if (spend) ab.spendOnly = spend.open ? { rider: spend.rider, open: true } : spend;
+        else if (spend) ab.spendOnly = spend.open ? { rider: spend.rider, open: true } : spend;
         if (ab.kind === 'mana') out.manaAbilities.push(ab); else out.abilities.push(ab);
         if (ab.auto) autoLines++;
         continue;
@@ -33331,6 +33371,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     'enchanted creature': { attached: true, what: 'creature' },
     'enchanted permanent': { attached: true, what: 'permanent' },
     'enchanted land': { attached: true, what: 'land' },
+    // (Harold and Bob, First Numens: "Enchanted Forest has '…'")
+    'enchanted forest': { attached: true, what: 'land' },
     'enchanted artifact': { attached: true, what: 'artifact' },
     'fortified land': { attached: true, what: 'land' },
     'this creature': { self: true, what: 'creature' },
@@ -40527,7 +40569,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // (Coram, the Undertaker: other players' graveyards too; Grolnok, the Omnivore: your own cards in exile with croak counters on them)
         const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId), (z.exile || []).filter(o => !impulsed.includes(o)))
           .filter(o => this._playFromRule(playerId, o, 'land')).concat(this._borrowedGraveyard(playerId, 'land'));
-        for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
+        // (Sen Triplets: the hand of the opponent chosen this turn)
+        for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere, this._oppHandCards(playerId))) {
           const a = o.analysis();
           if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
         }
@@ -40551,11 +40594,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // (Mister Immortal: an ability that works from exile as well as the graveyard — alsoExile)
       const exileActs = (z.exile || []).filter(o => !impulsed.includes(o) && !waiting.includes(o) && !ownLeave.includes(o) &&
         (((o.analysis() || {}).abilities) || []).some(ab => ab.alsoExile));
-      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, exileActs, this._borrowedGraveyard(playerId))) {
+      // (Sen Triplets: the cards in the hand of the opponent chosen this turn — cast, never cycled or foretold)
+      const oppHand = this._oppHandCards(playerId);
+      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, exileActs, this._borrowedGraveyard(playerId), oppHand)) {
         /* Cycling and flashback are things you can do with this card that
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
         for (const use of this.altUsesFor(playerId, o.id)) {
+          if (use.kind !== 'cast' && oppHand.includes(o)) continue;
           if (!this.canPayNow(playerId, use.cost, { forSpell: o })) continue;
           if (use.kind === 'cycle') {
             out.push({ kind: 'cycle', objId: o.id });
@@ -41062,6 +41108,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const p = this.player(playerId);
       if (!p) return 0;
       let have = p.pool.total();
+      // (Sen Triplets: the pool and nothing more, while no mana ability can be activated)
+      if (this._abilityLocked(playerId)) return have;
       for (const o of this.battlefield) {
         if (o.controller !== playerId || o.tapped || o.phasedOut) continue;
         const a = o.analysis();
@@ -42935,7 +42983,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!o) return this.fail('No such card.');
       // (Valgavoth, Terror Eater; Nashi, Gonti, Night Minister: an opponent's land, exiled with it or for you to play, is yours to play)
       // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library)
-      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o) && !this._oppTopGrant(playerId, o)) return this.fail('Not your card.');
+      // (Sen Triplets: "You may play lands … from that player's hand this turn")
+      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o) && !this._oppTopGrant(playerId, o) && !this._oppHandGrant(playerId, o)) return this.fail('Not your card.');
       const a = o.analysis();
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
       if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
@@ -42980,9 +43029,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const playerId = p.id;
       p.landsPlayed++;
       const fromZone = o.zone;
-      // Spider-Man 2099: "played a land … from anywhere other than your hand"
-      if (fromZone !== 'hand') p.landNotFromHandTurn = this.turn;
-      o._playedFromHand = fromZone === 'hand';
+      // Spider-Man 2099: "played a land … from anywhere other than your hand" (Sen Triplets: another player's hand is that)
+      const ownHand = fromZone === 'hand' && o.owner === playerId;
+      if (!ownHand) p.landNotFromHandTurn = this.turn;
+      o._playedFromHand = ownHand;
       this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
       // (Kaldring, the Rimestaff: "it enters tapped")
       if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
@@ -43887,6 +43937,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
          (Mishra, Tamer of Mak Fawa: one it has been given, grantUnearth) */
       if (opts === 'unearth') {
         if (o.zone !== 'graveyard' || o.owner !== playerId) return { ok: false, reason: 'That is not in your graveyard.' };
+        // (Sen Triplets: unearth is an activated ability)
+        if (this._abilityLocked(playerId)) return { ok: false, reason: "You can't activate abilities this turn." };
         const why = this._sorcerySpeedBlock(playerId);
         if (why) return { ok: false, reason: why };
         const use = this.altUsesFor(playerId, objId).find(u => u.via === 'unearth');
@@ -43918,6 +43970,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
+      // a card in another player's hand is theirs to cast — unless Sen Triplets gives leave ("cast spells from that player's hand")
+      if (o.zone === 'hand' && o.owner !== playerId && !this._oppHandGrant(playerId, o)) return { ok: false, reason: "That card is in another player's hand." };
       // Haakon, Stromgald Scourge: "You may cast this card from your graveyard, but not from anywhere else." (onlyHere)
       if (o.zone !== 'graveyard' && (a.abilities || []).some(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && x.onlyHere)))
         return { ok: false, reason: `${o.name} can be cast only from a graveyard.` };
@@ -45865,10 +45919,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return true;
     }
 
-    extraCostsFor(objId) {
-      return this._namedWords(this._extraCostsForRaw(objId), this._nameHint(objId));
+    /* (caster: who would cast it, when that is not the card's owner — Sen Triplets: a card in another player's hand) */
+    extraCostsFor(objId, caster) {
+      return this._namedWords(this._extraCostsForRaw(objId, caster), this._nameHint(objId));
     }
-    _extraCostsForRaw(objId) {
+    _extraCostsForRaw(objId, casterId) {
       const o = this.obj(objId);
       const a = o && o.analysis();
       const out = [];
@@ -45896,7 +45951,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       /* Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them." — from a permanent of
          the caster's (grantCastKeyword offspring); one offspring is all the table pays for */
       if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'offspring')) {
-        const caster = o.controller || o.owner;
+        const caster = casterId || o.controller || o.owner;
         for (const src of this.battlefield) {
           if (src.controller !== caster || src.phasedOut) continue;
           const g = this._staticOp(src, 'grantCastKeyword');
@@ -45908,7 +45963,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1." (grantCastKeyword casualty)
       if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'casualty')) {
-        const caster = o.controller || o.owner;
+        const caster = casterId || o.controller || o.owner;
         for (const src of this.battlefield) {
           if (src.controller !== caster || src.phasedOut) continue;
           const g = this._staticOp(src, 'grantCastKeyword');
@@ -45938,7 +45993,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             prompt: `How many copies, at ${rep} each?` } });
       }
       if (o.zone === 'hand') {
-        const sp = this._spliceable(o.owner, o);
+        const sp = this._spliceable(casterId || o.owner, o);
         if (sp.length) {
           const items = this._chooseItems(sp.map(x => x.obj));
           items.forEach((it, i) => { it.cost = sp[i].cost; });
@@ -46653,7 +46708,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       /* Optional extra costs, chosen before the spell is cast: the caller
          says how many times to kick, or whether to buy it back, and the
          cost it pays grows to match. */
-      const extras = this.extraCostsFor(objId);
+      const extras = this.extraCostsFor(objId, playerId);
       const chose = { kicked: 0, kickPaid: null, boughtBack: false, entwined: false,
         offspring: false, squad: 0, casualty: null, spree: null };
       // an optional additional cost, paid: "if this spell's additional cost was paid" reads it as kicked
@@ -47192,7 +47247,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       // Wild-Magic Sorcerer: how many spells this player has cast from exile this turn
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       // The Twelfth Doctor: how many spells this player has cast from anywhere other than their hand this turn
-      if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
+      // (Sen Triplets: another player's hand is not theirs)
+      if (fromZone !== 'hand' || o.owner !== playerId) p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -48819,6 +48875,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       // Vish Kal, Blood Arbiter: "Remove all +1/+1 counters" — "for each counter removed this way" is that many (all)
       if (rc && rc.n === 'all') opts = Object.assign({}, opts, { x: Number(o.counters[String(rc.kind || '').replace(/\s+counters?$/i, '').trim()]) || 0 });
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — how many is
+         the X (all there are, unless said); Retribution of the Ancients: "Remove X …" (removeCounterSpread) */
+      const rs = ab.cost && ab.cost.removeCounterSpread;
+      if (rs && (rs.n === 'X' || rs.n === 'any')) {
+        const have = this._counterSpreadTotal(playerId, rs, o);
+        if ((opts.x || 0) > have) return this.fail(`There aren't that many ${rs.kind} counters among ${O.nounPlural(rs.filter)} you control.`);
+        opts = Object.assign({}, opts, { x: opts.x != null ? opts.x : have });
+        if (rs.min && opts.x < rs.min) return this.fail(`At least ${rs.min} ${rs.kind} counter${rs.min === 1 ? '' : 's'} must be removed.`);
+      }
       // (Mr. House, President and CEO: "each mana from Treasures spent to activate this ability" — manaFromTreasure)
       const accWas = this._spentAcc;
       this._spentAcc = {};
@@ -48944,6 +49009,18 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (a.auraSpec && (a.auraSpec.type === 'player' || a.auraSpec.type === 'opponent')) return [];
       return this.battlefield.filter(x => x !== o && !x.phasedOut && x.zone === 'battlefield' && this._attachLegal(o, a, x));
     }
+    /**
+     * Harold and Bob, First Numens: a card coming back as an Aura it never printed ("It's an Aura enchantment with
+     * enchant Forest you control") — what it could enchant, by the enchant words it is handed, for the player it comes
+     * back under. Not targeted, so hexproof is no bar; protection still is.
+     */
+    _enterAuraHosts(x, enterEff, pid) {
+      const words = (enterEff.grantTexts || []).find(t => /^Enchant /.test(t));
+      const ga = words && O.analyze({ id: 'granted:' + U.hash(words), name: 'Granted', type_line: 'Enchantment — Aura', oracle_text: words, keywords: [], layout: 'token' });
+      const spec = ga && ga.auraSpec;
+      if (!spec || spec.zone !== 'battlefield' || spec.type === 'player' || spec.type === 'opponent') return [];
+      return this.battlefield.filter(h => h !== x && !h.phasedOut && MTG.oracle.matchesSpec(spec, h, h.analysis(), pid, this._specCtx()) && !this._protectedFrom(h, x));
+    }
     /** A leash goes on the best of theirs, a bonus on the best of ours. */
     _bestAuraHost(o, a, hosts) {
       const text = String(a.oracleText || '').toLowerCase();
@@ -49005,6 +49082,42 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     _counterCostPool(pid, spec, self) {
       return this._cheapestFirst(this.battlefield.filter(x => x.controller === pid && !x.phasedOut && !(spec.other && x === self) && this._cardFitsWords(x, spec.filter || 'permanent') &&
         (spec.kind ? Number(x.counters[spec.kind]) > 0 : Object.values(x.counters || {}).some(v => Number(v) > 0))));
+    }
+    /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — what has
+       counters of that kind to give, and how many there are in all (removeCounterSpread) */
+    _counterSpreadPool(pid, spec, self) {
+      return this._counterCostPool(pid, { filter: spec.filter, kind: spec.kind, other: spec.other }, self);
+    }
+    _counterSpreadTotal(pid, spec, self) {
+      return this._counterSpreadPool(pid, spec, self).reduce((k, x) => k + (Number(x.counters[spec.kind]) || 0), 0);
+    }
+    /**
+     * How many come off each, as a Map: the player's own spread (`ids`, one id for each counter) when it adds up to
+     * `want` and each has that many; otherwise the table's — off what is not a creature first, then off what has the
+     * most. Null when there are not that many.
+     */
+    _counterSpreadPlan(pid, spec, self, want, ids) {
+      const pool = this._counterSpreadPool(pid, spec, self);
+      const have = (x) => Number(x.counters[spec.kind]) || 0;
+      if (Array.isArray(ids) && ids.length === want) {
+        const plan = new Map();
+        const ok = ids.every(id => {
+          const x = pool.find(y => y.id === id);
+          if (!x) return false;
+          plan.set(x, (plan.get(x) || 0) + 1);
+          return plan.get(x) <= have(x);
+        });
+        if (ok) return plan;
+      }
+      const creature = (x) => ((this.characteristics(x) || {}).isCreature ? 1 : 0);
+      const plan = new Map();
+      let left = want;
+      for (const x of pool.slice().sort((a, b) => (creature(a) - creature(b)) || (have(b) - have(a)))) {
+        if (left <= 0) break;
+        const k = Math.min(left, have(x));
+        if (k > 0) { plan.set(x, k); left -= k; }
+      }
+      return left > 0 ? null : plan;
     }
     /** Collect evidence: the mana value there is to exile from a graveyard. */
     // (The Capitoline Triad: "historic cards" only — filter)
@@ -49118,6 +49231,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           candidates: this._equipmentOn(self).map(x => x.id) });
         if (c.removeCounterFrom) out.push({ kind: 'counterFrom', label: 'Remove a counter', key: 'counterFromId', need: 1, kindKey: 'counterKind',
           candidates: this._counterCostPool(pid, c.removeCounterFrom, self).map(x => x.id) });
+        /* Jetfire, Ingenious Scientist: which of yours the counters come off, as many off each as you like
+           (removeCounterSpread; need: the number, or 'X' — the amount chosen first) */
+        if (c.removeCounterSpread) {
+          const rs = c.removeCounterSpread, many = typeof rs.n === 'number' ? rs.n : 'X';
+          out.push({ kind: 'counterSpread', label: `Remove ${many === 1 ? 'a' : many} ${rs.kind} counter${many === 1 ? '' : 's'} from among ${rs.other ? 'other ' : ''}${O.nounPlural(rs.filter)} you control`,
+            key: 'counterSpreadIds', need: many, counterKind: rs.kind, candidates: this._counterSpreadPool(pid, rs, self).map(x => x.id) });
+        }
         if (c.blight) out.push({ kind: 'blight', label: 'Blight ' + c.blight, key: 'blightId', need: 1,
           candidates: this._blightPool(pid).map(x => x.id) });
         if (c.behold) out.push({ kind: 'behold', label: 'Behold a ' + c.behold.filter, key: 'beholdIds', need: c.behold.n || 1,
@@ -49299,6 +49419,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      * an ability, which the table has to keep rather than just read.
      */
     _activationBlocked(o, ab, playerId) {
+      // Sen Triplets: "that player can't … activate abilities" — any, mana abilities included
+      if (this._abilityLocked(playerId)) return "You can't activate abilities this turn.";
       /* Boast (CR 702.142): only once the creature has attacked this turn,
          and once each turn (twice with Birgi). Exhaust (CR 702.177): once,
          ever, for this permanent. */
@@ -49579,6 +49701,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (cost.mill && this.zones[pid].library.length < cost.mill) return 'Not enough cards in your library to mill.';
       if (cost.removeCounterFrom && this._counterCostPool(pid, cost.removeCounterFrom, self)
         .reduce((k, x) => k + Object.values(x.counters || {}).reduce((a, v) => a + Math.max(0, Number(v) || 0), 0), 0) < (cost.removeCounterFrom.n || 1)) return 'No counter to remove.';
+      // Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" (removeCounterSpread)
+      if (cost.removeCounterSpread) {
+        const rs = cost.removeCounterSpread;
+        const need = rs.n === 'any' ? (rs.min || 1) : this._costCount(rs.n, opts, pid);
+        if (this._counterSpreadTotal(pid, rs, self) < need) return `Not enough ${rs.kind} counters among ${O.nounPlural(rs.filter)} you control.`;
+      }
       if (cost.behold && this._beholdPool(pid, cost.behold, self).length < (cost.behold.n || 1)) return `No ${cost.behold.filter} to behold.`;
       if (cost.energy && ((this.player(pid) || {}).energy || 0) < cost.energy) return 'Not enough energy.';
       if (cost.returnOwn) {
@@ -50188,6 +50316,21 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (cost.untap) this._markUntapped(o);
       if (cost.life) this.changeLife(playerId, -cost.life, 'cost');
       if (lifeFrom) this.changeLife(playerId, -lifeFrom, 'cost');
+      /* Jetfire, Ingenious Scientist: counters of one kind off any of yours, as the player spread them (counterSpreadIds);
+         "that much" is how many came off (removeCounterSpread); before The Filigree Sylex is sacrificed, its own counting too */
+      if (cost.removeCounterSpread) {
+        const rs = cost.removeCounterSpread;
+        const want = rs.n === 'any' || rs.n === 'X' ? Math.max(0, (opts && opts.x) || 0) : (rs.n || 1);
+        const plan = this._counterSpreadPlan(playerId, rs, o, want, opts && opts.counterSpreadIds);
+        for (const [x, k] of (plan || [])) {
+          x.counters[rs.kind] = (Number(x.counters[rs.kind]) || 0) - k;
+          if (x.counters[rs.kind] <= 0) delete x.counters[rs.kind];
+          x._chr = null;
+          this.logEvent('counters', `${k} ${rs.kind} counter${k === 1 ? ' is' : 's are'} removed from ${x.name}.`);
+        }
+        this.bumpBoard();
+        this._lastRemovedCounters = plan ? want : 0;
+      }
       if (cost.sacSelf) {
         const tok = o.isToken;
         this.moveObject(o, 'graveyard');
@@ -50284,6 +50427,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const o = this.obj(objId);
       if (!o) return this.fail('No such permanent.');
       if (o.controller !== playerId) return this.fail('Not yours.');
+      // Sen Triplets: "can't … activate abilities" — mana abilities too
+      if (this._abilityLocked(playerId)) return this.fail("You can't activate abilities this turn.");
       const c = this.characteristics(o);
       if (c && c.setMana && !c.abilitiesLost) {
         // its type line has been rewritten, so it makes that mana instead
@@ -50606,6 +50751,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
     /** The untapped permanents auto-tap may draw on. */
     _autoTapSources(playerId) {
+      // (Sen Triplets: nothing to tap while that player can't activate abilities)
+      if (this._abilityLocked(playerId)) return [];
       return this.battlefield.filter(o =>
         o.controller === playerId && !o.tapped && !o.phasedOut &&
         this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)));
@@ -50648,6 +50795,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      */
     _activateManaDirect(playerId, o, ab, symbol) {
       const cost = ab.cost || {};
+      if (this._abilityLocked(playerId)) return false;
       if (!this._manaCostPayable(playerId, o, ab)) return false;
       if (cost.tap) this._markTapped(o);
       if (cost.untap) this._markUntapped(o);
@@ -50927,6 +51075,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /** What a mana ability charges, and whether the engine can pay it alone. */
     _manaCostPayable(playerId, o, ab) {
       const c = (ab && ab.cost) || {};
+      // Sen Triplets: no mana abilities either, this turn — only mana already in the pool
+      if (this._abilityLocked(playerId)) return false;
       /* A mana ability a level band has not handed over yet is not a
          source the auto-tapper may reach for. */
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) return false;
@@ -51023,7 +51173,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const opt = this._manaOptions(ab, o, playerId);
           // a source that would make nothing right now is no source at all
           if (!opt.any && !opt.produces.size) continue;
-          const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife') ? 1 : 0;
+          // (Harold and Bob, First Numens: rad counters with the mana are a price too)
+          const pain = (ab.effects || []).some(e => e.op === 'damage' || e.op === 'loseLife' || e.op === 'rad') ? 1 : 0;
           cand.push({ obj: o, ability: ab, index: i, produces: opt.produces, any: opt.any, amount: opt.amount, sac: sacs,
             flexibility: (opt.any ? 9 : opt.produces.size) + pain * 0.5 + (ab.spendOnly ? -0.25 : 0) + (sacs ? 20 : 0) });
         }
@@ -54887,7 +55038,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const lb = this._lbKey === this._boardKey && this._lb && this._lb.special ? this._lb : null;
         for (const entry of sources) {
           const ss = lb && lb.st.get(entry.src.id);
-          if (ss && (ss.lost || ss.rulesLost)) continue;          // its source has nothing left to hand out
+          // its source has nothing left to hand out (Harold and Bob: but what it was handed after, it has — grantTs)
+          if (ss && (ss.rulesLost || (ss.lost && !(entry.grantTs != null && entry.grantTs > ss.loseTs)))) continue;
           if (this._contApplies(entry, o, base)) { texts.push(said(entry.ef)); stamps.push(entry.ts); froms.push(entry.src.id); }
         }
         if (base.notCreatureUnless) {
@@ -54934,7 +55086,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           // the Talents: a loyalty ability handed to a planeswalker ("+1: …") is read as a planeswalker's
           const loyal = /^[+\u2212-]?(?:\d+|X): /.test(t);
-          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: loyal ? 'Planeswalker' : 'Creature', oracle_text: t, keywords: [], layout: 'token' });
+          /* Harold and Bob, First Numens: "enchant Forest you control" and "Enchanted Forest has '\u2026'" \u2014 an Aura's words,
+             read as an Aura's; what it can enchant comes with them (auraSpec) */
+          const auraWords = /^Enchant(?:ed)? /.test(t);
+          const ga = O.analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: loyal ? 'Planeswalker' : auraWords ? 'Enchantment \u2014 Aura' : 'Creature', oracle_text: t, keywords: [], layout: 'token' });
+          if (auraWords && /^Enchant /.test(t) && ga && ga.auraSpec && !out.auraSpec) out.auraSpec = ga.auraSpec;
           // words: triggered abilities, and activated ones ("has '{T}: Draw a card'")
           /* …and standing rules ("This creature gets +1/+1 for each …",
              "Creature tokens you control get +2/+2"): read as its own, so
@@ -55072,14 +55228,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         /* Huatli, Poet of Unity // Roar of the Fifth People: "This Saga gains "Creatures you control have '…'"" — a
            standing line it was given hands out its ability too */
-        for (const ge of (src.effects || [])) {
-          if (!ge || !ge.grantText || !/\bha(?:ve|s) "/.test(ge.grantText)) continue;
-          const ga = O.analyze({ id: 'granted:' + U.hash(ge.grantText), name: src.name, type_line: (src.card && src.card.type_line) || 'Enchantment',
+        (src.effects || []).forEach((ge, gi) => {
+          if (!ge || !ge.grantText || !/\bha(?:ve|s) "/.test(ge.grantText)) return;
+          // (Harold and Bob, First Numens: "Enchanted Forest has '…'" — an Aura's words, whatever the card printed)
+          const ga = O.analyze({ id: 'granted:' + U.hash(ge.grantText), name: src.name,
+            type_line: /^Enchanted /.test(ge.grantText) ? 'Enchantment — Aura' : (src.card && src.card.type_line) || 'Enchantment',
             oracle_text: ge.grantText, keywords: [], layout: 'token' });
+          /* (…and handed over after it lost everything else: still its to hand out — grantTs) */
           for (const ab of ((ga && ga.abilities) || [])) for (const x of (ab.effects || [])) {
-            if (x && x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6 });
+            if (x && x.op === 'continuous' && (x.grantText || x.grantAbilities)) list.push({ ef: x, src, ts, layer: 6, grantTs: this._effTs(ge, gi) });
           }
-        }
+        });
       }
       this._grantCache = list;
       this._grantEpoch = this._boardKey;
@@ -56331,7 +56490,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         o.ts = this._stampNew();      // its timestamp (CR 613.7d)
         /* Xu-Ifit, Osteoharmonist: what it is as it enters — no abilities, so none of them triggers or changes how it
            enters (enterEffects) */
-        for (const ef of ((opts && opts.enterEffects) || [])) o.effects.push(Object.assign(JSON.parse(JSON.stringify(ef)), { until: null }));
+        for (const ef of ((opts && opts.enterEffects) || [])) {
+          const one = Object.assign(JSON.parse(JSON.stringify(ef)), { until: null });
+          /* Harold and Bob, First Numens: "… loses all other abilities" — what it loses goes first, and what it is handed
+             in the same breath comes after it, so stays (grantTexts) */
+          const handed = one.grantTexts || [];
+          delete one.grantTexts;
+          if (handed.length) one.ts = this._stampNew();
+          o.effects.push(one);
+          for (const t of handed) o.effects.push({ grantText: t, until: null, ts: this._stampNew() });
+        }
         if (opts && opts.enterEffects) o._chr = null;
         this.battlefield.push(o);
         const a = o.analysis();
@@ -58171,6 +58339,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // Abstract Paintmage: what mana this makes, for a "spend this mana only" after it (restrictedMana)
         const manaBy = /^addMana/.test(e.op || '') ? this.player(ctxNow.controller) : null;
         const poolBefore = manaBy ? Object.assign({}, manaBy.pool) : null;
+        // (Jetfire, Ingenious Scientist: "Target player adds that much {C}" — whichever pool it went into: who 'target')
+        const poolsBefore = manaBy && e.who === 'target' ? this.players.map(q => ({ q, before: Object.assign({}, q.pool) })) : null;
         // (what an effect done as another player puts next in line is done as that player too: _spliceNext)
         this._curAs = e._as || null;
         // a villainous choice: "that player" is the one who chose it, for what it puts next in line too (_tp)
@@ -58190,6 +58360,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           continue;
         }
         finally { this._putBy = null; this._curAs = null; this._curTp = null; this._lastAddedMana = manaBy ? { pid: manaBy.id, before: poolBefore } : null; if (outerMoment) this._moveEpoch = null;
+          const grew = poolsBefore && poolsBefore.find(x => MANA.COLORS.concat('C').some(c => (Number(x.q.pool[c]) || 0) > (Number(x.before[c]) || 0)));
+          if (grew) this._lastAddedMana = { pid: grew.q.id, before: grew.before, target: true };
           // (Klauth, Unrivaled Ancient: the mana the "spend this mana only" just set aside, for the sentence after it — keepMana)
           if (e.op !== 'spendOnly') this._lastSetAside = null; }
         if (out === SUSPEND) return;            // waiting on somebody; resume later
@@ -59652,15 +59824,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         }
         case 'spendOnly': {
           const lm = this._lastAddedMana;
-          if (!lm || lm.pid !== me.id || e.open) break;
-          me.restricted = me.restricted || [];
+          // (Jetfire, Ingenious Scientist: the mana a target player added — theirs to spend, restricted all the same)
+          const holder = lm && (lm.pid === me.id ? me : lm.target ? this.player(lm.pid) : null);
+          if (!holder || e.open) break;
+          holder.restricted = holder.restricted || [];
           let k = 0;
           const aside = [];
           for (const c of MANA.COLORS.concat('C')) {
-            const made = Math.max(0, (Number(me.pool[c]) || 0) - (Number(lm.before[c]) || 0));
-            for (let i = 0; i < made; i++) { me.pool[c]--; const r = { color: c, spendOnly: e, srcId: src ? src.id : null }; me.restricted.push(r); aside.push(r); k++; }
+            const made = Math.max(0, (Number(holder.pool[c]) || 0) - (Number(lm.before[c]) || 0));
+            for (let i = 0; i < made; i++) { holder.pool[c]--; const r = { color: c, spendOnly: e, srcId: src ? src.id : null }; holder.restricted.push(r); aside.push(r); k++; }
           }
-          this._lastSetAside = { pid: me.id, list: aside };
+          this._lastSetAside = { pid: holder.id, list: aside };
           if (k) this.logEvent('mana', `${src ? src.name : ctx.name || 'That'}'s mana can only be spent as it says.`);
           break;
         }
@@ -64712,8 +64886,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             // anything else that counts, read the way every other number is
             : (e.per && e.per.per == null && !e.per.counteredMv) ? n(e.per)
             : this.countPermanents(ctx.controller, e.per) * ((e.per && e.per.mult) || 1);
-          for (let i = 0; i < k; i++) me.pool.add(e.symbol === 'C' ? 'C' : e.symbol);
-          if (k) this.logEvent('mana', `${me.name} adds ${k} mana.`);
+          // Jetfire, Ingenious Scientist: "Target player adds that much {C}." — into that player's pool (who 'target')
+          const into = e.who === 'target' ? firstPlayer() : me;
+          if (!into || into.hasLost) break;
+          for (let i = 0; i < k; i++) into.pool.add(e.symbol === 'C' ? 'C' : e.symbol);
+          if (k) this.logEvent('mana', `${into.name} adds ${k} mana.`);
           break;
         }
 
@@ -67995,6 +68172,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             // Azor, the Lawbringer: "during that player's next turn" — set going as that turn begins (silenceOn)
             if (e.duration === 'theirNextTurn') { (p.silenceOn = p.silenceOn || []).push({ on: null, instantSorcery: !!e.instantSorcery }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+            // Sen Triplets: "can't cast spells or activate abilities" — mana abilities as well (abilities)
+            if (e.abilities) p.abilityLockTurn = this.turn;
           }
           if (e.duration === 'theirNextTurn') {
             this.logEvent('rules', `${me.name}'s opponents can't cast instant or sorcery spells during their next turns.`);
@@ -68007,7 +68186,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           }
           // (Xanathar, Guild Kingpin: the one opponent targeted)
           { const tq = e.who === 'target' ? firstPlayer() : null;
-            this.logEvent('rules', tq ? `${tq.name} can't cast spells this turn.` : `${me.name}'s opponents can't cast spells this turn.`); }
+            const what = e.abilities ? "can't cast spells or activate abilities" : "can't cast spells";
+            this.logEvent('rules', tq ? `${tq.name} ${what} this turn.` : `${me.name}'s opponents ${what} this turn.`); }
           break;
 
         case 'sortRevealed': {
@@ -69790,8 +69970,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Homura, Human Ascendant: "return it to the battlefield flipped" — a flip card, its other half up
           const flipIt = !!(e.flipped && x.card.layout === 'flip');
           if (flipIt) { x.face = 1; x.flipped = true; }
+          /* Harold and Bob, First Numens: "It's an Aura enchantment with enchant Forest you control" — what it enchants is
+             chosen as it returns (CR 303.4f); with nothing it could enchant it stays where it is (enterAura) */
+          const backTo = e.owner ? x.owner : ctx.controller;
+          let auraHost = null;
+          if (e.enterEff && (e.enterEff.addSubtypes || []).includes('Aura')) {
+            const hosts = this._enterAuraHosts(x, e.enterEff, backTo);
+            if (!hosts.length) { this.logEvent('rules', `${x.name} stays where it is: there is nothing it could enchant.`); break; }
+            auraHost = hosts[0];
+            if (hosts.length > 1) {
+              const got = this._choose({ playerId: backTo, purpose: 'auraHostEnter', kind: 'objects', zone: 'battlefield', objId: x.id,
+                items: this._chooseItems(hosts), min: 1, max: 1, prompt: `${x.name}: choose what it enchants as it returns to the battlefield.` }, 'aura');
+              if (got === SUSPEND) return SUSPEND;
+              auraHost = hosts.find(h => ((got && got.picks) || []).includes(h.id)) || hosts[0];
+            }
+          }
           // (Tom, Bert, and William: "They're an artifact." — what it is as it enters: enterEff)
-          this.moveObject(x, 'battlefield', Object.assign({ controller: e.owner ? x.owner : ctx.controller, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          this.moveObject(x, 'battlefield', Object.assign({ controller: backTo, tapped: !!(e.tapped) }, e.enterEff ? { enterEffects: [e.enterEff] } : {}));
+          if (auraHost && x.zone === 'battlefield' && auraHost.zone === 'battlefield') { this._attachAura(x, auraHost); x._needsHost = false; }
           if (e.tapped) x.tapped = true;
           if (flipIt && x.zone === 'battlefield') { x.flipped = true; x.face = 1; x._chr = null; x._dyn = null; x._dynKey = null; this.bumpBoard(); }
           // Warcry Phoenix: "tapped and attacking" — at whoever the others attack, during combat
@@ -70800,6 +70996,16 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!q || q.id === ctx.controller || !me) break;
           me.oppTopGrants = (me.oppTopGrants || []).filter(g => g.turn === this.turn).concat([{ turn: this.turn, from: q.id }]);
           this.logEvent('rules', `${me.name} may look at and play the top card of ${q.name}'s library this turn.`);
+          break;
+        }
+        /* Sen Triplets: "that player … plays with their hand revealed. You may play lands and cast spells from that
+           player's hand this turn." — the opponent targeted (oppHandThisTurn; the lock is silence's) */
+        case 'oppHandThisTurn': {
+          const q = firstPlayer();
+          if (!q || q.id === ctx.controller || !me) break;
+          q.handRevealedTurn = this.turn;
+          me.oppHandGrants = (me.oppHandGrants || []).filter(g => g.turn === this.turn).concat([{ turn: this.turn, from: q.id }]);
+          this.logEvent('rules', `${q.name} plays with their hand revealed this turn, and ${me.name} may play lands and cast spells from it.`);
           break;
         }
         /* Earthbend N: a land of yours becomes a 0/0 creature with haste that
@@ -75120,6 +75326,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 
     /** Yuriko, Blade of the Mighty: "During combat, players can't … activate abilities that aren't mana abilities." — why not, or null */
     _nonManaLock(playerId) {
+      // (Sen Triplets: no abilities at all this turn — cycling, channel and ninjutsu among them)
+      if (this._abilityLocked(playerId)) return "You can't activate abilities this turn.";
       if (!(this.phase && this.phase.id === 'combat')) return null;
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
@@ -76203,6 +76411,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (alts.length && alts.every(x => simple.test(x))) {
           const ok = alts.some(x => x === 'permanent' ? true : (ha.types || []).some(t => t.toLowerCase() === x));
           if (!ok) return false;
+        }
+        /* Harold and Bob, First Numens: "enchant Forest you control" — a basic land type, and whose it is (CR 303.4d) */
+        const landYours = alts.length === 1 && alts[0].match(/^(plains|island|swamp|mountain|forest)( you control)?$/);
+        if (landYours) {
+          if (!(ha.subtypes || []).some(t => t.toLowerCase() === landYours[1])) return false;
+          if (landYours[2] && host.controller !== o.controller) return false;
         }
       } else if (a.isEquipment && !o.bestowed) {
         if (!ha.isCreature) return false;
@@ -78677,6 +78891,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        controller; Revelation: "Players play with their hands revealed" — to
        everybody, onlookers too. */
     _handShown(ownerId, viewer) {
+      // Sen Triplets: "plays with their hand revealed" this turn — to everybody (handRevealedTurn)
+      if ((this.player(ownerId) || {}).handRevealedTurn === this.turn) return true;
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'handsRevealed');
@@ -78703,6 +78919,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!p || !o || o.zone !== 'library' || o.owner === playerId) return false;
       if (((this.zones[o.owner] || {}).library || [])[0] !== o) return false;
       return (p.oppTopGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    /* Sen Triplets: "You may play lands and cast spells from that player's hand this turn." — may this player play
+       this card, in another player's hand (oppHandGrants)? */
+    _oppHandGrant(playerId, o) {
+      const p = this.player(playerId);
+      if (!p || !o || o.zone !== 'hand' || o.owner === playerId) return false;
+      return (p.oppHandGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    /** …and every card in those hands. */
+    _oppHandCards(playerId) {
+      const p = this.player(playerId);
+      const from = new Set(((p && p.oppHandGrants) || []).filter(g => g.turn === this.turn && g.from !== playerId).map(g => g.from));
+      return Array.from(from).flatMap(id => ((this.zones[id] || {}).hand || []).slice());
+    }
+    /** Sen Triplets: "that player can't … activate abilities" this turn — mana abilities as well (abilityLockTurn). */
+    _abilityLocked(playerId) {
+      const p = this.player(playerId);
+      return !!p && p.abilityLockTurn === this.turn;
     }
     _oppTops(playerId) {
       const p = this.player(playerId);
@@ -78941,7 +79175,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const out = {};
           const z = this.zones[playerId];
           if (!z || this.over || this.mulliganPhase) return out;
-          for (const o of z.hand.concat(z.command)) {
+          // (Sen Triplets: the cards in the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, this._oppHandCards(playerId))) {
             const why = this.whyNotPlayable(playerId, o.id);
             if (why) out[o.id] = why;
           }
@@ -78962,6 +79197,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
+          // (Sen Triplets: another player's hand, to cast from — the other ways in, never cycling it or the like)
+          for (const o of this._oppHandCards(playerId)) {
+            const u = this.altUsesFor(playerId, o.id).filter(x => x.kind === 'cast');
+            if (u.length) out[o.id] = u;
+          }
           return out;
         })(),
         /* The extra costs each card in your hand offers, so the table can
@@ -78970,9 +79210,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const out = {};
           const z = this.zones[playerId];
           if (!z) return out;
-          for (const o of z.hand.concat(z.command)) {
+          // (Sen Triplets: and the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, this._oppHandCards(playerId))) {
             // convoke, improvise and delve: what could pay, for the table to offer
-            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null), this._sacForLessOffer(playerId, o));
+            const ex = this.extraCostsFor(o.id, playerId).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null), this._sacForLessOffer(playerId, o));
             if (ex.length) out[o.id] = ex;
           }
           return out;
@@ -78985,7 +79226,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const z = this.zones[playerId];
           if (!z || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
           // (a card face down in exile is nobody's to read: only the ones face up, and those you may play from another's exile)
-          for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId))) {
+          // (Sen Triplets: and the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId), this._oppHandCards(playerId))) {
             const a = o.analysis();
             if (!a || a.isPermanent || !castModal(this._cardSpellEffects(a))) continue;
             const offer = this._castModeOffer(playerId, o, a, { kicked: 0 });
@@ -79067,8 +79309,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Telepathy: a hand played revealed is shown face up to whoever may see it
           /* …and a card revealed from it, or seen by a player who looked at the hand, stays face up to those who
              know it for as long as it stays there; `seenBy` says who besides its owner knows it */
-          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o))
+          // (Sen Triplets: "plays with their hand revealed" this turn — every card of it seen by all, its owner told so)
+          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
             : this.zones[p.id].hand.map(o => this._knows(o, playerId) ? known(o) : ser(o, true)),
+          // Sen Triplets: "can't cast spells or activate abilities" this turn (said only of such a player)
+          lockedOut: p.abilityLockTurn === this.turn && p.silencedTurn === this.turn ? true : undefined,
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),
           /* A card exiled from somebody else that you may play (an
              opponent's card Dauthi Voidwalker let you have, the top of a
@@ -85472,7 +85717,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able."
     'attackNextTurn',
     // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature."
-    'sacrificeTargeted']);
+    'sacrificeTargeted',
+    // Sen Triplets: "that player can't cast spells … You may play lands and cast spells from that player's hand"
+    'oppHandThisTurn']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -85510,6 +85757,14 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Harold and Bob, First Numens: the Forest of ours it enchants as it returns — an untapped one, so its new mana
+       ability is there to use this turn, and one with nothing else on it */
+    auraHostEnter(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean)
+        .sort((a, b) => ((b.controller === this.pid) - (a.controller === this.pid)) || (a.tapped - b.tapped) || ((a.attachments || []).length - (b.attachments || []).length));
+      return os.length ? { picks: [os[0].id] } : null;
+    },
     /* Klaw, Sonic Subjugator; Blackmail: the cards of ours to reveal, one of which the other player makes us discard —
        the ones worth least */
     revealFromHand(s) {
@@ -87422,6 +87677,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const g = this.game;
       if (!g.canPlayLand(this.pid)) return false;
       let lands = this.hand().filter(o => { const a = o.analysis(); return a && a.isLand; });
+      // Sen Triplets: a land from the chosen opponent's hand — theirs spent, ours kept — when there is one
+      const theirs = g._oppHandCards(this.pid).filter(o => (o.analysis() || {}).isLand);
+      if (theirs.length) lands = theirs;
       // with none in hand, a land exiled with leave to play it (Nashi, Gonti, Night Minister, Dragonhawk)
       if (!lands.length) {
         const z = g.zones[this.pid];
@@ -87610,8 +87868,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         const cost = MTG.mana.cmc(wb ? wb.mana : costStr);
         if (cost > mana) return;
         if (!g._targetsAvailable(g._spellEffects(a), this.pid)) return;
-        const v = this.spellWorth(o, a, when, cost);
+        let v = this.spellWorth(o, a, when, cost);
         if (v == null) return;
+        // Sen Triplets: a card of an opponent's spent rather than one of ours — worth a card more
+        if (o.zone === 'hand' && o.owner !== this.pid) v += 1;
         out.push({ o, a, v, cost, costStr, via: via ? via.via : null });
       };
       for (const o of z.hand.concat(z.command)) {
@@ -87651,6 +87911,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
       // back from an adventure: the creature, cast from exile like a card in hand
       for (const o of z.exile) if (o.adventureBy === this.pid) consider(o, null);
+      // Sen Triplets: the hand of the opponent chosen this turn, cast from as if it were ours
+      for (const o of g._oppHandCards(this.pid)) consider(o, null);
       /* exiled with leave to cast it (Act on Impulse, Gonti, Nashi), ours or somebody else's: a card in
          hand for as long as the leave lasts */
       for (const o of z.exile.concat(g._borrowedExile(this.pid))) {
@@ -87831,7 +88093,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (choice.via) opts.via = choice.via;
       /* Kicker and friends: pay for the better version when the mana is
          spare, because that is what the extra cost is for. */
-      const extras = g.extraCostsFor(choice.o.id);
+      const extras = g.extraCostsFor(choice.o.id, this.pid);
       let spare = mana - choice.cost;
       if (extras.length) {
         for (const ex of extras) {
@@ -88239,6 +88501,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const effects = ab.effects || [];
       const flat = flatEffects(effects);
       if (!flat.length || flat.some(e => e.op === 'manual')) return null;
+      /* Jetfire, Novijen Sages: counters enough among ours to take off (removeCounterSpread); Jetfire's "Target player
+         adds that much {C}" is mana a bot does not plan with */
+      const rsp = cost.removeCounterSpread;
+      if (rsp && g._counterSpreadTotal(this.pid, rsp, o) < (typeof rsp.n === 'number' ? rsp.n : (rsp.min || 1))) return null;
+      if (flat.some(e => e.op === 'addManaPer' && e.who === 'target')) return null;
       // Hanweir Battlements, Urza, Lord Protector: paid for only with the other card there to meld with
       const meldE = flat.find(e => e.op === 'meld');
       if (meldE && !g._meldPartner(o, meldE, this.pid).partner) return null;
@@ -88574,6 +88841,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (effect.op === 'stealAll' && foes.length) {
           const worth = (p) => U.sum(g.battlefield.filter(o => o.controller === p.id && this._isCreature(o)).map(o => this.permanentValue(o)));
           return { kind: 'player', id: foes.slice().sort((a, b) => worth(b) - worth(a))[0].id };
+        }
+        // Sen Triplets: the hand with the most in it worth casting (the main opponent's, all else even)
+        if (effect.op === 'oppHandThisTurn' && foes.length) {
+          const worth = (p) => U.sum(((g.zones[p.id] || {}).hand || []).map(o => ((o.analysis() || {}).isLand ? 0.5 : 1 + Math.min(4, (o.card && o.card.cmc) || 0) * 0.2)));
+          return { kind: 'player', id: foes.slice().sort((a, b) => worth(b) - worth(a) || (opp && b.id === opp.id ? 1 : 0) - (opp && a.id === opp.id ? 1 : 0))[0].id };
         }
         if (foes.length) {
           foes.sort((a, b) => (opp && a.id === opp.id ? -1 : 0) - (opp && b.id === opp.id ? -1 : 0) || a.life - b.life);
@@ -115577,6 +115849,8 @@ Sideboard
         p.ringLevel ? ['crown', `◎ Ring ${p.ringLevel}`, this.ringTip(p)] : null,
         p.speed ? ['', p.speed >= 4 ? '» Max speed' : `» Speed ${p.speed}`,
           p.speed >= 4 ? 'Speed 4, as fast as it goes' : 'Goes up by one, once each of their turns, when an opponent loses life; it stops at 4'] : null,
+        // Sen Triplets: no spells and no abilities, mana abilities included, for the turn
+        p.lockedOut ? ['bad', '⊘ Locked', "Can't cast spells or activate abilities this turn (mana abilities included)"] : null,
       ].filter(Boolean);
       // a dungeon: which room they are in, and how many they have finished
       const done = typeof p.dungeonsCompleted === 'number' ? p.dungeonsCompleted : (p.dungeonsCompleted || []).length;
@@ -116582,6 +116856,8 @@ Sideboard
       // the spell waiting for mana, clicked again: it goes back to waiting in your hand
       if (this.paying && this.paying.objId === id && loc.zone !== 'battlefield') return this.cancelPay();
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
+      // Sen Triplets: a card in another player's revealed hand that you may cast or play this turn
+      if (loc.zone === 'hand' && (live.playable || []).includes(id)) return this.playFromHand(loc.o);
       if (loc.zone === 'exile' && loc.player === this.meId && (live.playable || []).includes(id)) {
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
       }
@@ -117036,7 +117312,7 @@ Sideboard
     activate(o, a, index, ab, x, split) {
       this.closePopover();
       // an ability whose cost has an X (mana, or counters taken off) asks for it first
-      const asks = x == null ? this._abilityX(o, ab) : null;
+      const asks = x == null ? this._abilityX(o, ab, index) : null;
       if (asks) return this._askNumber(`${escapeHtml(o.card.name)}: ${asks.label}`, asks.sub, asks.min || 0, asks.max, asks.start != null ? asks.start : asks.max,
         (n) => this.activate(o, a, index, ab, n), o.card);
       /* "Add X mana in any combination of {U} and/or {B}": how much of the
@@ -117160,11 +117436,25 @@ Sideboard
     /**
      * The X an ability's cost asks for, if any: "{X}: ..." pays X mana, and a
      * storage land's "Remove X storage counters" takes that many off. Returns
-     * { label, sub, max } or null.
+     * { label, sub, max } or null. `index`: the ability's, for the cost picks
+     * the table offers for it (Jetfire, Ingenious Scientist).
      * @this {MTG.TableInstance}
+     * @param {any} o
+     * @param {any} ab
+     * @param {number=} index
      */
-    _abilityX(o, ab) {
+    _abilityX(o, ab, index) {
       const c = (ab && ab.cost) || {};
+      /* Jetfire, Ingenious Scientist: "Remove one or more +1/+1 counters from among artifacts you control" — how many,
+         up to every one among them (the costPicks row for this ability says which they are); one way only: not asked */
+      const rs = c.removeCounterSpread;
+      if (rs && (rs.n === 'X' || rs.n === 'any')) {
+        const row = (((this.live || this.view).costPicks || {})[o.id] || []).find(r => r.kind === 'counterSpread' && (index == null || r.index === index));
+        const have = ((row && row.candidates) || []).reduce((k, id) => k + (Number(((this.objIn(id) || {}).counters || {})[rs.kind]) || 0), 0);
+        const min = rs.min || 0;
+        if (have <= min) return null;
+        return { label: `remove how many ${rs.kind} counters?`, sub: `From among ${MTG.oracle.nounPlural(rs.filter)} you control: there are ${have}.`, max: have, min };
+      }
       // a planeswalker's "-X": as many loyalty counters as you like, up to all of them
       if (ab && ab.kind === 'loyalty' && c.loyaltyX < 0) {
         const have = Number((o.counters || {}).loyalty) || 0;
@@ -121067,6 +121357,15 @@ Sideboard
           ], { card }) };
           return this.render();
         }
+        /* Jetfire, Ingenious Scientist: counters of one kind off any of yours, as many off each as you like — asked
+           only when there is a choice: two or more to take them from, and more there than come off */
+        if (r.kind === 'counterSpread') {
+          const need = r.need === 'X' ? (x || 0) : (Number(r.need) || 1);
+          const has = (id) => Number(((this.objIn(id) || {}).counters || {})[r.counterKind]) || 0;
+          const ids = (r.candidates || []).filter(id => has(id) > 0);
+          if (need <= 0 || ids.length < 2 || ids.reduce((k, id) => k + has(id), 0) <= need) return next();
+          return this._pickCounterSpread(r, ids, need, has, card, (list) => { if (list) out[r.key] = list; next(); });
+        }
         /* a counter off a permanent of yours: which permanent, then which
            kind of counter when it has more than one */
         if (r.kindKey) {
@@ -121108,6 +121407,45 @@ Sideboard
         });
       };
       step(0);
+    },
+
+    /**
+     * Jetfire, Ingenious Scientist: how many counters come off each permanent, `need` in all — a tile for each (a tap
+     * takes one more off it), with fewer and more beneath it. `done` gets one id for each counter, or null to leave it
+     * to the game.
+     */
+    _pickCounterSpread(r, ids, need, has, card, done) {
+      const n = {};
+      for (const id of ids) n[id] = 0;
+      const sum = () => ids.reduce((k, id) => k + n[id], 0);
+      const title = String(r.label || '').replace(/^Remove (?:X|an?|\d+) (\S+) counters? /, (m0, kind) => `Remove ${need} ${kind} counter${need === 1 ? '' : 's'} `);
+      const key = 'spread:' + r.label + ':' + ids.join(',');
+      this.asking = { base: key, get key() { return key + ':' + ids.map(id => n[id]).join(','); }, build: () => {
+        const row = el('div', { class: 'pick-row' });
+        for (const id of ids) {
+          const x = this.objIn(id);
+          if (!x || !x.card) continue;
+          const set = (v) => { n[id] = U.clamp(v, 0, Math.min(has(id), n[id] + need - sum())); this.render(); };
+          row.appendChild(el('div', { class: 'spread-col', style: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' } }, [
+            this.pickTile(x.card, { face: x.face || 0, cls: n[id] ? 'chosen' : '', badge: n[id] || null, onClick: () => set(n[id] + 1) }),
+            el('span', { class: 'stepper' }, [
+              el('button', { type: 'button', class: 'btn xs', text: '−', disabled: !n[id], 'aria-label': `One fewer off ${x.card.name}`, onclick: () => set(n[id] - 1) }),
+              el('span', { class: 'stepper-val', text: `${n[id]} of ${has(id)}` }),
+              el('button', { type: 'button', class: 'btn xs', text: '+', disabled: n[id] >= has(id) || sum() >= need, 'aria-label': `One more off ${x.card.name}`, onclick: () => set(n[id] + 1) }),
+            ]),
+          ]));
+        }
+        return this.panel(escapeHtml(title), `${sum()} of ${need} chosen.`, row, [
+          { label: 'Let the game choose', fn: () => { this.asking = null; done(null); } },
+          { label: 'Use these', cls: 'primary', disabled: sum() !== need, fn: () => {
+            this.asking = null;
+            const list = [];
+            for (const id of ids) for (let i = 0; i < n[id]; i++) list.push(id);
+            done(list);
+          } },
+        ], { card, wide: true });
+      } };
+      this.render();
     },
 
     /** Pick the cards or permanents that pay a cost: a fixed number, or ones whose mana values reach a total. */
@@ -126624,6 +126962,9 @@ Sideboard
     for (const k of COST_PICK_LISTS) if (Array.isArray(intent[k])) out[k] = idList(intent[k]);
     for (const k of COST_PICK_ONES) if (typeof intent[k] === 'string') out[k] = intent[k];
     if (typeof intent.counterKind === 'string') out.counterKind = intent.counterKind.slice(0, 40);
+    /* Jetfire, Ingenious Scientist: one id for each counter that comes off (the same id again for each more off it) —
+       ids only, and no more than a board could hold; the engine checks each has that many */
+    if (Array.isArray(intent.counterSpreadIds)) out.counterSpreadIds = intent.counterSpreadIds.filter(x => typeof x === 'string').slice(0, 1000);
     return out;
   };
   /* Paid only from the mana already in the player's pool, with no lands
@@ -131101,6 +131442,16 @@ Sideboard
         return;
       }
       if (!g) return;
+      /* A card in somebody else's hand is theirs: cast or played by another seat only with the game's leave (Sen
+         Triplets: "You may play lands and cast spells from that player's hand this turn"). Checked before anything is
+         done, so a guest's intent naming another player's card does nothing. */
+      if (intent.kind === 'cast' || intent.kind === 'playLand') {
+        const o = g.obj(intent.objId);
+        if (o && o.zone === 'hand' && o.owner !== actorId && !g._oppHandGrant(actorId, o)) {
+          if (actorId === 'me') UI.error("That card is in another player's hand.");
+          return;
+        }
+      }
       // anything that changes the game is undoable; asking a question is not
       const UNDOABLE = {
         playLand: 'playing a land', cast: 'casting', activate: 'an ability',
