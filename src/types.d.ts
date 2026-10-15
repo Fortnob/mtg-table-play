@@ -203,8 +203,12 @@ declare namespace MTG {
         still there; its `seenBy` is 'all' when everybody sees it */
     topCard: ObjectView | null;
     handSize: number;
-    /** your own hand in full; everybody else's as hidden objects, but for the cards you know (revealed to you) */
+    /** your own hand in full; everybody else's as hidden objects, but for the cards you know (revealed to you), or all
+        of it face up when it is played revealed (Telepathy; Sen Triplets: for the turn, each card `seenBy` 'all').
+        A card in it you may cast or play (Sen Triplets) is in the view's `playable` like one of your own. */
     hand: AnyObjectView[];
+    /** Sen Triplets: this player can't cast spells or activate abilities (mana abilities too) this turn */
+    lockedOut?: true;
     graveyard: ObjectView[];
     exile: ObjectView[];
     command: ObjectView[];
@@ -547,6 +551,7 @@ declare namespace MTG {
     | { kind: 'auto'; act: 'clear' | 'decline'; id?: string; batch?: Id }
     | { kind: 'mulligan' }
     | { kind: 'keep'; bottom?: Id[] }
+    /** objId: a card in your hand, or in another player's when the game gives leave (Sen Triplets); 14-app.js turns away the rest */
     | { kind: 'playLand'; objId: Id; face?: number }
     | { kind: 'cycle'; objId: Id; channel?: boolean; targets?: Target[]; x?: number }
     | { kind: 'suspend'; objId: Id; x?: number }

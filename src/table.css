@@ -351,6 +351,8 @@
 .ohand.revealed { padding-left: 30px; }
 .ohand.revealed .cv { --w: 46px; margin-left: -24px; rotate: 0deg; translate: 0 0; cursor: zoom-in; transition: translate var(--fast); }
 .ohand.revealed .cv:hover { translate: 0 6px; z-index: 2; }
+/* Sen Triplets: a card of theirs you may cast or play this turn is clicked like one of your own */
+.ohand .cv.playable { cursor: pointer; z-index: 1; }
 .ohand .cv:nth-child(even) { rotate: 3deg; translate: 0 2px; }
 .ohand .cv .cv-body { box-shadow: -2px 1px 4px rgba(0,0,0,.7); }
 .ohand .cv-face.back .back-ring { width: 52%; }

@@ -1529,7 +1529,9 @@
     // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able."
     'attackNextTurn',
     // Ashling, the Extinguisher: "choose target creature that player controls. The player sacrifices that creature."
-    'sacrificeTargeted']);
+    'sacrificeTargeted',
+    // Sen Triplets: "that player can't cast spells … You may play lands and cast spells from that player's hand"
+    'oppHandThisTurn']);
   function isHarmful(e) {
     if (!e) return false;
     if (e.op === 'pump') return nval(e.p, 0) < 0 || nval(e.t, 0) < 0;
@@ -3487,6 +3489,9 @@
       const g = this.game;
       if (!g.canPlayLand(this.pid)) return false;
       let lands = this.hand().filter(o => { const a = o.analysis(); return a && a.isLand; });
+      // Sen Triplets: a land from the chosen opponent's hand — theirs spent, ours kept — when there is one
+      const theirs = g._oppHandCards(this.pid).filter(o => (o.analysis() || {}).isLand);
+      if (theirs.length) lands = theirs;
       // with none in hand, a land exiled with leave to play it (Nashi, Gonti, Night Minister, Dragonhawk)
       if (!lands.length) {
         const z = g.zones[this.pid];
@@ -3675,8 +3680,10 @@
         const cost = MTG.mana.cmc(wb ? wb.mana : costStr);
         if (cost > mana) return;
         if (!g._targetsAvailable(g._spellEffects(a), this.pid)) return;
-        const v = this.spellWorth(o, a, when, cost);
+        let v = this.spellWorth(o, a, when, cost);
         if (v == null) return;
+        // Sen Triplets: a card of an opponent's spent rather than one of ours — worth a card more
+        if (o.zone === 'hand' && o.owner !== this.pid) v += 1;
         out.push({ o, a, v, cost, costStr, via: via ? via.via : null });
       };
       for (const o of z.hand.concat(z.command)) {
@@ -3716,6 +3723,8 @@
       }
       // back from an adventure: the creature, cast from exile like a card in hand
       for (const o of z.exile) if (o.adventureBy === this.pid) consider(o, null);
+      // Sen Triplets: the hand of the opponent chosen this turn, cast from as if it were ours
+      for (const o of g._oppHandCards(this.pid)) consider(o, null);
       /* exiled with leave to cast it (Act on Impulse, Gonti, Nashi), ours or somebody else's: a card in
          hand for as long as the leave lasts */
       for (const o of z.exile.concat(g._borrowedExile(this.pid))) {
@@ -3896,7 +3905,7 @@
       if (choice.via) opts.via = choice.via;
       /* Kicker and friends: pay for the better version when the mana is
          spare, because that is what the extra cost is for. */
-      const extras = g.extraCostsFor(choice.o.id);
+      const extras = g.extraCostsFor(choice.o.id, this.pid);
       let spare = mana - choice.cost;
       if (extras.length) {
         for (const ex of extras) {
@@ -4644,6 +4653,11 @@
         if (effect.op === 'stealAll' && foes.length) {
           const worth = (p) => U.sum(g.battlefield.filter(o => o.controller === p.id && this._isCreature(o)).map(o => this.permanentValue(o)));
           return { kind: 'player', id: foes.slice().sort((a, b) => worth(b) - worth(a))[0].id };
+        }
+        // Sen Triplets: the hand with the most in it worth casting (the main opponent's, all else even)
+        if (effect.op === 'oppHandThisTurn' && foes.length) {
+          const worth = (p) => U.sum(((g.zones[p.id] || {}).hand || []).map(o => ((o.analysis() || {}).isLand ? 0.5 : 1 + Math.min(4, (o.card && o.card.cmc) || 0) * 0.2)));
+          return { kind: 'player', id: foes.slice().sort((a, b) => worth(b) - worth(a) || (opp && b.id === opp.id ? 1 : 0) - (opp && a.id === opp.id ? 1 : 0))[0].id };
         }
         if (foes.length) {
           foes.sort((a, b) => (opp && a.id === opp.id ? -1 : 0) - (opp && b.id === opp.id ? -1 : 0) || a.life - b.life);

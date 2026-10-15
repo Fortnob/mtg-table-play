@@ -65865,4 +65865,119 @@ module.exports = (test) => {
     t.eq(other.counters.oil || 0, 0, 'Filigree Sylex: the Millstone\'s oil too');
     t.eq(T4.life('B'), 10, 'Filigree Sylex: 10 damage');
   });
+  test("Commanders: Sen Triplets — your upkeep: the opponent can't cast spells or activate abilities, plays with their hand revealed, and you play and cast from it", (mk, t) => {
+    t.auto('Sen Triplets');
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B', 'C'] });
+    const g = M.g;
+    M.toMain('A');
+    M.bf('A', 'Sen Triplets');
+    const bolt = M.hand('B', 'Lightning Bolt');
+    t.no(g.canCast('A', bolt.id).ok, "Sen Triplets: before it triggers, another player's hand is theirs");
+    M.nextTurn('B'); M.nextTurn('C');
+    let asked = null;
+    M.answer('pickTarget', (ch) => { asked = ch; return { targets: [((ch.options || [])[0] || []).find(x => x.id === 'B')].filter(Boolean) }; });
+    M.nextTurn('A');
+    t.ok(asked, 'Sen Triplets: which opponent — asked');
+    const shock = M.hand('B', 'Shock');
+    const bears = M.hand('B', 'Grizzly Bears');
+    const forest = M.hand('B', 'Forest');
+    const cHand = M.hand('C', 'Grizzly Bears');
+    const myForest = M.hand('A', 'Forest');
+    // "plays with their hand revealed": every card of it, to everybody, for the turn
+    for (const viewer of ['A', 'C']) {
+      const hb = g.viewFor(viewer).players.find(p => p.id === 'B').hand;
+      t.ok(hb.length === g.zones.B.hand.length && hb.every(o => !o.hidden && o.card && o.seenBy === 'all'), `Sen Triplets: B's hand revealed to ${viewer}`);
+    }
+    t.ok(g.viewFor('B').players.find(p => p.id === 'B').hand.every(o => o.seenBy === 'all'), 'Sen Triplets: B is told the hand is seen by all');
+    t.ok(g.viewFor('A').players.find(p => p.id === 'B').lockedOut, 'Sen Triplets: B shown locked');
+    t.ok(g.viewFor('A').players.find(p => p.id === 'C').hand.every(o => o.hidden), "Sen Triplets: not C's hand");
+    // you may play lands and cast spells from that player's hand: lands, and spells you can pay for
+    const mtn = M.bf('A', 'Mountain'); M.bf('A', 'Forest'); M.bf('A', 'Forest');
+    const playable = g.playableNow('A');
+    t.ok(playable.some(x => x.kind === 'land' && x.objId === forest.id), "Sen Triplets: B's Forest is yours to play");
+    t.ok(playable.some(x => x.kind === 'cast' && x.objId === bolt.id) && playable.some(x => x.kind === 'cast' && x.objId === bears.id), "Sen Triplets: B's spells are yours to cast");
+    t.no(playable.some(x => x.objId === cHand.id), "Sen Triplets: C's hand is not");
+    t.ok(g.viewFor('A').playable.includes(bears.id), 'Sen Triplets: and the table offers them');
+    t.no(g.canCast('C', bolt.id).ok, 'Sen Triplets: nobody else casts from it');
+    // a spell from their hand: your mana, your spell, their graveyard
+    M.cast('A', bolt, { targets: ['C'] });
+    t.eq(M.life('C'), 17, 'Sen Triplets: Lightning Bolt cast from B\'s hand');
+    t.ok(mtn.tapped, "Sen Triplets: paid with A's Mountain");
+    t.zone(bolt, 'graveyard'); t.ok(g.zones.B.graveyard.includes(bolt), "Sen Triplets: into its owner's graveyard");
+    // a land from their hand: your land for the turn, and only one
+    M.playLand('A', forest);
+    t.zone(forest, 'battlefield'); t.eq(forest.controller, 'A', 'Sen Triplets: the Forest enters under your control');
+    t.eq(g.player('A').landsPlayed, 1, "Sen Triplets: B's Forest is A's land for the turn");
+    t.no(g.playLand('A', myForest.id), 'Sen Triplets: not a second land');
+    // a permanent spell: yours on the battlefield, still theirs to own; and while it is on the stack, B gets priority and can do nothing
+    t.ok(g.castSpell('A', bears.id, { auto: true, targets: [] }), 'Sen Triplets: Grizzly Bears cast from B\'s hand');
+    t.eq(g.stack.length, 1);
+    const bMtn = M.bf('B', 'Mountain');
+    const pyro = M.bf('B', 'Prodigal Pyromancer');
+    const zap = M.hand('B', 'Shock');
+    g.passPriority('A');
+    t.eq(g.priorityPlayer.id, 'B', 'Sen Triplets: B has priority');
+    M.mana('B', 'R');
+    t.no(g.castSpell('B', zap.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), "Sen Triplets: B can't cast spells");
+    t.eq(g.canCast('B', shock.id).reason, "You can't cast spells this turn.");
+    t.no(g.activateAbility('B', pyro.id, 0, { targets: [{ kind: 'player', id: 'A' }] }), "Sen Triplets: B can't activate abilities");
+    t.no(g.tapForMana('B', bMtn.id), "Sen Triplets: not even mana abilities");
+    t.no(bMtn.tapped || pyro.tapped, 'Sen Triplets: nothing tapped');
+    t.no(g.playableNow('B').length, 'Sen Triplets: B is offered nothing');
+    t.no(g.castSpell('B', bears.id, { auto: true }), 'Sen Triplets: the spell on the stack is not theirs');
+    M.resolve();
+    t.zone(bears, 'battlefield'); t.eq(bears.controller, 'A'); t.eq(bears.owner, 'B', 'Sen Triplets: Grizzly Bears, A\'s, owned by B');
+    t.eq(M.life('A'), 20, 'Sen Triplets: nothing B tried happened');
+    // this turn only
+    M.nextTurn('B');
+    t.ok(g.viewFor('A').players.find(p => p.id === 'B').hand.every(o => o.hidden), 'Sen Triplets: B\'s hand hidden again');
+    t.no(g.viewFor('A').players.find(p => p.id === 'B').lockedOut);
+    t.no(g.canCast('A', shock.id).ok, 'Sen Triplets: and no longer yours to cast from');
+    t.ok(g.tapForMana('B', bMtn.id), 'Sen Triplets: B taps for mana again');
+    t.ok(g.castSpell('B', shock.id, { auto: true, targets: [{ kind: 'player', id: 'A' }] }), 'Sen Triplets: and casts spells');
+    M.resolve();
+    t.eq(M.life('A'), 18);
+  });
+  test('Commanders: Sen Triplets (bots) — casts and plays from the opponent\'s hand; the locked bot tries nothing', (mk, t) => {
+    const M = mk({ library: Array(30).fill('Island'), players: ['A', 'B'] });
+    const g = M.g;
+    M.toMain('A');
+    for (const id of ['A', 'B']) M.player(id).isBot = true;
+    const botA = new M.MTG.bots.BotPlayer(g, 'A', 8);
+    const botB = new M.MTG.bots.BotPlayer(g, 'B', 8);
+    const sen = M.bf('A', 'Sen Triplets');
+    M.nextTurn('B');
+    M.toMain('B', 'end');
+    const div = M.hand('B', 'Divination');
+    M.hand('B', 'Forest');
+    M.bf('A', 'Island'); M.bf('A', 'Island'); M.bf('A', 'Island');
+    // A's upkeep: the trigger aimed by the bot
+    let ch = null;
+    for (let i = 0; i < 300 && !ch; i++) {
+      if (g.pendingChoice) { ch = g.pendingChoice; break; }
+      g.passPriority(g.priorityPlayer.id, true);
+    }
+    t.ok(ch && ch.playerId === 'A', 'Sen Triplets (bot): its trigger asks it');
+    botA.doChoice(ch);
+    M.toMain('A');
+    t.ok((g.player('A').oppHandGrants || []).some(x => x.from === 'B' && x.turn === g.turn), 'Sen Triplets (bot): B chosen');
+    t.ok(botA.playLandIfUseful(), 'Sen Triplets (bot): plays a land');
+    t.ok(g.battlefield.some(o => o.controller === 'A' && o.owner === 'B' && (o.analysis() || {}).isLand), "Sen Triplets (bot): a land of B's, theirs spent");
+    t.ok(botA.castFromPlan('main1'), 'Sen Triplets (bot): casts something');
+    t.eq(div.zone, 'stack', "Sen Triplets (bot): B's Divination");
+    // the locked bot, with priority: casts nothing, activates nothing, taps nothing
+    const zap = M.hand('B', 'Shock');
+    const bMtn = M.bf('B', 'Mountain');
+    const pyro = M.bf('B', 'Prodigal Pyromancer');
+    g.passPriority('A');
+    t.eq(g.priorityPlayer.id, 'B');
+    const life = M.life('A');
+    botB.doPriority();
+    t.zone(zap, 'hand', 'Sen Triplets (bot): B casts nothing');
+    t.no(bMtn.tapped || pyro.tapped, 'Sen Triplets (bot): B taps nothing');
+    t.eq(M.life('A'), life);
+    M.resolve();
+    t.zone(div, 'graveyard'); t.ok(g.zones.B.graveyard.includes(div));
+    t.zone(sen, 'battlefield');
+  });
 };

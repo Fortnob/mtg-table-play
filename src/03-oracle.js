@@ -11030,6 +11030,11 @@
        though it were mana of any color to cast spells this way." (oppTopThisTurn) */
     { re: /^choose target opponent\. Until end of turn, that player can'?t cast spells, you may look at the top card of their library any time, you may play the top card of their library, and you may spend mana as though it were mana of any color to cast spells this way\.?$/i,
       make: () => [{ op: 'oppTopThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target' }] },
+    /* Sen Triplets: "choose target opponent. This turn, that player can't cast spells or activate abilities and plays
+       with their hand revealed. You may play lands and cast spells from that player's hand this turn." (oppHandThisTurn;
+       silence abilities: mana abilities too) */
+    { re: /^choose target opponent\. This turn, that player can'?t cast spells or activate abilities and plays with their hand revealed\. You may play lands and cast spells from that player'?s hand this turn\.?$/i,
+      make: () => [{ op: 'oppHandThisTurn', targets: [{ type: 'player', opponent: true }] }, { op: 'silence', who: 'target', abilities: true }] },
     /* Grenzo, Dungeon Warden: "Put the bottom card of your library into your graveyard. If it's a creature card with power
        less than or equal to Grenzo's power, put it onto the battlefield." (bottomToGraveReanimate) */
     { re: /^Put the bottom card of your library into your graveyard\. If it'?s a creature card with power less than or equal to (?:CARDNAME|this creature)'?s power, put it onto the battlefield\.?$/i,

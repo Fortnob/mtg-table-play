@@ -1243,6 +1243,8 @@
         p.ringLevel ? ['crown', `◎ Ring ${p.ringLevel}`, this.ringTip(p)] : null,
         p.speed ? ['', p.speed >= 4 ? '» Max speed' : `» Speed ${p.speed}`,
           p.speed >= 4 ? 'Speed 4, as fast as it goes' : 'Goes up by one, once each of their turns, when an opponent loses life; it stops at 4'] : null,
+        // Sen Triplets: no spells and no abilities, mana abilities included, for the turn
+        p.lockedOut ? ['bad', '⊘ Locked', "Can't cast spells or activate abilities this turn (mana abilities included)"] : null,
       ].filter(Boolean);
       // a dungeon: which room they are in, and how many they have finished
       const done = typeof p.dungeonsCompleted === 'number' ? p.dungeonsCompleted : (p.dungeonsCompleted || []).length;
@@ -2248,6 +2250,8 @@
       // the spell waiting for mana, clicked again: it goes back to waiting in your hand
       if (this.paying && this.paying.objId === id && loc.zone !== 'battlefield') return this.cancelPay();
       if (loc.zone === 'hand' && loc.player === this.meId) return this.playFromHand(loc.o);
+      // Sen Triplets: a card in another player's revealed hand that you may cast or play this turn
+      if (loc.zone === 'hand' && (live.playable || []).includes(id)) return this.playFromHand(loc.o);
       if (loc.zone === 'exile' && loc.player === this.meId && (live.playable || []).includes(id)) {
         return ((live.uses || {})[id] || []).length ? this.cardMenu(id, e) : this.playFromHand(loc.o);
       }

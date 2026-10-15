@@ -494,8 +494,8 @@ function checkView(view, viewer, game) {
     if ((p.hand || []).length !== p.handSize) bad('view.sense', `${p.id}.handSize`, `is ${p.handSize} but the hand has ${(p.hand || []).length}`);
     /* hidden information */
     if (p.id !== viewer) {
-      /* unless the hand is played revealed (Telepathy), or the viewer knows that card: it was revealed, or they
-         looked at the hand, and it has not moved since (knownTo) */
+      /* unless the hand is played revealed (Telepathy; Sen Triplets: to everybody, for the turn — _handShown), or the
+         viewer knows that card: it was revealed, or they looked at the hand, and it has not moved since (knownTo) */
       const mayHand = (o) => !!game && ((game._handShown && game._handShown(p.id, viewer)) || (game._knows && game._knows(game.obj(o.id), viewer)));
       for (const o of p.hand || []) if (!o.hidden && !mayHand(o)) bad('view.privacy', `${p.id}.hand ${o.id}`, `${viewer}'s view shows a card in ${p.id}'s hand (${(o.card || {}).name})`);
       // unless it is played revealed ("play with the top card of your library revealed"), or known to the viewer
@@ -533,6 +533,12 @@ function checkView(view, viewer, game) {
   /* playable: things this player could do now, so they must be things they can see */
   const what = (oid) => { const o = game && game.obj ? game.obj(oid) : null; return o ? `${oid} (${o.name}, in ${o.owner}'s ${o.zone})` : oid; };
   for (const oid of view.playable || []) if (!all.has(oid)) bad('view.sense', 'view.playable', `${what(oid)} is not anywhere the viewer can see`);
+  // (a card in another player's hand only with leave to play it from there: Sen Triplets)
+  for (const oid of view.playable || []) {
+    const o = game && game.obj ? game.obj(oid) : null;
+    if (o && o.zone === 'hand' && o.owner !== viewer && !(game._oppHandGrant && game._oppHandGrant(viewer, o)))
+      bad('view.sense', 'view.playable', `${what(oid)} is in another player's hand, and ${viewer} has no leave to play it`);
+  }
   if ((view.playable || []).length && view.priorityPlayer !== viewer) bad('view.sense', 'view.playable', 'offers plays to somebody without priority');
   const ch = view.pendingChoice;
   if (ch) {

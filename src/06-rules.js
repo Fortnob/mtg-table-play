@@ -1617,7 +1617,8 @@
         // (Coram, the Undertaker: other players' graveyards too; Grolnok, the Omnivore: your own cards in exile with croak counters on them)
         const elsewhere = z.library.slice(0, 1).concat(z.graveyard, this._oppTops(playerId), (z.exile || []).filter(o => !impulsed.includes(o)))
           .filter(o => this._playFromRule(playerId, o, 'land')).concat(this._borrowedGraveyard(playerId, 'land'));
-        for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere)) {
+        // (Sen Triplets: the hand of the opponent chosen this turn)
+        for (const o of z.hand.concat(impulsed.filter(x => !x.impulseCastOnly), elsewhere, this._oppHandCards(playerId))) {
           const a = o.analysis();
           if ((a && a.isLand) || this.landBack(o)) out.push({ kind: 'land', objId: o.id });
         }
@@ -1641,11 +1642,14 @@
       // (Mister Immortal: an ability that works from exile as well as the graveyard — alsoExile)
       const exileActs = (z.exile || []).filter(o => !impulsed.includes(o) && !waiting.includes(o) && !ownLeave.includes(o) &&
         (((o.analysis() || {}).abilities) || []).some(ab => ab.alsoExile));
-      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, exileActs, this._borrowedGraveyard(playerId))) {
+      // (Sen Triplets: the cards in the hand of the opponent chosen this turn — cast, never cycled or foretold)
+      const oppHand = this._oppHandCards(playerId);
+      for (const o of z.hand.concat(z.command, z.graveyard, impulsed, waiting, fromTop, ownLeave, exileActs, this._borrowedGraveyard(playerId), oppHand)) {
         /* Cycling and flashback are things you can do with this card that
            are not "cast it for its mana cost", and a table that never
            offers them may as well not have printed them. */
         for (const use of this.altUsesFor(playerId, o.id)) {
+          if (use.kind !== 'cast' && oppHand.includes(o)) continue;
           if (!this.canPayNow(playerId, use.cost, { forSpell: o })) continue;
           if (use.kind === 'cycle') {
             out.push({ kind: 'cycle', objId: o.id });
@@ -2152,6 +2156,8 @@
       const p = this.player(playerId);
       if (!p) return 0;
       let have = p.pool.total();
+      // (Sen Triplets: the pool and nothing more, while no mana ability can be activated)
+      if (this._abilityLocked(playerId)) return have;
       for (const o of this.battlefield) {
         if (o.controller !== playerId || o.tapped || o.phasedOut) continue;
         const a = o.analysis();
@@ -4025,7 +4031,8 @@
       if (!o) return this.fail('No such card.');
       // (Valgavoth, Terror Eater; Nashi, Gonti, Night Minister: an opponent's land, exiled with it or for you to play, is yours to play)
       // (Xanathar, Guild Kingpin: the top card of the chosen opponent's library)
-      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o) && !this._oppTopGrant(playerId, o)) return this.fail('Not your card.');
+      // (Sen Triplets: "You may play lands … from that player's hand this turn")
+      if (o.controller !== playerId && o.owner !== playerId && !this._mayPlayFromExile(playerId, o) && !this._oppTopGrant(playerId, o) && !this._oppHandGrant(playerId, o)) return this.fail('Not your card.');
       const a = o.analysis();
       const back = this.landBack(o) && (face === 1 || !(a && a.isLand));
       if (!back && (!a || !a.isLand)) return this.fail('That is not a land.');
@@ -4070,9 +4077,10 @@
       const playerId = p.id;
       p.landsPlayed++;
       const fromZone = o.zone;
-      // Spider-Man 2099: "played a land … from anywhere other than your hand"
-      if (fromZone !== 'hand') p.landNotFromHandTurn = this.turn;
-      o._playedFromHand = fromZone === 'hand';
+      // Spider-Man 2099: "played a land … from anywhere other than your hand" (Sen Triplets: another player's hand is that)
+      const ownHand = fromZone === 'hand' && o.owner === playerId;
+      if (!ownHand) p.landNotFromHandTurn = this.turn;
+      o._playedFromHand = ownHand;
       this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
       // (Kaldring, the Rimestaff: "it enters tapped")
       if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
@@ -4977,6 +4985,8 @@
          (Mishra, Tamer of Mak Fawa: one it has been given, grantUnearth) */
       if (opts === 'unearth') {
         if (o.zone !== 'graveyard' || o.owner !== playerId) return { ok: false, reason: 'That is not in your graveyard.' };
+        // (Sen Triplets: unearth is an activated ability)
+        if (this._abilityLocked(playerId)) return { ok: false, reason: "You can't activate abilities this turn." };
         const why = this._sorcerySpeedBlock(playerId);
         if (why) return { ok: false, reason: why };
         const use = this.altUsesFor(playerId, objId).find(u => u.via === 'unearth');
@@ -5008,6 +5018,8 @@
       const banned = this._conspiracyCastBan(playerId, o);
       if (banned) return { ok: false, reason: banned };
       if (!['hand', 'command', 'graveyard', 'exile', 'library'].includes(o.zone)) return { ok: false, reason: 'Not castable from ' + o.zone + '.' };
+      // a card in another player's hand is theirs to cast — unless Sen Triplets gives leave ("cast spells from that player's hand")
+      if (o.zone === 'hand' && o.owner !== playerId && !this._oppHandGrant(playerId, o)) return { ok: false, reason: "That card is in another player's hand." };
       // Haakon, Stromgald Scourge: "You may cast this card from your graveyard, but not from anywhere else." (onlyHere)
       if (o.zone !== 'graveyard' && (a.abilities || []).some(ab => (ab.effects || []).some(x => x && x.op === 'castSelfFromGraveyard' && x.onlyHere)))
         return { ok: false, reason: `${o.name} can be cast only from a graveyard.` };
@@ -6955,10 +6967,11 @@
       return true;
     }
 
-    extraCostsFor(objId) {
-      return this._namedWords(this._extraCostsForRaw(objId), this._nameHint(objId));
+    /* (caster: who would cast it, when that is not the card's owner — Sen Triplets: a card in another player's hand) */
+    extraCostsFor(objId, caster) {
+      return this._namedWords(this._extraCostsForRaw(objId, caster), this._nameHint(objId));
     }
-    _extraCostsForRaw(objId) {
+    _extraCostsForRaw(objId, casterId) {
       const o = this.obj(objId);
       const a = o && o.analysis();
       const out = [];
@@ -6986,7 +6999,7 @@
       /* Zinnia, Valley's Voice: "Creature spells you cast gain offspring {2} as you cast them." — from a permanent of
          the caster's (grantCastKeyword offspring); one offspring is all the table pays for */
       if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'offspring')) {
-        const caster = o.controller || o.owner;
+        const caster = casterId || o.controller || o.owner;
         for (const src of this.battlefield) {
           if (src.controller !== caster || src.phasedOut) continue;
           const g = this._staticOp(src, 'grantCastKeyword');
@@ -6998,7 +7011,7 @@
       }
       // Silverquill, the Disputant: "Each instant and sorcery spell you cast has casualty 1." (grantCastKeyword casualty)
       if (o.zone !== 'stack' && o.zone !== 'battlefield' && !out.some(x => x.kind === 'casualty')) {
-        const caster = o.controller || o.owner;
+        const caster = casterId || o.controller || o.owner;
         for (const src of this.battlefield) {
           if (src.controller !== caster || src.phasedOut) continue;
           const g = this._staticOp(src, 'grantCastKeyword');
@@ -7028,7 +7041,7 @@
             prompt: `How many copies, at ${rep} each?` } });
       }
       if (o.zone === 'hand') {
-        const sp = this._spliceable(o.owner, o);
+        const sp = this._spliceable(casterId || o.owner, o);
         if (sp.length) {
           const items = this._chooseItems(sp.map(x => x.obj));
           items.forEach((it, i) => { it.cost = sp[i].cost; });
@@ -7743,7 +7756,7 @@
       /* Optional extra costs, chosen before the spell is cast: the caller
          says how many times to kick, or whether to buy it back, and the
          cost it pays grows to match. */
-      const extras = this.extraCostsFor(objId);
+      const extras = this.extraCostsFor(objId, playerId);
       const chose = { kicked: 0, kickPaid: null, boughtBack: false, entwined: false,
         offspring: false, squad: 0, casualty: null, spree: null };
       // an optional additional cost, paid: "if this spell's additional cost was paid" reads it as kicked
@@ -8282,7 +8295,8 @@
       // Wild-Magic Sorcerer: how many spells this player has cast from exile this turn
       if (fromZone === 'exile') p.exileCastsTurn = { turn: this.turn, n: (p.exileCastsTurn && p.exileCastsTurn.turn === this.turn ? p.exileCastsTurn.n : 0) + 1 };
       // The Twelfth Doctor: how many spells this player has cast from anywhere other than their hand this turn
-      if (fromZone !== 'hand') p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
+      // (Sen Triplets: another player's hand is not theirs)
+      if (fromZone !== 'hand' || o.owner !== playerId) p.notHandCastsTurn = { turn: this.turn, n: (p.notHandCastsTurn && p.notHandCastsTurn.turn === this.turn ? p.notHandCastsTurn.n : 0) + 1 };
       this.logEvent('cast', `${p.name} casts ${item.fused ? item.name + ' (fused)' : o.name}${item.targets.length ? ' targeting ' + item.targets.map(t => this.describeTarget(t)).join(', ') : ''}.`);
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -10453,6 +10467,8 @@
      * an ability, which the table has to keep rather than just read.
      */
     _activationBlocked(o, ab, playerId) {
+      // Sen Triplets: "that player can't … activate abilities" — any, mana abilities included
+      if (this._abilityLocked(playerId)) return "You can't activate abilities this turn.";
       /* Boast (CR 702.142): only once the creature has attacked this turn,
          and once each turn (twice with Birgi). Exhaust (CR 702.177): once,
          ever, for this permanent. */
@@ -11459,6 +11475,8 @@
       const o = this.obj(objId);
       if (!o) return this.fail('No such permanent.');
       if (o.controller !== playerId) return this.fail('Not yours.');
+      // Sen Triplets: "can't … activate abilities" — mana abilities too
+      if (this._abilityLocked(playerId)) return this.fail("You can't activate abilities this turn.");
       const c = this.characteristics(o);
       if (c && c.setMana && !c.abilitiesLost) {
         // its type line has been rewritten, so it makes that mana instead
@@ -11781,6 +11799,8 @@
 
     /** The untapped permanents auto-tap may draw on. */
     _autoTapSources(playerId) {
+      // (Sen Triplets: nothing to tap while that player can't activate abilities)
+      if (this._abilityLocked(playerId)) return [];
       return this.battlefield.filter(o =>
         o.controller === playerId && !o.tapped && !o.phasedOut &&
         this.manaAbilitiesOf(o).length && !(this.characteristics(o).isCreature && o.summoningSick && !this.hasKw(o, 'haste') && !this._hasteForAbilities(o)));
@@ -11823,6 +11843,7 @@
      */
     _activateManaDirect(playerId, o, ab, symbol) {
       const cost = ab.cost || {};
+      if (this._abilityLocked(playerId)) return false;
       if (!this._manaCostPayable(playerId, o, ab)) return false;
       if (cost.tap) this._markTapped(o);
       if (cost.untap) this._markUntapped(o);
@@ -12102,6 +12123,8 @@
     /** What a mana ability charges, and whether the engine can pay it alone. */
     _manaCostPayable(playerId, o, ab) {
       const c = (ab && ab.cost) || {};
+      // Sen Triplets: no mana abilities either, this turn — only mana already in the pool
+      if (this._abilityLocked(playerId)) return false;
       /* A mana ability a level band has not handed over yet is not a
          source the auto-tapper may reach for. */
       if (ab && ab.levelCond && !this._condMet(ab.levelCond, { controller: playerId, obj: o })) return false;
@@ -29197,6 +29220,8 @@
             // Azor, the Lawbringer: "during that player's next turn" — set going as that turn begins (silenceOn)
             if (e.duration === 'theirNextTurn') { (p.silenceOn = p.silenceOn || []).push({ on: null, instantSorcery: !!e.instantSorcery }); continue; }
             if (e.noncreature) p.silencedNoncreatureTurn = this.turn; else p.silencedTurn = this.turn;
+            // Sen Triplets: "can't cast spells or activate abilities" — mana abilities as well (abilities)
+            if (e.abilities) p.abilityLockTurn = this.turn;
           }
           if (e.duration === 'theirNextTurn') {
             this.logEvent('rules', `${me.name}'s opponents can't cast instant or sorcery spells during their next turns.`);
@@ -29209,7 +29234,8 @@
           }
           // (Xanathar, Guild Kingpin: the one opponent targeted)
           { const tq = e.who === 'target' ? firstPlayer() : null;
-            this.logEvent('rules', tq ? `${tq.name} can't cast spells this turn.` : `${me.name}'s opponents can't cast spells this turn.`); }
+            const what = e.abilities ? "can't cast spells or activate abilities" : "can't cast spells";
+            this.logEvent('rules', tq ? `${tq.name} ${what} this turn.` : `${me.name}'s opponents ${what} this turn.`); }
           break;
 
         case 'sortRevealed': {
@@ -32018,6 +32044,16 @@
           if (!q || q.id === ctx.controller || !me) break;
           me.oppTopGrants = (me.oppTopGrants || []).filter(g => g.turn === this.turn).concat([{ turn: this.turn, from: q.id }]);
           this.logEvent('rules', `${me.name} may look at and play the top card of ${q.name}'s library this turn.`);
+          break;
+        }
+        /* Sen Triplets: "that player … plays with their hand revealed. You may play lands and cast spells from that
+           player's hand this turn." — the opponent targeted (oppHandThisTurn; the lock is silence's) */
+        case 'oppHandThisTurn': {
+          const q = firstPlayer();
+          if (!q || q.id === ctx.controller || !me) break;
+          q.handRevealedTurn = this.turn;
+          me.oppHandGrants = (me.oppHandGrants || []).filter(g => g.turn === this.turn).concat([{ turn: this.turn, from: q.id }]);
+          this.logEvent('rules', `${q.name} plays with their hand revealed this turn, and ${me.name} may play lands and cast spells from it.`);
           break;
         }
         /* Earthbend N: a land of yours becomes a 0/0 creature with haste that
@@ -36338,6 +36374,8 @@
 
     /** Yuriko, Blade of the Mighty: "During combat, players can't … activate abilities that aren't mana abilities." — why not, or null */
     _nonManaLock(playerId) {
+      // (Sen Triplets: no abilities at all this turn — cycling, channel and ninjutsu among them)
+      if (this._abilityLocked(playerId)) return "You can't activate abilities this turn.";
       if (!(this.phase && this.phase.id === 'combat')) return null;
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
@@ -39901,6 +39939,8 @@
        controller; Revelation: "Players play with their hands revealed" — to
        everybody, onlookers too. */
     _handShown(ownerId, viewer) {
+      // Sen Triplets: "plays with their hand revealed" this turn — to everybody (handRevealedTurn)
+      if ((this.player(ownerId) || {}).handRevealedTurn === this.turn) return true;
       for (const o of this.battlefield) {
         if (o.phasedOut) continue;
         const e = this._staticOp(o, 'handsRevealed');
@@ -39927,6 +39967,24 @@
       if (!p || !o || o.zone !== 'library' || o.owner === playerId) return false;
       if (((this.zones[o.owner] || {}).library || [])[0] !== o) return false;
       return (p.oppTopGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    /* Sen Triplets: "You may play lands and cast spells from that player's hand this turn." — may this player play
+       this card, in another player's hand (oppHandGrants)? */
+    _oppHandGrant(playerId, o) {
+      const p = this.player(playerId);
+      if (!p || !o || o.zone !== 'hand' || o.owner === playerId) return false;
+      return (p.oppHandGrants || []).some(g => g.turn === this.turn && g.from === o.owner);
+    }
+    /** …and every card in those hands. */
+    _oppHandCards(playerId) {
+      const p = this.player(playerId);
+      const from = new Set(((p && p.oppHandGrants) || []).filter(g => g.turn === this.turn && g.from !== playerId).map(g => g.from));
+      return Array.from(from).flatMap(id => ((this.zones[id] || {}).hand || []).slice());
+    }
+    /** Sen Triplets: "that player can't … activate abilities" this turn — mana abilities as well (abilityLockTurn). */
+    _abilityLocked(playerId) {
+      const p = this.player(playerId);
+      return !!p && p.abilityLockTurn === this.turn;
     }
     _oppTops(playerId) {
       const p = this.player(playerId);
@@ -40165,7 +40223,8 @@
           const out = {};
           const z = this.zones[playerId];
           if (!z || this.over || this.mulliganPhase) return out;
-          for (const o of z.hand.concat(z.command)) {
+          // (Sen Triplets: the cards in the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, this._oppHandCards(playerId))) {
             const why = this.whyNotPlayable(playerId, o.id);
             if (why) out[o.id] = why;
           }
@@ -40186,6 +40245,11 @@
             const u = this.altUsesFor(playerId, o.id);
             if (u.length) out[o.id] = u;
           }
+          // (Sen Triplets: another player's hand, to cast from — the other ways in, never cycling it or the like)
+          for (const o of this._oppHandCards(playerId)) {
+            const u = this.altUsesFor(playerId, o.id).filter(x => x.kind === 'cast');
+            if (u.length) out[o.id] = u;
+          }
           return out;
         })(),
         /* The extra costs each card in your hand offers, so the table can
@@ -40194,9 +40258,10 @@
           const out = {};
           const z = this.zones[playerId];
           if (!z) return out;
-          for (const o of z.hand.concat(z.command)) {
+          // (Sen Triplets: and the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, this._oppHandCards(playerId))) {
             // convoke, improvise and delve: what could pay, for the table to offer
-            const ex = this.extraCostsFor(o.id).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null), this._sacForLessOffer(playerId, o));
+            const ex = this.extraCostsFor(o.id, playerId).concat(this._reductionExtras(playerId, o), this._costPickOffers(playerId, o, ((o.analysis() || {}).additionalCost) || null), this._sacForLessOffer(playerId, o));
             if (ex.length) out[o.id] = ex;
           }
           return out;
@@ -40209,7 +40274,8 @@
           const z = this.zones[playerId];
           if (!z || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
           // (a card face down in exile is nobody's to read: only the ones face up, and those you may play from another's exile)
-          for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId))) {
+          // (Sen Triplets: and the hand of the opponent chosen this turn)
+          for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId), this._oppHandCards(playerId))) {
             const a = o.analysis();
             if (!a || a.isPermanent || !castModal(this._cardSpellEffects(a))) continue;
             const offer = this._castModeOffer(playerId, o, a, { kicked: 0 });
@@ -40291,8 +40357,11 @@
           // Telepathy: a hand played revealed is shown face up to whoever may see it
           /* …and a card revealed from it, or seen by a player who looked at the hand, stays face up to those who
              know it for as long as it stays there; `seenBy` says who besides its owner knows it */
-          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o))
+          // (Sen Triplets: "plays with their hand revealed" this turn — every card of it seen by all, its owner told so)
+          hand: p.id === playerId || this._handShown(p.id, playerId) ? this.zones[p.id].hand.map(o => known(o, p.handRevealedTurn === this.turn))
             : this.zones[p.id].hand.map(o => this._knows(o, playerId) ? known(o) : ser(o, true)),
+          // Sen Triplets: "can't cast spells or activate abilities" this turn (said only of such a player)
+          lockedOut: p.abilityLockTurn === this.turn && p.silencedTurn === this.turn ? true : undefined,
           graveyard: this.zones[p.id].graveyard.map(o => ser(o)),
           /* A card exiled from somebody else that you may play (an
              opponent's card Dauthi Voidwalker let you have, the top of a

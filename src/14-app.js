@@ -4850,6 +4850,16 @@
         return;
       }
       if (!g) return;
+      /* A card in somebody else's hand is theirs: cast or played by another seat only with the game's leave (Sen
+         Triplets: "You may play lands and cast spells from that player's hand this turn"). Checked before anything is
+         done, so a guest's intent naming another player's card does nothing. */
+      if (intent.kind === 'cast' || intent.kind === 'playLand') {
+        const o = g.obj(intent.objId);
+        if (o && o.zone === 'hand' && o.owner !== actorId && !g._oppHandGrant(actorId, o)) {
+          if (actorId === 'me') UI.error("That card is in another player's hand.");
+          return;
+        }
+      }
       // anything that changes the game is undoable; asking a question is not
       const UNDOABLE = {
         playLand: 'playing a land', cast: 'casting', activate: 'an ability',
