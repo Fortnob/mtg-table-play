@@ -1507,7 +1507,7 @@
         orb.classList.remove('hurt', 'healed'); void orb.offsetWidth;
         orb.classList.add(delta < 0 ? 'hurt' : 'healed');
         setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
-        this.float(orb, (delta > 0 ? '+' : '') + delta, delta < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(delta) / 8));
+        this._lifeFloat(orb, delta);
       }
       // counters, added up per permanent and kind so a big swing is one number
       const sum = new Map();
@@ -1557,8 +1557,30 @@
         orb.classList.remove('hurt', 'healed'); void orb.offsetWidth;
         orb.classList.add(d < 0 ? 'hurt' : 'healed');
         setTimeout(() => orb.classList.remove('hurt', 'healed'), 800);
-        this.float(orb, (d > 0 ? '+' : '') + d, d < 0 ? 'life-down' : 'life-up', Math.min(1, Math.abs(d) / 8));
+        this._lifeFloat(orb, d);
       }
+    },
+
+    /**
+     * D3: a life total's change, said beside the portrait — on its left,
+     * clear of the name, unless it is against the edge — rising a little, while the number on the portrait
+     * counts its way down or up (MTG.feel._countLife). Not over the
+     * portrait, whose number is counting, nor out over the board.
+     */
+    _lifeFloat(orb, d) {
+      const r = U.rect(orb);
+      if (!r.width || !d) return;
+      const ar = U.rect(this.arena);
+      // (on its left where there is room: a seat's name is to the right of its portrait)
+      const left = r.left - ar.left > 64;
+      const size = Math.min(1, Math.abs(d) / 8);
+      const f = el('div', {
+        class: 'fx-float life-side ' + (d < 0 ? 'life-down' : 'life-up') + (left ? ' left' : ''), text: (d > 0 ? '+' : '') + d,
+        style: { left: ((left ? r.left - 4 : r.right + 4) - ar.left) + 'px', top: (r.top - ar.top + r.height * 0.45) + 'px',
+          fontSize: (1.0 + size * 0.6).toFixed(2) + 'em' },
+      });
+      this.fxLayer.appendChild(f);
+      setTimeout(() => f.remove(), 1500);
     },
 
     _boardFloats(prev, next, fromEvents) {

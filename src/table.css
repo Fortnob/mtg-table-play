@@ -948,6 +948,13 @@
   text-shadow: 0 3px 0 rgba(0,0,0,.65), 0 0 14px rgba(255,60,40,.75), 0 0 28px rgba(0,0,0,.8); }
 .fx-float.life-down, .fx-float.dmg { color: #ff6b5c; }
 .fx-float.life-up, .fx-float.buff { color: var(--up); }
+/* a life total's change, beside its portrait (D3): it pops, rises a little and goes */
+.fx-float.life-side { translate: 0 -50%; transform-origin: 0 50%; animation: lifeSide 1.45s cubic-bezier(.2,.8,.2,1) forwards; }
+.fx-float.life-side.left { translate: -100% -50%; transform-origin: 100% 50%; }
+@keyframes lifeSide { 0% { opacity: 0; scale: .5; } 14% { opacity: 1; scale: 1.2; } 28% { scale: 1; transform: none; } 72% { opacity: 1; } 100% { opacity: 0; transform: translateY(-16px); } }
+@keyframes lifeSideStill { 0%, 72% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .fx-float.life-side { animation-name: lifeSideStill; } }
+:root[data-reduce-motion] .fx-float.life-side { animation-name: lifeSideStill; }
 @keyframes floatUp { 0% { opacity: 0; scale: .5; } 15% { opacity: 1; scale: 1.25; } 30% { scale: 1; } 100% { opacity: 0; translate: -50% -170%; } }
 .fx-flash { position: absolute; inset: 0; animation: flash .55s ease forwards; }
 .fx-flash.hurt { background: radial-gradient(ellipse at 50% 100%, rgba(255,40,30,.35), transparent 65%); }
