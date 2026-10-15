@@ -63776,4 +63776,145 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', 'Murder'), { targets: [tb] });
     t.eq(T.bfOf('A').filter(o => o.name === 'Zombie').length, 2, 'Tobias: the Bears and Tobias himself — two Zombies');
   });
+  test('Commanders: Alex Wilder, Runaway — a creature you cast from anywhere but your hand gets +2/+0 and haste', (mk, t) => {
+    t.auto('Alex Wilder, Runaway');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const alex = T.grave('A', 'Alex Wilder, Runaway');
+    for (let i = 0; i < 3; i++) T.grave('A', 'Island');
+    T.mana('A', '2R');
+    t.ok(g.castSpell('A', alex.id, { auto: true, via: 'escape' }), 'Alex: escapes');
+    T.resolve();
+    t.zone(alex, 'battlefield');
+    t.eq(g.powerOf(alex), 3, 'Alex: escaped — +2/+0 on itself');
+    t.ok(g.hasKw(alex, 'Haste'), 'Alex: haste');
+    // cast from the hand: nothing
+    const bears = T.hand('A', 'Grizzly Bears');
+    T.mana('A', '1G');
+    T.cast('A', bears);
+    t.zone(bears, 'battlefield');
+    t.eq(g.powerOf(bears), 2, 'Alex: cast from the hand — no bonus');
+    t.no(g.hasKw(bears, 'Haste'), 'Alex: no haste from the hand');
+    // put onto the battlefield without being cast: nothing
+    const giant = T.grave('A', 'Hill Giant');
+    g.moveObject(giant, 'battlefield', { controller: 'A' }); T.resolve();
+    t.eq(g.powerOf(giant), 3, 'Alex: not cast — no bonus');
+    // an opponent's creature cast from elsewhere: not yours
+    T.nextTurn('B');
+    const ws = T.grave('B', 'Woe Strider');
+    for (let i = 0; i < 4; i++) T.grave('B', 'Island');
+    T.mana('B', '3BB');
+    t.ok(g.castSpell('B', ws.id, { auto: true, via: 'escape' }), 'Woe Strider escapes');
+    T.resolve();
+    t.eq(g.powerOf(ws), 5, "Alex: an opponent's creature gets nothing");
+    T.nextTurn('A');
+    t.eq(g.powerOf(alex), 1, 'Alex: until end of turn');
+  });
+  test("Commanders: Krond the Dawn-Clad — attacks while enchanted: exile target permanent; not enchanted: nothing", (mk, t) => {
+    t.auto('Krond the Dawn-Clad');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const kr = T.bf('A', 'Krond the Dawn-Clad');
+    const ring = T.bf('B', 'Sol Ring');
+    const bears = T.bf('B', 'Grizzly Bears');
+    const n0 = T.asked.length;
+    T.answer('declareAttackers', () => [{ attackerId: kr.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'end');
+    t.zone(ring, 'battlefield', 'Krond: not enchanted — nothing exiled');
+    t.zone(bears, 'battlefield');
+    t.no(T.asked.slice(n0).some(q => q.type === 'pickTarget'), 'Krond: no target asked');
+    T.nextTurn('B'); T.nextTurn('A');
+    const aura = T.bf('A', 'Rancor');
+    aura.attachedTo = kr.id; kr.attachments = [aura.id]; g.bumpBoard();
+    T.answer('declareAttackers', () => [{ attackerId: kr.id, defenderId: 'B' }]);
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ring.id }] }));
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'end');
+    t.zone(ring, 'exile', 'Krond: enchanted — Sol Ring exiled');
+    t.zone(bears, 'battlefield');
+  });
+  test('Commanders: Hulkling, Burgeoning Bruiser — another creature enters with greater power or toughness: a +1/+1 counter', (mk, t) => {
+    t.auto('Hulkling, Burgeoning Bruiser');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const hk = T.bf('A', 'Hulkling, Burgeoning Bruiser');
+    T.bf('A', 'Grizzly Bears', { etb: true }); T.resolve();
+    t.eq(hk.counters['+1/+1'] || 0, 0, 'Hulkling: a 2/2 is not bigger than a 2/3');
+    T.bf('A', 'Wall of Stone', { etb: true }); T.resolve();
+    t.eq(hk.counters['+1/+1'] || 0, 1, 'Hulkling: greater toughness — a counter');
+    T.bf('A', 'Hill Giant', { etb: true }); T.resolve();
+    t.eq(hk.counters['+1/+1'] || 0, 1, 'Hulkling: a 3/3 against a 3/4 — nothing');
+    T.bf('B', 'Craw Wurm', { etb: true }); T.resolve();
+    t.eq(hk.counters['+1/+1'] || 0, 1, "Hulkling: an opponent's creature — nothing");
+    T.bf('A', 'Craw Wurm', { etb: true }); T.resolve();
+    t.eq(hk.counters['+1/+1'] || 0, 2, 'Hulkling: greater power — a counter');
+    t.ok(g.hasKw(hk, 'Vigilance'));
+  });
+  test('Commanders: Valentina Allegra de Fontaine — other Villains are Heroes; {T}: target Hero you control connives', (mk, t) => {
+    t.auto('Valentina Allegra de Fontaine');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const val = T.bf('A', 'Valentina Allegra de Fontaine');
+    const grap = T.bf('A', 'Glamorous Grapplers');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const oppV = T.bf('B', 'Symbiote Spawn');
+    t.ok(g._hasCreatureType(grap, 'Hero'), 'Valentina: a Villain of yours is a Hero');
+    t.ok(g._hasCreatureType(grap, 'Villain'), 'Valentina: and still a Villain');
+    t.no(g._hasCreatureType(val, 'Hero'), 'Valentina: not herself');
+    t.no(g._hasCreatureType(bears, 'Hero'), 'Valentina: not a non-Villain');
+    t.no(g._hasCreatureType(oppV, 'Hero'), "Valentina: not an opponent's Villain");
+    // the Grapplers are the only Hero: conniving, drawing the Island and discarding a nonland card
+    const bolt = T.hand('A', 'Lightning Bolt');
+    T.answer('discard', (ch) => ({ cardIds: [bolt.id] }));
+    T.activate('A', val, 0, { targets: [grap] });
+    t.zone(bolt, 'graveyard', 'Valentina: discarded the Bolt');
+    t.eq(T.zone('A', 'hand').length, 1, 'Valentina: drew one');
+    t.eq(grap.counters['+1/+1'], 1, 'Valentina: a nonland discard — a +1/+1 counter on the Hero');
+    t.ok(val.tapped, 'Valentina: tapped');
+    // not a Hero: no legal target
+    val.tapped = false;
+    t.no(g.activateAbility('A', val.id, 0, { auto: true, targets: [{ kind: 'object', id: bears.id }] }), 'Valentina: the Bears are no Hero');
+    // sorcery speed
+    T.nextTurn('B');
+    val.tapped = false;
+    t.no(g.activateAbility('A', val.id, 0, { auto: true, targets: [{ kind: 'object', id: grap.id }] }), "Valentina: only as a sorcery");
+  });
+  test('Commanders: Rasputin Dreamweaver — seven dream counters, spent for {C} or prevention; one back each upkeep it started untapped; never more than seven', (mk, t) => {
+    t.auto('Rasputin Dreamweaver');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ras = T.hand('A', 'Rasputin Dreamweaver');
+    T.mana('A', '4WU');
+    T.cast('A', ras);
+    t.zone(ras, 'battlefield');
+    t.eq(ras.counters.dream, 7, 'Rasputin: enters with seven');
+    // remove one: {C}
+    g.tapForMana('A', ras.id, 0);
+    t.eq(ras.counters.dream, 6, 'Rasputin: a counter for mana');
+    t.eq(g.player('A').pool.total(), 1, 'Rasputin: one mana');
+    t.no(ras.tapped, 'Rasputin: no tap needed');
+    // remove one: prevent the next 1 damage
+    T.activate('A', ras, 1);
+    t.eq(ras.counters.dream, 5, 'Rasputin: a counter for prevention');
+    g.dealDamageToObject(ras, 1, T.bf('B', 'Grizzly Bears')); g.checkStateBasedActions();
+    t.zone(ras, 'battlefield', 'Rasputin: the 1 damage prevented');
+    t.eq(ras.damage || 0, 0);
+    // next upkeep: it started the turn untapped — one back
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ras.counters.dream, 6, 'Rasputin: untapped at the start of the turn — a counter');
+    // tapped as the turn begins: none, though it untaps
+    ras.tapped = true;
+    T.nextTurn('B'); T.nextTurn('A');
+    t.no(ras.tapped, 'Rasputin: untapped in the untap step');
+    t.eq(ras.counters.dream, 6, 'Rasputin: started the turn tapped — no counter');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ras.counters.dream, 7, 'Rasputin: up to seven');
+    T.nextTurn('B'); T.nextTurn('A');
+    t.eq(ras.counters.dream, 7, "Rasputin: can't have more than seven");
+    g.addCounters(ras, 'dream', 3);
+    t.eq(ras.counters.dream, 7, 'Rasputin: nothing else puts more on either');
+    g.addCounters(ras, '+1/+1', 1);
+    t.eq(ras.counters['+1/+1'], 1, 'Rasputin: other counters are not capped');
+  });
 };

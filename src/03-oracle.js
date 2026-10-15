@@ -2807,7 +2807,8 @@
     { re: /^(?:It|He|She|CARDNAME|This creature) connives(?: (one|two|three|\d+))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[1] ? num(m[1]) : 1, scope: 'self' }) },
     // (Raffine, Scheming Seer: "Target attacking creature connives X" — raffineConnive)
-    { re: /^(Target (?:attacking )?creature(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
+    // (Valentina Allegra de Fontaine: "Target Hero you control connives.")
+    { re: /^(Target (?:attacking )?(?:creature|[A-Z][a-z]+)(?: you control)?) connives(?: (one|two|three|\d+|X))?\.?$/i,
       make: (m) => ({ op: 'connive', n: m[2] ? num(m[2]) : 1, targets: [targetSpec(m[1])] }) },
 
     // Alania, Divergent Storm: "you may have target opponent draw a card. If you do, copy that spell."
@@ -15005,6 +15006,10 @@
     [/^an opponent has more cards in hand than you$/i, () => ({ kind: 'opponentMoreHand' })],
     // Merry, Esquire of Rohan: "it's equipped"
     [/^(?:it'?s|he'?s|she'?s|this creature is|CARDNAME is) equipped$/i, () => ({ kind: 'selfEquipped' })],
+    // Krond the Dawn-Clad: "if it's enchanted"
+    [/^(?:it'?s|he'?s|she'?s|this creature is|CARDNAME is) enchanted$/i, () => ({ kind: 'selfEnchanted' })],
+    // Rasputin Dreamweaver: "if Rasputin started the turn untapped"
+    [/^(?:it|this creature|CARDNAME) started the turn untapped$/i, () => ({ kind: 'selfStartedUntapped' })],
     // Agent Frank Horrigan: "it attacked this turn"
     [/^(?:it|this creature|CARDNAME) attacked this turn$/i, () => ({ kind: 'selfAttackedThisTurn' })],
     // Tolsimir, Midnight's Light: "if Tolsimir attacked this combat" (selfAttackedThisCombat)
@@ -15303,6 +15308,8 @@
     [/^(?:this spell'?s|its) surge cost was paid$/i, () => ({ kind: 'surgePaid' })],
     // Chainer, Nightmare Adept: "if you didn't cast it from your hand" — the permanent the trigger is about
     [/^you didn'?t cast it from your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand' })],
+    // Alex Wilder, Runaway: "if you cast it from anywhere other than your hand" — cast, and not from the hand
+    [/^you cast it from anywhere other than your hand$/i, () => ({ kind: 'triggerObjNotCastFromHand', cast: true })],
     // Grist, Voracious Larva: "if it entered from your graveyard or you cast it from your graveyard"
     [/^it entered from your graveyard or you cast it from your graveyard$/i, () => ({ kind: 'triggerObjFromGraveyard' })],
     // Fblthp, the Lost: "if it entered from your library or was cast from your library" (zone library)
@@ -15387,6 +15394,8 @@
     [/^that creature was dealt excess damage this turn$/i, () => ({ kind: 'triggerObjExcess' })],
     // Drizzt Do'Urden: "if it had power greater than Drizzt's power" — the creature that died, as it last was (triggerPowerOverSelf)
     [/^it had power greater than CARDNAME'?s power$/i, () => ({ kind: 'triggerPowerOverSelf' })],
+    // Hulkling, Burgeoning Bruiser: "if it has greater power or toughness than Hulkling" — either one (orToughness)
+    [/^it has greater power or toughness than CARDNAME$/i, () => ({ kind: 'triggerPowerOverSelf', orToughness: true })],
     // Henry Wu, InGen Geneticist: "If the exploited creature had power 3 or greater" — as it last was (triggerPowerLki)
     [/^the exploited creature had power (\w+) or greater$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'triggerPowerLki', n: num(m[1]) } : null)],
     // Firkraag, Cunning Instigator: "if that creature had to attack this combat" — goaded, or made to (hadToAttack)
@@ -17256,8 +17265,9 @@
         const cands = parts.length >= 3 ? [parts[0] + ' ' + parts[parts.length - 1], parts[0]] : parts.length === 2 ? [parts[0]] : [];
         for (const c of cands) {
           if (c.length < 3 || /^(?:The|A|An|King|Queen|Lord|Lady|Sir|General|Captain|Dr\.|Doctor|Professor|Mister|Miss)$/.test(c) || subs.has(c.toLowerCase())) continue;
+          // (Rasputin Dreamweaver: "if Rasputin started the turn untapped")
           text = text.replace(new RegExp('(?<![\\w\\u00C0-\\u024F])' + escapeRe(c) +
-            "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves|would))\\b)", 'g'), 'CARDNAME');
+            "(?=(?:'s\\s+(?:power|toughness|base)|\\s+(?:enters|attacks|blocks|deals|dies|can't|can|gets|gains|has|is|isn't|doesn't|becomes|and|or|leaves|would|started))\\b)", 'g'), 'CARDNAME');
           // Zurgo Helmsmasher: "dealt damage by Zurgo this turn", "a +1/+1 counter on Zurgo."; Henrika Domnathi: "Transform Henrika."
           text = text.replace(new RegExp('(?<=\\b(?:on|by|to|untap|tap|exile|sacrifice|return|destroy|[Tt]ransform) )' + escapeRe(c) + '(?=[.,]|\\s+this turn\\b)', 'g'), 'CARDNAME');
         }
@@ -20418,6 +20428,13 @@
         if (!scope || scope.self || scope.attached || /^(?:Plains|Islands|Swamps|Mountains|Forests)$/.test(m[2])) return null;
         return { op: 'continuous', layer: 4, scope, addSubtypes: [U.titleCase(singularType(m[2]))] };
       } },
+    // Valentina Allegra de Fontaine: "Other Villains you control are Heroes in addition to their other types."
+    { re: /^((?:Other )?[A-Z][a-z]+s you control) are ([A-Z][a-z]+) in addition to their other types\.?$/,
+      make: (m) => {
+        const scope = eachScope(m[1]);
+        if (!scope || scope.self || scope.attached || /^(?:Plains|Islands|Swamps|Mountains|Forests)$/.test(m[2])) return null;
+        return { op: 'continuous', layer: 4, scope, addSubtypes: [U.titleCase(singularType(m[2]))] };
+      } },
     { re: /^(.+?) (?:is|are) (?:an? )?(?:artifact )?creatures? with (?:base )?power and toughness each equal to (?:its|their) mana value\.?$/i,
       make: (m) => {
         const scope = eachScope(m[1]);
@@ -22658,6 +22675,9 @@
       { re: /^Creature cards you own that aren'?t on the battlefield have flash\.?$/i, eff: { op: 'flashGrant', filter: 'creature', ownedOnly: true }, auto: true },
       // Everlasting Torment: "All damage is dealt as though its source had wither."
       { re: /^All damage is dealt as though its source had wither\.?$/i, eff: { op: 'witherAll' }, auto: true },
+      // Rasputin Dreamweaver: "Rasputin can't have more than seven dream counters on it." (maxCounters)
+      { re: /^CARDNAME can'?t have more than (\w+) ([a-z+\/-]+) counters on it\.?$/i,
+        make: (m) => (typeof num(m[1]) === 'number' ? { op: 'maxCounters', n: num(m[1]), kind: m[2].toLowerCase() } : null), auto: true },
       // Darksteel Angel, Blightbeetle: "Creatures you control can't have -1/-1 counters put on them."
       { re: /^(Creatures you control|Creatures your opponents control|Creatures) can'?t have ([+-]\d\/[+-]\d) counters put on them\.?$/i,
         make: (m) => { const sc = scopeOf(m[1]); return sc ? { op: 'noCountersOfKind', scope: sc, kind: m[2] } : null; }, auto: true },

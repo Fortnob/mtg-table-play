@@ -1263,6 +1263,8 @@
     _untapStep() {
       const ap = this.activePlayer;
       let n = 0;
+      // Rasputin Dreamweaver: "if Rasputin started the turn untapped" — as the turn began, before anything untaps (selfStartedUntapped)
+      for (const o of this.battlefield) if (!o.tapped && !o.phasedOut) o.untappedAtStart = this.turn;
       // Gideon, Battle-Forged: "attacks Gideon during its controller's next turn" — this turn is that one (mustAttackPw)
       for (const o of this.battlefield) if (o.mustAttackPw && o.controller === ap.id && this.turn > o.mustAttackPw.after && o.mustAttackPw.turn == null) o.mustAttackPw.turn = this.turn;
       // Rowan Kenrith: "During target player's next turn, each creature that player controls attacks if able." (attackNextTurn)
@@ -14767,6 +14769,7 @@
         }
         case 'triggerObjNotCastFromHand': {
           const x = ctx && ctx.triggerData && this.obj(ctx.triggerData.objectId);
+          if (cond.cast) return !!x && x.wasCast === this.turn && !!x.castFromZone && x.castFromZone !== 'hand';
           return !!x && !(x.wasCast === this.turn && x.castFromZone === 'hand');
         }
         // Kazuul: the attacker the trigger is about is attacking you (or a planeswalker of yours)
@@ -15129,6 +15132,7 @@
         }
         case 'opponentMoreHand': return !!me && this.opponentsOf(me.id).some(p => this.zones[p.id].hand.length > this.zones[me.id].hand.length);
         // Kosei, Penitent Warlord: "Kosei is enchanted" — an Aura on it
+        case 'selfStartedUntapped': return !!src && src.zone === 'battlefield' && src.untappedAtStart === this.turn;
         case 'selfEnchanted': return !!src && src.zone === 'battlefield' && (src.attachments || []).some(id => { const at = this.obj(id); return at && this._auraNow(at); });
         case 'selfEquipped': {
           // Awaken the Sleeper: in a spell, "it" is the creature it aimed at
@@ -15320,6 +15324,10 @@
           const self = ctx && ctx.obj;
           if (!x || !self || self.zone !== 'battlefield') return false;
           const pw = x.zone !== 'battlefield' && x._lastPower != null ? x._lastPower : this.powerOf(x);
+          if (cond.orToughness) {
+            const th = x.zone !== 'battlefield' && x._lastToughness != null ? x._lastToughness : this.toughnessOf(x);
+            if (th > this.toughnessOf(self)) return true;
+          }
           return pw > this.powerOf(self);
         }
         // Farideh, Devil's Chosen: "If any of those results was 10 or higher" (triggerRollAtLeast)
@@ -16723,6 +16731,11 @@
         if (ev.cancelled) return;
         if (ev.cancelled) return;
         n = ev.n;
+      }
+      // Rasputin Dreamweaver: "Rasputin can't have more than seven dream counters on it." — as many as fit
+      if (n > 0 && o.zone === 'battlefield') {
+        const cap = this._staticOp(o, 'maxCounters');
+        if (cap && cap.kind === kind) { n = Math.min(n, cap.n - (Number(o.counters[kind]) || 0)); if (n <= 0) return; }
       }
       // Darksteel Angel: "Creatures you control can't have -1/-1 counters put on them."
       if (n > 0 && o.zone === 'battlefield') {
