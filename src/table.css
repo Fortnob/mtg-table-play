@@ -929,6 +929,9 @@
 
 /* ---------- moments ---------- */
 .arena-fx { position: absolute; inset: 0; z-index: 90; pointer-events: none; overflow: hidden; }
+/* the log open: what the table does goes on under it, not over the lines being read (D2) — the turn's banner, the
+   numbers, cards flying, dice landing */
+.arena.drawer-open .arena-fx, .arena.drawer-open > .luck-reveal { z-index: 64; }
 .cv-ghost { position: fixed !important; z-index: 95; pointer-events: none; margin: 0 !important; translate: none !important; top: 0; }
 .cv-ghost.dying .cv-body { animation: dying .76s ease forwards; }
 @keyframes dying {
