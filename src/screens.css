@@ -1153,13 +1153,6 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .search-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .search-chips .chip { padding: 7px 11px; font-size: 11.5px; }
 .chip-gap { width: 10px; }
-/* rarity chips carry the set symbol's colour as a dot */
-.rarity-chip::before { content: ''; display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; vertical-align: 1px; background: var(--rar, #888); box-shadow: 0 0 0 1px rgba(255,255,255,.4); }
-.rarity-common { --rar: #2b2b2b; }
-.rarity-uncommon { --rar: linear-gradient(135deg, #e3eef3, #8aa4b0); }
-.rarity-rare { --rar: linear-gradient(135deg, #f3dc8a, #b08a2c); }
-.rarity-mythic { --rar: linear-gradient(135deg, #f6a04a, #c4361b); }
-:root[data-theme="light"] .rarity-chip::before { box-shadow: 0 0 0 1px rgba(0,0,0,.3); }
 .search-suggest .suggest-chip { border-radius: 99px; background: rgba(212,175,71,.08); border-color: var(--hair); color: var(--ink); }
 .search-grid {
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); --card-w: 140px; --card-h: 195px; gap: 16px 12px; max-height: calc(58 * var(--vh));
@@ -1507,15 +1500,14 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .card-search.embedded .search-grid { max-height: none; overflow: visible; grid-template-columns: repeat(auto-fill, minmax(124px, 1fr)); --card-w: 124px; --card-h: 173px; }
 .card-search.embedded .search-bar input { padding-top: 11px; padding-bottom: 11px; font-size: 15px; }
 .search-how { margin: -4px 2px 0; }
-.chip.colour-chip { padding: 4px 6px; line-height: 0; }
-.chip.colour-chip .pip { width: 18px; height: 18px; margin: 0; vertical-align: 0; }
-.chip.colour-chip:not(.on) .pip { filter: saturate(.55) brightness(.85); }
-.chip.colour-chip.on { box-shadow: 0 0 0 1px var(--gold-hi), 0 0 10px rgba(246, 220, 140, .35); }
+.seg.mini .seg-btn.colour-chip { padding: 4px 7px; line-height: 0; position: relative; -webkit-touch-callout: none; user-select: none; }
+.colour-chip .pip { width: 17px; height: 17px; margin: 0; vertical-align: 0; }
+.colour-chip:not(.on) .pip { filter: saturate(.55) brightness(.85); }
 /* a colour identity (shift-click, or a held press): a dashed ring and a small "id" */
-.chip.colour-chip.ident { position: relative; box-shadow: 0 0 10px rgba(246, 220, 140, .3); outline: 1.5px dashed var(--gold-hi); outline-offset: 1px; }
-.chip.colour-chip.ident::after { content: 'id'; position: absolute; right: -5px; bottom: -6px; padding: 1px 3px; border-radius: 4px;
-  font: 800 8px/1 var(--font); letter-spacing: .04em; color: #241a05; background: var(--gold-hi); }
-.chip.colour-chip { -webkit-touch-callout: none; user-select: none; }
+.seg.mini .seg-btn.colour-chip.ident { outline: 1.5px dashed #241a05; outline-offset: -3px; }
+.colour-chip.ident::after { content: 'id'; position: absolute; right: 1px; bottom: 1px; padding: 1px 2px; border-radius: 3px;
+  font: 800 7px/1 var(--font); letter-spacing: .04em; color: var(--gold-hi); background: #241a05; }
+.search-chips .seg.mini { flex: none; }
 /* the end of the results: reaching it reads in the next page */
 .search-more { grid-column: 1 / -1; min-height: 1px; padding: 8px 0 4px; text-align: center; font-size: 12px; color: var(--ink-3); }
 .search-db-note { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; font-size: 12px; color: var(--ink-2);

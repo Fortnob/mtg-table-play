@@ -1763,12 +1763,12 @@ Sideboard
        sorted. Shift-click one (on a phone, press and hold) for a colour
        identity instead: a card whose cost or text has that colour in it,
        the way Commander counts. */
-    const COLOURS = [['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']];
-    let typeOn = null, costOn = null;
-    // rarity: any of those picked, as the colours are
-    const RARITIES = [['Common', 'common'], ['Uncommon', 'uncommon'], ['Rare', 'rare'], ['Mythic', 'mythic']];
-    const raritiesOn = new Set();
-    const rarityQuery = () => (raritiesOn.size ? '(' + [...raritiesOn].map(r => 'r:' + r).join(' or ') + ')' : '');
+    let typeOn = null;
+    // mana values and rarities: any number of them on at once, none on is any (rarity as the collection picks it)
+    const costsOn = new Set();
+    const costQuery = () => (costsOn.size ? '(' + COSTS.filter(([, q]) => costsOn.has(q)).map(([, q]) => q).join(' or ') + ')' : '');
+    let raritiesOn = [];
+    const rarityQuery = () => (raritiesOn.length ? '(' + raritiesOn.map(r => 'r:' + r).join(' or ') + ')' : '');
     /** @type {Map<string, 'c'|'id'>} each colour picked, as a colour or as a colour identity */
     const coloursOn = new Map();
     const PAIRS = ['wu', 'wb', 'wr', 'wg', 'ub', 'ur', 'ug', 'br', 'bg', 'rg'];
@@ -1794,41 +1794,15 @@ Sideboard
       if (!only) chipRow.append(...TYPES.map(([l, q]) => chip(l, q, typeOn, (v) => { typeOn = v; })), el('span', { class: 'chip-gap' }));
       chipRow.append(
         el('span', { class: 'tiny dim', text: 'Mana value' }),
-        ...COSTS.map(([l, q]) => chip(l, q, costOn, (v) => { costOn = v; })),
+        el('div', { class: 'seg mini mv-seg', role: 'group', 'aria-label': 'Mana value' }, COSTS.map(([l, q]) => el('button', {
+          type: 'button', class: 'seg-btn' + (costsOn.has(q) ? ' on' : ''), text: l, 'aria-pressed': String(costsOn.has(q)),
+          onclick: () => { if (costsOn.has(q)) costsOn.delete(q); else costsOn.add(q); drawChips(); run(); },
+        }))),
         el('span', { class: 'chip-gap' }),
-        ...COLOURS.map(([c, name]) => {
-          const mode = coloursOn.get(c);
-          const b = el('button', {
-            type: 'button', class: 'chip colour-chip' + (mode ? ' on' : '') + (mode === 'id' ? ' ident' : ''),
-            title: mode === 'id' ? `${name} in its colour identity. Click to take it off.` : `${name}. Shift-click (or hold) for colour identity.`,
-            'aria-label': mode === 'id' ? `${name} colour identity` : name,
-            'aria-pressed': mode ? 'true' : 'false',
-            html: c === 'C' ? '<i class="pip pip-c">C</i>' : `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
-          });
-          // a press held on a phone is a shift-click
-          let held = null, wasHeld = false;
-          b.addEventListener('pointerdown', (e) => {
-            if (e.pointerType === 'mouse') return;
-            wasHeld = false;
-            held = setTimeout(() => { held = null; wasHeld = true; toggleColour(c, 'id'); }, 480);
-          });
-          const letGo = () => { if (held) { clearTimeout(held); held = null; } };
-          b.addEventListener('pointerup', letGo);
-          b.addEventListener('pointerleave', letGo);
-          b.addEventListener('contextmenu', (e) => { if (wasHeld) e.preventDefault(); });
-          b.addEventListener('click', (e) => {
-            if (wasHeld) { wasHeld = false; return; }
-            toggleColour(c, e.shiftKey ? 'id' : (mode === 'id' ? 'id' : 'c'));
-          });
-          return b;
-        }),
+        // the same pickers as the collection's (with colour identity on a shift-click here)
+        UI.colourSeg(coloursOn, toggleColour, { identity: true }),
         el('span', { class: 'chip-gap' }),
-        el('span', { class: 'tiny dim', text: 'Rarity' }),
-        ...RARITIES.map(([l, r]) => el('button', {
-          type: 'button', class: 'chip rarity-chip rarity-' + r + (raritiesOn.has(r) ? ' on' : ''), text: l,
-          'aria-pressed': raritiesOn.has(r) ? 'true' : 'false',
-          onclick: () => { if (raritiesOn.has(r)) raritiesOn.delete(r); else raritiesOn.add(r); drawChips(); run(); },
-        })));
+        UI.raritySeg(raritiesOn, (next) => { raritiesOn = next; drawChips(); run(); }));
     };
     drawChips();
     // with no card database in this browser every search is a trip to
@@ -1893,7 +1867,7 @@ Sideboard
     const run = U.debounce(async () => {
       const q = input.value.trim();
       suggestBox.innerHTML = '';
-      const chips = [typeOn, costOn, colourQuery(), rarityQuery()].filter(Boolean).join(' ');
+      const chips = [typeOn, costQuery(), colourQuery(), rarityQuery()].filter(Boolean).join(' ');
       const mine = ++token;
       if (inFlight) inFlight.abort();
       inFlight = null;

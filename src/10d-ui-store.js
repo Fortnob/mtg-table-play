@@ -2652,7 +2652,8 @@
 
   /* ---------------- the Collection ---------------- */
   // rarities: any number of them at once (none is every rarity); sort: how the cards are laid out
-  const colState = { set: '', rarities: [], color: '', show: 'owned', q: '', sort: 'color' };
+  // colours: any number of them too (none is every colour)
+  const colState = { set: '', rarities: [], colors: [], show: 'owned', q: '', sort: 'color' };
   const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest']];
   /**
    * The Collection into `host`: the cards you own, or a set's cards with
@@ -2675,23 +2676,12 @@
       ? { title: label, 'aria-label': label, html: `<i class="pip pip-${v.toLowerCase()}">${v}</i>` } : { text: label };
     const chips = (list, key) => el('div', { class: 'seg mini' }, list.map(([v, label]) => el('button', Object.assign({ type: 'button', class: 'seg-btn' + (colState[key] === v ? ' on' : '') }, chipFace(key, v, label), {
       onclick: () => { colState[key] = v; UI.renderCollection(host); } }))));
-    /* Rarities: any of them together, each letter in its rarity's colour;
-       "Any rarity" lets them all through again. */
-    const RAR_WORD = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', mythic: 'Mythic' };
-    const rarityChips = el('div', { class: 'seg mini rar-chips', role: 'group', 'aria-label': 'Rarity' }, [
-      el('button', { type: 'button', class: 'seg-btn' + (colState.rarities.length ? '' : ' on'), text: 'Any rarity', 'aria-pressed': String(!colState.rarities.length),
-        onclick: () => { colState.rarities = []; UI.renderCollection(host); } }),
-      ...['common', 'uncommon', 'rare', 'mythic'].map(r => {
-        const on = colState.rarities.includes(r);
-        return el('button', { type: 'button', class: 'seg-btn rar-' + r + (on ? ' on' : ''), text: r[0].toUpperCase(), 'aria-label': RAR_WORD[r], 'aria-pressed': String(on),
-          onclick: () => {
-            colState.rarities = on ? colState.rarities.filter(x => x !== r) : colState.rarities.concat(r);
-            // all four is the same as any
-            if (colState.rarities.length === 4) colState.rarities = [];
-            UI.renderCollection(host);
-          } });
-      }),
-    ]);
+    // rarities and colours: any number on at once, as in the deck builder's search
+    const rarityChips = UI.raritySeg(colState.rarities, (next) => { colState.rarities = next; UI.renderCollection(host); });
+    const colourChips = UI.colourSeg(new Map(colState.colors.map(c => [c, 'c'])), (c) => {
+      colState.colors = colState.colors.includes(c) ? colState.colors.filter(x => x !== c) : colState.colors.concat(c);
+      UI.renderCollection(host);
+    });
     const sortSel = el('select', { class: 'col-sort', 'aria-label': 'Sort by' },
       COL_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: colState.sort === v })));
     sortSel.addEventListener('change', () => { colState.sort = sortSel.value; drawGrid(); });
@@ -2705,7 +2695,7 @@
       el('div', { class: 'col-filters' }, [
         setSel, search, sortSel,
         rarityChips,
-        chips([['', 'Any colour'], ['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['M', 'Multicolour'], ['C', 'Colourless']], 'color'),
+        colourChips,
         colState.set ? chips([['owned', 'Owned'], ['all', 'All'], ['missing', 'Missing']], 'show') : null,
       ].filter(Boolean)),
       status, grid,
@@ -2736,7 +2726,7 @@
     const drawGrid = () => {
       const q = colState.q.toLowerCase();
       let list = cards.filter(c => (!colState.rarities.length || colState.rarities.includes(S.rarityOf(c))) &&
-        (!colState.color || colourOf(c) === colState.color) && (!q || c.name.toLowerCase().includes(q)));
+        (!colState.colors.length || colState.colors.includes(colourOf(c))) && (!q || c.name.toLowerCase().includes(q)));
       if (colState.set && colState.show === 'owned') list = list.filter(c => S.owned(c.name) > 0);
       if (colState.set && colState.show === 'missing') list = list.filter(c => S.owned(c.name) < 4);
       /* Colour (white, blue, black, red, green, then gold and colourless,

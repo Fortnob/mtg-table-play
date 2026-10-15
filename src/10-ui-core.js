@@ -1335,6 +1335,67 @@
       String(a.name).localeCompare(String(b.name)));
   };
 
+  /* ---------------- card filters ----------------
+     The rarity and colour pickers the collection and the deck builder's
+     search share: any number on at once, none on is everything. */
+  const RAR_WORD = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', mythic: 'Mythic' };
+  /**
+   * Rarity letters, each in its rarity's colour, and "Any rarity" to let
+   * them all through again (all four on is the same as none).
+   * @param {string[]} on the rarities picked
+   * @param {(next: string[]) => void} onChange
+   */
+  UI.raritySeg = function (on, onChange) {
+    return el('div', { class: 'seg mini rar-chips', role: 'group', 'aria-label': 'Rarity' }, [
+      el('button', { type: 'button', class: 'seg-btn' + (on.length ? '' : ' on'), text: 'Any rarity', 'aria-pressed': String(!on.length),
+        onclick: () => onChange([]) }),
+      ...['common', 'uncommon', 'rare', 'mythic'].map(r => {
+        const has = on.includes(r);
+        return el('button', { type: 'button', class: 'seg-btn rar-' + r + (has ? ' on' : ''), text: r[0].toUpperCase(),
+          title: RAR_WORD[r], 'aria-label': RAR_WORD[r], 'aria-pressed': String(has),
+          onclick: () => { const next = has ? on.filter(x => x !== r) : on.concat(r); onChange(next.length === 4 ? [] : next); } });
+      }),
+    ]);
+  };
+  const COLOUR_WORD = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', M: 'Multicolour', C: 'Colourless' };
+  /**
+   * Colour pips; a click puts one on or takes it off, none on is every
+   * colour. With opts.identity a shift-click (on a phone, press and hold)
+   * puts a colour on as a colour identity instead, the way Commander counts.
+   * @param {Map<string, 'c'|'id'>} on each colour picked, as a colour or an identity
+   * @param {(colour: string, mode: 'c'|'id') => void} toggle
+   */
+  UI.colourSeg = function (on, toggle, opts) {
+    opts = opts || {};
+    return el('div', { class: 'seg mini colour-seg', role: 'group', 'aria-label': 'Colours' }, Object.keys(COLOUR_WORD).map(c => {
+      const mode = on.get(c), name = COLOUR_WORD[c];
+      const b = el('button', {
+        type: 'button', class: 'seg-btn colour-chip' + (mode ? ' on' : '') + (mode === 'id' ? ' ident' : ''),
+        title: mode === 'id' ? `${name} in its colour identity. Click to take it off.` : opts.identity ? `${name}. Shift-click (or hold) for colour identity.` : name,
+        'aria-label': mode === 'id' ? `${name} colour identity` : name, 'aria-pressed': mode ? 'true' : 'false',
+        html: c === 'C' ? '<i class="pip pip-c">C</i>' : `<i class="pip pip-${c.toLowerCase()}">${c}</i>`,
+      });
+      let held = null, wasHeld = false;
+      if (opts.identity) {
+        // a press held on a phone is a shift-click
+        b.addEventListener('pointerdown', (e) => {
+          if (e.pointerType === 'mouse') return;
+          wasHeld = false;
+          held = setTimeout(() => { held = null; wasHeld = true; toggle(c, 'id'); }, 480);
+        });
+        const letGo = () => { if (held) { clearTimeout(held); held = null; } };
+        b.addEventListener('pointerup', letGo);
+        b.addEventListener('pointerleave', letGo);
+        b.addEventListener('contextmenu', (e) => { if (wasHeld) e.preventDefault(); });
+      }
+      b.addEventListener('click', (e) => {
+        if (wasHeld) { wasHeld = false; return; }
+        toggle(c, opts.identity && (e.shiftKey || mode === 'id') ? 'id' : 'c');
+      });
+      return b;
+    }));
+  };
+
   UI.sortCards = function (list, mode) {
     const key = {
       // X costs last: what they cost is up to you
