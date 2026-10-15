@@ -69508,4 +69508,128 @@ module.exports = (test) => {
       t.eq(lands.every(c => c.tapped), !mastery, mastery ? 'spell mastery: untapped' : 'tapped');
     }
   });
+
+  test('Cards: Selfless Squire — entering prevents all damage to you this turn; each prevention grows it by that much', (mk, t) => {
+    t.auto('Selfless Squire');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const sq = T.bf('A', 'Selfless Squire', { etb: true });
+    T.resolve();
+    const giant = T.bf('B', 'Hill Giant');
+    g.dealDamageToPlayer(T.player('A'), 3, giant, false); T.resolve();
+    t.eq(T.life('A'), 20, 'prevented');
+    t.eq(sq.counters['+1/+1'] || 0, 3, 'three +1/+1 counters');
+    // no prevention: nothing
+    T.nextTurn('B');
+    g.dealDamageToPlayer(T.player('A'), 2, giant, false); T.resolve();
+    t.eq(T.life('A'), 18, 'next turn: dealt');
+    t.eq(sq.counters['+1/+1'] || 0, 3, 'no counters when nothing is prevented');
+    // damage to another player prevented: not "to you"
+    g.prevention.push({ to: 'you', who: 'B' });
+    g.dealDamageToPlayer(T.player('B'), 2, sq, false); T.resolve();
+    t.eq(T.life('B'), 20); t.eq(sq.counters['+1/+1'] || 0, 3, "B's prevention: not A's Squire");
+  });
+
+  test('Cards: Echoing Deeps — may enter tapped as a copy of a land card in any graveyard, a Cave too', (mk, t) => {
+    t.auto('Echoing Deeps');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const tomb = T.grave('B', 'Ancient Tomb');
+    T.grave('A', 'Grizzly Bears');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch; return { cardIds: [tomb.id] }; });
+    const ed = T.hand('A', 'Echoing Deeps');
+    T.playLand('A', ed);
+    t.ok(offered && offered.purpose === 'cloneChoice', 'asked what to copy');
+    t.eq(offered.cards.map(c => c.name).join(','), 'Ancient Tomb', 'land cards only, from any graveyard');
+    t.eq(ed.name, 'Ancient Tomb', 'a copy of it');
+    t.ok(ed.tapped, 'entered tapped');
+    t.ok(/\bCave\b/.test(ed.card.type_line) && g._cardFitsWords(ed, 'cave'), 'a Cave in addition: ' + ed.card.type_line);
+    t.zone(tomb, 'graveyard', 'the card stays');
+    // nothing chosen: itself, tapped all the same
+    const U = mk({ library: Array(20).fill('Island') });
+    U.grave('A', 'Forest');
+    U.answer('pickCard', () => ({ cardIds: [] }));
+    const ed2 = U.hand('A', 'Echoing Deeps');
+    U.playLand('A', ed2);
+    t.eq(ed2.name, 'Echoing Deeps', 'declined: itself');
+  });
+
+  test('Cards: Will of the Abzan — any number of target opponents each sacrifice their most powerful creature and lose 3 life; with a commander, both modes', (mk, t) => {
+    t.auto('Will of the Abzan');
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C', 'D'] });
+    const g = T.g;
+    const giant = T.bf('B', 'Hill Giant'), bearB = T.bf('B', 'Grizzly Bears');
+    const wurm = T.bf('C', 'Craw Wurm'), elf = T.bf('C', 'Llanowar Elves');
+    const dBear = T.bf('D', 'Grizzly Bears');
+    T.mana('A', '3B');
+    T.cast('A', T.hand('A', 'Will of the Abzan'), { modes: [0], targets: ['B', 'C'] });
+    t.zone(giant, 'graveyard', "B's greatest power"); t.zone(bearB, 'battlefield');
+    t.zone(wurm, 'graveyard', "C's greatest power"); t.zone(elf, 'battlefield');
+    t.zone(dBear, 'battlefield', 'D not chosen');
+    t.eq(T.life('B'), 17); t.eq(T.life('C'), 17); t.eq(T.life('D'), 20);
+    // a commander: both modes
+    const U = mk({ library: Array(20).fill('Island') });
+    const cmd = U.bf('A', 'Grizzly Bears'); cmd.isCommander = true;
+    const bg = U.bf('B', 'Hill Giant');
+    const back = U.grave('A', 'Craw Wurm');
+    U.mana('A', '3B');
+    U.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }, { kind: 'object', id: back.id }] }));
+    U.cast('A', U.hand('A', 'Will of the Abzan'), { modes: [0, 1] });
+    t.zone(bg, 'graveyard', 'both: the edict'); t.eq(U.life('B'), 17);
+    t.zone(back, 'battlefield', 'both: the reanimation');
+  });
+
+  test("Cards: Urabrask's Forge — each combat on your turn, an oil counter, then an X/1 trample haste Horror for the counters, sacrificed at the end step", (mk, t) => {
+    t.auto("Urabrask's Forge");
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    const forge = T.bf('A', "Urabrask's Forge");
+    T.answer('declareAttackers', () => []);
+    toMain2(T);
+    const horrors = () => T.bfOf('A').filter(o => o.isToken && /Horror/.test(o.name + ' ' + (o.card.type_line || '')));
+    t.eq(forge.counters.oil, 1, 'one oil counter');
+    t.eq(horrors().length, 1, 'a Horror');
+    const h = horrors()[0];
+    t.eq(g.powerOf(h), 1); t.eq(g.toughnessOf(h), 1, 'X/1, X = 1');
+    t.ok(g.hasKw(h, 'trample') && g.hasKw(h, 'haste'), 'trample and haste');
+    T.nextTurn('B');
+    t.no(horrors().includes(h), 'sacrificed at the end step');
+    T.nextTurn('A');
+    T.answer('declareAttackers', () => []);
+    toMain2(T);
+    t.eq(forge.counters.oil, 2);
+    const h2 = horrors()[0];
+    t.eq(g.powerOf(h2), 2, 'the next one 2/1'); t.eq(g.toughnessOf(h2), 1);
+  });
+
+  test('Cards: Ichormoon Gauntlet — planeswalkers have [0]: proliferate and [-12]: an extra turn; a noncreature spell adds a counter of a kind already there', (mk, t) => {
+    t.auto('Ichormoon Gauntlet');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.bf('A', 'Ichormoon Gauntlet');
+    const pw = T.bf('A', 'Jace Beleren');
+    const bear = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 1 } });
+    T.settle();
+    const all = pw.analysis().manaAbilities.concat(pw.analysis().abilities.filter(a => a.kind === 'activated' || a.kind === 'loyalty'));
+    const pro = all.findIndex(a => /Proliferate/.test(a.text || ''));
+    t.ok(pro >= 0 && all.some(a => /extra turn/.test(a.text || '')), 'both abilities there');
+    const loy = pw.counters.loyalty;
+    T.activate('A', pw, pro);
+    t.eq(pw.counters.loyalty, loy + 1, '[0], then proliferate adds one loyalty');
+    t.eq(bear.counters['+1/+1'], 2, 'and a +1/+1 counter');
+    // a noncreature spell: a counter of a kind on the target, asked when there are two kinds
+    bear.counters.shield = 1;
+    let asked = null;
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bear.id }] }));
+    T.answer('choose', (ch) => { asked = ch; return { picks: [ch.options.findIndex(o => o.label === 'shield')] }; });
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Shock'), { targets: ['B'] });
+    t.ok(asked && asked.purpose === 'addCounterKind', 'asked which kind');
+    t.eq(bear.counters.shield, 2, 'another shield counter'); t.eq(bear.counters['+1/+1'], 2);
+    // a creature spell: nothing
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(bear.counters.shield, 2, 'creature spell: no trigger');
+  });
 };

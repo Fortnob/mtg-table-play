@@ -731,8 +731,8 @@
       if (!k) return null;
       e.n = k;
       s = s.slice(m[0].length);
-    } else if ((m = s.match(/^, where X is (.+)$/i)) && /^X\/X$/i.test(e.pt || '')) {
-      // Shark Typhoon: "an X/X … token, where X is that spell's mana value"
+    } else if ((m = s.match(/^, where X is (.+)$/i)) && /^(?:X\/X|X\/\d+|\d+\/X)$/i.test(e.pt || '')) {
+      // Shark Typhoon: "an X/X … token, where X is that spell's mana value" (Urabrask's Forge: "an X/1 …")
       const k = amountOf(m[1]);
       if (!k) return null;
       e.ptX = k;
@@ -3151,6 +3151,12 @@
         /who lost life/i.test(m[1]) ? { lostLifeOnly: true } : {},
         /^target/i.test(m[1]) ? { who: 'target', targets: [{ type: 'player', opponent: true }] } : {},
         /exile/i.test(m[2]) ? { exile: true } : {}) },
+    /* Will of the Abzan: "Any number of target opponents each sacrifice a creature with the greatest power among creatures
+       that player controls and lose 3 life." — each of them (sacGreatestMv targets), then the life */
+    { re: /^Any number of target opponents each sacrifice a creature with the greatest power among creatures (?:that player controls|they control) and lose (\d+) life\.?$/i,
+      make: (m) => [{ op: 'sacGreatestMv', what: ['creature'], by: 'power', who: 'targets',
+        targets: [{ type: 'player', distinct: true, opponent: true, multi: { count: 'any', min: 0 } }] },
+        { op: 'loseLife', who: 'targets', n: +m[1] }] },
     { re: /^Each opponent sacrifices an? (creature or planeswalker|creature) with the greatest mana value among (?:creatures and planeswalkers|creatures) they control\.?$/i,
       make: (m) => ({ op: 'sacGreatestMv', what: m[1].toLowerCase().split(' or ') }) },
     // Homeward Path
@@ -11593,6 +11599,14 @@
     /* Superior Spider-Man: "You may have Superior Spider-Man enter as a copy of any creature card in a graveyard, except
        his name is Superior Spider-Man and he's a 4/4 Spider Human Hero in addition to his other types. When you do,
        exile that card." — a card in any graveyard (fromGraveyard), exiled by a reflexive trigger (exileCopied) */
+    /* Echoing Deeps: "You may have this land enter tapped as a copy of any land card in a graveyard, except it's a Cave in
+       addition to its other types." — the card left where it is (fromGraveyard, tapped) */
+    { re: /^You may have (?:CARDNAME|this land) enter tapped as a copy of any land card in a graveyard(?:, except (.+?))?\.?$/,
+      make: (m) => {
+        const e = { op: 'etbAsCopy', what: 'land', fromGraveyard: true, tapped: true };
+        if (m[1] && (!copyExceptions(m[1], e) || e.keepThis || e.keepOwn)) return null;
+        return [e];
+      } },
     { re: /^You may have CARDNAME enter as a copy of any creature card in a graveyard(?:, except (.+?))?\. When you do, exile that card\.?$/,
       make: (m) => {
         const e = { op: 'etbAsCopy', what: 'creature', fromGraveyard: true, exileCopied: true };
@@ -12025,6 +12039,10 @@
             effects: [{ op: 'exile', targets: [Object.assign(sp, { type: 'card', controller: 'opponent', mvAtMostTrigger: true })] },
               { op: 'castCopy', of: 'last', fromRes: true }] }];
       } },
+    /* Ichormoon Gauntlet: "choose a counter on target permanent. Put an additional counter of that kind on that
+       permanent." — one kind of those on it, asked when there are several (addCounterOfKind) */
+    { re: /^Choose a counter on (target [a-z ]+?)\. Put an additional counter of that kind on that (?:permanent|creature|planeswalker)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? [{ op: 'addCounterOfKind', n: 1, targets: [sp] }] : null; } },
     // Zethi, Arcane Blademaster: "copy each exiled card you own with a kick counter on it. You may cast the copies." (castCopiesExiled)
     { re: /^copy each exiled card you own with an? ([a-z]+) counter on it\. You may cast the copies\.?$/i,
       make: (m) => [{ op: 'castCopiesExiled', counter: m[1].toLowerCase() }] },
@@ -14553,6 +14571,8 @@
     let used = 0;
     const sub = (o) => {
       if (!o || typeof o !== 'object') return;
+      // Urabrask's Forge: "then create an X/1 … token …, where X is …" — the token's size (ptX)
+      if (o.op === 'createToken' && /^(?:X\/X|X\/\d+|\d+\/X)$/i.test(String(o.pt || '')) && !o.ptX) { o.ptX = k; used++; }
       for (const key of Object.keys(o)) {
         if (key === 'text') continue;
         /* Celestine: a target's "mana value X or less, where X is the amount of life you gained this
@@ -17940,6 +17960,8 @@
     // Zidane, Tantalus Thief: "Whenever an opponent gains control of a permanent from you,"
     { re: /^Whenever an opponent gains control of a permanent from you,? /i, event: 'oppGainsControlFromYou' },
     { re: /^When(?:ever)? you gain life(?:,| )/i, event: 'youGainLife' },
+    // Selfless Squire: "Whenever damage that would be dealt to you is prevented," — that much (youDamagePrevented)
+    { re: /^Whenever damage that would be dealt to you is prevented,? /i, event: 'youDamagePrevented' },
     // Firesong and Sunspeaker: "Whenever a white instant or sorcery spell causes you to gain life" (gainBySpell)
     { re: /^Whenever an? ((?:white|blue|black|red|green) )?(instant or sorcery|instant|sorcery) spell causes you to gain life,? /i, event: 'youGainLife',
       extraOf: (m) => ({ gainBySpell: m[2].toLowerCase().split(' or ').map(w => (m[1] || '').toLowerCase() + w).join(' or ') }) },
@@ -20044,8 +20066,11 @@
       const multi = [];
       // inside a mode the targets are asked for as it resolves, one at a time: not there
       // (X targets inside a mode are asked for as it resolves, X of them, when X was paid)
+      /* (Will of the Abzan: "any number of target opponents" in a mode of a spell — the modes and their targets are
+         chosen as it is cast: not deep) */
+      const castMode = (e) => ab.kind === 'spell' && e.op === 'modal' && !e.random && !e.notChosen && !e.upToX && !e.distinctPlayers;
       const walk = (list, deep) => { for (const e of list || []) { if (!e) continue; for (const t of e.targets || []) if (t && t.multi) multi.push(deep && t.multi.count !== 'X' ? { count: 'deep' } : t.multi);
-        walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, true); } };
+        walk(e.list, deep); walk(e.then, true); walk(e.otherwise, true); for (const m of e.modes || []) walk(m.effects, deep || !castMode(e)); } };
       walk(ab.effects, false);
       // (an activated ability with {X} in its cost knows its X as it is activated, the way a spell does)
       const xPaid = (ab.kind === 'spell' && /\{X\}/.test(out.manaCost || '')) || (ab.kind === 'activated' && /\{X\}/.test((ab.cost && ab.cost.mana) || '')) ||
@@ -23557,6 +23582,18 @@
           const probe = analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Planeswalker', oracle_text: t, keywords: [], layout: 'token' });
           if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
           return { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, grantText: t };
+        }, auto: true },
+      /* Ichormoon Gauntlet: "Planeswalkers you control have "[0]: Proliferate" and "[−12]: Take an extra turn after this
+         one."" — each one, as its own */
+      { re: /^Planeswalkers you control have "\[([+\u2212-]?(?:\d+|X))\]: ([^"]+)" and "\[([+\u2212-]?(?:\d+|X))\]: ([^"]+)"\.?$/,
+        make: (m) => {
+          const grants = [[m[1], m[2]], [m[3], m[4]]].map(([c, w]) => {
+            const t = c.replace('\u2212', '-') + ': ' + w;
+            const probe = analyze({ id: 'granted:' + U.hash(t), name: 'Granted', type_line: 'Planeswalker', oracle_text: t, keywords: [], layout: 'token' });
+            if (!probe || !probe.fullyAutomated || !(probe.abilities || []).length || !probe.abilities.every(ab => ab.kind === 'loyalty')) return null;
+            return { op: 'continuous', layer: 6, scope: { who: 'you', what: 'planeswalker' }, grantText: t };
+          });
+          return grants.every(Boolean) ? { op: 'sequence', list: grants } : null;
         }, auto: true },
       // the Job select Equipment: "Equipped creature is a Wizard in addition to its other types."
       { re: /^(?:Equipped|Enchanted) creature is an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,

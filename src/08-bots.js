@@ -2305,6 +2305,19 @@
       const best = kinds.slice().sort((a, b) => ((pref.indexOf(a) + 100) % 100) - ((pref.indexOf(b) + 100) % 100))[0];
       return { picks: [Math.max(0, kinds.indexOf(best))] };
     },
+    /* Ichormoon Gauntlet: "Put an additional counter of that kind on that permanent" — on ours, the kind that helps
+       (loyalty, +1/+1 first); on another's, one that hurts (-1/-1, stun) when there is one */
+    addCounterKind(s) {
+      const g = this.game;
+      const o = g.obj(s.objId);
+      const labels = (s.options || []).map(x => String(x.label || ''));
+      const mine = !!o && o.controller === this.pid;
+      const good = ['loyalty', '+1/+1', 'shield', 'lore', 'oil', 'charge'];
+      const bad = ['-1/-1', 'stun', 'time'];
+      const rank = (k) => { const i = (mine ? good : bad).indexOf(k); return i < 0 ? 50 : i; };
+      const best = labels.slice().sort((a, b) => rank(a) - rank(b))[0];
+      return { picks: [Math.max(0, labels.indexOf(best))] };
+    },
     /* The Seventh Doctor: a hand's cards cost three or so; against few artifacts, guess greater */
     guessMvGreater(s) { const n = Number(s.than) || 0; return { picks: [this.rand() < (n < 3 ? 0.7 : 0.3) ? 0 : 1] }; },
     /* …and the guess, by the odds of a deck about two-fifths land */

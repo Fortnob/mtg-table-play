@@ -2935,9 +2935,9 @@
       // The Master, Formed Anew: "a creature card in exile with a takeover counter on it" — anyone's exile (exileCounter)
       if (e.exileCounter) return this.players.flatMap(q => (this.zones[q.id] || {}).exile || [])
         .filter(o => o !== src && !o.faceDown && (o.analysis() || {}).isCreature && (Number((o.counters || {})[e.exileCounter]) || 0) > 0);
-      // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard)
+      // Superior Spider-Man: "any creature card in a graveyard" (fromGraveyard); Echoing Deeps: "any land card in a graveyard"
       if (e.fromGraveyard) return this.players.filter(q => !q.hasLost).flatMap(q => (this.zones[q.id] || {}).graveyard || [])
-        .filter(o => o !== src && (o.analysis() || {}).isCreature);
+        .filter(o => o !== src && this._cardFitsWords(o, what + ' card'));
       // The Mimeoplasm: "two creature cards from graveyards" — none to choose with fewer than two (fromGraves)
       if (e.fromGraves) {
         const gy = [].concat(...this.players.map(q => this.zones[q.id].graveyard)).filter(o => o !== src && this._cardFitsWords(o, what + ' card'));
@@ -2971,6 +2971,24 @@
         prompt: ef.fromGraves
           ? `${o.name}: you may exile two creature cards from graveyards. Choose the one it enters as a copy of — the other's power in +1/+1 counters comes next. Choose nothing and it enters as itself.`
           : `${o.name}: choose what it enters as a copy of. Choose nothing and it enters as itself.` });
+      return true;
+    }
+
+    /** Echoing Deeps, Vesuva: the clone question for a land a person plays, asked before it is played (landPlay). */
+    _askLandClone(playerId, o, a, face) {
+      const p = this.player(playerId);
+      if (!p || p.isBot || !a || face === 1) return false;
+      let ef = null;
+      for (const ab of a.abilities) for (const x of (ab.effects || [])) if (x && x.op === 'etbAsCopy') ef = x;
+      if (!ef) return false;
+      const pool = this._clonePool(o, ef, playerId);
+      if (!pool.length) return false;
+      o._cloneAsked = true;
+      this._cloneWait = { landPlay: { playerId, objId: o.id, face: face == null ? null : face } };
+      this.queueChoice({ type: 'pickCard', playerId, purpose: 'cloneChoice', count: 1, optional: true,
+        objId: o.id, candidates: pool.map(x => x.id), cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+        prompt: `${o.name}: choose what it enters as a copy of. Choose nothing and it enters as itself.` });
       return true;
     }
 
@@ -4197,6 +4215,10 @@
         if (o.zone === 'graveyard' || o.zone === 'exile' || (o.zone === 'library' && ((z.library || [])[0] === o || this._oppTopGrant(playerId, o)))) leave = this._playFromRule(playerId, o, 'land');
         if (!impulsed && !leave) return this.fail(`${o.name} can't be played from there.`);
       }
+      /* Echoing Deeps, Vesuva: a person playing a land that may enter as a copy says what it copies first (CR 707.4),
+         and the land is played once they have (_cloneWait landPlay) */
+      if (!o._cloneAsked && this._askLandClone(playerId, o, a, face)) return true;
+      o._cloneAsked = false;
       if (leave && leave.srcId && leave.oncePerTurn) { const ls = this.obj(leave.srcId); if (ls) ls._playFromTurn = this.turn; }
       if (leave && leave.srcId && leave.oncePerKind) this._usePlayFromKind(leave.srcId, 'land');
       if (leave && leave.srcId && leave.reflexEffects) this._playFromReflex(leave);
@@ -17555,15 +17577,18 @@
       amount = this._damageAmount(amount, source, p.id, combat, true);
       // all of it replaced or prevented (Nine Lives, Force Bubble): no damage is dealt
       if (amount <= 0) return 0;
-      if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); return; }
+      /* Selfless Squire: "Whenever damage that would be dealt to you is prevented, put that many +1/+1 counters on this
+         creature." — however it was prevented, the amount prevented (youDamagePrevented) */
+      const prevented = (k) => { if (k > 0) this._fire('youDamagePrevented', p.id, { amount: k, player: p.id }); };
+      if (this._protected(p) && !this._noPrevention(combat)) { this.logEvent('damage', `Damage to ${p.name} is prevented (protection from everything).`); prevented(amount); return; }
       if (source && !this._noPrevention(combat) && (this._protCardTypes(p.id).some(t => this._cardTypesOf(source).includes(t)) || this._protSubtypeFrom(p.id, source))) {
-        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
+        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); prevented(amount); return;
       }
       // Absolute Virtue: protection from each of your opponents — damage from what they control
       if (source && !this._noPrevention(combat) && source.controller !== p.id && this._anyStaticOf(p.id, 'protFromOpponents')) {
-        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); return;
+        this.logEvent('damage', `Damage to ${p.name} is prevented (protection).`); prevented(amount); return;
       }
-      if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); return; }
+      if (this._damagePrevented(p, combat, source, amount)) { this.logEvent('damage', `Damage to ${p.name} is prevented.`); prevented(amount); return; }
       // the Spheres: "If a red source would deal damage to you, prevent 2 of that damage."
       if (source && !this._noPrevention(combat)) {
         const sc = ((this.characteristics(source) || {}).colors || []).length ? this.characteristics(source).colors : ((source.analysis && source.analysis()) || {}).colors || [];
@@ -17572,7 +17597,7 @@
           if (!r || !sc.includes(r.color)) continue;
           const cut = Math.min(r.n || 0, amount);
           amount -= cut;
-          if (cut) this.logEvent('damage', `${s0.name} prevents ${cut} damage to ${p.name}.`);
+          if (cut) { this.logEvent('damage', `${s0.name} prevents ${cut} damage to ${p.name}.`); prevented(cut); }
           if (amount <= 0) return;
         }
       }
@@ -17580,6 +17605,7 @@
         const soak = Math.min(p.preventShield, amount);
         p.preventShield -= soak; amount -= soak;
         this.logEvent('damage', `${soak} damage to ${p.name} is prevented.`);
+        prevented(soak);
         if (amount <= 0) return;
       }
       this._evDamage(source, { kind: 'player', id: p.id }, amount, combat);
@@ -23561,9 +23587,10 @@
           // Kalitas, Bloodchief of Ghet: "Its power is equal to that creature's power and …" — as it last was (ptOfLast)
           const laT = e.ptOfLast && this._lastAffected && this.obj(this._lastAffected.id);
           const sized = laT ? { pt: Math.max(0, laT.zone === 'battlefield' ? this.powerOf(laT) : (laT._lastPower || 0)) + '/' + Math.max(0, laT.zone === 'battlefield' ? this.toughnessOf(laT) : (laT._lastToughness || 0)) }
-            : e.ptX ? { pt: Math.max(0, n(e.ptX)) + '/' + Math.max(0, n(e.ptX)) }
+            // (Urabrask's Forge: "an X/1 … token" — X the power only)
+            : e.ptX ? { pt: String(e.pt || 'X/X').replace(/X/gi, String(Math.max(0, n(e.ptX)))) }
             // Arboreal Alliance: "an X/X … token", X as it was cast
-            : /^X\/X$/i.test(e.pt || '') ? { pt: Math.max(0, n('X')) + '/' + Math.max(0, n('X')) } : {};
+            : /^(?:X\/X|X\/\d+|\d+\/X)$/i.test(e.pt || '') ? { pt: String(e.pt).replace(/X/gi, String(Math.max(0, n('X')))) } : {};
           // Curse of the Swine: a token for the controller of each one that went
           if (e.who === 'eachGoneTargetController') {
             for (const g of (this._lastAffectedAll || [])) {
@@ -25148,7 +25175,10 @@
           // Myrkul's Edict, Olórin's Searing Light: by power, a target opponent, or exiled
           const val = (x) => (e.by === 'power' ? this.powerOf(x) : ((x.card && x.card.cmc) || 0));
           // (Witch-king, Bringer of Ruin: the defending player — leastPowerEdict)
-          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean) : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
+          // (Will of the Abzan: "Any number of target opponents each sacrifice …" — every one aimed at: targets)
+          const whom = (e.who === 'target' ? [firstPlayer()].filter(Boolean)
+            : e.who === 'targets' ? [...new Set(targets.filter(t => t.kind === 'player').map(t => this.player(t.id)).filter(p0 => p0 && !p0.hasLost))]
+            : e.who === 'defending' ? [this._defenderOf(src) || triggerPlayer()].filter(Boolean) : this.opponentsOf(ctx.controller))
             // Papalymo Totolymo: only the opponents who lost life this turn (lostLifeOnly)
             .filter(q => !e.lostLifeOnly || (q.lifeLostThisTurn || 0) > 0);
           for (const q of whom) {
@@ -35386,6 +35416,23 @@
           this.bumpBoard();
           break;
         }
+        /* Ichormoon Gauntlet: "choose a counter on target permanent. Put an additional counter of that kind on that
+           permanent." — the kind asked for only when there is more than one (addCounterOfKind) */
+        case 'addCounterOfKind': {
+          const x = firstObj();
+          if (!x || x.zone !== 'battlefield') break;
+          const kinds = Object.keys(x.counters || {}).filter(k => Number(x.counters[k]) > 0);
+          if (!kinds.length) { this.logEvent('rules', `${x.name} has no counters.`); break; }
+          let kind = kinds[0];
+          if (kinds.length > 1) {
+            const got = this._choose({ playerId: ctx.controller, purpose: 'addCounterKind', kind: 'options', min: 1, max: 1, objId: x.id,
+              options: kinds.map((k, i) => ({ i, label: k })), prompt: `Put an additional counter of which kind on ${x.name}?` }, 'ack');
+            if (got === SUSPEND) return SUSPEND;
+            kind = kinds[(got && got.picks[0]) || 0] || kinds[0];
+          }
+          this.addCounters(x, kind, n(e.n) || 1, { by: ctx.controller });
+          break;
+        }
         case 'removeCountersFrom': {
           const x = firstObj();
           if (!x) break;
@@ -39931,6 +39978,8 @@
               o._cloneOther = rest.length ? rest[0].id : null;
             }
             if (item && o && o.zone === 'stack') this._resolveSpell(item);
+            // (Echoing Deeps: the land played now, as what was chosen — landPlay)
+            else if (item && item.landPlay && o) { const lp = item.landPlay; if (!this.playLand(lp.playerId, lp.objId, lp.face == null ? undefined : lp.face)) { o._cloneAsked = false; o._cloneChoice = null; } }
             if (!this.pendingChoice) this._nextChoice();
             if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
             return true;
