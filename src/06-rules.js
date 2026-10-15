@@ -1521,7 +1521,7 @@
         this.logEvent('rules', `${o.name} was blitzed: it is sacrificed.`);
         const who = o.controller;
         this.moveObject(o, 'graveyard');
-        this._fire('youSacrifice', who, { count: 1, object: o, objController: who });
+        this._fire('youSacrifice', who, { count: 1, object: o, objController: who, source: o });
       }
     }
 
@@ -2850,7 +2850,7 @@
         if (item.via === 'evoke') {
           this.logEvent('rules', `${item.name} was evoked, and is sacrificed.`);
           this.moveObject(o, 'graveyard');
-          this._fire('youSacrifice', item.controller, { count: 1, object: o, objController: item.controller });   // (sacrificedObject)
+          this._fire('youSacrifice', item.controller, { count: 1, object: o, objController: item.controller, source: o });   // (sacrificedObject)
         } else if (item.via === 'dash') {
           o.effects.push({ keywords: ['Haste'], until: null });
           o.dashedTurn = this.turn;
@@ -8571,6 +8571,14 @@
         const big = ((a && a.abilities) || []).filter(ab => ab.kind === 'spell').flatMap(ab => ab.effects || []).find(ef => ef && ef.bigX);
         if (big && (opts.x || 0) >= big.bigX) { item.uncounterable = true; item.noPrevent = true; }
       }
+      /* Lifestream's Blessing: "the greatest power among creatures you controlled as you cast this spell" — counted
+         now, kept with the spell for when it resolves (atCast, atCastVals) */
+      {
+        const memo = {};
+        const walk = (x) => { if (!x || typeof x !== 'object') return; if (x.atCast) memo[JSON.stringify(x.atCast)] = this._countValue(x.atCast, playerId, o); for (const k of Object.keys(x)) if (k !== 'text') walk(x[k]); };
+        walk(item.effects);
+        if (Object.keys(memo).length) item.atCastVals = memo;
+      }
       // (Kaza, Roil Chaser: "The next instant or sorcery spell you cast this turn costs {X} less" — used up by it: next)
       if ((p.turnCostMods || []).some(x => x.next)) p.turnCostMods = p.turnCostMods.filter(x => !(x.next && x.turn === this.turn && (!x.words || x.words === 'spell' || this._cardFitsWords(o, x.words))));
       // (Overmaster: only the next instant or sorcery spell)
@@ -11898,7 +11906,8 @@
         const tok = o.isToken;
         this.moveObject(o, 'graveyard');
         // a sacrifice is a sacrifice, whatever paid for it
-        this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId });
+        // (Heaped Harvest: "when you sacrifice it" — seen by itself, from the graveyard: source)
+        this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId, source: o });
         if (tok) this._fire('youSacToken', playerId, { object: o });
       }
       /* Exile costs the table can pay: the card itself, or cards out of
@@ -12400,7 +12409,7 @@
       if (cost.sacSelf) {
         this.logEvent('sacrifice', `${this.player(playerId).name} sacrifices ${o.name}.`);
         this.moveObject(o, 'graveyard');
-        this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId });
+        this._fire('youSacrifice', playerId, { count: 1, object: o, objController: playerId, source: o });
       }
       this.emit('sfx', 'tap');
       return true;
@@ -15278,7 +15287,7 @@
       for (const x of list) {
         this.moveObject(x, 'graveyard');
         this.logEvent('sacrifice', `${(this.player(o.controller) || {}).name} sacrifices ${x.name}.`);
-        this._fire('youSacrifice', o.controller, { count: 1, object: x, objController: o.controller });
+        this._fire('youSacrifice', o.controller, { count: 1, object: x, objController: o.controller, source: x });
       }
       this.checkStateBasedActions();
     }
@@ -21300,6 +21309,12 @@
           return;
         }
         if (e2.scope === 'lastTarget') { const x = firstObj(); if (x) fn(x); return; }
+        // Tishana's Tidebinder: "that permanent" — the source of the ability just countered, if it is of those kinds
+        if (e2.scope === 'counteredSource') {
+          const x = this._counteredSrc && this.obj(this._counteredSrc);
+          if (x && x.zone === 'battlefield' && (!e2.words || this._cardFitsWords(x, e2.words))) fn(x);
+          return;
+        }
         // Arthur, Marigold Knight: "that creature" — the one just put onto the battlefield from among them (takenOntoBf)
         if (e2.scope === 'takenOntoBf') {
           for (const id of (this._takenOntoBf || []).slice()) { const x = this.obj(id); if (x && x.zone === 'battlefield') fn(x); }
@@ -21390,6 +21405,11 @@
         if (v && typeof v === 'object' && (v.discardedThisTurn || v.playersDiscarded)) return this._countValue(v, ctx.controller, src);
         // "twice X"
         if (v && typeof v === 'object' && v.xTimes) return n('X') * v.xTimes;
+        // Lifestream's Blessing: counted as the spell was cast (atCast), or now if it never was
+        if (v && typeof v === 'object' && v.atCast) {
+          const memo = (ctx.atCastVals || {})[JSON.stringify(v.atCast)];
+          return (memo != null ? memo : this._countValue(v.atCast, ctx.controller, src)) * (v.mult || 1);
+        }
         // "the highest number you noted for cards named Garbage Fire"
         if (v && typeof v === 'object' && v.noted) return this._draftNoteValue(ctx.controller, v);
         // "the number of cards in your hand plus one"
@@ -22774,6 +22794,8 @@
           // "counter that spell" in a cast trigger: the spell it is about
           const td = ctx.triggerData || {};
           const which = e.thatSpell && !targets.some(t => t.kind === 'stack') && td.stackId ? [{ kind: 'stack', id: td.stackId }] : targets;
+          // (Tishana's Tidebinder: "an ability of an artifact … countered this way" — whose it was: counteredSource)
+          this._counteredSrc = null;
           for (const t of which) {
             const item = this.stack.find(s => s.id === t.id);
             if (!item) continue;
@@ -22816,6 +22838,7 @@
               name: item.name, power: 0, toughness: 0,
               mv: (item.obj && item.obj.card && item.obj.card.cmc) || 0 };
             this._lastCountered = this._lastAffected;
+            if (item.kind !== 'spell' && item.objId) this._counteredSrc = item.objId;
             this.logEvent('counter', `${item.name} is countered.`);
             this.emit('sfx', 'counter');
           }
@@ -36342,10 +36365,13 @@
           for (let k = 0; k < extraDice; k++) rolled.push(this._rollDie(me, sides, dice));
           this._lastRoll = this._rollDie(me, sides, dice);
           rolled.push(this._lastRoll);
+          // Wyll's Reversal: "Roll a d20 and add the greatest power among creatures you control" — the total reads the results (plus)
+          const total = this._lastRoll + (e.plus ? Math.max(0, n(e.plus)) : 0);
+          if (e.plus) this.logEvent('rules', `${me.name} rolls ${this._lastRoll}, plus ${total - this._lastRoll}: ${total}.`);
           // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
           rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller }));
           // the results printed under the roll
-          const row = (e.table || []).find(r => this._lastRoll >= r.min && this._lastRoll <= r.max);
+          const row = (e.table || []).find(r => total >= r.min && total <= r.max);
           /* Delina, Wild Mage: "You may roll again." — the same die and the same results, read afresh (rollAgain) */
           const again = (list) => (list || []).map(x => (!x ? x : x.op === 'rollAgain' ? Object.assign({}, e, { text: x.text || e.text })
             : x.then ? Object.assign({}, x, { then: again(x.then) }) : x));
@@ -41051,6 +41077,8 @@
               this._aimsAtYours(st, spec, controllerId) &&
               !(spec.controller === 'you' && st.controller !== controllerId) &&
               !(spec.controller === 'opponent' && st.controller === controllerId)))
+          // Wyll's Reversal: "with one or more targets" (withTargets)
+          .filter(st => !spec.withTargets || (st.targets || []).length > 0)
           .map(st => ({ kind: 'stack', id: st.id, name: st.name }));
       }
       if (spec.type === 'spellOrPermanent') {

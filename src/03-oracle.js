@@ -3978,6 +3978,11 @@
     // Abigale, Eloquent First-Year: "up to one other target creature loses all abilities." — for good
     { re: /^((?:up to one )?(?:other |another )?target creature) loses all abilities\.?$/i,
       make: (m) => ({ op: 'becomes', duration: 'permanent', eff: { loseAll: true }, targets: [targetSpec(m[1])] }) },
+    /* Tishana's Tidebinder: "If an ability of an artifact, creature, or planeswalker is countered this way, that permanent
+       loses all abilities for as long as this creature remains on the battlefield." — the source of the ability just
+       countered (counteredSource) */
+    { re: /^If an ability of an artifact, creature, or planeswalker is countered this way, that permanent loses all abilities for as long as (?:CARDNAME|this creature) remains on the battlefield\.?$/i,
+      make: () => ({ op: 'becomes', duration: 'whileHere', eff: { loseAll: true }, scope: 'counteredSource', words: 'artifact or creature or planeswalker' }) },
     // The Wondrous Wasp: "It loses all abilities for as long as The Wondrous Wasp remains on the battlefield." (whileHere)
     { re: /^(?:It|That creature) loses all abilities for as long as (?:CARDNAME|this creature) remains on the battlefield\.?$/i,
       make: () => ({ op: 'becomes', duration: 'whileHere', eff: { loseAll: true }, scope: 'lastTarget' }) },
@@ -5099,6 +5104,11 @@
     // Wand of Wonder: "You may cast up to X instant and/or sorcery spells from among cards exiled this way without paying their mana costs." (exileHits)
     { re: /^You may cast up to (X|one|two|three) (instant and\/or sorcery|instant|sorcery) spells? from among cards exiled this way without paying their mana costs\.?$/i,
       make: (m) => ({ op: 'castFree', from: 'exileHits', upTo: /^X$/.test(m[1]) ? 'X' : num(m[1]), filter: m[2].replace(' and/or ', ' or ').toLowerCase() }) },
+    // Wyll's Reversal: "Roll a d20 and add the greatest power among creatures you control." — the result read with it (plus)
+    { re: /^[Rr]oll a d(4|6|8|10|12|20) and add (.+?)\.?$/, make: (m) => { const k = amountOf(m[2]); return k ? { op: 'rollDie', sides: +m[1], plus: k } : null; } },
+    /* Wyll's Reversal: "Choose target spell or ability with one or more targets." — one that aims at something (withTargets) */
+    { re: /^Choose target spell or ability with one or more targets\.?$/i,
+      make: () => ({ op: 'noop', targets: [{ type: 'spell', zone: 'stack', filter: 'spell', abilities: true, withTargets: true }] }) },
     /* Mr. House, President and CEO: "Roll a six-sided die plus an additional six-sided die for each mana from
        Treasures spent to activate this ability." (perTreasureSpent) */
     { re: /^Roll a six-sided die plus an additional six-sided die for each mana from Treasures spent to activate this ability\.?$/,
@@ -7450,6 +7460,8 @@
       make: (m) => ({ op: 'retarget', single: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
     // Speedball, New Warrior: "You may choose new targets for that spell." — the one that set it off (thatSpell)
     { re: /^You may choose new targets for that spell\.?$/i, make: () => ({ op: 'retarget', optional: true, thatSpell: true }) },
+    // Wyll's Reversal: "You may choose new targets for that spell or ability." — the one this targets
+    { re: /^You may choose new targets for that spell or ability\.?$/i, make: () => ({ op: 'retarget', optional: true }) },
     { re: /^You may choose new targets for (target (?:spell|spell or ability|instant or sorcery spell))\.?$/i,
       make: (m) => ({ op: 'retarget', optional: true, targets: [{ type: 'spell', zone: 'stack', filter: m[1].toLowerCase().replace(/^target /, '').replace(/ or (?:activated |triggered )?ability/, ''), abilities: /ability/i.test(m[1]) }] }) },
     /* Rishkar's Expertise */
@@ -10455,6 +10467,12 @@
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc, alsoGrave: m[2].toLowerCase() }) : null;
     }
+    /* Lifestream's Blessing: "the greatest power among creatures you controlled as you cast this spell" — counted as
+       it is cast, kept with the spell (atCast) */
+    if ((m = p.match(/^(.+?) you controlled as you cast this spell$/i))) {
+      const inner = amountOf(m[1] + ' you control');
+      return inner && typeof inner === 'object' ? done({ atCast: inner }) : null;
+    }
     // (Alena, Kessig Trapper: "the greatest power among creatures you control that entered this turn")
     if ((m = p.match(/^the greatest power among ((?:other )?creatures you control(?: that entered this turn)?|creatures your opponents control|creatures|(?:other )?attacking creatures|(?:other )?[A-Z][a-z'-]+s you control)$/))) {
       const sc = scopeOf(m[1]);
@@ -11809,6 +11827,10 @@
     { re: /^Exile target permanent you control\. Return that card to the battlefield under its owner'?s control at the beginning of the next end step\. If it enters as a creature, it enters with an additional \+1\/\+1 counter on it\.$/i,
       make: () => [{ op: 'exile', targets: [{ type: 'permanent', filter: 'permanent you control', zone: 'battlefield', controller: 'you' }] },
         { op: 'delayed', event: 'eachEndStep', subject: 'lastTarget', name: 'Return it at end of turn', effects: [{ op: 'returnThat', counterIfCreature: '+1/+1' }] }] },
+    /* Wyll's Reversal: "You may choose new targets for that spell or ability. Then copy it. You may choose new targets
+       for the copy." — the one this targets */
+    { re: /^You may choose new targets for that spell or ability\. Then copy it\. You may choose new targets for the copy\.$/i,
+      make: () => [{ op: 'retarget', optional: true }, { op: 'copySpell' }] },
     /* Semester's End: "Exile any number of target creatures and/or planeswalkers you control. At the beginning of the
        next end step, return each of them to the battlefield under its owner's control. Each of them enters with an
        additional +1/+1 counter on it if it's a creature and an additional loyalty counter on it if it's a
@@ -14603,6 +14625,8 @@
       if (o[key] === 'X' && key !== 'pt') { o[key] = k; used++; }
         // "+X/+0", "-X/-0": the sign kept, the number from the rider
         else if (o[key] && (o[key].posX || o[key].negX) && !o[key].by) { o[key] = Object.assign({}, o[key], { by: k }); used++; }
+        // "twice X": that X, twice (Lifestream's Blessing)
+        else if (o[key] && o[key].xTimes && k && typeof k === 'object' && !k.plus) { o[key] = Object.assign({}, k, { mult: (k.mult || 1) * o[key].xTimes }); used++; }
         else if (typeof o[key] === 'object') sub(o[key]);
       }
     };
@@ -15309,7 +15333,8 @@
       if (wx) { xIs = amountOf(wx[1]) || null; continue; }
       // Sunbird's Invocation: "You may cast a spell with mana value X or less from among cards revealed this way" — the same X
       if (xIs && e.op === 'castFree' && e.maxMv === 'X') { e.maxMv = xIs; continue; }
-      if (xIs && /"X"|"negX"|"posX"/.test(JSON.stringify(e, (k, v) => (k === 'text' ? undefined : v)))) fillX(e, xIs);
+      // (Lifestream's Blessing: "you gain twice X life" — xTimes)
+      if (xIs && /"X"|"negX"|"posX"|"xTimes"/.test(JSON.stringify(e, (k, v) => (k === 'text' ? undefined : v)))) fillX(e, xIs);
     }
     /* Miraculous Recovery: "Return target creature card … to the
        battlefield. Put a +1/+1 counter on it." After a sentence with a
@@ -16059,8 +16084,9 @@
     [/^there are (\w+) or more (creature|artifact|land|instant|sorcery|enchantment) cards total in all graveyards$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'allGraveyardsAtLeast', what: m[2].toLowerCase(), n: num(m[1]) } : null)],
     // Lyse Hext: "you've cast two or more noncreature spells this turn"
-    [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|creature|instant or sorcery) spells this turn$/i,
-      (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and\/or /, ' or ') } : null)],
+    // (Case of the Ransacked Lab: "four or more instant and sorcery spells" — of either kind, together)
+    [/^you'?ve cast (\w+) or more (noncreature|instant and\/or sorcery|instant and sorcery|creature|instant or sorcery) spells this turn$/i,
+      (m) => (typeof num(m[1]) === 'number' ? { kind: 'spellsCastOfKind', n: num(m[1]), words: m[2].toLowerCase().replace(/ and(?:\/or)? /, ' or ') } : null)],
     // Sanguine Spy: "there are five or more mana values among cards in your graveyard"
     [/^there are (\w+) or more mana values among cards in your graveyard$/i, (m) => (typeof num(m[1]) === 'number' ? { kind: 'graveMvDistinct', n: num(m[1]) } : null)],
     // Lightning Phoenix: "an opponent was dealt 3 or more damage this turn" — as life lost
@@ -17710,6 +17736,9 @@
       event: 'anyCastSpell', extraOf: (m) => ({ spellFilter: m[1].toLowerCase(), firstOfKindCaster: true }) },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or attacks(?:,| )/i,
       event: 'etb', self: true, also: 'attacks' },
+    // Heaped Harvest: "When this artifact enters and when you sacrifice it," — its own sacrifice, seen from the graveyard
+    { re: /^When (?:this creature|this permanent|this artifact|this enchantment|CARDNAME) enters and when you sacrifice it,? /i,
+      event: 'etb', self: true, also: 'youSacrifice' },
     { re: /^When(?:ever)? (?:this creature|this permanent|this artifact|~|CARDNAME) enters or dies(?:,| )/i,
       event: 'etb', self: true, also: 'dies' },
     // Sygg, Wanderwine Wisdom: "Whenever this creature enters or transforms into Sygg, Wanderwine Wisdom"
@@ -18661,7 +18690,8 @@
        belong to the line that rolls, read once its ability is */
     const dieTables = [];
     for (let i = 0; i < lines.length; i++) {
-      const row = lines[i].match(/^(\d+)(?:\s*[\u2014\u2013-]\s*(\d+))?\s*\|\s*([\s\S]+)$/);
+      // (Wyll's Reversal: "15+ | …" — that or more)
+      const row = lines[i].match(/^(\d+)(?:\s*[\u2014\u2013-]\s*(\d+)|(\+))?\s*\|\s*([\s\S]+)$/);
       if (!row) continue;
       let h = i - 1;
       while (h >= 0 && lines[h] === null) h--;
@@ -18673,7 +18703,7 @@
         dieTables.push(tb);
       }
       // "1 | Trapped! — You lose 3 life.": the row's name is flavour
-      tb.rows.push({ min: +row[1], max: row[2] ? +row[2] : +row[1], text: row[3].trim().replace(/^[A-Z][^—|.]{0,40}?\s*—\s+/, '') });
+      tb.rows.push({ min: +row[1], max: row[2] ? +row[2] : row[3] ? 9999 : +row[1], text: row[4].trim().replace(/^[A-Z][^—|.]{0,40}?\s*—\s+/, '') });
       lines[i] = null;
     }
     for (let i = lines.length - 1; i >= 0; i--) if (lines[i] === null) lines.splice(i, 1);

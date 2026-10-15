@@ -69777,4 +69777,147 @@ module.exports = (test) => {
     T.cast('B', T.hand('B', 'Counterspell'), { targets: [T.stackTarget(bear)] });
     t.zone(bear, 'graveyard', 'countered');
   });
+  test("Cards: Tishana's Tidebinder — a creature's ability countered, and the creature loses its abilities while the Tidebinder stays", (mk, t) => {
+    t.auto("Tishana's Tidebinder");
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const pyro = T.bf('B', 'Prodigal Pyromancer');
+    T.nextTurn('B');
+    T.activate('B', pyro, 0, { targets: ['A'], resolve: false });
+    t.eq(g.stack.length, 1, 'the ability on the stack');
+    g.passPriority('B', true);
+    T.mana('A', '2U');
+    const tide = T.hand('A', "Tishana's Tidebinder");
+    T.cast('A', tide);
+    t.zone(tide, 'battlefield');
+    t.eq(T.life('A'), 20, 'the ping countered');
+    t.eq(g.stack.length, 0);
+    pyro.tapped = false;
+    t.no(g.activateAbility('B', pyro.id, 0, { targets: [{ kind: 'player', id: 'A' }], auto: true }), 'it has no abilities now');
+    // the Tidebinder gone: the abilities come back
+    T.mana('B', 'R');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [tide] });
+    t.zone(tide, 'graveyard');
+    t.ok(g.activateAbility('B', pyro.id, 0, { targets: [{ kind: 'player', id: 'A' }], auto: true }), 'back: ' + g.lastError);
+    T.resolve();
+    t.eq(T.life('A'), 19);
+  });
+  test('Cards: Case of the Ransacked Lab — solved at the end step after four instants and sorceries in a turn; solved, each one draws', (mk, t) => {
+    t.auto('Case of the Ransacked Lab');
+    const T = mk({ library: Array(30).fill('Island'), life: 40 });
+    const lab = T.bf('A', 'Case of the Ransacked Lab');
+    const bolts = (k) => { for (let i = 0; i < k; i++) { T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] }); } };
+    bolts(3);
+    t.eq(T.zone('A', 'hand').length, 0, 'unsolved: no draws');
+    T.toMain('A', 'end'); T.resolve();
+    t.no(lab.solved, 'three this turn: not solved');
+    T.nextTurn('A');
+    const h0 = T.zone('A', 'hand').length;
+    bolts(2);
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Duress'), { targets: ['B'] });
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'still unsolved: only Opt drew');
+    T.toMain('A', 'end'); T.resolve();
+    t.ok(lab.solved, 'four instants and sorceries: solved');
+    T.nextTurn('A');
+    const h1 = T.zone('A', 'hand').length;
+    bolts(1);
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'solved: an instant draws a card');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Grizzly Bears'));
+    t.eq(T.zone('A', 'hand').length, h1 + 1, 'a creature spell does not');
+  });
+  test('Cards: Heaped Harvest — a basic land, tapped, as it enters and again when it is sacrificed (by its own ability or anything else)', (mk, t) => {
+    t.auto('Heaped Harvest');
+    const T = mk({ library: Array(10).fill('Forest') });
+    const lands = () => T.bfOf('A').filter(o => o.name === 'Forest');
+    const hh = T.bf('A', 'Heaped Harvest', { etb: true });
+    T.resolve();
+    t.eq(lands().length, 1, 'a Forest as it entered');
+    t.ok(lands()[0].tapped, 'tapped');
+    T.mana('A', '2');
+    T.activate('A', hh, 0);
+    t.zone(hh, 'graveyard');
+    t.eq(T.life('A'), 23, '3 life');
+    t.eq(lands().length, 2, 'another Forest when sacrificed');
+    // sacrificed to another card's cost: it sees that too; another artifact sacrificed does not count
+    const hh2 = T.bf('A', 'Heaped Harvest');
+    const orn = T.bf('A', 'Ornithopter');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Deadly Dispute'), { sacrificeIds: [orn.id] });
+    t.zone(orn, 'graveyard');
+    t.eq(lands().length, 2, 'another artifact sacrificed: nothing');
+    T.mana('A', '1B');
+    T.cast('A', T.hand('A', 'Deadly Dispute'), { sacrificeIds: [hh2.id] });
+    t.zone(hh2, 'graveyard');
+    t.eq(lands().length, 3, 'sacrificed to Deadly Dispute: a Forest');
+  });
+  test("Cards: Lifestream's Blessing — X cards for the greatest power as it was cast; foretold and cast from exile, twice X life too", (mk, t) => {
+    t.auto("Lifestream's Blessing");
+    const T = mk({ library: Array(30).fill('Forest') });
+    const g = T.g;
+    T.bf('A', 'Grizzly Bears');
+    const giant = T.bf('A', 'Hill Giant');
+    const lb = T.hand('A', "Lifestream's Blessing");
+    T.mana('A', '4GG');
+    T.cast('A', lb, { resolve: false });
+    g.passPriority('A', true);
+    // the Giant dies in response: X stays 3, the power as it was cast
+    T.mana('B', 'RR');
+    T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [giant] });
+    t.zone(giant, 'graveyard');
+    t.eq(T.zone('A', 'hand').length, 3, 'three cards: the Giant counted as it was cast');
+    t.eq(T.life('A'), 20, 'cast from hand: no life');
+    // foretold, then cast from exile: X cards and twice X life
+    const lb2 = T.hand('A', "Lifestream's Blessing");
+    T.mana('A', '2');
+    t.ok(g.foretellCard('A', lb2.id, { auto: true }), 'foretold');
+    T.nextTurn('B'); T.nextTurn('A');
+    T.bf('A', 'Craw Wurm');
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '4G');
+    T.cast('A', lb2, { via: 'foretell' });
+    t.eq(T.zone('A', 'hand').length, h0 + 6, 'six cards for the Wurm');
+    t.eq(T.life('A'), 32, 'and twelve life');
+  });
+  test("Cards: Wyll's Reversal — a d20 plus your greatest power: new targets for a spell or ability; 15 or more, a copy too", (mk, t) => {
+    t.auto("Wyll's Reversal");
+    const setup = (roll) => {
+      const T = mk({ library: Array(20).fill('Mountain') });
+      const g = T.g;
+      const bear = T.bf('A', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant'), elf = T.bf('B', 'Llanowar Elves');
+      T.bf('A', 'Hill Giant');
+      T.nextTurn('B');
+      const bolt = T.hand('B', 'Lightning Bolt');
+      T.mana('B', 'R');
+      T.cast('B', bolt, { targets: [bear], resolve: false });
+      g.passPriority('B', true);
+      g.rng.range = (a) => roll;
+      return { T, g, bear, giant, elf, bolt };
+    };
+    // 10 + 3 = 13: the Bolt turned on B's Giant
+    {
+      const { T, g, bear, giant, bolt } = setup(10);
+      t.eq(g._legalTargetsFor({ type: 'spell', zone: 'stack', filter: 'spell', abilities: true, withTargets: true }, 'A').length, 1, 'only a spell with targets');
+      let asked = null;
+      T.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
+      T.mana('A', '2R');
+      T.cast('A', T.hand('A', "Wyll's Reversal"), { targets: [T.stackTarget(bolt)] });
+      t.ok(asked, 'new targets asked');
+      t.zone(giant, 'graveyard', 'the Giant took the Bolt'); t.zone(bear, 'battlefield');
+      t.eq(g.stack.length, 0, 'no copy under 15');
+    }
+    // 12 + 3 = 15: new targets, then a copy with new targets
+    {
+      const { T, g, bear, giant, elf, bolt } = setup(12);
+      T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: giant.id }] }));
+      T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: elf.id }] }));
+      T.mana('A', '2R');
+      T.cast('A', T.hand('A', "Wyll's Reversal"), { targets: [T.stackTarget(bolt)] });
+      t.zone(giant, 'graveyard', 'the Bolt on the Giant'); t.zone(elf, 'graveyard', 'the copy on the Elves'); t.zone(bear, 'battlefield');
+      t.ok(g.log.some(l => /rolls 12, plus 3: 15/.test(l.text)), 'the roll and the power, said');
+    }
+  });
 };
