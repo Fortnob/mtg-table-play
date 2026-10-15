@@ -219,6 +219,29 @@ declare namespace MTG {
   /** t (when) is missing from entries a guest rebuilds from events */
   interface LogEntry { t?: number; turn: number; type: string; text: string }
 
+  /** One thing that happened, as the game's event stream has it (src/06b-events.js), as this player may know it. */
+  interface TableEvent { seq: number; turn: number; type: string; [k: string]: any }
+  /**
+   * A die rolled (src/06b-events.js): the table shows it tumbling through numbers in the middle and landing on
+   * `result`, which the engine already decided. Dice rolled together share `group` (`of` dice in all) and are shown
+   * side by side. `rolls` is every die rolled for it (Wyll, Pixie Guide: one more, and the lowest `ignored`). A die
+   * rolled in secret is seen rolled by everybody, but for anyone but its roller arrives `hidden`, its numbers null.
+   */
+  interface RollEvent extends TableEvent {
+    type: 'roll';
+    player: PlayerId;
+    sides: number;
+    result: number | null;
+    rolls: Array<number | null>;
+    ignored: number[];
+    group: number;
+    of: number;
+    secret?: true;
+    hidden?: true;
+    source: Id | null;
+    sourceName: string | null;
+  }
+
   /** Another way to use a card: cycle it, cast it face down, from the graveyard... */
   interface AltUse { kind: string; label: string; via?: string; cost?: string | null; [k: string]: any }
   /** A modal spell's modes, offered as it is cast (CR 601.2b): how many may be chosen, and which can be — `ok` false
@@ -328,6 +351,10 @@ declare namespace MTG {
     /** Mindslaver (CR 722): the seats of the players you control this turn, each the view that player would have
         (without the config and log, which are this view's) */
     controlling?: Array<{ id: PlayerId; name: string; view: View }>;
+    /** added by the app, not the engine: what happened since the last view this table had (dice rolled among them:
+        RollEvent), or null when that is not known */
+    events?: TableEvent[] | null;
+    eventSeq?: number;
     /** added by the app, not the engine */
     spectating?: boolean;
     match?: MatchView | null;

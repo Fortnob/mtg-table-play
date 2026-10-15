@@ -5386,7 +5386,8 @@
     /* A coin flipped, or a die rolled, as the table shows it: who, for what card, what came up, and
        what was set aside (Krark's Thumb's other coin, Pixie Guide's and Wyll's lower dice) */
     _luckSource(opts) {
-      const s = (opts && opts.source) || (this.resolving && this.resolving.ctx && this.resolving.ctx.obj) || null;
+      // (a die rolled by hand is nobody's card's, even while a spell waits on a question: byHand)
+      const s = opts && opts.byHand ? null : (opts && opts.source) || (this.resolving && this.resolving.ctx && this.resolving.ctx.obj) || null;
       return s ? { sourceId: s.id || null, sourceName: s.name || null } : { sourceId: null, sourceName: null };
     }
     /** How many of a standing rule this player's permanents have (Krark's Thumb, Pixie Guide, Wyll). */
@@ -5423,16 +5424,26 @@
      * Pixie Guide, Barbarian Class: "roll that many dice plus one and ignore the lowest roll".
      */
     _rollDie(p, sides, opts) {
+      opts = opts || {};
       sides = Math.max(1, sides | 0);
       const extra = this._luckRules(p.id, 'rollExtraIgnoreLowest');
       const rolls = Array.from({ length: 1 + Math.min(6, extra) }, () => this.rng.range(1, sides));
       const result = Math.max(...rolls);
       const sorted = rolls.slice().sort((x, y) => x - y);
       const ignored = sorted.slice(0, rolls.length - 1);
-      this.logEvent((opts && opts.logType) || 'rules', `${p.name} rolls a d${sides}: ${result}${ignored.length ? ` (also ${ignored.join(', ')}, ignored)` : ''}.`);
-      this.emit('roll', Object.assign({ playerId: p.id, sides, result, rolls, ignored }, this._luckSource(opts)));
+      /* a die rolled in secret (none of the cards so far): everybody sees it rolled, only its roller what it came up */
+      const secret = !!opts.secret;
+      this.logEvent(opts.logType || 'rules', secret ? `${p.name} rolls a d${sides} in secret.`
+        : `${p.name} rolls a d${sides}: ${result}${ignored.length ? ` (also ${ignored.join(', ')}, ignored)` : ''}.`);
+      /* the dice rolled together ("roll a six-sided die plus an additional six-sided die for each…", a handful rolled by
+         hand) are one group, shown side by side on the table; `of` is how many dice the group is */
+      const group = opts.group || this._newRollGroup();
+      this.emit('roll', Object.assign({ playerId: p.id, sides, result, rolls, ignored, group, of: Math.max(1, opts.of | 0) },
+        secret ? { secret: true } : {}, this._luckSource(opts)));
       return result;
     }
+    /** A number for the dice of one roll, rolled together (see _rollDie). Not part of the game: only the table reads it. */
+    _newRollGroup() { return (this._rollGroup = (this._rollGroup || 0) + 1); }
     /** Hildibrand Manderville: this card may be cast from its owner's graveyard as an Adventure by this player, still (graveAdventure). */
     _graveAdventureOpen(o, playerId) {
       return !!(o && o.zone === 'graveyard' && o.graveAdvBy === playerId && o.owner === playerId && this.turn <= (o.graveAdvUntil || 0) && this._adventure(o));
@@ -34959,8 +34970,10 @@
           // Mr. House, President and CEO: one more die for each mana from Treasures spent on the ability (perTreasureSpent)
           const extraDice = e.perTreasureSpent ? Math.max(0, Number(ctx.manaFromTreasure) || 0) : 0;
           const rolled = [];
-          for (let k = 0; k < extraDice; k++) rolled.push(this._rollDie(me, sides));
-          this._lastRoll = this._rollDie(me, sides);
+          // every die of this roll rolled together, as one group on the table
+          const dice = { group: this._newRollGroup(), of: extraDice + 1 };
+          for (let k = 0; k < extraDice; k++) rolled.push(this._rollDie(me, sides, dice));
+          this._lastRoll = this._rollDie(me, sides, dice);
           rolled.push(this._lastRoll);
           // one event a die (Mr. House: "Whenever you roll a 4 or higher"); "one or more dice" sees the first, and all of them (amounts)
           rolled.forEach((amount, k) => this._fire('youRoll', ctx.controller, { amount, amounts: rolled, dieIndex: k, playerId: ctx.controller }));
@@ -39948,7 +39961,10 @@
         case 'reveal': this.logEvent('manual', `${p.name} reveals ${o ? o.name : 'a card'}.`); break;
         case 'roll': {
           const sides = data.sides || 6;
-          this._rollDie(p, sides, { logType: 'manual' });
+          // a handful of dice rolled by hand at once (up to six): one group
+          const count = Math.max(1, Math.min(6, data.n | 0 || 1));
+          const dice = { logType: 'manual', byHand: true, group: this._newRollGroup(), of: count };
+          for (let k = 0; k < count; k++) this._rollDie(p, sides, dice);
           break;
         }
         case 'coin': {

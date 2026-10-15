@@ -784,6 +784,36 @@ function checkIntent(intent) {
   return run(Intent, intent, 'intent').map(x => Object.assign({ rule: 'intent.shape' }, x));
 }
 
+/* A die rolled, as the event stream carries it to one player (src/06b-events.js; RollEvent in types.d.ts): what the
+   table shows tumbling in the middle and landing. A secret die reaches anybody but its roller hidden. */
+const RollEvent = obj({
+  seq: nat, turn: nat, type: lit('roll'), player: id, sides: prim('a number of sides (1 or more)', v => Number.isInteger(v) && v >= 1),
+  result: maybe(int), rolls: arr(maybe(int), { min: 1 }), ignored: arr(int), group: prim('a group number (1 or more)', v => Number.isInteger(v) && v >= 1),
+  of: prim('a count of dice (1 or more)', v => Number.isInteger(v) && v >= 1), secret: opt(lit(true)), hidden: opt(lit(true)),
+  source: maybe(id), sourceName: maybe(str),
+}, { closed: true });
+/**
+ * One event as `viewer` receives it. Of a die: its shape, every number within the die's range and the result the
+ * highest of those kept, and the result kept from anybody else when it was rolled in secret.
+ */
+function checkEvent(e, viewer) {
+  if (!e || e.type !== 'roll') return [];
+  const out = run(RollEvent, e, 'event').map(x => Object.assign({ rule: 'event.shape' }, x));
+  const bad = (rule, p, msg) => out.push({ rule, path: p, msg });
+  if (e.secret && viewer !== e.player) {
+    if (e.result != null || (e.rolls || []).some(r => r != null) || (e.ignored || []).length || !e.hidden)
+      bad('event.privacy', 'event.result', `${viewer} is told what ${e.player}'s secret d${e.sides} came up`);
+    return out;
+  }
+  if (e.hidden) { bad('event.sense', 'event.hidden', `${viewer} rolled it, or it was not secret, but it arrives hidden`); return out; }
+  const inRange = (r) => Number.isInteger(r) && r >= 1 && r <= e.sides;
+  if (!inRange(e.result)) bad('event.sense', 'event.result', `${show(e.result)} is not on a d${e.sides}`);
+  for (const [i, r] of (e.rolls || []).entries()) if (!inRange(r)) bad('event.sense', `event.rolls[${i}]`, `${show(r)} is not on a d${e.sides}`);
+  if ((e.rolls || []).length && e.result !== Math.max(...e.rolls)) bad('event.sense', 'event.result', `${e.result} is not the highest of the dice rolled (${e.rolls.join(', ')})`);
+  if ((e.ignored || []).length !== Math.max(0, (e.rolls || []).length - 1)) bad('event.sense', 'event.ignored', `${(e.ignored || []).length} dice ignored of ${(e.rolls || []).length} rolled`);
+  return out;
+}
+
 function checkNetMessage(msg, direction) {
   const out = run(direction === 'toHost' ? NetToHost : NetToGuest, msg, 'msg').map(x => Object.assign({ rule: 'net.shape' }, x));
   const json = [];
@@ -926,7 +956,27 @@ function watch(g, MTG, opts) {
   let corrupt = false;
   const lastLine = () => { const l = g.log && g.log[g.log.length - 1]; return l ? l.text : ''; };
   const viewers = () => g.players.map(p => p.id).concat(['__watching']);
+  /* the dice rolled since the last look, as each seat gets them; and the dice of one group are one player's, `of` at most */
+  let evSeen = -1;
+  const groups = new Map();
+  const onEvents = () => {
+    const list = g.events || [];
+    for (const e of list) {
+      if (e.seq <= evSeen || e.type !== 'roll') continue;
+      const gr = groups.get(e.group) || { player: e.player, of: e.of, n: 0 };
+      groups.set(e.group, gr);
+      gr.n++;
+      if (gr.player !== e.player || gr.of !== e.of || gr.n > gr.of) note([{ rule: 'event.sense', path: 'event.group', msg: `die group ${e.group}: ${gr.n} dice, ${e.of} said, rolled by ${gr.player} and ${e.player}` }], {});
+      for (const pid of viewers()) {
+        const r = MTG.events && MTG.events.redact ? MTG.events.redact(e, pid) : e;
+        if (r) note(checkEvent(r, pid), { viewer: pid });
+      }
+    }
+    if (list.length) evSeen = list[list.length - 1].seq;
+    if (groups.size > 500) groups.clear();
+  };
   const onState = () => {
+    onEvents();
     if (g.stateVersion === lastV) return;
     lastV = g.stateVersion;
     if (!corrupt) {
@@ -1018,6 +1068,7 @@ function watch(g, MTG, opts) {
     get violations() { return list().filter(v => !v.known); },
     get known() { return list().filter(v => v.known); },
     stop() {
+      onEvents();
       g.off('state', onState);
       g.off('choice', onChoice);
       for (const [name, orig] of wrapped) g[name] = orig;
@@ -1086,6 +1137,14 @@ function selfTest() {
   expect('cast with generic answers', checkIntent({ kind: 'cast', objId: 'o1', choices: { replicate: { number: 2 }, splice: { picks: ['o4'] } } }), false);
   expect('cast with the additional cost and the gift said', checkIntent({ kind: 'cast', objId: 'o1', payAdditional: true, gift: null, targets: [] }), false);
   expect('cast with a gift that is not yes or no', checkIntent({ kind: 'cast', objId: 'o1', gift: 'B' }), true);
+  const die = { seq: 4, turn: 2, type: 'roll', player: 'A', sides: 20, result: 15, rolls: [7, 15], ignored: [7], group: 3, of: 1, source: null, sourceName: null };
+  expect('a d20 with advantage', checkEvent(die, 'B'), false);
+  expect('a d20 that came up 21', checkEvent(Object.assign({}, die, { result: 21, rolls: [21], ignored: [] }), 'B'), true);
+  expect('a die whose result is not its highest', checkEvent(Object.assign({}, die, { result: 7 }), 'B'), true);
+  expect('a die with no group', checkEvent(Object.assign({}, die, { group: 0 }), 'B'), true);
+  expect('a secret die told to another player', checkEvent(Object.assign({}, die, { secret: true }), 'B'), true);
+  expect('a secret die, hidden from another player', checkEvent(Object.assign({}, die, { secret: true, hidden: true, result: null, rolls: [null, null], ignored: [] }), 'B'), false);
+  expect('a secret die, read by its roller', checkEvent(Object.assign({}, die, { secret: true }), 'A'), false);
   const o = []; jsonProblems({ a: [undefined], b: NaN, c: new Set() }, 'x', o);
   if (o.length !== 3) fails.push(`jsonProblems found ${o.length} of 3 problems`);
   return fails;
@@ -1142,7 +1201,7 @@ async function main() {
 }
 
 module.exports = {
-  S, schemas: { View, PlayerView, ObjectView, HiddenObject, StackItemView, Choice, CHOICES, ANSWERS, Intent, INTENTS, NetToHost, NetToGuest },
-  checkView, checkZones, checkChoice, checkAnswer, checkIntent, checkNetMessage, jsonProblems, watch, format, merge, selfTest, KNOWN,
+  S, schemas: { View, RollEvent, PlayerView, ObjectView, HiddenObject, StackItemView, Choice, CHOICES, ANSWERS, Intent, INTENTS, NetToHost, NetToGuest },
+  checkView, checkZones, checkChoice, checkAnswer, checkIntent, checkNetMessage, checkEvent, jsonProblems, watch, format, merge, selfTest, KNOWN,
 };
 if (require.main === module) main().catch(e => { console.error(e); process.exit(1); });

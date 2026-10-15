@@ -76,6 +76,8 @@
     show(jump) {
       if (this._stopped) return;
       if (jump) this.table._noMotionOnce = true;
+      // (nor are the dice of where it jumped from still rolling)
+      if (jump && MTG.feel && MTG.feel.luckClear) MTG.feel.luckClear(this.table);
       // a jump is a cut, not a hundred things happening at once
       this.table.update(this._view(jump ? [] : undefined));
       this.renderBar();

@@ -3783,9 +3783,19 @@
         ['Become the monarch', () => this.send({ kind: 'manual', action: 'monarch' })],
         ['Take the initiative', () => this.send({ kind: 'manual', action: 'initiative' })],
         ['Roll a d20', () => this.send({ kind: 'manual', action: 'roll', sides: 20 })],
+        ['Roll other dice ▸', (ev) => this.diceMenu(ev || e)],
         ['Flip a coin', () => this.send({ kind: 'manual', action: 'coin' })],
         ['Untap everything', () => this.send({ kind: 'manual', action: 'untapAll' })],
       ], { title: 'Table tools — for by-hand fixes' });
+    }
+
+    /** Dice rolled by hand, one or a few together: everybody sees them land in the middle of the table. */
+    diceMenu(e) {
+      const roll = (sides, n) => () => this.send(Object.assign({ kind: 'manual', action: 'roll', sides }, n > 1 ? { n } : {}));
+      UI.contextMenu(e, [
+        ['Roll a d4', roll(4)], ['Roll a d6', roll(6)], ['Roll two d6', roll(6, 2)], ['Roll a d8', roll(8)],
+        ['Roll a d10', roll(10)], ['Roll a d12', roll(12)], ['Roll two d20', roll(20, 2)],
+      ], { title: 'Roll dice' });
     }
 
     tokenDialog() {

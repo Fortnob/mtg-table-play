@@ -278,40 +278,55 @@
 .fx-float.fx-luck { color: #fff3c4; text-shadow: 0 0 10px rgba(246,200,110,.8), 0 2px 4px rgba(0,0,0,.9); font-weight: 800; white-space: nowrap; }
 
 /* ---------- coins and dice, shown for what they came up ---------- */
-.luck-reveal { position: absolute; left: 50%; top: 42%; z-index: 60; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 10px;
-  padding: 14px 22px 16px; border-radius: 18px; cursor: pointer; pointer-events: auto;
-  background: radial-gradient(ellipse at 50% 0%, rgba(60, 50, 26, .92), rgba(12, 14, 20, .94) 70%); border: 1px solid rgba(243, 221, 150, .45);
+/* over the table and any question that opens as the die lands (above .decision-host), but taking no clicks */
+.luck-reveal { position: absolute; left: 50%; top: 42%; z-index: 85; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 10px;
+  box-sizing: border-box; max-width: calc(100% - 24px); padding: 14px 22px 16px; border-radius: 18px; pointer-events: none;
+  --lr-size: 62px; --lr-gap: 16px;
+  background: radial-gradient(ellipse at 50% 0%, rgba(60, 50, 26, .97), rgba(12, 14, 20, .98) 70%); border: 1px solid rgba(243, 221, 150, .45);
   box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px rgba(212, 175, 71, .2); animation: lrIn .28s cubic-bezier(.2,.8,.2,1) both; }
 .luck-reveal.out { animation: lrOut .26s ease-in both; }
 @keyframes lrIn { from { opacity: 0; transform: translate(-50%, -46%) scale(.92); } }
 @keyframes lrOut { to { opacity: 0; transform: translate(-50%, -52%) scale(.96); } }
-.lr-head { font: 600 15px/1.2 var(--serif, Georgia, serif); color: #f3dd96; text-shadow: 0 1px 4px #000; }
-.lr-row { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; max-width: 520px; perspective: 600px; }
+.lr-head { font: 600 15px/1.25 var(--serif, Georgia, serif); color: #f3dd96; text-shadow: 0 1px 4px #000; text-align: center; max-width: 560px; }
+/* one line, whatever was rolled: the reveal sizes its dice to fit (--lr-size) */
+.lr-row { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--lr-gap); justify-content: center; max-width: 100%; perspective: 600px; }
+.lr-set { display: grid; justify-items: center; gap: 4px; }
+.lr-set + .lr-set { padding-left: calc(var(--lr-gap) * .6); border-left: 1px solid rgba(243, 221, 150, .22); }
+.lr-who { font: 600 11px/1 var(--font); color: #e6dcc0; max-width: calc(var(--lr-size) * 2.4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lr-dice { display: flex; flex-wrap: nowrap; gap: calc(var(--lr-gap) * .7); }
 .lr-coin-wrap, .lr-die-wrap { display: grid; justify-items: center; gap: 7px; }
-.lr-coin { position: relative; width: 62px; height: 62px; transform-style: preserve-3d; animation: lrSpinH 1s cubic-bezier(.2,.75,.25,1) both; }
+.lr-coin { position: relative; width: var(--lr-size); height: var(--lr-size); transform-style: preserve-3d; animation: lrSpinH 1s cubic-bezier(.2,.75,.25,1) both; }
 .lr-coin.tails { animation-name: lrSpinT; }
 @keyframes lrSpinH { 0% { transform: translateY(0) rotateX(0); } 45% { transform: translateY(-38px) rotateX(900deg); } 100% { transform: translateY(0) rotateX(1440deg); } }
 @keyframes lrSpinT { 0% { transform: translateY(0) rotateX(0); } 45% { transform: translateY(-38px) rotateX(900deg); } 100% { transform: translateY(0) rotateX(1620deg); } }
 .lr-face { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; backface-visibility: hidden; font-style: normal;
   box-shadow: inset 0 0 0 3px rgba(0,0,0,.25), inset 0 -4px 8px rgba(0,0,0,.3), 0 4px 12px rgba(0,0,0,.5); }
-.lr-face i { font-style: normal; font-size: 28px; line-height: 1; }
+.lr-face i { font-style: normal; font-size: calc(var(--lr-size) * .45); line-height: 1; }
 .lr-h { background: radial-gradient(circle at 35% 30%, #fff3c4, #e2b84f 45%, #8a6416); color: #5a3d07; }
 .lr-t { background: radial-gradient(circle at 35% 30%, #f2f4f8, #a9b0bc 50%, #5d6470); color: #2a2f38; transform: rotateX(180deg); }
-.lr-say { font: 700 11px/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: #cfc8b8; opacity: 0; animation: lrSay .3s ease-out both; }
+.lr-say { font: 700 clamp(9px, calc(var(--lr-size) * .18), 11px)/1 var(--font); letter-spacing: .1em; text-transform: uppercase; color: #cfc8b8; white-space: nowrap; opacity: 0; animation: lrSay .3s ease-out both; }
+.lr-die-wrap .lr-say { opacity: 1; animation: none; text-transform: none; letter-spacing: .04em; }
+.lr-drop { margin-top: -4px; font: 700 clamp(8px, calc(var(--lr-size) * .16), 10px)/1 var(--font); letter-spacing: .08em; text-transform: uppercase; color: #a9a294; visibility: hidden; }
+.ignored > .lr-drop { visibility: visible; }
 .lr-say.win { color: #8de39a; text-shadow: 0 0 8px rgba(120, 220, 140, .5); }
 .lr-say.loss { color: #f08d80; }
 @keyframes lrSay { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.lr-die { width: 62px; height: 62px; display: grid; place-items: center; color: #1b1f26; animation: lrTumble .9s cubic-bezier(.2,.75,.25,1) both;
+/* a die: tumbles in while its number flicks over (src/12f-ui-feel.js), and lands with a bump and a glow */
+.lr-die { width: var(--lr-size); height: var(--lr-size); display: grid; place-items: center; color: #1b1f26; animation: lrTumble 1.05s cubic-bezier(.15,.7,.25,1) both;
   background: linear-gradient(150deg, #fdfaf2, #d7d1c2); clip-path: polygon(50% 0, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
   filter: drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
-.lr-die.d6 { clip-path: none; border-radius: 12px; box-shadow: inset 0 -4px 0 rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.5); }
-.lr-die b { font: 800 24px/1 var(--font); }
-@keyframes lrTumble { 0% { transform: translateY(-30px) rotate(-200deg) scale(.7); } 60% { transform: translateY(4px) rotate(14deg) scale(1.05); } 100% { transform: none; } }
+.lr-die.d6 { clip-path: none; border-radius: calc(var(--lr-size) * .19); box-shadow: inset 0 -4px 0 rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.5); }
+.lr-die.d4 { clip-path: polygon(50% 2%, 98% 92%, 2% 92%); place-items: end center; padding-bottom: calc(var(--lr-size) * .14); box-sizing: border-box; }
+.lr-die b { font: 800 calc(var(--lr-size) * .39)/1 var(--font); font-variant-numeric: tabular-nums; }
+.lr-die.landed { animation: lrLand .34s cubic-bezier(.2,.9,.3,1.4) both; filter: drop-shadow(0 0 10px rgba(246, 210, 120, .75)) drop-shadow(0 4px 8px rgba(0,0,0,.5)); }
+.lr-die.landed b { color: #000; }
+@keyframes lrTumble { 0% { transform: translateY(-30px) rotate(-260deg) scale(.7); } 55% { transform: translateY(4px) rotate(18deg) scale(1.04); } 80% { transform: rotate(-5deg); } 100% { transform: none; } }
+@keyframes lrLand { 0% { transform: scale(1.22); } 100% { transform: none; } }
 .lr-tally { font: 700 13px/1 var(--font); color: #f3dd96; letter-spacing: .06em; opacity: 0; animation: lrSay .3s ease-out both; }
 .luck-reveal.still .lr-coin, .luck-reveal.still .lr-die, .luck-reveal.still .lr-say, .luck-reveal.still .lr-tally { animation: none; opacity: 1; }
 .luck-reveal.still .lr-coin.tails { transform: rotateX(180deg); }
 :root[data-phone] .luck-reveal { top: 38%; padding: 12px 14px; }
-:root[data-phone] .lr-coin, :root[data-phone] .lr-die { width: 48px; height: 48px; }
+:root[data-phone] .lr-head { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) { .luck-reveal, .lr-coin, .lr-die, .lr-say, .lr-tally { animation: none !important; opacity: 1 !important; } .lr-coin.tails { transform: rotateX(180deg); } }
 
 .lr-coin-wrap.ignored, .lr-die-wrap.ignored { opacity: .4; filter: grayscale(.7); }

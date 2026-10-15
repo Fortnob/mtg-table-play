@@ -320,6 +320,10 @@
       case 'trigger': case 'activate':
         if (!e.faceDown || viewer === e.controller) return e;
         return Object.assign({}, e, { card: null, hidden: true });
+      // a die rolled in secret: seen rolled, by everybody, but what it came up is its roller's
+      case 'roll':
+        if (!e.secret || viewer === e.player) return e;
+        return Object.assign({}, e, { result: null, rolls: e.rolls.map(() => null), ignored: [], hidden: true });
       default:
         return e;
     }
@@ -364,8 +368,10 @@
       case 'player:lost': if (a) this._ev('lose', Object.assign({ player: a.id, reason: a.lossReason || '' }, a.lossFrom ? { from: a.lossFrom } : {})); break;
       /* a die: the result kept, every die rolled and the ones ignored (Pixie Guide, Wyll), for which card;
          a coin: heads or tails, won or lost, ignored (Krark's Thumb's other coin), for which card */
-      case 'roll': if (a) this._ev('roll', { player: a.playerId, sides: a.sides, result: a.result,
-        rolls: a.rolls || [a.result], ignored: a.ignored || [], source: a.sourceId || null, sourceName: a.sourceName || null }); break;
+      /* (the dice rolled together share a `group`, `of` dice in all; a die rolled in secret is its roller's to read — redact) */
+      case 'roll': if (a) this._ev('roll', Object.assign({ player: a.playerId, sides: a.sides, result: a.result,
+        rolls: a.rolls || [a.result], ignored: a.ignored || [], group: a.group || 0, of: a.of || 1,
+        source: a.sourceId || null, sourceName: a.sourceName || null }, a.secret ? { secret: true } : {})); break;
       case 'coin': if (a) this._ev('coin', { player: a.playerId, result: a.result, won: a.won != null ? !!a.won : a.result === 'heads',
         ignored: !!a.ignored, source: a.sourceId || null, sourceName: a.sourceName || null, byHand: a.byHand || undefined }); break;
       case 'manual': if (a) this._ev('manual', { player: a.controller || null, text: String(a.text || '') }); break;

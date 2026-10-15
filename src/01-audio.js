@@ -1017,8 +1017,17 @@
     crown(o) { [659, 880, 1047, 1319].forEach((f, i) => this.tone(f, { type: 'triangle', dur: 0.14, gain: 0.065, delay: i * 0.055, pan: o.pan, send: 0.45 })); },
     daynight(o) { this.tone(300, { type: 'sine', slideTo: 620, dur: 0.4, gain: 0.06, send: 0.5 }); },
     undo(o) { this.tone(540, { type: 'sine', slideTo: 330, dur: 0.13, gain: 0.06, send: 0.2 }); },
+    /** Dice thrown (`count` of them): a rattle, thick at first and thinning out as they slow — as long as the table
+        shows them tumbling (src/12f-ui-feel.js) — then a knock on the felt for each as it lands. */
     dice(o) {
-      for (let i = 0; i < 5; i++) this.noise({ filter: 'bandpass', freq: rnd(1800, 3200), q: 4, dur: 0.03, gain: 0.07 - i * 0.01, delay: i * 0.07 + rnd(0, 0.03), pan: o.pan, send: 0.15 });
+      const n = clamp(o.count | 0 || 1, 1, 4);
+      const clicks = 10 + n * 2;
+      let at = 0;
+      for (let i = 0; i < clicks; i++) {
+        this.noise({ filter: 'bandpass', freq: rnd(1900, 3600), q: 5, dur: 0.025, gain: 0.06 * (1 - i / (clicks + 4)) + 0.01, delay: at, pan: o.pan, send: 0.15 });
+        at += 0.03 + i * 0.006 + rnd(0, 0.025);
+      }
+      for (let k = 0; k < n; k++) this.noise({ filter: 'lowpass', freq: 650, q: 1.2, dur: 0.07, gain: 0.09, delay: at + k * 0.045 + rnd(0, 0.02), pan: o.pan, send: 0.2 });
     },
     coin(o) {
       this.bell(2637, { ratio: 1.41, index: 1.5, dur: 0.5, gain: 0.04, pan: o.pan, send: 0.4 });

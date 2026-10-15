@@ -78,6 +78,8 @@
       try { this._visuals(t, prev, next, info, motion); } catch (e) { console.error('[feel]', e); }
       // coins flipped and dice rolled: shown in the middle of the table, landing on what they landed on
       if (info.luck.length) try { this._luckReveal(t, info.luck, motion); } catch (e) { console.error('[feel]', e); }
+      // an undo takes back whatever coins and dice were still on show
+      else if ((next.events || []).some(e => e.type === 'restore')) this.luckClear(t);
       this.trace.push({ from: (next.events && next.events[0] || {}).seq, to: (next.events && next.events.length ? next.events[next.events.length - 1].seq : null),
         events: beat.fromEvents ? next.events.map(e => e.type) : null, sounds: played });
       if (this.trace.length > 80) this.trace.splice(0, 20);
@@ -292,7 +294,8 @@
             add(won || !seated ? 'win' : 'lose', {}, 10, 'gameOver', 0, 120);
             break;
           }
-          case 'roll': add('dice', { pan: pan(e.player) }, 5, 'roll', 120); info.luck.push(e); break;
+          // (a die is heard as the table shows it thrown, in _luckShow, which may be a moment after this beat)
+          case 'roll': info.luck.push(e); break;
           case 'coin': add('coin', { pan: pan(e.player) }, 5, 'coin', 120); info.luck.push(e); break;
           case 'control': add('steal', { pan: pan(e.to) }, 6, 'control', 100); break;
           case 'cue': add(e.name, { pan: pan(e.player) }, 5, 'cue', 90); break;
@@ -468,86 +471,196 @@
     },
 
     /**
-     * Coins and dice, shown for what they came up: in the middle of the
-     * table, a coin for each flip that spins and lands heads (a win) or
-     * tails (a loss), and a die for each roll that tumbles through numbers
-     * and settles on its result; with more than one coin, the wins counted.
-     * One player's flips and rolls of a moment are shown together; another
-     * moment's wait their turn. A click puts it away early.
+     * Coins and dice, shown for what they came up, in the middle of the
+     * table for everyone at it: a coin for each flip that spins and lands
+     * heads (a win) or tails (a loss), and a die for each roll, labelled
+     * with its size, that flicks through numbers in its range — quickly at
+     * first, then slower — and lands on what the engine rolled. The result
+     * was decided before any of this; the table only shows it, and nothing
+     * waits for it. The dice of one moment sit side by side on one line
+     * (the dice rolled together, one `group`, close up), whoever rolled
+     * them; with more than one coin, the wins counted. A die rolled in
+     * secret lands, for anybody but its roller, on a question mark. One
+     * player's flips of a moment are shown together; another moment's wait
+     * their turn. It sits over the table and any question that opens, but
+     * takes no clicks: a click anywhere puts it away early. With less
+     * motion asked for, the results are simply shown.
      */
     _luckReveal(t, list, motion) {
-      const groups = [];
+      const reveals = [];
       for (const e of list) {
-        const last = groups[groups.length - 1];
-        if (last && last.player === e.player) last.items.push(e);
-        else groups.push({ player: e.player, items: [e] });
+        const last = reveals[reveals.length - 1];
+        // dice rolled in the same moment share a line, whoever rolled them; coins stay with their flipper
+        const allDice = !!last && e.type === 'roll' && last.items.every(x => x.type === 'roll');
+        if (last && (last.player === e.player || allDice)) last.items.push(e);
+        else reveals.push({ player: e.player, items: [e] });
       }
-      for (const g of groups) {
+      // (an undo or a replay's jump in the meantime takes them back: luckClear)
+      const gen = this._luckGen || 0;
+      for (const g of reveals) {
         const run = () => new Promise((done) => {
-          const v = t.view || {};
-          const who = (v.players || []).find(p => p.id === g.player);
-          const name = who ? (who.id === t.meId ? 'You' : who.name) : 'A player';
-          const coins = g.items.filter(e => e.type === 'coin'), dice = g.items.filter(e => e.type === 'roll');
-          // a win is the event's to say (heads, as the engine has it); a coin Krark's Thumb set aside counts for nothing
-          const wins = (e) => (e.won != null ? !!e.won : e.result === 'heads');
-          const counted = coins.filter(e => !e.ignored);
-          const won = counted.filter(wins).length;
-          const mine = who && who.id === t.meId;
-          const from = (g.items.find(e => e.sourceName) || {}).sourceName;
-          const head = (from ? from + ': ' : '') + [
-            counted.length ? `${name} ${mine ? 'flip' : 'flips'} ${counted.length === 1 ? 'a coin' : counted.length + ' coins'}` : '',
-            dice.length ? `${counted.length ? ' and ' : name + ' '}${mine ? 'roll' : 'rolls'} ${dice.length === 1 ? 'a d' + dice[0].sides : dice.length + ' dice'}` : '',
-          ].join('');
-          const row = el('div', { class: 'lr-row' });
-          const box = el('div', { class: 'luck-reveal' + (motion ? '' : ' still'), role: 'status', 'aria-live': 'polite' }, [
-            el('div', { class: 'lr-head', text: head }), row,
-          ]);
-          let at = 0;
-          for (const e of g.items) {
-            const delay = motion ? at : 0;
-            at += 140;
-            if (e.type === 'coin') {
-              const heads = e.result === 'heads', win = wins(e);
-              row.appendChild(el('div', { class: 'lr-coin-wrap' + (e.ignored ? ' ignored' : '') }, [
-                el('div', { class: 'lr-coin ' + (heads ? 'heads' : 'tails'), style: { animationDelay: delay + 'ms' } }, [
-                  el('span', { class: 'lr-face lr-h', html: '<i>\u2600</i>' }), el('span', { class: 'lr-face lr-t', html: '<i>\u263E</i>' }),
-                ]),
-                el('span', { class: 'lr-say ' + (e.ignored ? '' : win ? 'win' : 'loss'), style: { animationDelay: (delay + 900) + 'ms' },
-                  text: (heads ? 'Heads' : 'Tails') + ' \u00b7 ' + (e.ignored ? 'ignored' : win ? 'won' : 'lost') }),
-              ]));
-            } else {
-              // every die rolled (two for an advantage), the ones set aside faded
-              const sides = e.sides || 20;
-              const rolls = (e.rolls && e.rolls.length ? e.rolls : [e.result]).slice();
-              const dropped = (e.ignored || []).slice();
-              for (const r of rolls) {
-                const di = dropped.indexOf(r);
-                const out = di >= 0 && rolls.length > 1;
-                if (out) dropped.splice(di, 1);
-                const face = el('b', { text: String(r) });
-                const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : ''), style: { animationDelay: delay + 'ms' } }, [face]);
-                row.appendChild(el('div', { class: 'lr-die-wrap' + (out ? ' ignored' : '') }, [die,
-                  el('span', { class: 'lr-say', style: { animationDelay: (delay + 900) + 'ms' }, text: 'd' + sides + (out ? ' \u00b7 dropped' : '') })]));
-                // the faces it tumbles through before it settles
-                if (motion) {
-                  setTimeout(() => {
-                    let k = 0;
-                    const tick = setInterval(() => { face.textContent = String(1 + Math.floor(Math.random() * sides)); if (++k > 12) { clearInterval(tick); face.textContent = String(r); } }, 60);
-                  }, delay);
-                }
-              }
-            }
-          }
-          if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));
-          t.arena.appendChild(box);
-          let gone = false;
-          const close = () => { if (gone) return; gone = true; box.classList.add('out'); setTimeout(() => { box.remove(); done(); }, motion ? 260 : 0); };
-          box.addEventListener('click', close);
-          setTimeout(close, (motion ? 2300 : 1600) + at);
+          if (gen !== (this._luckGen || 0) || t._destroyed || !t.arena || !t.arena.isConnected) { done(); return; }
+          this._luckShow(t, g.items, motion, done);
         });
         // one at a time, in the order they happened
         this._luckQueue = (this._luckQueue || Promise.resolve()).then(run, run);
       }
+    },
+
+    /** How long a die flicks through numbers before it lands, in ms (the dice sound is as long). */
+    _luckFlip: 1050,
+
+    /** One reveal of _luckReveal: built, shown, and put away again, then `done`. */
+    _luckShow(t, items, motion, done) {
+      const v = t.view || {};
+      const nameOf = (pid) => { const p = (v.players || []).find(x => x.id === pid); return p ? (p.id === t.meId ? 'You' : p.name) : 'A player'; };
+      const players = Array.from(new Set(items.map(e => e.player)));
+      const one = players.length === 1;
+      const mine = one && players[0] === t.meId;
+      const name = nameOf(players[0]);
+      const coins = items.filter(e => e.type === 'coin'), dice = items.filter(e => e.type === 'roll');
+      // a win is the event's to say (heads, as the engine has it); a coin Krark's Thumb set aside counts for nothing
+      const wins = (e) => (e.won != null ? !!e.won : e.result === 'heads');
+      const counted = coins.filter(e => !e.ignored);
+      const won = counted.filter(wins).length;
+      // "a d20", "two d6", "a d20 and two d6": each die rolled once (the one Wyll adds is shown, not counted)
+      const NUM = ['', 'a', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
+      const diceWords = (ds) => {
+        const by = new Map();
+        for (const e of ds) by.set(e.sides, (by.get(e.sides) || 0) + 1);
+        const parts = Array.from(by, ([s, n]) => (NUM[n] || String(n)) + ' d' + s);
+        return parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0] || '';
+      };
+      const from = one ? (items.find(e => e.sourceName) || {}).sourceName : null;
+      const head = (from ? from + ': ' : '') + (one ? [
+        counted.length ? `${name} ${mine ? 'flip' : 'flips'} ${counted.length === 1 ? 'a coin' : counted.length + ' coins'}` : '',
+        dice.length ? `${counted.length ? ' and ' : name + ' '}${mine ? 'roll' : 'rolls'} ${diceWords(dice)}` : '',
+      ].join('') : `${players.map(nameOf).join(' and ')} roll ${diceWords(dice)}`);
+
+      const row = el('div', { class: 'lr-row', 'aria-hidden': 'true' });
+      // for a screen reader: what came up, said once everything has landed rather than every number on the way
+      const said = el('span', { class: 'sr-only' });
+      const box = el('div', { class: 'luck-reveal' + (motion ? '' : ' still'), role: 'status', 'aria-live': 'polite' }, [
+        el('div', { class: 'lr-head', text: head }), row, said,
+      ]);
+      const timers = [];
+      const later = (fn, ms) => timers.push(setTimeout(fn, ms));
+      const results = [];
+      let at = 0, landing = 0, set = null, setKey = null;
+      const mayDrop = dice.some(e => (e.rolls || []).length > 1);
+      for (const e of items) {
+        if (e.type === 'coin') {
+          const delay = motion ? at : 0;
+          at += 140;
+          setKey = null;
+          const heads = e.result === 'heads', win = wins(e);
+          row.appendChild(el('div', { class: 'lr-coin-wrap' + (e.ignored ? ' ignored' : '') }, [
+            el('div', { class: 'lr-coin ' + (heads ? 'heads' : 'tails'), style: { animationDelay: delay + 'ms' } }, [
+              el('span', { class: 'lr-face lr-h', html: '<i>\u2600</i>' }), el('span', { class: 'lr-face lr-t', html: '<i>\u263E</i>' }),
+            ]),
+            el('span', { class: 'lr-say ' + (e.ignored ? '' : win ? 'win' : 'loss'), style: { animationDelay: (delay + 900) + 'ms' },
+              text: (heads ? 'Heads' : 'Tails') + ' \u00b7 ' + (e.ignored ? 'ignored' : win ? 'won' : 'lost') }),
+          ]));
+          results.push(`${heads ? 'heads' : 'tails'}${e.ignored ? ', ignored' : ''}`);
+          landing = Math.max(landing, delay + 1000);
+          continue;
+        }
+        // the dice of one roll together, a little apart from the next roll's, each roll its roller's when there are several
+        const key = e.group ? e.player + '#' + e.group : 'seq' + e.seq;
+        if (key !== setKey) {
+          setKey = key;
+          if (set) at += 80;
+          const line = el('div', { class: 'lr-dice' });
+          set = el('div', { class: 'lr-set' }, [one ? null : el('span', { class: 'lr-who', text: nameOf(e.player) }), line].filter(Boolean));
+          set._line = line;
+          row.appendChild(set);
+        }
+        // every die rolled (two for an advantage), the ones set aside faded once they land
+        const sides = e.sides || 20;
+        const rolls = (e.rolls && e.rolls.length ? e.rolls : [e.result]).slice();
+        const dropped = (e.ignored || []).slice();
+        for (const r of rolls) {
+          const delay = motion ? at : 0;
+          at += 90;
+          const di = r == null ? -1 : dropped.indexOf(r);
+          const out = di >= 0 && rolls.length > 1;
+          if (out) dropped.splice(di, 1);
+          const shown = r == null ? '?' : String(r);
+          const face = el('b', { text: motion ? String(1 + Math.floor(Math.random() * sides)) : shown });
+          const die = el('div', { class: 'lr-die' + (sides === 6 ? ' d6' : sides === 4 ? ' d4' : ''), 'data-sides': String(sides),
+            style: { animationDelay: delay + 'ms' } }, [face]);
+          const say = el('span', { class: 'lr-say', text: 'd' + sides });
+          // (room kept under every die for "dropped" when any may be, so nothing moves as they land)
+          const wrap = el('div', { class: 'lr-die-wrap' }, [die, say, mayDrop ? el('span', { class: 'lr-drop', text: 'dropped' }) : null].filter(Boolean));
+          set._line.appendChild(wrap);
+          const land = () => {
+            face.textContent = shown;
+            die.dataset.result = shown;
+            die.style.animationDelay = '0ms';
+            die.classList.add('landed');
+            if (out) wrap.classList.add('ignored');
+          };
+          if (motion) {
+            /* the numbers it flicks through: every face but the one showing, quickly and then slower and slower,
+               until it lands on the one the engine rolled */
+            /* (by the clock, but a moment the page was too busy to draw in — the next question opening, say — does not
+               count, so the numbers are always seen going by) */
+            let spent = 0, last = 0, wait = 0;
+            const tick = () => {
+              const now = performance.now();
+              if (last) spent += Math.min(now - last, wait + 50);
+              last = now;
+              const k = spent / this._luckFlip;
+              if (k >= 1) { land(); return; }
+              let n = 1 + Math.floor(Math.random() * sides);
+              if (sides > 1 && String(n) === face.textContent) n = n % sides + 1;
+              face.textContent = String(n);
+              // 32ms apart at first, a quarter of a second by the end
+              wait = Math.max(16, Math.min((1 - k) * this._luckFlip, 32 + 240 * k * k));
+              later(tick, wait);
+            };
+            later(tick, delay);
+            landing = Math.max(landing, delay + this._luckFlip + 250);
+          } else land();
+          if (!out) results.push(`d${sides}: ${r == null ? 'rolled in secret' : r}`);
+        }
+      }
+      if (counted.length > 1) box.appendChild(el('div', { class: 'lr-tally', style: { animationDelay: (motion ? at + 900 : 0) + 'ms' }, text: `${won} of ${counted.length} won` }));
+      /* sized to sit on one line in the middle of the table, whatever the screen: a phone's dice smaller, a handful
+         smaller still */
+      const n = row.querySelectorAll('.lr-die, .lr-coin').length;
+      const sets = row.querySelectorAll('.lr-set').length;
+      const room = Math.min(Math.max(240, (t.arena.clientWidth || 360) - 64), 760) - Math.max(0, sets - 1) * 14;
+      const size = clamp(Math.floor(room / Math.max(1, n) / 1.25), 26, MTG.isPhone() ? 50 : 64);
+      box.style.setProperty('--lr-size', size + 'px');
+      box.style.setProperty('--lr-gap', Math.round(size * 0.25) + 'px');
+      t.arena.appendChild(box);
+      // dice heard as they are thrown: a rattle as long as the flicking, and a knock as each lands (a coin is heard with its beat)
+      if (dice.length) MTG.sfx('dice', { count: dice.length, pan: one && players[0] !== t.meId ? t.panFor(players[0]) : null });
+      later(() => { said.textContent = `${head}: ${results.join(', ')}.` + (counted.length > 1 ? ` ${won} of ${counted.length} won.` : ''); }, motion ? landing : 0);
+      /* It takes no clicks of its own: a question that opens under it (the d20's row: "scry 2") is answered
+         straight through it, and a click or tap anywhere puts it away. */
+      let gone = false;
+      const close = () => {
+        if (gone) return;
+        gone = true;
+        for (const id of timers) clearTimeout(id);
+        document.removeEventListener('pointerdown', close, true);
+        box.classList.add('out');
+        setTimeout(() => { box.remove(); done(); }, motion ? 260 : 0);
+      };
+      box._close = close;
+      document.addEventListener('pointerdown', close, true);
+      // a moment to read what came up, then away
+      // (held while the table is frozen for a closer look: MTG.feel.freeze)
+      this._after(motion ? Math.max(landing, at + 1000) + 1500 : 1800 + 60 * n, close);
+    },
+
+    /** Put away every coin and die on show and any still to come: an undo, or a replay jumping, has taken them back. */
+    luckClear(t) {
+      this._luckGen = (this._luckGen || 0) + 1;
+      const root = (t && t.arena) || document;
+      for (const b of Array.from(root.querySelectorAll('.luck-reveal'))) { if (b._close) b._close(); else b.remove(); }
     },
 
     _visuals(t, prev, next, info, motion) {
