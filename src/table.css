@@ -308,6 +308,10 @@
 
 /* their HUD, across the top of their side */
 .seat-hud { display: flex; align-items: center; justify-content: center; gap: 12px; height: var(--hud-h); flex: none; padding: 0 8px; }
+/* what does not fit across goes onto another row rather than under its neighbours; their name gives way first,
+   down to a few letters, before anything wraps */
+.seat-hud { flex-wrap: wrap; align-content: center; row-gap: 6px; height: auto; min-height: var(--hud-h); }
+.seat-hud .hud-who { flex: 1 1 56px; max-width: max-content; }
 .hud-who { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .hud-name { font: 600 15px/1.2 var(--serif); color: #f4f0e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
 .hud-sub { font-size: 11.5px; color: #a8b2c3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; min-height: 1.3em; }
@@ -344,7 +348,7 @@
 .hud-flags .flag.dungeon { color: #d8c3ff; border-color: rgba(170,140,240,.45); max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hud-flags .flag.bad, .hud-flags .flag.cmd { color: #ffb0a6; border-color: rgba(255,107,92,.45); }
 .hud-flags .flag.pool .pip { width: 16px; height: 16px; font-size: 10px; }
-.ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; }
+.ohand { display: flex; align-items: center; padding-left: 24px; position: relative; min-width: 30px; height: 56px; flex: none; }
 .ohand .cv { --w: 38px; margin-left: -27px; cursor: default; }
 .ohand .cv:nth-child(odd) { rotate: -3deg; }
 /* a hand played revealed: face up, a little larger and further apart, each readable on hover */
@@ -360,6 +364,15 @@
   font: 700 11px/18px var(--font); min-width: 18px; text-align: center; border-radius: 9px;
   background: #1b1f28; border: 1px solid rgba(255,255,255,.2); color: #fff; }
 .ohand[data-n="0"]::after { display: none; }
+/* a hand shown face up with no room beside the rest of their HUD (a phone, seats side by side): a row of its own under
+   it, the cards spread across the row (side by side while they fit, overlapping no further than a strip of each),
+   the count after the last card (fitOppHand in src/12-ui-table.js) */
+.seat-hud.hand-row { padding-block: 4px 10px; }
+.seat-hud.hand-row .ohand { order: 1; flex: 1 1 100%; max-width: 100%; height: auto; min-height: 66px; padding-left: 0;
+  justify-content: center; flex-wrap: wrap; row-gap: 6px; }
+.seat-hud.hand-row .ohand .cv { margin-left: clamp(-34px, calc((100% - var(--n, 7) * var(--w) - 30px) / max(1, var(--n, 7) - 1)), 6px); }
+.seat-hud.hand-row .ohand .cv:first-child { margin-left: 0; }
+.seat-hud.hand-row .ohand::after { position: static; align-self: flex-end; margin-left: 6px; }
 /* a hidden card somebody knows: an eye, and on a card big enough to read it, what kind of knowing */
 .cv-seen { position: absolute; right: 6%; top: -9px; z-index: 3; pointer-events: auto; white-space: nowrap;
   display: inline-flex; align-items: center; gap: .3em; font: 700 max(9px, calc(var(--w, 90px) * .1))/1.5 var(--font);
@@ -1062,7 +1075,7 @@
 :root[data-phone] .arena.multi { --board-top: 104px; }
 :root[data-phone] .arena.multi .arena-board { top: 104px; }
 :root[data-phone] .opp-strip { top: 50px; height: 48px; }
-:root[data-phone] .arena-banner { top: calc(var(--board-top) + var(--hud-h) + 4px); bottom: auto; padding: 7px 14px; }
+:root[data-phone] .arena-banner { top: calc(var(--board-top) + var(--opp-hud-h, var(--hud-h)) + 4px); bottom: auto; padding: 7px 14px; }
 :root[data-phone] .ab-title { font-size: 14px; }
 :root[data-phone] .ab-sub { font-size: 11.5px; }
 :root[data-phone] .arena:has(.hand-fan.choosing) .arena-banner { bottom: auto; }

@@ -945,6 +945,14 @@
         kids.push(s.root);
       }
       this.place(this.oppWrap, kids);
+      // how tall the HUD across from you is on a phone, rows wrapped and all: the prompt banner sits under it
+      const tall = shown.map(p => this.seats.get(p.id)).find(s => s && s.hud && s.hud._h);
+      const hudH = tall ? tall.hud._h + 'px' : '';
+      if (this._oppHudH !== hudH) {
+        this._oppHudH = hudH;
+        if (hudH) this.arena.style.setProperty('--opp-hud-h', hudH);
+        else this.arena.style.removeProperty('--opp-hud-h');
+      }
       /* Another board brought forward comes in from its side of the table,
          the short way round (the next seat along from the right), settling
          as it arrives: you can see which way you turned. */
@@ -1274,6 +1282,42 @@
       this.renderPiles(hud._piles, p, false);
       this.renderCommand(hud._cmd, p, false);
       this.paintFlags(hud._flags, p);
+      this.fitOppHand(hud, s, shown, backs.length, p.name + (MTG.isPhone() ? '' : '|' + sub));
+    }
+
+    /**
+     * A hand shown face up is wide. Where their row has no room for it beside
+     * the rest (a phone, a seat side by side with others), it takes a row of
+     * its own under them, its cards spread across that row, so it covers
+     * neither their command zone nor their flags and every card in it can be
+     * read and tapped. On a phone the HUD's height is kept too (what does not
+     * fit across wraps onto another row, and the prompt banner sits under
+     * it). Measured only when something that changes the answer does: the
+     * seat's width, the cards, the command zone, the flags, the name.
+     */
+    fitOppHand(hud, s, shown, n, who) {
+      hud._hand.style.setProperty('--n', String(Math.max(1, n)));
+      const phone = MTG.isPhone();
+      if (!(shown && n) && !phone) {
+        hud._fitSig = null;
+        hud._h = 0;
+        hud.classList.remove('hand-row');
+        return;
+      }
+      const seatW = this.sizeOf(s.root).w || 0;
+      const sig = [seatW, shown ? 'shown' : '', n, hud._cmd.childElementCount, hud._flags.textContent, who].join('|');
+      if (!seatW || hud._fitSig === sig) return;
+      hud._fitSig = sig;
+      hud.classList.remove('hand-row');
+      if (shown && n) {
+        // laid out in one row: does it all fit across?
+        const cs = getComputedStyle(hud);
+        let need = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0), k = 0;
+        for (const c of hud.children) { const w = c.offsetWidth; if (w) { need += w; k++; } }
+        need += Math.max(0, k - 1) * (parseFloat(cs.columnGap) || 0) + 10;   // and the count beside the hand
+        hud.classList.toggle('hand-row', need > hud.clientWidth);
+      }
+      hud._h = phone ? hud.offsetHeight : 0;
     }
 
     seatSub(p) {
