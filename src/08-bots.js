@@ -2221,7 +2221,10 @@
        as often as it is worth it (a small knapsack, since budgets are five). */
     pawprint(s) {
       const e = this._resolvingEffect();
-      const modes = e && e.op === 'modal' ? (e.modes || []) : [];
+      // (asked as the spell is cast: the "choose —" of the card being cast)
+      const src = s.then && s.then.kind === 'cast' && this.game.obj(s.then.objId);
+      const top = src ? MTG.rules.castModal(this.game._cardSpellEffects(src.analysis())) : null;
+      const modes = top ? (top.modal.modes || []) : e && e.op === 'modal' ? (e.modes || []) : [];
       const cap = ((s.constraints || []).find(c => c.kind === 'sum') || {}).max || s.max;
       const opts = (s.options || []).map((o, k) => ({ k, w: Math.max(1, o.weight || 1),
         v: this._modeWorth((modes[o.i != null ? o.i : k] || {}).effects || O.parseEffects(o.label || '').effects) }));
@@ -3097,7 +3100,9 @@
         const best = order.slice().sort((a, b) => pips[b] - pips[a])[0];
         return [order.indexOf(best)];
       }
-      const modes = e && e.op === 'modal' ? (e.modes || []) : [];
+      // a spell's modes asked as it is cast (castModes): the "choose —" of the card being cast
+      const top = ch.purpose === 'castModes' && g.obj(ch.objId) ? MTG.rules.castModal(g._cardSpellEffects(g.obj(ch.objId).analysis())) : null;
+      const modes = top ? (top.modal.modes || []) : e && e.op === 'modal' ? (e.modes || []) : [];
       const scored = options.map((opt, i) => {
         const m = modes[opt.i != null ? opt.i : i];
         const effects = m ? m.effects : O.parseEffects(opt.label || '').effects;
@@ -3741,8 +3746,11 @@
     /** Cast one option: targets, extra costs, X. Returns true if it went on the stack. */
     castChoice(choice, mana) {
       const g = this.game;
+      /* A modal spell chooses its modes as it is cast, then the targets of those modes (castModes): both once the
+         extra costs are settled — spree and escalate buy modes, entwine buys them all, a kick may allow more */
+      const modal = !choice.fuse && choice.face == null ? g._castModeOffer(this.pid, choice.o, choice.a, {}) : null;
       // a look ahead may have settled the targets already
-      let targets = choice.targets || (choice.face != null
+      let targets = modal ? [] : choice.targets || (choice.face != null
         ? g._asHalf(choice.o, choice.face, () => this.chooseTargets(choice.o, choice.a))
         : this.chooseTargets(choice.o, choice.a));
       // fused: the left half's targets, then the right half's
@@ -3770,6 +3778,8 @@
             const picked = [];
             let left = spare;
             for (const r of ranked) {
+              // (a mode with nothing it could target can't be chosen)
+              if (modal && modal.options[r.m.i] && !modal.options[r.m.i].ok) continue;
               // escalate: each mode beyond the first costs the escalate cost
               const c = MTG.mana.cmc(r.m.cost || '') + (ex.escalate && picked.length ? MTG.mana.cmc(ex.escalate) : 0);
               if (c <= left && (r.v > 0 || !picked.length)) { picked.push(r.m.i); left -= c; }
@@ -3794,7 +3804,10 @@
           else if (ex.kind === 'multikicker') {
             const times = price > 0 ? Math.floor(spare / price) : 0;
             if (times > 0) { opts.kick = times; spare -= times * price; }
-          } else if (ex.kind === 'entwine') { opts.entwine = true; spare -= price; }
+          } else if (ex.kind === 'entwine') {
+            // (every mode, so every one must have something to target)
+            if (!modal || modal.options.every(m => m.ok)) { opts.entwine = true; spare -= price; }
+          }
           else if (ex.kind === 'buyback' && this.d >= 5) { opts.buyback = true; spare -= price; }
           else if ((ex.kind === 'offspring' || ex.kind === 'squad') && this.d >= 3) { opts[ex.kind] = ex.kind === 'squad' ? Math.max(1, Math.floor(spare / Math.max(1, price))) : true; spare -= price; }
         }
@@ -3819,12 +3832,74 @@
       }
       /* Jilt, Mind Spiral, Return to Dust: the targets the kick, the gift or the phase bring in,
          picked now that those are settled */
-      if (!choice.fuse && choice.face == null && !choice.a.isPermanent && MTG.rules.hasBranchSlots(g._cardSpellEffects(choice.a))) this._branchTargets(choice, opts);
+      if (!modal && !choice.fuse && choice.face == null && !choice.a.isPermanent && MTG.rules.hasBranchSlots(g._cardSpellEffects(choice.a))) this._branchTargets(choice, opts);
+      // the modes, then their targets
+      if (modal) {
+        const picks = modal.spree ? (opts.spree || [0]) : opts.entwine ? modal.options.map(m => m.i)
+          : this._castModes(g._castModeOffer(this.pid, choice.o, choice.a, g._castSel(this.pid, choice.o, choice.a, opts)), choice.o);
+        if (!picks) return false;
+        if (!modal.spree && !opts.entwine) opts.modes = picks;
+        const tg = this._modeTargets(choice.o, choice.a, picks);
+        if (tg === null) return false;
+        opts.targets = tg;
+      }
       // a Treasure is only cracked once the spell is really going to be cast
       if (!g.couldPay(this.pid, String(choice.costStr || '').replace(/\{X\}/g, ''), this.manaSources()) && !this._crackFor(choice.costStr)) return false;
       if (!g.castSpell(this.pid, choice.o.id, opts)) { this._refused(choice.o); return false; }
       this._did('cast', choice.o);
       return true;
+    }
+
+    /**
+     * A modal spell's modes, chosen as it is cast (the engine's offer: how many, and which can be), as a mode
+     * asked as it resolves would be chosen (chooseModes); a paw-print budget spent on the best value for each
+     * paw. Null when there is nothing worth choosing.
+     */
+    _castModes(offer, o) {
+      if (!offer) return null;
+      const ok = offer.options.filter(m => m.ok);
+      if (!ok.length) return offer.min === 0 ? [] : null;
+      if (offer.pawprint) {
+        const top = MTG.rules.castModal(this.game._cardSpellEffects(o.analysis()));
+        const worth = (i) => this._modeWorth((((top && top.modal.modes) || [])[i] || {}).effects || []);
+        const best = ok.map(m => ({ i: m.i, w: m.weight || 1, v: worth(m.i) })).filter(x => x.v > 0)
+          .sort((x, y) => y.v / y.w - x.v / x.w);
+        const picks = [];
+        let left = offer.pawprint;
+        for (let guard = 0; guard < 10 && best.length; guard++) {
+          const x = best.find(b => b.w <= left);
+          if (!x) break;
+          picks.push(x.i); left -= x.w;
+        }
+        return picks.length ? picks.sort((x, y) => x - y) : [ok[0].i];
+      }
+      const ch = { purpose: 'castModes', objId: o.id, count: offer.repeatable ? offer.count : Math.min(offer.count, ok.length),
+        repeatable: offer.repeatable, options: ok.map(m => ({ i: m.i, label: m.label })) };
+      if (offer.min !== offer.max) { ch.min = offer.min; ch.max = Math.min(offer.max, offer.repeatable ? offer.max : ok.length); }
+      const picks = (this.chooseModes(ch) || []).filter(i => ok.some(m => m.i === i));
+      if (picks.length < offer.min && !offer.repeatable) return ok.length >= offer.min ? ok.slice(0, offer.min).map(m => m.i) : null;
+      return picks.sort((x, y) => x - y);
+    }
+    /**
+     * The targets a modal spell's chosen modes ask for as it is cast, in the order the engine reads them
+     * (modeTargetPlan): the best for each, by what its sentence does. Null when one it must have is not there.
+     */
+    _modeTargets(o, a, picks) {
+      const g = this.game;
+      const applied = MTG.rules.applyModes(g._cardSpellEffects(a), picks);
+      const mp = MTG.rules.modeTargetPlan(applied, { modes: picks });
+      if (!mp.plan) return this.chooseTargetsForEffects(applied, o);
+      const out = [];
+      const units = mp.plan.units;
+      for (let k = 0; k < units.length; k++) {
+        const u = units[k];
+        const t = this.pickTarget(u.spec, u.at[0].eff, o, { taken: out });
+        if (t) { out.push(t); continue; }
+        // "up to one": none, so long as nothing after it must be chosen (the targets are read in order)
+        if (u.spec && u.spec.upTo && units.slice(k + 1).every(x => x.spec && x.spec.upTo)) break;
+        return null;
+      }
+      return out;
     }
 
     /**

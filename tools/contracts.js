@@ -143,7 +143,7 @@ const StackItemView = obj({
   cardId: maybe(str), card: maybe(Card), objId: maybe(id),
   targets: opt(arr(Target)), abilityText: opt(maybe(str)), countered: bool,
   triggered: opt(bool), face: opt(maybe(int)), textNow: opt(maybe(str)),
-  /* a triggered ability's modes, chosen as it went on the stack */
+  /* a spell's or a triggered ability's modes, chosen as it went on the stack: public, whole */
   modes: opt(arr(str)),
   /* one of three or more of the same trigger put on the stack together, and whether it is optional */
   batch: opt(id), optional: opt(lit(true)),
@@ -178,6 +178,10 @@ const ExtraCost = obj({ kind: str, label: str, cost: opt(maybe(str)), modes: opt
 /* The same offer for one activated ability of a permanent, by the index activateAbility takes. */
 const CostPick = obj({ index: nat, kind: str, label: str, key: str, candidates: arr(id),
   need: opt(either('a count or X', nat, lit('X'))), foods: opt(arr(id)), foodKey: opt(str), kindKey: opt(str), mvX: opt(bool), symbol: opt(str) });
+/* A modal spell's modes, offered as it is cast: how many, and which can be chosen (ok); the count once kicked */
+const CastModes = obj({ count: nat, min: nat, max: nat, repeatable: opt(lit(true)), pawprint: opt(nat),
+  options: arr(obj({ i: nat, label: str, ok: bool, weight: opt(num) }, { closed: true }), { min: 2 }),
+  kicked: opt(obj({ count: nat, min: nat, max: nat }, { closed: true })) }, { closed: true });
 
 /* ---- questions ---- */
 const ChoiceCard = obj({ id, name: opt(str), card: opt(maybe(Card)) });
@@ -259,6 +263,8 @@ const View = obj({
   /* what you answered once for the rest of the turn or of a batch of triggers */
   autoAnswers: opt(arr(obj({ id: str, kind: lit('may', 'pay', 'mode', 'targets'), text: str, batch: opt(id) }, { closed: true }))),
   playable: arr(id), uses: rec(arr(AltUse)), extras: rec(arr(ExtraCost)), costPicks: opt(rec(arr(CostPick))),
+  /* the modes of each modal spell of yours you could cast, chosen as it is cast */
+  castModes: opt(rec(CastModes)),
   /* split cards in hand: the halves castable now */
   splitFaces: opt(rec(arr(nat))),
   /* split cards with fuse castable with both halves now */
@@ -315,6 +321,8 @@ const INTENTS = {
     /* said with the extra costs: an additional cost you may pay (a kicker that is not mana), and the gift */
     payAdditional: opt(bool), gift: opt(maybe(bool)),
     offspring: opt(bool), squad: opt(nat), casualty: opt(bool), returnId: opt(id), spree: opt(maybe(arr(int))), via: opt(maybe(str)),
+    /* a modal spell's modes, chosen as it is cast (mode indexes) */
+    modes: opt(arr(nat)),
     x: opt(either('a number of 0 to 99', S.nat, S.str)),
     /* what pays for convoke, improvise and delve; left out, the engine picks */
     convokeIds: opt(arr(id)), improviseIds: opt(arr(id)), delveIds: opt(arr(id)),

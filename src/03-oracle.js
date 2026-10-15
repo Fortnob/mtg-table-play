@@ -9194,6 +9194,8 @@
     if (/^the number of (?:nonland |creature |artifact |land )?cards milled this way$/i.test(p)) return 'triggerAmount';
     // Tyvar the Bellicose: "the amount of mana this creature produced" — what the mana ability the trigger is about made
     if (/^the amount of mana (?:this creature|it|CARDNAME) produced$/i.test(p)) return 'triggerAmount';
+    // Riku of Many Paths: "the number of times you chose a mode for that spell" (triggerSpellModes)
+    if (/^the number of times you chose a mode for that spell$/i.test(p)) return { triggerSpellModes: true };
     // Desmond Miles: "the amount of damage it dealt to that player" — what the trigger says it dealt (damageDealtAmount)
     if (/^the amount of (?:combat )?damage (?:it|CARDNAME|this creature|that creature) dealt(?: to (?:that|the) player)?$/i.test(p)) return 'triggerAmount';
     // Niv-Mizzet, Guildpact: "the number of different color pairs among permanents you control that are exactly two colors"
@@ -15355,6 +15357,8 @@
     { re: /^Whenever you cast a creature spell that has an Adventure,? /i, event: 'youCastSpell', extra: { spellFilter: 'creature', hasAdventure: true } },
     // Vine Gecko, Lullmage's Familiar: "Whenever you cast a kicked spell"
     { re: /^Whenever you cast a kicked spell,? /i, event: 'youCastSpell', extra: { kickedOnly: true } },
+    // Riku of Many Paths: "Whenever you cast a modal spell" — its modes chosen as it was cast (modalOnly)
+    { re: /^Whenever you cast a modal spell,? /i, event: 'youCastSpell', extra: { modalOnly: true } },
     // Orvar, the All-Form: "Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control," (targetsYourOther)
     { re: /^Whenever you cast an instant or sorcery spell, if it targets one or more other permanents you control,? /i, event: 'youCastSpell',
       extra: { spellFilter: 'instant or sorcery', targetsYourOther: true } },

@@ -4870,6 +4870,8 @@
           gift: intent.gift === true ? true : intent.gift === null ? null : undefined,
           offspring: !!intent.offspring, squad: intent.squad || 0, casualty: !!intent.casualty,
           spree: intent.spree || null, via: intent.via || null,
+          // a modal spell's modes, chosen as it is cast (mode indexes; the engine checks them against the card)
+          modes: Array.isArray(intent.modes) ? intent.modes.filter(i => Number.isInteger(i) && i >= 0 && i < 20).slice(0, 20) : undefined,
           face: intent.face === 1 ? 1 : 0,       // which half of a split card
           fuse: !!intent.fuse,                   // or both halves, fused
           returnId: typeof intent.returnId === 'string' ? intent.returnId : undefined,   // sneak: the attacker that goes back

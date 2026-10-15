@@ -181,10 +181,14 @@ module.exports = (test) => {
 
   test('Season of the Burrow: up to five paw prints, a mode more than once', (mk, t) => {
     const T = mk();
+    // (something for each mode to target: a mode with nothing to target can't be chosen)
+    T.bf('B', 'Grizzly Bears'); T.grave('A', 'Ornithopter');
     T.mana('A', 'WW3');
-    T.cast('A', T.hand('A', 'Season of the Burrow'), { resolve: false });
-    const ch = untilChoose(T);
+    // (asked as it is cast, before it is on the stack: CR 601.2b)
+    T.g.castSpell('A', T.hand('A', 'Season of the Burrow').id, { auto: true });
+    const ch = T.g.pendingChoice;
     t.eq(ch && ch.purpose, 'pawprint');
+    t.no(T.g.stack.length, 'not on the stack yet');
     t.no(T.g.resolveChoice('A', { picks: [2, 2] }), 'six paw prints');
     t.ok(/most is 5/.test(T.g.lastError), T.g.lastError);
     t.ok(T.g.resolveChoice('A', { picks: [0, 0, 0, 0, 0] }));
@@ -248,9 +252,10 @@ module.exports = (test) => {
     const T2 = mk();
     T2.player('A').isBot = true;
     T2.mana('A', 'WW3');
-    T2.cast('A', T2.hand('A', 'Season of the Burrow'), { resolve: false });
-    const ch = untilChoose(T2);
-    t.ok(ch, 'asked at resolution');
+    // its modes, asked as it is cast — a bot too, which answers them by its own lights
+    T2.g.castSpell('A', T2.hand('A', 'Season of the Burrow').id, { auto: true });
+    const ch = T2.g.pendingChoice;
+    t.ok(ch && ch.type === 'choose' && ch.purpose === 'pawprint', 'asked as it is cast');
     const bot = new (engine().bots.BotPlayer)(T2.g, 'A', 6);
     bot.doChoice(ch);
     t.no(T2.g.pendingChoice && T2.g.pendingChoice.type === 'choose', 'answered');

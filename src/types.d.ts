@@ -148,7 +148,8 @@ declare namespace MTG {
     countered: boolean;
     /** a triggered ability (false for a spell or an activated ability) */
     triggered?: boolean;
-    /** a triggered ability's modes, chosen as it was put on the stack (left out when it has none) */
+    /** a spell's or a triggered ability's modes, chosen as it was put on the stack, each mode's words whole
+        (left out when it has none); everyone sees them */
     modes?: string[];
     /** one of three or more of the same trigger put on the stack together: the batch's id (its first one's) */
     batch?: Id;
@@ -212,6 +213,14 @@ declare namespace MTG {
 
   /** Another way to use a card: cycle it, cast it face down, from the graveyard... */
   interface AltUse { kind: string; label: string; via?: string; cost?: string | null; [k: string]: any }
+  /** A modal spell's modes, offered as it is cast (CR 601.2b): how many may be chosen, and which can be — `ok` false
+      for a mode with nothing it could target (CR 700.2a). `kicked`: the count once kicked ("If this spell was kicked,
+      choose any number instead"). `pawprint`: a budget the modes' weights add up to. */
+  interface CastModesOffer {
+    count: number; min: number; max: number; repeatable?: true; pawprint?: number;
+    options: Array<{ i: number; label: string; ok: boolean; weight?: number }>;
+    kicked?: { count: number; min: number; max: number };
+  }
   /** An extra cost a spell offers as it is cast: kicker, buyback, spree... */
   interface ExtraCost {
     kind: string; label: string; cost?: string | null; modes?: Array<{ i: number; cost?: string; label?: string }>;
@@ -290,6 +299,8 @@ declare namespace MTG {
     fusable?: Id[];
     uses: Record<Id, AltUse[]>;
     extras: Record<Id, ExtraCost[]>;
+    /** the modes of each modal spell of yours you could cast (spree's are among its extras) */
+    castModes?: Record<Id, CastModesOffer>;
     /** your permanents' activated abilities: what could pay the costs the table would otherwise pick */
     costPicks?: Record<Id, CostPick[]>;
     monarch: PlayerId | null;
@@ -525,6 +536,9 @@ declare namespace MTG {
     | {
       kind: 'cast'; objId: Id; targets?: Target[]; free?: boolean; kick?: number; buyback?: boolean; entwine?: boolean;
       offspring?: boolean; squad?: number; casualty?: boolean; spree?: number[]; via?: string | null; x?: number; returnId?: Id;
+      /** a modal spell's modes, chosen as it is cast (indexes into its modes, in any order; a mode it may choose again,
+          again): left out, the engine takes the only choice there is or asks, then asks the targets of those modes */
+      modes?: number[];
       /** what pays for convoke, improvise and delve (left out, the engine picks the cheapest) */
       convokeIds?: Id[]; improviseIds?: Id[]; delveIds?: Id[];
       /** Torgaar, Dargo: the permanents sacrificed for a cheaper spell (Gorex, the Tombshell: the graveyard cards exiled; an empty list: none); left out, the engine picks */

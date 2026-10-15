@@ -12649,8 +12649,9 @@ module.exports = (test) => {
     const elf = T.grave('A', 'Llanowar Elves'), bear = T.bf('B', 'Grizzly Bears');
     let count = null;
     T.answer('mode', (ch) => { count = ch.count; return { modes: [1, 2] }; });
-    const pick = (ch) => { const ids = ch.options[0].map(o => o.id); return { targets: [{ kind: 'object', id: ids.includes(bear.id) ? bear.id : elf.id }] }; };
-    T.answer('pickTarget', pick); T.answer('pickTarget', pick);
+    // (both modes' targets, asked together as it is cast)
+    const pick = (ch) => ({ targets: ch.options.map(l => { const ids = l.map(o => o.id); return { kind: 'object', id: ids.includes(bear.id) ? bear.id : elf.id }; }) });
+    T.answer('pickTarget', pick);
     T.mana('A', '4BBBB');
     T.cast('A', T.hand('A', 'Inscription of Ruin'), { kick: 1 });
     T.settle(); T.resolve(); T.settle();

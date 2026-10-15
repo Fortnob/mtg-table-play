@@ -235,12 +235,12 @@ surveil, arranging, ordering triggers, paying) keep their own screens.
 | `splice` | objects (hand) | casting an Arcane spell: which cards to splice onto it (CR 702.47) |
 | `conspire` | objects (battlefield), two or none | casting a spell with conspire (CR 702.78) |
 | `cipher` | objects (battlefield), up to one | a cipher spell resolving (CR 702.99) |
-| `pawprint` | options, repeatable, `sum` of `weight` | "Choose up to five {P} worth of modes" (the Season cycle) |
+| `pawprint` | options, repeatable, `sum` of `weight` | "Choose up to five {P} worth of modes" (the Season cycle): a spell's, as it is cast, a bot asked too |
 | `effectObject` | objects (battlefield) | "Put a +1/+1 counter on a creature you control": chosen, not targeted |
 | `chooseOpponent` | players | "Choose an opponent." |
 | `textFrom`, `textTo` | options (`word`, `kind`; `present` on the words its text uses) | a text-changing effect resolving (CR 612): the color word, basic land type or creature type replaced, then what it becomes (Sleight of Mind, Mind Bend, Artificial Evolution). `targetId` is what is changed |
 | `exchangeText` | objects (battlefield), one or none | Deadpool, Trading Card entering: the creature to exchange text boxes with |
-| `confirm`, `vote`, `mode`, `pickCard` | options or objects | the older shapes, through `fromLegacy` |
+| `confirm`, `vote`, `mode`, `pickCard` | options or objects | the older shapes, through `fromLegacy`; a `mode` with purpose `castModes` is a modal spell's modes, asked as it is cast when the cast did not say them (`castOpts`, the cast started again with them), and a `pickTarget` with purpose `castTargets` the targets of those modes |
 
 ## Answering once for all of them
 

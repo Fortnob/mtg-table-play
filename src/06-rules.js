@@ -2775,6 +2775,7 @@
       }
       // instant / sorcery: run its effects, then finish once they are done
       this.logEvent('resolve', `${item.name} resolves.`);
+      item._lastAimed = null;
       let effects = item.effects || (a ? this._cardSpellEffects(a) : []);
       // cipher: the last thing the card does is offer to encode itself (CR 702.99a)
       if (a && a.keywordSet && a.keywordSet.has('cipher') && !item.isCopy) effects = effects.concat([{ op: 'cipher' }]);
@@ -3378,18 +3379,252 @@
       this.logEvent('rules', `${p.name} dredges ${n}, returning ${o.name}.`);
     }
 
-    /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take. */
+    /* ---------- a modal spell's modes, chosen as it is cast (CR 601.2b–c, 700.2) ---------- */
+
+    /**
+     * The modes a spell offers as it is cast: how many may be chosen (count, min, max; `repeatable` when a mode may be
+     * chosen more than once; `pawprint`, a budget the modes' weights add up to) and which can be — a mode wanting a
+     * target there is nothing to be can't be chosen (CR 700.2a), `ok` false. `sel.kicked` for "If this spell was kicked,
+     * choose any number instead"; any other "as you cast this spell" is read now. `spree` for spree and escalate, whose
+     * modes come with their costs. Null for a spell with no "choose —" chosen as it is cast. Plain data but `modal`.
+     */
+    _castModeOffer(playerId, o, a, sel) {
+      if (!a || a.isPermanent || !o) return null;
+      const effs = this._cardSpellEffects(a);
+      const top = castModal(effs);
+      if (!top) return null;
+      const m = top.modal, modes = m.modes;
+      const can = (sp) => !sp || sp.upTo || (sp.multi && !(sp.multi.min > 0)) || this._legalTargetsFor(sp, playerId, o.id).length > 0;
+      this._castingSpell = o.id;
+      const options = modes.map((md, i) => Object.assign({ i, label: String(md.label || md.text || ('Mode ' + (i + 1))).replace(/CARDNAME/g, o.name),
+        ok: modeTargetPlan(applyModes(effs, [i]), sel).specs.every(can) }, m.pawprint ? { weight: md.weight || 1 } : {}));
+      this._castingSpell = null;
+      const out = { modal: m, options };
+      if (m.spree) return Object.assign(out, { spree: true, count: 1, min: 1, max: modes.length });
+      if (m.pawprint) {
+        const budget = Math.max(1, Number(m.pawprint) || 1);
+        return Object.assign(out, { pawprint: budget, count: budget, min: 1, max: budget, repeatable: true });
+      }
+      let want = Math.min(Number(m.count) || 1, modes.length);
+      const least = m.min != null ? Math.min(m.min, want) : want;
+      let most = m.max ? Math.max(want, Math.min(m.max, modes.length)) : want;
+      // the Will cycle, the Inscriptions: more of them, as it is cast
+      if (m.countIf && this._condMet(m.countIf.cond, { controller: playerId, obj: o, kicked: (sel && sel.kicked) || 0 })) {
+        most = Math.min(m.countIf.count, modes.length); want = most;
+      }
+      return Object.assign(out, { count: want, min: least, max: most, repeatable: !!m.repeatable });
+    }
+    /** What the modes offered may be: the only answer there is, as mode indexes, or null when there is a choice. */
+    _onlyModes(offer) {
+      if (offer.spree || offer.pawprint) return null;
+      const ok = offer.options.filter(x => x.ok).map(x => x.i);
+      if (!ok.length) return offer.min === 0 ? [] : null;
+      if (offer.repeatable) return ok.length === 1 && offer.min === offer.max ? new Array(offer.max).fill(ok[0]) : null;
+      return ok.length === offer.min ? ok : null;
+    }
+    /** Why these modes can't be chosen for this spell, or null. */
+    _badModes(offer, picks, name) {
+      const opt = (i) => offer.options[i];
+      if (picks.some(i => !Number.isInteger(i) || !opt(i))) return `${name} has no such mode.`;
+      const no = picks.find(i => !opt(i).ok);
+      if (no != null) return `${opt(no).label}: there is nothing it could target.`;
+      if (offer.pawprint) {
+        const sum = picks.reduce((k, i) => k + (opt(i).weight || 1), 0);
+        if (!picks.length) return `Choose at least one mode for ${name}.`;
+        return sum > offer.pawprint ? `Choose no more than ${offer.pawprint} {P} worth of modes for ${name}.` : null;
+      }
+      if (!offer.repeatable && new Set(picks).size !== picks.length) return `Each mode of ${name} can be chosen only once.`;
+      const n = picks.length;
+      if (n < offer.min || n > offer.max) {
+        const say = (k) => ['none', 'one', 'two', 'three', 'four', 'five'][k] || String(k);
+        return `Choose ${offer.min === offer.max ? say(offer.min) : offer.max >= offer.options.length && offer.min === 1 ? 'one or more' : `${say(offer.min)} to ${say(offer.max)}`} for ${name}.`;
+      }
+      return null;
+    }
+    /**
+     * A modal spell's modes, settled as it is cast and before its targets (CR 601.2b): given with the cast (`opts.modes`;
+     * spree's and escalate's with their costs, `opts.spree`; every one of them, entwined), the only ones there could be,
+     * or asked — the cast starts again with the answer, and then asks for the chosen modes' targets. Returns
+     * { picks, offer, askTargets }, null for a spell that isn't modal, 'asked', or why it can't be cast.
+     */
+    _castModes(playerId, o, a, opts) {
+      // (the modes a spell cast in the middle of a resolution was asked for with its targets: _askSpellTargets)
+      const fromAsk = this._askedModes && this._askedModes.name === o.name ? this._askedModes.modes : null;
+      this._askedModes = null;
+      if (!a || a.isPermanent || opts.fuse) return null;
+      if (opts.via === 'overload' || opts.via === 'cleave') return null;
+      const offer = this._castModeOffer(playerId, o, a, this._castSel(playerId, o, a, opts));
+      if (!offer) return null;
+      const usable = offer.options.filter(x => x.ok).map(x => x.i);
+      /* The targets are asked for next when none came with the cast: any of them, when the modes were the engine's
+         to settle (nobody has had the chance to choose "up to one" or not); else only one it must have */
+      const done = (picks, engineChose) => ({ picks: picks.slice().sort((x, y) => x - y), offer,
+        askTargets: !fromAsk && !opts._targetsAsked && !(opts.targets || []).length, engineChose: !!engineChose || !!opts._modesAsked });
+      if (offer.spree) {
+        /* At least one mode is bought (CR 702.171b): with none said, the first; tiered, one only */
+        const ex = this.extraCostsFor(o.id).find(x => x.kind === 'spree');
+        let picked = (opts.spree || fromAsk || []).map(Number).filter(i => offer.options[i]);
+        const said = picked.length > 0;
+        if (!picked.length) picked = [0];
+        if (ex && ex.one) picked = picked.slice(0, 1);
+        picked = [...new Set(picked)];
+        const bad = this._badModes(Object.assign({}, offer, { min: 1, max: offer.options.length }), picked, o.name);
+        return bad || done(picked, !said);
+      }
+      // entwined: every mode, nothing to choose (CR 702.42b) — so every one must be able to be chosen
+      if (opts.entwine && this.extraCostsFor(o.id).some(x => x.kind === 'entwine')) {
+        const no = offer.options.find(x => !x.ok);
+        if (no) return `${o.name} can't be entwined: ${no.label.replace(/\.$/, '').toLowerCase()} has nothing it could target.`;
+        return done(offer.options.map(x => x.i));
+      }
+      let picks = Array.isArray(opts.modes) ? opts.modes.map(Number) : fromAsk;
+      if (picks) {
+        const bad = this._badModes(offer, picks, o.name);
+        return bad || done(picks);
+      }
+      const only = this._onlyModes(offer);
+      if (only) return done(only, true);
+      const least = offer.repeatable || offer.pawprint ? Math.min(1, offer.min) : offer.min;
+      if (usable.length < least) return 'There is nothing it could target right now.';
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts, { _modesAsked: true })));
+      delete keep.modes;
+      /* "choose up to five {P} worth of modes": the generic question, weighed in paw prints — a bot is asked it
+         too, and answers it as it would have as the spell resolved */
+      if (offer.pawprint) {
+        const got = this._castChoose(playerId, o, opts, { purpose: 'pawprint', kind: 'options', repeat: true, min: 1, max: offer.pawprint,
+          options: usable.map(i => ({ i, label: offer.options[i].label, weight: offer.options[i].weight || 1, cost: '{P}'.repeat(offer.options[i].weight || 1) })),
+          constraints: [{ kind: 'sum', key: 'weight', max: offer.pawprint, label: 'paw prints' }],
+          prompt: `${o.name}: choose up to ${offer.pawprint} {P} worth of modes. A mode may be chosen more than once.` }, true);
+        if (got === 'asked') return 'asked';
+        picks = ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null);
+        if (!picks.length) picks = usable.slice(0, 1);
+        const bad = this._badModes(offer, picks, o.name);
+        return bad || done(picks, true);
+      }
+      const say = (k) => ['no', 'one', 'two', 'three', 'four', 'five'][k] || String(k);
+      const cnt = offer.repeatable ? offer.count : Math.min(offer.count, usable.length);
+      const hi = offer.repeatable ? offer.max : Math.min(offer.max, usable.length);
+      this.queueChoice({ type: 'mode', playerId, purpose: 'castModes', objId: o.id, castOpts: keep,
+        count: cnt, min: offer.min !== cnt ? offer.min : undefined, max: hi !== cnt ? hi : undefined,
+        repeatable: offer.repeatable || undefined,
+        options: usable.map(i => ({ i, label: offer.options[i].label })),
+        prompt: `${o.name}: choose ${offer.min === offer.max ? say(offer.count) : offer.min === 0 ? 'up to ' + say(offer.max) : offer.max >= offer.options.length ? say(offer.min) + ' or more' : say(offer.min) + ' to ' + say(offer.max)}` +
+          `${offer.repeatable ? '. You may choose the same mode more than once' : ''}.`,
+        sourceId: o.id, sourceName: o.name, sourceCard: o.card });
+      return 'asked';
+    }
+    /**
+     * The targets of a modal spell whose modes the engine asked for, asked in turn (purpose castTargets): the
+     * cast starts again with them. False when there is nothing any of them could be.
+     */
+    _askCastTargets(playerId, o, a, opts, md) {
+      const applied = applyModes(this._cardSpellEffects(a), md.picks);
+      const mp = modeTargetPlan(applied, Object.assign(this._castSel(playerId, o, a, opts), { modes: md.picks }));
+      if (!mp.specs.length) return false;
+      this._castingSpell = o.id;
+      this._specX = opts.x || 0;
+      /* Heliod's Intervention: "Destroy X target artifacts and/or enchantments" — X of them (as many as there are),
+         "any number of target …" as many as there are, each a target of its own */
+      const specs = [];
+      for (const sp of mp.specs) {
+        const m = sp && sp.multi;
+        if (!m) { specs.push(sp); continue; }
+        const one = Object.assign({}, sp, { multi: null, distinct: true });
+        const n = Math.min(this._legalTargetsFor(one, playerId, o.id).length,
+          m.count === 'X' ? (opts.x || 0) : typeof m.count === 'number' ? m.count : 99);
+        for (let k = 0; k < n; k++) specs.push(k < (m.count === 'X' && m.exact ? n : (m.min || 0)) ? one : Object.assign({}, one, { upTo: true }));
+      }
+      const options = specs.map(sp => this._legalTargetsFor(sp, playerId, o.id));
+      this._specX = null;
+      this._castingSpell = null;
+      const must = (sp) => sp && !sp.upTo && !(sp.multi && !(sp.multi.min > 0));
+      if (md.engineChose ? !options.some(l => l.length) : !specs.some((sp, i) => must(sp) && options[i].length)) return false;
+      const keep = JSON.parse(JSON.stringify(Object.assign({}, opts, { modes: md.picks, _modesAsked: true, _targetsAsked: true })));
+      const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+      this.queueChoice(Object.assign({ type: 'pickTarget', playerId, purpose: 'castTargets', objId: o.id, castOpts: keep,
+        specs, options, count: specs.length, sourceId: o.id, sourceName: o.name, sourceCard: o.card,
+        prompt: `${o.name}: choose ${specs.length === 1 ? 'a target' : 'targets'}.` },
+        mp.plan ? { aimedBy: mp.plan.units.map(u => bare(u.at[0].eff)) } : {}));
+      return true;
+    }
+    /**
+     * A modal spell put on the stack keeps what was chosen (CR 601.2b–c): its chosen modes (indexes, chosenModes) and
+     * their words (modes), and each sentence's own targets marked on it (_tslot; targetSpecs), checked again as it
+     * resolves (CR 608.2b) — a mode whose targets are all gone does nothing, the rest of the spell still happens.
+     */
+    _keepModes(item, md, applied) {
+      const modes = md.offer.modal.modes || [];
+      item.chosenModes = md.picks.slice();
+      item.modes = md.picks.map(i => String((modes[i] && (modes[i].label || modes[i].text)) || ('Mode ' + (i + 1))).replace(/CARDNAME/g, item.name));
+      const mp = modeTargetPlan(applied, this._selOf(item));
+      if (mp.plan && mp.plan.units.length) {
+        const tg = item.targets || [];
+        const aimed = [...new Set(mp.plan.units.flatMap(u => u.at.map(x => x.eff)))];
+        for (const f of aimed) f._tslot = [];
+        mp.plan.units.forEach((u, k) => { if (k < tg.length) for (const x of u.at) x.eff._tslot.push(k); });
+        item.targetSpecs = mp.specs.slice(0, tg.length);
+        // "When you do, …": a reflexive trigger's targets, chosen as it triggers
+        for (const f of mp.plan.late) f.askTargets = true;
+      }
+      this.logEvent('rules', `${(this.player(item.controller) || {}).name} chooses for ${item.name}: ${item.modes.length ? item.modes.join('; ') : 'no modes'}.`);
+    }
+
+    /** The targets, still legal, of the sentences written into this one (_tslot): null when none of them aims. */
+    _innerAimed(e, ctx) {
+      const slots = [];
+      const walk = (l) => { for (const f of (l || [])) if (f && typeof f === 'object') {
+        if (Array.isArray(f._tslot)) slots.push(...f._tslot);
+        for (const k of Object.keys(f)) if (k !== 'targets' && Array.isArray(f[k])) walk(f[k]);
+      } };
+      for (const k of Object.keys(e)) if (k !== 'targets' && Array.isArray(e[k])) walk(e[k]);
+      if (!slots.length) return null;
+      const all = ctx.targets || [], live = ctx.resolvedTargets || all;
+      return [...new Set(slots)].map(i => all[i]).filter(t => t && live.some(r => r && r.kind === t.kind && r.id === t.id));
+    }
+
+    /** Targets for a spell cast in the middle of a resolution: asked for now; null if it has none it could take.
+        A modal spell's modes are asked first, and kept for the cast that follows (_askedModes). */
     _askSpellTargets(pid, c, key) {
       const ca = c && c.analysis();
+      this._askedModes = null;
+      let specs = null, aimedBy = null;
+      const offer = ca && !(ca.isAura && ca.auraSpec) ? this._castModeOffer(pid, c, ca, {}) : null;
+      if (offer) {
+        let picks = offer.spree ? [0] : this._onlyModes(offer);
+        const usable = offer.options.filter(x => x.ok).map(x => x.i);
+        if (offer.spree && !offer.options[0].ok) return null;
+        if (!picks) {
+          if (usable.length < (offer.repeatable || offer.pawprint ? Math.min(1, offer.min) : offer.min)) return null;
+          const say = (k) => ['no', 'one', 'two', 'three', 'four', 'five'][k] || String(k);
+          const got = offer.pawprint
+            ? this._choose({ playerId: pid, purpose: 'pawprint', kind: 'options', repeat: true, min: 1, max: offer.pawprint,
+              options: usable.map(i => ({ i, label: offer.options[i].label, weight: offer.options[i].weight || 1, cost: '{P}'.repeat(offer.options[i].weight || 1) })),
+              constraints: [{ kind: 'sum', key: 'weight', max: offer.pawprint, label: 'paw prints' }],
+              prompt: `${c.name}: choose up to ${offer.pawprint} {P} worth of modes. A mode may be chosen more than once.` }, key + 'M')
+            : this._ask({ type: 'mode', playerId: pid, count: offer.count, sourceId: c.id,
+              min: offer.min !== offer.count ? offer.min : undefined, max: offer.max !== offer.count ? offer.max : undefined,
+              repeatable: offer.repeatable || undefined, options: usable.map(i => ({ i, label: offer.options[i].label })),
+              prompt: `${c.name}: choose ${offer.min === offer.max ? say(offer.count) : say(offer.min) + ' to ' + say(offer.max)}.` }, key + 'M');
+          if (got === SUSPEND) return SUSPEND;
+          picks = offer.pawprint ? ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null) : (got || []).slice();
+          if (this._badModes(offer, picks, c.name)) picks = offer.pawprint ? usable.slice(0, 1) : usable.slice(0, offer.repeatable ? 1 : offer.count);
+          if (offer.repeatable && !offer.pawprint && picks.length < offer.count) picks = picks.concat(new Array(offer.count - picks.length).fill(picks[0] != null ? picks[0] : usable[0]));
+        }
+        this._askedModes = { name: c.name, modes: picks.slice() };
+        const mp = modeTargetPlan(applyModes(cardSpellEffects(ca), picks), { modes: picks });
+        specs = mp.specs;
+        const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+        if (mp.plan) aimedBy = mp.plan.units.map(u => bare(u.at[0].eff));
+      }
       // an Aura's target is what it will enchant (Surging Might rippled, an Aura discovered), as castSpell reads it
-      const specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
+      if (!specs) specs = ca ? (ca.isAura && ca.auraSpec ? [ca.auraSpec] : spellTargetSpecs(ca)) : [];
       if (!specs.length) return [];
       this._castingSpell = c.id;
       const options = specs.map(spec => this._legalTargetsFor(spec, pid, c.id));
       this._castingSpell = null;
       if (specs.some((spec, i) => !options[i].length && !(spec && spec.upTo))) return null;
-      const picked = this._ask({ type: 'pickTarget', playerId: pid, specs, options, count: specs.length, sourceId: c.id,
-        prompt: `${c.name}: choose ${specs.length === 1 ? 'a target' : 'targets'}` }, key);
+      const picked = this._ask(Object.assign({ type: 'pickTarget', playerId: pid, specs, options, count: specs.length, sourceId: c.id,
+        prompt: `${c.name}: choose ${specs.length === 1 ? 'a target' : 'targets'}` }, aimedBy ? { aimedBy } : {}), key);
       if (picked === SUSPEND) return SUSPEND;
       if (picked == null) {
         // nobody to ask (a bot, or a test): the first legal choice for each
@@ -7165,10 +7400,17 @@
         const most = this._xCap(o, playerId);
         if ((opts.x || 0) > most) return this.fail(`X can't be greater than ${most} for ${o.name}.`);
       }
+      /* A modal spell's modes come first, then the targets its chosen modes ask for (CR 601.2b–c): given with
+         the cast, the only ones there could be, or asked, the cast starting again with the answer (_castModes) */
+      const md = this._castModes(playerId, o, a, opts);
+      if (md === 'asked') return true;
+      if (typeof md === 'string') return this.fail(md);
+      const mSel = md ? { modes: md.picks } : undefined;
+      if (md && md.askTargets && this._askCastTargets(playerId, o, a, opts, md)) return true;
       /* The targets, checked before anything is paid or moved: the half
          being cast (or both, fused), as the words on it ask */
       if (a && !a.isPermanent || (a && a.isAura) || (opts.targets || []).length) {
-        let specs = a && a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a);
+        let specs = a && a.isAura && a.auraSpec ? [a.auraSpec] : spellTargetSpecs(a, mSel);
         if (opts.fuse && this._fusable(o)) specs = specs.concat(spellTargetSpecs(MTG.oracle.analyze(o.card, 1)));
         const viaUse = opts.via ? this.altUsesFor(playerId, objId).find(x => x.kind === 'cast' && x.via === opts.via) : null;
         // Cleave: the targets of the words left once the brackets are gone
@@ -7192,7 +7434,7 @@
       if (asked) return asked === 'asked' ? true : this.fail(asked);
       /* Jilt, Mind Spiral, Return to Dust: with the kick, the gift and the phase settled, the targets
          inside those "if"s are checked as well, and any beyond what the spell now asks for dropped */
-      if (a && !a.isPermanent && !opts.fuse && !/overload|cleave/.test(String(opts.via || '')) && hasBranchSlots(this._cardSpellEffects(a))) {
+      if (!md && a && !a.isPermanent && !opts.fuse && !/overload|cleave/.test(String(opts.via || '')) && hasBranchSlots(this._cardSpellEffects(a))) {
         const specs = spellTargetSpecs(a, this._castSel(playerId, o, a, opts));
         if ((opts.targets || []).length > specs.length) opts.targets = opts.targets.slice(0, specs.length);
         this._castingSpell = o.id;
@@ -7375,8 +7617,8 @@
           cost += ex.cost.repeat(times); chose.squad = times;
         } else if (ex.kind === 'spree') {
           /* At least one mode has to be bought (CR 702.171b); with nothing
-             chosen the first one is. */
-          let picked = (opts.spree || []).map(Number).filter(i => ex.modes[i]);
+             chosen the first one is (settled with the modes: _castModes). */
+          let picked = md && md.offer.spree ? md.picks.slice() : (opts.spree || []).map(Number).filter(i => ex.modes[i]);
           if (!picked.length) picked = [0];
           // tiered: one mode and one only
           if (ex.one) picked = picked.slice(0, 1);
@@ -7415,7 +7657,7 @@
       }
       // Arc Trail: "any other target" — not one this spell already aims at
       if ((opts.targets || []).length > 1) {
-        const dsp = spellTargetSpecs(a) || [];
+        const dsp = spellTargetSpecs(a, mSel) || [];
         const tg = opts.targets;
         for (let i = 1; i < tg.length; i++) {
           if (!(dsp[i] && dsp[i].distinct) || !tg[i]) continue;
@@ -7731,12 +7973,14 @@
       // "the amount of mana spent to cast this creature"
       o.manaSpent = opts.free ? 0 : MANA.cmc(String(cost || '').replace(/\{X\}/g, '')) + (opts.x || 0) * ((String(cost || '').match(/\{X\}/g) || []).length);
 
+      // a modal spell's words: its chosen modes' (_keepModes marks each one's targets on them)
+      const modeWords = md ? applyModes(this._cardSpellEffects(a), md.picks) : null;
       const item = {
         id: this._uid('st'), kind: 'spell', obj: o, objId: o.id,
         controller: playerId, name: o.name, cost,
         targets: (opts.targets || []).map(normTarget), x: opts.x || 0,
         effects: a && !a.isPermanent ? (via && via.overload && a.overloadEffects ? a.overloadEffects
-          : via && via.cleave && a.cleaveEffects ? a.cleaveEffects : this._cardSpellEffects(a))
+          : via && via.cleave && a.cleaveEffects ? a.cleaveEffects : modeWords || this._cardSpellEffects(a))
           // Awaken: the land's part comes after the spell's own words
           .concat(via && via.awaken ? [{ op: 'awakenLand', n: via.awaken, askTargets: true,
             targets: [{ type: 'land', filter: 'land you control', zone: 'battlefield', controller: 'you' }] }] : []) : null,
@@ -7755,6 +7999,8 @@
         // the whole card, both names
         item.name = o.card.name;
       }
+      // the modes chosen, and each one's targets, kept on it for everyone to see (CR 601.2b–c)
+      if (md && modeWords && item.effects) this._keepModes(item, md, modeWords);
       this.stack.push(item);
       if (o.giftTo) this.logEvent('rules', `${p.name} promises a gift to ${(this.player(o.giftTo) || {}).name}.`);
       // Cavern of Souls: "that spell can't be countered"
@@ -7911,7 +8157,8 @@
       const apCfg = (this.config.autoPass || {})[playerId];
       if (opts.hold || (apCfg && apCfg.fullControl)) this.holdFor = playerId;
 
-      const castData = { spell: item, object: o, stackId: item.id, playerId };
+      // (Riku of Many Paths: "the number of times you chose a mode for that spell" — modesChosen)
+      const castData = Object.assign({ spell: item, object: o, stackId: item.id, playerId }, md ? { modesChosen: md.picks.length } : {});
       // void (Alpharael, Stonechosen): "or a spell was warped this turn" — cast for its warp cost
       if (item.via === 'warp') { const hw = this.turnHistory || (this.turnHistory = { creaturesDied: 0, permanentsLeft: 0, attacked: false }); hw.warped = true; }
       this._fire('youCastSpell', playerId, castData);
@@ -17044,6 +17291,8 @@
         /* the spell that set this off, for "copy that spell" */
         stackId: data.stackId, objectId: data.object && data.object.id,
         amount: data.amount,
+        // Riku of Many Paths: how many times a mode was chosen for the spell cast
+        modesChosen: data.modesChosen,
         // Farideh, Devil's Chosen: every die rolled together ("any of those results")
         amounts: data.amounts,
         // Eriette, the Beguiler: the Aura that became attached ("that Aura")
@@ -17456,6 +17705,8 @@
           if (ab.hasAdventure && !(data.object && data.object.card && data.object.card.layout === 'adventure')) continue;
           // Vine Gecko: only a spell that was kicked
           if (ab.kickedOnly && !(data.object && data.object.wasKicked)) continue;
+          // Riku of Many Paths: "Whenever you cast a modal spell" — one whose modes were chosen as it was cast (modalOnly)
+          if (ab.modalOnly && data.modesChosen == null) continue;
           /* Kraven the Hunter: "with the greatest power among creatures that player controls" — its power as it died, against
              theirs still there and any that died with it (greatestPowerOfTheirs; a tie is the greatest too) */
           if (ab.greatestPowerOfTheirs && data.object) {
@@ -18606,7 +18857,7 @@
      * and a person is asked, and the cast starts again once they answer.
      * Returns the answer, null when there is nothing to choose, or 'asked'.
      */
-    _castChoose(playerId, o, opts, spec) {
+    _castChoose(playerId, o, opts, spec, askBots) {
       const C = MTG.choice;
       const s = C.normalize(Object.assign({ playerId, sourceId: o.id, sourceName: o.name, sourceCard: o.card }, spec));
       const hooks = this._chooseHooks(playerId);
@@ -18618,7 +18869,8 @@
       }
       if (!C.solve(s, { hooks })) { delete opts.choices[s.purpose]; return null; }
       const p = this.player(playerId);
-      if ((p && p.isBot) || opts.autoCost) return (opts.choices[s.purpose] = this._decideChoose(playerId, s));
+      // (`askBots`: a question a bot answers by its own lights, as it would were it asked as the spell resolved)
+      if ((p && p.isBot && !askBots) || opts.autoCost) return (opts.choices[s.purpose] = this._decideChoose(playerId, s));
       const keep = JSON.parse(JSON.stringify(Object.assign({}, opts)));
       delete keep.choices[s.purpose];
       this.queueChoice(Object.assign(s, { then: { kind: 'cast', objId: o.id, opts: keep } }));
@@ -18822,10 +19074,17 @@
         if (e.anyFrom || e.perOpponentFrom) this._noteLastAffected(targets);
         if (e.perOpponentFrom) this._lastGroup = targets.filter(t => t.kind === 'object').map(t => t.id);
         ctx._lastAimed = targets.slice();
-      } else if (ctx.targetSpecs && ctx._lastAimed && !(e.targets || []).length && !e.anyFrom && !e.perOpponentFrom) {
+        ctx._lastAimedMi = e._mi;
+      } else if (ctx.targetSpecs && !(e.targets || []).length && !e.anyFrom && !e.perOpponentFrom) {
+        /* a modal spell's sentence (_mi) holding sentences that aim: what they aim at (Mystic Confluence: "counter
+           target spell unless its controller pays {3}" — that spell's controller) */
+        const inner = e._mi != null ? this._innerAimed(e, ctx) : null;
+        if (inner) targets = inner;
         /* Shadrix Silverquill: "Target player draws a card and loses 1 life" — "that player", "it", "they" in a
-           sentence that aims at nothing: what the sentence before it aimed at */
-        targets = ctx._lastAimed;
+           sentence that aims at nothing: what the sentence before it aimed at — a modal spell's, in the same mode
+           (another mode's "draw a card" is nobody's target) */
+        else if (ctx._lastAimed && (e._mi == null || e._mi === ctx._lastAimedMi)) targets = ctx._lastAimed;
+        else if (e._mi != null) targets = [];
       }
       /* Ragnarok, Divine Deliverance: "destroy target permanent and return target nonlegendary permanent
          card from your graveyard" — a trigger's targets asked for as it resolves, each sentence its own:
@@ -19430,6 +19689,14 @@
         // The Frightful Four: the mana value of the spell the trigger is about (triggerSpellMv)
         // (Runadi, Behemoth Caller: "its mana value minus 4" — minus)
         if (v && typeof v === 'object' && v.triggerSpellMv) return Math.max(0, this._triggerSpellMv(ctx.triggerData) - (v.minus || 0));
+        /* Riku of Many Paths: "the number of times you chose a mode for that spell" — as it was cast, whatever has
+           become of it since (triggerSpellModes, modesChosen) */
+        if (v && typeof v === 'object' && v.triggerSpellModes) {
+          const tdM = ctx.triggerData || {};
+          if (tdM.modesChosen != null) return Number(tdM.modesChosen) || 0;
+          const stM = tdM.stackId && this.stack.find(s => s.id === tdM.stackId);
+          return stM && Array.isArray(stM.chosenModes) ? stM.chosenModes.length : 0;
+        }
         // Namor the Sub-Mariner: "create that many" — the triggering spell's mana symbols of a colour (triggerSpellSymbols)
         if (v && typeof v === 'object' && v.triggerSpellSymbols) return this._triggerSpellSymbols(ctx.triggerData, v.triggerSpellSymbols);
         // Amzu, Swarm's Hunger: "the greatest mana value among those cards" — the lot the trigger is about (batchMaxMv)
@@ -20279,7 +20546,8 @@
           const group0 = e.scope === 'lastGroup' ? this._lastGroup : null;
           const cnt = n(e.n);
           if (group0) this._lastGroup = group0;
-          if (e.scope === 'self' && src) this.addCounters(src, e.kind, cnt);
+          // (Riku of Many Paths: "Put a +1/+1 counter on Riku. It gains trample" — "it" is the one the counter went on)
+          if (e.scope === 'self' && src) { this.addCounters(src, e.kind, cnt); this._noteLastAffected([{ kind: 'object', id: src.id }]); }
           else if (e.scope === 'yourMatching') {
             for (const o of this.battlefield) {
               if (o.controller !== ctx.controller) continue;
@@ -35831,6 +36099,22 @@
             if (pick && pick.zone === 'graveyard') this._dredge(p, pick); else this._drawCards(p, 1);
             break;
           }
+          /* A modal spell's modes, chosen as it is cast: the cast starts again with them (and asks their targets) */
+          if (ch.purpose === 'castModes') {
+            const offered = (ch.options || []).map(x => x.i);
+            const lo = ch.min != null ? ch.min : ch.count, hi = ch.max != null ? ch.max : ch.count;
+            let picks = ((data && data.modes) || []).map(Number).filter(i => offered.includes(i));
+            if (!ch.repeatable) picks = [...new Set(picks)];
+            picks = picks.slice(0, hi);
+            // (an answer short of what it must be: the first of the rest, as a mode chosen as it resolves would be)
+            for (const i of offered) { if (picks.length >= lo) break; if (ch.repeatable || !picks.includes(i)) picks.push(i); }
+            const again = Object.assign({}, ch.castOpts, { modes: picks.sort((x, y) => x - y) });
+            this.pendingChoice = null;
+            if (!this.castSpell(playerId, ch.objId, again)) this.logEvent('rules', `${(this.player(playerId) || {}).name} can't cast ${(this.obj(ch.objId) || {}).name || 'that'}: ${this.lastError || 'not with those modes'}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           /* A choice made while casting: the cast starts again, answered. */
           if (ch.purpose === 'castChoice') {
             const idx = ((data && data.modes) || [])[0];
@@ -35914,6 +36198,15 @@
         }
         // targets for the spell cascade found, which is cast now
         case 'pickTarget': {
+          // the targets of a modal spell's chosen modes, asked as it is cast: the cast starts again with them
+          if (ch.purpose === 'castTargets') {
+            const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).filter(Boolean);
+            this.pendingChoice = null;
+            if (!this.castSpell(playerId, ch.objId, Object.assign({}, ch.castOpts, { targets: tg }))) this.logEvent('rules', `${(this.player(playerId) || {}).name} can't cast ${(this.obj(ch.objId) || {}).name || 'that'}: ${this.lastError || 'those targets will not do'}.`);
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
+          }
           if (ch.purpose !== 'cascadeCast') break;
           const tg = ((data && data.targets) || []).map(t => (typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t));
           this._castCascaded(playerId, this.obj(ch.objId), tg);
@@ -36745,7 +37038,12 @@
         if (!e) continue;
         if (e.op === 'modal') {
           const modes = e.modes || [];
-          if (modes.length && !modes.some(m => this._targetsAvailable(m.effects, controllerId))) return false;
+          /* as many modes as must be chosen, each with something to target (CR 700.2a): "choose two" wants two
+             of them; spree, a paw-print budget and a mode that may be chosen again want one */
+          const want = Math.min(Number(e.count) || 1, modes.length);
+          const least = e.spree || e.pawprint || e.upToX ? 1 : e.min != null ? Math.min(e.min, want) : want;
+          const need = e.repeatable || e.pawprint ? Math.min(1, least) : least;
+          if (modes.length && modes.filter(m => this._targetsAvailable(m.effects, controllerId)).length < Math.max(need, 1)) return false;
           continue;
         }
         for (const spec of (e.targets || [])) {
@@ -37960,6 +38258,30 @@
           }
           return out;
         })(),
+        /* The modes of each modal spell you could cast now, chosen as it is cast and before its targets: how
+           many, and which can be (a mode with nothing it could target can't), with the count a kick makes
+           ("If this spell was kicked, choose any number instead"). Spree's are among its extra costs. */
+        castModes: (() => {
+          const out = {};
+          const z = this.zones[playerId];
+          if (!z || !(this.priorityPlayer && this.priorityPlayer.id === playerId) || this.over) return out;
+          // (a card face down in exile is nobody's to read: only the ones face up, and those you may play from another's exile)
+          for (const o of z.hand.concat(z.command, z.graveyard, z.exile.filter(x => !x.faceDown && !x.faceDownExile), this._borrowedExile(playerId))) {
+            const a = o.analysis();
+            if (!a || a.isPermanent || !castModal(this._cardSpellEffects(a))) continue;
+            const offer = this._castModeOffer(playerId, o, a, { kicked: 0 });
+            if (!offer || offer.spree) continue;
+            const v = { count: offer.count, min: offer.min, max: offer.max, options: offer.options.map(m => Object.assign({ i: m.i, label: m.label, ok: m.ok }, m.weight ? { weight: m.weight } : {})) };
+            if (offer.repeatable) v.repeatable = true;
+            if (offer.pawprint) v.pawprint = offer.pawprint;
+            if (offer.modal.countIf) {
+              const k = this._castModeOffer(playerId, o, a, { kicked: 1 });
+              if (k.count !== v.count || k.max !== v.max) v.kicked = { count: k.count, min: k.min, max: k.max };
+            }
+            out[o.id] = v;
+          }
+          return out;
+        })(),
         /* The same for the activated abilities of your permanents: for each
            ability (by the index activateAbility takes), the cards or
            permanents that could pay a cost the table would otherwise pick. */
@@ -37987,7 +38309,7 @@
           objId: s.objId, targets: s.targets, abilityText: s.abilityText, countered: !!s.countered,
           // what a target spec may ask of it: a triggered ability or not, and the face a spell was cast as
           triggered: !!s.triggered,
-          // a triggered ability's modes, chosen as it was put on the stack (_aimTrigger)
+          // a spell's or a triggered ability's modes, chosen as it was put on the stack (_keepModes, _aimTrigger): everyone's to see
           modes: s.modes && s.modes.length ? s.modes.slice() : undefined,
           // one of three or more of the same trigger put on the stack together (_batchTriggers), and whether it is a "you may"
           batch: s.batch || undefined, optional: s.batch && s.optional ? true : undefined,
@@ -38275,8 +38597,57 @@
     const k = Math.max(0, n - (specs.length - 1));
     return specs.slice(0, i).concat(Array.from({ length: k }, () => specs[i]), specs.slice(i + 1));
   }
-  /** What a spell card asks to target as it is cast: the one list the engine and the table both read. */
-  function spellTargetSpecs(a, sel) { return effectSpecs(cardSpellEffects(a), sel); }
+  /** What a spell card asks to target as it is cast: the one list the engine and the table both read.
+      A modal spell's are its chosen modes' (`sel.modes`), in the order modeTargetPlan reads them. */
+  function spellTargetSpecs(a, sel) {
+    const effs = cardSpellEffects(a);
+    if (sel && Array.isArray(sel.modes) && castModal(effs)) return modeTargetPlan(applyModes(effs, sel.modes), sel).specs;
+    return effectSpecs(effs, sel);
+  }
+
+  /* ---------- a spell's modes, chosen as it is cast (CR 601.2b–c, 700.2) ----------
+     The modes first, then the targets of the modes chosen, everyone seeing both while it waits on the
+     stack. What it chose is kept on it as plain data: its words with the chosen modes in place of the
+     "choose —", the mode indexes (chosenModes) and their words (modes). */
+  /** The "choose —" a spell chooses as it is cast, at the top of its words (in a sequence too): { modal, list, at },
+      or null. "Choose one at random" is nobody's choice, and "one that hasn't been chosen" a permanent's memory:
+      those are chosen as it resolves, as before. */
+  function castModal(effects) {
+    const top = aimModal(effects);
+    const m = top && top.modal;
+    if (!m || (m.modes || []).length < 2 || m.random || m.notChosen || m.upToX || m.distinctPlayers) return null;
+    return top;
+  }
+  /** A spell's words with the chosen modes (indexes, `picks`) in place of its "choose —": each mode's own words, in
+      the order the card prints them (CR 700.2c), a mode chosen twice twice, every one a copy of its own. Each mode's
+      words are marked with its place among those chosen (_mi), so "it" never reaches into another mode. */
+  function applyModes(effects, picks) {
+    const list = JSON.parse(JSON.stringify(effects || []));
+    const top = castModal(list);
+    if (!top) return list;
+    const modes = top.modal.modes || [];
+    const run = [];
+    (picks || []).map(Number).filter(i => modes[i]).sort((x, y) => x - y).forEach((i, k) => {
+      const words = JSON.parse(JSON.stringify(modes[i].effects || []));
+      const mark = (l) => { for (const f of (l || [])) if (f && typeof f === 'object') {
+        f._mi = k;
+        for (const key of Object.keys(f)) if (key !== 'targets' && key !== 'modes' && Array.isArray(f[key])) mark(f[key]);
+      } };
+      mark(words);
+      run.push(...words);
+    });
+    top.list.splice(top.at, 1, ...run);
+    return list;
+  }
+  /** The targets a spell with its modes chosen asks for as it is cast, in order: every sentence of every chosen mode,
+      those inside "unless …" and "you may" too, read as a trigger's are (triggerAimPlan) — `plan` says which sentence
+      each is for. A mode aiming at "X target …" or "any number of target …" leaves the spell read as any other
+      (effectSpecs, `plan` null). */
+  function modeTargetPlan(applied, sel) {
+    const plan = triggerAimPlan(applied);
+    if (plan.ok && plan.units.every(u => u.kind === 'spec' && !(u.spec && u.spec.multi))) return { specs: plan.units.map(u => u.spec), plan };
+    return { specs: effectSpecs(applied, sel), plan: null };
+  }
 
   /* ---------- what a triggered ability chooses as it is put on the stack (CR 603.3c–d) ----------
      Its modes, then the targets of every sentence written into it: at the top, in a sequence, and in
@@ -38402,7 +38773,7 @@
   function whole(s) { return String(s || ''); }
 
   MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs,
-    targetSlots, hasBranchSlots, triggerAimPlan };
+    targetSlots, hasBranchSlots, triggerAimPlan, castModal, applyModes, modeTargetPlan };
 })(window.MTG);
 
 
