@@ -3375,6 +3375,9 @@
        copy of it, then you draw a card if an opponent created a token this way" (tokenCopyForPlayer) */
     { re: /^Have target player other than its controller create a token that'?s a copy of it, then you draw a card if an opponent created a token this way\.?$/i,
       make: () => ({ op: 'tokenCopyForPlayer', drawIfOpponent: true, targets: [{ type: 'player', notTriggerObjController: true }] }) },
+    // Wedding Ring: "target opponent creates a token that's a copy of it" — the permanent that entered, made as theirs
+    { re: /^Target opponent creates a token that'?s a copy of it\.?$/i,
+      make: () => ({ op: 'tokenCopyForPlayer', targets: [{ type: 'player', opponent: true }] }) },
     /* Storrev, Devkarin Lich: "return to your hand target creature or planeswalker card in your graveyard that wasn't put
        there this combat" (notThisCombat) */
     { re: /^return to your hand (target [a-z ]+? card) in your graveyard that wasn'?t put there this combat\.?$/i,
@@ -3798,6 +3801,10 @@
         if (ptX) out.ptX = ptX;
         return out;
       } },
+    /* Druid Class: "target land you control becomes a creature with haste and "This creature's power and toughness are
+       each equal to the number of lands you control."" — for good, its size the quoted ability's (grantText) */
+    { re: /^(target land you control) becomes a creature with haste and "(This creature'?s power and toughness are each equal to the number of lands you control\.)"\.?$/i,
+      make: (m) => becomesSubject(m[1], { addTypes: ['Creature'], keywords: ['Haste'], grantText: m[2] }, 'permanent') },
     /* Anthousa, Setessan Hero: "up to three target lands you control each become 2/2 Warrior creatures until end of turn."
        — each target its own (distinct) */
     { re: /^Up to (one|two|three|four|five) target (land|artifact)s( you control)? each become (\d+\/\d+(?: [A-Z][a-z]+)*) creatures( until end of turn)?\.?$/,
@@ -3925,6 +3932,8 @@
       make: () => ({ op: 'ifCond', cond: { kind: 'selfEnchanted' }, then: [{ op: 'may', then: [{ op: 'draw', n: 1, who: 'you' }], text: 'You may draw an additional card.' }] }) },
     // Well of Ideas: "that player draws an additional card" — the player whose step it is
     { re: /^That player draws an additional card\.?$/i, make: () => ({ op: 'draw', n: 1, who: 'triggerPlayer' }) },
+    // Firemane Commando: "they draw a card if none of those creatures attacked you" — the trigger only fires so (noneAttackingYou)
+    { re: /^They draw a card if none of those creatures attacked you\.?$/i, make: () => ({ op: 'draw', n: 1, who: 'triggerPlayer' }) },
     // Contagion Engine: "Proliferate twice."
     // Expansion Algorithm: "Proliferate X times."; Tromell: "Proliferate X times, where X is …" (proliferateTimes)
     { re: /^Proliferate (X|\d+) times(?:, where X is (.+?))?\.?$/i,
@@ -12128,6 +12137,10 @@
        card for as long as it remains exiled." */
     { re: /^Search target opponent'?s library for a card and exile it face down\. Then that player shuffles\. You may (?:look at and )?play that card for as long as it remains exiled\.$/i,
       make: () => [{ op: 'tutor', n: 1, filter: 'any', libOf: 'target', to: 'exilePlayable', targets: [targetSpec('target opponent')], prompt: "Search their library for a card." }] },
+    /* Hoarding Broodlord: "search your library for a card, exile it face down, then shuffle. For as long as that card
+       remains exiled, you may play it." — your own library, the same leave (exilePlayable) */
+    { re: /^Search your library for a card, exile it face down, then shuffle\. For as long as that card remains exiled, you may play it\.$/i,
+      make: () => [{ op: 'tutor', n: 1, filter: 'any', to: 'exilePlayable' }] },
     /* Intet, the Dreamer: "you may pay {2}{U}. If you do, exile the top card of your library face down. You may look at
        that card for as long as it remains exiled. You may play that card without paying its mana cost for as long as
        Intet remains on the battlefield." — all of it only if paid (impulseLast whileHere, free) */
@@ -16994,6 +17007,12 @@
     // Xyris, the Writhing Storm (and Orcish Bowmasters' words): "except the first one they draw in each of their draw steps"
     { re: /^When(?:ever)? an opponent draws a card except the first one they draw in each of their draw steps,? /i, event: 'opponentDraw', extra: { skipFirstDrawStep: true } },
     { re: /^When(?:ever)? an opponent draws a card(?:,| )/i, event: 'opponentDraw' },
+    /* Wedding Ring: "Whenever an opponent who controls an artifact named Wedding Ring draws a card during their turn" /
+       "gains life during their turn" — that player has one (controlsSameName), on their own turn (duringOwnTurn) */
+    { re: /^Whenever an opponent who controls an artifact named CARDNAME draws a card during their turn,? /i,
+      event: 'opponentDraw', extra: { duringOwnTurn: true, controlsSameName: 'artifact' } },
+    { re: /^Whenever an opponent who controls an artifact named CARDNAME gains life during their turn,? /i,
+      event: 'opponentGainsLife', extra: { duringOwnTurn: true, controlsSameName: 'artifact' } },
     { re: /^When(?:ever)? a(?:nother)? creature an opponent controls dies(?:,| )/i, event: 'opponentCreatureDies' },
     { re: /^When(?:ever)? a(?:nother)? creature you control enters(?: the battlefield)?(?:,| )/i, event: 'yourCreatureEtb' },
     { re: /^When(?:ever)? a(?:n)? (?:nontoken )?permanent you control enters(?: the battlefield)?(?:,| )/i, event: 'yourPermanentEtb' },
@@ -17409,6 +17428,10 @@
     { re: /^Whenever an opponent attacks one or more planeswalkers you control,? /i, event: 'anyPlayerAttacks', extra: { attackerIsOpponent: true, attacksYourPlaneswalkers: true } },
     // Karazikar, the Eye Tyrant: "Whenever an opponent attacks another one of your opponents"
     { re: /^Whenever an opponent attacks another one of your opponents,? /i, event: 'anyPlayerAttacksPlayer', extra: { attackerIsOpponent: true, attackedIsYourOpponent: true } },
+    /* Firemane Commando: "Whenever another player attacks with two or more creatures, they draw a card if none of those
+       creatures attacked you." — only an attack with none of them at you (noneAttackingYou) */
+    { re: /^Whenever another player attacks with (two|three) or more creatures, (?=they draw a card if none of those creatures attacked you\.?$)/i, event: 'anyPlayerAttacks',
+      extraOf: (m) => ({ attackerIsOpponent: true, minAttackers: num(m[1]), noneAttackingYou: true }) },
     // (Tahngarth, First Mate: "Whenever an opponent attacks with one or more creatures" — any attack at all)
     { re: /^Whenever (a player|an opponent) attacks( you)?(?: with (two|three|four|five|\d+) or more creatures| with one or more creatures)?,? /i, event: 'anyPlayerAttacks',
       extraOf: (m) => Object.assign({}, m[2] ? { attackersAtYou: m[3] ? num(m[3]) : 1 } : {}, /opponent/i.test(m[1]) ? { attackerIsOpponent: true } : {},
@@ -23789,6 +23812,11 @@
          one of those cards into your hand and the rest on the bottom of your library in any order." (drawLooksInstead) */
       { re: /^If you would draw a card, look at the top (two|three|four|five) cards of your library instead\. Put one of (?:those cards|them) into your hand and the rest on the bottom of your library in any order\.?$/i,
         make: (m) => ({ op: 'drawLooksInstead', n: num(m[1]) }), auto: true },
+      /* Abundance: "If you would draw a card, you may instead choose land or nonland and reveal cards from the top of your
+         library until you reveal a card of the chosen kind. Put that card into your hand and put all other cards revealed
+         this way on the bottom of your library in any order." (drawRevealKind) */
+      { re: /^If you would draw a card, you may instead choose land or nonland and reveal cards from the top of your library until you reveal a card of the chosen kind\. Put that card into your hand and put all other cards revealed this way on the bottom of your library in any order\.?$/i,
+        eff: { op: 'drawRevealKind' }, auto: true },
       /* Clara Oswald: "Impossible Girl — If Clara Oswald is your commander, choose a color before the game begins. Clara
          Oswald is the chosen color." — asked as the game begins (impossibleGirl) */
       { re: /^If CARDNAME is your commander, choose a colou?r before the game begins\. CARDNAME is the chosen colou?r\.?$/i,

@@ -67417,4 +67417,131 @@ module.exports = (test) => {
     t.no(V.g.castSpell('A', m3.id, { x: 1, targets: [{ kind: 'object', id: d1.id }], auto: true }), 'X = 1 with only {U} and no blue card: no');
     t.ok(/Not enough mana/.test(V.g.lastError), V.g.lastError);
   });
+
+  test('Cards: Druid Class — level 3 makes a land you control a hasty creature as big as your lands, for good', (mk, t) => {
+    t.auto('Druid Class');
+    const T = mk();
+    T.toMain('A');
+    const dc = T.bf('A', 'Druid Class');
+    const f1 = T.bf('A', 'Forest');
+    T.bf('A', 'Forest'); T.bf('A', 'Island');
+    T.mana('A', 'G2');
+    T.activate('A', dc, 0);
+    T.mana('A', 'G4');
+    T.answer('choose', () => ({ picks: [f1.id] }));
+    T.activate('A', dc, 1);
+    T.settle(); T.resolve();
+    const ch = T.g.characteristics(f1);
+    t.ok(ch.isCreature && T.g._cardFitsWords(f1, 'land'), 'a creature, still a land');
+    t.eq(T.g.powerOf(f1) + '/' + T.g.toughnessOf(f1), '3/3', 'three lands: 3/3');
+    t.ok(T.g.hasKw(f1, 'haste'), 'with haste');
+    T.bf('A', 'Forest');
+    t.eq(T.g.powerOf(f1), 4, 'another land: 4/4');
+    T.toMain('B'); T.toMain('A');
+    t.ok(T.g.characteristics(f1).isCreature, 'and it stays a creature');
+  });
+
+  test('Cards: Hoarding Broodlord — a card from your library, exiled face down, yours to play; cast from exile with convoke', (mk, t) => {
+    t.auto('Hoarding Broodlord');
+    const T = mk();
+    T.toMain('A');
+    const bear = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Island');
+    T.answer('pickCard', () => ({ cardIds: [bear.id] }));
+    T.bf('A', 'Hoarding Broodlord', { etb: true });
+    T.settle(); T.resolve();
+    t.eq(bear.zone, 'exile');
+    t.ok(bear.faceDownExile, 'face down');
+    t.eq(bear.impulseBy, 'A', 'A may play it');
+    // cast from exile, paid by tapping two creatures (convoke)
+    const e1 = T.bf('A', 'Grizzly Bears'), e2 = T.bf('A', 'Grizzly Bears');
+    e1.summoningSick = false; e2.summoningSick = false;
+    T.cast('A', bear);
+    t.eq(bear.zone, 'battlefield', 'cast from exile');
+    t.ok(e1.tapped && e2.tapped, 'two creatures tapped for it');
+  });
+
+  test('Cards: Firemane Commando — another player attacking with two or more draws, unless any attacked you; you draw for your own', (mk, t) => {
+    t.auto('Firemane Commando');
+    const T = mk({ players: ['A', 'B', 'C'] });
+    T.bf('A', 'Firemane Commando');
+    for (const p of ['A', 'B', 'C']) for (let i = 0; i < 5; i++) T.top(p, 'Island');
+    T.toMain('B');
+    const b1 = T.bf('B', 'Grizzly Bears'), b2 = T.bf('B', 'Grizzly Bears');
+    const handB = T.zone('B', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'C' }, { attackerId: b2.id, defenderId: 'C' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.zone('B', 'hand').length, handB + 1, 'B attacked C with two: B draws');
+    T.toMain('C');
+    const c1 = T.bf('C', 'Grizzly Bears'), c2 = T.bf('C', 'Grizzly Bears');
+    const handC = T.zone('C', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: c1.id, defenderId: 'B' }, { attackerId: c2.id, defenderId: 'A' }]);
+    T.toMain('C', 'endCombat');
+    t.eq(T.zone('C', 'hand').length, handC, 'one of them attacked you: no card');
+    T.toMain('B');
+    const b3 = T.bf('B', 'Grizzly Bears');
+    const handB2 = T.zone('B', 'hand').length;
+    T.answer('declareAttackers', () => [{ attackerId: b3.id, defenderId: 'C' }]);
+    T.toMain('B', 'endCombat');
+    t.eq(T.zone('B', 'hand').length, handB2, 'one attacker alone: no card');
+  });
+
+  test('Cards: Wedding Ring — cast, an opponent gets a copy; their draws and life gained on their turn are yours too', (mk, t) => {
+    t.auto('Wedding Ring');
+    const T = mk();
+    T.toMain('A');
+    for (const p of ['A', 'B']) for (let i = 0; i < 6; i++) T.top(p, 'Island');
+    T.mana('A', 'WW2');
+    const ring = T.hand('A', 'Wedding Ring');
+    T.cast('A', ring);
+    T.settle(); T.resolve();
+    const copy = T.bfOf('B').find(o => o.name === 'Wedding Ring');
+    t.ok(copy && copy.isToken, 'B has a token copy');
+    t.eq(T.g.battlefield.filter(o => o.name === 'Wedding Ring').length, 2, 'the copy was not cast: no more copies');
+    // A draws on A's turn: B (whose copy watches A) draws
+    const hB = T.zone('B', 'hand').length;
+    T.g._drawCards(T.player('A'), 1);
+    T.settle(); T.resolve();
+    t.eq(T.zone('B', 'hand').length, hB + 1, "A drew on A's turn: B draws");
+    // B draws on A's turn: nothing for A
+    const hA = T.zone('A', 'hand').length;
+    T.g._drawCards(T.player('B'), 1);
+    T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, hA, "B drew on A's turn: nothing");
+    // B's turn: B gains 3 life, A gains 3
+    T.toMain('B');
+    const lA = T.life('A');
+    T.g.changeLife(T.player('B'), 3);
+    T.settle(); T.resolve();
+    t.eq(T.life('A'), lA + 3, 'B gained 3 on their turn: A gains 3');
+  });
+
+  test('Cards: Abundance — each draw may instead reveal until a land or a nonland card; the rest to the bottom', (mk, t) => {
+    t.auto('Abundance');
+    const T = mk({ library: Array(10).fill('Island') });
+    T.bf('A', 'Abundance');
+    const top = ['Grizzly Bears', 'Shock', 'Forest', 'Opt'].slice().reverse().map(n => T.top('A', n)).reverse();
+    const asked = [];
+    T.answer('mode', (ch) => { asked.push(ch); return { modes: [1] }; });
+    T.answer('mode', (ch) => { asked.push(ch); return { modes: [2] }; });
+    T.answer('mode', (ch) => { asked.push(ch); return { modes: [0] }; });
+    T.mana('A', '2UU');
+    T.cast('A', T.hand('A', 'Concentrate'));
+    t.eq(asked.length, 3, 'asked for each of the three draws');
+    t.eq(asked[0].purpose, 'drawRevealKind');
+    t.zone(top[2], 'hand');
+    const lib = T.zone('A', 'library');
+    t.eq(lib.slice(-2).map(o => o.id).join(), [top[0], top[1]].map(o => o.id).join(), 'land: the Forest; Bears and Shock to the bottom');
+    t.zone(top[3], 'hand');
+    t.eq(T.g.player('A').drawnThisTurn || 0, 1, 'the third was drawn');
+    t.eq(T.zone('A', 'hand').length, 3);
+    // a bot short of lands reveals for one
+    const U = mk({ library: Array(10).fill('Island') });
+    U.player('A').isBot = true;
+    U.bf('A', 'Abundance');
+    const b = U.top('A', 'Grizzly Bears');
+    U.g._drawCards(U.player('A'), 1);
+    t.zone(b, 'library');
+    t.eq(U.names(U.zone('A', 'hand')).join(), 'Island', 'the bot took a land');
+  });
 };

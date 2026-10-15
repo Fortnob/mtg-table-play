@@ -18193,6 +18193,8 @@
       /* Thought Reflection and kin: a draw made two, each source doubling
          again; the extra cards are part of that draw, not draws of their own */
       let left = st.left, extras = st.extras, drawnNow = st.drawnNow;
+      // (Abundance: a draw its player chose to make as a draw — not asked about again: skipRepl)
+      let skipRepl = st.skipRepl || 0;
       // (a draw replaced by one of another player's that has to wait: the rest of these wait behind it)
       const parked = () => { this._drawWait.queue.unshift({ pid: p.id, st: { left, extras, drawnNow }, silent: !!silent }); };
       const doubled = () => {
@@ -18255,6 +18257,28 @@
           }
           if (went.length) this.logEvent('exile', `${rx.name}: instead of drawing, ${p.name} exiles ${e.faceDown ? (went.length === 1 ? 'the top card' : 'the top ' + went.length + ' cards') + ' face down' : went.map(c => c.name).join(' and ')}${e.play ? ' and may play them this turn' : ''}.`);
           continue;
+        }
+        /* Abundance: "If you would draw a card, you may instead choose land or nonland and reveal cards … until you
+           reveal a card of the chosen kind" — a bot decides on the spot; a person is asked, and the draws after it wait
+           (drawRevealKind, _drawWait) */
+        const ab = skipRepl > 0 ? null : z.library.length && this.battlefield.find(x => x.controller === p.id && !x.phasedOut && this._staticOp(x, 'drawRevealKind'));
+        if (skipRepl > 0) skipRepl--;
+        if (ab) {
+          if (p.isBot) {
+            const kind = this._abundanceKind(p);
+            if (kind) {
+              left--; if (extras > 0) extras--;
+              this._abundanceReveal(p, kind, ab.name);
+              continue;
+            }
+          } else {
+            this._drawWait = { pid: p.id, st: { left, extras, drawnNow }, silent: !!silent, src: ab.name, queue: [], resume: false };
+            this.queueChoice({ type: 'mode', playerId: p.id, purpose: 'drawRevealKind', count: 1,
+              options: [{ i: 0, label: 'Draw a card' }, { i: 1, label: 'Land' }, { i: 2, label: 'Nonland' }], values: ['draw', 'land', 'nonland'],
+              sourceId: ab.id, sourceName: ab.name, sourceCard: ab.card,
+              prompt: `${ab.name}: draw a card, or instead choose land or nonland and reveal cards from the top of your library until you reveal a card of the chosen kind?` });
+            return;
+          }
         }
         left--;
         if (extras > 0) extras--;
@@ -18346,6 +18370,24 @@
       for (const o of rest) { this._removeFromZone(o); o.zone = 'library'; z.library.push(o); }
       this.logEvent('draw', rest.length ? `${srcName}: instead of drawing, ${p.name} looks at the top ${O.nounCount(here.length, 'card')} of their library and puts one into their hand and the rest on the bottom.`
         : `${srcName}: instead of drawing, ${p.name} puts the top card of their library into their hand.`);
+    }
+    /** Abundance: what a bot reveals for — a land while it is short of them, otherwise a spell; null to just draw. */
+    _abundanceKind(p) {
+      const lands = this.battlefield.filter(x => x.controller === p.id && (this.characteristics(x) || {}).isLand).length;
+      const inHand = this.zones[p.id].hand.filter(c => (c.analysis() || {}).isLand).length;
+      return lands + inHand < 6 && !inHand ? 'land' : 'nonland';
+    }
+    /** Abundance: cards revealed from the top until one of the kind chosen; it to the hand, the rest to the bottom. */
+    _abundanceReveal(p, kind, srcName) {
+      const z = this.zones[p.id];
+      const at = z.library.findIndex(c => !!(c.analysis() || {}).isLand === (kind === 'land'));
+      const shown = at >= 0 ? z.library.slice(0, at + 1) : z.library.slice();
+      const hit = at >= 0 ? shown[at] : null;
+      this._know(shown, '*');
+      if (hit) this.moveObject(hit, 'hand');
+      for (const c of shown) if (c !== hit) { this._removeFromZone(c); c.zone = 'library'; z.library.push(c); }
+      this._libraryTouched(p.id);
+      this.logEvent('reveal', `${srcName}: instead of drawing, ${p.name} reveals ${shown.map(c => c.name).join(', ') || 'nothing'}${hit ? ` and puts ${hit.name} into their hand` : ''}${shown.length > (hit ? 1 : 0) ? '; the rest go on the bottom' : ''}.`);
     }
     /** The look a draw waited on has been answered: the draws after it, in turn, then whatever was waiting on them. */
     _drawResume() {
@@ -18720,7 +18762,11 @@
             if (!at.some(x => x.id === o.id) || at.filter(x => x.id !== o.id && this._cardFitsWords(x, ab.withSelfAnd)).length < (ab.withSelfAndN || 1)) continue;
           }
           // The Council of Four: "during their turn" — the player who drew or cast is the one whose turn it is (duringOwnTurn)
-          if (ab.duringOwnTurn && (data.drawer != null ? data.drawer : data.playerId) !== (this.activePlayer && this.activePlayer.id)) continue;
+          // (Wedding Ring: the player who gained life — player)
+          const ownTurnOf = data.drawer != null ? data.drawer : data.playerId != null ? data.playerId : data.player;
+          if (ab.duringOwnTurn && ownTurnOf !== (this.activePlayer && this.activePlayer.id)) continue;
+          // Wedding Ring: "an opponent who controls an artifact named Wedding Ring" (controlsSameName)
+          if (ab.controlsSameName && !this.battlefield.some(x => !x.phasedOut && x.controller === ownTurnOf && x.name === o.name && this._cardFitsWords(x, ab.controlsSameName))) continue;
           if (ab.counterKind && data.kind !== ab.counterKind) continue;
           // Hapatra: "Whenever you put one or more -1/-1 counters on a creature"
           if (ab.putByYou && (data.putter || data.objController) !== o.controller) continue;
@@ -19037,6 +19083,8 @@
           // Suppressor Skyguard: "Whenever a player attacks you" — with that many creatures at you
           if (ab.attackersAtYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === o.controller).length < ab.attackersAtYou) continue;
           if (ab.attackerIsOpponent && data.playerId === o.controller) continue;
+          // Firemane Commando: "if none of those creatures attacked you" (noneAttackingYou)
+          if (ab.noneAttackingYou && (data.attackers || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).some(x => x && x.attacking === o.controller)) continue;
           // Mr. House, President and CEO: "Whenever you roll a 4 or higher" (minRoll)
           if (ab.minRoll != null && !(Number(data.amount) >= ab.minRoll)) continue;
           // Farideh, Devil's Chosen: "Whenever you roll one or more dice" — once for the dice rolled together (anyDice)
@@ -38932,6 +38980,27 @@
             const v = (ch.values || [])[at >= 0 ? at : 0];
             if (o && v && this.player(v)) { o.protector = v; this.logEvent('rules', `${this.player(v).name} protects ${o.name}.`); }
             break;
+          }
+          /* Abundance: the draw it waited on, made as a draw or replaced by the reveal; then the draws that waited on it
+             (drawRevealKind, _drawWait) */
+          if (ch.purpose === 'drawRevealKind') {
+            const w = this._drawWait;
+            const p = this.player(playerId);
+            const idx = ((data && data.modes) || [])[0];
+            const at = (ch.options || []).findIndex(op => op.i === idx);
+            const v = (ch.values || [])[at >= 0 ? at : 0] || 'draw';
+            this.pendingChoice = null;
+            if (w && p) {
+              if (v === 'draw') w.st = Object.assign({}, w.st, { skipRepl: 1 });
+              else {
+                w.st = Object.assign({}, w.st, { left: w.st.left - 1, extras: Math.max(0, w.st.extras - 1) });
+                this._abundanceReveal(p, v, w.src || ch.sourceName || 'Abundance');
+              }
+            }
+            this._drawResume();
+            if (!this.pendingChoice) this._nextChoice();
+            if (!this.pendingChoice) { this.checkStateBasedActions(); this.touch(); }
+            return true;
           }
           if (ch.purpose === 'dredge') {
             const idx = ((data && data.modes) || [])[0];
