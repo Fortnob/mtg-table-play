@@ -2409,6 +2409,11 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .pile:hover .pile-card { translate: 0 -2px; }
 .pile.empty .pile-card { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
 .pile.library { cursor: default; }
+/* quiet piles: no "0" on an empty one, a library's size only when asked or running low */
+.pile.empty .pile-n { display: none; }
+.pile.quiet .pile-n { opacity: 0; transition: opacity .15s; }
+.pile.quiet:hover .pile-n, .pile.quiet:focus-visible .pile-n, .pile.quiet.peek .pile-n { opacity: 1; }
+.pile.low .pile-n { color: #ffd2c8; border-color: rgba(255,120,95,.7); background: #3a1a16; }
 .pile-n { position: absolute; right: -7px; bottom: -6px; min-width: 20px; padding: 0 4px; border-radius: 10px;
   font: 700 11px/18px var(--font); text-align: center; color: #fff; background: #191d26; border: 1px solid rgba(255,255,255,.22);
   font-variant-numeric: tabular-nums; }
@@ -2466,6 +2471,7 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .stack-col::before { content: 'The stack'; flex: none; margin-top: auto; font: 600 10px/1 var(--font); letter-spacing: .14em; text-transform: uppercase;
   color: rgba(246,220,140,.75); opacity: 0; transition: opacity .2s; }
 .stack-col.on::before { opacity: 1; }
+.stack-col:not(.on) > .stack-item { visibility: hidden; }
 .stack-item { position: relative; flex: none; align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 4px; pointer-events: auto;
   animation: stackIn .3s cubic-bezier(.3,.7,.3,1); }
 .stack-item:last-child { margin-bottom: auto; }
@@ -2538,8 +2544,9 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   background: #1a1d24; box-shadow: 0 0 0 1.5px rgba(156,199,255,.55), 0 4px 10px rgba(0,0,0,.6);
   animation: histIn .35s cubic-bezier(.3,.7,.3,1); }
 .hist-item.mine { box-shadow: 0 0 0 1.5px rgba(246,220,140,.6), 0 4px 10px rgba(0,0,0,.6); }
-.hist-item:nth-child(n+6) { opacity: .75; }
-.hist-item:nth-child(n+9) { opacity: .5; }
+/* what happened before this turn, faded */
+.hist-item.old { opacity: .45; filter: saturate(.6); }
+.hist-item.old:hover { opacity: 1; filter: none; }
 .hi-art { position: absolute; inset: 0; border-radius: inherit; background: center / cover no-repeat; }
 .hi-icon { position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%;
   display: grid; place-items: center; font-size: 10.5px; line-height: 1; color: #fff; background: #2a3140; border: 1px solid rgba(255,255,255,.3); }
@@ -2567,6 +2574,18 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
   opacity: 0; transition: opacity .15s; pointer-events: none; }
 .ps.now span, .ps:hover span { opacity: 1; }
 .ps.now span { color: var(--gold-hi); }
+/* someone else's turn: the bar is theirs, in their blue */
+.phase-strip.theirs .ps.now i { background: #9cc7ff; box-shadow: 0 0 10px rgba(156,199,255,.7); }
+.phase-strip.theirs .ps.now span { color: #9cc7ff; }
+/* blocks that would leave you dead: a red chip on the prompt and on your portrait, and a button that wants a second press */
+.lethal-chip { display: inline-block; vertical-align: middle; margin-left: 6px; padding: 1px 8px; border-radius: 99px;
+  font: 800 11px/1.5 var(--font); letter-spacing: .06em; text-transform: uppercase; color: #fff; background: #c2312a;
+  box-shadow: 0 0 0 1px rgba(255,160,140,.6), 0 0 14px rgba(255,70,50,.55); white-space: nowrap; }
+/* (above the portrait's own chips: the attackers coming, ⚔3) */
+.life-orb > .lethal-chip { position: absolute; left: 0; top: -34px; margin: 0; z-index: 3; pointer-events: none; }
+.life-orb.lethal .orb-ring { box-shadow: 0 0 0 2px rgba(255,90,70,.8), 0 0 22px 4px rgba(255,70,50,.55), 0 6px 18px rgba(0,0,0,.6); }
+.big-btn.lethal .bb-sub { display: inline-block; margin-top: 2px; padding: 0 8px; border-radius: 99px; background: #c2312a; color: #fff; font-weight: 800; }
+.big-btn.lethal.armed { box-shadow: 0 0 0 2px rgba(255,120,95,.9), 0 0 24px rgba(255,70,50,.6), 0 10px 26px rgba(0,0,0,.6); }
 .phase-strip { margin-bottom: 8px; }
 .big-btn { position: relative; min-height: 66px; border-radius: 33px; border: 0; cursor: pointer;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; padding: 0 18px;
@@ -2879,6 +2898,15 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .log-line b.me { color: var(--gold-hi); font-weight: 600; }
 .log-line b.them { color: #9cc7ff; font-weight: 600; }
 .log-line.t-cast, .log-line.t-stack { border-left-color: rgba(212,175,71,.6); }
+/* the short log: an outcome on the line, and the rest behind its "…" */
+.log-tag { color: #f1b2a6; font-size: .92em; }
+.log-more { display: inline; }
+.log-more > summary { display: inline-block; list-style: none; cursor: pointer; margin-left: 4px; padding: 0 6px; border-radius: 6px;
+  color: #9aa4b5; background: rgba(255,255,255,.07); font-weight: 700; line-height: 1.3; }
+.log-more > summary::-webkit-details-marker { display: none; }
+.log-more[open] > summary { color: #fff; }
+.log-sub { margin: 3px 0 0 2px; font-size: .92em; color: #a9b3c3; }
+.dtab.detail { font-size: 11.5px; padding: 5px 10px; }
 .log-line.t-combat, .log-line.t-damage { border-left-color: rgba(255,91,69,.6); }
 .log-line.t-sba, .log-line.t-sacrifice { border-left-color: rgba(255,107,92,.45); }
 .log-line.t-life { border-left-color: rgba(111,227,160,.5); }
@@ -3077,14 +3105,18 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 .life-orb.mini.acting::before { inset: -4px; }
 .op-who { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .op-name { font: 600 12.5px/1.25 var(--serif); color: #f4f0e6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.op-sub { font-size: 10.5px; color: #9aa4b5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-hand { flex: none; display: inline-flex; align-items: center; gap: 3px; font: 700 11px/1 var(--font); color: #cfd6e2;
+  padding: 3px 6px 3px 5px; border-radius: 99px; background: rgba(255,255,255,.07); font-variant-numeric: tabular-nums; }
+.op-hand::before { content: ''; width: 7px; height: 10px; border-radius: 1.5px; background: linear-gradient(160deg, #6b5a3a, #2e2516);
+  box-shadow: inset 0 0 0 1px rgba(246,220,140,.45); }
+.op-hand.out::before { display: none; }
+.op-hint:empty { display: none; }
 .op-flags { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex: none; }
 .op-flags:empty { display: none; }
 .op-flags i { font-style: normal; font: 700 9.5px/1.45 var(--font); padding: 0 6px; border-radius: 6px; white-space: nowrap;
   background: rgba(255,255,255,.08); color: #dfe5ef; }
 .op-flags i.turn { color: #9cc7ff; background: rgba(94,169,255,.16); }
 .op-flags i.atk { color: #ffb0a6; background: rgba(255,91,69,.22); }
-.op-flags i.think { color: #c9b6ff; }
 .op-flags i.bad, .op-flags i.cmd { color: #ffb0a6; }
 .op-flags i.crown { color: var(--gold-hi); }
 .op-hint { align-self: center; flex: none; font-size: 10.5px; color: #77808f; white-space: nowrap; padding-left: 4px; }
@@ -3096,12 +3128,14 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 :root[data-phone] .opp-strip { left: 52px; right: 6px; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; }
 :root[data-phone] .oplate { flex: 0 0 auto; max-width: 150px; }
 :root[data-phone] .op-sub, :root[data-phone] .op-hint, :root[data-phone] .op-split { display: none; }
+/* a phone: each opponent is a portrait and its life, so every tab fits across (name and hand in the title and tip) */
+:root[data-phone] .oplate .op-who, :root[data-phone] .oplate .op-hand { display: none; }
+:root[data-phone] .oplate { padding: 4px 8px 4px 5px; gap: 6px; }
 /* plates share the strip equally; what is happening at a seat is a tag on its corner */
 .oplate { flex: 1 1 0; max-width: 230px; padding-right: 8px; }
 .op-flags { position: absolute; top: -8px; right: 8px; flex-direction: row; gap: 3px; }
 .op-flags i { box-shadow: 0 2px 6px rgba(0,0,0,.6); background: #1b2030; border: 1px solid rgba(255,255,255,.14); }
 .arena[data-opponents="6"] .op-hint, .arena[data-opponents="7"] .op-hint { display: none; }
-.arena[data-opponents="6"] .oplate .op-sub, .arena[data-opponents="7"] .oplate .op-sub { font-size: 9.5px; }
 .arena.split .oplate { display: none; }
 .arena.split .opp-strip { justify-content: flex-end; height: 30px; }
 .arena.split .arena-board { top: 40px; }
@@ -3356,8 +3390,9 @@ textarea.input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas
 /* ---------- priority: the timer, and an opponent's spell to answer ---------- */
 .bb-timer { position: absolute; left: 14%; right: 14%; bottom: 6px; height: 3px; border-radius: 2px; pointer-events: none;
   background: rgba(255,255,255,.75); transform-origin: left center; transform: scaleX(0); opacity: 0; }
-.big-btn.timing .bb-timer { opacity: 1; animation: bbTimer var(--t, 15s) linear forwards; }
-@keyframes bbTimer { 0% { transform: scaleX(1); background: rgba(255,255,255,.75); } 75% { background: rgba(255,255,255,.75); } 100% { transform: scaleX(0); background: #ff8a70; } }
+/* the rope: unseen until its last seconds (--t-wait), then it burns down over --t */
+.big-btn.timing .bb-timer { animation: bbTimer var(--t, 6s) linear var(--t-wait, 0s) forwards; }
+@keyframes bbTimer { 0% { opacity: 1; transform: scaleX(1); background: #ffd27a; } 100% { opacity: 1; transform: scaleX(0); background: #ff6a50; } }
 /* someone else's spell: the button warms and breathes, asking */
 .big-btn.respond { background: linear-gradient(180deg, #8a4a2e, #4a2416); animation: bbAsk 1.6s ease-in-out infinite; }
 @keyframes bbAsk { 50% { box-shadow: 0 0 0 2px rgba(255, 160, 110, .55), 0 0 26px rgba(255, 120, 70, .5), 0 10px 26px rgba(0,0,0,.6); } }
@@ -8217,7 +8252,9 @@ const defaultSettings = {
   suggestFrom: 'both',           // where Commander suggestions come from: 'both' | 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
-  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
+  priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself, with people at the table (0: never)
+  logDetail: false,              // the game log line by line, rather than the short log
+  botTimer: 0,                   // the same against bots only: off, so nothing moves on while you read
   botSpeed: 1500,                // how long every bot pauses before each thing it does, in ms (MTG.BOT_PACES): Normal
   animSpeed: 1,                  // how long the table dwells on each moment
   stopWhenAble: false,           // true: stop whenever you could act, not only at your stops
@@ -8251,6 +8288,16 @@ MTG.settings = loadSettings();
 if (MTG.settings.botPaceV !== 2) {
   if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
   MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
+/* The priority timer against bots: off became the default there (botTimer). A
+   priorityTimer other than the old default of 15 was chosen, so it carries over
+   to bot games too, once; 15 itself was the default written out, not a choice.
+   (botTimerV marks it done.) */
+if (MTG.settings.botTimerV !== 1) {
+  const was = MTG.settings.priorityTimer;
+  if (was != null && +was !== 15 && +was > 0) MTG.settings.botTimer = +was;
+  MTG.settings.botTimerV = 1;
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
 }
 /* Suggestions: asking Recommander and EDHREC both became the default. The
@@ -8700,6 +8747,22 @@ MTG.DEBUG = /[?&]debug/.test(location.search);
    (settings.botSpeed), named here for Options and the game menu. Very
    fast is the pace the bots used to keep; Normal is the default. */
 MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'Slow'], [3200, 'Very slow']];
+/* One game speed for both: how long the table dwells on each moment (animSpeed) and how long a bot pauses
+   (botSpeed) go together, since the one waits for the other. Options keeps each on its own as well. */
+MTG.GAME_SPEEDS = [['relaxed', 'Relaxed', 1.6, 2200], ['normal', 'Normal', 1, 1500], ['fast', 'Fast', 0.5, 1000]];
+/** The game speed the two settings make, or null when they were set apart (Options). */
+MTG.gameSpeed = function () {
+  const S = MTG.settings;
+  const anim = S.animSpeed == null ? 1 : +S.animSpeed, bot = S.botSpeed == null ? 1500 : +S.botSpeed;
+  const g = MTG.GAME_SPEEDS.find(x => x[2] === anim && x[3] === bot);
+  return g ? g[0] : null;
+};
+MTG.setGameSpeed = function (id) {
+  const g = MTG.GAME_SPEEDS.find(x => x[0] === id);
+  if (!g) return;
+  MTG.settings.animSpeed = g[2];
+  MTG.setSetting('botSpeed', g[3]);
+};
 
 
 /* ===== 01-audio.js ===== */
@@ -41528,7 +41591,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // your own spell resolving is not news; anyone else's is, once
         if (top && top.controller === playerId) return false;
         if (!cfg.untilStackChange) return true;
-        return this._seenStackTop !== (top && top.id);
+        return this._seenTop(playerId) !== (top && top.id);
       }
       const mine = this.activePlayer && this.activePlayer.id === playerId;
       const key = this.step === 'main' ? (this.phase === 'precombat' ? 'main1' : 'main2') : this.step;
@@ -41547,7 +41610,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         // your own spell resolving is not news; anyone else's is, once
         if (!(top && top.controller === playerId)) {
           if (!cfg.untilStackChange) return false;
-          if (this._seenStackTop !== (top && top.id)) return false;
+          if (this._seenTop(playerId) !== (top && top.id)) return false;
         }
       }
       return this.playableNow(playerId).length === 0;
@@ -41570,12 +41633,15 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /* Remember the stack a person was stopped on, so the same spell does
            not stop them twice. Only a person: this also runs while a bot holds
            priority, and a spell the bot has just cast has not been seen by
-           anybody yet. */
+           anybody yet. Each person for themselves: the player who cast it
+           holding priority over it has seen it, the one it is aimed at not yet. */
         const top = this.stack[this.stack.length - 1];
         const at = this.priorityPlayer;
-        if (at && !at.isBot) this._seenStackTop = top ? top.id : null;
+        if (at && !at.isBot) (this._seenStack || (this._seenStack = {}))[at.id] = top ? top.id : null;
       }
     }
+    /** The top of the stack this person was last stopped on (_maybeAutoPass). */
+    _seenTop(playerId) { return (this._seenStack || {})[playerId]; }
 
     _priorityFingerprint() {
       return [this.turn, this.phaseIndex, this.stepIndex, this._stepAgain || 0, this.priorityIndex, this.stack.length].join(':');
@@ -79536,7 +79602,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     pushUndo(label, actor) {
       if (this._restoring || this.over) return null;
       this._undo = this._undo || [];
-      const entry = { label: label || 'that', actor: actor || null, at: this.stateVersion, snap: this.snapshot() };
+      const entry = { label: label || 'that', actor: actor || null, at: this.stateVersion, turn: this.turn, snap: this.snapshot() };
       this._undo.push(entry);
       if (this._undo.length > 30) this._undo.shift();
       return entry;
@@ -79837,6 +79903,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         over: this.over, winners: this.winners,
         mulliganPhase: this.mulliganPhase,
         canUndo: decides && this.canUndo(playerId), undoLabel: this.undoLabel(),
+        // the turn the action to take back was done in (the table offers Undo for this turn's only)
+        undoTurn: this._undo && this._undo.length ? this._undo[this._undo.length - 1].turn : null,
         holding: this.holdFor === playerId,
         /* What the table is doing on your behalf, so it can say so: full
            control on, or a yield running. */
@@ -116073,8 +116141,8 @@ Sideboard
         gone.push({ id, node });
       }
       this._fitAll();
-      // a card that has gone cannot still be the one you are reading
-      if (this._hoverNode && !this._hoverNode.isConnected) this.hidePreview();
+      // a card that has gone cannot still be the one you are reading, nor one that has moved out from under the pointer
+      if (this._hoverNode && (!this._hoverNode.isConnected || !this._underPointer(this._hoverNode))) this.hidePreview();
       // and a note about a card is only as good as the moment it was made in
       if (this._tipFor && (!this._tipFor.isConnected || this._tipFor.closest('.hslot'))) this.hideTip();
       if (before) this._flip(before, gone);
@@ -116084,6 +116152,8 @@ Sideboard
       this.chaseArrows();
       // a spell waiting for mana goes once the lands you tapped have paid for it
       this._payReady();
+      // the history down the side fades what came before this turn (renderRail; nothing redrawn when nothing changed)
+      if (this.rail && this.renderRail) this.renderRail();
       // the walkthrough, if one is running, follows what is on the table
       if (this.coach) this.coach.onRender();
     }
@@ -116165,21 +116235,27 @@ Sideboard
       const sickNow = !!o.summoningSick && o.zone === 'battlefield' && o.power != null &&
         !(o.keywords || []).some(w => String(w).toLowerCase() === 'haste');
       n.classList.toggle('sick', sickNow);
+      /* its mark, though, only where it matters to you: your own creature, on your turn (an opponent's can block
+         all the same, and Arena marks neither); its label still says it */
+      const sickMark = sickNow && o.controller === this.meId && !!this.view && this.view.activePlayer === this.meId;
       n.classList.toggle('attacking', !!o.attacking);
       n.classList.toggle('blocking', !!(o.blocking && o.blocking.length));
       n.classList.toggle('token', !!o.isToken);
       // an Oathbreaker's Signature Spell is framed in the command zone as its Oathbreaker is
       n.classList.toggle('is-cmd', !!(o.isCommander || o.isSignature));
-      n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
+      /* the game runs nearly every card by itself, so that goes without saying: only a card that needs a hand is
+         marked (below), and its label says so too */
+      const byHand = !hidden && !!UI.autoInfo && !UI.autoInfo(o.card).auto;
+      n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o) + (byHand ? ', needs a hand' : ''));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0, o.textNow || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, byHand ? 1 : 0, o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
       if (hidden) return;
-      // whether the game runs all of it, on every card you can see, bottom left (UI.autoBadge)
-      const auto = UI.autoBadge && UI.autoBadge(o.card, { corner: true });
+      // a card the game can't run all of: the hand, bottom left (UI.autoBadge); the deck builder shows the tick too
+      const auto = byHand && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
       if (auto) { auto.classList.add('cv-mark', 'cv-auto'); n.appendChild(auto); }
       // Alchemy: a perpetual change shows wherever the card is, in hand too
       if (o.perpetual) {
@@ -116210,7 +116286,7 @@ Sideboard
       }
       // its keywords at a glance, printed or given (src/12i-ui-keywords.js), and the mark of a creature not ready yet
       if (UI.keywordIcons) { const kws = UI.keywordIcons(o.keywords); if (kws) n.appendChild(kws); }
-      if (sickNow && UI.sickMark) n.appendChild(UI.sickMark());
+      if (sickMark && UI.sickMark) n.appendChild(UI.sickMark());
       const c = o.counters || {};
       if (c.loyalty != null && !(a && a.isCreature)) {
         n.appendChild(el('div', { class: 'cv-mark cv-loy', text: String(c.loyalty) }));
@@ -116484,9 +116560,10 @@ Sideboard
           plate._orb = this.lifeOrb(p);
           plate._orb.classList.add('mini');
           plate._name = el('span', { class: 'op-name' });
-          plate._sub = el('span', { class: 'op-sub' });
-          plate._flags = el('span', { class: 'op-flags' });
-          plate.append(plate._num, plate._orb, el('span', { class: 'op-who' }, [plate._name, plate._sub]), plate._flags);
+          // how many cards in hand, as a chip; the library's size is in the title, the label and a tapped portrait's tip
+          plate._sub = el('span', { class: 'op-hand', 'aria-hidden': 'true' });
+          plate._flags = el('span', { class: 'op-flags', 'aria-hidden': 'true' });
+          plate.append(plate._num, plate._orb, el('span', { class: 'op-who' }, [plate._name]), plate._sub, plate._flags);
           plate.addEventListener('click', (e) => {
             e.stopPropagation();
             // out of the game: nothing of theirs to look at, aim at or attack
@@ -116506,27 +116583,37 @@ Sideboard
               this.attackPlan.defenderId = p.id;
             }
             this.setFocus(p.id, true);
+            // its portrait tapped (or any of it, on a touch screen): who that is, for a moment
+            if (MTG.isTouch() || e.target.closest('.life-orb')) this.seatTip(p.id, plate._orb);
           });
           this._plates.set(p.id, plate);
         }
         const seatNo = order.indexOf(p.id) + 1;
         plate._num.textContent = String(seatNo);
-        plate.title = p.hasLost ? `${p.name} \u2014 seat ${seatNo}, out of the game` : `${p.name} \u2014 seat ${seatNo} (press ${seatNo} to look at this board)`;
+        const bot = this.botWords(p);
+        plate.title = p.hasLost ? `${p.name} \u2014 seat ${seatNo}, out of the game`
+          : `${p.name} \u2014 seat ${seatNo}${bot ? ', ' + bot : ''}\n${p.handSize} in hand \u00b7 ${p.librarySize} in library` +
+            (MTG.isTouch() ? '' : `\n(press ${seatNo} to look at this board)`);
         plate.setAttribute('aria-selected', this.focusSeat === p.id && !p.hasLost ? 'true' : 'false');
         if (p.hasLost) plate.setAttribute('aria-disabled', 'true'); else plate.removeAttribute('aria-disabled');
         this.paintOrb(plate._orb, p);
         plate._name.textContent = p.name;
-        plate._sub.textContent = p.hasLost ? 'Out' : `${p.handSize} in hand \u00b7 ${p.librarySize} in library`;
+        plate._sub.textContent = p.hasLost ? 'Out' : String(p.handSize);
+        plate._sub.classList.toggle('out', !!p.hasLost);
         const flags = [];
-        if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn']);
-        if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you']);
-        if (ch && ch.playerId === p.id) flags.push(['think', 'deciding']);
-        if (p.poison) flags.push(['bad', `\u2620 ${p.poison}`]);
+        if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn', 'their turn']);
+        if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you', 'attacking you']);
+        if (p.poison) flags.push(['bad', `\u2620 ${p.poison}`, `${p.poison} poison`]);
         const toMe = this.me ? Object.entries(this.me.commanderDamage || {})
           .filter(([cid]) => { const o = this.objIn(cid); return o && o.owner === p.id; })
           .reduce((m, [, n]) => Math.max(m, n || 0), 0) : 0;
-        if (toMe) flags.push(['cmd', `${toMe} cmd`]);
-        if (v.monarch === p.id) flags.push(['crown', '\u265b']);
+        if (toMe) flags.push(['cmd', `${toMe} cmd`, `${toMe} commander damage to you`]);
+        if (v.monarch === p.id) flags.push(['crown', '\u265b', 'the monarch']);
+        // said whole for a screen reader: what the plate shows, and what it now leaves to the title
+        const acting = ch ? ch.playerId === p.id : (v.priorityPlayer === p.id && !v.mulliganPhase && !v.over);
+        plate.setAttribute('aria-label', p.hasLost ? `${p.name}, seat ${seatNo}, out of the game`
+          : [`${p.name}, seat ${seatNo}`, `${p.life} life`, `${p.handSize} in hand`, `${p.librarySize} in library`, bot,
+            ...flags.map(f => f[2]), acting ? (ch ? 'deciding' : 'thinking') : ''].filter(Boolean).join(', '));
         const sig = JSON.stringify(flags);
         if (plate._flags._sig !== sig) {
           plate._flags._sig = sig;
@@ -116545,7 +116632,8 @@ Sideboard
         host._split = el('button', { type: 'button', class: 'op-split', title: 'Show every opponent side by side',
           onclick: (e) => { e.stopPropagation(); MTG.setSetting('splitOpponents', !MTG.settings.splitOpponents); this._noMotionOnce = true; this.render(); } });
       }
-      host._hint.innerHTML = MTG.isTouch() ? '' : `<kbd>\u2190</kbd><kbd>\u2192</kbd> or <kbd>1</kbd>\u2013<kbd>${Math.min(8, order.length)}</kbd>`;
+      // (the keys for this are in the keyboard help, ?, and each plate's title: not printed beside the plates)
+      host._hint.innerHTML = '';
       host._split.textContent = MTG.settings.splitOpponents ? 'One board' : 'All boards';
       host._split.style.display = others.length <= 3 ? '' : 'none';
       this.place(host, kids.concat([host._hint, host._split]));
@@ -116630,7 +116718,9 @@ Sideboard
         // the new ones underneath, the ready ones on top; how many are new, when some are and some are not
         const sick = g.list.filter(o => o.summoningSick && !(o.keywords || []).includes('haste'));
         const list = sick.concat(g.list.filter(o => !sick.includes(o)));
-        if (sick.length && sick.length < list.length && list[0].power != null) w.dataset.sick = sick.length + ' new';
+        // (said on your own, on your turn, as the mark on one card is: paintCard)
+        if (sick.length && sick.length < list.length && list[0].power != null && list[0].controller === this.meId &&
+          this.view.activePlayer === this.meId) w.dataset.sick = sick.length + ' new';
         else delete w.dataset.sick;
         this.place(w, list.map(o => this.unitFor(o)));
         return w;
@@ -116714,10 +116804,11 @@ Sideboard
       if (hud._who._sig !== p.name + '|' + sub) {
         hud._who._sig = p.name + '|' + sub;
         hud._who.innerHTML = '';
-        hud._who.append(
+        // (a line under the name only when there is something to say: out of the game, disconnected)
+        hud._who.append(...[
           el('div', { class: 'hud-name', text: p.name }),
-          el('div', { class: 'hud-sub', text: sub }),
-        );
+          sub ? el('div', { class: 'hud-sub', text: sub }) : null,
+        ].filter(Boolean));
       }
       // their hand: the backs, one per card, so a card leaving it is seen to
       // leave; face up when it is revealed to you (Telepathy, Seer's Vision)
@@ -116777,17 +116868,17 @@ Sideboard
       const why = { life: 'no life left', poison: 'ten poison counters', deck: 'drew from an empty library', commander: '21 commander damage',
         concede: 'conceded', timeout: 'left the game', time: 'ran out of time' }[p.lossReason] || p.lossReason;
       if (p.hasLost) return 'Defeated' + (why ? ' — ' + why : '');
-      const bits = [];
-      if (p.isBot) {
-        const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
-        const pers = p.botPersonality && MTG.bots && MTG.bots.PERSONALITIES && MTG.bots.PERSONALITIES[p.botPersonality];
-        bits.push(pers ? `${lvl} · ${pers.label}` : lvl + ' bot');
-      }
-      if (p.connected === false) bits.push('disconnected');
-      const ch = v.pendingChoice;
-      if (ch && ch.playerId === p.id) bits.push('deciding…');
-      else if (!ch && v.priorityPlayer === p.id && !v.mulliganPhase) bits.push(p.isBot ? 'thinking…' : 'has priority');
-      return bits.join(' · ');
+      /* Who is acting is the ring turning round their portrait (paintOrb) and the line on the big button, said
+         once; how good a bot is and how it plays is on the portrait, pointed at or held (botWords) */
+      return p.connected === false ? 'disconnected' : '';
+    }
+
+    /** "Steady bot · Aggressive": how good a bot is and how it plays, or '' for a person. */
+    botWords(p) {
+      if (!p || !p.isBot) return '';
+      const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
+      const pers = p.botPersonality && MTG.bots && MTG.bots.PERSONALITIES && MTG.bots.PERSONALITIES[p.botPersonality];
+      return lvl + ' bot' + (pers ? ' · ' + pers.label : '');
     }
 
     lifeOrb(p) {
@@ -116831,8 +116922,10 @@ Sideboard
         : (v.priorityPlayer === p.id && !v.mulliganPhase && !v.over);
       orb.classList.toggle('acting', !!waiting);
       orb.classList.toggle('dead', !!p.hasLost);
-      orb.setAttribute('aria-label', `${p.name}: ${p.life} life`);
-      orb.title = `${p.name} — ${p.life} life`;
+      const bot = this.botWords(p);
+      const acting = waiting ? (v.pendingChoice ? 'deciding' : p.isBot ? 'thinking' : 'has priority') : '';
+      orb.setAttribute('aria-label', `${p.name}: ${p.life} life` + (bot ? `, ${bot}` : '') + (acting ? `, ${acting}` : ''));
+      orb.title = `${p.name} — ${p.life} life` + (bot ? `\n${bot}` : '');
     }
 
     /** A face for a seat: their commander, else the strongest thing they have shown. */
@@ -116910,13 +117003,19 @@ Sideboard
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
+      /* Arena's quiet piles: an empty one is a faint outline (still there to open) with no "0" on it, and the
+         size of a library is shown when it is pointed at or tapped, or when it is running low (10 or fewer) */
+      const LOW = 10;
       const pile = (zone, label, n, top) => {
+        const quiet = zone === 'library' && n > LOW;
         const node = el('button', {
-          type: 'button', class: 'pile ' + zone + (n ? '' : ' empty'),
+          type: 'button', class: 'pile ' + zone + (n ? '' : ' empty') + (zone === 'library' && n && n <= LOW ? ' low' : '') + (quiet ? ' quiet' : ''),
           dataset: { pile: p.id + '/' + zone },
           title: `${label}: ${n}`, 'aria-label': `${p.name} ${label.toLowerCase()}, ${n} card${n === 1 ? '' : 's'}`,
           onclick: (e) => {
             if (zone !== 'library') return this.openZone(p, zone);
+            // a tap shows how many are left, for a moment
+            if (quiet) { node.classList.add('peek'); clearTimeout(node._peekT); node._peekT = setTimeout(() => node.classList.remove('peek'), 2200); }
             /* the top card of your library, when it can be played or plotted from there (Fblthp, Lost on the Range);
                an opponent's, when you may play it (Xanathar, Guild Kingpin) */
             const live = this.live || this.view;
@@ -116987,11 +117086,18 @@ Sideboard
         ]));
       }
       this.paintOrb(h._orb, me);
-      if (h._who._sig !== me.name + '|' + me.handSize) {
-        h._who._sig = me.name + '|' + me.handSize;
+      // blocks that would leave you dead: your portrait says so too (lethalBlocks)
+      const ch = (this.live || this.view).pendingChoice;
+      const lethal = ch && ch.type === 'declareBlockers' ? this.lethalBlocks(ch) : null;
+      h._orb.classList.toggle('lethal', !!lethal);
+      let lc = h._orb.querySelector(':scope > .lethal-chip');
+      if (lethal && !lc) { lc = el('span', { class: 'lethal-chip', 'aria-hidden': 'true', text: 'Lethal' }); h._orb.appendChild(lc); }
+      else if (!lethal && lc) lc.remove();
+      // your name; how many cards you hold is the hand itself, right there
+      if (h._who._sig !== me.name) {
+        h._who._sig = me.name;
         h._who.innerHTML = '';
-        h._who.append(el('div', { class: 'hud-name', text: me.name }),
-          el('div', { class: 'hud-sub', text: `${me.handSize} in hand` }));
+        h._who.append(el('div', { class: 'hud-name', text: me.name }));
       }
       this.paintFlags(h._flags, me);
       this.renderPiles(h._piles, me, true);
@@ -117077,7 +117183,9 @@ Sideboard
       // something new on top: the column, scrolled down to read what is under it, comes back up to show it
       const topId = items.length ? items[0].id : null;
       if (topId !== this._stackTop) { this._stackTop = topId; if (topId) this.stackCol.scrollTop = 0; }
-      this.stackCol.classList.toggle('on', items.length > 0);
+      /* shown only with something in it to see: a lone item held up in the spotlight is the stack for now, so the
+         column (its label, its glow, the gap kept for that item) waits until the spotlight lets it go */
+      this.stackCol.classList.toggle('on', items.some(s => !(this.spot && this.spot.stackId === s.id)));
       this.stackCol.dataset.n = String(items.length);
     }
 
@@ -117183,7 +117291,8 @@ Sideboard
       const d = this.dock;
       if (!d._built) {
         d._built = true;
-        d._turn = el('div', { class: 'dock-turn' });
+        // whose turn and its number: the steps bar's colour shows the one, pointing at it the other; read out, both
+        d._turn = el('div', { class: 'dock-turn sr-only' });
         d._strip = el('div', { class: 'phase-strip', role: 'list', 'aria-label': 'Steps of the turn' });
         d._main = el('button', { type: 'button', class: 'big-btn', onclick: () => this.primaryAction() }, [
           el('span', { class: 'bb-label' }), el('span', { class: 'bb-sub' }),
@@ -117210,8 +117319,8 @@ Sideboard
         d._turn._sig = turnSig;
         d._turn.innerHTML = '';
         d._turn.append(
-          el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn` }),
-          el('span', { class: 'dt-n', text: 'Turn ' + (v.turn || 1) }),
+          el('span', { class: 'dt-who' + (mine ? ' mine' : ''), text: (mine ? 'Your turn' : `${possessive(ap ? ap.name : '—')} turn`) + ', ' }),
+          el('span', { class: 'dt-n', text: 'turn ' + (v.turn || 1) }),
         );
       }
       this.renderStrip(d._strip);
@@ -117227,7 +117336,7 @@ Sideboard
          step of their turn), never on your own main phases. A new moment
          starts it afresh. */
       const live0 = this.live || v;
-      const secs = MTG.settings.priorityTimer == null ? 15 : +MTG.settings.priorityTimer;
+      const secs = this.timerSecs();
       const want = act.timer && !act.disabled && secs > 0 && !v.replay && !v.spectating && !this.targeting && !this.paying;
       const key = want ? [live0.turn, live0.phase, live0.step, (live0.stack || []).map(s => s.id).join(','), live0.priorityPlayer].join('|') : null;
       if (key !== d._timerKey) {
@@ -117248,7 +117357,7 @@ Sideboard
       const small = (text, title, fn, cls) => el('button', { type: 'button', class: 'dock-btn ' + (cls || ''), text, title, onclick: fn });
       const live = this.live || v;
       if (act.secondary) d._row.appendChild(small(act.secondary.label, act.secondary.title || '', act.secondary.fn, 'alt'));
-      if (live.canUndo && !live.over) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
+      if (this.undoShown(live)) d._row.appendChild(small('↶ Undo', `Take back ${live.undoLabel || 'the last action'} (Ctrl+Z)`, () => this.send({ kind: 'undo' })));
       if (live.fullControl) {
         d._row.appendChild(small(live.fullControlSticky ? 'Full control • locked' : 'Full control', 'Nothing is passed for you. Ctrl toggles it, Ctrl+Shift locks it.',
           () => this.send({ kind: 'fullControl', on: false }), 'flagged'));
@@ -117304,13 +117413,41 @@ Sideboard
       return out;
     }
 
-    /** The priority timer, from the top: the bar runs out over `secs`, and then the button presses itself. */
+    /**
+     * How long the game waits before passing for you, in seconds (0: never). Against bots nobody is kept
+     * waiting, so it is off unless you asked for it (botTimer); with people at the table, priorityTimer.
+     */
+    timerSecs() {
+      const v = this.view;
+      const people = (v.players || []).some(p => p.id !== this.meId && !p.isBot);
+      const S = MTG.settings;
+      return people ? (S.priorityTimer == null ? 15 : +S.priorityTimer) : (+S.botTimer || 0);
+    }
+
+    /**
+     * Undo, when taking back is yours to do now: your own decision, something done this turn (not last turn's
+     * play, nor the hand you kept), and not the pass that let an opponent's turn carry on (that would wind their
+     * turn back).
+     */
+    undoShown(live) {
+      if (!live.canUndo || live.over) return false;
+      const ch = live.pendingChoice;
+      const deciding = ch ? ch.playerId === this.meId && !ch.waiting : live.priorityPlayer === this.meId;
+      if (!deciding) return false;
+      if (live.undoTurn != null && live.undoTurn !== live.turn) return false;
+      return live.activePlayer === this.meId || live.undoLabel !== 'passing';
+    }
+
+    /** The priority timer, from the top: it runs over `secs`, and then the button presses itself. Like Arena's
+        rope it is only seen for the last few seconds (ROPE), burning down along the button's foot. */
     _startPriorityTimer(secs, key) {
       const d = this.dock;
       if (!d || !d._main) return;
       clearTimeout(d._timerT);
       d._timerSecs = secs;
-      d._main.style.setProperty('--t', secs + 's');
+      const ROPE = 6;
+      d._main.style.setProperty('--t', Math.min(secs, ROPE) + 's');
+      d._main.style.setProperty('--t-wait', Math.max(0, secs - ROPE) + 's');
       d._main.classList.remove('timing');
       void d._main.offsetWidth;   // the bar starts again from full
       d._main.classList.add('timing');
@@ -117383,10 +117520,15 @@ Sideboard
       const stops = MTG.settings.stops || MTG.DEFAULT_STOPS;
       const mineNow = v.activePlayer === this.meId;
       const stoppable = new Set(MTG.STOP_STEPS.map(([k]) => k));
-      const sig = cur + '|' + mineNow + '|' + JSON.stringify(stops);
+      const sig = cur + '|' + mineNow + '|' + v.turn + '|' + JSON.stringify(stops);
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
+      // whose turn it is, in the bar's colour; which turn, when it is pointed at
+      const ap = (v.players || []).find(p => p.id === v.activePlayer);
+      const turnWords = `Turn ${v.turn || 1} \u00b7 ${mineNow ? 'your turn' : possessive(ap ? ap.name : 'their') + ' turn'}`;
+      host.classList.toggle('theirs', !mineNow);
+      host.setAttribute('aria-label', 'Steps of the turn. ' + turnWords);
       STRIP.forEach(([key, label], i) => {
         const side = mineNow ? 'yours' : 'theirs';
         const stop = !!((stops[side] || {})[key]);
@@ -117399,7 +117541,8 @@ Sideboard
         }, [el('i'), el('span', { text: label })]);
         // what the step is for, in a sentence, while you point at it
         const tip = () => this.showTip(b, `<b class="tip-head">${escapeHtml(STEP_WORDS[key] || label)}${i === at ? ' · now' : ''}</b>` +
-          `${escapeHtml(PHASE_HELP[key] || '')}${stopNote ? `<span class="tip-note">${escapeHtml(stopNote)}</span>` : ''}`, { cls: 'step' });
+          `${escapeHtml(PHASE_HELP[key] || '')}${stopNote ? `<span class="tip-note">${escapeHtml(stopNote)}</span>` : ''}` +
+          `<span class="tip-note">${escapeHtml(turnWords)}</span>`, { cls: 'step' });
         b.addEventListener('pointerenter', (e) => { if (e.pointerType !== 'touch') tip(); });
         b.addEventListener('focus', tip);
         b.addEventListener('pointerleave', () => this.hideTip());
@@ -117451,11 +117594,11 @@ Sideboard
       // creatures tapped to convoke: done, or the game picks them
       if (this.convoking) {
         const n = this.convoking.picks.length;
-        return { label: 'Done', cls: 'go', sub: n ? `${n} tapping for it` : 'the game picks what taps', title: 'Cast it (Space)',
+        return { label: 'Done', cls: 'go', sub: n ? `${n} tapping` : '', title: n ? `Cast it, ${n} tapping for it (Space)` : 'Cast it; the game picks what taps (Space)',
           secondary: { label: 'Cancel', title: 'Leave it in your hand (Esc)', fn: () => this.convokeCancel() } };
       }
       // a spell waiting for you to tap lands: or the game taps the rest
-      if (this.paying) return { label: 'Pay for me', cls: 'go', sub: 'tap the lands it needs',
+      if (this.paying) return { label: 'Pay for me', cls: 'go',
         title: 'Let the game tap lands for the rest of the cost (Space)',
         secondary: { label: 'Cancel', title: 'Leave it for now (Esc)', fn: () => this.cancelPay() } };
       const ch = live.pendingChoice;
@@ -117464,17 +117607,23 @@ Sideboard
           const n = this.attackPlan ? this.attackPlan.declarations.length : 0;
           const all = (ch.candidates || []).length;
           return {
-            label: n ? `Attack` : 'No attacks', sub: n ? `${n} attacker${n === 1 ? '' : 's'}` : 'skip combat',
+            label: n ? `Attack` : 'No attacks', sub: n > 1 ? `${n} attackers` : '',
             cls: n ? 'go attack' : 'pass',
-            // everything in at once, as big a choice as attacking with none
-            above: n < all ? { label: 'All attack', sub: `${all} creature${all === 1 ? '' : 's'}`, cls: 'go attack', fn: () => this.attackAll(ch) } : null,
+            // everything in at once, as big a choice as attacking with none ("Attack", when there is one to send)
+            above: n < all ? { label: all === 1 ? 'Attack' : 'All attack', cls: 'go attack', fn: () => this.attackAll(ch),
+              title: all === 1 ? 'Attack with your creature' : `Attack with all ${all} of your creatures` } : null,
             secondary: n ? { label: 'Clear', fn: () => { this.attackPlan.declarations = []; this.render(); } } : null,
           };
         }
         if (ch.type === 'declareBlockers') {
           const n = this.blockPlan ? this.blockPlan.declarations.length : 0;
-          return { label: n ? 'Block' : 'No blocks', sub: n ? `${n} blocker${n === 1 ? '' : 's'}` : ch.blockingPlayer ? 'none of theirs block' : 'take the damage',
-            cls: n ? 'go block' : 'pass',
+          /* what gets through would end the game for you: said in red, and pressing takes a second press */
+          const lethal = this.lethalBlocks(ch);
+          if (lethal && this._lethalArmed === lethal.key) return { label: n ? 'Block anyway' : 'No blocks', sub: 'press again', cls: 'pass lethal armed',
+            title: `${lethal.through} damage gets through and you have ${lethal.life} life. Press again to confirm.` };
+          return { label: n ? 'Block' : 'No blocks', sub: lethal ? 'Lethal' : n > 1 ? `${n} blockers` : '',
+            cls: (n ? 'go block' : 'pass') + (lethal ? ' lethal' : ''),
+            title: lethal ? `${lethal.through} damage gets through and you have ${lethal.life} life` : '',
             secondary: n ? { label: 'Clear', fn: () => { this.blockPlan = { declarations: [], pendingBlocker: null }; this.render(); } } : null };
         }
         if (ch.type === 'discard' || ch.type === 'discardToHandSize') {
@@ -117506,7 +117655,8 @@ Sideboard
         const top = live.stack[live.stack.length - 1];
         const mine = top.controller === this.meId;
         // someone else's spell: you are being asked whether to answer it
-        return { label: mine ? 'Resolve' : 'Let it resolve', cls: mine ? 'go' : 'pass respond', sub: this.stackName(top), timer: !mine,
+        // (someone else's: the panel above the button says what it is)
+        return { label: 'Resolve', cls: mine ? 'go' : 'pass respond', sub: mine ? this.stackName(top) : '', timer: !mine,
           title: 'Let the top of the stack resolve (Space)',
           secondary: { label: 'Pass until response', title: 'Keep passing until somebody adds to the stack (Enter)', fn: () => this.send({ kind: 'yield', mode: 'response' }) } };
       }
@@ -117515,13 +117665,13 @@ Sideboard
       if (myTurn && k === 'main1') {
         const could = live.battlefield.some(o => o.controller === this.meId && o.power != null && !o.tapped && !o.summoningSick && o.power > 0);
         return could
-          ? { label: 'To combat', cls: 'go', sub: 'declare attackers', secondary: { label: 'End turn', title: 'Pass to the end of the turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } }
-          : { label: 'End turn', cls: 'go', sub: 'nothing can attack', yieldTurn: true };
+          ? { label: 'Attack', cls: 'go', title: 'Go to combat and choose attackers (Space)', secondary: { label: 'End turn', title: 'Pass to the end of the turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } }
+          : { label: 'End turn', cls: 'go', title: 'Nothing of yours can attack: pass to the next player (Space)', yieldTurn: true };
       }
-      if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', sub: 'pass to the next player' };
-      if (!myTurn) return { label: 'Pass', cls: 'pass', sub: (STEP_WORDS[k] || '') + (STEP_WORDS[k] ? ' \u00b7 ' : '') + 'let them carry on', timer: true,
+      if (myTurn && k === 'main2') return { label: 'End turn', cls: 'go', title: 'Pass to the next player (Space)' };
+      if (!myTurn) return { label: 'Pass', cls: 'pass', title: `Let them carry on${STEP_WORDS[k] ? ' from ' + STEP_WORDS[k].toLowerCase() : ''} (Space)`, timer: true,
         secondary: { label: 'Pass turn', title: 'Take no more actions this turn (Shift+Enter)', fn: () => this.send({ kind: 'yield', mode: 'turn' }) } };
-      return { label: 'Next', cls: 'pass', sub: STEP_WORDS[k] || '' };
+      return { label: 'Next', cls: 'pass', title: STEP_WORDS[k] ? `On from ${STEP_WORDS[k].toLowerCase()} (Space)` : '' };
     }
 
     /** @this {MTG.TableInstance} */
@@ -117545,6 +117695,9 @@ Sideboard
           return;
         }
         if (ch.type === 'declareBlockers') {
+          const lethal = this.lethalBlocks(ch);
+          if (lethal && this._lethalArmed !== lethal.key) { this._lethalArmed = lethal.key; MTG.sfx('click'); this.render(); return; }
+          this._lethalArmed = null;
           this.send({ kind: 'declareBlockers', declarations: (this.blockPlan || { declarations: [] }).declarations });
           this.blockPlan = null;
           return;
@@ -117565,6 +117718,25 @@ Sideboard
       const info = this.primaryInfo();
       if (info.yieldTurn) { this.send({ kind: 'yield', mode: 'turn' }); return; }
       this.send({ kind: 'pass' });
+    }
+
+    /**
+     * Your blockers question, when the attackers that get through as the blocks stand now would deal you at least
+     * your life: { through, life, key } (key: these blocks, so a change of blocks asks again), else null. Combat
+     * damage only, as printed on the table: trample, lifelink and the like are not worked out.
+     */
+    lethalBlocks(ch) {
+      const me = this.me;
+      if (!ch || ch.type !== 'declareBlockers' || ch.playerId !== this.meId || ch.blockingPlayer || !me) return null;
+      const blocked = new Set([].concat(...((this.blockPlan && this.blockPlan.declarations) || []).map(d => d.attackerIds || [d.attackerId])));
+      let through = 0;
+      for (const id of ch.attackers || []) {
+        const o = this.objIn(id);
+        if (!o || blocked.has(id) || (o.attacking && o.attacking !== this.meId)) continue;
+        through += Math.max(0, o.power || 0);
+      }
+      if (!through || through < me.life) return null;
+      return { through, life: me.life, key: (ch.attackers || []).join(',') + '|' + [...blocked].sort().join(',') };
     }
 
     attackAll(ch) {
@@ -117699,19 +117871,29 @@ Sideboard
         const cv = e.target.closest('.cv');
         if (cv) this.showCard(cv.dataset.id);
       });
-      // hover: the side preview for the board and the stack, a lift for the hand
-      a.addEventListener('pointerover', (e) => {
+      /* hover: the side preview for the board and the stack, a lift for the hand. Only for a pointer that moves:
+         a card sliding in under a pointer left resting (a bot's creature arriving, the board shifting) opens
+         nothing, as Arena's hover goes with the hand that moves */
+      let rest = null;
+      a.addEventListener('pointermove', (e) => {
         if (e.pointerType === 'touch') return;
-        const cv = e.target.closest('.cv');
-        const chip = e.target.closest('.ability-chip, .hist-item');
-        if (cv) this.hoverCard(cv, e);
-        // (an ability on the stack: the card it came from, with the ability's words)
-        else if (chip && (chip.dataset.preview || chip.dataset.stack)) this.hoverCard(chip, e);
-      });
+        if (rest && rest.x === e.clientX && rest.y === e.clientY) return;      // the page moved, not the pointer
+        rest = { x: e.clientX, y: e.clientY };
+        let node = e.target.closest('.cv');
+        if (!node) {
+          // (an ability on the stack: the card it came from, with the ability's words)
+          const chip = e.target.closest('.ability-chip, .hist-item');
+          if (chip && (chip.dataset.preview || chip.dataset.stack)) node = chip;
+        }
+        if (node === this._hovering) return;
+        this._hovering = node;
+        if (node) this.hoverCard(node, e);
+      }, { passive: true });
       a.addEventListener('pointerout', (e) => {
         const cv = e.target.closest('.cv, .ability-chip, .hist-item');
         if (!cv) return;
         if (e.relatedTarget && cv.contains(e.relatedTarget)) return;
+        if (this._hovering === cv) this._hovering = null;
         this.unhoverCard(cv);
       });
       a.addEventListener('pointerdown', (e) => this.onPointerDown(e));
@@ -117823,6 +118005,9 @@ Sideboard
           this.render(); return;
         }
       }
+      // an opponent's portrait: who they are, for a moment (what the seat no longer prints: a bot's level and
+      // style, and the sizes of their hand and library)
+      if (pid !== this.meId) this.seatTip(pid, e && e.target && e.target.closest ? e.target.closest('.life-orb') : null);
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
       // your own portrait, with nothing else to do: your name and picture
       else if (pid === this.meId && !this.view.spectating && MTG.app && MTG.app.editProfile) MTG.app.editProfile();
@@ -118864,11 +119049,28 @@ Sideboard
       anchor.setAttribute('aria-describedby', 'arenaTip');
       this._tipFor = anchor;
     }
+    /** A portrait tapped: the player in a few words, beside it, for a moment. */
+    seatTip(pid, anchor) {
+      const p = (this.view.players || []).find(x => x.id === pid);
+      if (!p || !anchor) return;
+      const bot = this.botWords(p);
+      this.showTip(anchor, `<b class="tip-head">${escapeHtml(p.name)} · ${p.life} life</b>` + (bot ? `${escapeHtml(bot)}<br>` : '') +
+        `${p.handSize} in hand · ${p.librarySize} in library`, { cls: 'seat' });
+      clearTimeout(this._seatTipT);
+      this._seatTipT = setTimeout(() => { if (this._tipFor === anchor) this.hideTip(); }, 2600);
+    }
     hideTip() {
       if (this.tipEl) this.tipEl.classList.remove('on');
       if (this._tipFor) { this._tipFor.removeAttribute('aria-describedby'); this._tipFor = null; }
     }
-    hidePreview() { this.preview.classList.remove('on'); }
+    hidePreview() { this.preview.classList.remove('on'); this._hoverNode = null; }
+    /** Whether the pointer, where it last moved to, is over this element (true when it is not known). */
+    _underPointer(node) {
+      const p = this._pointer;
+      if (!p || !node.getBoundingClientRect) return true;
+      const r = U.rect(node);
+      return p.x >= r.left - 2 && p.x <= r.right + 2 && p.y >= r.top - 2 && p.y <= r.bottom + 2;
+    }
 
     /**
      * The big card at the side of the screen, and underneath it what is true
@@ -119238,10 +119440,9 @@ Sideboard
         UI.keyboardHelp && keys ? ['Keyboard  (?)', () => UI.keyboardHelp()] : null,
         MTG.net && MTG.net.online ? ['Chat', () => this.toggleDrawer(true, 'chat')] : null,
         [`Sort hand by ${nextSort[1]}`, () => { MTG.setSetting('handSort', nextSort[0]); this.render(); }],
-        [`Pace: ${paceName(MTG.settings.animSpeed)}  → ${paceName(nextPace(MTG.settings.animSpeed))}`,
-          () => MTG.setSetting('animSpeed', nextPace(MTG.settings.animSpeed))],
-        [`Bots: ${botPaceName(MTG.settings.botSpeed)}  → ${botPaceName(nextBotPace(MTG.settings.botSpeed))}`,
-          () => MTG.setSetting('botSpeed', nextBotPace(MTG.settings.botSpeed))],
+        // one speed for the table and the bots together (each on its own in Options)
+        [`Game speed: ${speedName(MTG.gameSpeed())}  → ${speedName(nextSpeed(MTG.gameSpeed()))}`,
+          () => MTG.setGameSpeed(nextSpeed(MTG.gameSpeed()))],
         [live.fullControl ? 'Full control: on' : 'Full control: off' + key('(Ctrl)'), () => this.send({ kind: 'fullControl', on: !live.fullControl, sticky: !live.fullControl })],
         this.isReplay ? null : ['Table tools ▸', (ev) => this.toolsMenu(ev || e)],
         MTG.app.canSaveReplay && MTG.app.canSaveReplay() ? ['Save replay', () => MTG.app.saveReplay()] : null,
@@ -119340,17 +119541,33 @@ Sideboard
           onclick: () => { this.drawerTab = id; this._drawerSig = null; this.renderDrawer(); } }));
       }
       d._tabs.appendChild(el('span', { class: 'grow' }));
+      // the log in short (one line for each spell and trigger, its outcome on it), or every line the game wrote
+      const detail = !!MTG.settings.logDetail;
+      if (this.drawerTab === 'log') d._tabs.appendChild(el('button', { type: 'button', class: 'dtab detail' + (detail ? ' on' : ''), text: 'Details',
+        'aria-pressed': detail ? 'true' : 'false', title: detail ? 'Every line of the log. Click for the short log.' : 'The short log. Click for every line.',
+        onclick: () => { MTG.setSetting('logDetail', !detail); this._drawerSig = null; this.renderDrawer(); } }));
       d._tabs.appendChild(el('button', { type: 'button', class: 'dtab close', text: '✕', title: 'Close (L)', onclick: () => this.toggleDrawer(false) }));
       d._input.style.display = this.drawerTab === 'chat' ? '' : 'none';
-      const sig = this.drawerTab + (this.drawerTab === 'log' ? v.log.length + ':' + (v.log.length ? v.log[v.log.length - 1].text : '') : this.chat.length);
+      const sig = this.drawerTab + (detail ? '+' : '') + (this.drawerTab === 'log' ? v.log.length + ':' + (v.log.length ? v.log[v.log.length - 1].text : '') : this.chat.length);
       if (sig === this._drawerSig) return;
       this._drawerSig = sig;
       d._body.innerHTML = '';
       if (this.drawerTab === 'log') {
         let turn = null;
-        for (const e of v.log.slice(-200)) {
+        const rows = detail ? v.log.slice(-200).map(e => ({ e, more: [], tags: [] })) : compactLog(v.log.slice(-300));
+        for (const r of rows) {
+          const e = r.e;
           if (e.turn !== turn && e.turn) { turn = e.turn; d._body.appendChild(el('div', { class: 'log-turn', text: 'Turn ' + turn })); }
-          d._body.appendChild(el('div', { class: 'log-line t-' + e.type, html: this.logHtml(e.text) }));
+          const line = el('div', { class: 'log-line t-' + e.type, html: this.logHtml(r.text || e.text) +
+            (r.tags.length ? ` <span class="log-tag">(${escapeHtml(r.tags.join(', '))})</span>` : '') });
+          // what came of it, and a trigger's words: there to open, not in the way
+          if (r.more.length) {
+            line.appendChild(el('details', { class: 'log-more' }, [
+              el('summary', { title: 'More', 'aria-label': 'More about this' }, [el('span', { 'aria-hidden': 'true', text: '…' })]),
+              ...r.more.map(t => el('div', { class: 'log-sub', html: this.logHtml(t) })),
+            ]));
+          }
+          d._body.appendChild(line);
         }
       } else {
         for (const c of this.chat.slice(-100)) {
@@ -119416,15 +119633,76 @@ Sideboard
     }
   }
 
-  /* How long the table dwells on each moment, and how long a bot thinks
-     before it acts: three steps each, cycled from the game menu. */
-  const PACES = [[0.55, 'quick'], [1, 'normal'], [1.6, 'relaxed']];
-  const paceName = (v) => (PACES.find(p => p[0] === (v == null ? 1 : v)) || [0, 'custom'])[1];
-  const nextPace = (v) => { const i = PACES.findIndex(p => p[0] === (v == null ? 1 : v)); return PACES[(i + 1) % PACES.length][0]; };
-  // the bots' speed: the same named steps as Options (MTG.BOT_PACES), one setting for every bot
-  const BOT_PACES = MTG.BOT_PACES;
-  const botPaceName = (v) => (BOT_PACES.find(p => p[0] === (v == null ? 1500 : v)) || [0, 'custom'])[1].toLowerCase();
-  const nextBotPace = (v) => { const i = BOT_PACES.findIndex(p => p[0] === (v == null ? 1500 : v)); return BOT_PACES[(i + 1) % BOT_PACES.length][0]; };
+  /* The game speed, cycled from the game menu: normal, fast, relaxed (MTG.GAME_SPEEDS); a speed set apart in
+     Options is "custom", and goes on to normal. */
+  const SPEED_CYCLE = ['normal', 'fast', 'relaxed'];
+  const speedName = (id) => id ? (MTG.GAME_SPEEDS.find(g => g[0] === id) || [0, 'custom'])[1].toLowerCase() : 'custom';
+  const nextSpeed = (id) => id ? SPEED_CYCLE[(SPEED_CYCLE.indexOf(id) + 1) % SPEED_CYCLE.length] : 'normal';
+
+  /**
+   * The short log (B9): one line for each spell, ability and trigger, with what came of it on that line or behind
+   * its "…"; the lines nobody reads left out (untapping, the draw step's card, tapping for mana, "no attackers").
+   * Rows: { e, text?, more: [text], tags: [word] }. The Details toggle shows the log as the game wrote it.
+   */
+  function compactLog(entries) {
+    const rows = [];
+    const open = [];         // spells and triggers on their way, newest last: { name, row }
+    let turn = null, acted = false, into = null;
+    const find = (name) => {
+      for (let i = open.length - 1; i >= 0; i--) {
+        const o = open[i];
+        if (o.name === name || name.startsWith(o.name + ' \u2014') || o.name.startsWith(name + ' \u2014')) return open.splice(i, 1)[0].row;
+      }
+      return null;
+    };
+    const tag = (row, w) => { if (!row.tags.includes(w)) row.tags.push(w); };
+    for (const e of entries) {
+      const t = String(e.text || '');
+      if (e.turn !== turn) { turn = e.turn; acted = false; into = null; }
+      if (/^--- Turn /.test(t) || e.type === 'mana') continue;
+      if (e.type === 'step' && /( untaps( \(\d+\))?| skips the first draw| skips their draw)\.$/.test(t)) continue;
+      if (e.type === 'combat' && /(declares no attackers|has no creatures that can attack)\.$/.test(t)) continue;
+      // the draw step's card (the first single draw of a turn, before anything is played)
+      if (e.type === 'draw' && !acted && /^.+ draws 1 card\.$/.test(t)) continue;
+      if (e.type === 'resolve') {
+        const m = t.match(/^.+? resolves (.+)\.$/) || t.match(/^(.+) resolves\.$/);
+        const row = m && find(m[1]);
+        if (row) { into = row; continue; }
+      }
+      const ctr = (e.type === 'stack' || e.type === 'counter') && t.match(/^(.+?) (?:was|is) countered( on resolution)?/);
+      if (ctr) {
+        const row = find(ctr[1]);
+        if (row) { tag(row, ctr[2] ? 'fizzled' : 'countered'); into = null; continue; }
+      }
+      const cast = e.type === 'cast' && t.match(/ casts (.+?)(?: \([^)]*\))?(?: targeting .+)?\.$/);
+      const trig = e.type === 'trigger' && t.match(/^Triggered: (.+)$/);
+      if (cast || trig || e.type === 'ability' || e.type === 'combat') {
+        acted = true; into = null;
+        const row = { e, more: [], tags: [] };
+        if (trig) {
+          // "Bitterblossom triggers", its words behind the "…"
+          const name = trig[1];
+          const [src, ...words] = trig[1].split(' \u2014 ');
+          row.text = `${src} triggers`;
+          if (words.length) row.more.push(words.join(' \u2014 '));
+          open.push({ name, row });
+        } else if (cast) open.push({ name: cast[1], row });
+        else if (e.type === 'ability') { const m = t.match(/ activates (.+?)(?::|\.$)/); if (m) open.push({ name: m[1], row }); }
+        rows.push(row);
+        continue;
+      }
+      if (['zone', 'land', 'cast'].includes(e.type)) acted = true;
+      if (into) {
+        into.more.push(t);
+        if (/ is destroyed\b/.test(t)) tag(into, 'destroyed');
+        else if (/ dies\b/.test(t)) tag(into, 'dies');
+        else if (/\bexiles?\b|\bis exiled\b/.test(t)) tag(into, 'exiled');
+        continue;
+      }
+      rows.push({ e, more: [], tags: [] });
+    }
+    return rows;
+  }
 
   function toggleIn(list, id, max) {
     const i = list.indexOf(id);
@@ -119464,7 +119742,20 @@ Sideboard
     return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
 
-  Table.helpers = { stepKey, idNum, truncate, possessive, tokenArtUrl, escapeHtml, STEP_WORDS, CARD_RATIO, VIEW_SPEC_CTX };
+  /**
+   * The name of the face a card shows: "Emeritus of Woe", not "Emeritus of Woe // Demonic Tutor"; a transformed
+   * card's back face; the whole name for a split card (both halves are its face). `o`: an object with card and face.
+   */
+  function faceName(o) {
+    const c = o && o.card;
+    if (!c) return null;
+    const faces = c.card_faces;
+    if (!faces || faces.length < 2 || c.layout === 'split') return c.name;
+    const f = faces[o.face === 1 ? 1 : 0];
+    return (f && f.name) || c.name;
+  }
+
+  Table.helpers = { stepKey, idNum, truncate, possessive, tokenArtUrl, escapeHtml, faceName, STEP_WORDS, CARD_RATIO, VIEW_SPEC_CTX };
   UI.Table = Table;
 })(window.MTG);
 /* ===== 12b-ui-table-fx.js ===== */
@@ -119496,7 +119787,7 @@ Sideboard
   const { el, util: U } = MTG;
   const UI = MTG.ui;
   const Table = UI.Table;
-  const { stepKey, idNum, truncate, possessive, CARD_RATIO } = Table.helpers;
+  const { stepKey, idNum, truncate, possessive, faceName, CARD_RATIO } = Table.helpers;
   const EASE = 'cubic-bezier(.22,.8,.24,1)';
   const sleep = (ms) => new Promise(r => setTimeout(r, ms));
   // why a player is out, in words (src/06b-events.js)
@@ -119619,7 +119910,7 @@ Sideboard
       if (attackers.length && !atkPrev) {
         const who = attackers[0].controller;
         b.events.push({ kind: 'attack', who, card: attackers[0].card, name: `${attackers.length} attacker${attackers.length === 1 ? '' : 's'}`,
-          text: `${name(who)} attack${who === me ? '' : 's'} with ${attackers.length === 1 ? attackers[0].card.name : attackers.length + ' creatures'}` });
+          text: `${name(who)} attack${who === me ? '' : 's'} with ${attackers.length === 1 ? faceName(attackers[0]) : attackers.length + ' creatures'}` });
         hold(900);
       }
       const blk = (v) => v.battlefield.filter(o => (o.blocking || []).length).length;
@@ -119627,7 +119918,7 @@ Sideboard
         const bl = next.battlefield.filter(o => (o.blocking || []).length);
         const who = bl[0].controller;
         b.events.push({ kind: 'block', who, card: bl[0].card, name: `${bl.length} blocker${bl.length === 1 ? '' : 's'}`,
-          text: `${name(who)} block${who === me ? '' : 's'} with ${bl.length === 1 ? bl[0].card.name : bl.length + ' creatures'}` });
+          text: `${name(who)} block${who === me ? '' : 's'} with ${bl.length === 1 ? faceName(bl[0]) : bl.length + ' creatures'}` });
         hold(900);
       } else if (attackers.length && atkPrev && prev.step === 'declareAttackers' && next.step !== 'declareAttackers' && !blk(next)) {
         // no blocks is news too, if you are the one attacking
@@ -119644,7 +119935,7 @@ Sideboard
         if (o.power == null && where === 'graveyard' && !(this.analysis(o) || {}).isCreature && (this.analysis(o) || {}).isLand) continue;
         const verb = where === 'graveyard' ? (o.power != null ? 'dies' : 'is put into a graveyard')
           : where === 'exile' ? 'is exiled' : where === 'hand' ? 'returns to hand' : where === 'library' ? 'goes into a library' : 'leaves';
-        b.events.push({ kind: where === 'graveyard' && o.power != null ? 'died' : 'left', who: o.controller, card: o.card, name: o.card.name, text: `${o.card.name} ${verb}` });
+        b.events.push({ kind: where === 'graveyard' && o.power != null ? 'died' : 'left', who: o.controller, card: o.card, name: faceName(o), text: `${faceName(o)} ${verb}` });
         hold(420);
       }
       // what arrived without passing through the stack: lands, tokens, things put onto it
@@ -119654,11 +119945,11 @@ Sideboard
         if (prevIds.has(o.id) || stackObjs.has(o.id)) continue;
         const a = this.analysis(o);
         if (a && a.isLand) {
-          if (o.controller !== me) { b.events.push({ kind: 'land', who: o.controller, card: o.card, name: o.card.name, text: `${name(o.controller)} plays ${o.card.name}` }); hold(500); }
+          if (o.controller !== me) { b.events.push({ kind: 'land', who: o.controller, card: o.card, name: faceName(o), text: `${name(o.controller)} plays ${faceName(o)}` }); hold(500); }
           continue;
         }
-        if (o.isToken) { b.events.push({ kind: 'token', who: o.controller, card: o.card, name: o.card.name, text: `${name(o.controller)} create${o.controller === me ? '' : 's'} ${o.card.name}` }); hold(320); continue; }
-        b.events.push({ kind: 'enter', who: o.controller, card: o.card, name: o.card.name, text: `${o.card.name} enters the battlefield` });
+        if (o.isToken) { b.events.push({ kind: 'token', who: o.controller, card: o.card, name: faceName(o), text: `${name(o.controller)} create${o.controller === me ? '' : 's'} ${faceName(o)}` }); hold(320); continue; }
+        b.events.push({ kind: 'enter', who: o.controller, card: o.card, name: faceName(o), text: `${faceName(o)} enters the battlefield` });
         hold(380);
       }
 
@@ -119689,7 +119980,9 @@ Sideboard
       const s = (pid) => (pid === me ? '' : 's');
       const known = (id) => this.objIn(id, next) || this.objIn(id, prev);
       const cardOf = (e) => e.card || (known(e.objId) || {}).card || null;
-      const cardName = (id) => { const o = known(id); return o && o.card ? o.card.name : null; };
+      const cardName = (id) => { const o = known(id); return o && o.card ? faceName(o) : null; };
+      // the face it shows (faceName), else the card's name
+      const nameOf = (id, c) => cardName(id) || (c ? c.name : null);
       const liveStack = new Set((next.stack || []).map(x => x.id));
       for (const e of next.events) {
         switch (e.type) {
@@ -119716,7 +120009,7 @@ Sideboard
             const first = e.attackers[0];
             const c = cardOf({ objId: first.objId });
             b.events.push({ kind: 'attack', who: e.player, card: c, name: `${e.attackers.length} attacker${e.attackers.length === 1 ? '' : 's'}`,
-              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (c ? c.name : 'a creature') : e.attackers.length + ' creatures'}` });
+              text: `${name(e.player)} attack${s(e.player)} with ${e.attackers.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.attackers.length + ' creatures'}` });
             hold(900);
             break;
           }
@@ -119724,7 +120017,7 @@ Sideboard
             const first = e.blocks[0];
             const c = cardOf({ objId: first.objId });
             b.events.push({ kind: 'block', who: e.player, card: c, name: `${e.blocks.length} blocker${e.blocks.length === 1 ? '' : 's'}`,
-              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (c ? c.name : 'a creature') : e.blocks.length + ' creatures'}` });
+              text: `${name(e.player)} block${s(e.player)} with ${e.blocks.length === 1 ? (nameOf(first.objId, c) || 'a creature') : e.blocks.length + ' creatures'}` });
             hold(900);
             break;
           }
@@ -119735,7 +120028,9 @@ Sideboard
             if (!e.died && e.to === 'graveyard' && a && a.isLand && !a.isCreature) break;
             const verb = e.died ? 'dies' : e.to === 'graveyard' ? 'is put into a graveyard' : e.to === 'exile' ? 'is exiled'
               : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : 'leaves';
-            const nm = c ? c.name : (cardName(e.objId) || 'A permanent');
+            // (the face it showed as it left: a transformed card dies as its back face)
+            const was = this.objIn(e.objId, prev);
+            const nm = (was && was.card ? faceName(was) : null) || nameOf(e.objId, c) || 'A permanent';
             b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, text: `${nm} ${verb}` });
             hold(420);
             break;
@@ -119744,7 +120039,7 @@ Sideboard
             if (e.from === 'stack') break;               // it was cast, and said so then
             const c = cardOf(e);
             const a = c ? MTG.oracle.analyze(c, 0) : null;
-            const nm = c ? c.name : 'A permanent';
+            const nm = nameOf(e.objId, c) || 'A permanent';
             if (a && a.isLand) {
               if (e.controller !== me) { b.events.push({ kind: 'land', who: e.controller, card: c, name: nm, text: `${name(e.controller)} plays ${nm}` }); hold(500); }
               break;
@@ -119755,7 +120050,7 @@ Sideboard
           }
           case 'token': {
             const c = cardOf(e);
-            const nm = c ? c.name : 'a token';
+            const nm = nameOf(e.objId, c) || 'a token';
             b.events.push({ kind: 'token', who: e.controller, card: c, name: nm, text: `${name(e.controller)} create${s(e.controller)} ${nm}` });
             hold(320);
             break;
@@ -120407,6 +120702,7 @@ Sideboard
     pushHistory(e) {
       if (!e || !e.kind || e.kind === 'noblock') return;
       e.key = 'h' + (++this._histN || (this._histN = 1));
+      if (e.turn == null && this.view) e.turn = this.view.turn;     // (older turns are drawn fainter: renderRail)
       this.history.unshift(e);
       if (this.history.length > 16) this.history.length = 16;
       this.renderRail();
@@ -120415,25 +120711,33 @@ Sideboard
     /** The last few things that happened, down the left edge, newest on top. */
     renderRail() {
       const host = this.rail;
+      const turnNow = this.view ? this.view.turn : null;
+      const isOld = (h) => h.turn != null && turnNow != null && h.turn < turnNow;
       const sig = this.history.map(h => h.key).join(',');
-      if (host._sig === sig) return;
+      if (host._sig === sig) {
+        // a new turn: the ones before it fade, without coming in again
+        for (const n of host.querySelectorAll('.hist-item')) { const h = this.history.find(x => x.key === n._key); if (h) n.classList.toggle('old', isOld(h)); }
+        return;
+      }
       host._sig = sig;
       host.innerHTML = '';
       host.appendChild(el('button', { type: 'button', class: 'rail-log', title: 'Game log (L)', 'aria-label': 'Open the game log',
         onclick: () => this.toggleDrawer() }, [el('span', { text: 'Log' })]));
       const ICON = { cast: '✦', ability: '⚙', trigger: '↯', attack: '⚔', block: '⛨', died: '☠',
         left: '⇢', land: '▲', token: '✦', enter: '⬇', countered: '⊘', lost: '⚑' };
-      for (const h of this.history.slice(0, 10)) {
+      // the last six, quieter than they were: anything from before this turn faded (each says it all when pointed at)
+      for (const h of this.history.slice(0, 6)) {
         const url = h.card ? (MTG.scry.imageUrl(h.card, 'art_crop', 0) ||
           ((h.card._isToken || h.card.layout === 'token') ? (Table.helpers.tokenArtUrl(h.card) || '') : '')) : '';
         const mine = h.who === this.meId;
-        host.appendChild(el('div', {
-          class: 'hist-item k-' + h.kind + (mine ? ' mine' : ' theirs') + (url ? '' : ' no-art'),
+        const item = host.appendChild(el('div', {
+          class: 'hist-item k-' + h.kind + (mine ? ' mine' : ' theirs') + (url ? '' : ' no-art') + (isOld(h) ? ' old' : ''),
           title: h.text || '', dataset: h.card ? { preview: h.key } : {},
         }, [
           el('div', { class: 'hi-art', style: url ? { backgroundImage: 'url("' + url.replace(/"/g, '%22') + '")' } : null }),
           el('span', { class: 'hi-icon', text: ICON[h.kind] || '•' }),
         ]));
+        item._key = h.key;
       }
     },
 
@@ -120760,7 +121064,10 @@ Sideboard
               `You choose which of ${them.name}'s creatures block, and how · <b>${incoming}</b> damage coming at them (${them.life} life).` +
               (pend ? '' : ` ${press()} one of their creatures, then the attacker it blocks, or press <b>No blocks</b>.`));
           }
-          return set('combat block', pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers',
+          // what gets through as the blocks stand would end the game for you: said in red (lethalBlocks)
+          const lethal = this.lethalBlocks(ch);
+          const chip = lethal ? ` <span class="lethal-chip" title="${lethal.through} damage gets through and you have ${lethal.life} life">Lethal</span>` : '';
+          return set('combat block' + (lethal ? ' lethal' : ''), (pend ? `Now ${press().toLowerCase()} the attacker to block` : 'Choose blockers') + chip,
             `${atk.length} attacker${atk.length === 1 ? '' : 's'} · <b>${incoming}</b> damage coming at you${me ? ` (you have ${me.life})` : ''}.` +
             (pend ? '' : ` ${press()} your creature, then the attacker it blocks.`));
         }
@@ -120784,7 +121091,8 @@ Sideboard
         // (Mindslaver: a controlled player's decisions are their controller's to make)
         const by = who && who.controlledBy ? v.players.find(p => p.id === who.controlledBy) : null;
         if (by) return set('wait', `${escapeHtml(by.id === this.ownId ? 'You are' : by.name + ' is')} deciding for ${escapeHtml(who.id === this.ownId ? 'you' : who.name)}…`, '');
-        return set('wait', `${escapeHtml(who ? who.name : 'Someone')} is deciding…`, '');
+        // anyone else deciding is said once, on the big button, with the ring round their portrait
+        return off();
       }
       if (live.priorityPlayer === this.meId && (live.stack || []).length && !this.isTop()) {
         const top = live.stack[live.stack.length - 1];
@@ -122971,7 +123279,7 @@ Sideboard
     },
     {
       id: 'button', title: 'The big button',
-      text: () => 'It always says what pressing it does next: To combat, End turn, Resolve, Pass. ' +
+      text: () => 'It always says what pressing it does next: Attack, End turn, Resolve, Pass. ' +
         (touch() ? '' : 'Space presses it too. ') + 'When you have nothing more to play, press it to move on.',
       // once this turn's land is down; with nothing at all to play, the game moves on without you
       when: (t, v) => myMain(t, v) && !t.paying && !!(t.me && t.me.landsPlayed > 0),
@@ -130517,6 +130825,14 @@ Sideboard
     sections.push(group('rules', 'House rules', 'Sets of house rules with a name, kept for a format. Pick one in the quick game, or in a table\u2019s House rules when you host.',
       rulePresetRows(() => renderOptions())));
     sections.push(group('pace', 'Pace', 'How quickly the table moves. Nothing here changes the rules.', [
+      // both at once, as the game menu has it; the two below set each apart
+      el('div', { class: 'opt-row stacked' }, [
+        el('div', { class: 'grow' }, [
+          el('div', { class: 'opt-label' }, [el('span', { text: 'Game speed' })]),
+          el('div', { class: 'opt-help', text: 'The table and the bots together: how long each moment stays on screen and how long a bot pauses before it acts. Set apart below, it is custom.' }),
+          segmented(MTG.GAME_SPEEDS.map(g => [g[0], g[1]]), MTG.gameSpeed() || '', (v) => { MTG.setGameSpeed(v); renderOptions(); }, 'Game speed'),
+        ]),
+      ]),
       pick('animSpeed', 'Table animations', ANIM_PACE,
         'How long cards take to fly, flip and land. Fast keeps games brisk; relaxed lets you follow every move.', 1),
       el('div', { class: 'opt-row stacked' }, [
@@ -130529,7 +130845,9 @@ Sideboard
       ]),
       toggle('animateDraws', 'Card animations', 'Tapping, drawing and combat animate. Off, the table simply changes.'),
       pick('priorityTimer', 'Priority timer', [[0, 'Off'], [8, '8 s'], [15, '15 s'], [30, '30 s']],
-        'When the game stops for you to respond (an opponent\u2019s spell, a step of their turn), it passes for you after this long. A ring on the button counts it down; any click or key starts it again. It never runs on your own main phases or while you are choosing something.', 15),
+        'With other people at the table: when the game stops for you to respond (an opponent\u2019s spell, a step of their turn), it passes for you after this long. A fuse along the button burns down in the last few seconds; any click or key starts it again. It never runs on your own main phases or while you are choosing something.', 15),
+      pick('botTimer', 'Priority timer against bots', [[0, 'Off'], [8, '8 s'], [15, '15 s'], [30, '30 s']],
+        'The same when every opponent is a bot. Off, the game waits for you as long as you like.', 0),
     ]));
 
     /* -- stops -- */
