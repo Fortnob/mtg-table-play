@@ -30688,20 +30688,10 @@ module.exports = (test) => {
     t.zone(blade, 'graveyard');
   });
 
-  test('Layer 3: Exchange of Words lasts as long as it stays; Swirl the Mists', (mk, t) => {
-    t.auto('Exchange of Words'); t.auto('Swirl the Mists');
+  // (Exchange of Words, tested here once, is an Unfinity card: not in the game, src/02-scryfall.js MTG.jokes)
+  test('Layer 3: Swirl the Mists', (mk, t) => {
+    t.auto('Swirl the Mists');
     const T = mk();
-    const bear = T.bf('A', 'Grizzly Bears');
-    const angel = T.bf('B', 'Serra Angel');
-    T.answer('pickTarget', { targets: [bear.id, angel.id] });
-    const ex = T.put('A', 'Exchange of Words', 'battlefield', { etb: true });
-    T.resolve();
-    t.ok(T.g.hasKw(bear, 'flying'), 'the Bears fly');
-    t.no(T.g.hasKw(angel, 'flying'));
-    T.g.moveObject(ex, 'graveyard');
-    T.g.checkStateBasedActions();
-    t.no(T.g.hasKw(bear, 'flying'), 'over once it leaves');
-    t.ok(T.g.hasKw(angel, 'flying'));
     // Swirl the Mists: every color word is the chosen one
     const ds = T.bf('B', 'Death Speakers');
     T.answer('mode', (ch) => ({ modes: [ch.options.findIndex(o => /green/i.test(o.label))] }));
@@ -43831,18 +43821,8 @@ module.exports = (test) => {
     t.zone(tor, 'battlefield', 'Torgaar: {B}{B}{2} with two creatures gone');
     t.zone(ring, 'battlefield', 'Torgaar: the Sol Ring stays');
   });
-  test('Commanders: Gingerbehemoth, Extus — Foods sacrificed this turn; Awaken the Blood Avatar\'s sacrifices', (mk, t) => {
-    t.auto('Gingerbehemoth');
-    const M = mk();
-    const g = M.g;
-    M.toMain('A');
-    const f1 = M.bf('A', 'Food');
-    const f2 = M.bf('A', 'Food');
-    g._sacrificeNow('A', [f1, f2], null);
-    const gb = M.hand('A', 'Gingerbehemoth');
-    M.mana('A', '2');
-    M.cast('A', gb);
-    t.zone(gb, 'battlefield', 'Gingerbehemoth: two Foods sacrificed, {4} off');
+  // (Gingerbehemoth, tested here once, is a playtest card: not in the game, src/02-scryfall.js MTG.jokes)
+  test('Commanders: Extus — Awaken the Blood Avatar\'s sacrifices', (mk, t) => {
     const M2 = mk();
     M2.toMain('A');
     const b1 = M2.bf('A', 'Grizzly Bears');

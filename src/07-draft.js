@@ -175,7 +175,7 @@
 
   /* Draft text that is not one of the cards above. Only words that can
      only mean the draft itself count: a card that opens a booster during
-     a game (Booster Tutor) is not a draft card. */
+     a game is not a draft card. */
   const DRAFT_WORDS = /\bas you draft\b|\bas you drafted\b|\bdraft (?:this card|CARDNAME) face up\b|\bduring the draft\b|\bafter the draft\b|\bthis draft round\b|\bfrom the draft\b|\bto the draft\b/i;
 
   /** Anything that talks about the draft, whether or not we can run it. */

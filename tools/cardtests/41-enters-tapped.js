@@ -109,12 +109,4 @@ module.exports = (test) => {
     t.no(tappedWith(mk, t, 'Temple of the Dragon Queen', [], T => T.hand('A', 'Shivan Dragon')), 'a Dragon in hand: untapped');
     t.no(tappedWith(mk, t, 'Temple of the Dragon Queen', ['Shivan Dragon']), 'a Dragon controlled: untapped');
   });
-
-  test('Enters tapped: Fetching Garden only when played from the hand', (mk, t) => {
-    t.auto('Fetching Garden');
-    t.ok(tappedWith(mk, t, 'Fetching Garden', []), 'played from the hand: tapped');
-    const T = mk();
-    const o = T.bf('A', 'Fetching Garden', { etb: true });
-    t.no(o.tapped, 'put onto the battlefield: untapped');
-  });
 };

@@ -11,7 +11,7 @@
   const MANA = MTG.mana;
 
   /* ---------------- type line ---------------- */
-  const SUPERTYPES = ['Basic', 'Legendary', 'Ongoing', 'Snow', 'World', 'Host', 'Elite'];
+  const SUPERTYPES = ['Basic', 'Legendary', 'Ongoing', 'Snow', 'World', 'Elite'];
   const CARD_TYPES = ['Artifact', 'Battle', 'Conspiracy', 'Creature', 'Dungeon', 'Enchantment',
     'Instant', 'Kindred', 'Tribal', 'Land', 'Phenomenon', 'Plane', 'Planeswalker',
     'Scheme', 'Sorcery', 'Vanguard', 'Emblem', 'Token'];
@@ -9807,8 +9807,8 @@
     if ((m = p.match(/^graveyards? with (\w+) or more cards in it$/i)) && typeof num(m[1]) === 'number') return { graveyardsWithAtLeast: num(m[1]), mult: k };
     // Korvold, Gleeful Glutton: "for each card type among permanents you've sacrificed this turn" (sacrificedTypesThisTurn)
     if (/^card types? among permanents you'?ve sacrificed this turn$/i.test(p)) return { sacrificedTypesThisTurn: true, mult: k };
-    /* Gingerbehemoth: "for each Food you've sacrificed this turn"; Dargo, the Shipwrecker: "for each other artifact
-       or creature you've sacrificed this turn" (sacrificedThisTurn: the type words, any one of them) */
+    /* Dargo, the Shipwrecker: "for each other artifact or creature you've sacrificed this turn"
+       (sacrificedThisTurn: the type words, any one of them) */
     if ((m = p.match(/^(?:other )?([A-Za-z]+(?: or [A-Za-z]+)?) you'?ve sacrificed this turn$/i)))
       return { sacrificedThisTurn: m[1].toLowerCase().replace(/s\b/g, ''), mult: k };
     // Zedruu the Greathearted: "the number of permanents you own that your opponents control" (ownedOppControlled)
@@ -11387,11 +11387,6 @@
     // Balduvian Shaman: '… That enchantment gains "Cumulative upkeep {1}."' — for as long as the text change lasts
     { re: /^(Change the text of .+?)\. That (?:enchantment|permanent|creature) gains "([^"]+?)\.?"\.?$/i,
       make: (m) => { const e = textChangeEffect(m[1]); return e ? [Object.assign(e, { grantText: m[2] })] : null; } },
-    /* Exchange of Words: "choose two target creatures. For as long as this enchantment remains on the
-       battlefield, exchange the text boxes of those creatures." (layer 3) */
-    { re: /^choose two target creatures\. For as long as (?:this enchantment|CARDNAME) remains on the battlefield, exchange the text boxes of those creatures\.?$/i,
-      make: () => [{ op: 'exchangeText', whileSource: true, targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' },
-        { type: 'creature', filter: 'creature', zone: 'battlefield', distinct: true }] }] },
     /* Hans Eriksson: "reveal the top card of your library. If it's a creature card, put it onto the battlefield tapped
        and attacking defending player or a planeswalker they control. Otherwise, put that card into your hand. When you
        put a creature card onto the battlefield this way, it fights Hans Eriksson." (revealTopAttacking, ifPut) */
@@ -14919,13 +14914,13 @@
     'imprint', 'inspired', 'join forces', 'kinship', 'landfall', 'lieutenant', 'magecraft',
     'metalcraft', 'morbid', 'pack tactics', 'paradox', 'parley', 'radiance', 'raid', 'rally',
     'revolt', 'secret council', 'spell mastery', 'strive', 'survival', 'sweep', 'tempting offer',
-    'threshold', 'undergrowth', 'underdog', 'valiant', 'void', 'will of the council',
+    'threshold', 'undergrowth', 'valiant', 'void', 'will of the council',
     'will of the planeswalkers']);
   /* Labels that look like ability words but change how the ability works:
      an exhaust ability is used once, a boast only after attacking, a
      channel ability from the hand. They stay on the line. */
   const NOT_ABILITY_WORDS = new Set(['boast', 'exhaust', 'power-up', 'max speed', 'channel', 'companion', 'forecast', 'renew',
-    'to solve', 'solved', 'visit', 'prize', 'eminence', 'mono eminence', 'bloodrush', 'spree', 'level up']);
+    'to solve', 'solved', 'eminence', 'bloodrush', 'spree', 'level up']);
   function noReminderText(t) { return String(t || '').replace(/\([^)]*\)/g, ''); }
   function stripAbilityWord(line) {
     // (Michelangelo, the Heart: "Raid (the Fridge) — …" — words in brackets inside the label: labelWords)
@@ -16004,8 +15999,6 @@
     // Lonely End: "you weren't the starting player"
     [/^you weren'?t the starting player$/i, () => ({ kind: 'notStartingPlayer' })],
     [/^you were the starting player$/i, () => ({ kind: 'not', cond: { kind: 'notStartingPlayer' } })],
-    // Fetching Garden: "if it was played from your hand" (a land drop from the hand, not put onto the battlefield)
-    [/^it was played from your hand$/i, () => ({ kind: 'playedFromHand' })],
     // Feywild Caretaker: "you have the initiative"
     [/^you have the initiative$/i, () => ({ kind: 'hasInitiative' })],
     // Ordeal of Nylea: "it has three or more +1/+1 counters on it" — the creature the trigger is about, or the one this is on
@@ -17024,7 +17017,7 @@
       event: 'anyCastSpell', filt: (m) => spellFilter(m[1], m[2]) },
 
     /* --- one ability, two ways to set it off --- */
-    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role|Attraction|Contraption))\s+enters(?: the battlefield)?(?:,| )/i,
+    { re: /^When(?:ever)? (?:this (?:Aura|Equipment|Vehicle|Saga|land|token|Food|Clue|Treasure|Spacecraft|Planet|Siege|Class|Case|Room|Battle|Background|Shrine|Curse|Cartouche|Role))\s+enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
     { re: /^As (?:CARDNAME|this (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)?(?:,| )/i,
       event: 'etb', self: true },
@@ -19865,7 +19858,7 @@
     if (out.keywordSet.has('improvise')) out.costReduction.improvise = true;
     if (out.keywordSet.has('delve')) out.costReduction.delve = true;
     /* the keyword on its own line, not "Spells you cast have affinity for …" handed to other spells
-       (Tezzeret, Master of the Bridge; Memnarchitect) (affinityWords) */
+       (Tezzeret, Master of the Bridge) (affinityWords) */
     const aff = text.match(/(?:^|\n)Affinity for ([A-Za-z ]+?)\s*(?:\(|\n|$)/);
     if (aff) out.costReduction.affinity = aff[1].trim().toLowerCase();
     const less = text.match(/(?:This spell|CARDNAME) costs \{(\d+)\} less to cast for each ([^.]+)\./i);
@@ -20587,7 +20580,7 @@
       if (lw === 'commander') { sc.commander = sc.who === 'you' ? 'control' : true; continue; }
       /* Guardians of Oboro: "modified creatures"; Kor Blademaster: "equipped
          creatures"; Swarm Surge: "colorless creatures"; Bothersome Quasit:
-         "goaded creatures"; Evil Boros Charm: "unblocked attacking creatures" */
+         "goaded creatures"; "unblocked attacking creatures" */
       if (/^(?:modified|equipped|enchanted|colorless|monocolored|goaded|unblocked)$/.test(lw)) { sc[lw] = true; continue; }
       if (lw === 'tapped' || lw === 'untapped' || lw === 'attacking' || lw === 'blocking') sc[lw] = true;
       else if (lw === 'nontoken') sc.nontoken = true;
@@ -22326,7 +22319,7 @@
         make: (m) => ({ op: 'extraManaOnTap', who: 'you', filter: m[1].toLowerCase(), times: /twice/i.test(m[2]) ? 2 : 3 }), auto: true },
       { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped unless (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: c } : { op: 'manual' }; }, auto: true },
-      // Eddymurk Crab: "This creature enters tapped if it's not your turn."; Fetching Garden: "…if it was played from your hand."
+      // Eddymurk Crab: "This creature enters tapped if it's not your turn."
       { re: /^(?:CARDNAME|This (?:land|creature|artifact|enchantment|permanent)) enters(?: the battlefield)? tapped if (.+?)\.?$/i,
         make: (m) => { const c = condOf(m[1]); return c ? { op: 'etbTappedUnlessCond', cond: { kind: 'not', cond: c } } : { op: 'manual' }; }, auto: true },
       // Rising Chicane: "If you were the starting player, this land enters tapped."

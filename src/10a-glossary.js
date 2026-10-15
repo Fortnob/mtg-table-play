@@ -28,7 +28,6 @@
     ["Adapt","a","If this permanent has no +1/+1 counters on it, put N +1/+1 counters on it."],
     ["Addendum","w","Marks extra effects that happen only if you cast this spell during your main phase."],
     ["Affinity","k","\"Affinity for [quality]\" means this spell costs {1} less to cast for each [quality] you control."],
-    ["Affinitycycling","k","[Cost], Discard this card: Search your library for a card with affinity, reveal it, put it into your hand, then shuffle."],
     ["Afflict","k","Whenever this creature becomes blocked, defending player loses N life."],
     ["Afterlife","k","When this creature dies, create N 1/1 white and black Spirit creature tokens with flying."],
     ["Aftermath","k","Cast this half of the split card only from your graveyard. Then exile it."],
@@ -38,10 +37,8 @@
     ["Amplify","k","As this creature enters, reveal any number of cards from your hand that share a creature type with it. It enters with N +1/+1 counters on it for each card revealed."],
     ["Annihilator","k","Whenever this creature attacks, defending player sacrifices N permanents."],
     ["Ascend","k","If you control ten or more permanents, you get the city's blessing for the rest of the game."],
-    ["Assemble","a","An Unstable (Un-set) action: put the top card of your Contraption deck face up onto one of your sprockets."],
     ["Assimilate","a","Put the card onto the battlefield under your control with a +1/+1 counter. It's a Borg artifact creature and loses all other creature types."],
     ["Assist","k","Another player can help pay the generic mana of this spell's cost."],
-    ["Augment","k","[cost], Reveal this card from your hand: Combine it with target host creature, making one creature with both cards' abilities. Augment only as a sorcery."],
     ["Aura Swap","k","[cost]: You may exchange this Aura with an Aura card in your hand."],
     ["Awaken","k","If you cast this spell for its awaken cost, also put N +1/+1 counters on target land you control. That land becomes a 0/0 Elemental creature with haste and is still a land."],
     ["Backup","k","When this creature enters, put N +1/+1 counters on target creature. If that's another creature, it gains this creature's abilities listed after backup until end of turn."],
@@ -224,14 +221,11 @@
     ["Jump-start","k","You may cast this card from your graveyard by discarding a card in addition to paying its other costs. Then exile this card."],
     ["Junk","t","An artifact token with \"{T}, Sacrifice this token: Exile the top card of your library. You may play that card this turn. Activate only as a sorcery.\""],
     ["Kicker","k","You may pay an additional [cost] as you cast this spell."],
-    ["Kinfall","w","A playtest-card ability word marking abilities that trigger whenever a creature enters under your control, if it shares a creature type with this creature."],
     ["Kinship","w","Marks abilities that let you look at the top card of your library at the beginning of your upkeep and reveal it for a bonus if it shares a creature type with this creature."],
     ["Landcycling","k","[Cost], Discard this card: Search your library for a land card of the stated type, reveal it, put it into your hand, then shuffle. It counts as cycling."],
     ["Landfall","w","Marks abilities that trigger whenever a land you control enters."],
-    ["Landship","w","A playtest-card ability word marking abilities that let you look at the top card of your library at the beginning of your upkeep and reveal it for a bonus if it's a land."],
     ["Landwalk","k","This creature can't be blocked as long as defending player controls a land of the stated type."],
     ["Learn","a","You may reveal a Lesson card you own from outside the game and put it into your hand, or discard a card to draw a card."],
-    ["Legacy","w","A playtest-card ability word marking abilities that have you physically write on or mark the card itself, so the change stays with the card."],
     ["Legend rule","g","If you control two or more legendary permanents with the same name, you choose one and put the rest into their owners' graveyards."],
     ["Legendary landwalk","k","This creature can't be blocked as long as defending player controls a legendary land."],
     ["Level Up","k","[cost]: Put a level counter on this; level up only as a sorcery. Its level ranges grant stats and abilities based on how many level counters it has."],
@@ -274,7 +268,6 @@
     ["Offering","k","You may cast this any time you could cast an instant by sacrificing a permanent of the named type and paying the difference in mana costs. Mana cost includes color."],
     ["Offspring","k","You may pay an additional [cost] as you cast this spell. If you do, when this creature enters, create a 1/1 token copy of it."],
     ["Oil counter","g","A counter with no rules meaning of its own. Cards put oil counters on permanents and use them, often removing them to pay costs."],
-    ["Open an Attraction","a","Put the top card of your Attraction deck onto the battlefield face up under your control."],
     ["Opus","w","Marks abilities that trigger whenever you cast an instant or sorcery spell, with a stronger effect if five or more mana was spent to cast it."],
     ["Outlast","k","[cost], {T}: Put a +1/+1 counter on this creature. Outlast only as a sorcery."],
     ["Overload","k","You may cast this spell for its overload cost [cost]. If you do, change its text by replacing all instances of \"target\" with \"each.\""],
@@ -326,7 +319,6 @@
     ["Riot","k","This creature enters with your choice of a +1/+1 counter or haste."],
     ["Ripple","k","When you cast this spell, you may reveal the top N cards of your library, cast any with the same name as this spell without paying their mana costs, and put the rest on the bottom."],
     ["Role","t","An Aura enchantment token that enchants a creature and changes it, usually for the better. A creature can have only one Role of yours at a time; a newer one replaces it."],
-    ["Roll to Visit Your Attractions","a","Roll a six-sided die. Each Attraction you control with that number lit up is visited, and its visit ability triggers."],
     ["Royal Role","t","Enchanted creature gets +1/+1 and has ward {1}. A creature can have only one Role of yours at a time; a newer one replaces it."],
     ["Saddle","k","Tap any number of other untapped creatures you control with total power N or more: This becomes saddled until end of turn. Saddle only as a sorcery."],
     ["Scavenge","k","[cost], Exile this card from your graveyard: Put a number of +1/+1 counters equal to this card's power on target creature. Scavenge only as a sorcery."],
@@ -387,7 +379,6 @@
     ["Typecycling","k","[Cost], Discard this card: Search your library for a card of the stated type, reveal it, put it into your hand, then shuffle. It counts as cycling."],
     ["Umbra armor","k","If the enchanted permanent would be destroyed, instead remove all damage from it and destroy this Aura."],
     ["Undaunted","k","This spell costs {1} less to cast for each opponent you have."],
-    ["Underdog","w","A playtest-card ability word marking abilities that work only if you've lost a game this match."],
     ["Undergrowth","w","Marks abilities that count the number of creature cards in your graveyard."],
     ["Undying","k","When this creature dies, if it had no +1/+1 counters on it, return it to the battlefield under its owner's control with a +1/+1 counter on it."],
     ["Unearth","k","[Cost]: Return this card from your graveyard to the battlefield with haste. Exile it at the next end step or if it would leave the battlefield; unearth only as a sorcery."],
@@ -603,7 +594,12 @@
       .map(({ term, granted }) => Object.assign({}, term, granted ? { granted: true } : null));
   }
 
-  MTG.glossary = { find, lookup, get size() { return TERMS.length; } };
+  /* Keywords Scryfall lists that only joke and playtest cards have, which
+     are not in this game (MTG.jokes): left without an explanation on purpose. */
+  const LEFT_OUT = ['Assemble', 'Augment', 'Open an Attraction', 'Roll to Visit Your Attractions',
+    'Affinitycycling', 'Kinfall', 'Landship', 'Legacy', 'Underdog'];
+
+  MTG.glossary = { find, lookup, LEFT_OUT, get size() { return TERMS.length; } };
 
   /* ---- the tokens a card makes ---- */
 

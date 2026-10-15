@@ -358,7 +358,6 @@ module.exports = (test) => {
   test('Draft: only words about the draft make a draft card', (mk, t) => {
     const M = engine();
     t.ok(M.draft.draftAbilityOf(card('Lurking Automaton')).known, 'listed');
-    t.no(M.draft.draftAbilityOf(card('Booster Tutor')), 'a booster opened in a game is not the draft');
     t.no(M.draft.draftAbilityOf(card('Grizzly Bears')));
   });
 

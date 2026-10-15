@@ -210,7 +210,7 @@
   const LAND_TYPES = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest', 'Desert', 'Gate', 'Lair', 'Locus',
     'Mine', 'Power-Plant', 'Tower', "Urza's", 'Cave', 'Sphere', 'Town', 'Planet']);
   const ARTIFACT_TYPES = new Set(['Equipment', 'Vehicle', 'Food', 'Treasure', 'Clue', 'Blood', 'Gold', 'Powerstone',
-    'Fortification', 'Contraption', 'Map', 'Incubator', 'Attraction', 'Bobblehead', 'Junk', 'Lander', 'Spacecraft', 'Infinity', 'Stone']);
+    'Fortification', 'Map', 'Incubator', 'Bobblehead', 'Junk', 'Lander', 'Spacecraft', 'Infinity', 'Stone']);
   const ENCHANTMENT_TYPES = new Set(['Aura', 'Saga', 'Class', 'Shrine', 'Curse', 'Cartouche', 'Rune', 'Room',
     'Background', 'Case', 'Role', 'Shard']);
   const EMPTY_SET = new Set();
@@ -4149,11 +4149,9 @@
       // Spider-Man 2099: "played a land … from anywhere other than your hand" (Sen Triplets: another player's hand is that)
       const ownHand = fromZone === 'hand' && o.owner === playerId;
       if (!ownHand) p.landNotFromHandTurn = this.turn;
-      o._playedFromHand = ownHand;
       this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
       // (Kaldring, the Rimestaff: "it enters tapped")
       if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
-      o._playedFromHand = false;
       this.logEvent('land', `${p.name} plays ${o.name}.`);
       // City of Traitors: "when you play another land" (Prosper: and where it was played from)
       this._fire('youPlayLand', playerId, { object: o, fromZone });
@@ -15920,8 +15918,6 @@
           .some(id => { const c = this.obj(id); return c && this._cardFitsWords(c, cond.filter || 'card'); });
         case 'lastExcess': return (this._lastExcess || 0) > 0;
         case 'notStartingPlayer': return !!me && this.turnOrder && this.turnOrder[0] !== me.id;
-        // Fetching Garden: played as a land from its owner's hand (set by playLand while it moves)
-        case 'playedFromHand': return !!(ctx && ctx.obj && ctx.obj._playedFromHand);
         // (printed colours: asked from inside the layers, it must not ask for characteristics again)
         // Liliana, Heretical Healer: "If you do" — it came back transformed
         case 'selfTransformed': return !!(src && src.zone === 'battlefield' && (src.face || 0) === 1);
@@ -28244,7 +28240,7 @@
         // Aetheric Amplifier: every kind of counter a player has, doubled
         case 'doublePlayerCounters': {
           if ((me.poison || 0) > 0) this.addPoison(me, me.poison, null);
-          for (const k of ['energy', 'experience', 'rad', 'ticket']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
+          for (const k of ['energy', 'experience', 'rad']) if ((Number(me[k]) || 0) > 0) me[k] = Number(me[k]) * 2;
           this.logEvent('counters', `${me.name} doubles their counters.`);
           break;
         }
@@ -36743,15 +36739,6 @@
           this.logEvent('rules', `The text of ${x.name} now says “${w(r.kind, r.to)}” where it said “${w(r.kind, r.from)}”${e.duration === 'eot' ? ' until end of turn' : ''}.`);
           break;
         }
-        /* Exchange of Words: "For as long as this enchantment remains on the
-           battlefield, exchange the text boxes of those creatures." */
-        case 'exchangeText': {
-          const objs = targets.filter(t => t && t.kind === 'object').map(t => this.obj(t.id)).filter(o => o && o.zone === 'battlefield');
-          if (objs.length < 2 || objs[0] === objs[1]) break;
-          if (e.whileSource && !(src && src.zone === 'battlefield')) break;
-          this._exchangeText(objs[0], objs[1], e.whileSource && src ? src.id : null);
-          break;
-        }
         /* Mirrorweave: "Each other creature becomes a copy of target
            nonlegendary creature until end of turn." A copy effect (layer 1):
            what each was is kept, and comes back as the turn ends. */
@@ -37016,7 +37003,7 @@
       if (sc.monocolored && (oa.colors || []).length !== 1) return false;
       // Bothersome Quasit: "goaded creatures"
       if (sc.goaded && !this._goaders(o).length) return false;
-      // Evil Boros Charm: "unblocked attacking creatures", once blockers are declared
+      // "unblocked attacking creatures", once blockers are declared
       if (sc.unblocked && !this._unblockedAttackers(o.controller).includes(o)) return false;
       if (sc.equipped || sc.enchanted || sc.modified) {
         const on = (o.attachments || []).map(id => this.obj(id)).filter(Boolean);

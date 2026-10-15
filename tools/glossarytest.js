@@ -27,6 +27,8 @@ const check = (ok, what) => { if (ok) passes++; else { fails++; console.log('FAI
 // the actions every card does in plain words, left without a box on purpose (PLAIN in the module)
 const PLAIN = new Set(['activate', 'attach', 'cast', 'counter', 'create', 'destroy', 'discard', 'exchange', 'exile',
   'play', 'reveal', 'sacrifice', 'shuffle', 'tap', 'untap', 'double', 'triple', 'heal', 'empower jace', 'role token']);
+// the joke and playtest cards' own keywords, not in the game (MTG.jokes), and so not explained
+for (const k of G.LEFT_OUT || []) PLAIN.add(k.toLowerCase());
 
 check(G.size > 300, 'the glossary has its terms (' + G.size + ')');
 
