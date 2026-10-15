@@ -50,6 +50,7 @@
     noDamage: 'deals no combat damage this turn',
     noDamageAll: 'deals no damage this turn',
     unsacrificable: "can't be sacrificed this turn",
+    oneBlocker: "can't be blocked by more than one creature this turn",
   };
 
   const PHASES = [
@@ -24394,8 +24395,10 @@
         case 'ifLastWas': {
           // "untap target artifact or creature. If it's an artifact creature, …": the target
           // (Aunt May: "If it's a Spider" — the creature the trigger is about)
-          const x = e.ofTrigger ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) : e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
+          let x = e.ofTrigger ? ((ctx.triggerData || {}).objectId && this.obj(ctx.triggerData.objectId)) : e.ofTarget ? firstObj() : (this._lastExiled && this.obj(this._lastExiled)) ||
             (this._lastAffected && this.obj(this._lastAffected.id));
+          // Rescue, Pepper Potts: "If it was an artifact" — what it was as it left (asWas)
+          if (x && e.asWas && x.zone !== 'battlefield' && x._lkiAnalysis) { const lki = x._lkiAnalysis; x = Object.assign(Object.create(x), { analysis: () => lki }); }
           const fits = x && (e.filter === 'artifact creature'
             ? this._matchesCategory(x, 'artifact') && this._matchesCategory(x, 'creature') : this._matchesCategory(x, e.filter));
           if (fits) this._spliceNext(e.then);
@@ -32954,6 +32957,8 @@
           src._chr = null; this.bumpBoard();
           this.logEvent('rules', `${src.name} is crewed.`);
           this._fire('becomesCrewed', src.controller, { source: src, object: src });
+          // Balthier and Fran: "a Vehicle crewed by Balthier and Fran this turn" — who crewed it, this turn (crewedBy)
+          src.crewedBy = { turn: this.turn, ids: ((src.crewedBy && src.crewedBy.turn === this.turn && src.crewedBy.ids) || []).concat((ctx.tapped || []).map(t => t.id)) };
           // Speedway Fanatic: each creature tapped to crew it, crewing it
           for (const t of (ctx.tapped || [])) { const x = this.obj(t.id); if (x) this._fire('crewsVehicle', x.controller, { source: x, object: src }); }
           break;
@@ -36290,6 +36295,8 @@
       if (f.legendaryEquipped && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && aa.isEquipment && aa.isLegendary; })) return false;
       // Calix, Guided by Fate: "an enchanted creature" — an Aura on it
       if (f.enchanted && !(x.attachments || []).some(id => { const at = this.obj(id); const aa = at && at.analysis(); return !!aa && (aa.subtypes || []).includes('Aura'); })) return false;
+      // Balthier and Fran: "a Vehicle crewed by Balthier and Fran this turn" (crewedBySelf)
+      if (f.crewedBySelf && !(src && x.crewedBy && x.crewedBy.turn === this.turn && x.crewedBy.ids.includes(src.id))) return false;
       // Komainu Battle Armor: itself, or the creature it is attached to
       if (f.selfOrEquipped && !(src && (x.id === src.id || src.attachedTo === x.id))) return false;
       /* "you control" is decided by who controlled it at the time, which

@@ -1704,6 +1704,11 @@
     { re: /^Attach (up to one )?target Equipment( you control)?( with mana value \d+ or (?:less|greater|\d+))? to (?:CARDNAME|it|this creature|him|her)\.?$/i,
       make: (m) => m[3] && !m[2] ? null : Object.assign({ op: 'attachTargetToSelf', targets: [Object.assign({ type: 'permanent', filter: 'Equipment', subtypes: ['equipment'] },
         m[2] ? { controller: 'you', filter: 'Equipment you control' } : {}, m[3] ? targetSpec('target Equipment you control' + m[3]) : {}, m[1] ? { upTo: true } : {})] }, m[2] ? {} : { anyController: true }) },
+    // Storm, Queen of Wakanda: "until end of turn, another target attacking creature gains flying and gets +X/+0, where X is Storm's power"
+    { re: /^Until end of turn, another target attacking creature gains ([a-z ]+?) and gets \+X\/\+0, where X is (?:CARDNAME|this creature)'?s power\.?$/i,
+      make: (m) => { const kws = keywordList(m[1]); return kws && kws.length ? { op: 'sequence', list: [
+        { op: 'grantKeyword', keywords: kws, duration: 'eot', targets: [targetSpec('another target attacking creature')] },
+        { op: 'pump', p: { ofSelf: 'power' }, t: 0, duration: 'eot', scope: 'lastTarget' }] } : null; } },
     // Amy Rose: "Then up to one other target attacking creature gets +X/+0 until end of turn, where X is Amy Rose's power."
     { re: /^(?:Then )?up to one other target attacking creature gets \+X\/\+0 until end of turn, where X is (?:CARDNAME|this creature)'?s power\.?$/i,
       make: () => ({ op: 'pump', p: { ofSelf: 'power' }, t: 0, duration: 'eot',
@@ -4092,6 +4097,9 @@
       make: (m) => (/^target/i.test(m[1]) ? { op: 'flagEot', flags: ['mustBeBlockedTurn'], targets: [targetSpec(m[1])] }
         : /^(?:CARDNAME|this creature)$/i.test(m[1]) ? { op: 'flagEot', scope: 'self', flags: ['mustBeBlockedTurn'] }
         : { op: 'flagEot', scope: 'lastTarget', flags: ['mustBeBlockedTurn'] }) },
+    // Glorfindel, Dauntless Rescuer: "Glorfindel can't be blocked by more than one creature each combat this turn." (oneBlocker, for the turn)
+    { re: /^(?:CARDNAME|This creature) can'?t be blocked by more than one creature(?: each combat)? this turn\.?$/i,
+      make: () => ({ op: 'restrict', flag: 'oneBlocker', scope: 'self' }) },
     /* Deadly Allure, Joraga Invocation: "… until end of turn and must be
        blocked this turn if able" — whatever the first half does, and then that */
     { re: /^(.+? until end of turn) and must be blocked this turn if able\.?$/i,
@@ -6737,6 +6745,12 @@
     { re: /^If it was an? ([a-z ]+?) card, (.+)$/i,
       make: (m) => ({ op: 'ifLastWas', filter: m[1].trim().toLowerCase(),
         then: parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1))).effects }) },
+    // Rescue, Pepper Potts: "Return up to one other target artifact or creature … If it was an artifact, put a +1/+1 counter on Rescue." — the target as it last was (asWas) (Weatherseed Totem: "return this card" — itself, not a target: left alone)
+    { re: /^If it was an? (artifact|creature|enchantment|land|planeswalker), (.+)$/i,
+      make: (m) => {
+        const inner = parseSentenceList(splitSentences(U.titleCase(m[2].charAt(0)) + m[2].slice(1)));
+        return inner.auto && inner.effects.length && !/this card/i.test(m[2]) ? { op: 'ifLastWas', ofTarget: true, asWas: true, filter: m[1].toLowerCase(), then: inner.effects } : null;
+      } },
     // Tamiyo, Seasoned Scholar: "Return target instant or sorcery card … If it's a green card, add one mana of any color." — the target
     { re: /^If it'?s an? (white|blue|black|red|green) card, (add .+)$/i,
       make: (m) => {
@@ -7643,6 +7657,9 @@
       make: (m) => ({ op: 'sequence', list: [{ op: 'addMana', symbols: [m[1].toUpperCase()] }, { op: 'addManaPer', symbol: m[1].toUpperCase(), per: { removedCounters: true, mult: 1 } }] }) },
     // Inferno Elemental: "this creature deals 3 damage to that creature"
     { re: /^(?:CARDNAME|This creature|It) deals (\d+) damage to that creature\.?$/i, make: (m) => ({ op: 'damage', n: +m[1], toTriggerObject: true }) },
+    // Storm, Queen of Wakanda: "Storm deals damage equal to her power to that creature." — the one the trigger is about
+    { re: /^(?:CARDNAME|This creature) deals damage equal to (?:its|his|her|CARDNAME'?s) power to that creature\.?$/i,
+      make: () => ({ op: 'damage', n: { ofSelf: 'power' }, toTriggerObject: true }) },
     // Plaxmanta: "sacrifice it unless {G} was spent to cast it"
     { re: /^Sacrifice (?:it|CARDNAME|this creature) unless \{([WUBRG])\} was spent to cast (?:it|this creature|CARDNAME)\.?$/i,
       make: (m) => ({ op: 'ifCond', cond: { kind: 'not', cond: { kind: 'manaSpentAtLeast', n: 1, color: m[1].toUpperCase(), of: 'this' } }, then: [{ op: 'sacrificeSelf' }] }) },
@@ -8127,6 +8144,10 @@
     { re: /^CARDNAME and target ([A-Z][a-z]+|creature) you control can'?t be blocked this turn except by creatures with flying or reach\.?$/,
       make: (m) => ({ op: 'sequence', list: [{ op: 'restrict', flag: 'exceptByFlyingReach', scope: 'self' },
         { op: 'restrict', flag: 'exceptByFlyingReach', targets: [targetSpec('target ' + m[1] + ' you control')] }] }) },
+    // Lockjaw, Slobbering Teleporter: "Lockjaw and up to one other target creature you control can't be blocked this turn."
+    { re: /^CARDNAME and (up to one )?(other )?target creature you control can'?t be blocked this turn\.?$/,
+      make: (m) => ({ op: 'sequence', list: [{ op: 'restrict', flag: 'unblockable', scope: 'self' },
+        { op: 'restrict', flag: 'unblockable', targets: [Object.assign(targetSpec('target creature you control'), m[1] ? { upTo: true } : {}, m[2] ? { another: true } : {})] }] }) },
     // Azula, Ruthless Firebender: "Until end of turn, Azula gets +1/+1 for each experience counter you have and gains menace."
     { re: /^Until end of turn, CARDNAME gets \+(\d+)\/\+(\d+) for each (.+?) and gains ([a-z ,]+?)\.?$/,
       make: (m) => {
@@ -12305,6 +12326,14 @@
       if (inner && nc[2]) inner.effects.unshift({ op: 'loseLife', n: +nc[3], who: 'you' });
       return inner;
     }
+    // Glorfindel, Dauntless Rescuer: "choose one and Glorfindel gets +1/+1 until end of turn. • …" — the modes, and that besides
+    const ca = cleaned.match(/^Choose one and ([^.\u2022]+)\.\s*([\u2022*][\s\S]*)$/i);
+    if (ca) {
+      const also = parseEffectSentence(U.titleCase(ca[1].charAt(0)) + ca[1].slice(1) + '.');
+      const inner = also && also.op !== 'manual' && parseModal('Choose one \u2014\n' + ca[2]);
+      if (inner) inner.effects.push(also);
+      return inner || null;
+    }
     /* Bumi, King of Three Trials: "choose up to X, where X is the number of Lesson cards in your graveyard \u2014" \u2014
        as many as that comes to as it resolves, none at all an answer too (upToX) */
     const ux = cleaned.match(/^Choose up to X, where X is ([^\u2014]+?)\s*[-\u2014]+\s*([\s\S]*)$/i);
@@ -15073,6 +15102,9 @@
     // Gahiji, Honored One: "Whenever a creature attacks one of your opponents or a planeswalker an opponent controls" (attacksYourOpp)
     { re: /^Whenever a creature attacks one of your opponents(?: or a planeswalker an opponent controls)?,? /i, event: 'permAttacks', aboutObject: true,
       filt: () => ({ words: 'creature' }), extra: { attacksYourOpp: true } },
+    // Balthier and Fran: "Whenever a Vehicle crewed by Balthier and Fran this turn attacks" — one it tapped to crew (crewedBySelf)
+    { re: /^Whenever a Vehicle crewed by (?:CARDNAME|this creature) this turn attacks,? /i, event: 'permAttacks', aboutObject: true,
+      filt: () => ({ words: 'Vehicle', crewedBySelf: true }) },
     // Mazzy, Truesword Paladin: "Whenever an enchanted creature attacks one of your opponents" — anyone's (attacksYourOppFit)
     { re: /^Whenever an? (enchanted|equipped|modified) creature attacks one of your opponents,? /i, event: 'permAttacks', aboutObject: true,
       filt: (m) => ({ words: m[1].toLowerCase() + ' creature' }), extra: { attacksYourOpp: true } },
@@ -15425,8 +15457,10 @@
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters or attacks(?:,| )', 'i'),
       event: 'permEnters', also: 'permAttacks', filt: (m) => subjectFilter(m[1]) },
     // Revenge of Ravens: "Whenever a creature attacks you or a planeswalker you control"
-    { re: /^Whenever a creature( with power (\d+) or greater)? attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
-      filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}), extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
+    // (Storm, Queen of Wakanda: "Whenever a creature with flying attacks you" — keyword)
+    { re: /^Whenever a creature( with power (\d+) or greater| with flying)? attacks you( or a planeswalker you control)?,? /i, event: 'permAttacks',
+      filt: (m) => Object.assign({ words: 'creature', who: 'opponent' }, m[2] ? { minPower: +m[2] } : {}, /flying/i.test(m[1] || '') ? { keyword: 'flying' } : {}),
+      extraOf: (m) => ({ attacksYou: m[3] ? 'orWalker' : 'you' }) },
     // Neerdiv, Devious Diver: "… or activate an ability of a card in your graveyard" — either (fromGraveyardOnly)
     { re: /^Whenever you cast a spell from your graveyard or activate an ability of a card in your graveyard,? /i,
       event: 'youCastSpell', also: 'youActivateAbility', extra: { fromGraveyardOnly: true } },
