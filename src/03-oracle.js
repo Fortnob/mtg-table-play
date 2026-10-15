@@ -3530,6 +3530,12 @@
         const one = m[1].replace(/s$/, '');
         return { op: 'exchangeControl', targets: [targetSpec('target ' + one), targetSpec('another target ' + one)] };
       } },
+    // Kitsune, Dragon's Daughter: "exchange control of two other target creatures controlled by different players" (differentControllers)
+    { re: /^Exchange control of two (other )?target (creatures|artifacts|permanents) controlled by different players\.?$/i,
+      make: (m) => {
+        const one = () => Object.assign(targetSpec((m[1] ? 'another ' : '') + 'target ' + m[2].replace(/s$/, '')), { differentControllers: true });
+        return { op: 'exchangeControl', targets: [one(), one()] };
+      } },
     // Bilbo, Luckwearer (Burglar's Plot): "Exchange control of two target nonland permanents that share a card type." (shareCardType)
     { re: /^Exchange control of two target (nonland permanents|permanents|nonland, noncreature permanents) that share a card type\.?$/i,
       make: (m) => {
@@ -3950,6 +3956,11 @@
     /* Buster Sword */
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value less than or equal to (?:that damage|the damage dealt) without paying its mana cost\.?$/,
       make: () => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount' }) },
+    /* Aisha of Sparks and Smoke: "Whenever Aisha deals combat damage, you may cast a sorcery spell from your hand with
+       mana value less than or equal to that damage without paying its mana cost." — one pick, which may be left
+       empty (pickOne: the trigger's own "may") */
+    { re: /^Cast an? (sorcery|instant|instant or sorcery|creature|artifact|noncreature) spell from your hand with mana value less than or equal to that damage without paying its mana cost\.?$/i,
+      make: (m) => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: 'triggerAmount', filter: m[1].toLowerCase(), pickOne: true, among: 'cards in your hand' }) },
     // Marvo, Deep Operative: "Then you may cast a spell from your hand with mana value 8 or less without paying its mana cost."
     { re: /^(?:[Tt]hen )?[Yy]ou may cast a spell from your hand with mana value (\d+) or less without paying its mana cost\.?$/,
       make: (m) => ({ op: 'castFree', from: 'hand', upTo: 1, maxMv: +m[1] }) },
@@ -7945,6 +7956,10 @@
     // Allosaurus Shepherd: "Until end of turn, each Elf creature you control has base power and toughness 5/5 and becomes a Dinosaur in addition to its other creature types."
     { re: /^Until end of turn, each ([A-Z][a-z]+) creature you control has base power and toughness (\d+)\/(\d+)(?: and becomes an? ([A-Z][a-z]+) in addition to its other creature types)?\.?$/,
       make: (m) => Object.assign({ op: 'setBaseAll', p: +m[2], t: +m[3], subtype: m[1] }, m[4] ? { addSubtype: m[4] } : {}) },
+    /* Minsc, Beloved Ranger: "{X}: Until end of turn, target creature you control has base power and toughness X/X and
+       becomes a Giant in addition to its other types." — X as paid (ptX) */
+    { re: /^Until end of turn, (target creature(?: you control)?) has base power and toughness X\/X and becomes an? ([A-Z][a-z]+) in addition to its other (?:creature )?types\.?$/,
+      make: (m) => ({ op: 'becomes', duration: 'eot', ptX: 'X', eff: { addSubtypes: [m[2]] }, targets: [targetSpec(m[1])] }) },
     // Sephiroth, Fallen Hero: "Until end of turn, each modified creature you control has base power and toughness 7/5." — those modified now
     { re: /^Until end of turn, each modified creature you control has base power and toughness (\d+)\/(\d+)\.?$/i,
       make: (m) => ({ op: 'setBaseAll', p: +m[1], t: +m[2], modified: true }) },
@@ -9067,6 +9082,11 @@
       return { countersOnSelf: m[1].toLowerCase(), mult: k };
     // Llanowar Greenwidow: "for each basic land type among lands you control" (domain)
     if (/^basic land types? among lands you control$/i.test(p)) return { domain: true, mult: k };
+    // Perrie, the Pulverizer: "the number of different kinds of counters among permanents you control" (countersAmong, distinctKinds)
+    if ((m = p.match(/^different kinds of counters among ((?:[a-z]+ )*(?:creatures|lands|artifacts|permanents|enchantments) you control)$/i))) {
+      const sc = scopeOf(m[1]);
+      if (sc && !sc.self && !sc.attached) return { countersAmong: sc, distinctKinds: true, mult: k };
+    }
     /* Deepwood Denizen: "for each +1/+1 counter on creatures you control";
        Maester Seymour: "the number of counters among creatures you control"; Ferrafor, Young Yew: "… target player
        controls" */

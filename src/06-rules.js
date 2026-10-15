@@ -4217,6 +4217,12 @@
       }
       // Deepwood Denizen, Maester Seymour: the counters (of one kind, or all) on a group of permanents
       if (v.countersAmong) {
+        // (Perrie, the Pulverizer: "different kinds of counters" — each kind once, wherever it is — distinctKinds)
+        if (v.distinctKinds) {
+          const kinds = new Set();
+          for (const o of this._scopeList(v.countersAmong, pid, src, null, inLayers)) for (const [kind, c] of Object.entries(o.counters || {})) if ((Number(c) || 0) > 0) kinds.add(kind);
+          return kinds.size * mult;
+        }
         let k = 0;
         for (const o of this._scopeList(v.countersAmong, pid, src, null, inLayers)) {
           for (const [kind, c] of Object.entries(o.counters || {})) if (!v.kind || kind === v.kind) k += Number(c) || 0;
@@ -29712,7 +29718,7 @@
               (!e.pay || this.couldPay(ctx.controller, String(this._anyColorCost(ctx.controller, c, this.castCost(c, {}) || '')).replace(/\{X\}/g, ''), this.manaSources(ctx.controller))));
             let picks = [];
             if (able.length) {
-              const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: 'library', items: this._chooseItems(able),
+              const got = this._choose({ playerId: ctx.controller, purpose: 'castFreePick', kind: 'objects', zone: e.from === 'hand' ? 'hand' : 'library', items: this._chooseItems(able),
                 min: 0, max: 1, prompt: `You may cast ${e.filter ? (/^[aeiou]/.test(e.filter) ? 'an ' : 'a ') + e.filter + ' spell' : 'a spell'}${mv1 != null ? ' with mana value ' + mv1 + ' or less' : ''} from among ${e.among || 'them'}${e.pay ? ', paying its costs' : ' without paying its mana cost'}.` }, 'cfp');
               if (got === SUSPEND) return SUSPEND;
               picks = ((got && got.picks) || []).filter(id => able.some(c => c.id === id));
