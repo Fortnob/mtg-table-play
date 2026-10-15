@@ -1774,6 +1774,14 @@
       });
       return { picks: picks.map(o => o.id) };
     },
+    /* Cloak and Dagger, Entwined: a nonland card from their hand or the creature chosen — the one worth most to them:
+       the creature by its value on the board, a card by its mana value */
+    exileHandOrCreature(s) {
+      const g = this.game;
+      const worth = (o) => (o.zone === 'battlefield' ? this.permanentValue(o) + 1 : ((o.card && o.card.cmc) || 0));
+      const best = (s.items || []).map(x => g.obj(x.id)).filter(Boolean).sort((x, y) => worth(y) - worth(x))[0];
+      return { picks: best ? [best.id] : [] };
+    },
     /* The Master, Formed Anew: "exile a creature you control and put a takeover counter on it" — for the Master to
        enter as a copy of: worth it only for a card with an enters ability, the costliest; never a token (gone) */
     bodyThief(s) {

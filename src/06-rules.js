@@ -10682,6 +10682,8 @@
       }
       // Drana and Linvala: "You may spend mana as though it were mana of any color to activate those abilities."
       if (ab && ab.spendAnyColor && mana) mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
+      // (Sharkey, Tyrant of the Shire: "Mana of any type" — colorless too: spendAnyType)
+      if (ab && ab.spendAnyType && mana) mana = String(mana).replace(/\{C\}/g, '{1}');
       // Nathan Drake, Treasure Hunter: "… or to activate abilities of permanents you control but don't own" (spendAnyNotOwned)
       if (mana && o && o.zone === 'battlefield' && o.owner !== o.controller && this._anyStaticOf(o.controller, 'spendAnyNotOwned'))
         mana = String(mana).replace(/\{(?:2\/)?[WUBRG](?:\/[WUBRG])?\}/g, '{1}');
@@ -15552,12 +15554,15 @@
       try {
         const opp = new Set(this.opponentsOf(o.controller).map(p => p.id));
         const acts = [], mana = [], seen = new Set();
+        // Sharkey, Tyrant of the Shire: "Mana of any type can be spent to activate Sharkey's abilities." (spendAnyTypeSelf)
+        const anyType = (base.abilities || []).some(ab => ab.kind === 'static' && (ab.effects || []).some(e => e && e.op === 'spendAnyTypeSelf'));
         const take = (list, ab) => {
           if (!ab || ab.fromGraveyard || ab.fromCommandZone || ab.special) return;
           const k = ab.kind + ':' + (ab.text || JSON.stringify(ab.effects || []));
           if (seen.has(k)) return;
           seen.add(k);
-          list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor },
+          list.push(Object.assign({}, ab, { granted: false, grantTs: undefined, borrowed: true, spendAnyColor: !!spec.anyColor || anyType },
+            anyType ? { spendAnyType: true } : {},
             // Mairsil, the Pretender: "You may activate each of those abilities only once each turn." (oncePerTurn)
             spec.oncePerTurn ? { only: Object.assign({}, ab.only || {}, { perTurn: 1 }) } : {}));
         };
@@ -15593,11 +15598,12 @@
           // Experiment Kraj: "each other creature with a +1/+1 counter on it" — anyone's (withCounter)
           if (spec.withCounter && !(Number((x.counters || {})[spec.withCounter]) > 0)) continue;
           const xa = x.analysis();
-          if (!xa || !xa.isCreature) continue;
+          // (Sharkey, Tyrant of the Shire: "lands your opponents control" — what land; "except mana abilities" — noMana)
+          if (!xa || !(spec.what === 'land' ? xa.isLand : xa.isCreature)) continue;
           if (spec.words && !this._cardFitsWords(x, spec.words)) continue;
           if (spec.otherName && xa.name === base.name) continue;
           for (const ab of (xa.abilities || [])) if (ab.kind === 'activated' || ab.kind === 'loyalty') take(acts, ab);
-          for (const ab of this.manaAbilitiesOf(x)) take(mana, ab);
+          if (!spec.noMana) for (const ab of this.manaAbilitiesOf(x)) take(mana, ab);
         }
         if (acts.length || mana.length) res = { acts, mana, key: Array.from(seen).join('\u0001') + (spec.anyColor ? '|any' : '') };
       } finally { busy.delete(o.id); }
@@ -17470,7 +17476,12 @@
                 return x && x.zone === 'battlefield' && this._cardFitsWords(x, ab.targetsWhat) && (ab.targetsWhose !== 'you' || x.controller === o.controller);
               }).map(t => t.id)).size } : {},
               // Cecil, Dark Knight: how many times it had transformed as this triggered (CR 701.28f; sinceTrigger)
-              o.xformN ? { srcXf: o.xformN } : {}),
+              o.xformN ? { srcXf: o.xformN } : {},
+              /* Kodama of the Center Tree: "soulshift X, where X is the number of Spirits you control" — as it was just
+                 before it died: itself and the Spirits that went with it (spiritsBefore) */
+              ab.spiritsBefore ? { spiritsBefore: new Set(this.battlefield.filter(q => q.controller === o.controller && !q.phasedOut)
+                .concat((this._leavingTogether || []).filter(q => q.zone !== 'battlefield' && q.controller === o.controller), [o])
+                .filter(q => this._hasCreatureType(q, 'Spirit'))).size } : {}),
             lossExactly: ab.lossExactly || undefined,
             minTotal: ab.minTotal || undefined,
             enteredAttackingOnly: ab.enteredAttackingOnly || undefined,
@@ -17738,11 +17749,12 @@
             if (!foe || !this.opponentsOf(o.controller).some(q => q.id === foe) || !ts.every(t => t.kind === t0.kind && t.id === t0.id)) continue;
           }
           // Ivy, Gleeful Spellthief: "targets only a single creature other than Ivy" — one creature, maybe more than once, and nothing else
-          if (ab.targetsOneOtherCreature) {
+          // (Loki, God of Lies: "targets only a single creature" — itself too: targetsOneCreature)
+          if (ab.targetsOneOtherCreature || ab.targetsOneCreature) {
             const sp = data.spell || (data.stackId && this.stack.find(st => st.id === data.stackId));
             const ts = (sp && sp.targets) || [];
             const x = ts.length && ts[0].kind === 'object' ? this.obj(ts[0].id) : null;
-            if (!x || x === o || x.zone !== 'battlefield' || !(this.characteristics(x) || {}).isCreature || !ts.every(t => t.kind === 'object' && t.id === x.id)) continue;
+            if (!x || (x === o && !ab.targetsOneCreature) || x.zone !== 'battlefield' || !(this.characteristics(x) || {}).isCreature || !ts.every(t => t.kind === 'object' && t.id === x.id)) continue;
           }
           // Black Vise: only the upkeep of the player chosen as it entered
           if (ab.chosenPlayerOnly && !(o.chosenPlayer && data.playerId === o.chosenPlayer)) continue;
@@ -19117,6 +19129,8 @@
         .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
         // Soundwave, Sonic Spy: "with mana value equal to the damage dealt" — what the lot dealt that player (mvEqTriggerAmount)
         .map(spec => (spec && spec.mvEqTriggerAmount ? Object.assign({}, spec, { mvEqTriggerAmount: false, minMv: Number(td.amount) || 0, maxMv: Number(td.amount) || 0 }) : spec))
+        // Kodama of the Center Tree: "soulshift X" — X the Spirits you controlled as it died (maxMvSpiritsBefore)
+        .map(spec => (spec && spec.maxMvSpiritsBefore ? Object.assign({}, spec, { maxMvSpiritsBefore: false, maxMv: Number(td.spiritsBefore) || 0 }) : spec))
         // Saruman of Many Colors: "with equal or lesser mana value than that spell" (mvAtMostTrigger)
         .map(spec => (spec && spec.mvAtMostTrigger ? Object.assign({}, spec, { mvAtMostTrigger: false, maxMv: this._triggerSpellMv(td) }) : spec))
         // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
@@ -19424,6 +19438,14 @@
         const id = (ctx.triggerData || {}).victimId;
         const x = id && this.obj(id);
         targets = x && x.zone === 'battlefield' ? [{ kind: 'object', id }] : [];
+      }
+      // Loki, God of Lies: "gain control of that creature" — the one the spell cast targets (triggerSpellTarget)
+      if (e.scope === 'triggerSpellTarget' && TRIGGER_OBJECT_OPS.has(e.op)) {
+        const t0 = ((ctx.triggerData || {}).spellTargets || []).find(t => t.kind === 'object');
+        const x = t0 && this.obj(t0.id);
+        targets = x && x.zone === 'battlefield' ? [{ kind: 'object', id: x.id }] : [];
+        // (… "untap that creature and it gains haste": the same creature after)
+        if (!(ctx.resolvedTargets || ctx.targets || []).length) ctx.resolvedTargets = targets;
       }
       const firstObj = () => { const t = targets.find(t => t.kind === 'object'); return t && this.obj(t.id); };
       const firstPlayer = () => { const t = targets.find(t => t.kind === 'player'); return t && this.player(t.id); };
@@ -25948,6 +25970,35 @@
             c.exiledBy = src.id; c.exiledReturn = 'hand'; c.exiledWithId = src.id;
             this.logEvent('exile', `${me.name} exiles ${c.name} from ${q.name}'s hand until ${src.name} leaves the battlefield.`);
           }
+          break;
+        }
+        /* Cloak and Dagger, Entwined: "They reveal their hand. You may exile a nonland card from their hand or the chosen
+           creature until Cloak and Dagger leave the battlefield." — one pick from the two, which may be left empty; gone
+           already, they still reveal, and nothing is exiled (exileHandOrTargetUntil) */
+        case 'exileHandOrTargetUntil': {
+          const q = this.player((targets.find(t => t.kind === 'player') || {}).id);
+          if (!q || q.hasLost) break;
+          const hand = this.zones[q.id].hand;
+          this._knowHand(q.id, '*');
+          this.logEvent('reveal', `${q.name} reveals their hand: ${hand.map(o => o.name).join(', ') || 'no cards'}.`);
+          if (!src || src.zone !== 'battlefield') break;
+          const cr = targets.filter(t => t.kind === 'object').map(t => this.obj(t.id)).find(o => o && o.zone === 'battlefield' && o.controller === q.id);
+          const pool = hand.filter(c => this._cardFitsWords(c, e.filter === 'nonland' ? 'nonland card' : 'card')).concat(cr ? [cr] : []);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'exileHandOrCreature', kind: 'objects',
+            items: this._chooseItems(pool), min: 0, max: 1, optional: true,
+            prompt: `${src.name}: you may exile a ${e.filter === 'nonland' ? 'nonland ' : ''}card from ${q.name}'s hand${cr ? ' or ' + cr.name : ''} until ${src.name} leaves the battlefield.` }, 'hoc');
+          if (got === SUSPEND) return SUSPEND;
+          const c = ((got && got.picks) || []).map(id => this.obj(id)).find(x => x && pool.includes(x));
+          if (!c) { this.logEvent('rules', `${me.name} exiles nothing.`); break; }
+          const from = c.zone;
+          if (from !== 'hand' && from !== 'battlefield') break;
+          this.moveObject(c, 'exile');
+          if (c.zone !== 'exile') break;
+          c.exiledBy = src.id;
+          if (from === 'hand') { c.exiledReturn = 'hand'; c.exiledWithId = src.id; }
+          this._lastExiled = c.id;
+          this.logEvent('exile', `${me.name} exiles ${c.name} from ${from === 'hand' ? q.name + "'s hand" : 'the battlefield'} until ${src.name} leaves the battlefield.`);
           break;
         }
         // Valki, God of Lies: "Choose a creature card exiled with Valki with mana value X. Valki becomes a copy of that card."

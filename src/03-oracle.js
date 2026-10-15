@@ -3512,6 +3512,10 @@
     // Eriette, the Beguiler: "gain control of that permanent for as long as that Aura is attached to it" (whileAttachedAura)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as that Aura is attached to it\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileAttachedAura: true, scope: 'triggerObject' }) },
+    /* Loki, God of Lies: "gain control of that creature until end of turn" — after "you cast a spell that targets only a
+       single creature", the creature it targets (triggerSpellTarget) */
+    { re: /^Gain control of the creature that spell targets until end of turn\.?$/i,
+      make: () => ({ op: 'gainControl', until: 'eot', scope: 'triggerSpellTarget' }) },
     // Willbreaker: "gain control of that creature for as long as you control Willbreaker" — what the trigger is about (controlThatWhile)
     { re: /^Gain control of that (creature|permanent|artifact) for as long as you control (?:CARDNAME|this creature)\.?$/i,
       make: () => ({ op: 'gainControl', until: null, whileSrc: true, scope: 'triggerObject' }) },
@@ -10526,6 +10530,12 @@
        way until Valki leaves the battlefield." (exileFromOppHandsUntil) */
     { re: /^Each opponent reveals their hand\. For each opponent, exile an? ([a-z]+) card they revealed this way until (?:CARDNAME|this creature) leaves the battlefield\.?$/i,
       make: (m) => [{ op: 'exileFromOppHandsUntil', filter: m[1].toLowerCase() }] },
+    /* Cloak and Dagger, Entwined: "choose target opponent and up to one target creature they control. They reveal their
+       hand. You may exile a nonland card from their hand or the chosen creature until Cloak and Dagger leave the
+       battlefield." — one of them, or none (exileHandOrTargetUntil) */
+    { re: /^choose target opponent and up to one target creature they control\. They reveal their hand\. You may exile an? (nonland )?card from their hand or the chosen creature until (?:CARDNAME|this creature) leaves? the battlefield\.?$/i,
+      make: (m) => [{ op: 'exileHandOrTargetUntil', filter: m[1] ? 'nonland' : 'card',
+        targets: [{ type: 'player', opponent: true }, { type: 'creature', filter: 'creature', zone: 'battlefield', controller: 'opponent', upTo: true, sameControllerAsPrev: true }] }] },
     /* Valki, God of Lies: "Choose a creature card exiled with Valki with mana value X. Valki becomes a copy of that card."
        (becomeExiledWithCopy mvX) */
     { re: /^Choose an? ([a-z]+) card exiled with CARDNAME with mana value X\. CARDNAME becomes a copy of that card\.?$/i,
@@ -12488,6 +12498,15 @@
       const inner = also && also.op !== 'manual' && parseModal('Choose one \u2014\n' + ca[2]);
       if (inner) inner.effects.push(also);
       return inner || null;
+    }
+    /* The Ruinous Wrecking Crew: "When The Ruinous Wrecking Crew enters, choose up to X \u2014" \u2014 the X paid for it
+       (count X, upToX) */
+    const ux0 = cleaned.match(/^Choose up to X\s*[-\u2014]+\s*([\s\S]*)$/i);
+    if (ux0) {
+      const inner = parseModal('Choose one \u2014 ' + ux0[1]);
+      if (!inner) return null;
+      Object.assign(inner.effects[inner.effects.length - 1], { count: 'X', min: 0, upToX: true });
+      return inner;
     }
     /* Bumi, King of Three Trials: "choose up to X, where X is the number of Lesson cards in your graveyard \u2014" \u2014
        as many as that comes to as it resolves, none at all an answer too (upToX) */
@@ -15251,6 +15270,8 @@
     { re: /^Whenever you cast an? ([a-z]+) spell you don'?t own,? /i, event: 'youCastSpell', extraOf: (m) => ({ notOwnedSpell: true, spellFilter: m[1].toLowerCase() }) },
     // Prowl, Stoic Strategist: "Whenever a player plays a card exiled with Prowl" — cast or played as a land (playedExiledWithSelf)
     { re: /^Whenever a player plays a card exiled with (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', also: 'anyPlayLand', extra: { playedExiledWithSelf: true } },
+    // Loki, God of Lies: "Whenever you cast a spell that targets only a single creature" (targetsOneCreature)
+    { re: /^Whenever you cast a spell that targets only a single creature,? /i, event: 'youCastSpell', extra: { targetsOneCreature: true } },
     // Ivy, Gleeful Spellthief: "Whenever a player casts a spell that targets only a single creature other than Ivy" (targetsOneOtherCreature)
     { re: /^Whenever a player casts a spell that targets only a single creature other than (?:CARDNAME|this creature),? /i, event: 'anyCastSpell', extra: { targetsOneOtherCreature: true } },
     // Gonti, Night Minister: "Whenever a player casts a spell they don't own" — anybody's, not theirs (notOwnedByCaster)
@@ -17207,6 +17228,14 @@
         if (parsed.auto) autoLines++;
         continue;
       }
+      /* Kodama of the Center Tree: "Kodama of the Center Tree has soulshift X, where X is the number of Spirits you
+         control." — soulshift (CR 702.46) with X counted just before it died, itself among them (spiritsBefore) */
+      if (/^CARDNAME has soulshift X, where X is the number of Spirits you control\.?$/i.test(line)) {
+        out.abilities.push({ kind: 'triggered', event: 'dies', self: true, optional: true, spiritsBefore: true, text: line, auto: true, condition: null,
+          effects: [{ op: 'regrowth', targets: [{ type: 'permanent', zone: 'graveyard', controller: 'you', filter: 'Spirit card', subtypes: ['spirit'], maxMvSpiritsBefore: true }] }] });
+        autoLines++;
+        continue;
+      }
       /* Exert (CR 701.43): "You may exert this creature as it attacks. When
          you do, …" — an attack trigger you may take, exerting it first */
       // Vizier of the True: "You may exert this creature as it attacks." — and nothing more, the rest is other cards' business
@@ -17272,6 +17301,8 @@
           if (trig.event === 'permDies' && !/\bcard\b/i.test(body.replace(/\bexile that card\.?$/i, '')))
             body = body.replace(/\band exile that card(?=\.?$)/i, 'and exile the card that died');
         }
+        // Loki, God of Lies: "gain control of that creature" — the one the spell targets
+        if (trig.extra && trig.extra.targetsOneCreature) body = body.replace(/^gain control of that creature\b/i, 'gain control of the creature that spell targets');
         // Speedway Fanatic: "that Vehicle" is the creature it crewed
         if (trig.event === 'crewsVehicle') body = body.replace(/\bthat Vehicle\b/g, 'that creature');
         /* Inalla, Archmage Ritualist: "Whenever another nontoken Wizard you
@@ -21152,8 +21183,9 @@
       { re: /^Players skip their (untap|draw) steps\.?$/i, make: (m) => ({ op: 'skipStep', step: m[1].toLowerCase(), who: 'all' }), auto: true },
       { re: /^Skip your (?:untap|combat|draw) step\.?$/i,
         make: (m) => ({ op: 'skipStep', step: (m[0].match(/untap|combat|draw/i) || [])[0].toLowerCase(), who: 'you' }), auto: true },
-      { re: /^Activated abilities of ([a-z]+s)(?: your opponents control| you control)? can'?t be activated\.?$/i,
-        make: (m) => ({ op: 'continuous', layer: 6, flag: 'cantActivate',
+      // (Sharkey, Tyrant of the Shire: "Activated abilities of lands your opponents control can't be activated unless they're mana abilities." — cantActivateNonMana)
+      { re: /^Activated abilities of ([a-z]+s)(?: your opponents control| you control)? can'?t be activated( unless they'?re mana abilities)?\.?$/i,
+        make: (m) => ({ op: 'continuous', layer: 6, flag: m[2] ? 'cantActivateNonMana' : 'cantActivate',
           scope: Object.assign({ what: m[1].replace(/s$/, '') },
             /your opponents control/i.test(m[0]) ? { who: 'opponents' } : (/you control/i.test(m[0]) ? { who: 'you' } : { who: 'all' })) }), auto: true },
       /* Marvin, Murderous Mimic: "Marvin has all activated abilities of creatures you control that don't have the same
@@ -21163,6 +21195,11 @@
       { re: /^(?:CARDNAME|This creature) has all activated abilities of (?:all )?(legendary )?creatures (you|your opponents) control( that don'?t have the same name as (?:this creature|CARDNAME))?\.( You may spend mana as though it were mana of any colou?r to activate those abilities\.)?$/i,
         make: (m) => Object.assign({ op: 'borrowActivated', who: /opponents/i.test(m[2]) ? 'opponents' : 'you' },
           m[1] ? { words: 'legendary' } : {}, m[3] ? { otherName: true } : {}, m[4] ? { anyColor: true } : {}), auto: true },
+      /* Sharkey, Tyrant of the Shire: "Sharkey has all activated abilities of lands your opponents control except mana
+         abilities." (what land, noMana); "Mana of any type can be spent to activate Sharkey's abilities." (spendAnyTypeSelf) */
+      { re: /^(?:CARDNAME|This creature) has all activated abilities of lands (you|your opponents) control except mana abilities\.?$/i,
+        make: (m) => ({ op: 'borrowActivated', who: /opponents/i.test(m[1]) ? 'opponents' : 'you', what: 'land', noMana: true }), auto: true },
+      { re: /^Mana of any type can be spent to activate (?:CARDNAME|this creature)'s abilities\.?$/i, eff: { op: 'spendAnyTypeSelf' }, auto: true },
       // Experiment Kraj: "Experiment Kraj has all activated abilities of each other creature with a +1/+1 counter on it." (withCounter)
       { re: /^(?:CARDNAME|This creature) has all activated abilities of each other creature with an? (\+1\/\+1|[a-z]+) counter on it\.?$/i,
         make: (m) => ({ op: 'borrowActivated', who: 'all', withCounter: m[1].toLowerCase() }), auto: true },
