@@ -497,6 +497,7 @@ declare namespace MTG {
     | { kind: 'distinct'; key?: string; reason?: string; label?: string }
     | { kind: 'distinctTypes'; key?: string; reason?: string; label?: string }
     | { kind: 'unionAtLeast'; key?: string; min: number; reason?: string; label?: string }
+    | { kind: 'eachAtMost'; key?: string; reason?: string; label?: string }
     | { kind: 'sum'; key: string; min?: number; max?: number; reason?: string; label?: string; finalMax?: boolean }
     | { kind: 'shareColour'; with?: string[]; reason?: string; label?: string }
     | { kind: 'mana'; key?: string; base?: string; reason?: string; label?: string }

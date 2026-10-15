@@ -68914,4 +68914,176 @@ module.exports = (test) => {
     t.eq(lifeB - T.life('B'), 4, 'three Hellrider triggers and a copy');
     t.eq(T.player('A').pool.R, 2, 'firebending, and its copy');
   });
+  test("Cards: Deep Gnome Terramancer — an opponent's land put onto the battlefield (not played) fetches a Plains, once a turn", (mk, t) => {
+    t.auto('Deep Gnome Terramancer');
+    const T = mk({ library: Array(20).fill('Plains') });
+    T.bf('A', 'Deep Gnome Terramancer');
+    const plainsOf = () => T.bfOf('A').filter(o => o.name === 'Plains');
+    T.nextTurn('B');
+    T.playLand('B', T.hand('B', 'Forest'));
+    t.eq(plainsOf().length, 0, 'a land played: no trigger');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Rampant Growth'));
+    t.eq(plainsOf().length, 1, 'a land put onto the battlefield: a Plains');
+    t.ok(plainsOf()[0].tapped, 'tapped');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Rampant Growth'));
+    t.eq(plainsOf().length, 1, 'only once each turn');
+    // its own controller's lands do not count
+    T.nextTurn('A');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Rampant Growth'));
+    t.eq(plainsOf().length, 2, 'only the Rampant Growth Plains (A\'s own land: no trigger)');
+    // a "no" leaves it for later in the turn
+    T.nextTurn('B');
+    T.answer('confirm', { yes: false });
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Rampant Growth'));
+    t.eq(plainsOf().length, 2, 'declined');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Rampant Growth'));
+    t.eq(plainsOf().length, 3, 'a later one the same turn still works');
+  });
+  test('Cards: Quilled Greatwurm — combat damage on your turn becomes counters (one trigger for a trampler); cast from the graveyard by removing six counters', (mk, t) => {
+    t.auto('Quilled Greatwurm');
+    const T = mk({ library: Array(20).fill('Forest') });
+    const g = T.g;
+    const wurm = T.bf('A', 'Quilled Greatwurm');
+    const bears = T.bf('A', 'Grizzly Bears');
+    const blocker = T.bf('B', 'Grizzly Bears');
+    T.answer('declareAttackers', () => [{ attackerId: wurm.id, defenderId: 'B' }, { attackerId: bears.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => [{ blockerId: blocker.id, attackerIds: [wurm.id] }]);
+    const n0 = g.log.length;
+    T.toMain('A', 'end');
+    t.eq(T.life('B'), 13, '5 trampled over, 2 from the Bears');
+    t.eq(g.log.slice(n0).filter(l => /^Triggered: Quilled/.test(l.text)).length, 2, 'one trigger for each creature, the trampler hitting two');
+    t.eq(wurm.counters['+1/+1'], 7, 'the Wurm: 7 counters (2 to the blocker, 5 to B)');
+    t.eq(bears.counters['+1/+1'], 2, 'the Bears: 2');
+    // not on an opponent's turn: a blocker of A's deals combat damage, no counters
+    T.nextTurn('B');
+    const att = T.bf('B', 'Hill Giant');
+    T.answer('declareAttackers', () => [{ attackerId: att.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => [{ blockerId: bears.id, attackerIds: [att.id] }]);
+    T.toMain('B', 'end');
+    t.eq(bears.counters['+1/+1'], 2, "B's turn: nothing more");
+    // from the graveyard: remove six counters from among creatures A controls
+    T.nextTurn('A');
+    g.moveObject(wurm, 'graveyard');
+    t.zone(wurm, 'graveyard');
+    t.no((g.altUsesFor('A', wurm.id) || []).some(u => u.via === 'graveCounters'), 'two counters only: not offered');
+    const elk = T.bf('A', 'Grizzly Bears', { counters: { '+1/+1': 3, '-1/-1': 1 } });
+    const ogre = T.bf('A', 'Hill Giant', { counters: { '+1/+1': 2 } });
+    t.ok((g.altUsesFor('A', wurm.id) || []).some(u => u.via === 'graveCounters'), 'eight counters: offered');
+    let q = null;
+    T.answer('choose', (ch) => {
+      q = ch;
+      const at = (id, kind) => ch.options.find(x => x.id === id && x.kind === kind).i;
+      return { picks: [at(elk.id, '-1/-1'), at(elk.id, '+1/+1'), at(elk.id, '+1/+1'), at(elk.id, '+1/+1'), at(ogre.id, '+1/+1'), at(ogre.id, '+1/+1')] };
+    });
+    T.mana('A', '4GG');
+    T.cast('A', wurm, { via: 'graveCounters' });
+    t.ok(q && q.purpose === 'counterCost', 'asked which counters');
+    t.ok(q && MTG_check(q), 'too many off one is refused');
+    t.zone(wurm, 'battlefield', 'cast from the graveyard');
+    t.eq(Object.keys(elk.counters).filter(k => elk.counters[k] > 0).length, 0, 'the Bears: all four off');
+    t.eq(Number(ogre.counters['+1/+1']) || 0, 0, 'the Giant: both off');
+    t.eq(bears.counters['+1/+1'], 2, 'the other Bears kept theirs');
+    function MTG_check(ch) {
+      const C = T.MTG.choice;
+      const i = ch.options.find(x => x.id === ogre.id).i;
+      return !C.check(ch, { picks: [i, i, i, i, i, i] }).ok;
+    }
+  });
+  test('Cards: Kindred Summons — X creature cards of the chosen type off the top, X the creatures of that type you control', (mk, t) => {
+    t.auto('Kindred Summons');
+    const T = mk({ library: Array(20).fill('Forest') });
+    T.bf('A', 'Llanowar Elves'); T.bf('A', 'Elvish Mystic'); T.bf('A', 'Grizzly Bears');
+    // from the top: Forest, Grizzly Bears, Elvish Visionary, Forest, Fyndhorn Elves, Elvish Archdruid
+    const archdruid = T.top('A', 'Elvish Archdruid'), fyndhorn = T.top('A', 'Fyndhorn Elves');
+    T.top('A', 'Forest');
+    const visionary = T.top('A', 'Elvish Visionary'), bears = T.top('A', 'Grizzly Bears');
+    T.top('A', 'Forest');
+    let q = null;
+    T.answer('choose', (ch) => { q = ch; return { picks: [ch.options.find(o => o.label === 'Elf').i] }; });
+    T.mana('A', '5GG');
+    const before = T.zone('A', 'library').length;
+    T.cast('A', T.hand('A', 'Kindred Summons'));
+    t.ok(q && q.purpose === 'creatureType', 'a creature type chosen');
+    t.zone(visionary, 'battlefield'); t.zone(fyndhorn, 'battlefield');
+    t.zone(archdruid, 'library', 'two Elves only (two Elves controlled)');
+    t.zone(bears, 'library', 'a Bear is not an Elf: shuffled back');
+    t.eq(T.zone('A', 'library').length, before - 3, 'the rest back in the library (and the Visionary drew one)');
+    // none of the chosen type: nothing revealed
+    const T2 = mk({ library: Array(20).fill('Forest') });
+    T2.bf('A', 'Grizzly Bears');
+    const elf = T2.top('A', 'Llanowar Elves');
+    T2.answer('choose', (ch) => ({ picks: [ch.options.find(o => o.label === 'Elf').i] }));
+    T2.mana('A', '5GG');
+    T2.cast('A', T2.hand('A', 'Kindred Summons'));
+    t.zone(elf, 'library', 'no Elves controlled: X is 0');
+  });
+  test("Cards: Neoform — a creature card with mana value 1 more than the sacrificed creature's, with an additional +1/+1 counter", (mk, t) => {
+    t.auto('Neoform');
+    const T = mk();
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    const giant = T.top('A', 'Hill Giant'), courser = T.top('A', 'Centaur Courser'), elf = T.top('A', 'Elvish Visionary');
+    let offered = null;
+    T.answer('pickCard', (ch) => { offered = ch.cards.map(c => c.name); return { cardIds: [courser.id] }; });
+    T.mana('A', 'GU');
+    T.cast('A', T.hand('A', 'Neoform'), { sacrificeIds: [bear.id] });
+    t.zone(bear, 'graveyard');
+    t.eq((offered || []).join(), 'Centaur Courser', 'only mana value 3');
+    t.zone(courser, 'battlefield');
+    t.eq(courser.counters['+1/+1'], 1, 'with an additional +1/+1 counter');
+    t.eq(g.powerOf(courser), 4);
+    t.zone(giant, 'library'); t.zone(elf, 'library');
+  });
+  test('Cards: Inscription of Abundance — "gains X life, where X is the greatest power among creatures they control": the target player\'s', (mk, t) => {
+    t.auto('Inscription of Abundance');
+    const T = mk();
+    T.bf('A', 'Grizzly Bears');
+    T.bf('B', 'Craw Wurm'); T.bf('B', 'Hill Giant');
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Inscription of Abundance'), { modes: [1], targets: ['B'] });
+    t.eq(T.life('B'), 26, "B gains 6: B's Craw Wurm");
+    t.eq(T.life('A'), 20);
+    T.mana('A', '1G');
+    T.cast('A', T.hand('A', 'Inscription of Abundance'), { modes: [1], targets: ['A'] });
+    t.eq(T.life('A'), 22, "A gains 2: A's Bears");
+    // kicked: all three
+    const bears = T.bfOf('A')[0], giant = T.bfOf('B').find(o => o.name === 'Hill Giant');
+    T.mana('A', '4GG');
+    T.cast('A', T.hand('A', 'Inscription of Abundance'), { kick: 1, modes: [0, 1, 2], targets: [bears, 'A', bears, giant] });
+    t.eq(bears.counters['+1/+1'], 2);
+    t.eq(T.life('A'), 26, 'A gains 4: the Bears with their counters');
+    t.zone(giant, 'graveyard', 'fought');
+  });
+  test("Cards: Hazel's Brewmaster — Foods you control have the activated abilities of the creature cards exiled with it", (mk, t) => {
+    t.auto("Hazel's Brewmaster");
+    const T = mk();
+    const g = T.g;
+    const sorc = T.grave('B', 'Prodigal Sorcerer');
+    T.grave('B', 'Lightning Bolt');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: sorc.id }] }));
+    const hazel = T.bf('A', "Hazel's Brewmaster", { etb: true });
+    T.resolve();
+    t.zone(sorc, 'exile', 'exiled from the graveyard');
+    t.eq(sorc.exiledWithId, hazel.id, 'exiled with it');
+    const food = T.bfOf('A').find(o => o.name === 'Food');
+    t.ok(food, 'a Food');
+    const acts = food.analysis().abilities.filter(a => a.kind === 'activated');
+    const i = acts.findIndex(a => /deals 1 damage/.test(a.text || ''));
+    t.ok(i >= 0, "the Food has the Sorcerer's ability");
+    t.ok(acts.some(a => /gain 3 life/.test(a.text || '')), 'and its own');
+    const all = food.analysis().manaAbilities.concat(acts);
+    T.activate('A', food, all.indexOf(acts[i]), { targets: ['B'] });
+    t.eq(T.life('B'), 19, 'pinged');
+    // not a creature of A's, nor an opponent's Food
+    const bear = T.bf('A', 'Grizzly Bears');
+    t.no(bear.analysis().abilities.some(a => /deals 1 damage/.test(a.text || '')), 'a creature does not get it');
+    // gone: the Foods lose it
+    g.moveObject(hazel, 'graveyard');
+    t.no(food.analysis().abilities.some(a => /deals 1 damage/.test(a.text || '')), 'Brewmaster gone: no more');
+  });
 };

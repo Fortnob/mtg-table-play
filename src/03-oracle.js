@@ -4800,9 +4800,10 @@
     { re: /^(?:It|CARDNAME|This creature) deals damage to each player equal to (twice )?the number of ([a-z ]+?)s (?:that player|they) controls?\.?$/i,
       make: (m) => ({ op: 'damageEachByCount', what: m[2].toLowerCase(), mult: m[1] ? 2 : 1 }) },
     // Oswald Fiddlebender: "an artifact card with mana value equal to 1 plus the sacrificed artifact's mana value"
-    { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?, then shuffle\.?$/i,
-      make: (m) => ({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]),
-        prompt: 'Search your library for ' + (/^[aeiou]/i.test(m[1]) ? 'an ' : 'a ') + m[1].toLowerCase() + ' card.' }) },
+    // (Neoform: "… onto the battlefield with an additional +1/+1 counter on it" — enterCounters)
+    { re: /^Search your library for an? ([a-z ]+?) card with mana value equal to (one|two|1|2) plus the sacrificed (?:creature|artifact|permanent)'?s mana value, put (?:it|that card) onto the battlefield( tapped)?( with an additional \+1\/\+1 counter on it)?, then shuffle\.?$/i,
+      make: (m) => Object.assign({ op: 'tutor', n: 1, filter: m[1].toLowerCase(), to: 'battlefield', tapped: !!m[3], mvOfSacrificedPlus: num(m[2]),
+        prompt: 'Search your library for ' + (/^[aeiou]/i.test(m[1]) ? 'an ' : 'a ') + m[1].toLowerCase() + ' card.' }, m[4] ? { enterCounters: { kind: '+1/+1', n: 1 } } : {}) },
     // Nykthos Paragon: "put that many +1/+1 counters on each creature you control"
     { re: /^Put that many \+1\/\+1 counters on each creature you control\.?$/i,
       make: () => ({ op: 'counters', kind: '+1/+1', n: 'triggerAmount', scope: 'yourCreatures' }) },
@@ -10260,6 +10261,8 @@
       const sc = scopeOf(m[1]);
       return sc ? done({ greatestPower: sc }) : null;
     }
+    // Inscription of Abundance: "Target player gains X life, where X is the greatest power among creatures they control" — the target's
+    if (/^the greatest power among creatures (?:they|that player) controls?$/i.test(p)) return done({ greatestPower: { who: 'target', what: 'creature' } });
     if ((m = p.match(/^your devotion to (white|blue|black|red|green)$/i)))
       return done({ devotion: { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' }[m[1].toLowerCase()] });
     if ((m = p.match(/^the number of (.+)$/i))) {
@@ -13055,6 +13058,13 @@
     { re: /^[Rr]eveal cards from the top of your library until you reveal X nonland cards, where X is the number of colou?rs among permanents you control\. For each of those colou?rs, you may exile a card of that colou?r from among the revealed cards\. Then shuffle\. You may cast the exiled cards this turn\.?$/,
       make: () => [{ op: 'revealUntil', n: { colorsAmongYours: true, mult: 1 }, filter: 'nonland', dest: 'stay', zeroNone: true },
         { op: 'exileRevealedPerColor' }, { op: 'shuffle' }, { op: 'mayPlayExiled', castOnly: true, duration: 'eot' }] },
+    /* Kindred Summons: "Choose a creature type. Reveal cards from the top of your library until you reveal X creature cards
+       of the chosen type, where X is the number of creatures you control of that type. Put those cards onto the
+       battlefield, then shuffle the rest of the revealed cards into your library." — none for X = 0 (revealUntil chosenType) */
+    { re: /^Choose a creature type\. Reveal cards from the top of your library until you reveal X creature cards of the chosen type, where X is the number of creatures you control of that type\. Put those cards onto the battlefield, then shuffle the rest of the revealed cards into your library\.?$/i,
+      make: () => { const sc = scopeOf('creatures you control of the chosen type');
+        return sc ? [{ op: 'chooseTypeNow' }, { op: 'revealUntil', who: 'you', filter: 'creature', chosenType: true, n: { scope: sc, mult: 1 }, zeroNone: true,
+          dest: 'battlefield', rest: 'shuffle' }] : null; } },
     /* Glimpse the Impossible: "At the beginning of the next end step, if any of those cards remain exiled, put them into
        your graveyard, then create a 0/1 colorless Eldrazi Spawn creature token for each card put into your graveyard
        this way. Those tokens have "Sacrifice this token: Add {C}."" — the cards just exiled, noted now, each only if it
@@ -16616,6 +16626,10 @@
     { re: /^Whenever an opponent is dealt noncombat damage,? /i, event: 'playerDealtDamage', extra: { toOpponent: true, noncombatOnly: true } },
     // Sunhome Enforcer: "Whenever this creature deals combat damage" (to anything)
     { re: /^Whenever (?:this creature|CARDNAME) deals combat damage, /i, event: 'dealsDamage', self: true, extra: { combatOnly: true } },
+    /* Quilled Greatwurm: "Whenever a creature you control deals combat damage during your turn," — once for each creature
+       however many it hit, "that many" all it dealt (batchPerSource) */
+    { re: /^Whenever a creature you control deals combat damage( during your turn)?, /i, event: 'dealsDamage', aboutObject: true,
+      filt: () => ({ words: 'creature', who: 'you' }), extraOf: (m) => Object.assign({ combatOnly: true, batch: true, batchPerSource: true }, m[1] ? { yourTurnOnly: true } : {}) },
     // Crystallization, Illusionary Armor: "When enchanted creature becomes the target of a spell or ability"
     { re: /^When(?:ever)? enchanted creature becomes the target of a spell or ability,? /i, event: 'becomesTarget', extra: { ofEnchanted: true } },
     /* Mizzix of the Izmagnus: "Whenever you cast an instant or sorcery spell with mana value greater than the number
@@ -17038,10 +17052,12 @@
     // Millicent, Restless Revenant: "Whenever Millicent or another nontoken Spirit you control dies or deals combat damage to a player"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' dies or deals combat damage to a player(?:,| )', 'i'),
       event: 'permDies', also: 'permCombatDamage', filt: (m) => subjectFilter(m[1]) },
-    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?(?:,| )', 'i'),
+    // (Deep Gnome Terramancer: "lands enter under an opponent's control without being played" — not a land play: notPlayed)
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + ' enters?(?: the battlefield)?( under your control| under an opponent\'s control)?( without being played)?(?:,| )', 'i'),
       event: 'permEnters', filt: (m) => {
         const f = subjectFilter(m[1]);
         if (f && m[2]) f.who = /your/i.test(m[2]) ? 'you' : 'opponent';
+        if (f && m[3]) f.notPlayed = true;
         return f;
       } },
     /* Kraven the Hunter: "Whenever a creature an opponent controls with the greatest power among creatures that player
@@ -22621,6 +22637,9 @@
          creature cards exiled with Agatha's Soul Cauldron." (grantExiledActivated) */
       { re: /^Creatures you control with \+1\/\+1 counters on them have all activated abilities of all creature cards exiled with CARDNAME\.?$/i,
         eff: { op: 'grantExiledActivated', counter: '+1/+1', what: 'creature' }, auto: true },
+      // Hazel's Brewmaster: "Foods you control have all activated abilities of all creature cards exiled with this creature." (toSubtype)
+      { re: /^(Food|Treasure|Clue|Equipment|Vehicle)s you control have all activated abilities of all creature cards exiled with (?:CARDNAME|this creature)\.?$/,
+        make: (m) => ({ op: 'grantExiledActivated', toSubtype: m[1], what: 'creature' }), auto: true },
       /* Tecutlan, the Searing Rift: "Whenever you cast a permanent spell using mana produced by Tecutlan, discover X, where
          X is that spell's mana value." — a promise its mana carries, kept when it pays for such a spell (manaSpentRider) */
       { re: /^Whenever you cast an? ([a-z]+) spell using mana produced by CARDNAME, (.+)$/i,
@@ -22696,6 +22715,11 @@
       // (Dragon Man, Reformed Robot: "by discarding a card")
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard by discarding (a|two|three|\d+) cards? in addition to paying its other costs\.?$/i,
         make: (m) => ({ op: 'graveCastDiscard', n: num(m[1]) }), auto: true },
+      /* Quilled Greatwurm: "You may cast this card from your graveyard by removing six counters from among creatures you
+         control in addition to paying its other costs." — counters of any kind, as many off each as the player likes
+         (graveCastCounters) */
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard by removing (two|three|four|five|six|seven|eight|nine|ten|\d+) counters from among (creatures|permanents|artifacts) you control in addition to paying its other costs\.?$/i,
+        make: (m) => ({ op: 'graveCastCounters', n: /^\d+$/.test(m[1]) ? +m[1] : num(m[1].toLowerCase()), filter: m[2].toLowerCase().replace(/s$/, '') }), auto: true },
       // Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." (mutateFromGrave)
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
       // Sabin, Master Monk: "You may cast this card from your graveyard using its blitz ability." (blitzFromGrave)

@@ -122,6 +122,18 @@
           if (all.size < (c.min || 0)) return c.reason || `That is ${all.size} ${label || 'type'}${all.size === 1 ? '' : 's'} among them; it needs ${c.min}.`;
           break;
         }
+        /* Quilled Greatwurm: "removing six counters from among creatures you control" — a repeated option picked
+           no more times than its own number (`key`, default 'most': the counters of that kind on that creature) */
+        case 'eachAtMost': {
+          const key = c.key || 'most';
+          const times = new Map();
+          for (const e of entries) {
+            if (!e) continue;
+            times.set(e, (times.get(e) || 0) + 1);
+            if (e[key] != null && times.get(e) > num(e[key])) return c.reason || `${e.label || 'That one'}: no more than ${num(e[key])}.`;
+          }
+          break;
+        }
         case 'sum': {
           const total = entries.reduce((k, e) => k + num(e && e[c.key]), 0);
           // (Slaughter the Strong: a power below 0 brings the total back down — the most holds for the whole answer: finalMax)

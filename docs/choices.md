@@ -94,6 +94,7 @@ would break one; floors only when the answer is sent.
 | `{ kind: 'distinct', key: 'controller' }` | no two picks share this value (`key: 'name'` is "different names") |
 | `{ kind: 'unionAtLeast', key: 'types', min: 4 }` | the picks' lists together hold at least `min` different values ("with four or more card types among them") |
 | `{ kind: 'distinctTypes', key: 'types' }` | each pick stands for one value from its list, no two for the same one ("for each card type, a card of that type") |
+| `{ kind: 'eachAtMost', key: 'most' }` | with `repeat`: no option picked more times than its own `key` value ("six counters from among creatures you control": each option a kind of counter on one creature, `most` how many it has) |
 | `{ kind: 'sum', key: 'power', min?, max?, label? }` | the picks' values add up to at least `min` and at most `max` |
 | `{ kind: 'shareColour', with?: ['R'] }` | with `with`: each pick shares a colour with those; without: the picks share a colour with each other |
 | `{ kind: 'mana', key: 'cost', base?: '{1}{R}' }` | the picks' costs, on top of `base`, can be paid (engine only; the table shows the total) |

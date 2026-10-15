@@ -1931,6 +1931,15 @@
         Object.keys(o.counters || {}).filter(k => Number(o.counters[k]) > 0).every(k => BAD.test(k)));
       return { picks: picks.map(o => o.id) };
     },
+    /* Quilled Greatwurm: counters to remove as a cost — the harmful ones first, then off what has the most of a kind
+       (counterCost) */
+    counterCost(s) {
+      const BAD = /^(?:-1\/-1|stun|age|doom|bounty|hit)$/;
+      const order = (s.options || []).slice().sort((x, y) => (BAD.test(y.kind) - BAD.test(x.kind)) || ((y.most || 0) - (x.most || 0)));
+      const picks = [];
+      for (const x of order) for (let k = 0; k < (x.most || 0) && picks.length < s.max; k++) picks.push(x.i);
+      return { picks };
+    },
     /* Sigurd, Jarl of Ravensthorpe: on to the next chapter, rather than back */
     loreAddOrRemove() { return { picks: [0] }; },
     /* Immard, the Stormcleaver: a counter off whenever there is one — the modes come only that way */

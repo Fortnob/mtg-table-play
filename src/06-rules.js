@@ -4215,7 +4215,10 @@
       // Spider-Man 2099: "played a land … from anywhere other than your hand" (Sen Triplets: another player's hand is that)
       const ownHand = fromZone === 'hand' && o.owner === playerId;
       if (!ownHand) p.landNotFromHandTurn = this.turn;
+      // (Deep Gnome Terramancer: "without being played" — this one was: _landPlaying, while it enters)
+      o._landPlaying = true;
       this.moveObject(o, 'battlefield', Object.assign({ asLand: true, controller: playerId }, extra || {}));
+      delete o._landPlaying;
       // (Kaldring, the Rimestaff: "it enters tapped")
       if (extra && extra.tapped && o.zone === 'battlefield' && !o._keepUntapped) o.tapped = true;
       this.logEvent('land', `${p.name} plays ${o.name}.`);
@@ -5894,9 +5897,10 @@
       return costly;
     }
     /** Falco Spara, Pactweaver: each counter that could be removed from a creature you control, as {id, kind}. */
-    _counterCostPairs(playerId) {
-      return this._counterCostPool(playerId, { filter: 'creature' }, null)
-        .flatMap(c => Object.entries(c.counters || {}).filter(([, k]) => Number(k) > 0).map(([kind]) => ({ id: c.id, kind })));
+    // (Quilled Greatwurm: of another kind of permanent — filter; n: how many of that kind it has)
+    _counterCostPairs(playerId, filter) {
+      return this._counterCostPool(playerId, { filter: filter || 'creature' }, null)
+        .flatMap(c => Object.entries(c.counters || {}).filter(([, k]) => Number(k) > 0).map(([kind, k]) => ({ id: c.id, kind, n: Number(k) })));
     }
     /**
      * Muldrotha, the Gravetide: "a land and … a permanent spell of each
@@ -6243,6 +6247,12 @@
         const gac = this._staticOp(o, 'graveAltCost');
         if (gac) out.push({ kind: 'cast', via: 'graveAlt', cost: gac.cost, after: null, exileGrave: gac.exileGrave,
           label: `Cast it from your graveyard (${gac.cost}, exile ${gac.exileGrave} other cards)` });
+        // Quilled Greatwurm: "by removing six counters from among creatures you control" — offered once there are that many (graveCastCounters)
+        const gcc = this._staticOp(o, 'graveCastCounters');
+        if (gcc && this._counterCostPairs(playerId, gcc.filter).reduce((k, x) => k + x.n, 0) >= gcc.n) {
+          out.push({ kind: 'cast', via: 'graveCounters', cost: a.manaCost || '', after: null, removeCounters: { n: gcc.n, filter: gcc.filter },
+            label: `Cast it from your graveyard (remove ${gcc.n} counters from among ${O.nounPlural(gcc.filter)} you control)` });
+        }
         /* Kotis, Sibsig Champion: "Once during each of your turns, you may cast a creature spell from your graveyard by
            exiling three other cards from your graveyard in addition to paying its other costs." — its mana cost, once a
            turn for each Kotis (graveCastExile) */
@@ -7449,6 +7459,17 @@
           items: this._chooseItems(pool), min: n, max: n, prefer: 'worst',
           prompt: `${o.name}: discard which ${n} cards?` }) === 'asked') return 'asked';
       }
+      /* Quilled Greatwurm: "by removing six counters from among creatures you control" — which, asked with the cast
+         unless there are only that many: each kind on each creature an option, taken up to as many as it has (counterCost) */
+      if (opts.via === 'graveCounters' && !(opts.choices && opts.choices.counterCost)) {
+        const gv = this.altUsesFor(playerId, o.id).find(x => x.kind === 'cast' && x.via === opts.via);
+        const rc = gv && gv.removeCounters;
+        const pairs = rc ? this._counterCostPairs(playerId, rc.filter) : [];
+        if (rc && pairs.length > 1 && pairs.reduce((k, x) => k + x.n, 0) > rc.n && this._castChoose(playerId, o, opts, { purpose: 'counterCost', kind: 'options', repeat: true,
+          min: rc.n, max: rc.n, constraints: [{ kind: 'eachAtMost', key: 'most' }],
+          options: pairs.map((x, i) => ({ i, label: `A ${x.kind} counter from ${this.obj(x.id).name} (it has ${x.n})`, id: x.id, kind: x.kind, most: x.n })),
+          prompt: `${o.name}: remove which ${rc.n} counters from among ${O.nounPlural(rc.filter)} you control?` }) === 'asked') return 'asked';
+      }
       /* Read ahead: which chapter the Saga starts at, chosen with the cast */
       if (a && this._readAheadOf(o, playerId) > 1 && !o.isCopy && !(opts.choices && opts.choices.readAhead)) {
         const opts2 = Array.from({ length: this._readAheadOf(o, playerId) }, (x, i) => ({ i, label: 'Chapter ' + ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII'][i] }));
@@ -7992,6 +8013,26 @@
         const picked = (((opts.choices || {}).discardCost || {}).picks || []).map(id => hand.find(c => c.id === id)).filter(Boolean);
         toDiscardN = picked.length === via.discardN ? picked : this._cheapestFirst(hand).slice(0, via.discardN);
       }
+      /* Quilled Greatwurm: "by removing six counters from among creatures you control" — the ones chosen with the cast,
+         else the harmful ones first, then off whatever has the most (removeCounters) */
+      let toRemoveCounters = null;
+      if (via && via.removeCounters) {
+        const pairs = this._counterCostPairs(playerId, via.removeCounters.filter), need = via.removeCounters.n;
+        if (pairs.reduce((k, x) => k + x.n, 0) < need) return this.fail(`That needs ${need} counters on ${O.nounPlural(via.removeCounters.filter)} you control.`);
+        const picks = (((opts.choices || {}).counterCost || {}).picks || []).map(i => pairs[i]).filter(Boolean);
+        const take = new Map();
+        const ok = picks.length === need && picks.every(x => { take.set(x, (take.get(x) || 0) + 1); return take.get(x) <= x.n; });
+        if (!ok) {
+          take.clear();
+          const bad = (k) => /^(?:-1\/-1|stun)$/.test(k);
+          let left = need;
+          for (const x of pairs.slice().sort((p, q) => (bad(q.kind) - bad(p.kind)) || (q.n - p.n))) {
+            const k = Math.min(left, x.n);
+            if (k > 0) { take.set(x, k); left -= k; }
+          }
+        }
+        toRemoveCounters = take;
+      }
       // Tenacious Underdog: "Blitz—{2}{B}{B}, Pay 2 life." — only with that much life (CR 119.4)
       if (via && via.life && (p.life < via.life && this.config.rulesEnforcement === 'full')) return this.fail(`You need ${via.life} life to pay.`);
 
@@ -8338,6 +8379,17 @@
         for (const c of toDiscardN) this.moveObject(c, 'graveyard');
         this.logEvent('discard', `${p.name} discards ${toDiscardN.map(c => c.name).join(' and ')} to cast ${o.name}.`);
         for (const c of toDiscardN) this._afterDiscard(playerId, c);
+      }
+      if (toRemoveCounters) {
+        for (const [x, k] of toRemoveCounters) {
+          const ob = this.obj(x.id);
+          if (!ob || ob.zone !== 'battlefield') continue;
+          ob.counters[x.kind] = (Number(ob.counters[x.kind]) || 0) - k;
+          if (ob.counters[x.kind] <= 0) delete ob.counters[x.kind];
+          ob._chr = null;
+          this.logEvent('counters', `${p.name} removes ${k === 1 ? 'a' : k} ${x.kind} counter${k === 1 ? '' : 's'} from ${ob.name} to cast ${o.name}.`);
+        }
+        this.bumpBoard();
       }
       // (Tenacious Underdog: "Pay 2 life" — the blitz cost's life)
       if (via && via.life) {
@@ -16791,8 +16843,9 @@
       /* Agatha's Soul Cauldron: "Creatures you control with +1/+1 counters on them have all activated abilities of all
          creature cards exiled with Agatha's Soul Cauldron." — a creature of its controller's with the counter (grantExiledActivated) */
       this._grantSources();
-      const pots = o.zone === 'battlefield' && base.isCreature ? (this._grantExiled || []).filter(g => g.src.controller === o.controller &&
-        !g.src.phasedOut && Number((o.counters || {})[g.ef.counter]) > 0) : [];
+      // (Hazel's Brewmaster: "Foods you control have …" — a permanent of that subtype, read from what it is now: toSubtype)
+      const pots = o.zone === 'battlefield' ? (this._grantExiled || []).filter(g => g.src.controller === o.controller && !g.src.phasedOut &&
+        (g.ef.toSubtype ? (base.subtypes || []).includes(g.ef.toSubtype) : base.isCreature && Number((o.counters || {})[g.ef.counter]) > 0)) : [];
       if ((!spec && !pots.length) || o.phasedOut || o.faceDown) return null;
       const potCards = () => pots.flatMap(g => this.players.flatMap(p => (this.zones[p.id] || {}).exile || [])
         .filter(c => c.exiledWithId === g.src.id && this._matchesCategory(c, g.ef.what)));
@@ -18927,6 +18980,8 @@
           if (had && (event === 'cardToGraveyardAny' || event === 'cardMilled')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + 1;
           // Primo, the Unbounded: "equal to the damage dealt" — what the whole lot dealt that player
           if (had && event === 'permCombatDamage' && ab.batchPerPlayer && /(?:equal to|where X is) the damage dealt|for each 1 damage dealt|the amount of damage those creatures dealt/i.test(ab.text || '')) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
+          // Quilled Greatwurm: "deals combat damage …, put that many" — all a source dealt at once, to whatever it hit
+          if (had && event === 'dealsDamage' && ab.batchPerSource) had.triggerData.amount = (Number(had.triggerData.amount) || 0) + (Number(tData.amount) || 0);
           // Hedge Shredder: "put them onto the battlefield" — every card in the lot
           if (had && tData.objectId) (had.triggerData.batchIds = had.triggerData.batchIds || [had.triggerData.objectId]).push(tData.objectId);
           // Malcolm, Keen-Eyed Navigator: "for each opponent dealt damage" — each player the lot hit (batchPlayers)
@@ -21427,7 +21482,10 @@
         }
         if (v && typeof v === 'object' && v.greatestPower) {
           let best = 0;
-          for (const o of this._scopeList(v.greatestPower, ctx.controller, src)) best = Math.max(best, this.powerOf(o));
+          // (Inscription of Abundance: "among creatures they control" — the target player's: who 'target')
+          const tp = v.greatestPower.who === 'target' ? firstPlayer() : null;
+          if (v.greatestPower.who === 'target' && !tp) return 0;
+          for (const o of this._scopeList(v.greatestPower, ctx.controller, src, tp ? tp.id : null)) best = Math.max(best, this.powerOf(o));
           // Skanos Dragonheart: "and Dragon cards in your graveyard" — the printed power (alsoGrave)
           if (v.alsoGrave) for (const c of ((this.zones[ctx.controller] || {}).graveyard || [])) {
             if (this._cardFitsWords(c, v.alsoGrave)) best = Math.max(best, parseInt((c.card || {}).power, 10) || 0);
@@ -24653,6 +24711,8 @@
               // Plargg, Dean of Chaos: "with mana value 3 or less" (maxMv)
               if (e.maxMv != null && ((lib[i].card && lib[i].card.cmc) || 0) > e.maxMv) continue;
               if (tgtTypes && !((lib[i].analysis() || {}).types || []).some(x => tgtTypes.includes(String(x).toLowerCase()))) continue;
+              // Kindred Summons: "creature cards of the chosen type" (chosenType)
+              if (e.chosenType && !(src && src.chosenType && this._hasCreatureType(lib[i], src.chosenType))) continue;
               if (this._cardFitsWords(lib[i], e.filter || 'card')) { found.push(lib[i]); last = i; }
             }
             const shown = found.length >= want ? lib.slice(0, last + 1) : lib.slice();
@@ -25440,7 +25500,10 @@
               : dest === 'namedField' ? (c.name === e.fieldNamed ? 'battlefield' : 'hand') : dest;
             const tapped = dest === 'split' ? !!(e.split && e.split.tapped) : dest === 'landField' ? true : !!e.tapped;
             if (where === 'battlefield') {
+              // Neoform: "with an additional +1/+1 counter on it" — entering with it (enterCounters)
+              if (e.enterCounters) c._enterExtraCounter = Object.assign({}, e.enterCounters);
               this.moveObject(c, 'battlefield', { controller: seeker.id, tapped: !!(tapped) }); if (tapped) c.tapped = true; this._lastPut = c.id;
+              if (c.zone !== 'battlefield') c._enterExtraCounter = null;
               // Light-Paws: "onto the battlefield attached to Light-Paws"
               if (hostA && c.zone === 'battlefield' && hostA.zone === 'battlefield') {
                 c.attachedTo = hostA.id; c._needsHost = false;
@@ -40415,6 +40478,8 @@
       if (f.name && x.name !== f.name) return false;
       // Goro-Goro and Satoru: "that entered this turn"
       if (f.enteredThisTurn && x.entered !== this.turn) return false;
+      // Deep Gnome Terramancer: "enter … without being played" — not one entering as a land play (notPlayed)
+      if (f.notPlayed && x._landPlaying) return false;
       // Kaust, Eyes of the Glade: "that was turned face up this turn" (turnedUpThisTurn)
       if (f.turnedUpThisTurn && x._turnedUpTurn !== this.turn) return false;
       // Tome of Legends: "your commander"
