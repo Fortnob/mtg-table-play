@@ -2611,7 +2611,7 @@
       this._lastAffected = null; this._lastAffectedAll = null; this._trigObjCtlId = null;
       this._lastCopy = null;
       this._lastPut = null; this._lastSearched = null; this._putThisWay = null; this._revealedHand = null;
-      this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null;
+      this._lastExiled = null; this._lastExiledList = null; this._lastRevealed = null; this._drawnThisWay = 0;
       this._exchangeGot = null;
       this._exileUntil = null; this._exiledChosen = null;
       this._chosenCard = null; this._attachedAnyTo = null;
@@ -10355,7 +10355,7 @@
       if ((ab.sorcerySpeed && !this._equipAnyTime(playerId, ab, o)) || ab.kind === 'loyalty') {
         if (!this._equipAnyTime(playerId, ab, o) && (this.activePlayer.id !== playerId || !this.isMain || !this.stackEmpty))
           return this.fail('That ability is sorcery speed only.');
-        if (ab.kind === 'loyalty' && this._loyaltyUsedUp(o)) return this.fail(this._staticOp(o, 'loyaltyTwice') ? 'Two loyalty abilities per turn.' : 'One loyalty ability per turn.');
+        if (ab.kind === 'loyalty' && this._loyaltyUsedUp(o)) return this.fail(this._loyaltyTwice(o) ? 'Two loyalty abilities per turn.' : 'One loyalty ability per turn.');
         // The Immortal Sun: "Players can't activate planeswalkers' loyalty abilities."
         if (ab.kind === 'loyalty') { const sun = this._anyStatic('noLoyalty'); if (sun) return this.fail(`${sun.name}: loyalty abilities can't be activated.`); }
         // a minus ability needs that many loyalty counters to take off (CR 606.6)
@@ -19161,6 +19161,8 @@
               ab.thatPlayerActive && this.activePlayer ? { player: this.activePlayer.id } : {},
               ab.lossExactly ? { lossBy: { [data.player]: Number(data.amount) || 0 } } : {},
               ab.batchPlayers && tData.player ? { players: [tData.player] } : {},
+              // (Struggle for Project Purity: "that many" — the creatures declared attacking you: attacksYouCount)
+              ab.attacksYouCount ? { amount: this._attackingYouCount(data, o.controller) } : {},
               // Arcee, Acrobatic Coupe: "put that many +1/+1 counters" — the creatures and Vehicles of yours it targets (targetsCount)
               ab.targetsCount ? { amount: new Set(((data.spell && data.spell.targets) || []).filter(t => {
                 const x = t.kind === 'object' && this.obj(t.id);
@@ -19291,6 +19293,8 @@
               .filter(x => x.attacking === o.controller || ((this.obj(x.attacking) || {}).controller === o.controller));
             if (at.length < ab.minAttackingYou) continue;
           }
+          // Struggle for Project Purity: "Whenever a player attacks you with one or more creatures" — you, not your planeswalkers (attacksYouCount)
+          if (ab.attacksYouCount && (data.playerId === o.controller || !this._attackingYouCount(data, o.controller))) continue;
           // "whenever you expend 4": only that threshold
           if (ab.expendN != null && data.n !== ab.expendN) continue;
           // "a spell from anywhere other than their hand"
@@ -21418,6 +21422,8 @@
         // Fists of Flame: "for each card you've drawn this turn"
         if (v && typeof v === 'object' && v.drawnThisTurn === 'opponents') return this._countValue(v, ctx.controller, src);
         if (v && typeof v === 'object' && v.lookedToGraveyard) return (this._lookedToGraveyard || 0) * (v.mult || 1);
+        // Struggle for Project Purity: "for each card drawn this way" — by the draw just made (drawnThisWay)
+        if (v && typeof v === 'object' && v.drawnThisWay) return (this._drawnThisWay || 0) * (v.mult || 1);
         // (Search for Blex: "for each card you put into your hand this way")
         if (v && typeof v === 'object' && v.lookedToHand) return (this._lookedToHand || 0) * (v.mult || 1);
         if (v && typeof v === 'object' && v.drawnThisTurn) return ((me && me.drawnThisTurn) || 0) * (v.mult || 1);
@@ -22142,6 +22148,8 @@
         }
         case 'draw': {
           const cnt = n(e.n);
+          // (Struggle for Project Purity: "for each card drawn this way" — the cards this draw made, counted after: drawnThisWay)
+          const drewBefore = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0);
           if (e.who === 'triggerPlayer') { const p = triggerPlayer(); if (p) this._drawCards(p, cnt); }
           else if (e.who === 'fixed') { const p = this.player(e.pid); if (p && !p.hasLost) this._drawCards(p, cnt); }
           // Nelly Borca, Impulsive Accuser: "the controller of those creatures"
@@ -22174,6 +22182,7 @@
             for (const p of new Set(ps)) this._drawCards(p, cnt);
           }
           else this._drawCards(me, cnt);
+          this._drawnThisWay = this.players.reduce((k, q) => k + (q.drawnThisTurn || 0), 0) - drewBefore;
           break;
         }
         case 'discard': {
@@ -38421,11 +38430,24 @@
     /** Is this permanent under a combat restriction right now? */
     /** The first static effect with this op on a permanent, if it has one. */
     /** Has this permanent activated all the loyalty abilities it may this turn? One (CR 606.3); Urza, Planeswalker two (loyaltyTwice). */
+    /** Of the attackers an "attacks" event is about, how many attack this player (not their planeswalkers or battles). */
+    _attackingYouCount(data, pid) {
+      return ((data && data.attackers) || []).map(x => (typeof x === 'string' ? this.obj(x) : x)).filter(x => x && x.attacking === pid).length;
+    }
     _loyaltyUsedUp(o) {
       const n = Number(o && o.activatedLoyaltyThisTurn) || 0;
       // (The Chain Veil: one more this turn for each time its ability resolved — extraLoyalty)
       const more = o && o.extraLoyalty && o.extraLoyalty.turn === this.turn ? o.extraLoyalty.n : 0;
-      return n > 0 && n >= (this._staticOp(o, 'loyaltyTwice') ? 2 : 1) + more;
+      return n > 0 && n >= (this._loyaltyTwice(o) ? 2 : 1) + more;
+    }
+    /** May this permanent's loyalty abilities be activated twice this turn? Its own (Urza, Planeswalker), or Oath of Teferi's
+        "the loyalty abilities of planeswalkers you control twice each turn" — twice, however many Oaths (loyaltyTwice, yours). */
+    _loyaltyTwice(o) {
+      if (!o) return false;
+      const own = this._staticOp(o, 'loyaltyTwice');
+      if (own && !own.yours) return true;
+      if (!(o.analysis() || {}).isPlaneswalker) return false;
+      return this.battlefield.some(x => x.controller === o.controller && !x.phasedOut && (this._staticOp(x, 'loyaltyTwice') || {}).yours);
     }
     /** "This creature must be blocked if able" — always, this turn, or this combat. */
     _mustBeBlocked(at) {

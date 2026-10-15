@@ -70440,4 +70440,116 @@ module.exports = (test) => {
     t.eq(T.zone('A', 'hand').length, n0, 'no maximum hand size');
     t.eq(T.manualLines().length, 0);
   });
+  test('Cards: Oath of Teferi — a permanent of yours flickered till the end step; your planeswalkers twice a turn, not theirs', (mk, t) => {
+    t.auto('Oath of Teferi');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const bear = T.bf('A', 'Grizzly Bears');
+    T.mana('A', '3WU');
+    T.cast('A', T.hand('A', 'Oath of Teferi'));
+    t.zone(bear, 'exile', 'the Bears exiled');
+    T.toMain('A', 'end'); T.resolve();
+    const back = T.bfOf('A').find(o => o.name === 'Grizzly Bears');
+    t.ok(back, 'the Bears back at the end step');
+    // Ajani Goldmane: +1, twice this turn, not three times
+    T.nextTurn('B'); T.nextTurn('A');
+    const aj = T.bf('A', 'Ajani Goldmane');
+    T.activate('A', aj, 0);
+    T.activate('A', aj, 0);
+    t.eq(T.life('A'), 24, 'two +1s: 4 life');
+    t.no(g.activateAbility('A', aj.id, 0, { auto: true, targets: [] }), 'not a third time');
+    // B's planeswalker under A's Oath: once
+    T.nextTurn('B');
+    const bj = T.bf('B', 'Ajani Goldmane');
+    T.activate('B', bj, 0);
+    t.no(g.activateAbility('B', bj.id, 0, { auto: true, targets: [] }), "A's Oath does nothing for B");
+    // no Oath: once
+    const T2 = mk();
+    const aj2 = T2.bf('A', 'Ajani Goldmane');
+    T2.activate('A', aj2, 0);
+    t.no(T2.g.activateAbility('A', aj2.id, 0, { auto: true, targets: [] }), 'once without the Oath');
+  });
+  test("Cards: Aerial Extortionist — exiles a nonland permanent its owner may cast; draws when another player casts from outside the hand", (mk, t) => {
+    t.auto('Aerial Extortionist');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const ring = T.bf('B', 'Sol Ring');
+    T.bf('B', 'Grizzly Bears');
+    T.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: ring.id }] }));
+    T.bf('A', 'Aerial Extortionist', { etb: true }); T.resolve();
+    t.zone(ring, 'exile', 'Sol Ring exiled');
+    t.eq(ring.impulseBy, 'B', 'its owner may cast it');
+    t.ok(ring.impulseCastOnly, 'cast it');
+    T.nextTurn('B');
+    const handA = T.zone('A', 'hand').length;
+    T.mana('B', '1');
+    T.cast('B', ring);
+    t.zone(ring, 'battlefield', 'B cast it from exile');
+    t.eq(T.zone('A', 'hand').length, handA + 1, 'A draws: a spell cast from exile');
+    T.mana('B', '1G');
+    T.cast('B', T.hand('B', 'Grizzly Bears'));
+    t.eq(T.zone('A', 'hand').length, handA + 1, 'not for a spell from the hand');
+    // A's own spell from elsewhere: no draw ("another player")
+    T.nextTurn('A');
+    const handA2 = T.zone('A', 'hand').length;
+    const gob = T.put('A', 'Raging Goblin', 'exile'); gob.impulseBy = 'A'; gob.impulseUntil = g.turn;
+    T.mana('A', 'R');
+    T.cast('A', gob);
+    t.zone(gob, 'battlefield');
+    t.eq(T.zone('A', 'hand').length, handA2, 'not for its own controller');
+  });
+  test('Cards: Struggle for Project Purity — Brotherhood: opponents draw, you draw as many; Enclave: twice the attackers at you in rad counters', (mk, t) => {
+    t.auto('Struggle for Project Purity');
+    // Brotherhood: B draws one, C has no library and draws none — A draws one
+    const T = mk({ library: Array(20).fill('Island'), players: ['A', 'B', 'C'] });
+    T.answer('mode', { modes: [0] });
+    T.mana('A', '3U');
+    T.cast('A', T.hand('A', 'Struggle for Project Purity'));
+    T.g.zones.C.library.length = 0;
+    T.nextTurn('B'); T.nextTurn('C');
+    const hb = T.zone('B', 'hand').length, ha = T.zone('A', 'hand').length;
+    T.toMain('A', 'upkeep'); T.resolve();
+    t.eq(T.zone('B', 'hand').length, hb + 1, 'B draws');
+    t.eq(T.zone('A', 'hand').length, ha + 1, 'A draws one: only B drew');
+    // Enclave
+    const T2 = mk({ players: ['A', 'B', 'C'] });
+    T2.answer('mode', { modes: [1] });
+    T2.mana('A', '3U');
+    T2.cast('A', T2.hand('A', 'Struggle for Project Purity'));
+    const pw = T2.bf('A', 'Ajani Goldmane');
+    const b1 = T2.bf('B', 'Grizzly Bears'), b2 = T2.bf('B', 'Grizzly Bears'), b3 = T2.bf('B', 'Grizzly Bears');
+    T2.nextTurn('B');
+    T2.answer('declareAttackers', () => [{ attackerId: b1.id, defenderId: 'A' }, { attackerId: b2.id, defenderId: 'A' }, { attackerId: b3.id, defenderId: pw.id }]);
+    T2.toMain('B', 'endCombat');
+    t.eq(T2.g.player('B').rad || 0, 4, 'two at A: four rad counters (not the one at Ajani)');
+    const c1 = T2.bf('C', 'Grizzly Bears');
+    T2.nextTurn('C');
+    T2.answer('declareAttackers', () => [{ attackerId: c1.id, defenderId: 'B' }]);
+    T2.toMain('C', 'endCombat');
+    t.eq(T2.g.player('C').rad || 0, 0, 'attacking B: nothing');
+  });
+  test("Cards: Pyromancer's Goggles — its red copies a red instant or sorcery; not a blue one, not a creature", (mk, t) => {
+    t.auto("Pyromancer's Goggles");
+    const T = mk();
+    const gg = T.bf('A', "Pyromancer's Goggles");
+    t.ok(T.g.tapForMana('A', gg.id, 0), T.g.lastError);
+    const lifeB = T.life('B');
+    T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: ['B'] });
+    T.settle(); T.resolve();
+    t.eq(T.life('B'), lifeB - 6, 'Bolt and its copy');
+    // a blue sorcery paid in part with it: no copy
+    gg.tapped = false;
+    t.ok(T.g.tapForMana('A', gg.id, 0));
+    T.mana('A', '1U');
+    const hand0 = T.zone('A', 'hand').length;
+    T.cast('A', T.hand('A', 'Divination'));
+    T.settle(); T.resolve();
+    t.eq(T.zone('A', 'hand').length, hand0 + 2, 'Divination once');
+    // a red creature: no copy
+    gg.tapped = false;
+    t.ok(T.g.tapForMana('A', gg.id, 0));
+    T.cast('A', T.hand('A', 'Raging Goblin'));
+    T.settle(); T.resolve();
+    t.eq(T.bfOf('A').filter(o => o.name === 'Raging Goblin').length, 1, 'no copy of a creature');
+  });
 };

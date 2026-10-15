@@ -1730,8 +1730,12 @@
       make: () => ({ op: 'spendOnly', rider: 'ancestryScry', open: true }) },
     /* Primal Wellspring: "When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose
        new targets for the copy." — a rider whose trigger knows the spell (copyThatSpell) */
-    { re: /^When that mana is spent to cast an instant or sorcery spell, copy that spell and you may choose new targets for the copy\.?$/i,
-      make: (m) => ({ op: 'spendOnly', open: true, rider: { words: 'instant or sorcery', effects: [{ op: 'copyThatSpell' }], text: m[0] } }) },
+    // (Pyromancer's Goggles: "to cast a red instant or sorcery spell" — red either way)
+    { re: /^When that mana is spent to cast an? (red |blue |black |white |green )?instant or sorcery spell, copy that spell and you may choose new targets for the copy\.?$/i,
+      make: (m) => {
+        const c = (m[1] || '').trim().toLowerCase();
+        return { op: 'spendOnly', open: true, rider: { words: c ? `${c} instant or ${c} sorcery` : 'instant or sorcery', effects: [{ op: 'copyThatSpell' }], text: m[0] } };
+      } },
     /* Scaled Nurturer, Lapis Orb of Dragonkind, Gilanra: "When you spend this mana to cast a Dragon creature spell,
        you gain 2 life." — a rider on the mana: what it pays for, and what happens then (nothing said of the spell itself) */
     { re: /^When you spend this mana to cast an? ((?:[A-Z][a-z]+ )?(?:creature |instant or sorcery |noncreature )?)spell( with mana value (\d+) or greater)?, (.+?)\.?$/,
@@ -1797,6 +1801,8 @@
     // Cut a Deal: every opponent draws, so you draw one for each of them
     { re: /^Each opponent draws a card, then you draw a card for each opponent who drew a card this way\.?$/i,
       make: () => [{ op: 'draw', n: 1, who: 'opponents' }, { op: 'draw', who: 'you', n: { opponents: true, mult: 1 } }] },
+    // Struggle for Project Purity: "each opponent draws a card. You draw a card for each card drawn this way." — as many as they drew (drawnThisWay)
+    { re: /^(?:Then )?you draw a card for each card drawn this way\.?$/i, make: () => ({ op: 'draw', who: 'you', n: { drawnThisWay: true, mult: 1 } }) },
     { re: /^Target player draws (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+|X) cards?\.?$/i,
       make: (m) => ({ op: 'draw', n: num(m[1]), who: 'target' , targets: [{ type: 'player' }] }) },
     { re: /^(?:You )?discards? (a|one|two|three|four|five|six|seven|eight|nine|ten|\d+) cards?\.?$/i,
@@ -5964,8 +5970,9 @@
     // Headliner Scarlett: "exile the top card of your library face down. You may look at and play that card this turn."
     { re: /^You may look at and play (?:that card|it) this turn\.?$/i, make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'eot' }) },
     // Prowl, Stoic Strategist: "For as long as that card remains exiled, its owner may play it." (who: owner)
-    { re: /^For as long as (?:that card|it) remains exiled, its owner may play it\.?$/i,
-      make: () => ({ op: 'mayPlayExiled', castOnly: false, duration: 'exiled', who: 'owner' }) },
+    // (Aerial Extortionist: "its owner may cast it" — castOnly)
+    { re: /^For as long as (?:that card|it) remains exiled, its owner may (play|cast) it\.?$/i,
+      make: (m) => ({ op: 'mayPlayExiled', castOnly: /cast/i.test(m[1]), duration: 'exiled', who: 'owner' }) },
     // Durnan of the Yawning Portal: "For as long as that card remains exiled, you may cast it."
     { re: /^For as long as (?:that card|it) remains exiled, you may (play|cast) it\.?$/i,
       make: (m) => ({ op: 'mayPlayExiled', castOnly: /cast/i.test(m[1]), duration: 'exiled' }) },
@@ -6432,10 +6439,11 @@
         return { op: 'rad', n: k, who: /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : w === 'each player' ? 'each' : 'you',
           targets: /^target/.test(w) ? [{ type: 'player', opponent: /opponent/.test(w) }] : undefined };
       } },
-    { re: /^(?:(Target player|Each opponent|Target opponent|You|Each player|They|That player|Defending player) gets?|Get) (a|an|one|two|three|four|five|\d+|X|that many) rad counters?\.?$/i,
+    { re: /^(?:(Target player|Each opponent|Target opponent|You|Each player|They|That player|Defending player) gets?|Get) (a|an|one|two|three|four|five|\d+|X|(?:twice )?that many) rad counters?\.?$/i,
       make: (m) => {
         const w = (m[1] || 'you').toLowerCase();
-        return { op: 'rad', n: /^that many$/i.test(m[2]) ? 'triggerAmount' : num(m[2]),
+        // (Struggle for Project Purity: "that player gets twice that many rad counters" — twice)
+        return { op: 'rad', n: /^twice that many$/i.test(m[2]) ? { triggerAmount: true, mult: 2 } : /^that many$/i.test(m[2]) ? 'triggerAmount' : num(m[2]),
           who: /^target/.test(w) ? 'target' : w === 'each opponent' ? 'opponents' : w === 'each player' ? 'each'
             : w === 'they' || w === 'that player' ? 'triggerPlayer' : w === 'defending player' ? 'defending' : 'you',
           targets: /^target/.test(w) ? [{ type: 'player', opponent: /opponent/.test(w) }] : undefined };
@@ -17165,6 +17173,8 @@
       event: 'anyPlayerAttacks', extraOf: (m) => ({ minAttackingYou: num(m[1]) }) },
     // Coveted Jewel: "Whenever one or more creatures an opponent controls attack you and aren't blocked" — once, as blockers are done
     { re: /^Whenever one or more creatures an opponent controls attack you and aren'?t blocked,? /i, event: 'attackedUnblocked' },
+    // Struggle for Project Purity: "Whenever a player attacks you with one or more creatures" — "that many": those attacking you (attacksYouCount)
+    { re: /^Whenever a player attacks you with one or more creatures,? /i, event: 'anyPlayerAttacks', extra: { attacksYouCount: true } },
     // the curses of Commander 2017: "Whenever enchanted player is attacked"
     { re: /^Whenever enchanted player is attacked,? /i, event: 'anyPlayerAttacks', extra: { enchantedAttacked: true } },
     { re: /^Whenever a creature attacks enchanted (?:player|opponent),? /i, event: 'permAttacks', extra: { attacksEnchanted: true } },
@@ -17237,7 +17247,8 @@
     // Manabarbs, Burning Earth, Vorinclex: "Whenever a player (an opponent) taps a land for mana"
     { re: /^Whenever a player taps an? ([a-z ]+?) for mana,? (?!that player adds)/i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }) },
     { re: /^Whenever an opponent taps an? ([a-z ]+?) for mana,? /i, event: 'anyTapForMana', filt: (m) => ({ words: m[1].toLowerCase() }), extra: { toOpponent: true } },
-    { re: /^When(?:ever)? an opponent casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
+    // (Aerial Extortionist: "Whenever another player casts a spell from anywhere other than their hand" — anyone but you)
+    { re: /^When(?:ever)? (?:an opponent|another player) casts a spell from anywhere other than their hand(?:,| )/i, event: 'opponentCastSpell', extra: { notFromHand: true } },
     { re: /^When(?:ever)? you cast a spell from anywhere other than your hand(?:,| )/i, event: 'youCastSpell', extra: { notFromHand: true } },
     /* Mirelurk Queen, Screeching Scorchbeast: "Whenever one or more nonland cards are milled"; Zellix:
        "Whenever a player mills one or more creature cards" — one trigger for the lot, "that many" of the
@@ -23184,6 +23195,8 @@
         make: (m) => Object.assign({ op: 'spellsCantBeCast', noncreature: true }, m[1] ? { minMv: +m[1] } : { hasX: true }), auto: true },
       // Urza, Planeswalker: "You may activate the loyalty abilities of Urza twice each turn rather than only once." (loyaltyTwice)
       { re: /^You may activate the loyalty abilities of (?:CARDNAME|this planeswalker) twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice' }, auto: true },
+      // Oath of Teferi: "You may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once." (loyaltyTwice, yours)
+      { re: /^You may activate the loyalty abilities of planeswalkers you control twice each turn rather than only once\.?$/i, eff: { op: 'loyaltyTwice', yours: true }, auto: true },
       { re: /^Your opponents can'?t block with creatures with (even|odd) mana values\.?$/i, make: (m) => ({ op: 'opponentsCantBlockParity', even: /even/i.test(m[1]) }), auto: true },
       // Lord Magnus: "Creatures with plainswalk can be blocked as though they didn't have plainswalk." — anyone's (walkBlockable)
       { re: /^Creatures with ([a-z]+)walk can be blocked as though they didn'?t have \1walk\.?$/i, make: (m) => ({ op: 'walkBlockable', kind: m[1].toLowerCase() }), auto: true },
