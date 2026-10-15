@@ -3054,14 +3054,16 @@
     _hasSubtype(o, t) { return ((o.analysis() || {}).subtypes || []).some(x => x.toLowerCase() === String(t).toLowerCase()); }
 
     /** Attackers of this player's that nobody blocked, after blockers are declared. */
-    _unblockedAttackers(pid) {
+    // (Zareth San, the Trickster: "an unblocked attacking Rogue" — of that creature type: ofType)
+    _unblockedAttackers(pid, ofType) {
       const steps = ['declareBlockers', 'firstStrikeDamage', 'combatDamage', 'endCombat'];
       if (!this.phase || this.phase.id !== 'combat' || !steps.includes(this.step)) return [];
       return (this.combat.attackers || []).map(id => this.obj(id))
-        .filter(o => o && o.zone === 'battlefield' && o.controller === pid && o.attacking && !(o.blockedBy || []).length && o.blockedNoBlocker !== this.turn && !o.removedFromCombat);
+        .filter(o => o && o.zone === 'battlefield' && o.controller === pid && o.attacking && !(o.blockedBy || []).length && o.blockedNoBlocker !== this.turn && !o.removedFromCombat &&
+          (!ofType || this._hasCreatureType(o, ofType)));
     }
     /** Ninjutsu: the attacker home, and an ability to bring the Ninja in, on the stack. */
-    _ninjutsuSwap(pid, ninjaId, back) {
+    _ninjutsuSwap(pid, ninjaId, back, notNinjutsu) {
       const ninja = this.obj(ninjaId);
       // (commanderNinjutsu: a commander from the command zone)
       if (!ninja || !(ninja.zone === 'hand' || (ninja.zone === 'command' && ninja.isCommander)) || !back || back.zone !== 'battlefield') return;
@@ -3069,12 +3071,12 @@
       this.moveObject(back, 'hand');
       this.combat.attackers = this.combat.attackers.filter(id => id !== back.id);
       const item = { id: this._uid('st'), kind: 'ability', obj: ninja, objId: ninja.id, controller: pid,
-        name: ninja.name + ' \u2014 ninjutsu', abilityText: 'Put this card onto the battlefield tapped and attacking.',
+        name: ninja.name + (notNinjutsu ? '' : ' \u2014 ninjutsu'), abilityText: 'Put this card onto the battlefield tapped and attacking.',
         effects: [{ op: 'ninjaIn', defender }], auto: true, targets: [] };
       this.stack.push(item);
-      this.logEvent('ability', `${this.player(pid).name} returns ${back.name} and activates ninjutsu.`);
+      this.logEvent('ability', `${this.player(pid).name} returns ${back.name} and activates ${notNinjutsu ? ninja.name + "'s ability" : 'ninjutsu'}.`);
       // an activated ability like any other (Satoru Umezawa: "Whenever you activate a ninjutsu ability")
-      this._fire('youActivateAbility', pid, { object: ninja, objController: pid, stackId: item.id, loyalty: false, playerId: pid, label: 'ninjutsu' });
+      this._fire('youActivateAbility', pid, Object.assign({ object: ninja, objController: pid, stackId: item.id, loyalty: false, playerId: pid }, notNinjutsu ? {} : { label: 'ninjutsu' }));
       this.emit('stack:add', item);
       this._resetPriority();
     }
@@ -4316,8 +4318,14 @@
         const use = this.altUsesFor(playerId, objId).find(u => u.via === 'unearth');
         return use ? { ok: true, cost: use.cost } : { ok: false, reason: 'No unearth.' };
       }
-      if (opts === 'ninjutsu') {
+      if (opts === 'ninjutsu' || opts === 'returnAttacker') {
         if (!this.priorityPlayer || this.priorityPlayer.id !== playerId) return { ok: false, reason: 'You do not have priority.' };
+        if (opts === 'returnAttacker') {
+          const ra = (o.analysis() || {}).returnAttacker;
+          if (!ra || o.zone !== 'hand') return { ok: false, reason: 'No such ability.' };
+          if (!this._unblockedAttackers(playerId, ra.type).length) return { ok: false, reason: `It needs an unblocked attacking ${ra.type} of yours.` };
+          return { ok: true, cost: ra.cost, returnType: ra.type };
+        }
         if (!this._unblockedAttackers(playerId).length) return { ok: false, reason: 'Ninjutsu needs an unblocked attacker of yours.' };
         const use = this.altUsesFor(playerId, objId).find(u => u.via === 'ninjutsu');
         return use ? { ok: true, cost: use.cost } : { ok: false, reason: 'No ninjutsu.' };
@@ -5170,6 +5178,10 @@
       }
       if (o.zone === 'hand' && arg && k === 'ninjutsu') {
         out.push({ kind: 'cast', via: 'ninjutsu', cost: arg, label: 'Ninjutsu ' + arg });
+      }
+      // Zareth San, the Trickster: the same from the hand, an attacking Rogue the one returned (returnAttacker)
+      if (o.zone === 'hand' && o.owner === playerId && k === 'return an unblocked attacker' && a.returnAttacker) {
+        out.push({ kind: 'cast', via: 'returnAttacker', cost: a.returnAttacker.cost, label: a.returnAttacker.cost + ', return an unblocked attacking ' + a.returnAttacker.type });
       }
       // Yuriko, the Tiger's Shadow: "Commander ninjutsu" — from your hand, or from the command zone (commanderNinjutsu)
       if ((o.zone === 'hand' || (o.zone === 'command' && o.isCommander && o.owner === playerId)) && arg && k === 'commander ninjutsu') {
@@ -6561,18 +6573,22 @@
          to cast a card from there, so choosing it arrives here: it is
          activated, not cast. Targets chosen for the card as a spell are
          only kept when they are the ability's own. */
-      if (opts.via === 'ninjutsu') {
-        const chk1 = this.canCast(playerId, objId, 'ninjutsu');
+      // (Zareth San, the Trickster: the same, with a Rogue — returnAttacker, not a ninjutsu ability)
+      if (opts.via === 'ninjutsu' || opts.via === 'returnAttacker') {
+        const chk1 = this.canCast(playerId, objId, opts.via);
         if (!chk1.ok) return this.fail(chk1.reason);
         if (!this.payMana(playerId, chk1.cost, Object.assign({}, opts, { forAbility: this.obj(objId) }))) return this.fail(`Not enough mana (${chk1.cost}).`);
-        const list = this._unblockedAttackers(playerId);
+        const list = this._unblockedAttackers(playerId, chk1.returnType);
         const pl = this.player(playerId);
-        if (list.length === 1 || pl.isBot || opts.returnId) {
-          this._ninjutsuSwap(playerId, objId, (opts.returnId && this.obj(opts.returnId)) || this._cheapestFirst(list)[0]);
+        const notNinjutsu = opts.via === 'returnAttacker';
+        const given = opts.returnId && list.find(x => x.id === opts.returnId);
+        if (list.length === 1 || pl.isBot || given) {
+          this._ninjutsuSwap(playerId, objId, given || this._cheapestFirst(list)[0], notNinjutsu);
         } else {
-          this.queueChoice({ type: 'pickCard', playerId, count: 1, purpose: 'ninjutsu', objId, worst: true,
+          this.queueChoice(Object.assign({ type: 'pickCard', playerId, count: 1, purpose: 'ninjutsu', objId, worst: true,
             candidates: list.map(x => x.id), cards: list.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: 'Return an unblocked attacker you control to your hand.' });
+            prompt: chk1.returnType ? `Return an unblocked attacking ${chk1.returnType} you control to its owner's hand.` : 'Return an unblocked attacker you control to your hand.' },
+            notNinjutsu ? { notNinjutsu: true } : {}));
         }
         return true;
       }
@@ -10847,7 +10863,7 @@
         if (o.isToken) { const ap = this.player(o.controller); if (ap) ap.attackedWithTokenTurn = this.turn; }
         // Neriv, Crackling Vanguard: "During any turn you attacked with a commander"
         if (o.isCommander) { const ap = this.player(o.controller); if (ap) ap.attackedWithCommanderTurn = this.turn; }
-        if (!this.hasKw(o, 'vigilance')) this._markTapped(o);
+        if (!this.hasKw(o, 'vigilance')) this._markTapped(o, true);
         // decayed (CR 702.147): "when it attacks, sacrifice it at end of combat"
         if (this.hasKw(o, 'decayed')) o.sacAtEndOfCombat = true;
         this.combat.attackers.push(o.id);
@@ -15933,6 +15949,8 @@
           if (ab.notFromBattlefield && data.fromZone === 'battlefield') continue;
           // Crawling Infestation: "during your turn"
           if (ab.yourTurnOnly && !(this.activePlayer && this.activePlayer.id === o.controller)) continue;
+          // Rhoda, Geist Avenger: "if it isn't being declared as an attacker" (notAsAttacker)
+          if (ab.notAsAttacker && data.asAttacker) continue;
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
@@ -21238,7 +21256,8 @@
           const yes = this._ask({ type: 'confirm', playerId: who.id, ...(lend ? { purpose: 'lendSelf' } : {}),
             // (Sweep Away: "Top of its library" / "Return it to hand")
             ...(e.yesLabel ? { yesLabel: e.yesLabel, noLabel: e.noLabel } : {}),
-            prompt: e.prompt || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
+            // (Ral, Obzedat: "Exile CARDNAME …?" — by its name)
+            prompt: (e.prompt && e.prompt.replace(/CARDNAME/g, U.frontName(nm))) || (ask ? `${nm}: ${whole(ask.charAt(0).toUpperCase() + ask.slice(1), 80)}?` : null) ||
               `${ctx.name || 'Effect'}: ${whole(e.text || 'do it', 90)}` });
           if (yes === SUSPEND) return SUSPEND;
           // ("Do this only once each turn": a yes uses it up for the turn — mayOncePerTurn)
@@ -24193,6 +24212,8 @@
             forPlayer: e.forPlayer === 'you' ? ctx.controller : e.forPlayer === 'chosen' ? ctx.chosenPlayer : null,
             notBefore: e.nextTurn ? this.turn : null,
             sameTurnOk: !e.nextTurn,
+            // (Obzedat, Ghost Council: only while it is the same card in exile — whileExiled)
+            ...(e.whileExiled && objId && this.obj(objId) && this.obj(objId).zone === 'exile' ? { whileExiled: this.obj(objId).exileStamp } : {}),
             objId: objId || null,
             name: e.name || truncate(e.text || 'delayed effect', 60),
             effects: (e.effects || []).map(x => {
@@ -26094,6 +26115,8 @@
           }
           // a finality counter, a +1/+1 counter: whatever it was told to come back with
           if (e.counter && x.zone === 'battlefield') this.addCounters(x, e.counter, e.n || 1);
+          // Obzedat, Ghost Council: "It gains haste." — for as long as it stays (haste)
+          if (e.haste && x.zone === 'battlefield') x.effects.push({ keywords: ['Haste'], until: null });
           this.logEvent('reanimate', `${x.name} returns to the battlefield.`);
           break;
         }
@@ -28303,6 +28326,44 @@
           this.bumpBoard();
           break;
         }
+        /* Cass, Hand of Vengeance: the Aura cards that were on the creature that died, from your graveyard, and the
+           Equipment that were on it, still on the battlefield, onto the creature targeted — any number of them, in one
+           pick; one that couldn't legally go there stays where it is (CR 701.3b) (reattachLeft) */
+        case 'reattachLeft': {
+          const host = firstObj();
+          const gone = this.obj((ctx.triggerData || {}).objectId);
+          if (!host || host.zone !== 'battlefield' || !gone || gone.zone === 'battlefield') break;
+          const was = (gone._lastAttachments || []).map(id => this.obj(id)).filter(Boolean);
+          const auras = was.filter(c => c.zone === 'graveyard' && c.owner === ctx.controller && (c.analysis() || {}).isAura && this._attachLegal(c, c.analysis(), host));
+          const equips = was.filter(x => x.zone === 'battlefield' && !x.phasedOut && x.attachedTo !== host.id && !!(x.analysis() || {}).isEquipment && this._attachableTo(x, host, null));
+          const pool = auras.concat(equips);
+          if (!pool.length) break;
+          const got = this._choose({ playerId: ctx.controller, purpose: 'attachAnyTo', kind: 'objects', items: this._chooseItems(pool), min: 0, max: pool.length,
+            optional: true, hostId: host.id,
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}return any number of Aura cards that were attached to ${gone.name} to the battlefield attached to ${host.name}, and attach any number of Equipment that were attached to it.` }, 'ral');
+          if (got === SUSPEND) return SUSPEND;
+          const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
+          // the Auras first, then the Equipment ("then attach")
+          for (const x of picks.filter(c => auras.includes(c))) {
+            if (x.zone !== 'graveyard' || host.zone !== 'battlefield') continue;
+            this.moveObject(x, 'battlefield', { controller: ctx.controller });
+            if (x.zone !== 'battlefield') continue;
+            x.attachedTo = host.id;
+            host.attachments = (host.attachments || []).filter(y => y !== x.id).concat(x.id);
+            this.logEvent('attach', `${x.name} enters attached to ${host.name}.`);
+          }
+          for (const x of picks.filter(c => equips.includes(c))) {
+            if (x.zone !== 'battlefield' || host.zone !== 'battlefield' || !this._attachableTo(x, host, null)) continue;
+            const old = x.attachedTo && this.obj(x.attachedTo);
+            if (old) old.attachments = (old.attachments || []).filter(id => id !== x.id);
+            x.attachedTo = host.id;
+            x.ts = this._stampNew();       // attached anew, it is newer (CR 613.7e)
+            host.attachments = (host.attachments || []).filter(id => id !== x.id).concat(x.id);
+            this.logEvent('rules', `${x.name} is attached to ${host.name}.`);
+          }
+          this.bumpBoard();
+          break;
+        }
         // Beacon of Immortality
         case 'doubleLife': {
           // Revival: "your life total"; Celestial Mantle: the enchanted creature's controller's
@@ -30347,12 +30408,14 @@
       }
       return true;
     }
-    _markTapped(o) {
+    _markTapped(o, asAttacker) {
       if (!o || o.tapped) return;
       o.tapped = true;
       if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
       o._tappedTurn.n++;
-      this._fire('becomesTapped', o.controller, { source: o, object: o, nth: o._tappedTurn.n });
+      // (Rhoda, Geist Avenger: tapped as it is declared as an attacker — asAttacker)
+      // (Gideon's Avenger, Rhoda: seen by every player's permanents — whose it is in objController)
+      this._fire('becomesTapped', null, Object.assign({ source: o, object: o, objController: o.controller, nth: o._tappedTurn.n }, asAttacker ? { asAttacker: true } : {}));
       // Solitary Sanctuary, Sharae: an effect of yours tapping an opponent's creature (youTapTheirs)
       if (this._putBy && this._putBy !== o.controller && (o.analysis() || {}).isCreature) this._fire('youTapOpponentCreature', this._putBy, { object: o, objController: o.controller });
     }
@@ -31788,7 +31851,7 @@
           if (ch.purpose === 'ninjutsu') {
             const pick = this.obj(ids.find(id => (ch.candidates || []).includes(id)) || (ch.candidates || [])[0]);
             ids = [];
-            if (pick) this._ninjutsuSwap(playerId, ch.objId, pick);
+            if (pick) this._ninjutsuSwap(playerId, ch.objId, pick, !!ch.notNinjutsu);
           }
           if (ch.purpose === 'tapCost') {
             const pool = (ch.candidates || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && !x.tapped);
@@ -32430,6 +32493,8 @@
       if (f.selfOk && src && x.id === src.id) return true;
       if (f.other && src && x.id === src.id) return false;
       if (f.name && x.name !== f.name) return false;
+      // Goro-Goro and Satoru: "that entered this turn"
+      if (f.enteredThisTurn && x.entered !== this.turn) return false;
       // Tome of Legends: "your commander"
       // (Norn's Choirmaster: "a commander you control" — commander 'control')
       // (Sauron, Lord of the Rings: "a commander an opponent controls" — any commander, whoever controls it: commander 'any')

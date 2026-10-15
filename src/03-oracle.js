@@ -2013,8 +2013,9 @@
     { re: /^Return (target [a-z ]+?) card with power less than (?:CARDNAME|this creature)'s(?: power)? from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
       make: (m) => { const t = tgt(m[1] + " with power less than CARDNAME's"); return t && t.lesserPowerThanSource ? { op: 'reanimate', counter: m[2].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
     // Season of the Burrow: "… mana value 3 or less from your graveyard to the battlefield with an indestructible counter on it"
-    { re: /^Return (target [a-z ]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
-      make: (m) => { const t = tgt(m[1] + ' with mana value ' + m[2] + ' or less'); return t ? { op: 'reanimate', counter: m[3].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] } : null; } },
+    // (Excava, the Risen Past: "up to one target artifact, creature, or non-Aura enchantment card …")
+    { re: /^Return (up to one )?(target [a-zA-Z ,-]+?) card with (?:mana value|converted mana cost) (\d+|X) or less from your graveyard to the battlefield with an? ([a-z+\-0-9/]+) counter on it\.?$/i,
+      make: (m) => { const t = tgt(m[2] + ' with mana value ' + m[3] + ' or less'); return t ? { op: 'reanimate', counter: m[4].toLowerCase(), targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' }, m[1] ? { upTo: true } : {})] } : null; } },
     // Ruthless Technomancer: "Return target creature card with power X or less from your graveyard to the battlefield.
     /* Sidisi, Regent of the Mire: "Return target creature card with mana value X plus 1 from your graveyard to the
        battlefield." — X the mana value of the creature sacrificed to pay for it, worked out from the target (mvXPlus) */
@@ -2300,6 +2301,11 @@
         targets: [Object.assign(sp, /^up to one/i.test(m[1]) ? { upTo: true } : {}, /other/i.test(m[1]) ? { another: true } : {})] } : null; } },
     /* Xu-Ifit, Osteoharmonist: "It's a Skeleton in addition to its other types and has no abilities." — how the card
        just returned enters, folded into that return (enterRider) */
+    /* Excava, the Risen Past: "It's a 1/1 Spirit creature with flying in addition to its other types." — that size and
+       kind as the card returned enters (enterRider) */
+    { re: /^It'?s an? (\d+)\/(\d+) ([A-Z][a-z]+(?: [A-Z][a-z]+)*) creature(?: with ([a-z ,]+?))? in addition to its other types\.?$/,
+      make: (m) => { const kws = m[4] ? keywordList(m[4]) : [];
+        return kws.every(kwKnown) ? { op: 'manual', enterRider: { setPt: { p: +m[1], t: +m[2] }, addTypes: ['Creature'], addSubtypes: m[3].split(' '), keywords: kws } } : null; } },
     { re: /^It'?s an? ([A-Z][a-z]+) in addition to its other types and has no abilities\.?$/,
       make: (m) => ({ op: 'manual', enterRider: { addSubtypes: [m[1]], loseAll: true } }) },
     /* Tom, Bert, and William: "When Tom, Bert, and William die, if they were a creature, return them to the battlefield.
@@ -4233,6 +4239,14 @@
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken'] }) },
     { re: /^Prevent all damage that would be dealt to (target creature|target permanent) this turn\.?$/i,
       make: (m) => ({ op: 'flagEot', targets: [targetSpec(m[1])], flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
+    /* Cass, Hand of Vengeance: "return any number of Aura cards that were attached to it from your graveyard to the
+       battlefield attached to target creature, then attach any number of Equipment that were attached to it to that
+       creature." — what the creature that died had on it, in one pick (reattachLeft) */
+    { re: /^Return any number of Aura cards that were attached to it from your graveyard to the battlefield attached to target creature, then attach any number of Equipment that were attached to it to that creature\.?$/i,
+      make: () => ({ op: 'reattachLeft', targets: [{ type: 'creature', filter: 'creature', zone: 'battlefield' }] }) },
+    // Kurbis, Harvest Celebrant: "Prevent all damage that would be dealt this turn to another target creature with a +1/+1 counter on it."
+    { re: /^Prevent all damage that would be dealt this turn to ((?:another )?target creature(?: with an? [+\-0-9/a-z]+ counter on it)?)\.?$/i,
+      make: (m) => { const sp = targetSpec(m[1]); return sp && !sp.unknown ? { op: 'flagEot', targets: [sp], flags: ['noDamageTaken', 'noNoncombatTaken'] } : null; } },
     // Mutational Advantage: "Prevent all damage that would be dealt to those permanents this turn." — the ones the sentence before was about
     { re: /^Prevent all damage that would be dealt to (?:those|them|those creatures|those permanents) this turn\.?$/i,
       make: () => ({ op: 'flagEot', scope: 'lastGroup', flags: ['noDamageTaken', 'noNoncombatTaken'] }) },
@@ -4783,10 +4797,11 @@
     /* ===== a graveyard anybody can reach into ===== */
     // (Ink-Eyes, Scion of Darkness: "from that player's graveyard" — the player it dealt damage to, picked as it resolves)
     // (Rakshasa Debaser: "from defending player's graveyard")
-    { re: /^Put target creature card from (a|an opponent'?s|that player'?s|defending player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
-      make: (m) => Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign({ type: 'creature', zone: 'graveyard' },
-        /opponent/i.test(m[1]) ? { controller: 'opponent' } : /that player/i.test(m[1]) ? { controller: 'triggerPlayer' } : /defending/i.test(m[1]) ? { defending: true } : {})] },
-        m[2] ? { counter: m[2].toLowerCase() } : {}) },
+    // (Zareth San, the Trickster: "target permanent card from that player's graveyard")
+    { re: /^Put target (creature|permanent) card from (a|an opponent'?s|that player'?s|defending player'?s) graveyard onto the battlefield under your control(?: with an? ([a-z+\-0-9/]+) counter on it)?\.?$/i,
+      make: (m) => Object.assign({ op: 'reanimate', mine: true, targets: [Object.assign(/permanent/i.test(m[1]) ? { type: 'permanent', filter: 'permanent card', zone: 'graveyard' } : { type: 'creature', zone: 'graveyard' },
+        /opponent/i.test(m[2]) ? { controller: 'opponent' } : /that player/i.test(m[2]) ? { controller: 'triggerPlayer' } : /defending/i.test(m[2]) ? { defending: true } : {})] },
+        m[3] ? { counter: m[3].toLowerCase() } : {}) },
     { re: /^Return target creature card from a graveyard to the battlefield under your control\.?$/i,
       make: () => ({ op: 'reanimate', mine: true, targets: [{ type: 'creature', zone: 'graveyard' }] }) },
 
@@ -9523,6 +9538,12 @@
           text: 'You may exile CARDNAME. If you do, return him to the battlefield transformed under his owner\'s control.',
           prompt: 'Exile CARDNAME and return him to the battlefield transformed?', then: [{ op: 'blinkTransformed', ownerControl: true }] }] }];
       } },
+    /* Obzedat, Ghost Council: "you may exile Obzedat. If you do, return it to the battlefield under its owner's control
+       at the beginning of your next upkeep. It gains haste." — back only if it is still that card in exile (whileExiled) */
+    { re: /^You may exile CARDNAME\. If you do, return (?:it|him|her) to the battlefield under (?:its|his|her) owner'?s control at the beginning of your next upkeep\. (?:It|He|She) gains haste\.?$/i,
+      make: () => [{ op: 'may', selfHere: true, prompt: 'Exile CARDNAME? It returns to the battlefield at the beginning of your next upkeep and gains haste.',
+        then: [{ op: 'exileSelf' }, { op: 'delayed', event: 'yourUpkeep', forPlayer: 'you', nextTurn: true, subject: 'self', whileExiled: true,
+          name: 'Return it at your next upkeep', effects: [{ op: 'returnSelfFromGrave', fromZone: 'exile', owner: true, haste: true }] }] }] },
     // Artificial Evolution: "… one creature type with another. The new creature type can't be Wall." (layer 3)
     { re: /^(Change the text of .+? with another)\. The new creature type can'?t be ([A-Z][a-z]+)\.?$/i,
       make: (m) => { const e = textChangeEffect(m[1]); return e && e.kinds.includes('creature') ? [Object.assign(e, { notTo: m[2] })] : null; } },
@@ -13567,6 +13588,8 @@
     if (/ of the chosen type\b/i.test(p)) { f.chosenType = true; p = p.replace(/ of the chosen type\b/i, ''); }
     // Aragorn, Hornburg Hero: "a renowned creature you control"
     if (/^renowned /i.test(p)) { f.renowned = true; p = p.replace(/^renowned /i, ''); }
+    // Goro-Goro and Satoru: "one or more creatures you control that entered this turn" (enteredThisTurn)
+    if (/ that entered this turn$/i.test(p)) { f.enteredThisTurn = true; p = p.replace(/ that entered this turn$/i, ''); }
     const who = (q) => {
       if (/ you control$/.test(q)) { f.who = 'you'; return q.replace(/ you control$/, ''); }
       // Athreos, God of Passage: "another creature you own" — whoever controls it
@@ -14142,6 +14165,10 @@
        time that creature has become tapped this turn" (yourTurnOnly, firstTapEachTurn) */
     { re: new RegExp('^When(?:ever)? ' + SUBJ + " becomes tapped during your turn, if it'?s the first time that creature has become tapped this turn,? ", 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]), extra: { yourTurnOnly: true, firstTapEachTurn: true } },
+    /* Rhoda, Geist Avenger: "Whenever a creature an opponent controls becomes tapped, if it isn't being declared as an
+       attacker," — not the tap of attacking itself (notAsAttacker) */
+    { re: new RegExp('^When(?:ever)? ' + SUBJ + " becomes tapped, if it isn'?t being declared as an attacker,? ", 'i'),
+      event: 'becomesTapped', filt: (m) => subjectFilter(m[1]), extra: { notAsAttacker: true } },
     // Magda: "Whenever a Dwarf you control becomes tapped"
     { re: new RegExp('^When(?:ever)? ' + SUBJ + ' becomes tapped,? ', 'i'),
       event: 'becomesTapped', filt: (m) => subjectFilter(m[1]) },
@@ -15258,6 +15285,16 @@
         continue;
       }
 
+      /* Zareth San, the Trickster: "{2}{U}{B}, Return an unblocked attacking Rogue you control to its owner's hand: Put
+         this card from your hand onto the battlefield tapped and attacking." — ninjutsu in all but name, for a Rogue
+         (returnAttacker) */
+      const rua = line.match(/^((?:\{[^}]+\})+), Return an unblocked attacking ([A-Z][a-z]+) you control to its owner'?s hand: Put (?:this card|CARDNAME) from your hand onto the battlefield tapped and attacking\.?$/);
+      if (rua) {
+        out.returnAttacker = { cost: rua[1], type: rua[2] };
+        out.abilities.push({ kind: 'castModifier', keyword: 'Return an unblocked attacker', arg: rua[1], text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
       /* Talon Gates of Madara: "{4}: Put this card from your hand onto the battlefield." An
          ability used from the hand that keeps the card, through channel's door. */
       const hpb = line.match(/^((?:\{[^}]+\})+):\s*Put (?:this card|CARDNAME) from your hand onto the battlefield( tapped)?\.?$/i);
