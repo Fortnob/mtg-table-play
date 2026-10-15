@@ -4925,6 +4925,8 @@
     /* "The amount of mana spent to cast that spell / this spell / it": the
        spell a cast trigger is about, or the card itself. */
     _spentOn(of, src, td) {
+      // Vazi, Keen Negotiator: "spent to … activate it" — the ability activated, as it went on the stack (manaFromTreasure)
+      if (of === 'it' && td && td.abilityMana) return td.abilityMana;
       const trig = td && td.objectId ? this.obj(td.objectId) : null;
       if (of === 'that') return trig;
       if (of === 'this') return src;
@@ -9270,7 +9272,8 @@
           label: (ab.cost && ab.cost.label) || null, xCost: /\{X\}/.test((ab.cost && ab.cost.mana) || ''), fromZone: actFrom, lifePaid,
           // (Ashnod the Uncaring: "if one or more permanents were sacrificed to activate it" — its cost, not mana for it: sacPaid)
           sacPaid: !!(ab.cost && (ab.cost.sacSelf || (ab.cost.sacrifice && !ab.cost.sacrifice.upTo))) || !!(item.sacrificed && item.sacrificed.length) });
-        this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId });
+        this._fire('anyActivateAbility', null, { object: o, objController: o.controller, stackId: item.id, loyalty: ab.kind === 'loyalty', playerId,
+          abilityMana: { manaFromTreasure: fromTreasure } });
       }
       this.emit('sfx', 'cast');
       this.emit('stack:add', item);
@@ -16752,7 +16755,14 @@
       // Thalisse: "the number of tokens you created this turn" — kept as they are made
       if (event === 'youCreateToken' && controllerId) {
         const cp = this.player(controllerId);
-        if (cp) { if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 }; cp.tokensCreated.n++; }
+        if (cp) {
+          if (!cp.tokensCreated || cp.tokensCreated.turn !== this.turn) cp.tokensCreated = { turn: this.turn, n: 0 };
+          cp.tokensCreated.n++;
+          // Vazi, Keen Negotiator: "the number of Treasure tokens you created this turn" — by each word of its type line (byWord)
+          const bw = cp.tokensCreated.byWord || (cp.tokensCreated.byWord = {});
+          const tl = data.object ? String((data.object.analysis() || {}).typeLine || '') : '';
+          for (const w of new Set(tl.toLowerCase().split(/[^a-z]+/).filter(Boolean))) bw[w] = (bw[w] || 0) + 1;
+        }
       }
       this._fireDelayed(event, this.activePlayer && this.activePlayer.id, controllerId, data);
       if ((event === 'youCastSpell' || event === 'permEnters') && data.object) this._revealAgendas(data.object);
@@ -16782,6 +16792,8 @@
         spellTargets: data.spell && data.spell.targets ? data.spell.targets.map(t => ({ kind: t.kind, id: t.id })) : undefined,
         // Verrak, Warped Sengir: the life paid to activate the ability (lifePaid)
         lifePaid: data.lifePaid || undefined,
+        // Vazi, Keen Negotiator: the mana from Treasures spent to activate the ability (abilityMana)
+        abilityMana: data.abilityMana || undefined,
       };
       const push = (o, i, ab) => {
         if (this._triggerHushed(o, event, data)) return;
@@ -17222,6 +17234,8 @@
           if (ab.unreadWhile || (ab.whileCond && !this._condMet(ab.whileCond, { controller: o.controller, obj: o }))) continue;
           // Gahiji, Honored One: only an attack on one of this player's opponents (or their planeswalkers) (attacksYourOpp)
           if (ab.attacksYourOpp) { const dp = data.object && this._defenderOf(data.object); if (!dp || !this.opponentsOf(o.controller).some(q => q.id === dp.id)) continue; }
+          // Maeve, Insidious Singer: "attacks one of your opponents" — the player, not a planeswalker of theirs (attacksYourOppPlayer)
+          if (ab.attacksYourOppPlayer && !(data.defenderId && this.opponentsOf(o.controller).some(q => q.id === data.defenderId))) continue;
           // Zurzoth, Chaos Rider: "attack one or more players" — a Devil of yours at a player, not only at a planeswalker
           if (ab.attackersOfTypeAtPlayer && !this._playersAttackedByType(o.controller, ab.attackersOfType).length) continue;
           // Hermes: "with one or more Birds"
@@ -19135,7 +19149,8 @@
         }
         if (v && typeof v === 'object' && v.tokensCreatedThisTurn) {
           const tc = (this.player(ctx.controller) || {}).tokensCreated;
-          return (tc && tc.turn === this.turn ? tc.n : 0) * (v.mult || 1);
+          const nw = !tc || tc.turn !== this.turn ? 0 : v.tokenWord ? Number((tc.byWord || {})[v.tokenWord]) || 0 : tc.n;
+          return nw * (v.mult || 1);
         }
         // Mathemagics: 2 to the power of X (a library runs out long before 2^30)
         if (v && typeof v === 'object' && v.twoToX) return 2 ** Math.max(0, Math.min(30, Number(ctx.x) || (src && src.chosenX) || 0));
@@ -26641,6 +26656,8 @@
             if (e.maxMv != null && ((o.card && o.card.cmc) || 0) > (typeof e.maxMv === 'number' ? e.maxMv : n(e.maxMv))) return false;
             // Star Charter: "a creature card with power 3 or less"
             if (e.maxPower != null && !((parseInt((o.card || {}).power, 10) || 0) <= e.maxPower)) return false;
+            // Mayael the Anima: "a creature card with power 5 or greater" (minPower)
+            if (e.minPower != null && !((parseInt((o.card || {}).power, 10) || 0) >= e.minPower)) return false;
             // Icon of Ancestry: "of the chosen type" — the type chosen for this permanent
             if (e.ofChosenType && !(src && src.chosenType && this._hasCreatureType(o, src.chosenType))) return false;
             // Alrund, God of the Cosmos: "all cards of the chosen type" — the card type just chosen (ofChosenCardType)
@@ -28487,8 +28504,7 @@
           const x = e.self ? src : (targets[0] && this.obj(targets[0].id));
           if (!x || !x.card.card_faces || x.card.card_faces.length < 2) break;
           // a melded permanent can't be transformed: it isn't a transforming double-faced card (CR 701.28c)
-          if (x.meld) { this.logEvent('rules', `${x.name} is melded and can't transform.`); break; }
-          /* Aang, at the Crossroads: a delayed transform does nothing to a permanent that has left since, or has
+          if (x.meld) { this.logEvent('rules', `${x.name} is melded and can't transform.`); break; }          /* Aang, at the Crossroads: a delayed transform does nothing to a permanent that has left since, or has
              transformed since it was set up (CR 701.28f; sinceNow) */
           if (e.sinceNow && (x.zone !== 'battlefield' || x.ts !== e.sinceTs || (x.xformN || 0) !== e.sinceXf)) break;
           x.face = (x.face + 1) % x.card.card_faces.length;
@@ -35385,6 +35401,8 @@
         if (w === 'enchanted') return ((o.zone === 'graveyard' || o.zone === 'exile' ? o._lastAttachments : o.attachments) || []).some(id => this._auraNow(this.obj(id)));
         // Trail of Mystery: "a face-down creature"
         if (w === 'face-down') return !!o.faceDown;
+        // Tetzin, Gnome Champion: "another double-faced artifact" — a transforming or modal double-faced card (CR 712.1)
+        if (w === 'double-faced') return !!o.card && ['transform', 'modal_dfc'].includes(o.card.layout);
         if (w === 'tapped') return !!o.tapped;
         if (w === 'untapped') return !o.tapped;
         // Lion Umbra, Chishiro: "modified" — counters on it, or an Equipment or Aura of its controller's on it

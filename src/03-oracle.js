@@ -4181,9 +4181,14 @@
         return inner && inner.op !== 'manual' ? { op: 'ifCond', cond: { kind: 'returnedType', type: m[1], other: true }, then: [inner] } : null; } },
     // Generous Plunderer: "target opponent creates a tapped Treasure token"
     // (Hansk, Slayer Zealot: "target opponent creates three Walker tokens")
-    { re: /^(Target opponent|Each opponent) creates? (an?|one|two|three|four|five) (tapped )?(Treasure|Food|Clue|Blood|Map|Walker) tokens?\.?$/i,
-      make: (m) => (/^target/i.test(m[1]) ? { op: 'createNamedToken', n: num(m[2]), token: m[4], tapped: !!m[3], who: 'target', targets: [{ type: 'player', opponent: true }] }
-        : { op: 'createNamedToken', n: num(m[2]), token: m[4], tapped: !!m[3], who: 'opponents' }) },
+    // (Vazi, Keen Negotiator: "Target opponent creates X Treasure tokens, where X is the number of Treasure tokens you created this turn")
+    { re: /^(Target opponent|Each opponent) creates? (an?|one|two|three|four|five|X) (tapped )?(Treasure|Food|Clue|Blood|Map|Walker) tokens?(?:, where X is (.+?))?\.?$/i,
+      make: (m) => {
+        const k = /^X$/i.test(m[2]) ? (m[5] ? amountOf(m[5]) : null) : num(m[2]);
+        if (k == null || (m[5] && !/^X$/i.test(m[2]))) return null;
+        return /^target/i.test(m[1]) ? { op: 'createNamedToken', n: k, token: m[4], tapped: !!m[3], who: 'target', targets: [{ type: 'player', opponent: true }] }
+          : { op: 'createNamedToken', n: k, token: m[4], tapped: !!m[3], who: 'opponents' };
+      } },
     // Viv Vision: "draw a card if her power is 4 or greater"; Inga Rune-Eyes: "draw three cards if three or more creatures died this turn" (drawIfLate)
     { re: /^[Dd]raw (a|one|two|three|four) cards? if (.+?)\.?$/,
       make: (m) => {
@@ -5401,12 +5406,14 @@
     /* Toggo, Goblin Weaponsmith: "create a colorless Equipment artifact token named Rock with "Equipped creature has
        '{1}, {T}, Sacrifice Rock: This creature deals 2 damage to any target'" and equip {1}." — the inner quotes
        made double, as on a card of its own (namedTokenDef) */
-    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) colorless Equipment artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
+    // (Moira Brown, Guide Author: "a colorless Book Equipment artifact token named Wasteland Survival Guide" — another subtype first)
+    { re: /^(?:You )?[Cc]reate (a|an|one|two|three|\d+) colorless (?:(Book) )?Equipment artifact tokens? named ([A-Z][A-Za-z' -]*?) with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
       make: (m) => {
-        const text = m[3].replace(/'([^']+)'/g, (q, inner) => '"' + inner.replace(/([^.])$/, '$1.') + '"').replace(/([^."])$/, '$1.') + '\nEquip ' + m[4];
-        const probe = analyze({ id: 'tokentext:' + U.hash(m[2] + text), name: m[2], type_line: 'Token Artifact — Equipment', oracle_text: text, keywords: [], layout: 'token' });
+        const text = m[4].replace(/'([^']+)'/g, (q, inner) => '"' + inner.replace(/([^.])$/, '$1.') + '"').replace(/([^."])$/, '$1.') + '\nEquip ' + m[5];
+        const type = 'Token Artifact — ' + (m[2] ? m[2] + ' ' : '') + 'Equipment';
+        const probe = analyze({ id: 'tokentext:' + U.hash(m[3] + text), name: m[3], type_line: type, oracle_text: text, keywords: [], layout: 'token' });
         if (!probe || !probe.fullyAutomated) return null;
-        return { op: 'createNamedToken', n: num(m[1]), token: m[2], def: { type: 'Token Artifact — Equipment', text } };
+        return { op: 'createNamedToken', n: num(m[1]), token: m[3], def: { type, text } };
       } },
     // Mabel, Heir to Cragflame: "create Cragflame, a legendary colorless Equipment artifact token with "…" and equip {2}"
     { re: /^(?:You )?[Cc]reate ([A-Z][A-Za-z' -]*?), a legendary colorless Equipment artifact token with "([^"]+)" and equip (\{[^}]+\}(?:\{[^}]+\})*)\.?$/,
@@ -6622,9 +6629,11 @@
     // Shigeki, Silverback Elder: "You may put a land card from among them onto the battlefield tapped."
     // (Winota, Joiner of Forces: "a Human creature card … tapped and attacking" — where the attacker is, for "It gains …")
     // (Jet, Rebel Leader: "a creature card with mana value 3 or less from among them … tapped and attacking" — maxMv)
-    { re: /^You may put an? ([-a-zA-Z ]*?)card (?:with mana value (\d+) or less )?from among them onto the battlefield( tapped)?( and attacking)?\.?$/i,
-      make: (m) => (m[4] && !m[3] ? null : Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
-        to: 'battlefield', tapped: !!m[3], optional: true, rest: 'keep' }, m[4] ? { attacking: true } : {}, m[2] ? { maxMv: +m[2] } : {})) },
+    // (Mayael the Anima: "a creature card with power 5 or greater" — minPower)
+    { re: /^You may put an? ([-a-zA-Z ]*?)card (?:with mana value (\d+) or less |with power (\d+) or greater )?from among them onto the battlefield( tapped)?( and attacking)?\.?$/i,
+      make: (m) => (m[5] && !m[4] ? null : Object.assign({ op: 'takeFromLooked', n: 1, filter: (m[1] || '').trim().toLowerCase() || 'any',
+        to: 'battlefield', tapped: !!m[4], optional: true, rest: 'keep' }, m[5] ? { attacking: true } : {}, m[2] ? { maxMv: +m[2] } : {},
+        m[3] ? { minPower: +m[3] } : {})) },
     // Ghastly Remains, Zodiac Dragon: a card that goes back to its owner's hand by its own words
     { re: /^Return (?:it|this card) to your hand\.?$/i, make: () => ({ op: 'returnItToHand' }) },
     // Grafted Exoskeleton: the permanent it was attached to, if you still control it
@@ -6894,7 +6903,14 @@
         if (!/^Until end of turn/i.test(m[0]) && !m[5]) return null;
         if (!grantableText(m[4])) return null;
         const who = m[1];
-        const g = { op: 'grantAbility', ability: m[4], duration: 'eot' };
+        /* Ms. Marvel, Kamala Khan: 'gains "Ms. Marvel's base power is …"' — its own name in the words handed over is
+           "this creature", as the granted ability shows it */
+        let text = m[4];
+        if (/\bCARDNAME\b/.test(text)) {
+          const r = text.replace(/\bCARDNAME\b/g, 'this creature').replace(/(^|[.!]\s+)this creature/g, '$1This creature');
+          if (grantableText(r)) text = r;
+        }
+        const g = { op: 'grantAbility', ability: text, duration: 'eot' };
         if (/^target /i.test(who)) { const t = tgt(who); if (!t) return null; g.targets = [t]; }
         else if (/^(?:CARDNAME|this creature)$/i.test(who)) g.scope = 'self';
         else if (/^(?:equipped|enchanted) creature$/i.test(who)) g.scope = 'attached';
@@ -7498,6 +7514,16 @@
     // Elesh Norn: "that source's controller loses 2 life" — the player the trigger is about
     { re: /^That source'?s controller loses (\d+) life\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'triggerPlayer', n: +m[1] }) },
+    // The Golden-Gear Colossus: "transform up to one other target double-faced artifact you control"
+    { re: /^Transform (up to one )?((?:other |another )?target double-faced (?:artifact|creature|permanent)(?: you control)?)\.?$/i,
+      make: (m) => {
+        const t = targetSpec(m[2]);
+        return t && !t.unknown ? { op: 'transform', targets: [Object.assign(t, m[1] ? { upTo: true } : {})] } : null;
+      } },
+    // Phelddagrif: "Target opponent may draw a card." — theirs to take (as Tataru Taru's)
+    { re: /^Target opponent may draw a card\.?$/i,
+      make: () => ({ op: 'opponentMayElse', targets: [targetSpec('target opponent')], kind: 'gift',
+        offer: 'draw a card', option: [{ op: 'draw', who: 'target', n: 1 }], otherwise: [], elseText: 'nothing happens' }) },
     // Karazikar, the Eye Tyrant: "you and the attacking player each draw a card and lose 1 life"
     { re: /^You and the attacking player each draw a card and lose (\d+) life\.?$/i,
       make: (m) => [{ op: 'draw', n: 1 }, { op: 'draw', n: 1, who: 'triggerPlayer' }, { op: 'loseLife', who: 'you', n: +m[1] }, { op: 'loseLife', who: 'triggerPlayer', n: +m[1] }] },
@@ -7524,6 +7550,14 @@
     // Kitt Kanto, Mayhem Diva: "Goad that creature." — the one just targeted
     // (The Master, Mesmerist; Oceanus Dragon: "Goad it." — after a sentence that targeted it)
     { re: /^Goad (?:that creature|it)\.?$/i, make: () => ({ op: 'goad', scope: 'lastTarget' }) },
+    /* Maeve, Insidious Singer: "Goad target creature. Whenever that creature attacks one of your opponents this turn, you
+       draw a card." — the creature targeted watched for the turn (an emblem, as Hunter's Insight; attacksYourOppPlayer) */
+    { re: /^Whenever that creature attacks one of your opponents this turn, you draw a card\.?$/i,
+      make: () => ({ op: 'getEmblem', thisTurn: true, name: 'Until end of turn', linkTarget: true,
+        emblemText: 'Whenever the chosen creature attacks one of your opponents this turn, you draw a card.',
+        abilities: [{ kind: 'triggered', event: 'permAttacks', self: false, optional: false, auto: true, condition: null,
+          objectIdIs: '$tgt', attacksYourOppPlayer: true, text: 'Whenever the chosen creature attacks one of your opponents, you draw a card.',
+          effects: [{ op: 'draw', n: 1, who: 'you' }] }] }) },
     { re: /^Goad (?:each creature|all creatures) (?:your opponents control|target opponent controls)\.?$/i,
       make: () => ({ op: 'goad', scope: 'opponentCreatures' }) },
     // (Kefnet's Monument: "target creature an opponent controls")
@@ -8919,6 +8953,8 @@
     if (/^the number of spells you'?ve cast this turn$/i.test(p)) return done({ spellsCastThisTurn: true });
     // Thalisse, Ellyn Harbreeze: "the number of tokens you created this turn"
     if (/^the number of tokens you(?:'ve)? created this turn$/i.test(p)) return done({ tokensCreatedThisTurn: true, mult: 1 });
+    // Vazi, Keen Negotiator: "the number of Treasure tokens you created this turn" (tokenWord)
+    if ((m = p.match(/^the number of (Treasure|Food|Clue|Blood|Map|creature|artifact) tokens you(?:'ve)? created this turn$/i))) return done({ tokensCreatedThisTurn: true, tokenWord: m[1].toLowerCase(), mult: 1 });
     // Felisa, Fang of Silverquill: "the number of counters it had on it" — the creature the trigger is about
     if (/^the number of counters (?:it|that creature) had on it$/i.test(p)) return done({ countersOnTrigger: true, mult: 1 });
     // Marshal's Anthem, Voyager Drake: "the number of times this enchantment was kicked"
@@ -9073,7 +9109,9 @@
      one it would offer wrongly. */
   const SPEC_FLAGS = new Set(['attacking', 'blocking', 'tapped', 'untapped', 'token', 'nontoken', 'legendary',
     'nonlegendary', 'basic', 'nonbasic', 'nonland', 'noncreature', 'nonartifact', 'nonenchantment',
-    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'modified', 'equipped', 'enchanted']);
+    'snow', 'colorless', 'multicolored', 'monocolored', 'face-down', 'historic', 'unblocked', 'modified', 'equipped', 'enchanted',
+    // The Golden-Gear Colossus: "target double-faced artifact you control" (doubleFaced)
+    'double-faced']);
   const SPEC_FILLER = new Set(['a', 'an', 'or', 'and', 'and/or', 'target', 'other', 'another', 'of', 'card', 'cards',
     'one', 'two', 'three', 'up', 'to']);
 
@@ -9117,6 +9155,9 @@
     // Moira, Grim Return: "target creature card in your graveyard that was put there from the battlefield this turn"
     const fromBf = /\s+that was put there from the battlefield this turn$/i.test(String(phrase));
     if (fromBf) phrase = String(phrase).replace(/\s+that was put there from the battlefield this turn$/i, '');
+    // Night Nurse, Healer of Heroes: "target permanent card in your graveyard that was put there from anywhere this turn" (toGraveThisTurn)
+    const toGyNow = /\s+that was put there from anywhere this turn$/i.test(String(phrase));
+    if (toGyNow) phrase = String(phrase).replace(/\s+that was put there from anywhere this turn$/i, '');
     // Ugin, the Ineffable: "target permanent that's one or more colors"
     const colored = /\s+that'?s one or more colou?rs$/i.test(String(phrase));
     if (colored) phrase = String(phrase).replace(/\s+that'?s one or more colou?rs$/i, '');
@@ -9146,6 +9187,7 @@
     if (noAbil) spec.noAbilities = true;
     if (blockingSelf) spec.blockingSelf = true;
     if (fromBf) spec.fromBfThisTurn = true;
+    if (toGyNow) spec.toGraveThisTurn = true;
     if (tapAb) spec.hasTapAbility = true;
     if (blockedBySelf) spec.blockedBySelf = true;
     /* "another target creature", "any other target": never the thing
@@ -9271,6 +9313,7 @@
         else if (lw === 'multicolored') spec.multicolored = true;
         else if (lw === 'monocolored') spec.monocolored = true;
         else if (lw === 'face-down') spec.faceDown = true;
+        else if (lw === 'double-faced') spec.doubleFaced = true;
         // Curtain of Light: "target unblocked attacking creature"
         else if (lw === 'unblocked') { spec.unblocked = true; spec.attacking = true; }
         // Silver Sable, Mercenary Leader: "target modified creature you control" (modifiedTarget)
@@ -9384,6 +9427,8 @@
     if (spec.nontoken && obj.isToken) return false;
     if (spec.token && !obj.isToken) return false;
     if (spec.faceDown && !obj.faceDown) return false;
+    // (doubleFaced: a transforming or modal double-faced card, CR 712.1)
+    if (spec.doubleFaced && !(obj.card && ['transform', 'modal_dfc'].includes(obj.card.layout))) return false;
     if (spec.commander && !obj.isCommander) return false;
     // Lozhan, Dragons' Legacy: "any target that isn't a commander" (notCommanderTarget)
     if (spec.notCommander && obj.isCommander) return false;
@@ -9435,6 +9480,8 @@
     if (spec.hasTapAbility && !((analysis.abilities || []).concat(analysis.manaAbilities || []).some(ab => ab && ab.kind !== 'triggered' && ab.kind !== 'static' && ab.cost && ab.cost.tap))) return false;
     // (fromBfThisTurn: a card that went to the graveyard from the battlefield this turn)
     if (spec.fromBfThisTurn && !(ctx && obj._toGraveFromBf === ctx.turn)) return false;
+    // (toGraveThisTurn: put into the graveyard from anywhere this turn, Night Nurse, Healer of Heroes)
+    if (spec.toGraveThisTurn && !(ctx && obj._toGraveTurn === ctx.turn)) return false;
     // (fromLibThisTurn: a card that went to the graveyard from its library this turn, Captain N'ghathrod)
     if (spec.fromLibThisTurn && !(ctx && obj._toGraveFromLib === ctx.turn)) return false;
     // (discardedOrLibThisTurn: either that, or discarded this turn, Ghost of Ramirez DePietro)
@@ -9825,6 +9872,13 @@
       make: (m) => {
         const ex = parseEffectSentence('Exile ' + m[1] + ' from a graveyard.', 1);
         return ex && ex.op === 'exile' && (ex.targets || []).length === 1 ? [Object.assign(ex, { counter: m[2].toLowerCase() })] : null;
+      } },
+    /* Night Nurse, Healer of Heroes: "choose target permanent card in your graveyard that was put there from anywhere this
+       turn. Return it to your hand." (regrowth, toGraveThisTurn) */
+    { re: /^Choose (target [a-z ]+? card) in your graveyard( that was put there from (?:anywhere|the battlefield) this turn)?\. Return it to your hand\.?$/i,
+      make: (m) => {
+        const t = targetSpec(m[1] + (m[2] || ''), 'graveyard');
+        return t && !t.unknown ? [{ op: 'regrowth', targets: [Object.assign(t, { zone: 'graveyard', controller: 'you' })] }] : null;
       } },
     /* Krothuss, Lord of the Deep: "create a tapped and attacking token that's a copy of another target attacking creature.
        If that creature is a Kraken, Leviathan, Octopus, or Serpent, create two of those tokens instead." (twiceIfType, a list) */
@@ -11053,8 +11107,8 @@
     { re: /^Put (two|three|four|five) time counters on the exiled card\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'suspendCard', from: 'exiledCost', timeCounters: num(m[1]) }] },
     /* The Tenth Doctor: "exile cards from the top of your library until you exile a nonland card. Put three time
-       counters on it. If it doesn't have suspend, it gains suspend." (from 'exileUntil') */
-    { re: /^Exile cards from the top of your library until you exile a nonland card\. Put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
+       counters on it. If it doesn't have suspend, it gains suspend." (from 'exileUntil'; Kang Prime: "on that card") */
+    { re: /^Exile cards from the top of your library until you exile a nonland card\. Put (two|three|four|five) time counters on (?:it|that card)\. If it doesn'?t have suspend, it gains suspend\.$/i,
       make: (m) => [{ op: 'exileTop', who: 'you', untilNonland: true }, { op: 'suspendCard', from: 'exileUntil', timeCounters: num(m[1]) }] },
     /* Suspend (the card): "Exile target creature and put two time counters on it. If it doesn't have suspend, it gains suspend." */
     { re: /^Exile (target (?:nontoken )?creature) and put (two|three|four|five) time counters on it\. If it doesn'?t have suspend, it gains suspend\.$/i,
@@ -13807,7 +13861,8 @@
     [/^(\w+) or more mana from creatures was spent to cast (this spell|that spell|it|CARDNAME)$/i,
       (m) => (typeof num(m[1]) === 'number' ? { kind: 'manaSpentAtLeast', n: num(m[1]), of: spentOf(m[2]), fromCreatures: true } : null)],
     // Smaug, Wicked Worm: "if mana from a Treasure was spent to cast it" (manaFromTreasure); Shadow's "from an artifact"
-    [/^mana from an? (Treasure|artifact) was spent to cast (this spell|that spell|it|CARDNAME)$/i,
+    // (Vazi, Keen Negotiator: "to cast it or activate it" — the spell, or the ability activated: abilityMana)
+    [/^mana from an? (Treasure|artifact) was spent to cast (this spell|that spell|it|CARDNAME)(?: or activate it)?$/i,
       (m) => ({ kind: 'manaSpentAtLeast', n: 1, of: spentOf(m[2]), from: m[1].toLowerCase() })],
     // Seed Spark, Rolling Spoil: "if {G} was spent to cast this spell" — one mana of that colour (manaSymbolSpent)
     [/^\{([WUBRGC])\} was spent to cast (this spell|it|CARDNAME)$/, (m) => ({ kind: 'manaSpentAtLeast', n: 1, color: m[1], of: spentOf(m[2]) })],
@@ -14354,7 +14409,9 @@
     // Arbaaz Mir: "another nontoken historic permanent you control" — legendary, an artifact or a Saga
     'historic',
     // Trail of Mystery: "a face-down creature you control"
-    'face-down']);
+    'face-down',
+    // Tetzin, Gnome Champion: "another double-faced artifact you control"
+    'double-faced']);
   /* "Rabbits, Bats, Birds, and/or Mice": a list, any one of them will do;
      "noncreature, nonland permanents": all of them at once */
   function listWords(s) {
@@ -15164,7 +15221,8 @@
        graveyard from anywhere"; Vulturous Zombie: "a card … into an
        opponent's graveyard"; Sidisi: "from your library" */
     // (Disa the Restless: "from anywhere other than the battlefield" — notFromBattlefield)
-    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your|a|an opponent'?s) graveyard from (anywhere other than the battlefield|anywhere|your library)( during your turn)?,? /i,
+    // (Dennick, Pious Apparition: "creature cards are put into graveyards from anywhere" — anyone's)
+    { re: /^Whenever (one or more|a|an) ((?:[A-Za-z-]+ )*?)cards? (?:is|are) put into (your graveyard|a graveyard|an opponent'?s graveyard|graveyards) from (anywhere other than the battlefield|anywhere|your library)( during your turn)?,? /i,
       event: 'cardToGraveyardAny',
       extraOf: (m) => Object.assign({}, /one or more/i.test(m[1]) ? { batch: true } : {}, /library/i.test(m[4]) ? { fromLibraryOnly: true } : {},
         /other than/i.test(m[4]) ? { notFromBattlefield: true } : {},
@@ -15172,7 +15230,7 @@
       filt: (m) => {
         const words = m[2].trim();
         if (words && !words.split(/\s+/).every(w => SPELL_WORDS.has(w.toLowerCase()) || /^[A-Z][a-z'-]+$/.test(w))) return null;
-        return Object.assign({ words: words.toLowerCase() || 'card' }, /^your$/i.test(m[3]) ? { who: 'you' } : /opponent/i.test(m[3]) ? { who: 'opponent' } : {});
+        return Object.assign({ words: words.toLowerCase() || 'card' }, /^your /i.test(m[3]) ? { who: 'you' } : /opponent/i.test(m[3]) ? { who: 'opponent' } : {});
       } },
     { re: /^When(?:ever)? an opponent casts their first ([a-zA-Z ]*?)spell each turn(?:,| )/i, event: 'opponentFirstSpell',
       filt: (m) => spellFilter(m[1]), extra: { firstOfKind: true } },
@@ -19144,6 +19202,9 @@
     // Duggan, Masumaro, Mordenkainen's Dog Illusion: "(twice) the number of cards in your hand"
     { re: /^(?:CARDNAME|This creature|This token)'?s? power and toughness are each equal to (twice )?the number of cards in your hand\.?$/i,
       make: (m) => { const k = { cardsInHand: 'you', mult: m[1] ? 2 : 1 }; return { op: 'continuous', layer: 7, cda: true, scope: { self: true }, setPt: { p: k, t: k } }; } },
+    // Ms. Marvel, Kamala Khan: 'gains "Ms. Marvel's base power is equal to the number of cards in your hand."' — power only, layer 7b
+    { re: /^(?:CARDNAME|This creature)'?s? base power is equal to the number of cards in your hand\.?$/i,
+      make: () => ({ op: 'continuous', layer: 7, scope: { self: true }, setPt: { p: { cardsInHand: 'you', mult: 1 } } }) },
     // Abomination of Llanowar: "… the number of Elves you control plus the number of Elf cards in your graveyard" (cdaPlusGraveyard)
     { re: /^(?:CARDNAME|This creature)'?s? power and toughness are each equal to the number of ([-a-z'/ ]+?) you control plus the number of ([a-z]+) cards in your graveyard\.?$/i,
       make: (m) => {
