@@ -1470,3 +1470,11 @@
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); font: 600 12px/1.25 var(--font); color: #e6ebf3; max-width: 100%; }
 .ab-src-art { flex: none; width: 24px; height: 24px; border-radius: 50%; background: #333 center / cover no-repeat; }
 .ab-src-name { overflow-wrap: anywhere; }
+/* on a wide screen, a spell aimed at something: the card above its words, so it can stand to one side of the board */
+.spotlight.col { flex-direction: column; gap: 12px; text-align: center; }
+.spotlight.col .spot-card > .cv { --w: min(220px, calc(24 * var(--vh))); }
+.spotlight.col .spot-cap { max-width: 300px; }
+.spotlight.col .spot-who { justify-content: center; }
+.spotlight.col .spot-ab { max-width: none; }
+/* a phone with no room for the card clear of what it aims at: its words alone, the arrow from them */
+.spotlight.slim .spot-card { display: none; }

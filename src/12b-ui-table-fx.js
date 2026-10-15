@@ -153,7 +153,8 @@
         const backstop = setTimeout(() => done(false), ms);
         const check = () => {
           if (over) return;
-          if (this._destroyed) return done(false);
+          // nobody is watching a hidden tab, whose timers the browser slows to a crawl
+          if (this._destroyed || (typeof document !== 'undefined' && document.hidden)) return done(false);
           const now = performance.now();
           if (now >= limit) return done(false);
           if (!this.queue.length && !this._pumping) {
@@ -401,7 +402,9 @@
             // A3: and why, where the events say
             const why = this._causeOf(e, nm, back, off + i);
             b.events.push({ kind: e.died ? 'died' : 'left', who: e.controller, card: c, name: nm, cause: why ? why.text : null,
-              source: why ? why.source : null, objId: e.objId, text: `${nm} ${verb}${why ? ' — ' + why.text : ''}` });
+              source: why ? why.source : null, objId: e.objId, text: `${nm} ${verb}${why ? ' — ' + why.text : ''}`,
+              // a Treasure, a Clue, a Food used up is no news; it goes to the rail
+              quiet: !!e.isToken && !e.died });
             b.leaving.push(e.objId);
             hold(e.died ? 700 : 450); weigh(e.died ? 900 : 400);
             break;
@@ -498,11 +501,16 @@
         if (x.type === 'log' && x.kind === 'sacrifice' && !sac && has(x)) sac = x;
         if (x.type === 'resolve' && !resolving) resolving = x;
       }
-      for (let i = at + 1; i < back.length && i < at + 8 && !sac; i++) {
+      /* just after: a sacrifice is logged once made, and a spell cast or an ability activated straight after it is
+         what it was paid for (a Treasure for mana, a creature for a cost) — not whatever resolved a while before */
+      let paid = null;
+      for (let i = at + 1; i < back.length && i < at + 8; i++) {
         const x = back[i];
-        if (x.type === 'priority' || x.type === 'turn' || x.type === 'step') break;
-        if (x.type === 'log' && x.kind === 'sacrifice' && has(x)) sac = x;
+        if (x.type === 'priority' || x.type === 'turn' || x.type === 'step' || x.type === 'resolve') break;
+        if (x.type === 'log' && x.kind === 'sacrifice' && has(x) && !sac) sac = x;
+        if ((x.type === 'cast' || x.type === 'activate') && !paid) paid = x;
       }
+      if (paid) resolving = null;
       // what dealt it damage this turn
       const hurt = [];
       for (let i = at - 1, n = 0; i >= 0 && n < 400; i--, n++) {
@@ -529,7 +537,7 @@
         if (/sacrificed/.test(t)) return { text: 'sacrificed — ' + ((t.match(/\(([^)]*)\)/) || [])[1] || 'a rule'), source: null };
         if (/enchanted|attached/.test(t)) return { text: 'what it was attached to is gone', source: null };
       }
-      if (sac) return { text: resolving && resolving.objId !== id ? `sacrificed to ${what}` : 'sacrificed', source: null };
+      if (sac) return { text: resolving && resolving.objId !== id ? `sacrificed to ${what}` : paid ? `sacrificed for ${String(paid.name || '').split(' \u2014 ')[0]}` : 'sacrificed', source: null };
       if (resolving && resolving.objId !== id) {
         if (e.died && hurt.some(x => x.source === resolving.objId || x.sourceName === resolving.name || x.sourceName === what)) return byDamage();
         return { text: (e.died || e.to === 'graveyard' ? 'destroyed by ' : '') + what, source: resolving.objId || null };
@@ -584,7 +592,7 @@
       /* A view the table jumps to rather than plays out to — a replay scrubbed to another turn (which asks for no
          motion before handing it over), an undo — changes whose board is in view without the turn to it. */
       this._focusCut = !!this._noMotionOnce || (Array.isArray(next.events) && next.events.some(e => e.type === 'restore'));
-      if (first) this._spotOn(first);
+      if (first) { this._swingFor(first, next); this._spotOn(first); }
       else if (this.spot && !(next.stack || []).some(s => s.id === this.spot.stackId)) this._spotOff();
       // where each card that moved really came from, and where whatever is leaving last stood
       this._moves = beat.moves || null;
@@ -622,6 +630,7 @@
         this._spotOff();
         if (!this.queue.length && !this._destroyed) this.render();
       }
+      this._swingBack(next, beat.turn);
       // the bots give the table a moment after anything worth seeing (whenIdle)
       if (beat.weight) {
         const base = (MTG.settings.animSpeed != null ? MTG.settings.animSpeed : 1) * (this.paceScale || 1);
@@ -670,15 +679,14 @@
     /** Hold one thing an opponent put on the stack up in the middle for its time; `ghost` when it is gone already. */
     async _spotBeat(sp, ghost) {
       // in a bigger game, the board it is aimed at is brought into view for it (A10)
-      const swung = this._swingFor(sp, this.view);
+      this._swingFor(sp, this.view);
       this._spotOn(sp, ghost);
       // (heard now: a spell gone before its picture came is not heard again with its result)
       if (ghost && sp.e && MTG.feel && MTG.feel.cue) MTG.feel.cue(this, sp.e);
       this.render();
       await this._hold(sp.hold, ghost ? 'ghost' : 'spot');
       this._spotOff();
-      if (swung) this._beatFocus = null;
-      if (ghost || swung) this.render();
+      if (ghost) this.render();
     },
 
     _spotOn(sp, ghost) {
@@ -720,8 +728,21 @@
         want = want || pid;
       }
       if (!want || !(v.players || []).some(p => p.id === want && !p.hasLost)) return false;
+      // (kept until what it did has been seen: _swingBack)
       this._beatFocus = want;
+      this._beatFocusFor = sp.stackId;
+      this._beatFocusUntil = performance.now() + 8000;
       return true;
+    },
+
+    /** The board turned to for something held up (A10) is turned away from once what it did has been shown. */
+    _swingBack(next, turned) {
+      if (!this._beatFocus) return;
+      const still = (next.stack || []).some(s => s.id === this._beatFocusFor);
+      if (still && !turned && performance.now() < (this._beatFocusUntil || 0)) return;
+      this._beatFocus = null;
+      this._beatFocusFor = null;
+      if (!this._destroyed) this.render();
     },
 
     /** The words for a beat in the middle of the table, if it has any: what you did yourself needs none, except where it ended up. */
@@ -967,6 +988,8 @@
         const ghost = g.node.cloneNode(true);
         ghost.classList.remove('playable', 'targetable', 'candidate', 'chosen', 'attacking', 'blocking', 'declared-atk', 'declared-blk');
         ghost.classList.add('cv-ghost');
+        // the size its marks and numbers were drawn at, which came from its row and not from the effects layer
+        try { const cs = getComputedStyle(g.node); for (const k of ['--w', '--cw']) { const val = cs.getPropertyValue(k); if (val) ghost.style.setProperty(k, val.trim()); } } catch (e) { /* drawn at the layer's size */ }
         if (dying) ghost.classList.add('dying');
         if (dest.zone === 'exile') ghost.classList.add('exiling');
         Object.assign(ghost.style, { left: was.left + 'px', top: was.top + 'px', width: was.width + 'px', height: was.height + 'px' });
@@ -1254,7 +1277,7 @@
 
       // what is held up in the middle points from there at what it chose, gone already or not (A2, A6)
       const sp = this.spot;
-      const spotBox = sp ? box(this.spotHost.querySelector('.spot-card')) : null;
+      const spotBox = sp ? (box(this.spotHost.querySelector('.spot-card')) || box(this.spotHost.querySelector('.spot-cap'))) : null;
       if (sp && spotBox) {
         const item = sp.ghost ? sp.e : (v.stack || []).find(x => x.id === sp.stackId);
         for (const t of ((item && item.targets) || [])) {

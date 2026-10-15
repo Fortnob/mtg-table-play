@@ -603,6 +603,8 @@
         gone.push({ id, node });
       }
       this._fitAll();
+      // the card held up goes where it is clear of what it aims at and of the question asked, once both are laid out
+      if (this.spot && this.spotHost.classList.contains('on')) this._placeSpot(this._spotTargets || []);
       // a card that has gone cannot still be the one you are reading, nor one that has moved out from under the pointer
       if (this._hoverNode && (!this._hoverNode.isConnected || !this._underPointer(this._hoverNode))) this.hidePreview();
       // and a note about a card is only as good as the moment it was made in
@@ -1781,18 +1783,19 @@
       ]);
       this.spotHost.classList.add('on');
       this.spotHost.classList.toggle('ghost', !!e);
-      this._placeSpot(item.targets || []);
+      this._spotTargets = item.targets || [];
     }
 
     /**
      * Where the card held up goes (A6): clear of whatever it is aimed at, so
      * its arrow has somewhere to land. On a wide screen it sits to the side
      * of the board away from its targets; on a phone in the half of the
-     * board away from them (with no targets, the caster's half). What it is
-     * aimed at is lit, so the arrow lands on something that stands out.
+     * board away from them (with no targets, the caster's half), and if a
+     * phone has no such room, its words alone (`slim`). What it is aimed at
+     * is lit, so the arrow lands on something that stands out.
      */
     /** @this {MTG.TableInstance} */
-    _placeSpot(targets) {
+    _placeSpot(targets, slim) {
       const host = this.spotHost;
       for (const n of this.arena.querySelectorAll('.spot-target')) n.classList.remove('spot-target');
       const ar = U.rect(this.arena);
@@ -1808,16 +1811,31 @@
         if (r.width) boxes.push({ l: r.left - ar.left, t: r.top - ar.top, r: r.right - ar.left, b: r.bottom - ar.top });
       }
       host.style.left = ''; host.style.top = '';
+      const phone = MTG.isPhone() || ar.width <= 520;
+      // aimed at something, on a wide screen: the card above its words, narrow enough to stand well clear of it
+      host.classList.toggle('col', !phone && boxes.length > 0);
+      host.classList.toggle('slim', !!slim);
       const w = host.offsetWidth, h = host.offsetHeight;
       if (!w || !h) return;
       const cs = getComputedStyle(this.arena);
       const px = (k) => parseFloat(cs.getPropertyValue(k)) || 0;
       const side = px('--side-w'), rail = px('--rail-w');
-      const phone = MTG.isPhone() || ar.width <= 520;
       // the board's own room: between the rail and the stack, under the corner buttons, above the hand
       const handTop = this.handHost ? U.rect(this.handHost).top - ar.top : ar.height;
       const x0 = rail + 8, x1 = ar.width - side - 8;
-      const y0 = (phone ? 50 : 8), y1 = Math.max(y0 + h, Math.min(ar.height - 8, handTop + (phone ? 40 : 60)));
+      let top = phone ? 50 : 8, bottom = Math.min(ar.height - 8, handTop + (phone ? 40 : 60));
+      // (a phone's button, which may be the answer to it, is left in sight)
+      if (phone && this.dock) { const dr = U.rect(this.dock); if (dr.height && dr.top - ar.top > ar.height / 2) bottom = Math.min(bottom, dr.top - ar.top - 6); }
+      // and clear of the question being asked, which on a phone sits up top
+      if (this.banner && this.banner.classList.contains('on')) {
+        const br = U.rect(this.banner);
+        if (br.height) {
+          const bt = br.top - ar.top, bb = br.bottom - ar.top;
+          if (bt + br.height / 2 < ar.height / 2) top = Math.max(top, bb + 8);
+          else if (phone) bottom = Math.min(bottom, bt - 8);
+        }
+      }
+      const y0 = top, y1 = Math.max(y0 + h, bottom);
       const clampX = (cx) => Math.min(Math.max(cx, x0 + w / 2), Math.max(x0 + w / 2, x1 - w / 2));
       const clampY = (cy) => Math.min(Math.max(cy, y0 + h / 2), Math.max(y0 + h / 2, y1 - h / 2));
       const midY = (y0 + y1) / 2, midX = (x0 + x1) / 2;
@@ -1829,18 +1847,27 @@
         cands = casterTop ? [[midX, top], [midX, bot], [midX, clampY(midY)]] : [[midX, bot], [midX, top], [midX, clampY(midY)]];
         cands = cands.map(([x, y]) => [clampX(x), y]);
       } else {
+        // the middle when it is aimed at nothing; otherwise anywhere along the board, as far from its targets as it goes
         const y = clampY(midY);
-        cands = (boxes.length ? [[x0 + (x1 - x0) * 0.27, y], [x0 + (x1 - x0) * 0.73, y], [midX, y]] : [[midX, y], [x0 + (x1 - x0) * 0.27, y]])
-          .map(([x, yy]) => [clampX(x), yy]);
+        cands = [[midX, y]];
+        if (boxes.length) for (let k = 0; k <= 8; k++) cands.push([x0 + w / 2 + Math.max(0, x1 - x0 - w) * k / 8, y]);
+        cands = cands.map(([x, yy]) => [clampX(x), yy]);
       }
+      // (with room around each target, so the arrow has a stretch of table to cross)
+      const PAD = phone ? 16 : 60;
       const overlap = ([cx, cy]) => {
         const l = cx - w / 2, r = cx + w / 2, t = cy - h / 2, b = cy + h / 2;
         let s = 0;
-        for (const x of boxes) s += Math.max(0, Math.min(r, x.r) - Math.max(l, x.l)) * Math.max(0, Math.min(b, x.b) - Math.max(t, x.t));
+        for (const x of boxes) s += Math.max(0, Math.min(r, x.r + PAD) - Math.max(l, x.l - PAD)) * Math.max(0, Math.min(b, x.b + PAD) - Math.max(t, x.t - PAD));
         return s;
       };
-      let best = cands[0], bo = overlap(best);
-      for (const c of cands.slice(1)) { const o = overlap(c); if (o < bo - 1) { best = c; bo = o; } }
+      const away = ([cx, cy]) => Math.min(...boxes.map(x => Math.hypot(cx - (x.l + x.r) / 2, cy - (x.t + x.b) / 2)));
+      let best = cands[0], bo = overlap(best), bd = boxes.length ? away(best) : 0;
+      for (const c of cands.slice(1)) {
+        const o = overlap(c), d = boxes.length ? away(c) : 0;
+        if (o < bo - 1 || (Math.abs(o - bo) <= 1 && d > bd + 1)) { best = c; bo = o; bd = d; }
+      }
+      if (phone && bo > 0 && !slim) return this._placeSpot(targets, true);
       host.style.left = Math.round(best[0]) + 'px';
       host.style.top = Math.round(best[1]) + 'px';
     }
