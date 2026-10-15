@@ -10380,7 +10380,11 @@
       const mvX = / with mana value X$/.test(filter);
       if (mvX) filter = filter.replace(/ with mana value X$/, '').replace(/ you control$/, '');
       const xWant = mvX && opts && opts.x != null ? opts.x : null;
+      // Ronin, Shadow Stalker: "Sacrifice an Equipment attached to Ronin" — one on it (onSelf)
+      const onSelf = / attached to CARDNAME$/.test(filter);
+      if (onSelf) filter = filter.replace(/ attached to CARDNAME$/, '');
       return this.battlefield.filter(x => x.controller === pid && !x.phasedOut && this._canSacrifice(x) &&
+        !(onSelf && !(self && x.attachedTo === self.id)) &&
         !(spec && (spec.another || notSelf) && self && x.id === self.id) &&
         (xWant == null || ((x.card && x.card.cmc) || 0) === xWant) &&
         (/^(?:permanent|permanents)$/i.test(filter) || this._cardFitsWords(x, filter)));
@@ -10834,7 +10838,7 @@
             pick = null;
             ask({ type: 'pickCard', count: need, purpose: 'tapCost', worst: true, candidates: pool.map(x => x.id),
               cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + O.nounPlural(cost.tapCreatures.filter)} you control to pay the cost.` });
+              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + O.nounPlural(cost.tapCreatures.filter)} you control${cost.tapCreatures.keyword ? ' with ' + cost.tapCreatures.keyword : ''} to pay the cost.` });
           }
         }
         if (pick) this._tapForCost(pid, pick, item);

@@ -493,7 +493,8 @@
       /* "Tap an untapped creature you control", "Tap two untapped
          Merfolk you control": other permanents tapped as part of the
          price, the way convoke taps them for a spell. */
-      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z ,\/-]+?) you control$/i))) {
+      // (Radiant, Serra Archangel: "Tap another untapped creature you control with flying" — keyword)
+      if ((m = p.match(/^Tap (a|an|another|one|two|three|four|five|six|seven|eight|nine|ten|X|\d+) (other )?untapped ([A-Za-z ,\/-]+?) you control(?: with (flying|first strike|vigilance|reach|haste|trample|deathtouch|lifelink|menace))?$/i))) {
         const word = m[1].toLowerCase();
         // "Elves" is an Elf and "Allies" an Ally; "Merfolk" is both
         const sing = (w) => w.trim().replace(/ves$/, 'f').replace(/ies$/, 'y').replace(/([^s])s$/, '$1');
@@ -511,8 +512,8 @@
         const list = m[3].split(/, (?:and\/or )?/i);
         if (list.length > 2 && list.every(w => /^[A-Za-z-]+$/.test(w))) noun = list.map(w => sing(w).toLowerCase()).join(' or ');
         else if (/,/.test(m[3])) { cost.other.push(p); continue; }
-        cost.tapCreatures = { n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word),
-          filter: noun, another: word === 'another' || !!m[2] };
+        cost.tapCreatures = Object.assign({ n: word === 'x' ? 'X' : word === 'another' ? 1 : WORDN(word),
+          filter: noun, another: word === 'another' || !!m[2] }, m[4] ? { keyword: m[4].toLowerCase() } : {});
         continue;
       }
       cost.other.push(p);
@@ -1599,7 +1600,8 @@
     { re: /^Spend this mana only to cast a creature spell of the chosen type or an? (legendary|artifact|colorless|multicolored) creature spell\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: 'creature spell', chosenType: true, orWords: m[1].toLowerCase() + ' creature spell' }) },
     // Freya Crescent: "Spend this mana only to cast an Equipment spell or activate an equip ability."
-    { re: /^Spend this mana only to cast an? (Equipment|artifact) spell or activate an equip ability\.?$/i,
+    // (Ronin, Shadow Stalker: "Spend this mana only to cast Equipment spells or activate equip abilities." — the plural)
+    { re: /^Spend this mana only to cast (?:an? )?(Equipment|artifact) spells? or activate (?:an )?equip abilit(?:y|ies)\.?$/i,
       make: (m) => ({ op: 'spendOnly', words: m[1].toLowerCase() + ' spell', equipAbility: true }) },
     { re: /^Spend this mana only to activate abilities\.?$/i, make: () => ({ op: 'spendOnly', open: true, noSpells: true }) },
     // Rosheen Meanderer: "Spend this mana only on costs that contain {X}." — a spell or an ability with {X} to pay (costWithX)
@@ -2301,6 +2303,8 @@
       make: (m) => ({ op: 'massReanimate', filter: `${m[1].toLowerCase()} creature or ${m[2].toLowerCase()} creature`, yours: false }) },
     // Hexplate Wallbreaker: "Untap each attacking creature."
     { re: /^Untap each attacking creature\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'all', what: 'creature', attacking: true } }) },
+    // Jiang Yanggu, Never Alone: "untap all tokens you control"
+    { re: /^Untap all tokens you control\.?$/i, make: () => ({ op: 'untapAll', scope: { who: 'you', token: true, what: 'permanent' } }) },
     // Tori D'Avenant, Fury Rider: "Untap each other white attacking creature you control." (untapEachYours)
     // (Jorn, God of Winter: "Untap each snow permanent you control" — untapEachYours)
     { re: /^Untap each ((?:other |another )?(?:[a-z]+ )*?)(creature|permanent|artifact|land) you control\.?$/,
@@ -6945,6 +6949,11 @@
       make: (m) => { const k = amountOf(m[2]); if (!k) return null;
         const b = { op: 'becomes', scope: 'self', duration: 'eot', eff: {}, powerX: k };
         return m[1] ? { op: 'may', then: [b] } : b; } },
+    /* Moon Girl and Devil Dinosaur: "until end of turn, Moon Girl and Devil Dinosaur's base power and toughness become 6/6
+       and they gain trample" — one creature that is two characters ("they") */
+    { re: /^(?:Until end of turn, )?CARDNAME'?s base power and toughness become (\d+)\/(\d+) and (?:it gains|they gain) ([a-z ]+?)(?: until end of turn)?\.?$/i,
+      make: (m) => (/until end of turn/i.test(m[0]) && kwKnown(m[3].toLowerCase())
+        ? { op: 'becomes', duration: 'eot', eff: { setPt: { p: +m[1], t: +m[2] }, keywords: [U.titleCase(m[3].toLowerCase())] }, scope: 'self' } : null) },
     // Lord of the Nazgûl: "Wraiths you control have base power and toughness 9/9 until end of turn."
     { re: /^([A-Z][a-z]+) you control have base power and toughness (\d+)\/(\d+) until end of turn\.?$/,
       make: (m) => (m[1] === 'Creatures' ? null : { op: 'setBaseAll', p: +m[2], t: +m[3], subtype: U.titleCase(singularType(m[1])) }) },
