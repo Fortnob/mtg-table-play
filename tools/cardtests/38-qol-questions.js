@@ -321,6 +321,26 @@ module.exports = (test) => {
     t.eq(T.bfOf('A').filter(o => o.name === 'Food').length, 1, 'one Food sacrificed');
   });
 
+  test('Still asked: putting every card in hand on top, when they differ — the order is a choice', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const toTop = () => { g._runEffects([{ op: 'handToTop', n: 2 }], { controller: 'A', name: 'Test' }, () => {}); T.settle(); };
+    emptyHand(T, 'A');
+    T.hand('A', 'Grizzly Bears'); T.hand('A', 'Hill Giant');
+    toTop();
+    t.eq(asked(T, 'pickCard'), 1, 'two different cards, both going: which goes on top is asked');
+    emptyHand(T, 'A');
+    T.hand('A', 'Grizzly Bears'); T.hand('A', 'Grizzly Bears');
+    toTop();
+    t.eq(asked(T, 'pickCard'), 1, 'two the same: not asked');
+    t.eq(g.zones.A.library.slice(0, 2).map(o => o.name).join(), 'Grizzly Bears,Grizzly Bears', 'both on top');
+    emptyHand(T, 'A');
+    T.hand('A', 'Hill Giant');
+    toTop();
+    t.eq(asked(T, 'pickCard'), 1, 'one card: not asked');
+    t.eq(g.zones.A.library[0].name, 'Hill Giant', 'on top');
+  });
+
   test('Still asked: a card from an opponent\'s hand, and a look at the top of a library', (mk, t) => {
     t.auto('Duress');
     const T = mk({ library: Array(20).fill('Island') });

@@ -34358,16 +34358,21 @@
           const targets = opts.map(l => l[0]);
           return { data: { targets }, what: 'target ' + targets.map(t => this.describeTarget(typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).join(', ') };
         }
-        /* Cards it must take, as many as there are, every one of them where the player can see it anyway. A
-           question with a purpose of its own does more with the answer than pass it on, and is asked. */
+        /* The one card it must take, or any of identical ones, every one of them where the player can see it
+           anyway. Several different cards are asked about even when it takes them all: the order they are
+           picked in can be the order they go somewhere in (Brainstorm's top of the library). A question with
+           a purpose of its own does more with the answer than pass it on, and is asked. */
         case 'pickCard': {
           if (ch.purpose) return null;
           const cards = ch.cards || [];
           if (!cards.length) return null;
           const objs = cards.map(c => this.obj(c.id));
           if (objs.some(o => !this._openTo(o, pid))) return null;
-          const got = fromPool(objs, Math.min(Math.max(1, ch.count || 1), objs.length), 'choose');
-          return got && got.data.cardIds.length ? got : null;
+          if (objs.length === 1) return { data: { cardIds: [objs[0].id] }, what: objs[0].name };
+          const want = Math.min(Math.max(1, ch.count || 1), objs.length);
+          if (!this._alike(objs)) return null;
+          const pick = objs.slice(0, want);
+          return { data: { cardIds: pick.map(o => o.id) }, what: names(pick), alike: true };
         }
         // "Choose two —" with two modes to choose from
         case 'mode': {
