@@ -401,6 +401,11 @@
 .pile:hover .pile-card { translate: 0 -2px; }
 .pile.empty .pile-card { background: none; box-shadow: inset 0 0 0 1px rgba(255,255,255,.14); }
 .pile.library { cursor: default; }
+/* quiet piles: no "0" on an empty one, a library's size only when asked or running low */
+.pile.empty .pile-n { display: none; }
+.pile.quiet .pile-n { opacity: 0; transition: opacity .15s; }
+.pile.quiet:hover .pile-n, .pile.quiet:focus-visible .pile-n, .pile.quiet.peek .pile-n { opacity: 1; }
+.pile.low .pile-n { color: #ffd2c8; border-color: rgba(255,120,95,.7); background: #3a1a16; }
 .pile-n { position: absolute; right: -7px; bottom: -6px; min-width: 20px; padding: 0 4px; border-radius: 10px;
   font: 700 11px/18px var(--font); text-align: center; color: #fff; background: #191d26; border: 1px solid rgba(255,255,255,.22);
   font-variant-numeric: tabular-nums; }
@@ -1076,7 +1081,6 @@
   background: rgba(255,255,255,.08); color: #dfe5ef; }
 .op-flags i.turn { color: #9cc7ff; background: rgba(94,169,255,.16); }
 .op-flags i.atk { color: #ffb0a6; background: rgba(255,91,69,.22); }
-.op-flags i.think { color: #c9b6ff; }
 .op-flags i.bad, .op-flags i.cmd { color: #ffb0a6; }
 .op-flags i.crown { color: var(--gold-hi); }
 .op-hint { align-self: center; flex: none; font-size: 10.5px; color: #77808f; white-space: nowrap; padding-left: 4px; }

@@ -727,21 +727,27 @@
       const sickNow = !!o.summoningSick && o.zone === 'battlefield' && o.power != null &&
         !(o.keywords || []).some(w => String(w).toLowerCase() === 'haste');
       n.classList.toggle('sick', sickNow);
+      /* its mark, though, only where it matters to you: your own creature, on your turn (an opponent's can block
+         all the same, and Arena marks neither); its label still says it */
+      const sickMark = sickNow && o.controller === this.meId && !!this.view && this.view.activePlayer === this.meId;
       n.classList.toggle('attacking', !!o.attacking);
       n.classList.toggle('blocking', !!(o.blocking && o.blocking.length));
       n.classList.toggle('token', !!o.isToken);
       // an Oathbreaker's Signature Spell is framed in the command zone as its Oathbreaker is
       n.classList.toggle('is-cmd', !!(o.isCommander || o.isSignature));
-      n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o));
+      /* the game runs nearly every card by itself, so that goes without saying: only a card that needs a hand is
+         marked (below), and its label says so too */
+      const byHand = !hidden && !!UI.autoInfo && !UI.autoInfo(o.card).auto;
+      n.setAttribute('aria-label', hidden ? 'A face-down card' : UI.describeCard(o.card, o) + (byHand ? ', needs a hand' : ''));
 
       // what is printed on top of the card: its numbers and what is on it
-      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickNow ? 1 : 0, o.textNow || ''].join('|');
+      const sig = [o.power, o.toughness, o.damage, JSON.stringify(o.counters || {}), o.zone, o.isCommander ? 1 : 0, hidden ? 1 : 0, o.prepared ? 1 : 0, JSON.stringify(o.seenBy || ''), o.owner || '', o.pairedWith || '', (o.melded || []).join('+'), o.face || 0, JSON.stringify(o.chosen || null), JSON.stringify(o.perpetual || null), o.intensity == null ? '' : o.intensity, o.band || '', (o.keywords || []).join(','), sickMark ? 1 : 0, byHand ? 1 : 0, o.textNow || ''].join('|');
       if (n._marks === sig) return;
       n._marks = sig;
       for (const m of n.querySelectorAll(':scope > .cv-mark')) m.remove();
       if (hidden) return;
-      // whether the game runs all of it, on every card you can see, bottom left (UI.autoBadge)
-      const auto = UI.autoBadge && UI.autoBadge(o.card, { corner: true });
+      // a card the game can't run all of: the hand, bottom left (UI.autoBadge); the deck builder shows the tick too
+      const auto = byHand && UI.autoBadge ? UI.autoBadge(o.card, { corner: true }) : null;
       if (auto) { auto.classList.add('cv-mark', 'cv-auto'); n.appendChild(auto); }
       // Alchemy: a perpetual change shows wherever the card is, in hand too
       if (o.perpetual) {
@@ -772,7 +778,7 @@
       }
       // its keywords at a glance, printed or given (src/12i-ui-keywords.js), and the mark of a creature not ready yet
       if (UI.keywordIcons) { const kws = UI.keywordIcons(o.keywords); if (kws) n.appendChild(kws); }
-      if (sickNow && UI.sickMark) n.appendChild(UI.sickMark());
+      if (sickMark && UI.sickMark) n.appendChild(UI.sickMark());
       const c = o.counters || {};
       if (c.loyalty != null && !(a && a.isCreature)) {
         n.appendChild(el('div', { class: 'cv-mark cv-loy', text: String(c.loyalty) }));
@@ -1082,7 +1088,6 @@
         const flags = [];
         if (v.activePlayer === p.id) flags.push(['turn', '\u25b6 turn']);
         if (v.battlefield.some(o => o.controller === p.id && o.attacking === this.meId)) flags.push(['atk', '\u2694 you']);
-        if (ch && ch.playerId === p.id) flags.push(['think', 'deciding']);
         if (p.poison) flags.push(['bad', `\u2620 ${p.poison}`]);
         const toMe = this.me ? Object.entries(this.me.commanderDamage || {})
           .filter(([cid]) => { const o = this.objIn(cid); return o && o.owner === p.id; })
@@ -1192,7 +1197,9 @@
         // the new ones underneath, the ready ones on top; how many are new, when some are and some are not
         const sick = g.list.filter(o => o.summoningSick && !(o.keywords || []).includes('haste'));
         const list = sick.concat(g.list.filter(o => !sick.includes(o)));
-        if (sick.length && sick.length < list.length && list[0].power != null) w.dataset.sick = sick.length + ' new';
+        // (said on your own, on your turn, as the mark on one card is: paintCard)
+        if (sick.length && sick.length < list.length && list[0].power != null && list[0].controller === this.meId &&
+          this.view.activePlayer === this.meId) w.dataset.sick = sick.length + ' new';
         else delete w.dataset.sick;
         this.place(w, list.map(o => this.unitFor(o)));
         return w;
@@ -1276,10 +1283,11 @@
       if (hud._who._sig !== p.name + '|' + sub) {
         hud._who._sig = p.name + '|' + sub;
         hud._who.innerHTML = '';
-        hud._who.append(
+        // (a line under the name only when there is something to say: out of the game, disconnected)
+        hud._who.append(...[
           el('div', { class: 'hud-name', text: p.name }),
-          el('div', { class: 'hud-sub', text: sub }),
-        );
+          sub ? el('div', { class: 'hud-sub', text: sub }) : null,
+        ].filter(Boolean));
       }
       // their hand: the backs, one per card, so a card leaving it is seen to
       // leave; face up when it is revealed to you (Telepathy, Seer's Vision)
@@ -1339,17 +1347,17 @@
       const why = { life: 'no life left', poison: 'ten poison counters', deck: 'drew from an empty library', commander: '21 commander damage',
         concede: 'conceded', timeout: 'left the game', time: 'ran out of time' }[p.lossReason] || p.lossReason;
       if (p.hasLost) return 'Defeated' + (why ? ' — ' + why : '');
-      const bits = [];
-      if (p.isBot) {
-        const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
-        const pers = p.botPersonality && MTG.bots && MTG.bots.PERSONALITIES && MTG.bots.PERSONALITIES[p.botPersonality];
-        bits.push(pers ? `${lvl} · ${pers.label}` : lvl + ' bot');
-      }
-      if (p.connected === false) bits.push('disconnected');
-      const ch = v.pendingChoice;
-      if (ch && ch.playerId === p.id) bits.push('deciding…');
-      else if (!ch && v.priorityPlayer === p.id && !v.mulliganPhase) bits.push(p.isBot ? 'thinking…' : 'has priority');
-      return bits.join(' · ');
+      /* Who is acting is the ring turning round their portrait (paintOrb) and the line on the big button, said
+         once; how good a bot is and how it plays is on the portrait, pointed at or held (botWords) */
+      return p.connected === false ? 'disconnected' : '';
+    }
+
+    /** "Steady bot · Aggressive": how good a bot is and how it plays, or '' for a person. */
+    botWords(p) {
+      if (!p || !p.isBot) return '';
+      const lvl = MTG.bots && MTG.bots.diffCfg ? MTG.bots.diffCfg(p.botDifficulty).label : 'Bot';
+      const pers = p.botPersonality && MTG.bots && MTG.bots.PERSONALITIES && MTG.bots.PERSONALITIES[p.botPersonality];
+      return lvl + ' bot' + (pers ? ' · ' + pers.label : '');
     }
 
     lifeOrb(p) {
@@ -1393,8 +1401,10 @@
         : (v.priorityPlayer === p.id && !v.mulliganPhase && !v.over);
       orb.classList.toggle('acting', !!waiting);
       orb.classList.toggle('dead', !!p.hasLost);
-      orb.setAttribute('aria-label', `${p.name}: ${p.life} life`);
-      orb.title = `${p.name} — ${p.life} life`;
+      const bot = this.botWords(p);
+      const acting = waiting ? (v.pendingChoice ? 'deciding' : p.isBot ? 'thinking' : 'has priority') : '';
+      orb.setAttribute('aria-label', `${p.name}: ${p.life} life` + (bot ? `, ${bot}` : '') + (acting ? `, ${acting}` : ''));
+      orb.title = `${p.name} — ${p.life} life` + (bot ? `\n${bot}` : '');
     }
 
     /** A face for a seat: their commander, else the strongest thing they have shown. */
@@ -1472,13 +1482,19 @@
       if (host._sig === sig) return;
       host._sig = sig;
       host.innerHTML = '';
+      /* Arena's quiet piles: an empty one is a faint outline (still there to open) with no "0" on it, and the
+         size of a library is shown when it is pointed at or tapped, or when it is running low (10 or fewer) */
+      const LOW = 10;
       const pile = (zone, label, n, top) => {
+        const quiet = zone === 'library' && n > LOW;
         const node = el('button', {
-          type: 'button', class: 'pile ' + zone + (n ? '' : ' empty'),
+          type: 'button', class: 'pile ' + zone + (n ? '' : ' empty') + (zone === 'library' && n && n <= LOW ? ' low' : '') + (quiet ? ' quiet' : ''),
           dataset: { pile: p.id + '/' + zone },
           title: `${label}: ${n}`, 'aria-label': `${p.name} ${label.toLowerCase()}, ${n} card${n === 1 ? '' : 's'}`,
           onclick: (e) => {
             if (zone !== 'library') return this.openZone(p, zone);
+            // a tap shows how many are left, for a moment
+            if (quiet) { node.classList.add('peek'); clearTimeout(node._peekT); node._peekT = setTimeout(() => node.classList.remove('peek'), 2200); }
             /* the top card of your library, when it can be played or plotted from there (Fblthp, Lost on the Range);
                an opponent's, when you may play it (Xanathar, Guild Kingpin) */
             const live = this.live || this.view;
@@ -1549,11 +1565,11 @@
         ]));
       }
       this.paintOrb(h._orb, me);
-      if (h._who._sig !== me.name + '|' + me.handSize) {
-        h._who._sig = me.name + '|' + me.handSize;
+      // your name; how many cards you hold is the hand itself, right there
+      if (h._who._sig !== me.name) {
+        h._who._sig = me.name;
         h._who.innerHTML = '';
-        h._who.append(el('div', { class: 'hud-name', text: me.name }),
-          el('div', { class: 'hud-sub', text: `${me.handSize} in hand` }));
+        h._who.append(el('div', { class: 'hud-name', text: me.name }));
       }
       this.paintFlags(h._flags, me);
       this.renderPiles(h._piles, me, true);
@@ -2385,6 +2401,9 @@
           this.render(); return;
         }
       }
+      // an opponent's portrait: who they are, for a moment (what the seat no longer prints: a bot's level and
+      // style, and the sizes of their hand and library)
+      if (pid !== this.meId) this.seatTip(pid, e && e.target && e.target.closest ? e.target.closest('.life-orb') : null);
       if (pid !== this.meId && this._opponents().length > 1) this.setFocus(pid);
       // your own portrait, with nothing else to do: your name and picture
       else if (pid === this.meId && !this.view.spectating && MTG.app && MTG.app.editProfile) MTG.app.editProfile();
@@ -3425,6 +3444,16 @@
       tip.style.top = y + 'px';
       anchor.setAttribute('aria-describedby', 'arenaTip');
       this._tipFor = anchor;
+    }
+    /** A portrait tapped: the player in a few words, beside it, for a moment. */
+    seatTip(pid, anchor) {
+      const p = (this.view.players || []).find(x => x.id === pid);
+      if (!p || !anchor) return;
+      const bot = this.botWords(p);
+      this.showTip(anchor, `<b class="tip-head">${escapeHtml(p.name)} · ${p.life} life</b>` + (bot ? `${escapeHtml(bot)}<br>` : '') +
+        `${p.handSize} in hand · ${p.librarySize} in library`, { cls: 'seat' });
+      clearTimeout(this._seatTipT);
+      this._seatTipT = setTimeout(() => { if (this._tipFor === anchor) this.hideTip(); }, 2600);
     }
     hideTip() {
       if (this.tipEl) this.tipEl.classList.remove('on');

@@ -125,7 +125,8 @@
         // (Mindslaver: a controlled player's decisions are their controller's to make)
         const by = who && who.controlledBy ? v.players.find(p => p.id === who.controlledBy) : null;
         if (by) return set('wait', `${escapeHtml(by.id === this.ownId ? 'You are' : by.name + ' is')} deciding for ${escapeHtml(who.id === this.ownId ? 'you' : who.name)}…`, '');
-        return set('wait', `${escapeHtml(who ? who.name : 'Someone')} is deciding…`, '');
+        // anyone else deciding is said once, on the big button, with the ring round their portrait
+        return off();
       }
       if (live.priorityPlayer === this.meId && (live.stack || []).length && !this.isTop()) {
         const top = live.stack[live.stack.length - 1];
