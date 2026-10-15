@@ -13472,9 +13472,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* asked as the spell is cast, as generic questions (docs/choices.md):
        how many copies, which cards' words to add, which creatures to tap */
     'Replicate', 'Splice', 'Conspire',
-    /* another player may pay part of it (CR 702.132): an offer, and with
-       nobody making it the spell is cast as printed */
-    'Assist',
+    /* (not assist, CR 702.132: no other player is ever offered a share of the
+       cost, so the spell is always cast as printed — that offer is the table's) */
     // {1} less to cast for each opponent
     'Undaunted']);
 
@@ -27165,6 +27164,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
     // Delayed Blast Fireball: "If this spell was cast from exile"
     [/^this spell was cast from exile$/i, () => ({ kind: 'castFromExile' })],
+    // Poison the Cup, Starnheim Unleashed: "If this spell was foretold"
+    [/^this spell was foretold$/i, () => ({ kind: 'castForetold' })],
     // Karlov Manor: "if evidence was collected" — the optional cost was paid
     [/^evidence was collected$/i, () => ({ kind: 'kicked', n: 1 })],
     // Osseous Exhale: "If a Dragon was beheld" — the optional behold was paid
@@ -28213,6 +28214,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     /* The War Doctor: "whenever one or more other cards are put into exile from anywhere" — anybody's, one trigger
        for the lot (cardExiledAny); "Whenever one or more other permanents phase out" (permPhasesOut) */
     { re: /^Whenever one or more other cards are put into exile from anywhere,? /i, event: 'cardExiledAny', extra: { batch: true, notSelf: true } },
+    /* Ranar the Ever-Watchful: "Whenever one or more cards are put into exile from your hand or a spell or ability you
+       control exiles one or more permanents from the battlefield," — foretelling included; one trigger for the lot
+       (cardExiledHandBf, handOrYourExile) */
+    { re: /^Whenever one or more cards are put into exile from your hand or a spell or ability you control exiles one or more permanents from the battlefield,? /i,
+      event: 'cardExiledHandBf', extra: { batch: true, handOrYourExile: true } },
     { re: /^Whenever one or more other permanents phase out,? /i, event: 'permPhasesOut', extra: { batch: true, notSelf: true } },
     // Kishla Skimmer, Along the Crooked Way: "Whenever a (creature) card leaves your graveyard (during your turn)," (leftGraveyard)
     { re: /^Whenever (one or more|a|an) ((?:artifact|creature|land|instant|sorcery|enchantment|permanent|nonland) )?cards? leaves? your graveyard( during your turn)?,? /i,
@@ -29832,6 +29838,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             autoLines += 1 / kws.length;
             continue;
           }
+          /* Embalm (CR 702.128) and eternalize (CR 702.129): an ability of the card in the graveyard, as a
+             sorcery — exile it, and a token copy of it, white (or a 4/4 black) Zombie as well as its own
+             types, with no mana cost. Not a spell: nothing is cast. */
+          if ((lower === 'embalm' || lower === 'eternalize') && k.arg && /^(?:\{[^}]+\})+$/.test(String(k.arg).trim())) {
+            const cost = parseCost(String(k.arg).trim());
+            cost.exile = { what: 'self', fromGraveyard: true };
+            const e = { op: 'copyPermanent', self: true, n: 1, grant: [], addSubtypes: ['Zombie'], noManaCost: true,
+              setColor: lower === 'embalm' ? 'white' : 'black' };
+            if (lower === 'eternalize') e.setPt = '4/4';
+            out.abilities.push({ kind: 'activated', cost, text: k.text, keyword: k.keyword, sorcerySpeed: true, auto: true, fromGraveyard: true,
+              effects: [e] });
+            autoLines += 1 / kws.length;
+            continue;
+          }
           /* Vicious Offering: "Kicker—Sacrifice a creature." A kicker that is not mana is an
              additional cost you may pay (CR 702.33a): the table takes it as the spell is cast, and
              paying it kicks the spell. One with mana as well (Dwarven Landslide) is left to the table
@@ -30820,7 +30840,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        the spell is cast, once the kick, the gift or the phase that decides it is settled
        (targetSlots); one inside anything else (Withdraw's "unless … pays"), in an "if" that hangs
        on some other choice made as the spell is cast, or beside "X targets", is left to the table */
-    const castOnly = /^(?:kickedWith|boughtBack|castFrom\w*|surgePaid|altPaid|bargained|manaSpent\w*|entwined|spree\w*)$/;
+    const castOnly = /^(?:kickedWith|boughtBack|castFrom\w*|castForetold|surgePaid|altPaid|bargained|manaSpent\w*|entwined|spree\w*)$/;
     const condOk = (c) => !!c && (c.kind === 'not' ? condOk(c.cond) : !castOnly.test(c.kind || ''));
     for (const ab of out.abilities) {
       if (!ab.auto || !ab.effects) continue;
@@ -32936,6 +32956,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
          foretell cost is equal to its mana cost reduced by {2}." (grantForetell) */
       { re: /^Each nonland card in your hand without foretell has foretell\. Its foretell cost is equal to its mana cost reduced by \{(\d+)\}\.?$/i,
         make: (m) => ({ op: 'grantForetell', reduce: +m[1] }), auto: true },
+      /* Ranar the Ever-Watchful: "The first card you foretell each turn costs {0} to foretell."; Cosmos Charger:
+         "Foretelling cards from your hand costs {1} less and can be done on any player's turn." (foretellCost) */
+      { re: /^The first card you foretell each turn costs \{0\} to foretell\.?$/i, make: () => ({ op: 'foretellCost', firstFree: true }), auto: true },
+      { re: /^Foretelling cards from your hand costs \{(\d+)\} less( and can be done on any player'?s turn)?\.?$/i,
+        make: (m) => Object.assign({ op: 'foretellCost', amount: -(+m[1]) }, m[2] ? { anyTurn: true } : {}), auto: true },
       // Chromatic Orrery, Mycosynth Lattice: "(You|Players) may spend mana as though it were mana of any color."
       { re: /^(You|Players) may spend mana as though it were mana of any colou?r\.?$/i,
         make: (m) => ({ op: 'spendAnyColorAll', who: /players/i.test(m[1]) ? 'all' : 'you' }), auto: true },
@@ -36565,7 +36590,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
      for a player, the deck it sat down with (not game state, and large). */
   const SNAP_SKIP_OBJ = /^(?:game|_chr|_dyn|_borrow|_lki(?:Analysis)?$|_analysis|_zone$)/;
   const SNAP_SKIP_PLAYER = /^(?:game|pool|deck|sideboard|spellObjsThisTurn)$/;
-  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring)$/;
+  const SNAP_SKIP_GAME = /^(?:config|rng|players|zones|battlefield|stack|objects|log|replayLog|events|eventSeq|_events|_listeners|listeners|handlers|pendingChoice|pendingTriggers|combat|resolving|prevention|delayedTriggers|passedInSuccession|turnOrder|winners|extraTurnsQueue|stateVersion|lastAction|lastError|isScratch|_ev\w*|_boardEpoch|_contCache|_contEpoch|_grant\w*|_lb\w*|_rep\w*|_tomikMemo|_txtGlob\w*|_loops|_epochSeq|__\w*|_extraSteps|_endSteps|_stepAgain|_objSeq|_uidSeq|_tsSeq|_exileSeq|_undo|_restoring)$/;
   const NOT_PLAIN = Symbol('not plain data');
   /** A copy of plain data (numbers, strings, arrays, plain objects; a card is shared), or NOT_PLAIN. */
   function _plainData(v, depth) {
@@ -41594,11 +41619,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o.zone === 'hand' && !a.isLand && this._foretellWindow(playerId, o) &&
           !(a.abilities || []).some(ab => ab.kind === 'castModifier' && /^foretell$/i.test(ab.keyword || ''))) {
         const gf = this.battlefield.filter(x => x.controller === playerId && !x.phasedOut).map(x => this._staticOp(x, 'grantForetell')).find(Boolean);
-        if (gf) out.push({ kind: 'foretell', cost: '{2}', reduce: gf.reduce || 0, label: 'Foretell {2}' });
+        if (gf) { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, reduce: gf.reduce || 0, label: 'Foretell ' + (fp || '{0}') }); }
       }
+      // (embalm and eternalize are not casts: abilities of the card in the graveyard, which make a token copy — the reading's)
       const GRAVE = { flashback: 'exile', 'jump-start': 'exile', aftermath: 'exile',
-        escape: null, unearth: 'exile', embalm: 'exile', eternalize: 'exile',
-        madness: null };
+        escape: null, unearth: 'exile', madness: null };
       for (const ab of (a.abilities || [])) {
         if (ab.kind !== 'castModifier' || !ab.keyword) continue;
         const k = ab.keyword.toLowerCase();
@@ -41649,7 +41674,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         /* Foretell (CR 702.143): during your turn, pay {2} and exile it face down; cast it on a later turn for its
            foretell cost */
         if (o.zone === 'hand' && arg && k === 'foretell' && this._foretellWindow(playerId, o)) {
-          out.push({ kind: 'foretell', cost: '{2}', foretellCost: arg, label: 'Foretell {2}' });
+          { const fp = this._foretellPrice(playerId); out.push({ kind: 'foretell', cost: fp, foretellCost: arg, label: 'Foretell ' + (fp || '{0}') }); }
         }
         /* Awaken N—{cost} (CR 702.113): cast for that cost, and the spell
            also puts N +1/+1 counters on a land you control, which becomes a
@@ -42050,8 +42075,24 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       return out;
     }
     /** Foretell (CR 702.143a): "During your turn" — a card of this player's own hand, any time they have priority on their turn. */
+    // (Cosmos Charger: "and can be done on any player's turn" — foretellCost anyTurn)
     _foretellWindow(playerId, o) {
-      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer && this.activePlayer.id === playerId);
+      return !!(o && o.zone === 'hand' && o.owner === playerId && this.activePlayer &&
+        (this.activePlayer.id === playerId || this._foretellMods(playerId).some(e => e.anyTurn)));
+    }
+    _foretellMods(playerId) {
+      const out = [];
+      for (const x of this.battlefield) if (x.controller === playerId && !x.phasedOut) out.push(...this._staticOpsAll(x, 'foretellCost'));
+      return out;
+    }
+    /** What foretelling a card costs this player now: {2}; the first each turn {0} under Ranar the Ever-Watchful
+        (firstFree); {1} less under Cosmos Charger (foretellCost). */
+    _foretellPrice(playerId) {
+      const mods = this._foretellMods(playerId);
+      const p = this.player(playerId);
+      const first = !(p && p.foretoldTurn && p.foretoldTurn.turn === this.turn && p.foretoldTurn.n > 0);
+      if (first && mods.some(e => e.firstFree)) return '';
+      return mods.reduce((c, e) => (e.amount ? this._addGeneric(c, e.amount) : c), '{2}');
     }
     /**
      * Foretell (CR 702.143a): a special action — pay {2} and exile the card from your hand face down. From a later
@@ -42068,6 +42109,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (o.zone !== 'exile') return true;
       o.faceDownExile = true; o.lookableBy = playerId;
       o.foretold = { turn: this.turn, cost: use.foretellCost != null ? use.foretellCost : null, reduce: use.reduce || 0 };
+      // (Ranar the Ever-Watchful: "the first card you foretell each turn" — counted)
+      { const fp = this.player(playerId); fp.foretoldTurn = { turn: this.turn, n: (fp.foretoldTurn && fp.foretoldTurn.turn === this.turn ? fp.foretoldTurn.n : 0) + 1 }; }
       this.logEvent('rules', `${this.player(playerId).name} foretells a card.`);
       // Dream Devourer: "Whenever you foretell a card"
       this._fire('youForetell', playerId, { object: o, playerId });
@@ -49922,6 +49965,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         case 'surgePaid': return !!(ctx && ((ctx.obj && ctx.obj._surged) || ctx.via === 'surge'));
         case 'altPaid': return !!(ctx && /^alt/.test(String(ctx.via || '')));
         case 'castFromExile': return !!(ctx && ctx.fromZone === 'exile');
+        // Poison the Cup: "If this spell was foretold" — cast from exile for its foretell cost
+        case 'castForetold': return !!(ctx && ctx.via === 'foretell');
         case 'maxSpeed': return !!me && (me.speed || 0) >= 4;
         case 'not': return !this._condMet(cond.cond, ctx);
         // Faramir, Prince of Ithilien: "if they didn't attack you that turn" — that player, this turn (playerAttackedYou)
@@ -52168,6 +52213,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (toZone === 'exile' && (from === 'library' || from === 'graveyard')) this._fire('youExileFromLibGy', o.owner, { object: o, playerId: o.owner });
       // The War Doctor: "one or more other cards are put into exile from anywhere" — cards, not tokens or copies
       if (toZone === 'exile' && from !== 'exile' && !o.isToken && !o.isCopy) this._fire('cardExiledAny', null, { object: o, objController: o.owner, fromZone: from });
+      /* Ranar the Ever-Watchful: a card exiled from a hand (foretold, say), or a permanent — a token too — exiled from the
+         battlefield by a spell or ability, and whose that was (cardExiledHandBf) */
+      if (toZone === 'exile' && (from === 'hand' || from === 'battlefield')) {
+        const by = from === 'battlefield' && this.resolving && this.resolving.ctx ? this.resolving.ctx.controller : null;
+        this._fire('cardExiledHandBf', null, { object: o, objController: from === 'hand' ? o.owner : lastCtrl, fromZone: from, exiledBy: by || null });
+      }
       // "if you descended this turn": a permanent card went to your graveyard
       if (toZone === 'graveyard' && !o.isToken && (o.analysis() || {}).isPermanent) {
         const own = this.player(o.owner);
@@ -52772,6 +52823,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const counts = (x, k) => this._cardFitsWords(x, k) && !(ab.firstOfKindsNotSelfName && x.name === o.name);
             if (!sp || !ab.firstOfKinds.some(k => counts(sp, k) && !mineK.some(x => x !== sp && counts(x, k)))) continue;
           }
+          // Ranar the Ever-Watchful: from your hand, or from the battlefield by a spell or ability of yours (handOrYourExile)
+          if (ab.handOrYourExile && !(data.fromZone === 'hand' ? data.objController === o.controller : data.exiledBy === o.controller)) continue;
           // Sidisi: "put into your graveyard from your library"
           if (ab.fromLibraryOnly && data.fromZone !== 'library') continue;
           if (ab.notFromBattlefield && data.fromZone === 'battlefield') continue;
@@ -59825,6 +59878,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const text = String(card.oracle_text || '') + '\n' + e.addText.join('\n');
             card = Object.assign({}, card, { id: card.id + ':has:' + U.hash(text), oracle_text: text.trim(), card_faces: null });
           }
+          // Embalm, eternalize (CR 702.128, 702.129): "with no mana cost" — and so a mana value of 0 (noManaCost)
+          if (e.noManaCost) card = Object.assign({}, card, { id: card.id + ':nocost', mana_cost: '', cmc: 0, card_faces: null });
           const made = this._copyTokenCount(ctx.controller, cnt, card.type_line);
           for (let i = 0; i < made; i++) {
             const copy = this._register(new GObj(card, ctx.controller, 'battlefield'));
@@ -71697,7 +71752,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       this._objSeq = Math.max(snap.objSeq || 0, highest, this._objSeq || 0);
       this._uidSeq = Math.max(snap.uidSeq || 0, this._uidSeq || 0);
       this._tsSeq = snap.tsSeq || 0; this._exileSeq = snap.exileSeq || 0;
-      this._lb = null; this._contCache = null; this._txtGlob = null;
+      this._lb = null; this._contCache = null; this._txtGlob = null; this._tomikMemo = null;
       const byId = (id) => this.objects.get(id);
       this.players = snap.players.map(d => {
         const p = new Player({ id: d.id, name: d.name, isBot: d.isBot, botDifficulty: d.botDifficulty }, this);
@@ -80245,6 +80300,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         if (!(move && move.hold) && this.castFromPlan(main1 ? 'main1' : 'main2')) return true;
         if (this.activateSomething(main1 ? 'main1' : 'main2')) return true;
         if (!(move && move.hold) && this.useCompanion(main1)) return true;
+        if (!(move && move.hold) && this.foretellSpare(main1)) return true;
         return false;
       }
       // combat on either side of the table
@@ -80289,6 +80345,37 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (main1 && mana < 3 + mv && this.game.zones[this.pid].hand.length > 1) return false;
       if (!g.companionToHand(this.pid, comp.id, { auto: true })) return false;
       this._did('companion', comp, 'puts its companion into its hand');
+      return true;
+    }
+
+    /**
+     * Foretell (CR 702.143): mana left over at the end of the turn's spells goes into a card to cast later —
+     * one whose foretell cost the bot's lands will pay for next turn, the biggest first. With the price {0}
+     * (Ranar the Ever-Watchful's first each turn), in either main phase; otherwise only in the second, after
+     * everything it meant to cast.
+     */
+    foretellSpare(main1) {
+      const g = this.game;
+      if (!g.foretellCard) return false;
+      const mana = this.availableMana(true);
+      const lands = g.battlefield.filter(x => x.controller === this.pid && !x.phasedOut && (x.analysis() || {}).isLand).length;
+      let best = null;
+      for (const o of this.hand()) {
+        const use = (g.altUsesFor(this.pid, o.id) || []).find(u => u.kind === 'foretell');
+        if (!use) continue;
+        const price = MTG.mana.cmc(use.cost || '');
+        if (price > mana || (main1 && price > 0)) continue;
+        if (!g.canPayNow(this.pid, use.cost || '', {})) continue;
+        const a = o.analysis() || {};
+        const later = use.foretellCost != null ? use.foretellCost : g._addGeneric(a.manaCost || '', -(use.reduce || 0));
+        const mv = MTG.mana.cmc(String(later).replace(/\{X\}/g, ''));
+        if (mv > lands + 1) continue;
+        const v = ((o.card && o.card.cmc) || 0) + (price === 0 ? 1 : 0);
+        if (!best || v > best.v) best = { o, v };
+      }
+      if (!best || !g.foretellCard(this.pid, best.o.id, { auto: true })) return false;
+      // (face down: which card it was is nobody else's business)
+      this._did('foretell', null, 'foretells a card');
       return true;
     }
 
