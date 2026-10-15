@@ -9308,6 +9308,15 @@
         if (ex.nontoken && o.isToken) continue;
         if (ex.chosenType && !(s0.chosenType && this._hasCreatureType(o, s0.chosenType))) continue;
         if (ex.chosenName && !this._chosenNameOf(s0, o)) continue;
+        // Blue, Loyal Raptor: "For each kind of counter on Blue, … enters with a counter of that kind on it" — one of each kind (sourceCounterKinds)
+        if (ex.sourceCounterKinds) {
+          for (const [kind, n] of Object.entries(s0.counters || {})) {
+            if (!(n > 0)) continue;
+            if (enterCounters && enterCounters.kind === kind) enterCounters.n += 1;
+            else this.addCounters(o, kind, 1);
+          }
+          continue;
+        }
         let k = 1;
         // Arwen: "equal to CARDNAME's toughness"
         if (ex.bySourceToughness) k = Math.max(0, this.toughnessOf(s0));
@@ -18626,6 +18635,8 @@
           const own = (event === 'dies' || event === 'ltb' || event === 'youSacrifice' || event === 'timeCounterRemoved' || event === 'exiledFromBf') ? ab.self
             : !!(ab.objFilter && ab.objFilter.selfOk && this._objFits(o, Object.assign({}, ab.objFilter, { other: false, who: null }), o));
           if (!own) continue;
+          // Guan Yu, Sainted Warrior: "is put into your graveyard" — its last controller's, so not when it went to another owner's (ownYard)
+          if (ab.ownYard && event === 'dies' && controllerId && o.owner !== controllerId) continue;
           if (this.pendingTriggers.some(t => t.objId === o.id && t.abilityIndex === i)) continue;
           push(o, i, ab);
         }
@@ -19084,7 +19095,9 @@
           // (Dragonlord Atarka: no more of them than there is damage to divide, CR 601.2d)
           const dmgN = f.op !== 'damageDivided' ? null : typeof f.n === 'number' ? f.n : f.n && f.n.scope ? this._countValue(f.n, pid, src || null)
             : f.n === 'X' ? (item.x || (src && src.chosenX) || (src && src.monstrous && td.event === 'becomesMonstrous' && src.monstrousX) || 0) : null;
-          const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
+          // (Yannik, Scavenging Sentinel: "distribute X +1/+1 counters among any number of target creatures" — no more of them than counters)
+          const ctrN = f.op !== 'countersDivided' ? null : typeof f.n === 'number' ? f.n : f.n === 'triggerAmount' ? (Number(td.amount) || 0) : null;
+          const cap = dmgN != null ? Math.min(pool.length, dmgN) : ctrN != null ? Math.min(pool.length, ctrN) : pool.length;
           if (cap <= 0) continue;
           const got = this._choose(Object.assign({ playerId: pid, purpose: 'anyTargets', kind: 'objects', zone: u.spec.zone || 'battlefield', stackId: item.id,
             items: f.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
@@ -19954,7 +19967,9 @@
         // (Polukranos, World Eater: X, the monstrosity X)
         const dmgN = e.op !== 'damageDivided' ? null : typeof e.n === 'number' ? e.n : e.n && e.n.scope ? this._countValue(e.n, ctx.controller, src || null)
           : e.n === 'X' ? (ctx.x || (src && src.chosenX) || (src && src.monstrous && (ctx.triggerData || {}).event === 'becomesMonstrous' && src.monstrousX) || 0) : null;
-        const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
+        // (Yannik, Scavenging Sentinel: "distribute X +1/+1 counters among any number of target creatures" — no more of them than counters)
+        const ctrN = e.op !== 'countersDivided' ? null : typeof e.n === 'number' ? e.n : e.n === 'triggerAmount' ? (Number((ctx.triggerData || {}).amount) || 0) : null;
+        const cap = dmgN != null ? Math.min(pool.length, dmgN) : ctrN != null ? Math.min(pool.length, ctrN) : pool.length;
         if (cap <= 0) return null;
         const got = this._choose(Object.assign({ playerId: ctx.controller, purpose: 'anyTargets', kind: 'objects', zone: e.anyFrom.zone || 'battlefield',
           items: e.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
@@ -28549,6 +28564,9 @@
           // Nyssa of Traken: "When you sacrifice one or more artifacts this way, … that many …" — only if some went (ifSacrificed)
           const sacN = e.ifSacrificed ? (this._lastSacCount || 0) : 0;
           if (e.ifSacrificed && !sacN) break;
+          // Yannik, Scavenging Sentinel: "When you do" — only if a creature was exiled; "X is the exiled creature's power" (ifExiledThisWay, exiledPower)
+          if (e.ifExiledThisWay && !this._lastSweep) break;
+          const exPow = e.exiledPower ? Math.max(0, Number((this._lastAffected || {}).power) || 0) : 0;
           // Gimli, Mournful Avenger: "When this ability resolves for the third time this turn" — counted on the object, by ability (nthResolution)
           if (e.nthResolution) {
             const holder = so || me, key = String(e.text || '');
@@ -28563,7 +28581,7 @@
               : sacAura ? (e.effects || []).map(x => Object.assign({}, x, { aura: sacAura })) : e.effects || [], auto: true, abilityText: rText, optional: false,
             triggerData: Object.assign({}, ctx.triggerData || {}, { event: 'reflexive' }, tossed ? { objectId: tossed } : {}, madeOne ? { objectId: madeOne } : {}, attachedTo ? { objectId: attachedTo } : {},
               putOne ? { objectId: putOne } : {},
-              sacN ? { amount: sacN } : {}, discN ? { amount: discN } : {},
+              sacN ? { amount: sacN } : {}, discN ? { amount: discN } : {}, e.exiledPower ? { amount: exPow } : {},
               // Strax, Sontaran Nurse: "that player" — the one chosen at random (toChosenPlayer)
               e.toChosenPlayer ? { player: ctx.chosenPlayer || null } : {},
               // Hawkeye, Master Marksman: "choose up to that many" — the times paid (amountX)
@@ -29328,6 +29346,8 @@
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && pool.includes(o) && o.zone === 'battlefield');
           let k = 0;
+          // Yannik, Scavenging Sentinel: "where X is the exiled creature's power" — as it last was (exiledPower)
+          if (e.imprint && picks.length) this._noteLastAffected(picks.map(o => ({ kind: 'object', id: o.id })));
           this._leavingTogether = picks;
           for (const o of picks) {
             const token = o.isToken;
@@ -29530,6 +29550,21 @@
           this._lastGroup = objs.map(o => o.id);
           const each = Math.floor(total / objs.length);
           let spare = total - each * objs.length;
+          /* Yannik, Scavenging Sentinel: "distribute X +1/+1 counters among any number of target creatures" — one on each,
+             and the rest where its controller says (divideCounters; nothing asked when nothing is left over) */
+          const objCap = objs.slice(0, total);
+          if (objCap.length > 1 && total > objCap.length) {
+            const rest = total - objCap.length;
+            const got = this._choose({ playerId: ctx.controller, purpose: 'divideCounters', kind: 'options', repeat: true, min: rest, max: rest,
+              options: objCap.map((o, i) => ({ i, label: o.name, id: o.id })),
+              prompt: `${ctx.name ? ctx.name + ': ' : ''}each gets one ${e.kind || '+1/+1'} counter; divide the other ${rest} among them.` }, 'divc');
+            if (got === SUSPEND) return SUSPEND;
+            const split = objCap.map(() => 1);
+            for (const j of ((got && got.picks) || []).slice(0, rest)) if (split[j] != null) split[j]++;
+            split[0] += total - split.reduce((a, b) => a + b, 0);
+            objCap.forEach((o, i) => { if (split[i] > 0) this.addCounters(o, e.kind || '+1/+1', split[i]); });
+            break;
+          }
           for (const o of objs) {
             const k = each + (spare-- > 0 ? 1 : 0);
             if (k > 0) this.addCounters(o, e.kind || '+1/+1', k);

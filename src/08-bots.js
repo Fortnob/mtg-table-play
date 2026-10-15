@@ -1869,6 +1869,15 @@
       while (left-- > 0 && sink) picks.push(sink.i);
       return { picks };
     },
+    /* Yannik, Scavenging Sentinel: the counters left over after one to each — all on our own biggest creature
+       among them, or on the first (divideCounters) */
+    divideCounters(s) {
+      const g = this.game;
+      const opts = (s.options || []).map(o => ({ i: o.i, o: g.obj(o.id) }));
+      const mine = opts.filter(x => x.o && x.o.controller === this.pid).sort((a, b) => g.powerOf(b.o) - g.powerOf(a.o));
+      const sink = mine[0] || opts[0];
+      return { picks: sink ? Array.from({ length: s.max || 0 }, () => sink.i) : [] };
+    },
     /* Garnet, Princess of Alexandria: a lore counter off each of our Sagas, a +1/+1 counter each. Sin, Unending
        Cataclysm: every counter off the opponents' things, and off ours only where they were doing harm
        (removeCountersChosen) */

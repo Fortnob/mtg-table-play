@@ -3185,6 +3185,10 @@
     { re: /^Shuffle (?:CARDNAME|this card) into your library from your graveyard(, then draw a card)?\.?$/i,
       make: (m) => (m[1] ? { op: 'sequence', list: [{ op: 'selfToLibrary', shuffle: true, fromGraveyard: true }, { op: 'draw', who: 'you', n: 1 }] }
         : { op: 'selfToLibrary', shuffle: true, fromGraveyard: true }) },
+    // Guan Yu, Sainted Warrior: "When Guan Yu is put into your graveyard from the battlefield, you may shuffle Guan Yu into
+    // your library." — only if it is still in that graveyard
+    { re: /^Shuffle CARDNAME into your library\.?$/i,
+      make: () => ({ op: 'selfToLibrary', shuffle: true, fromGraveyard: true }) },
     { re: /^Return (?:CARDNAME|this card) from your graveyard to your hand\.?$/i,
       make: () => ({ op: 'selfFromGraveyard', to: 'hand' }) },
     // (Garland, Knight of Cornelia: "Return this card from your graveyard to the battlefield transformed." — transformed)
@@ -6418,6 +6422,12 @@
         if (!inner.auto || !inner.effects.length) return null;
         return { op: 'reflexive', effects: inner.effects, nthResolution: { second: 2, third: 3, fourth: 4, fifth: 5 }[m[1].toLowerCase()], text: m[0] };
       } },
+    /* Yannik, Scavenging Sentinel: "exile another creature you control until Yannik leaves the battlefield. When you do,
+       distribute X +1/+1 counters among any number of target creatures, where X is the exiled creature's power." — only
+       if one was exiled, X its power as it last was (ifExiledThisWay, exiledPower) */
+    { re: /^When you do, distribute X (\+1\/\+1) counters among any number of target creatures, where X is the exiled creature'?s power\.?$/i,
+      make: (m) => ({ op: 'reflexive', ifExiledThisWay: true, exiledPower: true, text: m[0], effects: [
+        { op: 'countersDivided', n: 'triggerAmount', kind: m[1], anyFrom: Object.assign({}, targetSpec('target creature'), { upTo: true }) }] }) },
     /* "Sacrifice it. When you do, search …": the reflexive half, which
        follows straight on from the cost it waited for */
     { re: /^When you do, (.+)$/i,
@@ -15415,6 +15425,10 @@
       () => ({ kind: 'controlNamed', name: 'CARDNAME', other: true, n: 1 })],
     // Venser, Corpse Puppet: "you don't control a creature named The Hollow Sentinel"
     [/^you don'?t control a creature named ([A-Z][A-Za-z' -]+)$/, (m) => ({ kind: 'not', cond: { kind: 'controlNamed', name: m[1], creature: true, n: 1 } })],
+    // Liu Bei, Lord of Shu: "you control a permanent named Guan Yu, Sainted Warrior or a permanent named Zhang Fei, Fierce Warrior"
+    [/^you control a permanent named ([A-Z][A-Za-z' ,-]+?) or a permanent named ([A-Z][A-Za-z' ,-]+)$/,
+      (m) => ({ kind: 'any', of: [{ kind: 'controlNamed', name: m[1], n: 1 }, { kind: 'controlNamed', name: m[2], n: 1 }] })],
+    [/^you control a permanent named ([A-Z][A-Za-z' ,-]+)$/, (m) => ({ kind: 'controlNamed', name: m[1], n: 1 })],
     // the graveyard
     [/^there are (\w+) or more cards in your graveyard$/i, (m) => ({ kind: 'graveyard', n: num(m[1]) })],
     // Ketramose, the New Dawn: "unless there are seven or more cards in exile" — everybody's (exileTotal)
@@ -16911,7 +16925,8 @@
     // (Sokka, Lateral Strategist: "and at least one other creature attack" — battalionOne)
     { re: /^When(?:ever)? (?:this creature|~|CARDNAME) and at least (one|two|three|four) other creatures? attack,? /i,
       event: 'attacks', self: true, extraOf: (m) => ({ minAttackers: num(m[1]) + 1 }) },
-    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is put into your graveyard from the battlefield,? /i, event: 'dies', self: true },
+    // (Guan Yu, Sainted Warrior: "into your graveyard" — not when another player controlled it: ownYard)
+    { re: /^When(?:ever)? (?:this creature|~|CARDNAME) is put into your graveyard from the battlefield,? /i, event: 'dies', self: true, extra: { ownYard: true } },
     // Neyith of the Dire Hunt: "Whenever one or more creatures you control fight or become blocked" — once for each lot
     { re: /^Whenever one or more creatures you control fight or become blocked,? /i, event: 'creatureFights', also: 'becomesBlocked',
       filt: () => ({ who: 'you', words: 'creature', batch: true }) },
@@ -23337,6 +23352,9 @@
       // Gorma, the Gullet: "Nontoken creatures you control enter with an additional +1/+1 counter on them for each creature that died under your control this turn." (perCount)
       { re: /^Nontoken creatures you control enter with an additional \+1\/\+1 counter on them(?: for each ([a-z ]+ this turn))?\.?$/,
         make: (m) => { const pc = m[1] ? countOf(m[1]) : null; return m[1] && !pc ? null : Object.assign({ op: 'entersExtra', what: 'creature', other: false, counter: '+1/+1', nontoken: true }, pc ? { perCount: pc } : {}); }, auto: true },
+      // Blue, Loyal Raptor: "For each kind of counter on Blue, each other Dinosaur you control enters with a counter of that kind on it." (sourceCounterKinds)
+      { re: /^For each kind of counter on CARDNAME, each other ([A-Z][a-z]+|creature) you control enters with a counter of that kind on it\.?$/,
+        make: (m) => ({ op: 'entersExtra', what: m[1].toLowerCase(), other: true, sourceCounterKinds: true }), auto: true },
       /* Metallic Mimic, Giada, Renata, Oath of Gideon: "Each other creature
          you control (of the chosen type) enters with an additional +1/+1
          counter on it (for each Angel you already control)." */
