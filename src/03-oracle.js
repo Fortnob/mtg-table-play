@@ -5071,6 +5071,15 @@
     // Shadrix Silverquill: "Target player puts a +1/+1 counter on each creature they control."
     { re: /^Target (player|opponent) puts an? (\+1\/\+1|[a-z]+) counter on each creature they control\.?$/i,
       make: (m) => ({ op: 'counters', kind: m[2].toLowerCase(), n: 1, scope: { who: 'target', what: 'creature' }, targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }] }) },
+    /* Mikey & Mona, Mutant Sitters: "Target player chooses a creature they control and puts two +1/+1 counters on it." —
+       the player aimed at picks (chooser targetPlayer) */
+    { re: /^Target (player|opponent) chooses a creature they control and puts (a|an|two|three) (\+1\/\+1|[a-z]+) counters? on it\.?$/i,
+      make: (m) => {
+        const k = num(m[2]), kind = m[3].toLowerCase();
+        return { op: 'counters', kind, n: k, chooser: 'targetPlayer', targets: [{ type: 'player', opponent: /opponent/i.test(m[1]) }],
+          chooseFrom: { type: 'creature', filter: 'creature you control', zone: 'battlefield', controller: 'you' },
+          choosePrompt: `Put ${m[2].toLowerCase()} ${kind} counter${k === 1 ? '' : 's'} on a creature you control.` };
+      } },
     /* Tasha, the Witch Queen: "You may cast a spell from among cards in exile with page counters on them without
        paying its mana cost." — anybody's, one of them (exiledCounter) */
     { re: /^(?:You may )?cast a spell from among cards in exile with ([a-z]+) counters on them without paying its mana cost\.?$/i,
@@ -7405,6 +7414,10 @@
        remains exiled, and mana of any type can be spent to cast that spell",
        "You may cast that card without paying its mana cost" — what was
        just exiled, playable as it says */
+    /* Casey & Raph, Hotheads: "Target player exiles the top card of their library. Until that player's next end step, they
+       may play that card without paying its mana cost." — the card's owner, up to their own end step */
+    { re: /^Until that player'?s next end step, they may play that card without paying its mana cost\.?$/i,
+      make: () => ({ op: 'mayPlayExiled', castOnly: false, free: true, who: 'owner', duration: 'nextEnd' }) },
     // (Gix, Yawgmoth Praetor, Magus of the Mind: "play lands and cast spells from among cards exiled this way")
     // (Nashi, Moon Sage's Scion: "Until end of turn, you may play one of those cards" — one, and then none of the rest: oneOf)
     // (Kotose, the Silent Spider: "For as long as you control Kotose, you may play one of the exiled cards" — whileControl)
@@ -7951,8 +7964,9 @@
       make: (m) => ({ op: 'gainLife', who: 'you', n: countSpec(m[2], num(m[1])) }) },
     { re: /^Each opponent loses (one|two|three|four|five|six|seven|eight|nine|ten|\d+) life for each ([-a-z' ]+?) you control\.?$/i,
       make: (m) => ({ op: 'loseLife', who: 'opponents', n: countSpec(m[2], num(m[1])) }) },
+    // (Karn, Gilded Guardian: "Draw a card for each color among other artifacts you control." — colorsAmongScope)
     { re: /^Draw a card for each ([-a-z' ]+?) you control\.?$/i,
-      make: (m) => ({ op: 'draw', who: 'you', n: countSpec(m[1], 1) }) },
+      make: (m) => ({ op: 'draw', who: 'you', n: (/^colou?r among /i.test(m[1]) && countOf(m[1] + ' you control')) || countSpec(m[1], 1) }) },
     // Green Goblin, Revenant: "Then draw a card for each card you've discarded this turn." (discardedThisTurn)
     // (April O'Neil, Hacktivist: "draw a card for each card type among spells you've cast this turn")
     { re: /^Draw a card for each (card you'?ve (?:discarded|drawn) this turn|card type among spells you'?ve cast this turn)\.?$/i,
@@ -9577,7 +9591,8 @@
     if (/^card your opponents have drawn this turn$/i.test(p)) return { drawnThisTurn: 'opponents', mult: k };
     if (/^colou?r among permanents you control$/i.test(p)) return { colorsAmongYours: true, mult: k };
     // Sisay, Weatherlight Captain: "for each color among other legendary permanents you control" (colorsAmongScope)
-    if ((m = p.match(/^colou?r among ((?:other )?[a-z]+ (?:permanents|creatures|artifacts|enchantments) you control)$/i))) {
+    // (Karn, Gilded Guardian: "for each color among other artifacts you control" — no word before the type)
+    if ((m = p.match(/^colou?r among ((?:other )?(?:[a-z]+ )?(?:permanents|creatures|artifacts|enchantments) you control)$/i))) {
       const sc = scopeOf(m[1]);
       if (sc && !sc.self) return { colorsAmongScope: sc, mult: k };
     }
@@ -13059,8 +13074,12 @@
     const footnotes = [];
     // Shadrix Silverquill: "Each mode must target a different player." — a rule on the targets, not a mode (distinctPlayers)
     let distinctPlayers = false;
+    // Gnostro, Voice of the Crags: "Choose one. X is the number of spells you've cast this turn." — the X of every mode (xIsWords)
+    let xIsWords = null;
     const modes = bullets.filter(b => {
       if (/^You may choose the same mode/i.test(b)) return false;
+      const xw = b.match(/^X is (the [^.]+?)\.?$/i);
+      if (xw) { xIsWords = xw[1]; return false; }
       if (/^Each mode must target a different player\.?$/i.test(b)) { distinctPlayers = true; return false; }
       if (/^Activate (?:this ability )?only (?!as a sorcery\.?$)/i.test(b)) {
         const f = parseEffectSentence(b);
@@ -13088,7 +13107,7 @@
     for (const label of modes) {
       const named = label.match(/^([A-Z][A-Za-z' ,-]{1,40}?) \u2014 ([\s\S]+)$/);
       const body = named ? named[2] : label;
-      const parsed = parseEffects(body);
+      const parsed = parseEffects(xIsWords && /\bX\b/.test(body) ? body.replace(/\.?$/, `, where X is ${xIsWords}.`) : body);
       out.push({ label: label.replace(/\.$/, ''), effects: parsed.effects, auto: parsed.auto });
     }
     return {
@@ -15439,6 +15458,8 @@
     [/^that player attacked you during their last turn$/i, () => ({ kind: 'thatPlayerAttackedYou' })],
     // Wakka, Devoted Guardian: "a counter was put on CARDNAME this turn" (counterPutOnSelf)
     [/^a counter was put on (?:CARDNAME|this creature|it) this turn$/i, () => ({ kind: 'counterPutOnSelf' })],
+    // Beast, Erudite Aerialist: "you've put one or more +1/+1 counters on Beast this turn" — by you, on this object (plusPutBy)
+    [/^you'?ve put one or more \+1\/\+1 counters on (?:CARDNAME|this creature|it|him|her) this turn$/i, () => ({ kind: 'counterPutOnSelf', plusByYou: true })],
     // The Raven Man: "a player discarded a card this turn" (discardedThisTurn)
     [/^a player discarded a card this turn$/i, () => ({ kind: 'discardedThisTurn' })],
     // Tinybones, Trinket Thief: "if an opponent discarded a card this turn"

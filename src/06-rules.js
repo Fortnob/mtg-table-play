@@ -15359,7 +15359,12 @@
           return !!pM && !!pM.monarch;
         }
         // Wakka, Devoted Guardian: "if a counter was put on CARDNAME this turn" (counterPutOnSelf)
-        case 'counterPutOnSelf': return !!src && !!((h.countersPutOn || {})[src.id]);
+        case 'counterPutOnSelf': {
+          if (!src) return false;
+          // (Beast, Erudite Aerialist: "you've put one or more +1/+1 counters on Beast" — Kid Loki's record: plusByYou)
+          if (cond.plusByYou) { const pb = (h.plusPutBy || {})[src.id + '|' + src.controller]; return pb !== undefined && pb === (src.ts == null ? 0 : src.ts); }
+          return !!((h.countersPutOn || {})[src.id]);
+        }
         // Rhino, Barreling Brute: "if you've cast a spell with mana value 4 or greater this turn" (castBigThisTurn)
         case 'castMvThisTurn': return !!me && (me.spellObjsThisTurn || []).some(x => (x._castMv != null ? x._castMv : ((x.card && x.card.cmc) || 0)) >= (cond.n || 0));
         // Medomai the Ageless: "during extra turns" (extraTurnNow)
@@ -19723,10 +19728,12 @@
       /* "Put a +1/+1 counter on a creature you control": chosen as it
          happens, not targeted. A generic question, and the pick is what the
          effect then acts on; with nothing to choose, nothing happens. */
-      if (e.chooseFrom && !(e.targets && e.targets.length)) {
+      // (Mikey & Mona, Mutant Sitters: "Target player chooses a creature they control" — the player aimed at: targetPlayer)
+      if (e.chooseFrom && (!(e.targets && e.targets.length) || e.chooser === 'targetPlayer')) {
         const spec = e.chooseFrom;
         // Gluntch, the Bestower: "They put two +1/+1 counters on a creature they control" — the player chosen picks
-        const chooser = e.chooser === 'chosenPlayer' ? ctx.chosenPlayer : ctx.controller;
+        const chooser = e.chooser === 'chosenPlayer' ? ctx.chosenPlayer
+          : e.chooser === 'targetPlayer' ? ((targets || []).find(t => t && t.kind === 'player') || {}).id : ctx.controller;
         if (chooser == null) return null;
         const pool = this.battlefield.filter(o => !o.phasedOut && o.analysis() &&
           MTG.oracle.matchesSpec(spec, o, o.analysis(), chooser, this._specCtx()));
@@ -20362,7 +20369,8 @@
         if (v && typeof v === 'object' && v.unspentMana) return this._countValue(v, ctx.controller, src);
         // Astarion, the Decadent: "the amount of life they lost this turn" — the targeted player's (targetPlayerStat)
         if (v && typeof v === 'object' && v.targetPlayerStat) { const tpS = targets.find(t => t.kind === 'player'); return (Number((this.player(tpS && tpS.id) || {})[v.targetPlayerStat]) || 0) * (v.mult || 1); }
-        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
+        // (Karn, Gilded Guardian: "for each color among other artifacts you control" — colorsAmongScope)
+        if (v && typeof v === 'object' && (v.totalMvOf || v.colorPairsYours || v.typesAmongScope || v.subtypesAmongScope || v.colorsAmongScope ||v.typesInGraveyards || v.spellsCastThisTurn || v.spellsMvThisTurn || v.spellsCastWords || v.spellTypesCast || v.playerStat || v.startingLife ||
           v.greatestToughness || v.totalStat || v.cardsInAllGraveyards || v.countersAmong || v.opponentsPoison || v.cardsInOpponentGraveyards || v.party || v.enteredTypeYours || v.enteredYours || v.combatHitPlayers || v.opponentsLostLife || v.opponentsControlling || v.opponentsBelowHalfLife || v.opponentsAttacked || v.ownedOppControlled || v.playersBeingAttacked || v.sacrificedThisTurn || v.graveyardsWithAtLeast || v.playersLostLife || v.opponentsLifeLost || /^(?:colou?rs among permanents|basic land types among lands)$/i.test(String(v.per || '')))) return this._countValue(v, ctx.controller, src) + (v.plus || 0);
         // Combustible Gearhulk: the total mana value of the cards just milled
         if (v && typeof v === 'object' && v.milledMv) return (this._lastMilled || []).reduce((k, id) => k + (((this.obj(id) || {}).card || {}).cmc || 0), 0);
