@@ -108,6 +108,8 @@ module.exports = (test) => {
     const T = mk({ library: Array(20).fill('Plains') });
     const g = T.g;
     const bears = T.bf('A', 'Grizzly Bears');
+    // (a second creature it could exile, so that there is a target to choose)
+    T.bf('A', 'Llanowar Elves');
     const order = [];
     T.answer('mode', (ch) => { order.push('mode'); t.ok(g.stack.some(s => s.id === ch.stackId), 'the mode is asked with the trigger on the stack'); return { modes: [2] }; });
     T.answer('pickTarget', (ch) => { order.push('target'); return { targets: [obj(bears)] }; });
@@ -327,6 +329,8 @@ module.exports = (test) => {
     const g = T.g;
     const auron = T.bf('A', 'Auron, Venerated Guardian');
     const bears = T.bf('B', 'Grizzly Bears');
+    // (a second creature small enough, so that there is a target to choose)
+    T.bf('B', 'Llanowar Elves');
     let opts = null, power = null, item = null, outer = null;
     T.answer('pickTarget', (ch) => {
       opts = ch.options[0].map(x => x.id); power = g.powerOf(auron);
@@ -411,7 +415,8 @@ module.exports = (test) => {
   test('Trigger targets: the question names the card and carries the ability whole (its stack name is shortened)', (mk, t) => {
     const T = mk({ library: Array(20).fill('Swamp') });
     const g = T.g;
-    T.bf('B', 'Grizzly Bears');
+    // (two creatures, so that the target is a choice and asked about)
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
     const n0 = T.asked.length;
     chupacabra(T, 'A');
     const q = T.asked.slice(n0).find(c => c.purpose === 'triggerTargets');

@@ -155,4 +155,156 @@ module.exports = (test) => {
     arrange();
     t.eq(asked(T, 'arrange'), 2, 'after a draw: asked');
   });
+
+  /* ---------- questions with one answer, or answers all alike ---------- */
+  const said = (T, text) => T.g.log.some(l => l.text === text);
+  const emptyHand = (T, pid) => { const h = T.zone(pid, 'hand'); while (h.length) T.g.moveObject(h[0], 'graveyard'); };
+
+  test('Nothing to decide: a discard of the whole hand is not asked; a choice between cards is', (mk, t) => {
+    t.auto('Faithless Looting');
+    let T = mk({ library: Array(20).fill('Island') });
+    emptyHand(T, 'A');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    t.eq(asked(T, 'discard'), 0, 'draw two, discard two, with two in hand: not asked');
+    t.eq(T.zone('A', 'hand').length, 0, 'both discarded');
+    t.ok(said(T, 'A has only one choice: discard Island, Island.'), 'the log says what went');
+    // three cards, two of them different: a choice
+    T = mk({ library: Array(20).fill('Island') });
+    emptyHand(T, 'A');
+    T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'R');
+    T.cast('A', T.hand('A', 'Faithless Looting'));
+    t.eq(asked(T, 'discard'), 1, 'two of three, not all alike: asked');
+  });
+
+  test('Nothing to decide: discarding one of identical cards is not asked; one of different cards is', (mk, t) => {
+    t.auto('Liliana of the Veil');
+    const T = mk({ library: Array(20).fill('Island') });
+    emptyHand(T, 'A'); emptyHand(T, 'B');
+    T.hand('B', 'Island'); T.hand('B', 'Island'); T.hand('B', 'Island');
+    T.hand('A', 'Island'); T.hand('A', 'Grizzly Bears');
+    const lil = T.bf('A', 'Liliana of the Veil');
+    T.activate('A', lil, 0);
+    t.eq(T.asked.filter(c => c.type === 'discard' && c.playerId === 'B').length, 0, 'three Islands: B is not asked');
+    t.eq(T.zone('B', 'hand').length, 2, 'B discards one');
+    t.ok(said(T, "B's choices are all alike: discard Island."), 'the log says so');
+    t.eq(T.asked.filter(c => c.type === 'discard' && c.playerId === 'A').length, 1, 'an Island or the Bears: A is asked');
+  });
+
+  test('Nothing to decide: an edict with one creature, or identical untouched ones, is not asked; different ones are', (mk, t) => {
+    t.auto('Diabolic Edict');
+    const run = (setup) => {
+      const T = mk({ library: Array(20).fill('Swamp') });
+      setup(T);
+      T.mana('A', 'B1');
+      T.cast('A', T.hand('A', 'Diabolic Edict'), { targets: ['B'] });
+      return T;
+    };
+    let T = run((T) => T.bf('B', 'Grizzly Bears'));
+    t.eq(asked(T, 'sacrifice'), 0, 'one creature: not asked');
+    t.eq(T.bfOf('B').length, 0, 'it is sacrificed');
+    t.ok(said(T, 'B has only one choice: sacrifice Grizzly Bears.'), 'the log says so');
+    T = run((T) => { T.bf('B', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears'); });
+    t.eq(asked(T, 'sacrifice'), 0, 'two Bears just the same: not asked');
+    t.eq(T.bfOf('B').length, 1, 'one of them goes');
+    t.ok(said(T, "B's choices are all alike: sacrifice Grizzly Bears."), 'the log says so');
+    T = run((T) => { T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant'); });
+    t.eq(asked(T, 'sacrifice'), 1, 'two different creatures: asked');
+    T = run((T) => { T.bf('B', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears', { tapped: true }); });
+    t.eq(asked(T, 'sacrifice'), 1, 'two Bears, one tapped: asked');
+    T = run((T) => { T.bf('B', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears', { counters: { '+1/+1': 1 } }); });
+    t.eq(asked(T, 'sacrifice'), 1, 'two Bears, one with a counter: asked');
+    T = run((T) => {
+      const a = T.bf('B', 'Grizzly Bears'); T.bf('B', 'Grizzly Bears');
+      // (one of them enchanted: what points at it makes it different)
+      const aura = T.bf('B', 'Rancor'); aura.attachedTo = a.id; a.attachments = [aura.id]; T.g.bumpBoard();
+    });
+    t.eq(asked(T, 'sacrifice'), 1, 'two Bears, one enchanted: asked');
+  });
+
+  test('Nothing to decide: a trigger it must have with one legal target is aimed without asking; a "may" or "up to" still asks', (mk, t) => {
+    t.auto('Ravenous Chupacabra'); t.auto('Reclamation Sage'); t.auto('Skyclave Apparition');
+    let T = mk({ library: Array(20).fill('Swamp') });
+    const bear = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Ravenous Chupacabra'));
+    t.eq(asked(T, 'pickTarget'), 0, 'one creature an opponent controls: not asked');
+    t.zone(bear, 'graveyard', 'destroyed');
+    t.ok(said(T, 'A has only one choice: target Grizzly Bears.'), 'the log says so');
+    // two: asked
+    T = mk({ library: Array(20).fill('Swamp') });
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Hill Giant');
+    T.mana('A', '2BB');
+    T.cast('A', T.hand('A', 'Ravenous Chupacabra'));
+    t.eq(asked(T, 'pickTarget'), 1, 'two creatures: asked');
+    // "you may destroy target artifact or enchantment": the target is asked even with one
+    T = mk({ library: Array(20).fill('Forest') });
+    T.bf('B', 'Sol Ring');
+    T.mana('A', '2G');
+    T.cast('A', T.hand('A', 'Reclamation Sage'));
+    t.eq(asked(T, 'pickTarget'), 1, 'a "may" trigger: asked');
+    // "up to one target": none is a choice too
+    T = mk({ library: Array(20).fill('Plains') });
+    T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1WW');
+    T.cast('A', T.hand('A', 'Skyclave Apparition'));
+    t.eq(asked(T, 'pickTarget'), 1, 'an "up to one" target: asked');
+  });
+
+  test('Nothing to decide: "return a land you control" with only the one land is not asked', (mk, t) => {
+    t.auto('Guildless Commons');
+    const T = mk({ library: Array(20).fill('Island') });
+    const gc = T.bf('A', 'Guildless Commons', { etb: true });
+    T.resolve();
+    t.eq(asked(T, 'pickCard'), 0, 'its own self the only land: not asked');
+    t.zone(gc, 'hand', 'back to hand');
+    const T2 = mk({ library: Array(20).fill('Island') });
+    T2.bf('A', 'Forest');
+    T2.bf('A', 'Guildless Commons', { etb: true });
+    T2.resolve();
+    t.eq(asked(T2, 'pickCard'), 1, 'a Forest as well: asked');
+  });
+
+  test('Nothing to decide: conniving with a hand of identical cards is not asked', (mk, t) => {
+    t.auto("Raffine's Informant");
+    const T = mk({ library: Array(20).fill('Island') });
+    emptyHand(T, 'A');
+    T.hand('A', 'Island'); T.hand('A', 'Island');
+    T.bf('A', "Raffine's Informant", { etb: true });
+    T.resolve();
+    t.eq(asked(T, 'choose'), 0, 'three Islands: not asked');
+    t.eq(T.zone('A', 'hand').length, 2, 'drew one, discarded one');
+    t.ok(T.g.log.some(l => /^A's choices are all alike: Island\.$/.test(l.text)), 'the log says so');
+    const T2 = mk({ library: Array(20).fill('Island') });
+    emptyHand(T2, 'A');
+    T2.hand('A', 'Island'); T2.hand('A', 'Grizzly Bears');
+    T2.bf('A', "Raffine's Informant", { etb: true });
+    T2.resolve();
+    t.eq(asked(T2, 'choose'), 1, 'an Island or the Bears: asked');
+  });
+
+  test('Nothing to decide: the cost of sacrificing one of two identical Foods is not asked', (mk, t) => {
+    t.auto('Bill the Pony');
+    const T = mk({ library: Array(20).fill('Island') });
+    const bill = T.bf('A', 'Bill the Pony');
+    T.bf('A', 'Food'); T.bf('A', 'Food');
+    T.activate('A', bill, 0, { targets: [bill] });
+    t.eq(asked(T, 'sacrifice'), 0, 'two Foods alike: not asked');
+    t.eq(T.bfOf('A').filter(o => o.name === 'Food').length, 1, 'one Food sacrificed');
+  });
+
+  test('Still asked: a card from an opponent\'s hand, and a look at the top of a library', (mk, t) => {
+    t.auto('Duress');
+    const T = mk({ library: Array(20).fill('Island') });
+    emptyHand(T, 'B');
+    T.hand('B', 'Lightning Bolt'); T.hand('B', 'Forest');
+    T.mana('A', 'B');
+    T.cast('A', T.hand('A', 'Duress'), { targets: ['B'] });
+    t.eq(asked(T, 'pickCard'), 1, 'one card it could take, but the question shows the hand: asked');
+    t.auto("Mishra's Bauble");
+    const bauble = T.bf('A', "Mishra's Bauble");
+    T.activate('A', bauble, 0, { targets: ['B'] });
+    t.eq(asked(T, 'arrange'), 1, 'one card looked at: still shown');
+  });
 };

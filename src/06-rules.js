@@ -9532,7 +9532,8 @@
         } else if (cost.sacrifice.upTo) pick = pick || [];
         else if (need > 0 && pick.length < need) {
           // (the ones the second part can't use go first)
-          if (auto || pool.length === need) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
+          // (only as many as it needs, or all of them alike — two untouched Treasures: nothing to choose)
+          if (auto || pool.length === need || (!also && this._alike(pool))) pick = (also ? this._cheapestFirst(pool.filter(x => !also.includes(x))).concat(this._cheapestFirst(pool.filter(x => also.includes(x)))) : this._cheapestFirst(pool)).slice(0, need);
           else {
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
@@ -9547,7 +9548,7 @@
           const need2 = Math.min(pool2.length, n2);
           let pick2 = (opts.sacrificeAlsoIds || []).map(id => pool2.find(x => x.id === id)).filter(Boolean).slice(0, need2);
           if (need2 > 0 && pick2.length < need2) {
-            if (auto || pool2.length === need2) pick2 = this._cheapestFirst(pool2).slice(0, need2);
+            if (auto || pool2.length === need2 || this._alike(pool2)) pick2 = this._cheapestFirst(pool2).slice(0, need2);
             else {
               pick2 = null;
               ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
@@ -9563,7 +9564,7 @@
         const need = cost.discard.n === 'all' ? pool.length : Math.min(pool.length, this._costCount(cost.discard.n, opts));
         let pick = (opts.discardIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need) pick = this._cheapestFirst(pool).slice(0, need);
+          if (auto || pool.length === need || this._alike(pool)) pick = this._cheapestFirst(pool).slice(0, need);
           else {
             pick = null;
             ask({ type: 'discard', count: need, candidates: pool.map(x => x.id),
@@ -9576,7 +9577,7 @@
         const pool = this._exileCostPool(pid, cost.exile, self);
         const need = Math.min(pool.length, this._costCount(cost.exile.n, opts));
         if (need > 0) {
-          if (auto || pool.length === need) {
+          if (auto || pool.length === need || this._alike(pool)) {
             for (const c of this._cheapestFirst(pool).slice(0, need)) this.moveObject(c, 'exile');
           } else {
             ask({ type: 'pickCard', count: need, purpose: 'exileCost', candidates: pool.map(x => x.id),
@@ -9676,7 +9677,7 @@
         const pool = this.battlefield.filter(x => x.controller === pid && this._matchesCategory(x, cost.returnOwn.filter) &&
           !(cost.returnOwn.untapped && x.tapped) && !(cost.returnOwn.tapped && !x.tapped));
         const need = Math.min(cost.returnOwn.n || 1, pool.length);
-        if (pool.length && (auto || pool.length === need)) for (const x of this._cheapestFirst(pool).slice(0, need)) {
+        if (pool.length && (auto || pool.length === need || this._alike(pool))) for (const x of this._cheapestFirst(pool).slice(0, need)) {
           // Scarlet Spider: the mana value of what went back
           if (self) self._returnedMv = (x.card && x.card.cmc) || 0;
           this.moveObject(x, 'hand');
@@ -9700,7 +9701,7 @@
         if (named.length && sum(named) >= want) this._tapForCost(pid, named, item);
         else {
           const auto2 = this._crewPick(pool, want);
-          if (auto || !item || !auto2 || pool.length === auto2.length) { if (auto2) this._tapForCost(pid, auto2, item); }
+          if (auto || !item || !auto2 || pool.length === auto2.length || this._alike(pool)) { if (auto2) this._tapForCost(pid, auto2, item); }
           else ask({ type: 'pickCard', count: pool.length, purpose: 'tapCost', totalPower: want, worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
             prompt: `Tap untapped creatures you control with total power ${want} or more.` });
@@ -9710,7 +9711,7 @@
         const need = Math.min(pool.length, this._costCount(cost.tapCreatures.n, opts));
         let pick = (opts.tapCostIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean).slice(0, need);
         if (need > 0 && pick.length < need) {
-          if (auto || pool.length === need || !item) pick = this._tapCostOrder(pool).slice(0, need);
+          if (auto || pool.length === need || !item || this._alike(pool)) pick = this._tapCostOrder(pool).slice(0, need);
           else {
             pick = null;
             ask({ type: 'pickCard', count: need, purpose: 'tapCost', worst: true, candidates: pool.map(x => x.id),
@@ -17176,6 +17177,9 @@
         for (const k of ['remember', 'rememberBatch', 'sameTargets', 'payCost']) delete choice[k];
         if (auto) choice.auto = this._autoShown(auto);
       }
+      // nothing to decide: answered on the spot, and said (_settledAnswer) — after an answer remembered, which is the player's own
+      const settled = this._settledAnswer(choice);
+      if (settled) return (r.answers[key] = this._applySettled(choice, settled));
       /* Whoever is asked should be able to see what is asking: the card the
          effect belongs to travels with the question, unless it says otherwise. */
       const src = r.ctx && r.ctx.obj;
@@ -17382,6 +17386,15 @@
       if (s.kind !== 'number' && !s.optional && !s.repeat && !s.ordered && s.min === all.length && s.max === all.length) {
         const got = C.check(s, { picks: all }, hooks);
         if (got.ok) return { picks: got.picks, number: null, order: null };
+      }
+      // one legal answer, or answers that all come to the same thing: made, said, and kept for a resumption
+      const only = r ? this._settledChoose(s, hooks) : null;
+      if (only) {
+        const p = this.player(s.playerId);
+        this.logEvent('choice', only.alike ? `${p.name}'s choices are all alike: ${only.what}.` : `${p.name} has only one choice: ${only.what}.`);
+        const ans = { picks: only.picks, number: null, order: s.ordered ? only.picks.slice() : null };
+        r.answers[r.index + (sub ? ':' + sub : '')] = ans;
+        return ans;
       }
       if (!r) return this._decideChoose(s.playerId, s);
       return this._ask(s, sub);
@@ -33030,24 +33043,7 @@
         }
         case 'vote': return this.castVote(playerId, (data && data.choice) || ch.options[0]);
         case 'discard': case 'discardToHandSize': {
-          const ids = (data && data.cardIds) || [];
-          const z = this.zones[playerId];
-          const tossed = [];
-          /* A discard that is owed is made in full, from the cards the
-             question allows. */
-          const pool = ch.candidates ? z.hand.filter(x => ch.candidates.includes(x.id)) : z.hand.slice();
-          const want = Math.min(ch.count || 0, pool.length);
-          let pick = ids.map(id => pool.find(x => x.id === id)).filter(Boolean);
-          pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
-          if (!ch.optional && pick.length < want) {
-            for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
-          }
-          for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
-          const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
-          if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
-          this._lastDiscarded = tossed.map(o => o.id);
-          this.logEvent('discard', `${this.player(playerId).name} discards ${tossed.length ? tossed.map(o => o.name).join(', ') : 'nothing'}.`);
-          for (const o of tossed) this._afterDiscard(playerId, o);
+          this._discardAnswer(ch, playerId, data);
           if (ch.type === 'discardToHandSize') { this.pendingChoice = null; this._finishCleanup(); return true; }
           break;
         }
@@ -33075,31 +33071,7 @@
           break;
         }
         case 'sacrifice': {
-          /* Only what the question allows counts, however it was clicked;
-             and a sacrifice that is owed is made in full — what was left
-             out is made up from whatever matters least. */
-          const pool = ch.candidates
-            ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId)
-            : this._sacrificePool(playerId, { filter: ch.filter || 'permanent' }, null);
-          const want = Math.min(ch.count || 1, pool.length);
-          const ids = (data && data.cardIds) || [];
-          let pick = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
-          pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
-          if (!ch.optional && pick.length < want) {
-            for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
-          }
-          const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
-          // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
-          if (ch.exileInstead) {
-            for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
-            break;
-          }
-          this._sacrificeNow(playerId, pick, item);
-          // "When this creature exploits a creature"
-          if (ch.purpose === 'exploit' && pick.length) {
-            const ex = this.obj(ch.sourceId);
-            if (ex) this._fire('exploits', ex.controller, { source: ex, object: pick[0] });
-          }
+          this._sacrificeAnswer(ch, playerId, data);
           break;
         }
         case 'riot': {
@@ -34306,6 +34278,239 @@
       this._fire(kind === 'scry' ? 'youScry' : 'youSurveil', pid, { playerId: pid, amount: n });
       // River Song: "Whenever an opponent scries, surveils, …" (opponentScrySurveil)
       this._fire('opponentScrySurveil', null, { except: pid, player: pid, playerId: pid });
+    }
+
+    /* ---------- questions with nothing to decide ----------
+       A question is worth asking only when there is something to decide. One with a single legal answer —
+       the only cards in hand to discard, the only creature to sacrifice, a trigger's only legal target, the
+       copy's only target — or whose answers all come to the same thing (which of two untouched Treasures
+       goes) is answered as it comes up, and the log says what was done. Whatever a player could want
+       differently is still asked: a "may", an "up to", anything optional, a choice between things that
+       differ, and any question that shows them cards they could not see otherwise (a look at a library, an
+       opponent's hand), since the question is the only way they get to see them. */
+
+    /**
+     * The answer to a question that has only one, or whose answers all come to the same, as
+     * { data, what, alike } — `data` as resolveChoice would be given it, `what` the words for the log —
+     * or null when it is a real choice and must be asked.
+     */
+    _settledAnswer(ch) {
+      if (!ch || ch.optional) return null;
+      const pid = ch.playerId;
+      if (!this.player(pid)) return null;
+      const names = (list) => list.map(o => o.name).join(', ');
+      // (all of a pool, or any `want` of a pool whose members are all alike)
+      const fromPool = (pool, want, verb) => {
+        if (!want) return { data: { cardIds: [] }, what: null };
+        if (want >= pool.length) return { data: { cardIds: pool.map(o => o.id) }, what: verb + ' ' + names(pool) };
+        if (this._alike(pool)) { const pick = pool.slice(0, want); return { data: { cardIds: pick.map(o => o.id) }, what: verb + ' ' + names(pick), alike: true }; }
+        return null;
+      };
+      switch (ch.type) {
+        case 'discard': {
+          const hand = (this.zones[pid] || {}).hand || [];
+          const pool = ch.candidates ? hand.filter(x => ch.candidates.includes(x.id)) : hand.slice();
+          return fromPool(pool, Math.min(ch.count || 0, pool.length), 'discard');
+        }
+        case 'sacrifice': {
+          const pool = ch.candidates
+            ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === pid)
+            : this._sacrificePool(pid, { filter: ch.filter || 'permanent' }, null);
+          return fromPool(pool, Math.min(ch.count || 1, pool.length), ch.exileInstead ? 'exile' : 'sacrifice');
+        }
+        /* One legal target for each target it must have (none "up to", none of them the same): a target an
+           ability must have is not a choice when there is one. A trigger that only may do something is still
+           asked, though the target is all it could be. */
+        case 'pickTarget': {
+          if (ch.purpose === 'cascadeCast') return null;
+          const opts = ch.options || [], specs = ch.specs || [];
+          if (!opts.length || opts.some(l => !Array.isArray(l) || l.length !== 1 || !l[0])) return null;
+          if (specs.some(sp => sp && (sp.upTo || sp.multi))) return null;
+          const keys = opts.map(l => (l[0].kind || '') + ':' + (l[0].id != null ? l[0].id : l[0]));
+          if (new Set(keys).size !== keys.length) return null;
+          if (ch.stackId) {
+            const it = this.stack.find(s => s.id === ch.stackId);
+            if (!it || it.optional || /"op":"(?:may|mayPay)"|"optional":true|"upTo":true/.test(JSON.stringify(it.effects || []))) return null;
+          }
+          const targets = opts.map(l => l[0]);
+          return { data: { targets }, what: 'target ' + targets.map(t => this.describeTarget(typeof t === 'string' ? (this.player(t) ? { kind: 'player', id: t } : { kind: 'object', id: t }) : t)).join(', ') };
+        }
+        /* Cards it must take, as many as there are, every one of them where the player can see it anyway. A
+           question with a purpose of its own does more with the answer than pass it on, and is asked. */
+        case 'pickCard': {
+          if (ch.purpose) return null;
+          const cards = ch.cards || [];
+          if (!cards.length) return null;
+          const objs = cards.map(c => this.obj(c.id));
+          if (objs.some(o => !this._openTo(o, pid))) return null;
+          const got = fromPool(objs, Math.min(Math.max(1, ch.count || 1), objs.length), 'choose');
+          return got && got.data.cardIds.length ? got : null;
+        }
+        // "Choose two —" with two modes to choose from
+        case 'mode': {
+          if (ch.purpose || ch.repeatable) return null;
+          const opts = ch.options || [];
+          const min = ch.min != null ? ch.min : Math.max(1, ch.count || 1);
+          if (!opts.length || min < opts.length) return null;
+          return { data: { modes: opts.map((o, k) => (o.i != null ? o.i : k)) }, what: opts.map(o => o.label).join('; ') };
+        }
+        default: return null;
+      }
+    }
+
+    /**
+     * A generic question (docs/choices.md) with only one legal answer, or whose answers all come to the same
+     * thing: { picks, what, alike }, or null when it is a real choice. Anything optional, a number, an order
+     * of more than one thing, and objects the player could not see without being asked are always asked.
+     */
+    _settledChoose(s, hooks) {
+      const C = MTG.choice;
+      if (s.kind === 'number' || s.optional || !(s.min >= 1) || s.repeat) return null;
+      const all = C.candidates(s);
+      if (!all.length || (s.ordered && all.length > 1)) return null;
+      let objs = null;
+      if (s.kind === 'objects') {
+        objs = all.map(id => this.obj(id));
+        if (objs.some(o => !this._openTo(o, s.playerId))) return null;
+      }
+      const say = (picks) => picks.map(p => {
+        const e = C.entryFor(s, p) || {};
+        return s.kind === 'options' ? e.label : (e.name || (this.obj(p) || this.player(p) || {}).name || '?');
+      }).join(', ');
+      // every legal answer, until there are two (a small question only: a big one is a choice anyway)
+      if (all.length <= 12) {
+        const found = [];
+        let steps = 0;
+        const walk = (start, picks) => {
+          if (found.length > 1 || ++steps > 3000) return;
+          if (picks.length >= s.min && C.check(s, { picks }, hooks).ok) found.push(picks);
+          if (picks.length >= s.max) return;
+          for (let j = start; j < all.length && found.length < 2; j++) walk(j + 1, picks.concat([all[j]]));
+        };
+        walk(0, []);
+        if (steps <= 3000 && found.length === 1) return { picks: found[0], what: say(found[0]) };
+      }
+      // which of several identical things: any legal answer is as good as another
+      if (objs && s.min === s.max && this._alike(objs)) {
+        const any = C.solve(s, { hooks });
+        if (any && any.picks && any.picks.length) return { picks: any.picks, what: say(any.picks), alike: true };
+      }
+      return null;
+    }
+
+    /** Make a settled answer as resolveChoice would, say so, and give back what the waiting effect wants. */
+    _applySettled(ch, settled) {
+      const p = this.player(ch.playerId);
+      if (settled.what) {
+        this.logEvent('choice', settled.alike ? `${p.name}'s choices are all alike: ${settled.what}.` : `${p.name} has only one choice: ${settled.what}.`);
+      }
+      if (ch.type === 'discard') this._discardAnswer(ch, ch.playerId, settled.data);
+      else if (ch.type === 'sacrifice') this._sacrificeAnswer(ch, ch.playerId, settled.data);
+      return this._answerFor(ch, settled.data);
+    }
+
+    /** Whether this player can see this card where it is without being shown it. */
+    _openTo(o, pid) {
+      if (!o) return false;
+      switch (o.zone) {
+        case 'battlefield': return !o.faceDown || o.controller === pid;
+        case 'graveyard': case 'stack': case 'command': return true;
+        case 'hand': return o.owner === pid;
+        case 'exile': return !o.faceDown && !o.faceDownExile;
+        default: return false;
+      }
+    }
+
+    /**
+     * Whether these are all the same thing in the same state, so that which of them is chosen makes no
+     * difference: the same card, the same counters, damage, tapped or not, the same effects on them, and
+     * nothing else in the game pointing at one of them in particular (a spell's target, a delayed trigger,
+     * an Aura, an exile that remembers it). When they entered matters only as "this turn", when a card was
+     * drawn only in the draw step, and summoning sickness only to a creature.
+     */
+    _alike(objs) {
+      objs = (objs || []).filter(Boolean);
+      if (objs.length < 2) return objs.length === 1;
+      if (objs.some(o => !o.card || o.zone !== objs[0].zone)) return false;
+      const turn = this.turn, drawStep = this.step === 'draw';
+      const OWN = /^(?:id|game|card|printedCard|ts|exileStamp|_chr|_dyn|_borrow|_lki\w*|_analysis)$/;
+      const sig = (o) => {
+        const creature = o.zone === 'battlefield' && !!(this.characteristics(o) || {}).isCreature;
+        const body = JSON.stringify(o, function (k, v) {
+          if (this === o) {
+            if (OWN.test(k)) return undefined;
+            if (k === 'entered') return v === turn;
+            // (only Sylvan Library asks, in the draw step)
+            if (k === 'drawnTurn') return drawStep ? v === turn : undefined;
+            if (k === 'summoningSick') return creature ? v : undefined;
+          }
+          if (k === 'game') return undefined;
+          return v;
+        });
+        return (o.card.oracle_id || o.card.name) + '|' + o.name + '|' + body;
+      };
+      try {
+        const first = sig(objs[0]);
+        if (objs.some(o => sig(o) !== first)) return false;
+        const ids = new Set(objs.map(o => o.id));
+        const skip = (k, v) => (k === 'game' || k === 'card' || k === 'printedCard' || k === 'pool' || k === 'deck' || k === 'sideboard' ||
+          k === 'spellObjsThisTurn' || /^_(?:chr|dyn|borrow|lki\w*|analysis)$/.test(k) ? undefined : v);
+        const others = [];
+        for (const o of this.objects.values()) if (!ids.has(o.id)) others.push(o);
+        const elsewhere = JSON.stringify([this.stack, this.pendingTriggers, this.delayedTriggers, this.combat, this.prevention, this.players, others], skip);
+        for (const id of ids) if (elsewhere.includes('"' + id + '"')) return false;
+        return true;
+      } catch (e) { return false; }
+    }
+
+    /** A discard asked for, made: what was picked, made up to what is owed from the cards allowed. */
+    _discardAnswer(ch, playerId, data) {
+      const ids = (data && data.cardIds) || [];
+      const z = this.zones[playerId];
+      const tossed = [];
+      /* A discard that is owed is made in full, from the cards the
+         question allows. */
+      const pool = ch.candidates ? z.hand.filter(x => ch.candidates.includes(x.id)) : z.hand.slice();
+      const want = Math.min(ch.count || 0, pool.length);
+      let pick = ids.map(id => pool.find(x => x.id === id)).filter(Boolean);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      if (!ch.optional && pick.length < want) {
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+      }
+      for (const o of pick) { this.moveObject(o, 'graveyard'); tossed.push(o); }
+      const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
+      if (item) item.discarded = (item.discarded || []).concat(tossed.map(o => ({ id: o.id, name: o.name, mv: (o.card && o.card.cmc) || 0 })));
+      this._lastDiscarded = tossed.map(o => o.id);
+      this.logEvent('discard', `${this.player(playerId).name} discards ${tossed.length ? tossed.map(o => o.name).join(', ') : 'nothing'}.`);
+      for (const o of tossed) this._afterDiscard(playerId, o);
+    }
+    /** A sacrifice asked for, made: only what the question allows, and in full when it is owed. */
+    _sacrificeAnswer(ch, playerId, data) {
+      /* Only what the question allows counts, however it was clicked;
+         and a sacrifice that is owed is made in full — what was left
+         out is made up from whatever matters least. */
+      const pool = ch.candidates
+        ? ch.candidates.map(id => this.obj(id)).filter(o => o && o.zone === 'battlefield' && o.controller === playerId)
+        : this._sacrificePool(playerId, { filter: ch.filter || 'permanent' }, null);
+      const want = Math.min(ch.count || 1, pool.length);
+      const ids = (data && data.cardIds) || [];
+      let pick = ids.map(id => pool.find(o => o.id === id)).filter(Boolean);
+      pick = pick.filter((o, i) => pick.indexOf(o) === i).slice(0, want);
+      if (!ch.optional && pick.length < want) {
+        for (const o of this._cheapestFirst(pool)) { if (pick.length >= want) break; if (!pick.includes(o)) pick.push(o); }
+      }
+      const item = ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null;
+      // Doomfall: "exiles a creature they control" — chosen like a sacrifice, but exiled
+      if (ch.exileInstead) {
+        for (const o of pick) { this.moveObject(o, 'exile'); this.logEvent('exile', `${this.player(playerId).name} exiles ${o.name}.`); }
+        return;
+      }
+      this._sacrificeNow(playerId, pick, item);
+      // "When this creature exploits a creature"
+      if (ch.purpose === 'exploit' && pick.length) {
+        const ex = this.obj(ch.sourceId);
+        if (ex) this._fire('exploits', ex.controller, { source: ex, object: pick[0] });
+      }
     }
 
     /** Reduce a raw choice reply to the one value the waiting effect wants. */

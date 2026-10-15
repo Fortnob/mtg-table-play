@@ -15763,7 +15763,8 @@ module.exports = (test) => {
     T.settle(); T.resolve();
     t.zone(jd, 'graveyard');
     t.zone(bear, 'battlefield', 'the Bears (2) come back');
-    t.ok(offered && offered.length, 'asked');
+    // (the Bears the only creature card of lesser mana value: not asked, and the log says so)
+    t.ok(!offered && T.g.log.some(l => l.text === 'A has only one choice: target Grizzly Bears.'), 'only the Bears could be chosen');
     t.no(offered && offered.some(o => o.id === wurm.id), 'the Wurm (6) is not lesser');
   });
 
@@ -21324,7 +21325,8 @@ module.exports = (test) => {
     T3.answer('declareAttackers', () => [{ attackerId: g.id, defenderId: 'A' }, { attackerId: g2.id, defenderId: pw.id }]);
     T3.toMain('B', 'declareBlockers'); T3.resolve();
     t.eq(g.counters.stun, 1, 'a stun counter on the attacker');
-    t.ok(offered && offered.includes(g.id) && !offered.includes(g2.id), 'only a creature attacking you, not one attacking your planeswalker');
+    // (the one creature attacking A is the only target there is: not asked)
+    t.ok(!offered && T3.g.log.some(l => l.text === 'A has only one choice: target Hill Giant.'), 'only a creature attacking you, not one attacking your planeswalker');
     // Toph: earthbend 1, and one more counter on that land for a Lesson
     const T4 = mk();
     T4.toMain('A');
@@ -29636,7 +29638,8 @@ module.exports = (test) => {
     t.zone(z, 'battlefield', 'Zodiark: not itself, a God');
     t.eq(z.counters['+1/+1'], 3, 'Zodiark: a counter for each creature sacrificed');
     t.no(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'B'), 'Zodiark: B is not asked');
-    t.ok(M.asked.some(ch => ch.type === 'sacrifice' && ch.playerId === 'C' && ch.count === 2), 'Zodiark: C picks two');
+    // (five Hill Giants just the same: which two makes no difference, and C is not asked)
+    t.ok(M.g.log.some(l => l.text === "C's choices are all alike: sacrifice Hill Giant, Hill Giant."), 'Zodiark: C sacrifices two, any two');
   });
 
   test('Commanders: The Warring Triad — a creature with eight cards in the graveyard; {T}, mill a card: target player adds one mana', (mk, t) => {
@@ -33322,6 +33325,8 @@ module.exports = (test) => {
     const M = mk({ library: Array(30).fill('Island') });
     const g = M.g;
     const giant = M.bf('B', 'Hill Giant'), bear = M.bf('B', 'Grizzly Bears', { tapped: true });
+    // (a second creature it could take, so that there is a choice to ask about)
+    M.bf('B', 'Llanowar Elves');
     let asked = null;
     M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: bear.id }] }; });
     M.mana('A', 'R2');
@@ -33344,6 +33349,8 @@ module.exports = (test) => {
     M.bf('A', 'Grishnákh, Brash Instigator');
     const giant = M.bf('B', 'Hill Giant');
     const legend = M.bf('B', 'Isamaru, Hound of Konda');
+    // (a second creature it could take, so that there is a choice to ask about)
+    M.bf('B', 'Grizzly Bears');
     M.mana('A', 'R2');
     let asked = null;
     M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
@@ -33426,6 +33433,8 @@ module.exports = (test) => {
     const nar = M.bf('A', 'Narset, Enlightened Exile');
     const bolt = M.grave('B', 'Lightning Bolt');
     const div = M.grave('B', 'Divination'), bear = M.grave('A', 'Grizzly Bears');
+    // (a second card it could take, so that there is a choice to ask about)
+    M.grave('B', 'Shock');
     let asked = null;
     M.answer('pickTarget', (ch) => { asked = ch; return { targets: [{ kind: 'object', id: bolt.id }] }; });
     M.answer('pickTarget', () => ({ targets: [{ kind: 'player', id: 'B' }] }));
@@ -33691,6 +33700,8 @@ module.exports = (test) => {
     const g = M.g;
     const au = M.bf('A', 'Auron, Venerated Guardian');
     const bear = M.bf('B', 'Grizzly Bears'), giant = M.bf('B', 'Hill Giant');
+    // (a second creature small enough, so that there is a choice to ask about)
+    M.bf('B', 'Llanowar Elves');
     let opts = null;
     M.answer('pickTarget', (ch) => { opts = (ch.options || [])[0] || []; return { targets: [opts.find(x => x.id === bear.id)].filter(Boolean) }; });
     M.answer('declareAttackers', () => [{ attackerId: au.id, defenderId: 'B' }]);
@@ -35688,6 +35699,8 @@ module.exports = (test) => {
     const gor = M.bf('A', 'Gornog, the Red Reaper');
     const bear = M.bf('A', 'Grizzly Bears');
     const bearB = M.bf('B', 'Grizzly Bears');
+    // (a second creature of B's, so that there is a choice to ask about)
+    M.bf('B', 'Llanowar Elves');
     const giantC = M.bf('C', 'Hill Giant');
     let picked = null;
     M.answer('pickTarget', (ch) => { picked = ch.options.map(l => l[0] && l[0].id); return { targets: [{ kind: 'object', id: bearB.id }] }; });
@@ -36015,6 +36028,8 @@ module.exports = (test) => {
     const p = [M.bf('A', 'Dire Fleet Hoarder'), M.bf('A', 'Dire Fleet Hoarder'), M.bf('A', 'Dire Fleet Hoarder')];
     t.eq(g.powerOf(p[0]), 3, 'Admiral: other Pirates +1/+1');
     const giant = M.bf('B', 'Hill Giant'), mountain = M.bf('B', 'Mountain');
+    // (a second nonland permanent of B's, so that there is a choice to ask about)
+    M.bf('B', 'Mind Stone');
     const ornC = M.bf('C', 'Ornithopter');
     let opts = null;
     M.answer('pickTarget', (ch) => { opts = (ch.options || [])[0] || []; return { targets: [{ kind: 'object', id: giant.id }] }; });
@@ -38916,7 +38931,8 @@ module.exports = (test) => {
     let offered = null;
     M.answer('pickTarget', (ch) => { offered = ch.options[0].map(x => x.id); return { targets: [{ kind: 'object', id: giant.id }] }; });
     M.mana('A', '2B'); M.cast('A', M.hand('A', 'Lobelia Sackville-Baggins'));
-    t.ok(offered && !offered.includes(old.id), 'Lobelia: not a card that was already there');
+    // (the Giant the only card it could take: not asked, and the log says so)
+    t.ok(!offered && M.g.log.some(l => l.text === 'A has only one choice: target Hill Giant.'), 'Lobelia: not a card that was already there');
     t.zone(giant, 'exile', 'Lobelia: the Giant exiled');
     t.eq(M.bfOf('A').filter(o => o.name === 'Treasure').length, 3, 'Lobelia: three Treasures');
   });
@@ -43496,7 +43512,7 @@ module.exports = (test) => {
     M.bf('A', 'Command Tower');
     M.mana('A', 'RR3');
     const ml = M.hand('A', 'The Motherlode, Excavator');
-    M.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    // (B the only opponent: not asked)
     M.cast('A', ml);
     t.zone(ml, 'battlefield');
     t.eq(g.player('A').energy, 4, 'Motherlode: four energy — B\'s four nonbasic lands');
@@ -44094,6 +44110,8 @@ module.exports = (test) => {
     const q = M.bf('A', 'Quintorius, Loremaster');
     const bears = M.grave('A', 'Grizzly Bears');
     const shock = M.grave('A', 'Shock');
+    // (a second card it could take, so that there is a choice to ask about)
+    M.grave('A', 'Divination');
     const asked = [];
     M.answer('pickTarget', (ch) => { asked.push(ch.options.map(l => l.map(x => x.id))); return { targets: [{ kind: 'object', id: shock.id }] }; });
     M.nextTurn('B');
@@ -46680,6 +46698,8 @@ module.exports = (test) => {
     const shark = M.grave('A', 'Pouncing Shoreshark');
     const bear = M.grave('A', 'Grizzly Bears');
     const theirs = M.grave('B', 'Gemrazer');
+    // (a second mutate card of A's, so that there is a choice to ask about)
+    M.grave('A', 'Gemrazer');
     let opts = null;
     M.answer('pickTarget', (ch) => { opts = (ch.options[0] || []).map(x => x.id); return { targets: [(ch.options[0] || []).find(x => x.id === shark.id)] }; });
     M.answer('declareAttackers', () => [{ attackerId: ot.id, defenderId: 'B' }]);
@@ -48216,7 +48236,10 @@ module.exports = (test) => {
     M.mana('A', 'BR2');
     const lan = M.hand('A', "Legate Lanius, Caesar's Ace");
     M.cast('A', lan);
-    t.eq(M.asked.filter(ch => ch.type === 'sacrifice').map(ch => ch.playerId + ch.count).join(), 'B2,C1', 'Lanius: B two, C one');
+    // (B's eleven Bears all alike, C's one Bear the only one: nobody is asked, and the log says what went)
+    t.eq(M.asked.filter(ch => ch.type === 'sacrifice').length, 0, 'Lanius: nothing to choose');
+    t.ok(M.g.log.some(l => l.text === "B's choices are all alike: sacrifice Grizzly Bears, Grizzly Bears."), 'Lanius: B two');
+    t.ok(M.g.log.some(l => l.text === 'C has only one choice: sacrifice Grizzly Bears.'), 'Lanius: C one');
     t.eq(M.bfOf('B').filter(o => o.name === 'Grizzly Bears').length, 9, 'Lanius: eleven creatures, two go');
     t.eq(M.bfOf('C').length, 0, 'Lanius: one creature, it goes');
     t.eq(M.bfOf('A').filter(o => o.name === 'Grizzly Bears').length, 1, 'Lanius: not yours');
@@ -50294,6 +50317,8 @@ module.exports = (test) => {
     const g = M.g;
     M.bf('A', 'Saruman of Many Colors');
     const shock = M.grave('B', 'Shock'), div = M.grave('B', 'Divination');
+    // (a second card cheap enough, so that there is a choice to ask about)
+    M.grave('B', 'Lava Spike');
     const n0 = M.asked.length;
     M.mana('A', 'U');
     M.cast('A', M.hand('A', 'Opt'));

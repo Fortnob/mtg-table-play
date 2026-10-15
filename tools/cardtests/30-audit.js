@@ -64,7 +64,8 @@ module.exports = (test) => {
     T.mana('B', 'R');
     T.g.passPriority('A', true);
     T.cast('B', T.hand('B', 'Lightning Bolt'), { targets: [bear] });
-    t.eq(JSON.stringify(offered), '["B"]', 'only the opponent was offered');
+    // (the opponent the only target: not asked, and the log says so)
+    t.ok(offered === null && T.g.log.some(l => l.text === 'A has only one choice: target B.'), 'only the opponent could be chosen');
     t.eq(T.life('B'), 19);
     t.eq(T.life('A'), 21);
   });
@@ -115,7 +116,8 @@ module.exports = (test) => {
     T.answer('pickTarget', (ch) => { offered = optIds(ch)[0]; return { targets: [{ kind: 'object', id: bear.id }] }; });
     T.mana('A', 'WW1');
     T.cast('A', fw);
-    t.eq(JSON.stringify(offered), JSON.stringify([bear.id]));
+    // (the Bears the only target: not asked, and the log says so)
+    t.ok(offered === null && T.g.log.some(l => l.text === 'A has only one choice: target Grizzly Bears.'), 'only the Bears could be chosen');
     t.zone(bear, 'exile');
     t.zone(fw, 'battlefield');
   });
@@ -1226,7 +1228,8 @@ module.exports = (test) => {
     let offered;
     T.answer('pickTarget', (ch) => { offered = optIds(ch)[0]; return { targets: [{ kind: 'object', id: b.id }] }; });
     T.cast('A', T.hand('A', 'Embercleave'));
-    t.eq(offered.join(), b.id, 'only your own creatures');
+    // (the Bears the only creature of A's: not asked, and the log says so)
+    t.ok(offered === undefined && T.g.log.some(l => l.text === 'A has only one choice: target Grizzly Bears.'), 'only your own creatures');
     const e = T.bfOf('A').find(o => o.name === 'Embercleave');
     t.eq(e.attachedTo, b.id);
     t.eq(T.g.powerOf(b), 3);
@@ -2066,7 +2069,8 @@ module.exports = (test) => {
 
   test("Audit: each opponent sacrifices in turn order, each asked as the spell resolves (Liliana's Triumph)", (mk, t) => {
     const T = mk({ players: ['A', 'B', 'C'] });
-    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Craw Wurm'); T.bf('C', 'Craw Wurm');
+    // (C with two creatures as well, so that C has something to choose)
+    T.bf('B', 'Grizzly Bears'); T.bf('B', 'Craw Wurm'); T.bf('C', 'Craw Wurm'); T.bf('C', 'Llanowar Elves');
     const order = [];
     const pick = (ch) => { order.push(ch.playerId); return T.g.resolveChoice(ch.playerId, { cardIds: [T.bfOf(ch.playerId).find(o => o.name === 'Grizzly Bears' || ch.playerId === 'C').id] }); };
     T.answer('sacrifice', pick); T.answer('sacrifice', pick);
@@ -2074,7 +2078,7 @@ module.exports = (test) => {
     T.cast('A', T.hand('A', "Liliana's Triumph"));
     t.eq(order.join(), 'B,C');
     t.eq(T.bfOf('B').map(o => o.name).join(), 'Craw Wurm', 'B chose its Bears');
-    t.eq(T.bfOf('C').length, 0);
+    t.eq(T.bfOf('C').length, 1);
   });
 
   test("Audit: a game saved while an opponent's sacrifice is pending resumes where it stopped", (mk, t) => {
@@ -2144,7 +2148,8 @@ module.exports = (test) => {
     T.answer('declareAttackers', () => [{ attackerId: m.id, defenderId: 'B' }]);
     T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [offered[0]] }; });
     T.toMain('A', 'declareBlockers');
-    t.eq(JSON.stringify(offered), JSON.stringify([bb.id]), "only B's creature is offered");
+    // (B's Bears the only target: not asked, and the log says so)
+    t.ok(offered === null && T.g.log.some(l => l.text === 'A has only one choice: target Grizzly Bears.'), "only B's creature could be chosen");
     t.ok(bb.tapped, "B's Bears tapped"); t.no(cb.tapped);
     T = mk({ players: ['A', 'B', 'C'] });
     t.auto('Silumgar, the Drifting Death');
@@ -2171,7 +2176,8 @@ module.exports = (test) => {
     T.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'C' }]);
     T.answer('pickTarget', (ch) => { offered = (ch.options[0] || []).map(o => o.id); return { targets: [offered[0]] }; });
     T.toMain('A', 'declareBlockers');
-    t.eq(JSON.stringify(offered), JSON.stringify([cc.id]), "attacking C: only C's creature is offered");
+    // (C's Bears the only target: not asked, and the log says so)
+    t.ok(offered === null && T.g.log.some(l => l.text === 'A has only one choice: target Grizzly Bears.'), "attacking C: only C's creature could be chosen");
     t.ok(cc.tapped); t.no(bc.tapped);
     T = mk({ players: ['A', 'B', 'C'] });
     t.auto('Terra Ravager');
@@ -3046,7 +3052,8 @@ module.exports = (test) => {
     T.answer('pickTarget', (ch) => { offered = ch.options[0].map(o => o.id); return { targets: [ch.options[0][0]] }; });
     T.answer('declareAttackers', () => [{ attackerId: rd.id, defenderId: 'C' }]);
     T.toMain('A', 'declareBlockers');
-    t.eq(JSON.stringify(offered), JSON.stringify([cg.id]), "only C's graveyard"); t.zone(cg, 'battlefield'); t.zone(bg, 'graveyard');
+    // (C's Craw Wurm the only target: not asked, and the log says so)
+    t.ok(offered === null && T.g.log.some(l => l.text === 'A has only one choice: target Craw Wurm.'), "only C's graveyard"); t.zone(cg, 'battlefield'); t.zone(bg, 'graveyard');
   });
 
   test('Audit: Madcap Experiment counts every card revealed; Nev counts X of the first X spell only', (mk, t) => {
@@ -6572,7 +6579,8 @@ module.exports = (test) => {
   });
   test('Prompts: "each player sacrifices two creatures" asks for "2 creatures", never "creaturess"', (mk, t) => {
     const T = mk({ library: Array(20).fill('Swamp') });
-    for (const pid of ['A', 'B']) for (let i = 0; i < 3; i++) T.bf(pid, 'Grizzly Bears');
+    // (three different creatures each, so that which two is a choice, and asked)
+    for (const pid of ['A', 'B']) for (const nm of ['Grizzly Bears', 'Hill Giant', 'Llanowar Elves']) T.bf(pid, nm);
     T.mana('A', '2BB');
     const n0 = T.asked.length;
     T.cast('A', T.hand('A', 'Barter in Blood'));
