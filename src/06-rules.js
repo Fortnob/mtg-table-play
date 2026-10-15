@@ -4900,7 +4900,7 @@
       const p = this.player(playerId);
       if (c.life && p && p.life <= c.life) return { ok: false, reason: 'Not enough life.' };
       if (c.tapCreatures && this._tapCostPool(playerId, c.tapCreatures, o).length < this._costCount(c.tapCreatures.n, null))
-        return { ok: false, reason: `Not enough untapped ${c.tapCreatures.filter || 'creature'}s to tap.` };
+        return { ok: false, reason: `Not enough untapped ${O.nounPlural(c.tapCreatures.filter || 'creature')} to tap.` };
       // (Sandman, Shifting Scoundrel: "and target land card" — with nothing to target, it can't be activated, CR 602.2b)
       if (!this._targetsAvailable(ab.effects || [], playerId)) return { ok: false, reason: 'There is nothing it could target right now.' };
       return { ok: true, cost: c.mana || '', ability: i };
@@ -9438,11 +9438,11 @@
       } else if (cost.tapCreatures) {
         const need = this._costCount(cost.tapCreatures.n, opts);
         if (this._tapCostPool(pid, cost.tapCreatures, self, cost.tap).length < need)
-          return `Not enough untapped ${cost.tapCreatures.filter}s to tap.`;
+          return `Not enough untapped ${O.nounPlural(cost.tapCreatures.filter)} to tap.`;
       }
       // Halo Fountain: "Untap a tapped creature you control" (untapCreatures)
       if (cost.untapCreatures && this._untapCostPool(pid, cost.untapCreatures, self).length < cost.untapCreatures.n)
-        return `Not enough tapped ${cost.untapCreatures.filter}s to untap.`;
+        return `Not enough tapped ${O.nounPlural(cost.untapCreatures.filter)} to untap.`;
       if (cost.life != null && cost.spellLife) {
         const k = cost.life === 'X' ? ((opts && opts.x) || 0) : cost.life;
         if (p && p.life < k) return 'Not enough life.';
@@ -9536,7 +9536,7 @@
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
               candidates: pool.map(x => x.id),
-              prompt: `Sacrifice ${need === 1 ? this._aCard(cost.sacrifice.filter || 'permanent') : need + ' ' + (cost.sacrifice.filter || 'permanent') + 's'} to pay the cost.` });
+              prompt: `Sacrifice ${need === 1 ? this._aCard(cost.sacrifice.filter || 'permanent') : O.nounCount(need, cost.sacrifice.filter || 'permanent')} to pay the cost.` });
           }
         }
         if (pick) this._sacrificeNow(pid, pick, item);
@@ -9551,7 +9551,7 @@
               pick2 = null;
               ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
                 candidates: pool2.map(x => x.id),
-                prompt: `Sacrifice ${need2 === 1 ? this._aCard(cost.sacrificeAlso.filter) : need2 + ' ' + cost.sacrificeAlso.filter + 's'} to pay the cost.` });
+                prompt: `Sacrifice ${need2 === 1 ? this._aCard(cost.sacrificeAlso.filter) : O.nounCount(need2, cost.sacrificeAlso.filter)} to pay the cost.` });
             }
           }
           if (pick2) this._sacrificeNow(pid, pick2, item);
@@ -9668,7 +9668,7 @@
         } else if (need) {
           ask({ type: 'pickCard', count: need, purpose: 'beholdCost', exile: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Behold ${need === 1 ? 'a ' + cost.behold.filter : need + ' ' + cost.behold.filter + 's'} and exile it: one you control or one from your hand.` });
+            prompt: `Behold ${need === 1 ? 'a ' + cost.behold.filter : O.nounCount(need, cost.behold.filter)} and exile it: one you control or one from your hand.` });
         }
       }
       if (cost.returnOwn) {
@@ -9683,7 +9683,7 @@
         else if (pool.length) {
           ask({ type: 'pickCard', count: need, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : need + ' ' + cost.returnOwn.filter + 's'} you control to their owner's hand.` });
+            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : O.nounCount(need, cost.returnOwn.filter)} you control to their owner's hand.` });
         }
       }
       /* Permanents tapped to pay ("Tap an untapped creature you control"):
@@ -9714,7 +9714,7 @@
             pick = null;
             ask({ type: 'pickCard', count: need, purpose: 'tapCost', worst: true, candidates: pool.map(x => x.id),
               cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + cost.tapCreatures.filter + 's'} you control to pay the cost.` });
+              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + O.nounPlural(cost.tapCreatures.filter)} you control to pay the cost.` });
           }
         }
         if (pick) this._tapForCost(pid, pick, item);
@@ -20110,7 +20110,7 @@
           const pool = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !o.tapped && this._cardFitsWords(o, e.filter || 'creature'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'tapAnyYours', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
-            min: 0, max: pool.length, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of ${e.filter || 'creature'}s you control.` }, 'tay');
+            min: 0, max: pool.length, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of ${O.nounPlural(e.filter || 'creature')} you control.` }, 'tay');
           if (got === SUSPEND) return SUSPEND;
           for (const id of ((got && got.picks) || [])) { const o = pool.find(x => x.id === id); if (o && !o.tapped) this._markTapped(o); }
           break;
@@ -20195,7 +20195,7 @@
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${howMany} ${e.filter || 'permanent'}${howMany === 1 ? '' : 's'}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${O.nounCount(howMany, e.filter || 'permanent')}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -21339,7 +21339,7 @@
           const fits = (y) => (what === 'creature' ? !!(this.characteristics(y) || {}).isCreature : what === 'artifact' ? !!(y.analysis() || {}).isArtifact : true);
           for (const x of this.battlefield.filter(y => y.controller === q.id && !y.phasedOut && fits(y))) x.effects.push({ control: ctx.controller, until: null, ts });
           this._refreshControl();
-          this.logEvent('control', `${me.name} gains control of ${q.name}'s ${what}s.`);
+          this.logEvent('control', `${me.name} gains control of ${q.name}'s ${O.nounPlural(what)}.`);
           break;
         }
         // Exert (CR 701.43): it won't untap during your next untap step
@@ -22656,7 +22656,7 @@
               if (perms.length < need) { this._spliceNext(e.then); break; }
               const gotN = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(perms), min: 0, max: need, prefer: 'worst',
-                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${whole(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
+                prompt: e.prompt || `Sacrifice ${O.nounCount(need, String(e.cost.sacrifice))}? If you don't: ${whole(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
               if (gotN === SUSPEND) return SUSPEND;
               const xs = ((gotN && gotN.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x));
               if (xs.length === need) this._sacrificeNow(payer.id, xs, null);
@@ -24493,7 +24493,7 @@
             .filter(x => x && x.zone === 'battlefield' && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter)));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'bounceFromBatch', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
-            min: 0, max: 1, harmful: true, prompt: `You may return one of those ${e.filter ? e.filter + 's' : 'creatures'} to its owner's hand.` }, 'bfb');
+            min: 0, max: 1, harmful: true, prompt: `You may return one of those ${e.filter ? O.nounPlural(e.filter) : 'creatures'} to its owner's hand.` }, 'bfb');
           if (got === SUSPEND) return SUSPEND;
           const x = ((got && got.picks) || []).map(id => this.obj(id)).find(o => o && pool.includes(o) && o.zone === 'battlefield');
           if (x) { this.moveObject(x, 'hand'); this.logEvent('zone', `${me.name} returns ${x.name} to its owner's hand.`); }
@@ -28393,7 +28393,7 @@
           const split = pool.length < 2 ? { picks: pool.map(o => o.id) } : this._choose({ playerId: ctx.controller, purpose: 'pileSplit', kind: 'objects',
             zone: 'battlefield', panel: true, items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
             forPlayer: tp.id, harmful: true, confirmLabel: 'These are one pile',
-            prompt: `Separate ${tp.name}'s ${e.filter}s into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
+            prompt: `Separate ${tp.name}'s ${O.nounPlural(e.filter)} into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
           if (split === SUSPEND) return SUSPEND;
           const one = pool.filter(o => split && (split.picks || []).includes(o.id));
           const two = pool.filter(o => !one.includes(o));
@@ -28556,7 +28556,7 @@
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             c.flashbackTurn = this.turn;
           }
-          this.logEvent('rules', `${me.name}'s ${e.filter || 'card'}s in the graveyard gain flashback until end of turn.`);
+          this.logEvent('rules', `${me.name}'s ${O.nounPlural(e.filter || 'card')} in the graveyard gain flashback until end of turn.`);
           break;
         /* Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains 'You may play this
            card from your graveyard.'" — the cards there now (CR 611.2c), not ones that arrive later (gravePlayBy) */
@@ -30212,7 +30212,7 @@
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'sacrificeAnyNumber', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 0, max: pool.length,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${e.filter || 'permanent'}s.` }, 'sacAny');
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${O.nounPlural(e.filter || 'permanent')}.` }, 'sacAny');
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
           // "that many": what the next words count
@@ -32578,7 +32578,7 @@
           // Mana Vortex: "When there are no lands on the battlefield, sacrifice this enchantment."
           const noneAll = this._staticOp(o, 'sacWhenNoneAtAll');
           if (noneAll && o.zone === 'battlefield' && !this.battlefield.some(x => x !== o && !x.phasedOut && this._cardFitsWords(x, noneAll.what))) {
-            this.logEvent('sba', `${o.name} is sacrificed (there are no ${noneAll.what}s on the battlefield).`);
+            this.logEvent('sba', `${o.name} is sacrificed (there are no ${O.nounPlural(noneAll.what)} on the battlefield).`);
             this.moveObject(o, 'graveyard');
             repeat = true;
             continue;
@@ -32587,7 +32587,7 @@
           const tooMany = this._staticOp(o, 'sacWhenControlAtLeast');
           if (tooMany && o.zone === 'battlefield' &&
               this.battlefield.filter(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, tooMany.what)).length >= tooMany.n) {
-            this.logEvent('sba', `${o.name} is sacrificed (${tooMany.n} or more ${tooMany.what}s).`);
+            this.logEvent('sba', `${o.name} is sacrificed (${tooMany.n} or more ${O.nounPlural(tooMany.what)}).`);
             this._sacrificeNow(o.controller, [o], null);
             repeat = true;
             continue;

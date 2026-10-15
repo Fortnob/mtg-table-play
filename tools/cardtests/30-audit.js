@@ -6570,4 +6570,25 @@ module.exports = (test) => {
     T.mana('A', 'R'); T.cast('A', T.hand('A', 'Lightning Bolt'), { targets: [b.id] });
     t.eq(tk.counters['+1/+1'] || 0, 0, 'it died: nothing');
   });
+  test('Prompts: "each player sacrifices two creatures" asks for "2 creatures", never "creaturess"', (mk, t) => {
+    const T = mk({ library: Array(20).fill('Swamp') });
+    for (const pid of ['A', 'B']) for (let i = 0; i < 3; i++) T.bf(pid, 'Grizzly Bears');
+    T.mana('A', '2BB');
+    const n0 = T.asked.length;
+    T.cast('A', T.hand('A', 'Barter in Blood'));
+    const qs = T.asked.slice(n0).filter(c => c.type === 'sacrifice');
+    t.ok(qs.length > 0, 'asked to sacrifice');
+    for (const q of qs) {
+      t.ok(/Sacrifice 2 creatures\b/.test(q.prompt), q.prompt);
+      t.no(/creaturess/.test(q.prompt), q.prompt);
+    }
+  });
+  test('Prompts: nounCount makes the noun plural once', (mk, t) => {
+    const O = mk().MTG.oracle;
+    t.eq(O.nounCount(13, 'creatures'), '13 creatures');
+    t.eq(O.nounCount(2, 'creature with flying'), '2 creatures with flying');
+    t.eq(O.nounCount(3, 'Elf'), '3 Elves');
+    t.eq(O.nounCount(2, 'artifact or creature'), '2 artifacts or creatures');
+    t.eq(O.nounCount(1, 'creature'), '1 creature');
+  });
 };

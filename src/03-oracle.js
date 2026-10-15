@@ -20995,6 +20995,28 @@
     return lw.replace(/([^s])s$/, '$1');
   }
   function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  /* "Sacrifice 3 creatures with flying": a count and what it counts, the head noun made plural once — a
+     phrase already plural ("creatures", "Elves", "Plains") is left as it is, the words after it too */
+  const SINGULAR_TO_PLURAL = Object.fromEntries(Object.entries(PLURAL_TYPES).map(([pl, sg]) => [sg, pl]));
+  function pluralWord(w) {
+    const lw = w.toLowerCase();
+    if (singularType(lw) !== lw || lw === 'plains') return w;           // plural already
+    let out = SINGULAR_TO_PLURAL[lw] ||
+      (/[^aeiou]y$/.test(lw) ? lw.replace(/y$/, 'ies') : /(?:x|ch|sh|ss|s)$/.test(lw) ? lw + 'es' : lw + 's');
+    if (/^[A-Z]/.test(w)) out = out.charAt(0).toUpperCase() + out.slice(1);
+    return out;
+  }
+  /** The same, without the number: "creatures with flying". */
+  function nounPlural(phrase) { return nounCount(2, phrase).slice(2); }
+  function nounCount(n, phrase) {
+    phrase = String(phrase || 'permanent').trim();
+    if (Number(n) === 1) return n + ' ' + phrase;
+    const m = phrase.match(/^(.*?)(\s+(?:with|without|that|you|they|an? opponent|your opponents|of|other than|named|in|on|from|among)\b.*)?$/);
+    const head = m[1], rest = m[2] || '';
+    // "artifact or creature": each kind named, plural ("artifacts or creatures")
+    const lastWordPlural = (part) => { const at = part.lastIndexOf(' '); return part.slice(0, at + 1) + pluralWord(part.slice(at + 1)); };
+    return n + ' ' + head.split(/(\s+(?:and\/or|or|and)\s+|,\s+)/).map((part, i) => (i % 2 ? part : lastWordPlural(part))).join('') + rest;
+  }
 
   /* ---------------- exported ---------------- */
 
@@ -21138,6 +21160,8 @@
     parseTypeLine, scopeOf,
     // (the engine's counts: "the number of Elves you control" — pluralTypes)
     singularType,
+    // "Sacrifice 3 creatures": a count and its noun, made plural once (nounCount, nounPlural)
+    nounCount, nounPlural,
     // what a ward asks, for the table that takes it
     wardPrice,
     parseCost,
