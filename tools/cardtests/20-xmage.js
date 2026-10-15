@@ -51216,6 +51216,8 @@ module.exports = (test) => {
     const T = mk({ library: Array(20).fill('Plains') });
     const g = T.g;
     const giant = T.bf('B', 'Hill Giant');
+    // (a second permanent, so the target is a real choice and asked)
+    T.bf('B', 'Grizzly Bears');
     T.nextTurn('A');
     let q = null;
     T.answer('pickTarget', (ch) => { q = ch; return { targets: [{ kind: 'object', id: giant.id }] }; });
@@ -51223,7 +51225,8 @@ module.exports = (test) => {
     T.mana('A', 'W3');
     T.cast('A', ky);
     T.resolve();
-    t.ok(q && !(q.choices || q.options || []).some(c => (c.id || c) === ky.id), 'Kyodai itself is not a choice');
+    const offered = q ? [].concat(...(q.options || []).map(x => (Array.isArray(x) ? x : [x])), q.choices || []) : [];
+    t.ok(q && offered.length && !offered.some(c => (c && (c.id || c)) === ky.id), 'Kyodai itself is not a choice');
     t.ok(g.hasKw(giant, 'indestructible'), "an opponent's creature can be chosen: indestructible");
     T.mana('A', 'WUBRG');
     T.activate('A', ky, 0);
