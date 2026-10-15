@@ -859,6 +859,40 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .price-pill i { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
 .price-pill:hover { border-color: var(--accent); }
 :root[data-touch] .price-pill { min-height: 32px; padding: 6px 12px; }
+/* a card's price on its picture (UI.priceTag) */
+.price-tag {
+  position: absolute; right: 5px; bottom: 5px; z-index: 3; pointer-events: none; white-space: nowrap;
+  padding: 1px 6px; border-radius: 99px; font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums;
+  color: #e9ffe9; background: rgba(6,8,11,.84); border: 1px solid rgba(120,230,140,.45);
+}
+.price-tag.none { color: #b9c0cc; font-weight: 600; border-color: rgba(255,255,255,.16); }
+/* a card the deck's format will not have: red, and why (the list's lines, UI.markIllegal) */
+.deck-entry.illegal { border-color: rgba(229,72,77,.9) !important; box-shadow: inset 3px 0 0 #e5484d; }
+.deck-entry.strip.illegal::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit; pointer-events: none;
+  background: linear-gradient(90deg, rgba(200,36,48,.5), rgba(200,36,48,.28));
+}
+.deck-entry .nm-col { flex: 1; min-width: 0; display: flex; flex-direction: column; padding: 3px 0; }
+.deck-entry .nm-col .nm { flex: none; }
+.illegal-why { font-size: 10.5px; font-weight: 700; line-height: 1.25; color: #ffc2c4; text-shadow: 0 1px 2px rgba(0,0,0,.7); }
+:root[data-theme="light"] .illegal-why { color: #b3141f; text-shadow: none; }
+.card-slot.illegal .illegal-veil {
+  position: absolute; inset: 0; z-index: 3; border-radius: 5% / 3.6%; pointer-events: none;
+  background: rgba(200,36,48,.36); box-shadow: inset 0 0 0 2px #e5484d;
+}
+.illegal-ribbon {
+  position: absolute; left: 6%; right: 6%; top: 34%; z-index: 4; pointer-events: none;
+  padding: 5px 6px; border-radius: 6px; background: rgba(150,20,28,.94); color: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.55);
+  font-size: 11px; font-weight: 700; line-height: 1.25; text-align: center; overflow-wrap: anywhere;
+}
+/* the deck list's order and prices, and what the deck costs */
+.deck-sort-row { flex-wrap: wrap; row-gap: 6px; }
+.deck-head-row.deck-sort-row select { flex: none; width: auto; max-width: 100%; padding-top: 6px; padding-bottom: 6px; font-size: 12.5px; }
+.deck-sort-row .inline-check { white-space: nowrap; }
+.deck-total { font-size: 12.5px; white-space: nowrap; }
+.deck-total b { font-variant-numeric: tabular-nums; color: var(--ink); }
+.deck-total i { font-style: normal; font-size: 10.5px; color: var(--ink-3); }
+.panel > .deck-sort-row { margin: 0 0 10px; }
 /* a commander named in the lobby is a card you can look at */
 .cmd-link {
   background: none; border: 0; padding: 0; font: inherit; font-size: 12.5px;
@@ -971,6 +1005,7 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 }
 .suggest-chip:hover { border-color: var(--accent); color: var(--ink); background: var(--bg-4); }
 .search-filters { align-items: center; gap: 14px; }
+.search-filters .search-sort { width: auto; padding-top: 5px; padding-bottom: 5px; font-size: 12.5px; }
 .inline-check { display: flex; align-items: center; gap: 7px; font-size: 12.5px; cursor: pointer; }
 .inline-check input { width: 16px; height: 16px; }
 .search-grid {
@@ -1281,6 +1316,9 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 14px 0; }
 .gap-num.warn { color: var(--warn); }
 .gap-num.over { color: var(--info); }
 .gap-hint { width: 78px; flex: none; }
+
+/* where a Commander deck's suggestions come from */
+.sugg-from { gap: 8px; margin-bottom: 10px; }
 
 /* suggestion rows */
 .sugg-row {
@@ -5142,6 +5180,9 @@ details[open] > summary > .rules-chev { transform: rotate(225deg) translateY(-2p
 .bracket-step:hover { opacity: .9; }
 .bracket-step.picked { opacity: 1; border-style: solid; border-color: var(--bc); outline: 2px solid color-mix(in srgb, var(--bc) 55%, transparent); outline-offset: 1px; }
 .bracket-hint { margin: -4px 0 8px; text-align: center; }
+.bracket-view > p.bracket-about { margin: 0 0 4px; }
+.bracket-rules { margin: 0 0 10px; padding-left: 20px; font-size: 13px; line-height: 1.5; color: var(--ink-2, #c9cfda); }
+.bracket-rules li::marker { color: var(--gold-hi, #e8c75c); }
 .bracket-view > p.small { margin: 0 0 8px; }
 .bracket-none.fits { border-color: color-mix(in srgb, var(--good, #6fbf8a) 40%, transparent); }
 .bracket-over { color: var(--bad); font-size: 13px; margin: 0 0 6px; }
@@ -5920,6 +5961,12 @@ html[data-play="1"] .shard-chip { display: none; }
 .col-pips i { width: 8px; height: 8px; border-radius: 2px; transform: rotate(45deg); background: rgba(255,255,255,.13); }
 .col-pips i.on { background: linear-gradient(135deg, #fff1c2, var(--gold-hi, #f3cf7a)); box-shadow: 0 0 6px rgba(255, 210, 120, .75); }
 .col-sort { min-width: 0 !important; }
+/* a card's price, beside its copies */
+.col-pips { align-items: center; }
+.col-price { margin-left: 4px; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: #e9ffe9; line-height: 1; }
+.col-price.none { color: #b9c0cc; font-weight: 600; }
+.col-filters .col-show-price { white-space: nowrap; }
+.col-filters .col-show-price input, :root[data-phone] .col-filters .col-show-price input { width: 16px; min-width: 0; flex: none; }
 /* the rarity chips: each letter in its rarity's colour, lit when chosen (outranking the plain chip's colours) */
 .seg.mini.rar-chips .seg-btn[class*="rar-"] { font-weight: 800; min-width: 30px; }
 .seg.mini.rar-chips .seg-btn.rar-common { color: #e4e7ec; }
@@ -7865,6 +7912,11 @@ const U = MTG.util = {
   priceSymbol(cur) {
     return { usd: '$', eur: '\u20ac', tix: '' }[cur || MTG.settings.priceCurrency || 'usd'] || '$';
   },
+  /** Dearest first, for a sort: a card with no price after every card with one. */
+  byPriceDesc(a, b, cur) {
+    const x = MTG.util.priceOf(a, cur), y = MTG.util.priceOf(b, cur);
+    return ((x == null) - (y == null)) || ((y || 0) - (x || 0));
+  },
   money(n, cur) {
     if (n == null) return '\u2014';
     const sym = MTG.util.priceSymbol(cur);
@@ -8023,13 +8075,16 @@ const defaultSettings = {
   deckSort: 'recent',
   deckFilter: 'all',
   rulePresets: {},               // formatId -> [{name, rules}] the host saved
-  showCardPrices: false,         // a price on every line of the decklist
+  showCardPrices: false,         // a price on every card: the decklist, its search, the collection
+  deckListSort: 'type',          // the deck builder's list: 'type' | 'mv' | 'name' | 'color' | 'rarity' | 'price'
+  searchSort: 'color',           // the deck builder's card search: 'color' | 'price' | 'name'
+  collectionSort: 'color',       // the Collection's order (COL_SORTS in src/10d-ui-store.js)
   priceCurrency: 'usd',          // 'usd' | 'eur' | 'tix'
   chaosPool: null,               // {preset, sets:[code]} for chaos draft
   compactZones: false,
   showOracleOnHover: true,
   recommanderRelay: '',          // the relay Commander suggestions are asked through (src/16b-recommander.js); empty: the one built in
-  suggestFrom: 'recommander',    // where Commander suggestions come from: 'recommander' | 'edhrec'
+  suggestFrom: 'both',           // where Commander suggestions come from: 'both' | 'recommander' | 'edhrec'
   keywordHelp: true,             // what each keyword means, beside an enlarged card
   stackAutoResolve: false,
   priorityTimer: 15,             // seconds before a pass-or-respond moment passes by itself (0: never)
@@ -8066,6 +8121,15 @@ MTG.settings = loadSettings();
 if (MTG.settings.botPaceV !== 2) {
   if (MTG.settings.botSpeed === 600) MTG.settings.botSpeed = 1500;
   MTG.settings.botPaceV = 2;
+  try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
+}
+/* Suggestions: asking Recommander and EDHREC both became the default. The
+   'recommander' saved before then was the old default written out with
+   everything else, not a choice, so it becomes 'both', once; EDHREC alone
+   was chosen, and stays. */
+if (MTG.settings.suggestFromV !== 2) {
+  if (MTG.settings.suggestFrom === 'recommander') MTG.settings.suggestFrom = 'both';
+  MTG.settings.suggestFromV = 2;
   try { localStorage.setItem(LS_KEY, JSON.stringify(MTG.settings)); } catch (e) { /* kept for this visit only */ }
 }
 MTG.saveSettings = function () {
@@ -11608,7 +11672,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         return (pa[P.set] < pb[P.set] ? -1 : pa[P.set] > pb[P.set] ? 1 : 0) || cnCompare(pa[P.collector_number], pb[P.collector_number]);
       };
       const num = (f) => (a, b) => (f(a) - f(b)) || byName(a, b);
-      const price = (pi) => { const pr = P_[pi][P.prices]; const n = pr ? parseFloat(pr[0]) : NaN; return Number.isFinite(n) ? n : Infinity; };
+      // a price in the currency asked (a foil's dollars for a card only printed foil); none is not cheap, so it goes last either way
+      const priceAt = { usd: [0, 1], eur: [2], tix: [3] }[order];
+      const price = (pi) => {
+        const pr = P_[pi][P.prices];
+        for (const k of (pr ? priceAt : [])) { const n = parseFloat(pr[k]); if (Number.isFinite(n)) return n; }
+        return null;
+      };
       let cmp, desc = dir === 'desc';
       switch (order) {
         case 'edhrec': cmp = (a, b) => { const x = r(a).edh, y = r(b).edh; return x === y ? byName(a, b) : x < y ? -1 : 1; }; break;
@@ -11628,7 +11698,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           cmp = (a, b) => (grp(r(a).cs[0]) - grp(r(b).cs[0])) || (mv(a) - mv(b)) || byName(a, b);
           break;
         }
-        case 'usd': cmp = num(price); break;
+        case 'usd': case 'eur': case 'tix': {
+          const sign = desc ? -1 : 1;
+          desc = false;
+          cmp = (a, b) => { const x = price(a), y = price(b); return ((x == null) - (y == null)) || sign * ((x || 0) - (y || 0)) || byName(a, b); };
+          break;
+        }
         case 'artist': cmp = (a, b) => String(P_[a][P.artist] || '').localeCompare(String(P_[b][P.artist] || '')) || byName(a, b); break;
         default: cmp = byName;
       }
@@ -34214,6 +34289,28 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     return lw.replace(/([^s])s$/, '$1');
   }
   function escapeRe(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+  /* "Sacrifice 3 creatures with flying": a count and what it counts, the head noun made plural once — a
+     phrase already plural ("creatures", "Elves", "Plains") is left as it is, the words after it too */
+  const SINGULAR_TO_PLURAL = Object.fromEntries(Object.entries(PLURAL_TYPES).map(([pl, sg]) => [sg, pl]));
+  function pluralWord(w) {
+    const lw = w.toLowerCase();
+    if (singularType(lw) !== lw || lw === 'plains') return w;           // plural already
+    let out = SINGULAR_TO_PLURAL[lw] ||
+      (/[^aeiou]y$/.test(lw) ? lw.replace(/y$/, 'ies') : /(?:x|ch|sh|ss|s)$/.test(lw) ? lw + 'es' : lw + 's');
+    if (/^[A-Z]/.test(w)) out = out.charAt(0).toUpperCase() + out.slice(1);
+    return out;
+  }
+  /** The same, without the number: "creatures with flying". */
+  function nounPlural(phrase) { return nounCount(2, phrase).slice(2); }
+  function nounCount(n, phrase) {
+    phrase = String(phrase || 'permanent').trim();
+    if (Number(n) === 1) return n + ' ' + phrase;
+    const m = phrase.match(/^(.*?)(\s+(?:with|without|that|you|they|an? opponent|your opponents|of|other than|named|in|on|from|among)\b.*)?$/);
+    const head = m[1], rest = m[2] || '';
+    // "artifact or creature": each kind named, plural ("artifacts or creatures")
+    const lastWordPlural = (part) => { const at = part.lastIndexOf(' '); return part.slice(0, at + 1) + pluralWord(part.slice(at + 1)); };
+    return n + ' ' + head.split(/(\s+(?:and\/or|or|and)\s+|,\s+)/).map((part, i) => (i % 2 ? part : lastWordPlural(part))).join('') + rest;
+  }
 
   /* ---------------- exported ---------------- */
 
@@ -34357,6 +34454,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     parseTypeLine, scopeOf,
     // (the engine's counts: "the number of Elves you control" — pluralTypes)
     singularType,
+    // "Sacrifice 3 creatures": a count and its noun, made plural once (nounCount, nounPlural)
+    nounCount, nounPlural,
     // what a ward asks, for the table that takes it
     wardPrice,
     parseCost,
@@ -34685,16 +34784,50 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /** Whether the Commander brackets mean anything at this table. */
   function usesBrackets(fmt) { return !!(fmt && fmt.hasBrackets && fmt.kind !== 'limited'); }
 
+  /* -------- what keeps one card out --------
+     The words the deck builder marks a card with (validate's cardIssues),
+     and a search result with: short, and about this card alone. */
+  /** Whose colours a deck keeps to, for saying so: "Atraxa's", or "your commanders'". */
+  function coloursOf(leaders) {
+    if (!leaders || !leaders.length) return null;
+    if (leaders.length > 1) return 'your commanders\u2019';
+    return String(U.frontName(leaders[0].name) || '').split(',')[0].trim() + '\u2019s';
+  }
+  /**
+   * What keeps this card out of a deck of this format on its own: banned,
+   * not legal, or (with `ci`, a Set of colours, and `whose`, from coloursOf)
+   * outside the commander's colours. Null when nothing does.
+   */
+  function cardProblem(card, fmt, ci, whose) {
+    if (!card || !fmt) return null;
+    if (fmt.scryKey) {
+      const l = legalityOf(card, fmt);
+      if (l === 'banned') return `Banned in ${fmt.name}`;
+      if (l === 'not_legal') return `Not legal in ${fmt.name}`;
+    }
+    if (ci && colorIdentity(card).some(col => !ci.has(col))) return `Outside ${whose || 'your commander\u2019s'} colours`;
+    return null;
+  }
+
   /* -------- the validator -------- */
 
   /**
-   * validate(deck, formatId) -> { ok, errors:[], warnings:[], stats }
+   * validate(deck, formatId) -> { ok, errors:[], warnings:[], stats, cardIssues }
    * deck = { main:[{card, qty}], sideboard:[], commanders:[card], companion:card|null }
+   * cardIssues: what is wrong with each card the errors name, in a few
+   * words, by its name (cardIssuesFor reads it).
    */
   function validate(deck, formatId, rules) {
     const fmt = typeof formatId === 'object' && formatId ? formatId : effective(formatId, rules);
     const errors = [], warnings = [];
-    if (!fmt) return { ok: false, errors: ['Unknown format: ' + formatId], warnings, stats: {} };
+    const cardIssues = new Map();
+    if (!fmt) return { ok: false, errors: ['Unknown format: ' + formatId], warnings, stats: {}, cardIssues };
+    const flag = (card, why) => {
+      const k = U.normName(U.frontName(card.name));
+      const list = cardIssues.get(k) || [];
+      if (!list.includes(why)) list.push(why);
+      cardIssues.set(k, list);
+    };
 
     const main = deck.main || [];
     const side = deck.sideboard || [];
@@ -34749,7 +34882,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       if (!oath.leaders.length) errors.push('Choose an Oathbreaker: a planeswalker.');
       else if (oath.leaders.length > 1) errors.push('One Oathbreaker only.');
       for (const c of oath.leaders)
-        if (!canBeCommander(c, fmt)) errors.push(`${c.name} can't be your Oathbreaker (it has to be a planeswalker).`);
+        if (!canBeCommander(c, fmt)) { errors.push(`${c.name} can't be your Oathbreaker (it has to be a planeswalker).`); flag(c, 'Can\u2019t be your Oathbreaker: it has to be a planeswalker'); }
       if (!oath.signatures.length) errors.push('Choose a Signature Spell: an instant or sorcery in your Oathbreaker’s colours.');
       else if (oath.signatures.length > 1) errors.push('One Signature Spell only.');
     } else if (fmt.commander) {
@@ -34763,9 +34896,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           info0.some(i => i.background) && info0.some(i => i.isBackground);
         commanders.forEach((c, k) => {
           if (bgPaired && info0[k].isBackground) return;
-          if (!canBeCommander(c, fmt)) errors.push(fmt.walkerCommander
-            ? `${c.name} can't be a commander (needs to be ${commanderRule(fmt)}).`
-            : `${c.name} can't be a commander (needs to be a legendary creature or say so).`);
+          if (!canBeCommander(c, fmt)) {
+            errors.push(fmt.walkerCommander
+              ? `${c.name} can't be a commander (needs to be ${commanderRule(fmt)}).`
+              : `${c.name} can't be a commander (needs to be a legendary creature or say so).`);
+            flag(c, fmt.walkerCommander ? `Can\u2019t be a commander: it needs to be ${commanderRule(fmt)}`
+              : 'Can\u2019t be a commander: it needs to be a legendary creature or say so');
+          }
         });
         if (commanders.length > 1) {
           const infos = info0;
@@ -34800,8 +34937,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (limit != null) {
       for (const [, e] of byName) {
         if (unlimitedAllowed(e.card)) continue;
-        if (e.qty > limit)
+        if (e.qty > limit) {
           errors.push(`${e.card.name}: ${e.qty} copies, but ${fmt.name} allows ${limit}.`);
+          flag(e.card, limit === 1 ? 'Only 1 copy allowed' : `Only ${limit} copies allowed`);
+        }
       }
     }
 
@@ -34812,14 +34951,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (fmt.colorIdentity && leaders.length) {
       ci = new Set();
       for (const c of leaders) for (const col of colorIdentity(c)) ci.add(col);
+      const whose = coloursOf(leaders);
       for (const e of main) {
         const bad = colorIdentity(e.card).filter(col => !ci.has(col));
-        if (bad.length)
+        if (bad.length) {
           errors.push(`${e.card.name} is outside your commander's color identity (${bad.join('')}).`);
+          flag(e.card, `Outside ${whose} colours`);
+        }
       }
       for (const c of (oath ? oath.signatures : [])) {
         const bad = colorIdentity(c).filter(col => !ci.has(col));
-        if (bad.length) errors.push(`${c.name} is outside your Oathbreaker's colour identity (${bad.join('')}), so it can't be your Signature Spell.`);
+        if (bad.length) {
+          errors.push(`${c.name} is outside your Oathbreaker's colour identity (${bad.join('')}), so it can't be your Signature Spell.`);
+          flag(c, `Outside ${whose} colours`);
+        }
       }
     }
 
@@ -34827,9 +34972,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     if (fmt.scryKey) {
       for (const [, e] of byName) {
         const l = legalityOf(e.card, fmt);
-        if (l === 'banned') errors.push(`${e.card.name} is banned in ${fmt.name}.`);
-        else if (l === 'restricted' && e.qty > 1) errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`);
-        else if (l === 'not_legal') errors.push(`${e.card.name} is not legal in ${fmt.name}.`);
+        if (l === 'banned') { errors.push(`${e.card.name} is banned in ${fmt.name}.`); flag(e.card, `Banned in ${fmt.name}`); }
+        else if (l === 'restricted' && e.qty > 1) { errors.push(`${e.card.name} is restricted in ${fmt.name} (max 1).`); flag(e.card, `Restricted in ${fmt.name}: only 1 copy allowed`); }
+        else if (l === 'not_legal') { errors.push(`${e.card.name} is not legal in ${fmt.name}.`); flag(e.card, `Not legal in ${fmt.name}`); }
       }
     }
 
@@ -34868,9 +35013,12 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     else if (sixty && fmt.kind !== 'limited' && stats.lands < 18)
       warnings.push(`${stats.lands} lands is low for a ${fmt.deckMin}-card deck; most run 22-25.`);
 
-    if (realm && main.some(e => isBasicLand(e.card))) errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
+    if (realm && main.some(e => isBasicLand(e.card))) {
+      errors.push("Sovereign's Realm: your starting deck can't have basic land cards.");
+      for (const e of main) if (isBasicLand(e.card)) flag(e.card, 'No basic lands with Sovereign\u2019s Realm');
+    }
     return {
-      ok: errors.length === 0, errors, warnings, stats,
+      ok: errors.length === 0, errors, warnings, stats, cardIssues,
       colorIdentity: ci ? Array.from(ci) : null,
       size, min, max, exact: !!fmt.exactSize, sideboardCount: sideCount,
     };
@@ -35181,7 +35329,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     FORMATS, FORMAT_ORDER,
     get: (id) => FORMATS[id],
     list: () => FORMAT_ORDER.map(id => FORMATS[id]),
-    validate, deckStats, canBeCommander, partnerInfo, colorIdentity,
+    validate, deckStats, canBeCommander, cardProblem, coloursOf,
+    /** What validate found wrong with this card, in a few words each ([] when nothing). */
+    cardIssuesFor: (v, card) => (v && v.cardIssues && card ? v.cardIssues.get(U.normName(U.frontName(card.name))) || [] : []), partnerInfo, colorIdentity,
     houseFields, houseDefaults, houseSummary, effective, presets, choiceLabel, freeMulligansFor, firstPlayerDrawsFor,
     isBasicLand, unlimitedAllowed, legalityOf, suggestedLands, checkCompanion, keepAs, deckFormats,
     commanderRule, commanderQuery, isSignatureSpell, commandParts, copyLimit, lifeFor, usesBrackets,
@@ -40770,7 +40920,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const p = this.player(playerId);
       if (c.life && p && p.life <= c.life) return { ok: false, reason: 'Not enough life.' };
       if (c.tapCreatures && this._tapCostPool(playerId, c.tapCreatures, o).length < this._costCount(c.tapCreatures.n, null))
-        return { ok: false, reason: `Not enough untapped ${c.tapCreatures.filter || 'creature'}s to tap.` };
+        return { ok: false, reason: `Not enough untapped ${O.nounPlural(c.tapCreatures.filter || 'creature')} to tap.` };
       // (Sandman, Shifting Scoundrel: "and target land card" — with nothing to target, it can't be activated, CR 602.2b)
       if (!this._targetsAvailable(ab.effects || [], playerId)) return { ok: false, reason: 'There is nothing it could target right now.' };
       return { ok: true, cost: c.mana || '', ability: i };
@@ -45308,11 +45458,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       } else if (cost.tapCreatures) {
         const need = this._costCount(cost.tapCreatures.n, opts);
         if (this._tapCostPool(pid, cost.tapCreatures, self, cost.tap).length < need)
-          return `Not enough untapped ${cost.tapCreatures.filter}s to tap.`;
+          return `Not enough untapped ${O.nounPlural(cost.tapCreatures.filter)} to tap.`;
       }
       // Halo Fountain: "Untap a tapped creature you control" (untapCreatures)
       if (cost.untapCreatures && this._untapCostPool(pid, cost.untapCreatures, self).length < cost.untapCreatures.n)
-        return `Not enough tapped ${cost.untapCreatures.filter}s to untap.`;
+        return `Not enough tapped ${O.nounPlural(cost.untapCreatures.filter)} to untap.`;
       if (cost.life != null && cost.spellLife) {
         const k = cost.life === 'X' ? ((opts && opts.x) || 0) : cost.life;
         if (p && p.life < k) return 'Not enough life.';
@@ -45406,7 +45556,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             pick = null;
             ask({ type: 'sacrifice', count: need, filter: cost.sacrifice.filter || 'permanent',
               candidates: pool.map(x => x.id),
-              prompt: `Sacrifice ${need === 1 ? this._aCard(cost.sacrifice.filter || 'permanent') : need + ' ' + (cost.sacrifice.filter || 'permanent') + 's'} to pay the cost.` });
+              prompt: `Sacrifice ${need === 1 ? this._aCard(cost.sacrifice.filter || 'permanent') : O.nounCount(need, cost.sacrifice.filter || 'permanent')} to pay the cost.` });
           }
         }
         if (pick) this._sacrificeNow(pid, pick, item);
@@ -45421,7 +45571,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
               pick2 = null;
               ask({ type: 'sacrifice', count: need2, filter: cost.sacrificeAlso.filter,
                 candidates: pool2.map(x => x.id),
-                prompt: `Sacrifice ${need2 === 1 ? this._aCard(cost.sacrificeAlso.filter) : need2 + ' ' + cost.sacrificeAlso.filter + 's'} to pay the cost.` });
+                prompt: `Sacrifice ${need2 === 1 ? this._aCard(cost.sacrificeAlso.filter) : O.nounCount(need2, cost.sacrificeAlso.filter)} to pay the cost.` });
             }
           }
           if (pick2) this._sacrificeNow(pid, pick2, item);
@@ -45538,7 +45688,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         } else if (need) {
           ask({ type: 'pickCard', count: need, purpose: 'beholdCost', exile: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Behold ${need === 1 ? 'a ' + cost.behold.filter : need + ' ' + cost.behold.filter + 's'} and exile it: one you control or one from your hand.` });
+            prompt: `Behold ${need === 1 ? 'a ' + cost.behold.filter : O.nounCount(need, cost.behold.filter)} and exile it: one you control or one from your hand.` });
         }
       }
       if (cost.returnOwn) {
@@ -45553,7 +45703,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         else if (pool.length) {
           ask({ type: 'pickCard', count: need, purpose: 'returnCost', worst: true, candidates: pool.map(x => x.id),
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : need + ' ' + cost.returnOwn.filter + 's'} you control to their owner's hand.` });
+            prompt: `Return ${need === 1 ? 'a ' + cost.returnOwn.filter : O.nounCount(need, cost.returnOwn.filter)} you control to their owner's hand.` });
         }
       }
       /* Permanents tapped to pay ("Tap an untapped creature you control"):
@@ -45584,7 +45734,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             pick = null;
             ask({ type: 'pickCard', count: need, purpose: 'tapCost', worst: true, candidates: pool.map(x => x.id),
               cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
-              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + cost.tapCreatures.filter + 's'} you control to pay the cost.` });
+              prompt: `Tap ${need === 1 ? 'an untapped ' + cost.tapCreatures.filter : need + ' untapped ' + O.nounPlural(cost.tapCreatures.filter)} you control to pay the cost.` });
           }
         }
         if (pick) this._tapForCost(pid, pick, item);
@@ -55980,7 +56130,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const pool = this.battlefield.filter(o => o.controller === ctx.controller && !o.phasedOut && !o.tapped && this._cardFitsWords(o, e.filter || 'creature'));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'tapAnyYours', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
-            min: 0, max: pool.length, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of ${e.filter || 'creature'}s you control.` }, 'tay');
+            min: 0, max: pool.length, optional: true, prompt: `${ctx.name ? ctx.name + ': ' : ''}tap any number of ${O.nounPlural(e.filter || 'creature')} you control.` }, 'tay');
           if (got === SUSPEND) return SUSPEND;
           for (const id of ((got && got.picks) || [])) { const o = pool.find(x => x.id === id); if (o && !o.tapped) this._markTapped(o); }
           break;
@@ -56065,7 +56215,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             const q = Object.assign({
               type: 'sacrifice', playerId: p.id, count: Math.min(howMany, pool.length),
               filter: e.filter || 'permanent', candidates: pool.map(x => x.id),
-              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${howMany} ${e.filter || 'permanent'}${howMany === 1 ? '' : 's'}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
+              prompt: `${e.exile ? 'Exile' : 'Sacrifice'} ${O.nounCount(howMany, e.filter || 'permanent')}${e.half ? ' (half, rounded down)' : ''}${e.fraction ? ` (1/${e.fraction}, rounded ${e.roundUp ? 'up' : 'down'})` : ''}${e.hitYouThisTurn ? ` that dealt combat damage to ${me ? me.name : 'them'} this turn` : ''}.`,
             }, e.exile ? { exileInstead: true } : {});
             /* Asked as the effect resolves and waited for, one player at a
                time in turn order, so the words after it see what went:
@@ -57209,7 +57359,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const fits = (y) => (what === 'creature' ? !!(this.characteristics(y) || {}).isCreature : what === 'artifact' ? !!(y.analysis() || {}).isArtifact : true);
           for (const x of this.battlefield.filter(y => y.controller === q.id && !y.phasedOut && fits(y))) x.effects.push({ control: ctx.controller, until: null, ts });
           this._refreshControl();
-          this.logEvent('control', `${me.name} gains control of ${q.name}'s ${what}s.`);
+          this.logEvent('control', `${me.name} gains control of ${q.name}'s ${O.nounPlural(what)}.`);
           break;
         }
         // Exert (CR 701.43): it won't untap during your next untap step
@@ -58526,7 +58676,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
               if (perms.length < need) { this._spliceNext(e.then); break; }
               const gotN = this._choose({ playerId: payer.id, purpose: 'unlessSacrifice', kind: 'objects', zone: 'battlefield',
                 items: this._chooseItems(perms), min: 0, max: need, prefer: 'worst',
-                prompt: e.prompt || `Sacrifice ${need} ${String(e.cost.sacrifice).replace(/(permanent|creature|artifact|land|enchantment)$/, '$1s')}? If you don't: ${whole(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
+                prompt: e.prompt || `Sacrifice ${O.nounCount(need, String(e.cost.sacrifice))}? If you don't: ${whole(String(e.text || 'it happens').replace(/^.*?\. /, ''), 80)}` }, 'usacN');
               if (gotN === SUSPEND) return SUSPEND;
               const xs = ((gotN && gotN.picks) || []).map(id => this.obj(id)).filter(x => x && x.zone === 'battlefield' && x.controller === payer.id && perms.includes(x));
               if (xs.length === need) this._sacrificeNow(payer.id, xs, null);
@@ -60363,7 +60513,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             .filter(x => x && x.zone === 'battlefield' && !x.phasedOut && (!e.filter || this._cardFitsWords(x, e.filter)));
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'bounceFromBatch', kind: 'objects', zone: 'battlefield', items: this._chooseItems(pool),
-            min: 0, max: 1, harmful: true, prompt: `You may return one of those ${e.filter ? e.filter + 's' : 'creatures'} to its owner's hand.` }, 'bfb');
+            min: 0, max: 1, harmful: true, prompt: `You may return one of those ${e.filter ? O.nounPlural(e.filter) : 'creatures'} to its owner's hand.` }, 'bfb');
           if (got === SUSPEND) return SUSPEND;
           const x = ((got && got.picks) || []).map(id => this.obj(id)).find(o => o && pool.includes(o) && o.zone === 'battlefield');
           if (x) { this.moveObject(x, 'hand'); this.logEvent('zone', `${me.name} returns ${x.name} to its owner's hand.`); }
@@ -64263,7 +64413,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const split = pool.length < 2 ? { picks: pool.map(o => o.id) } : this._choose({ playerId: ctx.controller, purpose: 'pileSplit', kind: 'objects',
             zone: 'battlefield', panel: true, items: this._chooseItems(pool), min: 0, max: pool.length, optional: true,
             forPlayer: tp.id, harmful: true, confirmLabel: 'These are one pile',
-            prompt: `Separate ${tp.name}'s ${e.filter}s into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
+            prompt: `Separate ${tp.name}'s ${O.nounPlural(e.filter)} into two piles: pick the ones for the first pile, and the rest are the second.` }, 'ppSplit');
           if (split === SUSPEND) return SUSPEND;
           const one = pool.filter(o => split && (split.picks || []).includes(o.id));
           const two = pool.filter(o => !one.includes(o));
@@ -64426,7 +64576,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
             if (e.filter && !this._cardFitsWords(c, e.filter)) continue;
             c.flashbackTurn = this.turn;
           }
-          this.logEvent('rules', `${me.name}'s ${e.filter || 'card'}s in the graveyard gain flashback until end of turn.`);
+          this.logEvent('rules', `${me.name}'s ${O.nounPlural(e.filter || 'card')} in the graveyard gain flashback until end of turn.`);
           break;
         /* Kethis, the Hidden Hand: "Until end of turn, each legendary card in your graveyard gains 'You may play this
            card from your graveyard.'" — the cards there now (CR 611.2c), not ones that arrive later (gravePlayBy) */
@@ -66082,7 +66232,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           if (!pool.length) break;
           const got = this._choose({ playerId: ctx.controller, purpose: 'sacrificeAnyNumber', kind: 'objects', zone: 'battlefield',
             items: this._chooseItems(pool), min: 0, max: pool.length,
-            prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${e.filter || 'permanent'}s.` }, 'sacAny');
+            prompt: `${ctx.name ? ctx.name + ': ' : ''}sacrifice any number of ${O.nounPlural(e.filter || 'permanent')}.` }, 'sacAny');
           if (got === SUSPEND) return SUSPEND;
           const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(x => x && pool.includes(x));
           // "that many": what the next words count
@@ -68448,7 +68598,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           // Mana Vortex: "When there are no lands on the battlefield, sacrifice this enchantment."
           const noneAll = this._staticOp(o, 'sacWhenNoneAtAll');
           if (noneAll && o.zone === 'battlefield' && !this.battlefield.some(x => x !== o && !x.phasedOut && this._cardFitsWords(x, noneAll.what))) {
-            this.logEvent('sba', `${o.name} is sacrificed (there are no ${noneAll.what}s on the battlefield).`);
+            this.logEvent('sba', `${o.name} is sacrificed (there are no ${O.nounPlural(noneAll.what)} on the battlefield).`);
             this.moveObject(o, 'graveyard');
             repeat = true;
             continue;
@@ -68457,7 +68607,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
           const tooMany = this._staticOp(o, 'sacWhenControlAtLeast');
           if (tooMany && o.zone === 'battlefield' &&
               this.battlefield.filter(x => x.controller === o.controller && !x.phasedOut && this._cardFitsWords(x, tooMany.what)).length >= tooMany.n) {
-            this.logEvent('sba', `${o.name} is sacrificed (${tooMany.n} or more ${tooMany.what}s).`);
+            this.logEvent('sba', `${o.name} is sacrificed (${tooMany.n} or more ${O.nounPlural(tooMany.what)}).`);
             this._sacrificeNow(o.controller, [o], null);
             repeat = true;
             continue;
@@ -86065,15 +86215,20 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
 (function (MTG) {
   const U = MTG.util;
 
-  /** @type {Array<null|{n:number, name:string, blurb:string}>} by number */
+  /* Each bracket: what it is (about) and what it allows, one rule a line (rules); the blurb is the two in a sentence */
+  /** @type {Array<null|{n:number, name:string, about:string, rules:string[], blurb:string}>} by number */
   const BRACKETS = [
     null,
-    { n: 1, name: 'Exhibition', blurb: 'Decks built to show off an idea more than to win. No Game Changers, no mass land denial, no extra turns, no two-card combos.' },
-    { n: 2, name: 'Core', blurb: 'About as strong as a typical preconstructed deck. No Game Changers, mass land denial or two-card combos; an extra turn here and there, never one after another.' },
-    { n: 3, name: 'Upgraded', blurb: 'Stronger than a precon. Up to three Game Changers; no mass land denial; no two-card combo that comes together early; extra turns never one after another.' },
-    { n: 4, name: 'Optimized', blurb: 'High power: anything the banned list allows.' },
-    { n: 5, name: 'cEDH', blurb: 'Competitive: the strongest decks, built for tournament play.' },
+    { n: 1, name: 'Exhibition', about: 'Decks built to show off an idea more than to win.',
+      rules: ['No Game Changers', 'No mass land denial', 'No extra turns', 'No two-card combos'] },
+    { n: 2, name: 'Core', about: 'About as strong as a typical preconstructed deck.',
+      rules: ['No Game Changers', 'No mass land denial', 'No two-card combos', 'An extra turn here and there, never one after another'] },
+    { n: 3, name: 'Upgraded', about: 'Stronger than a precon.',
+      rules: ['Up to three Game Changers', 'No mass land denial', 'No two-card combo that comes together early', 'Extra turns never one after another'] },
+    { n: 4, name: 'Optimized', about: 'High power.', rules: ['Anything the banned list allows'] },
+    { n: 5, name: 'cEDH', about: 'Competitive: the strongest decks.', rules: ['Built for tournament play', 'Anything the banned list allows'] },
   ];
+  for (const b of BRACKETS) if (b) b.blurb = b.about + ' ' + b.rules.map((r, i) => (i ? r.charAt(0).toLowerCase() + r.slice(1) : r)).join('; ') + '.';
   const nameOf = (n) => (BRACKETS[n] ? BRACKETS[n].name : '');
   const label = (n) => (BRACKETS[n] ? `Bracket ${n} · ${BRACKETS[n].name}` : 'Any bracket');
 
@@ -86670,6 +86825,65 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   }
 
   /* ============================================================
+     Recommander and EDHREC together
+     Recommander knows what this list in particular is missing; EDHREC
+     knows what everyone else plays with the commander. A card both of
+     them name is the surest suggestion there is, so those come first,
+     the best of both ahead; then the rest of each list in turn, one from
+     Recommander and one from EDHREC, so the page fills even when they
+     agree on little. Each card says where it came from.
+     ============================================================ */
+  /** How strongly EDHREC backs a card: how many of the commander's decks run it, and a little for synergy. */
+  const edhStrength = (x) => (x.inclusion || 0) + 0.5 * U.clamp(x.synergy || 0, 0, 0.6);
+  /** "EDHREC 41% of decks", with the synergy when it is worth saying. */
+  function edhWords(x) {
+    const syn = Math.round((x.synergy || 0) * 100);
+    return `EDHREC ${Math.round((x.inclusion || 0) * 100)}% of decks` + (syn >= 15 ? `, +${syn}% synergy` : '');
+  }
+  /**
+   * blend(rec, edh, opts) -> [{ name, rec, edhrec, both, why }]
+   * rec: Recommander's picks, best first ([{ name }]); edh: EDHREC's
+   * ([{ name, inclusion, synergy }]). Either may be null or empty. `rec`
+   * is the pick's place in Recommander's list (0 for its first), `edhrec`
+   * EDHREC's entry for it. opts.skip(name): leave this card out (the deck
+   * has it already).
+   */
+  function blend(rec, edh, opts) {
+    opts = opts || {};
+    const key = (n) => U.normName(U.frontName(n));
+    const skip = opts.skip || (() => false);
+    const recAt = new Map();
+    (rec || []).forEach((x, i) => { if (x && x.name && !recAt.has(key(x.name))) recAt.set(key(x.name), { x, i }); });
+    const recN = Math.max(1, (rec || []).length);
+    const edhSorted = (edh || []).filter(x => x && x.name).slice().sort((a, b) => edhStrength(b) - edhStrength(a));
+    const edhAt = new Map();
+    for (const x of edhSorted) if (!edhAt.has(key(x.name))) edhAt.set(key(x.name), x);
+    const edhTop = Math.max(1e-6, ...edhSorted.map(edhStrength));
+    const out = [], both = [], recOnly = [], edhOnly = [];
+    for (const [k, { x, i }] of recAt) {
+      if (skip(x.name)) continue;
+      const e = edhAt.get(k);
+      const item = { name: x.name, rec: i, edhrec: e || null, both: !!e,
+        why: e ? `Recommander #${i + 1} · ${edhWords(e)}` : `Recommander #${i + 1}` };
+      // both: Recommander's place and EDHREC's backing, each out of one, weighed alike
+      if (e) { item.score = 0.5 * (1 - i / recN) + 0.5 * (edhStrength(e) / edhTop); both.push(item); }
+      else recOnly.push(item);
+    }
+    for (const [k, e] of edhAt) {
+      if (recAt.has(k) || skip(e.name)) continue;
+      edhOnly.push({ name: e.name, rec: null, edhrec: e, both: false, why: edhWords(e) });
+    }
+    both.sort((a, b) => b.score - a.score || a.rec - b.rec);
+    out.push(...both);
+    for (let i = 0; i < Math.max(recOnly.length, edhOnly.length); i++) {
+      if (recOnly[i]) out.push(recOnly[i]);
+      if (edhOnly[i]) out.push(edhOnly[i]);
+    }
+    for (const x of out) delete x.score;
+    return out;
+  }
+
+  /* ============================================================
      Themes - what a deck can be "about"
      `t` tests a single card; `q` is the Scryfall fragment used to find
      more of the same; `w` weights how strongly the theme identifies a deck.
@@ -86942,13 +87156,44 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        particular is missing (src/16b-recommander.js). When it answers, its
        order is the order of the suggestions, and the engine only says what
        each card would do here; when it cannot be asked, the engine's own
-       reading and EDHREC stand in, as before. */
+       reading and EDHREC stand in, as before.
+       Asked for both (the default: Options, Suggestions), Recommander and
+       EDHREC are asked at once, once each, and their lists are blended
+       (blend, above); when one of them does not answer, the other's
+       suggestions stand alone, and the panel says which was missing. */
     const commander = (deck.commanders || [])[0];
     const recPicks = [];
-    // (Options, Suggestions: EDHREC chosen instead, and Recommander is not asked)
-    const fromRec = opts.recommander !== false && (MTG.settings || {}).suggestFrom !== 'edhrec';
-    if (commander && fmt.commander && fromRec && MTG.recommander && MTG.recommander.ready()) {
-      const list = await MTG.recommander.top(deck).catch(() => null);
+    const from = opts.from || (MTG.settings || {}).suggestFrom || 'both';
+    const fromRec = opts.recommander !== false && from !== 'edhrec';
+    const fromBoth = from === 'both' && opts.edhrec !== false;
+    let recList = null, edhList = null, recAsked = false;
+    if (commander && fmt.commander) {
+      recAsked = fromRec;
+      [recList, edhList] = await Promise.all([
+        fromRec && MTG.recommander && MTG.recommander.ready() ? MTG.recommander.top(deck).catch(() => null) : null,
+        fromBoth ? edhrecFor(commander).catch(() => null) : null,
+      ]);
+    }
+    /* Both answered: one list of the two (the cards both name first), its
+       cards looked up together, each with where it came from. */
+    const hybPicks = [];
+    if (fromBoth && recList && recList.length && edhList && edhList.length) {
+      const wanted = blend(recList, edhList, { skip: (n) => owned.has(U.normName(U.frontName(n))) }).slice(0, Math.max(limit * 3, 60));
+      try {
+        const { cards } = await MTG.scry.collection(wanted.map(x => ({ name: x.name })));
+        wanted.forEach((pick, i) => {
+          const card = cards[i];
+          if (!card || MTG.formats.isBasicLand(card)) return;
+          if (owned.has(U.normName(U.frontName(card.name)))) return;
+          if (legalKey && (card.legalities || {})[legalKey] !== 'legal') return;
+          if ((card.color_identity || []).some(c => !prof.colors.includes(c))) return;
+          hybPicks.push({ card, rank: hybPicks.length, why: pick.why, both: pick.both });
+        });
+      } catch (e) { /* each list on its own, below */ }
+    }
+    const hybridUsed = hybPicks.length > 0;
+    if (!hybridUsed) {
+      const list = recList;
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, Math.max(limit * 3, 60));
         try {
@@ -86965,6 +87210,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       }
     }
     const recommanderUsed = recPicks.length > 0;
+    /* asked of both (or of Recommander, which falls back to EDHREC) and one
+       of them missing: which one, so the panel can say so */
+    const missing = !commander || !fmt.commander || hybridUsed ? null
+      : fromBoth && recommanderUsed ? 'edhrec'
+      : recAsked && !recommanderUsed ? 'recommander' : null;
 
     /* --- 1. what to search for: the gaps, then the themes --- */
     const queries = [];
@@ -86985,12 +87235,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       queries.push({ q: `${base} o:"${prof.tribe}" -t:${prof.tribe}`, theme: 'tribal', why: `pays off your ${prof.tribe}s`, weight: 1.7 });
     }
     if (!queries.length) queries.push({ q: base, why: 'a strong card in your colours', weight: 1 });
-    // with Recommander's answer in hand, its picks are the pool and nothing else is searched for
-    if (recommanderUsed) queries.length = 0;
+    // with Recommander's answer in hand (or both lists blended), its picks are the pool and nothing else is searched for
+    if (recommanderUsed || hybridUsed) queries.length = 0;
 
     /* --- 2. run them --- */
     const pool = new Map();   // id -> {card, hits:[{why,weight,role,theme}], rank}
     for (const p of recPicks) pool.set(p.card.id, { card: p.card, hits: [], bestRank: 999, rec: p.rank });
+    for (const p of hybPicks) pool.set(p.card.id, { card: p.card, hits: [], bestRank: 999, hyb: p });
     for (const spec of queries) {
       let res = [];
       try { res = await MTG.scry.search(spec.q, { order: 'edhrec', unique: 'cards', max: opts.perQuery || 60 }); }
@@ -87016,8 +87267,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
        them together. If EDHREC cannot be reached this simply adds
        nothing. */
     let edhrecUsed = false;
-    if (commander && fmt.commander && opts.edhrec !== false && !recommanderUsed) {
-      const list = await edhrecFor(commander).catch(() => null);
+    if (commander && fmt.commander && opts.edhrec !== false && !recommanderUsed && !hybridUsed) {
+      // (asked already, alongside Recommander, when both were asked for)
+      const list = fromBoth ? edhList : await edhrecFor(commander).catch(() => null);
       if (list && list.length) {
         const wanted = list.filter(x => !owned.has(U.normName(U.frontName(x.name)))).slice(0, 90);
         try {
@@ -87048,6 +87300,11 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       const reasons = [];
       let score = 0;
 
+      // the blended order stands, and says where each card came from
+      if (entry.hyb) {
+        score += (1000 - entry.hyb.rank) * 100;
+        reasons.push(entry.hyb.why);
+      }
       // Recommander's order stands: what follows only explains the card
       if (entry.rec != null) {
         score += (1000 - entry.rec) * 100;     // far past anything the notes below add
@@ -87126,7 +87383,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       queriesRun: queries.length,
       /* where the advice came from, so the panel can say so rather than
          quietly looking thinner when EDHREC is unreachable */
-      sources: { engine: true, edhrec: edhrecUsed, recommander: recommanderUsed },
+      // hybrid: Recommander's and EDHREC's blended; missing: the one asked for that did not answer
+      sources: { engine: !hybridUsed && !recommanderUsed, edhrec: edhrecUsed || hybridUsed, recommander: recommanderUsed || hybridUsed,
+        hybrid: hybridUsed, missing, from },
     };
   }
 
@@ -87276,7 +87535,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   }
 
   MTG.advisor = {
-    edhrecFor, edhrecSlug, readEdhrec,
+    edhrecFor, edhrecSlug, readEdhrec, blend,
     profile, recommend, suggestCuts, pairCuts, applySwap,
     THEMES, ROLES, targetsFor, colorLabel,
   };
@@ -89092,13 +89351,26 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     }));
   };
 
+  /** A card's price, as a small tag on its picture (the collection, the deck builder's grids). */
+  UI.priceTag = function (card) {
+    const p = U.priceOf(card);
+    return el('span', { class: 'price-tag' + (p == null ? ' none' : ''), text: p == null ? 'No price' : U.money(p),
+      title: p == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' });
+  };
+  // rarest first; a special or bonus printing with the mythics' neighbours
+  const RARITY_ORDER = { mythic: 0, special: 1, bonus: 1, rare: 2, uncommon: 3, common: 4 };
+  UI.rarityOrder = (card) => { const r = RARITY_ORDER[card && card.rarity]; return r == null ? 5 : r; };
   UI.sortCards = function (list, mode) {
+    // dearest first, and a card with no price after every card with one
+    const price = (card) => { const p = U.priceOf(card); return p == null ? Infinity : -p; };
     const key = {
       // X costs last: what they cost is up to you
       cmc: (o) => [MTG.mana.sortMv(o.card), o.card.name],
       name: (o) => [o.card.name],
       type: (o) => [(o.card.type_line || ''), MTG.mana.sortMv(o.card)],
       color: (o) => [(o.card.color_identity || []).join(''), MTG.mana.sortMv(o.card)],
+      rarity: (o) => [UI.rarityOrder(o.card), MTG.mana.sortMv(o.card), o.card.name],
+      price: (o) => [price(o.card), MTG.mana.sortMv(o.card), o.card.name],
     }[mode || 'cmc'] || ((o) => [o.card.name]);
     return list.slice().sort((a, b) => {
       const ka = key(a), kb = key(b);
@@ -98864,8 +99136,9 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   /* ---------------- the Collection ---------------- */
   // rarities: any number of them at once (none is every rarity); sort: how the cards are laid out
   // colours: any number of them too (none is every colour)
-  const colState = { set: '', rarities: [], colors: [], show: 'owned', q: '', sort: 'color' };
-  const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest']];
+  // (the sort is remembered: MTG.settings.collectionSort)
+  const colState = { set: '', rarities: [], colors: [], show: 'owned', q: '', sort: null };
+  const COL_SORTS = [['color', 'Colour'], ['mv', 'Mana value'], ['name', 'Name'], ['rarity', 'Rarity'], ['copies', 'Copies owned'], ['new', 'Newest'], ['price', 'Price']];
   /**
    * The Collection into `host`: the cards you own, or a set's cards with
    * what you lack greyed out; four pips under each for the copies held; a
@@ -98893,9 +99166,17 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       colState.colors = colState.colors.includes(c) ? colState.colors.filter(x => x !== c) : colState.colors.concat(c);
       UI.renderCollection(host);
     });
+    if (!colState.sort) colState.sort = COL_SORTS.some(x => x[0] === MTG.settings.collectionSort) ? MTG.settings.collectionSort : 'color';
     const sortSel = el('select', { class: 'col-sort', 'aria-label': 'Sort by' },
       COL_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: colState.sort === v })));
-    sortSel.addEventListener('change', () => { colState.sort = sortSel.value; drawGrid(); });
+    // (the cards may still be loading: what is chosen meanwhile is drawn when they are in)
+    let drawn = null;
+    const redraw = () => { if (drawn) drawn(); };
+    sortSel.addEventListener('change', () => { colState.sort = sortSel.value; MTG.setSetting('collectionSort', colState.sort); redraw(); });
+    // each card's price on its picture (the same choice as the deck builder's)
+    const priceBox = el('input', { type: 'checkbox', checked: !!MTG.settings.showCardPrices });
+    priceBox.addEventListener('change', () => { MTG.setSetting('showCardPrices', priceBox.checked); redraw(); });
+    const priceCheck = el('label', { class: 'inline-check col-show-price', title: 'Each card\u2019s price from Scryfall' }, [priceBox, el('span', { text: 'Show price' })]);
     const grid = el('div', { class: 'col-grid' });
     const status = el('div', { class: 'col-status dim' });
     host.append(el('div', { class: 'collection' }, [
@@ -98904,7 +99185,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         el('div', { class: 'store-wallet' }, [shards(S.shards()), el('div', { class: 'wc-col' }, [el('div', { class: 'wc-row' }, RAR.map(r => wcIcon(r, S.wildcards()[r]))), UI.wildcardTrack()])]),
       ]),
       el('div', { class: 'col-filters' }, [
-        setSel, search, sortSel,
+        setSel, search, sortSel, priceCheck,
         rarityChips,
         colourChips,
         colState.set ? chips([['owned', 'Owned'], ['all', 'All'], ['missing', 'Missing']], 'show') : null,
@@ -98913,7 +99194,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     ]));
     setSel.addEventListener('change', () => { colState.set = setSel.value; colState.show = setSel.value ? 'all' : 'owned'; UI.renderCollection(host); });
     let tm = null;
-    search.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { colState.q = search.value.trim(); drawGrid(); }, 200); });
+    search.addEventListener('input', () => { clearTimeout(tm); tm = setTimeout(() => { colState.q = search.value.trim(); redraw(); }, 200); });
 
     let cards = [];
     status.textContent = 'Loading…';
@@ -98959,6 +99240,8 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
         rarity: (a, b) => (rarityRank(a) - rarityRank(b)) || byColour(a, b) || byMv(a, b) || byName(a, b),
         copies: (a, b) => (S.owned(b.name) - S.owned(a.name)) || byColour(a, b) || byMv(a, b) || byName(a, b),
         new: (a, b) => String(b.released_at || '').localeCompare(String(a.released_at || '')) || byColour(a, b) || byMv(a, b) || byName(a, b),
+        // dearest first; a card with no price after all the priced ones
+        price: (a, b) => U.byPriceDesc(a, b) || byColour(a, b) || byMv(a, b) || byName(a, b),
       };
       list.sort(SORTS[colState.sort] || SORTS.color);
       if (colState.set) {
@@ -98972,6 +99255,7 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
       for (const c of list.slice(0, shown)) grid.appendChild(colTile(c, host));
       if (list.length > shown) grid.appendChild(el('button', { type: 'button', class: 'btn col-more', text: `Show more (${list.length - shown})`, onclick: () => { shown += 120; drawGrid(); } }));
     };
+    drawn = drawGrid;
     drawGrid();
   };
 
@@ -99008,9 +99292,13 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
   function colTile(c, host) {
     const S = E();
     const n = Math.min(4, S.owned(c.name));
+    // its price, while prices are shown, in the bar under it with the copies (clear of a card not owned, which is greyed)
+    const price = MTG.settings.showCardPrices ? U.priceOf(c) : undefined;
     const t = el('button', { type: 'button', class: 'col-card' + (n ? '' : ' unowned') + ' r-' + S.rarityOf(c), title: c.name }, [
       cardPic(c, 'col-img'),
-      el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' }))),
+      el('div', { class: 'col-pips' }, [0, 1, 2, 3].map(i => el('i', { class: i < n ? 'on' : '' })).concat(price === undefined ? []
+        : [el('span', { class: 'col-price' + (price == null ? ' none' : ''), text: price == null ? 'No price' : U.money(price),
+          title: price == null ? 'Scryfall has no price for this card' : 'Its price on Scryfall' })])),
       UI.wishMark ? UI.wishMark(c.name) : null,
     ]);
     UI.attachPreview(t, c, 0);
@@ -103092,7 +103380,10 @@ MTG.BOT_PACES = [[600, 'Very fast'], [1000, 'Fast'], [1500, 'Normal'], [2200, 'S
     const drawView = () => {
       const n = shown;
       view.innerHTML = '';
-      view.appendChild(el('p', { class: 'small muted' }, [el('b', { text: B.label(n) + '. ' }), B.BRACKETS[n].blurb]));
+      // what the bracket is, then what it allows, a rule a line
+      view.appendChild(el('p', { class: 'small muted bracket-about' }, [el('b', { text: B.label(n) + '. ' }), B.BRACKETS[n].about || B.BRACKETS[n].blurb]));
+      if ((B.BRACKETS[n].rules || []).length)
+        view.appendChild(el('ul', { class: 'bracket-rules' }, B.BRACKETS[n].rules.map(r => el('li', { text: r }))));
       if (n === e.bracket) {
         // this deck's own: what puts it there
         if (opts.table && e.min > opts.table)
@@ -103596,6 +103887,8 @@ Sideboard
         query: q,
         format: deck.format,
         colors: (validation.colorIdentity || []),
+        // whose colours they are, for saying a card is outside them
+        whose: MTG.formats.coloursOf(oathbreaker() ? MTG.formats.commandParts(deck).leaders : deck.commanders),
         // a deck opened to be named first keeps the cursor in its name box
         noFocus: focusName,
         onAdd: (card, n) => addCardObj(card, n || 1),
@@ -103916,6 +104209,8 @@ Sideboard
             el('button', { class: 'btn sm primary grow', text: '+ Add cards', onclick: addCard }),
             el('button', { class: 'btn sm', text: 'Lands…', title: 'Basic lands and the mana base', onclick: landsTool }),
           ]),
+          // the order of the list below, and prices on it
+          deck.main.length || deck.sideboard.length ? sortControls(left) : null,
         ]));
 
       if (!drafted && !deck.main.length && !deck.commanders.length) left.appendChild(startHere());
@@ -103958,30 +104253,30 @@ Sideboard
         }
       }
 
-      const groups = U.groupBy(deck.main, e => primaryType(e.card));
-      for (const g of TYPE_ORDER) {
-        const list = groups.get(g);
-        if (!list || !list.length) continue;
-        const n = U.sum(list.map(e => e.qty));
-        const on = highlight && highlight.kind === 'type' && highlight.value === g;
-        left.appendChild(el('button', {
+      const sortMode = UI.deckListSort();
+      for (const sec of UI.deckSections(deck.main, sortMode)) {
+        const head = `${sec.label} · ${U.sum(sec.items.map(e => e.qty))}${sectionPrice(sec.items)}`;
+        // a section of one card type is a button that marks its cards, as it always was
+        const g = sec.type;
+        const on = g && highlight && highlight.kind === 'type' && highlight.value === g;
+        left.appendChild(g ? el('button', {
           type: 'button',
           class: 'section-title as-button' + (on ? ' on' : ''),
-          text: `${TYPE_PLURAL[g] || g} · ${n}`,
+          text: head,
           title: `Mark every ${g.toLowerCase()} in this deck`,
           onclick: () => setHighlight('type', g),
-        }));
-        for (const e of UI.sortCards(list, 'cmc')) left.appendChild(entryRow(e));
+        }) : el('div', { class: 'section-title', text: head }));
+        for (const e of sec.items) left.appendChild(entryRow(e));
       }
       if (deck.sideboard && deck.sideboard.length) {
-        left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}` }));
-        if (drafted && MTG.sealed) {
+        left.appendChild(el('div', { class: 'section-title', text: `${drafted ? 'Your pool' : 'Sideboard'} · ${U.sum(deck.sideboard.map(e => e.qty))}${sectionPrice(deck.sideboard)}` }));
+        if (drafted && MTG.sealed && sortMode === 'type') {
           // the pool laid out as on the table: a colour at a time, creatures first, cheapest first
           for (const col of MTG.sealed.columns(deck.sideboard, e => e.card)) {
             left.appendChild(el('div', { class: 'pool-sub', text: `${col.label} · ${U.sum(col.items.map(e => e.qty))}` }));
             for (const e of col.items) left.appendChild(entryRow(e));
           }
-        } else for (const e of UI.sortCards(deck.sideboard, 'cmc')) left.appendChild(entryRow(e));
+        } else for (const e of UI.sortCards(deck.sideboard, sortMode === 'type' || sortMode === 'mv' ? 'cmc' : sortMode)) left.appendChild(entryRow(e));
       }
       left.scrollTop = listTop;
       if (justAdded) {
@@ -104171,10 +104466,12 @@ Sideboard
 
       const gBox = el('section', { class: 'panel' });
       gBox.appendChild(el('h3', null, [el('span', { text: 'Cards' }), el('span', { class: 'tiny dim', text: 'Click a card to choose its art.' })]));
+      // laid out in the order the list is in
+      if (deck.main.length) gBox.appendChild(sortControls(paneCards));
       const grid = el('div', { class: 'card-grid' });
       const seen = new Set();
       for (const c of deck.commanders) { grid.appendChild(cardTile(c, true)); seen.add(c.id); }
-      for (const e of UI.sortCards(deck.main, 'cmc')) {
+      for (const sec of UI.deckSections(deck.main, UI.deckListSort())) for (const e of sec.items) {
         if (seen.has(e.card.id)) continue;
         seen.add(e.card.id);
         grid.appendChild(cardTile(e.card, false, e.qty));
@@ -104188,6 +104485,40 @@ Sideboard
       else if (activePane === 'advisor') advisor.refresh(validation);
       else advisor.refreshLocalOnly(validation);
       for (const p of extra) if (p.live && p.live.refresh) p.live.refresh();
+    }
+
+    /**
+     * Over the list and over the card grid: the order the deck is laid out
+     * in, and a price on every card (with what the deck costs beside it).
+     * Both are remembered, and both places show the same.
+     */
+    function sortControls(host) {
+      const sel = el('select', { class: 'col-sort deck-sort', 'aria-label': 'Sort the deck by' },
+        DECK_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: v === UI.deckListSort() })));
+      // (the list is drawn again, so the keyboard is given back to the control it was on)
+      const again = (sel2) => { render(); const n = host.querySelector(sel2); if (n) n.focus(); };
+      sel.addEventListener('change', () => { MTG.setSetting('deckListSort', sel.value); again('.deck-sort'); });
+      const on = !!MTG.settings.showCardPrices;
+      const box = el('input', { type: 'checkbox', checked: on });
+      box.addEventListener('change', () => { MTG.setSetting('showCardPrices', box.checked); again('.deck-show-price input'); });
+      const money = on ? U.deckPrice(deck) : null;
+      return el('div', { class: 'deck-head-row deck-sort-row' }, [
+        sel,
+        el('label', { class: 'inline-check deck-show-price', title: 'Each card\u2019s price from Scryfall, and what the deck costs' }, [box, el('span', { text: 'Show price' })]),
+        money ? el('span', {
+          class: 'deck-total',
+          title: money.unpriced
+            ? `What this deck costs, from Scryfall. ${money.unpriced} card${money.unpriced === 1 ? ' has' : 's have'} no price on Scryfall and ${money.unpriced === 1 ? 'is' : 'are'} not counted.`
+            : 'What this deck costs, from Scryfall.',
+        }, [el('b', { text: U.money(money.total) }), money.unpriced ? el('i', { text: ` +${money.unpriced} unpriced` }) : null].filter(Boolean)) : null,
+      ].filter(Boolean));
+    }
+    /** What a section's cards cost together, after its count, while prices are shown. */
+    function sectionPrice(items) {
+      if (!MTG.settings.showCardPrices) return '';
+      let total = 0, any = false;
+      for (const e of items) { const p = U.priceOf(e.card); if (p != null) { total += p * e.qty; any = true; } }
+      return any ? ' · ' + U.money(total) : '';
     }
 
     /** The deck's automation share under its size: a tap marks the cards that need a hand. */
@@ -104253,6 +104584,8 @@ Sideboard
       const slot = applyHighlight(UI.cardSlot(card, { isCommander: isCmd }, { size: 'normal' }), card);
       if (qty > 1) slot.appendChild(el('div', { class: 'badge-row' }, el('span', { class: 'badge', text: '×' + qty })));
       slot.appendChild(UI.autoBadge(card, { corner: true }));
+      if (MTG.settings.showCardPrices) slot.appendChild(UI.priceTag(card));
+      UI.markIllegal(slot, issuesOf(card));
       slot.style.cursor = 'pointer';
       slot.addEventListener('click', async () => {
         const picked = await UI.pickArt(card);
@@ -104270,6 +104603,8 @@ Sideboard
     const marksGameChangers = () => MTG.formats.usesBrackets(MTG.formats.get(deck.format));
     /** How many of a card this deck may hold, as the format has it (singleton, Vintage's restricted list). */
     const limitOf = (card) => MTG.formats.copyLimit(card, MTG.formats.get(deck.format));
+    /** Why the deck's format will not have this card, in a few words each ([] when it will). */
+    const issuesOf = (card) => MTG.formats.cardIssuesFor(validation, card);
     function entryRow(e, isCmd, isSig) {
       const a = MTG.oracle.analyze(e.card);
       const inPool = drafted && deck.sideboard.includes(e);
@@ -104282,20 +104617,26 @@ Sideboard
       });
       // each line is a strip of the card's own art, the way a deck list
       // reads in a card game: you find a card by its picture as much as its name
+      // what the format has against it, if anything (the pool of a draft is not the deck, and is not judged)
+      const bad = inPool ? [] : issuesOf(e.card);
       const row = applyHighlight(el('div', {
-        class: 'deck-entry strip' + (isCmd ? ' is-cmd' : ''),
-        title: isCmd ? e.card.name
+        class: 'deck-entry strip' + (isCmd ? ' is-cmd' : '') + (bad.length ? ' illegal' : ''),
+        title: (bad.length ? bad.join('. ') + '.\n' : '') + (isCmd ? e.card.name
           : inPool ? `${e.card.name} \u2014 click to put one in the deck`
           : drafted && !isBasic(e.card) ? `${e.card.name} \u2014 click to put one back in your pool`
-          : `${e.card.name} \u2014 \u2212 and + change how many; right-click for more`,
+          : `${e.card.name} \u2014 \u2212 and + change how many; right-click for more`),
       }, [
         qty,
-        el('span', { class: 'nm', text: e.card.name }),
+        bad.length ? el('span', { class: 'nm-col' }, [
+          el('span', { class: 'nm', text: e.card.name }),
+          el('span', { class: 'illegal-why', text: bad.join(' \u00b7 ') }),
+        ]) : el('span', { class: 'nm', text: e.card.name }),
         marksGameChangers() ? UI.gcBadge(e.card) : null,
         UI.autoBadge(e.card),
         el('span', { class: 'cost', html: MTG.mana.html(a ? a.manaCost : '') }),
         MTG.settings.showCardPrices
-          ? el('span', { class: 'tiny price', text: U.money(U.priceOf(e.card)) })
+          ? el('span', Object.assign({ class: 'tiny price', text: U.money(U.priceOf(e.card)) },
+            U.priceOf(e.card) == null ? { title: 'Scryfall has no price for this card' } : {}))
           : null,
         !isCmd && !drafted ? el('span', { class: 'qty-ctl' }, [
           el('button', { type: 'button', class: 'qty-btn', text: '\u2212', title: `One fewer ${e.card.name}`, 'aria-label': `One fewer ${e.card.name}`,
@@ -104397,6 +104738,76 @@ Sideboard
     return 'Other';
   }
 
+  /* ---------------- a card the format does not allow ----------------
+     Tinted red wherever the deck builder shows it, with why in a few
+     words (MTG.formats.validate's cardIssues): on a line of the list,
+     under its name; on a picture, written across it. */
+  /** Red over a card's picture, and why written across it. */
+  UI.markIllegal = function (slot, reasons) {
+    if (!reasons || !reasons.length) return slot;
+    slot.classList.add('illegal');
+    slot.title = reasons.join('\n');
+    slot.append(el('div', { class: 'illegal-veil', 'aria-hidden': 'true' }), el('div', { class: 'illegal-ribbon', text: reasons.join(' \u00b7 ') }));
+    return slot;
+  };
+
+  /* ---------------- the order of the deck list ----------------
+     By type is the list as it always was: creatures, then the rest, a
+     section each. The other orders lay out the spells by what they say
+     (a section for each mana value, colour or rarity; by name or by
+     price, one run), and the lands stay together after them whatever the
+     order, as they are in the type list. */
+  const DECK_SORTS = [['type', 'Type'], ['mv', 'Mana value'], ['name', 'Name'], ['color', 'Colour'], ['rarity', 'Rarity'], ['price', 'Price']];
+  UI.DECK_SORTS = DECK_SORTS;
+  const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G', 'M', 'C'];
+  const COLOUR_LABEL = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green', M: 'Multicolour', C: 'Colourless' };
+  const RARITY_LABEL = ['Mythic', 'Special', 'Rare', 'Uncommon', 'Common', 'Other'];
+  /** A card's colour as the collection sorts it: one of the five, several (M), or none (C). */
+  function colourOf(card) {
+    const cs = (card && (card.colors || (card.card_faces && card.card_faces[0] && card.card_faces[0].colors))) || [];
+    return cs.length > 1 ? 'M' : cs.length ? cs[0] : 'C';
+  }
+  /** The sort the deck list is in: the one remembered, or by type. */
+  UI.deckListSort = () => (DECK_SORTS.some(x => x[0] === MTG.settings.deckListSort) ? MTG.settings.deckListSort : 'type');
+  /**
+   * The deck's cards in sections, in the order `mode` asks (UI.DECK_SORTS):
+   * [{ key, label, type?, items }], `type` set on a section of one card type.
+   */
+  UI.deckSections = function (list, mode) {
+    mode = DECK_SORTS.some(x => x[0] === mode) ? mode : 'type';
+    const out = [];
+    if (mode === 'type') {
+      const groups = U.groupBy(list, e => primaryType(e.card));
+      for (const g of TYPE_ORDER) {
+        const items = groups.get(g);
+        if (items && items.length) out.push({ key: g, label: TYPE_PLURAL[g] || g, type: g, items: UI.sortCards(items, 'cmc') });
+      }
+      return out;
+    }
+    const lands = list.filter(e => primaryType(e.card) === 'Land');
+    const spells = list.filter(e => primaryType(e.card) !== 'Land');
+    const section = (key, label, items) => { if (items.length) out.push({ key, label, items }); };
+    if (mode === 'mv') {
+      // a section for each mana value, cheapest first, and the X costs after them
+      const sorted = UI.sortCards(spells, 'cmc');
+      const keyOf = (c) => (MTG.mana.hasX(c) ? 'X' : String(Math.floor(c.cmc || 0)));
+      for (const k of U.uniq(sorted.map(e => keyOf(e.card))))
+        section('mv' + k, k === 'X' ? 'X costs' : k + ' mana', sorted.filter(e => keyOf(e.card) === k));
+    } else if (mode === 'color') {
+      for (const c of COLOUR_ORDER) section('c' + c, COLOUR_LABEL[c], UI.sortCards(spells.filter(e => colourOf(e.card) === c), 'cmc'));
+    } else if (mode === 'rarity') {
+      const sorted = UI.sortCards(spells, 'rarity');
+      const at = (e) => Math.min(5, UI.rarityOrder(e.card));
+      for (let r = 0; r <= 5; r++) section('r' + r, RARITY_LABEL[r], sorted.filter(e => at(e) === r));
+    } else {
+      section('spells', 'Nonland cards', UI.sortCards(spells, mode));
+    }
+    // the lands, together: by name, or by colour, rarity or price when that is the order
+    section('Land', TYPE_PLURAL.Land, UI.sortCards(lands, mode === 'mv' || mode === 'color' ? 'name' : mode));
+    if (out.length && out[out.length - 1].key === 'Land') out[out.length - 1].type = 'Land';
+    return out;
+  };
+
   /* ---------------- context menu ---------------- */
   /* A menu of actions. On a desktop it appears at the pointer; on a phone it
      rises from the bottom of the screen as a sheet with thumb-sized rows,
@@ -104491,6 +104902,14 @@ Sideboard
     // your collection: how many of each you own, and only those if you like
     const ec = MTG.economy && MTG.economy.rulesOn() ? MTG.economy : null;
     const ownedOnly = el('input', { type: 'checkbox', checked: !!(ec && MTG.settings.searchOwnedOnly), id: 'cs-owned' });
+    /* the order the results come in: by colour and cost as a shop shelves
+       them, dearest first (a card nobody has priced at the end), or by name */
+    const SEARCH_SORTS = [['color', 'Colour'], ['price', 'Price'], ['name', 'Name']];
+    let sortKey = SEARCH_SORTS.some(x => x[0] === MTG.settings.searchSort) ? MTG.settings.searchSort : 'color';
+    const sortSel = el('select', { class: 'col-sort search-sort', 'aria-label': 'Sort the results by' },
+      SEARCH_SORTS.map(([v, label]) => el('option', { value: v, text: 'Sort: ' + label, selected: v === sortKey })));
+    // a price on each result while prices are shown, and always when the results are in price order
+    const pricesOn = () => !!MTG.settings.showCardPrices || sortKey === 'price';
 
     /* Narrowing by what a card is and what it costs is most of searching,
        so those are chips you tap rather than syntax you have to remember.
@@ -104571,6 +104990,7 @@ Sideboard
             [autoOnly, el('span', { text: 'Only cards the game runs fully' })]),
           ec ? el('label', { class: 'inline-check', for: 'cs-owned', title: 'Only cards in your collection' },
             [ownedOnly, el('span', { text: 'Only cards I own' })]) : null,
+          sortSel,
           el('span', { class: 'grow' }),
           status,
         ].filter(Boolean)),
@@ -104602,6 +105022,9 @@ Sideboard
     // the search in flight, cut off when a newer one starts
     let inFlight = null, suggestFlight = null;
     let pager = null, shownN = 0, hiddenN = 0, lastQ = '', lastText = '', busy = 0;
+    /* In price order, a card whose printing here has no price is held back
+       for the end (Scryfall can sort a card by a printing that has one). */
+    let unpriced = [];
     const more = el('div', { class: 'search-more', 'aria-live': 'polite' });
     const run = U.debounce(async () => {
       const q = input.value.trim();
@@ -104610,7 +105033,7 @@ Sideboard
       const mine = ++token;
       if (inFlight) inFlight.abort();
       inFlight = null;
-      pager = null; shownN = 0; hiddenN = 0;
+      pager = null; shownN = 0; hiddenN = 0; unpriced = [];
       results.innerHTML = '';
       more.textContent = '';
       // the end of the list, in it (the list may scroll on its own): reaching it reads in more
@@ -104627,13 +105050,15 @@ Sideboard
       if (only && !query.includes(only)) query += ' ' + only;
       lastQ = q || chips || 'that';
       lastText = !looksLikeQuery && !chips ? q : '';
-      pager = MTG.scry.pager(query.trim(), { order: 'colormv', per: PAGE });
+      pager = MTG.scry.pager(query.trim(), sortKey === 'price' ? { order: MTG.settings.priceCurrency || 'usd', dir: 'desc', per: PAGE }
+        : { order: sortKey === 'name' ? 'name' : 'colormv', per: PAGE });
       await readMore(mine);
     }, 200);
     legalOnly.addEventListener('change', () => run());
     inColor.addEventListener('change', () => run());
     autoOnly.addEventListener('change', () => { MTG.setSetting('searchAutoOnly', autoOnly.checked); run(); });
     ownedOnly.addEventListener('change', () => { MTG.setSetting('searchOwnedOnly', ownedOnly.checked); run(); });
+    sortSel.addEventListener('change', () => { sortKey = sortSel.value; MTG.setSetting('searchSort', sortKey); run(); });
 
     /** The next page in, or more than one when what is left out leaves it thin. */
     async function readMore(mine) {
@@ -104658,8 +105083,13 @@ Sideboard
             break;
           }
           if (mine !== token) return;
+          if (sortKey === 'price') {
+            unpriced.push(...cards.filter(c => U.priceOf(c) == null));
+            cards = cards.filter(c => U.priceOf(c) != null);
+          }
           got += draw(cards);
         }
+        if (pager.done && unpriced.length) { got += draw(unpriced); unpriced = []; }
       } finally { if (busy === mine) busy = 0; }
       if (mine !== token) return;
       results.classList.remove('loading');
@@ -104713,6 +105143,12 @@ Sideboard
           onContext: opts.onRemove ? () => { if (opts.onRemove(c)) { MTG.sfx('click'); redrawCounts(); } } : null,
         });
         slot.appendChild(UI.autoBadge(c, { corner: true }));
+        if (pricesOn()) slot.appendChild(UI.priceTag(c));
+        /* with "Legal in" or "Inside" not ticked, a card the deck cannot
+           have still comes up: marked red, and why */
+        const why = MTG.formats.cardProblem(c, fmt, (opts.colors || []).length ? new Set(opts.colors) : null, opts.whose);
+        if (why) { UI.markIllegal(slot, [why]); tile.classList.add('illegal'); }
+        tile._card = c;
         tile.appendChild(slot);
         tile.appendChild(el('div', { class: 'search-name', text: c.name }));
         // how many you own: four diamonds, lit for each copy (basics: all you like)
@@ -104730,10 +105166,16 @@ Sideboard
     }
     function redrawCounts() {
       const have = opts.inDeck ? opts.inDeck() : new Map();
+      const priced = pricesOn();
       results.querySelectorAll('.search-count').forEach((n) => {
         const q = have.get(n.dataset.id) || 0;
         n.textContent = q ? q + ' in deck' : '';
-        n.closest('.search-card').classList.toggle('have', !!q);
+        const tile = n.closest('.search-card');
+        tile.classList.toggle('have', !!q);
+        // prices shown or hidden since these were laid out
+        const tag = tile.querySelector('.price-tag'), slot = tile.querySelector('.card-slot');
+        if (priced && !tag && slot && tile._card) slot.appendChild(UI.priceTag(tile._card));
+        else if (!priced && tag) tag.remove();
       });
     }
 
@@ -116827,12 +117269,30 @@ Sideboard
     }
     const rowHooks = Object.assign({}, hooks, { onConsumed: consumed });
 
+    /* Where a Commander deck's suggestions come from (Options, Suggestions
+       too): both Recommander and EDHREC, or one of them. */
+    const FROM = [['both', 'Both'], ['recommander', 'Recommander'], ['edhrec', 'EDHREC']];
+    function fromPicker() {
+      const cur = FROM.some(x => x[0] === MTG.settings.suggestFrom) ? MTG.settings.suggestFrom : 'both';
+      return el('div', { class: 'row wrap sugg-from' }, [
+        el('span', { class: 'tiny dim', text: 'Suggest from' }),
+        el('div', { class: 'seg mini', role: 'group', 'aria-label': 'Suggest cards from' }, FROM.map(([v, label]) => el('button', {
+          type: 'button', class: 'seg-btn' + (cur === v ? ' on' : ''), text: label, 'aria-pressed': String(cur === v),
+          title: v === 'both' ? 'Recommander and EDHREC: the cards both suggest first, then the rest of each in turn'
+            : v === 'recommander' ? 'Recommander: what your list in particular is missing' : 'EDHREC: what other people play with your commander',
+          onclick: () => { if (cur === v) return; MTG.setSetting('suggestFrom', v); renderRecs(lastRecs, true); runNetwork(false); },
+        }))),
+      ]);
+    }
+    const isCommanderDeck = () => { const f = MTG.formats.get(getFormat()); return !!(f && f.commander); };
+
     function renderRecs(recs, loading) {
       recsBox.innerHTML = '';
       recsBox.appendChild(el('div', { class: 'row', style: { marginBottom: '6px' } }, [
         el('h3', { style: { margin: 0, flex: 1 }, text: 'Suggested cards' }),
         loading ? el('span', { class: 'spinner' }) : el('button', { class: 'btn xs', text: 'Refresh', onclick: () => runNetwork(true) }),
       ]));
+      if (isCommanderDeck()) recsBox.appendChild(fromPicker());
       if (!recs) {
         recsBox.appendChild(el('div', { class: 'empty-note', text: loading ? 'Working out what fits…' : 'Add a few cards and suggestions will appear.' }));
         return;
@@ -116843,16 +117303,30 @@ Sideboard
             + (MTG.isTouch() ? 'Tap a card\'s picture to read it.' : 'Hover a row to read the card.') }));
         // say what the advice was built from, so a thin list is explained
         const src = recs.sources || {};
-        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, src.recommander ? [
+        recsBox.appendChild(el('div', { class: 'row wrap src-row', style: { marginBottom: '8px' } }, src.hybrid ? [
+          // the two lists blended: both credited, Recommander as its terms ask, with a way to its site
+          el('span', { class: 'pill good', text: 'Recommander' }),
+          el('span', { class: 'pill good', title: 'What other people play in this commander', text: 'EDHREC' }),
+          el('span', { class: 'tiny dim', text: 'The cards both suggest come first.' }),
+          el('a', { class: 'tiny src-link', href: MTG.recommander.SITE, target: '_blank', rel: 'noopener', text: 'Suggestions from recommander.cards' }),
+        ] : src.recommander ? [
           // Recommander's picks, credited as its terms ask, with a way to its site
           el('span', { class: 'pill good', text: 'Recommander' }),
+          src.missing === 'edhrec' ? el('span', { class: 'pill', text: 'EDHREC unavailable' }) : null,
           el('a', { class: 'tiny src-link', href: MTG.recommander.SITE, target: '_blank', rel: 'noopener', text: 'Suggestions from recommander.cards' }),
-        ] : [
+        ].filter(Boolean) : [
           el('span', { class: 'pill good', title: 'Read from the cards in your list', text: 'this deck' }),
           src.edhrec
             ? el('span', { class: 'pill good', title: 'What other people play in this commander', text: 'EDHREC' })
             : el('span', { class: 'pill', title: 'EDHREC was not reachable, or this format has no commander. Suggestions come from the deck alone.', text: 'EDHREC unavailable' }),
-        ]));
+          src.missing === 'recommander' ? el('span', { class: 'pill', text: 'Recommander unavailable' }) : null,
+        ].filter(Boolean)));
+        // one of the two asked for did not answer: the other's suggestions stand alone, and this says so
+        if (src.missing) recsBox.appendChild(el('div', { class: 'tiny dim src-note', style: { marginBottom: '8px' }, text: src.missing === 'edhrec'
+          ? 'EDHREC could not be reached, so these are Recommander\u2019s suggestions alone.'
+          : src.edhrec
+            ? 'Recommander could not be reached, so these come from EDHREC, weighed with the deck builder\u2019s own reading of your list.'
+            : 'Recommander could not be reached, and nor could EDHREC, so these come from the deck builder\u2019s own reading of your list.' }));
       }
       if (recs.comboCompletions.length) {
         recsBox.appendChild(el('div', { class: 'section-title', style: { margin: '4px 0 6px' }, text: 'Completes a combo' }));
@@ -122137,11 +122611,13 @@ Sideboard
     };
     const testBtn = el('button', { class: 'btn sm', text: 'Test', onclick: () => testBtn && test(testBtn) });
     return group('suggest', 'Suggestions', 'Card suggestions for a Commander deck in the deck builder. Other formats use the deck builder\u2019s own reading of your list.', [
-      pick('suggestFrom', 'Suggest cards from', [['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
+      pick('suggestFrom', 'Suggest cards from', [['both', 'Both'], ['recommander', 'Recommander'], ['edhrec', 'EDHREC']],
         edhrec
           ? 'EDHREC: what other people most often play with your commander, weighed with the deck builder\u2019s own reading of your list.'
-          : 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.',
-        'recommander'),
+          : MTG.settings.suggestFrom === 'recommander'
+            ? 'Recommander (recommander.cards) ranks what your list in particular is missing, learned from a great many real decks. If it cannot be reached, EDHREC is used instead.'
+            : 'Recommander (recommander.cards), which ranks what your list in particular is missing, and EDHREC, which knows what other people play with your commander, asked together. The cards both suggest come first, then the rest of each in turn. If one of them cannot be reached, the other\u2019s suggestions are used alone.',
+        'both'),
       edhrec ? null : el('div', { class: 'opt-row stacked' }, el('div', { class: 'grow' }, [
         el('div', { class: 'opt-label', text: 'Recommander relay' }),
         el('div', { class: 'opt-help', text: 'Recommander answers only its own website from a browser, so the app asks through a small relay of your own: a free Cloudflare Worker (the steps are in tools/recommander-relay/README.md). Paste its address here.' }),
