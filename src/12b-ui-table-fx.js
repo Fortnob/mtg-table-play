@@ -395,7 +395,7 @@
             const a = c ? MTG.oracle.analyze(c, 0) : null;
             if (!e.died && e.to === 'graveyard' && a && a.isLand && !a.isCreature) break;
             const verb = e.died ? 'dies' : e.to === 'graveyard' ? 'is put into a graveyard' : e.to === 'exile' ? 'is exiled'
-              : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : 'leaves';
+              : e.to === 'hand' ? 'returns to hand' : e.to === 'library' ? 'goes into a library' : e.to === 'command' ? 'goes to the command zone' : 'leaves';
             // (the face it showed as it left: a transformed card dies as its back face)
             const was = this.objIn(e.objId, prev);
             const nm = (was && was.card ? faceName(was) : null) || nameOf(e.objId, c) || 'A permanent';

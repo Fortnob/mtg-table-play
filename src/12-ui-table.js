@@ -1823,7 +1823,8 @@
       // the board's own room: between the rail and the stack, under the corner buttons, above the hand
       const handTop = this.handHost ? U.rect(this.handHost).top - ar.top : ar.height;
       const x0 = rail + 8, x1 = ar.width - side - 8;
-      let top = phone ? 50 : 8, bottom = Math.min(ar.height - 8, handTop + (phone ? 40 : 60));
+      // (below the corner buttons and, in a bigger game, the opponents' nameplates: --board-top)
+      let top = Math.max(phone ? 50 : 8, px('--board-top')), bottom = Math.min(ar.height - 8, handTop + (phone ? 40 : 60));
       // (a phone's button, which may be the answer to it, is left in sight)
       if (phone && this.dock) { const dr = U.rect(this.dock); if (dr.height && dr.top - ar.top > ar.height / 2) bottom = Math.min(bottom, dr.top - ar.top - 6); }
       // and clear of the question being asked, which on a phone sits up top
