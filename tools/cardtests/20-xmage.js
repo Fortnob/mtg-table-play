@@ -64580,4 +64580,135 @@ module.exports = (test) => {
     t.eq(bill.damage, 2, "Bill Potts: Prodigal Pyromancer's ability copied");
     t.eq(T.manualLines().length, 0);
   });
+  test('Commanders: Agent Maria Hill — tapped to pay a teamwork cost: a +1/+1 counter and a card; teamwork as an additional cost', (mk, t) => {
+    t.auto('Agent Maria Hill');
+    t.auto('Team Tactics');
+    t.auto('Repulsor Blast');
+    const T = mk({ library: Array(30).fill('Mountain') });
+    const g = T.g;
+    T.toMain('A');
+    const maria = T.bf('A', 'Agent Maria Hill');
+    const bears = T.bf('A', 'Grizzly Bears');
+    let q = null;
+    T.answer('mode', (ch) => { q = ch; return { modes: [0] }; });
+    T.answer('pickCard', (ch) => ({ cardIds: [maria.id] }));
+    const h0 = T.zone('A', 'hand').length;
+    T.mana('A', '1R'); T.cast('A', T.hand('A', 'Team Tactics'), { targets: [bears] });
+    t.ok(q && q.field === 'payAdditional' && /use teamwork\? \(Tap any number of creatures you control with total power 1 or more\.\)/.test(q.prompt), 'Maria Hill: asked whether to use teamwork');
+    t.ok(maria.tapped, 'Maria Hill: tapped for teamwork');
+    t.no(bears.tapped, 'Maria Hill: the Bears were not needed');
+    t.eq(maria.counters['+1/+1'], 1, 'Maria Hill: a +1/+1 counter');
+    t.eq(T.zone('A', 'hand').length, h0 + 1, 'Maria Hill: drew a card');
+    t.ok(g.hasKw(bears, 'double strike') && g.hasKw(bears, 'trample'), 'Team Tactics: double strike, and trample for teamwork');
+    // teamwork not used: no trample, no trigger
+    const bears2 = T.bf('A', 'Grizzly Bears');
+    T.answer('mode', { modes: [1] });
+    T.mana('A', '1R'); T.cast('A', T.hand('A', 'Team Tactics'), { targets: [bears2] });
+    t.ok(g.hasKw(bears2, 'double strike') && !g.hasKw(bears2, 'trample'), 'Team Tactics: no teamwork — no trample');
+    // tapped some other way: nothing
+    T.nextTurn('B'); T.nextTurn('A');
+    T.answer('declareAttackers', () => [{ attackerId: maria.id, defenderId: 'B' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('A', 'end');
+    t.eq(maria.counters['+1/+1'], 1, 'Maria Hill: attacking is not teamwork');
+    // Repulsor Blast with teamwork: 2 to that creature's controller
+    T.nextTurn('B'); T.nextTurn('A');
+    const giant = T.bf('B', 'Hill Giant');
+    T.mana('A', '3R'); T.cast('A', T.hand('A', 'Repulsor Blast'), { targets: [giant], payAdditional: true, tapCostIds: [maria.id] });
+    t.zone(giant, 'graveyard', 'Repulsor Blast: 5 damage');
+    t.eq(T.life('B'), 20 - 3 - 2, 'Repulsor Blast: 2 to its controller for teamwork');
+    t.eq(maria.counters['+1/+1'], 2, 'Maria Hill: another counter');
+  });
+  test('Commanders: Hixus, Prison Warden — the turn it entered: a creature that deals you combat damage is exiled until Hixus leaves', (mk, t) => {
+    t.auto('Hixus, Prison Warden');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.nextTurn('B');
+    const bears = T.bf('B', 'Grizzly Bears'), giant = T.bf('B', 'Hill Giant');
+    bears.summoningSick = giant.summoningSick = false;
+    const hixus = T.bf('A', 'Hixus, Prison Warden', { etb: true }); T.resolve();
+    T.answer('declareAttackers', () => [{ attackerId: bears.id, defenderId: 'A' }, { attackerId: giant.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'end');
+    t.eq(T.life('A'), 15, 'Hixus: A took 5');
+    t.zone(bears, 'exile', 'Hixus: the Bears exiled');
+    t.zone(giant, 'exile', 'Hixus: the Giant exiled');
+    // another turn: Hixus did not enter this turn
+    T.nextTurn('A'); T.nextTurn('B');
+    const ogre = T.bf('B', 'Gray Ogre'); ogre.summoningSick = false;
+    T.answer('declareAttackers', () => [{ attackerId: ogre.id, defenderId: 'A' }]);
+    T.answer('declareBlockers', () => []);
+    T.toMain('B', 'end');
+    t.zone(ogre, 'battlefield', 'Hixus: not the turn it entered');
+    // Hixus leaves: they come back
+    g.moveObject(hixus, 'graveyard'); T.resolve();
+    t.zone(bears, 'battlefield', 'Hixus: gone — the Bears return');
+    t.eq(bears.controller, 'B', "Hixus: under their owner's control");
+    t.zone(giant, 'battlefield');
+  });
+  test('Commanders: Daghatar the Adamant — enters with four +1/+1 counters; moves a +1/+1 counter, only that kind, between two creatures', (mk, t) => {
+    t.auto('Daghatar the Adamant');
+    const T = mk({ library: Array(30).fill('Plains') });
+    const g = T.g;
+    T.toMain('A');
+    const dag = T.bf('A', 'Daghatar the Adamant', { etb: true }); T.resolve();
+    t.eq(dag.counters['+1/+1'], 4, 'Daghatar: four +1/+1 counters');
+    const bears = T.bf('B', 'Grizzly Bears');
+    T.mana('A', '1BG');
+    T.activate('A', dag, 0, { targets: [dag, bears] });
+    t.eq(dag.counters['+1/+1'], 3, 'Daghatar: one moved off');
+    t.eq(bears.counters['+1/+1'], 1, "Daghatar: onto the opponent's Bears");
+    // a creature with only a -1/-1 counter: nothing moves
+    const elves = T.bf('A', 'Hill Giant', { counters: { '-1/-1': 1 } });
+    T.mana('A', '1GG');
+    T.activate('A', dag, 0, { targets: [elves, bears] });
+    t.eq(elves.counters['-1/-1'], 1, 'Daghatar: not a -1/-1 counter');
+    t.eq(bears.counters['+1/+1'], 1);
+    t.no(bears.counters['-1/-1'], 'Daghatar: nothing moved');
+  });
+  test('Commanders: Mistform Ultimus — every creature type, on the battlefield and off it', (mk, t) => {
+    t.auto('Mistform Ultimus');
+    const T = mk({ library: Array(30).fill('Island') });
+    const g = T.g;
+    T.toMain('A');
+    T.bf('A', 'Lord of Atlantis');
+    T.bf('A', 'Goblin Warchief');
+    const mu = T.bf('A', 'Mistform Ultimus');
+    t.eq(g.powerOf(mu), 4, 'Mistform Ultimus: a Merfolk — the Lord gives +1/+1');
+    t.ok(g.hasKw(mu, 'haste'), 'Mistform Ultimus: a Goblin — the Warchief gives haste');
+    const inHand = T.hand('A', 'Mistform Ultimus');
+    t.eq(g.castCost(inHand), '{2}{U}', 'Mistform Ultimus: a Goblin spell in hand — {1} less');
+    t.eq(g.castCost(T.hand('A', 'Hill Giant')), '{3}{R}', 'Mistform Ultimus: not every spell');
+  });
+  test('Commanders: Klaw, Sonic Subjugator — enters: a player reveals one plus your creature cards in graveyard; you pick one to discard', (mk, t) => {
+    t.auto('Klaw, Sonic Subjugator');
+    t.auto('Blackmail');
+    const T = mk({ library: Array(30).fill('Swamp') });
+    const g = T.g;
+    T.toMain('A');
+    T.grave('A', 'Grizzly Bears');
+    T.grave('A', 'Lightning Bolt');
+    const hand = ['Hill Giant', 'Shock', 'Giant Growth', 'Island'].map(n => T.hand('B', n));
+    let rq = null, pq = null;
+    T.answer('choose', (ch) => { rq = ch; return { picks: [hand[1].id, hand[3].id] }; });
+    T.answer('pickCard', (ch) => { pq = ch; return { cardIds: [hand[1].id] }; });
+    T.bf('A', 'Klaw, Sonic Subjugator', { etb: true });
+    T.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T.resolve();
+    t.ok(rq && rq.playerId === 'B' && rq.min === 2 && rq.max === 2, 'Klaw: B reveals two (one plus one creature card)');
+    t.eq(pq && pq.playerId, 'A', 'Klaw: A chooses');
+    t.eq((pq.cards || []).map(c => c.id).sort().join(), [hand[1].id, hand[3].id].sort().join(), 'Klaw: only among the revealed cards');
+    t.zone(hand[1], 'graveyard', 'Klaw: Shock discarded');
+    t.zone(hand[0], 'hand');
+    t.ok((hand[3].knownTo || []).includes('A') || (hand[3].knownTo || []).includes('*'), 'Klaw: the revealed Island is known');
+    // no more cards than that: all of them, no question
+    const T2 = mk({ library: Array(30).fill('Swamp') });
+    T2.toMain('A');
+    const only = T2.hand('B', 'Hill Giant');
+    T2.bf('A', 'Klaw, Sonic Subjugator', { etb: true });
+    T2.answer('pickTarget', { targets: [{ kind: 'player', id: 'B' }] });
+    T2.resolve();
+    t.no(T2.asked.some(c => c.type === 'choose' && c.purpose === 'revealFromHand'), 'Klaw: one card in hand — no question to reveal');
+    t.zone(only, 'graveyard', 'Klaw: the only card discarded');
+  });
 };

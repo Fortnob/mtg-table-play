@@ -2912,6 +2912,9 @@
     { re: /^Exile (up to one )?(target [a-z0-9 ,'-]+?|(?:another|other) target [a-z0-9 ,'-]+?) until (?:CARDNAME|this (?:creature|enchantment|artifact|permanent|Aura)) leaves the battlefield\.?$/i,
       make: (m) => ({ op: 'exileUntilLeaves', targets: [Object.assign(targetSpec(m[2].replace(/^(?:another|other) /i, '')), m[1] ? { upTo: true } : {},
         /^(?:another|other) /i.test(m[2]) ? { another: true } : {})] }) },
+    // Hixus, Prison Warden: "exile that creature until Hixus leaves the battlefield" — the one the trigger is about
+    { re: /^Exile that creature until (?:CARDNAME|this creature) leaves the battlefield\.?$/i,
+      make: () => ({ op: 'exileUntilLeaves', scope: 'triggerObject' }) },
     /* Abdel Adrian, Gorion's Ward: "exile any number of other nonland permanents you control until CARDNAME
        leaves the battlefield" — picked as it resolves, held by it; "for each permanent exiled this way" counts
        them (exileAnyUntilLeaves) */
@@ -4794,6 +4797,12 @@
       make: (m) => {
         const a = targetSpec(m[1]), b = targetSpec(m[2]);
         return a && b && !a.unknown && !b.unknown ? { op: 'moveCounter', targets: [a, Object.assign({}, b, { distinct: true })] } : null;
+      } },
+    // Daghatar the Adamant: "Move a +1/+1 counter from target creature onto a second target creature." (counterKind)
+    { re: /^Move a \+1\/\+1 counter from (target [a-z ]+?) onto a second (target [a-z ]+?)\.?$/i,
+      make: (m) => {
+        const a = tgt(m[1]), b = tgt(m[2]);
+        return a && b ? { op: 'moveCounter', counterKind: '+1/+1', targets: [a, Object.assign({}, b, { distinct: true })] } : null;
       } },
     // (Tidus, Yuna's Guardian: "from target creature you control onto a second target creature you control")
     { re: /^Move a counter from (target [a-z ]+?) onto a second (target [a-z ]+?)\.?$/i,
@@ -11560,6 +11569,17 @@
     { re: /^Create a token that'?s a copy of enchanted artifact\. Then if you control (\w+) or more artifacts with the same name as one another, you win the game\.$/i,
       make: (m) => [{ op: 'copyPermanent', n: 1, of: 'attached', grant: [] },
         { op: 'ifCond', cond: { kind: 'sameNameArtifacts', n: num(m[1]) }, then: [{ op: 'winGame' }] }] },
+    /* Klaw, Sonic Subjugator: "target player reveals a number of cards from their hand equal to one plus the number of
+       creature cards in your graveyard. You choose one of them. That player discards that card."; Blackmail: "Target
+       player reveals three cards from their hand and you choose one of them." — the player picks what to show
+       (revealFromHand), and the choice is among those (amongRevealed) */
+    { re: /^Target (player|opponent) reveals (?:a number of cards from their hand equal to (.+?)\. You choose|(two|three|four|\d+) cards from their hand and you choose) one of them\. That player discards that card\.?$/i,
+      make: (m) => {
+        const n = m[3] ? num(m[3]) : amountOf(m[2]);
+        if (n == null || n === false || (typeof n === 'number' && !(n > 0))) return null;
+        return [{ op: 'revealFromHand', n, targets: [Object.assign({ type: 'player' }, /opponent/i.test(m[1]) ? { opponent: true } : {})] },
+          { op: 'chooseFromHand', filter: 'any', amongRevealed: true }, { op: 'discardChosen' }];
+      } },
     // Anim Pakal: "put a +1/+1 counter on Anim Pakal, then create X 1/1 … tapped and attacking, where X is …"
     { re: /^Put a \+1\/\+1 counter on (?:CARDNAME|Anim Pakal), then (create [\s\S]+)$/i,
       make: (m) => { const rest = parseSentenceList(splitSentences(m[1].charAt(0).toUpperCase() + m[1].slice(1))); return rest.auto ? [{ op: 'counters', kind: '+1/+1', n: 1, scope: 'self' }, ...rest.effects] : null; } },
@@ -15625,6 +15645,8 @@
     // an optional additional cost, paid, is counted as the spell's kicker
     // (Katara, Seeking Revenge: "unless her additional cost was paid")
     [/^(?:this spell'?s|its|his|her|their) additional cost was paid$/i, () => ({ kind: 'kicked', n: 1 })],
+    // Teamwork: "if this spell was cast using teamwork" — its optional additional cost, paid
+    [/^(?:this spell|CARDNAME|it) was cast using teamwork$/i, () => ({ kind: 'kicked', n: 1 })],
     // Baleful Mastery: "If the {1}{B} cost was paid" — the alternative cost
     [/^the (?:\{[^}]+\})+ cost was paid$/i, () => ({ kind: 'altPaid' })],
     // Delayed Blast Fireball: "If this spell was cast from exile"
@@ -16857,6 +16879,8 @@
     // Interface Ace, Dionus: "during your turn"
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped during your turn,? /i,
       event: 'becomesTapped', self: true, extra: { yourTurnOnly: true } },
+    // Agent Maria Hill: "Whenever Agent Maria Hill becomes tapped to pay a teamwork cost" (forCost)
+    { re: /^When(?:ever)? (?:this creature|CARDNAME) becomes tapped to pay a teamwork cost,? /i, event: 'becomesTapped', self: true, extra: { forCost: 'teamwork' } },
     { re: /^When(?:ever)? (?:this creature|this land|this artifact|this permanent|~|CARDNAME) becomes tapped(?:,| )/i, event: 'becomesTapped', self: true },
     // The Ninth Doctor: "Whenever The Ninth Doctor becomes untapped during your untap step" (duringYourUntap)
     { re: /^When(?:ever)? (?:this creature|this permanent|CARDNAME) becomes untapped during your untap step,? /i, event: 'becomesUntapped', self: true, extra: { duringYourUntap: true } },
@@ -18576,6 +18600,14 @@
              additional cost you may pay (CR 702.33a): the table takes it as the spell is cast, and
              paying it kicks the spell. One with mana as well (Dwarven Landslide) is left to the table
              (Thieving Skydiver's "Kicker {X}. X can't be 0." is mana) */
+          /* Teamwork N: "As an additional cost to cast this spell, you may tap any number of creatures you control
+             with total power N or more." — paid, "if this spell was cast using teamwork" reads it as kicked (teamwork) */
+          if (lower === 'teamwork' && kn > 0 && !out.additionalCost) {
+            out.additionalCost = { tapCreatures: { n: 1, filter: 'creature', totalPower: kn }, optional: true, teamwork: kn };
+            out.abilities.push({ kind: 'castModifier', keyword: k.keyword, arg: k.arg, text: k.text, auto: true, effects: [] });
+            autoLines += 1 / kws.length;
+            continue;
+          }
           if (lower === 'kicker' && k.arg && !/^(?:\{[^}]+\})+(?:\s+and\/or\s+(?:\{[^}]+\})+)?(?:\.|$)/.test(String(k.arg).trim())) {
             const what = String(k.arg).trim().replace(/\.$/, '');
             const c = !out.additionalCost && oneAdditionalCost(what.charAt(0).toLowerCase() + what.slice(1), true);
@@ -18701,6 +18733,14 @@
          then exiled, which the table offers there */
       if (!out.isPermanent && /^Aftermath$/i.test(line)) {
         out.abilities.push({ kind: 'castModifier', keyword: 'Aftermath', text: line, auto: true, effects: [] });
+        autoLines++;
+        continue;
+      }
+      /* Mistform Ultimus: "Mistform Ultimus is every creature type (even if this card isn't on the battlefield)." —
+         what changeling says, in its own words: everywhere (everyCreatureType) */
+      if (/^CARDNAME is every creature type\.?$/i.test(line)) {
+        out.everyCreatureType = true;
+        out.abilities.push({ kind: 'static', text: line, auto: true, effects: [{ op: 'noop' }] });
         autoLines++;
         continue;
       }
@@ -19003,6 +19043,7 @@
     }
     out.keywordSet = new Set(out.keywords.map(k => k.keyword.toLowerCase()));
     if (out.flashSacrifice) out.keywordSet.add('flash');
+    if (out.everyCreatureType) out.keywordSet.add('changeling');
 
     /* A script for this card replaces or adds to what the lines gave us. It is
        written in the same vocabulary, so from here on nothing can tell the

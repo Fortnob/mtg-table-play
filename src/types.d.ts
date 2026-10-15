@@ -405,6 +405,8 @@ declare namespace MTG {
   interface PickCardChoice extends ChoiceBase {
     type: 'pickCard'; count: number; cards: ChoiceCard[]; optional?: boolean; candidates?: Id[];
     fromLibrary?: boolean; worst?: boolean; totalPower?: number;
+    /** purpose 'tapCost': what the tapping pays for, when that matters (Agent Maria Hill: 'teamwork') */
+    why?: string | null;
   }
   interface PickTargetChoice extends ChoiceBase {
     type: 'pickTarget'; specs: Array<Record<string, any>>; options: Target[][]; count: number;

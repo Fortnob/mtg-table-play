@@ -31,7 +31,7 @@
   const SUSPEND = Symbol('suspend');
   /* Effects that act on their targets and nothing else, which a trigger's
      "that creature" (scope triggerObject) is handed to as one. */
-  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy', 'phaseOut']);
+  const TRIGGER_OBJECT_OPS = new Set(['destroy', 'exile', 'bounce', 'tap', 'untap', 'damage', 'gainControl', 'fightSelf', 'copyPermanent', 'becomeCopy', 'phaseOut', 'exileUntilLeaves']);
 
   // Plain-English names for the combat restrictions an effect can impose.
   // the counters that are keywords (CR 122.1b)
@@ -7039,7 +7039,8 @@
         const ab = (a.abilities || []).find(x => x.kind === 'castModifier' && /^As an additional cost/i.test(x.text || ''));
         const words = add.kicker ? add.label : ((ab && (String(ab.text).match(/you may (.+?)\.?$/i) || [])[1]) || 'pay the additional cost');
         const up = String(words || '').replace(/^./, (c) => c.toUpperCase());
-        out.push({ kind: 'optional', cost: '', label: add.kicker ? 'Kicker\u2014' + up : up + ' (an additional cost)',
+        // (Teamwork N: said as the keyword, with what it taps)
+        out.push({ kind: 'optional', cost: '', label: add.kicker ? 'Kicker\u2014' + up : add.teamwork ? `Teamwork (tap creatures with total power ${add.teamwork} or more)` : up + ' (an additional cost)',
           blocked: !!this._thingCostBlocked(o.controller || o.owner, Object.assign({ spellLife: true }, add), o, null) });
       }
       if (a.gift && hangs) {
@@ -7112,9 +7113,13 @@
         if (this._thingCostBlocked(playerId, Object.assign({ spellLife: true }, add), o, null)) opts.payAdditional = false;
         // Katara, Seeking Revenge: "you may waterbend {2}" — not offered when the mana is not there, taps and all
         else if (add.mana && !this._optAddManaPlan(playerId, o, opts.free ? '' : chk.cost, add)) opts.payAdditional = false;
-        else if (decides) opts.payAdditional = true;
+        /* Teamwork: a player who decides by itself keeps its creatures for combat on its own turn before
+           combat damage, and taps them otherwise */
+        else if (decides) opts.payAdditional = !(add.teamwork && this.activePlayer && this.activePlayer.id === playerId &&
+          !(this.phase && this.phase.id === 'postcombat') && this.step !== 'end' && this.step !== 'cleanup');
         // Vicious Offering: "Kicker—Sacrifice a creature", asked as a kick
         else if (add.kicker) return ask('payAdditional', `${o.name}: kick it? (${add.label})`, ['Kick it', "Don't kick it"], [true, false]);
+        else if (add.teamwork) return ask('payAdditional', `${o.name}: use teamwork? (Tap any number of creatures you control with total power ${add.teamwork} or more.)`, ['Use teamwork', "Don't use teamwork"], [true, false]);
         else if (add.waterbend) return ask('payAdditional', `${o.name}: waterbend ${add.mana} as an additional cost? (Each artifact and creature you tap pays for {1}.)`, ['Waterbend', "Don't waterbend"], [true, false]);
         else return ask('payAdditional', `${o.name}: pay the additional cost?`, ['Pay it', "Don't pay it"], [true, false]);
       }
@@ -10856,11 +10861,13 @@
         const want = cost.tapCreatures.totalPower;
         const named = (opts.tapCostIds || []).map(id => pool.find(x => x.id === id)).filter(Boolean);
         const sum = (l) => l.reduce((k, x) => k + this._crewPowerOf(x), 0);
-        if (named.length && sum(named) >= want) this._tapForCost(pid, named, item);
+        // (Agent Maria Hill: "becomes tapped to pay a teamwork cost" — teamwork)
+        const why = cost.teamwork ? 'teamwork' : null;
+        if (named.length && sum(named) >= want) this._tapForCost(pid, named, item, why);
         else {
           const auto2 = this._crewPick(pool, want);
-          if (auto || !item || !auto2 || pool.length === auto2.length || this._alike(pool)) { if (auto2) this._tapForCost(pid, auto2, item); }
-          else ask({ type: 'pickCard', count: pool.length, purpose: 'tapCost', totalPower: want, worst: true, candidates: pool.map(x => x.id),
+          if (auto || !item || !auto2 || pool.length === auto2.length || this._alike(pool)) { if (auto2) this._tapForCost(pid, auto2, item, why); }
+          else ask({ type: 'pickCard', count: pool.length, purpose: 'tapCost', totalPower: want, worst: true, candidates: pool.map(x => x.id), why,
             cards: pool.map(x => ({ id: x.id, name: x.name, card: x.card })),
             prompt: `Tap untapped creatures you control with total power ${want} or more.` });
         }
@@ -10899,11 +10906,11 @@
       const idle = (x) => (this.characteristics(x).isCreature && x.summoningSick && !this.hasKw(x, 'haste') && !this._hasteForAbilities(x)) ? 0 : 1;
       return pool.slice().sort((x, y) => idle(x) - idle(y) || this._cardValue(x) - this._cardValue(y));
     }
-    _tapForCost(pid, list, item) {
+    _tapForCost(pid, list, item, why) {
       const done = [];
       for (const x of list) {
         if (!x || x.zone !== 'battlefield' || x.tapped) continue;
-        this._markTapped(x);
+        this._markTapped(x, false, why);
         done.push(x.name);
         if (item) (item.tapped = item.tapped || []).push({ id: x.id, name: x.name, power: this.powerOf(x), toughness: this.toughnessOf(x) });
       }
@@ -18142,6 +18149,8 @@
           if (ab.otherPlayer && data.player === o.controller) continue;
           // Rhoda, Geist Avenger: "if it isn't being declared as an attacker" (notAsAttacker)
           if (ab.notAsAttacker && data.asAttacker) continue;
+          // Agent Maria Hill: "becomes tapped to pay a teamwork cost" (forCost)
+          if (ab.forCost && data.forCost !== ab.forCost) continue;
           if (ab.notYourTurnOnly && this.activePlayer && this.activePlayer.id === o.controller) continue;
           // Revenge of Ravens: an attacker coming at you (or, if it says so, a planeswalker of yours)
           if (ab.attacksYou && !(data.player === o.controller && (ab.attacksYou === 'orWalker' || data.defenderId === o.controller))) continue;
@@ -29108,6 +29117,8 @@
 
         /* ===== exile that is really imprisonment ===== */
         case 'exileUntilLeaves': {
+          // Hixus, Prison Warden: "exile that creature until Hixus leaves" — nothing, if Hixus has left already (CR 610.3c)
+          if (e.scope === 'triggerObject' && (!src || src.zone !== 'battlefield')) break;
           for (const t of targets) {
             if (t.kind !== 'object') continue;
             const o = this.obj(t.id);
@@ -30064,8 +30075,33 @@
         }
         /* "Target opponent reveals their hand. You choose a card from it.
             That player discards that card." — three sentences, one act. */
+        /* Klaw, Sonic Subjugator; Blackmail: "target player reveals N cards from their hand" — that player picks them,
+           all of them if that is no more than N (revealFromHand) */
+        case 'revealFromHand': {
+          this._revealedFromHand = null;
+          const p = firstPlayer();
+          if (!p) break;
+          const hand = this.zones[p.id].hand;
+          const k = Math.max(0, n(e.n));
+          let shown = hand.slice();
+          if (hand.length > k) {
+            const got = this._choose({ playerId: p.id, purpose: 'revealFromHand', kind: 'objects', zone: 'hand',
+              items: this._chooseItems(hand), min: k, max: k,
+              prompt: `${me.name}: reveal ${k === 1 ? 'a card' : k + ' cards'} from your hand. ${me.name}'s controller chooses one of them, and you discard it.` }, 'rfh');
+            if (got === SUSPEND) return SUSPEND;
+            const picks = ((got && got.picks) || []).map(id => this.obj(id)).filter(o => o && hand.includes(o));
+            shown = picks.length === k ? picks : hand.slice(0, k);
+          }
+          if (!shown.length) { this.logEvent('reveal', `${p.name} has no cards to reveal.`); break; }
+          this._know(shown, '*');
+          this._revealedFromHand = shown.map(o => o.id);
+          this.logEvent('reveal', `${p.name} reveals ${shown.map(o => o.name).join(', ')}.`);
+          break;
+        }
         case 'chooseFromHand': {
-          const victim = firstPlayer() || this.opponentsOf(ctx.controller)[0];
+          // (Klaw, Sonic Subjugator: "You choose one of them" — among the cards that player revealed: amongRevealed)
+          const shownFirst = e.amongRevealed ? this.obj((this._revealedFromHand || [])[0]) : null;
+          const victim = e.amongRevealed ? (shownFirst ? this.player(shownFirst.owner) : null) : firstPlayer() || this.opponentsOf(ctx.controller)[0];
           if (!victim) break;
           // Lifebane Zombie: "a green or white creature card" — either colour; the words read as a search reads them
           const raw = String(e.filter || 'any').toLowerCase();
@@ -30073,6 +30109,7 @@
           const hand = this.zones[victim.id].hand.filter(o => {
             const a = o.analysis();
             if (!a) return false;
+            if (e.amongRevealed && !(this._revealedFromHand || []).includes(o.id)) return false;
             return words === 'any' || words === 'card' || this._cardFitsWords(o, words);
           });
           // (the hand was revealed, cards named, by the sentence before)
@@ -34330,7 +34367,8 @@
           const [from, to] = objs;
           if (!from || !to || from === to) break;
           // (Rikku, Resourceful Guardian; Tidus, Yuna's Guardian: of several kinds, the one to move is chosen)
-          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0);
+          // (Daghatar the Adamant: "Move a +1/+1 counter" — that kind only: counterKind)
+          const kinds = Object.keys(from.counters || {}).filter(k => Number(from.counters[k]) > 0 && (!e.counterKind || k === e.counterKind));
           if (!kinds.length) break;
           let kind = kinds[0];
           if (kinds.length > 1) {
@@ -35673,7 +35711,10 @@
       if (sc.anyOf ? !sc.anyOf.some(isType) : !isType(want)) return false;
       if (sc.notType && sc.notType.some(isType)) return false;
       if (sc.alsoType && !sc.alsoType.every(isType)) return false;
-      if (sc.subtype && !(oa.subtypes || []).some(t => t.toLowerCase() === sc.subtype)) return false;
+      /* (a changeling is every creature type, by a characteristic-defining ability — CR 702.73a, 604.3: Lord of
+         Atlantis' "Other Merfolk" takes in Mistform Ultimus) */
+      if (sc.subtype && !(oa.subtypes || []).some(t => t.toLowerCase() === sc.subtype) &&
+        !(oa.keywordSet && oa.keywordSet.has('changeling') && CREATURE_TYPES_LOWER.has(sc.subtype))) return false;
       if (sc.subtypeAny && !(oa.subtypes || []).some(t => sc.subtypeAny.includes(t.toLowerCase()))) return false;
       // "Elves and Goblins you control": any one of several creature types
       if (sc.subtypes && !sc.subtypes.some(st => (oa.subtypes || []).some(t => t.toLowerCase() === st) ||
@@ -35859,14 +35900,15 @@
       }
       return true;
     }
-    _markTapped(o, asAttacker) {
+    _markTapped(o, asAttacker, why) {
       if (!o || o.tapped) return;
       o.tapped = true;
       if (!o._tappedTurn || o._tappedTurn.turn !== this.turn) o._tappedTurn = { turn: this.turn, n: 0 };
       o._tappedTurn.n++;
       // (Rhoda, Geist Avenger: tapped as it is declared as an attacker — asAttacker)
       // (Gideon's Avenger, Rhoda: seen by every player's permanents — whose it is in objController)
-      this._fire('becomesTapped', null, Object.assign({ source: o, object: o, objController: o.controller, nth: o._tappedTurn.n }, asAttacker ? { asAttacker: true } : {}));
+      // (Agent Maria Hill: tapped to pay a teamwork cost — forCost)
+      this._fire('becomesTapped', null, Object.assign({ source: o, object: o, objController: o.controller, nth: o._tappedTurn.n }, asAttacker ? { asAttacker: true } : {}, why ? { forCost: why } : {}));
       // Solitary Sanctuary, Sharae: an effect of yours tapping an opponent's creature (youTapTheirs)
       if (this._putBy && this._putBy !== o.controller && (o.analysis() || {}).isCreature) this._fire('youTapOpponentCreature', this._putBy, { object: o, objController: o.controller });
     }
@@ -37346,7 +37388,7 @@
               for (const x of this._tapCostOrder(pool)) { if (sum >= ch.totalPower) break; if (!ids.includes(x.id)) { ids.push(x.id); sum += this._crewPowerOf(x); } }
             } else
             for (const x of this._tapCostOrder(pool)) { if (ids.length >= (ch.count || 1)) break; if (!ids.includes(x.id)) ids.push(x.id); }
-            this._tapForCost(playerId, ids.map(id => this.obj(id)), ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null);
+            this._tapForCost(playerId, ids.map(id => this.obj(id)), ch.stackId ? this.stack.find(s => s.id === ch.stackId) : null, ch.why || null);
             ids = [];
           }
           // an Aura put onto the battlefield uncast: what it enchants

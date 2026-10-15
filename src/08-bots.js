@@ -1567,6 +1567,13 @@
      called on the bot with the question and the engine's checks, and may
      return null to fall back to scoring candidate by candidate. */
   const CHOOSE_PURPOSES = {
+    /* Klaw, Sonic Subjugator; Blackmail: the cards of ours to reveal, one of which the other player makes us discard —
+       the ones worth least */
+    revealFromHand(s) {
+      const g = this.game;
+      const os = (s.items || []).map(it => g.obj(it.id)).filter(Boolean).sort((a, b) => this.rating(a) - this.rating(b));
+      return { picks: os.slice(0, s.min || 0).map(o => o.id) };
+    },
     /* Vhati il-Dal: base power 1 or base toughness 1 — on a foe's creature whichever takes more off it (toughness when
        even, so it dies more easily); on our own, whichever takes less */
     basePtEither(s) {
