@@ -5257,9 +5257,18 @@
         }
         /* Blitz (CR 702.152): cheap and fast, gone at end of turn, and it
            draws you a card on the way out. */
-        if (o.zone === 'hand' && arg && k === 'blitz') {
-          const bc = this._blitzCost(playerId, arg);
-          out.push({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + bc });
+        // (Sabin, Master Monk: "You may cast this card from your graveyard using its blitz ability." — blitzFromGrave)
+        if ((o.zone === 'hand' || (o.zone === 'graveyard' && o.owner === playerId && this._staticOp(o, 'blitzFromGrave'))) && arg && k === 'blitz') {
+          /* Sabin, Master Monk: "Blitz—{2}{R}{R}, Discard a card."; Tenacious Underdog: "Blitz—{2}{B}{B}, Pay 2 life." —
+             the mana, and the rest paid as it is cast (discard, life) */
+          const [manaPart, ...more] = String(arg).replace(/\.$/, '').split(/,\s*/);
+          const bc = this._blitzCost(playerId, manaPart);
+          const extra = {};
+          for (const x of more) {
+            if (/^discard a card$/i.test(x)) extra.discard = 'any';
+            else if (/^pay (\d+) life$/i.test(x)) extra.life = +x.match(/\d+/)[0];
+          }
+          if (more.length === Object.keys(extra).length) out.push(Object.assign({ kind: 'cast', via: 'blitz', cost: bc, label: 'Blitz ' + [bc].concat(more).join(', ') }, extra));
         }
         /* Mutate (CR 702.140): cast for its mutate cost onto a non-Human
            creature you own, and the two become one. */
@@ -6851,6 +6860,8 @@
           ? 'No land card in hand to discard.' : 'No card in hand to discard.');
         toDiscard = (opts.discardId && legal.find(c => c.id === opts.discardId)) || legal[0];
       }
+      // Tenacious Underdog: "Blitz—{2}{B}{B}, Pay 2 life." — only with that much life (CR 119.4)
+      if (via && via.life && (p.life < via.life && this.config.rulesEnforcement === 'full')) return this.fail(`You need ${via.life} life to pay.`);
 
       /* Optional extra costs, chosen before the spell is cast: the caller
          says how many times to kick, or whether to buy it back, and the
@@ -7141,6 +7152,11 @@
         this.moveObject(toDiscard, 'graveyard');
         this.logEvent('discard', `${p.name} discards ${toDiscard.name}.`);
         this._afterDiscard(playerId, toDiscard);
+      }
+      // (Tenacious Underdog: "Pay 2 life" — the blitz cost's life)
+      if (via && via.life) {
+        this.changeLife(p, -via.life, 'cost');
+        this.logEvent('life', `${p.name} pays ${via.life} life to cast ${o.name}.`);
       }
 
       if (o.zone === 'command') {
@@ -12024,6 +12040,9 @@
           ? reps.filter(e => e.ef.how !== 'atLeastSelfPower').concat(reps.filter(e => e.ef.how === 'atLeastSelfPower')) : reps;
         // (The Mindskinner: the opponent dealt the damage has it prevented first, before anything doubles it — oppsMillInstead)
         if (order.some(e => e.ef.how === 'oppsMillInstead')) order = order.filter(e => e.ef.how === 'oppsMillInstead').concat(order.filter(e => e.ef.how !== 'oppsMillInstead'));
+        // (Eligeth, Crossroads Augur: a scry made bigger first, then drawn instead — the most cards for the one scrying)
+        if (ev.drawInstead) break;
+        if (order.some(e => e.ef.how === 'drawInstead')) order = order.filter(e => e.ef.how !== 'drawInstead').concat(order.filter(e => e.ef.how === 'drawInstead'));
         for (const entry of order) {
           const ef = entry.ef;
           const key = entry.src.id + ':' + (ef.id || ef.event);
@@ -12165,6 +12184,8 @@
         case 'triple': ev.n = (ev.n || 0) * 3; break;
         case 'plus': (ev.extras = ev.extras || []).push(ef.extra); break;
         case 'add': ev.n = (ev.n || 0) + (ef.n || 1); break;
+        // Eligeth, Crossroads Augur: "draw that many cards instead" (of a scry)
+        case 'drawInstead': ev.drawInstead = true; break;
         // Rem Karolus, Stalwart Slayer: "prevent that damage"
         case 'prevent': ev.n = 0; ev.cancelled = true; break;
         case 'atLeastSelfPower': ev.n = Math.max(ev.n || 0, this.powerOf(src)); break;
@@ -16602,6 +16623,8 @@
           // in the order the card prints them (CR 700.2c)
           picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
         } else if (m.upToX && !(n(m.count) > 0)) picks = [];
+        // Cult of Skaro: "choose one at random" — chosen as it goes on the stack, by nobody (random)
+        else if (m.random) picks = [this.rng.int(modes.length)];
         else {
           let want = Math.min(n(m.count) || 1, modes.length);
           const least = m.min != null ? Math.min(m.min, want) : want;
@@ -16663,7 +16686,8 @@
         if (chosenModes) {
           const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean);
           item.modes = labels;
-          this.logEvent('rules', `${me.name} chooses for ${name}: ${labels.length ? labels.join('; ') : 'no modes'}.`);
+          this.logEvent('rules', top.modal.random ? `${name}: ${labels.join('; ')}, chosen at random.`
+            : `${me.name} chooses for ${name}: ${labels.length ? labels.join('; ') : 'no modes'}.`);
           if (usedModes && src && top.modal.notChosen) {
             const key = top.modal.notChosen === 'turn' ? 't' + this.turn : 'ever';
             if (!src._usedModes || src._usedModes.key !== key) src._usedModes = { key, list: [] };
@@ -19486,7 +19510,10 @@
           // Kozilek's Command: "Target player scries X"
           const who = (e.who === 'target' && firstPlayer()) || me;
           // Kenessos, Priest of Thassa: "scry that many cards plus one instead" (a scry replacement)
-          const want = e.op === 'scry' && n(e.n) > 0 ? this._replace({ kind: 'scry', n: n(e.n), controller: who.id }).n : n(e.n);
+          const evS = e.op === 'scry' && n(e.n) > 0 ? this._replace({ kind: 'scry', n: n(e.n), controller: who.id }) : null;
+          const want = evS ? evS.n : n(e.n);
+          // Eligeth, Crossroads Augur: "If you would scry a number of cards, draw that many cards instead."
+          if (evS && evS.drawInstead) { this._drawCards(who, want); break; }
           // (Erestor of the Council: "scry X" with X 0 is no scry at all)
           if (e.n && typeof e.n === 'object' && !(want > 0)) break;
           const cards = this._topOfLibrary(who.id, want);
@@ -22500,6 +22527,13 @@
             ctx._modePlayers = [];
             this._spliceNext(runO);
             this.logEvent('rules', `${me.name} chooses: ${chosenO.map(i => modes[i] && modes[i].label).filter(Boolean).join('; ')}`);
+            break;
+          }
+          // Cult of Skaro: "choose one at random" — nobody's choice (random)
+          if (e.random) {
+            const i = usable[this.rng.int(usable.length)];
+            this._spliceNext(this._ownTargets((modes[i] && modes[i].effects) || []));
+            this.logEvent('rules', `${ctx.name || 'Effect'}: ${(modes[i] && modes[i].label) || 'a mode'} is chosen at random.`);
             break;
           }
           // Henrika Domnathi: the last mode that hasn't been chosen is the one there is — nothing to ask
@@ -28861,9 +28895,10 @@
            opponent controls. The token has enchant creature and "…"" */
         case 'createAuraToken': {
           const host = firstObj();
-          if (!host || host.zone !== 'battlefield' || !this.characteristics(host).isCreature) break;
+          // (Estrid, the Masked: "enchant permanent" \u2014 enchant)
+          if (!host || host.zone !== 'battlefield' || (e.enchant !== 'permanent' && !this.characteristics(host).isCreature)) break;
           const card = { id: 'aura:' + e.name, name: e.name, layout: 'token', mana_cost: '', cmc: 0,
-            type_line: 'Token Enchantment \u2014 Aura', oracle_text: 'Enchant creature\n' + e.words,
+            type_line: 'Token Enchantment \u2014 Aura', oracle_text: 'Enchant ' + (e.enchant || 'creature') + '\n' + e.words,
             colors: (e.colors || []).slice(), color_identity: (e.colors || []).slice(), keywords: [], rarity: 'common', set: 'tkn', set_name: 'Token',
             collector_number: '0', image_uris: null, _isToken: true };
           const o = this._createAuraToken(ctx.controller, card, host, true);

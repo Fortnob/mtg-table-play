@@ -5602,6 +5602,10 @@
     { re: /^Untap (?:it|CARDNAME|this creature) and all ([A-Z][a-z]+|creatures) you control\.?$/,
       make: (m) => { const sc = scopeOf(m[1] + ' you control'); return sc ? { op: 'sequence', list: [{ op: 'untap', scope: 'self' }, { op: 'untapAll', scope: sc }] } : null; } },
     /* Splendid Reclamation, Aftermath Analyst, Lumra */
+    /* Estrid, the Masked: "Return all non-Aura enchantment cards from your graveyard to the battlefield, then do the same
+       for Aura cards." — the Auras after, so they have the others to enchant (CR 303.4f) */
+    { re: /^Return all non-Aura enchantment cards from your graveyard to the battlefield, then do the same for Aura cards\.?$/i,
+      make: () => [{ op: 'massReanimate', filter: 'non-Aura enchantment', yours: true }, { op: 'massReanimate', filter: 'Aura', yours: true }] },
     // Knights' Charge: "Return all Knight creature cards from your graveyard to the battlefield."
     { re: /^Return all ([A-Z][a-z]+) creature cards from your graveyard to the battlefield( tapped)?\.?$/,
       make: (m) => ({ op: 'massReanimate', filter: m[1].toLowerCase() + ' creature', yours: true, tapped: !!m[2] }) },
@@ -11268,6 +11272,11 @@
     { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to (target creature(?: an opponent controls| you control)?)\. The token has enchant creature and "(.+)"\.?$/i,
       make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
         words: m[4], targets: [targetSpec(m[3])] }] },
+    /* Estrid, the Masked: "Create a white Aura enchantment token named Mask attached to another target permanent. The
+       token has enchant permanent and umbra armor." (createAuraToken, enchant) */
+    { re: /^create an? (white|blue|black|red|green) Aura enchantment token named ([A-Z][A-Za-z' ]+) attached to ((?:another )?target permanent)\. The token has enchant permanent and (umbra armor|totem armor)\.?$/i,
+      make: (m) => [{ op: 'createAuraToken', name: m[2], colors: [({ white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' })[m[1].toLowerCase()]],
+        enchant: 'permanent', words: m[4].charAt(0).toUpperCase() + m[4].slice(1).toLowerCase(), targets: [targetSpec(m[3])] }] },
     /* Scriv, the Obligator's Contract: "Whenever enchanted creature attacks, it gets +2/+0 until end of turn if it's
        attacking one of your opponents. Otherwise, its controller loses 2 life." */
     { re: /^It gets \+(\d+)\/\+(\d+) until end of turn if it'?s attacking one of your opponents\. Otherwise, its controller loses (\d+) life\.?$/i,
@@ -11304,6 +11313,13 @@
       const inner = k != null && parseModal('Choose one \u2014 ' + ux[2]);
       if (!inner) return null;
       Object.assign(inner.effects[inner.effects.length - 1], { count: k, min: 0, upToX: true });
+      return inner;
+    }
+    // Cult of Skaro: "choose one at random \u2014" \u2014 nobody chooses (random)
+    const rnd = cleaned.match(/^Choose one at random\s*[-\u2014]+\s*([\s\S]*)$/i);
+    if (rnd) {
+      const inner = parseModal('Choose one \u2014 ' + rnd[1]);
+      if (inner) Object.assign(inner.effects[inner.effects.length - 1], { random: true, text: cleaned });
       return inner;
     }
     const m = cleaned.match(/^Choose ([a-z ]+?)(?:\.|\s*[-\u2014]+)\s*([\s\S]*)$/i);
@@ -18739,6 +18755,9 @@
     // Kenessos, Priest of Thassa: "If you would scry a number of cards, scry that many cards plus one instead."
     { re: /^If you would scry a number of cards, scry that many cards plus (one|two|three|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'scryPlus', event: 'scry', who: 'you', how: 'add', n: num(m[1]) }) },
+    // Eligeth, Crossroads Augur: "If you would scry a number of cards, draw that many cards instead."
+    { re: /^If you would scry a number of cards, draw that many cards instead\.?$/i,
+      make: () => ({ op: 'replace', id: 'scryDraw', event: 'scry', who: 'you', how: 'drawInstead' }) },
     // The Water Crystal: "If an opponent would mill one or more cards, they mill that many cards plus four instead."
     { re: /^If an opponent would mill one or more cards, they mill that many cards plus (one|two|three|four|five|\d+) instead\.?$/i,
       make: (m) => ({ op: 'replace', id: 'millPlus', event: 'mill', who: 'opponents', how: 'add', n: num(m[1]) }) },
@@ -19394,6 +19413,8 @@
         make: (m) => ({ op: 'graveAltCost', cost: m[1], exileGrave: num(m[2].toLowerCase()) }), auto: true },
       // Brokkos, Apex of Forever: "You may cast this card from your graveyard using its mutate ability." (mutateFromGrave)
       { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its mutate ability\.?$/i, eff: { op: 'mutateFromGrave' }, auto: true },
+      // Sabin, Master Monk: "You may cast this card from your graveyard using its blitz ability." (blitzFromGrave)
+      { re: /^You may cast (?:this card|CARDNAME) from your graveyard using its blitz ability\.?$/i, eff: { op: 'blitzFromGrave' }, auto: true },
       /* Changeling Outcast */
       { re: /^(?:This creature|CARDNAME) can'?t block and can'?t be blocked\.?$/i,
         make: () => ({ op: 'sequence', list: [{ op: 'cantBlock' }, { op: 'continuous', layer: 6, scope: { self: true }, grant: ['Unblockable'] }] }), auto: true },

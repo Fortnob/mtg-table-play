@@ -50808,4 +50808,105 @@ module.exports = (test) => {
     t.no(bear.counters['+1/+1'], 'the Bears are no Hero');
     t.ok(g.hasKw(sh, 'trample'), 'trample');
   });
+  test('Commanders: Estrid, the Masked — −1: a Mask with umbra armor on another permanent; +2 untaps it; −7 returns enchantments, Auras last', (mk, t) => {
+    t.auto('Estrid, the Masked');
+    const T = mk({ library: Array(20).fill('Island') });
+    const g = T.g;
+    const es = T.bf('A', 'Estrid, the Masked', { counters: { loyalty: 9 } });
+    const land = T.bf('A', 'Island', { tapped: true });
+    t.no(g.activateAbility('A', es.id, 1, { auto: true, targets: [{ kind: 'object', id: es.id }] }), 'another permanent: not Estrid');
+    T.activate('A', es, 1, { targets: [land] });
+    const mask = g.battlefield.find(o => o.name === 'Mask');
+    t.ok(mask && mask.attachedTo === land.id && mask.isToken, 'a Mask token attached to the land');
+    t.ok(g.hasKw(mask, 'umbra armor'), 'with umbra armor');
+    t.eq(es.counters.loyalty, 8, '−1');
+    T.nextTurn('A');
+    land.tapped = true;
+    T.activate('A', es, 0);
+    t.no(land.tapped, '+2: the enchanted land untaps');
+    T.mana('A', 'R2');
+    T.cast('A', T.hand('A', 'Stone Rain'), { targets: [land] });
+    t.zone(land, 'battlefield', 'umbra armor: the land survives');
+    t.zone(mask, 'graveyard', 'the Mask goes instead');
+    T.nextTurn('A');
+    es.counters.loyalty = 10;
+    const pac = T.grave('A', 'Pacifism'), anth = T.grave('A', 'Glorious Anthem'), bears = T.grave('A', 'Grizzly Bears');
+    const giant = T.bf('B', 'Hill Giant');
+    T.activate('A', es, 2);
+    t.eq(T.zone('A', 'graveyard').filter(c => c.name === 'Island').length, 7, 'seven milled');
+    t.zone(anth, 'battlefield', 'the non-Aura enchantment returns');
+    t.zone(pac, 'battlefield', 'the Aura returns too');
+    t.eq(pac.attachedTo, giant.id, 'enchanting the only creature');
+    t.zone(bears, 'graveyard', 'not an enchantment card');
+  });
+  test('Commanders: Sabin, Master Monk — blitzed from the graveyard: haste, a card when it dies, sacrificed at end step', (mk, t) => {
+    t.auto('Sabin, Master Monk');
+    const T = mk({ library: Array(20).fill('Mountain') });
+    const g = T.g;
+    const sab = T.grave('A', 'Sabin, Master Monk');
+    const junk = T.hand('A', 'Grizzly Bears');
+    T.mana('A', 'RR2');
+    const uses = g.altUsesFor('A', sab.id);
+    t.ok(uses.some(u => u.via === 'blitz'), 'blitz offered from the graveyard');
+    t.no(uses.some(u => u.kind === 'cast' && !u.via), 'not its mana cost');
+    t.no(g.altUsesFor('A', T.grave('A', 'Goblin Bushwhacker').id).some(u => u.via === 'blitz'), 'another card: no leave');
+    T.cast('A', sab, { via: 'blitz' });
+    t.zone(sab, 'battlefield', 'Sabin returns');
+    t.zone(junk, 'graveyard', 'a card discarded for the blitz');
+    t.ok(g.hasKw(sab, 'haste'), 'haste');
+    const hand = T.zone('A', 'hand').length;
+    T.nextTurn('B');
+    t.zone(sab, 'graveyard', 'sacrificed at the end step');
+    t.eq(T.zone('A', 'hand').length, hand + 1, 'drew a card as it died');
+    // (Tenacious Underdog: "Blitz—{2}{B}{B}, Pay 2 life." — the life paid too)
+    T.nextTurn('A');
+    const dog = T.grave('A', 'Tenacious Underdog');
+    const life = T.life('A');
+    T.mana('A', 'BB2');
+    T.cast('A', dog, { via: 'blitz' });
+    t.zone(dog, 'battlefield', 'Underdog blitzed from the graveyard');
+    t.eq(T.life('A'), life - 2, 'two life paid');
+  });
+  test('Commanders: Cult of Skaro — attacks: one mode at random, nobody asked', (mk, t) => {
+    t.auto('Cult of Skaro');
+    const seen = new Set();
+    for (let seed = 1; seed <= 12; seed++) {
+      const T = mk({ library: Array(20).fill('Island'), seed });
+      const g = T.g;
+      const cult = T.bf('A', 'Cult of Skaro');
+      const hand = T.zone('A', 'hand').length, life = T.life('B');
+      T.answer('declareAttackers', () => [{ attackerId: cult.id, defenderId: 'B' }]);
+      T.toMain('A', 'declareBlockers');
+      T.resolve();
+      t.no(T.asked.some(q => q.type === 'mode' || q.purpose === 'modes'), 'no mode question');
+      const got = [cult.counters['+1/+1'] === 1 && 'Thay', T.zone('A', 'hand').length === hand + 2 && 'Caan',
+        g.battlefield.some(o => o.isToken && o.name === 'Dalek') && 'Sec', T.life('B') === life - 4 && 'Jast'].filter(Boolean);
+      t.eq(got.length, 1, 'seed ' + seed + ': exactly one mode: ' + got.join(','));
+      seen.add(got[0]);
+      t.ok(g.log.some(l => /chosen at random|chooses for/.test(l.text)), 'the log says which');
+    }
+    t.ok(seen.size >= 3, 'different modes come up: ' + [...seen].join(', '));
+  });
+  test('Commanders: Eligeth, Crossroads Augur — your scry N is draw N instead; with Kenessos, the bigger scry drawn', (mk, t) => {
+    t.auto('Eligeth, Crossroads Augur');
+    const T = mk({ library: Array(20).fill('Island') });
+    T.bf('A', 'Eligeth, Crossroads Augur');
+    let hand = T.zone('A', 'hand').length;
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.no(T.asked.some(q => q.type === 'scry'), 'no scry question');
+    t.eq(T.zone('A', 'hand').length, hand + 2, 'Opt: scry 1 drawn instead, then its draw');
+    T.bf('A', 'Kenessos, Priest of Thassa');
+    hand = T.zone('A', 'hand').length;
+    T.mana('A', 'U');
+    T.cast('A', T.hand('A', 'Opt'));
+    t.eq(T.zone('A', 'hand').length, hand + 3, 'scry 2 (Kenessos) drawn, then the draw');
+    // an opponent's scry is theirs
+    T.nextTurn('B');
+    const bh = T.zone('B', 'hand').length;
+    T.mana('B', 'U');
+    T.cast('B', T.hand('B', 'Opt'));
+    t.ok(T.asked.some(q => q.type === 'scry' && q.playerId === 'B'), "B scries");
+    t.eq(T.zone('B', 'hand').length, bh + 1, 'B draws only the one');
+  });
 };
