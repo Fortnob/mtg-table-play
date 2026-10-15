@@ -27040,13 +27040,15 @@ module.exports = (test) => {
     M.toMain('A');
     const p1 = M.bf('A', 'Plains');
     const p2 = M.bf('A', 'Plains');
+    // (an Island, or Eluge is 0/0 and dies before its trigger resolves)
+    M.bf('A', 'Island');
     M.answer('pickTarget', { targets: [{ kind: 'object', id: p1.id }] });
     const el = M.bf('A', 'Eluge, the Shoreless Sea', { etb: true });
     M.resolve();
     t.eq(p1.counters.flood, 1, 'Eluge: a flood counter on the Plains');
     t.ok(p1.analysis().subtypes.includes('Island') && p1.analysis().subtypes.includes('Plains'), 'Eluge: an Island in addition to a Plains');
     t.eq(manaColors(M, p1), 'UW', 'Eluge: it taps for {W} or {U}');
-    t.eq(M.g.powerOf(el), 1, 'Eluge: 1/1, one Island');
+    t.eq(M.g.powerOf(el), 2, 'Eluge: 2/2, the Island and the flooded Plains');
     // the first instant or sorcery: {U} off for the one land
     const div = M.hand('A', 'Divination');
     t.eq(M.g.castCost(div), '{2}', 'Eluge: Divination costs {2}');
@@ -28260,11 +28262,12 @@ module.exports = (test) => {
     M.resolve();
     t.no(M.asked.slice(a0).some(ch => ch.type === 'pickTarget'), 'Yuna: no counters, or not yours — nothing asked');
     t.eq(bears.counters['+1/+1'] || 0, 0);
-    // declined
-    M.answer('pickTarget', () => ({ targets: [] }));
+    // declined: the target is chosen as it goes on the stack, the "you may" as it resolves
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: bears.id }] }));
+    M.answer('confirm', { yes: false });
     M.g.moveObject(M.bf('A', 'Everflowing Chalice', { counters: { charge: 2 } }), 'graveyard');
     M.resolve();
-    t.eq((bears.counters['+1/+1'] || 0) + (yuna.counters['+1/+1'] || 0), 2, 'Yuna: "you may" — no target chosen, no counters');
+    t.eq((bears.counters['+1/+1'] || 0) + (yuna.counters['+1/+1'] || 0), 2, 'Yuna: "you may" — declined, no counters');
     // Yuna herself: "another permanent"
     const b0 = M.asked.length;
     M.g.moveObject(yuna, 'graveyard');
@@ -35214,8 +35217,8 @@ module.exports = (test) => {
     M.nextTurn('B');
     g.drawCards('A', 1); M.resolve();
     const tok = M.bfOf('A').find(o => o.isToken && /Tentacle/.test(o.name));
-    const pick = (id) => (ch) => ({ targets: [((ch.options || [])[0] || []).find(x => x.id === id)].filter(Boolean) });
-    M.answer('pickTarget', pick(w.id)).answer('pickTarget', pick(bear.id));
+    // both targets chosen as the trigger is put on the stack, the Kraken and then the permanent
+    M.answer('pickTarget', () => ({ targets: [{ kind: 'object', id: w.id }, { kind: 'object', id: bear.id }] }));
     g.moveObject(tok, 'graveyard'); M.resolve();
     t.eq((w.counters || {}).stun, 1, 'Watcher: "untap" it — a stun counter comes off instead');
     t.eq((bear.counters || {}).stun, 1, 'Watcher: a stun counter on the Bears');
@@ -38260,9 +38263,9 @@ module.exports = (test) => {
     const bear = M.bf('A', 'Grizzly Bears');
     const wall = M.bf('C', 'Wall of Stone');
     const modes = [];
-    // (the last declared is the top of the stack: Jin's first)
-    M.answer('mode', (ch) => { modes.push(ch); return { modes: [1] }; });
+    // (modes chosen as each trigger goes on the stack, in the order they went on: the Bears' first)
     M.answer('mode', (ch) => { modes.push(ch); return { modes: [0] }; });
+    M.answer('mode', (ch) => { modes.push(ch); return { modes: [1] }; });
     M.answer('declareAttackers', () => [{ attackerId: bear.id, defenderId: 'B' }, { attackerId: jin.id, defenderId: 'C' }]);
     M.toMain('A', 'declareBlockers');
     t.eq(modes.length, 2, 'Jin Sakai: each creature alone at its player');

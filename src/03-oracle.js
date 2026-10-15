@@ -12335,14 +12335,6 @@
            where the table would ask the first one's; a person settles it */
         if (/^its controller$/i.test(unless[2]) && effects.some(x => x && (x.targets || []).length) &&
           /"targets":\[\{"type":"(?!spell)/.test(JSON.stringify(inner.effects))) auto = false;
-        /* Combustion Man: a trigger's target is picked as it resolves, so "target permanent" is picked before its
-           controller is asked, and the destroying acts on it (selfDamage) */
-        const lastU = effects[effects.length - 1];
-        if (cost.selfDamage && inner.effects.length === 1 && (inner.effects[0].targets || []).length === 1) {
-          lastU.targets = inner.effects[0].targets;
-          lastU.then = [Object.assign({}, inner.effects[0])];
-          delete lastU.then[0].targets;
-        }
         continue;
       }
 
@@ -14149,10 +14141,9 @@
     // Monk Gyatso: "Whenever another creature you control becomes the target of a spell or ability" — anyone's
     { re: /^Whenever another creature you control becomes the target of a spell or ability,? /i,
       event: 'becomesTarget', filt: () => subjectFilter('another creature you control'), aboutObject: true },
-    /* Horobi, Death's Wail: "Whenever a creature becomes the target of a spell or ability" — anyone's creature, and a
-       triggered ability's target too, though told only as it resolves (anyonesCreature, withTriggered) */
+    // Horobi, Death's Wail: "Whenever a creature becomes the target of a spell or ability" — anyone's creature (anyonesCreature)
     { re: /^Whenever a creature becomes the target of a spell or ability,? /i,
-      event: 'becomesTarget', filt: () => subjectFilter('a creature'), aboutObject: true, extra: { anyonesCreature: true, withTriggered: true } },
+      event: 'becomesTarget', filt: () => subjectFilter('a creature'), aboutObject: true, extra: { anyonesCreature: true } },
     // Shay Cormac: "Whenever a creature an opponent controls becomes the target of a spell or ability you control" (targetedByYou)
     { re: /^Whenever (an? (?:creature|permanent) (?:an opponent controls|your opponents control)) becomes the target of a spell or ability you control,? /i,
       event: 'becomesTarget', filt: (m) => subjectFilter(m[1]), extra: { targetedByYou: true } },

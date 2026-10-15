@@ -2568,7 +2568,15 @@
     /** The effect the engine is in the middle of resolving, if any. */
     _resolvingEffect() {
       const r = this.game.resolving;
-      return r && r.effects ? r.effects[r.index] : null;
+      const e = r && r.effects ? r.effects[r.index] : null;
+      /* a trigger being put on the stack chooses its modes now (aimTrigger): its "choose one —" is what the
+         modes asked are of */
+      if (e && e.op === 'aimTrigger') {
+        const it = this.game.stack.find(s => s.id === e.stackId);
+        const find = (list) => { for (const x of (list || [])) { if (x && x.op === 'modal') return x; const y = x && x.op === 'sequence' && find(x.list); if (y) return y; } return null; };
+        return (it && find(it.effects)) || null;
+      }
+      return e;
     }
 
     /** Answer the question on the table. `plan`, when given, is an answer already worked out (a look ahead's). */
@@ -2662,10 +2670,12 @@
            points at. */
         case 'pickTarget': {
           const specs = ch.specs || [];
-          const e = this._resolvingEffect() || { op: ch.op || 'damage' };
+          const e0 = this._resolvingEffect() || { op: ch.op || 'damage' };
           const out = [];
           (ch.options || []).forEach((list, i) => {
             const spec = specs[i] || {};
+            // a trigger going on the stack says what each of its targets is for (aimedBy)
+            const e = (ch.aimedBy && ch.aimedBy[i]) || e0;
             // Ravager of the Fells: "a creature that player or that planeswalker's controller controls" (sameControllerAsPrev)
             if (spec.sameControllerAsPrev && i > 0) { const who = out[i - 1] && g._targetsController(out[i - 1]); list = list.filter(x => x.kind === 'object' && (g.obj(x.id) || {}).controller === who); }
             if (!list.length) return;

@@ -2875,6 +2875,7 @@
 
     _resolveAbility(item) {
       this.logEvent('resolve', `${item.name} resolves.`);
+      item._lastAimed = null;
       // how many times this ability has resolved this turn, for "the second time"
       if (item.obj && item.abilityIndex != null && item.abilityIndex >= 0) {
         const r = (item.obj._resolved = item.obj._resolved || {});
@@ -3333,6 +3334,8 @@
 
     /** The target specs of a spell or ability, in the order its targets were chosen. */
     _specsOf(item, n) {
+      // a triggered ability's: what each of its targets was chosen as, as it went on the stack (_aimTrigger)
+      if (item && Array.isArray(item.targetSpecs)) return item.targetSpecs.slice(0, n == null ? undefined : n);
       return fitSpecs(effectSpecs(item && item.effects, this._selOf(item)), n == null ? (item && item.targets ? item.targets.length : null) : n);
     }
     /* What a cast settled that decides which of a spell's targets it has (targetSlots): the kick, the
@@ -7451,7 +7454,9 @@
 
     /** Ward: the opponent must pay or the spell or ability is countered (CR 702.21a). Mana, life and poison
         are taken at once; a price that is a choice (discard a card, sacrifice three nonland permanents) is
-        asked by a ward trigger that goes on the stack above it (wardPay). */
+        asked by a ward trigger that goes on the stack above it (wardPay). A triggered ability's targets are
+        chosen as it is put on the stack, not at its controller's word: every price is the ward trigger's, which
+        asks it as it resolves. */
     _applyWard(item) {
       for (const t of (item.targets || [])) {
         if (t.kind !== 'object') continue;
@@ -7463,7 +7468,7 @@
         // (a price the table can't take leaves the card to its players: the reading says so)
         if (!w) continue;
         // (Auntie Ool, Cursewretch: "Ward—Blight 2" — the creature is the payer's choice too)
-        if (w.discard || w.sacrifice || w.blight) {
+        if (w.discard || w.sacrifice || w.blight || item.triggered) {
           this.pendingTriggers.push({
             id: this._uid('tr'), kind: 'ability', obj: o, objId: o.id, abilityIndex: -1, controller: o.controller,
             name: `${o.name} \u2014 ward`, auto: true, abilityText: `Ward\u2014${arg}`,
@@ -7609,10 +7614,11 @@
     }
 
     /**
-     * Ward on targets chosen as a spell or ability resolves (CR 702.21a). The rules choose a triggered ability's
-     * targets as it is put on the stack (CR 603.3d), so that ward triggers and resolves first; this engine chooses
-     * them as the ability resolves (and a mode's as the spell resolves), so ward is done here instead, as soon as
-     * the targets are chosen and before anything is done to them: each ward of each opponent's permanent newly
+     * Ward on targets chosen as a spell or ability resolves (CR 702.21a). A triggered ability chooses its targets
+     * as it is put on the stack (_aimTrigger), and ward triggers then; what still chooses as something resolves —
+     * a spell's mode, a spliced card's words, a reflexive "when you do" written into an ability, a trigger left to
+     * choose then (triggerAimPlan) — meets ward here instead, as soon as the targets are chosen and before
+     * anything is done to them: each ward of each opponent's permanent newly
      * targeted is paid by the controller of the spell or ability, asked with the whole price, or the spell or
      * ability is countered and nothing more of it happens. Returns SUSPEND while a question waits, true when it
      * was countered, false when it goes on.
@@ -16242,9 +16248,8 @@
           if (ab.exploreKind && event === 'youExplore' && (data.exploredLand ? 'land' : 'nonland') !== ab.exploreKind) continue;
           // Professor Hojo: "become the target of an activated ability"
           if (ab.byActivated && event === 'becomesTarget' && (!data.byAbility || data.byTrigger)) continue;
-          /* Loki, God of Mischief: "the target of an ability" (anyAbility); a triggered ability's targets, chosen as it
-             resolves (byTrigger), are told to no other trigger: they would answer it too late */
-          if (event === 'becomesTarget' && (ab.anyAbility ? !data.byAbility : data.byTrigger && !ab.withTriggered)) continue;
+          // Loki, God of Mischief: "the target of an ability" (anyAbility), activated or triggered
+          if (event === 'becomesTarget' && ab.anyAbility && !data.byAbility) continue;
           if (ab.byOpponent && event === 'becomesTarget' && data.playerId === o.controller) continue;
           if (ab.skipFirstDrawStep && data.inDrawStep && data.nth === 1) continue;
           /* "their first noncreature spell each turn": none of that kind
@@ -16353,7 +16358,8 @@
         t.triggered = true;          // "copy target triggered ability" needs to tell
         this.stack.push(t);
         this.logEvent('trigger', `Triggered: ${t.name}`);
-        this.emit('stack:add', t);
+        // (one with modes or targets to choose is told once it has them: _aimTrigger)
+        if (this.resolving || !this._aimNeeded(t)) this.emit('stack:add', t);
       }
       /* Several of your own triggers at once is a decision the rules give
          you (CR 603.3b). The table orders them for you, as Arena does,
@@ -16364,19 +16370,364 @@
         if (!mine.has(t.controller)) mine.set(t.controller, []);
         mine.get(t.controller).push(t);
       }
+      const asks = [];
       for (const [pid, list] of mine) {
         if (list.length < 2) continue;
         const p = this.player(pid);
         if (!p || p.isBot || p.hasLost) continue;
         const cfg = (this.config.autoPass || {})[pid];
         if (!cfg || !(cfg.orderTriggers || cfg.fullControl)) continue;
-        this.queueChoice({
+        asks.push({
           type: 'orderTriggers', playerId: pid,
           cards: list.map(t => ({ id: t.id, name: t.name, card: (t.obj && t.obj.card) || null })),
           count: list.length,
           prompt: 'Order your triggers — the last one you pick resolves first.',
         });
       }
+      /* Each goes on the stack with its modes and targets chosen (CR 603.3c–d), in the order they went
+         on, each by its controller; the order of your own is asked once they all have them. Something
+         still resolving can't stop to ask: those choose as they resolve, as before. */
+      if (this.resolving) { for (const q of asks) this.queueChoice(q); return; }
+      this._aimQueue = (this._aimQueue || []).concat(order.map(t => t.id));
+      this._aimOrders = (this._aimOrders || []).concat(asks);
+      const was = this.__aimInline;
+      this.__aimInline = true;
+      try { this._aimNext(); } finally { this.__aimInline = was; }
+    }
+
+    /** Does this trigger, on the stack, have modes or targets to choose? */
+    _aimNeeded(item) {
+      return !!item && item.kind === 'ability' && item.triggered && !item.aimed && !(item.targets || []).length &&
+        (aimsIn(item.effects) || !!aimModal(item.effects));
+    }
+    /**
+     * Choose the modes and targets of the next trigger waiting for them (_aimQueue). Each is done as a
+     * resolution of its own (the aimTrigger effect), so its questions are asked, answered, resumed and
+     * saved the way any effect's are; this comes again once it is done.
+     */
+    _aimNext() {
+      while ((this._aimQueue || []).length) {
+        const id = this._aimQueue.shift();
+        const item = this.stack.find(s => s.id === id);
+        if (!this._aimNeeded(item)) continue;
+        this._runEffects([{ op: 'aimTrigger', stackId: id }], item, () => this._aimNext(), 'aimTrigger');
+        return;
+      }
+      // every one of them has its targets: the order of your own, then what their targeting set off
+      const asks = this._aimOrders || [];
+      this._aimQueue = null; this._aimOrders = null;
+      for (const q of asks) {
+        const cards = (q.cards || []).filter(c => this.stack.some(s => s.id === c.id));
+        if (cards.length >= 2) this.queueChoice(Object.assign({}, q, { cards, count: cards.length }));
+      }
+      /* chosen after an answer, not as priority was being given: priority carries on from here, state-based
+         actions first (CR 117.5) */
+      const after = !this.__aimInline && !this.resolving;
+      if (after) this.checkStateBasedActions();
+      if (this.over) return;
+      if (this.pendingTriggers.length) this._putTriggersOnStack();
+      if (after && !this.resolving && !(this._aimQueue || []).length) {
+        this.emit('priority', this.priorityPlayer);
+        this.touch();
+        if (!this.pendingChoice) this._maybeAutoPass();
+      }
+    }
+
+    /**
+     * A triggered ability is put on the stack (CR 603.3c–d, 601.2b–d): its controller chooses its modes,
+     * then its targets, then how its damage is divided. A target it must have that nothing could be
+     * takes it off the stack again. What it chose is kept on it — its words with each sentence's own
+     * targets marked (_tslot) and any division (_split), its targets and what each was chosen as
+     * (targetSpecs) — and what it targets becomes the target of it now: becomesTarget, ward (a ward
+     * trigger, above it), a crime. `n` reads numbers the way the effect being run does.
+     */
+    _aimTrigger(e, ctx, n) {
+      const item = this.stack.find(s => s.id === e.stackId);
+      if (!item || item.aimed) return null;
+      const pid = item.controller;
+      const me = this.player(pid);
+      const src = item.obj || (item.objId && this.obj(item.objId)) || null;
+      const td = item.triggerData || {};
+      const name = item.name || (src && src.name) || 'Triggered ability';
+      if (!me || me.hasLost) { item.aimed = true; this.emit('stack:add', item); return null; }
+      const effects = JSON.parse(JSON.stringify(item.effects || []));
+      const gone = (why) => {
+        const i = this.stack.indexOf(item);
+        if (i >= 0) this.stack.splice(i, 1);
+        this.logEvent('trigger', `${name} ${why}, so it is removed from the stack.`);
+        this.touch();
+        return null;
+      };
+      /* ---- its modes (CR 603.3c, 700.2) ---- */
+      const top = aimModal(effects);
+      const plan0 = triggerAimPlan(effects);
+      let chosenModes = null, usedModes = null;
+      if (top && plan0.ok) {
+        const m = top.modal, modes = m.modes || [];
+        const label = (i) => truncate(modes[i].label || modes[i].text || ('Mode ' + (i + 1)), 90);
+        let picks = null;
+        if (m.pawprint) {
+          const budget = Math.max(1, n(m.pawprint) || 1);
+          const got = this._choose({ playerId: pid, purpose: 'pawprint', kind: 'options', repeat: true, min: 1, max: budget, stackId: item.id,
+            options: modes.map((x, i) => ({ i, label: label(i), weight: x.weight || 1, cost: '{P}'.repeat(x.weight || 1) })),
+            constraints: [{ kind: 'sum', key: 'weight', max: budget, label: 'paw prints' }],
+            prompt: `${name}: choose up to ${budget} {P} worth of modes. A mode may be chosen more than once.` }, 'modes');
+          if (got === SUSPEND) return SUSPEND;
+          // in the order the card prints them (CR 700.2c)
+          picks = ((got && got.picks) || [0]).slice().sort((x, y) => x - y);
+        } else if (m.upToX && !(n(m.count) > 0)) picks = [];
+        else {
+          let want = Math.min(n(m.count) || 1, modes.length);
+          const least = m.min != null ? Math.min(m.min, want) : want;
+          let most = m.max ? Math.max(want, Math.min(m.max, modes.length)) : want;
+          if (m.countIf && this._condMet(m.countIf.cond, item)) { most = Math.min(m.countIf.count, modes.length); want = most; }
+          let usable = modes.map((x, i) => i);
+          // "choose one that hasn't been chosen": what this permanent has used is kept on it
+          if (m.notChosen && src) {
+            const key = m.notChosen === 'turn' ? 't' + this.turn : 'ever';
+            usedModes = src._usedModes && src._usedModes.key === key ? src._usedModes.list : [];
+            usable = usable.filter(i => !usedModes.includes(i));
+            if (!usable.length) return gone('has no mode left to choose');
+          }
+          if (m.optional || m.distinctPlayers) {
+            // Shadrix Silverquill: "Each mode must target a different player" — that many players to target
+            if (m.distinctPlayers && this._legalTargetsFor({ type: 'player' }, pid, src ? src.id : null).length < want) {
+              if (!m.optional) return gone(`can't target a different player with each of ${want} modes`);
+              picks = [];
+            } else {
+              picks = usable.slice(0, want);
+              if (m.optional || usable.length > want) {
+                const got = this._choose({ playerId: pid, purpose: 'modes', kind: 'options', min: want, max: want, optional: !!m.optional, stackId: item.id,
+                  options: usable.map(i => ({ i, label: label(i) })),
+                  prompt: `${name}: ${m.optional ? 'you may choose' : 'choose'} ${want === 1 ? 'one' : want === 2 ? 'two' : want}${m.optional ? ', or none' : ''}.${m.distinctPlayers ? ' Each mode must target a different player.' : ''}` }, 'modes');
+                if (got === SUSPEND) return SUSPEND;
+                picks = ((got && got.picks) || []).map(k => usable[k]).filter(i => i != null).sort((x, y) => x - y);
+              }
+            }
+          } else if (usedModes && usable.length <= least) picks = usable.slice();
+          else {
+            const got = this._ask({ type: 'mode', playerId: pid, count: want, stackId: item.id,
+              min: least !== want ? least : undefined, max: most !== want ? most : undefined, repeatable: !!m.repeatable,
+              options: usable.map(i => ({ i, label: label(i) })),
+              prompt: m.prompt || `${name}: choose ${m.upToX ? 'up to ' : ''}${want === 1 ? 'one' : want}.` }, 'modes');
+            if (got === SUSPEND) return SUSPEND;
+            const said = (got || []).slice(0, m.repeatable ? want : most);
+            picks = said.length || (least === 0 && Array.isArray(got)) ? said : usable.slice(0, want);
+            if (usedModes) { picks = picks.filter(i => usable.includes(i)); if (!picks.length) picks = usable.slice(0, 1); }
+          }
+        }
+        chosenModes = picks;
+        const run = [];
+        for (const i of picks) {
+          // each mode chosen is its own words, with its own targets (a mode chosen twice, twice)
+          const list = JSON.parse(JSON.stringify((modes[i] && modes[i].effects) || []));
+          // a mode's player target is one no mode before it pointed at (distinctModePlayer), in every sentence of it
+          const mark = (l) => { for (const f of (l || [])) { if (!f) continue; for (const sp of f.targets || []) if (sp && sp.type === 'player') sp.distinctModePlayer = true; mark(f.list); mark(f.then); mark(f.otherwise); } };
+          if (m.distinctPlayers) mark(list);
+          run.push(...list);
+        }
+        top.list.splice(top.at, 1, ...run);
+      }
+      const plan = top && plan0.ok ? triggerAimPlan(effects) : plan0;
+      // "When you do, …": a reflexive trigger, choosing its targets as it triggers, while this resolves
+      for (const f of plan.late) f.askTargets = true;
+      const keep = () => {
+        item.effects = effects;
+        item.aimed = true;
+        if (chosenModes) {
+          const labels = chosenModes.map(i => top.modal.modes[i] && top.modal.modes[i].label).filter(Boolean);
+          item.modes = labels;
+          this.logEvent('rules', `${me.name} chooses for ${name}: ${labels.length ? labels.join('; ') : 'no modes'}.`);
+          if (usedModes && src && top.modal.notChosen) {
+            const key = top.modal.notChosen === 'turn' ? 't' + this.turn : 'ever';
+            if (!src._usedModes || src._usedModes.key !== key) src._usedModes = { key, list: [] };
+            src._usedModes.list.push(...chosenModes);
+          }
+        }
+      };
+      // what can't be chosen yet: the whole ability chooses as it resolves (triggerAimPlan says why)
+      if (!plan.ok || !plan.units.length) { keep(); this.emit('stack:add', item); return null; }
+      /* ---- its targets (CR 601.2c, by way of 603.3d) ---- */
+      const srcId = src ? src.id : null;
+      const same = (a, b) => !!a && !!b && a.kind === b.kind && a.id === b.id;
+      // (nothing on the stack targets itself, CR 115.5)
+      const legal = (spec) => this._legalTargetsFor(spec, pid, srcId).filter(t => !(t.kind === 'stack' && t.id === item.id));
+      const picked = plan.units.map(() => []);           // what each target was chosen as
+      const usedSpecs = plan.units.map(() => []);
+      const modePlayers = [];
+      /* the targets are asked for together, as a spell's are; a mode that must target a different player
+         from the modes before it asks once those are chosen (Shadrix Silverquill) */
+      const groups = [], together = { list: [], solo: false };
+      plan.units.forEach((u, ui) => {
+        if (u.kind !== 'spec') return;
+        if (u.spec && u.spec.distinctModePlayer) groups.push({ list: [ui], solo: true });
+        else { if (!together.list.length) groups.push(together); together.list.push(ui); }
+      });
+      for (let gi = 0; gi < groups.length; gi++) {
+        const slots = [];
+        for (const ui of groups[gi].list) {
+          const u = plan.units[ui];
+          const sp = this._aimSpecs([u.spec], Object.assign({}, item, { _modePlayers: modePlayers.slice() }))[0];
+          const mc = sp && sp.multi;
+          if (mc) {
+            // "X target creatures": X as it goes on the stack, and no more of them than there are
+            const one = Object.assign({}, sp, { distinct: true }, mc.exact === false || mc.count === 'any' ? { upTo: true } : {});
+            delete one.multi;
+            const cm = mc.count;
+            const ks = cm && cm.timesKicked && src && (src.zone === 'stack' || (src.zone === 'battlefield' && src.wasCast != null)) ? src : null;
+            const xv = cm === 'X' ? (item.x || (src && src.chosenX) || 0) : cm === 'triggerAmount' ? (Number(td.amount) || 0)
+              : cm && cm.timesKicked ? ((ks && ks.kickedTimes) || 0) * (cm.mult || 1) : typeof cm === 'number' ? cm : Math.max(0, Number(n(cm)) || 0);
+            const opts = legal(one);
+            const k = Math.min(Math.max(0, xv), opts.length);
+            for (let j = 0; j < k; j++) slots.push({ ui, spec: one, options: opts, multi: true });
+            continue;
+          }
+          const opts = legal(sp);
+          // a target it must have, and nothing it could be: off the stack it goes (CR 603.3d)
+          if (!opts.length && !(sp && sp.upTo)) return gone('has no legal target');
+          slots.push({ ui, spec: sp, options: opts });
+        }
+        const asked = slots.filter(sl => sl.options.length);
+        if (!asked.length) continue;
+        // The Lord of Pain: "another target player" with one player to choose is no choice (onlyOnePlayer)
+        const forced = asked.length === 1 && !asked[0].multi && !!(plan.units[asked[0].ui].spec || {}).notTriggerPlayer && asked[0].options.length === 1;
+        const bare = (f) => ({ op: f.op, n: f.n, p: f.p, t: f.t, kind: f.kind, targets: f.targets });
+        const said = forced ? [asked[0].options[0]] : this._ask({
+          type: 'pickTarget', playerId: pid, purpose: 'triggerTargets', stackId: item.id,
+          specs: asked.map(sl => sl.spec), options: asked.map(sl => sl.options), count: asked.length, sourceId: srcId,
+          // what each target is for, which a bot weighs it by
+          aimedBy: asked.map(sl => bare(plan.units[sl.ui].at[0].eff)),
+          prompt: `${name}: ${asked.length === 1 ? 'choose a target' : 'choose targets'}.`,
+        }, gi ? 'tgt' + gi : 'tgt');
+        if (said === SUSPEND) return SUSPEND;
+        const answer = (said || []).map(normTarget).filter(Boolean);
+        // each answer to its slot in turn: one that fits none is passed over, and a target it must have is made up
+        const got = [];
+        let k = 0;
+        for (const sl of asked) {
+          const c = answer[k];
+          if (c && sl.options.some(x => same(x, c)) && !(sl.multi && got.some(x => x.sl.ui === sl.ui && same(x.t, c)))) { got.push({ sl, t: c }); k++; continue; }
+          if (answer.length === asked.length) k++;
+          if (sl.spec && sl.spec.upTo) continue;
+          const fill = sl.options.find(x => !got.some(y => same(y.t, x)));
+          if (fill) got.push({ sl, t: fill });
+        }
+        for (const x of got) {
+          picked[x.sl.ui].push(normTarget(x.t));
+          usedSpecs[x.sl.ui].push(x.sl.spec);
+          if (x.t.kind === 'player' && groups[gi].solo && !modePlayers.includes(x.t.id)) modePlayers.push(x.t.id);
+        }
+      }
+      /* "any number of target …", "for each opponent, … target … that player controls" */
+      for (let ui = 0; ui < plan.units.length; ui++) {
+        const u = plan.units[ui];
+        const f = u.at[0].eff;
+        if (u.kind === 'any') {
+          const mvOf = (o) => (o.card && o.card.cmc) || 0;
+          const pool = legal(u.spec).filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean)
+            .filter(o => f.anyTotalMv == null || mvOf(o) <= f.anyTotalMv);
+          if (!pool.length) continue;
+          // (Dragonlord Atarka: no more of them than there is damage to divide, CR 601.2d)
+          const dmgN = f.op !== 'damageDivided' ? null : typeof f.n === 'number' ? f.n : f.n && f.n.scope ? this._countValue(f.n, pid, src || null)
+            : f.n === 'X' ? (item.x || (src && src.chosenX) || (src && src.monstrous && td.event === 'becomesMonstrous' && src.monstrousX) || 0) : null;
+          const cap = dmgN != null ? Math.min(pool.length, dmgN) : pool.length;
+          if (cap <= 0) continue;
+          const got = this._choose(Object.assign({ playerId: pid, purpose: 'anyTargets', kind: 'objects', zone: u.spec.zone || 'battlefield', stackId: item.id,
+            items: f.anyTotalMv != null ? this._chooseItems(pool).map(it => Object.assign(it, { mv: mvOf(this.obj(it.id)) })) : this._chooseItems(pool), min: 0, max: cap, optional: true,
+            harmful: /^(?:destroy|exile|bounce|tap|damage|damageDivided|sacrifice|fight|phaseOut)$/.test(f.op) || ((f.op === 'counters' || f.op === 'countersDivided') && /^-|stun/.test(f.kind || '')),
+            prompt: `${name}: ${f.anyPrompt || `choose any number of ${u.spec.filter || 'targets'}`}${f.anyTotalMv != null ? ` with total mana value ${f.anyTotalMv} or less` : ''}.` },
+          f.anyTotalMv != null ? { constraints: [{ kind: 'sum', key: 'mv', max: f.anyTotalMv, label: 'total mana value' }] } : {}), 'any' + ui);
+          if (got === SUSPEND) return SUSPEND;
+          let ids = (got && got.picks) || [];
+          if (f.anyTotalMv != null) { let sum = 0; ids = ids.filter(id => { const o = this.obj(id); const v = o ? mvOf(o) : 0; if (!o || sum + v > f.anyTotalMv) return false; sum += v; return true; }); }
+          for (const id of ids) { picked[ui].push({ kind: 'object', id }); usedSpecs[ui].push(Object.assign({}, u.spec, { upTo: true })); }
+        } else if (u.kind === 'perOpp') {
+          const spec = u.spec;
+          const pool = legal(spec).filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
+          const whose = (x) => (x.zone === 'battlefield' ? x.controller : x.owner);
+          for (const opp of (spec.everyPlayer ? this.players.filter(q => !q.hasLost) : this.opponentsOf(pid))) {
+            const theirs = pool.filter(x => whose(x) === opp.id);
+            if (!theirs.length) continue;
+            // Vaevictis Asmadi, the Dire: "choose target permanent that player controls" — one of each (mandatory)
+            const got = this._choose({ playerId: pid, purpose: 'anyTargets', kind: 'objects', zone: spec.zone || 'battlefield', stackId: item.id,
+              items: this._chooseItems(theirs), min: spec.mandatory ? 1 : 0, max: 1, optional: !spec.mandatory, harmful: true,
+              prompt: `${name}: choose ${spec.mandatory ? 'a' : 'up to one'} ${spec.filter || 'target'} of ${opp.name}'s.` }, 'perOpp' + ui + ':' + opp.id);
+            if (got === SUSPEND) return SUSPEND;
+            for (const id of ((got && got.picks) || [])) { picked[ui].push({ kind: 'object', id }); usedSpecs[ui].push(Object.assign({}, spec, { upTo: !spec.mandatory })); }
+          }
+        }
+      }
+      /* ---- what it chose, kept on it: each sentence's own targets ---- */
+      let targets = [], specs = [];
+      const aimed = [...new Set(plan.units.flatMap(u => u.at.map(a => a.eff)))];
+      for (const f of aimed) f._tslot = [];
+      plan.units.forEach((u, ui) => picked[ui].forEach((t, j) => {
+        const at = targets.push(t) - 1;
+        specs.push(usedSpecs[ui][j]);
+        for (const a of u.at) a.eff._tslot.push(at);
+      }));
+      /* "controlled by different players"; Ravager of the Fells: "a creature that player or that planeswalker's
+         controller controls" — one under anybody else isn't a target after all (sameControllerAsPrev) */
+      const dropped = new Set();
+      for (const f of aimed) {
+        const ts = f._tslot.map(i => targets[i]);
+        if ((f.targets || []).some(sp => sp && sp.differentControllers)) {
+          const seen = new Set();
+          f._tslot.forEach((i, j) => { const t = ts[j]; if (t.kind !== 'object') return; const c = (this.obj(t.id) || {}).controller; if (seen.has(c)) dropped.add(i); else seen.add(c); });
+        }
+        if ((f.targets || []).some((sp, i) => i > 0 && sp && sp.sameControllerAsPrev) && ts.length === f.targets.length) {
+          f._tslot.forEach((i, j) => { if (j > 0 && f.targets[j] && f.targets[j].sameControllerAsPrev &&
+            (ts[j].kind !== 'object' || (this.obj(ts[j].id) || {}).controller !== this._targetsController(ts[j - 1]))) dropped.add(i); });
+        }
+      }
+      if (dropped.size) {
+        const remap = [];
+        let k2 = 0;
+        targets.forEach((t, i) => { remap[i] = dropped.has(i) ? -1 : k2++; });
+        for (const f of aimed) f._tslot = f._tslot.map(i => remap[i]).filter(i => i >= 0);
+        specs = specs.filter((x, i) => !dropped.has(i));
+        targets = targets.filter((x, i) => !dropped.has(i));
+      }
+      /* ---- how its damage is divided (CR 601.2d) ---- */
+      const divs = aimed.filter(f => f.op === 'damageDivided' && !f.evenly);
+      for (let di = 0; di < divs.length; di++) {
+        const f = divs[di];
+        const total = n(f.n);
+        if (f._tslot.length < 2 || !(total > f._tslot.length)) continue;
+        const opts = f._tslot.map((i, j) => {
+          const t = targets[i];
+          const o = t.kind === 'object' && this.obj(t.id);
+          const need = o && o.zone === 'battlefield' && this.characteristics(o).isCreature ? Math.max(0, this.toughnessOf(o) - (o.damage || 0) - 1)
+            : o && o.zone === 'battlefield' ? Math.max(0, (Number((o.counters || {}).loyalty) || 0) - 1) : null;
+          return { i: j, label: t.kind === 'player' ? (this.player(t.id) || {}).name || t.id : (o ? o.name : '?'), id: t.id, need };
+        });
+        const rest = total - f._tslot.length;
+        const got = this._choose({ playerId: pid, purpose: 'divideDamage', kind: 'options', repeat: true, min: rest, max: rest, stackId: item.id,
+          options: opts, prompt: `${name}: each target is dealt 1 damage; divide the other ${rest} among them.` }, 'div' + di);
+        if (got === SUSPEND) return SUSPEND;
+        const split = f._tslot.map(() => 1);
+        for (const j of ((got && got.picks) || []).slice(0, rest)) if (split[j] != null) split[j]++;
+        // (an answer short of the whole amount: the rest to the first)
+        split[0] += total - split.reduce((a, b) => a + b, 0);
+        f._split = split;
+      }
+      keep();
+      item.targets = targets;
+      item.targetSpecs = specs;
+      if (targets.length) this.logEvent('trigger', `${name} targets ${targets.map(t => this.describeTarget(t)).join(', ')}.`);
+      this.emit('stack:add', item);
+      // what it targets becomes the target of it now (CR 115.1), as with a spell or an activated ability
+      for (const t of targets) {
+        const x = t.kind === 'object' && this.obj(t.id);
+        if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, byTrigger: true, playerId: pid, stackId: item.id, nth: this._targetedNth(x) });
+        if (t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, byTrigger: true, playerId: pid, stackId: item.id });
+        this._spellBecomesTarget(t, { byAbility: true, byTrigger: true, playerId: pid, stackId: item.id });
+      }
+      // ward on what it targets: a ward trigger, above it on the stack (CR 702.21a)
+      this._applyWard(item);
+      this._crimeCheck(pid, targets);
+      this.touch();
+      return null;
     }
 
     /* ---------- effect execution ----------
@@ -16725,6 +17076,56 @@
       return card;
     }
 
+    /**
+     * A trigger's target specs made particular to what set it off: "target creature that player
+     * controls" is the player the trigger is about, "with lesser mana value" than the card it is
+     * about, and so on. The same whether its targets are chosen as it goes on the stack or, for
+     * what still chooses then, as it resolves; `ctx` is the trigger (or what is resolving).
+     */
+    _aimSpecs(specs, ctx) {
+      const td = ctx.triggerData || {};
+      // (Karazikar, the Eye Tyrant: "target creature that player controls" — the player attacked)
+      const tp = ctx.chosenPlayer || td.drawer || td.player || td.attackedPlayer || td.deadController || td.playerId || '-';
+      return (specs || []).map(spec => (spec && spec.controller === 'triggerPlayer'
+        ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
+        // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
+        : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
+        // Lucy MacLean, Positively Armed: "target player other than its controller" — the token the trigger is about (notTriggerObjController)
+        : spec && spec.notTriggerObjController ? Object.assign({}, spec, { notTriggerObjController: false,
+          notPlayer: td.objController || ((td.objectId && this.obj(td.objectId)) || {}).controller || '-' })
+        // Shadrix Silverquill: "Each mode must target a different player" — none an earlier mode pointed at
+        : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
+        // Toralf, God of Fury: "any target other than that permanent" — the one the trigger is about (notTriggerObject)
+        : spec && spec.notTriggerObject ? Object.assign({}, spec, { notTriggerObject: false, notObject: td.objectId || null })
+        : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
+        // Scrap Trawler: "with lesser mana value" than the one the trigger is about
+        .map(spec => {
+          if (!spec || !spec.mvBelowTrigger) return spec;
+          const it = td.objectId && this.obj(td.objectId);
+          return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
+        })
+        /* Colfenor, the Last Yew: "with lesser toughness" than the creature that died, as it last was
+           (toughBelowTrigger) */
+        .map(spec => {
+          if (!spec || !spec.toughBelowTrigger) return spec;
+          const it = td.objectId && this.obj(td.objectId);
+          const tg = it ? (it._lastToughness != null ? it._lastToughness : this.toughnessOf(it)) : 0;
+          return Object.assign({}, spec, { toughBelowTrigger: false, maxToughness: tg - 1 });
+        })
+        // Krile Baldesion: "with mana value equal to that spell's mana value" (mvEqTrigger)
+        .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
+        // Saruman of Many Colors: "with equal or lesser mana value than that spell" (mvAtMostTrigger)
+        .map(spec => (spec && spec.mvAtMostTrigger ? Object.assign({}, spec, { mvAtMostTrigger: false, maxMv: this._triggerSpellMv(td) }) : spec))
+        // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
+        .map(spec => {
+          if (!spec || !spec.otherSpellType) return spec;
+          const it = td.objectId && this.obj(td.objectId);
+          const ty = ((it && it.analysis()) || {}).types || [];
+          const other = ['instant', 'sorcery'].filter(k => !ty.some(x => String(x).toLowerCase() === k));
+          return Object.assign({}, spec, { otherSpellType: false, filter: other.join(' or ') + ' card', cardTypes: other.length ? other : ['none'] });
+        });
+    }
+
     _runEffect(e, ctx) {
       this._effDepth = (this._effDepth || 0) + 1;
       try { return this._runEffectBody(e, ctx); } finally {
@@ -16752,6 +17153,22 @@
       }
       let targets = (ctx.resolvedTargets || ctx.targets || []);
       let sliced = false;
+      /* A triggered ability's targets, chosen as it was put on the stack, each sentence its own
+         (_tslot, _aimTrigger): those that are still legal as it resolves (CR 608.2b) */
+      const aimedHere = Array.isArray(e._tslot) && !!ctx.targetSpecs;
+      if (aimedHere) {
+        const all = ctx.targets || [], live = ctx.resolvedTargets || all;
+        targets = e._tslot.map(i => all[i]).filter(t => t && live.some(r => r && r.kind === t.kind && r.id === t.id));
+        sliced = true;
+        // ("any number of target …", "for each opponent, … target …": they, and "those" in what follows)
+        if (e.anyFrom || e.perOpponentFrom) this._noteLastAffected(targets);
+        if (e.perOpponentFrom) this._lastGroup = targets.filter(t => t.kind === 'object').map(t => t.id);
+        ctx._lastAimed = targets.slice();
+      } else if (ctx.targetSpecs && ctx._lastAimed && !(e.targets || []).length && !e.anyFrom && !e.perOpponentFrom) {
+        /* Shadrix Silverquill: "Target player draws a card and loses 1 life" — "that player", "it", "they" in a
+           sentence that aims at nothing: what the sentence before it aimed at */
+        targets = ctx._lastAimed;
+      }
       /* Ragnarok, Divine Deliverance: "destroy target permanent and return target nonlegendary permanent
          card from your graveyard" — a trigger's targets asked for as it resolves, each sentence its own:
          what the first one was pointed at is not the second's (askedSpecs) */
@@ -16760,7 +17177,7 @@
          creature" — each sentence has its own place among the targets, the one inside the "if" too
          (targetSlots, as the targets were chosen) */
       let slotted = false;
-      if (e.targets && e.targets.length && (ctx.targets || []).length && hasBranchSlots(ctx.effects)) {
+      if (!aimedHere && e.targets && e.targets.length && (ctx.targets || []).length && hasBranchSlots(ctx.effects)) {
         const slots = targetSlots(ctx.effects, this._selOf(ctx));
         const at = slots.findIndex(s => s.eff === e);
         if (at >= 0) {
@@ -16772,7 +17189,7 @@
       /* "Destroy target artifact. Target player draws a card." Two
          sentences, two targets, chosen in order as the spell was cast: each
          sentence acts on its own, not on everything the spell pointed at. */
-      if (!slotted && e.targets && e.targets.length && (ctx.targets || []).length) {
+      if (!slotted && !aimedHere && e.targets && e.targets.length && (ctx.targets || []).length) {
         const flat = [];
         /* (entwined, Spectral Shift: every mode is spliced in after the choice, each with its own targets,
            in the order they were chosen as it was cast — entwineSlots) */
@@ -16830,7 +17247,7 @@
       }
       /* "Tap any number of target creatures": any number of the things it
          could target, picked as it resolves */
-      if (e.anyFrom && !(e.targets && e.targets.length)) {
+      if (e.anyFrom && !(e.targets && e.targets.length) && !aimedHere) {
         const mvOf = (o) => (o.card && o.card.cmc) || 0;
         // (Kairi, the Swirling Sky: "with total mana value 6 or less" — anyTotalMv)
         const pool = this._legalTargetsFor(e.anyFrom, ctx.controller, src ? src.id : null)
@@ -16881,7 +17298,7 @@
       }
       /* "For each opponent, exile up to one target nonland permanent that
          player controls": up to one of each opponent's, picked as it resolves */
-      if (e.perOpponentFrom && !(e.targets && e.targets.length)) {
+      if (e.perOpponentFrom && !(e.targets && e.targets.length) && !aimedHere) {
         const spec = e.perOpponentFrom;
         const pool = this._legalTargetsFor(spec, ctx.controller, src ? src.id : null)
           .filter(t => t.kind === 'object').map(t => this.obj(t.id)).filter(Boolean);
@@ -16912,48 +17329,9 @@
          when the spell was cast. */
       if (e.targets && e.targets.length && !targets.length && !sliced) {
         /* "Destroy target artifact that player controls": the player the
-           trigger is about, whoever that turns out to be. */
+           trigger is about, whoever that turns out to be (_aimSpecs). */
         const td = ctx.triggerData || {};
-        // (Karazikar, the Eye Tyrant: "target creature that player controls" — the player attacked)
-        const tp = ctx.chosenPlayer || td.drawer || td.player || td.attackedPlayer || td.deadController || td.playerId || '-';
-        const aimed = e.targets.map(spec => (spec && spec.controller === 'triggerPlayer'
-          ? Object.assign({}, spec, { controller: undefined, controllerId: tp })
-          // The Lord of Pain: "another target player" — not the one who cast it (notTriggerPlayer)
-          : spec && spec.notTriggerPlayer ? Object.assign({}, spec, { notTriggerPlayer: false, notPlayer: tp })
-          // Lucy MacLean, Positively Armed: "target player other than its controller" — the token the trigger is about (notTriggerObjController)
-          : spec && spec.notTriggerObjController ? Object.assign({}, spec, { notTriggerObjController: false,
-            notPlayer: td.objController || ((td.objectId && this.obj(td.objectId)) || {}).controller || '-' })
-          // Shadrix Silverquill: "Each mode must target a different player" — none an earlier mode pointed at
-          : spec && spec.distinctModePlayer ? Object.assign({}, spec, { distinctModePlayer: false, notPlayers: (ctx._modePlayers || []).slice() })
-          // Toralf, God of Fury: "any target other than that permanent" — the one the trigger is about (notTriggerObject)
-          : spec && spec.notTriggerObject ? Object.assign({}, spec, { notTriggerObject: false, notObject: td.objectId || null })
-          : spec && spec.defending && this._defendingPid ? Object.assign({}, spec, { controllerId: this._defendingPid }) : spec))
-          // Scrap Trawler: "with lesser mana value" than the one the trigger is about
-          .map(spec => {
-            if (!spec || !spec.mvBelowTrigger) return spec;
-            const it = td.objectId && this.obj(td.objectId);
-            return Object.assign({}, spec, { mvBelowTrigger: false, maxMv: ((it && it.card && it.card.cmc) || 0) - 1 });
-          })
-          /* Colfenor, the Last Yew: "with lesser toughness" than the creature that died, as it last was
-             (toughBelowTrigger) */
-          .map(spec => {
-            if (!spec || !spec.toughBelowTrigger) return spec;
-            const it = td.objectId && this.obj(td.objectId);
-            const tg = it ? (it._lastToughness != null ? it._lastToughness : this.toughnessOf(it)) : 0;
-            return Object.assign({}, spec, { toughBelowTrigger: false, maxToughness: tg - 1 });
-          })
-          // Krile Baldesion: "with mana value equal to that spell's mana value" (mvEqTrigger)
-          .map(spec => (spec && spec.mvEqTrigger ? this._mvEqTriggerSpec(spec, td) : spec))
-          // Saruman of Many Colors: "with equal or lesser mana value than that spell" (mvAtMostTrigger)
-          .map(spec => (spec && spec.mvAtMostTrigger ? Object.assign({}, spec, { mvAtMostTrigger: false, maxMv: this._triggerSpellMv(td) }) : spec))
-          // Gale, Waterdeep Prodigy: "target card of the other type" — sorcery for an instant cast, instant for a sorcery
-          .map(spec => {
-            if (!spec || !spec.otherSpellType) return spec;
-            const it = td.objectId && this.obj(td.objectId);
-            const ty = ((it && it.analysis()) || {}).types || [];
-            const other = ['instant', 'sorcery'].filter(k => !ty.some(x => String(x).toLowerCase() === k));
-            return Object.assign({}, spec, { otherSpellType: false, filter: other.join(' or ') + ' card', cardTypes: other.length ? other : ['none'] });
-          });
+        const aimed = this._aimSpecs(e.targets, ctx);
         /* Heliod's Intervention: "Destroy X target artifacts" inside a mode —
            X of them (as many as there are), asked for now */
         let askSpecs = e.targets;
@@ -17004,15 +17382,17 @@
           if (warded) return null;
           ctx.resolvedTargets = targets;
           ctx._askedSpecs = JSON.stringify(e.targets);
-          // (Loki, God of Mischief: a triggered ability's targets — byTrigger; once, should a later question re-run this)
+          /* what a trigger targets is told as it is chosen: here, what still chooses as it resolves (a reflexive
+             "when you do" written into it, a trigger _aimTrigger leaves to then) — late, but told (byTrigger, late);
+             once, should a later question re-run this */
           const rz = this.resolving;
           const told = 'btg' + (rz ? rz.index : 0);
           if (rz) rz.marks = rz.marks || {};
           if (ctx.kind === 'ability' && !(rz && rz.marks[told])) for (const t of targets) {
             if (rz) rz.marks[told] = true;
             const x = t && t.kind === 'object' && this.obj(t.id);
-            if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, byTrigger: true, playerId: ctx.controller });
-            if (t && t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, byTrigger: true, playerId: ctx.controller });
+            if (x && x.zone === 'battlefield') this._fire('becomesTarget', x.controller, { source: x, object: x, byAbility: true, byTrigger: true, late: true, playerId: ctx.controller });
+            if (t && t.kind === 'player' && this.player(t.id)) this._fire('becomesTarget', t.id, { playerTarget: t.id, byAbility: true, byTrigger: true, late: true, playerId: ctx.controller });
           }
           if (e.targets.some(sp => sp && sp.distinctModePlayer)) {
             ctx._modePlayers = ctx._modePlayers || [];
@@ -17532,6 +17912,8 @@
       }
 
       switch (e.op) {
+        // a triggered ability being put on the stack: its modes and targets (_aimTrigger)
+        case 'aimTrigger': return this._aimTrigger(e, ctx, n);
         /* Abstract Paintmage, Tablet-style rituals: "Spend this mana only to cast
            instant and sorcery spells" after a triggered ability or spell made
            it — that mana is set aside with its restriction (restrictedMana) */
@@ -20185,6 +20567,27 @@
           const payer = this.player(e.payer);
           if (!payer || payer.hasLost) break;
           const wardName = src ? `${src.name}'s ward` : 'Ward';
+          /* a triggered ability's ward, whatever the price: asked whole, or it is countered (_applyWard) */
+          if (!(e.discard || e.sacrifice || e.blight)) {
+            const so = item.obj || (item.objId && this.obj(item.objId));
+            const what = item.kind === 'spell' ? item.name : so ? `${so.name}'s ability` : 'the ability';
+            const price = src ? this._wardPriceWords(src, e.text || '', e) : String(e.text || '');
+            if (!src || !this._wardPayable(payer.id, src, e)) {
+              item.countered = true;
+              this.logEvent('ward', `${what} is countered by ${wardName} — ${payer.name} can't pay ${price}.`);
+              break;
+            }
+            const yes = this._ask({ type: 'confirm', playerId: payer.id, purpose: 'wardPrice', objId: src.id, stackId: item.id,
+              ward: { mana: e.mana || null, life: e.lifePower ? Math.max(0, this.powerOf(src)) : (e.life || 0), poison: e.poison || 0,
+                evidence: e.evidence || 0, waterbend: e.waterbend || null },
+              prompt: `${wardName} — ${price}. Pay it, or ${what} is countered?`,
+              // (a button shows plain words: the mana symbols are in the prompt)
+              yesLabel: /\{/.test(price) ? 'Pay' : price, noLabel: `Let ${what} be countered` }, 'ward');
+            if (yes === SUSPEND) return SUSPEND;
+            if (!yes) { item.countered = true; this.logEvent('ward', `${what} is countered by ${wardName} — ${payer.name} doesn't pay.`); break; }
+            if (!this._payWardPrice(payer.id, src, e, what)) item.countered = true;
+            break;
+          }
           const got = this._wardAskChoice(payer.id, e, wardName, item.name, 'ward', { stackId: item.id });
           if (got === SUSPEND) return SUSPEND;
           const paid = !!got && this._wardPayChosen(payer.id, e, got);
@@ -25193,6 +25596,20 @@
           break;
         }
         case 'damageDivided': {
+          /* divided as the trigger was put on the stack (CR 601.2d): a target that is gone is not dealt its share
+             (CR 608.2b) (_split) */
+          if (aimedHere && Array.isArray(e._split)) {
+            let dealt = false;
+            e._tslot.forEach((i, j) => {
+              const t = (ctx.targets || [])[i], amt = e._split[j] || 0;
+              if (!t || amt <= 0 || !targets.some(r => r.kind === t.kind && r.id === t.id)) return;
+              if (t.kind === 'player') this.dealDamageToPlayer(this.player(t.id), amt, src);
+              else { const o = this.obj(t.id); if (o) this.dealDamageToObject(o, amt, src); }
+              dealt = true;
+            });
+            if (dealt) this.emit('sfx', 'damage');
+            break;
+          }
           const total = n(e.n);
           if (!targets.length || total <= 0) break;
           const objs = targets.filter(t => t.kind === 'object' || t.kind === 'player');
@@ -33550,7 +33967,9 @@
           ctx, effects: rs.effects, index: rs.index, answers: rs.answers,
           manual: rs.manual, afterKind: rs.afterKind, _sacBy: rs.sacBy, _discBy: rs.discBy,
           // the callback is a closure, so it is rebuilt from what it was for
-          after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx) : null,
+          after: rs.afterKind === 'afterResolve' ? () => this._afterResolve(ctx)
+            // a trigger's targets being chosen as it goes on the stack: the next one's, then priority (_aimNext)
+            : rs.afterKind === 'aimTrigger' ? () => this._aimNext() : null,
         };
       } else this.resolving = null;
       this.stateVersion = (snap.stateVersion || 0) + 1;
@@ -34284,6 +34703,121 @@
   /** What a spell card asks to target as it is cast: the one list the engine and the table both read. */
   function spellTargetSpecs(a, sel) { return effectSpecs(cardSpellEffects(a), sel); }
 
+  /* ---------- what a triggered ability chooses as it is put on the stack (CR 603.3c–d) ----------
+     Its modes, then the targets of every sentence written into it: at the top, in a sequence, and in
+     the branches of a "you may", "if you do", "if …", "unless …" or a coin flip — decided as it
+     resolves, but chosen now, like a spell's (CR 601.2c). "When you do, …" is a reflexive trigger of
+     its own (CR 603.12), choosing when it triggers; so are delayed triggers. */
+  const AIM_BRANCH_OPS = new Set(['may', 'mayPay', 'ifCond', 'sacThen', 'unlessPays', 'clash', 'flipCoin', 'ifLastWas']);
+  // "choose an opponent. … target creature that player controls": a player not known until it resolves
+  const AIM_LATE_PLAYER_OPS = new Set(['choosePlayer', 'chooseOpponent', 'opponentMayElse', 'villainousChoice', 'temptingOffer']);
+  const aimsAt = (e) => !!e && ((e.targets || []).length > 0 || !!e.anyFrom || !!e.perOpponentFrom);
+  function aimsIn(list) {
+    return (list || []).some(e => e && typeof e === 'object' && (aimsAt(e) ||
+      Object.keys(e).some(k => k !== 'targets' && Array.isArray(e[k]) && aimsIn(e[k])) ||
+      (Array.isArray(e.modes) && e.modes.some(m => m && aimsIn(m.effects)))));
+  }
+  /** What a list aims at, in order, for telling whether two branches aim at the same things. */
+  function aimWords(list) {
+    const words = (l) => {
+      let out = [];
+      for (const e of (l || [])) {
+        if (!e) continue;
+        if (e.op === 'sequence') { out = out.concat(words(e.list)); continue; }
+        if (aimsAt(e)) out.push([e.targets || null, e.anyFrom || null, e.perOpponentFrom || null]);
+        // (Emeria Shepherd: "onto the battlefield instead", or to hand — the same card either way)
+        const a = words(e.then), b = words(e.otherwise);
+        out = out.concat(a.length && JSON.stringify(a) === JSON.stringify(b) ? a : a.concat(b));
+      }
+      return out;
+    };
+    return JSON.stringify(words(list));
+  }
+  /** The top-level "choose one —" of a triggered ability, if it has one (in a sequence too): { modal, list, at }. */
+  function aimModal(effects) {
+    const find = (list) => {
+      for (let i = 0; i < (list || []).length; i++) {
+        const e = list[i];
+        if (e && e.op === 'modal') return { modal: e, list, at: i };
+        if (e && e.op === 'sequence') { const got = find(e.list); if (got) return got; }
+      }
+      return null;
+    };
+    return find(effects);
+  }
+  /** Is "When you do" (or "If you do" read as one) written into this branch: a reflexive trigger? */
+  const aimReflexive = (e) => (e.op === 'may' || e.op === 'mayPay' || e.op === 'sacThen') && /\bwhen you do\b/i.test(e.text || '');
+  /**
+   * The plan for choosing a triggered ability's targets as it goes on the stack. `units` are the
+   * targets in the order they are chosen, each { kind: 'spec'|'any'|'perOpp', spec, at: [{ eff, i }] }
+   * (two branches of which one happens share theirs: Necra Sanctuary); `late` are the effects that
+   * choose their own as they resolve ("When you do"). `ok` false, with `why`, leaves the whole ability
+   * choosing as it resolves. A top-level modal is reported (`modal`) and its modes walked too, so
+   * the plan says whether they could be; the engine asks the modes first and plans what they chose.
+   */
+  function triggerAimPlan(effects) {
+    const units = [], late = [];
+    let why = null;
+    const top = aimModal(effects);
+    const ops = new Set();
+    const note = (l) => { for (const e of (l || [])) if (e && typeof e === 'object') { ops.add(e.op); for (const k of Object.keys(e)) if (Array.isArray(e[k])) note(e[k]); if (Array.isArray(e.modes)) for (const m of e.modes) note(m && m.effects); } };
+    note(effects);
+    const lateOne = (l) => { for (const e of (l || [])) { if (!e || typeof e !== 'object' || e.op === 'reflexive' || e.op === 'delayed') continue; if (aimsAt(e)) late.push(e);
+      for (const k of Object.keys(e)) if (k !== 'targets' && Array.isArray(e[k])) lateOne(e[k]); if (Array.isArray(e.modes)) for (const m of e.modes) lateOne(m && m.effects); } };
+    const walk = (list, shared, sentence) => {
+      let reflex = false, lastAim = null;
+      for (const e of (list || [])) {
+        if (!e || typeof e !== 'object') continue;
+        // its own trigger, choosing when it triggers
+        if (e.op === 'reflexive' || e.op === 'delayed') continue;
+        /* Grishnákh, Brash Instigator: "amass Orcs 2. When you do, … target …" — the rest of it is the
+           reflexive trigger's */
+        if (reflex || /^when you do\b/i.test(e.text || '')) { reflex = true; lateOne([e]); continue; }
+        if (e.op === 'sequence') { walk(e.list, shared, true); continue; }
+        if (e.op === 'modal') {
+          if (top && e === top.modal) for (const m of (e.modes || [])) walk(m && m.effects, null);
+          else if (aimsIn((e.modes || []).map(m => ({ op: 'sequence', list: (m && m.effects) || [] })))) why = why || 'modes inside a branch';
+          continue;
+        }
+        if (aimReflexive(e)) { lateOne(e.then); lateOne(e.otherwise); continue; }
+        /* Imotekh the Stormlord: "another target artifact creature you control gets +2/+2 and gains menace" — one
+           sentence read as two effects aiming alike, one target: what the one before pointed at (as askedSpecs does) */
+        const key = sentence && (e.targets || []).length ? JSON.stringify(e.targets) : null;
+        if (key && lastAim && lastAim.key === key) lastAim.units.forEach((u, i) => u.at.push({ eff: e, i }));
+        else if (aimsAt(e)) {
+          const slots = (e.targets || []).length ? e.targets.map((spec, i) => ({ kind: 'spec', spec, i }))
+            : e.anyFrom ? [{ kind: 'any', spec: e.anyFrom, i: 0 }] : [{ kind: 'perOpp', spec: e.perOpponentFrom, i: 0 }];
+          const mine = [];
+          for (const s of slots) {
+            const m = s.spec && s.spec.multi;
+            /* (Elvish Mariner: "up to X …, where X is the number of cards looked at" — the trigger's amount; Mogis's
+               Marauder: "where X is your devotion to black" — counted as it goes on the stack) */
+            if (m && typeof m.count === 'string' && !(m.count === 'X' || m.count === 'triggerAmount'))
+              why = why || 'a number of targets counted as it resolves';
+            if (m && m.count === 'X' && ops.has('mayPay') && /\{X\}/.test(JSON.stringify(effects))) why = why || 'X paid as it resolves';
+            const sh = shared && shared.shift();
+            if (sh && sh.kind === s.kind && JSON.stringify(sh.spec) === JSON.stringify(s.spec)) { sh.at.push({ eff: e, i: s.i }); mine.push(sh); continue; }
+            const u = { kind: s.kind, spec: s.spec, at: [{ eff: e, i: s.i }] };
+            units.push(u); mine.push(u);
+          }
+          if (key) lastAim = { key, units: mine };
+        }
+        if (AIM_BRANCH_OPS.has(e.op)) {
+          const a = aimWords(e.then), b = aimWords(e.otherwise);
+          if (a !== '[]' && a === b) { const mark = units.length; walk(e.then, null); walk(e.otherwise, units.slice(mark)); }
+          else { walk(e.then, shared); walk(e.otherwise, shared); }
+          continue;
+        }
+        // anything else holding sentences that aim: chosen by its own rules as it resolves
+        for (const k of Object.keys(e)) if (k !== 'targets' && Array.isArray(e[k]) && aimsIn(e[k])) why = why || ('targets inside ' + e.op);
+      }
+    };
+    walk(effects, null);
+    if (units.some(u => u.spec && (u.spec.controller === 'triggerPlayer' || u.spec.notTriggerPlayer)) && [...ops].some(op => AIM_LATE_PLAYER_OPS.has(op)))
+      why = why || 'a player chosen as it resolves';
+    return { ok: !why, why, units, late, modal: top ? top.modal : null };
+  }
+
   function normTarget(t) {
     if (typeof t === 'string') return { kind: 'object', id: t };
     return t;
@@ -34293,7 +34827,7 @@
   function whole(s) { return String(s || ''); }
 
   MTG.rules = { Game, Player, GObj, PHASES, STEP_NAMES, ZONES, spellTargetSpecs, cardSpellEffects, fitSpecs, effectSpecs,
-    targetSlots, hasBranchSlots };
+    targetSlots, hasBranchSlots, triggerAimPlan };
 })(window.MTG);
 
 

@@ -353,7 +353,11 @@ declare namespace MTG {
     type: 'pickCard'; count: number; cards: ChoiceCard[]; optional?: boolean; candidates?: Id[];
     fromLibrary?: boolean; worst?: boolean; totalPower?: number;
   }
-  interface PickTargetChoice extends ChoiceBase { type: 'pickTarget'; specs: Array<Record<string, any>>; options: Target[][]; count: number }
+  interface PickTargetChoice extends ChoiceBase {
+    type: 'pickTarget'; specs: Array<Record<string, any>>; options: Target[][]; count: number;
+    /** a triggered ability going on the stack (purpose 'triggerTargets'): the effect each target is for, for the bots */
+    aimedBy?: Array<Record<string, any>>;
+  }
   interface ModeChoice extends ChoiceBase {
     type: 'mode'; count: number; options: Array<{ i: number; label: string }>; repeatable?: boolean;
     values?: any[]; types?: string[]; colors?: string[]; field?: string; castOpts?: Record<string, any>;
